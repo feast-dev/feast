@@ -1,0 +1,49 @@
+### Scratch files ###
+scratch*
+
+### Local Environment ###
+*local*.env
+
+### Gradle ###
+**/.gradle
+!gradle/wrapper/gradle-wrapper.jar
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+## Build Files ##
+**/temp/
+**/build/
+**/target/
+**/bin/
+dependency-reduced-pom.xml
+
+# Generated proto files
+go-feast-proto/*
+
+# govendor
+vendor
+
+## direnv
+.envrc
+.direnv
