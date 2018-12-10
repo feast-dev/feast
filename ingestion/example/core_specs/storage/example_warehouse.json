@@ -1,0 +1,7 @@
+{
+  "id": "example_warehouse",
+  "type": "file.json",
+  "options": {
+    "path": "output/warehouse/data"
+  }
+}

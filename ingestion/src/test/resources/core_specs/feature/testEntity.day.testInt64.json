@@ -1,0 +1,20 @@
+{
+  "id": "testEntity.day.testInt64",
+  "entity": "testEntity",
+  "granularity": "DAY",
+  "name": "testInt64",
+  "owner": "feast@example.com",
+  "description": "This is test feature of type integer",
+  "uri": "https://example.com/",
+  "valueType": "INT64",
+  "tags": [],
+  "options": {},
+  "dataStores": {
+    "serving": {
+      "id": "TEST_SERVING"
+    },
+    "warehouse": {
+      "id": "TEST_WAREHOUSE"
+    }
+  }
+}

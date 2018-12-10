@@ -1,0 +1,5 @@
+{
+  "id": "TEST_SERVING",
+  "type": "MOCK_SERVING_STORE",
+  "options": {}
+}

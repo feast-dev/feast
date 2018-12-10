@@ -1,0 +1,20 @@
+{
+  "id": "product.day.completed_orders",
+  "entity": "product",
+  "granularity": "DAY",
+  "name": "completed_orders",
+  "owner": "feast@example.com",
+  "description": "This feature represents a product's completed orders per day",
+  "uri": "https://example.com/",
+  "valueType": "INT32",
+  "tags": [],
+  "options": {},
+  "dataStores": {
+    "serving": {
+      "id": "example_serving"
+    },
+    "warehouse": {
+      "id": "example_warehouse"
+    }
+  }
+}
