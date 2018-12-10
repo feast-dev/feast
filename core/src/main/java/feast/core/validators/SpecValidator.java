@@ -1,0 +1,278 @@
+/*
+ * Copyright 2018 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+package feast.core.validators;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static feast.core.validators.Matchers.checkLowerSnakeCase;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import feast.core.dao.EntityInfoRepository;
+import feast.core.dao.FeatureGroupInfoRepository;
+import feast.core.dao.FeatureInfoRepository;
+import feast.core.dao.StorageInfoRepository;
+import feast.core.model.FeatureGroupInfo;
+import feast.core.storage.BigQueryStorageManager;
+import feast.core.storage.BigTableStorageManager;
+import feast.core.storage.PostgresStorageManager;
+import feast.core.storage.RedisStorageManager;
+import feast.specs.EntitySpecProto.EntitySpec;
+import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
+import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.specs.ImportSpecProto.Field;
+import feast.specs.ImportSpecProto.ImportSpec;
+import feast.specs.StorageSpecProto.StorageSpec;
+import java.util.Arrays;
+import java.util.Optional;
+import org.springframework.beans.factory.annotation.Autowired;
+
+public class SpecValidator {
+
+  private StorageInfoRepository storageInfoRepository;
+  private EntityInfoRepository entityInfoRepository;
+  private FeatureGroupInfoRepository featureGroupInfoRepository;
+  private FeatureInfoRepository featureInfoRepository;
+  private static final String FILE_ERROR_STORE_TYPE = "file.json";
+
+  private String[] supportedStorageTypes =
+      new String[]{
+          BigQueryStorageManager.TYPE,
+          BigTableStorageManager.TYPE,
+          PostgresStorageManager.TYPE,
+          RedisStorageManager.TYPE,
+          BigQueryStorageManager.TYPE,
+          FILE_ERROR_STORE_TYPE
+      };
+
+  @Autowired
+  public SpecValidator(
+      StorageInfoRepository storageInfoRepository,
+      EntityInfoRepository entityInfoRepository,
+      FeatureGroupInfoRepository featureGroupInfoRepository,
+      FeatureInfoRepository featureInfoRepository) {
+
+    this.storageInfoRepository = storageInfoRepository;
+    this.entityInfoRepository = entityInfoRepository;
+    this.featureGroupInfoRepository = featureGroupInfoRepository;
+    this.featureInfoRepository = featureInfoRepository;
+  }
+
+  /**
+   * Validates a given feature spec's contents, throwing and IllegalArgumentException if the spec is
+   * invalid.
+   */
+  public void validateFeatureSpec(FeatureSpec spec) throws IllegalArgumentException {
+    try {
+      // check not not null
+      checkArgument(!spec.getId().equals(""), "Id field cannot be empty");
+      checkArgument(!spec.getName().equals(""), "Name field cannot be empty");
+      checkLowerSnakeCase(spec.getName(), "Name");
+      checkArgument(!spec.getOwner().equals(""), "Owner field cannot be empty");
+      checkArgument(!spec.getDescription().equals(""), "Description field cannot be empty");
+      checkArgument(!spec.getEntity().equals(""), "Entity field cannot be empty");
+
+      // check id validity
+      String[] idSplit = spec.getId().split("\\.");
+      checkArgument(idSplit.length == 3, "Id must contain entity, granularity, name");
+      checkArgument(
+          idSplit[0].equals(spec.getEntity()),
+          "Id must be in format entity.granularity.name, entity in Id does not match entity provided.");
+      checkArgument(
+          idSplit[1].equals(spec.getGranularity().toString().toLowerCase()),
+          "Id must be in format entity.granularity.name, granularity in Id does not match granularity provided.");
+      checkArgument(
+          idSplit[2].equals(spec.getName()),
+          "Id must be in format entity.granularity.name, name in Id does not match name provided.");
+
+      // check if referenced objects exist
+      checkArgument(
+          entityInfoRepository.existsById(spec.getEntity()),
+          Strings.lenientFormat("Entity with name %s does not exist", spec.getEntity()));
+
+      // TODO: clean up store validation for features
+      String servingStoreId = "";
+      String warehouseStoreId = "";
+      if (spec.hasDataStores()) {
+        servingStoreId =
+            spec.getDataStores().hasServing() ? spec.getDataStores().getServing().getId() : "";
+        warehouseStoreId =
+            spec.getDataStores().hasWarehouse() ? spec.getDataStores().getWarehouse().getId() : "";
+      }
+      if (!spec.getGroup().equals("")) {
+        Optional groupOptional = featureGroupInfoRepository.findById(spec.getGroup());
+        if (!groupOptional.isPresent()) {
+          throw new IllegalArgumentException(
+              Strings.lenientFormat("Group with id %s does not exist", spec.getGroup()));
+        }
+        FeatureGroupInfo group = (FeatureGroupInfo) groupOptional.get();
+        servingStoreId =
+            servingStoreId.equals("") ? group.getServingStore().getId() : servingStoreId;
+        warehouseStoreId =
+            warehouseStoreId.equals("") ? group.getWarehouseStore().getId() : warehouseStoreId;
+      }
+      checkArgument(
+          storageInfoRepository.existsById(servingStoreId),
+          Strings.lenientFormat("Serving store with id %s does not exist", servingStoreId));
+      checkArgument(
+          storageInfoRepository.existsById(warehouseStoreId),
+          Strings.lenientFormat("Warehouse store with id %s does not exist", warehouseStoreId));
+
+    } catch (NullPointerException | IllegalArgumentException e) {
+      throw new IllegalArgumentException(
+          Strings.lenientFormat(
+              "Validation for feature spec with id %s failed: %s", spec.getId(), e.getMessage()));
+    }
+  }
+
+  public void validateFeatureGroupSpec(FeatureGroupSpec spec) throws IllegalArgumentException {
+    try {
+      checkArgument(!spec.getId().equals(""), "Id field cannot be empty");
+      checkLowerSnakeCase(spec.getId(), "Id");
+      if (spec.hasDataStores()) {
+        if (spec.getDataStores().hasServing()
+            && !spec.getDataStores().getServing().getId().equals("")) {
+          String servingStoreId = spec.getDataStores().getServing().getId();
+          checkArgument(
+              storageInfoRepository.existsById(servingStoreId),
+              Strings.lenientFormat("Serving store with id %s does not exist", servingStoreId));
+        }
+        if (spec.getDataStores().hasWarehouse()
+            && !spec.getDataStores().getWarehouse().getId().equals("")) {
+          String warehouseStoreId = spec.getDataStores().getWarehouse().getId();
+          checkArgument(
+              storageInfoRepository.existsById(warehouseStoreId),
+              Strings.lenientFormat("Warehouse store with id %s does not exist", warehouseStoreId));
+        }
+      }
+    } catch (NullPointerException | IllegalArgumentException e) {
+      throw new IllegalArgumentException(
+          Strings.lenientFormat(
+              "Validation for feature group spec with id %s failed: %s",
+              spec.getId(), e.getMessage()));
+    }
+  }
+
+  public void validateEntitySpec(EntitySpec spec) throws IllegalArgumentException {
+    try {
+      checkArgument(!spec.getName().equals(""), "Name field cannot be empty");
+      checkLowerSnakeCase(spec.getName(), "Name");
+      checkNotNull(spec.getDescription(), "Description field cannot be empty");
+    } catch (NullPointerException | IllegalArgumentException e) {
+      throw new IllegalArgumentException(
+          Strings.lenientFormat(
+              "Validation for entity spec with name %s failed: %s",
+              spec.getName(), e.getMessage()));
+    }
+  }
+
+  // TODO: add validation for storage types and options
+  public void validateStorageSpec(StorageSpec spec) throws IllegalArgumentException {
+    try {
+      checkArgument(!spec.getId().equals(""), "Id field cannot be empty");
+      Matchers.checkUpperSnakeCase(spec.getId(), "Id");
+      checkArgument(Arrays.asList(supportedStorageTypes).contains(spec.getType()));
+    } catch (NullPointerException | IllegalArgumentException e) {
+      throw new IllegalArgumentException(
+          Strings.lenientFormat(
+              "Validation for storage spec with id %s failed: %s", spec.getId(), e.getMessage()));
+    }
+  }
+
+  public void validateImportSpec(ImportSpec spec) throws IllegalArgumentException {
+    try {
+      switch (spec.getType()) {
+        case "pubsub":
+          checkPubSubImportSpecOption(spec);
+          break;
+        case "file":
+          checkFileImportSpecOption(spec);
+          checkArgument(
+              !spec.getSchema().getEntityIdColumn().equals(""),
+              "entityId column must be specified in schema");
+          break;
+        case "bigquery":
+          checkBigqueryImportSpecOption(spec);
+          checkArgument(
+              !spec.getSchema().getEntityIdColumn().equals(""),
+              "entityId column must be specified in schema");
+          break;
+        default:
+          throw new IllegalArgumentException(
+              Strings.lenientFormat("Type %s not supported", spec.getType()));
+      }
+      spec.getSchema()
+          .getFieldsList()
+          .stream()
+          .map(Field::getFeatureId)
+          .filter(featureId -> !featureId.equals(""))
+          .forEach(
+              id ->
+                  checkArgument(
+                      featureInfoRepository.existsById(id),
+                      Strings.lenientFormat("Feature %s not registered", id)));
+      for (String name : spec.getEntitiesList()) {
+        checkArgument(
+            entityInfoRepository.existsById(name),
+            Strings.lenientFormat("Entity %s not registered", name));
+      }
+    } catch (NullPointerException | IllegalArgumentException e) {
+      throw new IllegalArgumentException(
+          Strings.lenientFormat("Validation for import spec failed: %s", e.getMessage()));
+    }
+  }
+
+  private void checkFileImportSpecOption(ImportSpec spec) throws IllegalArgumentException {
+    try {
+      checkArgument(
+          Lists.newArrayList("json", "csv").contains(spec.getOptionsOrThrow("format")),
+          "File format must be of type 'json' or 'csv'");
+      checkArgument(!spec.getOptionsOrDefault("path", "").equals(""), "File path cannot be empty");
+    } catch (NullPointerException | IllegalArgumentException e) {
+      throw new IllegalArgumentException(
+          Strings.lenientFormat("Invalid options: %s", e.getMessage()));
+    }
+  }
+
+  private void checkPubSubImportSpecOption(ImportSpec spec) throws IllegalArgumentException {
+    try {
+      String topic = spec.getOptionsOrDefault("topic", "");
+      String subscription = spec.getOptionsOrDefault("subscription", "");
+      if (topic.equals("") && subscription.equals("")) {
+        throw new IllegalArgumentException(
+            "Pubsub ingestion requires either topic or subscription");
+      }
+    } catch (NullPointerException | IllegalArgumentException e) {
+      throw new IllegalArgumentException(
+          Strings.lenientFormat("Invalid options: %s", e.getMessage()));
+    }
+  }
+
+  private void checkBigqueryImportSpecOption(ImportSpec spec) throws IllegalArgumentException {
+    try {
+      checkArgument(!spec.getOptionsOrThrow("project").equals(""),
+          "Bigquery project cannot be empty");
+      checkArgument(!spec.getOptionsOrThrow("dataset").equals(""),
+          "Bigquery dataset cannot be empty");
+      checkArgument(!spec.getOptionsOrThrow("table").equals(""), "Bigquery table cannot be empty");
+    } catch (NullPointerException | IllegalArgumentException e) {
+      throw new IllegalArgumentException(
+          Strings.lenientFormat("Invalid options: %s", e.getMessage()));
+    }
+  }
+}
