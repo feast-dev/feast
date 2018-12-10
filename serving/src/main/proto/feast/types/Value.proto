@@ -1,0 +1,100 @@
+/*
+ * Copyright 2018 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+package feast.types;
+
+option java_package = "feast.types";
+option java_outer_classname = "ValueProto";
+option go_package = "feast/go-feast-proto/feast/types";
+
+message ValueType {
+  enum Enum {
+    UNKNOWN = 0;
+    BYTES = 1;
+    STRING = 2;
+    INT32 = 3;
+    INT64 = 4;
+    DOUBLE = 5;
+    FLOAT = 6;
+    BOOL = 7;
+    TIMESTAMP = 8;
+  }
+}
+
+message Value {
+  // ValueType is referenced by the metadata types, FeatureInfo and EntityInfo.
+  // The enum values do not have to match the oneof val field ids, but they should.
+
+  oneof val {
+    bytes bytesVal = 1;
+    string stringVal = 2;
+    int32 int32Val = 3;
+    int64 int64Val = 4;
+    double doubleVal = 5;
+    float floatVal = 6;
+    bool boolVal = 7;
+    google.protobuf.Timestamp timestampVal = 8;
+  }
+}
+
+message ValueList {
+  oneof valueList {
+    BytesList bytesList = 1;
+    StringList stringList = 2;
+    Int32List int32List = 3;
+    Int64List int64List = 4;
+    DoubleList doubleList = 5;
+    FloatList floatList = 6;
+    BoolList boolList = 7;
+    TimestampList timestampList = 8;
+  }
+}
+
+message BytesList {
+  repeated bytes val = 1;
+}
+
+message StringList {
+  repeated string val = 1;
+}
+
+message Int32List {
+  repeated int32 val = 1;
+}
+
+message Int64List {
+  repeated int64 val = 1;
+}
+
+message DoubleList {
+  repeated double val = 1;
+}
+
+message FloatList {
+  repeated float val = 1;
+}
+
+message BoolList {
+  repeated bool val = 1;
+}
+
+message TimestampList {
+  repeated google.protobuf.Timestamp val = 1;
+}
