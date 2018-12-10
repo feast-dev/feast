@@ -1,0 +1,5 @@
+dependencies:
+  - name: postgresql
+    version: ^0.19.0
+    repository: "@stable"
+    condition: provisionDataStore.postgres

@@ -1,0 +1,73 @@
+--- 
+core: 
+  image: 
+    pullPolicy: IfNotPresent
+    registry: feast
+    repository: feast-core
+    tag: "0.3.0"
+  replicaCount: 3
+  resources: 
+    limits: 
+      cpu: 8
+      memory: 8G
+    requests: 
+      cpu: 2
+      memory: 4G
+  rollingUpdate: 
+    maxSurge: 2
+    maxUnavailable: 0
+  service: 
+    grpc: 
+      port: 8433
+      targetPort: 8433
+    http: 
+      port: 80
+      targetPort: 8080
+  jobs: 
+    runner: DirectRunner
+    options: "{}"
+    errorsStoreId: "STDOUT"
+    monitoring:
+      period: 5000
+      initialDelay: 60000      
+
+postgresql: 
+  name: feast-metadata
+  service: 
+    port: 5432
+provisionDataStore: 
+  postgres: true
+
+serving: 
+  config: 
+    maxEntityPerBatch: 2000
+    maxNumberOfThread: 128
+    redisPool: 
+      maxIdle: 16
+      maxSize: 128
+    timeout: 5
+  image: 
+    pullPolicy: IfNotPresent
+    registry: feast
+    repository: feast-serving
+    tag: "0.3.0"
+  replicaCount: 4
+  resources: 
+    limits: 
+      cpu: 2
+      memory: 4G
+    requests: 
+      cpu: 1
+      memory: 2G
+  rollingUpdate: 
+    maxSurge: 2
+    maxUnavailable: 0
+  service: 
+    grpc: 
+      port: 8433
+      targetPort: 8433
+    http: 
+      port: 80
+      targetPort: 8080
+  jaeger:
+    enabled: false

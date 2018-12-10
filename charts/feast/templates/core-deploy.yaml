@@ -1,0 +1,93 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ template "feast.core.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "feast.name" . }}
+    component: core
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.core.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: {{ .Values.core.rollingUpdate.maxSurge }}
+      maxUnavailable: {{ .Values.core.rollingUpdate.maxUnavailable }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "feast.name" . }}
+        component: core
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: {{ template "feast.core.name" . }}
+        image: "{{ .Values.core.image.registry }}/{{ .Values.core.image.repository }}:{{ .Values.core.image.tag }}"
+        imagePullPolicy: {{ .Values.core.image.pullPolicy }}
+        ports:
+          - containerPort: {{ .Values.core.service.http.targetPort }}
+            name: "http"
+          - containerPort: {{ .Values.core.service.grpc.targetPort }}
+            name: "grpc"
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: {{ .Values.core.service.http.targetPort }}
+            scheme: HTTP
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: {{ .Values.core.service.http.targetPort }}
+            scheme: HTTP
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources:
+          requests:
+            cpu: {{ .Values.core.resources.requests.cpu }}
+            memory: {{ .Values.core.resources.requests.memory }}
+          limits:
+            cpu: {{ .Values.core.resources.limits.cpu }}
+            memory: {{ .Values.core.resources.limits.memory }}
+        env:
+          - name: GRPC_PORT
+            value: "{{ .Values.core.service.grpc.targetPort }}"
+          - name: DB_HOST
+            value: {{ printf "%s.%s.svc.cluster.local" (include "postgresql.fullname" .) .Release.Namespace }}
+          - name: DB_PORT
+            value: "{{ .Values.postgresql.service.port }}"
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "postgresql.fullname" . }}
+                key: postgres-password
+          - name: CORE_API_URI
+            value: {{ .Values.core.service.extIPAdr }}:{{ .Values.core.service.grpc.targetPort }}
+          - name: JOB_RUNNER
+            value: {{ .Values.core.jobs.runner }}
+          - name: JOB_OPTIONS
+            value: {{ .Values.core.jobs.options }}
+          - name: JOB_ERRORS_STORE_ID
+            value: {{ .Values.core.jobs.errorsStoreId }}
+          - name: JOB_MONITOR_PERIOD_MS
+            value: "{{ .Values.core.jobs.monitoring.period }}"
+          - name: JOB_MONITOR_INITIAL_DELAY_MS
+            value: "{{ .Values.core.jobs.monitoring.initialDelay }}"
+          - name: STATSD_HOST
+            value: {{ .Values.statsd.host }}
+          - name: STATSD_PORT
+            value: "{{ .Values.statsd.port }}"
+          {{- if .Values.dataflow }}
+          - name: DATAFLOW_PROJECT_ID
+            value: {{ .Values.dataflow.projectID }}
+          - name: DATAFLOW_LOCATION
+            value: {{ .Values.dataflow.location }}
+          {{- end }}
