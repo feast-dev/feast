@@ -22,7 +22,7 @@ package feast.specs;
 
 option java_package = "feast.specs";
 option java_outer_classname = "FeatureGroupSpecProto";
-option go_package = "feast/go-feast-proto/feast/specs";
+option go_package = "github.com/gojektech/feast/go-feast-proto/feast/specs";
 
 message FeatureGroupSpec {
   string id = 1;

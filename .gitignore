@@ -38,9 +38,6 @@ scratch*
 **/bin/
 dependency-reduced-pom.xml
 
-# Generated proto files
-go-feast-proto/*
-
 # govendor
 vendor
 

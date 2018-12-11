@@ -21,7 +21,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"feast/go-feast-proto/feast/core"
+	"github.com/gojektech/feast/go-feast-proto/feast/core"
 
 	"feast/cli/feast/pkg/parse"
 
