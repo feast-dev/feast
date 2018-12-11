@@ -18,11 +18,12 @@ import (
 	"context"
 	"errors"
 	"feast/cli/feast/pkg/util"
-	"feast/go-feast-proto/feast/core"
 	"fmt"
 	"os"
 	"strings"
 	"text/tabwriter"
+
+	"github.com/gojektech/feast/go-feast-proto/feast/core"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/spf13/cobra"

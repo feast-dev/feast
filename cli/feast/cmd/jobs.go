@@ -22,7 +22,8 @@ import (
 
 	"feast/cli/feast/pkg/parse"
 	"feast/cli/feast/pkg/printer"
-	"feast/go-feast-proto/feast/core"
+
+	"github.com/gojektech/feast/go-feast-proto/feast/core"
 
 	"github.com/spf13/cobra"
 )

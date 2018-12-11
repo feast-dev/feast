@@ -16,9 +16,10 @@ package printer
 
 import (
 	"feast/cli/feast/pkg/util"
-	"feast/go-feast-proto/feast/core"
 	"fmt"
 	"strings"
+
+	"github.com/gojektech/feast/go-feast-proto/feast/core"
 )
 
 // PrintJobDetail pretty prints the given job detail
