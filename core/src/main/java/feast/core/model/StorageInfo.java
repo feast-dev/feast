@@ -17,11 +17,11 @@
 
 package feast.core.model;
 
+import feast.core.UIServiceProto.UIServiceTypes.StorageDetail;
+import feast.specs.StorageSpecProto.StorageSpec;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import feast.core.UIServiceProto.UIServiceTypes.StorageDetail;
-import feast.specs.StorageSpecProto.StorageSpec;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -79,5 +79,17 @@ public class StorageInfo extends AbstractTimestampEntity {
             .setSpec(this.getStorageSpec())
             .setLastUpdated(convertTimestamp(this.getLastUpdated()))
             .build();
+  }
+
+  /**
+   * Checks if this is eq to the other given storage
+   *
+   * @param otherStorage
+   * @return boolean
+   */
+  public boolean eq(StorageInfo otherStorage) {
+    return otherStorage.getId().equals(this.id) &&
+            otherStorage.getType().equals(this.type) &&
+            otherStorage.getOptions().equals(this.options);
   }
 }

@@ -23,6 +23,7 @@ import org.junit.Test;
 import feast.core.UIServiceProto.UIServiceTypes.EntityDetail;
 import feast.specs.EntitySpecProto.EntitySpec;
 
+import java.time.Instant;
 import java.util.Date;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -65,5 +66,14 @@ public class EntityInfoTest {
     EntityDetail expected =
             EntityDetail.newBuilder().setSpec(entitySpec).setLastUpdated(ts).build();
     assertThat(entityInfo.getEntityDetail(), equalTo(expected));
+  }
+
+  @Test
+  public void shouldBeEqualToEntityFromSameSpecs() {
+    EntityInfo entity1 = new EntityInfo(entitySpec);
+    entity1.setCreated(Date.from(Instant.ofEpochSecond(1)));
+    EntityInfo entity2 = new EntityInfo(entitySpec);
+    entity1.setCreated(Date.from(Instant.ofEpochSecond(2)));
+    assertThat(entity1.eq(entity2), equalTo(true));
   }
 }

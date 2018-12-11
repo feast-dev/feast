@@ -25,6 +25,7 @@ import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
 import feast.specs.FeatureSpecProto.DataStore;
 import feast.specs.FeatureSpecProto.DataStores;
 
+import java.time.Instant;
 import java.util.Date;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -83,5 +84,14 @@ public class FeatureGroupInfoTest {
     FeatureGroupDetail expected =
             FeatureGroupDetail.newBuilder().setSpec(featureGroupSpec).setLastUpdated(ts).build();
     assertThat(featureGroupInfo.getFeatureGroupDetail(), equalTo(expected));
+  }
+
+  @Test
+  public void shouldBeEqualToFeatureGroupFromSameSpecs() {
+    FeatureGroupInfo featureGroup1 = new FeatureGroupInfo(featureGroupSpec, servingStorage, warehouseStorage);
+    featureGroup1.setCreated(Date.from(Instant.ofEpochSecond(1)));
+    FeatureGroupInfo featureGroup2 = new FeatureGroupInfo(featureGroupSpec, servingStorage, warehouseStorage);
+    featureGroup2.setCreated(Date.from(Instant.ofEpochSecond(2)));
+    assertThat(featureGroup1.eq(featureGroup2), equalTo(true));
   }
 }

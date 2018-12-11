@@ -111,4 +111,23 @@ public class FeatureGroupInfo extends AbstractTimestampEntity {
             .setLastUpdated(TypeConversion.convertTimestamp(this.getLastUpdated()))
             .build();
   }
+
+  /**
+   * Checks if this is eq to the other given feature group
+   *
+   * @param otherFeatureGroup
+   * @return boolean
+   */
+  public boolean eq(FeatureGroupInfo otherFeatureGroup) {
+    return otherFeatureGroup.getId() == this.id &&
+            otherFeatureGroup.getTags() == this.getTags() &&
+            otherFeatureGroup.getServingStoreOpts() == this.servingStoreOpts &&
+            getStorageId(otherFeatureGroup.getServingStore()) == getStorageId(this.getServingStore()) &&
+            otherFeatureGroup.getWarehouseStoreOpts() == this.warehouseStoreOpts &&
+            getStorageId(otherFeatureGroup.getWarehouseStore()) == getStorageId(this.getWarehouseStore());
+  }
+
+  private String getStorageId(StorageInfo storage) {
+    return storage == null ? "" : storage.getId();
+  }
 }

@@ -86,4 +86,16 @@ public class EntityInfo extends AbstractTimestampEntity {
             .setLastUpdated(convertTimestamp(this.getLastUpdated()))
             .build();
   }
+
+  /**
+   * Checks if this is eq to the other given entity
+   *
+   * @param otherEntity
+   * @return boolean
+   */
+  public boolean eq(EntityInfo otherEntity) {
+    return otherEntity.getName().equals(this.getName()) &&
+            otherEntity.getDescription().equals(this.getDescription()) &&
+            otherEntity.getTags().equals(this.getTags());
+  }
 }

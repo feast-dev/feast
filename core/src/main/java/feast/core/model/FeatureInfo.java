@@ -256,4 +256,34 @@ public class FeatureInfo extends AbstractTimestampEntity {
         "https://bigquery.cloud.google.com/table/%s:%s.%s_%s_view",
         projectId, dataset, entity.getName(), granularity.toString().toLowerCase());
   }
+
+  /**
+   * Checks if this is eq to the other given feature
+   *
+   * @param otherFeature
+   * @return boolean
+   */
+  public boolean eq(FeatureInfo otherFeature) {
+    return otherFeature.getId() == this.id &&
+            otherFeature.getEntity().getName() == this.entity.getName() &&
+            otherFeature.getOwner() == this.owner &&
+            otherFeature.getUri() == this.uri &&
+            otherFeature.getDescription() == this.description &&
+            otherFeature.getGranularity() == this.granularity &&
+            otherFeature.getValueType() == this.valueType &&
+            otherFeature.getTags() == this.tags &&
+            otherFeature.getOptions() == this.options &&
+            getFeatureGroupId(otherFeature.getFeatureGroup()) == getFeatureGroupId(this.getFeatureGroup()) &&
+            otherFeature.getServingStoreOpts() == this.servingStoreOpts &&
+            getStorageId(otherFeature.getServingStore()) == getStorageId(this.getServingStore()) &&
+            otherFeature.getWarehouseStoreOpts() == this.warehouseStoreOpts &&
+            getStorageId(otherFeature.getWarehouseStore()) == getStorageId(this.getWarehouseStore());
+  }
+
+  private String getFeatureGroupId(FeatureGroupInfo featureGroupInfo) {
+    return featureGroupInfo == null ? "" : featureGroupInfo.getId();
+  }
+  private String getStorageId(StorageInfo storage) {
+    return storage == null ? "" : storage.getId();
+  }
 }

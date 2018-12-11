@@ -27,6 +27,7 @@ import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.types.ValueProto.ValueType;
 
+import java.time.Instant;
 import java.util.Date;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -167,5 +168,14 @@ public class FeatureInfoTest {
                     .build();
     FeatureInfo resolved = featureInfo.resolve();
     assertThat(resolved.getFeatureSpec(), equalTo(expected));
+  }
+
+  @Test
+  public void shouldBeEqualToFeatureFromSameSpecs() {
+    FeatureInfo feature1 = new FeatureInfo(featureSpec, entityInfo, servingStorage, warehouseStorage, null);
+    feature1.setCreated(Date.from(Instant.ofEpochSecond(1)));
+    FeatureInfo feature2 = new FeatureInfo(featureSpec, entityInfo, servingStorage, warehouseStorage, null);
+    feature2.setCreated(Date.from(Instant.ofEpochSecond(2)));
+    assertThat(feature1.eq(feature2), equalTo(true));
   }
 }
