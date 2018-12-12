@@ -17,12 +17,12 @@ package cmd
 import (
 	"context"
 	"errors"
-	"feast/cli/feast/pkg/util"
 	"fmt"
 	"os"
 	"strings"
 	"text/tabwriter"
 
+	"github.com/gojektech/feast/cli/feast/pkg/util"
 	"github.com/gojektech/feast/go-feast-proto/feast/core"
 
 	"github.com/golang/protobuf/ptypes/empty"

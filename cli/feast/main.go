@@ -14,7 +14,7 @@
 
 package main
 
-import "feast/cli/feast/cmd"
+import "github.com/gojektech/feast/cli/feast/cmd"
 
 func main() {
 	cmd.Execute()
