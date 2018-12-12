@@ -23,7 +23,9 @@ import feast.core.dao.JobInfoRepository;
 import feast.core.dao.MetricsRepository;
 import feast.core.exception.RetrievalException;
 import feast.core.job.JobManager;
+import feast.core.log.Action;
 import feast.core.log.AuditLogger;
+import feast.core.log.Resource;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
 import feast.core.model.Metrics;
@@ -54,6 +56,7 @@ public class JobManagementService {
 
   /**
    * Lists all jobs registered to the db.
+   *
    * @return list of JobDetails
    */
   @Transactional
@@ -64,6 +67,7 @@ public class JobManagementService {
 
   /**
    * Gets information regarding a single job.
+   *
    * @param id feast-internal job id
    * @return JobDetail for that job
    */
@@ -82,10 +86,10 @@ public class JobManagementService {
   }
 
   /**
-   * Drain the given job. If this is successful, the job will start the draining process.
-   * When the draining process is complete, the job will be cleaned up and removed.
+   * Drain the given job. If this is successful, the job will start the draining process. When the
+   * draining process is complete, the job will be cleaned up and removed.
    *
-   * Batch jobs will be cancelled, as draining these jobs is not supported by beam.
+   * <p>Batch jobs will be cancelled, as draining these jobs is not supported by beam.
    *
    * @param id feast-internal id of a job
    */
@@ -101,7 +105,7 @@ public class JobManagementService {
     jobManager.abortJob(job.getExtId());
     job.setStatus(JobStatus.ABORTING);
 
-    AuditLogger.log("Jobs", id, "Aborting", "Triggering draining of job");
+    AuditLogger.log(Resource.JOB, id, Action.ABORT, "Triggering draining of job");
     jobInfoRepository.saveAndFlush(job);
   }
 }

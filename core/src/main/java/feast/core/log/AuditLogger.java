@@ -39,12 +39,12 @@ public class AuditLogger {
    * @param detail additional detail. Supports string formatting.
    * @param args arguments to the detail string
    */
-  public static void log(String resource, String id, String action, String detail, Object... args) {
+  public static void log(Resource resource, String id, Action action, String detail, Object... args) {
     Map<String, String> map = new TreeMap<>();
     map.put("timestamp", new Date().toString());
-    map.put("resource", resource);
+    map.put("resource", resource.toString());
     map.put("id", id);
-    map.put("action", action);
+    map.put("action", action.toString());
     map.put("detail", Strings.lenientFormat(detail, args));
     ObjectMessage msg = new ObjectMessage(map);
 

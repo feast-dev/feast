@@ -19,7 +19,9 @@ package feast.core.job;
 
 import com.google.common.base.Strings;
 import feast.core.dao.JobInfoRepository;
+import feast.core.log.Action;
 import feast.core.log.AuditLogger;
+import feast.core.log.Resource;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
 import feast.core.model.Metrics;
@@ -74,9 +76,9 @@ public class ScheduledJobMonitor {
       JobStatus jobStatus = jobMonitor.getJobStatus(jobId);
       if (job.getStatus() != jobStatus) {
         AuditLogger.log(
-            "Jobs",
+            Resource.JOB,
             jobId,
-            "Status Update",
+            Action.STATUS_CHANGE,
             "Job status updated from %s to %s",
             job.getStatus(),
             jobStatus);

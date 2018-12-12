@@ -21,7 +21,9 @@ import com.google.cloud.bigquery.*;
 import com.google.cloud.bigquery.TimePartitioning.Type;
 import com.google.common.base.Strings;
 import com.google.protobuf.util.JsonFormat;
+import feast.core.log.Action;
 import feast.core.log.AuditLogger;
+import feast.core.log.Resource;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.types.ValueProto.ValueType;
 import feast.types.ValueProto.ValueType.Enum;
@@ -138,11 +140,11 @@ public class BigQueryStorageManager implements StorageManager {
                         && !f.equals(FIELD_EVENT_TIMESTAMP))
             .collect(Collectors.toList()));
     AuditLogger.log(
-            "Storage",
-            this.id,
-            "Schema Updated",
-            "Bigquery schema updated for feature %s",
-            featureSpec.getId());
+        Resource.STORAGE,
+        this.id,
+        Action.SCHEMA_UPDATE,
+        "Bigquery schema updated for feature %s",
+        featureSpec.getId());
   }
 
   private void checkTableCreation(Table table, FeatureSpec featureSpec) {

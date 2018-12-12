@@ -17,7 +17,9 @@
 
 package feast.core.storage;
 
+import feast.core.log.Action;
 import feast.core.log.AuditLogger;
+import feast.core.log.Resource;
 import org.jdbi.v3.core.Jdbi;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.types.ValueProto.ValueType.Enum;
@@ -76,11 +78,11 @@ public class PostgresStorageManager implements StorageManager {
               return null;
             });
     AuditLogger.log(
-            "Storage",
-            this.id,
-            "Schema Updated",
-            "Postgres schema updated for feature %s",
-            featureSpec.getId());
+        Resource.STORAGE,
+        this.id,
+        Action.SCHEMA_UPDATE,
+        "Postgres schema updated for feature %s",
+        featureSpec.getId());
   }
 
   private String createFieldType(FeatureSpec featureSpec) {

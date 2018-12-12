@@ -21,7 +21,9 @@ import feast.core.JobServiceProto.JobServiceTypes.SubmitImportJobResponse;
 import feast.core.config.ImportJobDefaults;
 import feast.core.dao.JobInfoRepository;
 import feast.core.exception.JobExecutionException;
+import feast.core.log.Action;
 import feast.core.log.AuditLogger;
+import feast.core.log.Resource;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
 import feast.core.util.TypeConversion;
@@ -54,8 +56,8 @@ public class JobExecutionService {
   }
 
   /**
-   * Submits a job defined by the importSpec to the runner and writes details about the
-   * job to the core database.
+   * Submits a job defined by the importSpec to the runner and writes details about the job to the
+   * core database.
    *
    * @param importSpec job import spec
    * @param jobPrefix prefix for job name
@@ -67,7 +69,11 @@ public class JobExecutionService {
     ProcessBuilder pb = getProcessBuilder(importSpec, jobId);
     log.info(String.format("Executing command: %s", String.join(" ", pb.command())));
     AuditLogger.log(
-        "Jobs", jobId, "Submitting", "Building graph and submitting to %s", defaults.getRunner());
+        Resource.JOB,
+        jobId,
+        Action.SUBMIT,
+        "Building graph and submitting to %s",
+        defaults.getRunner());
     try {
       JobInfo jobInfo = new JobInfo(jobId, "", defaults.getRunner(), importSpec, JobStatus.PENDING);
       jobInfoRepository.saveAndFlush(jobInfo);
@@ -79,20 +85,20 @@ public class JobExecutionService {
       }
       updateJobExtId(jobId, jobExtId);
       AuditLogger.log(
-          "Jobs",
+          Resource.JOB,
           jobId,
-          "Submitted",
-          "Job submitted to runner %s with runner id %s",
+          Action.STATUS_CHANGE,
+          "Job submitted to runner %s with runner id %s.",
           defaults.getRunner(),
           jobExtId);
       return SubmitImportJobResponse.newBuilder().setJobId(jobId).build();
     } catch (Exception e) {
       updateJobStatus(jobId, JobStatus.ERROR);
       AuditLogger.log(
-          "Jobs",
+          Resource.JOB,
           jobId,
-          "Submit Error",
-          "Job failed to be submitted to runner %s",
+          Action.STATUS_CHANGE,
+          "Job failed to be submitted to runner %s. Job status changed to ERROR.",
           defaults.getRunner());
       throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
     }
@@ -100,6 +106,7 @@ public class JobExecutionService {
 
   /**
    * Update a given job's status
+   *
    * @param jobId
    * @param status
    */
@@ -114,6 +121,7 @@ public class JobExecutionService {
 
   /**
    * Update a given job's external id
+   *
    * @param jobId
    * @param jobExtId
    */
@@ -128,6 +136,7 @@ public class JobExecutionService {
 
   /**
    * Builds the command to execute the ingestion job
+   *
    * @param importSpec
    * @param jobId
    * @return configured ProcessBuilder
@@ -155,6 +164,7 @@ public class JobExecutionService {
 
   /**
    * Run the given process and extract the job id from the output logs
+   *
    * @param p Process
    * @return job id
    */
