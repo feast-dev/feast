@@ -77,14 +77,6 @@ public class ServingGrpcService extends ServingAPIImplBase {
       Request validRequest = checkTimestampRange(request);
       Response response = feast.queryFeatures(validRequest);
 
-      if (response.getEntitiesCount() < 1) {
-        responseObserver.onError(
-            new StatusRuntimeException(
-                Status.fromCode(NOT_FOUND)
-                    .withDescription("No value is found for the requested feature")));
-        return;
-      }
-
       innerSpan.log("calling onNext");
       responseObserver.onNext(response);
       innerSpan.log("calling onCompleted");
