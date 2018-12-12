@@ -31,13 +31,12 @@ import feast.core.model.FeatureGroupInfo;
 import feast.core.model.FeatureInfo;
 import feast.core.model.StorageInfo;
 import feast.core.storage.SchemaManager;
+import feast.core.util.TypeConversion;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.logging.log4j.Marker;
-import org.apache.logging.log4j.MarkerManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -196,79 +195,98 @@ public class SpecService {
   }
 
   /**
-   * Registers given feature spec to the registry
+   * Applies the given feature spec to the registry. If the feature does not yet exist, it will be
+   * registered to the system. If it does, the existing feature will be updated with the new
+   * information.
+   *
+   * <p>Note that specifications that will affect downstream resources (e.g. id, storage location)
+   * cannot be changed.
    *
    * @param spec FeatureSpec
    * @return registered FeatureInfo
    * @throws RegistrationException if registration fails
    */
-  public FeatureInfo registerFeature(FeatureSpec spec) throws RegistrationException {
+  public FeatureInfo applyFeature(FeatureSpec spec) throws RegistrationException {
     try {
-      EntityInfo entity = entityInfoRepository.findById(spec.getEntity()).orElse(null);
-      FeatureGroupInfo featureGroupInfo =
-          featureGroupInfoRepository.findById(spec.getGroup()).orElse(null);
-      StorageInfo servingStore =
-          storageInfoRepository.findById(spec.getDataStores().getServing().getId()).orElse(null);
-      StorageInfo warehouseStore =
-          storageInfoRepository.findById(spec.getDataStores().getWarehouse().getId()).orElse(null);
-      FeatureInfo featureInfo =
-          new FeatureInfo(spec, entity, servingStore, warehouseStore, featureGroupInfo);
-
-      FeatureInfo resolvedFeatureInfo = featureInfo.resolve();
-      FeatureSpec resolvedFeatureSpec = resolvedFeatureInfo.getFeatureSpec();
-      schemaManager.registerFeature(resolvedFeatureSpec);
-
+      FeatureInfo featureInfo = featureInfoRepository.findById(spec.getId()).orElse(null);
+      String action;
+      if (featureInfo != null) {
+        featureInfo.update(spec);
+        action = "Updated";
+      } else {
+        EntityInfo entity = entityInfoRepository.findById(spec.getEntity()).orElse(null);
+        FeatureGroupInfo featureGroupInfo =
+            featureGroupInfoRepository.findById(spec.getGroup()).orElse(null);
+        StorageInfo servingStore =
+            storageInfoRepository.findById(spec.getDataStores().getServing().getId()).orElse(null);
+        StorageInfo warehouseStore =
+            storageInfoRepository
+                .findById(spec.getDataStores().getWarehouse().getId())
+                .orElse(null);
+        featureInfo = new FeatureInfo(spec, entity, servingStore, warehouseStore, featureGroupInfo);
+        FeatureInfo resolvedFeatureInfo = featureInfo.resolve();
+        FeatureSpec resolvedFeatureSpec = resolvedFeatureInfo.getFeatureSpec();
+        schemaManager.registerFeature(resolvedFeatureSpec);
+        action = "Registered";
+      }
       FeatureInfo out = featureInfoRepository.saveAndFlush(featureInfo);
       if (!out.getId().equals(spec.getId())) {
-        throw new RegistrationException("failed to register new feature");
+        throw new RegistrationException("failed to register or update feature");
       }
       AuditLogger.log(
-          "Feature",
-          spec.getId(),
-          "Registered",
-          "New feature registered: %s",
-          JsonFormat.printer().print(spec));
+          "Feature", spec.getId(), action, "Feature applied: %s", JsonFormat.printer().print(spec));
       return out;
+
     } catch (Exception e) {
       throw new RegistrationException(
-          Strings.lenientFormat("Failed to register new feature %s: %s", spec, e.getMessage()), e);
+          Strings.lenientFormat("Failed to apply feature %s: %s", spec, e.getMessage()), e);
     }
   }
 
   /**
-   * Registers given feature group spec to the registry
+   * Applies the given feature group spec to the registry. If the entity does not yet exist, it will be
+   * registered to the system. Otherwise, the fields will be updated as per the given feature group spec.
    *
    * @param spec FeatureGroupSpec
    * @return registered FeatureGroupInfo
    * @throws RegistrationException if registration fails
    */
-  public FeatureGroupInfo registerFeatureGroup(FeatureGroupSpec spec) throws RegistrationException {
+  public FeatureGroupInfo applyFeatureGroup(FeatureGroupSpec spec) throws RegistrationException {
     try {
-      StorageInfo servingStore =
-          storageInfoRepository
-              .findById(
-                  spec.getDataStores().hasServing()
-                      ? spec.getDataStores().getServing().getId()
-                      : "")
-              .orElse(null);
-      StorageInfo warehouseStore =
-          storageInfoRepository
-              .findById(
-                  spec.getDataStores().hasServing()
-                      ? spec.getDataStores().getWarehouse().getId()
-                      : "")
-              .orElse(null);
-      FeatureGroupInfo featureGroupInfo = new FeatureGroupInfo(spec, servingStore, warehouseStore);
+      FeatureGroupInfo featureGroupInfo = featureGroupInfoRepository.findById(spec.getId()).orElse(null);
+      String action;
+      if (featureGroupInfo != null) {
+        featureGroupInfo.update(spec);
+        action = "Updated";
+      } else {
+        StorageInfo servingStore =
+            storageInfoRepository
+                .findById(
+                    spec.getDataStores().hasServing()
+                        ? spec.getDataStores().getServing().getId()
+                        : "")
+                .orElse(null);
+        StorageInfo warehouseStore =
+            storageInfoRepository
+                .findById(
+                    spec.getDataStores().hasServing()
+                        ? spec.getDataStores().getWarehouse().getId()
+                        : "")
+                .orElse(null);
+        featureGroupInfo =
+            new FeatureGroupInfo(spec, servingStore, warehouseStore);
+        action = "Registered";
+      }
       FeatureGroupInfo out = featureGroupInfoRepository.saveAndFlush(featureGroupInfo);
       if (!out.getId().equals(spec.getId())) {
-        throw new RegistrationException("failed to register new feature group");
+        throw new RegistrationException("failed to register or update feature group");
       }
       AuditLogger.log(
-              "FeatureGroup",
-              spec.getId(),
-              "Registered",
-              "New feature group registered: %s",
-              JsonFormat.printer().print(spec));
+          "FeatureGroup",
+          spec.getId(),
+          action,
+          "Feature group applied: %s",
+          JsonFormat.printer().print(spec));
       return out;
     } catch (Exception e) {
       throw new RegistrationException(
@@ -279,29 +297,34 @@ public class SpecService {
   }
 
   /**
-   * Registers given entity spec to the registry
+   * Applies the given entity spec to the registry. If the entity does not yet exist, it will be
+   * registered to the system. Otherwise, the fields will be updated as per the given entity spec.
    *
    * @param spec EntitySpec
    * @return registered EntityInfo
    * @throws RegistrationException if registration fails
    */
-  public EntityInfo registerEntity(EntitySpec spec) throws RegistrationException {
+  public EntityInfo applyEntity(EntitySpec spec) throws RegistrationException {
     try {
-      EntityInfo entityInfo = new EntityInfo(spec);
+      EntityInfo entityInfo = entityInfoRepository.findById(spec.getName()).orElse(null);
+      String action;
+      if (entityInfo != null) {
+        entityInfo.update(spec);
+        action = "Updated";
+      } else {
+        entityInfo = new EntityInfo(spec);
+        action = "Registered";
+      }
       EntityInfo out = entityInfoRepository.saveAndFlush(entityInfo);
       if (!out.getName().equals(spec.getName())) {
-        throw new RegistrationException("failed to register new entity");
+        throw new RegistrationException("failed to register or update entity");
       }
       AuditLogger.log(
-              "Entity",
-              spec.getName(),
-              "Registered",
-              "New entity registered: %s",
-              JsonFormat.printer().print(spec));
+          "Entity", spec.getName(), action, "Entity: %s", JsonFormat.printer().print(spec));
       return out;
     } catch (Exception e) {
       throw new RegistrationException(
-          Strings.lenientFormat("Failed to register new entity %s: %s", spec, e.getMessage()), e);
+          Strings.lenientFormat("Failed to apply entity %s: %s", spec, e.getMessage()), e);
     }
   }
 
@@ -314,19 +337,27 @@ public class SpecService {
    */
   public StorageInfo registerStorage(StorageSpec spec) throws RegistrationException {
     try {
-      StorageInfo storageInfo = new StorageInfo(spec);
-      StorageInfo out = storageInfoRepository.saveAndFlush(storageInfo);
-      if (!out.getId().equals(spec.getId())) {
-        throw new RegistrationException("failed to register new storage");
+      StorageInfo storageInfo = storageInfoRepository.findById(spec.getId()).orElse(null);
+      if (storageInfo != null) {
+        if (!storageInfo.getType().equals(spec.getType()) && !storageInfo.getOptions().equals(TypeConversion.convertMapToJsonString(spec.getOptionsMap()))) {
+          throw new IllegalArgumentException("updating storage specs is not allowed");
+        }
+        return storageInfo;
+      } else {
+        storageInfo = new StorageInfo(spec);
+        StorageInfo out = storageInfoRepository.saveAndFlush(storageInfo);
+        if (!out.getId().equals(spec.getId())) {
+          throw new RegistrationException("failed to register or update storage");
+        }
+        schemaManager.registerStorage(spec);
+        AuditLogger.log(
+            "Storage",
+            spec.getId(),
+            "Registered",
+            "New storage registered: %s",
+            JsonFormat.printer().print(spec));
+        return out;
       }
-      schemaManager.registerStorage(spec);
-      AuditLogger.log(
-              "Storage",
-              spec.getId(),
-              "Registered",
-              "New storage registered: %s",
-              JsonFormat.printer().print(spec));
-      return out;
     } catch (Exception e) {
       throw new RegistrationException(
           Strings.lenientFormat("Failed to register new storage %s: %s", spec, e.getMessage()), e);

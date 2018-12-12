@@ -17,6 +17,7 @@
 
 package feast.core.model;
 
+import com.google.api.client.util.Lists;
 import com.google.protobuf.Timestamp;
 import org.junit.Before;
 import org.junit.Test;
@@ -69,11 +70,11 @@ public class EntityInfoTest {
   }
 
   @Test
-  public void shouldBeEqualToEntityFromSameSpecs() {
-    EntityInfo entity1 = new EntityInfo(entitySpec);
-    entity1.setCreated(Date.from(Instant.ofEpochSecond(1)));
-    EntityInfo entity2 = new EntityInfo(entitySpec);
-    entity1.setCreated(Date.from(Instant.ofEpochSecond(2)));
-    assertThat(entity1.eq(entity2), equalTo(true));
+  public void shouldUpdateTagAndDescription() {
+    EntityInfo entityInfo = new EntityInfo("entity", "test entity", "tag1,tag2", Lists.newArrayList(), false);
+    EntitySpec update = EntitySpec.newBuilder().setName("entity").setDescription("overwrite").addTags("newtag").build();
+    EntityInfo expected = new EntityInfo("entity", "overwrite", "newtag", Lists.newArrayList(), false);
+    entityInfo.update(update);
+    assertThat(entityInfo, equalTo(expected));
   }
 }

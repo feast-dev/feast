@@ -17,8 +17,6 @@
 
 package feast.core.model;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import feast.core.UIServiceProto.UIServiceTypes.FeatureDetail;
 import feast.core.storage.BigQueryStorageManager;
 import feast.core.util.TypeConversion;
@@ -30,11 +28,9 @@ import feast.types.ValueProto.ValueType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.logging.log4j.util.Strings;
 
 import javax.persistence.*;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -133,10 +129,11 @@ public class FeatureInfo extends AbstractTimestampEntity {
     if (spec.getDataStores() != null) {
       this.servingStore = servingStore;
       this.servingStoreOpts =
-              TypeConversion.convertMapToJsonString(spec.getDataStores().getServing().getOptionsMap());
+          TypeConversion.convertMapToJsonString(spec.getDataStores().getServing().getOptionsMap());
       this.warehouseStore = warehouseStore;
       this.warehouseStoreOpts =
-              TypeConversion.convertMapToJsonString(spec.getDataStores().getWarehouse().getOptionsMap());
+          TypeConversion.convertMapToJsonString(
+              spec.getDataStores().getWarehouse().getOptionsMap());
     }
     this.bigQueryView = createBigqueryViewLink(warehouseStore);
   }
@@ -258,31 +255,50 @@ public class FeatureInfo extends AbstractTimestampEntity {
   }
 
   /**
-   * Checks if this is eq to the other given feature
+   * Updates the feature info with specifications from the incoming feature spec.
    *
-   * @param otherFeature
-   * @return boolean
+   * <p>TODO: maybe allow changes to id, store etc if no jobs are feeding into this feature
+   *
+   * @param update new feature spec
    */
-  public boolean eq(FeatureInfo otherFeature) {
-    return otherFeature.getId() == this.id &&
-            otherFeature.getEntity().getName() == this.entity.getName() &&
-            otherFeature.getOwner() == this.owner &&
-            otherFeature.getUri() == this.uri &&
-            otherFeature.getDescription() == this.description &&
-            otherFeature.getGranularity() == this.granularity &&
-            otherFeature.getValueType() == this.valueType &&
-            otherFeature.getTags() == this.tags &&
-            otherFeature.getOptions() == this.options &&
-            getFeatureGroupId(otherFeature.getFeatureGroup()) == getFeatureGroupId(this.getFeatureGroup()) &&
-            otherFeature.getServingStoreOpts() == this.servingStoreOpts &&
-            getStorageId(otherFeature.getServingStore()) == getStorageId(this.getServingStore()) &&
-            otherFeature.getWarehouseStoreOpts() == this.warehouseStoreOpts &&
-            getStorageId(otherFeature.getWarehouseStore()) == getStorageId(this.getWarehouseStore());
+  public void update(FeatureSpec update) throws IllegalArgumentException {
+    if (!isLegalUpdate(update)) {
+      throw new IllegalArgumentException(
+          "Feature already exists. Update only allowed for fields: [owner, description, uri, tags]");
+    }
+    this.owner = update.getOwner();
+    this.description = update.getDescription();
+    this.uri = update.getUri();
+    this.tags = String.join(",", update.getTagsList());
+  }
+
+  private boolean isLegalUpdate(FeatureSpec update) {
+    DataStore updatedWarehouseStore =
+        update.getDataStores().hasWarehouse() ? update.getDataStores().getWarehouse() : null;
+    DataStore updatedServingStore =
+        update.getDataStores().hasServing() ? update.getDataStores().getServing() : null;
+    return update.getName().equals(this.name)
+        && update.getEntity().equals(this.entity.getName())
+        && update.getGranularityValue() == this.granularity.getNumber()
+        && update.getValueTypeValue() == this.valueType.getNumber()
+        && update.getGroup().equals(getFeatureGroupId(this.featureGroup))
+        && TypeConversion.convertMapToJsonString(update.getOptionsMap()).equals(this.options)
+        && isStoreEqual(this.warehouseStore, this.warehouseStoreOpts, updatedWarehouseStore)
+        && isStoreEqual(this.servingStore, this.servingStoreOpts, updatedServingStore);
+  }
+
+  private boolean isStoreEqual(StorageInfo oldStore, String oldStoreOpts, DataStore newStore) {
+    return getStorageId(oldStore).equals(newStore == null ? "" : newStore.getId())
+        && oldStoreOpts.equals(
+            newStore == null
+                ? ""
+                : TypeConversion.convertMapToJsonString(newStore.getOptionsMap()));
   }
 
   private String getFeatureGroupId(FeatureGroupInfo featureGroupInfo) {
     return featureGroupInfo == null ? "" : featureGroupInfo.getId();
   }
+
   private String getStorageId(StorageInfo storage) {
     return storage == null ? "" : storage.getId();
   }

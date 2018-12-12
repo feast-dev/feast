@@ -66,13 +66,4 @@ public class StorageInfoTest {
         StorageDetail.newBuilder().setSpec(storageSpec).setLastUpdated(ts).build();
     assertThat(storageInfo.getStorageDetail(), equalTo(expected));
   }
-
-  @Test
-  public void shouldBeEqualToStorageFromSameSpecs() {
-    StorageInfo storage1 = new StorageInfo(storageSpec);
-    storage1.setCreated(Date.from(Instant.ofEpochSecond(1)));
-    StorageInfo storage2 = new StorageInfo(storageSpec);
-    storage2.setCreated(Date.from(Instant.ofEpochSecond(2)));
-    assertThat(storage1.eq(storage2), equalTo(true));
-  }
 }

@@ -80,16 +80,4 @@ public class StorageInfo extends AbstractTimestampEntity {
             .setLastUpdated(convertTimestamp(this.getLastUpdated()))
             .build();
   }
-
-  /**
-   * Checks if this is eq to the other given storage
-   *
-   * @param otherStorage
-   * @return boolean
-   */
-  public boolean eq(StorageInfo otherStorage) {
-    return otherStorage.getId().equals(this.id) &&
-            otherStorage.getType().equals(this.type) &&
-            otherStorage.getOptions().equals(this.options);
-  }
 }

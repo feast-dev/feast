@@ -88,14 +88,13 @@ public class EntityInfo extends AbstractTimestampEntity {
   }
 
   /**
-   * Checks if this is eq to the other given entity
+   * Updates the entity info with specifications from the incoming entity spec.
    *
-   * @param otherEntity
-   * @return boolean
+   * @param update new entity spec
    */
-  public boolean eq(EntityInfo otherEntity) {
-    return otherEntity.getName().equals(this.getName()) &&
-            otherEntity.getDescription().equals(this.getDescription()) &&
-            otherEntity.getTags().equals(this.getTags());
+  public void update(EntitySpec update) {
+    this.description = update.getDescription();
+    this.tags = String.join(",", update.getTagsList());
   }
+
 }

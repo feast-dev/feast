@@ -237,16 +237,16 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       FeatureSpec request, StreamObserver<RegisterFeatureResponse> responseObserver) {
     try {
       validator.validateFeatureSpec(request);
-      FeatureInfo feature = specService.registerFeature(request);
+      FeatureInfo feature = specService.applyFeature(request);
       RegisterFeatureResponse response =
           RegisterFeatureResponse.newBuilder().setFeatureId(feature.getId()).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (RegistrationException e) {
-      log.error("Error in registerFeature: {}", e);
+      log.error("Error in applyFeature: {}", e);
       responseObserver.onError(getRuntimeException(e));
     } catch (IllegalArgumentException e) {
-      log.error("Error in registerFeature: {}", e);
+      log.error("Error in applyFeature: {}", e);
       responseObserver.onError(getBadRequestException(e));
     }
   }
@@ -262,16 +262,16 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       StreamObserver<RegisterFeatureGroupResponse> responseObserver) {
     try {
       validator.validateFeatureGroupSpec(request);
-      FeatureGroupInfo featureGroup = specService.registerFeatureGroup(request);
+      FeatureGroupInfo featureGroup = specService.applyFeatureGroup(request);
       RegisterFeatureGroupResponse response =
           RegisterFeatureGroupResponse.newBuilder().setFeatureGroupId(featureGroup.getId()).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (RegistrationException e) {
-      log.error("Error in registerFeatureGroup: {}", e);
+      log.error("Error in applyFeatureGroup: {}", e);
       responseObserver.onError(getRuntimeException(e));
     } catch (IllegalArgumentException e) {
-      log.error("Error in registerFeatureGroup: {}", e);
+      log.error("Error in applyFeatureGroup: {}", e);
       responseObserver.onError(getBadRequestException(e));
     }
   }
@@ -286,16 +286,16 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       EntitySpec request, StreamObserver<RegisterEntityResponse> responseObserver) {
     try {
       validator.validateEntitySpec(request);
-      EntityInfo entity = specService.registerEntity(request);
+      EntityInfo entity = specService.applyEntity(request);
       RegisterEntityResponse response =
           RegisterEntityResponse.newBuilder().setEntityName(entity.getName()).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (RegistrationException e) {
-      log.error("Error in registerEntity: {}", e);
+      log.error("Error in applyEntity: {}", e);
       responseObserver.onError(getRuntimeException(e));
     } catch (IllegalArgumentException e) {
-      log.error("Error in registerEntity: {}", e);
+      log.error("Error in applyEntity: {}", e);
       responseObserver.onError(getBadRequestException(e));
     }
   }
