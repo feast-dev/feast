@@ -66,28 +66,28 @@ service CoreService {
     rpc ListStorage(google.protobuf.Empty) returns (CoreServiceTypes.ListStorageResponse) {};
 
     /*
-    Register a new feature to the metadata store.
+    Register a new feature to the metadata store, or update an existing feature.
     If any validation errors occur, only the first encountered error will be returned.
     */
-    rpc RegisterFeature(feast.specs.FeatureSpec) returns (CoreServiceTypes.RegisterFeatureResponse) {};
+    rpc ApplyFeature(feast.specs.FeatureSpec) returns (CoreServiceTypes.ApplyFeatureResponse) {};
 
     /*
-    Register a new feature group to the metadata store.
+    Register a new feature group to the metadata store, or update an existing feature group.
     If any validation errors occur, only the first encountered error will be returned.
     */
-    rpc RegisterFeatureGroup(feast.specs.FeatureGroupSpec) returns (CoreServiceTypes.RegisterFeatureGroupResponse) {};
+    rpc ApplyFeatureGroup(feast.specs.FeatureGroupSpec) returns (CoreServiceTypes.ApplyFeatureGroupResponse) {};
 
     /*
-    Register a new entity to the metadata store.
+    Register a new entity to the metadata store, or update an existing entity.
     If any validation errors occur, only the first encountered error will be returned.
     */
-    rpc RegisterEntity(feast.specs.EntitySpec) returns (CoreServiceTypes.RegisterEntityResponse) {};
+    rpc ApplyEntity(feast.specs.EntitySpec) returns (CoreServiceTypes.ApplyEntityResponse) {};
 
     /*
-    Register a new storage spec to the metadata store.
+    Register a new storage spec to the metadata store, or update an existing storage.
     If any validation errors occur, only the first encountered error will be returned.
     */
-    rpc RegisterStorage(feast.specs.StorageSpec) returns (CoreServiceTypes.RegisterStorageResponse) {};
+    rpc ApplyStorage(feast.specs.StorageSpec) returns (CoreServiceTypes.ApplyStorageResponse) {};
 }
 
 message CoreServiceTypes {
@@ -130,22 +130,22 @@ message CoreServiceTypes {
   }
 
   // Entity registration response
-  message RegisterEntityResponse {
+  message ApplyEntityResponse {
       string entityName = 1;
   }
   
   // Feature registration response
-  message RegisterFeatureResponse {
+  message ApplyFeatureResponse {
       string featureId = 1;
   }
 
   // Feature group registration response
-  message RegisterFeatureGroupResponse {
+  message ApplyFeatureGroupResponse {
       string featureGroupId = 1;
   }
 
   // Storage registration response
-  message RegisterStorageResponse {
+  message ApplyStorageResponse {
       string storageId = 1;
   }
 }

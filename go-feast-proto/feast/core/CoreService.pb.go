@@ -35,7 +35,7 @@ func (m *CoreServiceTypes) Reset()         { *m = CoreServiceTypes{} }
 func (m *CoreServiceTypes) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes) ProtoMessage()    {}
 func (*CoreServiceTypes) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_aeabad36f2a7449f, []int{0}
+	return fileDescriptor_CoreService_ab3e56c9944743b5, []int{0}
 }
 func (m *CoreServiceTypes) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes.Unmarshal(m, b)
@@ -66,7 +66,7 @@ func (m *CoreServiceTypes_GetEntitiesRequest) Reset()         { *m = CoreService
 func (m *CoreServiceTypes_GetEntitiesRequest) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_GetEntitiesRequest) ProtoMessage()    {}
 func (*CoreServiceTypes_GetEntitiesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_aeabad36f2a7449f, []int{0, 0}
+	return fileDescriptor_CoreService_ab3e56c9944743b5, []int{0, 0}
 }
 func (m *CoreServiceTypes_GetEntitiesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_GetEntitiesRequest.Unmarshal(m, b)
@@ -104,7 +104,7 @@ func (m *CoreServiceTypes_GetEntitiesResponse) Reset()         { *m = CoreServic
 func (m *CoreServiceTypes_GetEntitiesResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_GetEntitiesResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_GetEntitiesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_aeabad36f2a7449f, []int{0, 1}
+	return fileDescriptor_CoreService_ab3e56c9944743b5, []int{0, 1}
 }
 func (m *CoreServiceTypes_GetEntitiesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_GetEntitiesResponse.Unmarshal(m, b)
@@ -142,7 +142,7 @@ func (m *CoreServiceTypes_ListEntitiesResponse) Reset()         { *m = CoreServi
 func (m *CoreServiceTypes_ListEntitiesResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_ListEntitiesResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_ListEntitiesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_aeabad36f2a7449f, []int{0, 2}
+	return fileDescriptor_CoreService_ab3e56c9944743b5, []int{0, 2}
 }
 func (m *CoreServiceTypes_ListEntitiesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_ListEntitiesResponse.Unmarshal(m, b)
@@ -181,7 +181,7 @@ func (m *CoreServiceTypes_GetFeaturesRequest) Reset()         { *m = CoreService
 func (m *CoreServiceTypes_GetFeaturesRequest) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_GetFeaturesRequest) ProtoMessage()    {}
 func (*CoreServiceTypes_GetFeaturesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_aeabad36f2a7449f, []int{0, 3}
+	return fileDescriptor_CoreService_ab3e56c9944743b5, []int{0, 3}
 }
 func (m *CoreServiceTypes_GetFeaturesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_GetFeaturesRequest.Unmarshal(m, b)
@@ -219,7 +219,7 @@ func (m *CoreServiceTypes_GetFeaturesResponse) Reset()         { *m = CoreServic
 func (m *CoreServiceTypes_GetFeaturesResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_GetFeaturesResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_GetFeaturesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_aeabad36f2a7449f, []int{0, 4}
+	return fileDescriptor_CoreService_ab3e56c9944743b5, []int{0, 4}
 }
 func (m *CoreServiceTypes_GetFeaturesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_GetFeaturesResponse.Unmarshal(m, b)
@@ -257,7 +257,7 @@ func (m *CoreServiceTypes_ListFeaturesResponse) Reset()         { *m = CoreServi
 func (m *CoreServiceTypes_ListFeaturesResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_ListFeaturesResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_ListFeaturesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_aeabad36f2a7449f, []int{0, 5}
+	return fileDescriptor_CoreService_ab3e56c9944743b5, []int{0, 5}
 }
 func (m *CoreServiceTypes_ListFeaturesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_ListFeaturesResponse.Unmarshal(m, b)
@@ -296,7 +296,7 @@ func (m *CoreServiceTypes_GetStorageRequest) Reset()         { *m = CoreServiceT
 func (m *CoreServiceTypes_GetStorageRequest) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_GetStorageRequest) ProtoMessage()    {}
 func (*CoreServiceTypes_GetStorageRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_aeabad36f2a7449f, []int{0, 6}
+	return fileDescriptor_CoreService_ab3e56c9944743b5, []int{0, 6}
 }
 func (m *CoreServiceTypes_GetStorageRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_GetStorageRequest.Unmarshal(m, b)
@@ -334,7 +334,7 @@ func (m *CoreServiceTypes_GetStorageResponse) Reset()         { *m = CoreService
 func (m *CoreServiceTypes_GetStorageResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_GetStorageResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_GetStorageResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_aeabad36f2a7449f, []int{0, 7}
+	return fileDescriptor_CoreService_ab3e56c9944743b5, []int{0, 7}
 }
 func (m *CoreServiceTypes_GetStorageResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_GetStorageResponse.Unmarshal(m, b)
@@ -372,7 +372,7 @@ func (m *CoreServiceTypes_ListStorageResponse) Reset()         { *m = CoreServic
 func (m *CoreServiceTypes_ListStorageResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_ListStorageResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_ListStorageResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_aeabad36f2a7449f, []int{0, 8}
+	return fileDescriptor_CoreService_ab3e56c9944743b5, []int{0, 8}
 }
 func (m *CoreServiceTypes_ListStorageResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_ListStorageResponse.Unmarshal(m, b)
@@ -400,40 +400,38 @@ func (m *CoreServiceTypes_ListStorageResponse) GetStorageSpecs() []*specs.Storag
 }
 
 // Entity registration response
-type CoreServiceTypes_RegisterEntityResponse struct {
+type CoreServiceTypes_ApplyEntityResponse struct {
 	EntityName           string   `protobuf:"bytes,1,opt,name=entityName,proto3" json:"entityName,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CoreServiceTypes_RegisterEntityResponse) Reset() {
-	*m = CoreServiceTypes_RegisterEntityResponse{}
+func (m *CoreServiceTypes_ApplyEntityResponse) Reset()         { *m = CoreServiceTypes_ApplyEntityResponse{} }
+func (m *CoreServiceTypes_ApplyEntityResponse) String() string { return proto.CompactTextString(m) }
+func (*CoreServiceTypes_ApplyEntityResponse) ProtoMessage()    {}
+func (*CoreServiceTypes_ApplyEntityResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_CoreService_ab3e56c9944743b5, []int{0, 9}
 }
-func (m *CoreServiceTypes_RegisterEntityResponse) String() string { return proto.CompactTextString(m) }
-func (*CoreServiceTypes_RegisterEntityResponse) ProtoMessage()    {}
-func (*CoreServiceTypes_RegisterEntityResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_aeabad36f2a7449f, []int{0, 9}
+func (m *CoreServiceTypes_ApplyEntityResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CoreServiceTypes_ApplyEntityResponse.Unmarshal(m, b)
 }
-func (m *CoreServiceTypes_RegisterEntityResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_CoreServiceTypes_RegisterEntityResponse.Unmarshal(m, b)
+func (m *CoreServiceTypes_ApplyEntityResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CoreServiceTypes_ApplyEntityResponse.Marshal(b, m, deterministic)
 }
-func (m *CoreServiceTypes_RegisterEntityResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_CoreServiceTypes_RegisterEntityResponse.Marshal(b, m, deterministic)
+func (dst *CoreServiceTypes_ApplyEntityResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CoreServiceTypes_ApplyEntityResponse.Merge(dst, src)
 }
-func (dst *CoreServiceTypes_RegisterEntityResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CoreServiceTypes_RegisterEntityResponse.Merge(dst, src)
+func (m *CoreServiceTypes_ApplyEntityResponse) XXX_Size() int {
+	return xxx_messageInfo_CoreServiceTypes_ApplyEntityResponse.Size(m)
 }
-func (m *CoreServiceTypes_RegisterEntityResponse) XXX_Size() int {
-	return xxx_messageInfo_CoreServiceTypes_RegisterEntityResponse.Size(m)
-}
-func (m *CoreServiceTypes_RegisterEntityResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_CoreServiceTypes_RegisterEntityResponse.DiscardUnknown(m)
+func (m *CoreServiceTypes_ApplyEntityResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CoreServiceTypes_ApplyEntityResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_CoreServiceTypes_RegisterEntityResponse proto.InternalMessageInfo
+var xxx_messageInfo_CoreServiceTypes_ApplyEntityResponse proto.InternalMessageInfo
 
-func (m *CoreServiceTypes_RegisterEntityResponse) GetEntityName() string {
+func (m *CoreServiceTypes_ApplyEntityResponse) GetEntityName() string {
 	if m != nil {
 		return m.EntityName
 	}
@@ -441,40 +439,38 @@ func (m *CoreServiceTypes_RegisterEntityResponse) GetEntityName() string {
 }
 
 // Feature registration response
-type CoreServiceTypes_RegisterFeatureResponse struct {
+type CoreServiceTypes_ApplyFeatureResponse struct {
 	FeatureId            string   `protobuf:"bytes,1,opt,name=featureId,proto3" json:"featureId,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CoreServiceTypes_RegisterFeatureResponse) Reset() {
-	*m = CoreServiceTypes_RegisterFeatureResponse{}
+func (m *CoreServiceTypes_ApplyFeatureResponse) Reset()         { *m = CoreServiceTypes_ApplyFeatureResponse{} }
+func (m *CoreServiceTypes_ApplyFeatureResponse) String() string { return proto.CompactTextString(m) }
+func (*CoreServiceTypes_ApplyFeatureResponse) ProtoMessage()    {}
+func (*CoreServiceTypes_ApplyFeatureResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_CoreService_ab3e56c9944743b5, []int{0, 10}
 }
-func (m *CoreServiceTypes_RegisterFeatureResponse) String() string { return proto.CompactTextString(m) }
-func (*CoreServiceTypes_RegisterFeatureResponse) ProtoMessage()    {}
-func (*CoreServiceTypes_RegisterFeatureResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_aeabad36f2a7449f, []int{0, 10}
+func (m *CoreServiceTypes_ApplyFeatureResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CoreServiceTypes_ApplyFeatureResponse.Unmarshal(m, b)
 }
-func (m *CoreServiceTypes_RegisterFeatureResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_CoreServiceTypes_RegisterFeatureResponse.Unmarshal(m, b)
+func (m *CoreServiceTypes_ApplyFeatureResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CoreServiceTypes_ApplyFeatureResponse.Marshal(b, m, deterministic)
 }
-func (m *CoreServiceTypes_RegisterFeatureResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_CoreServiceTypes_RegisterFeatureResponse.Marshal(b, m, deterministic)
+func (dst *CoreServiceTypes_ApplyFeatureResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CoreServiceTypes_ApplyFeatureResponse.Merge(dst, src)
 }
-func (dst *CoreServiceTypes_RegisterFeatureResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CoreServiceTypes_RegisterFeatureResponse.Merge(dst, src)
+func (m *CoreServiceTypes_ApplyFeatureResponse) XXX_Size() int {
+	return xxx_messageInfo_CoreServiceTypes_ApplyFeatureResponse.Size(m)
 }
-func (m *CoreServiceTypes_RegisterFeatureResponse) XXX_Size() int {
-	return xxx_messageInfo_CoreServiceTypes_RegisterFeatureResponse.Size(m)
-}
-func (m *CoreServiceTypes_RegisterFeatureResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_CoreServiceTypes_RegisterFeatureResponse.DiscardUnknown(m)
+func (m *CoreServiceTypes_ApplyFeatureResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CoreServiceTypes_ApplyFeatureResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_CoreServiceTypes_RegisterFeatureResponse proto.InternalMessageInfo
+var xxx_messageInfo_CoreServiceTypes_ApplyFeatureResponse proto.InternalMessageInfo
 
-func (m *CoreServiceTypes_RegisterFeatureResponse) GetFeatureId() string {
+func (m *CoreServiceTypes_ApplyFeatureResponse) GetFeatureId() string {
 	if m != nil {
 		return m.FeatureId
 	}
@@ -482,42 +478,42 @@ func (m *CoreServiceTypes_RegisterFeatureResponse) GetFeatureId() string {
 }
 
 // Feature group registration response
-type CoreServiceTypes_RegisterFeatureGroupResponse struct {
+type CoreServiceTypes_ApplyFeatureGroupResponse struct {
 	FeatureGroupId       string   `protobuf:"bytes,1,opt,name=featureGroupId,proto3" json:"featureGroupId,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CoreServiceTypes_RegisterFeatureGroupResponse) Reset() {
-	*m = CoreServiceTypes_RegisterFeatureGroupResponse{}
+func (m *CoreServiceTypes_ApplyFeatureGroupResponse) Reset() {
+	*m = CoreServiceTypes_ApplyFeatureGroupResponse{}
 }
-func (m *CoreServiceTypes_RegisterFeatureGroupResponse) String() string {
+func (m *CoreServiceTypes_ApplyFeatureGroupResponse) String() string {
 	return proto.CompactTextString(m)
 }
-func (*CoreServiceTypes_RegisterFeatureGroupResponse) ProtoMessage() {}
-func (*CoreServiceTypes_RegisterFeatureGroupResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_aeabad36f2a7449f, []int{0, 11}
+func (*CoreServiceTypes_ApplyFeatureGroupResponse) ProtoMessage() {}
+func (*CoreServiceTypes_ApplyFeatureGroupResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_CoreService_ab3e56c9944743b5, []int{0, 11}
 }
-func (m *CoreServiceTypes_RegisterFeatureGroupResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_CoreServiceTypes_RegisterFeatureGroupResponse.Unmarshal(m, b)
+func (m *CoreServiceTypes_ApplyFeatureGroupResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CoreServiceTypes_ApplyFeatureGroupResponse.Unmarshal(m, b)
 }
-func (m *CoreServiceTypes_RegisterFeatureGroupResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_CoreServiceTypes_RegisterFeatureGroupResponse.Marshal(b, m, deterministic)
+func (m *CoreServiceTypes_ApplyFeatureGroupResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CoreServiceTypes_ApplyFeatureGroupResponse.Marshal(b, m, deterministic)
 }
-func (dst *CoreServiceTypes_RegisterFeatureGroupResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CoreServiceTypes_RegisterFeatureGroupResponse.Merge(dst, src)
+func (dst *CoreServiceTypes_ApplyFeatureGroupResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CoreServiceTypes_ApplyFeatureGroupResponse.Merge(dst, src)
 }
-func (m *CoreServiceTypes_RegisterFeatureGroupResponse) XXX_Size() int {
-	return xxx_messageInfo_CoreServiceTypes_RegisterFeatureGroupResponse.Size(m)
+func (m *CoreServiceTypes_ApplyFeatureGroupResponse) XXX_Size() int {
+	return xxx_messageInfo_CoreServiceTypes_ApplyFeatureGroupResponse.Size(m)
 }
-func (m *CoreServiceTypes_RegisterFeatureGroupResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_CoreServiceTypes_RegisterFeatureGroupResponse.DiscardUnknown(m)
+func (m *CoreServiceTypes_ApplyFeatureGroupResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CoreServiceTypes_ApplyFeatureGroupResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_CoreServiceTypes_RegisterFeatureGroupResponse proto.InternalMessageInfo
+var xxx_messageInfo_CoreServiceTypes_ApplyFeatureGroupResponse proto.InternalMessageInfo
 
-func (m *CoreServiceTypes_RegisterFeatureGroupResponse) GetFeatureGroupId() string {
+func (m *CoreServiceTypes_ApplyFeatureGroupResponse) GetFeatureGroupId() string {
 	if m != nil {
 		return m.FeatureGroupId
 	}
@@ -525,40 +521,38 @@ func (m *CoreServiceTypes_RegisterFeatureGroupResponse) GetFeatureGroupId() stri
 }
 
 // Storage registration response
-type CoreServiceTypes_RegisterStorageResponse struct {
+type CoreServiceTypes_ApplyStorageResponse struct {
 	StorageId            string   `protobuf:"bytes,1,opt,name=storageId,proto3" json:"storageId,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CoreServiceTypes_RegisterStorageResponse) Reset() {
-	*m = CoreServiceTypes_RegisterStorageResponse{}
+func (m *CoreServiceTypes_ApplyStorageResponse) Reset()         { *m = CoreServiceTypes_ApplyStorageResponse{} }
+func (m *CoreServiceTypes_ApplyStorageResponse) String() string { return proto.CompactTextString(m) }
+func (*CoreServiceTypes_ApplyStorageResponse) ProtoMessage()    {}
+func (*CoreServiceTypes_ApplyStorageResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_CoreService_ab3e56c9944743b5, []int{0, 12}
 }
-func (m *CoreServiceTypes_RegisterStorageResponse) String() string { return proto.CompactTextString(m) }
-func (*CoreServiceTypes_RegisterStorageResponse) ProtoMessage()    {}
-func (*CoreServiceTypes_RegisterStorageResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_aeabad36f2a7449f, []int{0, 12}
+func (m *CoreServiceTypes_ApplyStorageResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CoreServiceTypes_ApplyStorageResponse.Unmarshal(m, b)
 }
-func (m *CoreServiceTypes_RegisterStorageResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_CoreServiceTypes_RegisterStorageResponse.Unmarshal(m, b)
+func (m *CoreServiceTypes_ApplyStorageResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CoreServiceTypes_ApplyStorageResponse.Marshal(b, m, deterministic)
 }
-func (m *CoreServiceTypes_RegisterStorageResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_CoreServiceTypes_RegisterStorageResponse.Marshal(b, m, deterministic)
+func (dst *CoreServiceTypes_ApplyStorageResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CoreServiceTypes_ApplyStorageResponse.Merge(dst, src)
 }
-func (dst *CoreServiceTypes_RegisterStorageResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CoreServiceTypes_RegisterStorageResponse.Merge(dst, src)
+func (m *CoreServiceTypes_ApplyStorageResponse) XXX_Size() int {
+	return xxx_messageInfo_CoreServiceTypes_ApplyStorageResponse.Size(m)
 }
-func (m *CoreServiceTypes_RegisterStorageResponse) XXX_Size() int {
-	return xxx_messageInfo_CoreServiceTypes_RegisterStorageResponse.Size(m)
-}
-func (m *CoreServiceTypes_RegisterStorageResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_CoreServiceTypes_RegisterStorageResponse.DiscardUnknown(m)
+func (m *CoreServiceTypes_ApplyStorageResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CoreServiceTypes_ApplyStorageResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_CoreServiceTypes_RegisterStorageResponse proto.InternalMessageInfo
+var xxx_messageInfo_CoreServiceTypes_ApplyStorageResponse proto.InternalMessageInfo
 
-func (m *CoreServiceTypes_RegisterStorageResponse) GetStorageId() string {
+func (m *CoreServiceTypes_ApplyStorageResponse) GetStorageId() string {
 	if m != nil {
 		return m.StorageId
 	}
@@ -576,10 +570,10 @@ func init() {
 	proto.RegisterType((*CoreServiceTypes_GetStorageRequest)(nil), "feast.core.CoreServiceTypes.GetStorageRequest")
 	proto.RegisterType((*CoreServiceTypes_GetStorageResponse)(nil), "feast.core.CoreServiceTypes.GetStorageResponse")
 	proto.RegisterType((*CoreServiceTypes_ListStorageResponse)(nil), "feast.core.CoreServiceTypes.ListStorageResponse")
-	proto.RegisterType((*CoreServiceTypes_RegisterEntityResponse)(nil), "feast.core.CoreServiceTypes.RegisterEntityResponse")
-	proto.RegisterType((*CoreServiceTypes_RegisterFeatureResponse)(nil), "feast.core.CoreServiceTypes.RegisterFeatureResponse")
-	proto.RegisterType((*CoreServiceTypes_RegisterFeatureGroupResponse)(nil), "feast.core.CoreServiceTypes.RegisterFeatureGroupResponse")
-	proto.RegisterType((*CoreServiceTypes_RegisterStorageResponse)(nil), "feast.core.CoreServiceTypes.RegisterStorageResponse")
+	proto.RegisterType((*CoreServiceTypes_ApplyEntityResponse)(nil), "feast.core.CoreServiceTypes.ApplyEntityResponse")
+	proto.RegisterType((*CoreServiceTypes_ApplyFeatureResponse)(nil), "feast.core.CoreServiceTypes.ApplyFeatureResponse")
+	proto.RegisterType((*CoreServiceTypes_ApplyFeatureGroupResponse)(nil), "feast.core.CoreServiceTypes.ApplyFeatureGroupResponse")
+	proto.RegisterType((*CoreServiceTypes_ApplyStorageResponse)(nil), "feast.core.CoreServiceTypes.ApplyStorageResponse")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -619,21 +613,21 @@ type CoreServiceClient interface {
 	// This process returns a list of storage specs.
 	ListStorage(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*CoreServiceTypes_ListStorageResponse, error)
 	//
-	// Register a new feature to the metadata store.
+	// Register a new feature to the metadata store, or update an existing feature.
 	// If any validation errors occur, only the first encountered error will be returned.
-	RegisterFeature(ctx context.Context, in *specs.FeatureSpec, opts ...grpc.CallOption) (*CoreServiceTypes_RegisterFeatureResponse, error)
+	ApplyFeature(ctx context.Context, in *specs.FeatureSpec, opts ...grpc.CallOption) (*CoreServiceTypes_ApplyFeatureResponse, error)
 	//
-	// Register a new feature group to the metadata store.
+	// Register a new feature group to the metadata store, or update an existing feature group.
 	// If any validation errors occur, only the first encountered error will be returned.
-	RegisterFeatureGroup(ctx context.Context, in *specs.FeatureGroupSpec, opts ...grpc.CallOption) (*CoreServiceTypes_RegisterFeatureGroupResponse, error)
+	ApplyFeatureGroup(ctx context.Context, in *specs.FeatureGroupSpec, opts ...grpc.CallOption) (*CoreServiceTypes_ApplyFeatureGroupResponse, error)
 	//
-	// Register a new entity to the metadata store.
+	// Register a new entity to the metadata store, or update an existing entity.
 	// If any validation errors occur, only the first encountered error will be returned.
-	RegisterEntity(ctx context.Context, in *specs.EntitySpec, opts ...grpc.CallOption) (*CoreServiceTypes_RegisterEntityResponse, error)
+	ApplyEntity(ctx context.Context, in *specs.EntitySpec, opts ...grpc.CallOption) (*CoreServiceTypes_ApplyEntityResponse, error)
 	//
-	// Register a new storage spec to the metadata store.
+	// Register a new storage spec to the metadata store, or update an existing storage.
 	// If any validation errors occur, only the first encountered error will be returned.
-	RegisterStorage(ctx context.Context, in *specs.StorageSpec, opts ...grpc.CallOption) (*CoreServiceTypes_RegisterStorageResponse, error)
+	ApplyStorage(ctx context.Context, in *specs.StorageSpec, opts ...grpc.CallOption) (*CoreServiceTypes_ApplyStorageResponse, error)
 }
 
 type coreServiceClient struct {
@@ -698,36 +692,36 @@ func (c *coreServiceClient) ListStorage(ctx context.Context, in *empty.Empty, op
 	return out, nil
 }
 
-func (c *coreServiceClient) RegisterFeature(ctx context.Context, in *specs.FeatureSpec, opts ...grpc.CallOption) (*CoreServiceTypes_RegisterFeatureResponse, error) {
-	out := new(CoreServiceTypes_RegisterFeatureResponse)
-	err := c.cc.Invoke(ctx, "/feast.core.CoreService/RegisterFeature", in, out, opts...)
+func (c *coreServiceClient) ApplyFeature(ctx context.Context, in *specs.FeatureSpec, opts ...grpc.CallOption) (*CoreServiceTypes_ApplyFeatureResponse, error) {
+	out := new(CoreServiceTypes_ApplyFeatureResponse)
+	err := c.cc.Invoke(ctx, "/feast.core.CoreService/ApplyFeature", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *coreServiceClient) RegisterFeatureGroup(ctx context.Context, in *specs.FeatureGroupSpec, opts ...grpc.CallOption) (*CoreServiceTypes_RegisterFeatureGroupResponse, error) {
-	out := new(CoreServiceTypes_RegisterFeatureGroupResponse)
-	err := c.cc.Invoke(ctx, "/feast.core.CoreService/RegisterFeatureGroup", in, out, opts...)
+func (c *coreServiceClient) ApplyFeatureGroup(ctx context.Context, in *specs.FeatureGroupSpec, opts ...grpc.CallOption) (*CoreServiceTypes_ApplyFeatureGroupResponse, error) {
+	out := new(CoreServiceTypes_ApplyFeatureGroupResponse)
+	err := c.cc.Invoke(ctx, "/feast.core.CoreService/ApplyFeatureGroup", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *coreServiceClient) RegisterEntity(ctx context.Context, in *specs.EntitySpec, opts ...grpc.CallOption) (*CoreServiceTypes_RegisterEntityResponse, error) {
-	out := new(CoreServiceTypes_RegisterEntityResponse)
-	err := c.cc.Invoke(ctx, "/feast.core.CoreService/RegisterEntity", in, out, opts...)
+func (c *coreServiceClient) ApplyEntity(ctx context.Context, in *specs.EntitySpec, opts ...grpc.CallOption) (*CoreServiceTypes_ApplyEntityResponse, error) {
+	out := new(CoreServiceTypes_ApplyEntityResponse)
+	err := c.cc.Invoke(ctx, "/feast.core.CoreService/ApplyEntity", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *coreServiceClient) RegisterStorage(ctx context.Context, in *specs.StorageSpec, opts ...grpc.CallOption) (*CoreServiceTypes_RegisterStorageResponse, error) {
-	out := new(CoreServiceTypes_RegisterStorageResponse)
-	err := c.cc.Invoke(ctx, "/feast.core.CoreService/RegisterStorage", in, out, opts...)
+func (c *coreServiceClient) ApplyStorage(ctx context.Context, in *specs.StorageSpec, opts ...grpc.CallOption) (*CoreServiceTypes_ApplyStorageResponse, error) {
+	out := new(CoreServiceTypes_ApplyStorageResponse)
+	err := c.cc.Invoke(ctx, "/feast.core.CoreService/ApplyStorage", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -761,21 +755,21 @@ type CoreServiceServer interface {
 	// This process returns a list of storage specs.
 	ListStorage(context.Context, *empty.Empty) (*CoreServiceTypes_ListStorageResponse, error)
 	//
-	// Register a new feature to the metadata store.
+	// Register a new feature to the metadata store, or update an existing feature.
 	// If any validation errors occur, only the first encountered error will be returned.
-	RegisterFeature(context.Context, *specs.FeatureSpec) (*CoreServiceTypes_RegisterFeatureResponse, error)
+	ApplyFeature(context.Context, *specs.FeatureSpec) (*CoreServiceTypes_ApplyFeatureResponse, error)
 	//
-	// Register a new feature group to the metadata store.
+	// Register a new feature group to the metadata store, or update an existing feature group.
 	// If any validation errors occur, only the first encountered error will be returned.
-	RegisterFeatureGroup(context.Context, *specs.FeatureGroupSpec) (*CoreServiceTypes_RegisterFeatureGroupResponse, error)
+	ApplyFeatureGroup(context.Context, *specs.FeatureGroupSpec) (*CoreServiceTypes_ApplyFeatureGroupResponse, error)
 	//
-	// Register a new entity to the metadata store.
+	// Register a new entity to the metadata store, or update an existing entity.
 	// If any validation errors occur, only the first encountered error will be returned.
-	RegisterEntity(context.Context, *specs.EntitySpec) (*CoreServiceTypes_RegisterEntityResponse, error)
+	ApplyEntity(context.Context, *specs.EntitySpec) (*CoreServiceTypes_ApplyEntityResponse, error)
 	//
-	// Register a new storage spec to the metadata store.
+	// Register a new storage spec to the metadata store, or update an existing storage.
 	// If any validation errors occur, only the first encountered error will be returned.
-	RegisterStorage(context.Context, *specs.StorageSpec) (*CoreServiceTypes_RegisterStorageResponse, error)
+	ApplyStorage(context.Context, *specs.StorageSpec) (*CoreServiceTypes_ApplyStorageResponse, error)
 }
 
 func RegisterCoreServiceServer(s *grpc.Server, srv CoreServiceServer) {
@@ -890,74 +884,74 @@ func _CoreService_ListStorage_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _CoreService_RegisterFeature_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _CoreService_ApplyFeature_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(specs.FeatureSpec)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CoreServiceServer).RegisterFeature(ctx, in)
+		return srv.(CoreServiceServer).ApplyFeature(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/feast.core.CoreService/RegisterFeature",
+		FullMethod: "/feast.core.CoreService/ApplyFeature",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CoreServiceServer).RegisterFeature(ctx, req.(*specs.FeatureSpec))
+		return srv.(CoreServiceServer).ApplyFeature(ctx, req.(*specs.FeatureSpec))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _CoreService_RegisterFeatureGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _CoreService_ApplyFeatureGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(specs.FeatureGroupSpec)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CoreServiceServer).RegisterFeatureGroup(ctx, in)
+		return srv.(CoreServiceServer).ApplyFeatureGroup(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/feast.core.CoreService/RegisterFeatureGroup",
+		FullMethod: "/feast.core.CoreService/ApplyFeatureGroup",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CoreServiceServer).RegisterFeatureGroup(ctx, req.(*specs.FeatureGroupSpec))
+		return srv.(CoreServiceServer).ApplyFeatureGroup(ctx, req.(*specs.FeatureGroupSpec))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _CoreService_RegisterEntity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _CoreService_ApplyEntity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(specs.EntitySpec)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CoreServiceServer).RegisterEntity(ctx, in)
+		return srv.(CoreServiceServer).ApplyEntity(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/feast.core.CoreService/RegisterEntity",
+		FullMethod: "/feast.core.CoreService/ApplyEntity",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CoreServiceServer).RegisterEntity(ctx, req.(*specs.EntitySpec))
+		return srv.(CoreServiceServer).ApplyEntity(ctx, req.(*specs.EntitySpec))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _CoreService_RegisterStorage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _CoreService_ApplyStorage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(specs.StorageSpec)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CoreServiceServer).RegisterStorage(ctx, in)
+		return srv.(CoreServiceServer).ApplyStorage(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/feast.core.CoreService/RegisterStorage",
+		FullMethod: "/feast.core.CoreService/ApplyStorage",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CoreServiceServer).RegisterStorage(ctx, req.(*specs.StorageSpec))
+		return srv.(CoreServiceServer).ApplyStorage(ctx, req.(*specs.StorageSpec))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -991,20 +985,20 @@ var _CoreService_serviceDesc = grpc.ServiceDesc{
 			Handler:    _CoreService_ListStorage_Handler,
 		},
 		{
-			MethodName: "RegisterFeature",
-			Handler:    _CoreService_RegisterFeature_Handler,
+			MethodName: "ApplyFeature",
+			Handler:    _CoreService_ApplyFeature_Handler,
 		},
 		{
-			MethodName: "RegisterFeatureGroup",
-			Handler:    _CoreService_RegisterFeatureGroup_Handler,
+			MethodName: "ApplyFeatureGroup",
+			Handler:    _CoreService_ApplyFeatureGroup_Handler,
 		},
 		{
-			MethodName: "RegisterEntity",
-			Handler:    _CoreService_RegisterEntity_Handler,
+			MethodName: "ApplyEntity",
+			Handler:    _CoreService_ApplyEntity_Handler,
 		},
 		{
-			MethodName: "RegisterStorage",
-			Handler:    _CoreService_RegisterStorage_Handler,
+			MethodName: "ApplyStorage",
+			Handler:    _CoreService_ApplyStorage_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -1012,47 +1006,47 @@ var _CoreService_serviceDesc = grpc.ServiceDesc{
 }
 
 func init() {
-	proto.RegisterFile("feast/core/CoreService.proto", fileDescriptor_CoreService_aeabad36f2a7449f)
+	proto.RegisterFile("feast/core/CoreService.proto", fileDescriptor_CoreService_ab3e56c9944743b5)
 }
 
-var fileDescriptor_CoreService_aeabad36f2a7449f = []byte{
-	// 605 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0x5f, 0x4f, 0x13, 0x41,
-	0x10, 0x6f, 0x43, 0x42, 0xda, 0x29, 0x41, 0x5c, 0x08, 0x34, 0x6b, 0x31, 0xa4, 0x89, 0x84, 0x17,
-	0xf6, 0x90, 0x36, 0x51, 0x13, 0x9f, 0x30, 0xd0, 0x28, 0xc4, 0x98, 0x2b, 0x2f, 0xea, 0x8b, 0xed,
-	0x31, 0x3d, 0x4e, 0x2d, 0x7b, 0xde, 0x6e, 0x4d, 0xfa, 0x59, 0xfc, 0x66, 0x7e, 0x1a, 0x73, 0x7b,
-	0xdb, 0xbd, 0xbd, 0xeb, 0x5d, 0x5b, 0x49, 0xdf, 0xda, 0xf9, 0xff, 0x9b, 0x99, 0xdf, 0xec, 0x41,
-	0x6b, 0x84, 0x03, 0x21, 0x1d, 0x8f, 0x47, 0xe8, 0xbc, 0xe3, 0x11, 0xf6, 0x31, 0xfa, 0x1d, 0x78,
-	0xc8, 0xc2, 0x88, 0x4b, 0x4e, 0x40, 0x69, 0x59, 0xac, 0xa5, 0xda, 0x52, 0x84, 0xe8, 0x09, 0xe7,
-	0xf2, 0x41, 0x06, 0x72, 0xda, 0x0f, 0xd1, 0x4b, 0x2c, 0xe9, 0xa1, 0xad, 0xbd, 0xc2, 0x81, 0x9c,
-	0x44, 0x68, 0xa9, 0xdb, 0x05, 0xea, 0x5e, 0xc4, 0x27, 0x61, 0x59, 0x88, 0xbe, 0xe4, 0xd1, 0xc0,
-	0xb7, 0x43, 0x3c, 0xf3, 0x39, 0xf7, 0x7f, 0xa2, 0xa3, 0xfe, 0x0d, 0x27, 0x23, 0x07, 0xc7, 0xa1,
-	0x9c, 0x26, 0xca, 0xf6, 0xdf, 0x4d, 0xd8, 0xb1, 0xca, 0xbf, 0x9d, 0x86, 0x28, 0xe8, 0x31, 0x90,
-	0x1e, 0x4a, 0x55, 0x6a, 0x80, 0xc2, 0xc5, 0x5f, 0x13, 0x14, 0x92, 0xec, 0xc0, 0x46, 0x70, 0x27,
-	0x9a, 0xd5, 0xa3, 0x8d, 0x93, 0xba, 0x1b, 0xff, 0xa4, 0x1f, 0x60, 0x37, 0x63, 0x27, 0x42, 0xfe,
-	0x20, 0x90, 0x74, 0xa0, 0x86, 0x5a, 0xa6, 0xac, 0x1b, 0xe7, 0x07, 0x2c, 0xe9, 0x87, 0x2a, 0x91,
-	0xa5, 0x3d, 0x70, 0x8d, 0x21, 0xbd, 0x86, 0xbd, 0x9b, 0x40, 0xac, 0x29, 0x58, 0x02, 0x40, 0xb7,
-	0x6b, 0x01, 0x80, 0x6b, 0x05, 0x20, 0xb5, 0xd3, 0x39, 0xbb, 0x50, 0x1b, 0x69, 0x99, 0xce, 0xd9,
-	0xcc, 0xe4, 0xb4, 0xc6, 0xe4, 0x1a, 0x4b, 0x7a, 0x93, 0x20, 0x58, 0x53, 0xb4, 0x17, 0xf0, 0xb4,
-	0x87, 0x52, 0x4f, 0xb3, 0x1c, 0x81, 0xab, 0x90, 0x1a, 0x33, 0x9d, 0xf2, 0x2d, 0x6c, 0x89, 0x74,
-	0x0f, 0x8a, 0xd3, 0x5a, 0x8b, 0xe2, 0x66, 0xac, 0x69, 0x1f, 0x76, 0x63, 0x20, 0xeb, 0x0d, 0xfa,
-	0x1a, 0xf6, 0x5d, 0xf4, 0x03, 0x21, 0x31, 0x4a, 0x46, 0x66, 0xe2, 0x3e, 0x07, 0x50, 0x83, 0x9b,
-	0x7e, 0x1c, 0x8c, 0xb1, 0x59, 0x3d, 0xaa, 0x9e, 0xd4, 0x5d, 0x4b, 0x42, 0x5f, 0xc1, 0xc1, 0xcc,
-	0x53, 0xb7, 0xca, 0xb8, 0xb6, 0xa0, 0xae, 0x1b, 0xf6, 0xfe, 0x4e, 0x7b, 0xa6, 0x02, 0x7a, 0x05,
-	0xad, 0x9c, 0xa3, 0x62, 0x8e, 0xf1, 0x3e, 0x86, 0xed, 0x91, 0x25, 0x37, 0x21, 0x72, 0x52, 0xbb,
-	0x80, 0x7c, 0x4f, 0x5a, 0x50, 0xd7, 0x28, 0xd3, 0x02, 0x8c, 0xe0, 0xfc, 0x4f, 0x0d, 0x1a, 0x16,
-	0xb9, 0x48, 0x04, 0x0d, 0x8b, 0x2f, 0xc4, 0x61, 0xe9, 0x95, 0x60, 0x79, 0x12, 0xb2, 0x79, 0x06,
-	0xd2, 0xb3, 0xd5, 0x1d, 0x92, 0xfa, 0xda, 0x15, 0xf2, 0x15, 0xb6, 0x6c, 0x5e, 0x91, 0x7d, 0x96,
-	0x9c, 0x03, 0x36, 0x3b, 0x07, 0xec, 0x32, 0x3e, 0x07, 0xf4, 0xe5, 0xc2, 0xd8, 0x45, 0xd4, 0x6c,
-	0x57, 0x34, 0xa0, 0xd9, 0xc6, 0x2f, 0x07, 0x94, 0x63, 0xe4, 0x72, 0x40, 0x79, 0x32, 0xa5, 0x80,
-	0x4c, 0xd2, 0xc7, 0x03, 0x2a, 0x08, 0xce, 0x01, 0x52, 0x3a, 0x11, 0xb6, 0xac, 0xbc, 0x2c, 0x3d,
-	0xa9, 0xb3, 0xb2, 0xbd, 0x49, 0xf8, 0x19, 0x1a, 0x16, 0xd7, 0x4a, 0xc1, 0x9c, 0x2d, 0x05, 0x33,
-	0x1f, 0xda, 0x83, 0x27, 0xb9, 0xf5, 0x27, 0xa5, 0x87, 0x87, 0x76, 0x17, 0x26, 0x28, 0xe1, 0x9f,
-	0xda, 0x80, 0xbd, 0x22, 0x8e, 0x91, 0xc3, 0xa2, 0x4c, 0xe6, 0xe1, 0xa2, 0x6f, 0xfe, 0x27, 0x5d,
-	0x86, 0xb5, 0xed, 0x0a, 0xf9, 0x06, 0xdb, 0xd9, 0x53, 0x42, 0xca, 0x9e, 0x04, 0xda, 0x59, 0x29,
-	0x4f, 0xf6, 0x20, 0x65, 0x5b, 0x37, 0x9b, 0x4c, 0xe9, 0x9d, 0x5b, 0xb1, 0x75, 0x73, 0xf3, 0xb9,
-	0xb8, 0x05, 0xeb, 0x2b, 0xe1, 0xc2, 0x7e, 0x85, 0x3f, 0xc5, 0xc3, 0xff, 0xd2, 0xf5, 0x03, 0x79,
-	0x3f, 0x19, 0x32, 0x8f, 0x8f, 0x1d, 0x9f, 0x7f, 0xc7, 0x1f, 0x12, 0xbd, 0x7b, 0x27, 0x79, 0xeb,
-	0x7d, 0x7e, 0xaa, 0x7e, 0x9c, 0xaa, 0x3d, 0x71, 0xd2, 0x6f, 0x91, 0xe1, 0xa6, 0x92, 0x74, 0xfe,
-	0x05, 0x00, 0x00, 0xff, 0xff, 0x78, 0x92, 0x55, 0xe6, 0xa0, 0x08, 0x00, 0x00,
+var fileDescriptor_CoreService_ab3e56c9944743b5 = []byte{
+	// 601 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0xcf, 0x6f, 0xd3, 0x30,
+	0x14, 0x6e, 0x35, 0x69, 0x6a, 0x5f, 0x2b, 0xb4, 0xb9, 0x13, 0x14, 0xd3, 0xa1, 0x29, 0x12, 0xd3,
+	0x2e, 0x73, 0xc6, 0x56, 0x38, 0x71, 0x61, 0xd3, 0xa8, 0x60, 0x13, 0x42, 0xe9, 0x2e, 0x0c, 0x71,
+	0x68, 0xb3, 0xd7, 0x2c, 0xd0, 0xce, 0x21, 0x76, 0x91, 0x7a, 0xe6, 0xff, 0xe3, 0x6f, 0x42, 0x75,
+	0x5c, 0xc7, 0x4d, 0x93, 0xa5, 0x42, 0xbd, 0xb5, 0xef, 0xd7, 0xe7, 0xef, 0x3d, 0x7f, 0xcf, 0x81,
+	0xce, 0x08, 0x07, 0x42, 0xba, 0x3e, 0x8f, 0xd1, 0xbd, 0xe0, 0x31, 0xf6, 0x31, 0xfe, 0x1d, 0xfa,
+	0xc8, 0xa2, 0x98, 0x4b, 0x4e, 0x40, 0x79, 0xd9, 0xdc, 0x4b, 0x75, 0xa4, 0x88, 0xd0, 0x17, 0xee,
+	0xe5, 0x83, 0x0c, 0xe5, 0xac, 0x1f, 0xa1, 0x9f, 0x44, 0xd2, 0x7d, 0xdb, 0xfb, 0x01, 0x07, 0x72,
+	0x1a, 0xa3, 0xe5, 0x76, 0x72, 0xdc, 0xbd, 0x98, 0x4f, 0xa3, 0xa2, 0x12, 0x7d, 0xc9, 0xe3, 0x41,
+	0x60, 0x97, 0x78, 0x11, 0x70, 0x1e, 0x8c, 0xd1, 0x55, 0xff, 0x86, 0xd3, 0x91, 0x8b, 0x93, 0x48,
+	0xce, 0x12, 0xa7, 0xf3, 0x77, 0x1b, 0x76, 0xac, 0xe3, 0xdf, 0xcc, 0x22, 0x14, 0xf4, 0x10, 0x48,
+	0x0f, 0xa5, 0x3a, 0x6a, 0x88, 0xc2, 0xc3, 0x5f, 0x53, 0x14, 0x92, 0xec, 0xc0, 0x56, 0x78, 0x27,
+	0xda, 0xd5, 0x83, 0xad, 0xa3, 0xba, 0x37, 0xff, 0x49, 0x3f, 0x41, 0x6b, 0x29, 0x4e, 0x44, 0xfc,
+	0x41, 0x20, 0x39, 0x83, 0x1a, 0x6a, 0x9b, 0x8a, 0x6e, 0x9c, 0x3e, 0x63, 0x49, 0x3f, 0xd4, 0x11,
+	0x59, 0xda, 0x03, 0xcf, 0x04, 0xd2, 0x2b, 0xd8, 0xbb, 0x0e, 0xc5, 0x86, 0x8a, 0x25, 0x04, 0x74,
+	0xbb, 0x1e, 0x21, 0x70, 0xa5, 0x08, 0xa4, 0x71, 0x1a, 0xb3, 0x0b, 0xb5, 0x91, 0xb6, 0x69, 0xcc,
+	0xf6, 0x12, 0xa6, 0x35, 0x26, 0xcf, 0x44, 0xd2, 0xeb, 0x84, 0xc1, 0x86, 0xaa, 0xbd, 0x82, 0xdd,
+	0x1e, 0x4a, 0x3d, 0xcd, 0x62, 0x06, 0x9e, 0x62, 0x6a, 0xc2, 0x34, 0xe4, 0x3b, 0x68, 0x8a, 0xf4,
+	0x1e, 0xe4, 0xc3, 0x5a, 0x17, 0xc5, 0x5b, 0x8a, 0xa6, 0x7d, 0x68, 0xcd, 0x89, 0x6c, 0xb6, 0xe8,
+	0x1b, 0x68, 0xbd, 0x8f, 0xa2, 0xf1, 0x2c, 0x99, 0x97, 0x29, 0xfa, 0x12, 0x40, 0x4d, 0x6d, 0xf6,
+	0x79, 0x30, 0xc1, 0x76, 0xf5, 0xa0, 0x7a, 0x54, 0xf7, 0x2c, 0x0b, 0xed, 0xc2, 0x9e, 0x4a, 0xd3,
+	0x4d, 0x32, 0x79, 0x1d, 0xa8, 0xeb, 0x56, 0x7d, 0xbc, 0xd3, 0x69, 0xa9, 0x81, 0x5e, 0xc0, 0x73,
+	0x3b, 0x4b, 0x09, 0xc6, 0xa4, 0x1e, 0xc2, 0x93, 0x91, 0x65, 0x37, 0xf9, 0x19, 0xab, 0x81, 0xce,
+	0xf6, 0xa1, 0x03, 0x75, 0xcd, 0x2c, 0x85, 0x36, 0x86, 0xd3, 0x3f, 0x35, 0x68, 0x58, 0x82, 0x22,
+	0x31, 0x34, 0x2c, 0x8d, 0x10, 0x97, 0xa5, 0x9b, 0x81, 0x65, 0x85, 0xc7, 0x56, 0x55, 0x47, 0x4f,
+	0xd6, 0x4f, 0x48, 0xce, 0xe7, 0x54, 0xc8, 0x37, 0x68, 0xda, 0x5a, 0x22, 0x4f, 0x59, 0xb2, 0x02,
+	0xd8, 0x62, 0x05, 0xb0, 0xcb, 0xf9, 0x0a, 0xa0, 0xaf, 0x1f, 0xad, 0x9d, 0x27, 0x47, 0xa7, 0xa2,
+	0x09, 0x2d, 0x6e, 0x79, 0x39, 0xa1, 0x8c, 0x0a, 0xcb, 0x09, 0x65, 0x05, 0x94, 0x12, 0x32, 0xa0,
+	0xff, 0x4f, 0x28, 0xa7, 0x38, 0x07, 0x48, 0x25, 0x44, 0x58, 0xd9, 0xf1, 0x96, 0x25, 0x49, 0xdd,
+	0xb5, 0xe3, 0x0d, 0xe0, 0x57, 0x68, 0x58, 0xfa, 0x2a, 0x24, 0x73, 0x52, 0x4a, 0x66, 0xb5, 0xf4,
+	0x77, 0x68, 0xda, 0x17, 0x9f, 0x14, 0x6e, 0x9a, 0x92, 0x56, 0xe5, 0x69, 0xce, 0xa9, 0x90, 0x31,
+	0xec, 0xae, 0xe8, 0x8a, 0xec, 0xe7, 0x61, 0x98, 0x37, 0x8a, 0xbe, 0x5d, 0x1b, 0x68, 0x49, 0xa6,
+	0x4e, 0x85, 0xdc, 0x42, 0xc3, 0x5a, 0x19, 0xa4, 0x68, 0xef, 0x97, 0x34, 0x2a, 0x67, 0xeb, 0x58,
+	0x8d, 0x5a, 0x0c, 0xa1, 0x70, 0x8d, 0xad, 0xd3, 0xa8, 0x95, 0x39, 0x9c, 0xdf, 0x80, 0xf5, 0x05,
+	0x70, 0x6e, 0xbf, 0xb0, 0x5f, 0xe6, 0x43, 0xbe, 0xed, 0x06, 0xa1, 0xbc, 0x9f, 0x0e, 0x99, 0xcf,
+	0x27, 0x6e, 0xc0, 0x7f, 0xe0, 0x4f, 0x89, 0xfe, 0xbd, 0x9b, 0xbc, 0xe3, 0x01, 0x3f, 0x56, 0x3f,
+	0x8e, 0xd5, 0x7d, 0x70, 0xd3, 0xef, 0x8c, 0xe1, 0xb6, 0xb2, 0x9c, 0xfd, 0x0b, 0x00, 0x00, 0xff,
+	0xff, 0x7f, 0xa2, 0x2d, 0x17, 0x7c, 0x08, 0x00, 0x00,
 }
