@@ -232,4 +232,25 @@ public class FeatureInfoTest {
     exception.expectMessage( "Feature already exists. Update only allowed for fields: [owner, description, uri, tags]");
     featureInfo.update(update);
   }
+
+
+  @Test
+  public void shouldThrowExceptionIfImmutableFieldsChangedToNull() {
+    FeatureSpec update =
+            FeatureSpec.newBuilder()
+                    .setId("entity.NONE.name")
+                    .setName("name")
+                    .setOwner("owner2")
+                    .setDescription("overwrite")
+                    .setEntity("entity")
+                    .setUri("new_uri")
+                    .setGranularity(Granularity.Enum.NONE)
+                    .setValueType(ValueType.Enum.BYTES)
+                    .addTags("new_tag")
+                    .build();
+
+    exception.expect(IllegalArgumentException.class);
+    exception.expectMessage( "Feature already exists. Update only allowed for fields: [owner, description, uri, tags]");
+    featureInfo.update(update);
+  }
 }

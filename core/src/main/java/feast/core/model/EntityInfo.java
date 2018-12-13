@@ -17,14 +17,13 @@
 
 package feast.core.model;
 
+import feast.core.UIServiceProto.UIServiceTypes.EntityDetail;
+import feast.specs.EntitySpecProto.EntitySpec;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import feast.core.UIServiceProto.UIServiceTypes.EntityDetail;
-import feast.specs.EntitySpecProto.EntitySpec;
 
 import javax.persistence.*;
-
 import java.util.List;
 
 import static feast.core.util.TypeConversion.convertTagStringToList;
@@ -66,25 +65,21 @@ public class EntityInfo extends AbstractTimestampEntity {
     this.tags = String.join(",", spec.getTagsList());
   }
 
-  /**
-   * Get the entity spec associated with this record.
-   */
+  /** Get the entity spec associated with this record. */
   public EntitySpec getEntitySpec() {
     return EntitySpec.newBuilder()
-            .setName(name)
-            .setDescription(description)
-            .addAllTags(convertTagStringToList(tags))
-            .build();
+        .setName(name)
+        .setDescription(description)
+        .addAllTags(convertTagStringToList(tags))
+        .build();
   }
 
-  /**
-   * Get the entity detail containing both spec and metadata, associated with this record.
-   */
+  /** Get the entity detail containing both spec and metadata, associated with this record. */
   public EntityDetail getEntityDetail() {
     return EntityDetail.newBuilder()
-            .setSpec(this.getEntitySpec())
-            .setLastUpdated(convertTimestamp(this.getLastUpdated()))
-            .build();
+        .setSpec(this.getEntitySpec())
+        .setLastUpdated(convertTimestamp(this.getLastUpdated()))
+        .build();
   }
 
   /**
@@ -96,5 +91,4 @@ public class EntityInfo extends AbstractTimestampEntity {
     this.description = update.getDescription();
     this.tags = String.join(",", update.getTagsList());
   }
-
 }

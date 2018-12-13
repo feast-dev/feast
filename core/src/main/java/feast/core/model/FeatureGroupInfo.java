@@ -117,23 +117,7 @@ public class FeatureGroupInfo extends AbstractTimestampEntity {
   }
 
   private boolean isLegalUpdate(FeatureGroupSpec update) {
-    DataStore updatedWarehouseStore =
-        update.getDataStores().hasWarehouse() ? update.getDataStores().getWarehouse() : null;
-    DataStore updatedServingStore =
-        update.getDataStores().hasServing() ? update.getDataStores().getServing() : null;
-    return isStoreEqual(this.warehouseStore, this.warehouseStoreOpts, updatedWarehouseStore)
-        && isStoreEqual(this.servingStore, this.servingStoreOpts, updatedServingStore);
-  }
-
-  private boolean isStoreEqual(StorageInfo oldStore, String oldStoreOpts, DataStore newStore) {
-    return getStorageId(oldStore).equals(newStore == null ? "" : newStore.getId())
-        && oldStoreOpts.equals(
-            newStore == null
-                ? ""
-                : TypeConversion.convertMapToJsonString(newStore.getOptionsMap()));
-  }
-
-  private String getStorageId(StorageInfo storage) {
-    return storage == null ? "" : storage.getId();
+    FeatureGroupSpec spec = this.getFeatureGroupSpec();
+    return spec.getDataStores().equals(update.getDataStores());
   }
 }

@@ -273,33 +273,13 @@ public class FeatureInfo extends AbstractTimestampEntity {
   }
 
   private boolean isLegalUpdate(FeatureSpec update) {
-    DataStore updatedWarehouseStore =
-        update.getDataStores().hasWarehouse() ? update.getDataStores().getWarehouse() : null;
-    DataStore updatedServingStore =
-        update.getDataStores().hasServing() ? update.getDataStores().getServing() : null;
-    return update.getName().equals(this.name)
-        && update.getEntity().equals(this.entity.getName())
-        && update.getGranularityValue() == this.granularity.getNumber()
-        && update.getValueTypeValue() == this.valueType.getNumber()
-        && update.getGroup().equals(getFeatureGroupId(this.featureGroup))
-        && TypeConversion.convertMapToJsonString(update.getOptionsMap()).equals(this.options)
-        && isStoreEqual(this.warehouseStore, this.warehouseStoreOpts, updatedWarehouseStore)
-        && isStoreEqual(this.servingStore, this.servingStoreOpts, updatedServingStore);
-  }
-
-  private boolean isStoreEqual(StorageInfo oldStore, String oldStoreOpts, DataStore newStore) {
-    return getStorageId(oldStore).equals(newStore == null ? "" : newStore.getId())
-        && oldStoreOpts.equals(
-            newStore == null
-                ? ""
-                : TypeConversion.convertMapToJsonString(newStore.getOptionsMap()));
-  }
-
-  private String getFeatureGroupId(FeatureGroupInfo featureGroupInfo) {
-    return featureGroupInfo == null ? "" : featureGroupInfo.getId();
-  }
-
-  private String getStorageId(StorageInfo storage) {
-    return storage == null ? "" : storage.getId();
+    FeatureSpec spec = this.getFeatureSpec();
+    return spec.getName().equals(update.getName())
+        && spec.getEntity().equals(update.getEntity())
+        && spec.getGranularity().equals(update.getGranularity())
+        && spec.getValueType().equals(update.getValueType())
+        && spec.getGroup().equals(update.getGroup())
+        && spec.getOptionsMap().equals(update.getOptionsMap())
+        && spec.getDataStores().equals(update.getDataStores());
   }
 }
