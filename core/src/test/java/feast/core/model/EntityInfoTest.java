@@ -17,12 +17,14 @@
 
 package feast.core.model;
 
+import com.google.api.client.util.Lists;
 import com.google.protobuf.Timestamp;
 import org.junit.Before;
 import org.junit.Test;
 import feast.core.UIServiceProto.UIServiceTypes.EntityDetail;
 import feast.specs.EntitySpecProto.EntitySpec;
 
+import java.time.Instant;
 import java.util.Date;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -65,5 +67,14 @@ public class EntityInfoTest {
     EntityDetail expected =
             EntityDetail.newBuilder().setSpec(entitySpec).setLastUpdated(ts).build();
     assertThat(entityInfo.getEntityDetail(), equalTo(expected));
+  }
+
+  @Test
+  public void shouldUpdateTagAndDescription() {
+    EntityInfo entityInfo = new EntityInfo("entity", "test entity", "tag1,tag2", Lists.newArrayList(), false);
+    EntitySpec update = EntitySpec.newBuilder().setName("entity").setDescription("overwrite").addTags("newtag").build();
+    EntityInfo expected = new EntityInfo("entity", "overwrite", "newtag", Lists.newArrayList(), false);
+    entityInfo.update(update);
+    assertThat(entityInfo, equalTo(expected));
   }
 }

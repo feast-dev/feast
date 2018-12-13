@@ -18,14 +18,16 @@
 package feast.core.model;
 
 import com.google.protobuf.Timestamp;
-import org.junit.Before;
-import org.junit.Test;
 import feast.core.UIServiceProto.UIServiceTypes.FeatureDetail;
-import feast.types.GranularityProto.Granularity;
 import feast.specs.FeatureSpecProto.DataStore;
 import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.types.GranularityProto.Granularity;
 import feast.types.ValueProto.ValueType;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.Date;
 
@@ -38,6 +40,8 @@ public class FeatureInfoTest {
   private EntityInfo entityInfo;
   private StorageInfo servingStorage;
   private StorageInfo warehouseStorage;
+
+  @Rule public final ExpectedException exception = ExpectedException.none();
 
   @Before
   public void setUp() {
@@ -71,25 +75,25 @@ public class FeatureInfoTest {
     DataStore servingDataStore = DataStore.newBuilder().setId("REDIS1").build();
     DataStore warehouseDataStore = DataStore.newBuilder().setId("BIGQUERY").build();
     DataStores dataStores =
-            DataStores.newBuilder()
-                    .setServing(servingDataStore)
-                    .setWarehouse(warehouseDataStore)
-                    .build();
+        DataStores.newBuilder()
+            .setServing(servingDataStore)
+            .setWarehouse(warehouseDataStore)
+            .build();
 
     featureSpec =
-            FeatureSpec.newBuilder()
-                    .setId("entity.NONE.name")
-                    .setName("name")
-                    .setOwner("owner")
-                    .setDescription("desc")
-                    .setEntity("entity")
-                    .setUri("uri")
-                    .setGranularity(Granularity.Enum.NONE)
-                    .setValueType(ValueType.Enum.BYTES)
-                    .addTags("tag1")
-                    .addTags("tag2")
-                    .setDataStores(dataStores)
-                    .build();
+        FeatureSpec.newBuilder()
+            .setId("entity.NONE.name")
+            .setName("name")
+            .setOwner("owner")
+            .setDescription("desc")
+            .setEntity("entity")
+            .setUri("uri")
+            .setGranularity(Granularity.Enum.NONE)
+            .setValueType(ValueType.Enum.BYTES)
+            .addTags("tag1")
+            .addTags("tag2")
+            .setDataStores(dataStores)
+            .build();
   }
 
   @Test
@@ -99,7 +103,9 @@ public class FeatureInfoTest {
 
   @Test
   public void shouldCorrectlyInitialiseFromGivenSpec() {
-    assertThat(new FeatureInfo(featureSpec, entityInfo, servingStorage, warehouseStorage, null), equalTo(featureInfo));
+    assertThat(
+        new FeatureInfo(featureSpec, entityInfo, servingStorage, warehouseStorage, null),
+        equalTo(featureInfo));
   }
 
   @Test
@@ -109,13 +115,13 @@ public class FeatureInfoTest {
     featureInfo.setBigQueryView("bqviewurl");
     Timestamp ts = Timestamp.newBuilder().setSeconds(1).build();
     FeatureDetail expected =
-            FeatureDetail.newBuilder()
-                    .setSpec(featureSpec)
-                    .setBigqueryView("bqviewurl")
-                    .setEnabled(true)
-                    .setLastUpdated(ts)
-                    .setCreated(ts)
-                    .build();
+        FeatureDetail.newBuilder()
+            .setSpec(featureSpec)
+            .setBigqueryView("bqviewurl")
+            .setEnabled(true)
+            .setLastUpdated(ts)
+            .setCreated(ts)
+            .build();
     assertThat(featureInfo.getFeatureDetail(), equalTo(expected));
   }
 
@@ -144,28 +150,107 @@ public class FeatureInfoTest {
     DataStore servingDataStore = DataStore.newBuilder().setId("REDIS1").build();
     DataStore warehouseDataStore = DataStore.newBuilder().setId("BIGQUERY").build();
     DataStores dataStores =
+        DataStores.newBuilder()
+            .setServing(servingDataStore)
+            .setWarehouse(warehouseDataStore)
+            .build();
+
+    FeatureSpec expected =
+        FeatureSpec.newBuilder()
+            .setId("entity.NONE.name")
+            .setName("name")
+            .setOwner("owner")
+            .setDescription("desc")
+            .setEntity("entity")
+            .setUri("uri")
+            .setGroup("testGroup")
+            .setGranularity(Granularity.Enum.NONE)
+            .setValueType(ValueType.Enum.BYTES)
+            .addTags("tag1")
+            .addTags("tag2")
+            .addTags("inherited")
+            .setDataStores(dataStores)
+            .build();
+    FeatureInfo resolved = featureInfo.resolve();
+    assertThat(resolved.getFeatureSpec(), equalTo(expected));
+  }
+
+  @Test
+  public void shouldUpdateMutableFields() {
+    DataStore servingDataStore = DataStore.newBuilder().setId("REDIS1").build();
+    DataStore warehouseDataStore = DataStore.newBuilder().setId("BIGQUERY").build();
+    DataStores dataStores =
+        DataStores.newBuilder()
+            .setServing(servingDataStore)
+            .setWarehouse(warehouseDataStore)
+            .build();
+
+    FeatureSpec update =
+        FeatureSpec.newBuilder()
+            .setId("entity.NONE.name")
+            .setName("name")
+            .setOwner("owner2")
+            .setDescription("overwrite")
+            .setEntity("entity")
+            .setUri("new_uri")
+            .setGranularity(Granularity.Enum.NONE)
+            .setValueType(ValueType.Enum.BYTES)
+            .addTags("new_tag")
+            .setDataStores(dataStores)
+            .build();
+    featureInfo.update(featureSpec);
+    FeatureInfo expected =
+        new FeatureInfo(update, entityInfo, servingStorage, warehouseStorage, null);
+    assertThat(featureInfo, equalTo(expected));
+  }
+
+  @Test
+  public void shouldThrowExceptionIfImmutableFieldsChanged() {
+    DataStore servingDataStore = DataStore.newBuilder().setId("REDIS2").build();
+    DataStore warehouseDataStore = DataStore.newBuilder().setId("BIGQUERY").build();
+    DataStores dataStores =
             DataStores.newBuilder()
                     .setServing(servingDataStore)
                     .setWarehouse(warehouseDataStore)
                     .build();
 
-    FeatureSpec expected =
+    FeatureSpec update =
             FeatureSpec.newBuilder()
                     .setId("entity.NONE.name")
                     .setName("name")
-                    .setOwner("owner")
-                    .setDescription("desc")
+                    .setOwner("owner2")
+                    .setDescription("overwrite")
                     .setEntity("entity")
-                    .setUri("uri")
-                    .setGroup("testGroup")
+                    .setUri("new_uri")
                     .setGranularity(Granularity.Enum.NONE)
-                    .setValueType(ValueType.Enum.BYTES)
-                    .addTags("tag1")
-                    .addTags("tag2")
-                    .addTags("inherited")
+                    .setValueType(ValueType.Enum.INT32)
+                    .addTags("new_tag")
                     .setDataStores(dataStores)
                     .build();
-    FeatureInfo resolved = featureInfo.resolve();
-    assertThat(resolved.getFeatureSpec(), equalTo(expected));
+
+    exception.expect(IllegalArgumentException.class);
+    exception.expectMessage( "Feature already exists. Update only allowed for fields: [owner, description, uri, tags]");
+    featureInfo.update(update);
+  }
+
+
+  @Test
+  public void shouldThrowExceptionIfImmutableFieldsChangedToNull() {
+    FeatureSpec update =
+            FeatureSpec.newBuilder()
+                    .setId("entity.NONE.name")
+                    .setName("name")
+                    .setOwner("owner2")
+                    .setDescription("overwrite")
+                    .setEntity("entity")
+                    .setUri("new_uri")
+                    .setGranularity(Granularity.Enum.NONE)
+                    .setValueType(ValueType.Enum.BYTES)
+                    .addTags("new_tag")
+                    .build();
+
+    exception.expect(IllegalArgumentException.class);
+    exception.expectMessage( "Feature already exists. Update only allowed for fields: [owner, description, uri, tags]");
+    featureInfo.update(update);
   }
 }

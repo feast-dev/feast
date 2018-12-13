@@ -18,7 +18,9 @@
 package feast.core.storage;
 
 import com.google.common.base.Strings;
+import feast.core.log.Action;
 import feast.core.log.AuditLogger;
+import feast.core.log.Resource;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.hbase.TableName;
@@ -81,11 +83,11 @@ public class BigTableStorageManager implements StorageManager {
         log.info("Created new column family: {} for entity: {}", columnFamily, entityName);
       }
       AuditLogger.log(
-              "Storage",
-              this.id,
-              "Schema Updated",
-              "Bigtable schema updated for feature %s",
-              featureSpec.getId());
+          Resource.STORAGE,
+          this.id,
+          Action.SCHEMA_UPDATE,
+          "Bigtable schema updated for feature %s",
+          featureSpec.getId());
     } catch (IOException e) {
       log.error("Unable to create table in BigTable: {}", e);
       throw new StorageInitializationException("Unable to create table in BigTable", e);

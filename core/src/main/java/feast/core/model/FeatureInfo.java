@@ -17,8 +17,6 @@
 
 package feast.core.model;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import feast.core.UIServiceProto.UIServiceTypes.FeatureDetail;
 import feast.core.storage.BigQueryStorageManager;
 import feast.core.util.TypeConversion;
@@ -30,11 +28,9 @@ import feast.types.ValueProto.ValueType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.logging.log4j.util.Strings;
 
 import javax.persistence.*;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -133,10 +129,11 @@ public class FeatureInfo extends AbstractTimestampEntity {
     if (spec.getDataStores() != null) {
       this.servingStore = servingStore;
       this.servingStoreOpts =
-              TypeConversion.convertMapToJsonString(spec.getDataStores().getServing().getOptionsMap());
+          TypeConversion.convertMapToJsonString(spec.getDataStores().getServing().getOptionsMap());
       this.warehouseStore = warehouseStore;
       this.warehouseStoreOpts =
-              TypeConversion.convertMapToJsonString(spec.getDataStores().getWarehouse().getOptionsMap());
+          TypeConversion.convertMapToJsonString(
+              spec.getDataStores().getWarehouse().getOptionsMap());
     }
     this.bigQueryView = createBigqueryViewLink(warehouseStore);
   }
@@ -255,5 +252,34 @@ public class FeatureInfo extends AbstractTimestampEntity {
     return String.format(
         "https://bigquery.cloud.google.com/table/%s:%s.%s_%s_view",
         projectId, dataset, entity.getName(), granularity.toString().toLowerCase());
+  }
+
+  /**
+   * Updates the feature info with specifications from the incoming feature spec.
+   *
+   * <p>TODO: maybe allow changes to id, store etc if no jobs are feeding into this feature
+   *
+   * @param update new feature spec
+   */
+  public void update(FeatureSpec update) throws IllegalArgumentException {
+    if (!isLegalUpdate(update)) {
+      throw new IllegalArgumentException(
+          "Feature already exists. Update only allowed for fields: [owner, description, uri, tags]");
+    }
+    this.owner = update.getOwner();
+    this.description = update.getDescription();
+    this.uri = update.getUri();
+    this.tags = String.join(",", update.getTagsList());
+  }
+
+  private boolean isLegalUpdate(FeatureSpec update) {
+    FeatureSpec spec = this.getFeatureSpec();
+    return spec.getName().equals(update.getName())
+        && spec.getEntity().equals(update.getEntity())
+        && spec.getGranularity().equals(update.getGranularity())
+        && spec.getValueType().equals(update.getValueType())
+        && spec.getGroup().equals(update.getGroup())
+        && spec.getOptionsMap().equals(update.getOptionsMap())
+        && spec.getDataStores().equals(update.getDataStores());
   }
 }

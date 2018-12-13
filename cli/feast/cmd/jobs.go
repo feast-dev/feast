@@ -20,9 +20,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"feast/cli/feast/pkg/parse"
-	"feast/cli/feast/pkg/printer"
-
+	"github.com/gojektech/feast/cli/feast/pkg/parse"
+	"github.com/gojektech/feast/cli/feast/pkg/printer"
 	"github.com/gojektech/feast/go-feast-proto/feast/core"
 
 	"github.com/spf13/cobra"

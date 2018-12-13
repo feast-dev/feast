@@ -17,11 +17,11 @@
 
 package feast.core.model;
 
+import feast.core.UIServiceProto.UIServiceTypes.StorageDetail;
+import feast.specs.StorageSpecProto.StorageSpec;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import feast.core.UIServiceProto.UIServiceTypes.StorageDetail;
-import feast.specs.StorageSpecProto.StorageSpec;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;

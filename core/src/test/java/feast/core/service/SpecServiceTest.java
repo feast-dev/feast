@@ -326,7 +326,7 @@ public class SpecServiceTest {
             storageInfoRepository,
             featureGroupInfoRepository,
             schemaManager);
-    FeatureInfo actual = specService.registerFeature(spec);
+    FeatureInfo actual = specService.applyFeature(spec);
     verify(schemaManager).registerFeature(resolvedSpecCaptor.capture());
 
     assertThat(resolvedSpecCaptor.getValue(), equalTo(resolvedSpec));
@@ -363,7 +363,7 @@ public class SpecServiceTest {
             storageInfoRepository,
             featureGroupInfoRepository,
             schemaManager);
-    FeatureGroupInfo actual = specService.registerFeatureGroup(spec);
+    FeatureGroupInfo actual = specService.applyFeatureGroup(spec);
     assertThat(actual, equalTo(expectedFeatureGroupInfo));
   }
 
@@ -395,7 +395,7 @@ public class SpecServiceTest {
             schemaManager);
 
     exception.expect(RegistrationException.class);
-    specService.registerFeatureGroup(spec);
+    specService.applyFeatureGroup(spec);
   }
 
   @Test
@@ -415,7 +415,7 @@ public class SpecServiceTest {
             storageInfoRepository,
             featureGroupInfoRepository,
             schemaManager);
-    EntityInfo actual = specService.registerEntity(spec);
+    EntityInfo actual = specService.applyEntity(spec);
     assertThat(actual, equalTo(entityInfo));
   }
 
@@ -434,4 +434,5 @@ public class SpecServiceTest {
     StorageInfo actual = specService.registerStorage(spec);
     assertThat(actual, equalTo(storageInfo));
   }
+
 }

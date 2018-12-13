@@ -17,14 +17,14 @@
 
 package feast.core.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
 import feast.core.UIServiceProto.UIServiceTypes.FeatureGroupDetail;
 import feast.core.util.TypeConversion;
 import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
 import feast.specs.FeatureSpecProto.DataStore;
 import feast.specs.FeatureSpecProto.DataStores;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 
 import javax.persistence.*;
 
@@ -39,8 +39,7 @@ import javax.persistence.*;
 @Table(name = "feature_groups")
 public class FeatureGroupInfo extends AbstractTimestampEntity {
 
-  @Id
-  private String id;
+  @Id private String id;
 
   @Column(name = "tags")
   private String tags;
@@ -63,43 +62,40 @@ public class FeatureGroupInfo extends AbstractTimestampEntity {
     super();
   }
 
-  public FeatureGroupInfo(FeatureGroupSpec spec,
-                          StorageInfo servingStore,
-                          StorageInfo warehouseStore) {
+  public FeatureGroupInfo(
+      FeatureGroupSpec spec, StorageInfo servingStore, StorageInfo warehouseStore) {
     this.id = spec.getId();
     this.tags = String.join(",", spec.getTagsList());
     this.servingStore = servingStore;
     this.warehouseStore = warehouseStore;
     this.servingStoreOpts =
-            TypeConversion.convertMapToJsonString(spec.getDataStores().getServing().getOptionsMap());
+        TypeConversion.convertMapToJsonString(spec.getDataStores().getServing().getOptionsMap());
     this.warehouseStoreOpts =
-            TypeConversion.convertMapToJsonString(spec.getDataStores().getWarehouse().getOptionsMap());
+        TypeConversion.convertMapToJsonString(spec.getDataStores().getWarehouse().getOptionsMap());
   }
 
-  /**
-   * Get the feature group spec associated with this record.
-   */
+  /** Get the feature group spec associated with this record. */
   public FeatureGroupSpec getFeatureGroupSpec() {
     DataStore servingDataStore =
-            DataStore.newBuilder()
-                    .setId(servingStore.getId())
-                    .putAllOptions(TypeConversion.convertJsonStringToMap(servingStoreOpts))
-                    .build();
-    DataStore warehouseDataStore =
-            DataStore.newBuilder()
-                    .setId(warehouseStore.getId())
-                    .putAllOptions(TypeConversion.convertJsonStringToMap(warehouseStoreOpts))
-                    .build();
-    DataStores dataStores =
-            DataStores.newBuilder()
-                    .setWarehouse(warehouseDataStore)
-                    .setServing(servingDataStore)
-                    .build();
-    return FeatureGroupSpec.newBuilder()
-            .setId(id)
-            .addAllTags(TypeConversion.convertTagStringToList(tags))
-            .setDataStores(dataStores)
+        DataStore.newBuilder()
+            .setId(servingStore.getId())
+            .putAllOptions(TypeConversion.convertJsonStringToMap(servingStoreOpts))
             .build();
+    DataStore warehouseDataStore =
+        DataStore.newBuilder()
+            .setId(warehouseStore.getId())
+            .putAllOptions(TypeConversion.convertJsonStringToMap(warehouseStoreOpts))
+            .build();
+    DataStores dataStores =
+        DataStores.newBuilder()
+            .setWarehouse(warehouseDataStore)
+            .setServing(servingDataStore)
+            .build();
+    return FeatureGroupSpec.newBuilder()
+        .setId(id)
+        .addAllTags(TypeConversion.convertTagStringToList(tags))
+        .setDataStores(dataStores)
+        .build();
   }
 
   /**
@@ -107,8 +103,21 @@ public class FeatureGroupInfo extends AbstractTimestampEntity {
    */
   public FeatureGroupDetail getFeatureGroupDetail() {
     return FeatureGroupDetail.newBuilder()
-            .setSpec(this.getFeatureGroupSpec())
-            .setLastUpdated(TypeConversion.convertTimestamp(this.getLastUpdated()))
-            .build();
+        .setSpec(this.getFeatureGroupSpec())
+        .setLastUpdated(TypeConversion.convertTimestamp(this.getLastUpdated()))
+        .build();
+  }
+
+  public void update(FeatureGroupSpec update) throws IllegalArgumentException {
+    if (!isLegalUpdate(update)) {
+      throw new IllegalArgumentException(
+          "Feature group already exists. Update only allowed for fields: [tags]");
+    }
+    this.tags = String.join(",", update.getTagsList());
+  }
+
+  private boolean isLegalUpdate(FeatureGroupSpec update) {
+    FeatureGroupSpec spec = this.getFeatureGroupSpec();
+    return spec.getDataStores().equals(update.getDataStores());
   }
 }

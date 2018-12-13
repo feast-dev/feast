@@ -15,10 +15,10 @@
 package printer
 
 import (
-	"feast/cli/feast/pkg/util"
 	"fmt"
 	"strings"
 
+	"github.com/gojektech/feast/cli/feast/pkg/util"
 	"github.com/gojektech/feast/go-feast-proto/feast/core"
 )
 

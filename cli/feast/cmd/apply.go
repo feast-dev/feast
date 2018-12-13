@@ -21,18 +21,17 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
+	"github.com/gojektech/feast/cli/feast/pkg/parse"
 	"github.com/gojektech/feast/go-feast-proto/feast/core"
-
-	"feast/cli/feast/pkg/parse"
 
 	"github.com/spf13/cobra"
 )
 
-// registerCmd represents the register command
-var registerCmd = &cobra.Command{
-	Use:   "register [resource] [filepaths...]",
-	Short: "Register a resource given one or many yaml files.",
-	Long: `Register a resource from one or multiple yamls.
+// applyCmd represents the apply command
+var applyCmd = &cobra.Command{
+	Use:   "apply [resource] [filepaths...]",
+	Short: "Apply a resource given one or many yaml files.",
+	Long: `Apply a resource from one or multiple yamls.
 	
 Valid resources include:
 - entity
@@ -41,9 +40,9 @@ Valid resources include:
 - storage
 
 Examples:
-- feast register entity entity.yml
-- feast register storage storage1.yml storage2.yml
-- feast register feature *-feature.yml`,
+- feast apply entity entity.yml
+- feast apply storage storage1.yml storage2.yml
+- feast apply feature *-feature.yml`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return cmd.Help()
@@ -51,7 +50,7 @@ Examples:
 
 		if len(args) < 2 {
 			fmt.Println(args)
-			return errors.New("invalid number of arguments for register command")
+			return errors.New("invalid number of arguments for apply command")
 		}
 
 		initConn()
@@ -62,12 +61,12 @@ Examples:
 
 		for _, fp := range paths {
 			if isYaml(fp) {
-				fmt.Printf("Registering %s at %s\n", resource, fp)
-				regID, err := register(ctx, coreCli, resource, fp)
+				fmt.Printf("Applying %s at %s\n", resource, fp)
+				regID, err := apply(ctx, coreCli, resource, fp)
 				if err != nil {
-					return fmt.Errorf("failed to register %s at path %s: %v", resource, fp, err)
+					return fmt.Errorf("failed to apply %s at path %s: %v", resource, fp, err)
 				}
-				fmt.Printf("Successfully registered %s %s\n", resource, regID)
+				fmt.Printf("Successfully applied %s %s\n", resource, regID)
 			}
 		}
 		return nil
@@ -75,10 +74,10 @@ Examples:
 }
 
 func init() {
-	rootCmd.AddCommand(registerCmd)
+	rootCmd.AddCommand(applyCmd)
 }
 
-func register(ctx context.Context, coreCli core.CoreServiceClient, resource string, fileLocation string) (string, error) {
+func apply(ctx context.Context, coreCli core.CoreServiceClient, resource string, fileLocation string) (string, error) {
 	yml, err := ioutil.ReadFile(fileLocation)
 	if err != nil {
 		return "", fmt.Errorf("error reading file at %s: %v", fileLocation, err)
@@ -86,51 +85,51 @@ func register(ctx context.Context, coreCli core.CoreServiceClient, resource stri
 
 	switch resource {
 	case "feature":
-		return registerFeature(ctx, coreCli, yml)
+		return applyFeature(ctx, coreCli, yml)
 	case "featureGroup":
-		return registerFeatureGroup(ctx, coreCli, yml)
+		return applyFeatureGroup(ctx, coreCli, yml)
 	case "entity":
-		return registerEntity(ctx, coreCli, yml)
+		return applyEntity(ctx, coreCli, yml)
 	case "storage":
-		return registerStorage(ctx, coreCli, yml)
+		return applyStorage(ctx, coreCli, yml)
 	default:
 		return "", fmt.Errorf("invalid resource %s: please choose one of [feature, featureGroup, entity, storage]", resource)
 	}
 }
 
-func registerFeature(ctx context.Context, coreCli core.CoreServiceClient, yml []byte) (string, error) {
+func applyFeature(ctx context.Context, coreCli core.CoreServiceClient, yml []byte) (string, error) {
 	fs, err := parse.YamlToFeatureSpec(yml)
 	if err != nil {
 		return "", err
 	}
-	_, err = coreCli.RegisterFeature(ctx, fs)
+	_, err = coreCli.ApplyFeature(ctx, fs)
 	return fs.GetId(), err
 }
 
-func registerFeatureGroup(ctx context.Context, coreCli core.CoreServiceClient, yml []byte) (string, error) {
+func applyFeatureGroup(ctx context.Context, coreCli core.CoreServiceClient, yml []byte) (string, error) {
 	fgs, err := parse.YamlToFeatureGroupSpec(yml)
 	if err != nil {
 		return "", err
 	}
-	_, err = coreCli.RegisterFeatureGroup(ctx, fgs)
+	_, err = coreCli.ApplyFeatureGroup(ctx, fgs)
 	return fgs.GetId(), err
 }
 
-func registerEntity(ctx context.Context, coreCli core.CoreServiceClient, yml []byte) (string, error) {
+func applyEntity(ctx context.Context, coreCli core.CoreServiceClient, yml []byte) (string, error) {
 	es, err := parse.YamlToEntitySpec(yml)
 	if err != nil {
 		return "", err
 	}
-	_, err = coreCli.RegisterEntity(ctx, es)
+	_, err = coreCli.ApplyEntity(ctx, es)
 	return es.GetName(), err
 }
 
-func registerStorage(ctx context.Context, coreCli core.CoreServiceClient, yml []byte) (string, error) {
+func applyStorage(ctx context.Context, coreCli core.CoreServiceClient, yml []byte) (string, error) {
 	ss, err := parse.YamlToStorageSpec(yml)
 	if err != nil {
 		return "", err
 	}
-	_, err = coreCli.RegisterStorage(ctx, ss)
+	_, err = coreCli.ApplyStorage(ctx, ss)
 	return ss.GetId(), err
 }
 

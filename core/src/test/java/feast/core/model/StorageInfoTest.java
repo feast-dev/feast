@@ -23,6 +23,7 @@ import feast.specs.StorageSpecProto.StorageSpec;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.Instant;
 import java.util.Date;
 
 import static org.hamcrest.Matchers.equalTo;

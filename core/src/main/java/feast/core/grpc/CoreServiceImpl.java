@@ -233,20 +233,20 @@ public class CoreServiceImpl extends CoreServiceImplBase {
    * error will be returned.
    */
   @Override
-  public void registerFeature(
-      FeatureSpec request, StreamObserver<RegisterFeatureResponse> responseObserver) {
+  public void applyFeature(
+      FeatureSpec request, StreamObserver<ApplyFeatureResponse> responseObserver) {
     try {
       validator.validateFeatureSpec(request);
-      FeatureInfo feature = specService.registerFeature(request);
-      RegisterFeatureResponse response =
-          RegisterFeatureResponse.newBuilder().setFeatureId(feature.getId()).build();
+      FeatureInfo feature = specService.applyFeature(request);
+      ApplyFeatureResponse response =
+          ApplyFeatureResponse.newBuilder().setFeatureId(feature.getId()).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (RegistrationException e) {
-      log.error("Error in registerFeature: {}", e);
+      log.error("Error in applyFeature: {}", e);
       responseObserver.onError(getRuntimeException(e));
     } catch (IllegalArgumentException e) {
-      log.error("Error in registerFeature: {}", e);
+      log.error("Error in applyFeature: {}", e);
       responseObserver.onError(getBadRequestException(e));
     }
   }
@@ -257,21 +257,21 @@ public class CoreServiceImpl extends CoreServiceImplBase {
    * error will be returned.
    */
   @Override
-  public void registerFeatureGroup(
+  public void applyFeatureGroup(
       FeatureGroupSpecProto.FeatureGroupSpec request,
-      StreamObserver<RegisterFeatureGroupResponse> responseObserver) {
+      StreamObserver<ApplyFeatureGroupResponse> responseObserver) {
     try {
       validator.validateFeatureGroupSpec(request);
-      FeatureGroupInfo featureGroup = specService.registerFeatureGroup(request);
-      RegisterFeatureGroupResponse response =
-          RegisterFeatureGroupResponse.newBuilder().setFeatureGroupId(featureGroup.getId()).build();
+      FeatureGroupInfo featureGroup = specService.applyFeatureGroup(request);
+      ApplyFeatureGroupResponse response =
+          ApplyFeatureGroupResponse.newBuilder().setFeatureGroupId(featureGroup.getId()).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (RegistrationException e) {
-      log.error("Error in registerFeatureGroup: {}", e);
+      log.error("Error in applyFeatureGroup: {}", e);
       responseObserver.onError(getRuntimeException(e));
     } catch (IllegalArgumentException e) {
-      log.error("Error in registerFeatureGroup: {}", e);
+      log.error("Error in applyFeatureGroup: {}", e);
       responseObserver.onError(getBadRequestException(e));
     }
   }
@@ -282,20 +282,20 @@ public class CoreServiceImpl extends CoreServiceImplBase {
    * be returned.
    */
   @Override
-  public void registerEntity(
-      EntitySpec request, StreamObserver<RegisterEntityResponse> responseObserver) {
+  public void applyEntity(
+      EntitySpec request, StreamObserver<ApplyEntityResponse> responseObserver) {
     try {
       validator.validateEntitySpec(request);
-      EntityInfo entity = specService.registerEntity(request);
-      RegisterEntityResponse response =
-          RegisterEntityResponse.newBuilder().setEntityName(entity.getName()).build();
+      EntityInfo entity = specService.applyEntity(request);
+      ApplyEntityResponse response =
+          ApplyEntityResponse.newBuilder().setEntityName(entity.getName()).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (RegistrationException e) {
-      log.error("Error in registerEntity: {}", e);
+      log.error("Error in applyEntity: {}", e);
       responseObserver.onError(getRuntimeException(e));
     } catch (IllegalArgumentException e) {
-      log.error("Error in registerEntity: {}", e);
+      log.error("Error in applyEntity: {}", e);
       responseObserver.onError(getBadRequestException(e));
     }
   }
@@ -306,13 +306,13 @@ public class CoreServiceImpl extends CoreServiceImplBase {
    * be returned.
    */
   @Override
-  public void registerStorage(
-      StorageSpec request, StreamObserver<RegisterStorageResponse> responseObserver) {
+  public void applyStorage(
+      StorageSpec request, StreamObserver<ApplyStorageResponse> responseObserver) {
     try {
       validator.validateStorageSpec(request);
       StorageInfo storage = specService.registerStorage(request);
-      RegisterStorageResponse response =
-          RegisterStorageResponse.newBuilder().setStorageId(storage.getId()).build();
+      ApplyStorageResponse response =
+          ApplyStorageResponse.newBuilder().setStorageId(storage.getId()).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (RegistrationException e) {
