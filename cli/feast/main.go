@@ -14,8 +14,14 @@
 
 package main
 
-import "github.com/gojektech/feast/cli/feast/cmd"
+import (
+	"github.com/gojektech/feast/cli/feast/cmd"
+)
+
+// Version is the Feast version
+var Version string
 
 func main() {
+	cmd.SetVersion(Version)
 	cmd.Execute()
 }

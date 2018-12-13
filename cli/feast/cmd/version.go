@@ -20,16 +20,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var version = "0.3.0"
+// Version is the cli version, injected at compile time
+var version string
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "feast cli version",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("CLI version: %s\n", version)
+		fmt.Println(version)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(versionCmd)
+}
+
+// SetVersion sets the version to the given version.
+func SetVersion(v string) {
+	version = v
 }

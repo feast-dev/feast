@@ -23,7 +23,7 @@ package feast.storage;
 
 option java_outer_classname = "RedisProto";
 option java_package = "feast.storage";
-option go_package = "github.com/gojektech/feast/go-feast-proto/feast/storage";
+option go_package = "github.com/gojektech/feast/protos/generated/go/feast/storage";
 
 message RedisBucketKey {
   // Field number 1 is reserved for a future distributing hash if needed

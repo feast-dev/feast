@@ -20,7 +20,7 @@ package feast.specs;
 
 option java_package = "feast.specs";
 option java_outer_classname = "StorageSpecProto";
-option go_package = "github.com/gojektech/feast/go-feast-proto/feast/specs";
+option go_package = "github.com/gojektech/feast/protos/generated/go/feast/specs";
 
 message StorageSpec {
   // unique identifier for this instance

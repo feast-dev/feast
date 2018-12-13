@@ -26,7 +26,7 @@ import "google/protobuf/empty.proto";
 
 option java_package = "feast.core";
 option java_outer_classname = "CoreServiceProto";
-option go_package = "github.com/gojektech/feast/go-feast-proto/feast/core";
+option go_package = "github.com/gojektech/feast/protos/generated/go/feast/core";
 
 service CoreService {
     /*
