@@ -79,8 +79,7 @@ public class SpecService {
    * @throws RetrievalException if any of the requested ids is not found
    * @throws IllegalArgumentException if the list of ids is empty
    */
-  public List<EntityInfo> getEntities(List<String> ids)
-      throws RetrievalException, IllegalArgumentException {
+  public List<EntityInfo> getEntities(List<String> ids) {
     if (ids.size() == 0) {
       throw new IllegalArgumentException("ids cannot be empty");
     }
@@ -98,7 +97,7 @@ public class SpecService {
    * @return list of EntityInfos
    * @throws RetrievalException if retrieval fails
    */
-  public List<EntityInfo> listEntities() throws RetrievalException {
+  public List<EntityInfo> listEntities() {
     return this.entityInfoRepository.findAll();
   }
 
@@ -110,8 +109,7 @@ public class SpecService {
    * @throws RetrievalException if any of the requested ids is not found
    * @throws IllegalArgumentException if the list of ids is empty
    */
-  public List<FeatureInfo> getFeatures(List<String> ids)
-      throws RetrievalException, IllegalArgumentException {
+  public List<FeatureInfo> getFeatures(List<String> ids) {
     if (ids.size() == 0) {
       throw new IllegalArgumentException("ids cannot be empty");
     }
@@ -129,7 +127,7 @@ public class SpecService {
    * @return list of FeatureInfos
    * @throws RetrievalException if retrieval fails
    */
-  public List<FeatureInfo> listFeatures() throws RetrievalException {
+  public List<FeatureInfo> listFeatures() {
     return this.featureInfoRepository.findAll();
   }
 
@@ -141,8 +139,7 @@ public class SpecService {
    * @throws RetrievalException if any of the requested ids is not found
    * @throws IllegalArgumentException if the list of ids is empty
    */
-  public List<FeatureGroupInfo> getFeatureGroups(List<String> ids)
-      throws RetrievalException, IllegalArgumentException {
+  public List<FeatureGroupInfo> getFeatureGroups(List<String> ids) {
     if (ids.size() == 0) {
       throw new IllegalArgumentException("ids cannot be empty");
     }
@@ -161,7 +158,7 @@ public class SpecService {
    * @return list of FeatureGroupInfos
    * @throws RetrievalException if retrieval fails
    */
-  public List<FeatureGroupInfo> listFeatureGroups() throws RetrievalException {
+  public List<FeatureGroupInfo> listFeatureGroups() {
     return this.featureGroupInfoRepository.findAll();
   }
 
@@ -173,8 +170,7 @@ public class SpecService {
    * @throws RetrievalException if any of the requested ids is not found
    * @throws IllegalArgumentException if the list of ids is empty
    */
-  public List<StorageInfo> getStorage(List<String> ids)
-      throws RetrievalException, IllegalArgumentException {
+  public List<StorageInfo> getStorage(List<String> ids) {
     if (ids.size() == 0) {
       throw new IllegalArgumentException("ids cannot be empty");
     }
@@ -192,7 +188,7 @@ public class SpecService {
    * @return list of StorageInfos
    * @throws RetrievalException if retrieval fails
    */
-  public List<StorageInfo> listStorage() throws RetrievalException {
+  public List<StorageInfo> listStorage() {
     return this.storageInfoRepository.findAll();
   }
 
@@ -208,7 +204,7 @@ public class SpecService {
    * @return registered FeatureInfo
    * @throws RegistrationException if registration fails
    */
-  public FeatureInfo applyFeature(FeatureSpec spec) throws RegistrationException {
+  public FeatureInfo applyFeature(FeatureSpec spec) {
     try {
       FeatureInfo featureInfo = featureInfoRepository.findById(spec.getId()).orElse(null);
       Action action;
@@ -258,7 +254,7 @@ public class SpecService {
    * @return registered FeatureGroupInfo
    * @throws RegistrationException if registration fails
    */
-  public FeatureGroupInfo applyFeatureGroup(FeatureGroupSpec spec) throws RegistrationException {
+  public FeatureGroupInfo applyFeatureGroup(FeatureGroupSpec spec) {
     try {
       FeatureGroupInfo featureGroupInfo =
           featureGroupInfoRepository.findById(spec.getId()).orElse(null);
@@ -311,7 +307,7 @@ public class SpecService {
    * @return registered EntityInfo
    * @throws RegistrationException if registration fails
    */
-  public EntityInfo applyEntity(EntitySpec spec) throws RegistrationException {
+  public EntityInfo applyEntity(EntitySpec spec) {
     try {
       EntityInfo entityInfo = entityInfoRepository.findById(spec.getName()).orElse(null);
       Action action;
@@ -342,7 +338,7 @@ public class SpecService {
    * @return registered StorageInfo
    * @throws RegistrationException if registration fails
    */
-  public StorageInfo registerStorage(StorageSpec spec) throws RegistrationException {
+  public StorageInfo registerStorage(StorageSpec spec) {
     try {
       StorageInfo storageInfo = storageInfoRepository.findById(spec.getId()).orElse(null);
       if (storageInfo != null) {
