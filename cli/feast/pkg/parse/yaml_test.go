@@ -19,8 +19,8 @@ import (
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 
-	"github.com/gojektech/feast/go-feast-proto/feast/specs"
-	"github.com/gojektech/feast/go-feast-proto/feast/types"
+	"github.com/gojektech/feast/protos/generated/go/feast/specs"
+	"github.com/gojektech/feast/protos/generated/go/feast/types"
 
 	"github.com/google/go-cmp/cmp"
 )

@@ -20,7 +20,7 @@ package feast.types;
 
 option java_package = "feast.types";
 option java_outer_classname = "GranularityProto";
-option go_package = "github.com/gojektech/feast/go-feast-proto/feast/types";
+option go_package = "github.com/gojektech/feast/protos/generated/go/feast/types";
 
 message Granularity {
   enum Enum {

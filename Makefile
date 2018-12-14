@@ -1,15 +1,16 @@
-.PHONY: go
+VERSION_FILE=VERSION
+FEAST_VERSION=`cat $(VERSION_FILE)`
 
 build-deps:
 	$(MAKE) -C protos gen-go
 	dep ensure
 
 build-cli:
+	$(MAKE) build-deps
 	$(MAKE) -C cli build-all
 
-install-cli:
-	@$(MAKE) build-deps
-	cd cli/feast && go install
+build-java:
+	mvn clean verify -Drevision=$(FEAST_VERSION)
 
 build-docker:
 	docker build -t $(registry)/feast-core:$(version) -f docker/core/Dockerfile .

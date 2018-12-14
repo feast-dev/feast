@@ -23,7 +23,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/gojektech/feast/cli/feast/pkg/util"
-	"github.com/gojektech/feast/go-feast-proto/feast/core"
+	"github.com/gojektech/feast/protos/generated/go/feast/core"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/spf13/cobra"

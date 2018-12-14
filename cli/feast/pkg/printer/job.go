@@ -19,7 +19,7 @@ import (
 	"strings"
 
 	"github.com/gojektech/feast/cli/feast/pkg/util"
-	"github.com/gojektech/feast/go-feast-proto/feast/core"
+	"github.com/gojektech/feast/protos/generated/go/feast/core"
 )
 
 // PrintJobDetail pretty prints the given job detail
