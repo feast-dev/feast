@@ -68,7 +68,7 @@ public class UIServiceImpl extends UIServiceImplBase {
       responseObserver.onCompleted();
     } catch (IllegalArgumentException e) {
       String errMsg = "Invalid entity name: " + entityName;
-      //log.error(errMsg, e);
+      log.error(errMsg, e);
       onError(responseObserver, INVALID_ARGUMENT, errMsg, e);
     } catch (Exception e) {
       String errMsg = "Error while retrieving entity with name: " + entityName;
