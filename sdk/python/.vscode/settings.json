@@ -1,0 +1,11 @@
+{
+    "python.pythonPath": "/usr/local/anaconda3/envs/feast-dev/bin/python",
+    "autoDocstring.docstringFormat": "google",
+    "python.unitTest.pyTestArgs": [
+        "tests"
+    ],
+    "python.unitTest.unittestEnabled": false,
+    "python.unitTest.nosetestsEnabled": false,
+    "python.unitTest.pyTestEnabled": true,
+    "editor.rulers": [79,120]
+}
