@@ -5,12 +5,13 @@ Main interface for users to interact with the Core API.
 import feast.core.CoreService_pb2_grpc as core
 from feast.sdk.resources.feature import Feature
 from feast.sdk.resources.entity import Entity
+from feast.sdk.resources.storage import Storage
 from feast.sdk.resources.feature_group import FeatureGroup
 import grpc
 
 
 class Client:
-    def __init__(self, serverURL):
+    def __init__(self, serverURL, verbose=False):
         '''Create an instance of Feast client which is connected to feast 
         endpoint specified in the parameter
         
@@ -19,10 +20,11 @@ class Client:
                                   (e.g.: "my.feast.com:8433")
         '''
 
-        self.channel = grpc.insecure_channel(serverURL)
-        self.stub = core.CoreServiceStub(self.channel)
+        self.__channel = grpc.insecure_channel(serverURL)
+        self.stub = core.CoreServiceStub(self.__channel)
+        self.verbose = verbose
 
-    def apply(self, obj, create_entity=False, create_features=False):
+    def apply(self, obj):
         '''Create or update one or many feast's resource 
         (feature, entity, importer, storage).
         
@@ -31,17 +33,13 @@ class Client:
             create_entity (bool, optional):  (default: {None})
             create_features (bool, optional): [description] (default: {None})
         '''
-
-        # object can be a single object or an interable
         if isinstance(obj, list):
+            ids = []
             for resource in obj:
-                self._apply(resource)
+                ids.append(self._apply(resource))
+            return ids
         else:
-            self._apply(obj)
-
-        # object can also be: Feature, Entity, Importer, Storage
-
-        pass
+            return self._apply(obj)
 
     def _apply(self, obj):
         '''Applies a single object to feast core.
@@ -51,11 +49,13 @@ class Client:
                            [Feature, Entity, FeatureGroup, Storage, Importer]
         '''
         if isinstance(obj, Feature):
-            print(self._apply_feature(obj).featureId)
+            return self._apply_feature(obj)
         elif isinstance(obj, Entity):
-            print("entity")
+            return self._apply_entity(obj)
         elif isinstance(obj, FeatureGroup):
-            print("fgroup")
+            return self._apply_feature_group(obj)
+        elif isinstance(obj, Storage):
+            return self._apply_storage(obj)
         else:
             raise TypeError('Apply can only be passed one of the following \
             types: [Feature, Entity, FeatureGroup, Storage, Importer]')
@@ -67,7 +67,9 @@ class Client:
             feature (Feature): feature to apply
         '''
         response = self.stub.ApplyFeature(feature.spec)
-        return response
+        if self.verbose: print("Successfully applied feature with id: {}\n---\n{}"
+                .format(response.featureId, feature))
+        return response.featureId
 
     def _apply_entity(self, entity):
         '''Apply the entity to the core API
@@ -76,7 +78,31 @@ class Client:
             entity (Entity): entity to apply
         '''
         response = self.stub.ApplyEntity(entity.spec)
-        return response
+        if self.verbose: print("Successfully applied entity with name: {}\n---\n{}"
+            .format(response.entityName, entity))
+        return response.entityName
+
+    def _apply_feature_group(self, feature_group):
+        '''Apply the feature group to the core API
+
+        Args:
+            feature_group (FeatureGroup): feature group to apply
+        '''
+        response = self.stub.ApplyFeatureGroup(feature_group.spec)
+        if self.verbose: print("Successfully applied feature group with id: "+
+            "{}\n---\n{}".format(response.featureGroupId, feature_group))
+        return response.featureGroupId
+
+    def _apply_storage(self, storage):
+        '''Apply the storage to the core API
+        
+        Args:
+            storage (Storage): storage to apply
+        '''
+        response = self.stub.ApplyStorage(storage.spec)
+        if self.verbose: print("Successfully applied storage with id: "+
+            "{}\n{}".format(response.storageId, storage))
+        return response.storageId
 
     def close(self):
         self.channel.close()
