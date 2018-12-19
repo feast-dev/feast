@@ -2,13 +2,13 @@
 Main interface for users to interact with the Core API. 
 """
 
+import grpc
+
 import feast.core.CoreService_pb2_grpc as core
 from feast.sdk.resources.feature import Feature
 from feast.sdk.resources.entity import Entity
 from feast.sdk.resources.storage import Storage
 from feast.sdk.resources.feature_group import FeatureGroup
-import grpc
-
 
 class Client:
     def __init__(self, serverURL, verbose=False):

@@ -67,6 +67,12 @@ class TestClient(object):
             name = client.apply(my_storage)
             assert name == "TEST"
 
+    def test_apply_unsupported_object(self, client):
+        with pytest.raises(TypeError) as e_info:
+            client.apply(None)
+            assert e_info.__str__() == "Apply can only be passed one of the" \
+            +  "following types: [Feature, Entity, FeatureGroup, Storage, Importer]"
+
     def test_apply_multiple(self, client, mocker):
         my_storage = Storage(id="TEST", type="redis")
         my_feature_group = FeatureGroup(id="test")
