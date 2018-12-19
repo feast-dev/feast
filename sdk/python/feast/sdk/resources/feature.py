@@ -4,27 +4,29 @@ import json
 import feast.specs.FeatureSpec_pb2 as feature_pb
 from feast.types.Granularity_pb2 import Granularity
 from feast.types.Value_pb2 import ValueType
+from feast.sdk.utils.print_utils import spec_to_yaml
 
 from google.protobuf.json_format import MessageToJson, Parse
 
 '''
-Wrapper class for feast features
+Wrapper class for feast feature
 '''
 class Feature:
     def __init__(self, name='', entity='', granularity=Granularity.NONE,
         owner='', value_type=ValueType.DOUBLE, description='', uri='',
         warehouse_store=None, serving_store=None, group='', tags=[], options={}):
-        '''
+        '''Create feast feature instance.
+        
         Args:
             name (str): name of feature, in lower snake case
             entity (str): entity the feature belongs to, in lower case
             granularity (int): granularity of the feature, one of Granularity.Enum
             owner (str): owner of the feature
-            warehouse_store (Datastore): warehouse store id and options
-            serving_store (Datastore): serving store id and options
+            value_type {ValueType} -- value type of the feature (default: {ValueType.DOUBLE})
             description (str): description of the feature (default: {""})
             uri (str): uri pointing to the source code or origin of this feature (default: {""})
-            value_type ([type]): value type of the feature (default: {ValueType.DOUBLE})
+            warehouse_store (Datastore): warehouse store id and options
+            serving_store (Datastore): serving store id and options
             group (str): (optional) feature group to inherit from (default: {""})
             tags (list): (optional) tags assigned to the feature (default: {[]})
             options (dict): (optional) additional options for the feature (default: {{}})
@@ -186,8 +188,7 @@ class Feature:
         Returns:
             string: yaml formatted representation of the entity
         '''
-        jsonStr = MessageToJson(self.spec)
-        return yaml.dump(yaml.load(jsonStr), default_flow_style=False)
+        return spec_to_yaml(self.__spec)
 
     def dump(self, path):
         '''Dump the feature into a yaml file. 

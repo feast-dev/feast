@@ -3,14 +3,16 @@ import json
 
 import feast.specs.StorageSpec_pb2 as storage_pb
 import feast.specs.FeatureSpec_pb2 as feature_pb
+from feast.sdk.utils.print_utils import spec_to_yaml
 from google.protobuf.json_format import MessageToJson, Parse
 
 '''
-Wrapper class for feast entities
+Wrapper class for feast storage
 '''
 class Storage:
     def __init__(self, id = "", type = "", options={}):
-        '''
+        '''Create Storage instance.
+
         Args:
             id (str): storage id
             type (str): storage type
@@ -64,16 +66,15 @@ class Storage:
             return storage
 
     def __str__(self):
-        '''Print the feature in yaml format
+        '''Return string representation the storage in yaml format
         
         Returns:
             string: yaml formatted representation of the entity
         '''
-        jsonStr = MessageToJson(self.__spec)
-        return yaml.dump(yaml.load(jsonStr), default_flow_style=False)
+        return spec_to_yaml(self.__spec)
 
     def dump(self, path):
-        '''Dump the feature into a yaml file. 
+        '''Dump the storage into a yaml file. 
             It will replace content of an existing file.
         
         Args:
@@ -88,13 +89,12 @@ class Datastore:
         self.__spec = feature_pb.DataStore(id = id, options = options)
 
     def __str__(self):
-        '''Print the feature in yaml format
+        '''Print the datastore in yaml format
         
         Returns:
-            string: yaml formatted representation of the entity
+            string: yaml formatted representation of the Datastore
         '''
-        jsonStr = MessageToJson(self.__spec)
-        return yaml.dump(yaml.load(jsonStr), default_flow_style=False)
+        return spec_to_yaml(self.__spec)
 
     @property
     def spec(self):

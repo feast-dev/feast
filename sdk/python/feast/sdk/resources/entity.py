@@ -2,15 +2,18 @@ import yaml
 import json
 
 import feast.specs.EntitySpec_pb2 as entity_pb
+from feast.sdk.utils.print_utils import spec_to_yaml
 
 from google.protobuf.json_format import MessageToJson, Parse
 
+
 '''
-Wrapper class for feast entities
+Wrapper class for feast entity
 '''
 class Entity:
     def __init__(self, name="", description="", tags=[]):
-        '''
+        '''Create Entity instance.
+
         Args:
             name (str): name of entity
             description (str): description of entity
@@ -84,8 +87,7 @@ class Entity:
         Returns:
             string: yaml formatted representation of the entity
         '''
-        jsonStr = MessageToJson(self.spec)
-        return yaml.dump(yaml.load(jsonStr), default_flow_style=False)
+        return spec_to_yaml(self.__spec)
 
     def dump(self, path):
         '''Dump the feature into a yaml file. 
