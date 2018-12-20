@@ -27,7 +27,7 @@ class TestClient(object):
             return_value=CoreServiceTypes.ApplyFeatureResponse(
                 featureId="test.none.test")):
 
-            client.stub = grpc_stub
+            client.core_service_stub = grpc_stub
             id = client.apply(my_feature)
             assert id == "test.none.test"
 
@@ -39,7 +39,7 @@ class TestClient(object):
             return_value=CoreServiceTypes.ApplyEntityResponse(
                 entityName="test")):
 
-            client.stub = grpc_stub
+            client.core_service_stub = grpc_stub
             name = client.apply(my_entity)
             assert name == "test"
 
@@ -51,7 +51,7 @@ class TestClient(object):
             return_value=CoreServiceTypes.ApplyFeatureGroupResponse(
                 featureGroupId="test")):
 
-            client.stub = grpc_stub
+            client.core_service_stub = grpc_stub
             name = client.apply(my_feature_group)
             assert name == "test"
     
@@ -63,7 +63,7 @@ class TestClient(object):
             return_value=CoreServiceTypes.ApplyStorageResponse(
                 storageId="TEST")):
 
-            client.stub = grpc_stub
+            client.core_service_stub = grpc_stub
             name = client.apply(my_storage)
             assert name == "TEST"
 
@@ -90,6 +90,6 @@ class TestClient(object):
             return_value=CoreServiceTypes.ApplyEntityResponse(
                 entityName="test"))
 
-        client.stub = grpc_stub
+        client.core_service_stub = grpc_stub
         ids = client.apply([my_storage, my_entity, my_feature_group])
         assert ids == ["TEST", "test", "test"]

@@ -199,4 +199,5 @@ class Feature:
         '''
         with open(path, 'w') as file:
             file.write(str(self))
+        print("Saved spec to {}".format(path))
             

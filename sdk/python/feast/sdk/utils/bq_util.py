@@ -3,7 +3,7 @@ import pandas as pd
 
 def head(client, table, max_rows=10):
     '''Get the head of the table. Retrieves rows from the given table at 
-    minimum cost so we don't get 
+    minimum cost
     
     Args:
         client ([type]): bigquery client

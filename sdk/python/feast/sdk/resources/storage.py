@@ -82,7 +82,7 @@ class Storage:
         '''
         with open(path, 'w') as file:
             file.write(str(self))
-
+        print("Saved spec to {}".format(path))
 
 class Datastore:
     def __init__(self, id, options={}):

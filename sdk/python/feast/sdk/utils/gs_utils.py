@@ -40,7 +40,8 @@ def df_to_gs(df, path):
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.blob(blob_name)
     s = io.StringIO()
-    blob.upload_from_string(df.to_csv(s))
+    df.to_csv(s)
+    blob.upload_from_string(s.getvalue())
 
 def split_gs_path(path):
     path = path.replace("gs://", "", 1)
