@@ -17,10 +17,6 @@
 
 package feast.core.validators;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static feast.core.validators.Matchers.checkLowerSnakeCase;
-
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import feast.core.dao.EntityInfoRepository;
@@ -28,6 +24,7 @@ import feast.core.dao.FeatureGroupInfoRepository;
 import feast.core.dao.FeatureInfoRepository;
 import feast.core.dao.StorageInfoRepository;
 import feast.core.model.FeatureGroupInfo;
+import feast.core.model.StorageInfo;
 import feast.core.storage.BigQueryStorageManager;
 import feast.core.storage.BigTableStorageManager;
 import feast.core.storage.PostgresStorageManager;
@@ -38,9 +35,16 @@ import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import java.util.Arrays;
 import java.util.Optional;
-import org.springframework.beans.factory.annotation.Autowired;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static feast.core.validators.Matchers.checkLowerSnakeCase;
 
 public class SpecValidator {
 
@@ -50,14 +54,14 @@ public class SpecValidator {
   private FeatureInfoRepository featureInfoRepository;
   private static final String FILE_ERROR_STORE_TYPE = "file.json";
 
-  private String[] supportedStorageTypes =
-      new String[]{
-          BigQueryStorageManager.TYPE,
-          BigTableStorageManager.TYPE,
-          PostgresStorageManager.TYPE,
-          RedisStorageManager.TYPE,
-          BigQueryStorageManager.TYPE,
-          FILE_ERROR_STORE_TYPE
+  private static String[] SUPPORTED_WAREHOUSE_STORES =
+      new String[] {
+          BigQueryStorageManager.TYPE, FILE_ERROR_STORE_TYPE,
+      };
+
+  private static String[] SUPPORTED_SERVING_STORES =
+      new String[] {
+          BigTableStorageManager.TYPE, PostgresStorageManager.TYPE, RedisStorageManager.TYPE,
       };
 
   @Autowired
@@ -126,12 +130,21 @@ public class SpecValidator {
         warehouseStoreId =
             warehouseStoreId.equals("") ? group.getWarehouseStore().getId() : warehouseStoreId;
       }
+      Optional<StorageInfo> servingStore = storageInfoRepository.findById(servingStoreId);
+      Optional<StorageInfo> warehouseStore = storageInfoRepository.findById(warehouseStoreId);
       checkArgument(
-          storageInfoRepository.existsById(servingStoreId),
+          servingStore.isPresent(),
           Strings.lenientFormat("Serving store with id %s does not exist", servingStoreId));
       checkArgument(
-          storageInfoRepository.existsById(warehouseStoreId),
+          Arrays.asList(SUPPORTED_SERVING_STORES).contains(servingStore.get().getType()),
+          Strings.lenientFormat("Unsupported serving store type", servingStore.get().getType()));
+      checkArgument(
+          warehouseStore.isPresent(),
           Strings.lenientFormat("Warehouse store with id %s does not exist", warehouseStoreId));
+      checkArgument(
+          Arrays.asList(SUPPORTED_WAREHOUSE_STORES).contains(warehouseStore.get().getType()),
+          Strings.lenientFormat(
+              "Unsupported warehouse store type", warehouseStore.get().getType()));
 
     } catch (NullPointerException | IllegalArgumentException e) {
       throw new IllegalArgumentException(
@@ -186,7 +199,12 @@ public class SpecValidator {
     try {
       checkArgument(!spec.getId().equals(""), "Id field cannot be empty");
       Matchers.checkUpperSnakeCase(spec.getId(), "Id");
-      checkArgument(Arrays.asList(supportedStorageTypes).contains(spec.getType()));
+      checkArgument(
+          Stream.concat(
+              Arrays.stream(SUPPORTED_SERVING_STORES),
+              Arrays.stream(SUPPORTED_WAREHOUSE_STORES))
+              .collect(Collectors.toList())
+              .contains(spec.getType()));
     } catch (NullPointerException | IllegalArgumentException e) {
       throw new IllegalArgumentException(
           Strings.lenientFormat(
