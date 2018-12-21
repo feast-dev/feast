@@ -3,12 +3,14 @@ import pandas as pd
 
 def head(client, table, max_rows=10):
     '''Get the head of the table. Retrieves rows from the given table at 
-    minimum cost
+        minimum cost
     
     Args:
-        client ([type]): bigquery client
-        table ([type]): bigquery table to get the head of
-        max_rows (int, optional): Defaults to 10. maximum number of rows to retrieve
+        client (google.cloud.bigquery.client.Client): bigquery client
+        table (google.cloud.bigquery.table.Table): bigquery table to get the 
+            head of
+        max_rows (int, optional): Defaults to 10. maximum number of rows to 
+            retrieve
     
     Returns:
         pandas.DataFrame: dataframe containing the head of rows

@@ -8,19 +8,54 @@ from feast.sdk.utils.print_utils import spec_to_yaml
 from feast.sdk.utils.types import dtype_to_value_type
 from feast.sdk.utils.bq_util import head
 from feast.sdk.resources.feature import Feature
+from feast.sdk.resources.entity import Entity
 
 from google.protobuf.timestamp_pb2 import Timestamp 
 from google.cloud import bigquery
 
 class Importer:
-    def __init__(self):
-        self.source = None
-        self.require_staging = False
-        self.remote_path = None
-        self.spec = None
-        self.features = []
-        self.df = None
-        self.bq_client = None
+    def __init__(self, specs, df, properties):
+        self._properties = properties
+        self._specs = specs
+        self.df = df
+    
+    @property
+    def source(self): 
+        '''str: source of the data'''
+        return self._properties.get("source")
+    
+    @property
+    def size(self):
+        '''str: number of rows in the data'''
+        return self._properties.get("size")
+    
+    @property
+    def require_staging(self):
+        '''bool: whether the data needs to be staged'''
+        return self._properties.get("require_staging")
+    
+    @property
+    def remote_path(self):
+        '''str: remote path of the file'''
+        return self._properties.get("remote_path")
+    
+    @property
+    def spec(self):
+        '''feast.specs.ImportSpec_pb2.ImportSpec: 
+            import spec for this dataset'''
+        return self._specs.get("import")
+    
+    @property
+    def features(self):
+        '''list[feast.specs.FeatureSpec_pb2.FeatureSpec]: 
+            list of features associated with this dataset'''
+        return self._specs.get("features")
+    
+    @property
+    def entity(self):
+        '''feast.specs.EntitySpec_pb2.EntitySpec: 
+            entity associated with this dataset'''
+        return self._specs.get("entity")
 
     @classmethod
     def from_csv(cls, path, entity, granularity, owner, staging_location=None,
@@ -36,15 +71,14 @@ class Importer:
             granularity (Granularity): granularity of data
             owner (str): owner
             staging_location (str, optional): Defaults to None. Staging location 
-                                                for ingesting a local csv file.
+                for ingesting a local csv file.
             id_column (str, optional): Defaults to None. Id column in the csv. 
-                                If not set, will default to the `entity` argument.
+                If not set, will default to the `entity` argument.
             feature_columns ([str], optional): Defaults to None. Feature columns
-                                to ingest. If not set, the importer will by default
-                                ingest all available columns.
+                to ingest. If not set, the importer will by default ingest all 
+                available columns.
             timestamp_column (str, optional): Defaults to None. Timestamp 
-                    column in the csv. If not set, defaults to timestamp
-                    value.
+                column in the csv. If not set, defaults to timestamp value.
             timestamp_value (datetime, optional): Defaults to current datetime. 
                     Timestamp value to assign to all features in the dataset.
         
@@ -53,22 +87,21 @@ class Importer:
         '''
         import_spec_options = {"format": "csv"}
         import_spec_options["path"], require_staging = _get_remote_location(path, 
-                                                            staging_location)
-        iport = cls.__new__(cls)
-        iport.source = "csv"
-        iport.require_staging = require_staging
-        iport.remote_path = import_spec_options["path"]
-
+            staging_location)
         if is_gs_path(path):
-            iport.df = gs_to_df(path)
+            df = gs_to_df(path)
         else:
-            iport.df = pd.read_csv(path)
-
-        schema, iport.features = _detect_schema_and_feature(entity, 
+            df = pd.read_csv(path)
+        schema, features = _detect_schema_and_feature(entity, 
             granularity, owner, id_column, feature_columns, timestamp_column, 
-            timestamp_value, iport.df)
-        iport.spec = _create_import("file", import_spec_options, entity, schema)
-        return iport
+            timestamp_value, df)
+        iport_spec = _create_import("file", import_spec_options, entity, schema)
+
+        props = (_properties("csv", len(df.index), require_staging,
+            import_spec_options["path"]))
+        specs = _specs(iport_spec, Entity(name=entity), features)
+        
+        return cls(specs, df, props)
     
     @classmethod
     def from_bq(cls, bq_path, entity, granularity, owner, limit=10, 
@@ -83,44 +116,42 @@ class Importer:
             granularity (Granularity): granularity of data
             owner (str): owner
             limit (int, optional): Defaults to 10. The maximum number of rows to 
-                                read into the importer df.
+                read into the importer df.
             id_column (str, optional): Defaults to None. Id column in the csv. 
-                                If not set, will default to the `entity` argument.
+                If not set, will default to the `entity` argument.
             feature_columns ([str], optional): Defaults to None. Feature columns
-                                to ingest. If not set, the importer will by default
-                                ingest all available columns.
+                to ingest. If not set, the importer will by default ingest all 
+                available columns.
             timestamp_column (str, optional): Defaults to None. Timestamp 
-                    column in the csv. If not set, defaults to timestamp
-                    value.
+                column in the csv. If not set, defaults to timestamp value.
             timestamp_value (datetime, optional): Defaults to current datetime. 
                     Timestamp value to assign to all features in the dataset.
         
         Returns:
             Importer: the importer for the dataset provided.
         '''
-        iport = cls.__new__(cls)
-        iport.source = "bigquery"
-        iport.bq_client = bigquery.Client()
+
+        cli = bigquery.Client()
         project, dataset_id, table_id = bq_path.split(".")
-        dataset_ref = iport.bq_client.dataset(dataset_id, project=project)
+        dataset_ref = cli.dataset(dataset_id, project=project)
         table_ref = dataset_ref.table(table_id)
-        table = iport.bq_client.get_table(table_ref)
-        
+        table = cli.get_table(table_ref)
+
         import_spec_options = {
             "project": project,
             "dataset": dataset_id,
             "table": table_id
         }
-
-        iport.require_staging = False
-        iport.df = head(iport.bq_client, table, limit)
-
-        schema, iport.features = _detect_schema_and_feature(entity, 
+        df = head(cli, table, limit)
+        schema, features = _detect_schema_and_feature(entity, 
             granularity, owner, id_column, feature_columns, timestamp_column, 
-            timestamp_value, iport.df)
+            timestamp_value, df)
+        iport_spec = _create_import("bigquery", import_spec_options, 
+            entity, schema)
 
-        iport.spec = _create_import("bigquery", import_spec_options, entity, schema)
-        return iport
+        props = _properties("bigquery", table.num_rows, False, None)
+        specs = _specs(iport_spec, Entity(name=entity), features)
+        return cls(specs, df, props)
     
     @classmethod
     def from_df(cls, df, entity, granularity, owner, staging_location,
@@ -139,32 +170,33 @@ class Importer:
             id_column (str, optional): Defaults to None. Id column in the csv. 
                                 If not set, will default to the `entity` argument.
             feature_columns ([str], optional): Defaults to None. Feature columns
-                                to ingest. If not set, the importer will by default
-                                ingest all available columns.
+                to ingest. If not set, the importer will by default ingest all 
+                available columns.
             timestamp_column (str, optional): Defaults to None. Timestamp 
-                    column in the csv. If not set, defaults to timestamp
-                    value.
+                column in the csv. If not set, defaults to timestamp value.
             timestamp_value (datetime, optional): Defaults to current datetime. 
                     Timestamp value to assign to all features in the dataset.
         
         Returns:
             Importer: the importer for the dataset provided.
         '''
-        tmp_file_name = "tmp_{}_{}.csv".format(entity, int(round(time.time() * 1000)))
-        iport = cls.__new__(cls)
-        iport.source = "dataframe"
-        iport.remote_path, iport.require_staging = _get_remote_location(tmp_file_name, staging_location)
-        iport.df = df
+        tmp_file_name = ("tmp_{}_{}.csv"
+            .format(entity, int(round(time.time() * 1000))))
         import_spec_options = {
-            "format": "csv",
-            "path": iport.remote_path
+            "format": "csv"
         }
-
-        schema, iport.features = _detect_schema_and_feature(entity, 
+        import_spec_options["path"], require_staging = (
+            _get_remote_location(tmp_file_name, staging_location))
+        schema, features = _detect_schema_and_feature(entity, 
             granularity, owner, id_column, feature_columns, timestamp_column, 
-            timestamp_value, iport.df)
-        iport.spec = _create_import("file", import_spec_options, entity, schema)
-        return iport
+            timestamp_value, df)
+        iport_spec = _create_import("file", import_spec_options, entity, schema)
+        
+        props = _properties("dataframe", len(df.index), require_staging, 
+            import_spec_options["path"])
+        specs = _specs(iport_spec, Entity(name=entity), features)
+        
+        return cls(specs, df, props)
 
     def stage(self):
         '''Stage the data to its remote location
@@ -190,19 +222,54 @@ class Importer:
             f.write(spec_to_yaml(self.spec))
         print("Saved spec to {}".format(path))
 
+def _properties(source, size, require_staging, remote):
+    '''Args:
+        source (str): source of the data
+        size (int): number of rows of the dataset 
+        require_staging (bool): whether the file requires staging
+        remote (str): remote path 
+    
+    Returns:
+        dict: set of importer properties
+    '''
+
+    return {
+        "source": source,
+        "size": size,
+        "require_staging": require_staging,
+        "remote_path": remote
+    }
+
+def _specs(iport, entity, features):
+    '''Args:
+        iport {} -- [description]
+        entity {[type]} -- [description]
+        features {[type]} -- [description]
+    
+    Returns:
+        [type] -- [description]
+    '''
+
+    return {
+        "import": iport,
+        "features": features,
+        "entity": entity
+    }
+
 def _get_remote_location(path, staging_location):
     '''Get the remote location of the file
     
     Args:
-        path {str}: [description]
-        staging_location {str}: [description]
+        path (str): raw path of the file
+        staging_location (str): path to stage the file
 
     '''
     if (is_gs_path(path)):
         return path, False
     
     if staging_location is None:
-        raise ValueError("Specify staging_location for importing local file/dataframe")
+        raise ValueError(
+            "Specify staging_location for importing local file/dataframe")
     if not is_gs_path(staging_location):
         raise ValueError("Staging location must be in GCS")
     
@@ -216,12 +283,14 @@ def _detect_schema_and_feature(entity, granularity, owner, id_column,
     
     Args:
         entity (str): entity name
-        granualrity (Granularity): granularity of the feature
+        granularity (feast.types.Granularity_pb2.Granularity): granularity of 
+            the feature
         id_column (str): column name of entity id
         timestamp_column (str): column name of timestamp
-        timestamp_value (datetime): timestamp to apply to all rows in dataset
+        timestamp_value (datetime.datetime): timestamp to apply to all 
+            rows in dataset
         feature_columns (str): list of column to be extracted
-        df (Dataframe): pandas dataframe of the data
+        df (pandas.Dataframe): pandas dataframe of the data
     
     Raises:
         Exception -- [description]
@@ -259,7 +328,8 @@ def _detect_schema_and_feature(entity, granularity, owner, id_column,
         _remove_safely(feature_columns, schema.entityIdColumn)
         _remove_safely(feature_columns, schema.timestampColumn)
         for column in feature_columns:
-            features[column] = _create_feature(df[column], entity, granularity, owner)     
+            features[column] = _create_feature(df[column], entity, 
+            granularity, owner)     
     
     for col in df.columns:
         field = schema.fields.add()
@@ -275,11 +345,12 @@ def _create_feature(column, entity, granularity, owner):
     Args:
         column (pandas.Series): data column
         entity (str): entity name
-        granularity (Granularity.Enum): granularity of the feature
+        granularity (feast.types.Granularity_pb2.Granularity): granularity of 
+            the feature
         owner (str): owner of the feature
     
     Returns:
-        Feature: feature for this data column
+        feast.sdk.resources.Feature: feature for this data column
     '''
     return Feature(
         name=column.name,
@@ -295,10 +366,10 @@ def _create_import(import_type, options, entity, schema):
         import_type (str): import type
         options (dict): import spec options
         entity (str): entity
-        schema (Schema): schema of the file
+        schema (feast.specs.ImportSpec_pb2.Schema): schema of the file
     
     Returns:
-        ImportSpec: import spec
+        feast.specs.ImportSpec_pb2.ImportSpec: import spec
     '''
 
     return ImportSpec(

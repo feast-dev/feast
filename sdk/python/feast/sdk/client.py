@@ -20,7 +20,7 @@ class Client:
         endpoint specified in the parameter
         
         Args:
-            serverURI (string): feast's endpoint URL 
+            serverURI (str): feast's endpoint URL 
                                   (e.g.: "my.feast.com:8433")
         '''
 
@@ -54,10 +54,18 @@ class Client:
         if name_override is not None: 
             request.name = name_override
 
+        if apply_entity:
+            self._apply_entity(importer.entity)
+        if apply_features:
+            for feature in importer.features:
+                self._apply_feature(feature)
+
         if importer.require_staging:
-            print("Staging file to remote path {}".format(importer.remote_path))
+            print("Staging file to remote path {}"
+                .format(importer.remote_path))
             importer.stage()
-        print("Submitting job with spec:\n {}".format(spec_to_yaml(importer.spec)))
+        print("Submitting job with spec:\n {}"
+            .format(spec_to_yaml(importer.spec)))
         response = self.job_service_stub.SubmitJob(request)
         print("Submitted job with id: {}".format(response.jobId))
         return response.jobId
@@ -67,7 +75,7 @@ class Client:
         
         Args:
             obj (object): one of 
-                           [Feature, Entity, FeatureGroup, Storage, Importer]
+                [Feature, Entity, FeatureGroup, Storage, Importer]
         '''
         if isinstance(obj, Feature):
             return self._apply_feature(obj)
@@ -85,7 +93,7 @@ class Client:
         '''Apply the feature to the core API
         
         Args:
-            feature (Feature): feature to apply
+            feature (feast.sdk.resources.feature.Feature): feature to apply
         '''
         response = self.core_service_stub.ApplyFeature(feature.spec)
         if self.verbose: print("Successfully applied feature with id: {}\n---\n{}"
@@ -96,7 +104,7 @@ class Client:
         '''Apply the entity to the core API
         
         Args:
-            entity (Entity): entity to apply
+            entity (feast.sdk.resources.entity.Entity): entity to apply
         '''
         response = self.core_service_stub.ApplyEntity(entity.spec)
         if self.verbose: print("Successfully applied entity with name: {}\n---\n{}"
@@ -107,7 +115,8 @@ class Client:
         '''Apply the feature group to the core API
 
         Args:
-            feature_group (FeatureGroup): feature group to apply
+            feature_group (feast.sdk.resources.feature_group.FeatureGroup): 
+                feature group to apply
         '''
         response = self.core_service_stub.ApplyFeatureGroup(feature_group.spec)
         if self.verbose: print("Successfully applied feature group with id: "+
@@ -118,7 +127,7 @@ class Client:
         '''Apply the storage to the core API
         
         Args:
-            storage (Storage): storage to apply
+            storage (feast.sdk.resources.storage.Storage): storage to apply
         '''
         response = self.core_service_stub.ApplyStorage(storage.spec)
         if self.verbose: print("Successfully applied storage with id: "+

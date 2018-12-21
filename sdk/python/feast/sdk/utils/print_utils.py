@@ -8,7 +8,7 @@ def spec_to_yaml(spec):
     '''Converts spec to yaml string
     
     Args:
-        spec (Message): feast spec
+        spec (google.protobuf.Message): feast spec object
     
     Returns:
         str: yaml string representation of spec

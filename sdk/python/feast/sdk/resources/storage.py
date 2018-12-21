@@ -16,7 +16,7 @@ class Storage:
         Args:
             id (str): storage id
             type (str): storage type
-            options (dict) : map of storage options
+            options (dict, optional) : map of storage options
         '''
         self.__spec = storage_pb.StorageSpec(id = id, type = type, options = options)
 
@@ -54,7 +54,7 @@ class Storage:
         '''Create an instance of storage from a yaml file
         
         Args:
-            path (string): path to yaml file
+            path (str): path to yaml file
         '''
         with open(path, 'r') as file:
             content = yaml.safe_load(file.read())
@@ -69,7 +69,7 @@ class Storage:
         '''Return string representation the storage in yaml format
         
         Returns:
-            string: yaml formatted representation of the entity
+            str: yaml formatted representation of the entity
         '''
         return spec_to_yaml(self.__spec)
 
@@ -92,7 +92,7 @@ class Datastore:
         '''Print the datastore in yaml format
         
         Returns:
-            string: yaml formatted representation of the Datastore
+            str: yaml formatted representation of the Datastore
         '''
         return spec_to_yaml(self.__spec)
 

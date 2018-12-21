@@ -20,9 +20,9 @@ def dtype_to_value_type(dtype):
     '''Returns the equivalent feast valueType for the given dtype
     
     Args:
-        dtype (dtype): pandas dtype
+        dtype (pandas.dtype): pandas dtype
     
     Returns:
-        ValueType.Enum: equivalent feast valuetype
+        feast.types.ValueType_pb2.ValueType: equivalent feast valuetype
     '''
     return _DTYPE_TO_VALUE_TYPE_MAPPING[dtype.__str__()]

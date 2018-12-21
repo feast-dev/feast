@@ -20,16 +20,21 @@ class Feature:
         Args:
             name (str): name of feature, in lower snake case
             entity (str): entity the feature belongs to, in lower case
-            granularity (int): granularity of the feature, one of Granularity.Enum
+            granularity (int): granularity of the feature, one of 
+                Granularity.Enum
             owner (str): owner of the feature
-            value_type {ValueType} -- value type of the feature (default: {ValueType.DOUBLE})
-            description (str): description of the feature (default: {""})
-            uri (str): uri pointing to the source code or origin of this feature (default: {""})
-            warehouse_store (Datastore): warehouse store id and options
-            serving_store (Datastore): serving store id and options
-            group (str): (optional) feature group to inherit from (default: {""})
-            tags (list): (optional) tags assigned to the feature (default: {[]})
-            options (dict): (optional) additional options for the feature (default: {{}})
+            value_type (feast.types.ValueType_pb2.ValueType): defaults to 
+                ValueType.DOUBLE. value type of the feature
+            description (str): defaults to "". description of the feature
+            uri (str): defaults to "". uri pointing to the source code or 
+                origin of this feature
+            warehouse_store (feast.specs.FeatureSpec_pb2.Datastore): 
+                warehouse store id and options
+            serving_store (feast.specs.FeatureSpec_pb2.Datastore): serving 
+                store id and options
+            group (str, optional): feature group to inherit from
+            tags (list[str], optional): tags assigned to the feature
+            options (dic, optional): additional options for the feature
         '''
 
         id = '.'.join([entity,
@@ -186,7 +191,7 @@ class Feature:
         '''Print the feature in yaml format
         
         Returns:
-            string: yaml formatted representation of the entity
+            str: yaml formatted representation of the entity
         '''
         return spec_to_yaml(self.__spec)
 

@@ -1,0 +1,15 @@
+type: file
+options:
+  format: csv
+  path: gs://zl-test-bucket/feast/customer_features.csv
+entities:
+- customer
+schema:
+  entityIdColumn: customer_id
+  fields:
+  - name: customer_id
+  - featureId: customer.day.age
+    name: age
+  - featureId: customer.day.balance
+    name: balance
+  timestampValue: '2018-12-20T16:27:41Z'

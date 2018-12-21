@@ -15,7 +15,8 @@ class TestImporter(object):
         owner = "owner@feast.com"
         staging_location = "gs://test-bucket"
         id_column = "driver_id"
-        feature_columns = ["avg_distance_completed", "avg_customer_distance_completed"]
+        feature_columns = ["avg_distance_completed", 
+            "avg_customer_distance_completed"]
         timestamp_column = "ts"
 
         importer = Importer.from_csv(path = csv_path, 
@@ -27,42 +28,15 @@ class TestImporter(object):
             feature_columns=feature_columns,
             timestamp_column=timestamp_column)
         
-        self._validate_csv_importer(importer, csv_path, entity_name, feature_granularity, owner, staging_location, id_column, feature_columns, timestamp_column)
-
-    def _validate_csv_importer(self, importer,  csv_path, entity_name, feature_granularity, owner, staging_location = None, id_column = None, feature_columns = None, timestamp_column = None, timestamp_value = None):
-        df = pd.read_csv(csv_path)
-        assert not importer.require_staging == is_gs_path(csv_path)
-        if importer.require_staging:
-            assert importer.remote_path == "{}/{}".format(staging_location, ntpath.basename(csv_path))
-
-        # check features created
-        for feature in importer.features:
-            assert feature.name in df.columns
-            assert feature.id == "{}.{}.{}".format(entity_name, Granularity.Enum.Name(feature_granularity).lower(), feature.name)
-
-        import_spec = importer.spec
-        assert import_spec.type == "file"
-        path = importer.remote_path if importer.require_staging else csv_path
-        assert import_spec.options == {"format" : "csv", "path" : path}
-        assert import_spec.entities == [entity_name]
-
-        schema = import_spec.schema
-        assert schema.entityIdColumn == id_column if id_column is not None else entity_name
-        if timestamp_column is not None:
-            assert schema.timestampColumn == timestamp_column
-        elif timestamp_value is not None:
-            assert schema.timestampValue == timestamp_value
-
-        # check schema's field
-        for col, field in zip(df.columns.values, schema.fields):
-            assert col == field.name
-            if col in feature_columns:
-                assert field.featureId == "{}.{}.{}".format(entity_name, Granularity.Enum.Name(feature_granularity).lower(), col)
-
+        self._validate_csv_importer(importer, csv_path, entity_name, 
+            feature_granularity, owner, staging_location, id_column, 
+            feature_columns, timestamp_column)
 
     def test_from_csv_id_column_not_specified(self):
-        with pytest.raises(ValueError, match="Column with name driver is not found") as e_info:
-            feature_columns = ["avg_distance_completed", "avg_customer_distance_completed"]
+        with pytest.raises(ValueError, 
+            match="Column with name driver is not found") as e_info:
+            feature_columns = ["avg_distance_completed", 
+                "avg_customer_distance_completed"]
             csv_path = "tests/data/driver_features.csv"
             importer = Importer.from_csv(path = csv_path, 
                 entity = "driver", 
@@ -73,71 +47,51 @@ class TestImporter(object):
                 timestamp_column="ts")
 
     def test_from_csv_timestamp_column_not_specified(self):
-        feature_columns = ["avg_distance_completed", "avg_customer_distance_completed", "avg_distance_cancelled"]
+        feature_columns = ["avg_distance_completed", 
+            "avg_customer_distance_completed", "avg_distance_cancelled"]
         csv_path = "tests/data/driver_features.csv"
+        entity_name = "driver"
+        granularity = Granularity.DAY
+        owner = "owner@feast.com"
+        staging_location = "gs://test-bucket"
+        id_column = "driver_id"
         importer = Importer.from_csv(path = csv_path, 
-            entity = "driver", 
-            granularity = Granularity.DAY, 
-            owner = "owner@feast.com", 
-            staging_location="gs://test-bucket", 
-            id_column = "driver_id",
-            feature_columns=feature_columns,
-            timestamp_column="ts")
-        
-        df = pd.read_csv(csv_path)
-        assert importer.require_staging == True
-        assert importer.remote_path == "gs://test-bucket/driver_features.csv"
-        for feature in importer.features:
-            assert feature.name in df.columns
-            assert feature.id == "driver.day." + feature.name
+            entity = entity_name, 
+            granularity = granularity, 
+            owner = owner, 
+            staging_location=staging_location, 
+            id_column = id_column,
+            feature_columns= feature_columns)
 
-        import_spec = importer.spec
-        assert import_spec.type == "file"
-        assert import_spec.options == {"format" : "csv", "path" : "gs://test-bucket/driver_features.csv"}
-        assert import_spec.entities == ["driver"]
-
-        schema = import_spec.schema
-        assert schema.entityIdColumn == "driver_id"
-        assert schema.timestampValue is not None
-        for col, field in zip(df.columns.values, schema.fields):
-            assert col == field.name
-            if col in feature_columns:
-                assert field.featureId == "driver.day." + col
+        self._validate_csv_importer(importer, csv_path, entity_name,
+            granularity, owner, staging_location = staging_location, 
+            id_column=id_column, feature_columns=feature_columns)
     
     def test_from_csv_feature_columns_not_specified(self):
         csv_path = "tests/data/driver_features.csv"
+        entity_name = "driver"
+        granularity = Granularity.DAY
+        owner = "owner@feast.com"
+        staging_location = "gs://test-bucket"
+        id_column = "driver_id"
+        timestamp_column = "ts"
         importer = Importer.from_csv(path = csv_path, 
-            entity = "driver", 
-            granularity = Granularity.DAY, 
-            owner = "owner@feast.com", 
-            staging_location="gs://test-bucket", 
-            id_column = "driver_id",
-            timestamp_column="ts")
+            entity = entity_name, 
+            granularity = granularity, 
+            owner = owner, 
+            staging_location=staging_location, 
+            id_column = id_column,
+            timestamp_column=timestamp_column)
         
-        df = pd.read_csv(csv_path)
-        assert importer.require_staging == True
-        assert importer.remote_path == "gs://test-bucket/driver_features.csv"
-        for feature in importer.features:
-            assert feature.name in df.columns
-            assert feature.id == "driver.day." + feature.name
-
-        import_spec = importer.spec
-        assert import_spec.type == "file"
-        assert import_spec.options == {"format" : "csv", "path" : "gs://test-bucket/driver_features.csv"}
-        assert import_spec.entities == ["driver"]
-
-        schema = import_spec.schema
-        assert schema.entityIdColumn == "driver_id"
-        assert schema.timestampValue is not None
-        feature_columns = ["completed", "avg_distance_completed", "avg_customer_distance_completed", "avg_distance_cancelled"]
-        for col, field in zip(df.columns.values, schema.fields):
-            assert col == field.name
-            if col in feature_columns:
-                assert field.featureId == "driver.day." + col
+        self._validate_csv_importer(importer, csv_path, entity_name, 
+            granularity, owner, staging_location = staging_location, 
+            id_column=id_column, timestamp_column=timestamp_column)
 
     def test_from_csv_staging_location_not_specified(self):
-        with pytest.raises(ValueError, match="Specify staging_location for importing local file/dataframe") as e_info:
-            feature_columns = ["avg_distance_completed", "avg_customer_distance_completed"]
+        with pytest.raises(ValueError, 
+            match="Specify staging_location for importing local file/dataframe") as e_info:
+            feature_columns = ["avg_distance_completed", 
+                "avg_customer_distance_completed"]
             csv_path = "tests/data/driver_features.csv"
             importer = Importer.from_csv(path = csv_path, 
                 entity = "driver", 
@@ -146,8 +100,10 @@ class TestImporter(object):
                 feature_columns=feature_columns,
                 timestamp_column="ts")
         
-        with pytest.raises(ValueError, match="Staging location must be in GCS") as e_info:
-            feature_columns = ["avg_distance_completed", "avg_customer_distance_completed"]
+        with pytest.raises(ValueError, 
+            match="Staging location must be in GCS") as e_info:
+            feature_columns = ["avg_distance_completed", 
+                "avg_customer_distance_completed"]
             csv_path = "tests/data/driver_features.csv"
             importer = Importer.from_csv(path = csv_path, 
                 entity = "driver", 
@@ -171,8 +127,10 @@ class TestImporter(object):
             id_column = "driver_id",
             timestamp_column="ts")
 
+
         assert importer.require_staging == True
-        assert "{}/tmp_{}".format(staging_location, entity) in importer.remote_path
+        assert ("{}/tmp_{}".format(staging_location, entity) 
+            in importer.remote_path)
         for feature in importer.features:
             assert feature.name in df.columns
             assert feature.id == "driver.day." + feature.name
@@ -185,13 +143,55 @@ class TestImporter(object):
         schema = import_spec.schema
         assert schema.entityIdColumn == "driver_id"
         assert schema.timestampValue is not None
-        feature_columns = ["completed", "avg_distance_completed", "avg_customer_distance_completed", "avg_distance_cancelled"]
+        feature_columns = ["completed", "avg_distance_completed", 
+            "avg_customer_distance_completed", 
+            "avg_distance_cancelled"]
         for col, field in zip(df.columns.values, schema.fields):
             assert col == field.name
             if col in feature_columns:
                 assert field.featureId == "driver.day." + col
 
+    def _validate_csv_importer(self, 
+            importer,  csv_path, entity_name, feature_granularity, owner, 
+            staging_location = None, id_column = None, feature_columns = None, 
+            timestamp_column = None, timestamp_value = None):
+        df = pd.read_csv(csv_path)
+        assert not importer.require_staging == is_gs_path(csv_path)
+        if importer.require_staging:
+            assert importer.remote_path == "{}/{}".format(staging_location, 
+                ntpath.basename(csv_path))
 
+        # check features created
+        for feature in importer.features:
+            assert feature.name in df.columns
+            assert feature.id == "{}.{}.{}".format(entity_name, 
+                Granularity.Enum.Name(feature_granularity).lower(), 
+                feature.name)
+
+        import_spec = importer.spec
+        assert import_spec.type == "file"
+        path = importer.remote_path if importer.require_staging else csv_path
+        assert import_spec.options == {"format" : "csv", "path" : path}
+        assert import_spec.entities == [entity_name]
+
+        schema = import_spec.schema
+        assert schema.entityIdColumn == id_column if id_column is not None else entity_name
+        if timestamp_column is not None:
+            assert schema.timestampColumn == timestamp_column
+        elif timestamp_value is not None:
+            assert schema.timestampValue == timestamp_value
+
+        if feature_columns is None:
+            feature_columns = list(df.columns.values)
+            feature_columns.remove(id_column)
+            feature_columns.remove(timestamp_column)
+
+        # check schema's field
+        for col, field in zip(df.columns.values, schema.fields):
+            assert col == field.name
+            if col in feature_columns:
+                assert field.featureId == "{}.{}.{}".format(entity_name, 
+                    Granularity.Enum.Name(feature_granularity).lower(), col)
 
 class TestHelpers:
     def test_create_feature(self):

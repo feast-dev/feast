@@ -4,10 +4,14 @@ from unittest.mock import patch
 import grpc
 
 import feast.core.CoreService_pb2_grpc as core
+import feast.core.JobService_pb2_grpc as jobs
 from feast.core.CoreService_pb2 import CoreServiceTypes
+from feast.core.JobService_pb2 import JobServiceTypes 
 from feast.types.Granularity_pb2 import Granularity
+from feast.specs.ImportSpec_pb2 import ImportSpec
 
 from feast.sdk.client import Client
+from feast.sdk.importer import Importer
 from feast.sdk.resources.feature import Feature
 from feast.sdk.resources.feature_group import FeatureGroup
 from feast.sdk.resources.entity import Entity
@@ -93,3 +97,22 @@ class TestClient(object):
         client.core_service_stub = grpc_stub
         ids = client.apply([my_storage, my_entity, my_feature_group])
         assert ids == ["TEST", "test", "test"]
+
+    def test_run_job_no_staging(self, client, mocker):
+        grpc_stub = jobs.JobServiceStub(grpc.insecure_channel(""))
+
+        mocker.patch.object(grpc_stub, 'SubmitJob',
+            return_value=JobServiceTypes.SubmitImportJobResponse(
+                jobId="myjob12312"))
+        client.job_service_stub = grpc_stub
+        importer = Importer( 
+            {"import":ImportSpec()},
+            None,
+            {"require_staging": False})
+        
+        job_id = client.run(importer)
+        assert job_id == "myjob12312"
+    
+    # def test_run_job_require_staging(self, client, mocker):
+    #     importer = Importer()
+    #     mocker.patch.object(importer, 

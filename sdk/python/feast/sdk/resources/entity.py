@@ -17,7 +17,8 @@ class Entity:
         Args:
             name (str): name of entity
             description (str): description of entity
-            tags (list): [description] (default: {[]})
+            tags (list[str], optional): defaults to []. 
+                list of tags for this entity
         '''
         self.__spec = entity_pb.EntitySpec(name=name, description=description,
             tags=tags)
@@ -56,7 +57,7 @@ class Entity:
         '''Create an instance of entity from a yaml file
         
         Args:
-            path (string): path to yaml file
+            path (str): path to yaml file
         '''
         with open(path, 'r') as file:
             content = yaml.safe_load(file.read())
@@ -72,12 +73,13 @@ class Entity:
         '''Create a feature related to this entity
         
         Args:
-            name (string): feature name
-            granularity (Granularity): granularity of the feature. e.g.: 
-                                    Granularity.NONE, Granularity.SECOND, etc
-            value_type (ValueType): value type of the feature
-            owner (string): owner of the feature
-            description (string): feature's description
+            name (str): feature name
+            granularity (feast.types.Granularity_pb2.Granularity): granularity 
+                of the feature. e.g.: Granularity.NONE, Granularity.SECOND, etc
+            value_type (feast.types.ValueType_pb2.ValueType): value type of 
+                the feature
+            owner (str): owner of the feature
+            description (str): feature's description
         '''
         pass
 
@@ -85,7 +87,7 @@ class Entity:
         '''Print the feature in yaml format
         
         Returns:
-            string: yaml formatted representation of the entity
+            str: yaml formatted representation of the entity
         '''
         return spec_to_yaml(self.__spec)
 

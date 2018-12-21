@@ -18,8 +18,10 @@ class FeatureGroup():
             id (str): id of feature group
             tags (list): Defaults to []. tags assigned to feature group
                 as well as all children features.
-            warehouse_store (DataStore): warehouse store id and options
-            serving_store (DataStore): serving store id and options
+            warehouse_store (feast.specs.FeatureSpec_pb2.DataStore): 
+                warehouse store id and options
+            serving_store (feast.specs.FeatureSpec_pb2.DataStore): 
+                serving store id and options
         '''
         warehouse_store_spec = None
         serving_store_spec = None
@@ -89,7 +91,7 @@ class FeatureGroup():
         '''Return string representation of the feature group
         
         Returns:
-            string: yaml formatted representation of the entity
+            str: yaml formatted representation of the entity
         '''
         return spec_to_yaml(self.__spec)
 

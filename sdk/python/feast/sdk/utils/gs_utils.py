@@ -54,6 +54,6 @@ def is_gs_path(path):
         path (str): path to file
     
     Returns:
-        boolean: is a valid gcs path
+        bool: is a valid gcs path
     '''
-    return re.match(_GCS_PATH_REGEX, path) != None
+    return re.match(_GCS_PATH_REGEX, path) != None 
