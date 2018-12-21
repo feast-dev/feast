@@ -2,8 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np 
 
-from feast.types.Value_pb2 import ValueType
-from feast.sdk.utils.types import dtype_to_value_type
+from feast.sdk.utils.types import dtype_to_value_type, ValueType
 
 def test_convert_dtype_to_value_type():
     dft = pd.DataFrame(dict(A = np.random.rand(3),

@@ -2,10 +2,10 @@ import pandas as pd
 import pytest
 import ntpath
 from feast.sdk.resources.feature import Feature
-from feast.types.Granularity_pb2 import Granularity
-from feast.types.Value_pb2 import ValueType
+from feast.sdk.utils.types import Granularity, ValueType
 from feast.sdk.importer import _create_feature, Importer
 from feast.sdk.utils.gs_utils import gs_to_df, is_gs_path, df_to_gs
+from feast.types.Granularity_pb2 import Granularity as Granularity_pb2
 
 class TestImporter(object):
     def test_from_csv(self):
@@ -165,7 +165,7 @@ class TestImporter(object):
         for feature in importer.features:
             assert feature.name in df.columns
             assert feature.id == "{}.{}.{}".format(entity_name, 
-                Granularity.Enum.Name(feature_granularity).lower(), 
+                Granularity_pb2.Enum.Name(feature_granularity.value).lower(), 
                 feature.name)
 
         import_spec = importer.spec
@@ -191,7 +191,7 @@ class TestImporter(object):
             assert col == field.name
             if col in feature_columns:
                 assert field.featureId == "{}.{}.{}".format(entity_name, 
-                    Granularity.Enum.Name(feature_granularity).lower(), col)
+                    Granularity_pb2.Enum.Name(feature_granularity.value).lower(), col)
 
 class TestHelpers:
     def test_create_feature(self):

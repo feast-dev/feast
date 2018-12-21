@@ -7,7 +7,7 @@ import feast.core.CoreService_pb2_grpc as core
 import feast.core.JobService_pb2_grpc as jobs
 from feast.core.CoreService_pb2 import CoreServiceTypes
 from feast.core.JobService_pb2 import JobServiceTypes 
-from feast.types.Granularity_pb2 import Granularity
+from feast.sdk.utils.types import Granularity
 from feast.specs.ImportSpec_pb2 import ImportSpec
 
 from feast.sdk.client import Client

@@ -1,8 +1,7 @@
 import pytest
 from feast.sdk.resources.feature import Feature
 from feast.sdk.resources.storage import Datastore
-from feast.types.Value_pb2 import ValueType
-from feast.types.Granularity_pb2 import Granularity
+from feast.sdk.utils.types import ValueType, Granularity
 
 class TestFeature(object):
     def dummy_feature(self):
@@ -23,7 +22,7 @@ class TestFeature(object):
     def test_set_granularity(self):
         my_feature = self.dummy_feature()
         my_feature.granularity = Granularity.DAY
-        assert my_feature.granularity == "DAY"
+        assert my_feature.granularity == Granularity.DAY
         assert my_feature.id == "my_entity.day.my_feature"
     
     def test_set_entity(self):
@@ -40,8 +39,8 @@ class TestFeature(object):
         assert feature.entity == "myentity"
         assert feature.owner == "bob@example.com"
         assert feature.description == "test entity."
-        assert feature.value_type == "BOOL"
-        assert feature.granularity == "NONE"
+        assert feature.value_type == ValueType.BOOL
+        assert feature.granularity == Granularity.NONE
         assert feature.uri == "https://github.com/bob/example"
         assert feature.serving_store.id == "REDIS1"
         assert feature.warehouse_store.id == "BIGQUERY1"

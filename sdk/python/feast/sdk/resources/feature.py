@@ -2,10 +2,11 @@ import yaml
 import json
 
 import feast.specs.FeatureSpec_pb2 as feature_pb
-from feast.types.Granularity_pb2 import Granularity
-from feast.types.Value_pb2 import ValueType
-from feast.sdk.utils.print_utils import spec_to_yaml
 
+from feast.sdk.utils.types import ValueType, Granularity
+from feast.sdk.utils.print_utils import spec_to_yaml
+from feast.types.Granularity_pb2 import Granularity as Granularity_pb2
+from feast.types.Value_pb2 import ValueType as ValueType_pb2
 from google.protobuf.json_format import MessageToJson, Parse
 
 '''
@@ -36,9 +37,8 @@ class Feature:
             tags (list[str], optional): tags assigned to the feature
             options (dic, optional): additional options for the feature
         '''
-
         id = '.'.join([entity,
-                       Granularity.Enum.Name(granularity), name]).lower()
+                       Granularity_pb2.Enum.Name(granularity.value), name]).lower()
     
         warehouse_store_spec = None
         serving_store_spec = None
@@ -48,9 +48,9 @@ class Feature:
             warehouse_store_spec = warehouse_store.spec
         data_stores = feature_pb.DataStores(serving = serving_store_spec, 
             warehouse = warehouse_store_spec)
-        self.__spec = feature_pb.FeatureSpec(id=id, granularity=granularity,
+        self.__spec = feature_pb.FeatureSpec(id=id, granularity=granularity.value,
             name=name, entity=entity, owner=owner, dataStores=data_stores,
-            description=description, uri=uri, valueType=value_type,
+            description=description, uri=uri, valueType=value_type.value,
             group=group, tags=tags, options=options)
 
     @property
@@ -74,13 +74,13 @@ class Feature:
 
     @property
     def granularity(self):
-        return Granularity.Enum.Name(self.__spec.granularity)
+        return Granularity(self.__spec.granularity)
 
     @granularity.setter
     def granularity(self, value):
-        self.__spec.granularity = value
+        self.__spec.granularity = value.value
         id_split = self.id.split('.')
-        id_split[1] = self.granularity.lower()
+        id_split[1] = Granularity_pb2.Enum.Name(self.__spec.granularity).lower()
         self.__spec.id = '.'.join(id_split)
 
     @property
@@ -136,7 +136,7 @@ class Feature:
 
     @property
     def value_type(self):
-        return ValueType.Enum.Name(self.__spec.valueType)
+        return ValueType(self.__spec.valueType)
 
     @value_type.setter
     def value_type(self, value):
