@@ -20,9 +20,17 @@ package feast.storage.bigquery;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import com.google.inject.Inject;
-import java.util.List;
+import feast.ingestion.model.Specs;
+import feast.ingestion.transform.FeatureIO;
+import feast.ingestion.transform.SplitFeatures.SingleOutputSplit;
+import feast.options.OptionsParser;
+import feast.specs.EntitySpecProto.EntitySpec;
+import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.specs.ImportSpecProto.ImportSpec;
+import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
+import feast.types.FeatureRowProto.FeatureRow;
+import feast.types.GranularityProto.Granularity;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
@@ -38,22 +46,13 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.Duration;
-import feast.ingestion.model.Specs;
-import feast.ingestion.transform.FeatureIO;
-import feast.ingestion.transform.SplitFeatures.SingleOutputSplit;
-import feast.options.OptionsParser;
-import feast.specs.EntitySpecProto.EntitySpec;
-import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.specs.ImportSpecProto.ImportSpec;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
-import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.GranularityProto.Granularity;
 
 @Slf4j
 public class FeatureRowBigQueryIO {
 
   public static Read read(ImportSpec importSpec) {
-    // TODO: Allow and convert from /projects/{project}/datasets/{dataset}/tables/{table}
+    // TODO: Allow and convert from /projects/{project}/datasets/{dataset}/tables/{table}, to
+    // {project}:{dataset}.{table}
     return new Read(importSpec);
   }
 
@@ -64,11 +63,10 @@ public class FeatureRowBigQueryIO {
    * the same entity. The columns names in the import spec will be used for selecting columns from
    * the BigQuery table, but it still scans the whole row.
    *
-   * <p>The output is a PCollection of {@link feast.types.FeatureRowProto.FeatureRow
-   * FeatureRows}, where each feature and the entity key {@link
-   * feast.types.ValueProto.Value Value} in the FeatureRow is taken from a column in
-   * the BigQuery table and set with the closest type to the BigQuery column schema that is
-   * available in {@link feast.types.ValueProto.ValueType ValueType}.
+   * <p>The output is a PCollection of {@link feast.types.FeatureRowProto.FeatureRow FeatureRows},
+   * where each feature and the entity key {@link feast.types.ValueProto.Value Value} in the
+   * FeatureRow is taken from a column in the BigQuery table and set with the closest type to the
+   * BigQuery column schema that is available in {@link feast.types.ValueProto.ValueType ValueType}.
    *
    * <p>Note a small gotcha is that because Integers and Numerics in BigQuery are 64 bits, these are
    * always cast to INT64 and DOUBLE respectively.
@@ -90,7 +88,7 @@ public class FeatureRowBigQueryIO {
       String url = String.format("%s:%s.%s", options.project, options.dataset, options.table);
 
       Preconditions.checkArgument(
-          importSpec.getEntitiesList().size() == 1, "BigQuery read must have only one entity");
+          importSpec.getEntitiesCount() == 1, "BigQuery read must have only one entity");
       return input
           .getPipeline()
           .apply(
@@ -113,11 +111,6 @@ public class FeatureRowBigQueryIO {
 
     @Override
     public PDone expand(PCollection<FeatureRowExtended> input) {
-      List<EntitySpec> entityInfoList = Lists.newArrayList();
-      for (String entityName : specs.getImportSpec().getEntitiesList()) {
-        entityInfoList.add(specs.getEntitySpec(entityName));
-      }
-
       SingleOutputSplit<Enum> granularitySplitter =
           new SingleOutputSplit<>(FeatureSpec::getGranularity, specs);
       PCollection<FeatureRowExtended> features =

@@ -28,7 +28,12 @@ import feast.ingestion.boot.PipelineModule;
 import feast.ingestion.config.ImportSpecSupplier;
 import feast.ingestion.model.Specs;
 import feast.ingestion.options.ImportJobOptions;
-import feast.ingestion.transform.*;
+import feast.ingestion.transform.ErrorsStoreTransform;
+import feast.ingestion.transform.ReadFeaturesTransform;
+import feast.ingestion.transform.ServingStoreTransform;
+import feast.ingestion.transform.ToFeatureRowExtended;
+import feast.ingestion.transform.ValidateTransform;
+import feast.ingestion.transform.WarehouseStoreTransform;
 import feast.ingestion.transform.fn.ConvertTypesDoFn;
 import feast.ingestion.transform.fn.LoggerDoFn;
 import feast.ingestion.transform.fn.RoundEventTimestampsDoFn;
@@ -36,6 +41,8 @@ import feast.ingestion.values.PFeatureRows;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
+import java.util.Arrays;
+import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -59,9 +66,6 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.slf4j.event.Level;
-
-import java.util.Arrays;
-import java.util.Random;
 
 @Slf4j
 public class ImportJob {
@@ -120,6 +124,13 @@ public class ImportJob {
     return job.run();
   }
 
+  private static String generateName() {
+    byte[] bytes = new byte[7];
+    random.nextBytes(bytes);
+    String randomHex = DigestUtils.sha1Hex(bytes).substring(0, 7);
+    return String.format("feast-importjob-%s-%s", DateTime.now().getMillis(), randomHex);
+  }
+
   public void expand() {
     CoderRegistry coderRegistry = pipeline.getCoderRegistry();
     coderRegistry.registerCoderForType(
@@ -133,6 +144,8 @@ public class ImportJob {
     } catch (InvalidProtocolBufferException e) {
       // pass
     }
+
+    specs.validate();
 
     PCollection<FeatureRow> features = pipeline.apply("Read", readFeaturesTransform);
     if (options.getLimit() != null && options.getLimit() > 0) {
@@ -193,13 +206,6 @@ public class ImportJob {
     errors
         .apply("Sample errors", Sample.any(limit))
         .apply("Log errors sample", ParDo.of(new LoggerDoFn(Level.ERROR, name + " ERRORS ")));
-  }
-
-  private static String generateName() {
-    byte[] bytes = new byte[7];
-    random.nextBytes(bytes);
-    String randomHex = DigestUtils.sha1Hex(bytes).substring(0, 7);
-    return String.format("feast-importjob-%s-%s", DateTime.now().getMillis(), randomHex);
   }
 
   private String retrieveId(PipelineResult result) {
