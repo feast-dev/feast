@@ -17,6 +17,9 @@
 
 package feast.core.validators;
 
+import static org.mockito.Mockito.when;
+
+import com.google.common.base.Strings;
 import feast.core.dao.EntityInfoRepository;
 import feast.core.dao.FeatureGroupInfoRepository;
 import feast.core.dao.FeatureInfoRepository;
@@ -33,15 +36,12 @@ import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.GranularityProto.Granularity;
+import java.util.Optional;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.Mockito;
-
-import java.util.Optional;
-
-import static org.mockito.Mockito.when;
 
 public class SpecValidatorTest {
   private FeatureInfoRepository featureInfoRepository;
@@ -329,7 +329,9 @@ public class SpecValidatorTest {
     FeatureGroupInfo fgi = new FeatureGroupInfo();
     StorageInfo redis1 = new StorageInfo();
     redis1.setId("REDIS1");
+    redis1.setType("redis");
     fgi.setServingStore(redis1);
+    when(storageInfoRepository.findById("REDIS1")).thenReturn(Optional.of(redis1));
     when(featureGroupInfoRepository.existsById("group")).thenReturn(true);
     when(featureGroupInfoRepository.findById("group")).thenReturn(Optional.of(fgi));
     SpecValidator validator =
@@ -358,17 +360,25 @@ public class SpecValidatorTest {
 
   @Test
   public void featureSpecWithoutExistingWarehouseStoreShouldThrowIllegalArgumentException() {
+    String servingStoreId = "REDIS1";
+    String warehouseStoreId = "BIGQUERY";
     when(entityInfoRepository.existsById("entity")).thenReturn(true);
-    when(storageInfoRepository.existsById("REDIS1")).thenReturn(true);
-    when(storageInfoRepository.existsById("REDIS2")).thenReturn(false);
+    when(storageInfoRepository.existsById(servingStoreId)).thenReturn(true);
+    when(storageInfoRepository.existsById(warehouseStoreId)).thenReturn(false);
+
+    StorageInfo redis1 = new StorageInfo();
+    redis1.setId(servingStoreId);
+    redis1.setType("redis");
+    when(storageInfoRepository.findById( servingStoreId)).thenReturn(Optional.of(redis1));
+
     SpecValidator validator =
         new SpecValidator(
             storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
-    DataStore servingStore = DataStore.newBuilder().setId("REDIS1").build();
-    DataStore warehouseStore = DataStore.newBuilder().setId("REDIS2").build();
+    DataStore servingStore = DataStore.newBuilder().setId(servingStoreId).build();
+    DataStore warehouseStore = DataStore.newBuilder().setId(warehouseStoreId).build();
     DataStores dataStores =
         DataStores.newBuilder().setServing(servingStore).setWarehouse(warehouseStore).build();
     FeatureSpec input =
@@ -382,7 +392,93 @@ public class SpecValidatorTest {
             .setDataStores(dataStores)
             .build();
     exception.expect(IllegalArgumentException.class);
-    exception.expectMessage("Warehouse store with id REDIS2 does not exist");
+    exception.expectMessage(String.format("Warehouse store with id %s does not exist", warehouseStoreId));
+    validator.validateFeatureSpec(input);
+  }
+
+  @Test
+  public void featureSpecWithUnsupportedWarehouseStoreShouldThrowIllegalArgumentException() {
+    String servingStoreId = "REDIS1";
+    StorageSpec servingStoreSpec = StorageSpec.newBuilder().setId(servingStoreId).setType("redis").build();
+    StorageInfo servingStoreInfo = new StorageInfo(servingStoreSpec);
+
+    String warehouseStoreId = "REDIS2";
+    StorageSpec warehouseStoreSpec = StorageSpec.newBuilder().setId(warehouseStoreId).setType("redis").build();
+    StorageInfo warehouseStoreInfo = new StorageInfo(warehouseStoreSpec);
+
+    when(entityInfoRepository.existsById("entity")).thenReturn(true);
+    when(storageInfoRepository.existsById(servingStoreId)).thenReturn(true);
+    when(storageInfoRepository.existsById(warehouseStoreId)).thenReturn(true);
+    when(storageInfoRepository.findById(servingStoreId)).thenReturn(Optional.of(servingStoreInfo));
+    when(storageInfoRepository.findById(warehouseStoreId)).thenReturn(Optional.of(warehouseStoreInfo));
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    DataStore servingStore = DataStore.newBuilder().setId(servingStoreId).build();
+    DataStore warehouseStore = DataStore.newBuilder().setId(warehouseStoreId).build();
+    DataStores dataStores =
+        DataStores.newBuilder().setServing(servingStore).setWarehouse(warehouseStore).build();
+    FeatureSpec input =
+        FeatureSpec.newBuilder()
+            .setId("entity.none.name")
+            .setName("name")
+            .setOwner("owner")
+            .setDescription("dasdad")
+            .setEntity("entity")
+            .setGranularity(Granularity.Enum.forNumber(0))
+            .setDataStores(dataStores)
+            .build();
+    exception.expect(IllegalArgumentException.class);
+    exception.expectMessage(Strings.lenientFormat("Unsupported warehouse store type", "redis"));
+    validator.validateFeatureSpec(input);
+  }
+
+  @Test
+  public void featureSpecWithUnsupportedServingStoreShouldThrowIllegalArgumentException() {
+    String servingStoreName = "CASSANDRA";
+    StorageSpec redis1Spec = StorageSpec.newBuilder()
+        .setId(servingStoreName)
+        .setType("cassandra")
+        .build();
+    StorageInfo redis1StorageInfo = new StorageInfo(redis1Spec);
+
+    String warehouseStorageName = "BIGQUERY";
+    StorageSpec bqSpec = StorageSpec.newBuilder()
+        .setId(warehouseStorageName)
+        .setType("bigquery")
+        .build();
+    StorageInfo bqInfo = new StorageInfo(bqSpec);
+
+    when(entityInfoRepository.existsById("entity")).thenReturn(true);
+    when(storageInfoRepository.existsById(servingStoreName)).thenReturn(true);
+    when(storageInfoRepository.existsById(warehouseStorageName)).thenReturn(true);
+    when(storageInfoRepository.findById(servingStoreName)).thenReturn(Optional.of(redis1StorageInfo));
+    when(storageInfoRepository.findById(warehouseStorageName)).thenReturn(Optional.of(bqInfo));
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    DataStore servingStore = DataStore.newBuilder().setId(servingStoreName).build();
+    DataStore warehouseStore = DataStore.newBuilder().setId(warehouseStorageName).build();
+    DataStores dataStores =
+        DataStores.newBuilder().setServing(servingStore).setWarehouse(warehouseStore).build();
+    FeatureSpec input =
+        FeatureSpec.newBuilder()
+            .setId("entity.none.name")
+            .setName("name")
+            .setOwner("owner")
+            .setDescription("dasdad")
+            .setEntity("entity")
+            .setGranularity(Granularity.Enum.forNumber(0))
+            .setDataStores(dataStores)
+            .build();
+    exception.expect(IllegalArgumentException.class);
+    exception.expectMessage(Strings.lenientFormat("Unsupported serving store type", "cassandra"));
     validator.validateFeatureSpec(input);
   }
 
