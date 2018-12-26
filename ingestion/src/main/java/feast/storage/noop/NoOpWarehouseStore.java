@@ -34,6 +34,6 @@ public class NoOpWarehouseStore implements WarehouseStore {
 
   @Override
   public String getType() {
-    return "NOOP";
+    return "noop";
   }
 }
