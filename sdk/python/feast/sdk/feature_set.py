@@ -11,3 +11,13 @@ class FeatureSet:
     
     def get_serving_data(self, entity_keys, type=None):
         pass
+
+class DatasetInfo:
+    def __init__(self):
+        pass
+
+    def download(self, dest, type):
+        pass
+
+    def download_to_df(self):
+        pass
