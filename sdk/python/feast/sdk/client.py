@@ -8,12 +8,15 @@ import os
 import feast.core.CoreService_pb2_grpc as core
 import feast.core.JobService_pb2_grpc as jobs
 from feast.core.JobService_pb2 import JobServiceTypes
+from feast.core.CoreService_pb2 import CoreServiceTypes
+from feast.types.Granularity_pb2 import Granularity as Granularity_pb2
 
 from feast.sdk.env import FEAST_CORE_URL_ENV_KEY
 from feast.sdk.resources.feature import Feature
 from feast.sdk.resources.entity import Entity
 from feast.sdk.resources.storage import Storage
 from feast.sdk.resources.feature_group import FeatureGroup
+from feast.sdk.feature_set import FeatureSet
 from feast.sdk.utils.print_utils import spec_to_yaml
 
 
@@ -77,6 +80,25 @@ class Client:
         print("Submitted job with id: {}".format(response.jobId))
         return response.jobId
 
+    def create_feature_set(self, entity, granularity, features):
+        feature_ids = ('.'.join([entity,
+                                 Granularity_pb2.Enum.Name(granularity.value),
+                                 feature]).lower() for feature in features)
+        feature_spec_map = self._get_feature_spec_map(feature_ids)
+        wh_storage_ids = (feature_spec.dataStores.warehouse.id for feature_spec
+                          in
+                          feature_spec_map.values())
+        wh_storage_map = self._get_storage_spec_map(wh_storage_ids)
+        feature_to_storage_spec_map = {}
+        for feature_id, feature_spec in feature_spec_map:
+            feature_to_storage_spec_map[feature_id] = wh_storage_map.get(
+                feature_spec.dataStores.warehouse.id)
+
+        return FeatureSet(feature_to_storage_spec_map)
+
+    def close(self):
+        self.channel.close()
+
     def _apply(self, obj):
         """Applies a single object to feast core.
 
@@ -103,8 +125,9 @@ class Client:
             feature (feast.sdk.resources.feature.Feature): feature to apply
         """
         response = self.core_service_stub.ApplyFeature(feature.spec)
-        if self.verbose: print("Successfully applied feature with id: {}\n---\n{}"
-                               .format(response.featureId, feature))
+        if self.verbose: print(
+            "Successfully applied feature with id: {}\n---\n{}"
+            .format(response.featureId, feature))
         return response.featureId
 
     def _apply_entity(self, entity):
@@ -114,9 +137,9 @@ class Client:
             entity (feast.sdk.resources.entity.Entity): entity to apply
         """
         response = self.core_service_stub.ApplyEntity(entity.spec)
-        if self.verbose:
-            print("Successfully applied entity with name: {}\n---\n{}"
-                  .format(response.entityName, entity))
+        if self.verbose: print(
+            "Successfully applied entity with name: {}\n---\n{}"
+            .format(response.entityName, entity))
         return response.entityName
 
     def _apply_feature_group(self, feature_group):
@@ -128,7 +151,8 @@ class Client:
         """
         response = self.core_service_stub.ApplyFeatureGroup(feature_group.spec)
         if self.verbose: print("Successfully applied feature group with id: " +
-                               "{}\n---\n{}".format(response.featureGroupId, feature_group))
+                               "{}\n---\n{}".format(response.featureGroupId,
+                                                    feature_group))
         return response.featureGroupId
 
     def _apply_storage(self, storage):
@@ -142,8 +166,22 @@ class Client:
                                "{}\n{}".format(response.storageId, storage))
         return response.storageId
 
-    def close(self):
-        self.channel.close()
+    def _get_feature_spec_map(self, ids):
+        get_features_request = CoreServiceTypes.GetFeaturesRequest(
+            ids=ids
+        )
+        get_features_resp = self.core_service_stub.GetFeatures(
+            get_features_request)
+        feature_specs = get_features_resp.features
+        return {feature_spec.id: feature_spec for feature_spec in
+                feature_specs}
 
-    # def create_feature_set(self, entity=None, granularity=None, features=None):
-    #     return feature_set()
+    def _get_storage_spec_map(self, ids):
+        get_storage_request = CoreServiceTypes.GetStorageRequest(
+            ids=ids
+        )
+        get_storage_resp = self.core_service_stub.GetStorage(
+            get_storage_request)
+        storage_specs = get_storage_resp.storageSpecs
+        return {storage_spec.id: storage_specs for storage_spec in
+                storage_specs}
