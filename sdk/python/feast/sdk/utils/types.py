@@ -1,5 +1,6 @@
 import pandas as pd
 from enum import Enum
+from feast.serving.Serving_pb2 import RequestType
 
 class Granularity(Enum):
     NONE = 0
@@ -7,6 +8,7 @@ class Granularity(Enum):
     HOUR = 2
     MINUTE = 3
     SECOND = 4
+
 
 class ValueType(Enum):
     UNKNOWN = 0
@@ -18,6 +20,12 @@ class ValueType(Enum):
     FLOAT = 6
     BOOL = 7
     TIMESTAMP = 8
+
+
+class ServingRequestType(Enum):
+    LAST = 0
+    LIST = 1
+
 
 # mapping of pandas dtypes to feast value type strings
 _DTYPE_TO_VALUE_TYPE_MAPPING = {
@@ -34,13 +42,14 @@ _DTYPE_TO_VALUE_TYPE_MAPPING = {
     "object": ValueType.STRING
 }
 
+
 def dtype_to_value_type(dtype):
-    '''Returns the equivalent feast valueType for the given dtype
-    
+    """Returns the equivalent feast valueType for the given dtype
+
     Args:
         dtype (pandas.dtype): pandas dtype
-    
+
     Returns:
         feast.types.ValueType2.ValueType: equivalent feast valuetype
-    '''
+    """
     return _DTYPE_TO_VALUE_TYPE_MAPPING[dtype.__str__()]

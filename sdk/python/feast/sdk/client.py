@@ -5,19 +5,25 @@ Main interface for users to interact with the Core API.
 import grpc
 import os
 
+from google.protobuf.timestamp_pb2 import Timestamp
+
 import feast.core.CoreService_pb2_grpc as core
 import feast.core.JobService_pb2_grpc as jobs
 from feast.core.JobService_pb2 import JobServiceTypes
 from feast.core.CoreService_pb2 import CoreServiceTypes
 from feast.types.Granularity_pb2 import Granularity as Granularity_pb2
+from feast.serving.Serving_pb2 import QueryFeatures, RequestDetail, TimestampRange
+import feast.serving.Serving_pb2_grpc as serving
 
-from feast.sdk.env import FEAST_CORE_URL_ENV_KEY
+from feast.sdk.env import FEAST_CORE_URL_ENV_KEY, FEAST_SERVING_URL_ENV_KEY
 from feast.sdk.resources.feature import Feature
 from feast.sdk.resources.entity import Entity
 from feast.sdk.resources.storage import Storage
 from feast.sdk.resources.feature_group import FeatureGroup
-from feast.sdk.feature_set import FeatureSet
+from feast.sdk.resources.feature_set import FeatureSet
 from feast.sdk.utils.print_utils import spec_to_yaml
+from feast.sdk.utils.types import ServingRequestType
+
 
 
 class Client:
@@ -80,24 +86,74 @@ class Client:
         print("Submitted job with id: {}".format(response.jobId))
         return response.jobId
 
-    def create_feature_set(self, entity, granularity, features):
-        feature_ids = ('.'.join([entity,
-                                 Granularity_pb2.Enum.Name(granularity.value),
-                                 feature]).lower() for feature in features)
-        feature_spec_map = self._get_feature_spec_map(feature_ids)
-        wh_storage_ids = (feature_spec.dataStores.warehouse.id for feature_spec
-                          in
-                          feature_spec_map.values())
-        wh_storage_map = self._get_storage_spec_map(wh_storage_ids)
-        feature_to_storage_spec_map = {}
-        for feature_id, feature_spec in feature_spec_map:
-            feature_to_storage_spec_map[feature_id] = wh_storage_map.get(
-                feature_spec.dataStores.warehouse.id)
-
-        return FeatureSet(feature_to_storage_spec_map)
+    # def create_feature_set(self, entity, granularity, features):
+    #     feature_ids = ('.'.join([entity,
+    #                              Granularity_pb2.Enum.Name(granularity.value),
+    #                              feature]).lower() for feature in features)
+    #     feature_spec_map = self._get_feature_spec_map(feature_ids)
+    #     wh_storage_ids = (feature_spec.dataStores.warehouse.id for feature_spec
+    #                       in
+    #                       feature_spec_map.values())
+    #     wh_storage_map = self._get_storage_spec_map(wh_storage_ids)
+    #     feature_to_storage_spec_map = {}
+    #     for feature_id, feature_spec in feature_spec_map:
+    #         feature_to_storage_spec_map[feature_id] = wh_storage_map.get(
+    #             feature_spec.dataStores.warehouse.id)
+    #
+    #     return FeatureSet(feature_to_storage_spec_map)
 
     def close(self):
         self.channel.close()
+
+    def get_serving_data(self, feature_set, entity_keys, request_type=ServingRequestType.LAST,
+                         ts_range=None, limit=10, server_url=None):
+        """Get data from the feast serving layer. You can either retrieve the
+        the latest value, or a list of the latest values, up to a provided
+        limit.
+
+        If server_url is not provided, the value stored in the environment variable
+        FEAST_SERVING_URL is used to connect to the serving server instead.
+
+        Args:
+            feature_set (feast.sdk.resources.feature_set.FeatureSet): feature set
+                representing the data wanted
+            entity_keys (:obj: `list` of :obj: `str): list of entity keys
+            request_type (feast.sdk.utils.types.ServingRequestType):
+                (default: feast.sdk.utils.types.ServingRequestType.LAST) type of
+                request: one of [LIST, LAST]
+            ts_range (:obj: `list` of :obj: `datetime.datetime`, optional): size
+                2 list of start timestamp and end timestamp. Only required if
+                request_type is set to LIST
+            limit (int, optional): (default: 10) number of values to get. Only
+                required if request_type is set to LIST
+            server_url (str, optional): (default: None) serving server url. If
+                not provided, feast will use the value at FEAST_SERVING_URL
+
+        Returns:
+            pandas.DataFrame: DataFrame of results
+        """
+        if server_url is None:
+            server_url = os.environ[FEAST_SERVING_URL_ENV_KEY]
+        conn = grpc.insecure_channel(server_url)
+        cli = serving.ServingAPIStub(conn)
+
+        ts_range = [_timestamp_from_datetime(dt) for dt in ts_range]
+        request = self._build_serving_request(feature_set, entity_keys,
+                                              request_type, ts_range, limit)
+        response = cli.QueryFeatures(request)
+
+    def _build_serving_request(self, feature_set, entity_keys, request_type,
+                               ts_range, limit):
+        """Helper function to build serving service request."""
+        features = [RequestDetail(featureId=feat_id, type=request_type,
+                                  limit=limit) for feat_id in feature_set.features]
+
+        ts_range = TimestampRange(start=ts_range[0], end=ts_range[1])
+
+        return QueryFeatures.Request(entityName=feature_set.entity,
+                                     entityId=entity_keys,
+                                     requestDetails=features,
+                                     timestampRange=ts_range)
 
     def _apply(self, obj):
         """Applies a single object to feast core.
@@ -185,3 +241,17 @@ class Client:
         storage_specs = get_storage_resp.storageSpecs
         return {storage_spec.id: storage_specs for storage_spec in
                 storage_specs}
+
+
+def _timestamp_from_datetime(dt):
+    """Convert datetime to protobuf timestamp
+
+    Args:
+        dt (datetime.datetime): datetime in datetime format
+
+    Returns:
+        google.protobuf.timestamp_pb2.Timestamp: timestamp in protobuf format
+    """
+    ts = Timestamp()
+    ts.FromDatetime(dt)
+    return ts
