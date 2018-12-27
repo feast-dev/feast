@@ -4,8 +4,9 @@ Main interface for users to interact with the Core API.
 
 import grpc
 import os
-
+import pandas as pd
 from google.protobuf.timestamp_pb2 import Timestamp
+from datetime import datetime
 
 import feast.core.CoreService_pb2_grpc as core
 import feast.core.JobService_pb2_grpc as jobs
@@ -14,6 +15,7 @@ from feast.core.CoreService_pb2 import CoreServiceTypes
 from feast.types.Granularity_pb2 import Granularity as Granularity_pb2
 from feast.serving.Serving_pb2 import QueryFeatures, RequestDetail, TimestampRange
 import feast.serving.Serving_pb2_grpc as serving
+from feast.serving.Serving_pb2 import RequestType
 
 from feast.sdk.env import FEAST_CORE_URL_ENV_KEY, FEAST_SERVING_URL_ENV_KEY
 from feast.sdk.resources.feature import Feature
@@ -140,20 +142,49 @@ class Client:
         ts_range = [_timestamp_from_datetime(dt) for dt in ts_range]
         request = self._build_serving_request(feature_set, entity_keys,
                                               request_type, ts_range, limit)
-        response = cli.QueryFeatures(request)
+        return self._response_to_df(cli.QueryFeatures(request))
 
     def _build_serving_request(self, feature_set, entity_keys, request_type,
                                ts_range, limit):
         """Helper function to build serving service request."""
-        features = [RequestDetail(featureId=feat_id, type=request_type,
-                                  limit=limit) for feat_id in feature_set.features]
+        request = QueryFeatures.Request(entityName=feature_set.entity,
+                                        entityId=entity_keys)
+        features = [RequestDetail(featureId=feat_id, type=request_type.value)
+                    for feat_id in feature_set.features]
 
-        ts_range = TimestampRange(start=ts_range[0], end=ts_range[1])
+        if request_type == ServingRequestType.LIST:
+            ts_range = TimestampRange(start=ts_range[0], end=ts_range[1])
+            request.timestampRange.CopyFrom(ts_range)
+            for feature in features:
+                feature.limit = limit
+        request.requestDetails.extend(features)
+        return request
 
-        return QueryFeatures.Request(entityName=feature_set.entity,
-                                     entityId=entity_keys,
-                                     requestDetails=features,
-                                     timestampRange=ts_range)
+    def _response_to_df(self, response):
+        entity_tables = []
+        for entity_key in response.entities:
+            feature_tables = []
+            features = response.entities[entity_key].features
+            for feature_name in features:
+                rows = []
+                v_list = features[feature_name].valueList
+                v_list = getattr(v_list, v_list.WhichOneof("valueList")).val
+                for idx in range(len(v_list)):
+                    row = {response.entityName: entity_key,
+                           feature_name: v_list[idx]}
+                    if features[feature_name].HasField("timestampList"):
+                        ts_seconds = \
+                            features[feature_name].timestampList.val[idx].seconds
+                        row["timestamp"] = datetime.fromtimestamp(ts_seconds)
+                    rows.append(row)
+                feature_tables.append(pd.DataFrame(rows))
+            entity_table = feature_tables[0]
+            for idx in range(1, len(feature_tables)):
+                entity_table = pd.merge(left=entity_table,
+                                        right=feature_tables[idx], how='outer')
+            entity_tables.append(entity_table)
+        df = pd.concat(entity_tables)
+        return df.reset_index(drop=True)
 
     def _apply(self, obj):
         """Applies a single object to feast core.
