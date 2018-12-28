@@ -18,6 +18,8 @@
 package feast.ingestion;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.dataflow.DataflowScopes;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -39,7 +41,6 @@ import feast.types.FeatureRowProto.FeatureRow;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
-import org.apache.beam.runners.flink.FlinkRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
@@ -60,6 +61,7 @@ import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.slf4j.event.Level;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 
@@ -104,13 +106,16 @@ public class ImportJob {
 
   public static PipelineResult mainWithResult(String[] args) {
     log.info("Arguments: " + Arrays.toString(args));
-    ImportJobOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(ImportJobOptions.class);
+    ImportJobOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(ImportJobOptions.class);
     if (options.getJobName().isEmpty()) {
       options.setJobName(generateName());
     }
-    log.info(options.toString());
-
+    try {
+      options.setGcpCredential(GoogleCredentials.getApplicationDefault().createScoped(DataflowScopes.all()));
+    } catch (IOException e) {
+      log.error("Exception while setting gcp credential manually : ", e.getMessage());
+    }
+    log.info("options: " + options.toString());
     ImportSpec importSpec = new ImportSpecSupplier(options).get();
     Injector injector =
         Guice.createInjector(new ImportJobModule(options, importSpec), new PipelineModule());
@@ -206,8 +211,6 @@ public class ImportJob {
     Class<? extends PipelineRunner<?>> runner = options.getRunner();
     if (runner.isAssignableFrom(DataflowRunner.class)) {
       return ((DataflowPipelineJob) result).getJobId();
-    } else if (runner.isAssignableFrom(FlinkRunner.class)) {
-      throw new UnsupportedOperationException("Runner not yet supported.");
     } else {
       return this.options.getJobName();
     }
