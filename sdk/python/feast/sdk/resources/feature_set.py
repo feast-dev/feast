@@ -13,9 +13,9 @@ class FeatureSet:
     Represent a collection of features having same entity and granularity.
     """
 
-    def __init__(self, entity, granularity, features):
-        self._features = [make_feature_id(entity, granularity, feature)
-                          for feature in features]
+    def __init__(self, entity, features):
+        self._features = features
+        self._entity = entity
 
     @property
     def features(self):
@@ -25,6 +25,10 @@ class FeatureSet:
 
         """
         return self._features
+
+    @property
+    def entity(self):
+        return self._entity
 
 
 class FileType(object):

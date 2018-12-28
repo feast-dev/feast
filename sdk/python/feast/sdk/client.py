@@ -29,23 +29,51 @@ from feast.sdk.utils.types import ServingRequestType
 
 
 class Client:
-    def __init__(self, server_url=None, verbose=False):
+    def __init__(self, core_url=None, serving_url=None, verbose=False):
         """Create an instance of Feast client which is connected to feast
         endpoint specified in the parameter. If no url is provided, the
         client will default to the url specified in the environment variable
         FEAST_CORE_URL.
 
         Args:
-            server_url (str, optional): feast's endpoint URL
+            core_url (str, optional): feast's grpc endpoint URL
+                                  (e.g.: "my.feast.com:8433")
+            serving_url (str, optional): feast serving's grpc endpoint URL
                                   (e.g.: "my.feast.com:8433")
         """
 
-        if server_url is None:
-            server_url = os.environ[FEAST_CORE_URL_ENV_KEY]
-        self.__channel = grpc.insecure_channel(server_url)
-        self.core_service_stub = core.CoreServiceStub(self.__channel)
-        self.job_service_stub = jobs.JobServiceStub(self.__channel)
-        self.verbose = verbose
+        if core_url is None:
+            core_url = os.environ[FEAST_CORE_URL_ENV_KEY]
+        self._core_url = core_url
+        self.__core_channel = grpc.insecure_channel(core_url)
+
+        if serving_url is None:
+            serving_url = os.environ[FEAST_SERVING_URL_ENV_KEY]
+        self._serving_url = serving_url
+        self.__serving_channel = grpc.insecure_channel(serving_url)
+
+        self._serving_service_stub = serving.ServingAPIStub(self.__serving_channel)
+        self._core_service_stub = core.CoreServiceStub(self.__core_channel)
+        self._job_service_stub = jobs.JobServiceStub(self.__core_channel)
+        self._verbose = verbose
+
+    @property
+    def core_url(self):
+        return self._core_url
+
+    @property
+    def serving_url(self):
+        return self._serving_url
+
+    @property
+    def verbose(self):
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, val):
+        if not isinstance(val, bool):
+            raise TypeError("verbose should be a boolean value")
+        self._verbose = val
 
     def apply(self, obj):
         """Create or update one or many feast's resource
@@ -84,7 +112,7 @@ class Client:
             importer.stage()
         print("Submitting job with spec:\n {}"
               .format(spec_to_yaml(importer.spec)))
-        response = self.job_service_stub.SubmitJob(request)
+        response = self._job_service_stub.SubmitJob(request)
         print("Submitted job with id: {}".format(response.jobId))
         return response.jobId
 
@@ -105,10 +133,11 @@ class Client:
     #     return FeatureSet(feature_to_storage_spec_map)
 
     def close(self):
-        self.channel.close()
+        self.__core_channel.close()
+        self.__serving_channel.close()
 
     def get_serving_data(self, feature_set, entity_keys, request_type=ServingRequestType.LAST,
-                         ts_range=None, limit=10, server_url=None):
+                         ts_range=None, limit=10):
         """Get data from the feast serving layer. You can either retrieve the
         the latest value, or a list of the latest values, up to a provided
         limit.
@@ -128,21 +157,16 @@ class Client:
                 request_type is set to LIST
             limit (int, optional): (default: 10) number of values to get. Only
                 required if request_type is set to LIST
-            server_url (str, optional): (default: None) serving server url. If
-                not provided, feast will use the value at FEAST_SERVING_URL
 
         Returns:
             pandas.DataFrame: DataFrame of results
         """
-        if server_url is None:
-            server_url = os.environ[FEAST_SERVING_URL_ENV_KEY]
-        conn = grpc.insecure_channel(server_url)
-        cli = serving.ServingAPIStub(conn)
 
         ts_range = [_timestamp_from_datetime(dt) for dt in ts_range]
         request = self._build_serving_request(feature_set, entity_keys,
                                               request_type, ts_range, limit)
-        return self._response_to_df(cli.QueryFeatures(request))
+        return self._response_to_df(self._serving_service_stub
+                                    .QueryFeatures(request))
 
     def _build_serving_request(self, feature_set, entity_keys, request_type,
                                ts_range, limit):
@@ -211,10 +235,9 @@ class Client:
         Args:
             feature (feast.sdk.resources.feature.Feature): feature to apply
         """
-        response = self.core_service_stub.ApplyFeature(feature.spec)
-        if self.verbose: print(
-            "Successfully applied feature with id: {}\n---\n{}"
-            .format(response.featureId, feature))
+        response = self._core_service_stub.ApplyFeature(feature.spec)
+        if self.verbose: print("Successfully applied feature with id: {}\n---\n{}"
+                               .format(response.featureId, feature))
         return response.featureId
 
     def _apply_entity(self, entity):
@@ -223,10 +246,10 @@ class Client:
         Args:
             entity (feast.sdk.resources.entity.Entity): entity to apply
         """
-        response = self.core_service_stub.ApplyEntity(entity.spec)
-        if self.verbose: print(
-            "Successfully applied entity with name: {}\n---\n{}"
-            .format(response.entityName, entity))
+        response = self._core_service_stub.ApplyEntity(entity.spec)
+        if self.verbose:
+            print("Successfully applied entity with name: {}\n---\n{}"
+                  .format(response.entityName, entity))
         return response.entityName
 
     def _apply_feature_group(self, feature_group):
@@ -236,7 +259,7 @@ class Client:
             feature_group (feast.sdk.resources.feature_group.FeatureGroup):
                 feature group to apply
         """
-        response = self.core_service_stub.ApplyFeatureGroup(feature_group.spec)
+        response = self._core_service_stub.ApplyFeatureGroup(feature_group.spec)
         if self.verbose: print("Successfully applied feature group with id: " +
                                "{}\n---\n{}".format(response.featureGroupId,
                                                     feature_group))
@@ -248,7 +271,7 @@ class Client:
         Args:
             storage (feast.sdk.resources.storage.Storage): storage to apply
         """
-        response = self.core_service_stub.ApplyStorage(storage.spec)
+        response = self._core_service_stub.ApplyStorage(storage.spec)
         if self.verbose: print("Successfully applied storage with id: " +
                                "{}\n{}".format(response.storageId, storage))
         return response.storageId
@@ -257,7 +280,7 @@ class Client:
         get_features_request = CoreServiceTypes.GetFeaturesRequest(
             ids=ids
         )
-        get_features_resp = self.core_service_stub.GetFeatures(
+        get_features_resp = self._core_service_stub.GetFeatures(
             get_features_request)
         feature_specs = get_features_resp.features
         return {feature_spec.id: feature_spec for feature_spec in
@@ -267,7 +290,7 @@ class Client:
         get_storage_request = CoreServiceTypes.GetStorageRequest(
             ids=ids
         )
-        get_storage_resp = self.core_service_stub.GetStorage(
+        get_storage_resp = self._core_service_stub.GetStorage(
             get_storage_request)
         storage_specs = get_storage_resp.storageSpecs
         return {storage_spec.id: storage_specs for storage_spec in

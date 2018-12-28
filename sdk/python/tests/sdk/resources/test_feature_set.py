@@ -11,14 +11,12 @@ import os
 class TestFeatureSet(object):
     def test_features(self):
         entity_name = "driver"
-        granularity = Granularity.HOUR
-        features = ["feature1", "feature2"]
+        features = ["driver.hour.feature1", "driver.hour.feature2"]
 
-        feature_set = FeatureSet(entity_name, granularity, features)
+        feature_set = FeatureSet(entity_name, features)
         assert len(feature_set.features) == 2
 
-        exp = [make_feature_id(entity_name, granularity, f) for f in features]
-        assert len(set(feature_set.features) & set(exp)) == 2
+        assert len(set(feature_set.features) & set(features)) == 2
 
 
 class TestDatasetInfo(object):

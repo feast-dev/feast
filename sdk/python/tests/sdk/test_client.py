@@ -29,7 +29,7 @@ from feast.sdk.utils.types import ServingRequestType
 
 @pytest.fixture
 def client():
-    return Client("some.uri")
+    return Client(core_url="some.uri", serving_url="some.serving.uri")
 
 
 class TestClient(object):
@@ -41,7 +41,7 @@ class TestClient(object):
         with mocker.patch.object(grpc_stub, 'ApplyFeature',
                                  return_value=CoreServiceTypes.ApplyFeatureResponse(
                                      featureId="test.none.test")):
-            client.core_service_stub = grpc_stub
+            client._core_service_stub = grpc_stub
             id = client.apply(my_feature)
             assert id == "test.none.test"
 
@@ -52,7 +52,7 @@ class TestClient(object):
         with mocker.patch.object(grpc_stub, 'ApplyEntity',
                                  return_value=CoreServiceTypes.ApplyEntityResponse(
                                      entityName="test")):
-            client.core_service_stub = grpc_stub
+            client._core_service_stub = grpc_stub
             name = client.apply(my_entity)
             assert name == "test"
 
@@ -63,7 +63,7 @@ class TestClient(object):
         with mocker.patch.object(grpc_stub, 'ApplyFeatureGroup',
                                  return_value=CoreServiceTypes.ApplyFeatureGroupResponse(
                                      featureGroupId="test")):
-            client.core_service_stub = grpc_stub
+            client._core_service_stub = grpc_stub
             name = client.apply(my_feature_group)
             assert name == "test"
 
@@ -74,7 +74,7 @@ class TestClient(object):
         with mocker.patch.object(grpc_stub, 'ApplyStorage',
                                  return_value=CoreServiceTypes.ApplyStorageResponse(
                                      storageId="TEST")):
-            client.core_service_stub = grpc_stub
+            client._core_service_stub = grpc_stub
             name = client.apply(my_storage)
             assert name == "TEST"
 
@@ -101,7 +101,7 @@ class TestClient(object):
                             return_value=CoreServiceTypes.ApplyEntityResponse(
                                 entityName="test"))
 
-        client.core_service_stub = grpc_stub
+        client._core_service_stub = grpc_stub
         ids = client.apply([my_storage, my_entity, my_feature_group])
         assert ids == ["TEST", "test", "test"]
 
@@ -111,7 +111,7 @@ class TestClient(object):
         mocker.patch.object(grpc_stub, 'SubmitJob',
                             return_value=JobServiceTypes.SubmitImportJobResponse(
                                 jobId="myjob12312"))
-        client.job_service_stub = grpc_stub
+        client._job_service_stub = grpc_stub
         importer = Importer(
             {"import": ImportSpec()},
             None,
@@ -142,9 +142,9 @@ class TestClient(object):
     #                               features)
 
     def test_build_serving_request_last(self, client):
-        feature_set = FeatureSet()
-        feature_set.features = ["entity.none.feat1", "entity.none.feat2"]
-        feature_set.entity = "entity"
+        feature_set = FeatureSet("entity",
+                                 ["entity.none.feat1", "entity.none.feat2"])
+
         req = client._build_serving_request(feature_set, ["1", "2", "3"],
                                             ServingRequestType.LAST, None, None)
         expected_request_detail = \
@@ -156,9 +156,9 @@ class TestClient(object):
         assert req == expected
 
     def test_build_serving_request_list(self, client):
-        feature_set = FeatureSet()
-        feature_set.features = ["entity.none.feat1", "entity.none.feat2"]
-        feature_set.entity = "entity"
+        feature_set = FeatureSet("entity",
+                                 ["entity.none.feat1", "entity.none.feat2"])
+
         req = client._build_serving_request(
             feature_set, ["1", "2", "3"], ServingRequestType.LIST,
             [Timestamp(seconds=10), Timestamp(seconds=11)], 2)
