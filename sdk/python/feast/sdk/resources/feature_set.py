@@ -1,6 +1,5 @@
 import time
 import os
-from feast.sdk.utils.format import make_feature_id
 from feast.sdk.utils.gs_utils import is_gs_path, split_gs_path, gs_to_df
 from google.cloud.bigquery.client import Client as BQClient
 from google.cloud.bigquery.job import ExtractJobConfig
@@ -14,6 +13,8 @@ class FeatureSet:
     """
 
     def __init__(self, entity, features):
+        self._ensure_same_entity(entity, features)
+
         self._features = features
         self._entity = entity
 
@@ -29,6 +30,12 @@ class FeatureSet:
     @property
     def entity(self):
         return self._entity
+
+    def _ensure_same_entity(self, entity, features):
+        for feature in features:
+            e = feature.split(".")[0]
+            if e != entity:
+                raise ValueError("feature set has different entity: " + e)
 
 
 class FileType(object):

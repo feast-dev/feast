@@ -1,6 +1,4 @@
 from feast.sdk.resources.feature_set import FeatureSet, DatasetInfo, FileType
-from feast.sdk.utils.types import Granularity
-from feast.sdk.utils.format import make_feature_id
 from google.cloud.bigquery.table import Table
 
 import time
@@ -17,6 +15,13 @@ class TestFeatureSet(object):
         assert len(feature_set.features) == 2
 
         assert len(set(feature_set.features) & set(features)) == 2
+
+    def test_different_entity(self):
+        entity_name = "driver"
+        features = ["customer.hour.feature1", "driver.day.feature1"]
+        with pytest.raises(ValueError,
+                           match="feature set has different entity: customer"):
+            FeatureSet(entity_name, features)
 
 
 class TestDatasetInfo(object):
