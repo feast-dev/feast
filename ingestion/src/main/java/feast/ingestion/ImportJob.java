@@ -18,8 +18,6 @@
 package feast.ingestion;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.dataflow.DataflowScopes;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -109,14 +107,10 @@ public class ImportJob {
 
   public static PipelineResult mainWithResult(String[] args) {
     log.info("Arguments: " + Arrays.toString(args));
-    ImportJobOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(ImportJobOptions.class);
+    ImportJobOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(ImportJobOptions.class);
     if (options.getJobName().isEmpty()) {
       options.setJobName(generateName());
-    }
-    try {
-      options.setGcpCredential(GoogleCredentials.getApplicationDefault().createScoped(DataflowScopes.all()));
-    } catch (IOException e) {
-      log.error("Exception while setting gcp credential manually : ", e.getMessage());
     }
     log.info("options: " + options.toString());
     ImportSpec importSpec = new ImportSpecSupplier(options).get();
