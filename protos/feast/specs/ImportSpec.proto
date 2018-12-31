@@ -35,10 +35,9 @@ message ImportSpec {
 
   map<string, string> options = 2;
 
-  // You should probably only set one of these, but if you set both, they concatenate
   repeated string entities = 3;
 
-  Schema schema = 4; // this is optional depending on the source
+  Schema schema = 4;
 }
 
 message Schema {

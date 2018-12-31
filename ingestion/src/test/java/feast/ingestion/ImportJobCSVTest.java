@@ -17,9 +17,10 @@
 
 package feast.ingestion;
 
-import static org.junit.Assert.assertEquals;
 import static feast.FeastMatchers.hasCount;
 import static feast.ToOrderedFeatureRows.orderedFeatureRow;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
@@ -28,6 +29,23 @@ import com.google.common.io.Resources;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.protobuf.Timestamp;
+import feast.ToOrderedFeatureRows;
+import feast.ingestion.boot.ImportJobModule;
+import feast.ingestion.boot.TestPipelineModule;
+import feast.ingestion.model.Features;
+import feast.ingestion.model.Values;
+import feast.ingestion.options.ImportJobOptions;
+import feast.ingestion.util.ProtoUtil;
+import feast.specs.ImportSpecProto.ImportSpec;
+import feast.storage.MockErrorsStore;
+import feast.storage.MockServingStore;
+import feast.storage.MockWarehouseStore;
+import feast.storage.service.ErrorsStoreService;
+import feast.storage.service.ServingStoreService;
+import feast.storage.service.WarehouseStoreService;
+import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
+import feast.types.FeatureRowProto.FeatureRow;
+import feast.types.GranularityProto.Granularity;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -40,27 +58,10 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import feast.ToOrderedFeatureRows;
-import feast.ingestion.boot.ImportJobModule;
-import feast.ingestion.boot.TestPipelineModule;
-import feast.ingestion.model.Features;
-import feast.ingestion.model.Values;
-import feast.ingestion.options.ImportJobOptions;
-import feast.ingestion.util.DateUtil;
-import feast.ingestion.util.ProtoUtil;
-import feast.specs.ImportSpecProto.ImportSpec;
-import feast.storage.MockErrorsStore;
-import feast.storage.MockServingStore;
-import feast.storage.MockWarehouseStore;
-import feast.storage.service.ErrorsStoreService;
-import feast.storage.service.ServingStoreService;
-import feast.storage.service.WarehouseStoreService;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
-import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.GranularityProto.Granularity;
 
 @Slf4j
 public class ImportJobCSVTest {
@@ -168,6 +169,52 @@ public class ImportJobCSVTest {
         .containsInAnyOrder(expectedRows);
 
     testPipeline.run();
+  }
+
+  @Test
+  public void testImportCSVUnknownServingStoreError() throws IOException {
+    ImportSpec importSpec =
+        ProtoUtil.decodeProtoYaml(
+            "---\n"
+                + "type: file\n"
+                + "options:\n"
+                + "  format: csv\n"
+                + "  # path: to be overwritten in tests\n"
+                + "entities:\n"
+                + "  - testEntity\n"
+                + "schema:\n"
+                + "  entityIdColumn: id\n"
+                + "  timestampValue: 2018-09-25T00:00:00.000Z\n"
+                + "  fields:\n"
+                + "    - name: id\n"
+                + "    - featureId: testEntity.none.redisInt32\n" // Redis is not available by
+                                                                  // default from the json specs
+                + "    - featureId: testEntity.none.testString\n"
+                + "\n",
+            ImportSpec.getDefaultInstance());
+
+    File csvFile = folder.newFile("data.csv");
+    Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
+    importSpec = initImportSpec(importSpec, csvFile.toString());
+
+    ImportJobOptions options = initOptions();
+
+    Injector injector =
+        Guice.createInjector(
+            new ImportJobModule(options, importSpec), new TestPipelineModule(testPipeline));
+
+    ImportJob job = injector.getInstance(ImportJob.class);
+    injector.getInstance(ImportJob.class);
+
+    // Job should fail during expand(), so we don't even need to start the pipeline.
+    try {
+      job.expand();
+      fail("Should not reach here, we should have thrown an exception");
+    } catch (IllegalArgumentException e) {
+      assertEquals(
+          "Feature testEntity.none.redisInt32 references unknown serving store REDIS1",
+          e.getMessage());
+    }
   }
 
   @Test

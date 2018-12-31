@@ -20,14 +20,11 @@ package feast.ingestion.boot;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
-import java.util.List;
-import org.apache.beam.sdk.options.PipelineOptions;
 import feast.ingestion.model.Specs;
-import feast.ingestion.model.SpecsImpl;
 import feast.ingestion.options.ImportJobOptions;
-import feast.ingestion.service.CachedSpecService;
 import feast.ingestion.service.CoreSpecService;
 import feast.ingestion.service.FileSpecService;
+import feast.ingestion.service.SpecService;
 import feast.ingestion.service.SpecService.Builder;
 import feast.ingestion.service.SpecService.UnsupportedBuilder;
 import feast.specs.ImportSpecProto.ImportSpec;
@@ -37,6 +34,8 @@ import feast.storage.WarehouseStore;
 import feast.storage.service.ErrorsStoreService;
 import feast.storage.service.ServingStoreService;
 import feast.storage.service.WarehouseStoreService;
+import java.util.List;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /** An ImportJobModule is a Guice module for creating dependency injection bindings. */
 public class ImportJobModule extends AbstractModule {
@@ -54,21 +53,25 @@ public class ImportJobModule extends AbstractModule {
     bind(ImportJobOptions.class).toInstance(options);
     bind(PipelineOptions.class).toInstance(options);
     bind(ImportSpec.class).toInstance(importSpec);
-    bind(Specs.class).to(SpecsImpl.class);
   }
 
   @Provides
   @Singleton
   Builder provideSpecService(ImportJobOptions options) {
     if (options.getCoreApiUri() != null) {
-      return new CachedSpecService.Builder(new CoreSpecService.Builder(options.getCoreApiUri()));
+      return new CoreSpecService.Builder(options.getCoreApiUri());
     } else if (options.getCoreApiSpecPath() != null) {
-      return new CachedSpecService.Builder(
-          new FileSpecService.Builder(options.getCoreApiSpecPath()));
+      return new FileSpecService.Builder(options.getCoreApiSpecPath());
     } else {
       return new UnsupportedBuilder(
           "Cannot initialise spec service as coreApiHost or specPath was not set.");
     }
+  }
+
+  @Provides
+  @Singleton
+  Specs provideSpecs(SpecService.Builder specService) {
+    return Specs.of(options.getJobName(), importSpec, specService.build());
   }
 
   @Provides

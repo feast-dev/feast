@@ -27,12 +27,15 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
 import feast.ingestion.model.Features;
 import feast.ingestion.model.Specs;
-import feast.ingestion.model.SpecsImpl;
 import feast.ingestion.model.Values;
 import feast.ingestion.service.FileSpecService;
+import feast.ingestion.service.SpecService;
 import feast.ingestion.transform.FeatureIO;
 import feast.ingestion.util.DateUtil;
 import feast.options.OptionsParser;
+import feast.specs.ImportSpecProto.Field;
+import feast.specs.ImportSpecProto.ImportSpec;
+import feast.specs.ImportSpecProto.Schema;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.storage.RedisProto.RedisBucketKey;
 import feast.storage.RedisProto.RedisBucketValue;
@@ -60,11 +63,15 @@ import redis.embedded.RedisServer;
 
 public class FeatureRowRedisIOWriteTest {
 
+  private static final String featureNoneInt32 = "testEntity.none.redisInt32";
+  private static final String featureNoneString = "testEntity.none.redisString";
+  private static final String featureHourInt32 = "testEntity.hour.redisInt32";
+  private static final String featureHourString = "testEntity.hour.redisString";
+
   private static int REDIS_PORT = 51234;
   private static Redis redis;
   private static Specs specs;
   private static Jedis jedis;
-
   @Rule public TestPipeline testPipeline = TestPipeline.create();
 
   @BeforeClass
@@ -72,7 +79,20 @@ public class FeatureRowRedisIOWriteTest {
     redis = new RedisServer(REDIS_PORT);
     redis.start();
     Path path = Paths.get(Resources.getResource("core_specs/").getPath());
-    specs = new SpecsImpl(null, null, new FileSpecService.Builder(path.toString()));
+    SpecService specService = new FileSpecService.Builder(path.toString()).build();
+    specs =
+        Specs.of(
+            "test job",
+            ImportSpec.newBuilder()
+                .addEntities("testEntity")
+                .setSchema(
+                    Schema.newBuilder()
+                        .addFields(Field.newBuilder().setFeatureId(featureHourInt32))
+                        .addFields(Field.newBuilder().setFeatureId(featureHourString))
+                        .addFields(Field.newBuilder().setFeatureId(featureNoneInt32))
+                        .addFields(Field.newBuilder().setFeatureId(featureNoneString)))
+                .build(),
+            specService);
     jedis = new Jedis("localhost", REDIS_PORT);
   }
 
@@ -83,9 +103,6 @@ public class FeatureRowRedisIOWriteTest {
 
   @Test
   public void testWriteNoneGranularity() throws IOException {
-    String featureInt32 = "testEntity.none.redisInt32";
-    String featureString = "testEntity.none.redisString";
-
     StorageSpec storageSpec =
         StorageSpec.newBuilder()
             .setId("redis1")
@@ -108,8 +125,8 @@ public class FeatureRowRedisIOWriteTest {
                     .setEntityKey("1")
                     .setGranularity(Granularity.Enum.NONE)
                     .setEventTimestamp(DateUtil.toTimestamp(DateTime.now()))
-                    .addFeatures(Features.of(featureInt32, Values.ofInt32(1)))
-                    .addFeatures(Features.of(featureString, Values.ofString("a"))))
+                    .addFeatures(Features.of(featureNoneInt32, Values.ofInt32(1)))
+                    .addFeatures(Features.of(featureNoneString, Values.ofString("a"))))
             .build();
 
     PCollection<FeatureRowExtended> input = testPipeline.apply(Create.of(rowExtended));
@@ -119,9 +136,9 @@ public class FeatureRowRedisIOWriteTest {
     testPipeline.run();
 
     RedisBucketKey featureInt32Key =
-        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureInt32), 0L);
+        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureNoneInt32), 0L);
     RedisBucketKey featureStringKey =
-        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureString), 0L);
+        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureNoneString), 0L);
 
     RedisBucketValue featureInt32Value =
         RedisBucketValue.parseFrom(jedis.get(featureInt32Key.toByteArray()));
@@ -138,9 +155,6 @@ public class FeatureRowRedisIOWriteTest {
 
   @Test
   public void testWriteNoneGranularityFromOptions() throws IOException {
-    String featureInt32 = "testEntity.none.redisInt32";
-    String featureString = "testEntity.none.redisString";
-
     StorageSpec storageSpec =
         StorageSpec.newBuilder()
             .setId("redis1")
@@ -160,8 +174,8 @@ public class FeatureRowRedisIOWriteTest {
                     .setEntityKey("1")
                     .setGranularity(Granularity.Enum.NONE)
                     .setEventTimestamp(DateUtil.toTimestamp(DateTime.now()))
-                    .addFeatures(Features.of(featureInt32, Values.ofInt32(1)))
-                    .addFeatures(Features.of(featureString, Values.ofString("a"))))
+                    .addFeatures(Features.of(featureNoneInt32, Values.ofInt32(1)))
+                    .addFeatures(Features.of(featureNoneString, Values.ofString("a"))))
             .build();
 
     PCollection<FeatureRowExtended> input = testPipeline.apply(Create.of(rowExtended));
@@ -171,9 +185,9 @@ public class FeatureRowRedisIOWriteTest {
     testPipeline.run();
 
     RedisBucketKey featureInt32Key =
-        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureInt32), 0L);
+        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureNoneInt32), 0L);
     RedisBucketKey featureStringKey =
-        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureString), 0L);
+        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureNoneString), 0L);
 
     RedisBucketValue featureInt32Value =
         RedisBucketValue.parseFrom(jedis.get(featureInt32Key.toByteArray()));
@@ -190,9 +204,6 @@ public class FeatureRowRedisIOWriteTest {
 
   @Test
   public void testWriteHourGranularity() throws IOException {
-    String featureInt32 = "testEntity.hour.redisInt32";
-    String featureString = "testEntity.hour.redisString";
-
     FeatureRowRedisIO.Write write =
         new FeatureRowRedisIO.Write(
             RedisStoreOptions.builder().host("localhost").port(REDIS_PORT).build(), specs);
@@ -205,8 +216,8 @@ public class FeatureRowRedisIOWriteTest {
                     .setEntityKey("1")
                     .setGranularity(Granularity.Enum.HOUR)
                     .setEventTimestamp(DateUtil.toTimestamp(DateTime.now()))
-                    .addFeatures(Features.of(featureInt32, Values.ofInt32(1)))
-                    .addFeatures(Features.of(featureString, Values.ofString("a"))))
+                    .addFeatures(Features.of(featureHourInt32, Values.ofInt32(1)))
+                    .addFeatures(Features.of(featureHourString, Values.ofString("a"))))
             .build();
 
     PCollection<FeatureRowExtended> input = testPipeline.apply(Create.of(rowExtended));
@@ -219,32 +230,32 @@ public class FeatureRowRedisIOWriteTest {
     Timestamp roundedTimestamp = DateUtil.roundToGranularity(rowTimestamp, Granularity.Enum.HOUR);
 
     RedisBucketKey featureInt32LatestKey =
-        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureInt32), 0L);
+        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureHourInt32), 0L);
     RedisBucketKey featureStringLatestKey =
-        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureString), 0L);
+        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureHourString), 0L);
 
     RedisBucketKey featureInt32ValueKey =
-        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureInt32), roundedTimestamp.getSeconds());
+        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureHourInt32), roundedTimestamp.getSeconds());
     RedisBucketKey featureStringValueKey =
         getRedisBucketKey(
-            "1", getFeatureIdSha1Prefix(featureString), roundedTimestamp.getSeconds());
+            "1", getFeatureIdSha1Prefix(featureHourString), roundedTimestamp.getSeconds());
 
     // TODO have a helper func for loading feature store options
     Duration featureInt32BucketSize =
         OptionsParser.parse(
-                specs.getFeatureSpec(featureInt32).getDataStores().getServing().getOptionsMap(),
+                specs.getFeatureSpec(featureHourInt32).getDataStores().getServing().getOptionsMap(),
                 RedisFeatureOptions.class)
             .getBucketSizeDuration();
 
     RedisBucketKey featureInt32BucketKey =
         getRedisBucketKey(
             "1",
-            getFeatureIdSha1Prefix(featureInt32),
+            getFeatureIdSha1Prefix(featureHourInt32),
             getBucketId(roundedTimestamp, featureInt32BucketSize));
     RedisBucketKey featureStringBucketKey =
         getRedisBucketKey(
             "1",
-            getFeatureIdSha1Prefix(featureString),
+            getFeatureIdSha1Prefix(featureHourString),
             // No bucketsize specified so uses the default.
             getBucketId(
                 roundedTimestamp,
