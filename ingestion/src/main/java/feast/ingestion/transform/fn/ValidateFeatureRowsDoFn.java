@@ -22,10 +22,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 import feast.ingestion.exceptions.ValidationException;
 import feast.ingestion.metrics.FeastMetrics;
 import feast.ingestion.model.Specs;
@@ -43,6 +39,10 @@ import feast.types.FeatureProto.Feature;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.GranularityProto.Granularity.Enum;
 import feast.types.ValueProto.ValueType;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class ValidateFeatureRowsDoFn extends BaseFeatureDoFn {
 
@@ -85,7 +85,7 @@ public class ValidateFeatureRowsDoFn extends BaseFeatureDoFn {
       checkArgument(!row.getEntityName().isEmpty(), "Entity name must not be empty");
 
       checkArgument(
-          importSpec.getEntitiesList().contains(row.getEntityName()),
+          specs.getEntitySpecs().keySet().contains(row.getEntityName()),
           String.format(
               "Row entity not found in import spec entities. entity=%s", row.getEntityName()));
 

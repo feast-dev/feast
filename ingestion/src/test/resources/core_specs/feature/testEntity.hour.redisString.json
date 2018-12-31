@@ -1,10 +1,10 @@
 {
-  "id": "testEntity.none.testString",
+  "id": "testEntity.hour.redisString",
   "entity": "testEntity",
   "granularity": "HOUR",
-  "name": "testString",
+  "name": "redisString",
   "owner": "feast@example.com",
-  "description": "This is test feature of type integer",
+  "description": "This is test feature of type integer that goes to redis",
   "uri": "https://example.com/",
   "valueType": "STRING",
   "tags": [],
