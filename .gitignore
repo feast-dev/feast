@@ -44,3 +44,6 @@ vendor
 ## direnv
 .envrc
 .direnv
+
+.terraform/
+*.tfvars
