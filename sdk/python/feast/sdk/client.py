@@ -346,7 +346,7 @@ class Client:
 
     def _get_storage_spec_map(self, ids):
         get_storage_request = CoreServiceTypes.GetStorageRequest(
-            ids=ids
+            ids=set(ids)
         )
         get_storage_resp = self._core_service_stub.GetStorage(
             get_storage_request)
