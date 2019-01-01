@@ -4,7 +4,7 @@ import os
 import pandas as pd
 
 from google.cloud.bigquery.client import Client as BQClient
-from google.cloud.bigquery.table import Table
+from google.cloud.bigquery.table import Table, TableReference
 from google.cloud.bigquery.job import QueryJobConfig
 from jinja2 import Template
 
@@ -74,13 +74,13 @@ class TrainingDatasetCreator:
         query = self._create_query(feature_table_tuples, start_date,
                                    end_date, limit)
         query_config = QueryJobConfig()
-        query_config.destination = Table.from_string(destination)
+        query_config.destination = TableReference.from_string(destination)
 
         query_job = self._bq.query(query, query_config)
         # wait until completion
         query_job.result()
 
-        return query_config.destination
+        return Table.from_string(destination)
 
     def _create_query(self, feature_table_tuples, start_date,
                       end_date, limit):
