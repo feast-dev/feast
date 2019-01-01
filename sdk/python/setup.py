@@ -17,6 +17,7 @@ REQUIRED = [
     'google-cloud-storage>=1.13.0',
     'googleapis-common-protos>=1.5.5',
     'grpcio>=1.16.1',
+    'jinja2',
     'pandas',
     'protobuf>=3.0.0',
     'PyYAML',

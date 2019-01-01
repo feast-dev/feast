@@ -29,10 +29,10 @@ class TestDatasetInfo(object):
         fake_table = "fake_table"
         with pytest.raises(TypeError,
                            match="table must be a BigQuery table type"):
-            DatasetInfo(fake_table)
+            DatasetInfo("ds_name", fake_table)
 
         table = Table.from_string("project_id.dataset_id.table_id")
-        dataset = DatasetInfo(table)
+        dataset = DatasetInfo("ds_name", table)
         assert dataset._table == table
 
     def test_download_df(self, mocker):
@@ -44,7 +44,7 @@ class TestDatasetInfo(object):
         staging_path = "gs://temp/"
         staging_file_name = "temp_0"
         table = Table.from_string("project_id.dataset_id.table_id")
-        dataset_info = DatasetInfo(table)
+        dataset_info = DatasetInfo("ds_name", table)
 
         exp_staging_path = os.path.join(staging_path, staging_file_name)
         mocker.patch.object(dataset_info._bq_client, "extract_table",
@@ -73,7 +73,7 @@ class TestDatasetInfo(object):
 
     def test_download_invalid_staging_url(self):
         table = Table.from_string("project_id.dataset_id.table_id")
-        dataset = DatasetInfo(table)
+        dataset = DatasetInfo("ds_name", table)
 
         with pytest.raises(ValueError,
                            match="staging_uri must be a directory in "
@@ -90,7 +90,7 @@ class TestDatasetInfo(object):
         staging_file_name = "temp_0"
         dst_path = "/tmp/myfile.csv"
         table = Table.from_string("project_id.dataset_id.table_id")
-        dataset_info = DatasetInfo(table)
+        dataset_info = DatasetInfo("ds_name", table)
 
         mock_blob = _Blob()
         mocker.patch.object(mock_blob, "download_to_filename")

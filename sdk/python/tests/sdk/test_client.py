@@ -1,14 +1,16 @@
 import pytest
-from unittest.mock import patch
 
 import grpc
 from datetime import datetime
 import pandas as pd
 from google.protobuf.timestamp_pb2 import Timestamp
+from google.cloud.bigquery.table import Table
 
 import feast.core.CoreService_pb2_grpc as core
 import feast.core.JobService_pb2_grpc as jobs
-import feast.specs.StorageSpec_pb2 as storage_pb
+from feast.specs.StorageSpec_pb2 import StorageSpec
+from feast.specs.FeatureSpec_pb2 import FeatureSpec, DataStores, DataStore
+from feast.specs.ImportSpec_pb2 import ImportSpec
 from feast.core.CoreService_pb2 import CoreServiceTypes
 from feast.core.JobService_pb2 import JobServiceTypes
 from feast.serving.Serving_pb2 import QueryFeatures, RequestDetail, TimestampRange, Entity, FeatureValueList
@@ -16,7 +18,6 @@ from feast.types.Value_pb2 import ValueList, TimestampList, Int32List
 import feast.serving.Serving_pb2 as serving_pb
 
 from feast.sdk.utils.types import Granularity
-from feast.specs.ImportSpec_pb2 import ImportSpec
 from feast.sdk.client import Client
 from feast.sdk.importer import Importer
 from feast.sdk.resources.feature import Feature
@@ -25,14 +26,17 @@ from feast.sdk.resources.entity import Entity
 from feast.sdk.resources.storage import Storage
 from feast.sdk.resources.feature_set import FeatureSet
 from feast.sdk.utils.types import ServingRequestType
-
-
-@pytest.fixture
-def client():
-    return Client(core_url="some.uri", serving_url="some.serving.uri")
+from feast.sdk.utils.bq_util import TrainingDatasetCreator
 
 
 class TestClient(object):
+    default_bq_dataset = "project.dataset"
+
+    @pytest.fixture
+    def client(self):
+        return Client(core_url="some.uri", serving_url="some.serving.uri",
+                      bq_dataset=self.default_bq_dataset)
+
     def test_apply_single_feature(self, client, mocker):
         my_feature = Feature(name="test",
                              entity="test", granularity=Granularity.NONE)
@@ -120,26 +124,77 @@ class TestClient(object):
         job_id = client.run(importer)
         assert job_id == "myjob12312"
 
-    # def test_create_feature_set(self, client, mocker):
-    #     entity_name = "myentity"
-    #     granularity = Granularity.DAY
-    #     features = ["feature1", "feature2", "feature3"]
-    #     wh_store_id = "BIGQUERY1"
-    #     project = "test_project"
-    #     dataset = "test_dataset"
-    #
-    #     core_stub = core.CoreServiceStub(grpc.insecure_channel(""))
-    #     feature_specs = self._create_feature_specs(entity_name, granularity,
-    #                                                features, wh_store_id)
-    #     storage_specs = self._create_bq_spec(wh_store_id, project, dataset)
-    #     mocker.patch.object(core_stub, 'GetFeatures',
-    #                         return_value=feature_specs)
-    #     mocker.patch.object(core_stub, 'GetStorage',
-    #                         return_value=storage_specs)
-    #
-    #     client.create_feature_set(entity_name,
-    #                               granularity,
-    #                               features)
+    def test_create_training_dataset_invalid_args(self, client):
+        feature_set = FeatureSet("entity", ["entity.none.feature1"])
+        # empty feature set
+        with pytest.raises(ValueError, match="feature set is empty"):
+            inv_feature_set = FeatureSet("entity", [])
+            client.create_training_dataset(inv_feature_set, "2018-12-01",
+                                           "2018-12-02")
+        # invalid start date
+        with pytest.raises(ValueError, match="Incorrect date format, should be YYYY-MM-DD"):
+            client.create_training_dataset(feature_set, "20181201",
+                                           "2018-12-02")
+        # invalid end date
+        with pytest.raises(ValueError, match="Incorrect date format, should be YYYY-MM-DD"):
+            client.create_training_dataset(feature_set, "2018-12-01",
+                                           "20181202")
+        # start date  > end date
+        with pytest.raises(ValueError, match="end_date is before start_date"):
+            client.create_training_dataset(feature_set, "2018-12-02",
+                                           "2018-12-01")
+        # invalid limit
+        with pytest.raises(ValueError, match="limit is not a positive integer"):
+            client.create_training_dataset(feature_set, "2018-12-01",
+                                           "2018-12-02", -1)
+
+    def test_create_training_dataset(self, client, mocker):
+        bq_id = "BIGQUERY1"
+        feature1 = "myentity.none.feature1"
+        feature2 = "myentity.hour.feature2"
+        feature1_spec = self._create_feature_spec(feature1, bq_id)
+        feature2_spec = self._create_feature_spec(feature2, bq_id)
+        bq_spec = self._create_bq_spec(bq_id, "project", "dataset")
+
+        feature_set = FeatureSet("myentity", [feature1, feature2])
+        start_date = "2018-12-01"
+        end_date = "2018-12-05"
+        limit = 1000
+        destination = "project.dataset.destination"
+        dataset_name = "my_training_set"
+
+        core_stub = core.CoreServiceStub(grpc.insecure_channel(""))
+        training_crt = TrainingDatasetCreator()
+        mocker.patch.object(core_stub, 'GetFeatures',
+                            return_value=CoreServiceTypes.GetFeaturesResponse(
+                                features=[feature1_spec, feature2_spec]))
+        mocker.patch.object(core_stub, 'GetStorage',
+                            return_value=CoreServiceTypes.GetStorageResponse(
+                                storageSpecs=[bq_spec]))
+        mocker.patch.object(training_crt, "create_training_dataset",
+                            return_value=Table.from_string(destination))
+
+        client._core_service_stub = core_stub
+        client._training_creator = training_crt
+
+        ds_info = client.create_training_dataset(feature_set, start_date,
+                                                 end_date, limit=limit,
+                                                 destination=destination,
+                                                 dataset_name=dataset_name)
+        training_crt.create_training_dataset\
+            .assert_called_once_with([(feature1,
+                                       "project.dataset.myentity_none"),
+                                      (feature2,
+                                       "project.dataset.myentity_hour")],
+                                     start_date,
+                                     end_date,
+                                     limit,
+                                     destination)
+        assert ds_info._table.project == "project"
+        assert ds_info._table.dataset_id == "dataset"
+        assert ds_info._table.table_id == "destination"
+
+        assert ds_info.name == dataset_name
 
     def test_build_serving_request_last(self, client):
         feature_set = FeatureSet("entity",
@@ -235,13 +290,12 @@ class TestClient(object):
 
         return response
 
-    def _create_feature_specs(self, entity, granularity, features, wh_id):
-        return
+    def _create_feature_spec(self, feature_id, wh_id):
+        wh_store = DataStore(id=wh_id)
+        datastores = DataStores(warehouse=wh_store)
+        return FeatureSpec(id=feature_id,
+                           dataStores=datastores)
 
     def _create_bq_spec(self, id, project, dataset):
-        return storage_pb.StorageSpec(id=id, type="bigquery", options={
+        return StorageSpec(id=id, type="bigquery", options={
             "project": project, "dataset": dataset})
-
-    # def test_run_job_require_staging(self, client, mocker):
-    #     importer = Importer()
-    #     mocker.patch.object(importer,

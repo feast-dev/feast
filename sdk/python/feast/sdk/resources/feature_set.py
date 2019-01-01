@@ -53,19 +53,29 @@ class FileType(object):
 
 
 class DatasetInfo:
-    def __init__(self, table):
+    def __init__(self, name, table):
         """
             Create instance of DatasetInfo with a BigQuery table as its
             backing store.
         Args:
+            name: (str) dataset name
             table: (google.cloud.bigquery.table.Table) backing table
         """
         if not isinstance(table, Table):
             raise TypeError("table must be a BigQuery table type")
-
+        self._name = name
         self._table = table
         self._bq_client = BQClient()
         self._gcs_client = GCSClient()
+
+    @property
+    def name(self):
+        """
+        Dataset name
+        Returns: dataset name
+
+        """
+        return self._name
 
     def download(self, filename, staging_uri, type=FileType.CSV):
         """
