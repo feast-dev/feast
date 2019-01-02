@@ -20,7 +20,7 @@ package feast.specs;
 
 option java_package = "feast.specs";
 option java_outer_classname = "EntitySpecProto";
-option go_package = "github.com/gojektech/feast/protos/generated/go/feast/specs";
+option go_package = "github.com/gojek/feast/protos/generated/go/feast/specs";
 
 message EntitySpec {
   string name = 1;

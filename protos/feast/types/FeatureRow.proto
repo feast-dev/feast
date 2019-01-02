@@ -25,7 +25,7 @@ package feast.types;
 
 option java_package = "feast.types";
 option java_outer_classname = "FeatureRowProto";
-option go_package = "github.com/gojektech/feast/protos/generated/go/feast/types";
+option go_package = "github.com/gojek/feast/protos/generated/go/feast/types";
 
 message FeatureRowKey {
   string entityKey = 1;

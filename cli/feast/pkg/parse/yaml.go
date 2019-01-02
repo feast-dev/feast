@@ -23,8 +23,8 @@ import (
 
 	"github.com/ghodss/yaml"
 
-	"github.com/gojektech/feast/protos/generated/go/feast/specs"
-	"github.com/gojektech/feast/protos/generated/go/feast/types"
+	"github.com/gojek/feast/protos/generated/go/feast/specs"
+	"github.com/gojek/feast/protos/generated/go/feast/types"
 )
 
 // YamlToFeatureSpec parses the given yaml and outputs the corresponding
