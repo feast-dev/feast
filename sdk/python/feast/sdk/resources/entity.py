@@ -1,11 +1,8 @@
-import yaml
 import json
-
-import feast.specs.EntitySpec_pb2 as entity_pb
+import yaml
+from feast.specs.EntitySpec_pb2 import EntitySpec
 from feast.sdk.utils.print_utils import spec_to_yaml
-
-from google.protobuf.json_format import MessageToJson, Parse
-
+from google.protobuf.json_format import Parse
 
 '''
 Wrapper class for feast entity
@@ -20,7 +17,7 @@ class Entity:
             tags (list[str], optional): defaults to []. 
                 list of tags for this entity
         '''
-        self.__spec = entity_pb.EntitySpec(name=name, description=description,
+        self.__spec = EntitySpec(name=name, description=description,
             tags=tags)
 
     @property
@@ -64,7 +61,7 @@ class Entity:
             entity = cls()
             entity.__spec = Parse(
                 json.dumps(content),
-                entity_pb.EntitySpec(),
+                EntitySpec(),
                 ignore_unknown_fields=False)
             return entity
 

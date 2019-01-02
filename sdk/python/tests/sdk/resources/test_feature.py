@@ -1,6 +1,6 @@
-from feast.sdk.resources.feature import Feature
-from feast.sdk.resources.storage import Datastore
-from feast.sdk.utils.types import ValueType, Granularity
+from feast.sdk.resources.feature import Feature, Datastore, Granularity, \
+    ValueType
+
 
 class TestFeature(object):
     def dummy_feature(self):

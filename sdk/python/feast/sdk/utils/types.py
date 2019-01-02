@@ -1,31 +1,4 @@
-import pandas as pd
-from enum import Enum
-from feast.serving.Serving_pb2 import RequestType
-
-class Granularity(Enum):
-    NONE = 0
-    DAY = 1
-    HOUR = 2
-    MINUTE = 3
-    SECOND = 4
-
-
-class ValueType(Enum):
-    UNKNOWN = 0
-    BYTES = 1
-    STRING = 2
-    INT32 = 3
-    INT64 = 4
-    DOUBLE = 5
-    FLOAT = 6
-    BOOL = 7
-    TIMESTAMP = 8
-
-
-class ServingRequestType(Enum):
-    LAST = 0
-    LIST = 1
-
+from feast.sdk.resources.feature import ValueType
 
 # mapping of pandas dtypes to feast value type strings
 _DTYPE_TO_VALUE_TYPE_MAPPING = {

@@ -7,6 +7,7 @@ from google.cloud import storage
 
 _GCS_PATH_REGEX = r'^gs:\/\/[a-z0-9\.\-_\/]*$'
 
+
 def gs_to_df(path):
     '''Reads a file from gs to pandas
     
@@ -27,6 +28,7 @@ def gs_to_df(path):
     os.remove(temp_file_path)
     return df
 
+
 def df_to_gs(df, path):
     '''Writes the given df to the path specified. Will fail if the bucket does 
     not exist.
@@ -43,9 +45,11 @@ def df_to_gs(df, path):
     df.to_csv(s)
     blob.upload_from_string(s.getvalue())
 
+
 def split_gs_path(path):
     path = path.replace("gs://", "", 1)
     return path.split('/', 1)
+
 
 def is_gs_path(path):
     '''Check if path is a gcs path

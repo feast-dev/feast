@@ -19,15 +19,14 @@ from feast.serving.Serving_pb2 import QueryFeatures, RequestDetail, \
 from feast.types.Value_pb2 import ValueList, TimestampList, Int32List
 import feast.serving.Serving_pb2 as serving_pb
 
-from feast.sdk.utils.types import Granularity
 from feast.sdk.client import Client
 from feast.sdk.importer import Importer
-from feast.sdk.resources.feature import Feature
+from feast.sdk.resources.feature import Feature, Granularity
 from feast.sdk.resources.feature_group import FeatureGroup
 from feast.sdk.resources.entity import Entity
 from feast.sdk.resources.storage import Storage
 from feast.sdk.resources.feature_set import FeatureSet
-from feast.sdk.utils.types import ServingRequestType
+from feast.sdk.client import ServingRequestType
 from feast.sdk.utils.bq_util import TrainingDatasetCreator
 
 

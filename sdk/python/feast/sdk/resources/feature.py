@@ -1,42 +1,66 @@
 import yaml
 import json
-
-import feast.specs.FeatureSpec_pb2 as feature_pb
-
-from feast.sdk.utils.types import ValueType, Granularity
+import enum
+from feast.specs.FeatureSpec_pb2 import FeatureSpec, DataStores, DataStore
 from feast.sdk.utils.print_utils import spec_to_yaml
 from feast.types.Granularity_pb2 import Granularity as Granularity_pb2
-from feast.types.Value_pb2 import ValueType as ValueType_pb2
-from google.protobuf.json_format import MessageToJson, Parse
+from google.protobuf.json_format import Parse
 
-'''
-Wrapper class for feast feature
-'''
+
+class Granularity(enum.Enum):
+    """
+    Feature's Granularity
+    """
+    NONE = 0
+    DAY = 1
+    HOUR = 2
+    MINUTE = 3
+    SECOND = 4
+
+
+class ValueType(enum.Enum):
+    """
+    Type of the feature's value
+    """
+    UNKNOWN = 0
+    BYTES = 1
+    STRING = 2
+    INT32 = 3
+    INT64 = 4
+    DOUBLE = 5
+    FLOAT = 6
+    BOOL = 7
+    TIMESTAMP = 8
+
+
 class Feature:
+    """
+    Wrapper class for feast feature
+    """
     def __init__(self, name='', entity='', granularity=Granularity.NONE,
         owner='', value_type=ValueType.DOUBLE, description='', uri='',
         warehouse_store=None, serving_store=None, group='', tags=[], options={}):
-        '''Create feast feature instance.
+        """Create feast feature instance.
         
         Args:
             name (str): name of feature, in lower snake case
             entity (str): entity the feature belongs to, in lower case
-            granularity (int): granularity of the feature, one of 
-                Granularity.Enum
+            granularity (feast.sdk.resources.feature.Granularity):
+                granularity of the feature
             owner (str): owner of the feature
-            value_type (feast.types.ValueType_pb2.ValueType): defaults to 
+            value_type (feast.sdk.resources.feature.ValueType): defaults to
                 ValueType.DOUBLE. value type of the feature
             description (str): defaults to "". description of the feature
             uri (str): defaults to "". uri pointing to the source code or 
                 origin of this feature
-            warehouse_store (feast.specs.FeatureSpec_pb2.Datastore): 
+            warehouse_store (feast.sdk.resources.feature.Datastore):
                 warehouse store id and options
-            serving_store (feast.specs.FeatureSpec_pb2.Datastore): serving 
+            serving_store (feast.sdk.resources.feature.Datastore): serving
                 store id and options
             group (str, optional): feature group to inherit from
             tags (list[str], optional): tags assigned to the feature
             options (dic, optional): additional options for the feature
-        '''
+        """
         id = '.'.join([entity,
                        Granularity_pb2.Enum.Name(granularity.value), name]).lower()
     
@@ -46,9 +70,9 @@ class Feature:
             serving_store_spec = serving_store.spec
         if (warehouse_store is not None):
             warehouse_store_spec = warehouse_store.spec
-        data_stores = feature_pb.DataStores(serving = serving_store_spec, 
+        data_stores = DataStores(serving = serving_store_spec,
             warehouse = warehouse_store_spec)
-        self.__spec = feature_pb.FeatureSpec(id=id, granularity=granularity.value,
+        self.__spec = FeatureSpec(id=id, granularity=granularity.value,
             name=name, entity=entity, owner=owner, dataStores=data_stores,
             description=description, uri=uri, valueType=value_type.value,
             group=group, tags=tags, options=options)
@@ -172,37 +196,53 @@ class Feature:
 
     @classmethod
     def from_yaml(cls, path):
-        '''Create an instance of feature from a yaml spec file
+        """Create an instance of feature from a yaml spec file
         
         Args:
             path (str): path to yaml spec file
-        '''
+        """
 
         with open(path, 'r') as file:
             content = yaml.safe_load(file.read())
             feature = cls()
             feature.__spec = Parse(
                 json.dumps(content),
-                feature_pb.FeatureSpec(),
+                FeatureSpec(),
                 ignore_unknown_fields=False)
             return feature
             
     def __str__(self):
-        '''Print the feature in yaml format
+        """Print the feature in yaml format
         
         Returns:
             str: yaml formatted representation of the entity
-        '''
+        """
         return spec_to_yaml(self.__spec)
 
     def dump(self, path):
-        '''Dump the feature into a yaml file. 
+        """Dump the feature into a yaml file. 
             It will replace content of an existing file.
         
         Args:
             path (str): destination file path
-        '''
+        """
         with open(path, 'w') as file:
             file.write(str(self))
         print("Saved spec to {}".format(path))
-            
+
+
+class Datastore:
+    def __init__(self, id, options={}):
+        self.__spec = DataStore(id = id, options = options)
+
+    def __str__(self):
+        """Print the datastore in yaml format
+
+        Returns:
+            str: yaml formatted representation of the Datastore
+        """
+        return spec_to_yaml(self.__spec)
+
+    @property
+    def spec(self):
+        return self.__spec

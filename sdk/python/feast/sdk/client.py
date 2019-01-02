@@ -2,20 +2,21 @@
 Main interface for users to interact with the Core API. 
 """
 
+import enum
 import grpc
 import os
 import pandas as pd
-import time
 import re
+import time
 from google.protobuf.timestamp_pb2 import Timestamp
 from datetime import datetime
 
 import feast.core.CoreService_pb2_grpc as core
 import feast.core.JobService_pb2_grpc as jobs
+import feast.serving.Serving_pb2_grpc as serving
 from feast.core.JobService_pb2 import JobServiceTypes
 from feast.core.CoreService_pb2 import CoreServiceTypes
 from feast.serving.Serving_pb2 import QueryFeatures, RequestDetail, TimestampRange
-import feast.serving.Serving_pb2_grpc as serving
 
 from feast.sdk.env import FEAST_CORE_URL_ENV_KEY, FEAST_SERVING_URL_ENV_KEY
 from feast.sdk.resources.feature import Feature
@@ -24,9 +25,17 @@ from feast.sdk.resources.storage import Storage
 from feast.sdk.resources.feature_group import FeatureGroup
 from feast.sdk.resources.feature_set import DatasetInfo
 from feast.sdk.utils.print_utils import spec_to_yaml
-from feast.sdk.utils.types import ServingRequestType
 from feast.sdk.utils.bq_util import get_table_name, TrainingDatasetCreator
 
+
+class ServingRequestType(enum.Enum):
+    """
+    Requesty type for serving api
+    """
+    LAST = 0
+    """ Get last value of a feature """
+    LIST = 1
+    """ Get list of value of a feature """
 
 
 class Client:
@@ -100,6 +109,19 @@ class Client:
 
     def run(self, importer, name_override=None,
             apply_entity=False, apply_features=False):
+        """
+        Run an import job
+        Args:
+            importer (feast.sdk.importer.Importer): importer instance
+            name_override (str, optional): Job name override
+            apply_entity (bool, optional): (default: False) create/update
+                entity inside importer
+            apply_features (bool, optional): (default: False) create/update
+                features inside importer
+
+        Returns:
+            (str) job ID of the import job
+        """
         request = JobServiceTypes.SubmitImportJobRequest(
             importSpec=importer.spec
         )
@@ -190,10 +212,6 @@ class Client:
 
         return DatasetInfo(dataset_name, table)
 
-    def close(self):
-        self.__core_channel.close()
-        self.__serving_channel.close()
-
     def get_serving_data(self, feature_set, entity_keys, request_type=ServingRequestType.LAST,
                          ts_range=None, limit=10):
         """Get data from the feast serving layer. You can either retrieve the
@@ -225,6 +243,14 @@ class Client:
                                               request_type, ts_range, limit)
         return self._response_to_df(self._serving_service_stub
                                     .QueryFeatures(request))
+
+    def close(self):
+        """
+        Close underlying connection to Feast's core and serving end points.
+
+        """
+        self.__core_channel.close()
+        self.__serving_channel.close()
 
     def _build_serving_request(self, feature_set, entity_keys, request_type,
                                ts_range, limit):

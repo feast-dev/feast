@@ -1,11 +1,11 @@
 import pandas as pd
 import pytest
 import ntpath
-from feast.sdk.resources.feature import Feature
-from feast.sdk.utils.types import Granularity, ValueType
+from feast.sdk.resources.feature import Feature, Granularity, ValueType
 from feast.sdk.importer import _create_feature, Importer
-from feast.sdk.utils.gs_utils import gs_to_df, is_gs_path, df_to_gs
+from feast.sdk.utils.gs_utils import is_gs_path
 from feast.types.Granularity_pb2 import Granularity as Granularity_pb2
+
 
 class TestImporter(object):
     def test_from_csv(self):
@@ -193,6 +193,7 @@ class TestImporter(object):
                 assert field.featureId == "{}.{}.{}".format(entity_name, 
                     Granularity_pb2.Enum.Name(feature_granularity.value).lower(), col)
 
+
 class TestHelpers:
     def test_create_feature(self):
         col = pd.Series([1]*3,dtype='int32',name="test")
@@ -202,7 +203,7 @@ class TestHelpers:
                     owner="person",
                     value_type=ValueType.INT32)
         actual = _create_feature(col, "test", Granularity.NONE, "person")
-        assert  actual.id == expected.id
-        assert  actual.value_type == expected.value_type
-        assert  actual.owner == expected.owner
+        assert actual.id == expected.id
+        assert actual.value_type == expected.value_type
+        assert actual.owner == expected.owner
 
