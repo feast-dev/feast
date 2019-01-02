@@ -21,8 +21,8 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"github.com/gojektech/feast/cli/feast/pkg/parse"
-	"github.com/gojektech/feast/protos/generated/go/feast/core"
+	"github.com/gojek/feast/cli/feast/pkg/parse"
+	"github.com/gojek/feast/protos/generated/go/feast/core"
 
 	"github.com/spf13/cobra"
 )

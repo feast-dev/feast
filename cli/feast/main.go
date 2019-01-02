@@ -15,7 +15,7 @@
 package main
 
 import (
-	"github.com/gojektech/feast/cli/feast/cmd"
+	"github.com/gojek/feast/cli/feast/cmd"
 )
 
 // Version is the Feast version

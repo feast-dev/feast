@@ -22,7 +22,7 @@ package feast.storage;
 
 option java_outer_classname = "BigTableProto";
 option java_package = "feast.storage";
-option go_package = "github.com/gojektech/feast/protos/generated/go/feast/storage";
+option go_package = "github.com/gojek/feast/protos/generated/go/feast/storage";
 
 message BigTableRowKey {
   // This should be the first 7 characters of a sha1 of the entityKey proto encoded

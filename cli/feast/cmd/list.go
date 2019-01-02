@@ -22,8 +22,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/gojektech/feast/cli/feast/pkg/util"
-	"github.com/gojektech/feast/protos/generated/go/feast/core"
+	"github.com/gojek/feast/cli/feast/pkg/util"
+	"github.com/gojek/feast/protos/generated/go/feast/core"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/spf13/cobra"
