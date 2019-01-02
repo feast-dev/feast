@@ -19,8 +19,6 @@ package feast.ingestion.options;
 
 import com.google.auto.service.AutoService;
 import java.util.Collections;
-import org.apache.beam.runners.flink.FlinkPipelineOptions;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.metrics.MetricsSink;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -28,7 +26,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.options.Validation.Required;
 
-public interface ImportJobOptions extends PipelineOptions, FlinkPipelineOptions, GcpOptions {
+public interface ImportJobOptions extends PipelineOptions {
   @Description("Import spec yaml file path")
   @Required(groups = {"importSpec"})
   String getImportSpecYamlFile();

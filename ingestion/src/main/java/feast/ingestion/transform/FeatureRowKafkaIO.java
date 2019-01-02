@@ -17,14 +17,19 @@
 
 package feast.ingestion.transform;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
+import static com.google.common.base.Preconditions.checkArgument;
+
 import feast.ingestion.deserializer.FeatureRowDeserializer;
 import feast.ingestion.deserializer.FeatureRowKeyDeserializer;
+import feast.options.Options;
 import feast.options.OptionsParser;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FeatureRowProto.FeatureRowKey;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import javax.validation.constraints.NotEmpty;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -32,69 +37,61 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import static com.google.common.base.Preconditions.checkArgument;
-
 public class FeatureRowKafkaIO {
+  static final String KAFKA_TYPE = "kafka";
 
-    static final String KAFKA_TYPE = "kafka";
+  /**
+   * Transform for reading {@link feast.types.FeatureRowProto.FeatureRow FeatureRow} proto messages
+   * from kafka one or more kafka topics.
+   */
+  public static Read read(ImportSpec importSpec) {
+    return new Read(importSpec);
+  }
 
+  public static class KafkaReadOptions implements Options {
+    @NotEmpty public String server;
+    @NotEmpty public String topics;
+  }
 
-    /**
-     * Transform for reading {@link feast.types.FeatureRowProto.FeatureRow FeatureRow}
-     * proto messages from kafka one or more kafka topics.
-     *
-     */
-    public static Read read(ImportSpec importSpec) {
-        return new Read(importSpec);
+  public static class Read extends FeatureIO.Read {
+
+    private ImportSpec importSpec;
+
+    private Read(ImportSpec importSpec) {
+      this.importSpec = importSpec;
     }
 
-    public static class Read extends FeatureIO.Read {
+    @Override
+    public PCollection<FeatureRow> expand(PInput input) {
 
-        private ImportSpec importSpec;
+      checkArgument(importSpec.getType().equals(KAFKA_TYPE));
 
-        private Read(ImportSpec importSpec) {
-            this.importSpec = importSpec;
-        }
+      KafkaReadOptions options =
+          OptionsParser.parse(importSpec.getOptionsMap(), KafkaReadOptions.class);
 
-        @Override
-        public PCollection<FeatureRow> expand(PInput input) {
+      List<String> topicsList = new ArrayList<>(Arrays.asList(options.topics.split(",")));
 
-            checkArgument(importSpec.getType().equals(KAFKA_TYPE));
+      KafkaIO.Read<FeatureRowKey, FeatureRow> kafkaIOReader =
+          KafkaIO.<FeatureRowKey, FeatureRow>read()
+              .withBootstrapServers(options.server)
+              .withTopics(topicsList)
+              .withKeyDeserializer(FeatureRowKeyDeserializer.class)
+              .withValueDeserializer(FeatureRowDeserializer.class);
 
-            String bootstrapServer = importSpec.getOptionsMap().get("server");
+      PCollection<KafkaRecord<FeatureRowKey, FeatureRow>> featureRowRecord =
+          input.getPipeline().apply(kafkaIOReader);
 
-            Preconditions.checkArgument(
-                    !Strings.isNullOrEmpty(bootstrapServer), "kafka bootstrap server must be set");
-
-            String topics = importSpec.getOptionsMap().get("topics");
-
-            Preconditions.checkArgument(
-                    !Strings.isNullOrEmpty(topics), "kafka topic(s) must be set");
-
-            List<String> topicsList = new ArrayList<>(Arrays.asList(topics.split(",")));
-
-            KafkaIO.Read<FeatureRowKey, FeatureRow> kafkaIOReader = KafkaIO.<FeatureRowKey, FeatureRow>read()
-                    .withBootstrapServers(bootstrapServer)
-                    .withTopics(topicsList)
-                    .withKeyDeserializer(FeatureRowKeyDeserializer.class)
-                                    .withValueDeserializer(FeatureRowDeserializer.class);
-
-            PCollection<KafkaRecord<FeatureRowKey, FeatureRow>> featureRowRecord = input.getPipeline().apply(kafkaIOReader);
-
-            PCollection<FeatureRow> featureRow = featureRowRecord.apply(
-                    ParDo.of(
-                            new DoFn<KafkaRecord<FeatureRowKey, FeatureRow>, FeatureRow>() {
-                                @ProcessElement
-                                public void processElement(ProcessContext processContext) {
-                                    KafkaRecord<FeatureRowKey, FeatureRow> record = processContext.element();
-                                    processContext.output(record.getKV().getValue());
-                                }
-                            }));
-            return featureRow;
-        }
+      PCollection<FeatureRow> featureRow =
+          featureRowRecord.apply(
+              ParDo.of(
+                  new DoFn<KafkaRecord<FeatureRowKey, FeatureRow>, FeatureRow>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext processContext) {
+                      KafkaRecord<FeatureRowKey, FeatureRow> record = processContext.element();
+                      processContext.output(record.getKV().getValue());
+                    }
+                  }));
+      return featureRow;
     }
+  }
 }
