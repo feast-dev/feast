@@ -23,8 +23,8 @@ def gs_to_df(path):
     temp_file_path = 'temp{}.csv'.format(int(round(time.time() * 1000)))
     with open(temp_file_path, 'wb') as temp_file:
         blob.download_to_file(temp_file)
-        df = pd.read_csv(temp_file_path)
-        os.remove(temp_file_path)
+    df = pd.read_csv(temp_file_path)
+    os.remove(temp_file_path)
     return df
 
 def df_to_gs(df, path):
