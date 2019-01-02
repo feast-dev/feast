@@ -51,3 +51,18 @@ class TestTrainingDatasetCreator(object):
         assert len(feature_groups[2].features) == 1
         assert len(feature_groups[3].features) == 1
         assert len(feature_groups[4].features) == 3
+
+    def test_create_query(self):
+        f = [("entity.none.feature1", "project.dataset.table1"),
+             ("entity.none.feature2", "project.dataset.table1"),
+             ("entity.none.feature3", "project.dataset.table1"),
+             ("entity.minute.feature1", "project.dataset.table1"),
+             ("entity.hour.feature1", "project.dataset.table1"),
+             ("entity.day.feature1", "project.dataset.table1"),
+             ("entity.second.feature1", "project.dataset.table1")]
+        start = "2018-12-01"
+        end = "2018-12-02"
+
+        t = TrainingDatasetCreator()
+        query = t._create_query(f, start, end, None)
+        assert "LIMIT" not in query

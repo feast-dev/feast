@@ -1,4 +1,3 @@
-import pytest
 from feast.sdk.resources.feature import Feature
 from feast.sdk.resources.storage import Datastore
 from feast.sdk.utils.types import ValueType, Granularity

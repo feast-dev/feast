@@ -71,6 +71,22 @@ class TrainingDatasetCreator:
     def create_training_dataset(self, feature_table_tuples,
                                 start_date, end_date, limit,
                                 destination):
+        """
+        Create training dataset for given list of feature and its table
+        between start_date and end_date.
+
+        Args:
+            feature_table_tuples: [(str, str)] list of tuple of
+                feature id and it's BQ table ID
+            start_date: (str) start date of the training dataset
+            end_date: (str) end date of the training dataset
+            limit: (int) maximum number of row returned
+            destination: (str) fully qualified BigQuery table ID of the
+                destination
+
+        Returns: (google.cloud.bigquery.table.Table) Bigquery table instance
+
+        """
         query = self._create_query(feature_table_tuples, start_date,
                                    end_date, limit)
         query_config = QueryJobConfig()
@@ -92,23 +108,32 @@ class TrainingDatasetCreator:
 
     def _group_features(self, feature_table_tuples):
         feature_groups = []
+        # (table_id, granularity, feature id)
         temp = [((table_id, feature_id.split(".")[1]), feature_id)
                 for (feature_id, table_id) in feature_table_tuples]
         it = itertools.groupby(temp, operator.itemgetter(0))
         for key, subiter in it:
             features = [_Feature(item[1]) for item in subiter]
             feature_groups.append(_FeatureGroup(key[0], key[1], features))
+        # sort by granularity
         feature_groups.sort()
         return feature_groups
 
 
 class _Feature:
+    """
+    Helper class for templating a feature in training query
+    """
     def __init__(self, feature_id):
         self.name = feature_id.split(".")[2]
         self.column = feature_id.replace(".", "_")
 
 
 class _FeatureGroup:
+    """
+    Helper class for templating a group of feature having same table_id and
+    granularity in training query
+    """
     def __init__(self, table_id, granularity, features):
         self.table_id = table_id
         self.temp_table = table_id.replace(".", "_").replace("-", "_")

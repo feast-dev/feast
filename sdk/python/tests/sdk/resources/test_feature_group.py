@@ -1,4 +1,3 @@
-import pytest
 from feast.sdk.resources.feature_group import FeatureGroup
 
 class TestFeatureGroupSpec(object):

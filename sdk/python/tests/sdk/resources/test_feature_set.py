@@ -111,8 +111,7 @@ class TestDatasetInfo(object):
         mock_blob.download_to_filename.assert_called_once_with(dst_path)
 
     def _stop_time(self, mocker):
-        mocker.patch('time.time')
-        time.time.return_value = 0
+        mocker.patch('time.time', return_value=0)
 
 
 class _Job():

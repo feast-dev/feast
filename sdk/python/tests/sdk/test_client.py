@@ -3,6 +3,7 @@ import pytest
 import grpc
 from datetime import datetime
 import pandas as pd
+from pandas.util.testing import assert_frame_equal
 from google.protobuf.timestamp_pb2 import Timestamp
 from google.cloud.bigquery.table import Table
 
@@ -13,7 +14,8 @@ from feast.specs.FeatureSpec_pb2 import FeatureSpec, DataStores, DataStore
 from feast.specs.ImportSpec_pb2 import ImportSpec
 from feast.core.CoreService_pb2 import CoreServiceTypes
 from feast.core.JobService_pb2 import JobServiceTypes
-from feast.serving.Serving_pb2 import QueryFeatures, RequestDetail, TimestampRange, Entity, FeatureValueList
+from feast.serving.Serving_pb2 import QueryFeatures, RequestDetail, \
+    TimestampRange, Entity, FeatureValueList
 from feast.types.Value_pb2 import ValueList, TimestampList, Int32List
 import feast.serving.Serving_pb2 as serving_pb
 
@@ -132,11 +134,13 @@ class TestClient(object):
             client.create_training_dataset(inv_feature_set, "2018-12-01",
                                            "2018-12-02")
         # invalid start date
-        with pytest.raises(ValueError, match="Incorrect date format, should be YYYY-MM-DD"):
+        with pytest.raises(ValueError,
+                           match="Incorrect date format, should be YYYY-MM-DD"):
             client.create_training_dataset(feature_set, "20181201",
                                            "2018-12-02")
         # invalid end date
-        with pytest.raises(ValueError, match="Incorrect date format, should be YYYY-MM-DD"):
+        with pytest.raises(ValueError,
+                           match="Incorrect date format, should be YYYY-MM-DD"):
             client.create_training_dataset(feature_set, "2018-12-01",
                                            "20181202")
         # start date  > end date
@@ -144,7 +148,8 @@ class TestClient(object):
             client.create_training_dataset(feature_set, "2018-12-02",
                                            "2018-12-01")
         # invalid limit
-        with pytest.raises(ValueError, match="limit is not a positive integer"):
+        with pytest.raises(ValueError,
+                           match="limit is not a positive integer"):
             client.create_training_dataset(feature_set, "2018-12-01",
                                            "2018-12-02", -1)
 
@@ -181,27 +186,71 @@ class TestClient(object):
                                                  end_date, limit=limit,
                                                  destination=destination,
                                                  dataset_name=dataset_name)
-        training_crt.create_training_dataset\
+        training_crt.create_training_dataset \
             .assert_called_once_with([(feature1,
                                        "project.dataset.myentity_none"),
                                       (feature2,
                                        "project.dataset.myentity_hour")],
-                                     start_date,
-                                     end_date,
-                                     limit,
-                                     destination)
+                                     start_date, end_date, limit, destination)
         assert ds_info._table.project == "project"
         assert ds_info._table.dataset_id == "dataset"
         assert ds_info._table.table_id == "destination"
-
         assert ds_info.name == dataset_name
+
+    def test_create_training_dataset_no_destination(self, client, mocker):
+        mocker.patch('time.time', return_value=0)
+        bq_id = "BIGQUERY1"
+        feature1 = "myentity.none.feature1"
+        feature2 = "myentity.hour.feature2"
+        feature1_spec = self._create_feature_spec(feature1, bq_id)
+        feature2_spec = self._create_feature_spec(feature2, bq_id)
+        bq_spec = self._create_bq_spec(bq_id, "project", "dataset")
+
+        feature_set = FeatureSet("myentity", [feature1, feature2])
+        start_date = "2018-12-01"
+        end_date = "2018-12-05"
+        limit = 1000
+        exp_dst = ".".join([self.default_bq_dataset,
+                            "myentity_20181201_20181205_0"])
+
+        core_stub = core.CoreServiceStub(grpc.insecure_channel(""))
+        training_crt = TrainingDatasetCreator()
+        mocker.patch.object(core_stub, 'GetFeatures',
+                            return_value=CoreServiceTypes.GetFeaturesResponse(
+                                features=[feature1_spec, feature2_spec]))
+        mocker.patch.object(core_stub, 'GetStorage',
+                            return_value=CoreServiceTypes.GetStorageResponse(
+                                storageSpecs=[bq_spec]))
+        mocker.patch.object(training_crt, "create_training_dataset",
+                            return_value=Table.from_string(exp_dst))
+
+        client._core_service_stub = core_stub
+        client._training_creator = training_crt
+
+        ds_info = client.create_training_dataset(feature_set, start_date,
+                                                 end_date, limit=limit,
+                                                 destination=None,
+                                                 dataset_name=None)
+
+        training_crt.create_training_dataset \
+            .assert_called_once_with([(feature1,
+                                       "project.dataset.myentity_none"),
+                                      (feature2,
+                                       "project.dataset.myentity_hour")],
+                                     start_date, end_date, limit, exp_dst)
+        exp_dataset_name = exp_dst.split(".")[2]
+        assert ds_info._table.project == "project"
+        assert ds_info._table.dataset_id == "dataset"
+        assert ds_info._table.table_id == exp_dataset_name
+        assert ds_info.name == exp_dataset_name
 
     def test_build_serving_request_last(self, client):
         feature_set = FeatureSet("entity",
                                  ["entity.none.feat1", "entity.none.feat2"])
 
         req = client._build_serving_request(feature_set, ["1", "2", "3"],
-                                            ServingRequestType.LAST, None, None)
+                                            ServingRequestType.LAST, None,
+                                            None)
         expected_request_detail = \
             [RequestDetail(featureId=feat_id, type=serving_pb.LAST)
              for feat_id in ["entity.none.feat1", "entity.none.feat2"]]
@@ -221,7 +270,8 @@ class TestClient(object):
             [RequestDetail(featureId=feat_id, type=serving_pb.LIST, limit=2)
              for feat_id in ["entity.none.feat1", "entity.none.feat2"]]
         expected_ts_range = \
-            TimestampRange(start=Timestamp(seconds=10), end=Timestamp(seconds=11))
+            TimestampRange(start=Timestamp(seconds=10),
+                           end=Timestamp(seconds=11))
         expected = QueryFeatures.Request(entityName="entity",
                                          entityId=["1", "2", "3"],
                                          requestDetails=expected_request_detail,
@@ -239,36 +289,44 @@ class TestClient(object):
                        "feat2": [(3, Timestamp(seconds=10))]}],
             features=["feat1", "feat2"]
         )
-        df = client._response_to_df(response)
         expected_df = pd.DataFrame({'entity': ["1", "2"],
                                     'timestamp': [datetime.fromtimestamp(10),
                                                   datetime.fromtimestamp(10)],
                                     'feat1': [3, 3],
-                                    'feat2': [1, 3]})
-        for col in expected_df.columns:
-            assert df[col].equals(expected_df[col])
+                                    'feat2': [1, 3]})\
+                                    .reset_index(drop=True)
+        df = client._response_to_df(response) \
+            .sort_values(['entity', 'timestamp']) \
+            .reset_index(drop=True)[expected_df.columns]
+        assert_frame_equal(df, expected_df)
 
     def test_serving_response_to_df_multiple(self, client):
         response = self._create_query_features_response(
             entity_name="entity",
             entities=[{"id": "1",
-                       "feat1": [(3, Timestamp(seconds=10)), (4, Timestamp(seconds=11))],
-                       "feat2": [(1, Timestamp(seconds=10)), (3, Timestamp(seconds=11))]},
+                       "feat1": [(3, Timestamp(seconds=10)),
+                                 (4, Timestamp(seconds=11))],
+                       "feat2": [(1, Timestamp(seconds=10)),
+                                 (3, Timestamp(seconds=11))]},
                       {"id": "2",
-                       "feat1": [(4, Timestamp(seconds=10)), (6, Timestamp(seconds=11))],
-                       "feat2": [(2, Timestamp(seconds=10)), (5, Timestamp(seconds=11))]}],
+                       "feat1": [(4, Timestamp(seconds=10)),
+                                 (6, Timestamp(seconds=11))],
+                       "feat2": [(2, Timestamp(seconds=10)),
+                                 (5, Timestamp(seconds=11))]}],
             features=["feat1", "feat2"]
         )
-        df = client._response_to_df(response)
         expected_df = pd.DataFrame({'entity': ["1", "1", "2", "2"],
                                     'timestamp': [datetime.fromtimestamp(10),
                                                   datetime.fromtimestamp(11),
                                                   datetime.fromtimestamp(10),
                                                   datetime.fromtimestamp(11)],
                                     'feat1': [3, 4, 4, 6],
-                                    'feat2': [1, 3, 2, 5]})
-        for col in expected_df.columns:
-            assert df[col].equals(expected_df[col])
+                                    'feat2': [1, 3, 2, 5]}) \
+                                    .reset_index(drop=True)
+        df = client._response_to_df(response) \
+            .sort_values(['entity', 'timestamp']) \
+            .reset_index(drop=True)[expected_df.columns]
+        assert_frame_equal(df, expected_df)
 
     def _create_query_features_response(self, entity_name, entities, features):
         # entities should be in the form:
@@ -281,9 +339,11 @@ class TestClient(object):
             for feature in features:
                 features_map[feature] = FeatureValueList(
                     valueList=ValueList(
-                        int32List=Int32List(val=[v[0] for v in entity[feature]])
+                        int32List=Int32List(
+                            val=[v[0] for v in entity[feature]])
                     ),
-                    timestampList=TimestampList(val=[v[1] for v in entity[feature]])
+                    timestampList=TimestampList(
+                        val=[v[1] for v in entity[feature]])
                 )
             entity_pb = serving_pb.Entity(features=features_map)
             response.entities[entity["id"]].CopyFrom(entity_pb)
