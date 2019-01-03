@@ -16,11 +16,14 @@ import itertools
 import operator
 import os
 import pandas as pd
+import time
 
+from google.cloud.storage import Client as GCSClient
 from google.cloud.bigquery.client import Client as BQClient
 from google.cloud.bigquery.table import Table, TableReference
-from google.cloud.bigquery.job import QueryJobConfig
+from google.cloud.bigquery.job import QueryJobConfig, ExtractJobConfig, DestinationFormat
 from jinja2 import Template
+from feast.sdk.utils.gs_utils import is_gs_path, split_gs_path, gs_to_df
 
 
 def head(client, table, max_rows=10):
@@ -70,6 +73,76 @@ def get_table_name(feature_id, storage_spec):
     return ".".join([project, dataset, table_name])
 
 
+class TableDownloader:
+    def __init__(self):
+        self._bq = BQClient()
+        self._gcs = GCSClient()
+
+    def download_table_as_file(self, table_id, dest, staging_location,
+                               file_type):
+        """
+        Download a bigquery table as file
+        Args:
+            table_id (str): fully qualified BigQuery table id
+            dest (str): destination filename
+            staging_location (str): url to staging_location (currently
+                support a folder in GCS)
+            file_type (feast.sdk.resources.feature_set.FileType): (default:
+                FileType.CSV) exported file format
+        Returns: (str) path to the downloaded file
+
+        """
+        if not is_gs_path(staging_location):
+            raise ValueError("staging_uri must be a directory in GCS")
+
+        temp_file_name = 'temp_{}'.format(
+            int(round(time.time() * 1000)))
+        staging_file_path = os.path.join(staging_location, temp_file_name)
+
+        job_config = ExtractJobConfig()
+        job_config.destination_format = file_type
+        src_table = Table.from_string(table_id)
+        job = self._bq.extract_table(src_table, staging_file_path,
+                                            job_config=job_config)
+
+        # await completion
+        job.result()
+
+        bucket_name, blob_name = split_gs_path(staging_file_path)
+        bucket = self._gcs.get_bucket(bucket_name)
+        blob = bucket.blob(blob_name)
+        blob.download_to_filename(dest)
+        return dest
+
+    def download_table_as_df(self, table_id, staging_location):
+        """
+        Download a BigQuery table as Pandas Dataframe
+        Args:
+            table_id (src) : fully qualified BigQuery table id
+            staging_location: url to staging_location (currently
+                support a folder in GCS)
+
+        Returns: pandas.DataFrame: dataframe of the training dataset
+
+        """
+        if not is_gs_path(staging_location):
+            raise ValueError("staging_uri must be a directory in GCS")
+
+        temp_file_name = 'temp_{}'.format(
+            int(round(time.time() * 1000)))
+        staging_file_path = os.path.join(staging_location, temp_file_name)
+
+        job_config = ExtractJobConfig()
+        job_config.destination_format = DestinationFormat.CSV
+        job = self._bq.extract_table(Table.from_string(table_id),
+                                     staging_file_path,
+                                     job_config=job_config)
+
+        # await completion
+        job.result()
+        return gs_to_df(staging_file_path)
+
+
 class TrainingDatasetCreator:
     """
     Helper class to create a training dataset.
@@ -98,7 +171,7 @@ class TrainingDatasetCreator:
             destination: (str) fully qualified BigQuery table ID of the
                 destination
 
-        Returns: (google.cloud.bigquery.table.Table) Bigquery table instance
+        Returns: fully qualified table id
 
         """
         query = self._create_query(feature_table_tuples, start_date,
@@ -110,7 +183,7 @@ class TrainingDatasetCreator:
         # wait until completion
         query_job.result()
 
-        return Table.from_string(destination)
+        return destination
 
     def _create_query(self, feature_table_tuples, start_date,
                       end_date, limit):

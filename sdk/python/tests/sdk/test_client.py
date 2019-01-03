@@ -13,13 +13,11 @@
 # limitations under the License.
 
 import pytest
-
 import grpc
 from datetime import datetime
 import pandas as pd
 from pandas.util.testing import assert_frame_equal
 from google.protobuf.timestamp_pb2 import Timestamp
-from google.cloud.bigquery.table import Table
 
 import feast.core.CoreService_pb2_grpc as core
 import feast.core.JobService_pb2_grpc as jobs
@@ -39,9 +37,9 @@ from feast.sdk.resources.feature import Feature, Granularity
 from feast.sdk.resources.feature_group import FeatureGroup
 from feast.sdk.resources.entity import Entity
 from feast.sdk.resources.storage import Storage
-from feast.sdk.resources.feature_set import FeatureSet
+from feast.sdk.resources.feature_set import FeatureSet, DatasetInfo, FileType
 from feast.sdk.client import ServingRequestType
-from feast.sdk.utils.bq_util import TrainingDatasetCreator
+from feast.sdk.utils.bq_util import TrainingDatasetCreator, TableDownloader
 
 
 class TestClient(object):
@@ -190,7 +188,7 @@ class TestClient(object):
                             return_value=CoreServiceTypes.GetStorageResponse(
                                 storageSpecs=[bq_spec]))
         mocker.patch.object(training_crt, "create_training_dataset",
-                            return_value=Table.from_string(destination))
+                            return_value=destination)
 
         client._core_service_stub = core_stub
         client._training_creator = training_crt
@@ -205,9 +203,7 @@ class TestClient(object):
                                       (feature2,
                                        "project.dataset.myentity_hour")],
                                      start_date, end_date, limit, destination)
-        assert ds_info._table.project == "project"
-        assert ds_info._table.dataset_id == "dataset"
-        assert ds_info._table.table_id == "destination"
+        assert ds_info.table_id == destination
         assert ds_info.name == dataset_name
 
     def test_create_training_dataset_no_destination(self, client, mocker):
@@ -235,7 +231,7 @@ class TestClient(object):
                             return_value=CoreServiceTypes.GetStorageResponse(
                                 storageSpecs=[bq_spec]))
         mocker.patch.object(training_crt, "create_training_dataset",
-                            return_value=Table.from_string(exp_dst))
+                            return_value=exp_dst)
 
         client._core_service_stub = core_stub
         client._training_creator = training_crt
@@ -252,9 +248,7 @@ class TestClient(object):
                                        "project.dataset.myentity_hour")],
                                      start_date, end_date, limit, exp_dst)
         exp_dataset_name = exp_dst.split(".")[2]
-        assert ds_info._table.project == "project"
-        assert ds_info._table.dataset_id == "dataset"
-        assert ds_info._table.table_id == exp_dataset_name
+        assert ds_info.table_id == "project.dataset." + exp_dataset_name
         assert ds_info.name == exp_dataset_name
 
     def test_build_serving_request_last(self, client):
@@ -341,6 +335,28 @@ class TestClient(object):
             .reset_index(drop=True)[expected_df.columns]
         assert_frame_equal(df, expected_df)
 
+    def test_download_dataset_as_file(self, client, mocker):
+        destination = "/tmp/dest_file"
+
+        table_dlder = TableDownloader()
+        mocker.patch.object(table_dlder, "download_table_as_file",
+                            return_value=destination)
+
+        client._table_downloader = table_dlder
+        table_id = "project.dataset.table"
+        staging_location = "gs://gcs_bucket/"
+        dataset = DatasetInfo("mydataset", table_id)
+
+        result = client.download_dataset(dataset, destination,
+                                staging_location=staging_location,
+                                file_type=FileType.CSV)
+
+        assert result == destination
+        table_dlder.download_table_as_file.assert_called_once_with(table_id,
+                                                                   destination,
+                                                                   staging_location,
+                                                                   FileType.CSV)
+
     def _create_query_features_response(self, entity_name, entities, features):
         # entities should be in the form:
         # {"id": "1",
@@ -372,3 +388,4 @@ class TestClient(object):
     def _create_bq_spec(self, id, project, dataset):
         return StorageSpec(id=id, type="bigquery", options={
             "project": project, "dataset": dataset})
+

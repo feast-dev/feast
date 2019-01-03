@@ -12,18 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import time
-import os
-from feast.sdk.utils.gs_utils import is_gs_path, split_gs_path, gs_to_df
-from google.cloud.bigquery.client import Client as BQClient
-from google.cloud.bigquery.job import ExtractJobConfig
-from google.cloud.bigquery.table import Table
-from google.cloud.storage import Client as GCSClient
-
 
 class FeatureSet:
     """
-    Represent a collection of features having same entity and granularity.
+    Represent a collection of features having same entity.
     """
 
     def __init__(self, entity, features):
@@ -67,20 +59,16 @@ class FileType(object):
 
 
 class DatasetInfo:
-    def __init__(self, name, table):
+    def __init__(self, name, table_id):
         """
             Create instance of DatasetInfo with a BigQuery table as its
             backing store.
         Args:
             name: (str) dataset name
-            table: (google.cloud.bigquery.table.Table) backing table
+            table_id: (str) fully qualified table id
         """
-        if not isinstance(table, Table):
-            raise TypeError("table must be a BigQuery table type")
         self._name = name
-        self._table = table
-        self._bq_client = BQClient()
-        self._gcs_client = GCSClient()
+        self._table_id = table_id
 
     @property
     def name(self):
@@ -91,59 +79,11 @@ class DatasetInfo:
         """
         return self._name
 
-    def download(self, filename, staging_uri, type=FileType.CSV):
+    @property
+    def table_id(self):
         """
-        Download the training dataset as file
-        Args:
-            filename (str): destination filename
-            staging_uri (str): url to staging_location (currently
-                support a folder in GCS)
-            type (feast.sdk.resources.feature_set.FileType): (default:
-            FileType.CSV) exported file format
+
+        Returns: fully qualified table id
 
         """
-        if not is_gs_path(staging_uri):
-            raise ValueError("staging_uri must be a directory in GCS")
-
-        temp_file_name = 'temp_{}'.format(
-            int(round(time.time() * 1000)))
-        staging_file_path = os.path.join(staging_uri, temp_file_name)
-
-        job_config = ExtractJobConfig()
-        job_config.destination_format = type
-        job = self._bq_client.extract_table(self._table, staging_file_path,
-                                            job_config=job_config)
-
-        # await completion
-        job.result()
-
-        bucket_name, blob_name = split_gs_path(staging_file_path)
-        bucket = self._gcs_client.get_bucket(bucket_name)
-        blob = bucket.blob(blob_name)
-        blob.download_to_filename(filename)
-
-    def download_to_df(self, staging_uri):
-        """
-        Download the training dataset as Pandas Dataframe
-        Args:
-            staging_uri: url to staging_location (currently
-                support a folder in GCS)
-
-        Returns: pandas.DataFrame: dataframe of the training dataset
-
-        """
-        if not is_gs_path(staging_uri):
-            raise ValueError("staging_uri must be a directory in GCS")
-
-        temp_file_name = 'temp_{}'.format(
-            int(round(time.time() * 1000)))
-        staging_file_path = os.path.join(staging_uri, temp_file_name)
-
-        job_config = ExtractJobConfig()
-        job_config.destination_format = FileType.CSV
-        job = self._bq_client.extract_table(self._table, staging_file_path,
-                                            job_config=job_config)
-
-        # await completion
-        job.result()
-        return gs_to_df(staging_file_path)
+        return self._table_id

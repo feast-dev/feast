@@ -37,9 +37,10 @@ from feast.sdk.resources.feature import Feature
 from feast.sdk.resources.entity import Entity
 from feast.sdk.resources.storage import Storage
 from feast.sdk.resources.feature_group import FeatureGroup
-from feast.sdk.resources.feature_set import DatasetInfo
+from feast.sdk.resources.feature_set import DatasetInfo, FileType
 from feast.sdk.utils.print_utils import spec_to_yaml
-from feast.sdk.utils.bq_util import get_table_name, TrainingDatasetCreator
+from feast.sdk.utils.bq_util import get_table_name, TrainingDatasetCreator, \
+    TableDownloader
 
 
 class ServingRequestType(enum.Enum):
@@ -85,6 +86,7 @@ class Client:
         self._verbose = verbose
         self._bq_dataset = bq_dataset
         self._training_creator = TrainingDatasetCreator()
+        self._table_downloader = TableDownloader()
 
     @property
     def core_url(self):
@@ -257,6 +259,43 @@ class Client:
                                               request_type, ts_range, limit)
         return self._response_to_df(self._serving_service_stub
                                     .QueryFeatures(request))
+
+    def download_dataset(self, dataset_info, dest, staging_location,
+                         file_type=FileType.CSV):
+        """
+        Download training dataset as file
+        Args:
+            dataset_info (feast.sdk.resources.feature_set.DatasetInfo) :
+                dataset_info to be downloaded
+            dest (str): destination's file path
+            staging_location (str): url to staging_location (currently
+                support a folder in GCS)
+            file_type (feast.sdk.resources.feature_set.FileType): (default:
+                FileType.CSV) exported file format
+        Returns:
+            str: path to the downloaded file
+        """
+        return self._table_downloader.download_table_as_file(
+                                                    dataset_info.table_id,
+                                                    dest,
+                                                    staging_location,
+                                                    file_type)
+
+    def download_dataset_to_df(self, dataset_info, staging_location):
+        """
+        Download training dataset as Pandas Dataframe
+        Args:
+            dataset_info (feast.sdk.resources.feature_set.DatasetInfo) :
+                dataset_info to be downloaded
+            staging_location: url to staging_location (currently
+                support a folder in GCS)
+
+        Returns: pandas.DataFrame: dataframe of the training dataset
+
+        """
+        return self._table_downloader.download_table_as_df(
+                                                    dataset_info.table_id,
+                                                    staging_location)
 
     def close(self):
         """
