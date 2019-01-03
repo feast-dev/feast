@@ -44,7 +44,7 @@ class Storage:
 
     @id.setter
     def id(self, value):
-        self.__spec.name = id
+        self.__spec.name = value
 
     @property
     def type(self):
