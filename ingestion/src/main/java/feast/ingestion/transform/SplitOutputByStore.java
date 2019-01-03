@@ -19,6 +19,18 @@ package feast.ingestion.transform;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import feast.ingestion.exceptions.ErrorsHandler;
+import feast.ingestion.model.Specs;
+import feast.ingestion.transform.FeatureIO.Write;
+import feast.ingestion.transform.SplitFeatures.MultiOutputSplit;
+import feast.ingestion.values.PFeatureRows;
+import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.specs.StorageSpecProto.StorageSpec;
+import feast.storage.FeatureStore;
+import feast.storage.noop.NoOpIO;
+import feast.types.FeatureRowExtendedProto.Attempt;
+import feast.types.FeatureRowExtendedProto.Error;
+import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -35,18 +47,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
-import feast.ingestion.exceptions.ErrorsHandler;
-import feast.ingestion.model.Specs;
-import feast.ingestion.transform.FeatureIO.Write;
-import feast.ingestion.transform.SplitFeatures.MultiOutputSplit;
-import feast.ingestion.values.PFeatureRows;
-import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.specs.StorageSpecProto.StorageSpec;
-import feast.storage.FeatureStore;
-import feast.storage.noop.NoOpIO;
-import feast.types.FeatureRowExtendedProto.Attempt;
-import feast.types.FeatureRowExtendedProto.Error;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 
 @AllArgsConstructor
 @Slf4j
@@ -58,6 +58,7 @@ public class SplitOutputByStore extends PTransform<PFeatureRows, PFeatureRows> {
   @Override
   public PFeatureRows expand(PFeatureRows input) {
     Map<String, Write> transforms = getFeatureStoreTransforms();
+    transforms.put("", new NoOpIO.Write());
     Set<String> keys = transforms.keySet();
     Preconditions.checkArgument(transforms.size() > 0, "no write transforms found");
 
@@ -120,9 +121,7 @@ public class SplitOutputByStore extends PTransform<PFeatureRows, PFeatureRows> {
       }
 
       String message =
-          "FeatureRow with output tag.no matching storage, these feature's "
-              + "specs may be specifying a store which was unknown when "
-              + "ingestion started as they somehow passed validation. ";
+          "FeatureRows have no matching write transform, these rows should not have passed validation.";
       PCollection<FeatureRowExtended> errors =
           input.get(mainTag).apply(ParDo.of(new WithErrors(getName(), message)));
 

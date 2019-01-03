@@ -58,7 +58,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -188,7 +187,7 @@ public class ImportJobCSVTest {
                 + "  fields:\n"
                 + "    - name: id\n"
                 + "    - featureId: testEntity.none.redisInt32\n" // Redis is not available by
-                                                                  // default from the json specs
+                // default from the json specs
                 + "    - featureId: testEntity.none.testString\n"
                 + "\n",
             ImportSpec.getDefaultInstance());
