@@ -16,3 +16,21 @@ postsubmits:
       - image: us.gcr.io/kf-feast/test-image:1.0.0
         args: ["make", "test"]
         imagePullPolicy: Always
+
+tide:
+  queries:
+  - repos:
+    - gojek/feast
+    labels:
+    - lgtm
+    - approved
+    missingLabels:
+    - do-not-merge
+    - do-not-merge/hold
+    - do-not-merge/invalid-owners-file
+    - do-not-merge/work-in-progress
+    - needs-rebase
+  merge_method:
+    gojek/feast: squash
+  blocker_label: merge-blocker
+  squash_label: tide/squash
