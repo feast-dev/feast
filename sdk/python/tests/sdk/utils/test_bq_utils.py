@@ -188,7 +188,7 @@ class _Bucket():
     def __init__(self, blob):
         self._blob = blob
 
-    def blob(self):
+    def blob(self, name):
         return self._blob
 
 
