@@ -69,6 +69,10 @@ spec:
               secretKeyRef:
                 name: {{ template "postgresql.fullname" . }}
                 key: postgres-password
+          - name: PROJECT_ID
+            value: "{{ .Values.core.projectId}}"
+          - name: TRAINING_DATASET_PREFIX
+            value: "{{ .Values.core.trainingDatasetPrefix }}"
           - name: CORE_API_URI
             value: {{ .Values.core.service.extIPAdr }}:{{ .Values.core.service.grpc.targetPort }}
           - name: JOB_RUNNER
