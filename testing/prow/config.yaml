@@ -1,0 +1,18 @@
+presubmits:
+  gojek/feast:
+  - name: presubmit-unit-tests
+    always_run: true
+    spec:
+      containers:
+      - image: us.gcr.io/kf-feast/test-image:1.0.0
+        args: ["make", "test"]
+        imagePullPolicy: Always
+postsubmits:
+  gojek/feast:
+  - name: postsubmit-unit-tests
+    always_run: true
+    spec:
+      containers:
+      - image: us.gcr.io/kf-feast/test-image:1.0.0
+        args: ["make", "test"]
+        imagePullPolicy: Always

@@ -1,6 +1,9 @@
 VERSION_FILE=VERSION
 FEAST_VERSION=`cat $(VERSION_FILE)`
 
+test:
+	echo testing not implemented
+
 build-deps:
 	$(MAKE) -C protos gen-go
 	dep ensure
@@ -20,4 +23,3 @@ build-push-docker:
 	@$(MAKE) build-docker registry=$(registry) version=$(version)
 	docker push $(registry)/feast-core:$(version)
 	docker push $(registry)/feast-serving:$(version)
-	
