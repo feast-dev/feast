@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from feast.sdk.utils.bq_util import TrainingDatasetCreator, TableDownloader, \
-    get_table_name
-from feast.specs.StorageSpec_pb2 import StorageSpec
-from feast.sdk.resources.feature_set import FileType
-from google.cloud.bigquery.table import Table
-import pytest
 import os
+
+import pytest
+from google.cloud.bigquery.table import Table
+
+from feast.sdk.resources.feature_set import FileType
+from feast.sdk.utils.bq_util import TableDownloader, get_table_name
+from feast.specs.StorageSpec_pb2 import StorageSpec
 
 
 def test_get_table_name():
@@ -38,53 +39,6 @@ def test_get_table_name_not_bq():
     with pytest.raises(ValueError,
                        match="storage spec is not BigQuery storage spec"):
         get_table_name(feature_id, storage_spec)
-
-
-class TestTrainingDatasetCreator(object):
-    def test_simple(self):
-        t = TrainingDatasetCreator()
-        assert t._sql_template is not None
-
-    def test_group_features(self):
-        f = [("entity.none.feature1", "project.dataset.table1"),
-             ("entity.none.feature2", "project.dataset.table1"),
-             ("entity.none.feature3", "project.dataset.table1"),
-             ("entity.minute.feature1", "project.dataset.table1"),
-             ("entity.hour.feature1", "project.dataset.table1"),
-             ("entity.day.feature1", "project.dataset.table1"),
-             ("entity.second.feature1", "project.dataset.table1")]
-
-        t = TrainingDatasetCreator()
-        feature_groups = t._group_features(f)
-        assert feature_groups[0].granularity == "second"
-        assert feature_groups[1].granularity == "minute"
-        assert feature_groups[2].granularity == "hour"
-        assert feature_groups[3].granularity == "day"
-        assert feature_groups[4].granularity == "none"
-
-        for feature_group in feature_groups:
-            assert feature_group.table_id == "project.dataset.table1"
-
-        assert len(feature_groups[0].features) == 1
-        assert len(feature_groups[1].features) == 1
-        assert len(feature_groups[2].features) == 1
-        assert len(feature_groups[3].features) == 1
-        assert len(feature_groups[4].features) == 3
-
-    def test_create_query(self):
-        f = [("entity.none.feature1", "project.dataset.table1"),
-             ("entity.none.feature2", "project.dataset.table1"),
-             ("entity.none.feature3", "project.dataset.table1"),
-             ("entity.minute.feature1", "project.dataset.table1"),
-             ("entity.hour.feature1", "project.dataset.table1"),
-             ("entity.day.feature1", "project.dataset.table1"),
-             ("entity.second.feature1", "project.dataset.table1")]
-        start = "2018-12-01"
-        end = "2018-12-02"
-
-        t = TrainingDatasetCreator()
-        query = t._create_query(f, start, end, None)
-        assert "LIMIT" not in query
 
 
 class TestTableDownloader(object):
@@ -179,12 +133,12 @@ class TestTableDownloader(object):
         mocker.patch('time.time', return_value=0)
 
 
-class _Job():
+class _Job:
     def result(self):
         return None
 
 
-class _Bucket():
+class _Bucket:
     def __init__(self, blob):
         self._blob = blob
 
@@ -192,6 +146,6 @@ class _Bucket():
         return self._blob
 
 
-class _Blob():
+class _Blob:
     def download_to_filename(self, filename):
         pass

@@ -12,43 +12,43 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest
-import grpc
 from datetime import datetime
+
+import grpc
 import pandas as pd
-from pandas.util.testing import assert_frame_equal
+import pytest
 from google.protobuf.timestamp_pb2 import Timestamp
+from pandas.util.testing import assert_frame_equal
 
 import feast.core.CoreService_pb2_grpc as core
 import feast.core.JobService_pb2_grpc as jobs
-from feast.specs.StorageSpec_pb2 import StorageSpec
-from feast.specs.FeatureSpec_pb2 import FeatureSpec, DataStores, DataStore
-from feast.specs.ImportSpec_pb2 import ImportSpec
+import feast.core.TrainingService_pb2_grpc as training
+import feast.serving.Serving_pb2 as serving_pb
 from feast.core.CoreService_pb2 import CoreServiceTypes
 from feast.core.JobService_pb2 import JobServiceTypes
-from feast.serving.Serving_pb2 import QueryFeatures, RequestDetail, \
-    TimestampRange, Entity, FeatureValueList
-from feast.types.Value_pb2 import ValueList, TimestampList, Int32List
-import feast.serving.Serving_pb2 as serving_pb
-
-from feast.sdk.client import Client
+from feast.core.TrainingService_pb2 import TrainingServiceTypes
+from feast.core.TrainingService_pb2 import DatasetInfo as DatasetInfo_pb
+from feast.sdk.client import Client, _parse_date, _timestamp_from_datetime
+from feast.sdk.client import ServingRequestType
 from feast.sdk.importer import Importer
+from feast.sdk.resources.entity import Entity
 from feast.sdk.resources.feature import Feature, Granularity
 from feast.sdk.resources.feature_group import FeatureGroup
-from feast.sdk.resources.entity import Entity
-from feast.sdk.resources.storage import Storage
 from feast.sdk.resources.feature_set import FeatureSet, DatasetInfo, FileType
-from feast.sdk.client import ServingRequestType
-from feast.sdk.utils.bq_util import TrainingDatasetCreator, TableDownloader
+from feast.sdk.resources.storage import Storage
+from feast.sdk.utils.bq_util import TableDownloader
+from feast.serving.Serving_pb2 import QueryFeatures, RequestDetail, \
+    TimestampRange, FeatureValueList
+from feast.specs.FeatureSpec_pb2 import FeatureSpec, DataStores, DataStore
+from feast.specs.ImportSpec_pb2 import ImportSpec
+from feast.specs.StorageSpec_pb2 import StorageSpec
+from feast.types.Value_pb2 import ValueList, TimestampList, Int32List
 
 
 class TestClient(object):
-    default_bq_dataset = "project.dataset"
-
     @pytest.fixture
     def client(self):
-        return Client(core_url="some.uri", serving_url="some.serving.uri",
-                      bq_dataset=self.default_bq_dataset)
+        return Client(core_url="some.uri", serving_url="some.serving.uri")
 
     def test_apply_single_feature(self, client, mocker):
         my_feature = Feature(name="test",
@@ -165,91 +165,100 @@ class TestClient(object):
                                            "2018-12-02", -1)
 
     def test_create_training_dataset(self, client, mocker):
-        bq_id = "BIGQUERY1"
-        feature1 = "myentity.none.feature1"
-        feature2 = "myentity.hour.feature2"
-        feature1_spec = self._create_feature_spec(feature1, bq_id)
-        feature2_spec = self._create_feature_spec(feature2, bq_id)
-        bq_spec = self._create_bq_spec(bq_id, "project", "dataset")
+        entity_name = "myentity"
+        feature_ids = ["myentity.none.feature1", "myentity.second.feature2"]
+        fs = FeatureSet(entity_name, feature_ids)
+        start_date = "2018-01-02"
+        end_date = "2018-12-31"
 
-        feature_set = FeatureSet("myentity", [feature1, feature2])
-        start_date = "2018-12-01"
-        end_date = "2018-12-05"
-        limit = 1000
-        destination = "project.dataset.destination"
-        dataset_name = "my_training_set"
+        ds_pb = DatasetInfo_pb(name="dataset_name",
+                                    tableUrl="project.dataset.table")
 
-        core_stub = core.CoreServiceStub(grpc.insecure_channel(""))
-        training_crt = TrainingDatasetCreator()
-        mocker.patch.object(core_stub, 'GetFeatures',
-                            return_value=CoreServiceTypes.GetFeaturesResponse(
-                                features=[feature1_spec, feature2_spec]))
-        mocker.patch.object(core_stub, 'GetStorage',
-                            return_value=CoreServiceTypes.GetStorageResponse(
-                                storageSpecs=[bq_spec]))
-        mocker.patch.object(training_crt, "create_training_dataset",
-                            return_value=destination)
+        mock_trn_stub = training.TrainingServiceStub(grpc.insecure_channel(""))
+        mocker.patch.object(mock_trn_stub, "CreateTrainingDataset",
+                            return_value=TrainingServiceTypes
+                            .CreateTrainingDatasetResponse(datasetInfo=ds_pb))
+        client._training_service_stub = mock_trn_stub
 
-        client._core_service_stub = core_stub
-        client._training_creator = training_crt
+        ds = client.create_training_dataset(fs, start_date, end_date)
 
-        ds_info = client.create_training_dataset(feature_set, start_date,
-                                                 end_date, limit=limit,
-                                                 destination=destination,
-                                                 dataset_name=dataset_name)
-        training_crt.create_training_dataset \
-            .assert_called_once_with([(feature1,
-                                       "project.dataset.myentity_none"),
-                                      (feature2,
-                                       "project.dataset.myentity_hour")],
-                                     start_date, end_date, limit, destination)
-        assert ds_info.table_id == destination
-        assert ds_info.name == dataset_name
+        assert "dataset_name" == ds.name
+        assert "project.dataset.table" == ds.table_id
+        mock_trn_stub.CreateTrainingDataset.assert_called_once_with(
+            TrainingServiceTypes.CreateTrainingDatasetRequest(
+                featureSet=fs.proto,
+                startDate=_timestamp_from_datetime(_parse_date(start_date)),
+                endDate=_timestamp_from_datetime(_parse_date(end_date)),
+                limit=None,
+                namePrefix=None
+            )
+        )
 
-    def test_create_training_dataset_no_destination(self, client, mocker):
-        mocker.patch('time.time', return_value=0)
-        bq_id = "BIGQUERY1"
-        feature1 = "myentity.none.feature1"
-        feature2 = "myentity.hour.feature2"
-        feature1_spec = self._create_feature_spec(feature1, bq_id)
-        feature2_spec = self._create_feature_spec(feature2, bq_id)
-        bq_spec = self._create_bq_spec(bq_id, "project", "dataset")
+    def test_create_training_dataset_with_limit(self, client, mocker):
+        entity_name = "myentity"
+        feature_ids = ["myentity.none.feature1", "myentity.second.feature2"]
+        fs = FeatureSet(entity_name, feature_ids)
+        start_date = "2018-01-02"
+        end_date = "2018-12-31"
+        limit = 100
 
-        feature_set = FeatureSet("myentity", [feature1, feature2])
-        start_date = "2018-12-01"
-        end_date = "2018-12-05"
-        limit = 1000
-        exp_dst = ".".join([self.default_bq_dataset,
-                            "myentity_20181201_20181205_0"])
+        ds_pb = DatasetInfo_pb(name="dataset_name",
+                                    tableUrl="project.dataset.table")
 
-        core_stub = core.CoreServiceStub(grpc.insecure_channel(""))
-        training_crt = TrainingDatasetCreator()
-        mocker.patch.object(core_stub, 'GetFeatures',
-                            return_value=CoreServiceTypes.GetFeaturesResponse(
-                                features=[feature1_spec, feature2_spec]))
-        mocker.patch.object(core_stub, 'GetStorage',
-                            return_value=CoreServiceTypes.GetStorageResponse(
-                                storageSpecs=[bq_spec]))
-        mocker.patch.object(training_crt, "create_training_dataset",
-                            return_value=exp_dst)
+        mock_trn_stub = training.TrainingServiceStub(grpc.insecure_channel(""))
+        mocker.patch.object(mock_trn_stub, "CreateTrainingDataset",
+                            return_value=TrainingServiceTypes
+                            .CreateTrainingDatasetResponse(datasetInfo=ds_pb))
+        client._training_service_stub = mock_trn_stub
 
-        client._core_service_stub = core_stub
-        client._training_creator = training_crt
+        ds = client.create_training_dataset(fs, start_date, end_date,
+                                            limit=limit)
 
-        ds_info = client.create_training_dataset(feature_set, start_date,
-                                                 end_date, limit=limit,
-                                                 destination=None,
-                                                 dataset_name=None)
+        assert "dataset_name" == ds.name
+        assert "project.dataset.table" == ds.table_id
+        mock_trn_stub.CreateTrainingDataset.assert_called_once_with(
+            TrainingServiceTypes.CreateTrainingDatasetRequest(
+                featureSet=fs.proto,
+                startDate=_timestamp_from_datetime(_parse_date(start_date)),
+                endDate=_timestamp_from_datetime(_parse_date(end_date)),
+                limit=limit,
+                namePrefix=None
+            )
+        )
 
-        training_crt.create_training_dataset \
-            .assert_called_once_with([(feature1,
-                                       "project.dataset.myentity_none"),
-                                      (feature2,
-                                       "project.dataset.myentity_hour")],
-                                     start_date, end_date, limit, exp_dst)
-        exp_dataset_name = exp_dst.split(".")[2]
-        assert ds_info.table_id == "project.dataset." + exp_dataset_name
-        assert ds_info.name == exp_dataset_name
+    def test_create_training_dataset_with_name_prefix(self, client, mocker):
+        entity_name = "myentity"
+        feature_ids = ["myentity.none.feature1", "myentity.second.feature2"]
+        fs = FeatureSet(entity_name, feature_ids)
+        start_date = "2018-01-02"
+        end_date = "2018-12-31"
+        limit = 100
+        name_prefix = "feast"
+
+        ds_pb = DatasetInfo_pb(name="dataset_name",
+                                    tableUrl="project.dataset.table")
+
+        mock_trn_stub = training.TrainingServiceStub(grpc.insecure_channel(""))
+        mocker.patch.object(mock_trn_stub, "CreateTrainingDataset",
+                            return_value=TrainingServiceTypes
+                            .CreateTrainingDatasetResponse(datasetInfo=ds_pb))
+        client._training_service_stub = mock_trn_stub
+
+        ds = client.create_training_dataset(fs, start_date, end_date,
+                                            limit=limit,
+                                            name_prefix=name_prefix)
+
+        assert "dataset_name" == ds.name
+        assert "project.dataset.table" == ds.table_id
+        mock_trn_stub.CreateTrainingDataset.assert_called_once_with(
+            TrainingServiceTypes.CreateTrainingDatasetRequest(
+                featureSet=fs.proto,
+                startDate=_timestamp_from_datetime(_parse_date(start_date)),
+                endDate=_timestamp_from_datetime(_parse_date(end_date)),
+                limit=limit,
+                namePrefix=name_prefix
+            )
+        )
 
     def test_build_serving_request_last(self, client):
         feature_set = FeatureSet("entity",
@@ -300,8 +309,8 @@ class TestClient(object):
                                     'timestamp': [datetime.fromtimestamp(10),
                                                   datetime.fromtimestamp(10)],
                                     'feat1': [3, 3],
-                                    'feat2': [1, 3]})\
-                                    .reset_index(drop=True)
+                                    'feat2': [1, 3]}) \
+            .reset_index(drop=True)
         df = client._response_to_df(response) \
             .sort_values(['entity', 'timestamp']) \
             .reset_index(drop=True)[expected_df.columns]
@@ -329,7 +338,7 @@ class TestClient(object):
                                                   datetime.fromtimestamp(11)],
                                     'feat1': [3, 4, 4, 6],
                                     'feat2': [1, 3, 2, 5]}) \
-                                    .reset_index(drop=True)
+            .reset_index(drop=True)
         df = client._response_to_df(response) \
             .sort_values(['entity', 'timestamp']) \
             .reset_index(drop=True)[expected_df.columns]
@@ -348,8 +357,8 @@ class TestClient(object):
         dataset = DatasetInfo("mydataset", table_id)
 
         result = client.download_dataset(dataset, destination,
-                                staging_location=staging_location,
-                                file_type=FileType.CSV)
+                                         staging_location=staging_location,
+                                         file_type=FileType.CSV)
 
         assert result == destination
         table_dlder.download_table_as_file.assert_called_once_with(table_id,
@@ -388,4 +397,3 @@ class TestClient(object):
     def _create_bq_spec(self, id, project, dataset):
         return StorageSpec(id=id, type="bigquery", options={
             "project": project, "dataset": dataset})
-

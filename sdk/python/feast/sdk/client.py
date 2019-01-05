@@ -17,35 +17,34 @@ Main interface for users to interact with the Core API.
 """
 
 import enum
-import grpc
 import os
-import pandas as pd
-import re
-import time
-from google.protobuf.timestamp_pb2 import Timestamp
 from datetime import datetime
 
-import feast.core.CoreService_pb2_grpc as core
-import feast.core.JobService_pb2_grpc as jobs
-import feast.serving.Serving_pb2_grpc as serving
-from feast.core.JobService_pb2 import JobServiceTypes
-from feast.core.CoreService_pb2 import CoreServiceTypes
-from feast.serving.Serving_pb2 import QueryFeatures, RequestDetail, TimestampRange
+import grpc
+import pandas as pd
+from google.protobuf.timestamp_pb2 import Timestamp
 
+from feast.core.CoreService_pb2_grpc import CoreServiceStub
+from feast.core.JobService_pb2 import JobServiceTypes
+from feast.core.JobService_pb2_grpc import JobServiceStub
+from feast.core.TrainingService_pb2 import TrainingServiceTypes
+from feast.core.TrainingService_pb2_grpc import TrainingServiceStub
 from feast.sdk.env import FEAST_CORE_URL_ENV_KEY, FEAST_SERVING_URL_ENV_KEY
-from feast.sdk.resources.feature import Feature
 from feast.sdk.resources.entity import Entity
-from feast.sdk.resources.storage import Storage
+from feast.sdk.resources.feature import Feature
 from feast.sdk.resources.feature_group import FeatureGroup
 from feast.sdk.resources.feature_set import DatasetInfo, FileType
+from feast.sdk.resources.storage import Storage
+from feast.sdk.utils.bq_util import TableDownloader
 from feast.sdk.utils.print_utils import spec_to_yaml
-from feast.sdk.utils.bq_util import get_table_name, TrainingDatasetCreator, \
-    TableDownloader
+from feast.serving.Serving_pb2 import QueryFeatures, RequestDetail, \
+    TimestampRange
+from feast.serving.Serving_pb2_grpc import ServingAPIStub
 
 
 class ServingRequestType(enum.Enum):
     """
-    Requesty type for serving api
+    Request type for serving api
     """
     LAST = 0
     """ Get last value of a feature """
@@ -54,8 +53,7 @@ class ServingRequestType(enum.Enum):
 
 
 class Client:
-    def __init__(self, core_url=None, serving_url=None, bq_dataset=None,
-                 verbose=False):
+    def __init__(self, core_url=None, serving_url=None, verbose=False):
         """Create an instance of Feast client which is connected to feast
         endpoint specified in the parameter. If no url is provided, the
         client will default to the url specified in the environment variable
@@ -66,8 +64,6 @@ class Client:
                                   (e.g.: "my.feast.com:8433")
             serving_url (str, optional): feast serving's grpc endpoint URL
                                   (e.g.: "my.feast.com:8433")
-            bq_dataset (str, optional): BigQuery dataset to be used
-                as default training location (e.g. "gcp-project.dataset-name")
         """
 
         if core_url is None:
@@ -80,12 +76,11 @@ class Client:
         self._serving_url = serving_url
         self.__serving_channel = grpc.insecure_channel(serving_url)
 
-        self._serving_service_stub = serving.ServingAPIStub(self.__serving_channel)
-        self._core_service_stub = core.CoreServiceStub(self.__core_channel)
-        self._job_service_stub = jobs.JobServiceStub(self.__core_channel)
+        self._serving_service_stub = ServingAPIStub(self.__serving_channel)
+        self._core_service_stub = CoreServiceStub(self.__core_channel)
+        self._job_service_stub = JobServiceStub(self.__core_channel)
+        self._training_service_stub = TrainingServiceStub(self.__core_channel)
         self._verbose = verbose
-        self._bq_dataset = bq_dataset
-        self._training_creator = TrainingDatasetCreator()
         self._table_downloader = TableDownloader()
 
     @property
@@ -161,8 +156,7 @@ class Client:
         return response.jobId
 
     def create_training_dataset(self, feature_set, start_date, end_date,
-                                limit=None, destination=None,
-                                dataset_name=None):
+                                limit=None, name_prefix=None):
         """
         Create training dataset for a feature set. The training dataset
         will be bounded by event timestamp between start_date and end_date.
@@ -178,12 +172,7 @@ class Client:
                 "2018-12-31")
             limit (int, optional): (default: None) maximum number of row
                 returned
-            destination (str, optional): (default: None) destination table
-                for creating the training dataset. If not specified it will
-                create a table inside a dataset specified by bq_dataset.
-            dataset_name (str, optional): (default: None) name of the
-                training dataset. It is used as table name of the training
-                dataset if destination is not specified.
+            name_prefix (str, optional): (default: None) name prefix.
         :return:
             feast.resources.feature_set.DatasetInfo: DatasetInfo containing
             the information of training dataset
@@ -191,44 +180,19 @@ class Client:
         self._check_create_training_dataset_args(feature_set, start_date,
                                                  end_date, limit)
 
-        dataset_name = dataset_name if dataset_name is not None else \
-            self._create_dataset_name(feature_set, start_date, end_date)
-        destination = destination if destination is not None \
-            else self._create_training_table(dataset_name)
+        req = TrainingServiceTypes.CreateTrainingDatasetRequest(
+            featureSet=feature_set.proto,
+            startDate=_timestamp_from_datetime(_parse_date(start_date)),
+            endDate=_timestamp_from_datetime(_parse_date(end_date)),
+            limit=limit,
+            namePrefix=name_prefix
+        )
+        resp = self._training_service_stub.CreateTrainingDataset(req)
 
-        features = feature_set.features
-        feature_specs = self._get_feature_spec_map(features)
-        wh_storage_ids = (feature_spec.dataStores.warehouse.id for feature_spec
-                          in feature_specs.values())
-        wh_storage_map = self._get_storage_spec_map(wh_storage_ids)
-        feature_table_tuples = []
-        for feature_id, feature_spec in feature_specs.items():
-            try:
-                wh_spec = wh_storage_map.get(
-                    feature_spec.dataStores.warehouse.id)
-                if wh_spec.type is not "bigquery":
-                    ValueError("feature set contains feature which has "
-                               "warehouse store other than bigquery")
-            except KeyError:
-                raise ValueError("feature set contains feature which doesn't "
-                                 "have warehouse store")
-            feature_table_tuples.append((feature_id,
-                                         get_table_name(feature_id, wh_spec)))
+        return DatasetInfo(resp.datasetInfo.name, resp.datasetInfo.tableUrl)
 
-        table = self._training_creator.create_training_dataset(
-                                                       feature_table_tuples,
-                                                       start_date,
-                                                       end_date,
-                                                       limit,
-                                                       destination)
-
-        if self.verbose:
-            print("Training dataset has been created in: {}".format(
-                destination))
-
-        return DatasetInfo(dataset_name, table)
-
-    def get_serving_data(self, feature_set, entity_keys, request_type=ServingRequestType.LAST,
+    def get_serving_data(self, feature_set, entity_keys,
+                         request_type=ServingRequestType.LAST,
                          ts_range=None, limit=10):
         """Get data from the feast serving layer. You can either retrieve the
         the latest value, or a list of the latest values, up to a provided
@@ -413,52 +377,25 @@ class Client:
                                "{}\n{}".format(response.storageId, storage))
         return response.storageId
 
-    def _get_feature_spec_map(self, ids):
-        get_features_request = CoreServiceTypes.GetFeaturesRequest(
-            ids=ids
-        )
-        get_features_resp = self._core_service_stub.GetFeatures(
-            get_features_request)
-        feature_specs = get_features_resp.features
-        return {feature_spec.id: feature_spec for feature_spec in
-                feature_specs}
-
-    def _get_storage_spec_map(self, ids):
-        get_storage_request = CoreServiceTypes.GetStorageRequest(
-            ids=set(ids)
-        )
-        get_storage_resp = self._core_service_stub.GetStorage(
-            get_storage_request)
-        storage_specs = get_storage_resp.storageSpecs
-        return {storage_spec.id: storage_spec for storage_spec in
-                storage_specs}
-
-    def _create_training_table(self, dataset_name):
-        return ".".join([self._bq_dataset, dataset_name])
-
-    def _create_dataset_name(self, feature_set, start_date, end_date):
-        dataset_name = "_".join([feature_set.entity, start_date, end_date,
-                         str(round(time.time()))])
-        return re.sub('[^0-9a-zA-Z_]+', '', dataset_name)
-
     def _check_create_training_dataset_args(self, feature_set, start_date,
                                             end_date, limit):
         if len(feature_set.features) < 1:
             raise ValueError("feature set is empty")
 
-        start = self._parse_date(start_date)
-        end = self._parse_date(end_date)
+        start = _parse_date(start_date)
+        end = _parse_date(end_date)
         if end < start:
             raise ValueError("end_date is before start_date")
 
         if limit is not None and limit < 1:
             raise ValueError("limit is not a positive integer")
 
-    def _parse_date(self, date):
-        try:
-            return datetime.strptime(date, "%Y-%m-%d")
-        except ValueError:
-            raise ValueError("Incorrect date format, should be YYYY-MM-DD")
+
+def _parse_date(date):
+    try:
+        return datetime.strptime(date, "%Y-%m-%d")
+    except ValueError:
+        raise ValueError("Incorrect date format, should be YYYY-MM-DD")
 
 
 def _timestamp_from_datetime(dt):
