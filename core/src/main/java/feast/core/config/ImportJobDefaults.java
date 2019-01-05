@@ -32,6 +32,7 @@ public class ImportJobDefaults {
   private String runner;
   private String importJobOptions;
   private String executable;
-  private String errorsStoreId;
+  private String errorsStoreType;
+  private String errorsStoreOptions;
 }
 

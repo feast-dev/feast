@@ -31,11 +31,14 @@ import feast.specs.ImportSpecProto.ImportSpec;
 import feast.storage.ErrorsStore;
 import feast.storage.ServingStore;
 import feast.storage.WarehouseStore;
+import feast.storage.file.json.JsonFileStores;
 import feast.storage.service.ErrorsStoreService;
 import feast.storage.service.ServingStoreService;
 import feast.storage.service.WarehouseStoreService;
 import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptions;
+
+import static feast.ingestion.transform.ErrorsStoreTransform.ERRORS_STORE_JSON;
 
 /** An ImportJobModule is a Guice module for creating dependency injection bindings. */
 public class ImportJobModule extends AbstractModule {
@@ -48,11 +51,18 @@ public class ImportJobModule extends AbstractModule {
     this.importSpec = importSpec;
   }
 
+  private void configureErrorsStore() {
+    if (options.getErrorsStoreType().equals(ERRORS_STORE_JSON)) {
+      ErrorsStoreService.register(new JsonFileStores.JsonFileErrorsStore());
+    }
+  }
+
   @Override
   protected void configure() {
     bind(ImportJobOptions.class).toInstance(options);
     bind(PipelineOptions.class).toInstance(options);
     bind(ImportSpec.class).toInstance(importSpec);
+    configureErrorsStore();
   }
 
   @Provides
@@ -88,7 +98,7 @@ public class ImportJobModule extends AbstractModule {
 
   @Provides
   @Singleton
-  List<ErrorsStore> provideErrorsStores() {
-    return ErrorsStoreService.getAll();
+  ErrorsStore provideErrorsStores() {
+    return ErrorsStoreService.get();
   }
 }

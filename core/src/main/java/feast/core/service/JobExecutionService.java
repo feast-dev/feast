@@ -153,7 +153,8 @@ public class JobExecutionService {
     commands.add(
         option("importSpecBase64", Base64.getEncoder().encodeToString(importSpec.toByteArray())));
     commands.add(option("coreApiUri", defaults.getCoreApiUri()));
-    commands.add(option("errorsStoreId", defaults.getErrorsStoreId()));
+    commands.add(option("errorsStoreType", defaults.getErrorsStoreType()));
+    commands.add(option("errorsStoreOptions", defaults.getErrorsStoreOptions()));
     options.forEach((k, v) -> commands.add(option(k, v)));
     return new ProcessBuilder(commands);
   }

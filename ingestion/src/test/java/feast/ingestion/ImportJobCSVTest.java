@@ -17,11 +17,6 @@
 
 package feast.ingestion;
 
-import static feast.FeastMatchers.hasCount;
-import static feast.ToOrderedFeatureRows.orderedFeatureRow;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
@@ -46,11 +41,6 @@ import feast.storage.service.WarehouseStoreService;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.GranularityProto.Granularity;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -58,10 +48,20 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+
+import static feast.FeastMatchers.hasCount;
+import static feast.ToOrderedFeatureRows.orderedFeatureRow;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 @Slf4j
 public class ImportJobCSVTest {
@@ -70,7 +70,7 @@ public class ImportJobCSVTest {
 
   @Rule public TestPipeline testPipeline = TestPipeline.create();
 
-  public ImportSpec initImportSpec(ImportSpec importSpec, String dataFile) throws IOException {
+  public ImportSpec initImportSpec(ImportSpec importSpec, String dataFile) {
     return importSpec.toBuilder().putOptions("path", dataFile).build();
   }
 
@@ -78,7 +78,7 @@ public class ImportJobCSVTest {
     Path path = Paths.get(Resources.getResource("core_specs/").getPath());
     ImportJobOptions options = PipelineOptionsFactory.create().as(ImportJobOptions.class);
     options.setCoreApiSpecPath(path.toString());
-    options.setErrorsStoreId("TEST_ERRORS");
+    options.setErrorsStoreType(MockErrorsStore.MOCK_ERRORS_STORE_TYPE);
     return options;
   }
 
@@ -113,6 +113,9 @@ public class ImportJobCSVTest {
         Guice.createInjector(
             new ImportJobModule(options, importSpec), new TestPipelineModule(testPipeline));
 
+    MockErrorsStore mockErrorStore = new MockErrorsStore();
+    ErrorsStoreService.register(mockErrorStore);
+
     ImportJob job = injector.getInstance(ImportJob.class);
     injector.getInstance(ImportJob.class);
     job.expand();
@@ -127,7 +130,7 @@ public class ImportJobCSVTest {
             .apply("flatten warehouse input", Flatten.pCollections());
 
     PCollection<FeatureRowExtended> writtenToErrors =
-        PCollectionList.of(ErrorsStoreService.get(MockErrorsStore.class).getWrite().getInputs())
+        PCollectionList.of(((MockErrorsStore) ErrorsStoreService.get()).getWrite().getInputs())
             .apply("flatten errors input", Flatten.pCollections());
 
     List<FeatureRow> expectedRows =
@@ -188,7 +191,7 @@ public class ImportJobCSVTest {
                 + "  fields:\n"
                 + "    - name: id\n"
                 + "    - featureId: testEntity.none.redisInt32\n" // Redis is not available by
-                                                                  // default from the json specs
+                // default from the json specs
                 + "    - featureId: testEntity.none.testString\n"
                 + "\n",
             ImportSpec.getDefaultInstance());
@@ -250,7 +253,11 @@ public class ImportJobCSVTest {
         Guice.createInjector(
             new ImportJobModule(options, importSpec), new TestPipelineModule(testPipeline));
 
+    MockErrorsStore mockErrorStore = new MockErrorsStore();
+    ErrorsStoreService.register(mockErrorStore);
+
     ImportJob job = injector.getInstance(ImportJob.class);
+
     injector.getInstance(ImportJob.class);
     job.expand();
 
@@ -259,7 +266,7 @@ public class ImportJobCSVTest {
             .apply("flatten serving input", Flatten.pCollections());
 
     PCollection<FeatureRowExtended> writtenToErrors =
-        PCollectionList.of(ErrorsStoreService.get(MockErrorsStore.class).getWrite().getInputs())
+        PCollectionList.of(((MockErrorsStore) ErrorsStoreService.get()).getWrite().getInputs())
             .apply("flatten errors input", Flatten.pCollections());
 
     PAssert.that(writtenToErrors)
@@ -267,7 +274,6 @@ public class ImportJobCSVTest {
             (errors) -> {
               int i = 0;
               for (FeatureRowExtended row : errors) {
-                log.error(row.toString());
                 assertEquals(
                     row.getLastAttempt().getError().getCause(),
                     "feast.ingestion.exceptions.TypeConversionException");

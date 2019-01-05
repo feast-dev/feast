@@ -60,7 +60,8 @@ public class JobExecutionServiceTest {
             "DirectRunner",
             "{\"key\":\"value\"}",
             "ingestion.jar",
-            "STDOUT");
+            "STDOUT",
+            "{}");
   }
 
   @Test
@@ -77,7 +78,8 @@ public class JobExecutionServiceTest {
             "--runner=DirectRunner",
             "--importSpecBase64=CgRmaWxl",
             "--coreApiUri=localhost:8080",
-            "--errorsStoreId=STDOUT",
+            "--errorsStoreType=STDOUT",
+            "--errorsStoreOptions={}",
             "--key=value");
     assertThat(pb.command(), equalTo(expected));
   }
