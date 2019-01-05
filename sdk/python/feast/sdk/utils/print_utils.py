@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from google.protobuf.json_format import MessageToDict
-
 from collections import OrderedDict
+
 import yaml
+from google.protobuf.json_format import MessageToDict
 
 
 def spec_to_yaml(spec):

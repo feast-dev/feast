@@ -18,19 +18,22 @@ from feast.specs.EntitySpec_pb2 import EntitySpec
 from feast.sdk.utils.print_utils import spec_to_yaml
 from google.protobuf.json_format import Parse
 
-'''
-Wrapper class for feast entity
-'''
+
 class Entity:
+    """
+    Wrapper class for feast entity
+    """
+
     def __init__(self, name="", description="", tags=[]):
-        '''Create Entity instance.
+        """
+        Create Entity instance.
 
         Args:
             name (str): name of entity
             description (str): description of entity
             tags (list[str], optional): defaults to []. 
                 list of tags for this entity
-        '''
+        """
         self.__spec = EntitySpec(name=name, description=description,
             tags=tags)
 
@@ -65,11 +68,11 @@ class Entity:
 
     @classmethod
     def from_yaml(cls, path):
-        '''Create an instance of entity from a yaml file
+        """Create an instance of entity from a yaml file
         
         Args:
             path (str): path to yaml file
-        '''
+        """
         with open(path, 'r') as file:
             content = yaml.safe_load(file.read())
             entity = cls()
@@ -81,7 +84,7 @@ class Entity:
 
     def create_feature(self, name, granularity, value_type, owner,
                        description):
-        '''Create a feature related to this entity
+        """Create a feature related to this entity
         
         Args:
             name (str): feature name
@@ -91,24 +94,24 @@ class Entity:
                 the feature
             owner (str): owner of the feature
             description (str): feature's description
-        '''
+        """
         pass
 
     def __str__(self):
-        '''Print the feature in yaml format
+        """Print the feature in yaml format
         
         Returns:
             str: yaml formatted representation of the entity
-        '''
+        """
         return spec_to_yaml(self.__spec)
 
     def dump(self, path):
-        '''Dump the feature into a yaml file. 
+        """Dump the feature into a yaml file. 
             It will replace content of an existing file.
         
         Args:
             path (str): destination file path
-        '''
+        """
         with open(path, 'w') as file:
             file.write(str(self))
         print("Saved spec to {}".format(path))

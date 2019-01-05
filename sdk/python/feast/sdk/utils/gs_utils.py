@@ -13,9 +13,10 @@
 # limitations under the License.
 
 import io
-import time
 import os
 import re
+import time
+
 import pandas as pd
 from google.cloud import storage
 
@@ -23,14 +24,14 @@ _GCS_PATH_REGEX = r'^gs:\/\/[a-z0-9\.\-_\/]*$'
 
 
 def gs_to_df(path):
-    '''Reads a file from gs to pandas
+    """Reads a file from gs to pandas
     
     Args:
         path (str): full gcs path to the file
 
     Returns:
         pandas.DataFrame: dataframe 
-    '''
+    """
     bucket_name, blob_name = split_gs_path(path)
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(bucket_name)
@@ -44,13 +45,13 @@ def gs_to_df(path):
 
 
 def df_to_gs(df, path):
-    '''Writes the given df to the path specified. Will fail if the bucket does 
+    """Writes the given df to the path specified. Will fail if the bucket does 
     not exist.
     
     Args:
         df (pandas.DataFrame): dataframe
         path (str): path in gcs to write to
-    '''
+    """
     bucket_name, blob_name = split_gs_path(path)
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(bucket_name)
@@ -66,12 +67,12 @@ def split_gs_path(path):
 
 
 def is_gs_path(path):
-    '''Check if path is a gcs path
+    """Check if path is a gcs path
     
     Args:
         path (str): path to file
     
     Returns:
         bool: is a valid gcs path
-    '''
-    return re.match(_GCS_PATH_REGEX, path) != None 
+    """
+    return re.match(_GCS_PATH_REGEX, path) != None

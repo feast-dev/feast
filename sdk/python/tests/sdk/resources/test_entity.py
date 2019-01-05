@@ -15,6 +15,7 @@
 from feast.sdk.resources.entity import Entity
 import os
 
+
 class TestEntity(object):
     def test_read_from_yaml(self):
         entity_no_tag = Entity.from_yaml("tests/sample/valid_entity_no_tag.yaml")
