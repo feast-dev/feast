@@ -26,8 +26,8 @@ SELECT
 FROM
   {{ feature_groups[0].temp_table }}
 {% for feature_group in feature_groups -%}
-{% if loop.index > 1  -%}
-FULL JOIN
+{% if loop.index > 1  %}
+LEFT JOIN
   {{ feature_group.temp_table }}
 ON
   {{ feature_groups[0].temp_table }}.id = {{ feature_group.temp_table }}.id

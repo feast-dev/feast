@@ -53,7 +53,7 @@ WHERE
     project_dataset_myentity_day.myentity_day_feature2,
     project_dataset_myentity_none.myentity_none_feature3
 FROM
-    project_dataset_myentity_day FULL
+    project_dataset_myentity_day LEFT
 JOIN
     project_dataset_myentity_none
         ON project_dataset_myentity_day.id = project_dataset_myentity_none.id LIMIT 100

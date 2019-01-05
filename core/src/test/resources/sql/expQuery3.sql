@@ -129,22 +129,22 @@ WHERE
     project_dataset_myentity_day.myentity_day_feature1,
     project_dataset_myentity_none.myentity_none_feature1
 FROM
-    project_dataset_myentity_second FULL
+    project_dataset_myentity_second LEFT
 JOIN
     project_dataset_myentity_minute
         ON project_dataset_myentity_second.id = project_dataset_myentity_minute.id
         AND TIMESTAMP_TRUNC(project_dataset_myentity_second.event_timestamp,
-    MINUTE) = project_dataset_myentity_minute.event_timestampFULL
+    MINUTE) = project_dataset_myentity_minute.event_timestamp LEFT
 JOIN
     project_dataset_myentity_hour
         ON project_dataset_myentity_second.id = project_dataset_myentity_hour.id
         AND TIMESTAMP_TRUNC(project_dataset_myentity_second.event_timestamp,
-    HOUR) = project_dataset_myentity_hour.event_timestampFULL
+    HOUR) = project_dataset_myentity_hour.event_timestamp LEFT
 JOIN
     project_dataset_myentity_day
         ON project_dataset_myentity_second.id = project_dataset_myentity_day.id
         AND TIMESTAMP_TRUNC(project_dataset_myentity_second.event_timestamp,
-    DAY) = project_dataset_myentity_day.event_timestampFULL
+    DAY) = project_dataset_myentity_day.event_timestamp LEFT
 JOIN
     project_dataset_myentity_none
         ON project_dataset_myentity_second.id = project_dataset_myentity_none.id LIMIT 1000
