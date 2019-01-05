@@ -74,8 +74,11 @@ public class BigQueryTrainingDatasetCreator {
       String namePrefix) {
     try {
       String query = templater.createQuery(featureSet, startDate, endDate, limit);
-
       String tableName = createBqTableName(startDate, endDate, namePrefix);
+      String bqDatasetName = createBqDatasetName(featureSet.getEntityName());
+
+      createBqDatasetIfMissing(bqDatasetName);
+
       TableId destinationTable =
           TableId.of(projectId, createBqDatasetName(featureSet.getEntityName()), tableName);
       QueryJobConfiguration queryConfig =
@@ -96,6 +99,15 @@ public class BigQueryTrainingDatasetCreator {
       log.error("Training dataset creation was interrupted", e);
       throw new TrainingDatasetCreationException("Training dataset creation was interrupted", e);
     }
+  }
+
+  private void createBqDatasetIfMissing(String bqDatasetName) {
+    if (bigQuery.getDataset(bqDatasetName) != null) {
+      return;
+    }
+
+    // create dataset
+    bigQuery.create(com.google.cloud.bigquery.DatasetInfo.of(bqDatasetName));
   }
 
   private String createBqTableName(Timestamp startDate, Timestamp endDate, String namePrefix) {

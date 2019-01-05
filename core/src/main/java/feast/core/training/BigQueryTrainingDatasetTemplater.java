@@ -40,7 +40,6 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Getter;
-import org.springframework.beans.factory.annotation.Autowired;
 
 public class BigQueryTrainingDatasetTemplater {
   private final FeatureInfoRepository featureInfoRepository;
@@ -50,7 +49,6 @@ public class BigQueryTrainingDatasetTemplater {
   private Comparator<? super FeatureGroup> featureGroupComparator =
       new FeatureGroupTemplateComparator().reversed();
 
-  @Autowired
   public BigQueryTrainingDatasetTemplater(
       Jinjava jinjava, String templateString, FeatureInfoRepository featureInfoRepository) {
     this.featureInfoRepository = featureInfoRepository;
