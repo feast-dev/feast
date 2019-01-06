@@ -37,7 +37,9 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class SplitOutputByStoreTest {
-  @Rule public TestPipeline pipeline = TestPipeline.create();
+
+  @Rule
+  public TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void testSplit() {
@@ -88,11 +90,11 @@ public class SplitOutputByStoreTest {
         pfrows
             .getErrors()).empty();
     PAssert.that(
-            pfrows
-                .getMain()
-                .apply(
-                    MapElements.into(TypeDescriptor.of(FeatureRow.class))
-                        .via(FeatureRowExtended::getRow)))
+        pfrows
+            .getMain()
+            .apply(
+                MapElements.into(TypeDescriptor.of(FeatureRow.class))
+                    .via(FeatureRowExtended::getRow)))
         .containsInAnyOrder(
             Lists.newArrayList(
                 FeatureRow.newBuilder()
@@ -186,7 +188,6 @@ public class SplitOutputByStoreTest {
     PFeatureRows pfrows = PFeatureRows.of(input);
     pfrows = pfrows.apply("do split", split);
 
-
     PAssert.that(
         pfrows
             .getErrors()).empty();
@@ -238,6 +239,7 @@ public class SplitOutputByStoreTest {
   }
 
   public static class MockSpecService implements SpecService {
+
     public Map<String, EntitySpec> entitySpecs = new HashMap<>();
     public Map<String, FeatureSpec> featureSpecs = new HashMap<>();
     public Map<String, StorageSpec> storageSpecs = new HashMap<>();

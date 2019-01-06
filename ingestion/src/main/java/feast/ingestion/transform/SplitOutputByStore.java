@@ -51,6 +51,7 @@ import org.apache.beam.sdk.values.TupleTag;
 @AllArgsConstructor
 @Slf4j
 public class SplitOutputByStore extends PTransform<PFeatureRows, PFeatureRows> {
+
   private Collection<? extends FeatureStore> stores;
   private SerializableFunction<FeatureSpec, String> selector;
   private Specs specs;
@@ -103,6 +104,7 @@ public class SplitOutputByStore extends PTransform<PFeatureRows, PFeatureRows> {
 
   @AllArgsConstructor
   public static class WriteTags extends PTransform<PCollectionTuple, PFeatureRows> {
+
     private Map<TupleTag<FeatureRowExtended>, Write> transforms;
     private TupleTag<FeatureRowExtended> mainTag;
 
@@ -130,8 +132,11 @@ public class SplitOutputByStore extends PTransform<PFeatureRows, PFeatureRows> {
     }
   }
 
-  /** Sets the last attempt error for all rows with a given exception */
+  /**
+   * Sets the last attempt error for all rows with a given exception
+   */
   public static class WithErrors extends DoFn<FeatureRowExtended, FeatureRowExtended> {
+
     private Error error;
 
     public WithErrors(Error error) {
