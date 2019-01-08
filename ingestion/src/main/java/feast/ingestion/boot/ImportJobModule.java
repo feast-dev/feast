@@ -51,18 +51,11 @@ public class ImportJobModule extends AbstractModule {
     this.importSpec = importSpec;
   }
 
-  private void configureErrorsStore() {
-    if (options.getErrorsStoreType().equals(ERRORS_STORE_JSON)) {
-      ErrorsStoreService.register(new JsonFileStores.JsonFileErrorsStore());
-    }
-  }
-
   @Override
   protected void configure() {
     bind(ImportJobOptions.class).toInstance(options);
     bind(PipelineOptions.class).toInstance(options);
     bind(ImportSpec.class).toInstance(importSpec);
-    configureErrorsStore();
   }
 
   @Provides
@@ -98,7 +91,7 @@ public class ImportJobModule extends AbstractModule {
 
   @Provides
   @Singleton
-  ErrorsStore provideErrorsStores() {
-    return ErrorsStoreService.get();
+  List<ErrorsStore> provideErrorsStores() {
+    return ErrorsStoreService.getAll();
   }
 }

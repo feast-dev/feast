@@ -32,7 +32,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.slf4j.event.Level;
 
-import javax.annotation.Nullable;
+import java.util.List;
 
 import static feast.ingestion.util.JsonUtil.convertJsonStringToMap;
 
@@ -49,18 +49,21 @@ public class ErrorsStoreTransform extends FeatureIO.Write {
 
   @Inject
   public ErrorsStoreTransform(
-      ImportJobOptions options, Specs specs, @Nullable ErrorsStore errorsStore) {
+      ImportJobOptions options, Specs specs, List<ErrorsStore> errorsStores) {
     this.specs = specs;
     this.errorsStoreType = options.getErrorsStoreType();
-    this.errorsStore = errorsStore;
-    StorageSpec.Builder errorsStoreBuilder = StorageSpec.newBuilder().setType(errorsStoreType);
 
-    switch (errorsStoreType) {
-      case ERRORS_STORE_JSON:
-        errorsStoreBuilder.putAllOptions(convertJsonStringToMap(options.getErrorsStoreOptions()));
-      default:
-        this.errorsStoreSpec = errorsStoreBuilder.build();
+    for (ErrorsStore errorsStore : errorsStores) {
+      if (errorsStore.getType().equals(errorsStoreType)) {
+        this.errorsStore = errorsStore;
+      }
     }
+
+    this.errorsStoreSpec =
+        StorageSpec.newBuilder()
+            .setType(errorsStoreType)
+            .putAllOptions(convertJsonStringToMap(options.getErrorsStoreOptions()))
+            .build();
   }
 
   @Override

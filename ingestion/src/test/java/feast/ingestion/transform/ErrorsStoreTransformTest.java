@@ -20,6 +20,7 @@ package feast.ingestion.transform;
 import feast.ingestion.model.Specs;
 import feast.ingestion.options.ImportJobOptions;
 import feast.storage.MockErrorsStore;
+import feast.storage.service.ServingStoreService;
 import feast.types.FeatureRowExtendedProto.Attempt;
 import feast.types.FeatureRowExtendedProto.Error;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
@@ -32,6 +33,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.assertj.core.util.Lists;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -71,7 +73,7 @@ public class ErrorsStoreTransformTest {
   public void shouldWriteToGivenErrorsStore() {
     MockErrorsStore mockStore = new MockErrorsStore();
     options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
-    ErrorsStoreTransform transform = new ErrorsStoreTransform(options, specs, mockStore);
+    ErrorsStoreTransform transform = new ErrorsStoreTransform(options, specs, Lists.newArrayList(mockStore));
     transform.expand(inputs);
 
     PCollection<FeatureRowExtended> writtenToErrors =

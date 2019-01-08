@@ -60,6 +60,7 @@ import java.util.List;
 
 import static feast.FeastMatchers.hasCount;
 import static feast.ToOrderedFeatureRows.orderedFeatureRow;
+import static feast.storage.MockErrorsStore.MOCK_ERRORS_STORE_TYPE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -78,7 +79,7 @@ public class ImportJobCSVTest {
     Path path = Paths.get(Resources.getResource("core_specs/").getPath());
     ImportJobOptions options = PipelineOptionsFactory.create().as(ImportJobOptions.class);
     options.setCoreApiSpecPath(path.toString());
-    options.setErrorsStoreType(MockErrorsStore.MOCK_ERRORS_STORE_TYPE);
+    options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
     return options;
   }
 
@@ -108,13 +109,11 @@ public class ImportJobCSVTest {
     importSpec = initImportSpec(importSpec, csvFile.toString());
 
     ImportJobOptions options = initOptions();
+    options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
 
     Injector injector =
         Guice.createInjector(
             new ImportJobModule(options, importSpec), new TestPipelineModule(testPipeline));
-
-    MockErrorsStore mockErrorStore = new MockErrorsStore();
-    ErrorsStoreService.register(mockErrorStore);
 
     ImportJob job = injector.getInstance(ImportJob.class);
     injector.getInstance(ImportJob.class);
@@ -130,7 +129,7 @@ public class ImportJobCSVTest {
             .apply("flatten warehouse input", Flatten.pCollections());
 
     PCollection<FeatureRowExtended> writtenToErrors =
-        PCollectionList.of(((MockErrorsStore) ErrorsStoreService.get()).getWrite().getInputs())
+        PCollectionList.of((ErrorsStoreService.get(MockErrorsStore.class)).getWrite().getInputs())
             .apply("flatten errors input", Flatten.pCollections());
 
     List<FeatureRow> expectedRows =
@@ -248,13 +247,11 @@ public class ImportJobCSVTest {
     importSpec = initImportSpec(importSpec, csvFile.toString());
 
     ImportJobOptions options = initOptions();
+    options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
 
     Injector injector =
         Guice.createInjector(
             new ImportJobModule(options, importSpec), new TestPipelineModule(testPipeline));
-
-    MockErrorsStore mockErrorStore = new MockErrorsStore();
-    ErrorsStoreService.register(mockErrorStore);
 
     ImportJob job = injector.getInstance(ImportJob.class);
 
@@ -266,7 +263,7 @@ public class ImportJobCSVTest {
             .apply("flatten serving input", Flatten.pCollections());
 
     PCollection<FeatureRowExtended> writtenToErrors =
-        PCollectionList.of(((MockErrorsStore) ErrorsStoreService.get()).getWrite().getInputs())
+        PCollectionList.of(ErrorsStoreService.get(MockErrorsStore.class).getWrite().getInputs())
             .apply("flatten errors input", Flatten.pCollections());
 
     PAssert.that(writtenToErrors)
