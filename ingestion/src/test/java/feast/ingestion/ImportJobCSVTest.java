@@ -67,9 +67,11 @@ import static org.junit.Assert.fail;
 @Slf4j
 public class ImportJobCSVTest {
 
-  @Rule public TemporaryFolder folder = new TemporaryFolder();
+  @Rule
+  public TemporaryFolder folder = new TemporaryFolder();
 
-  @Rule public TestPipeline testPipeline = TestPipeline.create();
+  @Rule
+  public TestPipeline testPipeline = TestPipeline.create();
 
   public ImportSpec initImportSpec(ImportSpec importSpec, String dataFile) {
     return importSpec.toBuilder().putOptions("path", dataFile).build();
@@ -125,7 +127,7 @@ public class ImportJobCSVTest {
 
     PCollection<FeatureRowExtended> writtenToWarehouse =
         PCollectionList.of(
-                WarehouseStoreService.get(MockWarehouseStore.class).getWrite().getInputs())
+            WarehouseStoreService.get(MockWarehouseStore.class).getWrite().getInputs())
             .apply("flatten warehouse input", Flatten.pCollections());
 
     PCollection<FeatureRowExtended> writtenToErrors =

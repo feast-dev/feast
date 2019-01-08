@@ -2,7 +2,7 @@ VERSION_FILE=VERSION
 FEAST_VERSION=`cat $(VERSION_FILE)`
 
 test:
-	echo testing not implemented
+	mvn test
 
 build-deps:
 	$(MAKE) -C protos gen-go
