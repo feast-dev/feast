@@ -21,6 +21,11 @@ import com.google.common.base.Charsets;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
+import feast.ingestion.exceptions.SpecNotFound;
+import feast.ingestion.util.PathUtil;
+import feast.specs.EntitySpecProto.EntitySpec;
+import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.specs.StorageSpecProto.StorageSpec;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,11 +40,6 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
-import feast.ingestion.exceptions.SpecNotFound;
-import feast.ingestion.util.PathUtil;
-import feast.specs.EntitySpecProto.EntitySpec;
-import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.specs.StorageSpecProto.StorageSpec;
 
 @AllArgsConstructor
 public class FileSpecService implements SpecService {
@@ -113,28 +113,13 @@ public class FileSpecService implements SpecService {
   }
 
   @Override
-  public Map<String, EntitySpec> getAllEntitySpecs() {
-    return getAllSpecs(EntitySpec.getDefaultInstance(), ENTITY_SPEC, EntitySpec::getName);
-  }
-
-  @Override
   public Map<String, FeatureSpec> getFeatureSpecs(Iterable<String> featureIds) {
     return getSpecs(FeatureSpec.getDefaultInstance(), FEATURE_SPEC, featureIds);
   }
 
   @Override
-  public Map<String, FeatureSpec> getAllFeatureSpecs() {
-    return getAllSpecs(FeatureSpec.getDefaultInstance(), FEATURE_SPEC, FeatureSpec::getId);
-  }
-
-  @Override
   public Map<String, StorageSpec> getStorageSpecs(Iterable<String> storageIds) {
     return getSpecs(StorageSpec.getDefaultInstance(), STORAGE_SPEC, storageIds);
-  }
-
-  @Override
-  public Map<String, StorageSpec> getAllStorageSpecs() {
-    return getAllSpecs(StorageSpec.getDefaultInstance(), STORAGE_SPEC, StorageSpec::getId);
   }
 
   private <T extends Message> void putSpecs(
@@ -169,6 +154,7 @@ public class FileSpecService implements SpecService {
 
   @AllArgsConstructor
   public static class Builder implements SpecService.Builder {
+
     private String basePath;
 
     @Override

@@ -18,6 +18,7 @@
 package feast.ingestion.model;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import feast.ingestion.service.SpecService;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
@@ -31,10 +32,15 @@ import java.util.Map;
 import java.util.Map.Entry;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 
 @Builder
 @Getter
+@Slf4j
+@ToString
 public class Specs implements Serializable {
+
   private String jobName;
   private ImportSpec importSpec;
   private Map<String, EntitySpec> entitySpecs;
@@ -57,14 +63,23 @@ public class Specs implements Serializable {
       specsBuilder.featureSpecs(specService.getFeatureSpecs(featureIds));
 
       List<String> entityNames = importSpec.getEntitiesList();
+      List<String> storageIds = Lists.newArrayList();
       for (FeatureSpec featureSpec : specsBuilder.featureSpecs.values()) {
         Preconditions.checkArgument(
             entityNames.contains(featureSpec.getEntity()),
             "Feature has entity not listed in import spec featureSpec=" + featureSpec.toString());
+        String servingId = featureSpec.getDataStores().getServing().getId();
+        if (!servingId.isEmpty()) {
+          storageIds.add(servingId);
+        }
+        String warehouseId = featureSpec.getDataStores().getWarehouse().getId();
+        if (!warehouseId.isEmpty()) {
+          storageIds.add(warehouseId);
+        }
       }
       specsBuilder.entitySpecs(specService.getEntitySpecs(entityNames));
 
-      specsBuilder.storageSpecs(specService.getAllStorageSpecs());
+      specsBuilder.storageSpecs(specService.getStorageSpecs(storageIds));
 
       return specsBuilder.build();
     } catch (RuntimeException e) {
@@ -79,13 +94,19 @@ public class Specs implements Serializable {
 
     // Sanity checks that our maps are built correctly
     for (Entry<String, FeatureSpec> entry : featureSpecs.entrySet()) {
-      Preconditions.checkArgument(entry.getKey().equals(entry.getValue().getId()));
+      Preconditions.checkArgument(entry.getKey().equals(entry.getValue().getId()),
+          String.format("Feature id does not match spec %s!=%s", entry.getKey(),
+              entry.getValue().getId()));
     }
     for (Entry<String, EntitySpec> entry : entitySpecs.entrySet()) {
-      Preconditions.checkArgument(entry.getKey().equals(entry.getValue().getName()));
+      Preconditions.checkArgument(entry.getKey().equals(entry.getValue().getName()),
+          String.format("Entity name does not match spec %s!=%s", entry.getKey(),
+              entry.getValue().getName()));
     }
     for (Entry<String, StorageSpec> entry : storageSpecs.entrySet()) {
-      Preconditions.checkArgument(entry.getKey().equals(entry.getValue().getId()));
+      Preconditions.checkArgument(entry.getKey().equals(entry.getValue().getId()),
+          String.format("Storage id does not match spec %s!=%s", entry.getKey(),
+              entry.getValue().getId()));
     }
 
     for (FeatureSpec featureSpec : featureSpecs.values()) {
@@ -96,17 +117,21 @@ public class Specs implements Serializable {
               "Feature %s references unknown entity %s",
               featureSpec.getId(), featureSpec.getEntity()));
       // Check that feature has a matching serving store
-      Preconditions.checkArgument(
-          storageSpecs.containsKey(featureSpec.getDataStores().getServing().getId()),
-          String.format(
-              "Feature %s references unknown serving store %s",
-              featureSpec.getId(), featureSpec.getDataStores().getServing().getId()));
+      if (!featureSpec.getDataStores().getServing().getId().isEmpty()) {
+        Preconditions.checkArgument(
+            storageSpecs.containsKey(featureSpec.getDataStores().getServing().getId()),
+            String.format(
+                "Feature %s references unknown serving store %s",
+                featureSpec.getId(), featureSpec.getDataStores().getServing().getId()));
+      }
       // Check that feature has a matching warehouse store
-      Preconditions.checkArgument(
-          storageSpecs.containsKey(featureSpec.getDataStores().getWarehouse().getId()),
-          String.format(
-              "Feature %s references unknown warehouse store %s",
-              featureSpec.getId(), featureSpec.getDataStores().getWarehouse().getId()));
+      if (!featureSpec.getDataStores().getWarehouse().getId().isEmpty()) {
+        Preconditions.checkArgument(
+            storageSpecs.containsKey(featureSpec.getDataStores().getWarehouse().getId()),
+            String.format(
+                "Feature %s references unknown warehouse store %s",
+                featureSpec.getId(), featureSpec.getDataStores().getWarehouse().getId()));
+      }
     }
   }
 

@@ -68,6 +68,7 @@ import org.slf4j.event.Level;
 
 @Slf4j
 public class ImportJob {
+
   private static Random random = new Random(System.currentTimeMillis());
 
   private final Pipeline pipeline;

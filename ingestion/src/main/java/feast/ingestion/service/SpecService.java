@@ -39,13 +39,6 @@ public interface SpecService {
   Map<String, EntitySpec> getEntitySpecs(Iterable<String> entityIds);
 
   /**
-   * Get all {@link EntitySpec} from Core API.
-   *
-   * @return map of {@link EntitySpec}, where the key is the entity name.
-   */
-  Map<String, EntitySpec> getAllEntitySpecs();
-
-  /**
    * Get a map of {@link FeatureSpec} from Core API, given a collection of featureId.
    *
    * @param featureIds collection of entityId to retrieve.
@@ -55,13 +48,6 @@ public interface SpecService {
   Map<String, FeatureSpec> getFeatureSpecs(Iterable<String> featureIds);
 
   /**
-   * Get all {@link FeatureSpec} available in Core API.
-   *
-   * @return map of {@link FeatureSpec}, where the key is feature id.
-   */
-  Map<String, FeatureSpec> getAllFeatureSpecs();
-
-  /**
    * Get map of {@link StorageSpec} from Core API, given a collection of storageId.
    *
    * @param storageIds collection of storageId to retrieve.
@@ -69,13 +55,6 @@ public interface SpecService {
    * @throws SpecRetrievalException if any error happens during retrieval
    */
   Map<String, StorageSpec> getStorageSpecs(Iterable<String> storageIds);
-
-  /**
-   * Get all {@link StorageSpec} from Core API.
-   *
-   * @return map of {@link StorageSpec}, where the key is storage id.
-   */
-  Map<String, StorageSpec> getAllStorageSpecs();
 
   interface Builder extends Serializable {
     SpecService build();
