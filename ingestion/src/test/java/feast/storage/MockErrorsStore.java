@@ -18,24 +18,12 @@
 package feast.storage;
 
 import com.google.auto.service.AutoService;
-import lombok.Getter;
-import feast.ingestion.model.Specs;
-import feast.specs.StorageSpecProto.StorageSpec;
 
 @AutoService(ErrorsStore.class)
-public class MockErrorsStore implements ErrorsStore {
+public class MockErrorsStore extends MockFeatureStore implements ErrorsStore {
   public static final String MOCK_ERRORS_STORE_TYPE = "MOCK_ERRORS_STORE";
 
-  @Getter private MockTransforms.Write write;
-
-  @Override
-  public MockTransforms.Write create(StorageSpec storageSpec, Specs specs) {
-    write = new MockTransforms.Write(storageSpec);
-    return write;
-  }
-
-  @Override
-  public String getType() {
-    return MOCK_ERRORS_STORE_TYPE;
+  public MockErrorsStore() {
+    super(MOCK_ERRORS_STORE_TYPE);
   }
 }

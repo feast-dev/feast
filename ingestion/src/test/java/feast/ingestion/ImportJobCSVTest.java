@@ -58,7 +58,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -66,9 +65,11 @@ import org.junit.rules.TemporaryFolder;
 @Slf4j
 public class ImportJobCSVTest {
 
-  @Rule public TemporaryFolder folder = new TemporaryFolder();
+  @Rule
+  public TemporaryFolder folder = new TemporaryFolder();
 
-  @Rule public TestPipeline testPipeline = TestPipeline.create();
+  @Rule
+  public TestPipeline testPipeline = TestPipeline.create();
 
   public ImportSpec initImportSpec(ImportSpec importSpec, String dataFile) throws IOException {
     return importSpec.toBuilder().putOptions("path", dataFile).build();
@@ -123,7 +124,7 @@ public class ImportJobCSVTest {
 
     PCollection<FeatureRowExtended> writtenToWarehouse =
         PCollectionList.of(
-                WarehouseStoreService.get(MockWarehouseStore.class).getWrite().getInputs())
+            WarehouseStoreService.get(MockWarehouseStore.class).getWrite().getInputs())
             .apply("flatten warehouse input", Flatten.pCollections());
 
     PCollection<FeatureRowExtended> writtenToErrors =
@@ -188,7 +189,7 @@ public class ImportJobCSVTest {
                 + "  fields:\n"
                 + "    - name: id\n"
                 + "    - featureId: testEntity.none.redisInt32\n" // Redis is not available by
-                                                                  // default from the json specs
+                // default from the json specs
                 + "    - featureId: testEntity.none.testString\n"
                 + "\n",
             ImportSpec.getDefaultInstance());
