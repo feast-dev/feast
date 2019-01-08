@@ -146,7 +146,7 @@ class Feature:
 
     @warehouse_store.setter
     def warehouse_store(self, value):
-        self.__spec.dataStores.serving.CopyFrom(value)
+        self.__spec.dataStores.warehouse.CopyFrom(value)
 
     @property
     def serving_store(self):
@@ -154,7 +154,7 @@ class Feature:
 
     @serving_store.setter
     def serving_store(self, value):
-        self.__spec.dataStores.warehouse.CopyFrom(value)
+        self.__spec.dataStores.serving.CopyFrom(value)
 
     @property
     def description(self):
