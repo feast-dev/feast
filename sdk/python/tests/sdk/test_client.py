@@ -311,7 +311,7 @@ class TestClient(object):
                                     'feat1': [3, 3],
                                     'feat2': [1, 3]}) \
             .reset_index(drop=True)
-        df = client._response_to_df(response) \
+        df = client._response_to_df(FeatureSet("", []), response) \
             .sort_values(['entity', 'timestamp']) \
             .reset_index(drop=True)[expected_df.columns]
         assert_frame_equal(df, expected_df)
@@ -339,9 +339,17 @@ class TestClient(object):
                                     'feat1': [3, 4, 4, 6],
                                     'feat2': [1, 3, 2, 5]}) \
             .reset_index(drop=True)
-        df = client._response_to_df(response) \
+        df = client._response_to_df(FeatureSet("", []), response) \
             .sort_values(['entity', 'timestamp']) \
             .reset_index(drop=True)[expected_df.columns]
+        assert_frame_equal(df, expected_df)
+
+    def test_serving_response_to_df_no_data(self, client):
+        response = QueryFeatures.Response(entityName="entity")
+        expected_df = pd.DataFrame(columns=
+           ['entity', 'timestamp', 'entity.day.feat1', 'entity.day.feat2'])
+        df = client._response_to_df(FeatureSet("entity",
+           ["entity.day.feat1", "entity.day.feat2"]), response)
         assert_frame_equal(df, expected_df)
 
     def test_download_dataset_as_file(self, client, mocker):

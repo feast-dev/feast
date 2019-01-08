@@ -22,6 +22,7 @@ from datetime import datetime
 
 import grpc
 import pandas as pd
+import dateutil.parser
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
@@ -187,13 +188,19 @@ class Client:
             limit=limit,
             namePrefix=name_prefix
         )
+        if self.verbose:
+            print("creating training dataset for features: " +
+                  str(feature_set.features))
         resp = self._training_service_stub.CreateTrainingDataset(req)
 
+        if self.verbose:
+            print("created dataset {}: {}".format(resp.datasetInfo.name,
+                                                  resp.datasetInfo.tableUrl))
         return DatasetInfo(resp.datasetInfo.name, resp.datasetInfo.tableUrl)
 
     def get_serving_data(self, feature_set, entity_keys,
                          request_type=ServingRequestType.LAST,
-                         ts_range=None, limit=10):
+                         ts_range=[], limit=10):
         """Get data from the feast serving layer. You can either retrieve the
         the latest value, or a list of the latest values, up to a provided
         limit.
@@ -208,8 +215,8 @@ class Client:
             request_type (feast.sdk.utils.types.ServingRequestType):
                 (default: feast.sdk.utils.types.ServingRequestType.LAST) type of
                 request: one of [LIST, LAST]
-            ts_range (:obj: `list` of :obj: `datetime.datetime`, optional): size
-                2 list of start timestamp and end timestamp. Only required if
+            ts_range (:obj: `list` of str, optional): size 2 list of start 
+                timestamp and end timestamp, in ISO 8601 format. Only required if
                 request_type is set to LIST
             limit (int, optional): (default: 10) number of values to get. Only
                 required if request_type is set to LIST
@@ -218,10 +225,11 @@ class Client:
             pandas.DataFrame: DataFrame of results
         """
 
-        ts_range = [_timestamp_from_datetime(dt) for dt in ts_range]
+        ts_range = [_timestamp_from_datetime(dateutil.parser.parse(dt))
+                    for dt in ts_range]
         request = self._build_serving_request(feature_set, entity_keys,
                                               request_type, ts_range, limit)
-        return self._response_to_df(self._serving_service_stub
+        return self._response_to_df(feature_set, self._serving_service_stub
                                     .QueryFeatures(request))
 
     def download_dataset(self, dataset_info, dest, staging_location,
@@ -240,10 +248,10 @@ class Client:
             str: path to the downloaded file
         """
         return self._table_downloader.download_table_as_file(
-                                                    dataset_info.table_id,
-                                                    dest,
-                                                    staging_location,
-                                                    file_type)
+            dataset_info.table_id,
+            dest,
+            staging_location,
+            file_type)
 
     def download_dataset_to_df(self, dataset_info, staging_location):
         """
@@ -258,8 +266,8 @@ class Client:
 
         """
         return self._table_downloader.download_table_as_df(
-                                                    dataset_info.table_id,
-                                                    staging_location)
+            dataset_info.table_id,
+            staging_location)
 
     def close(self):
         """
@@ -285,7 +293,7 @@ class Client:
         request.requestDetails.extend(features)
         return request
 
-    def _response_to_df(self, response):
+    def _response_to_df(self, feature_set, response):
         entity_tables = []
         for entity_key in response.entities:
             feature_tables = []
@@ -308,6 +316,9 @@ class Client:
                 entity_table = pd.merge(left=entity_table,
                                         right=feature_tables[idx], how='outer')
             entity_tables.append(entity_table)
+        if len(entity_tables) == 0:
+            return pd.DataFrame(columns=[feature_set.entity, "timestamp"] +
+                                        feature_set.features)
         df = pd.concat(entity_tables)
         return df.reset_index(drop=True)
 
