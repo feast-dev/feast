@@ -32,6 +32,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <org.apache.beam.version>2.9.0</org.apache.beam.version>
     <com.google.cloud.version>1.35.0</com.google.cloud.version>
+    <com.google.httpclient.version>1.27.0</com.google.httpclient.version>
     <grpcVersion>1.13.1</grpcVersion>
     <guice.version>4.1.0</guice.version>
     <spring.kafka.version>2.2.2.RELEASE</spring.kafka.version>
@@ -173,12 +174,12 @@
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client</artifactId>
-      <version>1.23.0</version>
+      <version>${com.google.httpclient.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client-gson</artifactId>
-      <version>1.23.0</version>
+      <version>${com.google.httpclient.version}</version>
     </dependency>
 
 
