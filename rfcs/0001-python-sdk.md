@@ -1,7 +1,7 @@
 - Feature Name: python_sdk
 - Created Date: 2018-12-24
-- RFC PR:
-- Feast Issue:
+- RFC PR: [#47](https://github.com/gojek/feast/pull/47)
+- Feast Issue: [#48](https://github.com/gojek/feast/issues/48)
 
 # Summary
 [summary]: #summary
