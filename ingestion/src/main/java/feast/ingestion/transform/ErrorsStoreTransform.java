@@ -17,6 +17,8 @@
 
 package feast.ingestion.transform;
 
+import static feast.ingestion.util.JsonUtil.convertJsonStringToMap;
+
 import com.google.inject.Inject;
 import feast.ingestion.model.Specs;
 import feast.ingestion.options.ImportJobOptions;
@@ -26,18 +28,16 @@ import feast.specs.StorageSpecProto.StorageSpec;
 import feast.storage.ErrorsStore;
 import feast.storage.noop.NoOpIO;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.slf4j.event.Level;
 
-import java.util.List;
-
-import static feast.ingestion.util.JsonUtil.convertJsonStringToMap;
-
 @Slf4j
 public class ErrorsStoreTransform extends FeatureIO.Write {
+
   public static final String ERRORS_STORE_STDERR = "stderr";
   public static final String ERRORS_STORE_STDOUT = "stdout";
   public static final String ERRORS_STORE_JSON = "file.json";
