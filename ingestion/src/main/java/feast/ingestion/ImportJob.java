@@ -18,6 +18,7 @@
 package feast.ingestion;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.common.collect.Lists;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -42,6 +43,7 @@ import feast.specs.ImportSpecProto.ImportSpec;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
@@ -53,6 +55,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
@@ -60,6 +63,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.joda.time.DateTime;
@@ -165,9 +169,12 @@ public class ImportJob {
                     "Round event timestamps to granularity",
                     ParDo.of(new RoundEventTimestampsDoFn())),
             pFeatureRows.getErrors());
+
     if (!dryRun) {
+      List<PCollection<FeatureRowExtended>> errors = Lists.newArrayList();
       pFeatureRows = pFeatureRows.apply("Write to Serving Stores", servingStoreTransform);
-      pFeatureRows.getErrors().apply("Write serving errors", errorsStoreTransform);
+      errors.add(pFeatureRows.getErrors());
+      pFeatureRows = PFeatureRows.of(pFeatureRows.getMain());
 
       log.info(
           "A sample of any 2 rows from each of MAIN, RETRIES and ERRORS will logged for convenience");
@@ -175,7 +182,10 @@ public class ImportJob {
 
       PFeatureRows.of(pFeatureRows.getMain())
           .apply("Write to Warehouse  Stores", warehouseStoreTransform);
-      pFeatureRows.getErrors().apply("Write warehouse errors", errorsStoreTransform);
+      errors.add(pFeatureRows.getErrors());
+
+      PCollectionList.of(errors).apply("flatten errors", Flatten.pCollections())
+          .apply("Write serving errors", errorsStoreTransform);
     }
   }
 

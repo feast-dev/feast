@@ -41,7 +41,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -59,7 +58,6 @@ public class SplitOutputByStore extends PTransform<PFeatureRows, PFeatureRows> {
   @Override
   public PFeatureRows expand(PFeatureRows input) {
     Map<String, Write> transforms = getFeatureStoreTransforms();
-    transforms.put("", new NoOpIO.Write());
     Set<String> keys = transforms.keySet();
     Preconditions.checkArgument(transforms.size() > 0, "no write transforms found");
 
@@ -72,6 +70,7 @@ public class SplitOutputByStore extends PTransform<PFeatureRows, PFeatureRows> {
       TupleTag<FeatureRowExtended> tag = splitter.getStrategy().getTag(key);
       taggedTransforms.put(tag, transforms.get(key));
     }
+
     PFeatureRows output = splits.apply(new WriteTags(taggedTransforms, MultiOutputSplit.MAIN_TAG));
     return new PFeatureRows(
         output.getMain(),
@@ -122,13 +121,13 @@ public class SplitOutputByStore extends PTransform<PFeatureRows, PFeatureRows> {
         mainList.add(main);
       }
 
-      String message =
-          "FeatureRows have no matching write transform, these rows should not have passed validation.";
-      PCollection<FeatureRowExtended> errors =
-          input.get(mainTag).apply(ParDo.of(new WithErrors(getName(), message)));
-
-      return new PFeatureRows(
-          PCollectionList.of(mainList).apply("Flatten main", Flatten.pCollections()), errors);
+      /*
+       * FeatureRows with no matching write transform `input.get(mainTag)` are considered
+       * discardible, if they didn't have a matching store, they should have been discarded before
+       * reaching here. So these will be feature with no output store at all.
+       */
+      return PFeatureRows.of(
+          PCollectionList.of(mainList).apply("Flatten main", Flatten.pCollections()));
     }
   }
 

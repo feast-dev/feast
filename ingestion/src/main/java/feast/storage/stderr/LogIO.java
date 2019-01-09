@@ -15,22 +15,27 @@
  *
  */
 
-package feast.storage.noop;
+package feast.storage.stderr;
 
 import feast.ingestion.transform.FeatureIO;
-import feast.ingestion.transform.fn.Identity;
+import feast.ingestion.transform.fn.LoggerDoFn;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
+import lombok.AllArgsConstructor;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.slf4j.event.Level;
 
-public class NoOpIO {
+public class LogIO {
 
+  @AllArgsConstructor
   public static class Write extends FeatureIO.Write {
+
+    private Level level;
 
     @Override
     public PDone expand(PCollection<FeatureRowExtended> input) {
-      input.apply(getName(), ParDo.of(new Identity(getName())));
+      input.apply("Log to " + level.toString(), ParDo.of(new LoggerDoFn(level)));
       return PDone.in(input.getPipeline());
     }
   }

@@ -17,72 +17,66 @@
 
 package feast.ingestion.transform;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static feast.ingestion.util.JsonUtil.convertJsonStringToMap;
 
 import com.google.inject.Inject;
 import feast.ingestion.model.Specs;
 import feast.ingestion.options.ImportJobOptions;
 import feast.ingestion.transform.FeatureIO.Write;
-import feast.ingestion.transform.fn.LoggerDoFn;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.storage.ErrorsStore;
 import feast.storage.noop.NoOpIO;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.slf4j.event.Level;
+import org.apache.hadoop.hbase.util.Strings;
 
 @Slf4j
 public class ErrorsStoreTransform extends FeatureIO.Write {
 
-  public static final String ERRORS_STORE_STDERR = "stderr";
-  public static final String ERRORS_STORE_STDOUT = "stdout";
-  public static final String ERRORS_STORE_JSON = "file.json";
-
   private String errorsStoreType;
   private StorageSpec errorsStoreSpec;
-  private ErrorsStore errorsStore;
   private Specs specs;
+  private List<ErrorsStore> errorsStores;
 
   @Inject
   public ErrorsStoreTransform(
       ImportJobOptions options, Specs specs, List<ErrorsStore> errorsStores) {
     this.specs = specs;
+    this.errorsStores = errorsStores;
     this.errorsStoreType = options.getErrorsStoreType();
 
-    for (ErrorsStore errorsStore : errorsStores) {
-      if (errorsStore.getType().equals(errorsStoreType)) {
-        this.errorsStore = errorsStore;
-      }
+    if (!Strings.isEmpty(errorsStoreType)) {
+      this.errorsStoreSpec =
+          StorageSpec.newBuilder()
+              .setType(errorsStoreType)
+              .putAllOptions(convertJsonStringToMap(options.getErrorsStoreOptions()))
+              .build();
     }
-
-    this.errorsStoreSpec =
-        StorageSpec.newBuilder()
-            .setType(errorsStoreType)
-            .putAllOptions(convertJsonStringToMap(options.getErrorsStoreOptions()))
-            .build();
   }
 
   @Override
   public PDone expand(PCollection<FeatureRowExtended> input) {
-    switch (errorsStoreType) {
-      case ERRORS_STORE_STDOUT:
-        input.apply("Log errors to STDOUT", ParDo.of(new LoggerDoFn(Level.INFO)));
-        break;
-      case ERRORS_STORE_STDERR:
-        input.apply("Log errors to STDERR", ParDo.of(new LoggerDoFn(Level.ERROR)));
-        break;
-      default:
-        if (errorsStore == null) {
-          log.warn("No valid errors store specified, errors will be discarded");
-          return input.apply(new NoOpIO.Write());
-        }
-        Write write = errorsStore.create(this.errorsStoreSpec, specs);
-        return input.apply(write);
+    Write write;
+    if (Strings.isEmpty(errorsStoreType)) {
+      write = new NoOpIO.Write();
+    } else {
+      write = getErrorStore().create(this.errorsStoreSpec, specs);
     }
+    input.apply("errors to " + String.valueOf(errorsStoreType), write);
     return PDone.in(input.getPipeline());
+  }
+
+  ErrorsStore getErrorStore() {
+    checkArgument(!errorsStoreType.isEmpty(), "Errors store type not provided");
+    for (ErrorsStore errorsStore : errorsStores) {
+      if (errorsStore.getType().equals(errorsStoreType)) {
+        return errorsStore;
+      }
+    }
+    throw new IllegalArgumentException("Errors store type not found");
   }
 }
