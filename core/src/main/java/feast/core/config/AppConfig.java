@@ -32,7 +32,9 @@ public class AppConfig {
       @Value("${feast.jobs.runner}") String runner,
       @Value("${feast.jobs.options}") String options,
       @Value("${feast.jobs.executable}") String executable,
-      @Value("${feast.jobs.errorsStoreId}") String errorsStoreId) {
-    return new ImportJobDefaults(coreApiUri, runner, options, executable, errorsStoreId);
+      @Value("${feast.jobs.errorsStoreType}") String errorsStoreType,
+      @Value("${feast.jobs.errorsStoreOptions}") String errorsStoreOptions) {
+    return new ImportJobDefaults(
+        coreApiUri, runner, options, executable, errorsStoreType, errorsStoreOptions);
   }
 }

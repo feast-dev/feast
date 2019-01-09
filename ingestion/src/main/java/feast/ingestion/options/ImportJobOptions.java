@@ -27,6 +27,7 @@ import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.options.Validation.Required;
 
 public interface ImportJobOptions extends PipelineOptions {
+
   @Description("Import spec yaml file path")
   @Required(groups = {"importSpec"})
   String getImportSpecYamlFile();
@@ -72,14 +73,23 @@ public interface ImportJobOptions extends PipelineOptions {
   void setLimit(Long value);
 
   @Description(
-      "Set a store id to store errors in, if your data input is **very** small, you can use STDOUT"
-          + " or STDERR as the store id, otherwise it must match an associated storage spec")
-  String getErrorsStoreId();
+      "Set an errors store type. One of: [stderr, stdout, file.json]. Note that you should not use "
+          + "stderr/stdout in production unless your data volume is extremely small.")
+  String getErrorsStoreType();
 
-  void setErrorsStoreId(String value);
+  void setErrorsStoreType(String value);
+
+  @Description(
+      "Provide errors store options as a json string containing key-values. Options required"
+          + "depend on the type of store set.")
+  @Default.String("{}")
+  String getErrorsStoreOptions();
+
+  void setErrorsStoreOptions(String value);
 
   @AutoService(PipelineOptionsRegistrar.class)
   class ImportJobOptionsRegistrar implements PipelineOptionsRegistrar {
+
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
       return Collections.singleton(ImportJobOptions.class);

@@ -21,7 +21,7 @@ import com.google.auto.service.AutoService;
 
 @AutoService(ErrorsStore.class)
 public class MockErrorsStore extends MockFeatureStore implements ErrorsStore {
-  public static final String MOCK_ERRORS_STORE_TYPE = "MOCK_ERRORS_STORE";
+  public static final String MOCK_ERRORS_STORE_TYPE = "errors.mock";
 
   public MockErrorsStore() {
     super(MOCK_ERRORS_STORE_TYPE);
