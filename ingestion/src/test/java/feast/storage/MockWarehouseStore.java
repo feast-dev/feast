@@ -21,7 +21,7 @@ import com.google.auto.service.AutoService;
 
 @AutoService(WarehouseStore.class)
 public class MockWarehouseStore extends MockFeatureStore implements WarehouseStore {
-  public static final String MOCK_WAREHOUSE_STORE_TYPE = "MOCK_WAREHOUSE_STORE";
+  public static final String MOCK_WAREHOUSE_STORE_TYPE = "warehouse.mock";
 
   public MockWarehouseStore() {
     super(MOCK_WAREHOUSE_STORE_TYPE);
