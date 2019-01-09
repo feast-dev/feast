@@ -17,13 +17,27 @@
 
 package feast.storage;
 
-import com.google.auto.service.AutoService;
+import feast.ingestion.model.Specs;
+import feast.specs.StorageSpecProto.StorageSpec;
+import lombok.Getter;
 
-@AutoService(ServingStore.class)
-public class MockServingStore extends MockFeatureStore implements ServingStore {
-  public static final String MOCK_SERVING_STORE_TYPE = "serving.mock";
+public class MockFeatureStore implements FeatureStore {
 
-  public MockServingStore() {
-    super(MOCK_SERVING_STORE_TYPE);
+  private final String type;
+  @Getter private MockTransforms.Write write;
+
+  public MockFeatureStore(String type) {
+    this.type = type;
+  }
+
+  @Override
+  public MockTransforms.Write create(StorageSpec storageSpec, Specs specs) {
+    write = new MockTransforms.Write(storageSpec);
+    return write;
+  }
+
+  @Override
+  public String getType() {
+    return type;
   }
 }

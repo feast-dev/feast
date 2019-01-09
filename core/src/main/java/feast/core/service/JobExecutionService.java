@@ -28,24 +28,26 @@ import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
 import feast.core.util.TypeConversion;
 import feast.specs.ImportSpecProto.ImportSpec;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.time.Instant;
-import java.util.*;
-import java.util.regex.Pattern;
-
 @Slf4j
 @Service
 public class JobExecutionService {
-  private static final int SLEEP_MS = 10;
-  private static final Pattern JOB_EXT_ID_PREFIX_REGEX = Pattern.compile(".*FeastImportJobId:.*");
 
   public static final String JOB_PREFIX_DEFAULT = "feastimport";
-
+  private static final int SLEEP_MS = 10;
+  private static final Pattern JOB_EXT_ID_PREFIX_REGEX = Pattern.compile(".*FeastImportJobId:.*");
   private JobInfoRepository jobInfoRepository;
   private ImportJobDefaults defaults;
 
@@ -106,9 +108,6 @@ public class JobExecutionService {
 
   /**
    * Update a given job's status
-   *
-   * @param jobId
-   * @param status
    */
   public void updateJobStatus(String jobId, JobStatus status) {
     Optional<JobInfo> jobRecordOptional = jobInfoRepository.findById(jobId);
@@ -121,9 +120,6 @@ public class JobExecutionService {
 
   /**
    * Update a given job's external id
-   *
-   * @param jobId
-   * @param jobExtId
    */
   public void updateJobExtId(String jobId, String jobExtId) {
     Optional<JobInfo> jobRecordOptional = jobInfoRepository.findById(jobId);
@@ -137,8 +133,6 @@ public class JobExecutionService {
   /**
    * Builds the command to execute the ingestion job
    *
-   * @param importSpec
-   * @param jobId
    * @return configured ProcessBuilder
    */
   public ProcessBuilder getProcessBuilder(ImportSpec importSpec, String jobId) {
@@ -153,7 +147,8 @@ public class JobExecutionService {
     commands.add(
         option("importSpecBase64", Base64.getEncoder().encodeToString(importSpec.toByteArray())));
     commands.add(option("coreApiUri", defaults.getCoreApiUri()));
-    commands.add(option("errorsStoreId", defaults.getErrorsStoreId()));
+    commands.add(option("errorsStoreType", defaults.getErrorsStoreType()));
+    commands.add(option("errorsStoreOptions", defaults.getErrorsStoreOptions()));
     options.forEach((k, v) -> commands.add(option(k, v)));
     return new ProcessBuilder(commands);
   }
@@ -170,7 +165,7 @@ public class JobExecutionService {
    */
   public String runProcess(Process p) {
     try (BufferedReader outputStream =
-            new BufferedReader(new InputStreamReader(p.getInputStream()));
+        new BufferedReader(new InputStreamReader(p.getInputStream()));
         BufferedReader errorsStream =
             new BufferedReader(new InputStreamReader(p.getErrorStream()))) {
       String extId = "";

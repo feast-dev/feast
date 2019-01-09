@@ -19,14 +19,16 @@ package feast.storage.service;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import feast.storage.ErrorsStore;
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
-import lombok.extern.slf4j.Slf4j;
-import feast.storage.ErrorsStore;
 
 @Slf4j
 public class ErrorsStoreService {
+
   private static ServiceLoader<ErrorsStore> serviceLoader = ServiceLoader.load(ErrorsStore.class);
   private static List<ErrorsStore> manuallyRegistered = new ArrayList<>();
 

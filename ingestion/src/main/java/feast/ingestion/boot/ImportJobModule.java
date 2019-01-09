@@ -37,7 +37,9 @@ import feast.storage.service.WarehouseStoreService;
 import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-/** An ImportJobModule is a Guice module for creating dependency injection bindings. */
+/**
+ * An ImportJobModule is a Guice module for creating dependency injection bindings.
+ */
 public class ImportJobModule extends AbstractModule {
 
   private final ImportJobOptions options;

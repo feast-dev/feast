@@ -17,14 +17,9 @@
 
 package feast.ingestion.transform;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static feast.ingestion.util.JsonUtil.convertJsonStringToMap;
 
 import com.google.inject.Inject;
-import java.util.List;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 import feast.ingestion.model.Specs;
 import feast.ingestion.options.ImportJobOptions;
 import feast.ingestion.transform.FeatureIO.Write;
@@ -33,54 +28,60 @@ import feast.specs.StorageSpecProto.StorageSpec;
 import feast.storage.ErrorsStore;
 import feast.storage.noop.NoOpIO;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
+import java.util.List;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
 import org.slf4j.event.Level;
 
 @Slf4j
 public class ErrorsStoreTransform extends FeatureIO.Write {
-  public static final String STDERR_STORE_ID = "STDERR";
-  public static final String STDOUT_STORE_ID = "STDOUT";
 
-  private String errorsStoreId;
-  private List<ErrorsStore> stores;
+  public static final String ERRORS_STORE_STDERR = "stderr";
+  public static final String ERRORS_STORE_STDOUT = "stdout";
+  public static final String ERRORS_STORE_JSON = "file.json";
+
+  private String errorsStoreType;
+  private StorageSpec errorsStoreSpec;
+  private ErrorsStore errorsStore;
   private Specs specs;
 
   @Inject
-  public ErrorsStoreTransform(ImportJobOptions options, List<ErrorsStore> stores, Specs specs) {
-    this.errorsStoreId = options.getErrorsStoreId();
-    this.stores = stores;
+  public ErrorsStoreTransform(
+      ImportJobOptions options, Specs specs, List<ErrorsStore> errorsStores) {
     this.specs = specs;
+    this.errorsStoreType = options.getErrorsStoreType();
+
+    for (ErrorsStore errorsStore : errorsStores) {
+      if (errorsStore.getType().equals(errorsStoreType)) {
+        this.errorsStore = errorsStore;
+      }
+    }
+
+    this.errorsStoreSpec =
+        StorageSpec.newBuilder()
+            .setType(errorsStoreType)
+            .putAllOptions(convertJsonStringToMap(options.getErrorsStoreOptions()))
+            .build();
   }
 
   @Override
   public PDone expand(PCollection<FeatureRowExtended> input) {
-    if (errorsStoreId == null) {
-      log.warn("No errorsStoreId specified, errors will be discarded");
-      return input.apply(new NoOpIO.Write());
-    }
-
-    if (errorsStoreId.equals(STDOUT_STORE_ID)) {
-      input.apply("Log errors to STDOUT", ParDo.of(new LoggerDoFn(Level.INFO)));
-    } else if (errorsStoreId.equals(STDERR_STORE_ID)) {
-      input.apply("Log errors to STDERR", ParDo.of(new LoggerDoFn(Level.ERROR)));
-    } else {
-      StorageSpec storageSpec = specs.getStorageSpec(errorsStoreId);
-      storageSpec =
-          checkNotNull(
-              storageSpec,
-              String.format("errorsStoreId=%s not found in storage specs", errorsStoreId));
-      Write write = null;
-      for (ErrorsStore errorsStore : stores) {
-        if (errorsStore.getType().equals(storageSpec.getType())) {
-          write = errorsStore.create(storageSpec, specs);
+    switch (errorsStoreType) {
+      case ERRORS_STORE_STDOUT:
+        input.apply("Log errors to STDOUT", ParDo.of(new LoggerDoFn(Level.INFO)));
+        break;
+      case ERRORS_STORE_STDERR:
+        input.apply("Log errors to STDERR", ParDo.of(new LoggerDoFn(Level.ERROR)));
+        break;
+      default:
+        if (errorsStore == null) {
+          log.warn("No valid errors store specified, errors will be discarded");
+          return input.apply(new NoOpIO.Write());
         }
-      }
-      write =
-          checkNotNull(
-              write,
-              "No errors storage factory found for errorsStoreId=%s with type=%s",
-              errorsStoreId,
-              storageSpec.getType());
-      return input.apply(write);
+        Write write = errorsStore.create(this.errorsStoreSpec, specs);
+        return input.apply(write);
     }
     return PDone.in(input.getPipeline());
   }
