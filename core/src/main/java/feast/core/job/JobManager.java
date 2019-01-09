@@ -17,7 +17,18 @@
 
 package feast.core.job;
 
+import feast.specs.ImportSpecProto.ImportSpec;
+
 public interface JobManager {
+
+  /**
+   * Submit an ingestion job into runner
+   * @param importSpec import spec of the ingestion job to run
+   * @param jobName name of the job
+   * @return extId runner specific job ID.
+   */
+  String submitJob(ImportSpec importSpec, String jobName);
+
   /**
    * abort a job given runner-specific job ID.
    *

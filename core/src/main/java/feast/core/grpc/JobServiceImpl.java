@@ -19,32 +19,36 @@ package feast.core.grpc;
 
 import com.google.protobuf.Empty;
 import feast.core.JobServiceGrpc;
-import feast.core.JobServiceProto.JobServiceTypes.*;
+import feast.core.JobServiceProto.JobServiceTypes.AbortJobRequest;
+import feast.core.JobServiceProto.JobServiceTypes.AbortJobResponse;
+import feast.core.JobServiceProto.JobServiceTypes.GetJobRequest;
+import feast.core.JobServiceProto.JobServiceTypes.GetJobResponse;
+import feast.core.JobServiceProto.JobServiceTypes.JobDetail;
+import feast.core.JobServiceProto.JobServiceTypes.ListJobsResponse;
+import feast.core.JobServiceProto.JobServiceTypes.SubmitImportJobRequest;
+import feast.core.JobServiceProto.JobServiceTypes.SubmitImportJobResponse;
 import feast.core.exception.JobExecutionException;
-import feast.core.service.JobExecutionService;
 import feast.core.service.JobManagementService;
 import feast.core.validators.SpecValidator;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.lognet.springboot.grpc.GRpcService;
 import org.springframework.beans.factory.annotation.Autowired;
-
-import java.util.List;
 
 /** Implementation of the feast job GRPC service. */
 @Slf4j
 @GRpcService
 public class JobServiceImpl extends JobServiceGrpc.JobServiceImplBase {
-  @Autowired private JobExecutionService jobExecutionService;
-
   @Autowired private JobManagementService jobManagementService;
 
   @Autowired private SpecValidator validator;
 
   /**
    * submit a job to the runner by providing an import spec.
+   *
    * @param request ImportJobRequest object containing an import spec
    * @param responseObserver
    */
@@ -53,8 +57,9 @@ public class JobServiceImpl extends JobServiceGrpc.JobServiceImplBase {
       SubmitImportJobRequest request, StreamObserver<SubmitImportJobResponse> responseObserver) {
     try {
       validator.validateImportSpec(request.getImportSpec());
+      String jobID = jobManagementService.submitJob(request.getImportSpec(), request.getName());
       SubmitImportJobResponse response =
-          jobExecutionService.submitJob(request.getImportSpec(), request.getName());
+          SubmitImportJobResponse.newBuilder().setJobId(jobID).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (IllegalArgumentException e) {
@@ -68,6 +73,7 @@ public class JobServiceImpl extends JobServiceGrpc.JobServiceImplBase {
 
   /**
    * Abort a job given its feast-internal job id
+   *
    * @param request AbortJobRequest object containing feast job id
    * @param responseObserver
    */
@@ -86,6 +92,7 @@ public class JobServiceImpl extends JobServiceGrpc.JobServiceImplBase {
 
   /**
    * List all jobs previously submitted to the system.
+   *
    * @param request Empty request
    * @param responseObserver
    */
@@ -104,6 +111,7 @@ public class JobServiceImpl extends JobServiceGrpc.JobServiceImplBase {
 
   /**
    * Get a single job previously submitted to the system by id
+   *
    * @param request GetJobRequest object containing a feast-internal job id
    * @param responseObserver
    */

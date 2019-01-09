@@ -19,8 +19,10 @@ package feast.core.service;
 
 import com.google.common.base.Strings;
 import feast.core.JobServiceProto.JobServiceTypes.JobDetail;
+import feast.core.config.ImportJobDefaults;
 import feast.core.dao.JobInfoRepository;
 import feast.core.dao.MetricsRepository;
+import feast.core.exception.JobExecutionException;
 import feast.core.exception.RetrievalException;
 import feast.core.job.JobManager;
 import feast.core.log.Action;
@@ -29,29 +31,36 @@ import feast.core.log.Resource;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
 import feast.core.model.Metrics;
+import feast.specs.ImportSpecProto.ImportSpec;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
 @Slf4j
 @Service
 public class JobManagementService {
-  @Autowired private JobInfoRepository jobInfoRepository;
-  @Autowired private MetricsRepository metricsRepository;
-  @Autowired private JobManager jobManager;
+  private static final String JOB_PREFIX_DEFAULT = "feastimport";
 
+  private JobInfoRepository jobInfoRepository;
+  private MetricsRepository metricsRepository;
+  private JobManager jobManager;
+  private ImportJobDefaults defaults;
+
+  @Autowired
   public JobManagementService(
       JobInfoRepository jobInfoRepository,
       MetricsRepository metricsRepository,
-      JobManager jobManager) {
+      JobManager jobManager,
+      ImportJobDefaults defaults) {
     this.jobInfoRepository = jobInfoRepository;
     this.metricsRepository = metricsRepository;
     this.jobManager = jobManager;
+    this.defaults = defaults;
   }
 
   /**
@@ -86,6 +95,49 @@ public class JobManagementService {
   }
 
   /**
+   * Submit ingestion job to runner.
+   *
+   * @param importSpec import spec of the ingestion job
+   * @param namePrefix name prefix of the ingestion job
+   * @return feast job ID.
+   */
+  public String submitJob(ImportSpec importSpec, String namePrefix) {
+    String feastJobId = createJobId(namePrefix);
+    try {
+      JobInfo jobInfo =
+          new JobInfo(feastJobId, "", defaults.getRunner(), importSpec, JobStatus.PENDING);
+      jobInfoRepository.saveAndFlush(jobInfo);
+      AuditLogger.log(
+          Resource.JOB,
+          feastJobId,
+          Action.SUBMIT,
+          "Building graph and submitting to %s",
+          defaults.getRunner());
+
+      String extId = jobManager.submitJob(importSpec, namePrefix);
+
+      AuditLogger.log(
+          Resource.JOB,
+          feastJobId,
+          Action.STATUS_CHANGE,
+          "Job submitted to runner %s with ext id %s.",
+          defaults.getRunner(),
+          extId);
+      return feastJobId;
+    } catch (Exception e) {
+      updateJobStatus(feastJobId, JobStatus.ERROR);
+      AuditLogger.log(
+          Resource.JOB,
+          feastJobId,
+          Action.STATUS_CHANGE,
+          "Job failed to be submitted to runner %s. Job status changed to ERROR.",
+          defaults.getRunner());
+      throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
+    }
+  }
+
+
+  /**
    * Drain the given job. If this is successful, the job will start the draining process. When the
    * draining process is complete, the job will be cleaned up and removed.
    *
@@ -107,5 +159,26 @@ public class JobManagementService {
 
     AuditLogger.log(Resource.JOB, id, Action.ABORT, "Triggering draining of job");
     jobInfoRepository.saveAndFlush(job);
+  }
+
+  /**
+   * Update a given job's status
+   *
+   * @param jobId
+   * @param status
+   */
+  private void updateJobStatus(String jobId, JobStatus status) {
+    Optional<JobInfo> jobRecordOptional = jobInfoRepository.findById(jobId);
+    if (jobRecordOptional.isPresent()) {
+      JobInfo jobRecord = jobRecordOptional.get();
+      jobRecord.setStatus(status);
+      jobInfoRepository.saveAndFlush(jobRecord);
+    }
+  }
+
+
+  private String createJobId(String namePrefix) {
+    String dateSuffix = String.valueOf(Instant.now().toEpochMilli());
+    return namePrefix.isEmpty() ? JOB_PREFIX_DEFAULT + dateSuffix : namePrefix + dateSuffix;
   }
 }

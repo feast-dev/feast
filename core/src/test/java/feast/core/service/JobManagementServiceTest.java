@@ -20,6 +20,7 @@ package feast.core.service;
 import com.google.common.collect.Lists;
 import com.google.protobuf.Timestamp;
 import feast.core.JobServiceProto.JobServiceTypes.JobDetail;
+import feast.core.config.ImportJobDefaults;
 import feast.core.dao.JobInfoRepository;
 import feast.core.dao.MetricsRepository;
 import feast.core.exception.RetrievalException;
@@ -50,11 +51,14 @@ public class JobManagementServiceTest {
   @Mock private MetricsRepository metricsRepository;
   @Mock private JobManager jobManager;
 
+  private ImportJobDefaults defaults;
+
   @Rule public final ExpectedException exception = ExpectedException.none();
 
   @Before
   public void setUp() {
     initMocks(this);
+    defaults = new ImportJobDefaults("localhost:8433", "DirectRunner", "", "/feast-import.jar", "stderr");
   }
 
   @Test
@@ -89,7 +93,7 @@ public class JobManagementServiceTest {
     jobInfo2.setLastUpdated(Date.from(Instant.ofEpochSecond(1)));
     when(jobInfoRepository.findAll()).thenReturn(Lists.newArrayList(jobInfo1, jobInfo2));
     JobManagementService jobManagementService =
-        new JobManagementService(jobInfoRepository, metricsRepository, jobManager);
+        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults);
     List<JobDetail> actual = jobManagementService.listJobs();
     List<JobDetail> expected =
         Lists.newArrayList(
@@ -126,7 +130,7 @@ public class JobManagementServiceTest {
     jobInfo1.setLastUpdated(Date.from(Instant.ofEpochSecond(1)));
     when(jobInfoRepository.findById("job1")).thenReturn(Optional.of(jobInfo1));
     JobManagementService jobManagementService =
-        new JobManagementService(jobInfoRepository, metricsRepository, jobManager);
+        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults);
     JobDetail actual = jobManagementService.getJob("job1");
     JobDetail expected =
         JobDetail.newBuilder()
@@ -142,7 +146,7 @@ public class JobManagementServiceTest {
   public void shouldThrowErrorIfJobIdNotFoundWhenGettingJob() {
     when(jobInfoRepository.findById("job1")).thenReturn(Optional.empty());
     JobManagementService jobManagementService =
-        new JobManagementService(jobInfoRepository, metricsRepository, jobManager);
+        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults);
     exception.expect(RetrievalException.class);
     exception.expectMessage("Unable to retrieve job with id job1");
     jobManagementService.getJob("job1");
@@ -152,7 +156,7 @@ public class JobManagementServiceTest {
   public void shouldThrowErrorIfJobIdNotFoundWhenAbortingJob() {
     when(jobInfoRepository.findById("job1")).thenReturn(Optional.empty());
     JobManagementService jobManagementService =
-        new JobManagementService(jobInfoRepository, metricsRepository, jobManager);
+        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults);
     exception.expect(RetrievalException.class);
     exception.expectMessage("Unable to retrieve job with id job1");
     jobManagementService.abortJob("job1");
@@ -164,7 +168,7 @@ public class JobManagementServiceTest {
     job.setStatus(JobStatus.COMPLETED);
     when(jobInfoRepository.findById("job1")).thenReturn(Optional.of(job));
     JobManagementService jobManagementService =
-        new JobManagementService(jobInfoRepository, metricsRepository, jobManager);
+        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults);
     exception.expect(IllegalStateException.class);
     exception.expectMessage("Unable to stop job already in terminal state");
     jobManagementService.abortJob("job1");
@@ -177,7 +181,7 @@ public class JobManagementServiceTest {
     job.setExtId("extId1");
     when(jobInfoRepository.findById("job1")).thenReturn(Optional.of(job));
     JobManagementService jobManagementService =
-        new JobManagementService(jobInfoRepository, metricsRepository, jobManager);
+        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults);
     jobManagementService.abortJob("job1");
     ArgumentCaptor<JobInfo> jobCapture = ArgumentCaptor.forClass(JobInfo.class);
     verify(jobInfoRepository).saveAndFlush(jobCapture.capture());
