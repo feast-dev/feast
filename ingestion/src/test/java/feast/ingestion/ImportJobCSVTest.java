@@ -131,7 +131,7 @@ public class ImportJobCSVTest {
             .apply("flatten warehouse input", Flatten.pCollections());
 
     PCollection<FeatureRowExtended> writtenToErrors =
-        PCollectionList.of((ErrorsStoreService.get(MockErrorsStore.class)).getWrite().getInputs())
+        PCollectionList.of(ErrorsStoreService.get(MockErrorsStore.class).getWrite().getInputs())
             .apply("flatten errors input", Flatten.pCollections());
 
     List<FeatureRow> expectedRows =
