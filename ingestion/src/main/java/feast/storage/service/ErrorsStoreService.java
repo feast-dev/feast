@@ -20,10 +20,11 @@ package feast.storage.service;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import feast.storage.ErrorsStore;
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ErrorsStoreService {
@@ -42,9 +43,7 @@ public class ErrorsStoreService {
         Iterators.concat(manuallyRegistered.iterator(), serviceLoader.iterator()));
   }
 
-  /**
-   * Get store of the given subclass.
-   */
+  /** Get store of the given subclass. */
   public static <T extends ErrorsStore> T get(Class<T> clazz) {
     for (ErrorsStore store : getAll()) {
       if (clazz.isInstance(store)) {

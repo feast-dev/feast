@@ -2,13 +2,14 @@ package feast.ingestion.util;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-
 import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.Map;
 
 public class JsonUtil {
+
   private static Gson gson = new Gson();
+
   /**
    * Unmarshals a given json string to map
    *
@@ -19,7 +20,8 @@ public class JsonUtil {
     if (jsonString == null || jsonString.equals("") || jsonString.equals("{}")) {
       return Collections.emptyMap();
     }
-    Type stringMapType = new TypeToken<Map<String, String>>() {}.getType();
+    Type stringMapType = new TypeToken<Map<String, String>>() {
+    }.getType();
     return gson.fromJson(jsonString, stringMapType);
   }
 }

@@ -17,13 +17,17 @@
 
 package feast.ingestion.transform;
 
+import static feast.ingestion.model.Errors.toError;
+import static feast.storage.MockErrorsStore.MOCK_ERRORS_STORE_TYPE;
+
 import feast.ingestion.model.Specs;
 import feast.ingestion.options.ImportJobOptions;
 import feast.storage.MockErrorsStore;
-import feast.storage.service.ServingStoreService;
 import feast.types.FeatureRowExtendedProto.Attempt;
 import feast.types.FeatureRowExtendedProto.Error;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -37,13 +41,8 @@ import org.assertj.core.util.Lists;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.List;
-
-import static feast.ingestion.model.Errors.toError;
-import static feast.storage.MockErrorsStore.MOCK_ERRORS_STORE_TYPE;
-
 public class ErrorsStoreTransformTest {
+
   private ImportJobOptions options;
   private Specs specs;
   private PCollection<FeatureRowExtended> inputs;
@@ -73,7 +72,8 @@ public class ErrorsStoreTransformTest {
   public void shouldWriteToGivenErrorsStore() {
     MockErrorsStore mockStore = new MockErrorsStore();
     options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
-    ErrorsStoreTransform transform = new ErrorsStoreTransform(options, specs, Lists.newArrayList(mockStore));
+    ErrorsStoreTransform transform =
+        new ErrorsStoreTransform(options, specs, Lists.newArrayList(mockStore));
     transform.expand(inputs);
 
     PCollection<FeatureRowExtended> writtenToErrors =

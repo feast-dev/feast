@@ -17,12 +17,25 @@
 
 package feast.core.service;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.MockitoAnnotations.initMocks;
+import static org.mockito.internal.verification.VerificationModeFactory.times;
+
 import com.google.common.collect.Lists;
 import feast.core.config.ImportJobDefaults;
 import feast.core.dao.JobInfoRepository;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
 import feast.specs.ImportSpecProto.ImportSpec;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Optional;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -31,25 +44,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Optional;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.mockito.MockitoAnnotations.initMocks;
-import static org.mockito.internal.verification.VerificationModeFactory.times;
-
 public class JobExecutionServiceTest {
-  private ImportJobDefaults defaults;
-  @Mock JobInfoRepository jobInfoRepository;
 
-  @Rule public final ExpectedException expectedException = ExpectedException.none();
+  @Rule
+  public final ExpectedException expectedException = ExpectedException.none();
+  @Mock
+  JobInfoRepository jobInfoRepository;
+  private ImportJobDefaults defaults;
 
   @Before
   public void setUp() {

@@ -31,16 +31,15 @@ import feast.specs.ImportSpecProto.ImportSpec;
 import feast.storage.ErrorsStore;
 import feast.storage.ServingStore;
 import feast.storage.WarehouseStore;
-import feast.storage.file.json.JsonFileStores;
 import feast.storage.service.ErrorsStoreService;
 import feast.storage.service.ServingStoreService;
 import feast.storage.service.WarehouseStoreService;
 import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-import static feast.ingestion.transform.ErrorsStoreTransform.ERRORS_STORE_JSON;
-
-/** An ImportJobModule is a Guice module for creating dependency injection bindings. */
+/**
+ * An ImportJobModule is a Guice module for creating dependency injection bindings.
+ */
 public class ImportJobModule extends AbstractModule {
 
   private final ImportJobOptions options;
