@@ -24,7 +24,7 @@ from feast.sdk.utils.bq_util import head
 from feast.sdk.resources.feature import Feature
 from feast.sdk.resources.entity import Entity
 
-from google.protobuf.timestamp_pb2 import Timestamp 
+from google.protobuf.timestamp_pb2 import Timestamp
 from google.cloud import bigquery
 
 
@@ -33,39 +33,39 @@ class Importer:
         self._properties = properties
         self._specs = specs
         self.df = df
-    
+
     @property
-    def source(self): 
+    def source(self):
         """str: source of the data"""
         return self._properties.get("source")
-    
+
     @property
     def size(self):
         """str: number of rows in the data"""
         return self._properties.get("size")
-    
+
     @property
     def require_staging(self):
         """bool: whether the data needs to be staged"""
         return self._properties.get("require_staging")
-    
+
     @property
     def remote_path(self):
         """str: remote path of the file"""
         return self._properties.get("remote_path")
-    
+
     @property
     def spec(self):
         """feast.specs.ImportSpec_pb2.ImportSpec: 
             import spec for this dataset"""
         return self._specs.get("import")
-    
+
     @property
     def features(self):
         """list[feast.specs.FeatureSpec_pb2.FeatureSpec]: 
             list of features associated with this dataset"""
         return self._specs.get("features")
-    
+
     @property
     def entity(self):
         """feast.specs.EntitySpec_pb2.EntitySpec: 
@@ -74,8 +74,8 @@ class Importer:
 
     @classmethod
     def from_csv(cls, path, entity, granularity, owner, staging_location=None,
-        id_column=None, feature_columns=None, timestamp_column=None, 
-        timestamp_value=None):
+                 id_column=None, feature_columns=None, timestamp_column=None,
+                 timestamp_value=None):
         """Creates an importer from a given csv dataset. 
         This file can be either local or remote (in gcs). If it's a local file 
         then staging_location must be determined.
@@ -101,27 +101,27 @@ class Importer:
             Importer: the importer for the dataset provided.
         """
         import_spec_options = {"format": "csv"}
-        import_spec_options["path"], require_staging = _get_remote_location(path, 
-            staging_location)
+        import_spec_options["path"], require_staging = _get_remote_location(path,
+                                                                            staging_location)
         if is_gs_path(path):
             df = gs_to_df(path)
         else:
             df = pd.read_csv(path)
-        schema, features = _detect_schema_and_feature(entity, 
-            granularity, owner, id_column, feature_columns, timestamp_column, 
-            timestamp_value, df)
+        schema, features = _detect_schema_and_feature(entity,
+                                                      granularity, owner, id_column, feature_columns, timestamp_column,
+                                                      timestamp_value, df)
         iport_spec = _create_import("file", import_spec_options, entity, schema)
 
         props = (_properties("csv", len(df.index), require_staging,
-            import_spec_options["path"]))
+                             import_spec_options["path"]))
         specs = _specs(iport_spec, Entity(name=entity), features)
-        
+
         return cls(specs, df, props)
-    
+
     @classmethod
-    def from_bq(cls, bq_path, entity, granularity, owner, limit=10, 
-        id_column=None, feature_columns=None, timestamp_column=None,
-        timestamp_value=None):
+    def from_bq(cls, bq_path, entity, granularity, owner, limit=10,
+                id_column=None, feature_columns=None, timestamp_column=None,
+                timestamp_value=None):
         """Creates an importer from a given bigquery table. 
         
         Args:
@@ -158,20 +158,20 @@ class Importer:
             "table": table_id
         }
         df = head(cli, table, limit)
-        schema, features = _detect_schema_and_feature(entity, 
-            granularity, owner, id_column, feature_columns, timestamp_column, 
-            timestamp_value, df)
-        iport_spec = _create_import("bigquery", import_spec_options, 
-            entity, schema)
+        schema, features = _detect_schema_and_feature(entity,
+                                                      granularity, owner, id_column, feature_columns, timestamp_column,
+                                                      timestamp_value, df)
+        iport_spec = _create_import("bigquery", import_spec_options,
+                                    entity, schema)
 
         props = _properties("bigquery", table.num_rows, False, None)
         specs = _specs(iport_spec, Entity(name=entity), features)
         return cls(specs, df, props)
-    
+
     @classmethod
     def from_df(cls, df, entity, granularity, owner, staging_location,
-        id_column=None, feature_columns=None, timestamp_column=None,
-        timestamp_value=None):
+                id_column=None, feature_columns=None, timestamp_column=None,
+                timestamp_value=None):
         """Creates an importer from a given pandas dataframe. 
         To import a file from a dataframe, the data will have to be staged.
         
@@ -196,29 +196,30 @@ class Importer:
             Importer: the importer for the dataset provided.
         """
         tmp_file_name = ("tmp_{}_{}.csv"
-            .format(entity, int(round(time.time() * 1000))))
+                         .format(entity, int(round(time.time() * 1000))))
         import_spec_options = {
             "format": "csv"
         }
         import_spec_options["path"], require_staging = (
             _get_remote_location(tmp_file_name, staging_location))
-        schema, features = _detect_schema_and_feature(entity, 
-            granularity, owner, id_column, feature_columns, timestamp_column, 
-            timestamp_value, df)
+        schema, features = _detect_schema_and_feature(entity,
+                                                      granularity, owner, id_column, feature_columns, timestamp_column,
+                                                      timestamp_value, df)
         iport_spec = _create_import("file", import_spec_options, entity, schema)
-        
-        props = _properties("dataframe", len(df.index), require_staging, 
-            import_spec_options["path"])
+
+        props = _properties("dataframe", len(df.index), require_staging,
+                            import_spec_options["path"])
         specs = _specs(iport_spec, Entity(name=entity), features)
-        
+
         return cls(specs, df, props)
 
     def stage(self):
         """Stage the data to its remote location
         """
-
         if not self.require_staging:
             return
+        ts_col = self.spec.schema.timestampColumn
+        _convert_timestamp(self.df, ts_col)
         df_to_gs(self.df, self.remote_path)
 
     def describe(self):
@@ -236,6 +237,13 @@ class Importer:
         with open(path, 'w') as f:
             f.write(spec_to_yaml(self.spec))
         print("Saved spec to {}".format(path))
+
+
+def _convert_timestamp(df, timestamp_col):
+    """Converts the given df's timestamp column to ISO8601 format
+    """
+    df[timestamp_col] = pd.to_datetime(df[timestamp_col]).dt \
+        .strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
 def _properties(source, size, require_staging, remote):
@@ -282,21 +290,21 @@ def _get_remote_location(path, staging_location):
         staging_location (str): path to stage the file
 
     """
-    if (is_gs_path(path)):
+    if is_gs_path(path):
         return path, False
-    
+
     if staging_location is None:
         raise ValueError(
             "Specify staging_location for importing local file/dataframe")
     if not is_gs_path(staging_location):
         raise ValueError("Staging location must be in GCS")
-    
+
     filename = ntpath.basename(path)
     return staging_location + "/" + filename, True
 
 
-def _detect_schema_and_feature(entity, granularity, owner, id_column, 
-    feature_columns, timestamp_column, timestamp_value, df):
+def _detect_schema_and_feature(entity, granularity, owner, id_column,
+                               feature_columns, timestamp_column, timestamp_value, df):
     """Create schema object for import spec.
     
     Args:
@@ -315,40 +323,40 @@ def _detect_schema_and_feature(entity, granularity, owner, id_column,
     """
 
     schema = Schema()
-    if (id_column is not None):
+    if id_column is not None:
         schema.entityIdColumn = id_column
     elif entity in df.columns:
         schema.entityIdColumn = entity
     else:
         raise ValueError("Column with name {} is not found".format(entity))
 
-    if (timestamp_column is not None):
+    if timestamp_column is not None:
         schema.timestampColumn = timestamp_column
     else:
-        if timestamp_value == None: 
+        if timestamp_value is None:
             ts = Timestamp()
             ts.GetCurrentTime()
         else:
             ts = Timestamp(seconds=
-                int((timestamp_value - datetime.datetime(1970,1,1)).total_seconds()))
+                           int((timestamp_value - datetime.datetime(1970, 1, 1)).total_seconds()))
         schema.timestampValue.CopyFrom(ts)
-    
+
     features = {}
-    if (feature_columns is not None):
+    if feature_columns is not None:
         # check if all column exist and create feature accordingly                
         for column in feature_columns:
             if column not in df.columns:
                 raise ValueError("Column with name {} is not found".format(column))
-            features[column] = _create_feature(df[column], entity, granularity, owner)     
+            features[column] = _create_feature(df[column], entity, granularity, owner)
     else:
         # get all column except entity id and timestampColumn
         feature_columns = list(df.columns.values)
         _remove_safely(feature_columns, schema.entityIdColumn)
         _remove_safely(feature_columns, schema.timestampColumn)
         for column in feature_columns:
-            features[column] = _create_feature(df[column], entity, 
-            granularity, owner)     
-    
+            features[column] = _create_feature(df[column], entity,
+                                               granularity, owner)
+
     for col in df.columns:
         field = schema.fields.add()
         field.name = col
@@ -375,7 +383,7 @@ def _create_feature(column, entity, granularity, owner):
         name=column.name,
         entity=entity,
         granularity=granularity,
-        owner=owner, 
+        owner=owner,
         value_type=dtype_to_value_type(column.dtype))
 
 

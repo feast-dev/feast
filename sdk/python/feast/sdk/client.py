@@ -68,29 +68,50 @@ class Client:
         """
 
         if core_url is None:
-            core_url = os.environ[FEAST_CORE_URL_ENV_KEY]
+            core_url = os.getenv(FEAST_CORE_URL_ENV_KEY)
         self._core_url = core_url
-        self.__core_channel = grpc.insecure_channel(core_url)
 
         if serving_url is None:
-            serving_url = os.environ[FEAST_SERVING_URL_ENV_KEY]
+            serving_url = os.getenv(FEAST_SERVING_URL_ENV_KEY)
         self._serving_url = serving_url
-        self.__serving_channel = grpc.insecure_channel(serving_url)
 
-        self._serving_service_stub = ServingAPIStub(self.__serving_channel)
-        self._core_service_stub = CoreServiceStub(self.__core_channel)
-        self._job_service_stub = JobServiceStub(self.__core_channel)
-        self._training_service_stub = TrainingServiceStub(self.__core_channel)
+        self.__core_channel = None
+        self.__serving_channel = None
+        self._core_service_stub = None
+        self._job_service_stub = None
+        self._training_service_stub = None
+        self._serving_service_stub = None
+
         self._verbose = verbose
         self._table_downloader = TableDownloader()
 
     @property
     def core_url(self):
+        if self._core_url is None:
+            self._core_url = os.getenv(FEAST_CORE_URL_ENV_KEY)
+            if self._core_url is None:
+                raise ValueError("Core API URL not set. Either set the " +
+                                 "environment variable {} or set it explicitly."
+                                 .format(FEAST_CORE_URL_ENV_KEY))
         return self._core_url
+
+    @core_url.setter
+    def core_url(self, value):
+        self._core_url = value
 
     @property
     def serving_url(self):
+        if self._serving_url is None:
+            self._serving_url = os.getenv(FEAST_SERVING_URL_ENV_KEY)
+            if self._serving_url is None:
+                raise ValueError("Serving API URL not set. Either set the " +
+                                 "environment variable {} or set it explicitly."
+                                 .format(FEAST_SERVING_URL_ENV_KEY))
         return self._serving_url
+
+    @serving_url.setter
+    def serving_url(self, value):
+        self._serving_url = value
 
     @property
     def verbose(self):
@@ -101,6 +122,7 @@ class Client:
         if not isinstance(val, bool):
             raise TypeError("verbose should be a boolean value")
         self._verbose = val
+
 
     def apply(self, obj):
         """Create or update one or many feast's resource
@@ -152,6 +174,7 @@ class Client:
             importer.stage()
         print("Submitting job with spec:\n {}"
               .format(spec_to_yaml(importer.spec)))
+        self._connect_core()
         response = self._job_service_stub.SubmitJob(request)
         print("Submitted job with id: {}".format(response.jobId))
         return response.jobId
@@ -191,6 +214,7 @@ class Client:
         if self.verbose:
             print("creating training dataset for features: " +
                   str(feature_set.features))
+        self._connect_core()
         resp = self._training_service_stub.CreateTrainingDataset(req)
 
         if self.verbose:
@@ -229,6 +253,7 @@ class Client:
                     for dt in ts_range]
         request = self._build_serving_request(feature_set, entity_keys,
                                               request_type, ts_range, limit)
+        self._connect_serving()
         return self._response_to_df(feature_set, self._serving_service_stub
                                     .QueryFeatures(request))
 
@@ -272,10 +297,25 @@ class Client:
     def close(self):
         """
         Close underlying connection to Feast's core and serving end points.
-
         """
         self.__core_channel.close()
+        self.__core_channel = None
         self.__serving_channel.close()
+        self.__serving_channel = None
+
+    def _connect_core(self):
+        """Connect to core api"""
+        if self.__core_channel is None:
+            self.__core_channel = grpc.insecure_channel(self.core_url)
+            self._core_service_stub = CoreServiceStub(self.__core_channel)
+            self._job_service_stub = JobServiceStub(self.__core_channel)
+            self._training_service_stub = TrainingServiceStub(self.__core_channel)
+
+    def _connect_serving(self):
+        """Connect to serving api"""
+        if self.__serving_channel is None:
+            self.__serving_channel = grpc.insecure_channel(self.serving_url)
+            self._serving_service_stub = ServingAPIStub(self.__serving_channel)
 
     def _build_serving_request(self, feature_set, entity_keys, request_type,
                                ts_range, limit):
@@ -347,6 +387,7 @@ class Client:
         Args:
             feature (feast.sdk.resources.feature.Feature): feature to apply
         """
+        self._connect_core()
         response = self._core_service_stub.ApplyFeature(feature.spec)
         if self.verbose: print("Successfully applied feature with id: {}\n---\n{}"
                                .format(response.featureId, feature))
@@ -358,6 +399,7 @@ class Client:
         Args:
             entity (feast.sdk.resources.entity.Entity): entity to apply
         """
+        self._connect_core()
         response = self._core_service_stub.ApplyEntity(entity.spec)
         if self.verbose:
             print("Successfully applied entity with name: {}\n---\n{}"
@@ -371,6 +413,7 @@ class Client:
             feature_group (feast.sdk.resources.feature_group.FeatureGroup):
                 feature group to apply
         """
+        self._connect_core()
         response = self._core_service_stub.ApplyFeatureGroup(feature_group.spec)
         if self.verbose: print("Successfully applied feature group with id: " +
                                "{}\n---\n{}".format(response.featureGroupId,
@@ -383,6 +426,7 @@ class Client:
         Args:
             storage (feast.sdk.resources.storage.Storage): storage to apply
         """
+        self._connect_core()
         response = self._core_service_stub.ApplyStorage(storage.spec)
         if self.verbose: print("Successfully applied storage with id: " +
                                "{}\n{}".format(response.storageId, storage))

@@ -39,7 +39,7 @@ def head(client, table, max_rows=10):
     Returns:
         pandas.DataFrame: dataframe containing the head of rows
     '''
-    
+
     rows = client.list_rows(table, max_results=max_rows)
     rows = [x for x in rows]
     return pd.DataFrame(
@@ -74,8 +74,20 @@ def get_table_name(feature_id, storage_spec):
 
 class TableDownloader:
     def __init__(self):
-        self._bq = BQClient()
-        self._gcs = GCSClient()
+        self._bq = None
+        self._gcs = None
+
+    @property
+    def gcs(self):
+        if self._gcs is None:
+            self._gcs = GCSClient()
+        return self._gcs
+
+    @property
+    def bq(self):
+        if self._bq is None:
+            self._bq = BQClient()
+        return self._bq
 
     def download_table_as_file(self, table_id, dest, staging_location,
                                file_type):
@@ -101,14 +113,14 @@ class TableDownloader:
         job_config = ExtractJobConfig()
         job_config.destination_format = file_type
         src_table = Table.from_string(table_id)
-        job = self._bq.extract_table(src_table, staging_file_path,
-                                            job_config=job_config)
+        job = self.bq.extract_table(src_table, staging_file_path,
+                                    job_config=job_config)
 
         # await completion
         job.result()
 
         bucket_name, blob_name = split_gs_path(staging_file_path)
-        bucket = self._gcs.get_bucket(bucket_name)
+        bucket = self.gcs.get_bucket(bucket_name)
         blob = bucket.blob(blob_name)
         blob.download_to_filename(dest)
         return dest
@@ -133,9 +145,9 @@ class TableDownloader:
 
         job_config = ExtractJobConfig()
         job_config.destination_format = DestinationFormat.CSV
-        job = self._bq.extract_table(Table.from_string(table_id),
-                                     staging_file_path,
-                                     job_config=job_config)
+        job = self.bq.extract_table(Table.from_string(table_id),
+                                    staging_file_path,
+                                    job_config=job_config)
 
         # await completion
         job.result()

@@ -57,7 +57,7 @@ def df_to_gs(df, path):
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.blob(blob_name)
     s = io.StringIO()
-    df.to_csv(s)
+    df.to_csv(s, index=False)
     blob.upload_from_string(s.getvalue())
 
 

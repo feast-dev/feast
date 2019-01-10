@@ -54,6 +54,8 @@ class TestTableDownloader(object):
 
         table_dldr = TableDownloader()
         exp_staging_path = os.path.join(staging_path, staging_file_name)
+
+        table_dldr._bq = _Mock_BQ_Client()
         mocker.patch.object(table_dldr._bq, "extract_table",
                             return_value=_Job())
 
@@ -108,8 +110,10 @@ class TestTableDownloader(object):
         table_dldr = TableDownloader()
         mock_blob = _Blob()
         mocker.patch.object(mock_blob, "download_to_filename")
+        table_dldr._bq = _Mock_BQ_Client()
         mocker.patch.object(table_dldr._bq, "extract_table",
                             return_value=_Job())
+        table_dldr._gcs = _Mock_GCS_Client()
         mocker.patch.object(table_dldr._gcs, "get_bucket",
                             return_value=_Bucket(mock_blob))
 
@@ -132,6 +136,13 @@ class TestTableDownloader(object):
     def _stop_time(self, mocker):
         mocker.patch('time.time', return_value=0)
 
+class _Mock_BQ_Client:
+    def extract_table(self):
+        pass
+
+class _Mock_GCS_Client:
+    def get_bucket(self):
+        pass
 
 class _Job:
     def result(self):

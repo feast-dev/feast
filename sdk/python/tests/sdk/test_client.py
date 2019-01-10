@@ -47,8 +47,11 @@ from feast.types.Value_pb2 import ValueList, TimestampList, Int32List
 
 class TestClient(object):
     @pytest.fixture
-    def client(self):
-        return Client(core_url="some.uri", serving_url="some.serving.uri")
+    def client(self, mocker):
+        cli = Client(core_url="some.uri", serving_url="some.serving.uri")
+        mocker.patch.object(cli, '_connect_core')
+        mocker.patch.object(cli, '_connect_serving')
+        return cli
 
     def test_apply_single_feature(self, client, mocker):
         my_feature = Feature(name="test",
