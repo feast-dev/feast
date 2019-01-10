@@ -1,0 +1,18 @@
+{
+  "id": "testEntity.none.unknownInt32",
+  "entity": "testEntity",
+  "granularity": "NONE",
+  "name": "unknownInt32",
+  "owner": "feast@example.com",
+  "description": "This is test feature of type integer that goes to an unknown serving store",
+  "uri": "https://example.com/",
+  "valueType": "INT32",
+  "tags": [],
+  "options": {},
+  "dataStores": {
+    "serving": {
+      "id": "UNKNOWN1",
+      "options": {}
+    }
+  }
+}

@@ -15,23 +15,27 @@
  *
  */
 
-package feast.storage.noop;
+package feast.storage.stderr;
 
-import feast.ingestion.transform.FeatureIO;
-import feast.ingestion.transform.fn.Identity;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
+import com.google.auto.service.AutoService;
+import feast.ingestion.model.Specs;
+import feast.ingestion.transform.FeatureIO.Write;
+import feast.specs.StorageSpecProto.StorageSpec;
+import feast.storage.ErrorsStore;
+import org.slf4j.event.Level;
 
-public class NoOpIO {
+@AutoService(ErrorsStore.class)
+public class StderrErrorsStore implements ErrorsStore {
 
-  public static class Write extends FeatureIO.Write {
+  public static final String TYPE_STDERR = "stderr";
+  
+  @Override
+  public Write create(StorageSpec storageSpec, Specs specs) {
+    return new LogIO.Write(Level.ERROR);
+  }
 
-    @Override
-    public PDone expand(PCollection<FeatureRowExtended> input) {
-      input.apply(getName(), ParDo.of(new Identity(getName())));
-      return PDone.in(input.getPipeline());
-    }
+  @Override
+  public String getType() {
+    return TYPE_STDERR;
   }
 }
