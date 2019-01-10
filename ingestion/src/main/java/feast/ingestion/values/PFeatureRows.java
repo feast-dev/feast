@@ -17,8 +17,11 @@
 
 package feast.ingestion.values;
 
+import feast.ingestion.transform.fn.BaseFeatureDoFn;
+import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.AllArgsConstructor;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
@@ -37,8 +40,6 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import feast.ingestion.transform.fn.BaseFeatureDoFn;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 
 @AllArgsConstructor
 @Value
@@ -47,14 +48,15 @@ public class PFeatureRows implements PInput, POutput {
 
   public static final TupleTag<FeatureRowExtended> MAIN_TAG = new TupleTag<>();
   public static final TupleTag<FeatureRowExtended> ERRORS_TAG = new TupleTag<>();
-
+  private static final AtomicInteger counter = new AtomicInteger();
   private PCollection<FeatureRowExtended> main;
   private PCollection<FeatureRowExtended> errors;
 
   public static PFeatureRows of(PCollection<FeatureRowExtended> input) {
     Pipeline pipeline = input.getPipeline();
     Create.Values<FeatureRowExtended> empty = Create.empty(ProtoCoder.of(FeatureRowExtended.class));
-    return new PFeatureRows(input, pipeline.apply(input.getName() + "/empty.errors", empty));
+    return new PFeatureRows(input,
+        pipeline.apply(input.getName() + "/empty.errors" + counter.incrementAndGet(), empty));
   }
 
   public static PFeatureRows of(
@@ -77,11 +79,12 @@ public class PFeatureRows implements PInput, POutput {
 
   @Override
   public void finishSpecifyingOutput(
-      String transformName, PInput input, PTransform<?, ?> transform) {}
+      String transformName, PInput input, PTransform<?, ?> transform) {
+  }
 
   /**
    * @return new PFeatureRows, which has any tagged errors and retries in DoFn added to the errors
-   *     and retries gathered so far.
+   * and retries gathered so far.
    */
   public PFeatureRows applyDoFn(String name, BaseFeatureDoFn doFn) {
     MultiOutput<FeatureRowExtended, FeatureRowExtended> transform =
@@ -95,7 +98,7 @@ public class PFeatureRows implements PInput, POutput {
 
     PCollection<FeatureRowExtended> outErrors =
         PCollectionList.of(
-                transformed.get(ERRORS_TAG).setCoder(ProtoCoder.of(FeatureRowExtended.class)))
+            transformed.get(ERRORS_TAG).setCoder(ProtoCoder.of(FeatureRowExtended.class)))
             .and(errors)
             .apply(name + "/Flatten errors", Flatten.pCollections())
             .setCoder(ProtoCoder.of(FeatureRowExtended.class));

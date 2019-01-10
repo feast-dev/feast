@@ -70,49 +70,52 @@ public class FeatureRowRedisIOWriteTest {
 
   private static int REDIS_PORT = 51234;
   private static Redis redis;
-  private static Specs specs;
   private static Jedis jedis;
-  @Rule public TestPipeline testPipeline = TestPipeline.create();
+  private static SpecService fileSpecService;
+
+  @Rule
+  public TestPipeline testPipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void setup() throws IOException {
+  public static void classSetup() throws IOException {
     redis = new RedisServer(REDIS_PORT);
     redis.start();
     Path path = Paths.get(Resources.getResource("core_specs/").getPath());
-    SpecService specService = new FileSpecService.Builder(path.toString()).build();
-    specs =
-        Specs.of(
-            "test job",
-            ImportSpec.newBuilder()
-                .addEntities("testEntity")
-                .setSchema(
-                    Schema.newBuilder()
-                        .addFields(Field.newBuilder().setFeatureId(featureHourInt32))
-                        .addFields(Field.newBuilder().setFeatureId(featureHourString))
-                        .addFields(Field.newBuilder().setFeatureId(featureNoneInt32))
-                        .addFields(Field.newBuilder().setFeatureId(featureNoneString)))
-                .build(),
-            specService);
+    fileSpecService = new FileSpecService.Builder(path.toString()).build();
     jedis = new Jedis("localhost", REDIS_PORT);
   }
 
   @AfterClass
-  public static void teardown() throws IOException {
+  public static void teardown() {
     redis.stop();
+  }
+
+  Specs getSpecs() {
+    Specs specs = Specs.of(
+        "test job",
+        ImportSpec.newBuilder()
+            .addEntities("testEntity")
+            .setSchema(
+                Schema.newBuilder()
+                    .addFields(Field.newBuilder().setFeatureId(featureHourInt32))
+                    .addFields(Field.newBuilder().setFeatureId(featureHourString))
+                    .addFields(Field.newBuilder().setFeatureId(featureNoneInt32))
+                    .addFields(Field.newBuilder().setFeatureId(featureNoneString)))
+            .build(),
+        fileSpecService);
+    StorageSpec redisSpec = specs.getStorageSpec("REDIS1");
+    specs.getStorageSpecs().put("REDIS1",
+        redisSpec.toBuilder().putOptions("port", String.valueOf(REDIS_PORT)).build());
+    specs.validate();
+    return specs;
   }
 
   @Test
   public void testWriteNoneGranularity() throws IOException {
-    StorageSpec storageSpec =
-        StorageSpec.newBuilder()
-            .setId("redis1")
-            .setType("redis")
-            .putOptions("host", "localhost")
-            .putOptions("port", String.valueOf(REDIS_PORT))
-            .putOptions("batchSize", "1")
-            .putOptions("timeout", "2000")
-            .build();
-    new RedisServingStore().create(storageSpec, specs);
+
+    Specs specs = getSpecs();
+    specs.validate();
+    new RedisServingStore().create(specs.getStorageSpec("REDIS1"), specs);
     FeatureRowRedisIO.Write write =
         new FeatureRowRedisIO.Write(
             RedisStoreOptions.builder().host("localhost").port(REDIS_PORT).build(), specs);
@@ -155,16 +158,8 @@ public class FeatureRowRedisIOWriteTest {
 
   @Test
   public void testWriteNoneGranularityFromOptions() throws IOException {
-    StorageSpec storageSpec =
-        StorageSpec.newBuilder()
-            .setId("redis1")
-            .setType("redis")
-            .putOptions("host", "localhost")
-            .putOptions("port", String.valueOf(REDIS_PORT))
-            .putOptions("batchSize", "1")
-            .putOptions("timeout", "2000")
-            .build();
-    FeatureIO.Write write = new RedisServingStore().create(storageSpec, specs);
+    Specs specs = getSpecs();
+    FeatureIO.Write write = new RedisServingStore().create(specs.getStorageSpec("REDIS1"), specs);
 
     FeatureRowExtended rowExtended =
         FeatureRowExtended.newBuilder()
@@ -204,9 +199,8 @@ public class FeatureRowRedisIOWriteTest {
 
   @Test
   public void testWriteHourGranularity() throws IOException {
-    FeatureRowRedisIO.Write write =
-        new FeatureRowRedisIO.Write(
-            RedisStoreOptions.builder().host("localhost").port(REDIS_PORT).build(), specs);
+    Specs specs = getSpecs();
+    FeatureIO.Write write = new RedisServingStore().create(specs.getStorageSpec("REDIS1"), specs);
 
     FeatureRowExtended rowExtended =
         FeatureRowExtended.newBuilder()
@@ -235,7 +229,8 @@ public class FeatureRowRedisIOWriteTest {
         getRedisBucketKey("1", getFeatureIdSha1Prefix(featureHourString), 0L);
 
     RedisBucketKey featureInt32ValueKey =
-        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureHourInt32), roundedTimestamp.getSeconds());
+        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureHourInt32),
+            roundedTimestamp.getSeconds());
     RedisBucketKey featureStringValueKey =
         getRedisBucketKey(
             "1", getFeatureIdSha1Prefix(featureHourString), roundedTimestamp.getSeconds());
@@ -243,8 +238,8 @@ public class FeatureRowRedisIOWriteTest {
     // TODO have a helper func for loading feature store options
     Duration featureInt32BucketSize =
         OptionsParser.parse(
-                specs.getFeatureSpec(featureHourInt32).getDataStores().getServing().getOptionsMap(),
-                RedisFeatureOptions.class)
+            specs.getFeatureSpec(featureHourInt32).getDataStores().getServing().getOptionsMap(),
+            RedisFeatureOptions.class)
             .getBucketSizeDuration();
 
     RedisBucketKey featureInt32BucketKey =
@@ -273,7 +268,9 @@ public class FeatureRowRedisIOWriteTest {
     checkRedisValue(featureStringBucketKey, featureStringValueKey, roundedTimestamp);
   }
 
-  /** Check that a key's value is another key. */
+  /**
+   * Check that a key's value is another key.
+   */
   void checkRedisValue(RedisBucketKey key, RedisBucketKey expectedValue, Timestamp timestamp)
       throws InvalidProtocolBufferException {
     Set<byte[]> result = jedis.zrangeByScore(key.toByteArray(), 0, Long.MAX_VALUE);
