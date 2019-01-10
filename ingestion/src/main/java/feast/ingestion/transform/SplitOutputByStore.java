@@ -19,7 +19,6 @@ package feast.ingestion.transform;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import feast.ingestion.exceptions.ErrorsHandler;
 import feast.ingestion.model.Specs;
 import feast.ingestion.transform.FeatureIO.Write;
 import feast.ingestion.transform.SplitFeatures.MultiOutputSplit;
@@ -27,9 +26,6 @@ import feast.ingestion.values.PFeatureRows;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.storage.FeatureStore;
-import feast.storage.noop.NoOpIO;
-import feast.types.FeatureRowExtendedProto.Attempt;
-import feast.types.FeatureRowExtendedProto.Error;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import java.util.Collection;
 import java.util.HashMap;
@@ -38,7 +34,6 @@ import java.util.Map;
 import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -71,12 +66,11 @@ public class SplitOutputByStore extends PTransform<PFeatureRows, PFeatureRows> {
       taggedTransforms.put(tag, transforms.get(key));
     }
 
-    PFeatureRows output = splits.apply(new WriteTags(taggedTransforms, MultiOutputSplit.MAIN_TAG));
+    PCollection<FeatureRowExtended> written = splits
+        .apply(new WriteTags(taggedTransforms, MultiOutputSplit.MAIN_TAG));
     return new PFeatureRows(
-        output.getMain(),
-        PCollectionList.of(input.getErrors())
-            .and(output.getErrors())
-            .apply("Flatten errors", Flatten.pCollections()));
+        written,
+        input.getErrors());
   }
 
   private Map<String, FeatureStore> getStoresMap() {
@@ -101,69 +95,39 @@ public class SplitOutputByStore extends PTransform<PFeatureRows, PFeatureRows> {
     return transforms;
   }
 
+  /**
+   * Writes each pcollection in the tuple to a correspondingly tagged write transform and returns
+   * the a union of the written rows.
+   *
+   * The main tag, is not written to a transform, but is returned. This represents the default for
+   * rows which have no associated store to write to but might want to be written down stream (eg,
+   * it has no serving store, but does have a warehouse store).
+   *
+   * Tag in the tuple that are not the main tag and have no transform, will be discarded
+   * completely.
+   */
   @AllArgsConstructor
-  public static class WriteTags extends PTransform<PCollectionTuple, PFeatureRows> {
+  public static class WriteTags extends
+      PTransform<PCollectionTuple, PCollection<FeatureRowExtended>> {
 
     private Map<TupleTag<FeatureRowExtended>, Write> transforms;
     private TupleTag<FeatureRowExtended> mainTag;
 
     @Override
-    public PFeatureRows expand(PCollectionTuple input) {
-
-      List<PCollection<FeatureRowExtended>> mainList = Lists.newArrayList();
+    public PCollection<FeatureRowExtended> expand(PCollectionTuple tuple) {
+      List<PCollection<FeatureRowExtended>> outputList = Lists.newArrayList();
       for (TupleTag<FeatureRowExtended> tag : transforms.keySet()) {
         Write write = transforms.get(tag);
         Preconditions.checkNotNull(write, String.format("Null transform for tag=%s", tag.getId()));
-        PCollection<FeatureRowExtended> main = input.get(tag);
-        if (!(write instanceof NoOpIO.Write)) {
-          main.apply(String.format("Write to %s", tag.getId()), write);
-        }
-        mainList.add(main);
+        PCollection<FeatureRowExtended> input = tuple.get(tag);
+        input.apply(String.format("Write to %s", tag.getId()), write);
+        outputList.add(input);
       }
-
-      /*
-       * FeatureRows with no matching write transform `input.get(mainTag)` are considered
-       * discardible, if they didn't have a matching store, they should have been discarded before
-       * reaching here. So these will be feature with no output store at all.
-       */
-      return PFeatureRows.of(
-          PCollectionList.of(mainList).apply("Flatten main", Flatten.pCollections()));
-    }
-  }
-
-  /**
-   * Sets the last attempt error for all rows with a given exception
-   */
-  public static class WithErrors extends DoFn<FeatureRowExtended, FeatureRowExtended> {
-
-    private Error error;
-
-    public WithErrors(Error error) {
-      this.error = error;
-    }
-
-    public WithErrors(String transformName, String message) {
-      this(Error.newBuilder().setTransform(transformName).setMessage(message).build());
-    }
-
-    @ProcessElement
-    public void processElement(
-        @Element FeatureRowExtended rowExtended, OutputReceiver<FeatureRowExtended> out) {
-      Attempt lastAttempt = rowExtended.getLastAttempt();
-
-      Error lastError = lastAttempt.getError();
-      Error thisError = error;
-
-      int numAttempts =
-          ErrorsHandler.checkAttemptCount(lastAttempt.getAttempts(), lastError, thisError);
-
-      Attempt thisAttempt =
-          Attempt.newBuilder().setAttempts(numAttempts + 1).setError(thisError).build();
-      out.output(
-          FeatureRowExtended.newBuilder()
-              .mergeFrom(rowExtended)
-              .setLastAttempt(thisAttempt)
-              .build());
+      // FeatureRows with no matching write transform end up in `input.get(mainTag)` and considered
+      // discardible, we return them in the main output so they are considered written, but don't
+      // actually write them to any store.
+      outputList.add(tuple.get(mainTag));
+      return PCollectionList.of(outputList).apply("Flatten main", Flatten.pCollections());
     }
   }
 }

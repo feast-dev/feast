@@ -18,24 +18,28 @@
 package feast.storage;
 
 import com.google.common.collect.Lists;
+import feast.ingestion.transform.FeatureIO;
+import feast.ingestion.transform.fn.Identity;
+import feast.specs.StorageSpecProto.StorageSpec;
+import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import java.util.List;
 import lombok.Getter;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import feast.ingestion.transform.FeatureIO;
-import feast.ingestion.transform.fn.Identity;
-import feast.specs.StorageSpecProto.StorageSpec;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 
 public class MockTransforms {
+
   @Getter
   public static class Write extends FeatureIO.Write {
 
     List<PCollection<FeatureRowExtended>> inputs = Lists.newArrayList();
     private StorageSpec spec;
 
-    Write(StorageSpec spec) {
+    public Write() {
+    }
+
+    public Write(StorageSpec spec) {
       this.spec = spec;
     }
 

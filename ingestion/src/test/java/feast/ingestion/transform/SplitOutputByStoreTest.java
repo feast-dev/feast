@@ -2,12 +2,15 @@ package feast.ingestion.transform;
 
 import static junit.framework.TestCase.assertNull;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.protobuf.Timestamp;
 import feast.ingestion.model.Features;
 import feast.ingestion.model.Specs;
 import feast.ingestion.model.Values;
 import feast.ingestion.service.MockSpecService;
+import feast.ingestion.transform.FeatureIO.Write;
+import feast.ingestion.transform.SplitOutputByStore.WriteTags;
 import feast.ingestion.values.PFeatureRows;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.DataStore;
@@ -23,12 +26,15 @@ import feast.storage.MockTransforms;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
@@ -144,7 +150,8 @@ public class SplitOutputByStoreTest {
 
   @Test
   public void testSplitWhereFeature2HasNoStoreId() {
-    // Note we are stores on the group, instead of warehouse or serving store id.
+    // Feature2 should get thrown away harmlessly
+
     SerializableFunction<FeatureSpec, String> selector = (fs) -> fs.getDataStores().getServing()
         .getId();
     MockSpecService specService = new MockSpecService();
@@ -202,15 +209,14 @@ public class SplitOutputByStoreTest {
                 MapElements.into(TypeDescriptor.of(FeatureRow.class))
                     .via(FeatureRowExtended::getRow)))
         .containsInAnyOrder(
-            Lists.newArrayList(
-                FeatureRow.newBuilder()
-                    .addFeatures(Features.of("f1", Values.ofInt32(1)))
-                    .setEventTimestamp(Timestamp.getDefaultInstance())
-                    .build(),
-                FeatureRow.newBuilder()
-                    .addFeatures(Features.of("f2", Values.ofInt32(2)))
-                    .setEventTimestamp(Timestamp.getDefaultInstance())
-                    .build()));
+            FeatureRow.newBuilder()
+                .addFeatures(Features.of("f1", Values.ofInt32(1)))
+                .setEventTimestamp(Timestamp.getDefaultInstance())
+                .build(),
+            FeatureRow.newBuilder()
+                .addFeatures(Features.of("f2", Values.ofInt32(2)))
+                .setEventTimestamp(Timestamp.getDefaultInstance())
+                .build());
 
     MockTransforms.Write mockSpecService1 = ((MockFeatureStore) stores.get(0)).getWrite();
 
@@ -233,4 +239,52 @@ public class SplitOutputByStoreTest {
     pipeline.run();
   }
 
+
+  @Test
+  public void testWriteTags() {
+    TupleTag<FeatureRowExtended> tag1 = new TupleTag<>("TAG1");
+    TupleTag<FeatureRowExtended> tag2 = new TupleTag<>("TAG2");
+    TupleTag<FeatureRowExtended> tag3 = new TupleTag<>("TAG3");
+    TupleTag<FeatureRowExtended> mainTag = new TupleTag<>("TAG4");
+
+    Map<TupleTag<FeatureRowExtended>, Write> transforms = ImmutableMap.<TupleTag<FeatureRowExtended>, Write>builder()
+        .put(tag1, new MockTransforms.Write())
+        .put(tag2, new MockTransforms.Write())
+        // tag3 and mainTag do not have write transforms.
+        .build();
+
+    FeatureRowExtended rowex1 = FeatureRowExtended.newBuilder()
+        .setRow(FeatureRow.newBuilder().setEntityKey("1")).build();
+    FeatureRowExtended rowex2 = FeatureRowExtended.newBuilder()
+        .setRow(FeatureRow.newBuilder().setEntityKey("2")).build();
+    FeatureRowExtended rowex3 = FeatureRowExtended.newBuilder()
+        .setRow(FeatureRow.newBuilder().setEntityKey("3")).build();
+    FeatureRowExtended rowex4 = FeatureRowExtended.newBuilder()
+        .setRow(FeatureRow.newBuilder().setEntityKey("4")).build();
+
+    PCollection<FeatureRowExtended> pcollection1 = pipeline.apply("input1", Create.of(rowex1));
+    PCollection<FeatureRowExtended> pcollection2 = pipeline.apply("input2", Create.of(rowex2));
+    PCollection<FeatureRowExtended> pcollection3 = pipeline.apply("input3", Create.of(rowex3));
+    PCollection<FeatureRowExtended> pcollection4 = pipeline.apply("input4", Create.of(rowex4));
+
+    PCollectionTuple tuple = PCollectionTuple.of(tag1, pcollection1).and(tag2, pcollection2)
+        .and(tag3, pcollection3)
+        .and(mainTag, pcollection4); // input 3 is included in the output
+
+    PCollection<FeatureRowExtended> output = tuple.apply(new WriteTags(transforms, mainTag));
+
+    // All input should be in the main output.
+    // input 1 is returned in the output because we wrote it to a write transform.
+    // input 2 is returned in the output because we wrote it to a write transform.
+    // input 3 is NOT returned in the output because it has no write transform.
+    // input 4 is is returned in the output because it is the main tag.
+    PAssert.that(output).containsInAnyOrder(rowex1, rowex2, rowex4);
+
+    // Each non main tagged input should be written to corresponding Write transform
+    PAssert.that(((MockTransforms.Write) transforms.get(tag1)).getInputs().get(0))
+        .containsInAnyOrder(rowex1);
+    PAssert.that(((MockTransforms.Write) transforms.get(tag2)).getInputs().get(0))
+        .containsInAnyOrder(rowex2);
+    pipeline.run();
+  }
 }
