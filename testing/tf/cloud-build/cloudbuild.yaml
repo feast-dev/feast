@@ -1,0 +1,18 @@
+steps:
+- name: maven:3.6.0-jdk-8-slim
+  args: mvn clean install -DskipTests -Drevision=$TAG_NAME
+  id: build-jars
+- name: "gcr.io/cloud-builders/docker"
+  args: "build -t gcr.io/$PROJECT_ID/feast-core:$TAG_NAME -t gcr.io/$PROJECT_ID/feast-core:latest -f ./docker/core/Dockerfile ."
+  id: docker-core
+  waitFor: build-jars
+- name: "gcr.io/cloud-builders/docker"
+  args: "build -t gcr.io/$PROJECT_ID/feast-serving:$TAG_NAME -t gcr.io/$PROJECT_ID/feast-serving:latest -f ./docker/serving/Dockerfile ."
+  id: docker-serving
+  waitFor: build-jars
+timeout: 1200s
+images:
+- 'gcr.io/$PROJECT_ID/feast-core:latest'
+- 'gcr.io/$PROJECT_ID/feast-core:$TAG_NAME'
+- 'gcr.io/$PROJECT_ID/feast-serving:latest'
+- 'gcr.io/$PROJECT_ID/feast-serving:$TAG_NAME'
