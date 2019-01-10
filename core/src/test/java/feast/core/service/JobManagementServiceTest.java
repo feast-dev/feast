@@ -58,7 +58,7 @@ public class JobManagementServiceTest {
   @Before
   public void setUp() {
     initMocks(this);
-    defaults = new ImportJobDefaults("localhost:8433", "DirectRunner", "", "/feast-import.jar", "stderr");
+    defaults = new ImportJobDefaults("localhost:8433", "DirectRunner", "", "/feast-import.jar", "stderr", "");
   }
 
   @Test
