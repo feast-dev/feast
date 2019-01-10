@@ -15,7 +15,4 @@ steps:
 
 timeout: 1200s
 images:
-- 'gcr.io/$PROJECT_ID/feast-core:latest'
-- 'gcr.io/$PROJECT_ID/feast-core:$TAG_NAME'
-- 'gcr.io/$PROJECT_ID/feast-serving:latest'
-- 'gcr.io/$PROJECT_ID/feast-serving:$TAG_NAME'
+- ['gcr.io/$PROJECT_ID/feast-core:latest', 'gcr.io/$PROJECT_ID/feast-core:$TAG_NAME', 'gcr.io/$PROJECT_ID/feast-serving:latest', 'gcr.io/$PROJECT_ID/feast-serving:$TAG_NAME']
