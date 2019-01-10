@@ -15,42 +15,37 @@
  *
  */
 
-package feast.core.service;
+package feast.core.job.dataflow;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
-import static org.mockito.internal.verification.VerificationModeFactory.times;
 
+import com.google.api.services.dataflow.Dataflow;
 import com.google.common.collect.Lists;
 import feast.core.config.ImportJobDefaults;
-import feast.core.dao.JobInfoRepository;
-import feast.core.model.JobInfo;
-import feast.core.model.JobStatus;
 import feast.specs.ImportSpecProto.ImportSpec;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Optional;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 
-public class JobExecutionServiceTest {
+public class DataflowJobManagerTest {
 
-  @Rule
-  public final ExpectedException expectedException = ExpectedException.none();
-  @Mock
-  JobInfoRepository jobInfoRepository;
+  @Rule public final ExpectedException expectedException = ExpectedException.none();
+
+  @Mock Dataflow dataflow;
+
   private ImportJobDefaults defaults;
+  private DataflowJobManager dfJobManager;
 
   @Before
   public void setUp() {
@@ -58,63 +53,31 @@ public class JobExecutionServiceTest {
     defaults =
         new ImportJobDefaults(
             "localhost:8080",
-            "DirectRunner",
+            "DataflowRunner",
             "{\"key\":\"value\"}",
             "ingestion.jar",
             "STDOUT",
             "{}");
+    dfJobManager = new DataflowJobManager(dataflow, "project", "location", defaults);
   }
 
   @Test
   public void shouldBuildProcessBuilderWithCorrectOptions() {
-    JobExecutionService jobExecutionService = new JobExecutionService(jobInfoRepository, defaults);
     ImportSpec importSpec = ImportSpec.newBuilder().setType("file").build();
-    ProcessBuilder pb = jobExecutionService.getProcessBuilder(importSpec, "test");
+    ProcessBuilder pb = dfJobManager.getProcessBuilder(importSpec, "test");
     List<String> expected =
         Lists.newArrayList(
             "java",
             "-jar",
             "ingestion.jar",
             "--jobName=test",
-            "--runner=DirectRunner",
+            "--runner=DataflowRunner",
             "--importSpecBase64=CgRmaWxl",
             "--coreApiUri=localhost:8080",
             "--errorsStoreType=STDOUT",
             "--errorsStoreOptions={}",
             "--key=value");
     assertThat(pb.command(), equalTo(expected));
-  }
-
-  @Test
-  public void shouldUpdateJobStatusIfExists() {
-    JobInfo jobInfo = new JobInfo();
-    when(jobInfoRepository.findById("jobid")).thenReturn(Optional.of(jobInfo));
-
-    ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
-    JobExecutionService jobExecutionService = new JobExecutionService(jobInfoRepository, defaults);
-    jobExecutionService.updateJobStatus("jobid", JobStatus.PENDING);
-
-    verify(jobInfoRepository, times(1)).saveAndFlush(jobInfoArgumentCaptor.capture());
-
-    JobInfo jobInfoUpdated = new JobInfo();
-    jobInfoUpdated.setStatus(JobStatus.PENDING);
-    assertThat(jobInfoArgumentCaptor.getValue(), equalTo(jobInfoUpdated));
-  }
-
-  @Test
-  public void shouldUpdateJobExtIdIfExists() {
-    JobInfo jobInfo = new JobInfo();
-    when(jobInfoRepository.findById("jobid")).thenReturn(Optional.of(jobInfo));
-
-    ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
-    JobExecutionService jobExecutionService = new JobExecutionService(jobInfoRepository, defaults);
-    jobExecutionService.updateJobExtId("jobid", "extid");
-
-    verify(jobInfoRepository, times(1)).saveAndFlush(jobInfoArgumentCaptor.capture());
-
-    JobInfo jobInfoUpdated = new JobInfo();
-    jobInfoUpdated.setExtId("extid");
-    assertThat(jobInfoArgumentCaptor.getValue(), equalTo(jobInfoUpdated));
   }
 
   @Test
@@ -130,8 +93,7 @@ public class JobExecutionServiceTest {
     when(process.getErrorStream()).thenReturn(errorStream);
     when(process.exitValue()).thenReturn(0);
     when(process.isAlive()).thenReturn(true).thenReturn(false);
-    JobExecutionService jobExecutionService = new JobExecutionService(jobInfoRepository, defaults);
-    String jobId = jobExecutionService.runProcess(process);
+    String jobId = dfJobManager.runProcess(process);
     assertThat(jobId, equalTo("1231231231"));
   }
 
@@ -149,7 +111,6 @@ public class JobExecutionServiceTest {
     when(process.exitValue()).thenReturn(1);
     when(process.isAlive()).thenReturn(true).thenReturn(false);
     expectedException.expect(RuntimeException.class);
-    JobExecutionService jobExecutionService = new JobExecutionService(jobInfoRepository, defaults);
-    jobExecutionService.runProcess(process);
+    dfJobManager.runProcess(process);
   }
 }

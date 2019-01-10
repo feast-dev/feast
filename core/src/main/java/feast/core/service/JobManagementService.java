@@ -102,40 +102,44 @@ public class JobManagementService {
    * @return feast job ID.
    */
   public String submitJob(ImportSpec importSpec, String namePrefix) {
-    String feastJobId = createJobId(namePrefix);
+    String jobId = createJobId(namePrefix);
     try {
-      JobInfo jobInfo =
-          new JobInfo(feastJobId, "", defaults.getRunner(), importSpec, JobStatus.PENDING);
+      JobInfo jobInfo = new JobInfo(jobId, "", defaults.getRunner(), importSpec, JobStatus.PENDING);
       jobInfoRepository.saveAndFlush(jobInfo);
       AuditLogger.log(
           Resource.JOB,
-          feastJobId,
+          jobId,
           Action.SUBMIT,
           "Building graph and submitting to %s",
           defaults.getRunner());
 
-      String extId = jobManager.submitJob(importSpec, namePrefix);
+      String extId = jobManager.submitJob(importSpec, jobId);
+      if (extId.isEmpty()) {
+        throw new RuntimeException(
+            String.format("Could not submit job: \n%s", "unable to retrieve job external id"));
+      }
 
       AuditLogger.log(
           Resource.JOB,
-          feastJobId,
+          jobId,
           Action.STATUS_CHANGE,
           "Job submitted to runner %s with ext id %s.",
           defaults.getRunner(),
           extId);
-      return feastJobId;
+
+      updateJobExtId(jobId, extId);
+      return jobId;
     } catch (Exception e) {
-      updateJobStatus(feastJobId, JobStatus.ERROR);
+      updateJobStatus(jobId, JobStatus.ERROR);
       AuditLogger.log(
           Resource.JOB,
-          feastJobId,
+          jobId,
           Action.STATUS_CHANGE,
           "Job failed to be submitted to runner %s. Job status changed to ERROR.",
           defaults.getRunner());
       throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
     }
   }
-
 
   /**
    * Drain the given job. If this is successful, the job will start the draining process. When the
@@ -167,15 +171,29 @@ public class JobManagementService {
    * @param jobId
    * @param status
    */
-  private void updateJobStatus(String jobId, JobStatus status) {
+  void updateJobStatus(String jobId, JobStatus status) {
     Optional<JobInfo> jobRecordOptional = jobInfoRepository.findById(jobId);
     if (jobRecordOptional.isPresent()) {
       JobInfo jobRecord = jobRecordOptional.get();
       jobRecord.setStatus(status);
-      jobInfoRepository.saveAndFlush(jobRecord);
+      jobInfoRepository.save(jobRecord);
     }
   }
 
+  /**
+   * Update a given job's external id
+   *
+   * @param jobId
+   * @param jobExtId
+   */
+  void updateJobExtId(String jobId, String jobExtId) {
+    Optional<JobInfo> jobRecordOptional = jobInfoRepository.findById(jobId);
+    if (jobRecordOptional.isPresent()) {
+      JobInfo jobRecord = jobRecordOptional.get();
+      jobRecord.setExtId(jobExtId);
+      jobInfoRepository.save(jobRecord);
+    }
+  }
 
   private String createJobId(String namePrefix) {
     String dateSuffix = String.valueOf(Instant.now().toEpochMilli());

@@ -17,6 +17,13 @@
 
 package feast.core.service;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.MockitoAnnotations.initMocks;
+
 import com.google.common.collect.Lists;
 import com.google.protobuf.Timestamp;
 import feast.core.JobServiceProto.JobServiceTypes.JobDetail;
@@ -27,6 +34,11 @@ import feast.core.exception.RetrievalException;
 import feast.core.job.JobManager;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -34,31 +46,19 @@ import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
-import java.time.Instant;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.mockito.MockitoAnnotations.initMocks;
-
 public class JobManagementServiceTest {
+  @Rule public final ExpectedException exception = ExpectedException.none();
   @Mock private JobInfoRepository jobInfoRepository;
   @Mock private MetricsRepository metricsRepository;
   @Mock private JobManager jobManager;
-
   private ImportJobDefaults defaults;
-
-  @Rule public final ExpectedException exception = ExpectedException.none();
 
   @Before
   public void setUp() {
     initMocks(this);
-    defaults = new ImportJobDefaults("localhost:8433", "DirectRunner", "", "/feast-import.jar", "stderr", "");
+    defaults =
+        new ImportJobDefaults(
+            "localhost:8433", "DirectRunner", "", "/feast-import.jar", "stderr", "");
   }
 
   @Test
@@ -186,5 +186,39 @@ public class JobManagementServiceTest {
     ArgumentCaptor<JobInfo> jobCapture = ArgumentCaptor.forClass(JobInfo.class);
     verify(jobInfoRepository).saveAndFlush(jobCapture.capture());
     assertThat(jobCapture.getValue().getStatus(), equalTo(JobStatus.ABORTING));
+  }
+
+  @Test
+  public void shouldUpdateJobStatusIfExists() {
+    JobInfo jobInfo = new JobInfo();
+    when(jobInfoRepository.findById("jobid")).thenReturn(Optional.of(jobInfo));
+
+    ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
+    JobManagementService jobExecutionService =
+        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults);
+    jobExecutionService.updateJobStatus("jobid", JobStatus.PENDING);
+
+    verify(jobInfoRepository, times(1)).save(jobInfoArgumentCaptor.capture());
+
+    JobInfo jobInfoUpdated = new JobInfo();
+    jobInfoUpdated.setStatus(JobStatus.PENDING);
+    assertThat(jobInfoArgumentCaptor.getValue(), equalTo(jobInfoUpdated));
+  }
+
+  @Test
+  public void shouldUpdateJobExtIdIfExists() {
+    JobInfo jobInfo = new JobInfo();
+    when(jobInfoRepository.findById("jobid")).thenReturn(Optional.of(jobInfo));
+
+    ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
+    JobManagementService jobExecutionService =
+        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults);
+    jobExecutionService.updateJobExtId("jobid", "extid");
+
+    verify(jobInfoRepository, times(1)).save(jobInfoArgumentCaptor.capture());
+
+    JobInfo jobInfoUpdated = new JobInfo();
+    jobInfoUpdated.setExtId("extid");
+    assertThat(jobInfoArgumentCaptor.getValue(), equalTo(jobInfoUpdated));
   }
 }
