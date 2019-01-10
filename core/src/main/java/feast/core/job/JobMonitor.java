@@ -27,10 +27,10 @@ public interface JobMonitor {
   /**
    * Get status of a job given runner-specific job ID.
    *
-   * @param runnerJobId runner specific job id.
+   * @param job job.
    * @return job status.
    */
-  JobStatus getJobStatus(String runnerJobId);
+  JobStatus getJobStatus(JobInfo job);
 
   /**
    * Get metrics of a job.

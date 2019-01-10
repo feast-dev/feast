@@ -24,6 +24,7 @@ import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import feast.core.job.JobMonitor;
+import feast.core.job.Runner;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
 import feast.core.model.Metrics;
@@ -55,17 +56,21 @@ public class DataflowJobMonitor implements JobMonitor {
   /**
    * Get status of a dataflow job with given id and try to map it into Feast's JobStatus.
    *
-   * @param dataflowJobId dataflow job id.
+   * @param jobInfo dataflow job id.
    * @return status of the job, or return {@link JobStatus#UNKNOWN} if error happens.
    */
-  public JobStatus getJobStatus(String dataflowJobId) {
+  public JobStatus getJobStatus(JobInfo jobInfo) {
+    if (!Runner.DATAFLOW.getName().equals(jobInfo.getRunner())) {
+      return jobInfo.getStatus();
+    }
+
     try {
-      Job job = dataflow.projects().locations().jobs().get(projectId, location, dataflowJobId)
+      Job job = dataflow.projects().locations().jobs().get(projectId, location, jobInfo.getExtId())
           .execute();
       return jobStateMaper.map(job.getCurrentState());
     } catch (Exception e) {
       log.error("Unable to retrieve status of a dataflow job with id : {}\ncause: {}",
-          dataflowJobId, e.getMessage());
+          jobInfo, e.getMessage());
     }
     return JobStatus.UNKNOWN;
   }

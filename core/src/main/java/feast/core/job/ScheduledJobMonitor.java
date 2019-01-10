@@ -73,7 +73,7 @@ public class ScheduledJobMonitor {
       if (Strings.isNullOrEmpty(jobId)) {
         continue;
       }
-      JobStatus jobStatus = jobMonitor.getJobStatus(jobId);
+      JobStatus jobStatus = jobMonitor.getJobStatus(job);
       if (job.getStatus() != jobStatus) {
         AuditLogger.log(
             Resource.JOB,
@@ -84,9 +84,8 @@ public class ScheduledJobMonitor {
             jobStatus);
       }
       job.setStatus(jobStatus);
+      jobInfoRepository.save(job);
     }
-
-    jobInfoRepository.saveAll(nonTerminalJobs);
   }
 
   /** Periodically pull metrics of job which is not in terminal state and push it to statsd. */
@@ -105,7 +104,7 @@ public class ScheduledJobMonitor {
       List<Metrics> metrics = jobMonitor.getJobMetrics(job);
       job.setMetrics(metrics);
       statsdMetricPusher.pushMetrics(metrics);
+      jobInfoRepository.save(job);
     }
-    jobInfoRepository.saveAll(nonTerminalJobs);
   }
 }

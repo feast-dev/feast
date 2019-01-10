@@ -20,10 +20,10 @@ package feast.core.job;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.Lists;
 import feast.core.dao.JobInfoRepository;
 import feast.core.dao.MetricsRepository;
 import feast.core.model.JobInfo;
@@ -39,22 +39,17 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-
 public class ScheduledJobMonitorTest {
 
   ScheduledJobMonitor scheduledJobMonitor;
 
-  @Mock
-  JobMonitor jobMonitor;
+  @Mock JobMonitor jobMonitor;
 
-  @Mock
-  StatsdMetricPusher stasdMetricPusher;
+  @Mock StatsdMetricPusher stasdMetricPusher;
 
-  @Mock
-  JobInfoRepository jobInfoRepository;
+  @Mock JobInfoRepository jobInfoRepository;
 
-  @Mock
-  MetricsRepository metricsRepository;
+  @Mock MetricsRepository metricsRepository;
 
   @Before
   public void setUp() throws Exception {
@@ -64,65 +59,71 @@ public class ScheduledJobMonitorTest {
 
   @Test
   public void getJobStatus_shouldUpdateJobInfoForRunningJob() {
-    JobInfo job = new JobInfo("jobId", "extId1", "Streaming", "DataflowRunner", "",
-        Collections.emptyList(),
-        Collections.emptyList(),
-        Collections.emptyList(),
-        JobStatus.RUNNING,
-        "");
+    JobInfo job =
+        new JobInfo(
+            "jobId",
+            "extId1",
+            "Streaming",
+            "DataflowRunner",
+            "",
+            Collections.emptyList(),
+            Collections.emptyList(),
+            Collections.emptyList(),
+            JobStatus.RUNNING,
+            "");
 
-    when(jobInfoRepository.findByStatusNotIn((Collection<JobStatus>)any(Collection.class))).thenReturn(
-        Arrays.asList(job));
-    when(jobMonitor.getJobStatus("extId1")).thenReturn(JobStatus.COMPLETED);
+    when(jobInfoRepository.findByStatusNotIn((Collection<JobStatus>) any(Collection.class)))
+        .thenReturn(Collections.singletonList(job));
+    when(jobMonitor.getJobStatus(job)).thenReturn(JobStatus.COMPLETED);
 
     scheduledJobMonitor.getJobStatus();
 
-    ArgumentCaptor<Iterable<JobInfo>> argCaptor = ArgumentCaptor.forClass(Iterable.class);
-    verify(jobInfoRepository).saveAll(argCaptor.capture());
+    ArgumentCaptor<JobInfo> argCaptor = ArgumentCaptor.forClass(JobInfo.class);
+    verify(jobInfoRepository).save(argCaptor.capture());
 
-    List<JobInfo> jobInfos = Lists.newArrayList(argCaptor.getValue());
-    assertThat(jobInfos.size(), equalTo(1));
-    assertThat(jobInfos.get(0).getStatus(), equalTo(JobStatus.COMPLETED));
+    JobInfo jobInfos = argCaptor.getValue();
+    assertThat(jobInfos.getStatus(), equalTo(JobStatus.COMPLETED));
   }
 
   @Test
   public void getJobStatus_shouldNotUpdateJobInfoForTerminalJob() {
-    when(jobInfoRepository.findByStatusNotIn((Collection<JobStatus>)any(Collection.class))).thenReturn(
-        Collections.emptyList());
+    when(jobInfoRepository.findByStatusNotIn((Collection<JobStatus>) any(Collection.class)))
+        .thenReturn(Collections.emptyList());
 
     scheduledJobMonitor.getJobStatus();
 
-    ArgumentCaptor<Iterable<JobInfo>> argCaptor = ArgumentCaptor.forClass(Iterable.class);
-    verify(jobInfoRepository).saveAll(argCaptor.capture());
-
-    List<JobInfo> jobInfos = Lists.newArrayList(argCaptor.getValue());
-    assertThat(jobInfos.size(), equalTo(0));
+    verify(jobInfoRepository, never()).save(any(JobInfo.class));
   }
 
   @Test
   public void getJobMetrics_shouldPushToStatsDMetricPusherAndSaveNewMetricToDb() {
-    JobInfo job = new JobInfo("jobId", "extId1", "Streaming", "DataflowRunner", "",
-        Collections.emptyList(),
-        Collections.emptyList(),
-        Collections.emptyList(),
-        JobStatus.RUNNING,
-        "");
+    JobInfo job =
+        new JobInfo(
+            "jobId",
+            "extId1",
+            "Streaming",
+            "DataflowRunner",
+            "",
+            Collections.emptyList(),
+            Collections.emptyList(),
+            Collections.emptyList(),
+            JobStatus.RUNNING,
+            "");
 
     Metrics metric1 = new Metrics(job, "metric1", 1);
     Metrics metric2 = new Metrics(job, "metric2", 2);
     List<Metrics> metrics = Arrays.asList(metric1, metric2);
 
-    when(jobInfoRepository.findByStatusNotIn((Collection<JobStatus>)any(Collection.class))).thenReturn(
-        Arrays.asList(job));
+    when(jobInfoRepository.findByStatusNotIn((Collection<JobStatus>) any(Collection.class)))
+        .thenReturn(Arrays.asList(job));
     when(jobMonitor.getJobMetrics(job)).thenReturn(metrics);
 
     scheduledJobMonitor.getJobMetrics();
 
     verify(stasdMetricPusher).pushMetrics(metrics);
-    ArgumentCaptor<Iterable<JobInfo>> argCaptor = ArgumentCaptor.forClass(Iterable.class);
-    verify(jobInfoRepository).saveAll(argCaptor.capture());
+    ArgumentCaptor<JobInfo> argCaptor = ArgumentCaptor.forClass(JobInfo.class);
+    verify(jobInfoRepository).save(argCaptor.capture());
 
     assertThat(job.getMetrics(), equalTo(metrics));
   }
-
 }

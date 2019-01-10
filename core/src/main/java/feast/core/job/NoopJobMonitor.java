@@ -26,7 +26,7 @@ import java.util.List;
 public class NoopJobMonitor implements JobMonitor {
 
   @Override
-  public JobStatus getJobStatus(String runnerJobId) {
+  public JobStatus getJobStatus(JobInfo job) {
     return JobStatus.UNKNOWN;
   }
 
