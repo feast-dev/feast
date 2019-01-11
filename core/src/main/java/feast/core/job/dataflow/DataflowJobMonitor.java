@@ -70,7 +70,7 @@ public class DataflowJobMonitor implements JobMonitor {
       return jobStateMaper.map(job.getCurrentState());
     } catch (Exception e) {
       log.error("Unable to retrieve status of a dataflow job with id : {}\ncause: {}",
-          jobInfo, e.getMessage());
+          jobInfo.getExtId(), e.getMessage());
     }
     return JobStatus.UNKNOWN;
   }
