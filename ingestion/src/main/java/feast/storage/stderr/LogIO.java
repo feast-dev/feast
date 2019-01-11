@@ -15,41 +15,27 @@
  *
  */
 
-package feast.storage;
+package feast.storage.stderr;
 
-import com.google.common.collect.Lists;
 import feast.ingestion.transform.FeatureIO;
-import feast.ingestion.transform.fn.Identity;
-import feast.specs.StorageSpecProto.StorageSpec;
+import feast.ingestion.transform.fn.LoggerDoFn;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
-import java.util.List;
-import lombok.Getter;
+import lombok.AllArgsConstructor;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.slf4j.event.Level;
 
-public class MockTransforms {
+public class LogIO {
 
-  @Getter
+  @AllArgsConstructor
   public static class Write extends FeatureIO.Write {
 
-    List<PCollection<FeatureRowExtended>> inputs = Lists.newArrayList();
-    private StorageSpec spec;
+    private Level level;
 
-    public Write() {
-    }
-
-    public Write(StorageSpec spec) {
-      this.spec = spec;
-    }
-
-    /**
-     * Keep input around for testing and apply identity because PTransforms have to do something, or
-     * the pipeline hangs at execution time
-     */
     @Override
     public PDone expand(PCollection<FeatureRowExtended> input) {
-      this.inputs.add(input.apply(getName(), ParDo.of(new Identity(getName()))));
+      input.apply("Log to " + level.toString(), ParDo.of(new LoggerDoFn(level)));
       return PDone.in(input.getPipeline());
     }
   }

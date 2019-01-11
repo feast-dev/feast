@@ -17,6 +17,11 @@
 
 package feast.ingestion;
 
+import static feast.FeastMatchers.hasCount;
+import static feast.ToOrderedFeatureRows.orderedFeatureRow;
+import static feast.storage.MockErrorsStore.MOCK_ERRORS_STORE_TYPE;
+import static org.junit.Assert.assertEquals;
+
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
@@ -30,6 +35,7 @@ import feast.ingestion.boot.TestPipelineModule;
 import feast.ingestion.model.Features;
 import feast.ingestion.model.Values;
 import feast.ingestion.options.ImportJobOptions;
+import feast.ingestion.service.SpecRetrievalException;
 import feast.ingestion.util.ProtoUtil;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.storage.MockErrorsStore;
@@ -41,6 +47,11 @@ import feast.storage.service.WarehouseStoreService;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.GranularityProto.Granularity;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -52,24 +63,14 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
-
-import static feast.FeastMatchers.hasCount;
-import static feast.ToOrderedFeatureRows.orderedFeatureRow;
-import static feast.storage.MockErrorsStore.MOCK_ERRORS_STORE_TYPE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
 @Slf4j
 public class ImportJobCSVTest {
 
-  @Rule public TemporaryFolder folder = new TemporaryFolder();
+  @Rule
+  public TemporaryFolder folder = new TemporaryFolder();
 
-  @Rule public TestPipeline testPipeline = TestPipeline.create();
+  @Rule
+  public TestPipeline testPipeline = TestPipeline.create();
 
   public ImportSpec initImportSpec(ImportSpec importSpec, String dataFile) {
     return importSpec.toBuilder().putOptions("path", dataFile).build();
@@ -125,7 +126,7 @@ public class ImportJobCSVTest {
 
     PCollection<FeatureRowExtended> writtenToWarehouse =
         PCollectionList.of(
-                WarehouseStoreService.get(MockWarehouseStore.class).getWrite().getInputs())
+            WarehouseStoreService.get(MockWarehouseStore.class).getWrite().getInputs())
             .apply("flatten warehouse input", Flatten.pCollections());
 
     PCollection<FeatureRowExtended> writtenToErrors =
@@ -173,7 +174,7 @@ public class ImportJobCSVTest {
     testPipeline.run();
   }
 
-  @Test
+  @Test(expected = SpecRetrievalException.class)
   public void testImportCSVUnknownServingStoreError() throws IOException {
     ImportSpec importSpec =
         ProtoUtil.decodeProtoYaml(
@@ -189,8 +190,7 @@ public class ImportJobCSVTest {
                 + "  timestampValue: 2018-09-25T00:00:00.000Z\n"
                 + "  fields:\n"
                 + "    - name: id\n"
-                + "    - featureId: testEntity.none.redisInt32\n" // Redis is not available by
-                // default from the json specs
+                + "    - featureId: testEntity.none.unknownInt32\n" // Unknown store is not available
                 + "    - featureId: testEntity.none.testString\n"
                 + "\n",
             ImportSpec.getDefaultInstance());
@@ -209,14 +209,7 @@ public class ImportJobCSVTest {
     injector.getInstance(ImportJob.class);
 
     // Job should fail during expand(), so we don't even need to start the pipeline.
-    try {
-      job.expand();
-      fail("Should not reach here, we should have thrown an exception");
-    } catch (IllegalArgumentException e) {
-      assertEquals(
-          "Feature testEntity.none.redisInt32 references unknown serving store REDIS1",
-          e.getMessage());
-    }
+    job.expand();
   }
 
   @Test

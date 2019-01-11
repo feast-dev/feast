@@ -1,5 +1,5 @@
 {
-  "id": "testEntity.none.redisInt32",
+  "id": "testEntity.hour.redisInt32",
   "entity": "testEntity",
   "granularity": "HOUR",
   "name": "redisInt32",
