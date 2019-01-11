@@ -83,6 +83,10 @@ public class DataflowJobMonitor implements JobMonitor {
    * @return list of feast-related metrics. Or return an empty list if error happens.
    */
   public List<Metrics> getJobMetrics(JobInfo job) {
+    if (!Runner.DATAFLOW.getName().equals(job.getRunner())) {
+      return null;
+    }
+
     String dataflowJobId = job.getExtId();
     try {
       JobMetrics jobMetrics = dataflow.projects().locations().jobs()

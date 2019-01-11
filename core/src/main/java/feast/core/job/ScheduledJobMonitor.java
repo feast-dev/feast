@@ -102,6 +102,10 @@ public class ScheduledJobMonitor {
         continue;
       }
       List<Metrics> metrics = jobMonitor.getJobMetrics(job);
+      if (metrics == null) {
+        continue;
+      }
+
       job.setMetrics(metrics);
       statsdMetricPusher.pushMetrics(metrics);
       jobInfoRepository.save(job);

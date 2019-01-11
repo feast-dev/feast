@@ -37,6 +37,9 @@ public class FlinkJobMonitor implements JobMonitor {
 
   @Override
   public List<Metrics> getJobMetrics(JobInfo job) {
+    if (!Runner.FLINK.getName().equals(job.getRunner())) {
+      return null;
+    }
     // TODO: metrics for flink
     return Collections.emptyList();
   }
