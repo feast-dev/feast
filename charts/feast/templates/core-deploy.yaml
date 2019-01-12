@@ -80,7 +80,7 @@ spec:
           - name: JOB_RUNNER
             value: {{ .Values.core.jobs.runner }}
           - name: JOB_OPTIONS
-            value: {{ .Values.core.jobs.options }}
+            value: {{ .Values.core.jobs.options | toJson}}
           - name: JOB_ERRORS_STORE_ID
             value: {{ .Values.core.jobs.errorsStoreId }}
           - name: JOB_MONITOR_PERIOD_MS
