@@ -25,6 +25,7 @@ import feast.core.dao.MetricsRepository;
 import feast.core.exception.JobExecutionException;
 import feast.core.exception.RetrievalException;
 import feast.core.job.JobManager;
+import feast.core.job.Runner;
 import feast.core.log.Action;
 import feast.core.log.AuditLogger;
 import feast.core.log.Resource;
@@ -45,6 +46,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class JobManagementService {
   private static final String JOB_PREFIX_DEFAULT = "feastimport";
+  private static final String UNKNOWN_EXT_JOB_ID = "";
 
   private JobInfoRepository jobInfoRepository;
   private MetricsRepository metricsRepository;
@@ -103,9 +105,14 @@ public class JobManagementService {
    */
   public String submitJob(ImportSpec importSpec, String namePrefix) {
     String jobId = createJobId(namePrefix);
+    boolean isDirectRunner = Runner.DIRECT.getName().equals(defaults.getRunner());
     try {
-      JobInfo jobInfo = new JobInfo(jobId, "", defaults.getRunner(), importSpec, JobStatus.PENDING);
-      jobInfoRepository.saveAndFlush(jobInfo);
+      if (!isDirectRunner) {
+        JobInfo jobInfo =
+            new JobInfo(jobId, UNKNOWN_EXT_JOB_ID, defaults.getRunner(), importSpec, JobStatus.PENDING);
+        jobInfoRepository.save(jobInfo);
+      }
+
       AuditLogger.log(
           Resource.JOB,
           jobId,
@@ -127,7 +134,13 @@ public class JobManagementService {
           defaults.getRunner(),
           extId);
 
-      updateJobExtId(jobId, extId);
+      if (isDirectRunner) {
+        JobInfo jobInfo =
+            new JobInfo(jobId, extId, defaults.getRunner(), importSpec, JobStatus.COMPLETED);
+        jobInfoRepository.save(jobInfo);
+      } else {
+        updateJobExtId(jobId, extId);
+      }
       return jobId;
     } catch (Exception e) {
       updateJobStatus(jobId, JobStatus.ERROR);
