@@ -71,3 +71,7 @@ serving:
       targetPort: 8080
   jaeger:
     enabled: false
+
+serviceAccount:
+  name: feast-service-account
+  key: feast-service-account-key
