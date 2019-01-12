@@ -243,7 +243,7 @@ def _convert_timestamp(df, timestamp_col):
     """Converts the given df's timestamp column to ISO8601 format
     """
     df[timestamp_col] = pd.to_datetime(df[timestamp_col]).dt \
-        .strftime("%Y-%m-%dT%H:%M:%S%z")
+        .strftime("%Y-%m-%dT%H:%M:%S%zZ")
 
 
 def _properties(source, size, require_staging, remote):
