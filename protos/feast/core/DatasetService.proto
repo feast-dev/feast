@@ -21,16 +21,16 @@ package feast.core;
 import "google/protobuf/timestamp.proto";
 
 option java_package = "feast.core";
-option java_outer_classname = "TrainingServiceProto";
+option java_outer_classname = "DatasetServiceProto";
 option go_package = "github.com/gojektech/feast/protos/generated/go/feast/core";
 
-service TrainingService {
+service DatasetService {
   // Create training dataset for a feature set
-  rpc CreateTrainingDataset(TrainingServiceTypes.CreateTrainingDatasetRequest) returns (TrainingServiceTypes.CreateTrainingDatasetResponse){};
+  rpc CreateDataset(DatasetServiceTypes.CreateDatasetRequest) returns (DatasetServiceTypes.CreateDatasetResponse){};
 }
 
-message TrainingServiceTypes {
-  message CreateTrainingDatasetRequest {
+message DatasetServiceTypes {
+  message CreateDatasetRequest {
     // set of features for which its training data should be created
     FeatureSet featureSet = 1;
     // start date of the training data (inclusive)
@@ -41,11 +41,10 @@ message TrainingServiceTypes {
     // (default: none)
     int64 limit = 4;
     // (optional) prefix for dataset name
-    // (default: generated based on feature set's entity, current date, start date, and end date)
     string namePrefix = 5;
   }
 
-  message CreateTrainingDatasetResponse {
+  message CreateDatasetResponse {
     // information of the created training dataset
     DatasetInfo datasetInfo = 1;
   }

@@ -6,8 +6,8 @@ import com.google.common.base.Charsets;
 import com.google.common.io.CharStreams;
 import com.hubspot.jinjava.Jinjava;
 import feast.core.dao.FeatureInfoRepository;
-import feast.core.training.BigQueryTrainingDatasetCreator;
-import feast.core.training.BigQueryTrainingDatasetTemplater;
+import feast.core.training.BigQueryDatasetCreator;
+import feast.core.training.BigQueryDatasetTemplater;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -23,21 +23,21 @@ import org.springframework.core.io.Resource;
 public class TrainingConfig {
 
   @Bean
-  public BigQueryTrainingDatasetTemplater getBigQueryTrainingDatasetTemplater(
+  public BigQueryDatasetTemplater getBigQueryTrainingDatasetTemplater(
       FeatureInfoRepository featureInfoRepository) throws IOException {
     Resource resource = new ClassPathResource("templates/bq_training.tmpl");
     InputStream resourceInputStream = resource.getInputStream();
     String tmpl = CharStreams.toString(new InputStreamReader(resourceInputStream, Charsets.UTF_8));
-    return new BigQueryTrainingDatasetTemplater(new Jinjava(), tmpl, featureInfoRepository);
+    return new BigQueryDatasetTemplater(new Jinjava(), tmpl, featureInfoRepository);
   }
 
   @Bean
-  public BigQueryTrainingDatasetCreator getBigQueryTrainingDatasetCreator(
-      BigQueryTrainingDatasetTemplater templater,
+  public BigQueryDatasetCreator getBigQueryTrainingDatasetCreator(
+      BigQueryDatasetTemplater templater,
       @Value("${feast.core.projectId}") String projectId,
       @Value("${feast.core.datasetPrefix}") String datasetPrefix) {
     BigQuery bigquery = BigQueryOptions.newBuilder().setProjectId(projectId).build().getService();
     Clock clock = Clock.systemUTC();
-    return new BigQueryTrainingDatasetCreator(templater, bigquery, clock, projectId, datasetPrefix);
+    return new BigQueryDatasetCreator(templater, bigquery, clock, projectId, datasetPrefix);
   }
 }

@@ -26,8 +26,8 @@ import static org.mockito.Mockito.when;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
-import feast.core.TrainingServiceProto.DatasetInfo;
-import feast.core.TrainingServiceProto.FeatureSet;
+import feast.core.DatasetServiceProto.DatasetInfo;
+import feast.core.DatasetServiceProto.FeatureSet;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
@@ -36,12 +36,12 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-public class BigQueryTrainingDatasetCreatorTest {
+public class BigQueryDatasetCreatorTest {
   public static final String projectId = "the-project";
   public static final String datasetPrefix = "feast";
   // class under test
-  private BigQueryTrainingDatasetCreator creator;
-  @Mock private BigQueryTrainingDatasetTemplater templater;
+  private BigQueryDatasetCreator creator;
+  @Mock private BigQueryDatasetTemplater templater;
   @Mock private BigQuery bq;
   @Mock private Clock clock;
 
@@ -49,7 +49,7 @@ public class BigQueryTrainingDatasetCreatorTest {
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
 
-    creator = new BigQueryTrainingDatasetCreator(templater, bq, clock, projectId, datasetPrefix);
+    creator = new BigQueryDatasetCreator(templater, bq, clock, projectId, datasetPrefix);
 
     when(templater.createQuery(
             any(FeatureSet.class), any(Timestamp.class), any(Timestamp.class), anyLong()))
@@ -74,7 +74,7 @@ public class BigQueryTrainingDatasetCreatorTest {
     String namePrefix = "";
 
     DatasetInfo dsInfo =
-        creator.createTrainingDataset(featureSet, startDate, endDate, limit, namePrefix);
+        creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
     assertThat(dsInfo.getName(), equalTo("myentity_0_20180101_20190101"));
     assertThat(
         dsInfo.getTableUrl(),
@@ -101,7 +101,7 @@ public class BigQueryTrainingDatasetCreatorTest {
     String namePrefix = "mydataset";
 
     DatasetInfo dsInfo =
-        creator.createTrainingDataset(featureSet, startDate, endDate, limit, namePrefix);
+        creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
     assertThat(
         dsInfo.getTableUrl(),
         equalTo(
@@ -123,7 +123,7 @@ public class BigQueryTrainingDatasetCreatorTest {
     long limit = 999;
     String namePrefix = "";
 
-    creator.createTrainingDataset(featureSet, startDate, endDate, limit, namePrefix);
+    creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
 
     verify(templater).createQuery(featureSet, startDate, endDate, limit);
   }
