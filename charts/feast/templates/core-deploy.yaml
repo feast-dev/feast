@@ -57,6 +57,12 @@ spec:
           limits:
             cpu: {{ .Values.core.resources.limits.cpu }}
             memory: {{ .Values.core.resources.limits.memory }}
+        {{- if .Values.serviceAccount }}
+        volumeMounts:
+          - mountPath: "/etc/gcloud/service-accounts"
+            name: "{{ .Values.serviceAccount.name }}"
+            readOnly: false
+        {{- end }}
         env:
           - name: GRPC_PORT
             value: "{{ .Values.core.service.grpc.targetPort }}"
@@ -74,13 +80,15 @@ spec:
           - name: JOB_RUNNER
             value: {{ .Values.core.jobs.runner }}
           - name: JOB_OPTIONS
-            value: {{ .Values.core.jobs.options }}
-          - name: JOB_ERRORS_STORE_ID
-            value: {{ .Values.core.jobs.errorsStoreId }}
+            value: {{ .Values.core.jobs.options | toJson}}
           - name: JOB_MONITOR_PERIOD_MS
             value: "{{ .Values.core.jobs.monitoring.period }}"
           - name: JOB_MONITOR_INITIAL_DELAY_MS
             value: "{{ .Values.core.jobs.monitoring.initialDelay }}"
+          - name: JOB_ERRORS_STORE_TYPE
+            value: {{ .Values.core.jobs.errorsStoreType }}
+          - name: JOB_ERRORS_STORE_OPTIONS
+            value: {{ .Values.core.jobs.errorStoreOptions | toJson}}
           - name: STATSD_HOST
             value: {{ .Values.statsd.host }}
           - name: STATSD_PORT
@@ -90,4 +98,12 @@ spec:
             value: {{ .Values.dataflow.projectID }}
           - name: DATAFLOW_LOCATION
             value: {{ .Values.dataflow.location }}
+          {{- end }}
+          {{- if .Values.serviceAccount }}
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /etc/gcloud/service-accounts/key.json
+      volumes:
+        - name: "{{ .Values.serviceAccount.name }}"
+          secret:
+            secretName: "{{ .Values.serviceAccount.key }}"
           {{- end }}
