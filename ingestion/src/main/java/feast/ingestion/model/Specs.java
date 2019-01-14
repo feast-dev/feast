@@ -19,6 +19,7 @@ package feast.ingestion.model;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import feast.ingestion.service.SpecService;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
@@ -30,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
@@ -63,7 +65,7 @@ public class Specs implements Serializable {
       specsBuilder.featureSpecs(specService.getFeatureSpecs(featureIds));
 
       List<String> entityNames = importSpec.getEntitiesList();
-      List<String> storageIds = Lists.newArrayList();
+      Set<String> storageIds = Sets.newHashSet();
       for (FeatureSpec featureSpec : specsBuilder.featureSpecs.values()) {
         Preconditions.checkArgument(
             entityNames.contains(featureSpec.getEntity()),
