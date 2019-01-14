@@ -44,8 +44,8 @@ def test_get_table_name_not_bq():
 class TestTableDownloader(object):
     def test_download_table_as_df(self, mocker):
         self._stop_time(mocker)
-        mocked_gs_to_df = mocker.patch(
-            "feast.sdk.utils.bq_util.gs_to_df",
+        mocked_gcs_to_df = mocker.patch(
+            "feast.sdk.utils.bq_util.gcs_to_df",
             return_value=None)
 
         staging_path = "gs://temp/"
@@ -70,7 +70,7 @@ class TestTableDownloader(object):
             table_id).full_table_id
         assert args[1] == exp_staging_path
         assert kwargs['job_config'].destination_format == "CSV"
-        mocked_gs_to_df.assert_called_once_with(exp_staging_path)
+        mocked_gcs_to_df.assert_called_once_with(exp_staging_path)
 
     def test_download_csv(self, mocker):
         self._stop_time(mocker)

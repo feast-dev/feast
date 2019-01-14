@@ -17,7 +17,7 @@ import ntpath
 import time
 import datetime
 from feast.specs.ImportSpec_pb2 import ImportSpec, Schema
-from feast.sdk.utils.gs_utils import gs_to_df, is_gs_path, df_to_gs
+from feast.sdk.utils.gs_utils import gcs_to_df, is_gs_path, df_to_gcs
 from feast.sdk.utils.print_utils import spec_to_yaml
 from feast.sdk.utils.types import dtype_to_value_type
 from feast.sdk.utils.bq_util import head
@@ -104,7 +104,7 @@ class Importer:
         import_spec_options["path"], require_staging = _get_remote_location(path,
                                                                             staging_location)
         if is_gs_path(path):
-            df = gs_to_df(path)
+            df = gcs_to_df(path)
         else:
             df = pd.read_csv(path)
         schema, features = _detect_schema_and_feature(entity,
@@ -220,7 +220,7 @@ class Importer:
             return
         ts_col = self.spec.schema.timestampColumn
         _convert_timestamp(self.df, ts_col)
-        df_to_gs(self.df, self.remote_path)
+        df_to_gcs(self.df, self.remote_path)
 
     def describe(self):
         """Print out the import spec.

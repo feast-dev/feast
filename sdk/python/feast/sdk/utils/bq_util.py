@@ -22,7 +22,7 @@ from google.cloud.bigquery.job import ExtractJobConfig, DestinationFormat
 from google.cloud.bigquery.table import Table
 from google.cloud.storage import Client as GCSClient
 
-from feast.sdk.utils.gs_utils import is_gs_path, split_gs_path, gs_to_df
+from feast.sdk.utils.gs_utils import is_gs_path, split_gs_path, gcs_to_df
 
 
 def head(client, table, max_rows=10):
@@ -151,4 +151,4 @@ class TableDownloader:
 
         # await completion
         job.result()
-        return gs_to_df(staging_file_path)
+        return gcs_to_df(staging_file_path)
