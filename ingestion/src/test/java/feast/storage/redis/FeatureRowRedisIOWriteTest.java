@@ -228,56 +228,10 @@ public class FeatureRowRedisIOWriteTest {
     RedisBucketKey featureStringLatestKey =
         getRedisBucketKey("1", getFeatureIdSha1Prefix(featureHourString), 0L);
 
-    RedisBucketKey featureInt32ValueKey =
-        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureHourInt32),
-            roundedTimestamp.getSeconds());
-    RedisBucketKey featureStringValueKey =
-        getRedisBucketKey(
-            "1", getFeatureIdSha1Prefix(featureHourString), roundedTimestamp.getSeconds());
-
-    // TODO have a helper func for loading feature store options
-    Duration featureInt32BucketSize =
-        OptionsParser.parse(
-            specs.getFeatureSpec(featureHourInt32).getDataStores().getServing().getOptionsMap(),
-            RedisFeatureOptions.class)
-            .getBucketSizeDuration();
-
-    RedisBucketKey featureInt32BucketKey =
-        getRedisBucketKey(
-            "1",
-            getFeatureIdSha1Prefix(featureHourInt32),
-            getBucketId(roundedTimestamp, featureInt32BucketSize));
-    RedisBucketKey featureStringBucketKey =
-        getRedisBucketKey(
-            "1",
-            getFeatureIdSha1Prefix(featureHourString),
-            // No bucketsize specified so uses the default.
-            getBucketId(
-                roundedTimestamp,
-                ISOPeriodFormat.standard()
-                    .parsePeriod(RedisFeatureOptions.DEFAULT_BUCKET_SIZE)
-                    .toStandardDuration()));
-
     checkRedisValue(featureInt32LatestKey, Values.ofInt32(1), roundedTimestamp);
     checkRedisValue(featureStringLatestKey, Values.ofString("a"), roundedTimestamp);
-
-    checkRedisValue(featureInt32ValueKey, Values.ofInt32(1), roundedTimestamp);
-    checkRedisValue(featureStringValueKey, Values.ofString("a"), roundedTimestamp);
-
-    checkRedisValue(featureInt32BucketKey, featureInt32ValueKey, roundedTimestamp);
-    checkRedisValue(featureStringBucketKey, featureStringValueKey, roundedTimestamp);
   }
 
-  /**
-   * Check that a key's value is another key.
-   */
-  void checkRedisValue(RedisBucketKey key, RedisBucketKey expectedValue, Timestamp timestamp)
-      throws InvalidProtocolBufferException {
-    Set<byte[]> result = jedis.zrangeByScore(key.toByteArray(), 0, Long.MAX_VALUE);
-    assertEquals(1, result.size());
-    RedisBucketKey value = RedisBucketKey.parseFrom(result.iterator().next());
-    assertEquals(expectedValue, value);
-  }
 
   void checkRedisValue(RedisBucketKey key, Value expectedValue, Timestamp expectedTimestamp)
       throws InvalidProtocolBufferException {

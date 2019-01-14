@@ -51,17 +51,9 @@ public class FeatureRowBigTableIO {
     public PDone expand(PCollection<FeatureRowExtended> input) {
       log.info("Using BigTable options: " + bigTableOptions.toString());
 
-      // we need a row per granularity, because they will have different keys in BigTable
-      PCollection<FeatureRowExtended> features =
-          input
-              .apply(
-                  "Split by granularity",
-                  new SingleOutputSplit<>(FeatureSpec::getGranularity, specs))
-              .setCoder(ProtoCoder.of(FeatureRowExtended.class));
-
       // entity name to mutation key value
       PCollection<KV<String, Mutation>> mutations =
-          features.apply(
+          input.apply(
               "Map to BigTable mutations",
               ParDo.of(new FeatureRowToBigTableMutationDoFn(bigTableOptions.prefix, specs)));
 
