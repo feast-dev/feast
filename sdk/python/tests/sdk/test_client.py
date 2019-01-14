@@ -140,34 +140,34 @@ class TestClient(object):
         job_id = client.run(importer)
         assert job_id == "myjob12312"
 
-    def test_create_training_dataset_invalid_args(self, client):
+    def test_create_dataset_invalid_args(self, client):
         feature_set = FeatureSet("entity", ["entity.none.feature1"])
         # empty feature set
         with pytest.raises(ValueError, match="feature set is empty"):
             inv_feature_set = FeatureSet("entity", [])
-            client.create_training_dataset(inv_feature_set, "2018-12-01",
+            client.create_dataset(inv_feature_set, "2018-12-01",
                                            "2018-12-02")
         # invalid start date
         with pytest.raises(ValueError,
                            match="Incorrect date format, should be YYYY-MM-DD"):
-            client.create_training_dataset(feature_set, "20181201",
+            client.create_dataset(feature_set, "20181201",
                                            "2018-12-02")
         # invalid end date
         with pytest.raises(ValueError,
                            match="Incorrect date format, should be YYYY-MM-DD"):
-            client.create_training_dataset(feature_set, "2018-12-01",
+            client.create_dataset(feature_set, "2018-12-01",
                                            "20181202")
         # start date  > end date
         with pytest.raises(ValueError, match="end_date is before start_date"):
-            client.create_training_dataset(feature_set, "2018-12-02",
+            client.create_dataset(feature_set, "2018-12-02",
                                            "2018-12-01")
         # invalid limit
         with pytest.raises(ValueError,
                            match="limit is not a positive integer"):
-            client.create_training_dataset(feature_set, "2018-12-01",
+            client.create_dataset(feature_set, "2018-12-01",
                                            "2018-12-02", -1)
 
-    def test_create_training_dataset(self, client, mocker):
+    def test_create_dataset(self, client, mocker):
         entity_name = "myentity"
         feature_ids = ["myentity.none.feature1", "myentity.second.feature2"]
         fs = FeatureSet(entity_name, feature_ids)
@@ -183,7 +183,7 @@ class TestClient(object):
                             .CreateTrainingDatasetResponse(datasetInfo=ds_pb))
         client._training_service_stub = mock_trn_stub
 
-        ds = client.create_training_dataset(fs, start_date, end_date)
+        ds = client.create_dataset(fs, start_date, end_date)
 
         assert "dataset_name" == ds.name
         assert "project.dataset.table" == ds.table_id
@@ -197,7 +197,7 @@ class TestClient(object):
             )
         )
 
-    def test_create_training_dataset_with_limit(self, client, mocker):
+    def test_create_dataset_with_limit(self, client, mocker):
         entity_name = "myentity"
         feature_ids = ["myentity.none.feature1", "myentity.second.feature2"]
         fs = FeatureSet(entity_name, feature_ids)
@@ -214,7 +214,7 @@ class TestClient(object):
                             .CreateTrainingDatasetResponse(datasetInfo=ds_pb))
         client._training_service_stub = mock_trn_stub
 
-        ds = client.create_training_dataset(fs, start_date, end_date,
+        ds = client.create_dataset(fs, start_date, end_date,
                                             limit=limit)
 
         assert "dataset_name" == ds.name
@@ -229,7 +229,7 @@ class TestClient(object):
             )
         )
 
-    def test_create_training_dataset_with_name_prefix(self, client, mocker):
+    def test_create_dataset_with_name_prefix(self, client, mocker):
         entity_name = "myentity"
         feature_ids = ["myentity.none.feature1", "myentity.second.feature2"]
         fs = FeatureSet(entity_name, feature_ids)
@@ -247,7 +247,7 @@ class TestClient(object):
                             .CreateTrainingDatasetResponse(datasetInfo=ds_pb))
         client._training_service_stub = mock_trn_stub
 
-        ds = client.create_training_dataset(fs, start_date, end_date,
+        ds = client.create_dataset(fs, start_date, end_date,
                                             limit=limit,
                                             name_prefix=name_prefix)
 

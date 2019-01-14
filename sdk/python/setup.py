@@ -19,7 +19,6 @@ from setuptools import find_packages, setup, Command
 NAME = 'Feast'
 DESCRIPTION = 'Python sdk for Feast'
 URL = 'https://github.com/gojek/feast'
-EMAIL = 'zhiling.c@go-jek.com'
 AUTHOR = 'Feast'
 REQUIRES_PYTHON = '>=3.6.0'
 VERSION = imp.load_source(
@@ -41,7 +40,6 @@ setup(
     version=VERSION,
     description=DESCRIPTION,
     author=AUTHOR,
-    author_email=EMAIL,
     python_requires=REQUIRES_PYTHON,
     url=URL,
     packages=find_packages(exclude=('tests',)),

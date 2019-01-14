@@ -179,7 +179,7 @@ class Client:
         print("Submitted job with id: {}".format(response.jobId))
         return response.jobId
 
-    def create_training_dataset(self, feature_set, start_date, end_date,
+    def create_dataset(self, feature_set, start_date, end_date,
                                 limit=None, name_prefix=None):
         """
         Create training dataset for a feature set. The training dataset
@@ -201,7 +201,7 @@ class Client:
             feast.resources.feature_set.DatasetInfo: DatasetInfo containing
             the information of training dataset
         """
-        self._check_create_training_dataset_args(feature_set, start_date,
+        self._check_create_dataset_args(feature_set, start_date,
                                                  end_date, limit)
 
         req = TrainingServiceTypes.CreateTrainingDatasetRequest(
@@ -432,7 +432,7 @@ class Client:
                                "{}\n{}".format(response.storageId, storage))
         return response.storageId
 
-    def _check_create_training_dataset_args(self, feature_set, start_date,
+    def _check_create_dataset_args(self, feature_set, start_date,
                                             end_date, limit):
         if len(feature_set.features) < 1:
             raise ValueError("feature set is empty")
