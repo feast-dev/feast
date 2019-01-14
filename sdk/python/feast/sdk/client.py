@@ -28,8 +28,8 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.JobService_pb2 import JobServiceTypes
 from feast.core.JobService_pb2_grpc import JobServiceStub
-from feast.core.TrainingService_pb2 import TrainingServiceTypes
-from feast.core.TrainingService_pb2_grpc import TrainingServiceStub
+from feast.core.DatasetService_pb2 import DatasetServiceTypes
+from feast.core.DatasetService_pb2_grpc import DatasetServiceStub
 from feast.sdk.env import FEAST_CORE_URL_ENV_KEY, FEAST_SERVING_URL_ENV_KEY
 from feast.sdk.resources.entity import Entity
 from feast.sdk.resources.feature import Feature
@@ -79,7 +79,7 @@ class Client:
         self.__serving_channel = None
         self._core_service_stub = None
         self._job_service_stub = None
-        self._training_service_stub = None
+        self._dataset_service_stub = None
         self._serving_service_stub = None
 
         self._verbose = verbose
@@ -204,7 +204,7 @@ class Client:
         self._check_create_dataset_args(feature_set, start_date,
                                                  end_date, limit)
 
-        req = TrainingServiceTypes.CreateTrainingDatasetRequest(
+        req = DatasetServiceTypes.CreateDatasetRequest(
             featureSet=feature_set.proto,
             startDate=_timestamp_from_datetime(_parse_date(start_date)),
             endDate=_timestamp_from_datetime(_parse_date(end_date)),
@@ -215,7 +215,7 @@ class Client:
             print("creating training dataset for features: " +
                   str(feature_set.features))
         self._connect_core()
-        resp = self._training_service_stub.CreateTrainingDataset(req)
+        resp = self._dataset_service_stub.CreateDataset(req)
 
         if self.verbose:
             print("created dataset {}: {}".format(resp.datasetInfo.name,
@@ -309,7 +309,7 @@ class Client:
             self.__core_channel = grpc.insecure_channel(self.core_url)
             self._core_service_stub = CoreServiceStub(self.__core_channel)
             self._job_service_stub = JobServiceStub(self.__core_channel)
-            self._training_service_stub = TrainingServiceStub(self.__core_channel)
+            self._dataset_service_stub = DatasetServiceStub(self.__core_channel)
 
     def _connect_serving(self):
         """Connect to serving api"""

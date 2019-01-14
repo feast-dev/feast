@@ -20,7 +20,7 @@ import static java.util.stream.Collectors.groupingBy;
 
 import com.google.protobuf.Timestamp;
 import com.hubspot.jinjava.Jinjava;
-import feast.core.TrainingServiceProto.FeatureSet;
+import feast.core.DatasetServiceProto.FeatureSet;
 import feast.core.dao.FeatureInfoRepository;
 import feast.core.model.FeatureInfo;
 import feast.core.model.StorageInfo;
@@ -41,7 +41,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Getter;
 
-public class BigQueryTrainingDatasetTemplater {
+public class BigQueryDatasetTemplater {
   private final FeatureInfoRepository featureInfoRepository;
   private final Jinjava jinjava;
   private final String template;
@@ -49,7 +49,7 @@ public class BigQueryTrainingDatasetTemplater {
   private Comparator<? super FeatureGroup> featureGroupComparator =
       new FeatureGroupTemplateComparator().reversed();
 
-  public BigQueryTrainingDatasetTemplater(
+  public BigQueryDatasetTemplater(
       Jinjava jinjava, String templateString, FeatureInfoRepository featureInfoRepository) {
     this.featureInfoRepository = featureInfoRepository;
     this.jinjava = jinjava;

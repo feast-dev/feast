@@ -23,8 +23,8 @@ import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.TableId;
 import com.google.common.base.Strings;
 import com.google.protobuf.Timestamp;
-import feast.core.TrainingServiceProto.DatasetInfo;
-import feast.core.TrainingServiceProto.FeatureSet;
+import feast.core.DatasetServiceProto.DatasetInfo;
+import feast.core.DatasetServiceProto.FeatureSet;
 import feast.core.exception.TrainingDatasetCreationException;
 import java.time.Clock;
 import java.time.Instant;
@@ -33,17 +33,17 @@ import java.time.format.DateTimeFormatter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class BigQueryTrainingDatasetCreator {
+public class BigQueryDatasetCreator {
 
   private final String projectId;
   private final String datasetPrefix;
-  private final BigQueryTrainingDatasetTemplater templater;
+  private final BigQueryDatasetTemplater templater;
   private final BigQuery bigQuery;
   private final DateTimeFormatter formatter;
   private final Clock clock;
 
-  public BigQueryTrainingDatasetCreator(
-      BigQueryTrainingDatasetTemplater templater,
+  public BigQueryDatasetCreator(
+      BigQueryDatasetTemplater templater,
       BigQuery bigQuery,
       Clock clock,
       String projectId,
@@ -57,7 +57,7 @@ public class BigQueryTrainingDatasetCreator {
   }
 
   /**
-   * Create training dataset for a feature set
+   * Create dataset for a feature set
    *
    * @param featureSet feature set for which the training dataset should be created
    * @param startDate starting date of the training dataset (inclusive)
@@ -66,7 +66,7 @@ public class BigQueryTrainingDatasetCreator {
    * @param namePrefix prefix for dataset name
    * @return dataset info associated with the created training dataset
    */
-  public DatasetInfo createTrainingDataset(
+  public DatasetInfo createDataset(
       FeatureSet featureSet,
       Timestamp startDate,
       Timestamp endDate,

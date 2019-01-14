@@ -18,12 +18,12 @@ package feast.core.grpc;
 
 import com.google.common.base.Strings;
 import com.google.protobuf.Timestamp;
-import feast.core.TrainingServiceGrpc.TrainingServiceImplBase;
-import feast.core.TrainingServiceProto.DatasetInfo;
-import feast.core.TrainingServiceProto.FeatureSet;
-import feast.core.TrainingServiceProto.TrainingServiceTypes.CreateTrainingDatasetRequest;
-import feast.core.TrainingServiceProto.TrainingServiceTypes.CreateTrainingDatasetResponse;
-import feast.core.training.BigQueryTrainingDatasetCreator;
+import feast.core.DatasetServiceGrpc.DatasetServiceImplBase;
+import feast.core.DatasetServiceProto.DatasetInfo;
+import feast.core.DatasetServiceProto.FeatureSet;
+import feast.core.DatasetServiceProto.DatasetServiceTypes.CreateDatasetRequest;
+import feast.core.DatasetServiceProto.DatasetServiceTypes.CreateDatasetResponse;
+import feast.core.training.BigQueryDatasetCreator;
 import io.grpc.Status;
 import io.grpc.Status.Code;
 import io.grpc.stub.StreamObserver;
@@ -35,19 +35,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 @Slf4j
 @GRpcService
-public class TrainingServiceImpl extends TrainingServiceImplBase {
+public class DatasetServiceImpl extends DatasetServiceImplBase {
 
-  private final BigQueryTrainingDatasetCreator trainingDatasetCreator;
+  private final BigQueryDatasetCreator datasetCreator;
 
   @Autowired
-  public TrainingServiceImpl(BigQueryTrainingDatasetCreator trainingDatasetCreator) {
-    this.trainingDatasetCreator = trainingDatasetCreator;
+  public DatasetServiceImpl(BigQueryDatasetCreator DatasetCreator) {
+    this.datasetCreator = DatasetCreator;
   }
 
   @Override
-  public void createTrainingDataset(
-      CreateTrainingDatasetRequest request,
-      StreamObserver<CreateTrainingDatasetResponse> responseObserver) {
+  public void createDataset(
+      CreateDatasetRequest request,
+      StreamObserver<CreateDatasetResponse> responseObserver) {
     try {
       checkRequest(request);
     } catch (IllegalArgumentException e) {
@@ -61,14 +61,14 @@ public class TrainingServiceImpl extends TrainingServiceImplBase {
 
     try {
       DatasetInfo datasetInfo =
-          trainingDatasetCreator.createTrainingDataset(
+          datasetCreator.createDataset(
               request.getFeatureSet(),
               request.getStartDate(),
               request.getEndDate(),
               request.getLimit(),
               request.getNamePrefix());
-      CreateTrainingDatasetResponse response =
-          CreateTrainingDatasetResponse.newBuilder().setDatasetInfo(datasetInfo).build();
+      CreateDatasetResponse response =
+          CreateDatasetResponse.newBuilder().setDatasetInfo(datasetInfo).build();
 
       responseObserver.onNext(response);
       responseObserver.onCompleted();
@@ -82,7 +82,7 @@ public class TrainingServiceImpl extends TrainingServiceImplBase {
     }
   }
 
-  private void checkRequest(CreateTrainingDatasetRequest request) {
+  private void checkRequest(CreateDatasetRequest request) {
     FeatureSet featureSet = request.getFeatureSet();
     Timestamp startDate = request.getStartDate();
     Timestamp endDate = request.getEndDate();

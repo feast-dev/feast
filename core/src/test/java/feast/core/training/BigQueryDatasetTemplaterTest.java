@@ -28,12 +28,12 @@ import com.google.common.io.CharStreams;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import com.hubspot.jinjava.Jinjava;
-import feast.core.TrainingServiceProto.FeatureSet;
+import feast.core.DatasetServiceProto.FeatureSet;
 import feast.core.dao.FeatureInfoRepository;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureInfo;
 import feast.core.model.StorageInfo;
-import feast.core.training.BigQueryTrainingDatasetTemplater.FeatureGroup;
+import feast.core.training.BigQueryDatasetTemplater.FeatureGroup;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.DataStore;
 import feast.specs.FeatureSpecProto.DataStores;
@@ -59,8 +59,8 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
-public class BigQueryTrainingDatasetTemplaterTest {
-  private BigQueryTrainingDatasetTemplater templater;
+public class BigQueryDatasetTemplaterTest {
+  private BigQueryDatasetTemplater templater;
   private BasicFormatterImpl formatter = new BasicFormatterImpl();
 
   @Mock private FeatureInfoRepository featureInfoRespository;
@@ -74,7 +74,7 @@ public class BigQueryTrainingDatasetTemplaterTest {
     Resource resource = new ClassPathResource("templates/bq_training.tmpl");
     InputStream resourceInputStream = resource.getInputStream();
     sqlTemplate = CharStreams.toString(new InputStreamReader(resourceInputStream, Charsets.UTF_8));
-    templater = new BigQueryTrainingDatasetTemplater(jinjava, sqlTemplate, featureInfoRespository);
+    templater = new BigQueryDatasetTemplater(jinjava, sqlTemplate, featureInfoRespository);
   }
 
   @Test(expected = NoSuchElementException.class)
@@ -90,7 +90,7 @@ public class BigQueryTrainingDatasetTemplaterTest {
   @Test
   public void shouldPassCorrectArgumentToTemplateEngine() {
     Jinjava jinjava = mock(Jinjava.class);
-    templater = new BigQueryTrainingDatasetTemplater(jinjava, sqlTemplate, featureInfoRespository);
+    templater = new BigQueryDatasetTemplater(jinjava, sqlTemplate, featureInfoRespository);
 
     Timestamp startDate =
         Timestamps.fromSeconds(Instant.parse("2018-01-01T00:00:00.00Z").getEpochSecond());

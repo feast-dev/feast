@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from feast.core.TrainingService_pb2 import FeatureSet as FeatureSet_pb
+from feast.core.DatasetService_pb2 import FeatureSet as FeatureSet_pb
 
 
 class FeatureSet:

@@ -22,12 +22,12 @@ from pandas.util.testing import assert_frame_equal
 
 import feast.core.CoreService_pb2_grpc as core
 import feast.core.JobService_pb2_grpc as jobs
-import feast.core.TrainingService_pb2_grpc as training
+import feast.core.DatasetService_pb2_grpc as training
 import feast.serving.Serving_pb2 as serving_pb
 from feast.core.CoreService_pb2 import CoreServiceTypes
 from feast.core.JobService_pb2 import JobServiceTypes
-from feast.core.TrainingService_pb2 import TrainingServiceTypes
-from feast.core.TrainingService_pb2 import DatasetInfo as DatasetInfo_pb
+from feast.core.DatasetService_pb2 import DatasetServiceTypes
+from feast.core.DatasetService_pb2 import DatasetInfo as DatasetInfo_pb
 from feast.sdk.client import Client, _parse_date, _timestamp_from_datetime
 from feast.sdk.client import ServingRequestType
 from feast.sdk.importer import Importer
@@ -177,18 +177,18 @@ class TestClient(object):
         ds_pb = DatasetInfo_pb(name="dataset_name",
                                     tableUrl="project.dataset.table")
 
-        mock_trn_stub = training.TrainingServiceStub(grpc.insecure_channel(""))
-        mocker.patch.object(mock_trn_stub, "CreateTrainingDataset",
-                            return_value=TrainingServiceTypes
-                            .CreateTrainingDatasetResponse(datasetInfo=ds_pb))
-        client._training_service_stub = mock_trn_stub
+        mock_trn_stub = training.DatasetServiceStub(grpc.insecure_channel(""))
+        mocker.patch.object(mock_trn_stub, "CreateDataset",
+                            return_value=DatasetServiceTypes
+                            .CreateDatasetResponse(datasetInfo=ds_pb))
+        client._dataset_service_stub = mock_trn_stub
 
         ds = client.create_dataset(fs, start_date, end_date)
 
         assert "dataset_name" == ds.name
         assert "project.dataset.table" == ds.table_id
-        mock_trn_stub.CreateTrainingDataset.assert_called_once_with(
-            TrainingServiceTypes.CreateTrainingDatasetRequest(
+        mock_trn_stub.CreateDataset.assert_called_once_with(
+            DatasetServiceTypes.CreateDatasetRequest(
                 featureSet=fs.proto,
                 startDate=_timestamp_from_datetime(_parse_date(start_date)),
                 endDate=_timestamp_from_datetime(_parse_date(end_date)),
@@ -208,19 +208,19 @@ class TestClient(object):
         ds_pb = DatasetInfo_pb(name="dataset_name",
                                     tableUrl="project.dataset.table")
 
-        mock_trn_stub = training.TrainingServiceStub(grpc.insecure_channel(""))
-        mocker.patch.object(mock_trn_stub, "CreateTrainingDataset",
-                            return_value=TrainingServiceTypes
-                            .CreateTrainingDatasetResponse(datasetInfo=ds_pb))
-        client._training_service_stub = mock_trn_stub
+        mock_trn_stub = training.DatasetServiceStub(grpc.insecure_channel(""))
+        mocker.patch.object(mock_trn_stub, "CreateDataset",
+                            return_value=DatasetServiceTypes
+                            .CreateDatasetResponse(datasetInfo=ds_pb))
+        client._dataset_service_stub = mock_trn_stub
 
         ds = client.create_dataset(fs, start_date, end_date,
                                             limit=limit)
 
         assert "dataset_name" == ds.name
         assert "project.dataset.table" == ds.table_id
-        mock_trn_stub.CreateTrainingDataset.assert_called_once_with(
-            TrainingServiceTypes.CreateTrainingDatasetRequest(
+        mock_trn_stub.CreateDataset.assert_called_once_with(
+            DatasetServiceTypes.CreateDatasetRequest(
                 featureSet=fs.proto,
                 startDate=_timestamp_from_datetime(_parse_date(start_date)),
                 endDate=_timestamp_from_datetime(_parse_date(end_date)),
@@ -241,11 +241,11 @@ class TestClient(object):
         ds_pb = DatasetInfo_pb(name="dataset_name",
                                     tableUrl="project.dataset.table")
 
-        mock_trn_stub = training.TrainingServiceStub(grpc.insecure_channel(""))
-        mocker.patch.object(mock_trn_stub, "CreateTrainingDataset",
-                            return_value=TrainingServiceTypes
-                            .CreateTrainingDatasetResponse(datasetInfo=ds_pb))
-        client._training_service_stub = mock_trn_stub
+        mock_dssvc_stub = training.DatasetServiceStub(grpc.insecure_channel(""))
+        mocker.patch.object(mock_dssvc_stub, "CreateDataset",
+                            return_value=DatasetServiceTypes
+                            .CreateDatasetResponse(datasetInfo=ds_pb))
+        client._dataset_service_stub = mock_dssvc_stub
 
         ds = client.create_dataset(fs, start_date, end_date,
                                             limit=limit,
@@ -253,8 +253,8 @@ class TestClient(object):
 
         assert "dataset_name" == ds.name
         assert "project.dataset.table" == ds.table_id
-        mock_trn_stub.CreateTrainingDataset.assert_called_once_with(
-            TrainingServiceTypes.CreateTrainingDatasetRequest(
+        mock_dssvc_stub.CreateDataset.assert_called_once_with(
+            DatasetServiceTypes.CreateDatasetRequest(
                 featureSet=fs.proto,
                 startDate=_timestamp_from_datetime(_parse_date(start_date)),
                 endDate=_timestamp_from_datetime(_parse_date(end_date)),
