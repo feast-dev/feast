@@ -26,7 +26,8 @@ core:
   jobs: 
     runner: DirectRunner
     options: "{}"
-    errorsStoreId: "STDOUT"
+    errorsStoreType: "STDOUT"
+    errorStoreOptions: "{}"
     monitoring:
       period: 5000
       initialDelay: 60000      
@@ -75,3 +76,7 @@ serving:
 serviceAccount:
   name: feast-service-account
   key: feast-service-account-key
+
+statsd:
+  host: "localhost"
+  port: 8125

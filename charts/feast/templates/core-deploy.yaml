@@ -81,12 +81,14 @@ spec:
             value: {{ .Values.core.jobs.runner }}
           - name: JOB_OPTIONS
             value: {{ .Values.core.jobs.options | toJson}}
-          - name: JOB_ERRORS_STORE_ID
-            value: {{ .Values.core.jobs.errorsStoreId }}
           - name: JOB_MONITOR_PERIOD_MS
             value: "{{ .Values.core.jobs.monitoring.period }}"
           - name: JOB_MONITOR_INITIAL_DELAY_MS
             value: "{{ .Values.core.jobs.monitoring.initialDelay }}"
+          - name: JOB_ERRORS_STORE_TYPE
+            value: {{ .Values.core.jobs.errorsStoreType }}
+          - name: JOB_ERRORS_STORE_OPTIONS
+            value: {{ .Values.core.jobs.errorStoreOptions | toJson}}
           - name: STATSD_HOST
             value: {{ .Values.statsd.host }}
           - name: STATSD_PORT
