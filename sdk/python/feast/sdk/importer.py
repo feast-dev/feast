@@ -75,7 +75,7 @@ class Importer:
     @classmethod
     def from_csv(cls, path, entity, granularity, owner, staging_location=None,
                  id_column=None, feature_columns=None, timestamp_column=None,
-                 timestamp_value=None):
+                 timestamp_value=None, serving_store=None, warehouse_store=None):
         """Creates an importer from a given csv dataset. 
         This file can be either local or remote (in gcs). If it's a local file 
         then staging_location must be determined.
@@ -95,21 +95,27 @@ class Importer:
             timestamp_column (str, optional): Defaults to None. Timestamp 
                 column in the csv. If not set, defaults to timestamp value.
             timestamp_value (datetime, optional): Defaults to current datetime. 
-                    Timestamp value to assign to all features in the dataset.
+                Timestamp value to assign to all features in the dataset.
+            serving_store (feast.sdk.resources.feature.DataStore): Defaults to None.
+                Serving store to write the features in this instance to.
+            warehouse_store (feast.sdk.resources.feature.DataStore): Defaults to None.
+                Warehouse store to write the features in this instance to.
         
         Returns:
             Importer: the importer for the dataset provided.
         """
         import_spec_options = {"format": "csv"}
-        import_spec_options["path"], require_staging = _get_remote_location(path,
-                                                                            staging_location)
+        import_spec_options["path"], require_staging = \
+            _get_remote_location(path, staging_location)
         if is_gs_path(path):
             df = gcs_to_df(path)
         else:
             df = pd.read_csv(path)
-        schema, features = _detect_schema_and_feature(entity,
-                                                      granularity, owner, id_column, feature_columns, timestamp_column,
-                                                      timestamp_value, df)
+        schema, features = \
+            _detect_schema_and_feature(entity, granularity, owner, id_column,
+                                       feature_columns, timestamp_column,
+                                       timestamp_value, serving_store,
+                                       warehouse_store, df)
         iport_spec = _create_import("file", import_spec_options, entity, schema)
 
         props = (_properties("csv", len(df.index), require_staging,
@@ -121,7 +127,7 @@ class Importer:
     @classmethod
     def from_bq(cls, bq_path, entity, granularity, owner, limit=10,
                 id_column=None, feature_columns=None, timestamp_column=None,
-                timestamp_value=None):
+                timestamp_value=None, serving_store=None, warehouse_store=None):
         """Creates an importer from a given bigquery table. 
         
         Args:
@@ -140,7 +146,11 @@ class Importer:
             timestamp_column (str, optional): Defaults to None. Timestamp 
                 column in the csv. If not set, defaults to timestamp value.
             timestamp_value (datetime, optional): Defaults to current datetime. 
-                    Timestamp value to assign to all features in the dataset.
+                Timestamp value to assign to all features in the dataset.
+            serving_store (feast.sdk.resources.feature.DataStore): Defaults to None.
+                Serving store to write the features in this instance to.
+            warehouse_store (feast.sdk.resources.feature.DataStore): Defaults to None.
+                Warehouse store to write the features in this instance to.
         
         Returns:
             Importer: the importer for the dataset provided.
@@ -158,9 +168,11 @@ class Importer:
             "table": table_id
         }
         df = head(cli, table, limit)
-        schema, features = _detect_schema_and_feature(entity,
-                                                      granularity, owner, id_column, feature_columns, timestamp_column,
-                                                      timestamp_value, df)
+        schema, features = \
+            _detect_schema_and_feature(entity, granularity, owner, id_column,
+                                       feature_columns, timestamp_column,
+                                       timestamp_value, serving_store,
+                                       warehouse_store, df)
         iport_spec = _create_import("bigquery", import_spec_options,
                                     entity, schema)
 
@@ -171,7 +183,7 @@ class Importer:
     @classmethod
     def from_df(cls, df, entity, granularity, owner, staging_location,
                 id_column=None, feature_columns=None, timestamp_column=None,
-                timestamp_value=None):
+                timestamp_value=None, serving_store=None, warehouse_store=None):
         """Creates an importer from a given pandas dataframe. 
         To import a file from a dataframe, the data will have to be staged.
         
@@ -190,7 +202,11 @@ class Importer:
             timestamp_column (str, optional): Defaults to None. Timestamp 
                 column in the csv. If not set, defaults to timestamp value.
             timestamp_value (datetime, optional): Defaults to current datetime. 
-                    Timestamp value to assign to all features in the dataset.
+                Timestamp value to assign to all features in the dataset.
+            serving_store (feast.sdk.resources.feature.DataStore): Defaults to None.
+                Serving store to write the features in this instance to.
+            warehouse_store (feast.sdk.resources.feature.DataStore): Defaults to None.
+                Warehouse store to write the features in this instance to.
         
         Returns:
             Importer: the importer for the dataset provided.
@@ -202,9 +218,11 @@ class Importer:
         }
         import_spec_options["path"], require_staging = (
             _get_remote_location(tmp_file_name, staging_location))
-        schema, features = _detect_schema_and_feature(entity,
-                                                      granularity, owner, id_column, feature_columns, timestamp_column,
-                                                      timestamp_value, df)
+        schema, features = \
+            _detect_schema_and_feature(entity, granularity, owner, id_column,
+                                       feature_columns, timestamp_column,
+                                       timestamp_value, serving_store,
+                                       warehouse_store, df)
         iport_spec = _create_import("file", import_spec_options, entity, schema)
 
         props = _properties("dataframe", len(df.index), require_staging,
@@ -304,7 +322,9 @@ def _get_remote_location(path, staging_location):
 
 
 def _detect_schema_and_feature(entity, granularity, owner, id_column,
-                               feature_columns, timestamp_column, timestamp_value, df):
+                               feature_columns, timestamp_column,
+                               timestamp_value, serving_store,
+                               warehouse_store, df):
     """Create schema object for import spec.
     
     Args:
@@ -317,7 +337,15 @@ def _detect_schema_and_feature(entity, granularity, owner, id_column,
             rows in dataset
         feature_columns (str): list of column to be extracted
         df (pandas.Dataframe): pandas dataframe of the data
-    
+        serving_store (feast.sdk.resources.feature.DataStore): Defaults to None.
+            Serving store to write the features in this instance to.
+        warehouse_store (feast.sdk.resources.feature.DataStore): Defaults to None.
+            Warehouse store to write the features in this instance to.
+
+    Returns:
+        feast.specs.ImportSpec_pb2.Schema: schema of the data
+        dict of str: feast.specs.FeatureSpec_pb2.FeatureSpec: features in the data
+
     Raises:
         Exception -- [description]
     """
@@ -338,7 +366,8 @@ def _detect_schema_and_feature(entity, granularity, owner, id_column,
             ts.GetCurrentTime()
         else:
             ts = Timestamp(seconds=
-                           int((timestamp_value - datetime.datetime(1970, 1, 1)).total_seconds()))
+                           int((timestamp_value - datetime.datetime(1970, 1, 1))
+                               .total_seconds()))
         schema.timestampValue.CopyFrom(ts)
 
     features = {}
@@ -347,7 +376,9 @@ def _detect_schema_and_feature(entity, granularity, owner, id_column,
         for column in feature_columns:
             if column not in df.columns:
                 raise ValueError("Column with name {} is not found".format(column))
-            features[column] = _create_feature(df[column], entity, granularity, owner)
+            features[column] = _create_feature(df[column], entity,
+                                               granularity, owner,
+                                               serving_store, warehouse_store)
     else:
         # get all column except entity id and timestampColumn
         feature_columns = list(df.columns.values)
@@ -355,7 +386,8 @@ def _detect_schema_and_feature(entity, granularity, owner, id_column,
         _remove_safely(feature_columns, schema.timestampColumn)
         for column in feature_columns:
             features[column] = _create_feature(df[column], entity,
-                                               granularity, owner)
+                                               granularity, owner,
+                                               serving_store, warehouse_store)
 
     for col in df.columns:
         field = schema.fields.add()
@@ -363,10 +395,15 @@ def _detect_schema_and_feature(entity, granularity, owner, id_column,
         if col in features:
             field.featureId = features[col].id
 
-    return schema, [features[k] for k in features]
+    features_dict = {}
+    for k in features:
+        features_dict[features[k].id] = features[k]
+
+    return schema, features_dict
 
 
-def _create_feature(column, entity, granularity, owner):
+def _create_feature(column, entity, granularity, owner,
+                    serving_store, warehouse_store):
     """Create Feature object. 
     
     Args:
@@ -375,16 +412,26 @@ def _create_feature(column, entity, granularity, owner):
         granularity (feast.types.Granularity_pb2.Granularity): granularity of 
             the feature
         owner (str): owner of the feature
+        serving_store (feast.sdk.resources.feature.DataStore): Defaults to None.
+            Serving store to write the features in this instance to.
+        warehouse_store (feast.sdk.resources.feature.DataStore): Defaults to None.
+            Warehouse store to write the features in this instance to.
     
     Returns:
         feast.sdk.resources.Feature: feature for this data column
     """
-    return Feature(
+
+    feature = Feature(
         name=column.name,
         entity=entity,
         granularity=granularity,
         owner=owner,
         value_type=dtype_to_value_type(column.dtype))
+    if serving_store is not None:
+        feature.serving_store = serving_store
+    if warehouse_store is not None:
+        feature.warehouse_store = warehouse_store
+    return feature
 
 
 def _create_import(import_type, options, entity, schema):
