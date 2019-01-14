@@ -15,7 +15,7 @@
  *
  */
 
-package feast.ingestion.transform;
+package feast.source.csv;
 
 import java.io.IOException;
 import java.io.Serializable;

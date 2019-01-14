@@ -15,11 +15,12 @@
  *
  */
 
-package feast.storage.bigquery;
+package feast.source.bigquery;
 
+import feast.options.OptionsParser;
+import feast.source.bigquery.BigQueryFeatureSource.BigQuerySourceOptions;
 import org.junit.Assert;
 import org.junit.Test;
-import feast.options.OptionsParser;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
 public class BigQuerySourceOptionsTest {

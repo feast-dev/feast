@@ -17,40 +17,20 @@
 
 package feast.storage.file.json;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.auto.service.AutoService;
-import lombok.AllArgsConstructor;
 import feast.ingestion.model.Specs;
-import feast.ingestion.transform.FeatureIO.Read;
 import feast.ingestion.transform.FeatureIO.Write;
 import feast.options.OptionsParser;
-import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.storage.ErrorsStore;
-import feast.storage.FeatureSource;
 import feast.storage.ServingStore;
 import feast.storage.WarehouseStore;
 import feast.storage.file.FileStoreOptions;
+import lombok.AllArgsConstructor;
 
 public class JsonFileStores {
+
   private static final String JSON_FILES_TYPE = "file.json";
-
-  public static class JsonFileFeatureSource implements FeatureSource {
-
-    @Override
-    public Read create(ImportSpec importSpec) {
-      checkArgument(importSpec.getType().equals(getType()));
-      JsonFileSourceOptions options =
-          OptionsParser.parse(importSpec.getOptionsMap(), JsonFileSourceOptions.class);
-      return new JsonFileFeatureIO.Read(options);
-    }
-
-    @Override
-    public String getType() {
-      return JSON_FILES_TYPE;
-    }
-  }
 
   @AutoService(WarehouseStore.class)
   @AllArgsConstructor

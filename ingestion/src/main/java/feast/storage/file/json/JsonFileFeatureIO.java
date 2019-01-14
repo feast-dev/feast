@@ -20,21 +20,14 @@ package feast.storage.file.json;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.NonNull;
-import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PInput;
 import feast.ingestion.transform.FeatureIO;
 import feast.storage.file.FileStoreOptions;
 import feast.storage.file.TextFileFeatureIO;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
-import feast.types.FeatureRowProto.FeatureRow;
+import lombok.AllArgsConstructor;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
 
 public class JsonFileFeatureIO {
 
@@ -44,43 +37,6 @@ public class JsonFileFeatureIO {
 
   public static Write writeRow(FileStoreOptions options) {
     return new Write(options, (rowExtended) -> rowExtended.getRow());
-  }
-
-  /**
-   * Transform for processing JSON text jsonfiles and that contain JSON serialised FeatureRow
-   * messages, one per line.
-   *
-   * <p>This transform asserts that the import spec is for only one entity, as all columns must have
-   * the same entity.
-   *
-   * <p>The output is a PCollection of {@link feast.types.FeatureRowProto.FeatureRow
-   * FeatureRows}.
-   */
-  @Builder
-  public static class Read extends FeatureIO.Read {
-
-    @NonNull private final JsonFileSourceOptions options;
-
-    @Override
-    public PCollection<FeatureRow> expand(PInput input) {
-      PCollection<String> jsonLines = input.getPipeline().apply(TextIO.read().from(options.path));
-
-      return jsonLines.apply(
-          ParDo.of(
-              new DoFn<String, FeatureRow>() {
-                @ProcessElement
-                public void processElement(ProcessContext context) {
-                  String line = context.element();
-                  FeatureRow.Builder builder = FeatureRow.newBuilder();
-                  try {
-                    JsonFormat.parser().merge(line, builder);
-                    context.output(builder.build());
-                  } catch (InvalidProtocolBufferException e) {
-                    throw new RuntimeException(e);
-                  }
-                }
-              }));
-    }
   }
 
   @AllArgsConstructor

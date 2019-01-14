@@ -15,18 +15,16 @@
  *
  */
 
-package feast.ingestion.transform;
+package feast.source.csv;
 
 import static org.junit.Assert.*;
 import static org.hamcrest.CoreMatchers.*;
 
 import com.google.common.collect.Lists;
-import feast.ingestion.transform.CsvIO.CSVLineParser;
-import feast.ingestion.transform.CsvIO.StringMap;
+import feast.source.csv.CsvIO.CSVLineParser;
+import feast.source.csv.CsvIO.StringMap;
 import java.util.List;
 import junit.framework.TestCase;
-import feast.ingestion.transform.CsvIO.CSVLineParser;
-import feast.ingestion.transform.CsvIO.StringMap;
 
 public class CsvIOTest extends TestCase {
 

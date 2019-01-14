@@ -19,5 +19,9 @@ package feast.options;
 
 import java.io.Serializable;
 
-/** iterface for identifying classes that can use the OptionsParser for extra type safety */
-public interface Options extends Serializable {}
+/**
+ * interface for identifying classes that can use the OptionsParser for extra type safety
+ */
+public interface Options extends Serializable {
+
+}
