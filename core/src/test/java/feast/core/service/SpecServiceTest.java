@@ -51,6 +51,7 @@ import java.util.Optional;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
@@ -104,7 +105,26 @@ public class SpecServiceTest {
     EntityInfo entity2 = newTestEntityInfo("entity2");
 
     ArrayList<String> ids = Lists.newArrayList("entity1", "entity2");
-    when(entityInfoRepository.findAllById(ids)).thenReturn(Lists.newArrayList(entity1, entity2));
+    when(entityInfoRepository.findAllById(any(Iterable.class))).thenReturn(Lists.newArrayList(entity1, entity2));
+    SpecService specService =
+        new SpecService(
+            entityInfoRepository,
+            featureInfoRepository,
+            storageInfoRepository,
+            featureGroupInfoRepository,
+            schemaManager);
+    List<EntityInfo> actual = specService.getEntities(ids);
+    List<EntityInfo> expected = Lists.newArrayList(entity1, entity2);
+    assertThat(actual, equalTo(expected));
+  }
+
+  @Test
+  public void shouldDeduplicateGetEntities() {
+    EntityInfo entity1 = newTestEntityInfo("entity1");
+    EntityInfo entity2 = newTestEntityInfo("entity2");
+
+    ArrayList<String> ids = Lists.newArrayList("entity1", "entity2", "entity2");
+    when(entityInfoRepository.findAllById(any(Iterable.class))).thenReturn(Lists.newArrayList(entity1, entity2));
     SpecService specService =
         new SpecService(
             entityInfoRepository,
@@ -161,7 +181,26 @@ public class SpecServiceTest {
     FeatureInfo feature2 = newTestFeatureInfo("feature2");
 
     ArrayList<String> ids = Lists.newArrayList("entity.none.feature1", "entity.none.feature2");
-    when(featureInfoRepository.findAllById(ids)).thenReturn(Lists.newArrayList(feature1, feature2));
+    when(featureInfoRepository.findAllById(any(Iterable.class))).thenReturn(Lists.newArrayList(feature1, feature2));
+    SpecService specService =
+        new SpecService(
+            entityInfoRepository,
+            featureInfoRepository,
+            storageInfoRepository,
+            featureGroupInfoRepository,
+            schemaManager);
+    List<FeatureInfo> actual = specService.getFeatures(ids);
+    List<FeatureInfo> expected = Lists.newArrayList(feature1, feature2);
+    assertThat(actual, equalTo(expected));
+  }
+
+  @Test
+  public void shouldDeduplicateGetFeature() {
+    FeatureInfo feature1 = newTestFeatureInfo("feature1");
+    FeatureInfo feature2 = newTestFeatureInfo("feature2");
+
+    ArrayList<String> ids = Lists.newArrayList("entity.none.feature1", "entity.none.feature2", "entity.none.feature2");
+    when(featureInfoRepository.findAllById(any(Iterable.class))).thenReturn(Lists.newArrayList(feature1, feature2));
     SpecService specService =
         new SpecService(
             entityInfoRepository,
@@ -216,7 +255,27 @@ public class SpecServiceTest {
     StorageInfo bqStorage = newTestStorageInfo("BIGQUERY1", "BIGQUERY");
 
     ArrayList<String> ids = Lists.newArrayList("REDIS1", "BIGQUERY1");
-    when(storageInfoRepository.findAllById(ids))
+    when(storageInfoRepository.findAllById(any(Iterable.class)))
+        .thenReturn(Lists.newArrayList(redisStorage, bqStorage));
+    SpecService specService =
+        new SpecService(
+            entityInfoRepository,
+            featureInfoRepository,
+            storageInfoRepository,
+            featureGroupInfoRepository,
+            schemaManager);
+    List<StorageInfo> actual = specService.getStorage(ids);
+    List<StorageInfo> expected = Lists.newArrayList(redisStorage, bqStorage);
+    assertThat(actual, equalTo(expected));
+  }
+
+  @Test
+  public void shouldDeduplicateGetStorage() {
+    StorageInfo redisStorage = newTestStorageInfo("REDIS1", "REDIS");
+    StorageInfo bqStorage = newTestStorageInfo("BIGQUERY1", "BIGQUERY");
+
+    ArrayList<String> ids = Lists.newArrayList("REDIS1", "BIGQUERY1", "BIGQUERY1");
+    when(storageInfoRepository.findAllById(any(Iterable.class)))
         .thenReturn(Lists.newArrayList(redisStorage, bqStorage));
     SpecService specService =
         new SpecService(
