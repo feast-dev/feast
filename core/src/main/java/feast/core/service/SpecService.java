@@ -18,6 +18,7 @@
 package feast.core.service;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Sets;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.dao.EntityInfoRepository;
 import feast.core.dao.FeatureGroupInfoRepository;
@@ -38,6 +39,7 @@ import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -83,8 +85,10 @@ public class SpecService {
     if (ids.size() == 0) {
       throw new IllegalArgumentException("ids cannot be empty");
     }
-    List<EntityInfo> entityInfos = this.entityInfoRepository.findAllById(ids);
-    if (entityInfos.size() < ids.size()) {
+    Set<String> dedupIds = Sets.newHashSet(ids);
+
+    List<EntityInfo> entityInfos = this.entityInfoRepository.findAllById(dedupIds);
+    if (entityInfos.size() < dedupIds.size()) {
       throw new RetrievalException(
           "unable to retrieve all entities requested"); // TODO: check and return exactly which ones
     }
@@ -113,8 +117,10 @@ public class SpecService {
     if (ids.size() == 0) {
       throw new IllegalArgumentException("ids cannot be empty");
     }
-    List<FeatureInfo> featureInfos = this.featureInfoRepository.findAllById(ids);
-    if (featureInfos.size() < ids.size()) {
+    Set<String> dedupIds = Sets.newHashSet(ids);
+
+    List<FeatureInfo> featureInfos = this.featureInfoRepository.findAllById(dedupIds);
+    if (featureInfos.size() < dedupIds.size()) {
       throw new RetrievalException(
           "unable to retrieve all features requested"); // TODO: check and return exactly which ones
     }
@@ -143,8 +149,10 @@ public class SpecService {
     if (ids.size() == 0) {
       throw new IllegalArgumentException("ids cannot be empty");
     }
-    List<FeatureGroupInfo> featureGroupInfos = this.featureGroupInfoRepository.findAllById(ids);
-    if (featureGroupInfos.size() < ids.size()) {
+    Set<String> dedupIds = Sets.newHashSet(ids);
+
+    List<FeatureGroupInfo> featureGroupInfos = this.featureGroupInfoRepository.findAllById(dedupIds);
+    if (featureGroupInfos.size() < dedupIds.size()) {
       throw new RetrievalException(
           "unable to retrieve all feature groups requested"); // TODO: check and return exactly
       // which ones
@@ -174,8 +182,10 @@ public class SpecService {
     if (ids.size() == 0) {
       throw new IllegalArgumentException("ids cannot be empty");
     }
-    List<StorageInfo> storageInfos = this.storageInfoRepository.findAllById(ids);
-    if (storageInfos.size() < ids.size()) {
+    Set<String> dedupIds = Sets.newHashSet(ids);
+
+    List<StorageInfo> storageInfos = this.storageInfoRepository.findAllById(dedupIds);
+    if (storageInfos.size() < dedupIds.size()) {
       throw new RetrievalException(
           "unable to retrieve all storage requested"); // TODO: check and return exactly which ones
     }
