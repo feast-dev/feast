@@ -17,61 +17,41 @@
 
 package feast.serving.grpc;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import com.timgroup.statsd.StatsDClient;
+import feast.serving.ServingAPIProto.QueryFeaturesRequest;
+import feast.serving.ServingAPIProto.QueryFeaturesResponse;
+import feast.serving.ServingAPIProto.TimestampRange;
+import feast.serving.service.FeastServing;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.jaegertracing.Configuration;
 import io.opentracing.Tracer;
+import java.util.Arrays;
 import org.junit.Before;
 import org.junit.Test;
-import feast.serving.ServingAPIProto.QueryFeatures.Request;
-import feast.serving.ServingAPIProto.QueryFeatures.Response;
-import feast.serving.ServingAPIProto.RequestDetail;
-import feast.serving.ServingAPIProto.RequestType;
-import feast.serving.ServingAPIProto.TimestampRange;
-import feast.serving.service.FeastServing;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-
-import java.util.Arrays;
-
-import static org.hamcrest.Matchers.closeTo;
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 public class ServingGrpcServiceTest {
 
   @Mock private FeastServing mockFeast;
 
-  @Mock private StreamObserver<Response> mockStreamObserver;
-
-  @Mock private Response mockResponse;
+  @Mock private StreamObserver<QueryFeaturesResponse> mockStreamObserver;
 
   @Mock private StatsDClient statsDClient;
 
-  private Request validRequest;
+  private QueryFeaturesRequest validRequest;
 
   private ServingGrpcService service;
 
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
-
-    RequestDetail req1 =
-        RequestDetail.newBuilder().setFeatureId("driver.day.completed_booking").build();
-
-    RequestDetail req2 =
-        RequestDetail.newBuilder()
-            .setFeatureId("driver.none.last_opportunity")
-            .setType(RequestType.LIST)
-            .setLimit(5)
-            .build();
 
     TimestampRange tsRange =
         TimestampRange.newBuilder()
@@ -80,11 +60,12 @@ public class ServingGrpcServiceTest {
             .build();
 
     validRequest =
-        Request.newBuilder()
+        QueryFeaturesRequest.newBuilder()
             .setEntityName("driver")
             .addAllEntityId(Arrays.asList("driver1", "driver2", "driver3"))
-            .addAllRequestDetails(Arrays.asList(req1, req2))
-            .setTimestampRange(tsRange)
+            .addAllFeatureId(
+                Arrays.asList("driver.day.completed_booking", "driver.none.last_opportunity"))
+            .setTimeRange(tsRange)
             .build();
 
     Tracer tracer = Configuration.fromEnv("dummy").getTracer();
@@ -98,69 +79,9 @@ public class ServingGrpcServiceTest {
   }
 
   @Test
-  public void shouldUseNowAsStartAndEndInTimestampRangeIfMissing() {
-    Request missingTsRangeReq = Request.newBuilder(validRequest).clearTimestampRange().build();
-
-    ArgumentCaptor<Request> argCaptor = ArgumentCaptor.forClass(Request.class);
-
-    when(mockFeast.queryFeatures(argCaptor.capture())).thenReturn(mockResponse);
-    service.queryFeatures(missingTsRangeReq, mockStreamObserver);
-
-    Timestamp now = Timestamp.newBuilder().setSeconds(System.currentTimeMillis() / 1000).build();
-    TimestampRange actualTsRange = argCaptor.getValue().getTimestampRange();
-    assertThat(
-        (double) actualTsRange.getStart().getSeconds(),
-        closeTo((double) now.getSeconds(), (double) 1));
-    assertThat(
-        (double) actualTsRange.getEnd().getSeconds(),
-        closeTo((double) now.getSeconds(), (double) 1));
-    System.out.println(argCaptor.getValue());
-  }
-
-  @Test
-  public void shouldUseEndIfStartTimestampRangeIsMissing() {
-    Timestamp end = Timestamp.newBuilder().setSeconds(1234).build();
-    Request missingStartTsRangeReq =
-        Request.newBuilder(validRequest)
-            .clearTimestampRange()
-            .setTimestampRange(TimestampRange.newBuilder().setEnd(end))
-            .build();
-
-    ArgumentCaptor<Request> argCaptor = ArgumentCaptor.forClass(Request.class);
-
-    when(mockFeast.queryFeatures(argCaptor.capture())).thenReturn(mockResponse);
-    service.queryFeatures(missingStartTsRangeReq, mockStreamObserver);
-
-    TimestampRange actualTsRange = argCaptor.getValue().getTimestampRange();
-    assertThat(actualTsRange.getStart(), equalTo(end));
-    System.out.println(argCaptor.getValue());
-  }
-
-  @Test
-  public void shouldUseNowIfEndTimestampRangeIsMissing() {
-    Timestamp start = Timestamp.newBuilder().setSeconds(1234).build();
-    Request missingEndTsRangeReq =
-        Request.newBuilder(validRequest)
-            .clearTimestampRange()
-            .setTimestampRange(TimestampRange.newBuilder().setStart(start))
-            .build();
-
-    ArgumentCaptor<Request> argCaptor = ArgumentCaptor.forClass(Request.class);
-
-    when(mockFeast.queryFeatures(argCaptor.capture())).thenReturn(mockResponse);
-    service.queryFeatures(missingEndTsRangeReq, mockStreamObserver);
-
-    Timestamp now = Timestamp.newBuilder().setSeconds(System.currentTimeMillis() / 1000).build();
-    TimestampRange actualTsRange = argCaptor.getValue().getTimestampRange();
-    assertThat(
-        (double) actualTsRange.getEnd().getSeconds(),
-        closeTo((double) now.getSeconds(), (double) 1));
-    System.out.println(argCaptor.getValue());
-  }
-
-  @Test
   public void shouldCallOnErrorIfEntityNameIsNotSet() {
-    Request missingEntityName = Request.newBuilder(validRequest).clearEntityName().build();
+    QueryFeaturesRequest missingEntityName =
+        QueryFeaturesRequest.newBuilder(validRequest).clearEntityName().build();
 
     service.queryFeatures(missingEntityName, mockStreamObserver);
 
@@ -169,7 +90,8 @@ public class ServingGrpcServiceTest {
 
   @Test
   public void shouldCallOnErrorIfEntityIdsIsNotSet() {
-    Request missingEntityIds = Request.newBuilder(validRequest).clearEntityId().build();
+    QueryFeaturesRequest missingEntityIds =
+        QueryFeaturesRequest.newBuilder(validRequest).clearEntityId().build();
 
     service.queryFeatures(missingEntityIds, mockStreamObserver);
 
@@ -177,8 +99,9 @@ public class ServingGrpcServiceTest {
   }
 
   @Test
-  public void shouldCallOnErrorIfRequestDetailsIsNotSet() {
-    Request missingRequestDetails = Request.newBuilder(validRequest).clearRequestDetails().build();
+  public void shouldCallOnErrorIfFeatureIdsIsNotSet() {
+    QueryFeaturesRequest missingRequestDetails =
+        QueryFeaturesRequest.newBuilder(validRequest).clearFeatureId().build();
 
     service.queryFeatures(missingRequestDetails, mockStreamObserver);
 
@@ -186,9 +109,11 @@ public class ServingGrpcServiceTest {
   }
 
   @Test
-  public void shouldCallOnErrorIfRequestDetailsContainsDifferentEntity() {
-    RequestDetail req3 = RequestDetail.newBuilder().setFeatureId("customer.day.order_made").build();
-    Request differentEntityReq = Request.newBuilder(validRequest).addRequestDetails(req3).build();
+  public void shouldCallOnErrorIfFeatureIdsContainsDifferentEntity() {
+    QueryFeaturesRequest differentEntityReq =
+        QueryFeaturesRequest.newBuilder(validRequest)
+            .addFeatureId("customer.day.order_made")
+            .build();
 
     service.queryFeatures(differentEntityReq, mockStreamObserver);
 
@@ -203,8 +128,46 @@ public class ServingGrpcServiceTest {
             .setEnd(Timestamps.fromSeconds(1000))
             .build();
 
-    Request invalidTsRangeReq =
-        Request.newBuilder(validRequest).setTimestampRange(invalidTsRange).build();
+    QueryFeaturesRequest invalidTsRangeReq =
+        QueryFeaturesRequest.newBuilder(validRequest).setTimeRange(invalidTsRange).build();
+
+    service.queryFeatures(invalidTsRangeReq, mockStreamObserver);
+
+    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
+  }
+
+  @Test
+  public void shouldCallOnErrorIfTimestampRangeDoesntHaveStartAndEnd() {
+    TimestampRange invalidTsRange = TimestampRange.newBuilder().build();
+
+    QueryFeaturesRequest invalidTsRangeReq =
+        QueryFeaturesRequest.newBuilder(validRequest).setTimeRange(invalidTsRange).build();
+
+    service.queryFeatures(invalidTsRangeReq, mockStreamObserver);
+
+    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
+  }
+
+  @Test
+  public void shouldCallOnErrorIfTimestampRangeDoesntHaveStart() {
+    TimestampRange invalidTsRange =
+        TimestampRange.newBuilder().setEnd(Timestamps.fromSeconds(1001)).build();
+
+    QueryFeaturesRequest invalidTsRangeReq =
+        QueryFeaturesRequest.newBuilder(validRequest).setTimeRange(invalidTsRange).build();
+
+    service.queryFeatures(invalidTsRangeReq, mockStreamObserver);
+
+    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
+  }
+
+  @Test
+  public void shouldCallOnErrorIfTimestampRangeDoesntHaveEnd() {
+    TimestampRange invalidTsRange =
+        TimestampRange.newBuilder().setStart(Timestamps.fromSeconds(1001)).build();
+
+    QueryFeaturesRequest invalidTsRangeReq =
+        QueryFeaturesRequest.newBuilder(validRequest).setTimeRange(invalidTsRange).build();
 
     service.queryFeatures(invalidTsRangeReq, mockStreamObserver);
 

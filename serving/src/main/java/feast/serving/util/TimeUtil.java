@@ -17,9 +17,7 @@
 
 package feast.serving.util;
 
-import com.google.protobuf.Timestamp;
-import feast.types.GranularityProto.Granularity.Enum;
-import org.joda.time.*;
+import feast.serving.ServingAPIProto.TimestampRange;
 
 /** Utility class for time-related function. */
 public class TimeUtil {
@@ -29,59 +27,18 @@ public class TimeUtil {
 
   private TimeUtil() {}
 
-  /**
-   * Round down timestamp to the nearest granularity.
-   *
-   * @param timestamp original timestamp.
-   * @param granularity granularity of the rounded timestamp.
-   * @return
-   */
-  public static Timestamp roundFloorTimestamp(Timestamp timestamp, Enum granularity) {
-    MutableDateTime dt = new MutableDateTime(DateTimeZone.UTC);
-    DateTimeField roundingField;
-    switch (granularity) {
-      case DAY:
-        roundingField = dt.getChronology().dayOfMonth();
-        break;
-      case HOUR:
-        roundingField = dt.getChronology().hourOfDay();
-        break;
-      case MINUTE:
-        roundingField = dt.getChronology().minuteOfHour();
-        break;
-      case SECOND:
-        roundingField = dt.getChronology().secondOfMinute();
-        break;
-      case NONE:
-        return Timestamp.newBuilder().setSeconds(0).setNanos(0).build();
-      default:
-        throw new RuntimeException("Unrecognised time series granularity");
-    }
-    dt.setMillis(timestamp.getSeconds() * 1000 + timestamp.getNanos() / 1000000);
-    dt.setRounding(roundingField, MutableDateTime.ROUND_FLOOR);
-    return dateTimeToTimestamp(dt.toDateTime());
+  public static boolean isTimeFilterRequired(TimestampRange timeRange) {
+    return timeRange != null && !TimestampRange.getDefaultInstance().equals(timeRange);
   }
 
   /**
-   * Returns the current value of the running Java Virtual Machine's
-   * high-resolution time source, in microseconds.
+   * Returns the current value of the running Java Virtual Machine's high-resolution time source, in
+   * microseconds.
+   *
    * @return current micro time.
    * @see System#nanoTime()
    */
   public static long microTime() {
     return System.nanoTime() / NANO_IN_MICRO;
-  }
-
-  /**
-   * Convert {@link DateTime} into {@link Timestamp}
-   *
-   * @param dateTime
-   * @return
-   */
-  private static Timestamp dateTimeToTimestamp(DateTime dateTime) {
-    return Timestamp.newBuilder()
-        .setSeconds(dateTime.getMillis() / MILLI_IN_SECOND)
-        .setNanos((int) (dateTime.getMillis() % MILLI_IN_SECOND) * NANO_IN_MILLI)
-        .build();
   }
 }

@@ -20,70 +20,57 @@ package feast.serving.util;
 import com.google.common.base.Strings;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
-import feast.serving.ServingAPIProto.QueryFeatures.Request;
-import feast.serving.ServingAPIProto.RequestDetail;
-import feast.serving.ServingAPIProto.TimestampRange;
+import feast.serving.ServingAPIProto.QueryFeaturesRequest;
 
 public class RequestHelper {
-    private RequestHelper() {}
+  private RequestHelper() {}
 
-    public static void validateRequest(Request request) {
-        // entity name shall present
-        if (Strings.isNullOrEmpty(request.getEntityName())) {
-            throw new IllegalArgumentException("entity name must be set");
-        }
-
-        // entity id list shall not be empty
-        if (request.getEntityIdList().size() <= 0) {
-            throw new IllegalArgumentException("entity ID must be provided");
-        }
-
-        // request detail shall not be empty
-        if (request.getRequestDetailsList().size() <= 0) {
-            throw new IllegalArgumentException("request details must be provided");
-        }
-
-        // feature id in each request detail shall have same entity name
-        String entityName = request.getEntityName();
-        for (RequestDetail requestDetail : request.getRequestDetailsList()) {
-            String featureId = requestDetail.getFeatureId();
-            if (!featureId.substring(0, featureId.indexOf(".")).equals(entityName)) {
-                throw new IllegalArgumentException(
-                        "entity name of all feature ID in request details must be: " + entityName);
-            }
-        }
+  public static void validateRequest(QueryFeaturesRequest request) {
+    // entity name shall present
+    if (Strings.isNullOrEmpty(request.getEntityName())) {
+      throw new IllegalArgumentException("entity name must be set");
     }
 
-    public static Request checkTimestampRange(Request request) {
-        Request.Builder requestBuilder = Request.newBuilder(request);
-
-        Timestamp defaultTs =
-                Timestamp.newBuilder().setSeconds(System.currentTimeMillis() / 1000).build();
-
-        // default timestamp range
-        if (!request.hasTimestampRange()) {
-            requestBuilder.setTimestampRange(
-                    TimestampRange.newBuilder().setStart(defaultTs).setEnd(defaultTs).build());
-        } else if (request.getTimestampRange().getStart().getSeconds() == 0
-                && request.getTimestampRange().getStart().getNanos() == 0) {
-            Timestamp end = request.getTimestampRange().getEnd();
-            requestBuilder.setTimestampRange(
-                    TimestampRange.newBuilder(request.getTimestampRange()).setStart(end));
-        } else if (request.getTimestampRange().getEnd().getSeconds() == 0
-                && request.getTimestampRange().getEnd().getNanos() == 0) {
-            requestBuilder.setTimestampRange(
-                    TimestampRange.newBuilder(request.getTimestampRange()).setEnd(defaultTs));
-        }
-
-        Request newRequest = requestBuilder.build();
-        Timestamp start = newRequest.getTimestampRange().getStart();
-        Timestamp end = newRequest.getTimestampRange().getEnd();
-
-        if (Timestamps.compare(start, end) > 0) {
-            throw new IllegalArgumentException(
-                    "'end' of timestampRange must be before or same time as 'start'");
-        }
-
-        return newRequest;
+    // entity id list shall not be empty
+    if (request.getEntityIdList().size() <= 0) {
+      throw new IllegalArgumentException("entity ID must be provided");
     }
+
+    // feature IDs shall not be empty
+    if (request.getFeatureIdCount() <= 0) {
+      throw new IllegalArgumentException("feature id must be provided");
+    }
+
+    // feature id in each request detail shall have same entity name
+    String entityName = request.getEntityName();
+    for (String featureId : request.getFeatureIdList()) {
+      if (!featureId.substring(0, featureId.indexOf(".")).equals(entityName)) {
+        throw new IllegalArgumentException(
+            "entity name of all feature ID in request details must be: " + entityName);
+      }
+    }
+
+    checkTimestampRange(request);
+  }
+
+  private static void checkTimestampRange(QueryFeaturesRequest request) {
+    if (!request.hasTimeRange()) {
+      return;
+    }
+
+    Timestamp start = request.getTimeRange().getStart();
+    Timestamp end = request.getTimeRange().getEnd();
+    if (Timestamps.EPOCH.equals(start)) {
+      throw new IllegalArgumentException("start time must not be empty");
+    }
+
+    if (Timestamps.EPOCH.equals(end)) {
+      throw new IllegalArgumentException("end time must not be empty");
+    }
+
+    if (Timestamps.compare(start, end) > 0) {
+      throw new IllegalArgumentException(
+          "'end' of timestampRange must be before or same time as 'start'");
+    }
+  }
 }
