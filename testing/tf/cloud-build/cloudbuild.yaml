@@ -13,7 +13,6 @@ steps:
   args: ['build', '-t', 'gcr.io/$PROJECT_ID/feast-serving:$TAG_NAME', '-t', 'gcr.io/$PROJECT_ID/feast-serving:latest', '--build-arg', 'RELEASE=$TAG_NAME', '-f', './docker/serving/Dockerfile', '.']
   id: docker-serving
   waitFor: 
-  
   - build-jars
 
 timeout: 1200s
