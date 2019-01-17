@@ -397,6 +397,39 @@ public class SpecValidatorTest {
   }
 
   @Test
+  public void featureSpecWithoutWarehouseStoreShouldBeAllowed() {
+    String servingStoreId = "REDIS1";
+    when(entityInfoRepository.existsById("entity")).thenReturn(true);
+    when(storageInfoRepository.existsById(servingStoreId)).thenReturn(true);
+
+    StorageInfo redis1 = new StorageInfo();
+    redis1.setId(servingStoreId);
+    redis1.setType("redis");
+    when(storageInfoRepository.findById( servingStoreId)).thenReturn(Optional.of(redis1));
+
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    DataStore servingStore = DataStore.newBuilder().setId(servingStoreId).build();
+    DataStores dataStores =
+        DataStores.newBuilder().setServing(servingStore).build();
+    FeatureSpec input =
+        FeatureSpec.newBuilder()
+            .setId("entity.none.name")
+            .setName("name")
+            .setOwner("owner")
+            .setDescription("dasdad")
+            .setEntity("entity")
+            .setGranularity(Granularity.Enum.forNumber(0))
+            .setDataStores(dataStores)
+            .build();
+    validator.validateFeatureSpec(input);
+  }
+
+  @Test
   public void featureSpecWithUnsupportedWarehouseStoreShouldThrowIllegalArgumentException() {
     String servingStoreId = "REDIS1";
     StorageSpec servingStoreSpec = StorageSpec.newBuilder().setId(servingStoreId).setType("redis").build();

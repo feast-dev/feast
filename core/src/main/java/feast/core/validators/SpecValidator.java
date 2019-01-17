@@ -54,6 +54,8 @@ public class SpecValidator {
   private FeatureInfoRepository featureInfoRepository;
   private static final String FILE_ERROR_STORE_TYPE = "file.json";
 
+  private static final String NO_STORE = "";
+
   private static String[] SUPPORTED_WAREHOUSE_STORES =
       new String[] {
           BigQueryStorageManager.TYPE, FILE_ERROR_STORE_TYPE,
@@ -110,8 +112,8 @@ public class SpecValidator {
           Strings.lenientFormat("Entity with name %s does not exist", spec.getEntity()));
 
       // TODO: clean up store validation for features
-      String servingStoreId = "";
-      String warehouseStoreId = "";
+      String servingStoreId = NO_STORE;
+      String warehouseStoreId = NO_STORE;
       if (spec.hasDataStores()) {
         servingStoreId =
             spec.getDataStores().hasServing() ? spec.getDataStores().getServing().getId() : "";
@@ -126,9 +128,9 @@ public class SpecValidator {
         }
         FeatureGroupInfo group = (FeatureGroupInfo) groupOptional.get();
         servingStoreId =
-            servingStoreId.equals("") ? group.getServingStore().getId() : servingStoreId;
+            servingStoreId.equals(NO_STORE) ? group.getServingStore().getId() : servingStoreId;
         warehouseStoreId =
-            warehouseStoreId.equals("") ? group.getWarehouseStore().getId() : warehouseStoreId;
+            warehouseStoreId.equals(NO_STORE) ? group.getWarehouseStore().getId() : warehouseStoreId;
       }
       Optional<StorageInfo> servingStore = storageInfoRepository.findById(servingStoreId);
       Optional<StorageInfo> warehouseStore = storageInfoRepository.findById(warehouseStoreId);
@@ -138,13 +140,17 @@ public class SpecValidator {
       checkArgument(
           Arrays.asList(SUPPORTED_SERVING_STORES).contains(servingStore.get().getType()),
           Strings.lenientFormat("Unsupported serving store type", servingStore.get().getType()));
-      checkArgument(
-          warehouseStore.isPresent(),
-          Strings.lenientFormat("Warehouse store with id %s does not exist", warehouseStoreId));
-      checkArgument(
-          Arrays.asList(SUPPORTED_WAREHOUSE_STORES).contains(warehouseStore.get().getType()),
-          Strings.lenientFormat(
-              "Unsupported warehouse store type", warehouseStore.get().getType()));
+
+      if (!NO_STORE.equals(warehouseStoreId)) {
+        checkArgument(
+            warehouseStore.isPresent(),
+            Strings.lenientFormat("Warehouse store with id %s does not exist", warehouseStoreId));
+
+        checkArgument(
+            Arrays.asList(SUPPORTED_WAREHOUSE_STORES).contains(warehouseStore.get().getType()),
+            Strings.lenientFormat(
+                "Unsupported warehouse store type", warehouseStore.get().getType()));
+      }
 
     } catch (NullPointerException | IllegalArgumentException e) {
       throw new IllegalArgumentException(
