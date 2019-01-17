@@ -1,0 +1,41 @@
+WITH
+  {% for feature_group in feature_groups -%}
+  raw_{{ feature_group.tempTable }} AS
+    (SELECT
+      ROW_NUMBER() OVER (PARTITION BY id, event_timestamp ORDER BY created_timestamp DESC) rownum,
+      id, event_timestamp, created_timestamp
+      {% for feature in feature_group.features -%}
+       , FIRST_VALUE({{feature.name}} IGNORE NULLS) OVER w AS {{feature.column}}
+      {% endfor -%}
+    FROM `{{feature_group.table_id}}`
+    {% if feature_group.granularityStr != "none" -%}
+    WHERE event_timestamp >= TIMESTAMP("{{ start_date }}") AND event_timestamp <= TIMESTAMP(DATETIME_ADD("{{ end_date }}", INTERVAL 1 DAY))
+    {%- endif %}
+    WINDOW w AS ( PARTITION BY id, event_timestamp ORDER BY event_timestamp DESC )),
+  {{ feature_group.temp_table }} AS (
+    SELECT * FROM raw_{{ feature_group.temp_table }} WHERE rownum = 1 ) {{ "," if not loop.last }}
+  {% endfor %}
+SELECT
+  {{ feature_groups[0].temp_table }}.id,
+  {{ feature_groups[0].temp_table }}.event_timestamp
+  {% for feature_group in feature_groups -%}
+  {% for feature in feature_group.features -%}
+  ,{{ feature_group.temp_table }}.{{ feature.column }}
+  {%- endfor %}
+  {%- endfor %}
+FROM
+  {{ feature_groups[0].temp_table }}
+{% for feature_group in feature_groups -%}
+{% if loop.index > 1  %}
+LEFT JOIN
+  {{ feature_group.temp_table }}
+ON
+  {{ feature_groups[0].temp_table }}.id = {{ feature_group.temp_table }}.id
+  {% if feature_group.granularityStr != "none" -%}
+  AND TIMESTAMP_TRUNC({{feature_groups[0].temp_table}}.event_timestamp, {{ feature_group.granularityStr|upper }}) = {{ feature_group.temp_table }}.event_timestamp
+  {%- endif %}
+{%- endif %}
+{%- endfor %}
+{% if limit is not none -%}
+LIMIT {{ limit }}
+{%- endif %}

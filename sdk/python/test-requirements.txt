@@ -1,0 +1,13 @@
+google-api-core>=1.7.0
+google-auth>=1.6.0
+google-cloud-bigquery>=1.8.0
+google-cloud-storage>=1.13.0
+google-resumable-media==0.3.1
+googleapis-common-protos>=1.5.5
+grpcio>=1.16.1
+numpy
+pandas
+protobuf>=3.0.0
+pytest
+pytest-mock
+PyYAML

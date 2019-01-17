@@ -1,5 +1,6 @@
 --- 
-core: 
+core:
+  projectId: "gcp-project-id"
   image: 
     pullPolicy: IfNotPresent
     registry: feast
@@ -30,7 +31,8 @@ core:
     errorStoreOptions: "{}"
     monitoring:
       period: 5000
-      initialDelay: 60000      
+      initialDelay: 60000
+  trainingDatasetPrefix: "fs"
 
 postgresql: 
   name: feast-metadata
