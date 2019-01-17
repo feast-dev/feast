@@ -141,7 +141,7 @@ public class SpecValidator {
           Arrays.asList(SUPPORTED_SERVING_STORES).contains(servingStore.get().getType()),
           Strings.lenientFormat("Unsupported serving store type", servingStore.get().getType()));
 
-      if (!NO_STORE.equals(warehouseStoreId)) {
+      if (!warehouseStoreId.equals(NO_STORE)) {
         checkArgument(
             warehouseStore.isPresent(),
             Strings.lenientFormat("Warehouse store with id %s does not exist", warehouseStoreId));
