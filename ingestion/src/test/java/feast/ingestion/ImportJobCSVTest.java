@@ -276,4 +276,59 @@ public class ImportJobCSVTest {
     PAssert.that(writtenToServing).satisfies(hasCount(0));
     testPipeline.run();
   }
+
+
+  @Test
+  public void testImportWithoutWarehouseStore() throws IOException {
+    ImportSpec importSpec =
+        ProtoUtil.decodeProtoYaml(
+            "---\n"
+                + "type: file\n"
+                + "options:\n"
+                + "  format: csv\n"
+                + "  # path: to be overwritten in tests\n"
+                + "entities:\n"
+                + "  - testEntity\n"
+                + "schema:\n"
+                + "  entityIdColumn: id\n"
+                + "  timestampValue: 2018-09-25T00:00:00.000Z\n"
+                + "  fields:\n"
+                + "    - name: id\n"
+                + "    - featureId: testEntity.none.testInt64NoWarehouse\n"
+                + "    - featureId: testEntity.none.testStringNoWarehouse\n"
+                + "\n",
+            ImportSpec.getDefaultInstance());
+
+    File csvFile = folder.newFile("data.csv");
+
+    // Note the string and integer features are in the wrong positions for the import spec.
+    Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
+    importSpec = initImportSpec(importSpec, csvFile.toString());
+
+    ImportJobOptions options = initOptions();
+    options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
+
+    Injector injector =
+        Guice.createInjector(
+            new ImportJobModule(options, importSpec), new TestPipelineModule(testPipeline));
+
+    ImportJob job = injector.getInstance(ImportJob.class);
+
+    injector.getInstance(ImportJob.class);
+    job.expand();
+
+    PCollection<FeatureRowExtended> writtenToServing =
+        PCollectionList.of(ServingStoreService.get(MockServingStore.class).getWrite().getInputs())
+            .apply("flatten serving input", Flatten.pCollections());
+
+    PCollection<FeatureRowExtended> writtenToErrors =
+        PCollectionList.of(ErrorsStoreService.get(MockErrorsStore.class).getWrite().getInputs())
+            .apply("flatten errors input", Flatten.pCollections());
+
+    PAssert.that(writtenToErrors)
+        .satisfies(hasCount(0));
+
+    PAssert.that(writtenToServing).satisfies(hasCount(3));
+    testPipeline.run();
+  }
 }
