@@ -15,23 +15,27 @@
  *
  */
 
-package feast.core.job;
+package feast.core.job.flink;
 
-import feast.core.model.JobInfo;
-import feast.core.model.JobStatus;
-import feast.core.model.Metrics;
-import java.util.Collections;
-import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-public class NoopJobMonitor implements JobMonitor {
+@NoArgsConstructor
+@AllArgsConstructor
+@Setter
+@Getter
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class FlinkJob {
 
-  @Override
-  public JobStatus getJobStatus(JobInfo job) {
-    return JobStatus.UNKNOWN;
-  }
+  /** job ID */
+  String jid;
 
-  @Override
-  public List<Metrics> getJobMetrics(JobInfo job) {
-    return Collections.emptyList();
-  }
+  /** job name */
+  String name;
+
+  /** state */
+  String state;
 }

@@ -15,22 +15,16 @@
  *
  */
 
-package feast.core.service;
+package feast.core.job.direct;
 
-import feast.core.JobServiceProto.JobServiceTypes.SubmitImportJobResponse;
+import com.google.common.annotations.VisibleForTesting;
 import feast.core.config.ImportJobDefaults;
-import feast.core.dao.JobInfoRepository;
 import feast.core.exception.JobExecutionException;
-import feast.core.log.Action;
-import feast.core.log.AuditLogger;
-import feast.core.log.Resource;
-import feast.core.model.JobInfo;
-import feast.core.model.JobStatus;
+import feast.core.job.JobManager;
 import feast.core.util.TypeConversion;
 import feast.specs.ImportSpecProto.ImportSpec;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -38,103 +32,45 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
 @Slf4j
-@Service
-public class JobExecutionService {
+public class DirectRunnerJobManager implements JobManager {
 
-  public static final String JOB_PREFIX_DEFAULT = "feastimport";
   private static final int SLEEP_MS = 10;
   private static final Pattern JOB_EXT_ID_PREFIX_REGEX = Pattern.compile(".*FeastImportJobId:.*");
-  private JobInfoRepository jobInfoRepository;
-  private ImportJobDefaults defaults;
+  protected ImportJobDefaults defaults;
 
-  @Autowired
-  public JobExecutionService(JobInfoRepository jobInfoRepository, ImportJobDefaults defaults) {
-    this.jobInfoRepository = jobInfoRepository;
-    this.defaults = defaults;
+  public DirectRunnerJobManager(ImportJobDefaults importJobDefaults) {
+    this.defaults = importJobDefaults;
   }
 
-  /**
-   * Submits a job defined by the importSpec to the runner and writes details about the job to the
-   * core database.
-   *
-   * @param importSpec job import spec
-   * @param jobPrefix prefix for job name
-   * @return response with feast-internal job id
-   */
-  public SubmitImportJobResponse submitJob(ImportSpec importSpec, String jobPrefix) {
-    String dateSuffix = String.valueOf(Instant.now().toEpochMilli());
-    String jobId = jobPrefix.isEmpty() ? JOB_PREFIX_DEFAULT + dateSuffix : jobPrefix + dateSuffix;
+  @Override
+  public String submitJob(ImportSpec importSpec, String jobId) {
     ProcessBuilder pb = getProcessBuilder(importSpec, jobId);
     log.info(String.format("Executing command: %s", String.join(" ", pb.command())));
-    AuditLogger.log(
-        Resource.JOB,
-        jobId,
-        Action.SUBMIT,
-        "Building graph and submitting to %s",
-        defaults.getRunner());
+
     try {
-      JobInfo jobInfo = new JobInfo(jobId, "", defaults.getRunner(), importSpec, JobStatus.PENDING);
-      jobInfoRepository.saveAndFlush(jobInfo);
       Process p = pb.start();
-      String jobExtId = runProcess(p);
-      if (jobExtId.isEmpty()) {
-        throw new RuntimeException(
-            String.format("Could not submit job: \n%s", "unable to retrieve job external id"));
-      }
-      updateJobExtId(jobId, jobExtId);
-      AuditLogger.log(
-          Resource.JOB,
-          jobId,
-          Action.STATUS_CHANGE,
-          "Job submitted to runner %s with runner id %s.",
-          defaults.getRunner(),
-          jobExtId);
-      return SubmitImportJobResponse.newBuilder().setJobId(jobId).build();
+      return runProcess(p);
     } catch (Exception e) {
-      updateJobStatus(jobId, JobStatus.ERROR);
-      AuditLogger.log(
-          Resource.JOB,
-          jobId,
-          Action.STATUS_CHANGE,
-          "Job failed to be submitted to runner %s. Job status changed to ERROR.",
-          defaults.getRunner());
+      log.error("Error submitting job", e);
       throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
     }
   }
 
-  /**
-   * Update a given job's status
-   */
-  public void updateJobStatus(String jobId, JobStatus status) {
-    Optional<JobInfo> jobRecordOptional = jobInfoRepository.findById(jobId);
-    if (jobRecordOptional.isPresent()) {
-      JobInfo jobRecord = jobRecordOptional.get();
-      jobRecord.setStatus(status);
-      jobInfoRepository.saveAndFlush(jobRecord);
-    }
-  }
-
-  /**
-   * Update a given job's external id
-   */
-  public void updateJobExtId(String jobId, String jobExtId) {
-    Optional<JobInfo> jobRecordOptional = jobInfoRepository.findById(jobId);
-    if (jobRecordOptional.isPresent()) {
-      JobInfo jobRecord = jobRecordOptional.get();
-      jobRecord.setExtId(jobExtId);
-      jobInfoRepository.saveAndFlush(jobRecord);
-    }
+  @Override
+  public void abortJob(String extId) {
+    throw new UnsupportedOperationException("Unable to abort a job running in direct runner");
   }
 
   /**
    * Builds the command to execute the ingestion job
    *
+   * @param importSpec
+   * @param jobId
    * @return configured ProcessBuilder
    */
+  @VisibleForTesting
   public ProcessBuilder getProcessBuilder(ImportSpec importSpec, String jobId) {
     Map<String, String> options =
         TypeConversion.convertJsonStringToMap(defaults.getImportJobOptions());
@@ -149,12 +85,9 @@ public class JobExecutionService {
     commands.add(option("coreApiUri", defaults.getCoreApiUri()));
     commands.add(option("errorsStoreType", defaults.getErrorsStoreType()));
     commands.add(option("errorsStoreOptions", defaults.getErrorsStoreOptions()));
+
     options.forEach((k, v) -> commands.add(option(k, v)));
     return new ProcessBuilder(commands);
-  }
-
-  private String option(String key, String value) {
-    return String.format("--%s=%s", key, value);
   }
 
   /**
@@ -163,9 +96,10 @@ public class JobExecutionService {
    * @param p Process
    * @return job id
    */
+  @VisibleForTesting
   public String runProcess(Process p) {
     try (BufferedReader outputStream =
-        new BufferedReader(new InputStreamReader(p.getInputStream()));
+            new BufferedReader(new InputStreamReader(p.getInputStream()));
         BufferedReader errorsStream =
             new BufferedReader(new InputStreamReader(p.getErrorStream()))) {
       String extId = "";
@@ -188,5 +122,9 @@ public class JobExecutionService {
       log.error("Error running ingestion job: ", e);
       throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
     }
+  }
+
+  private String option(String key, String value) {
+    return String.format("--%s=%s", key, value);
   }
 }

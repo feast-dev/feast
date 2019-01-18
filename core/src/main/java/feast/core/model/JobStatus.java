@@ -22,52 +22,47 @@ import java.util.Collection;
 import java.util.Collections;
 
 public enum JobStatus {
-  /**
-   * Job status is not known.
-   */
+  /** Job status is not known. */
   UNKNOWN,
 
-  /**
-   * Import job is submitted to runner and currently pending for executing
-   */
+  /** Import job is submitted to runner and currently pending for executing */
   PENDING,
 
-  /**
-   * Import job is currently running in the runner
-   */
+  /** Import job is currently running in the runner */
   RUNNING,
 
-  /**
-   * Runner’s reported the import job has completed (applicable to batch job)
-   */
+  /** Runner’s reported the import job has completed (applicable to batch job) */
   COMPLETED,
 
-  /**
-   * When user sent abort command, but it's still running
-   */
+  /** When user sent abort command, but it's still running */
   ABORTING,
 
-  /**
-   * User initiated abort job
-   */
+  /** User initiated abort job */
   ABORTED,
 
   /**
-   * Runner’s reported that the import job failed to run or there is a failure during job submission.
+   * Runner’s reported that the import job failed to run or there is a failure during job
+   * submission.
    */
-  ERROR;
+  ERROR,
 
-  private static final Collection<JobStatus> TERMINAL_STATE = Collections.unmodifiableList(
-      Arrays.asList(COMPLETED, ABORTED, ERROR));
+  /** job has been suspended and waiting for cleanup */
+  SUSPENDING,
+
+  /** job has been suspended */
+  SUSPENDED;
+
+  private static final Collection<JobStatus> TERMINAL_STATE =
+      Collections.unmodifiableList(Arrays.asList(COMPLETED, ABORTED, ERROR));
 
   /**
    * Get a collection of terminal job state.
    *
-   * <p>Terminal job state is final and will not change to any other state.</p>
+   * <p>Terminal job state is final and will not change to any other state.
    *
    * @return collection of terminal job state.
    */
-  public static Collection<JobStatus> getTerminalState(){
+  public static Collection<JobStatus> getTerminalState() {
     return TERMINAL_STATE;
   }
 }

@@ -19,39 +19,50 @@ package feast.core.service;
 
 import com.google.common.base.Strings;
 import feast.core.JobServiceProto.JobServiceTypes.JobDetail;
+import feast.core.config.ImportJobDefaults;
 import feast.core.dao.JobInfoRepository;
 import feast.core.dao.MetricsRepository;
+import feast.core.exception.JobExecutionException;
 import feast.core.exception.RetrievalException;
 import feast.core.job.JobManager;
+import feast.core.job.Runner;
 import feast.core.log.Action;
 import feast.core.log.AuditLogger;
 import feast.core.log.Resource;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
 import feast.core.model.Metrics;
+import feast.specs.ImportSpecProto.ImportSpec;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
 @Slf4j
 @Service
 public class JobManagementService {
-  @Autowired private JobInfoRepository jobInfoRepository;
-  @Autowired private MetricsRepository metricsRepository;
-  @Autowired private JobManager jobManager;
+  private static final String JOB_PREFIX_DEFAULT = "feastimport";
+  private static final String UNKNOWN_EXT_JOB_ID = "";
 
+  private JobInfoRepository jobInfoRepository;
+  private MetricsRepository metricsRepository;
+  private JobManager jobManager;
+  private ImportJobDefaults defaults;
+
+  @Autowired
   public JobManagementService(
       JobInfoRepository jobInfoRepository,
       MetricsRepository metricsRepository,
-      JobManager jobManager) {
+      JobManager jobManager,
+      ImportJobDefaults defaults) {
     this.jobInfoRepository = jobInfoRepository;
     this.metricsRepository = metricsRepository;
     this.jobManager = jobManager;
+    this.defaults = defaults;
   }
 
   /**
@@ -86,6 +97,64 @@ public class JobManagementService {
   }
 
   /**
+   * Submit ingestion job to runner.
+   *
+   * @param importSpec import spec of the ingestion job
+   * @param namePrefix name prefix of the ingestion job
+   * @return feast job ID.
+   */
+  public String submitJob(ImportSpec importSpec, String namePrefix) {
+    String jobId = createJobId(namePrefix);
+    boolean isDirectRunner = Runner.DIRECT.getName().equals(defaults.getRunner());
+    try {
+      if (!isDirectRunner) {
+        JobInfo jobInfo =
+            new JobInfo(jobId, UNKNOWN_EXT_JOB_ID, defaults.getRunner(), importSpec, JobStatus.PENDING);
+        jobInfoRepository.save(jobInfo);
+      }
+
+      AuditLogger.log(
+          Resource.JOB,
+          jobId,
+          Action.SUBMIT,
+          "Building graph and submitting to %s",
+          defaults.getRunner());
+
+      String extId = jobManager.submitJob(importSpec, jobId);
+      if (extId.isEmpty()) {
+        throw new RuntimeException(
+            String.format("Could not submit job: \n%s", "unable to retrieve job external id"));
+      }
+
+      AuditLogger.log(
+          Resource.JOB,
+          jobId,
+          Action.STATUS_CHANGE,
+          "Job submitted to runner %s with ext id %s.",
+          defaults.getRunner(),
+          extId);
+
+      if (isDirectRunner) {
+        JobInfo jobInfo =
+            new JobInfo(jobId, extId, defaults.getRunner(), importSpec, JobStatus.COMPLETED);
+        jobInfoRepository.save(jobInfo);
+      } else {
+        updateJobExtId(jobId, extId);
+      }
+      return jobId;
+    } catch (Exception e) {
+      updateJobStatus(jobId, JobStatus.ERROR);
+      AuditLogger.log(
+          Resource.JOB,
+          jobId,
+          Action.STATUS_CHANGE,
+          "Job failed to be submitted to runner %s. Job status changed to ERROR.",
+          defaults.getRunner());
+      throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
+    }
+  }
+
+  /**
    * Drain the given job. If this is successful, the job will start the draining process. When the
    * draining process is complete, the job will be cleaned up and removed.
    *
@@ -107,5 +176,40 @@ public class JobManagementService {
 
     AuditLogger.log(Resource.JOB, id, Action.ABORT, "Triggering draining of job");
     jobInfoRepository.saveAndFlush(job);
+  }
+
+  /**
+   * Update a given job's status
+   *
+   * @param jobId
+   * @param status
+   */
+  void updateJobStatus(String jobId, JobStatus status) {
+    Optional<JobInfo> jobRecordOptional = jobInfoRepository.findById(jobId);
+    if (jobRecordOptional.isPresent()) {
+      JobInfo jobRecord = jobRecordOptional.get();
+      jobRecord.setStatus(status);
+      jobInfoRepository.save(jobRecord);
+    }
+  }
+
+  /**
+   * Update a given job's external id
+   *
+   * @param jobId
+   * @param jobExtId
+   */
+  void updateJobExtId(String jobId, String jobExtId) {
+    Optional<JobInfo> jobRecordOptional = jobInfoRepository.findById(jobId);
+    if (jobRecordOptional.isPresent()) {
+      JobInfo jobRecord = jobRecordOptional.get();
+      jobRecord.setExtId(jobExtId);
+      jobInfoRepository.save(jobRecord);
+    }
+  }
+
+  private String createJobId(String namePrefix) {
+    String dateSuffix = String.valueOf(Instant.now().toEpochMilli());
+    return namePrefix.isEmpty() ? JOB_PREFIX_DEFAULT + dateSuffix : namePrefix + dateSuffix;
   }
 }

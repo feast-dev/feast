@@ -15,13 +15,20 @@
  *
  */
 
-package feast.core.job;
+package feast.core.job.flink;
 
-/*
- * Job manager that does nothing. Direct runner jobs cannot be
- * cancelled or stopped.
- */
-public class NoopJobManager implements JobManager {
-  @Override
-  public void abortJob(String extId) {}
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.List;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@NoArgsConstructor
+@Setter
+@Getter
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class FlinkJobList {
+
+  /** List of flink job. */
+  List<FlinkJob> jobs;
 }

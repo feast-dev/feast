@@ -15,23 +15,9 @@
  *
  */
 
-package feast.core.job;
+package feast.core.job.dataflow;
 
-import feast.core.model.JobInfo;
-import feast.core.model.JobStatus;
-import feast.core.model.Metrics;
-import java.util.Collections;
-import java.util.List;
-
-public class NoopJobMonitor implements JobMonitor {
-
-  @Override
-  public JobStatus getJobStatus(JobInfo job) {
-    return JobStatus.UNKNOWN;
-  }
-
-  @Override
-  public List<Metrics> getJobMetrics(JobInfo job) {
-    return Collections.emptyList();
-  }
+public enum DataflowJobType {
+  JOB_TYPE_BATCH,
+  JOB_TYPE_STREAMING
 }

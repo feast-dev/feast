@@ -28,6 +28,8 @@ import com.google.api.services.dataflow.Dataflow.Projects.Locations;
 import com.google.api.services.dataflow.Dataflow.Projects.Locations.Jobs;
 import com.google.api.services.dataflow.Dataflow.Projects.Locations.Jobs.Get;
 import com.google.api.services.dataflow.model.Job;
+import feast.core.job.Runner;
+import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
 import java.io.IOException;
 import org.junit.Before;
@@ -66,7 +68,10 @@ public class DataflowJobMonitorTest {
     when(job.getCurrentState()).thenReturn(DataflowJobState.JOB_STATE_RUNNING.toString());
     when(jobService.get(projectId, location, jobId)).thenReturn(getOp);
 
-    assertThat(monitor.getJobStatus(jobId), equalTo(JobStatus.RUNNING));
+    JobInfo jobInfo = mock(JobInfo.class);
+    when(jobInfo.getExtId()).thenReturn(jobId);
+    when(jobInfo.getRunner()).thenReturn(Runner.DATAFLOW.getName());
+    assertThat(monitor.getJobStatus(jobInfo), equalTo(JobStatus.RUNNING));
   }
 
   @Test
@@ -79,7 +84,10 @@ public class DataflowJobMonitorTest {
     when(job.getCurrentState()).thenReturn("Random String");
     when(jobService.get(projectId, location, jobId)).thenReturn(getOp);
 
-    assertThat(monitor.getJobStatus(jobId), equalTo(JobStatus.UNKNOWN));
+    JobInfo jobInfo = mock(JobInfo.class);
+    when(jobInfo.getExtId()).thenReturn(jobId);
+    when(jobInfo.getRunner()).thenReturn(Runner.DATAFLOW.getName());
+    assertThat(monitor.getJobStatus(jobInfo), equalTo(JobStatus.UNKNOWN));
   }
 
   @Test
@@ -88,6 +96,9 @@ public class DataflowJobMonitorTest {
 
     when(jobService.get(projectId, location, jobId)).thenThrow(new RuntimeException("some thing wrong"));
 
-    assertThat(monitor.getJobStatus(jobId), equalTo(JobStatus.UNKNOWN));
+    JobInfo jobInfo = mock(JobInfo.class);
+    when(jobInfo.getExtId()).thenReturn(jobId);
+    when(jobInfo.getRunner()).thenReturn(Runner.DATAFLOW.getName());
+    assertThat(monitor.getJobStatus(jobInfo), equalTo(JobStatus.UNKNOWN));
   }
 }

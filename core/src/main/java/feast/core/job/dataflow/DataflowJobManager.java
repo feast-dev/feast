@@ -17,27 +17,38 @@
 
 package feast.core.job.dataflow;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.Job;
 import com.google.common.base.Strings;
-import feast.core.job.JobManager;
+import feast.core.config.ImportJobDefaults;
+import feast.core.job.direct.DirectRunnerJobManager;
+import feast.specs.ImportSpecProto.ImportSpec;
 import lombok.extern.slf4j.Slf4j;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 @Slf4j
-public class DataflowJobManager implements JobManager {
+public class DataflowJobManager extends DirectRunnerJobManager {
 
   private final String projectId;
   private final String location;
   private final Dataflow dataflow;
+  private ImportJobDefaults defaults;
 
-  public DataflowJobManager(Dataflow dataflow, String projectId, String location) {
+  public DataflowJobManager(
+      Dataflow dataflow, String projectId, String location, ImportJobDefaults importJobDefaults) {
+    super(importJobDefaults);
     checkNotNull(projectId);
     checkNotNull(location);
     this.projectId = projectId;
     this.location = location;
     this.dataflow = dataflow;
+    this.defaults = importJobDefaults;
+  }
+
+  @Override
+  public String submitJob(ImportSpec importSpec, String jobId) {
+    return super.submitJob(importSpec, jobId);
   }
 
   @Override
@@ -46,9 +57,9 @@ public class DataflowJobManager implements JobManager {
       Job job =
           dataflow.projects().locations().jobs().get(projectId, location, dataflowJobId).execute();
       Job content = new Job();
-      if (job.getType().equals("JOB_TYPE_BATCH")){
+      if (job.getType().equals(DataflowJobType.JOB_TYPE_BATCH.toString())) {
         content.setRequestedState(DataflowJobState.JOB_STATE_CANCELLED.toString());
-      } else if (job.getType().equals("JOB_TYPE_STREAMING")) {
+      } else if (job.getType().equals(DataflowJobType.JOB_TYPE_STREAMING.toString())) {
         content.setRequestedState(DataflowJobState.JOB_STATE_DRAINING.toString());
       }
       dataflow

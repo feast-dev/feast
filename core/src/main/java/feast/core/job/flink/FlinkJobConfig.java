@@ -15,23 +15,22 @@
  *
  */
 
-package feast.core.job;
+package feast.core.job.flink;
 
-import feast.core.model.JobInfo;
-import feast.core.model.JobStatus;
-import feast.core.model.Metrics;
-import java.util.Collections;
-import java.util.List;
+import lombok.Value;
 
-public class NoopJobMonitor implements JobMonitor {
+@Value
+public class FlinkJobConfig {
 
-  @Override
-  public JobStatus getJobStatus(JobInfo job) {
-    return JobStatus.UNKNOWN;
-  }
+  /**
+   * Flink's job master URL
+   * e.g: localhost:8081
+   */
+  String masterUrl;
 
-  @Override
-  public List<Metrics> getJobMetrics(JobInfo job) {
-    return Collections.emptyList();
-  }
+  /**
+   * Directory containing flink-conf.yaml
+   * e.g.: /etc/flink/conf
+   */
+  String configDir;
 }
