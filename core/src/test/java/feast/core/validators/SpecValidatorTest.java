@@ -637,10 +637,10 @@ public class SpecValidatorTest {
             featureGroupInfoRepository,
             featureInfoRepository);
     ImportSpec input =
-        ImportSpec.newBuilder().setType("file").putOptions("format", "notSupported").build();
+        ImportSpec.newBuilder().setType("file.wat?").build();
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage(
-        "Validation for import spec failed: Invalid options: File format must be of type 'json' or 'csv'");
+        "Validation for import spec failed: Type file.wat? not supported");
     validator.validateImportSpec(input);
   }
 
@@ -652,7 +652,7 @@ public class SpecValidatorTest {
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
-    ImportSpec input = ImportSpec.newBuilder().setType("file").putOptions("format", "csv").build();
+    ImportSpec input = ImportSpec.newBuilder().setType("file.csv").build();
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage(
         "Validation for import spec failed: Invalid options: File path cannot be empty");
@@ -669,8 +669,7 @@ public class SpecValidatorTest {
             featureInfoRepository);
     ImportSpec input =
         ImportSpec.newBuilder()
-            .setType("file")
-            .putOptions("format", "csv")
+            .setType("file.csv")
             .putOptions("path", "gs://asdasd")
             .build();
     exception.expect(IllegalArgumentException.class);
