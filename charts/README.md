@@ -61,7 +61,7 @@ The following table lists the configurable parameters of the Feast chart and the
 | -- | -- | -- | 
 | `core.image.registry` | core docker image registry | feast | 
 | `core.image.repository` | core docker image repository | feast-core | 
-| `core.image.tag` | core docker image version | 0.3.0 | 
+| `core.image.tag` | core docker image version | 0.1.0 |
 | `core.jobs.errorsStoreId` | storage ID of location to write errors | FILE_ERROR_STORE | 
 | `core.jobs.monitoring.initialDelay` | delay before a job starts to be monitored in ms | 60000 | 
 | `core.jobs.monitoring.period` | polling interval for jobs monitoring in ms | 5000 | 
@@ -89,7 +89,7 @@ The following table lists the configurable parameters of the Feast chart and the
 | `serving.config.timeout` | request timeout in seconds | 5 | 
 | `serving.image.registry` | serving docker image registry | feast | 
 | `serving.image.repository` | serving docker image repository | feast-serving | 
-| `serving.image.tag` | serving docker image version | 0.3.0 | 
+| `serving.image.tag` | serving docker image version | 0.1.0 |
 | `serving.replicaCount` | serving replica count | 4 |
 | `serving.resources.limits.cpu` | serving cpu limits | 1 |
 | `serving.resources.limits.memory` | serving memory limits | 2G |

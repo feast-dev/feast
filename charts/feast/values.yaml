@@ -5,7 +5,7 @@ core:
     pullPolicy: IfNotPresent
     registry: feast
     repository: feast-core
-    tag: "0.3.0"
+    tag: "0.1.0"
   replicaCount: 3
   resources: 
     limits: 
@@ -53,7 +53,7 @@ serving:
     pullPolicy: IfNotPresent
     registry: feast
     repository: feast-serving
-    tag: "0.3.0"
+    tag: "0.1.0"
   replicaCount: 4
   resources: 
     limits: 
