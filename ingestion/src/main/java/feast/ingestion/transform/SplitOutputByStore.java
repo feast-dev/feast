@@ -54,7 +54,6 @@ public class SplitOutputByStore extends PTransform<PFeatureRows, PFeatureRows> {
   public PFeatureRows expand(PFeatureRows input) {
     Map<String, Write> transforms = getFeatureStoreTransforms();
     Set<String> keys = transforms.keySet();
-    Preconditions.checkArgument(transforms.size() > 0, "no write transforms found");
 
     log.info(String.format("Splitting on keys = [%s]", String.join(",", keys)));
     MultiOutputSplit<String> splitter = new MultiOutputSplit<>(selector, keys, specs);
