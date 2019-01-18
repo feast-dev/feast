@@ -25,6 +25,7 @@ import feast.storage.MockFeatureStore;
 import feast.storage.MockTransforms;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.testing.PAssert;
@@ -239,6 +240,126 @@ public class SplitOutputByStoreTest {
     pipeline.run();
   }
 
+
+  @Test
+  public void testSplitWhereNoStorageSpec() {
+    // There is no storage spec registered and feature 1 has no storage set
+    // feature1 should get thrown harmlessly
+
+    SerializableFunction<FeatureSpec, String> selector = (fs) -> fs.getDataStores().getServing()
+        .getId();
+    MockSpecService specService = new MockSpecService();
+    specService.entitySpecs.put("e1", EntitySpec.getDefaultInstance());
+    specService.featureSpecs.put(
+        "f1", FeatureSpec.newBuilder().setEntity("e1")
+            .build());
+
+    Specs specs =
+        Specs.of(
+            "jobname",
+            ImportSpec.newBuilder()
+                .addEntities("e1")
+                .setSchema(
+                    Schema.newBuilder()
+                        .addAllFields(
+                            Collections.singletonList(
+                                Field.newBuilder().setFeatureId("f1").build())))
+                .build(),
+            specService);
+    assertNull(specs.getError());
+    List<FeatureStore> stores = Collections.emptyList();
+    SplitOutputByStore split = new SplitOutputByStore(stores, selector, specs);
+
+    PCollection<FeatureRowExtended> input =
+        pipeline
+            .apply(
+                Create.of(
+                    FeatureRow.newBuilder()
+                        .addFeatures(Features.of("f1", Values.ofInt32(1)))
+                        .build()))
+            .apply(new ToFeatureRowExtended());
+    PFeatureRows pfrows = PFeatureRows.of(input);
+    pfrows = pfrows.apply("do split", split);
+
+    PAssert.that(
+        pfrows
+            .getErrors()).empty();
+    PAssert.that(
+        pfrows
+            .getMain()
+            .apply(
+                MapElements.into(TypeDescriptor.of(FeatureRow.class))
+                    .via(FeatureRowExtended::getRow)))
+        .containsInAnyOrder(
+            FeatureRow.newBuilder()
+                .addFeatures(Features.of("f1", Values.ofInt32(1)))
+                .setEventTimestamp(Timestamp.getDefaultInstance())
+                .build());
+
+    pipeline.run();
+  }
+
+
+  @Test
+  public void testSplitWhereNoStorageSpecForAFeature() {
+    // There is no storage spec registered but feature 1 has storage set
+    // feature1 should get thrown harmlessly
+
+    SerializableFunction<FeatureSpec, String> selector = (fs) -> fs.getDataStores().getServing()
+        .getId();
+    MockSpecService specService = new MockSpecService();
+    specService.entitySpecs.put("e1", EntitySpec.getDefaultInstance());
+    specService.featureSpecs.put(
+        "f1", FeatureSpec.newBuilder().setEntity("e1")
+            .setDataStores(
+                DataStores.newBuilder().setServing(DataStore.newBuilder().setId("store1")
+                    .build()))
+            .build());
+
+    Specs specs =
+        Specs.of(
+            "jobname",
+            ImportSpec.newBuilder()
+                .addEntities("e1")
+                .setSchema(
+                    Schema.newBuilder()
+                        .addAllFields(
+                            Collections.singletonList(
+                                Field.newBuilder().setFeatureId("f1").build())))
+                .build(),
+            specService);
+    assertNull(specs.getError());
+    List<FeatureStore> stores = Collections.emptyList();
+    SplitOutputByStore split = new SplitOutputByStore(stores, selector, specs);
+
+    PCollection<FeatureRowExtended> input =
+        pipeline
+            .apply(
+                Create.of(
+                    FeatureRow.newBuilder()
+                        .addFeatures(Features.of("f1", Values.ofInt32(1)))
+                        .build()))
+            .apply(new ToFeatureRowExtended());
+    PFeatureRows pfrows = PFeatureRows.of(input);
+    pfrows = pfrows.apply("do split", split);
+
+    PAssert.that(
+        pfrows
+            .getErrors()).empty();
+    PAssert.that(
+        pfrows
+            .getMain()
+            .apply(
+                MapElements.into(TypeDescriptor.of(FeatureRow.class))
+                    .via(FeatureRowExtended::getRow)))
+        .containsInAnyOrder(
+            FeatureRow.newBuilder()
+                .addFeatures(Features.of("f1", Values.ofInt32(1)))
+                .setEventTimestamp(Timestamp.getDefaultInstance())
+                .build());
+
+    pipeline.run();
+  }
 
   @Test
   public void testWriteTags() {
