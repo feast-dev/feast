@@ -18,11 +18,8 @@
 package feast.ingestion.config;
 
 import feast.ingestion.util.DateUtil;
-import feast.ingestion.options.ImportJobOptions;
-import com.google.protobuf.InvalidProtocolBufferException;
+import feast.ingestion.options.ImportJobPipelineOptions;
 import com.google.protobuf.util.JsonFormat;
-import feast.ingestion.options.ImportJobOptions;
-import feast.ingestion.util.DateUtil;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;
@@ -89,7 +86,7 @@ public class ImportSpecSupplierTest {
       printWriter.print(importSpecYaml);
     }
 
-    ImportJobOptions options = PipelineOptionsFactory.create().as(ImportJobOptions.class);
+    ImportJobPipelineOptions options = PipelineOptionsFactory.create().as(ImportJobPipelineOptions.class);
     options.setImportSpecYamlFile(yamlFile.toString());
 
     ImportSpec importSpec = new ImportSpecSupplier(options).get();

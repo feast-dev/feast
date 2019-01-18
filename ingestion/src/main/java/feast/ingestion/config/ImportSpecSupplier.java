@@ -22,17 +22,17 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.function.Supplier;
-import feast.ingestion.options.ImportJobOptions;
+import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.util.ProtoUtil;
 import feast.specs.ImportSpecProto.ImportSpec;
 
 public class ImportSpecSupplier implements Supplier<ImportSpec> {
 
-  private ImportJobOptions options;
+  private ImportJobPipelineOptions options;
   private ImportSpec importSpec;
 
   @Inject
-  public ImportSpecSupplier(ImportJobOptions options) {
+  public ImportSpecSupplier(ImportJobPipelineOptions options) {
     this.options = options;
   }
 

@@ -22,7 +22,7 @@ import static feast.ingestion.util.JsonUtil.convertJsonStringToMap;
 
 import com.google.inject.Inject;
 import feast.ingestion.model.Specs;
-import feast.ingestion.options.ImportJobOptions;
+import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.transform.FeatureIO.Write;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.storage.ErrorsStore;
@@ -44,7 +44,7 @@ public class ErrorsStoreTransform extends FeatureIO.Write {
 
   @Inject
   public ErrorsStoreTransform(
-      ImportJobOptions options, Specs specs, List<ErrorsStore> errorsStores) {
+      ImportJobPipelineOptions options, Specs specs, List<ErrorsStore> errorsStores) {
     this.specs = specs;
     this.errorsStores = errorsStores;
     this.errorsStoreType = options.getErrorsStoreType();

@@ -150,7 +150,7 @@ public class CoalesceFeatureRowsTest {
         .advanceWatermarkToInfinity();
 
     PCollection<FeatureRow> input = pipeline.apply(testStream);
-    PCollection<FeatureRow> output = input.apply(new CoalesceFeatureRows().withDelay(delay));
+    PCollection<FeatureRow> output = input.apply(new CoalesceFeatureRows(delay, Duration.ZERO));
 
     PAssert.that(output.apply(Count.globally())).containsInAnyOrder(1L);
     PAssert.that(output).containsInAnyOrder(
@@ -183,7 +183,7 @@ public class CoalesceFeatureRowsTest {
 
     PCollection<FeatureRow> input = pipeline.apply(testStream);
     PCollection<FeatureRow> output = input
-        .apply(new CoalesceFeatureRows().withDelay(delay));
+        .apply(new CoalesceFeatureRows(delay, Duration.ZERO));
 
     PAssert.that(output).satisfies(FeastMatchers.hasCount(2L));
     PAssert.that(output.apply(new NormalizeFeatureRows())).containsInAnyOrder(
@@ -224,7 +224,7 @@ public class CoalesceFeatureRowsTest {
 
     PCollection<FeatureRow> input = pipeline.apply(testStream);
     PCollection<FeatureRow> output = input
-        .apply(new CoalesceFeatureRows().withDelay(delay));
+        .apply(new CoalesceFeatureRows(delay, Duration.ZERO));
 
     PAssert.that(output).satisfies(FeastMatchers.hasCount(2L));
     PAssert.that(output.apply(new NormalizeFeatureRows())).containsInAnyOrder(
@@ -264,7 +264,7 @@ public class CoalesceFeatureRowsTest {
         .advanceWatermarkToInfinity();
 
     PCollection<FeatureRow> input = pipeline.apply(testStream);
-    PCollection<FeatureRow> output = input.apply(new CoalesceFeatureRows().withDelay(delay));
+    PCollection<FeatureRow> output = input.apply(new CoalesceFeatureRows(delay, Duration.ZERO));
 
     PAssert.that(output).satisfies(FeastMatchers.hasCount(1L));
     PAssert.that(output.apply(new NormalizeFeatureRows())).containsInAnyOrder(
@@ -304,7 +304,7 @@ public class CoalesceFeatureRowsTest {
         .advanceWatermarkToInfinity();
 
     PCollection<FeatureRow> input = pipeline.apply(testStream);
-    PCollection<FeatureRow> output = input.apply(new CoalesceFeatureRows().withDelay(delay));
+    PCollection<FeatureRow> output = input.apply(new CoalesceFeatureRows(delay, Duration.ZERO));
 
     PAssert.that(output).satisfies(FeastMatchers.hasCount(2L));
     PAssert.that(output.apply(new NormalizeFeatureRows())).containsInAnyOrder(
@@ -351,38 +351,6 @@ public class CoalesceFeatureRowsTest {
   }
 
   @Test
-  public void testStream_withNoDelay_shouldNotTriggerBufferTimer() {
-    List<FeatureRow> rows = Lists.newArrayList(
-        FeatureRow.newBuilder().setEntityKey("1")
-            .addFeatures(Feature.newBuilder().setId("f1").setValue(Values.ofInt32(1)))
-            .build(),
-        FeatureRow.newBuilder().setEntityKey("1")
-            .addFeatures(Feature.newBuilder().setId("f2").setValue(Values.ofInt32(2)))
-            .build()
-    );
-
-    Duration delay = Duration.standardSeconds(0);
-    TestStream<FeatureRow> testStream = TestStream.create(ProtoCoder.of(FeatureRow.class))
-        .addElements(rows.get(0))
-        // Even though we have no delay, we should still get a single output row as processing time has not advanced
-        .addElements(rows.get(1))
-        .advanceProcessingTime(delay.plus(1))
-        .advanceWatermarkToInfinity();
-
-    PCollection<FeatureRow> input = pipeline.apply(testStream);
-    PCollection<FeatureRow> output = input.apply(new CoalesceFeatureRows().withDelay(delay));
-
-    PAssert.that(output).satisfies(FeastMatchers.hasCount(1L));
-    PAssert.that(output.apply(new NormalizeFeatureRows())).containsInAnyOrder(
-        FeatureRow.newBuilder().setEntityKey("1")
-            .addFeatures(Feature.newBuilder().setId("f1").setValue(Values.ofInt32(1)))
-            .addFeatures(Feature.newBuilder().setId("f2").setValue(Values.ofInt32(2)))
-            .build()
-    );
-    pipeline.run();
-  }
-
-  @Test
   public void testStream_withNoInput() {
     TestStream<FeatureRow> testStream = TestStream.create(ProtoCoder.of(FeatureRow.class))
         .advanceWatermarkToInfinity();
@@ -400,6 +368,78 @@ public class CoalesceFeatureRowsTest {
     PCollection<FeatureRow> output = input.apply(new CoalesceFeatureRows());
 
     PAssert.that(output).satisfies(FeastMatchers.hasCount(0L));
+    pipeline.run();
+  }
+
+  @Test
+  public void testStream_withTimeout_shouldRemoveState() {
+    List<FeatureRow> rows = Lists.newArrayList(
+        FeatureRow.newBuilder().setEntityKey("1")
+            .addFeatures(Feature.newBuilder().setId("f1").setValue(Values.ofInt32(1)))
+            .build(),
+        FeatureRow.newBuilder().setEntityKey("1")
+            .addFeatures(Feature.newBuilder().setId("f2").setValue(Values.ofInt32(2)))
+            .build()
+    );
+
+    Instant start = new Instant();
+    Duration delay = Duration.standardSeconds(10);
+    Duration timeout = Duration.standardMinutes(30);
+    TestStream<FeatureRow> testStream = TestStream.create(ProtoCoder.of(FeatureRow.class))
+        .addElements(rows.get(0))
+        .advanceWatermarkTo(start.plus(timeout))
+        // first element should get fired, as the delay water mark is reached before the timeout
+        // watermark, then state should be cleared when it reaches the timeout watermark.
+        .addElements(rows.get(1))
+        .advanceWatermarkToInfinity();
+
+    PCollection<FeatureRow> input = pipeline.apply(testStream);
+    PCollection<FeatureRow> output = input.apply(new CoalesceFeatureRows(delay, timeout));
+
+    PAssert.that(output).satisfies(FeastMatchers.hasCount(2L));
+    PAssert.that(output.apply(new NormalizeFeatureRows())).containsInAnyOrder(
+        FeatureRow.newBuilder().setEntityKey("1")
+            .addFeatures(Feature.newBuilder().setId("f1").setValue(Values.ofInt32(1)))
+            .build(),
+        FeatureRow.newBuilder().setEntityKey("1")
+            .addFeatures(Feature.newBuilder().setId("f2").setValue(Values.ofInt32(2)))
+            .build()
+    );
+    pipeline.run();
+  }
+
+  @Test
+  public void testStream_withDelayAfterTimeout_shouldProcessBagBeforeClear() {
+    List<FeatureRow> rows = Lists.newArrayList(
+        FeatureRow.newBuilder().setEntityKey("1")
+            .addFeatures(Feature.newBuilder().setId("f1").setValue(Values.ofInt32(1)))
+            .build(),
+        FeatureRow.newBuilder().setEntityKey("1")
+            .addFeatures(Feature.newBuilder().setId("f2").setValue(Values.ofInt32(2)))
+            .build()
+    );
+
+    Instant start = new Instant();
+    Duration delay = Duration.standardMinutes(40);
+    Duration timeout = Duration.standardMinutes(30);
+    TestStream<FeatureRow> testStream = TestStream.create(ProtoCoder.of(FeatureRow.class))
+        .addElements(rows.get(0))
+        .addElements(rows.get(1))
+        // first element should get fired, as the delay water mark is reached before the timeout
+        // watermark, then state should be cleared when it reaches the timeout watermark.
+        // If it didn't process the bag before clearing it, we'd get no output events at all.
+        .advanceWatermarkToInfinity();
+
+    PCollection<FeatureRow> input = pipeline.apply(testStream);
+    PCollection<FeatureRow> output = input.apply(new CoalesceFeatureRows(delay, timeout));
+
+    PAssert.that(output).satisfies(FeastMatchers.hasCount(1L));
+    PAssert.that(output.apply(new NormalizeFeatureRows())).containsInAnyOrder(
+        FeatureRow.newBuilder().setEntityKey("1")
+            .addFeatures(Feature.newBuilder().setId("f1").setValue(Values.ofInt32(1)))
+            .addFeatures(Feature.newBuilder().setId("f2").setValue(Values.ofInt32(2)))
+            .build()
+    );
     pipeline.run();
   }
 }

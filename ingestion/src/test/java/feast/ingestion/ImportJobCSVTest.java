@@ -34,7 +34,7 @@ import feast.ingestion.boot.ImportJobModule;
 import feast.ingestion.boot.TestPipelineModule;
 import feast.ingestion.model.Features;
 import feast.ingestion.model.Values;
-import feast.ingestion.options.ImportJobOptions;
+import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.service.SpecRetrievalException;
 import feast.ingestion.util.ProtoUtil;
 import feast.specs.ImportSpecProto.ImportSpec;
@@ -76,9 +76,9 @@ public class ImportJobCSVTest {
     return importSpec.toBuilder().putOptions("path", dataFile).build();
   }
 
-  public ImportJobOptions initOptions() {
+  public ImportJobPipelineOptions initOptions() {
     Path path = Paths.get(Resources.getResource("core_specs/").getPath());
-    ImportJobOptions options = PipelineOptionsFactory.create().as(ImportJobOptions.class);
+    ImportJobPipelineOptions options = PipelineOptionsFactory.create().as(ImportJobPipelineOptions.class);
     options.setCoreApiSpecPath(path.toString());
     options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
     return options;
@@ -108,7 +108,7 @@ public class ImportJobCSVTest {
     Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
     importSpec = initImportSpec(importSpec, csvFile.toString());
 
-    ImportJobOptions options = initOptions();
+    ImportJobPipelineOptions options = initOptions();
     options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
 
     Injector injector =
@@ -199,7 +199,7 @@ public class ImportJobCSVTest {
     Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
     importSpec = initImportSpec(importSpec, csvFile.toString());
 
-    ImportJobOptions options = initOptions();
+    ImportJobPipelineOptions options = initOptions();
 
     Injector injector =
         Guice.createInjector(
@@ -238,7 +238,7 @@ public class ImportJobCSVTest {
     Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
     importSpec = initImportSpec(importSpec, csvFile.toString());
 
-    ImportJobOptions options = initOptions();
+    ImportJobPipelineOptions options = initOptions();
     options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
 
     Injector injector =

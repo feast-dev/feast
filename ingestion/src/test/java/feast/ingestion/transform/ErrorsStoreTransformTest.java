@@ -21,7 +21,7 @@ import static feast.ingestion.model.Errors.toError;
 import static feast.storage.MockErrorsStore.MOCK_ERRORS_STORE_TYPE;
 
 import feast.ingestion.model.Specs;
-import feast.ingestion.options.ImportJobOptions;
+import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.storage.MockErrorsStore;
 import feast.storage.service.ErrorsStoreService;
 import feast.storage.stderr.StderrErrorsStore;
@@ -49,14 +49,14 @@ public class ErrorsStoreTransformTest {
   @Rule
   public TestPipeline pipeline = TestPipeline.create();
 
-  private ImportJobOptions options;
+  private ImportJobPipelineOptions options;
   private Specs specs;
   private PCollection<FeatureRowExtended> inputs;
   private List<FeatureRowExtended> errors;
 
   @Before
   public void setUp() {
-    options = PipelineOptionsFactory.create().as(ImportJobOptions.class);
+    options = PipelineOptionsFactory.create().as(ImportJobPipelineOptions.class);
     options.setJobName("test");
     specs = Specs.builder().jobName("test").build();
 

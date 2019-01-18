@@ -33,7 +33,7 @@ import org.apache.beam.sdk.metrics.MetricsSink;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
-import feast.ingestion.options.ImportJobOptions;
+import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.GranularityProto.Granularity;
 
@@ -104,7 +104,7 @@ public class FeastMetricsPubSubSink implements MetricsSink {
   public static class FeastMetricsPubSubSinkOptionsRegistrar implements PipelineOptionsRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return Collections.singleton(ImportJobOptions.class);
+      return Collections.singleton(ImportJobPipelineOptions.class);
     }
   }
 }

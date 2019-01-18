@@ -28,7 +28,9 @@ import feast.ingestion.boot.ImportJobModule;
 import feast.ingestion.boot.PipelineModule;
 import feast.ingestion.config.ImportSpecSupplier;
 import feast.ingestion.model.Specs;
-import feast.ingestion.options.ImportJobOptions;
+import feast.ingestion.options.ImportJobPipelineOptions;
+import feast.ingestion.options.JobOptions;
+import feast.ingestion.transform.CoalescePFeatureRows;
 import feast.ingestion.transform.ErrorsStoreTransform;
 import feast.ingestion.transform.ReadFeaturesTransform;
 import feast.ingestion.transform.ServingStoreTransform;
@@ -39,6 +41,7 @@ import feast.ingestion.transform.fn.ConvertTypesDoFn;
 import feast.ingestion.transform.fn.LoggerDoFn;
 import feast.ingestion.transform.fn.RoundEventTimestampsDoFn;
 import feast.ingestion.values.PFeatureRows;
+import feast.options.OptionsParser;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
@@ -82,7 +85,7 @@ public class ImportJob {
   private final WarehouseStoreTransform warehouseStoreTransform;
   private final ErrorsStoreTransform errorsStoreTransform;
   private final boolean dryRun;
-  private final ImportJobOptions options;
+  private final ImportJobPipelineOptions options;
   private final Specs specs;
 
   @Inject
@@ -93,7 +96,7 @@ public class ImportJob {
       ServingStoreTransform servingStoreTransform,
       WarehouseStoreTransform warehouseStoreTransform,
       ErrorsStoreTransform errorsStoreTransform,
-      ImportJobOptions options,
+      ImportJobPipelineOptions options,
       Specs specs) {
     this.pipeline = pipeline;
     this.importSpec = importSpec;
@@ -112,8 +115,8 @@ public class ImportJob {
 
   public static PipelineResult mainWithResult(String[] args) {
     log.info("Arguments: " + Arrays.toString(args));
-    ImportJobOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(ImportJobOptions.class);
+    ImportJobPipelineOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(ImportJobPipelineOptions.class);
     if (options.getJobName().isEmpty()) {
       options.setJobName(generateName());
     }
@@ -142,6 +145,8 @@ public class ImportJob {
         TypeDescriptor.of(FeatureRowExtended.class), ProtoCoder.of(FeatureRowExtended.class));
     coderRegistry.registerCoderForType(TypeDescriptor.of(TableRow.class), TableRowJsonCoder.of());
 
+    JobOptions jobOptions = OptionsParser.parse(importSpec.getJobOptionsMap(), JobOptions.class);
+
     try {
       log.info(JsonFormat.printer().print(importSpec));
     } catch (InvalidProtocolBufferException e) {
@@ -151,8 +156,8 @@ public class ImportJob {
     specs.validate();
 
     PCollection<FeatureRow> features = pipeline.apply("Read", readFeaturesTransform);
-    if (options.getLimit() != null && options.getLimit() > 0) {
-      features = features.apply(Sample.any(options.getLimit()));
+    if (jobOptions.getSampleLimit() > 0) {
+      features = features.apply(Sample.any(jobOptions.getSampleLimit()));
     }
 
     PCollection<FeatureRowExtended> featuresExtended =
@@ -169,6 +174,12 @@ public class ImportJob {
                     "Round event timestamps to granularity",
                     ParDo.of(new RoundEventTimestampsDoFn())),
             pFeatureRows.getErrors());
+
+    if (jobOptions.isCoalesceRowsEnabled()) {
+      pFeatureRows = pFeatureRows.apply("foo", new CoalescePFeatureRows(
+          jobOptions.getCoalesceRowsDelaySeconds(),
+          jobOptions.getCoalesceRowsTimeoutSeconds()));
+    }
 
     if (!dryRun) {
       List<PCollection<FeatureRowExtended>> errors = Lists.newArrayList();

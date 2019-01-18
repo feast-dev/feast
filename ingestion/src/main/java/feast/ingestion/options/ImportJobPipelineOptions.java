@@ -26,7 +26,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.options.Validation.Required;
 
-public interface ImportJobOptions extends PipelineOptions {
+public interface ImportJobPipelineOptions extends PipelineOptions {
 
   @Description("Import spec yaml file path")
   @Required(groups = {"importSpec"})
@@ -67,11 +67,6 @@ public interface ImportJobOptions extends PipelineOptions {
   @Override
   void setMetricsSink(Class<? extends MetricsSink> metricsSink);
 
-  @Description("Filter a to a max number if rows from the read source")
-  Long getLimit();
-
-  void setLimit(Long value);
-
   @Description(
       "Set an errors store type. One of: [stderr, stdout, file.json]. Note that you should not use "
           + "stderr/stdout in production unless your data volume is extremely small.")
@@ -88,11 +83,11 @@ public interface ImportJobOptions extends PipelineOptions {
   void setErrorsStoreOptions(String value);
 
   @AutoService(PipelineOptionsRegistrar.class)
-  class ImportJobOptionsRegistrar implements PipelineOptionsRegistrar {
+  class ImportJobPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
 
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return Collections.singleton(ImportJobOptions.class);
+      return Collections.singleton(ImportJobPipelineOptions.class);
     }
   }
 }
