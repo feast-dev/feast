@@ -61,8 +61,9 @@ The following table lists the configurable parameters of the Feast chart and the
 | -- | -- | -- | 
 | `core.image.registry` | core docker image registry | feast | 
 | `core.image.repository` | core docker image repository | feast-core | 
-| `core.image.tag` | core docker image version | 0.3.0 | 
-| `core.jobs.errorsStoreId` | storage ID of location to write errors | FILE_ERROR_STORE | 
+| `core.image.tag` | core docker image version | 0.1.0 | 
+| `core.jobs.errorsStoreId` | type of errors store to write errors to. One of `stdout`, `stderr`, `file.json` | stdout | 
+| `core.jobs.errorsStoreOptions` | additional options for the error store in json string format | `{}` | 
 | `core.jobs.monitoring.initialDelay` | delay before a job starts to be monitored in ms | 60000 | 
 | `core.jobs.monitoring.period` | polling interval for jobs monitoring in ms | 5000 | 
 | `core.jobs.options` | additional options to be provided to the beam job. Should be a char escaped json k-v object | {} | 
@@ -77,6 +78,7 @@ The following table lists the configurable parameters of the Feast chart and the
 | `core.service.grpc.targetPort` | core service target grpc port | 8433 |
 | `core.service.http.port` | core service exposed http port | 80 |
 | `core.service.http.targetPort` | core service target http port | 8080 |
+| `core.trainingDatasetPrefix` | prefix for training datasets created in bq | fs |
 | `dataflow.location` | desired dataflow's region | nil | 
 | `dataflow.projectID` | desired dataflow's project id | nil | 
 | `postgresql.postgresPassword` | specify password if you want the postgres password secret to be generated | nil | 
@@ -89,7 +91,7 @@ The following table lists the configurable parameters of the Feast chart and the
 | `serving.config.timeout` | request timeout in seconds | 5 | 
 | `serving.image.registry` | serving docker image registry | feast | 
 | `serving.image.repository` | serving docker image repository | feast-serving | 
-| `serving.image.tag` | serving docker image version | 0.3.0 | 
+| `serving.image.tag` | serving docker image version | 0.1.0 | 
 | `serving.replicaCount` | serving replica count | 4 |
 | `serving.resources.limits.cpu` | serving cpu limits | 1 |
 | `serving.resources.limits.memory` | serving memory limits | 2G |
@@ -99,5 +101,7 @@ The following table lists the configurable parameters of the Feast chart and the
 | `serving.service.grpc.targetPort` | serving service target grpc port | 8433 |
 | `serving.service.http.port` | serving service exposed http port | 80 |
 | `serving.service.http.targetPort` | serving service target http port | 8080 |
+| `serviceAccount.name` | service account secret name to mount to deployments | nil | 
+| `serviceAccount.key` | service account secret key to mount to deployments | nil | 
 | `statsd.host` | host of statsd daemon for job metrics to be sent to | nil | 
 | `statsd.port` | port of statsd daemon for job metrics to be sent to | nil | 
