@@ -20,18 +20,13 @@ package feast.serving.testutil;
 import static java.util.stream.Collectors.groupingBy;
 import static org.apache.hadoop.hbase.shaded.org.junit.Assert.assertNotNull;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
-import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import feast.serving.ServingAPIProto.TimestampRange;
 import feast.serving.model.FeatureValue;
-import feast.serving.model.Pair;
-import feast.serving.util.TimeUtil;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.types.GranularityProto.Granularity.Enum;
 import feast.types.ValueProto.Value;
@@ -49,15 +44,13 @@ public abstract class FeatureStoragePopulator {
    * @param entityName entity name.
    * @param entityIds collection of entity ID to be added.
    * @param featureSpecs collection of feature's spec for which the data should be added.
-   * @param start oldest timestamp of data that should be added. (exclusive)
-   * @param end newest timestamp of data that should be added. (inclusive)
+   * @param timestamp event timestamp of data
    */
   public abstract void populate(
       String entityName,
       Collection<String> entityIds,
       Collection<FeatureSpec> featureSpecs,
-      Timestamp start,
-      Timestamp end);
+      Timestamp timestamp);
 
   /**
    * Create a historical feature value based on parameters.
@@ -81,73 +74,11 @@ public abstract class FeatureStoragePopulator {
     }
   }
 
-  /**
-   * Create single feature value based on parameters.
-   *
-   * @param entityId
-   * @param featureId
-   * @param valType
-   * @return
-   */
-  protected Value createValue(String entityId, String featureId, ValueType.Enum valType) {
-    switch (valType) {
-      case INT64:
-        return Value.newBuilder().setInt64Val(Long.parseLong(entityId)).build();
-      case STRING:
-        String value = String.format("%s_%s", entityId, featureId);
-        return Value.newBuilder().setStringVal(value).build();
-      default:
-        throw new IllegalArgumentException("not yet supported");
-    }
-  }
-
-  /**
-   * Get the duration between 2 fake data based on granularity of a feature.
-   *
-   * @param granularity feature's granualarity.
-   * @return duration between two fake time-series data.
-   */
-  protected Duration getTimestep(Enum granularity) {
-    switch (granularity) {
-      case SECOND:
-        return Durations.fromSeconds(30);
-      case MINUTE:
-        return Durations.fromSeconds(60);
-      case HOUR:
-        return Durations.fromSeconds(60 * 60);
-      case DAY:
-        return Durations.fromSeconds(24 * 60 * 60);
-      default:
-        throw new IllegalArgumentException("unsupported granularity: " + granularity);
-    }
-  }
-
-  public void validateCurrentValueGranularityNone(
-      List<FeatureValue> result, List<String> entityIds, List<FeatureSpec> featureSpecs) {
-    Map<String, Map<String, List<FeatureValue>>> entityMap = toEntityMap(result);
-
-    assertNotNull(entityMap);
-    assertThat(entityMap.size(), equalTo(entityIds.size()));
-    for (String entityId : entityIds) {
-      Map<String, List<FeatureValue>> featureMap = entityMap.get(entityId);
-      assertNotNull(featureMap);
-      assertThat(featureMap.size(), equalTo(featureSpecs.size()));
-      for (FeatureSpec featureSpec : featureSpecs) {
-        List<FeatureValue> featureValueList = featureMap.get(featureSpec.getId());
-        assertNotNull(featureValueList);
-        assertThat(featureValueList.size(), equalTo(1));
-
-        FeatureValue featureValue = featureValueList.get(0);
-        validateValue(featureValue, entityId, featureSpec);
-      }
-    }
-  }
-
-  public void validateCurrentValueOtherGranularity(
+  public void validate(
       List<FeatureValue> result,
       List<String> entityIds,
       List<FeatureSpec> featureSpecs,
-      Timestamp lastTimestamp) {
+      TimestampRange tsRange) {
     Map<String, Map<String, List<FeatureValue>>> entityMap = toEntityMap(result);
 
     assertNotNull(entityMap);
@@ -165,46 +96,16 @@ public abstract class FeatureStoragePopulator {
         FeatureValue featureValue = featureValueList.get(0);
         Timestamp timestamp = featureValue.getTimestamp();
         validateValue(featureValue, entityId, featureSpec, timestamp);
-        lastTimestamp = TimeUtil.roundFloorTimestamp(lastTimestamp, featureSpec.getGranularity());
-        assertThat(timestamp, equalTo(lastTimestamp));
-      }
-    }
-  }
 
-  public void validateValueWithinTimerange(
-      List<FeatureValue> result,
-      List<String> entityIds,
-      List<Pair<FeatureSpec, Integer>> featureSpecLimitPairs,
-      TimestampRange tsRange) {
-    Map<String, Map<String, List<FeatureValue>>> entityMap = toEntityMap(result);
+        if (tsRange != null && !featureSpec.getGranularity().equals(Enum.NONE)) {
+          Timestamp start = tsRange.getStart();
+          Timestamp end = tsRange.getEnd();
 
-    assertNotNull(entityMap);
-    assertThat(entityMap.size(), equalTo(entityIds.size()));
-    for (String entityId : entityIds) {
-      Map<String, List<FeatureValue>> featureMap = entityMap.get(entityId);
-      assertThat(featureMap.size(), equalTo(featureSpecLimitPairs.size()));
-      for (Pair<FeatureSpec, Integer> featureSpecLimitPair : featureSpecLimitPairs) {
-        FeatureSpec featureSpec = featureSpecLimitPair.getLeft();
-        int limit = featureSpecLimitPair.getRight();
-        List<FeatureValue> featureValues = featureMap.get(featureSpec.getId());
-        assertThat(featureValues.size(), lessThanOrEqualTo(limit));
-
-        for (FeatureValue featureValue : featureValues) {
-          Timestamp timestamp = featureValue.getTimestamp();
-          validateValue(featureValue, entityId, featureSpec, timestamp);
-
-          // check timestamp is within specified range
-          assertThat(Timestamps.compare(timestamp, tsRange.getEnd()), lessThanOrEqualTo(0));
-          assertThat(Timestamps.compare(timestamp, tsRange.getStart()), greaterThanOrEqualTo(0));
+          assertThat(Timestamps.compare(start, timestamp), lessThanOrEqualTo(0));
+          assertThat(Timestamps.compare(timestamp, end), lessThanOrEqualTo(0));
         }
       }
     }
-  }
-
-  private void validateValue(FeatureValue featureValue, String entityId, FeatureSpec featureSpec) {
-    Value actualValue = featureValue.getValue();
-    Value expectedValue = createValue(entityId, featureSpec.getId(), featureSpec.getValueType());
-    assertThat(actualValue, equalTo(expectedValue));
   }
 
   private void validateValue(

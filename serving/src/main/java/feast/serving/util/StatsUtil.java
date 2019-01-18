@@ -17,8 +17,7 @@
 package feast.serving.util;
 
 import com.google.common.base.Strings;
-import feast.serving.ServingAPIProto.QueryFeatures.Request;
-import feast.serving.ServingAPIProto.RequestDetail;
+import feast.serving.ServingAPIProto.QueryFeaturesRequest;
 import io.grpc.Context;
 import io.grpc.Context.Key;
 import java.net.SocketAddress;
@@ -40,7 +39,7 @@ public class StatsUtil {
    * <p>The tags contain information about feature's ids of the request and the client requesting
    * it.
    */
-  public static String[] makeStatsdTags(Request request) {
+  public static String[] makeStatsdTags(QueryFeaturesRequest request) {
     List<String> featureTags = makeFeatureTags(request);
     String remoteAddrTag = makeRemoteAddressTag();
     String[] tags = featureTags.toArray(new String[featureTags.size() + 1]);
@@ -48,10 +47,9 @@ public class StatsUtil {
     return tags;
   }
 
-  private static List<String> makeFeatureTags(Request request) {
-    List<String> tags = new ArrayList<>(request.getRequestDetailsCount());
-    for (RequestDetail requestDetail : request.getRequestDetailsList()) {
-      String featureId = requestDetail.getFeatureId();
+  private static List<String> makeFeatureTags(QueryFeaturesRequest request) {
+    List<String> tags = new ArrayList<>(request.getFeatureIdCount());
+    for (String featureId : request.getFeatureIdList()) {
       if (Strings.isNullOrEmpty(featureId)) {
         continue;
       }

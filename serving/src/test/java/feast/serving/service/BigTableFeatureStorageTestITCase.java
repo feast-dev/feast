@@ -22,12 +22,6 @@ import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
-import feast.serving.model.Pair;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.client.Connection;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
 import feast.serving.ServingAPIProto.TimestampRange;
 import feast.serving.model.FeatureValue;
 import feast.serving.testutil.BigTablePopulator;
@@ -35,12 +29,18 @@ import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.types.GranularityProto.Granularity;
 import feast.types.GranularityProto.Granularity.Enum;
 import feast.types.ValueProto.ValueType;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.client.Connection;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 public class BigTableFeatureStorageTestITCase {
   private static final String ENTITY_NAME = "test_entity";
-  private static final int NUM_OF_DAYS_DATA = 2; // 2 days data.
 
   // The object under test
   BigTableFeatureStorage featureStorage;
@@ -48,8 +48,7 @@ public class BigTableFeatureStorageTestITCase {
   private BigTablePopulator bigTablePopulator;
   private List<String> entityIds;
 
-  private Timestamp start;
-  private Timestamp end;
+  private Timestamp now;
   private Connection connection;
 
   @Before
@@ -62,8 +61,7 @@ public class BigTableFeatureStorageTestITCase {
     featureStorage = new BigTableFeatureStorage(connection);
 
     entityIds = createEntityIds(10);
-    end = Timestamp.newBuilder().setSeconds(System.currentTimeMillis() / 1000).build();
-    start = Timestamps.subtract(end, Durations.fromSeconds(NUM_OF_DAYS_DATA * 24 * 60 * 60));
+    now = Timestamp.newBuilder().setSeconds(System.currentTimeMillis() / 1000).build();
   }
 
   @After
@@ -72,67 +70,7 @@ public class BigTableFeatureStorageTestITCase {
   }
 
   @Test
-  public void getCurrentFeature_shouldWorkForGranularityNone() {
-    FeatureSpec featureSpec =
-        FeatureSpec.newBuilder()
-            .setEntity(ENTITY_NAME)
-            .setId("test_entity.none.feature_granularity_none")
-            .setName("feature_granularity_none")
-            .setGranularity(Granularity.Enum.NONE)
-            .setValueType(ValueType.Enum.STRING)
-            .build();
-
-    List<FeatureSpec> featureSpecs = Arrays.asList(featureSpec);
-    bigTablePopulator.populate(
-        ENTITY_NAME, entityIds, featureSpecs, Timestamps.EPOCH, Timestamps.EPOCH);
-    List<FeatureValue> results =
-        featureStorage.getCurrentFeature(ENTITY_NAME, entityIds, featureSpec);
-
-    bigTablePopulator.validateCurrentValueGranularityNone(results, entityIds, featureSpecs);
-  }
-
-  @Test
-  public void getCurrentFeature_shouldGracefullyHandleMissingEntity() {
-    FeatureSpec featureSpec =
-        FeatureSpec.newBuilder()
-            .setEntity(ENTITY_NAME)
-            .setId("test_entity.none.feature_granularity_none")
-            .setName("feature_granularity_none")
-            .setGranularity(Granularity.Enum.NONE)
-            .setValueType(ValueType.Enum.STRING)
-            .build();
-
-    List<FeatureSpec> featureSpecs = Arrays.asList(featureSpec);
-    List<String> entityIdsWithMissingEntity = new ArrayList<>(entityIds);
-    entityIdsWithMissingEntity.add("100");
-    bigTablePopulator.populate(
-        ENTITY_NAME, entityIds, featureSpecs, Timestamps.EPOCH, Timestamps.EPOCH);
-    List<FeatureValue> results =
-        featureStorage.getCurrentFeature(ENTITY_NAME, entityIdsWithMissingEntity, featureSpec);
-    bigTablePopulator.validateCurrentValueGranularityNone(results, entityIds, featureSpecs);
-  }
-
-  @Test
-  public void getCurrentFeature_shouldWorkForOtherGranularity() {
-    for (Granularity.Enum granularity : Granularity.Enum.values()) {
-      if (granularity.equals(Enum.NONE) || granularity.equals(Enum.UNRECOGNIZED)) {
-        continue;
-      }
-      FeatureSpec spec = createFeatureSpec("feature_1", granularity, ValueType.Enum.STRING);
-
-      List<FeatureSpec> featureSpecs = Collections.singletonList(spec);
-      bigTablePopulator.populate(ENTITY_NAME, entityIds, featureSpecs, start, end);
-
-      List<FeatureValue> result =
-          featureStorage.getCurrentFeature(ENTITY_NAME, entityIds, spec);
-
-      bigTablePopulator.validateCurrentValueOtherGranularity(result, entityIds, featureSpecs, end);
-    }
-  }
-
-
-  @Test
-  public void getCurrentFeatures_shouldWorkForGranularityNone() {
+  public void getFeatures_shouldWorkForGranularityNone() {
     FeatureSpec featureSpec1 =
         FeatureSpec.newBuilder()
             .setEntity(ENTITY_NAME)
@@ -152,16 +90,18 @@ public class BigTableFeatureStorageTestITCase {
             .build();
 
     List<FeatureSpec> featureSpecs = Arrays.asList(featureSpec1, featureSpec2);
-    bigTablePopulator.populate(
-        ENTITY_NAME, entityIds, featureSpecs, Timestamps.EPOCH, Timestamps.EPOCH);
+    bigTablePopulator.populate(ENTITY_NAME, entityIds, featureSpecs, now);
     List<FeatureValue> results =
-        featureStorage.getCurrentFeatures(ENTITY_NAME, entityIds, featureSpecs);
+        featureStorage.getFeature(ENTITY_NAME, entityIds, featureSpecs, null);
+    List<FeatureValue> results2 =
+        featureStorage.getFeature(ENTITY_NAME, entityIds, featureSpecs, TimestampRange.getDefaultInstance());
 
-    bigTablePopulator.validateCurrentValueGranularityNone(results, entityIds, featureSpecs);
+    bigTablePopulator.validate(results, entityIds, featureSpecs, null);
+    bigTablePopulator.validate(results2, entityIds, featureSpecs, null);
   }
 
   @Test
-  public void getCurrentFeatures_shouldGracefullyHandleMissingEntity() {
+  public void getFeatures_shouldGracefullyHandleMissingEntity() {
     FeatureSpec featureSpec1 =
         FeatureSpec.newBuilder()
             .setEntity(ENTITY_NAME)
@@ -183,15 +123,14 @@ public class BigTableFeatureStorageTestITCase {
     List<FeatureSpec> featureSpecs = Arrays.asList(featureSpec1, featureSpec2);
     List<String> entityIdsWithMissingEntity = new ArrayList<>(entityIds);
     entityIdsWithMissingEntity.add("100");
-    bigTablePopulator.populate(
-        ENTITY_NAME, entityIds, featureSpecs, Timestamps.EPOCH, Timestamps.EPOCH);
+    bigTablePopulator.populate(ENTITY_NAME, entityIds, featureSpecs, now);
     List<FeatureValue> results =
-        featureStorage.getCurrentFeatures(ENTITY_NAME, entityIdsWithMissingEntity, featureSpecs);
-    bigTablePopulator.validateCurrentValueGranularityNone(results, entityIds, featureSpecs);
+        featureStorage.getFeature(ENTITY_NAME, entityIdsWithMissingEntity, featureSpecs, null);
+    bigTablePopulator.validate(results, entityIds, featureSpecs, null);
   }
 
   @Test
-  public void getCurrentFeatures_shouldWorkForOtherGranularity() {
+  public void getFeatures_shouldWorkForOtherGranularity() {
     for (Granularity.Enum granularity : Granularity.Enum.values()) {
       if (granularity.equals(Enum.NONE) || granularity.equals(Enum.UNRECOGNIZED)) {
         continue;
@@ -200,123 +139,44 @@ public class BigTableFeatureStorageTestITCase {
       FeatureSpec spec2 = createFeatureSpec("feature_2", granularity, ValueType.Enum.STRING);
 
       List<FeatureSpec> featureSpecs = Arrays.asList(spec1, spec2);
-      bigTablePopulator.populate(ENTITY_NAME, entityIds, featureSpecs, start, end);
+      bigTablePopulator.populate(ENTITY_NAME, entityIds, featureSpecs, now);
 
       List<FeatureValue> result =
-          featureStorage.getCurrentFeatures(ENTITY_NAME, entityIds, featureSpecs);
+          featureStorage.getFeature(ENTITY_NAME, entityIds, featureSpecs, null);
 
-      bigTablePopulator.validateCurrentValueOtherGranularity(result, entityIds, featureSpecs, end);
+      bigTablePopulator.validate(result, entityIds, featureSpecs, null);
     }
   }
 
   @Test
-  public void getNLatestFeatureWithinTimerange_shouldWorkForTimeseriesData() {
-    for (Granularity.Enum granularity : Granularity.Enum.values()) {
-      if (granularity.equals(Enum.NONE) || granularity.equals(Enum.UNRECOGNIZED)) {
-        continue;
-      }
-      FeatureSpec spec = createFeatureSpec("feature_1", granularity, ValueType.Enum.STRING);
+  public void getFeatures_shouldFilterOutOldData() {
+    String entityIdWithOldData = "entity_old_data";
+    Granularity.Enum granularity = Enum.MINUTE;
+    Timestamp fiveMinutesAgo = Timestamps.subtract(now, Durations.fromSeconds(300));
 
-      List<FeatureSpec> featureSpecs = Collections.singletonList(spec);
-      bigTablePopulator.populate(ENTITY_NAME, entityIds, featureSpecs, start, end);
+    Timestamp start = Timestamps.subtract(now, Durations.fromSeconds(60));
+    Timestamp end = now;
+    TimestampRange tsRange = TimestampRange.newBuilder().setStart(start).setEnd(end).build();
 
-      int limit = 5;
-      Pair<FeatureSpec, Integer> featureSpecLimitPair = new Pair<>(spec, limit);
-      TimestampRange tsRange = TimestampRange.newBuilder().setStart(start).setEnd(end).build();
-      List<FeatureValue> result =
-          featureStorage.getNLatestFeatureWithinTimestampRange(
-              ENTITY_NAME, entityIds, featureSpecLimitPair, tsRange);
-      bigTablePopulator.validateValueWithinTimerange(result,
-          entityIds, Collections.singletonList(featureSpecLimitPair), tsRange);
-    }
+    FeatureSpec spec1 = createFeatureSpec("feature_1", granularity, ValueType.Enum.STRING);
+    FeatureSpec spec2 = createFeatureSpec("feature_2", granularity, ValueType.Enum.STRING);
+
+    List<FeatureSpec> featureSpecs = Arrays.asList(spec1, spec2);
+    bigTablePopulator.populate(ENTITY_NAME, entityIds, featureSpecs, now);
+    bigTablePopulator.populate(
+        ENTITY_NAME, Collections.singletonList(entityIdWithOldData), featureSpecs, fiveMinutesAgo);
+
+    List<String> allEntityIds = new ArrayList<>(entityIds);
+    allEntityIds.add(entityIdWithOldData);
+    List<FeatureValue> result =
+        featureStorage.getFeature(ENTITY_NAME, allEntityIds, featureSpecs, tsRange);
+    System.out.println(result);
+
+    bigTablePopulator.validate(result, entityIds, featureSpecs, tsRange);
   }
 
-  @Test
-  public void getNLatestFeatureWithinTimerange_shouldGracefullyHandleMissingEntity() {
-    for (Granularity.Enum granularity : Granularity.Enum.values()) {
-      if (granularity.equals(Enum.NONE) || granularity.equals(Enum.UNRECOGNIZED)) {
-        continue;
-      }
-      FeatureSpec spec = createFeatureSpec("feature_1", granularity, ValueType.Enum.STRING);
-
-      List<String> entityIdsWithMissingEntity = new ArrayList<>(entityIds);
-      entityIdsWithMissingEntity.add("100");
-
-      Collection<FeatureSpec> featureSpecs = Collections.singletonList(spec);
-      bigTablePopulator.populate(ENTITY_NAME, entityIds, featureSpecs, start, end);
-
-      int limit = 5;
-      Pair<FeatureSpec, Integer> featureSpecLimitPair = new Pair<>(spec, limit);
-      TimestampRange tsRange = TimestampRange.newBuilder().setStart(start).setEnd(end).build();
-      List<FeatureValue> result =
-          featureStorage.getNLatestFeatureWithinTimestampRange(
-              ENTITY_NAME, entityIdsWithMissingEntity, featureSpecLimitPair, tsRange);
-      bigTablePopulator.validateValueWithinTimerange(result,
-          entityIds, Collections.singletonList(featureSpecLimitPair), tsRange);
-    }
-  }
-
-
-  @Test
-  public void getNLatestFeaturesWithinTimerange_shouldWorkForTimeseriesData() {
-    for (Granularity.Enum granularity : Granularity.Enum.values()) {
-      if (granularity.equals(Enum.NONE) || granularity.equals(Enum.UNRECOGNIZED)) {
-        continue;
-      }
-      FeatureSpec spec1 = createFeatureSpec("feature_1", granularity, ValueType.Enum.STRING);
-      FeatureSpec spec2 = createFeatureSpec("feature_2", granularity, ValueType.Enum.STRING);
-
-      List<FeatureSpec> featureSpecs = Arrays.asList(spec1, spec2);
-      bigTablePopulator.populate(ENTITY_NAME, entityIds, featureSpecs, start, end);
-
-      int limit1 = 5;
-      int limit2 = 3;
-      Pair<FeatureSpec, Integer> featureSpecLimitPair1 = new Pair<>(spec1, limit1);
-      Pair<FeatureSpec, Integer> featureSpecLimitPair2 = new Pair<>(spec2, limit2);
-
-      List<Pair<FeatureSpec, Integer>> featureSpecLimitPairs = Arrays.asList(featureSpecLimitPair1, featureSpecLimitPair2);
-      TimestampRange tsRange = TimestampRange.newBuilder().setStart(start).setEnd(end).build();
-      List<FeatureValue> result =
-          featureStorage.getNLatestFeaturesWithinTimestampRange(
-              ENTITY_NAME, entityIds, featureSpecLimitPairs, tsRange);
-      bigTablePopulator.validateValueWithinTimerange(result,
-          entityIds, featureSpecLimitPairs, tsRange);
-    }
-  }
-
-  @Test
-  public void getNLatestFeaturesWithinTimerange_shouldGracefullyHandleMissingEntity() {
-    for (Granularity.Enum granularity : Granularity.Enum.values()) {
-      if (granularity.equals(Enum.NONE) || granularity.equals(Enum.UNRECOGNIZED)) {
-        continue;
-      }
-      FeatureSpec spec1 = createFeatureSpec("feature_1", granularity, ValueType.Enum.STRING);
-      FeatureSpec spec2 = createFeatureSpec("feature_2", granularity, ValueType.Enum.STRING);
-
-
-      List<FeatureSpec> featureSpecs = Arrays.asList(spec1, spec2);
-      bigTablePopulator.populate(ENTITY_NAME, entityIds, featureSpecs, start, end);
-
-      int limit1 = 5;
-      int limit2 = 3;
-      Pair<FeatureSpec, Integer> featureSpecLimitPair1 = new Pair<>(spec1, limit1);
-      Pair<FeatureSpec, Integer> featureSpecLimitPair2 = new Pair<>(spec2, limit2);
-
-      List<Pair<FeatureSpec, Integer>> featureSpecLimitPairs = Arrays.asList(featureSpecLimitPair1, featureSpecLimitPair2);
-      TimestampRange tsRange = TimestampRange.newBuilder().setStart(start).setEnd(end).build();
-
-      List<String> entityIdsWithMissingEntity = new ArrayList<>(entityIds);
-      entityIdsWithMissingEntity.add("100");
-      List<FeatureValue> result =
-          featureStorage.getNLatestFeaturesWithinTimestampRange(
-              ENTITY_NAME, entityIdsWithMissingEntity, featureSpecLimitPairs, tsRange);
-      bigTablePopulator.validateValueWithinTimerange(result,
-          entityIds, featureSpecLimitPairs, tsRange);
-    }
-  }
-
-
-  private FeatureSpec createFeatureSpec(String featureName, Enum granularity, ValueType.Enum valType) {
+  private FeatureSpec createFeatureSpec(
+      String featureName, Enum granularity, ValueType.Enum valType) {
     String entityName = ENTITY_NAME;
     String featureId =
         String.format("%s.%s.%s", entityName, granularity.toString().toLowerCase(), featureName);

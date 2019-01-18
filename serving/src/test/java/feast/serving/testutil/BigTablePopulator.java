@@ -17,58 +17,56 @@
 
 package feast.serving.testutil;
 
-import com.google.protobuf.Duration;
+import static junit.framework.TestCase.fail;
+
 import com.google.protobuf.Timestamp;
-import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
+import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.storage.BigTableProto.BigTableRowKey;
+import feast.types.ValueProto.Value;
+import java.io.IOException;
+import java.util.Collection;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableExistsException;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.*;
-import feast.serving.util.TimeUtil;
-import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.storage.BigTableProto.BigTableRowKey;
-import feast.types.GranularityProto.Granularity.Enum;
-import feast.types.ValueProto.Value;
-import feast.types.ValueProto.ValueType;
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptor;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.TableDescriptor;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
-import static junit.framework.TestCase.fail;
-
-/** Helper class to populate a BigTable instance with fake data. */
+/**
+ * Helper class to populate a BigTable instance with fake data. It mimic ingesting data to BigTable.
+ */
 public class BigTablePopulator extends FeatureStoragePopulator {
-  private final Connection connection;
   private static final byte[] DEFAULT_COLUMN_FAMILY = "default".getBytes();
+  private static final String LATEST_KEY = "0";
+  private final Connection connection;
 
   public BigTablePopulator(Connection connection) {
     this.connection = connection;
   }
 
   /**
-   * Populate big table instance with fake data ranging between 'start' and 'end'. The data will be
-   * dense, meaning for each entity the data will be available for each granularity units. (except
-   * for granularity second, for which the data is available every 30 seconds)
+   * Populate big table instance with fake data.
    *
-   * @param entityIds
-   * @param featureSpecs
-   * @param start
-   * @param end
+   * @param entityName entity name of the feature
+   * @param entityIds collection of entity ID for which the feature should be populated
+   * @param featureSpecs collection of feature specs for which the feature should be populated
+   * @param timestamp timestamp of the features
    */
   @Override
   public void populate(
       String entityName,
       Collection<String> entityIds,
       Collection<FeatureSpec> featureSpecs,
-      Timestamp start,
-      Timestamp end) {
+      Timestamp timestamp) {
 
     createTableIfNecessary(entityName);
-    populateTableWithFakeData(entityName, entityIds, featureSpecs, start, end);
+    populateTableWithFakeData(entityName, entityIds, featureSpecs, timestamp);
   }
 
   private void createTableIfNecessary(String entityName) {
@@ -97,17 +95,15 @@ public class BigTablePopulator extends FeatureStoragePopulator {
       String entityName,
       Collection<String> entityIds,
       Collection<FeatureSpec> featureSpecs,
-      Timestamp start,
-      Timestamp end) {
+      Timestamp timestamp) {
     TableName tableName = TableName.valueOf(entityName);
     try (Table table = connection.getTable(tableName)) {
       for (FeatureSpec featureSpec : featureSpecs) {
         for (String entityId : entityIds) {
-          Timestamp roundedStart =
-              TimeUtil.roundFloorTimestamp(start, featureSpec.getGranularity());
-          Timestamp roundedEnd = TimeUtil.roundFloorTimestamp(end, featureSpec.getGranularity());
-          List<Put> puts = makeMultiplePut(entityId, featureSpec, roundedStart, roundedEnd);
-          table.put(puts);
+          Timestamp roundedTimestamp =
+              TimeUtil.roundFloorTimestamp(timestamp, featureSpec.getGranularity());
+          Put put = makePut(entityId, featureSpec, roundedTimestamp);
+          table.put(put);
         }
       }
 
@@ -118,45 +114,11 @@ public class BigTablePopulator extends FeatureStoragePopulator {
     }
   }
 
-  private List<Put> makeMultiplePut(
-      String entityId, FeatureSpec fs, Timestamp start, Timestamp end) {
-    String featureId = fs.getId();
-    List<Put> puts = new ArrayList<>();
-    if (fs.getGranularity().equals(Enum.NONE)) {
-      Value val = createValue(entityId, featureId, fs.getValueType());
-      puts.add(makeSinglePutForGranularityNone(entityId, fs.getId(), val));
-      return puts;
-    }
-
-    Duration timesteps = getTimestep(fs.getGranularity());
-    for (Timestamp iter = end;
-        Timestamps.compare(iter, start) > 0;
-        iter = Timestamps.subtract(iter, timesteps)) {
-      Timestamp roundedIter = TimeUtil.roundFloorTimestamp(iter, fs.getGranularity());
-      if (Timestamps.compare(iter, end) == 0) {
-        Value value = createValue(entityId, featureId, iter, fs.getValueType());
-        BigTableRowKey rowKey =
-            BigTableRowKey.newBuilder()
-                .setEntityKey(entityId)
-                .setReversedMillis("0")
-                .setSha1Prefix(DigestUtils.sha1Hex(entityId.getBytes()).substring(0, 7))
-                .build();
-        Put put = new Put(rowKey.toByteArray());
-        long ts = Timestamps.toMillis(roundedIter);
-        put.addColumn(DEFAULT_COLUMN_FAMILY, fs.getId().getBytes(), ts, value.toByteArray());
-        puts.add(put);
-      }
-      puts.add(makeSinglePut(entityId, fs, roundedIter));
-    }
-
-    return puts;
-  }
-
-  private Put makeSinglePut(String entityId, FeatureSpec fs, Timestamp roundedTimestamp) {
+  private Put makePut(String entityId, FeatureSpec fs, Timestamp roundedTimestamp) {
     BigTableRowKey rowKey =
         BigTableRowKey.newBuilder()
             .setEntityKey(entityId)
-            .setReversedMillis(roundedReversedMillis(roundedTimestamp, fs.getGranularity()))
+            .setReversedMillis(LATEST_KEY)
             .setSha1Prefix(DigestUtils.sha1Hex(entityId.getBytes()).substring(0, 7))
             .build();
     Put put = new Put(rowKey.toByteArray());
@@ -164,42 +126,5 @@ public class BigTablePopulator extends FeatureStoragePopulator {
     Value val = createValue(entityId, fs.getId(), roundedTimestamp, fs.getValueType());
     put.addColumn(DEFAULT_COLUMN_FAMILY, fs.getId().getBytes(), timestamp, val.toByteArray());
     return put;
-  }
-
-  private Put makeSinglePutForGranularityNone(String entityId, String featureId, Value value) {
-    BigTableRowKey rowKey =
-        BigTableRowKey.newBuilder()
-            .setEntityKey(entityId)
-            .setReversedMillis("0")
-            .setSha1Prefix(DigestUtils.sha1Hex(entityId.getBytes()).substring(0, 7))
-            .build();
-    Put put = new Put(rowKey.toByteArray());
-    put.addColumn(DEFAULT_COLUMN_FAMILY, featureId.getBytes(), 0, value.toByteArray());
-    return put;
-  }
-
-  String roundedReversedMillis(Timestamp ts, Enum granularity) {
-    if (granularity.equals(Enum.NONE)) {
-      return "0";
-    }
-    Timestamp roundedEnd = TimeUtil.roundFloorTimestamp(ts, granularity);
-    return String.valueOf(Long.MAX_VALUE - roundedEnd.getSeconds() * 1000);
-  }
-
-  // use at least hourly time step since big table is slow
-  @Override
-  protected Duration getTimestep(Enum granularity) {
-    switch (granularity) {
-      case SECOND:
-        return Durations.fromSeconds(60 * 60);
-      case MINUTE:
-        return Durations.fromSeconds(60 * 60);
-      case HOUR:
-        return Durations.fromSeconds(60 * 60);
-      case DAY:
-        return Durations.fromSeconds(24 * 60 * 60);
-      default:
-        throw new IllegalArgumentException("unsupported granularity: " + granularity);
-    }
   }
 }

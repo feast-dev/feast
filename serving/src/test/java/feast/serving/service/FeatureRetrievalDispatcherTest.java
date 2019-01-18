@@ -28,12 +28,8 @@ import static org.mockito.Mockito.when;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.util.Timestamps;
-import feast.serving.ServingAPIProto.RequestDetail;
-import feast.serving.ServingAPIProto.RequestType;
 import feast.serving.ServingAPIProto.TimestampRange;
 import feast.serving.config.AppConfig;
-import feast.serving.model.Pair;
-import feast.serving.model.RequestDetailWithSpec;
 import feast.specs.FeatureSpecProto.DataStore;
 import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
@@ -71,22 +67,19 @@ public class FeatureRetrievalDispatcherTest {
   public void shouldUseCurrentThreadIfRequestIsSmallEnough() {
     String entityName = "entity";
     FeatureStorage featureStorage = mock(FeatureStorage.class);
-    when(featureStorage.getCurrentFeatures(any(String.class), any(List.class), any(List.class)))
+    when(featureStorage.getFeature(
+            any(String.class), any(List.class), any(List.class), any(TimestampRange.class)))
         .thenReturn(Collections.emptyList());
     when(featureStorageRegistry.get(any(String.class))).thenReturn(featureStorage);
 
     String featureId = "entity.none.feature_1";
     FeatureSpec featureSpec = FeatureSpec.newBuilder().setId(featureId).build();
-    RequestDetail requestDetail =
-        RequestDetail.newBuilder().setType(RequestType.LAST).setFeatureId(featureId).build();
-    RequestDetailWithSpec requestDetailWithSpec =
-        new RequestDetailWithSpec(requestDetail, featureSpec);
     dispatcher.dispatchFeatureRetrieval(
-        entityName, entityIds, Collections.singletonList(requestDetailWithSpec), null);
+        entityName, entityIds, Collections.singletonList(featureSpec), null);
 
     verifyZeroInteractions(executorService);
     verify(featureStorage)
-        .getCurrentFeatures(entityName, entityIds, Collections.singletonList(featureSpec));
+        .getFeature(entityName, entityIds, Collections.singletonList(featureSpec), null);
   }
 
   @Test
@@ -96,44 +89,26 @@ public class FeatureRetrievalDispatcherTest {
     FeatureStorage redis1 = mock(FeatureStorage.class);
     when(featureStorageRegistry.get(storageId1)).thenReturn(redis1);
 
-    when(redis1.getCurrentFeatures(any(String.class), any(List.class), any(List.class)))
+    when(redis1.getFeature(
+            any(String.class), any(List.class), any(List.class), any(TimestampRange.class)))
         .thenReturn(Collections.emptyList());
 
     String entityName = "entity";
     String featureId1 = "entity.none.feature_1";
-    int limit1 = 5;
     FeatureSpec featureSpec1 =
         FeatureSpec.newBuilder()
             .setId(featureId1)
             .setDataStores(
                 DataStores.newBuilder().setServing(DataStore.newBuilder().setId(storageId1)))
             .build();
-    RequestDetail requestDetail1 =
-        RequestDetail.newBuilder()
-            .setType(RequestType.LIST)
-            .setLimit(limit1)
-            .setFeatureId(featureId1)
-            .build();
 
     String featureId2 = "entity.none.feature_2";
-    int limit2 = 1;
     FeatureSpec featureSpec2 =
         FeatureSpec.newBuilder()
-            .setId(featureId1)
+            .setId(featureId2)
             .setDataStores(
                 DataStores.newBuilder().setServing(DataStore.newBuilder().setId(storageId1)))
             .build();
-    RequestDetail requestDetail2 =
-        RequestDetail.newBuilder()
-            .setType(RequestType.LIST)
-            .setLimit(limit2)
-            .setFeatureId(featureId2)
-            .build();
-
-    RequestDetailWithSpec requestDetailWithSpec1 =
-        new RequestDetailWithSpec(requestDetail1, featureSpec1);
-    RequestDetailWithSpec requestDetailWithSpec2 =
-        new RequestDetailWithSpec(requestDetail2, featureSpec2);
 
     TimestampRange tsRange =
         TimestampRange.newBuilder()
@@ -143,14 +118,14 @@ public class FeatureRetrievalDispatcherTest {
     dispatcher.dispatchFeatureRetrieval(
         entityName,
         entityIds,
-        Arrays.asList(requestDetailWithSpec1, requestDetailWithSpec2),
+        Arrays.asList(featureSpec1, featureSpec2),
         tsRange);
 
     verify(redis1)
-        .getNLatestFeaturesWithinTimestampRange(
+        .getFeature(
             entityName,
             entityIds,
-            Arrays.asList(new Pair<>(featureSpec1, limit1), new Pair<>(featureSpec2, limit2)),
+            Arrays.asList(featureSpec1, featureSpec2),
             tsRange);
     verifyZeroInteractions(executorService);
   }
@@ -165,60 +140,11 @@ public class FeatureRetrievalDispatcherTest {
     when(featureStorageRegistry.get(storageId1)).thenReturn(redis1);
     when(featureStorageRegistry.get(storageId2)).thenReturn(redis2);
 
-    when(redis1.getCurrentFeatures(any(String.class), any(List.class), any(List.class)))
+    when(redis1.getFeature(
+            any(String.class), any(List.class), any(List.class), any(TimestampRange.class)))
         .thenReturn(Collections.emptyList());
-    when(redis2.getCurrentFeatures(any(String.class), any(List.class), any(List.class)))
-        .thenReturn(Collections.emptyList());
-
-    String entityName = "entity";
-    String featureId1 = "entity.none.feature_1";
-    FeatureSpec featureSpec1 =
-        FeatureSpec.newBuilder()
-            .setId(featureId1)
-            .setDataStores(
-                DataStores.newBuilder().setServing(DataStore.newBuilder().setId(storageId1)))
-            .build();
-    RequestDetail requestDetail1 =
-        RequestDetail.newBuilder().setType(RequestType.LAST).setFeatureId(featureId1).build();
-
-    String featureId2 = "entity.none.feature_2";
-    FeatureSpec featureSpec2 =
-        FeatureSpec.newBuilder()
-            .setId(featureId1)
-            .setDataStores(
-                DataStores.newBuilder().setServing(DataStore.newBuilder().setId(storageId2)))
-            .build();
-    RequestDetail requestDetail2 =
-        RequestDetail.newBuilder().setType(RequestType.LAST).setFeatureId(featureId2).build();
-
-    RequestDetailWithSpec requestDetailWithSpec1 =
-        new RequestDetailWithSpec(requestDetail1, featureSpec1);
-    RequestDetailWithSpec requestDetailWithSpec2 =
-        new RequestDetailWithSpec(requestDetail2, featureSpec2);
-
-    dispatcher.dispatchFeatureRetrieval(
-        entityName, entityIds, Arrays.asList(requestDetailWithSpec1, requestDetailWithSpec2), null);
-
-    verify(redis1)
-        .getCurrentFeatures(entityName, entityIds, Collections.singletonList(featureSpec1));
-    verify(redis2)
-        .getCurrentFeatures(entityName, entityIds, Collections.singletonList(featureSpec2));
-    verify(executorService, atLeast(2)).submit(any(Callable.class));
-  }
-
-  @Test
-  public void shouldUseExecutorServiceIfMultipleRequestType() {
-    String storageId1 = "REDIS1";
-    String storageId2 = "REDIS2";
-
-    FeatureStorage redis1 = mock(FeatureStorage.class);
-    FeatureStorage redis2 = mock(FeatureStorage.class);
-    when(featureStorageRegistry.get(storageId1)).thenReturn(redis1);
-    when(featureStorageRegistry.get(storageId2)).thenReturn(redis2);
-
-    when(redis1.getCurrentFeatures(any(String.class), any(List.class), any(List.class)))
-        .thenReturn(Collections.emptyList());
-    when(redis2.getCurrentFeatures(any(String.class), any(List.class), any(List.class)))
+    when(redis2.getFeature(
+            any(String.class), any(List.class), any(List.class), any(TimestampRange.class)))
         .thenReturn(Collections.emptyList());
 
     String entityName = "entity";
@@ -229,45 +155,20 @@ public class FeatureRetrievalDispatcherTest {
             .setDataStores(
                 DataStores.newBuilder().setServing(DataStore.newBuilder().setId(storageId1)))
             .build();
-    RequestDetail requestDetail1 =
-        RequestDetail.newBuilder().setType(RequestType.LAST).setFeatureId(featureId1).build();
 
     String featureId2 = "entity.none.feature_2";
-    int limit = 5;
     FeatureSpec featureSpec2 =
         FeatureSpec.newBuilder()
-            .setId(featureId1)
+            .setId(featureId2)
             .setDataStores(
                 DataStores.newBuilder().setServing(DataStore.newBuilder().setId(storageId2)))
             .build();
-    RequestDetail requestDetail2 =
-        RequestDetail.newBuilder()
-            .setType(RequestType.LIST)
-            .setLimit(limit)
-            .setFeatureId(featureId2)
-            .build();
 
-    RequestDetailWithSpec requestDetailWithSpec1 =
-        new RequestDetailWithSpec(requestDetail1, featureSpec1);
-    RequestDetailWithSpec requestDetailWithSpec2 =
-        new RequestDetailWithSpec(requestDetail2, featureSpec2);
-
-    TimestampRange tsRange =
-        TimestampRange.newBuilder()
-            .setStart(Timestamps.fromSeconds(0))
-            .setEnd(Timestamps.fromSeconds(10))
-            .build();
     dispatcher.dispatchFeatureRetrieval(
-        entityName,
-        entityIds,
-        Arrays.asList(requestDetailWithSpec1, requestDetailWithSpec2),
-        tsRange);
+        entityName, entityIds, Arrays.asList(featureSpec1, featureSpec2), null);
 
-    verify(redis1)
-        .getCurrentFeatures(entityName, entityIds, Collections.singletonList(featureSpec1));
-    verify(redis2)
-        .getNLatestFeaturesWithinTimestampRange(
-            entityName, entityIds, Collections.singletonList(new Pair<>(featureSpec2, limit)), tsRange);
+    verify(redis1).getFeature(entityName, entityIds, Collections.singletonList(featureSpec1), null);
+    verify(redis2).getFeature(entityName, entityIds, Collections.singletonList(featureSpec2), null);
     verify(executorService, atLeast(2)).submit(any(Callable.class));
   }
 
