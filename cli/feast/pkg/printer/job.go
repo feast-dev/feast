@@ -22,8 +22,9 @@ import (
 	"github.com/gojek/feast/protos/generated/go/feast/core"
 )
 
-// PrintJobDetail pretty prints the given job detail
-func PrintJobDetail(jobDetail *core.JobServiceTypes_JobDetail) {
+// PrintJobDetail pretty prints the given job detail.
+// Prints and returns the resultant formatted string.
+func PrintJobDetail(jobDetail *core.JobServiceTypes_JobDetail) string {
 	lines := []string{fmt.Sprintf("%s:\t%s", "Id", jobDetail.GetId()),
 		fmt.Sprintf("%s:\t%s", "Ext Id", jobDetail.GetExtId()),
 		fmt.Sprintf("%s:\t%s", "Type", jobDetail.GetType()),
@@ -46,7 +47,9 @@ func PrintJobDetail(jobDetail *core.JobServiceTypes_JobDetail) {
 	for _, feature := range jobDetail.GetFeatures() {
 		lines = append(lines, printFeature(feature, jobDetail.GetMetrics()))
 	}
-	fmt.Println(strings.Join(lines, "\n"))
+	out := strings.Join(lines, "\n")
+	fmt.Println(out)
+	return out
 }
 
 func printEntity(entityName string, metrics map[string]float64) string {
