@@ -32,3 +32,9 @@ func ParseAge(createdTimestamp timestamp.Timestamp) string {
 	}
 	return fmt.Sprintf("%dm", int(math.Floor(timeSinceCreation/float64(60))))
 }
+
+// ParseTimestamp parses a given timestamp to a human readable format.
+func ParseTimestamp(ts timestamp.Timestamp) string {
+	t := time.Unix(ts.GetSeconds(), int64(ts.GetNanos()))
+	return t.Format(time.RFC3339)
+}
