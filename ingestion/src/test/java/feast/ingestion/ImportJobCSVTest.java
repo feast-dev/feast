@@ -89,9 +89,8 @@ public class ImportJobCSVTest {
     ImportSpec importSpec =
         ProtoUtil.decodeProtoYaml(
             "---\n"
-                + "type: file\n"
+                + "type: file.csv\n"
                 + "options:\n"
-                + "  format: csv\n"
                 + "  # path: to be overwritten in tests\n"
                 + "entities:\n"
                 + "  - testEntity\n"
@@ -179,7 +178,7 @@ public class ImportJobCSVTest {
     ImportSpec importSpec =
         ProtoUtil.decodeProtoYaml(
             "---\n"
-                + "type: file\n"
+                + "type: file.csv\n"
                 + "options:\n"
                 + "  format: csv\n"
                 + "  # path: to be overwritten in tests\n"
@@ -190,7 +189,8 @@ public class ImportJobCSVTest {
                 + "  timestampValue: 2018-09-25T00:00:00.000Z\n"
                 + "  fields:\n"
                 + "    - name: id\n"
-                + "    - featureId: testEntity.none.unknownInt32\n" // Unknown store is not available
+                + "    - featureId: testEntity.none.unknownInt32\n"
+                // Unknown store is not available
                 + "    - featureId: testEntity.none.testString\n"
                 + "\n",
             ImportSpec.getDefaultInstance());
@@ -217,9 +217,8 @@ public class ImportJobCSVTest {
     ImportSpec importSpec =
         ProtoUtil.decodeProtoYaml(
             "---\n"
-                + "type: file\n"
+                + "type: file.csv\n"
                 + "options:\n"
-                + "  format: csv\n"
                 + "  # path: to be overwritten in tests\n"
                 + "entities:\n"
                 + "  - testEntity\n"

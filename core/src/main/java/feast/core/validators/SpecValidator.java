@@ -224,7 +224,8 @@ public class SpecValidator {
         case "pubsub":
           checkPubSubImportSpecOption(spec);
           break;
-        case "file":
+        case "file.csv":
+        case "file.json":
           checkFileImportSpecOption(spec);
           checkArgument(
               !spec.getSchema().getEntityIdColumn().equals(""),
@@ -263,9 +264,6 @@ public class SpecValidator {
 
   private void checkFileImportSpecOption(ImportSpec spec) throws IllegalArgumentException {
     try {
-      checkArgument(
-          Lists.newArrayList("json", "csv").contains(spec.getOptionsOrThrow("format")),
-          "File format must be of type 'json' or 'csv'");
       checkArgument(!spec.getOptionsOrDefault("path", "").equals(""), "File path cannot be empty");
     } catch (NullPointerException | IllegalArgumentException e) {
       throw new IllegalArgumentException(

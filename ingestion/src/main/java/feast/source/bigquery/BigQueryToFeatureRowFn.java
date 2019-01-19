@@ -15,7 +15,7 @@
  *
  */
 
-package feast.storage.bigquery;
+package feast.source.bigquery;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -23,6 +23,7 @@ import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.common.collect.Maps;
 import com.google.protobuf.Timestamp;
+import feast.storage.bigquery.ValueBigQueryBuilder;
 import java.util.Map;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord;
@@ -40,16 +41,13 @@ import org.slf4j.LoggerFactory;
  * This is a serializable function used with the BigQueryIO for fetching feature rows directly from
  * BigQuery
  */
-public class FeatureRowFromBigQuerySchemaAndRecordFn
+public class BigQueryToFeatureRowFn
     implements SerializableFunction<SchemaAndRecord, FeatureRow> {
-
-  private static final Logger LOGGER =
-      LoggerFactory.getLogger(FeatureRowFromBigQuerySchemaAndRecordFn.class);
 
   private final ImportSpec importSpec;
   private final Map<String, Field> fields;
 
-  public FeatureRowFromBigQuerySchemaAndRecordFn(ImportSpec importSpec) {
+  public BigQueryToFeatureRowFn(ImportSpec importSpec) {
     this.importSpec = importSpec;
     fields = Maps.newHashMap();
     for (Field field : importSpec.getSchema().getFieldsList()) {

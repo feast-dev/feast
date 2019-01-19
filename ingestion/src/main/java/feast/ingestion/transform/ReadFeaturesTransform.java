@@ -17,10 +17,10 @@
 
 package feast.ingestion.transform;
 
-import com.google.common.base.Enums;
 import com.google.common.base.Preconditions;
-import feast.storage.bigquery.FeatureRowBigQueryIO;
 import com.google.inject.Inject;
+import feast.source.FeatureSourceFactory;
+import feast.source.FeatureSourceFactoryService;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.types.FeatureRowProto.FeatureRow;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -29,43 +29,31 @@ import org.apache.beam.sdk.values.PInput;
 
 public class ReadFeaturesTransform extends PTransform<PInput, PCollection<FeatureRow>> {
 
-    private ImportSpec importSpec;
+  private ImportSpec importSpec;
 
-    @Inject
-    public ReadFeaturesTransform(ImportSpec importSpec) {
-        this.importSpec = importSpec;
-    }
+  @Inject
+  public ReadFeaturesTransform(ImportSpec importSpec) {
+    this.importSpec = importSpec;
+  }
 
-    @Override
-    public PCollection<FeatureRow> expand(PInput input) {
-        return input.getPipeline().apply("Read " + importSpec.getType(), getTransform());
-    }
+  @Override
+  public PCollection<FeatureRow> expand(PInput input) {
+    return input.getPipeline().apply("Read " + importSpec.getType(), getTransform());
+  }
 
-    public PTransform<PInput, PCollection<FeatureRow>> getTransform() {
-        String type = importSpec.getType();
-        Preconditions.checkArgument(!type.isEmpty(), "type missing in import spec");
-        Preconditions.checkArgument(Enums.getIfPresent(FeatureEnums.InputSource.class, type.toUpperCase()).isPresent(), "The type defined is invalid or not supported");
-        switch (FeatureEnums.InputSource.valueOf(type.toUpperCase())) {
-            case FILE:
-                String format = importSpec.getOptionsOrDefault("format", null);
-                Preconditions.checkNotNull(format, "format option missing from import spec of type file");
-                switch (FeatureEnums.FileFormat.valueOf(format.toUpperCase())) {
-                    case CSV:
-                        return FeatureRowCsvIO.read(importSpec);
-                    case JSON:
-                        return FeatureRowJsonTextIO.read(importSpec);
-                    default:
-                        throw new IllegalArgumentException("Unknown format in import spec" + type);
-                }
-            case BIGQUERY:
-                return FeatureRowBigQueryIO.read(importSpec);
-            case PUBSUB:
-                return FeatureRowPubSubIO.read(importSpec);
-            case KAFKA:
-                return FeatureRowKafkaIO.read(importSpec);
-            default:
-                throw new IllegalArgumentException("Unknown type in import spec" + type);
-        }
+  public PTransform<PInput, PCollection<FeatureRow>> getTransform() {
+    String type = importSpec.getType();
+    Preconditions.checkArgument(!type.isEmpty(), "type missing in import spec");
+
+    FeatureSourceFactory featureSourceFactory = null;
+    for (FeatureSourceFactory factory : FeatureSourceFactoryService.getAll()) {
+      if (type.equals(factory.getType())) {
+        featureSourceFactory = factory;
+      }
     }
+    Preconditions
+        .checkNotNull(featureSourceFactory, "No FeatureSourceFactory found for type " + type);
+    return featureSourceFactory.create(importSpec);
+  }
 }
 

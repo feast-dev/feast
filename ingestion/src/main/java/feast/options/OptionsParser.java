@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import com.google.common.collect.Lists;
+import feast.source.csv.CsvFileFeatureSource.CsvFileFeatureSourceOptions;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,7 @@ import javax.validation.Validator;
 import javax.validation.ValidatorFactory;
 
 public class OptionsParser {
+
   private static final ObjectMapper mapper = new ObjectMapper();
   private static final Validator validator;
 
@@ -41,7 +43,9 @@ public class OptionsParser {
     }
   }
 
-  /** Return a json schema string representing an options class for error messages */
+  /**
+   * Return a json schema string representing an options class for error messages
+   */
   static <T extends Options> String getJsonSchema(Class<T> optionsClass) {
     JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(mapper);
     JsonSchema schema = null;
@@ -54,7 +58,9 @@ public class OptionsParser {
     }
   }
 
-  /** Construct a class from string options and validate with any javax validation annotations */
+  /**
+   * Construct a class from string options and validate with any javax validation annotations
+   */
   public static <T extends Options> T parse(Map<String, String> optionsMap, Class<T> clazz) {
     List<String> messages = Lists.newArrayList();
     T options;

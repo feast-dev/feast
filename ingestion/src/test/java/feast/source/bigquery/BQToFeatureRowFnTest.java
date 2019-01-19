@@ -15,7 +15,7 @@
  *
  */
 
-package feast.storage.bigquery;
+package feast.source.bigquery;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.Mockito.mock;
@@ -26,6 +26,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.common.collect.Lists;
 import com.google.protobuf.Timestamp;
+import feast.source.bigquery.BigQueryToFeatureRowFn;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord;
 import org.joda.time.DateTime;
@@ -39,7 +40,7 @@ import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;
 import feast.types.FeatureRowProto.FeatureRow;
 
-public class FeatureRowFromBigQuerySchemaAndRecordFnTest {
+public class BQToFeatureRowFnTest {
   @Test
   public void testImportSpecFieldsMissingFromBQTable() {
     // TODO what if a field in the import spec is not in the bq schema
@@ -77,7 +78,7 @@ public class FeatureRowFromBigQuerySchemaAndRecordFnTest {
             new TableFieldSchema().setName("bq_timestamp").setType(LegacySQLTypeName.TIMESTAMP.name()),
             new TableFieldSchema().setName("bq_value").setType(LegacySQLTypeName.INTEGER.name())));
     SchemaAndRecord schemaAndRecord = new SchemaAndRecord(record, tableSchema);
-    FeatureRow row = new FeatureRowFromBigQuerySchemaAndRecordFn(importSpec).apply(schemaAndRecord);
+    FeatureRow row = new BigQueryToFeatureRowFn(importSpec).apply(schemaAndRecord);
     Assert.assertEquals(now, row.getEventTimestamp());
     Assert.assertEquals("abcd", row.getEntityKey());
     Assert.assertEquals("testEntity", row.getEntityName());
@@ -120,7 +121,7 @@ public class FeatureRowFromBigQuerySchemaAndRecordFnTest {
             new TableFieldSchema().setName("bq_timestamp").setType(LegacySQLTypeName.TIMESTAMP.name()),
             new TableFieldSchema().setName("bq_value").setType(LegacySQLTypeName.INTEGER.name())));
     SchemaAndRecord schemaAndRecord = new SchemaAndRecord(record, tableSchema);
-    FeatureRow row = new FeatureRowFromBigQuerySchemaAndRecordFn(importSpec).apply(schemaAndRecord);
+    FeatureRow row = new BigQueryToFeatureRowFn(importSpec).apply(schemaAndRecord);
     Assert.assertEquals(now, row.getEventTimestamp());
     Assert.assertEquals("1234", row.getEntityKey());
     Assert.assertEquals("testEntity", row.getEntityName());

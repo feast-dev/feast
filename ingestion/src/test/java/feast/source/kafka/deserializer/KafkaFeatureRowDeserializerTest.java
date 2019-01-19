@@ -15,7 +15,7 @@
  *
  */
 
-package feast.ingestion.deserializer;
+package feast.source.kafka.deserializer;
 
 import com.google.protobuf.MessageLite;
 import feast.types.FeatureRowProto.FeatureRow;
