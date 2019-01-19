@@ -1,0 +1,17 @@
+{
+  "id": "testEntity.none.testInt64NoWarehouse",
+  "entity": "testEntity",
+  "granularity": "NONE",
+  "name": "testInt64NoWarehouse",
+  "owner": "feast@example.com",
+  "description": "This is test feature of type integer",
+  "uri": "https://example.com/",
+  "valueType": "INT64",
+  "tags": [],
+  "options": {},
+  "dataStores": {
+    "serving": {
+      "id": "TEST_SERVING"
+    }
+  }
+}

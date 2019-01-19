@@ -46,6 +46,7 @@ import java.util.Set;
 
 public class ValidateFeatureRowsDoFn extends BaseFeatureDoFn {
 
+  private static final String EMPTY_STORE = "";
   private final List<String> featureIds = new ArrayList<>();
 
   private Set<String> supportedServingTypes = new HashSet<>();
@@ -108,10 +109,13 @@ public class ValidateFeatureRowsDoFn extends BaseFeatureDoFn {
             String.format("Serving storage type=%s not supported", servingStorageSpec.getType()));
 
         String warehouseStoreId = featureSpec.getDataStores().getWarehouse().getId();
-        StorageSpec warehouseStorageSpec = specs.getStorageSpec(warehouseStoreId);
-        checkArgument(
-            supportedWarehouseTypes.contains(warehouseStorageSpec.getType()),
-            String.format("Warehouse storage type=%s not supported", servingStorageSpec.getType()));
+        if (!warehouseStoreId.equals(EMPTY_STORE)) {
+          StorageSpec warehouseStorageSpec = specs.getStorageSpec(warehouseStoreId);
+          checkArgument(
+              supportedWarehouseTypes.contains(warehouseStorageSpec.getType()),
+              String.format(
+                  "Warehouse storage type=%s not supported", servingStorageSpec.getType()));
+        }
 
         checkArgument(
             featureSpec.getEntity().equals(row.getEntityName()),
