@@ -44,12 +44,13 @@ import org.junit.rules.ExpectedException;
 import org.mockito.Mockito;
 
 public class SpecValidatorTest {
+
+  @Rule
+  public final ExpectedException exception = ExpectedException.none();
   private FeatureInfoRepository featureInfoRepository;
   private FeatureGroupInfoRepository featureGroupInfoRepository;
   private EntityInfoRepository entityInfoRepository;
   private StorageInfoRepository storageInfoRepository;
-
-  @Rule public final ExpectedException exception = ExpectedException.none();
 
   @Before
   public void setUp() {
@@ -369,7 +370,7 @@ public class SpecValidatorTest {
     StorageInfo redis1 = new StorageInfo();
     redis1.setId(servingStoreId);
     redis1.setType("redis");
-    when(storageInfoRepository.findById( servingStoreId)).thenReturn(Optional.of(redis1));
+    when(storageInfoRepository.findById(servingStoreId)).thenReturn(Optional.of(redis1));
 
     SpecValidator validator =
         new SpecValidator(
@@ -392,7 +393,8 @@ public class SpecValidatorTest {
             .setDataStores(dataStores)
             .build();
     exception.expect(IllegalArgumentException.class);
-    exception.expectMessage(String.format("Warehouse store with id %s does not exist", warehouseStoreId));
+    exception.expectMessage(
+        String.format("Warehouse store with id %s does not exist", warehouseStoreId));
     validator.validateFeatureSpec(input);
   }
 
@@ -405,7 +407,7 @@ public class SpecValidatorTest {
     StorageInfo redis1 = new StorageInfo();
     redis1.setId(servingStoreId);
     redis1.setType("redis");
-    when(storageInfoRepository.findById( servingStoreId)).thenReturn(Optional.of(redis1));
+    when(storageInfoRepository.findById(servingStoreId)).thenReturn(Optional.of(redis1));
 
     SpecValidator validator =
         new SpecValidator(
@@ -432,18 +434,21 @@ public class SpecValidatorTest {
   @Test
   public void featureSpecWithUnsupportedWarehouseStoreShouldThrowIllegalArgumentException() {
     String servingStoreId = "REDIS1";
-    StorageSpec servingStoreSpec = StorageSpec.newBuilder().setId(servingStoreId).setType("redis").build();
+    StorageSpec servingStoreSpec = StorageSpec.newBuilder().setId(servingStoreId).setType("redis")
+        .build();
     StorageInfo servingStoreInfo = new StorageInfo(servingStoreSpec);
 
     String warehouseStoreId = "REDIS2";
-    StorageSpec warehouseStoreSpec = StorageSpec.newBuilder().setId(warehouseStoreId).setType("redis").build();
+    StorageSpec warehouseStoreSpec = StorageSpec.newBuilder().setId(warehouseStoreId)
+        .setType("redis").build();
     StorageInfo warehouseStoreInfo = new StorageInfo(warehouseStoreSpec);
 
     when(entityInfoRepository.existsById("entity")).thenReturn(true);
     when(storageInfoRepository.existsById(servingStoreId)).thenReturn(true);
     when(storageInfoRepository.existsById(warehouseStoreId)).thenReturn(true);
     when(storageInfoRepository.findById(servingStoreId)).thenReturn(Optional.of(servingStoreInfo));
-    when(storageInfoRepository.findById(warehouseStoreId)).thenReturn(Optional.of(warehouseStoreInfo));
+    when(storageInfoRepository.findById(warehouseStoreId))
+        .thenReturn(Optional.of(warehouseStoreInfo));
     SpecValidator validator =
         new SpecValidator(
             storageInfoRepository,
@@ -488,7 +493,8 @@ public class SpecValidatorTest {
     when(entityInfoRepository.existsById("entity")).thenReturn(true);
     when(storageInfoRepository.existsById(servingStoreName)).thenReturn(true);
     when(storageInfoRepository.existsById(warehouseStorageName)).thenReturn(true);
-    when(storageInfoRepository.findById(servingStoreName)).thenReturn(Optional.of(redis1StorageInfo));
+    when(storageInfoRepository.findById(servingStoreName))
+        .thenReturn(Optional.of(redis1StorageInfo));
     when(storageInfoRepository.findById(warehouseStorageName)).thenReturn(Optional.of(bqInfo));
     SpecValidator validator =
         new SpecValidator(
@@ -776,6 +782,57 @@ public class SpecValidatorTest {
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage(
         "Validation for import spec failed: Feature some_nonexistent_feature not registered");
+    validator.validateImportSpec(input);
+  }
+
+  @Test
+  public void importSpecWithKafkaSourceAndCorrectOptionsShouldPassValidation() {
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    when(featureInfoRepository.existsById("some_existing_feature")).thenReturn(true);
+    when(entityInfoRepository.existsById("someEntity")).thenReturn(true);
+    Schema schema =
+        Schema.newBuilder()
+            .addFields(Field.newBuilder().setFeatureId("some_existing_feature").build())
+            .build();
+    ImportSpec input =
+        ImportSpec.newBuilder()
+            .setType("kafka")
+            .putOptions("topics", "my-kafka-topic")
+            .putOptions("server", "localhost:54321")
+            .setSchema(schema)
+            .addEntities("someEntity")
+            .build();
+    validator.validateImportSpec(input);
+  }
+
+  @Test
+  public void importSpecWithKafkaSourceWithoutOptionsShouldThrowIllegalArgumentException() {
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    when(featureInfoRepository.existsById("some_existing_feature")).thenReturn(true);
+    when(entityInfoRepository.existsById("someEntity")).thenReturn(true);
+    Schema schema =
+        Schema.newBuilder()
+            .addFields(Field.newBuilder().setFeatureId("some_existing_feature").build())
+            .build();
+    ImportSpec input =
+        ImportSpec.newBuilder()
+            .setType("kafka")
+            .setSchema(schema)
+            .addEntities("someEntity")
+            .build();
+    exception.expect(IllegalArgumentException.class);
+    exception.expectMessage(
+        "Validation for import spec failed: Invalid options: Kafka ingestion requires either topics or servers");
     validator.validateImportSpec(input);
   }
 }

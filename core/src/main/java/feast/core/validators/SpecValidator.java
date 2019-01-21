@@ -17,6 +17,10 @@
 
 package feast.core.validators;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static feast.core.validators.Matchers.checkLowerSnakeCase;
+
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import feast.core.dao.EntityInfoRepository;
@@ -35,36 +39,28 @@ import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
-import org.springframework.beans.factory.annotation.Autowired;
-
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static feast.core.validators.Matchers.checkLowerSnakeCase;
+import org.springframework.beans.factory.annotation.Autowired;
 
 public class SpecValidator {
 
+  private static final String FILE_ERROR_STORE_TYPE = "file.json";
+  private static final String NO_STORE = "";
+  private static String[] SUPPORTED_WAREHOUSE_STORES =
+      new String[]{
+          BigQueryStorageManager.TYPE, FILE_ERROR_STORE_TYPE,
+      };
+  private static String[] SUPPORTED_SERVING_STORES =
+      new String[]{
+          BigTableStorageManager.TYPE, PostgresStorageManager.TYPE, RedisStorageManager.TYPE,
+      };
   private StorageInfoRepository storageInfoRepository;
   private EntityInfoRepository entityInfoRepository;
   private FeatureGroupInfoRepository featureGroupInfoRepository;
   private FeatureInfoRepository featureInfoRepository;
-  private static final String FILE_ERROR_STORE_TYPE = "file.json";
-
-  private static final String NO_STORE = "";
-
-  private static String[] SUPPORTED_WAREHOUSE_STORES =
-      new String[] {
-          BigQueryStorageManager.TYPE, FILE_ERROR_STORE_TYPE,
-      };
-
-  private static String[] SUPPORTED_SERVING_STORES =
-      new String[] {
-          BigTableStorageManager.TYPE, PostgresStorageManager.TYPE, RedisStorageManager.TYPE,
-      };
 
   @Autowired
   public SpecValidator(
@@ -130,7 +126,8 @@ public class SpecValidator {
         servingStoreId =
             servingStoreId.equals(NO_STORE) ? group.getServingStore().getId() : servingStoreId;
         warehouseStoreId =
-            warehouseStoreId.equals(NO_STORE) ? group.getWarehouseStore().getId() : warehouseStoreId;
+            warehouseStoreId.equals(NO_STORE) ? group.getWarehouseStore().getId()
+                : warehouseStoreId;
       }
       Optional<StorageInfo> servingStore = storageInfoRepository.findById(servingStoreId);
       Optional<StorageInfo> warehouseStore = storageInfoRepository.findById(warehouseStoreId);
@@ -221,6 +218,9 @@ public class SpecValidator {
   public void validateImportSpec(ImportSpec spec) throws IllegalArgumentException {
     try {
       switch (spec.getType()) {
+        case "kafka":
+          checkKafkaImportSpecOption(spec);
+          break;
         case "pubsub":
           checkPubSubImportSpecOption(spec);
           break;
@@ -259,6 +259,20 @@ public class SpecValidator {
     } catch (NullPointerException | IllegalArgumentException e) {
       throw new IllegalArgumentException(
           Strings.lenientFormat("Validation for import spec failed: %s", e.getMessage()));
+    }
+  }
+
+  private void checkKafkaImportSpecOption(ImportSpec spec) {
+    try {
+      String topics = spec.getOptionsOrDefault("topics", "");
+      String server = spec.getOptionsOrDefault("server", "");
+      if (topics.equals("") && server.equals("")) {
+        throw new IllegalArgumentException(
+            "Kafka ingestion requires either topics or servers");
+      }
+    } catch (NullPointerException | IllegalArgumentException e) {
+      throw new IllegalArgumentException(
+          Strings.lenientFormat("Invalid options: %s", e.getMessage()));
     }
   }
 
