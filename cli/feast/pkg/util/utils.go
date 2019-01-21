@@ -35,6 +35,6 @@ func ParseAge(createdTimestamp timestamp.Timestamp) string {
 
 // ParseTimestamp parses a given timestamp to a human readable format.
 func ParseTimestamp(ts timestamp.Timestamp) string {
-	t := time.Unix(ts.GetSeconds(), int64(ts.GetNanos()))
-	return t.Format(time.RFC3339)
+	t := time.Unix(ts.GetSeconds(), int64(ts.GetNanos())).UTC()
+	return t.Format("2006-01-02T15:04:05Z")
 }

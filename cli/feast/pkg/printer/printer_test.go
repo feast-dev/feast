@@ -51,8 +51,8 @@ Uri:	https://github.com/bob/example
 DataStores: 
   Serving:	REDIS
   Warehouse:	BIGQUERY
-Created:	1970-01-01T07:30:01+07:30
-LastUpdated:	1970-01-01T07:30:01+07:30
+Created:	1970-01-01T00:00:01Z
+LastUpdated:	1970-01-01T00:00:01Z
 Related Jobs:
 - job1
 - job2`,
@@ -80,8 +80,8 @@ Owner:	bob@example.com
 Description:	testing feature
 ValueType:	INT64
 Uri:	https://github.com/bob/example
-Created:	1970-01-01T07:30:01+07:30
-LastUpdated:	1970-01-01T07:30:01+07:30
+Created:	1970-01-01T00:00:01Z
+LastUpdated:	1970-01-01T00:00:01Z
 Related Jobs:
 - job1
 - job2`,
@@ -112,7 +112,7 @@ func TestPrintEntity(t *testing.T) {
 	expected := `Name:	test
 Description:	my test entity
 Tags: tag1,tag2
-LastUpdated:	1970-01-01T07:30:01+07:30
+LastUpdated:	1970-01-01T00:00:01Z
 Related Jobs:
 - job1
 - job2`
@@ -139,7 +139,7 @@ Type:	redis
 Options:
   option1: value1
   option2: value2
-LastUpdated:	1970-01-01T07:30:01+07:30`
+LastUpdated:	1970-01-01T00:00:01Z`
 	if out != expected {
 		t.Errorf("Expected output:\n%s \nActual:\n%s \n", expected, out)
 	}
