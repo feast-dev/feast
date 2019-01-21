@@ -17,6 +17,7 @@ from datetime import datetime
 import grpc
 import pandas as pd
 import pytest
+import numpy as np
 from google.protobuf.timestamp_pb2 import Timestamp
 from pandas.util.testing import assert_frame_equal
 
@@ -285,29 +286,72 @@ class TestClient(object):
                                         featureId=feature_set.features,
                                         timeRange=expTimeRange)
 
-        req = client._build_serving_request(feature_set, ["1", "2", "3"], tsRange)
+        req = client._build_serving_request(feature_set, ["1", "2", "3"],
+                                            tsRange)
         assert req == expected
-
 
     def test_serving_response_to_df(self, client):
         response = self._create_query_features_response(
             entity_name="entity",
-            entities=[{"id": "1",
-                       "feat1": (1, Timestamp(seconds=10)),
-                       "feat2": (2, Timestamp(seconds=10))},
-                      {"id": "2",
-                       "feat1": (3, Timestamp(seconds=10)),
-                       "feat2": (4, Timestamp(seconds=10))}],
-            features=["feat1", "feat2"]
+            entities={"1": {"entity.feat1": (1, Timestamp(seconds=1)),
+                            "entity.feat2": (2, Timestamp(seconds=2))},
+                      "2": {"entity.feat1": (3, Timestamp(seconds=3)),
+                            "entity.feat2": (4, Timestamp(seconds=4))}}
         )
         expected_df = pd.DataFrame({'entity': ["1", "2"],
-                                    'feat1': [1, 3],
-                                    'feat2': [2, 4]}) \
+                                    'entity.feat1': [1, 3],
+                                    'entity.feat2': [2, 4]}) \
             .reset_index(drop=True)
-        df = client._response_to_df(FeatureSet("", []), response) \
+        df = client._response_to_df(FeatureSet("entity", ["entity.feat1",
+                                                          "entity.feat2"]),
+                                    response) \
             .sort_values(['entity']) \
             .reset_index(drop=True)[expected_df.columns]
-        assert_frame_equal(df, expected_df)
+        assert_frame_equal(df, expected_df,
+                           check_dtype=False,
+                           check_column_type=False,
+                           check_index_type=False)
+
+    def test_serving_response_to_df_with_missing_value(self, client):
+        response = self._create_query_features_response(
+            entity_name="entity",
+            entities={"1": {"entity.feat1": (1, Timestamp(seconds=1))},
+                      "2": {"entity.feat1": (3, Timestamp(seconds=3)),
+                            "entity.feat2": (4, Timestamp(seconds=4))}}
+        )
+        expected_df = pd.DataFrame({'entity': ["1", "2"],
+                                    'entity.feat1': [1, 3],
+                                    'entity.feat2': [np.NaN, 4]}) \
+            .reset_index(drop=True)
+        df = client._response_to_df(FeatureSet("entity", ["entity.feat1",
+                                                          "entity.feat2"]),
+                                    response) \
+            .sort_values(['entity']) \
+            .reset_index(drop=True)[expected_df.columns]
+        assert_frame_equal(df, expected_df,
+                           check_dtype=False,
+                           check_column_type=False,
+                           check_index_type=False)
+
+    def test_serving_response_to_df_with_missing_feature(self, client):
+        response = self._create_query_features_response(
+            entity_name="entity",
+            entities={"1": {"entity.feat1": (1, Timestamp(seconds=1))},
+                      "2": {"entity.feat1": (3, Timestamp(seconds=3))}}
+        )
+        expected_df = pd.DataFrame({'entity': ["1", "2"],
+                                    'entity.feat1': [1, 3],
+                                    'entity.feat2': [np.NaN, np.NaN]}) \
+            .reset_index(drop=True)
+        df = client._response_to_df(FeatureSet("entity", ["entity.feat1",
+                                                          "entity.feat2"]),
+                                    response) \
+            .sort_values(['entity']) \
+            .reset_index(drop=True)[expected_df.columns]
+        assert_frame_equal(df, expected_df,
+                           check_dtype=False,
+                           check_column_type=False,
+                           check_index_type=False)
 
     def test_serving_response_to_df_no_data(self, client):
         response = QueryFeaturesResponse(entityName="entity")
@@ -317,7 +361,10 @@ class TestClient(object):
         df = client._response_to_df(FeatureSet("entity",
                                                ["entity.day.feat1",
                                                 "entity.day.feat2"]), response)
-        assert_frame_equal(df, expected_df)
+        assert_frame_equal(df, expected_df,
+                           check_dtype=False,
+                           check_column_type=False,
+                           check_index_type=False)
 
     def test_download_dataset_as_file(self, client, mocker):
         destination = "/tmp/dest_file"
@@ -341,17 +388,16 @@ class TestClient(object):
                                                                    staging_location,
                                                                    FileType.CSV)
 
-    def _create_query_features_response(self, entity_name, entities, features):
+    def _create_query_features_response(self, entity_name, entities):
         response = QueryFeaturesResponse(entityName=entity_name)
-        for entity in entities:
-            features_map = {}
-            for feature in features:
-                features_map[feature] = FeatureValue(
-                    value=Value(int32Val=entity[feature][0]),
-                    timestamp=entity[feature][1]
-                )
-            entity_pb = serving_pb.Entity(features=features_map)
-            response.entities[entity["id"]].CopyFrom(entity_pb)
+        for entity_id, feature_map in entities.items():
+            feature = {}
+            for feature_id, feature_value in feature_map.items():
+                feature[feature_id] = FeatureValue(
+                    value=Value(int32Val=feature_value[0]),
+                    timestamp=feature_value[1])
+            entity_pb = serving_pb.Entity(features=feature)
+            response.entities[entity_id].CopyFrom(entity_pb)
 
         return response
 

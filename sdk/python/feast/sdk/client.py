@@ -311,25 +311,16 @@ class Client:
         return request
 
     def _response_to_df(self, feature_set, response):
-        entity_tables = []
-        for entity_key in response.entities:
-            feature_tables = []
-            features = response.entities[entity_key].features
-            for feature_name in features:
-                v = features[feature_name].value
-                v = getattr(v, v.WhichOneof("val"))
-                row = {response.entityName: entity_key,
-                       feature_name: v}
-                feature_tables.append(pd.DataFrame(row, index=[0]))
-            entity_table = feature_tables[0]
-            for idx in range(1, len(feature_tables)):
-                entity_table = pd.merge(left=entity_table,
-                                        right=feature_tables[idx], how='outer')
-            entity_tables.append(entity_table)
-        if len(entity_tables) == 0:
-            return pd.DataFrame(columns=[feature_set.entity] +
+        df = pd.DataFrame(columns=[feature_set.entity] +
                                         feature_set.features)
-        df = pd.concat(entity_tables)
+        for entity_id in response.entities:
+            feature_map = response.entities[entity_id].features
+            row = {response.entityName: entity_id}
+            for feature_id in feature_map:
+                v = feature_map[feature_id].value
+                v = getattr(v, v.WhichOneof("val"))
+                row[feature_id] = v
+            df = df.append(row, ignore_index=True)
         return df.reset_index(drop=True)
 
     def _apply(self, obj):
