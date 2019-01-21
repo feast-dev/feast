@@ -16,13 +16,11 @@
 Main interface for users to interact with the Core API. 
 """
 
-import enum
 import os
 from datetime import datetime
 
 import grpc
 import pandas as pd
-import dateutil.parser
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
@@ -38,19 +36,8 @@ from feast.sdk.resources.feature_set import DatasetInfo, FileType
 from feast.sdk.resources.storage import Storage
 from feast.sdk.utils.bq_util import TableDownloader
 from feast.sdk.utils.print_utils import spec_to_yaml
-from feast.serving.Serving_pb2 import QueryFeatures, RequestDetail, \
-    TimestampRange
+from feast.serving.Serving_pb2 import QueryFeaturesRequest, TimestampRange
 from feast.serving.Serving_pb2_grpc import ServingAPIStub
-
-
-class ServingRequestType(enum.Enum):
-    """
-    Request type for serving api
-    """
-    LAST = 0
-    """ Get last value of a feature """
-    LIST = 1
-    """ Get list of value of a feature """
 
 
 class Client:
@@ -222,12 +209,8 @@ class Client:
                                                   resp.datasetInfo.tableUrl))
         return DatasetInfo(resp.datasetInfo.name, resp.datasetInfo.tableUrl)
 
-    def get_serving_data(self, feature_set, entity_keys,
-                         request_type=ServingRequestType.LAST,
-                         ts_range=[], limit=10):
-        """Get data from the feast serving layer. You can either retrieve the
-        the latest value, or a list of the latest values, up to a provided
-        limit.
+    def get_serving_data(self, feature_set, entity_keys, ts_range=None):
+        """Get feature value from feast serving API.
 
         If server_url is not provided, the value stored in the environment variable
         FEAST_SERVING_URL is used to connect to the serving server instead.
@@ -236,23 +219,16 @@ class Client:
             feature_set (feast.sdk.resources.feature_set.FeatureSet): feature set
                 representing the data wanted
             entity_keys (:obj: `list` of :obj: `str): list of entity keys
-            request_type (feast.sdk.utils.types.ServingRequestType):
-                (default: feast.sdk.utils.types.ServingRequestType.LAST) type of
-                request: one of [LIST, LAST]
-            ts_range (:obj: `list` of str, optional): size 2 list of start 
-                timestamp and end timestamp, in ISO 8601 format. Only required if
-                request_type is set to LIST
-            limit (int, optional): (default: 10) number of values to get. Only
-                required if request_type is set to LIST
+            ts_range (:obj: `list` of str, optional): size 2 list of start
+                timestamp and end timestamp, in ISO 8601 format. It will
+                filter out any feature value having event timestamp outside
+                of the ts_range.
 
         Returns:
             pandas.DataFrame: DataFrame of results
         """
-
-        ts_range = [_timestamp_from_datetime(dateutil.parser.parse(dt))
-                    for dt in ts_range]
         request = self._build_serving_request(feature_set, entity_keys,
-                                              request_type, ts_range, limit)
+                                              ts_range)
         self._connect_serving()
         return self._response_to_df(feature_set, self._serving_service_stub
                                     .QueryFeatures(request))
@@ -317,20 +293,21 @@ class Client:
             self.__serving_channel = grpc.insecure_channel(self.serving_url)
             self._serving_service_stub = ServingAPIStub(self.__serving_channel)
 
-    def _build_serving_request(self, feature_set, entity_keys, request_type,
-                               ts_range, limit):
+    def _build_serving_request(self, feature_set, entity_keys, ts_range):
         """Helper function to build serving service request."""
-        request = QueryFeatures.Request(entityName=feature_set.entity,
-                                        entityId=entity_keys)
-        features = [RequestDetail(featureId=feat_id, type=request_type.value)
-                    for feat_id in feature_set.features]
+        if ts_range is not None:
+            if len(ts_range) != 2:
+                raise ValueError("ts_range must have len 2")
 
-        if request_type == ServingRequestType.LIST:
-            ts_range = TimestampRange(start=ts_range[0], end=ts_range[1])
-            request.timestampRange.CopyFrom(ts_range)
-            for feature in features:
-                feature.limit = limit
-        request.requestDetails.extend(features)
+            start = Timestamp()
+            end = Timestamp()
+            start.FromJsonString(ts_range[0])
+            end.FromJsonString(ts_range[1])
+            ts_range = TimestampRange(start=start, end=end)
+        request = QueryFeaturesRequest(entityName=feature_set.entity,
+                                       entityId=entity_keys,
+                                       featureId=feature_set.features,
+                                       timeRange=ts_range)
         return request
 
     def _response_to_df(self, feature_set, response):
@@ -339,25 +316,18 @@ class Client:
             feature_tables = []
             features = response.entities[entity_key].features
             for feature_name in features:
-                rows = []
-                v_list = features[feature_name].valueList
-                v_list = getattr(v_list, v_list.WhichOneof("valueList")).val
-                for idx in range(len(v_list)):
-                    row = {response.entityName: entity_key,
-                           feature_name: v_list[idx]}
-                    if features[feature_name].HasField("timestampList"):
-                        ts_seconds = \
-                            features[feature_name].timestampList.val[idx].seconds
-                        row["timestamp"] = datetime.fromtimestamp(ts_seconds)
-                    rows.append(row)
-                feature_tables.append(pd.DataFrame(rows))
+                v = features[feature_name].value
+                v = getattr(v, v.WhichOneof("val"))
+                row = {response.entityName: entity_key,
+                       feature_name: v}
+                feature_tables.append(pd.DataFrame(row, index=[0]))
             entity_table = feature_tables[0]
             for idx in range(1, len(feature_tables)):
                 entity_table = pd.merge(left=entity_table,
                                         right=feature_tables[idx], how='outer')
             entity_tables.append(entity_table)
         if len(entity_tables) == 0:
-            return pd.DataFrame(columns=[feature_set.entity, "timestamp"] +
+            return pd.DataFrame(columns=[feature_set.entity] +
                                         feature_set.features)
         df = pd.concat(entity_tables)
         return df.reset_index(drop=True)

@@ -16,8 +16,8 @@ class ServingAPIStub(object):
     """
     self.QueryFeatures = channel.unary_unary(
         '/feast.serving.ServingAPI/QueryFeatures',
-        request_serializer=feast_dot_serving_dot_Serving__pb2.QueryFeatures.Request.SerializeToString,
-        response_deserializer=feast_dot_serving_dot_Serving__pb2.QueryFeatures.Response.FromString,
+        request_serializer=feast_dot_serving_dot_Serving__pb2.QueryFeaturesRequest.SerializeToString,
+        response_deserializer=feast_dot_serving_dot_Serving__pb2.QueryFeaturesResponse.FromString,
         )
 
 
@@ -26,7 +26,7 @@ class ServingAPIServicer(object):
   pass
 
   def QueryFeatures(self, request, context):
-    """Query features from Feast
+    """Query features from Feast serving storage
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
@@ -37,8 +37,8 @@ def add_ServingAPIServicer_to_server(servicer, server):
   rpc_method_handlers = {
       'QueryFeatures': grpc.unary_unary_rpc_method_handler(
           servicer.QueryFeatures,
-          request_deserializer=feast_dot_serving_dot_Serving__pb2.QueryFeatures.Request.FromString,
-          response_serializer=feast_dot_serving_dot_Serving__pb2.QueryFeatures.Response.SerializeToString,
+          request_deserializer=feast_dot_serving_dot_Serving__pb2.QueryFeaturesRequest.FromString,
+          response_serializer=feast_dot_serving_dot_Serving__pb2.QueryFeaturesResponse.SerializeToString,
       ),
   }
   generic_handler = grpc.method_handlers_generic_handler(
