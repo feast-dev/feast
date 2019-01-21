@@ -1,7 +1,10 @@
 package printer
 
 import (
+	"fmt"
 	"testing"
+
+	"github.com/gojek/feast/cli/feast/pkg/util"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 
@@ -42,7 +45,7 @@ func TestPrintFeature(t *testing.T) {
 				LastUpdated:  &timestamp.Timestamp{Seconds: 1},
 				Created:      &timestamp.Timestamp{Seconds: 1},
 			},
-			expected: `Id:	test.none.test_feature_two
+			expected: fmt.Sprintf(`Id:	test.none.test_feature_two
 Entity:	test
 Owner:	bob@example.com
 Description:	testing feature
@@ -51,11 +54,13 @@ Uri:	https://github.com/bob/example
 DataStores: 
   Serving:	REDIS
   Warehouse:	BIGQUERY
-Created:	1970-01-01T07:30:01+07:30
-LastUpdated:	1970-01-01T07:30:01+07:30
+Created:	%s
+LastUpdated:	%s
 Related Jobs:
 - job1
 - job2`,
+				util.ParseTimestamp(timestamp.Timestamp{Seconds: 1}),
+				util.ParseTimestamp(timestamp.Timestamp{Seconds: 1})),
 		}, {
 			name: "no storage",
 			input: &core.UIServiceTypes_FeatureDetail{
@@ -74,17 +79,19 @@ Related Jobs:
 				LastUpdated:  &timestamp.Timestamp{Seconds: 1},
 				Created:      &timestamp.Timestamp{Seconds: 1},
 			},
-			expected: `Id:	test.none.test_feature_two
+			expected: fmt.Sprintf(`Id:	test.none.test_feature_two
 Entity:	test
 Owner:	bob@example.com
 Description:	testing feature
 ValueType:	INT64
 Uri:	https://github.com/bob/example
-Created:	1970-01-01T07:30:01+07:30
-LastUpdated:	1970-01-01T07:30:01+07:30
+Created:	%s
+LastUpdated:	%s
 Related Jobs:
 - job1
 - job2`,
+				util.ParseTimestamp(timestamp.Timestamp{Seconds: 1}),
+				util.ParseTimestamp(timestamp.Timestamp{Seconds: 1})),
 		},
 	}
 
@@ -109,13 +116,14 @@ func TestPrintEntity(t *testing.T) {
 		LastUpdated: &timestamp.Timestamp{Seconds: 1},
 	}
 	out := PrintEntityDetail(entityDetail)
-	expected := `Name:	test
+	expected := fmt.Sprintf(`Name:	test
 Description:	my test entity
 Tags: tag1,tag2
-LastUpdated:	1970-01-01T07:30:01+07:30
+LastUpdated:	%s
 Related Jobs:
 - job1
-- job2`
+- job2`,
+		util.ParseTimestamp(timestamp.Timestamp{Seconds: 1}))
 	if out != expected {
 		t.Errorf("Expected output:\n%s \nActual:\n%s \n", expected, out)
 	}
@@ -134,12 +142,13 @@ func TestPrintStorage(t *testing.T) {
 		LastUpdated: &timestamp.Timestamp{Seconds: 1},
 	}
 	out := PrintStorageDetail(storageDetail)
-	expected := `Id:	REDIS1
+	expected := fmt.Sprintf(`Id:	REDIS1
 Type:	redis
 Options:
   option1: value1
   option2: value2
-LastUpdated:	1970-01-01T07:30:01+07:30`
+LastUpdated:	%s`,
+		util.ParseTimestamp(timestamp.Timestamp{Seconds: 1}))
 	if out != expected {
 		t.Errorf("Expected output:\n%s \nActual:\n%s \n", expected, out)
 	}
