@@ -282,9 +282,8 @@ public class ImportJobCSVTest {
     ImportSpec importSpec =
         ProtoUtil.decodeProtoYaml(
             "---\n"
-                + "type: file\n"
+                + "type: file.csv\n"
                 + "options:\n"
-                + "  format: csv\n"
                 + "  # path: to be overwritten in tests\n"
                 + "entities:\n"
                 + "  - testEntity\n"
