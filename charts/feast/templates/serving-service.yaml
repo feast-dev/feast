@@ -12,6 +12,9 @@ metadata:
     cloud.google.com/load-balancer-type: "Internal"
 spec:
   type: LoadBalancer
+  {{- if .Values.serving.service.extIPAdr }}
+  loadBalancerIP: {{ .Values.serving.service.extIPAdr }}
+  {{- end}}
   ports:
   - name: grpc
     port: {{ .Values.serving.service.grpc.port }}
