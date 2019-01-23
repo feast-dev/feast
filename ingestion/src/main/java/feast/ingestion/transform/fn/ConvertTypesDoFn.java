@@ -17,14 +17,18 @@
 
 package feast.ingestion.transform.fn;
 
-import lombok.AllArgsConstructor;
 import feast.ingestion.model.Specs;
 import feast.ingestion.model.Values;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.types.FeatureProto.Feature;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
+import lombok.AllArgsConstructor;
 
+/**
+ * Convert value's type of feature inside {@link FeatureRowExtended} into the value type as
+ * specified in corresponding feature spec.
+ */
 @AllArgsConstructor
 public class ConvertTypesDoFn extends BaseFeatureDoFn {
   private Specs specs;
@@ -41,7 +45,10 @@ public class ConvertTypesDoFn extends BaseFeatureDoFn {
 
     for (Feature feature : row.getFeaturesList()) {
       String featureId = feature.getId();
-      FeatureSpec featureSpec = specs.getFeatureSpec(featureId);
+      FeatureSpec featureSpec = specs.tryGetFeatureSpec(featureId);
+      if (featureSpec == null) {
+        continue;
+      }
 
       rowBuilder.setGranularity(featureSpec.getGranularity());
       rowBuilder.addFeatures(

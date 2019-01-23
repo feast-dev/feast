@@ -43,7 +43,11 @@ public class SplitFeaturesDoFn<T> extends DoFn<FeatureRowExtended, FeatureRowExt
     Map<TupleTag<FeatureRowExtended>, FeatureRow.Builder> taggedOutput = new HashMap<>();
 
     for (Feature feature : row.getFeaturesList()) {
-      FeatureSpec featureSpec = specs.getFeatureSpec(feature.getId());
+      FeatureSpec featureSpec = specs.tryGetFeatureSpec(feature.getId());
+      if (featureSpec == null) {
+        continue;
+      }
+
       TupleTag<FeatureRowExtended> tag = splitStrategy.getTag(featureSpec);
       FeatureRow.Builder builder = taggedOutput.get(tag);
 

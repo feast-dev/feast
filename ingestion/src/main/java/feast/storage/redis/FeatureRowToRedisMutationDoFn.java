@@ -85,7 +85,10 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRowExtended, Redi
 
     for (Feature feature : row.getFeaturesList()) {
       String featureId = feature.getId();
-      FeatureSpec featureSpec = specs.getFeatureSpec(featureId);
+      FeatureSpec featureSpec = specs.tryGetFeatureSpec(featureId);
+      if (featureSpec == null) {
+        continue;
+      }
       String featureIdHash = getFeatureIdSha1Prefix(featureId);
 
       RedisFeatureOptions options = servingOptionsCache.get(featureSpec);
