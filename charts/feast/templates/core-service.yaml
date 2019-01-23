@@ -12,7 +12,9 @@ metadata:
     cloud.google.com/load-balancer-type: "Internal"
 spec:
   type: LoadBalancer
+  {{- if .Values.core.service.extIPAdr }}
   loadBalancerIP: {{ .Values.core.service.extIPAdr }}
+  {{- end }}
   ports:
   - name: http
     port: {{ .Values.core.service.http.port }}
