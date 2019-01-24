@@ -20,12 +20,15 @@ package feast.source.kafka;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
+import com.google.common.base.Strings;
+import feast.ingestion.transform.fn.FilterFeatureRowDoFn;
 import feast.options.Options;
 import feast.options.OptionsParser;
 import feast.source.FeatureSource;
 import feast.source.FeatureSourceFactory;
 import feast.source.kafka.deserializer.FeatureRowDeserializer;
 import feast.source.kafka.deserializer.FeatureRowKeyDeserializer;
+import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FeatureRowProto.FeatureRowKey;
@@ -51,7 +54,6 @@ public class KafkaFeatureSource extends FeatureSource {
   public static final String KAFKA_FEATURE_SOURCE_TYPE = "kafka";
   private ImportSpec importSpec;
 
-
   @Override
   public PCollection<FeatureRow> expand(PInput input) {
     checkArgument(importSpec.getType().equals(KAFKA_FEATURE_SOURCE_TYPE));
@@ -71,24 +73,33 @@ public class KafkaFeatureSource extends FeatureSource {
     PCollection<KafkaRecord<FeatureRowKey, FeatureRow>> featureRowRecord =
         input.getPipeline().apply(kafkaIOReader);
 
-    return
-        featureRowRecord.apply(
-            ParDo.of(
-                new DoFn<KafkaRecord<FeatureRowKey, FeatureRow>, FeatureRow>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext processContext) {
-                    KafkaRecord<FeatureRowKey, FeatureRow> record = processContext.element();
-                    processContext.output(record.getKV().getValue());
-                  }
-                }));
+    PCollection<FeatureRow> featureRow =  featureRowRecord.apply(
+        ParDo.of(
+            new DoFn<KafkaRecord<FeatureRowKey, FeatureRow>, FeatureRow>() {
+              @ProcessElement
+              public void processElement(ProcessContext processContext) {
+                KafkaRecord<FeatureRowKey, FeatureRow> record = processContext.element();
+                processContext.output(record.getKV().getValue());
+              }
+            }));
+
+    if (options.discardUnknownFeatures) {
+      List<String> featureIds = new ArrayList<>();
+      for(Field field: importSpec.getSchema().getFieldsList()) {
+        String featureId = field.getFeatureId();
+        if (!Strings.isNullOrEmpty(featureId)) {
+          featureIds.add(featureId);
+        }
+      }
+      return featureRow.apply(ParDo.of(new FilterFeatureRowDoFn(featureIds)));
+    }
+    return featureRow;
   }
 
   public static class KafkaReadOptions implements Options {
-
-    @NotEmpty
-    public String server;
-    @NotEmpty
-    public String topics;
+    @NotEmpty public String server;
+    @NotEmpty public String topics;
+    public boolean discardUnknownFeatures = true;
   }
 
   @AutoService(FeatureSourceFactory.class)
