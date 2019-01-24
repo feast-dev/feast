@@ -1,3 +1,4 @@
+![](http://prow.feast.ai/badge.svg?jobs=postsubmit-unit-tests)
 # Feast - Feature Store for Machine Learning
 
 ## Overview
