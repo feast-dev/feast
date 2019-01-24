@@ -18,6 +18,8 @@
 package feast.storage.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
+import feast.ingestion.util.DateUtil;
+import feast.ingestion.model.Specs;
 import feast.ingestion.model.Specs;
 import feast.ingestion.util.DateUtil;
 import feast.specs.FeatureSpecProto.FeatureSpec;
@@ -61,11 +63,8 @@ public class FeatureRowToBigQueryTableRowDoFn extends DoFn<FeatureRowExtended, T
                 .setTimestampVal(DateUtil.toTimestamp(DateTime.now(DateTimeZone.UTC)))));
 
     for (Feature feature : featureRow.getFeaturesList()) {
-      FeatureSpec featureSpec = specs.tryGetFeatureSpec(feature.getId());
-      if (featureSpec == null) {
-        continue;
-      }
       Object featureValue = ValueBigQueryBuilder.bigQueryObjectOf(feature.getValue());
+      FeatureSpec featureSpec = specs.getFeatureSpec(feature.getId());
       tableRow.set(featureSpec.getName(), featureValue);
     }
     return tableRow;

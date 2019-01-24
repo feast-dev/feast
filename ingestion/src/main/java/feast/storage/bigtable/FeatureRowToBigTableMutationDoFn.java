@@ -19,18 +19,6 @@ package feast.storage.bigtable;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
-import feast.SerializableCache;
-import feast.ingestion.model.Specs;
-import feast.ingestion.util.DateUtil;
-import feast.options.OptionsParser;
-import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.storage.BigTableProto.BigTableRowKey;
-import feast.types.FeatureProto.Feature;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
-import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.GranularityProto.Granularity;
-import feast.types.GranularityProto.Granularity.Enum;
-import java.util.Collections;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -38,6 +26,18 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
+import feast.SerializableCache;
+import feast.ingestion.model.Specs;
+import feast.ingestion.util.DateUtil;
+import feast.options.OptionsParser;
+import feast.specs.EntitySpecProto.EntitySpec;
+import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.storage.BigTableProto.BigTableRowKey;
+import feast.types.FeatureProto.Feature;
+import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
+import feast.types.FeatureRowProto.FeatureRow;
+import feast.types.GranularityProto.Granularity;
+import feast.types.GranularityProto.Granularity.Enum;
 
 /**
  * DoFn for taking a feature row and making Bigtable mutations out of it. Also keys the mutations by
@@ -86,6 +86,7 @@ public class FeatureRowToBigTableMutationDoFn
   public void processElement(ProcessContext context) {
     FeatureRowExtended rowExtended = context.element();
     FeatureRow row = rowExtended.getRow();
+    EntitySpec entitySpec = specs.getEntitySpec(row.getEntityName());
     List<Put> mutations = makePut(rowExtended);
     for (Put put : mutations) {
       context.output(KV.of(getTableName(row), put));
@@ -115,21 +116,14 @@ public class FeatureRowToBigTableMutationDoFn
         new Put(
             makeBigTableRowKey(row.getEntityKey(), row.getEventTimestamp(), Enum.NONE)
                 .toByteArray());
-
     Put timeseriesPut =
         new Put(
             makeBigTableRowKey(row.getEntityKey(), row.getEventTimestamp(), granularity)
                 .toByteArray());
     boolean isTimeseries = granularity.getNumber() != Enum.NONE.getNumber();
 
-    // keep track of addColumn operation in case there is no mutation needed
-    int mutationCount = 0;
     for (Feature feature : row.getFeaturesList()) {
-      FeatureSpec featureSpec = specs.tryGetFeatureSpec(feature.getId());
-      if (featureSpec == null) {
-        continue;
-      }
-
+      FeatureSpec featureSpec = specs.getFeatureSpec(feature.getId());
       BigTableFeatureOptions options = servingOptionsCache.get(featureSpec);
 
       byte[] family = options.family.getBytes(Charsets.UTF_8);
@@ -141,12 +135,6 @@ public class FeatureRowToBigTableMutationDoFn
       if (isTimeseries) {
         timeseriesPut.addColumn(family, qualifier, version, value);
       }
-
-      mutationCount++;
-    }
-
-    if (mutationCount == 0) {
-      return Collections.emptyList();
     }
 
     if (isTimeseries) {

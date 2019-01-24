@@ -18,6 +18,7 @@
 package feast.ingestion.transform.fn;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -78,6 +79,7 @@ public class ValidateFeatureRowsDoFn extends BaseFeatureDoFn {
     FeatureRow row = context.element().getRow();
     EntitySpec entitySpec = specs.getEntitySpec(row.getEntityName());
     Preconditions.checkNotNull(entitySpec, "Entity spec not found for " + row.getEntityName());
+    ImportSpec importSpec = specs.getImportSpec();
 
     try {
       checkArgument(!row.getEntityKey().isEmpty(), "Entity key must not be empty");
@@ -96,10 +98,9 @@ public class ValidateFeatureRowsDoFn extends BaseFeatureDoFn {
       checkArgument(row.getFeaturesCount() > 0, "Must have at least one feature set");
 
       for (Feature feature : row.getFeaturesList()) {
-        FeatureSpec featureSpec = specs.tryGetFeatureSpec(feature.getId());
-        if (featureSpec == null) {
-          continue;
-        }
+        FeatureSpec featureSpec = specs.getFeatureSpec(feature.getId());
+        checkNotNull(
+            featureSpec, String.format("Feature spec not found featureId=%s", feature.getId()));
 
         String storageStoreId = featureSpec.getDataStores().getServing().getId();
         StorageSpec servingStorageSpec = specs.getStorageSpec(storageStoreId);

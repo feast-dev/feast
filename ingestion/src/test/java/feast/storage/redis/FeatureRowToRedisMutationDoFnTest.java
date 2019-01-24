@@ -17,39 +17,20 @@
 
 package feast.storage.redis;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.withSettings;
-
-import feast.ingestion.model.Specs;
-import feast.ingestion.util.DateUtil;
-import feast.storage.RedisProto.RedisBucketKey;
-import feast.storage.redis.RedisCustomIO.RedisMutation;
-import feast.types.FeatureProto.Feature;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
-import feast.types.FeatureRowProto.FeatureRow;
-import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
+import feast.ingestion.util.DateUtil;
+import feast.storage.RedisProto.RedisBucketKey;
 
 public class FeatureRowToRedisMutationDoFnTest {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
-  Specs specs;
-  FeatureRowToRedisMutationDoFn doFn;
-
-  @Before
-  public void setUp() throws Exception {
-    specs = mock(Specs.class, withSettings().serializable());
-    doFn = new FeatureRowToRedisMutationDoFn(specs);
-  }
 
   @Test
   public void testRedisBucketKeySize() {
@@ -68,19 +49,8 @@ public class FeatureRowToRedisMutationDoFnTest {
   }
 
   @Test
-  public void shouldIgnoreUnknownFeatureId() {
-    FeatureRow row =
-        FeatureRow.newBuilder()
-            .setEntityKey("1234")
-            .setEntityName("testEntity")
-            // this feature should be ignored
-            .addFeatures(Feature.newBuilder().setId("testEntity.none.unknown_feature"))
-            .build();
-    FeatureRowExtended rowExtended = FeatureRowExtended.newBuilder().setRow(row).build();
-    PCollection<FeatureRowExtended> p = pipeline.apply(Create.of(rowExtended));
-    PCollection<RedisMutation> out = p.apply(ParDo.of(doFn));
-    PAssert.that(out).empty();
-
-    pipeline.run();
+  @Category(NeedsRunner.class)
+  public void testOutputMutationPerFeature() {
+    // TODO
   }
 }

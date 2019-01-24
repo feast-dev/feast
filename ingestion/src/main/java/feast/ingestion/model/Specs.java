@@ -151,15 +151,6 @@ public class Specs implements Serializable {
     return featureSpecs.get(featureId);
   }
 
-  /**
-   * Get feature spec for a feature with given ID.
-   * @param featureId feature ID of the feature spec
-   * @return feature spec, or null if no exists
-   */
-  public FeatureSpec tryGetFeatureSpec(String featureId) {
-    return featureSpecs.get(featureId);
-  }
-
   public List<FeatureSpec> getFeatureSpecByServingStoreId(String storeId) {
     List<FeatureSpec> out = new ArrayList<>();
     for (FeatureSpec featureSpec : featureSpecs.values()) {
