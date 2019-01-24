@@ -65,7 +65,7 @@ public class BigQueryFeatureSource extends FeatureSource {
   @Override
   public PCollection<FeatureRow> expand(PInput input) {
     BigQuerySourceOptions options = OptionsParser
-        .parse(importSpec.getOptionsMap(), BigQuerySourceOptions.class);
+        .parse(importSpec.getSourceOptionsMap(), BigQuerySourceOptions.class);
 
     List<String> entities = importSpec.getEntitiesList();
     Preconditions.checkArgument(

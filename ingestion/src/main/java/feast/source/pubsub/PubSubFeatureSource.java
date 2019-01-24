@@ -60,7 +60,7 @@ public class PubSubFeatureSource extends FeatureSource {
   public PCollection<FeatureRow> expand(PInput input) {
     checkArgument(importSpec.getType().equals(PUBSUB_FEATURE_SOURCE_TYPE));
     PubSubReadOptions options =
-        OptionsParser.parse(importSpec.getOptionsMap(), PubSubReadOptions.class);
+        OptionsParser.parse(importSpec.getSourceOptionsMap(), PubSubReadOptions.class);
 
     PubsubIO.Read<FeatureRow> read = readProtos();
 

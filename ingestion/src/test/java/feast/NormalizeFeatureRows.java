@@ -20,7 +20,6 @@ package feast;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.UnsignedBytes;
 import feast.types.FeatureProto.Feature;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.List;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -31,12 +30,20 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public class NormalizeFeatureRows
     extends PTransform<PCollection<FeatureRow>, PCollection<FeatureRow>> {
 
-  public static FeatureRow orderedFeatureRow(FeatureRow row) {
+  public static FeatureRow normalize(FeatureRow.Builder row) {
+    return normalize(row.build());
+  }
+
+  public static FeatureRow normalize(FeatureRow row) {
     List<Feature> features = Lists.newArrayList(row.getFeaturesList());
     features.sort(
         (f1, f2) ->
             UnsignedBytes.lexicographicalComparator().compare(f1.toByteArray(), f2.toByteArray()));
-    return row.toBuilder().clearFeatures().addAllFeatures(features).build();
+
+    return row.toBuilder()
+        .clearFeatures().addAllFeatures(features)
+        .setEventTimestamp(row.getEventTimestamp())
+        .build();
   }
 
   @Override
@@ -45,6 +52,6 @@ public class NormalizeFeatureRows
         .apply(
             "normalize rows",
             MapElements.into(TypeDescriptor.of(FeatureRow.class)).via(
-                NormalizeFeatureRows::orderedFeatureRow));
+                NormalizeFeatureRows::normalize));
   }
 }

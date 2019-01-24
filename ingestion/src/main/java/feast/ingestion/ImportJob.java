@@ -18,7 +18,6 @@
 package feast.ingestion;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.collect.Lists;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -46,7 +45,6 @@ import feast.specs.ImportSpecProto.ImportSpec;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
@@ -58,7 +56,6 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
@@ -66,7 +63,6 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.joda.time.DateTime;
@@ -152,7 +148,6 @@ public class ImportJob {
     } catch (InvalidProtocolBufferException e) {
       // pass
     }
-
     specs.validate();
 
     PCollection<FeatureRow> features = pipeline.apply("Read", readFeaturesTransform);
@@ -175,28 +170,23 @@ public class ImportJob {
                     ParDo.of(new RoundEventTimestampsDoFn())),
             pFeatureRows.getErrors());
 
+    log.info(
+        "A sample of size 1 of incoming rows from MAIN and ERRORS will logged every 30 seconds for visibility");
+    logNRows(pFeatureRows, "Output sample", 1, Duration.standardSeconds(30));
+
+    PFeatureRows servingRows = pFeatureRows;
+    PFeatureRows warehouseRows = pFeatureRows;
+
     if (jobOptions.isCoalesceRowsEnabled()) {
-      pFeatureRows = pFeatureRows.apply("foo", new CoalescePFeatureRows(
+      // Should we merge and dedupe rows before writing to the serving store?
+      servingRows = servingRows.apply("Coalesce Rows", new CoalescePFeatureRows(
           jobOptions.getCoalesceRowsDelaySeconds(),
           jobOptions.getCoalesceRowsTimeoutSeconds()));
     }
-
     if (!dryRun) {
-      List<PCollection<FeatureRowExtended>> errors = Lists.newArrayList();
-      pFeatureRows = pFeatureRows.apply("Write to Serving Stores", servingStoreTransform);
-      errors.add(pFeatureRows.getErrors());
-      pFeatureRows = PFeatureRows.of(pFeatureRows.getMain());
-
-      log.info(
-          "A sample of any 2 rows from each of MAIN, RETRIES and ERRORS will logged for convenience");
-      logNRows(pFeatureRows, "Output sample", 2);
-
-      PFeatureRows.of(pFeatureRows.getMain())
-          .apply("Write to Warehouse  Stores", warehouseStoreTransform);
-      errors.add(pFeatureRows.getErrors());
-
-      PCollectionList.of(errors).apply("flatten errors", Flatten.pCollections())
-          .apply("Write serving errors", errorsStoreTransform);
+      servingRows.apply("Write to Serving Stores", servingStoreTransform);
+      warehouseRows.apply("Write to Warehouse  Stores", warehouseStoreTransform);
+      pFeatureRows.getErrors().apply("Write errors", errorsStoreTransform);
     }
   }
 
@@ -206,17 +196,16 @@ public class ImportJob {
     return result;
   }
 
-  public void logNRows(PFeatureRows pFeatureRows, String name, int limit) {
+  public void logNRows(PFeatureRows pFeatureRows, String name, long limit, Duration period) {
     PCollection<FeatureRowExtended> main = pFeatureRows.getMain();
     PCollection<FeatureRowExtended> errors = pFeatureRows.getErrors();
 
     if (main.isBounded().equals(IsBounded.UNBOUNDED)) {
       Window<FeatureRowExtended> minuteWindow =
-          Window.<FeatureRowExtended>into(FixedWindows.of(Duration.standardMinutes(1L)))
+          Window.<FeatureRowExtended>into(FixedWindows.of(period))
               .triggering(AfterWatermark.pastEndOfWindow())
               .discardingFiredPanes()
-              .withAllowedLateness(Duration.standardMinutes(1));
-
+              .withAllowedLateness(Duration.ZERO);
       main = main.apply(minuteWindow);
       errors = errors.apply(minuteWindow);
     }

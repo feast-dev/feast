@@ -37,9 +37,8 @@ import org.junit.rules.TemporaryFolder;
 public class ImportSpecSupplierTest {
   String importSpecYaml =
       "---\n"
-          + "type: file\n"
-          + "options:\n"
-          + "  format: csv\n"
+          + "type: file.csv\n"
+          + "sourceOptions:\n"
           + "  path: data.csv\n"
           + "entities:\n"
           + "  - driver\n"
@@ -53,17 +52,10 @@ public class ImportSpecSupplierTest {
           + "      featureId: driver.none.trips_completed\n"
           + "\n";
 
-  String importSpecJson =
-      "{\"type\":\"file\",\"options\":{\"format\":\"csv\",\"path\":\"data.csv\"},\"entities\":[\"driver\"],"
-          + "\"schema\":"
-          + "{\"fields\":[{\"name\":\"timestamp\"},"
-          + "{\"name\":\"driver_id\"},{\"name\":\"trips_completed\",\"featureId\":\"driver.none.trips_completed\"}],\"timestampValue\":\"2018-09-25T00:00:00Z\",\"entityIdColumn\":\"driver_id\"}}\n";
-
   ImportSpec expectedImportSpec =
       ImportSpec.newBuilder()
-          .setType("file")
-          .putOptions("format", "csv")
-          .putOptions("path", "data.csv")
+          .setType("file.csv")
+          .putSourceOptions("path", "data.csv")
           .addEntities("driver")
           .setSchema(
               Schema.newBuilder()

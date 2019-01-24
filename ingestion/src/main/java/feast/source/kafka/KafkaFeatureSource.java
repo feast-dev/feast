@@ -59,7 +59,7 @@ public class KafkaFeatureSource extends FeatureSource {
     checkArgument(importSpec.getType().equals(KAFKA_FEATURE_SOURCE_TYPE));
 
     KafkaReadOptions options =
-        OptionsParser.parse(importSpec.getOptionsMap(), KafkaReadOptions.class);
+        OptionsParser.parse(importSpec.getSourceOptionsMap(), KafkaReadOptions.class);
 
     List<String> topicsList = new ArrayList<>(Arrays.asList(options.topics.split(",")));
 

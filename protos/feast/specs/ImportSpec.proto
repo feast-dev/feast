@@ -27,7 +27,7 @@ import "google/protobuf/timestamp.proto";
 message ImportSpec {
   string type = 1;
 
-  map<string, string> options = 2;
+  map<string, string> sourceOptions = 2;
 
   map<string, string> jobOptions = 5;
 

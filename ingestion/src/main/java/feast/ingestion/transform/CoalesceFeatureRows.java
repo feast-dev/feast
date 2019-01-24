@@ -18,15 +18,16 @@
 package feast.ingestion.transform;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterables;
 import com.google.protobuf.Timestamp;
 import feast.types.FeatureProto.Feature;
 import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.FeatureRowProto.FeatureRowKey;
-import java.util.Collections;
+import feast_ingestion.types.CoalesceAccumProto.CoalesceAccum;
+import feast_ingestion.types.CoalesceKeyProto.CoalesceKey;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -68,12 +69,10 @@ public class CoalesceFeatureRows extends
   private static final Comparator<Timestamp> TIMESTAMP_COMPARATOR = Comparator
       .comparing(Timestamp::getSeconds)
       .thenComparing(Timestamp::getNanos);
-  private static final SerializableFunction<FeatureRow, FeatureRowKey> KEY_FUNCTION = (row) ->
-      FeatureRowKey.newBuilder()
+  private static final SerializableFunction<FeatureRow, CoalesceKey> KEY_FUNCTION = (row) ->
+      CoalesceKey.newBuilder()
           .setEntityName(row.getEntityName())
-          .setEntityKey(row.getEntityKey())
-          .setGranularity(row.getGranularity())
-          .setEventTimestamp(row.getEventTimestamp()).build();
+          .setEntityKey(row.getEntityKey()).build();
 
   private static final Duration DEFAULT_DELAY = Duration.standardSeconds(10);
   private static final Duration DEFAULT_TIMEOUT = Duration.ZERO;
@@ -95,54 +94,86 @@ public class CoalesceFeatureRows extends
     this.timeout = (timeout.isEqual(Duration.ZERO)) ? DEFAULT_TIMEOUT : timeout;
   }
 
+  /**
+   * Return a FeatureRow of the new features accumulated since the given timestamp
+   */
+  public static FeatureRow toFeatureRow(CoalesceAccum accum, long counter) {
+    Preconditions.checkArgument(counter <=
+        accum.getCounter(), "Accumulator has no features at or newer than the provided counter");
+    FeatureRow.Builder builder = FeatureRow.newBuilder()
+        .setEntityName(accum.getEntityName())
+        .setGranularity(accum.getGranularity())
+        .setEntityKey(accum.getEntityKey())
+        // This will be the latest timestamp
+        .setEventTimestamp(accum.getEventTimestamp());
+
+    Map<String, Feature> features = accum.getFeaturesMap();
+    if (counter <= 0) {
+      builder.addAllFeatures(features.values());
+    } else {
+      List<Feature> featureList = accum.getFeatureMarksMap().entrySet().stream()
+          .filter((e) -> e.getValue() > counter)
+          .map((e) -> features.get(e.getKey()))
+          .collect(Collectors.toList());
+      builder.addAllFeatures(featureList);
+
+    }
+    return builder.build();
+  }
 
   public static FeatureRow combineFeatureRows(Iterable<FeatureRow> rows) {
-    FeatureRow latestRow = null;
+    return toFeatureRow(combineFeatureRows(CoalesceAccum.getDefaultInstance(), rows), 0);
+  }
+
+  public static CoalesceAccum combineFeatureRows(CoalesceAccum seed, Iterable<FeatureRow> rows) {
+    CoalesceAccum.Builder accum = seed.toBuilder();
     Map<String, Feature> features = new HashMap<>();
-    int rowCount = 0;
+    Map<String, Long> featureMarks = new HashMap<>();
+    long rowCount = seed.getCounter();
     for (FeatureRow row : rows) {
       rowCount += 1;
-      if (latestRow == null) {
-        latestRow = row;
+      if (TIMESTAMP_COMPARATOR.compare(accum.getEventTimestamp(), row.getEventTimestamp())
+          <= 0) {
+        // row has later timestamp than accum.
+        for (Feature feature : row.getFeaturesList()) {
+          features.put(feature.getId(), feature);
+          // These marks are used to determine which features are new when we convert an accum
+          // back into a FeatureRow.
+          featureMarks.put(feature.getId(), rowCount);
+        }
+        accum.setEntityName(row.getEntityName());
+        accum.setEntityKey(row.getEntityKey());
+        accum.setGranularity(row.getGranularity());
+        accum.setEventTimestamp(row.getEventTimestamp());
       } else {
-        if (TIMESTAMP_COMPARATOR.compare(latestRow.getEventTimestamp(), row.getEventTimestamp())
-            < 0) {
-          // row has later timestamp than agg.
-          for (Feature feature : row.getFeaturesList()) {
-            features.put(feature.getId(), feature);
-          }
-          latestRow = row;
-        } else {
-          for (Feature feature : row.getFeaturesList()) {
-            String featureId = feature.getId();
-            // only insert an older feature if there was no newer one.
-            if (!features.containsKey(featureId)) {
-              features.put(featureId, feature);
-            }
+        for (Feature feature : row.getFeaturesList()) {
+          String featureId = feature.getId();
+          // only insert an older feature if there was no newer one.
+          if (!features.containsKey(featureId)) {
+            features.put(featureId, feature);
           }
         }
       }
     }
-
-    Preconditions.checkNotNull(latestRow);
-    if (rowCount == 1) {
-      return latestRow;
+    if (rowCount == seed.getCounter()) {
+      return seed;
     } else {
-      for (Feature feature : latestRow.getFeaturesList()) {
-        features.put(feature.getId(), feature);
-      }
-      return latestRow.toBuilder().clearFeatures().addAllFeatures(features.values()).build();
+      return accum
+          .setCounter(rowCount)
+          .putAllFeatures(features)
+          .putAllFeatureMarks(featureMarks)
+          .build();
     }
   }
 
   @Override
   public PCollection<FeatureRow> expand(PCollection<FeatureRow> input) {
-    PCollection<KV<FeatureRowKey, FeatureRow>> kvs = input
-        .apply(WithKeys.of(KEY_FUNCTION).withKeyType(TypeDescriptor.of(FeatureRowKey.class)))
-        .setCoder(KvCoder.of(ProtoCoder.of(FeatureRowKey.class), ProtoCoder.of(FeatureRow.class)));
+    PCollection<KV<CoalesceKey, FeatureRow>> kvs = input
+        .apply(WithKeys.of(KEY_FUNCTION).withKeyType(TypeDescriptor.of(CoalesceKey.class)))
+        .setCoder(KvCoder.of(ProtoCoder.of(CoalesceKey.class), ProtoCoder.of(FeatureRow.class)));
 
     if (kvs.isBounded().equals(IsBounded.UNBOUNDED)) {
-      return kvs.apply("Configure window", Window.<KV<FeatureRowKey, FeatureRow>>configure()
+      return kvs.apply("Configure window", Window.<KV<CoalesceKey, FeatureRow>>configure()
           .withAllowedLateness(Duration.ZERO)
           .discardingFiredPanes()
           .triggering(AfterProcessingTime.pastFirstElementInPane()))
@@ -154,14 +185,15 @@ public class CoalesceFeatureRows extends
     }
   }
 
+
   @Slf4j
   @AllArgsConstructor
   public static class CombineStateDoFn extends
-      DoFn<KV<FeatureRowKey, FeatureRow>, KV<FeatureRowKey, FeatureRow>> {
+      DoFn<KV<CoalesceKey, FeatureRow>, KV<CoalesceKey, FeatureRow>> {
 
-    @StateId("lastKnownValue")
-    private final StateSpec<ValueState<FeatureRow>> lastKnownValue =
-        StateSpecs.value(ProtoCoder.of(FeatureRow.class));
+    @StateId("lastKnownAccumValue")
+    private final StateSpec<ValueState<CoalesceAccum>> lastKnownAccumValueSpecs =
+        StateSpecs.value(ProtoCoder.of(CoalesceAccum.class));
     @StateId("newElementsBag")
     private final StateSpec<BagState<FeatureRow>> newElementsBag =
         StateSpecs.bag(ProtoCoder.of(FeatureRow.class));
@@ -201,44 +233,45 @@ public class CoalesceFeatureRows extends
 
     @OnTimer("bufferTimer")
     public void bufferOnTimer(
-        OnTimerContext context, OutputReceiver<KV<FeatureRowKey, FeatureRow>> out,
+        OnTimerContext context, OutputReceiver<KV<CoalesceKey, FeatureRow>> out,
         @StateId("newElementsBag") BagState<FeatureRow> newElementsBag,
-        @StateId("lastKnownValue") ValueState<FeatureRow> lastKnownValue) {
+        @StateId("lastKnownAccumValue") ValueState<CoalesceAccum> lastKnownAccumValue) {
       log.debug("bufferOnTimer triggered {}", context.timestamp());
-      flush(out, newElementsBag, lastKnownValue);
+      flush(out, newElementsBag, lastKnownAccumValue);
     }
 
     @OnTimer("timeoutTimer")
     public void timeoutOnTimer(
-        OnTimerContext context, OutputReceiver<KV<FeatureRowKey, FeatureRow>> out,
+        OnTimerContext context, OutputReceiver<KV<CoalesceKey, FeatureRow>> out,
         @StateId("newElementsBag") BagState<FeatureRow> newElementsBag,
-        @StateId("lastKnownValue") ValueState<FeatureRow> lastKnownValue) {
+        @StateId("lastKnownAccumValue") ValueState<CoalesceAccum> lastKnownAccumValue) {
       log.debug("timeoutOnTimer triggered {}", context.timestamp());
-      flush(out, newElementsBag, lastKnownValue);
+      flush(out, newElementsBag, lastKnownAccumValue);
       newElementsBag.clear();
-      lastKnownValue.clear();
+      lastKnownAccumValue.clear();
     }
 
     public void flush(
-        OutputReceiver<KV<FeatureRowKey, FeatureRow>> out,
+        OutputReceiver<KV<CoalesceKey, FeatureRow>> out,
         @StateId("newElementsBag") BagState<FeatureRow> newElementsBag,
-        @StateId("lastKnownValue") ValueState<FeatureRow> lastKnownValue) {
+        @StateId("lastKnownAccumValue") ValueState<CoalesceAccum> lastKnownAccumValue) {
       log.debug("Flush triggered");
       Iterable<FeatureRow> rows = newElementsBag.read();
       if (!rows.iterator().hasNext()) {
         log.debug("Flush with no new elements");
         return;
       }
-      FeatureRow lastKnown = lastKnownValue.read();
-      if (lastKnown != null) {
-        rows = Iterables.concat(Collections.singleton(lastKnown), newElementsBag.read());
+      CoalesceAccum lastKnownAccum = lastKnownAccumValue.read();
+      if (lastKnownAccum == null) {
+        lastKnownAccum = CoalesceAccum.getDefaultInstance();
       }
       // Check if we have more than one value in our list.
-      FeatureRow row = combineFeatureRows(rows);
+      CoalesceAccum accum = combineFeatureRows(lastKnownAccum, rows);
+      FeatureRow row = toFeatureRow(accum, lastKnownAccum.getCounter());
       log.debug("Timer fired and added FeatureRow to output {}", row);
       // Clear the elements now that they have been processed
       newElementsBag.clear();
-      lastKnownValue.write(row);
+      lastKnownAccumValue.write(accum);
 
       // Output the value stored in the the processed que which matches this timers time
       out.output(KV.of(KEY_FUNCTION.apply(row), row));
