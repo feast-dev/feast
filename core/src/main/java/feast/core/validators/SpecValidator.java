@@ -264,8 +264,8 @@ public class SpecValidator {
 
   private void checkKafkaImportSpecOption(ImportSpec spec) {
     try {
-      String topics = spec.getOptionsOrDefault("topics", "");
-      String server = spec.getOptionsOrDefault("server", "");
+      String topics = spec.getSourceOptionsOrDefault("topics", "");
+      String server = spec.getSourceOptionsOrDefault("server", "");
       if (topics.equals("") && server.equals("")) {
         throw new IllegalArgumentException(
             "Kafka ingestion requires either topics or servers");
@@ -278,7 +278,7 @@ public class SpecValidator {
 
   private void checkFileImportSpecOption(ImportSpec spec) throws IllegalArgumentException {
     try {
-      checkArgument(!spec.getOptionsOrDefault("path", "").equals(""), "File path cannot be empty");
+      checkArgument(!spec.getSourceOptionsOrDefault("path", "").equals(""), "File path cannot be empty");
     } catch (NullPointerException | IllegalArgumentException e) {
       throw new IllegalArgumentException(
           Strings.lenientFormat("Invalid options: %s", e.getMessage()));
@@ -287,8 +287,8 @@ public class SpecValidator {
 
   private void checkPubSubImportSpecOption(ImportSpec spec) throws IllegalArgumentException {
     try {
-      String topic = spec.getOptionsOrDefault("topic", "");
-      String subscription = spec.getOptionsOrDefault("subscription", "");
+      String topic = spec.getSourceOptionsOrDefault("topic", "");
+      String subscription = spec.getSourceOptionsOrDefault("subscription", "");
       if (topic.equals("") && subscription.equals("")) {
         throw new IllegalArgumentException(
             "Pubsub ingestion requires either topic or subscription");
@@ -301,11 +301,11 @@ public class SpecValidator {
 
   private void checkBigqueryImportSpecOption(ImportSpec spec) throws IllegalArgumentException {
     try {
-      checkArgument(!spec.getOptionsOrThrow("project").equals(""),
+      checkArgument(!spec.getSourceOptionsOrThrow("project").equals(""),
           "Bigquery project cannot be empty");
-      checkArgument(!spec.getOptionsOrThrow("dataset").equals(""),
+      checkArgument(!spec.getSourceOptionsOrThrow("dataset").equals(""),
           "Bigquery dataset cannot be empty");
-      checkArgument(!spec.getOptionsOrThrow("table").equals(""), "Bigquery table cannot be empty");
+      checkArgument(!spec.getSourceOptionsOrThrow("table").equals(""), "Bigquery table cannot be empty");
     } catch (NullPointerException | IllegalArgumentException e) {
       throw new IllegalArgumentException(
           Strings.lenientFormat("Invalid options: %s", e.getMessage()));

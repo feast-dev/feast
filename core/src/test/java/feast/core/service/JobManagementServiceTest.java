@@ -70,6 +70,7 @@ public class JobManagementServiceTest {
             "",
             "",
             "",
+            "",
             Collections.emptyList(),
             Collections.emptyList(),
             Collections.emptyList(),
@@ -80,6 +81,7 @@ public class JobManagementServiceTest {
     JobInfo jobInfo2 =
         new JobInfo(
             "job2",
+            "",
             "",
             "",
             "",
@@ -117,6 +119,7 @@ public class JobManagementServiceTest {
     JobInfo jobInfo1 =
         new JobInfo(
             "job1",
+            "",
             "",
             "",
             "",

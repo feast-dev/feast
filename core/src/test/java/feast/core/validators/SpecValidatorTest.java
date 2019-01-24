@@ -709,7 +709,7 @@ public class SpecValidatorTest {
     ImportSpec input =
         ImportSpec.newBuilder()
             .setType("file.csv")
-            .putOptions("path", "gs://asdasd")
+            .putSourceOptions("path", "gs://asdasd")
             .build();
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage(
@@ -728,9 +728,9 @@ public class SpecValidatorTest {
     ImportSpec input =
         ImportSpec.newBuilder()
             .setType("bigquery")
-            .putOptions("project", "my-google-project")
-            .putOptions("dataset", "feast")
-            .putOptions("table", "feast")
+            .putSourceOptions("project", "my-google-project")
+            .putSourceOptions("dataset", "feast")
+            .putSourceOptions("table", "feast")
             .build();
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage(
@@ -750,7 +750,7 @@ public class SpecValidatorTest {
     ImportSpec input =
         ImportSpec.newBuilder()
             .setType("pubsub")
-            .putOptions("topic", "my/pubsub/topic")
+            .putSourceOptions("topic", "my/pubsub/topic")
             .addEntities("someEntity")
             .build();
     exception.expect(IllegalArgumentException.class);
@@ -775,7 +775,7 @@ public class SpecValidatorTest {
     ImportSpec input =
         ImportSpec.newBuilder()
             .setType("pubsub")
-            .putOptions("topic", "my/pubsub/topic")
+            .putSourceOptions("topic", "my/pubsub/topic")
             .setSchema(schema)
             .addEntities("someEntity")
             .build();
@@ -802,8 +802,8 @@ public class SpecValidatorTest {
     ImportSpec input =
         ImportSpec.newBuilder()
             .setType("kafka")
-            .putOptions("topics", "my-kafka-topic")
-            .putOptions("server", "localhost:54321")
+            .putSourceOptions("topics", "my-kafka-topic")
+            .putSourceOptions("server", "localhost:54321")
             .setSchema(schema)
             .addEntities("someEntity")
             .build();

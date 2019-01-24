@@ -55,8 +55,12 @@ public class JobInfo extends AbstractTimestampEntity {
   private String runner;
 
   // Job options. Stored as a json string as it is specific to the runner.
-  @Column(name = "options")
-  private String options;
+  @Column(name = "source_options")
+  private String sourceOptions;
+
+  // Job options. Stored as a json string as it is specific to the runner.
+  @Column(name = "job_options")
+  private String jobOptions;
 
   // Entities populated by the job
   @ManyToMany
@@ -99,7 +103,8 @@ public class JobInfo extends AbstractTimestampEntity {
     this.extId = extId;
     this.type = importSpec.getType();
     this.runner = runner;
-    this.options = TypeConversion.convertMapToJsonString(importSpec.getOptionsMap());
+    this.sourceOptions = TypeConversion.convertMapToJsonString(importSpec.getSourceOptionsMap());
+    this.jobOptions = TypeConversion.convertMapToJsonString(importSpec.getJobOptionsMap());
     this.entities = new ArrayList<>();
     for (String entity : importSpec.getEntitiesList()) {
       EntityInfo entityInfo = new EntityInfo();
