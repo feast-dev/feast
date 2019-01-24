@@ -94,6 +94,11 @@ public class CsvFileFeatureSource extends FeatureSource {
         schema.getFieldsList().size() > 0,
         "CSV import needs schema with a least one field specified");
 
+    if (!Strings.isNullOrEmpty(timestampColumn)) {
+      Preconditions.checkArgument(fieldNames.contains(timestampColumn),
+          String.format("timestampColumn %s, does not match any field", timestampColumn));
+    }
+
     PCollection<StringMap> stringMaps = input.getPipeline().apply(CsvIO.read(path, fieldNames));
 
     return stringMaps.apply(
@@ -139,7 +144,6 @@ public class CsvFileFeatureSource extends FeatureSource {
             }));
 
   }
-
 
   public static class CsvFileFeatureSourceOptions implements Options {
 

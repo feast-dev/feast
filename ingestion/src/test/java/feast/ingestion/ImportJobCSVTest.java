@@ -36,6 +36,7 @@ import feast.ingestion.model.Features;
 import feast.ingestion.model.Values;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.service.SpecRetrievalException;
+import feast.ingestion.util.DateUtil;
 import feast.ingestion.util.ProtoUtil;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.storage.MockErrorsStore;
@@ -44,6 +45,7 @@ import feast.storage.MockWarehouseStore;
 import feast.storage.service.ErrorsStoreService;
 import feast.storage.service.ServingStoreService;
 import feast.storage.service.WarehouseStoreService;
+import feast.types.FeatureProto.Feature;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.GranularityProto.Granularity;
@@ -188,16 +190,18 @@ public class ImportJobCSVTest {
                 + "  - testEntity\n"
                 + "schema:\n"
                 + "  entityIdColumn: id\n"
-                + "  timestampValue: 2018-09-25T00:00:00.000Z\n"
+                + "  timestampColumn: timestamp\n"
                 + "  fields:\n"
                 + "    - name: id\n"
+                + "    - name: timestamp\n"
                 + "    - featureId: testEntity.none.testInt32\n"
                 + "    - featureId: testEntity.none.testString\n"
                 + "\n",
             ImportSpec.getDefaultInstance());
 
     File csvFile = folder.newFile("data.csv");
-    Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n1,,b\n");
+    Files.asCharSink(csvFile, Charsets.UTF_8)
+        .write("1,2018-09-25T00:00:00.000Z,101,a\n1,2018-09-26T00:00:00.000Z,,b\n");
     importSpec = initImportSpec(importSpec, csvFile.toString());
 
     ImportJobPipelineOptions options = initOptions();
@@ -227,22 +231,21 @@ public class ImportJobCSVTest {
     PAssert.that(writtenToErrors).satisfies(hasCount(0));
 
     PAssert.that(writtenToServing.apply("serving toFeatureRows", new ToOrderedFeatureRows()))
-        .containsInAnyOrder(normalize(
-            FeatureRow.newBuilder()
-                .setGranularity(Granularity.Enum.NONE)
-                .setEventTimestamp(Timestamp.getDefaultInstance())
-                .setEntityKey("1")
-                .setEntityName("testEntity")
-                .addFeatures(Features.of("testEntity.none.testInt32", Values.ofInt32(101)))
-                .addFeatures(Features.of("testEntity.none.testString", Values.ofString("b")))
-                .build()));
+        .containsInAnyOrder(
+            normalize(
+                FeatureRow.newBuilder()
+                    .setGranularity(Granularity.Enum.NONE)
+                    .setEntityKey("1")
+                    .setEntityName("testEntity")
+                    .addFeatures(Features.of("testEntity.none.testInt32", Values.ofInt32(101)))
+                    .addFeatures(Features.of("testEntity.none.testString", Values.ofString("b")))
+                    .build()));
 
     PAssert.that(writtenToWarehouse.apply("warehouse toFeatureRows", new ToOrderedFeatureRows()))
         .containsInAnyOrder(
             normalize(
                 FeatureRow.newBuilder()
                     .setGranularity(Granularity.Enum.NONE)
-                    .setEventTimestamp(Timestamp.getDefaultInstance())
                     .setEntityKey("1")
                     .setEntityName("testEntity")
                     .addFeatures(Features.of("testEntity.none.testInt32", Values.ofInt32(101)))
@@ -251,7 +254,6 @@ public class ImportJobCSVTest {
             normalize(
                 FeatureRow.newBuilder()
                     .setGranularity(Granularity.Enum.NONE)
-                    .setEventTimestamp(Timestamp.getDefaultInstance())
                     .setEntityKey("1")
                     .setEntityName("testEntity")
                     .addFeatures(Features.of("testEntity.none.testString", Values.ofString("b")))

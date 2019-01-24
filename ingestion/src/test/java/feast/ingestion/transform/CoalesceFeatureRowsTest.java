@@ -149,9 +149,11 @@ public class CoalesceFeatureRowsTest {
   public void testStream_shouldMergeFeatures() {
     List<FeatureRow> rows = Lists.newArrayList(
         FeatureRow.newBuilder().setEntityKey("1")
+            .setEventTimestamp(DEFAULT_TIMESTAMP)
             .addFeatures(Feature.newBuilder().setId("f1").setValue(Values.ofInt32(1)))
             .build(),
         FeatureRow.newBuilder().setEntityKey("1")
+            .setEventTimestamp(DEFAULT_TIMESTAMP)
             .addFeatures(Feature.newBuilder().setId("f2").setValue(Values.ofInt32(2)))
             .build());
 
@@ -169,7 +171,7 @@ public class CoalesceFeatureRowsTest {
     PAssert.that(output.apply(Count.globally())).containsInAnyOrder(1L);
     PAssert.that(output).containsInAnyOrder(
         FeatureRow.newBuilder().setEntityKey("1")
-            .setEventTimestamp(Timestamp.getDefaultInstance())
+            .setEventTimestamp(DEFAULT_TIMESTAMP)
             .addFeatures(Feature.newBuilder().setId("f1").setValue(Values.ofInt32(1)))
             .addFeatures(Feature.newBuilder().setId("f2").setValue(Values.ofInt32(2)))
             .build()
@@ -261,10 +263,10 @@ public class CoalesceFeatureRowsTest {
     Duration delay = Duration.standardSeconds(10);
     TestStream<FeatureRow> testStream = TestStream.create(ProtoCoder.of(FeatureRow.class))
         .advanceWatermarkTo(start)
-        .addElements(FeatureRow.getDefaultInstance())
+        .addElements(DEFAULT_FEATURE_ROW)
         // this should not reset the timer as the first is still pending.
         .advanceWatermarkTo(start.plus(delay.dividedBy(2)))
-        .addElements(FeatureRow.getDefaultInstance())
+        .addElements(DEFAULT_FEATURE_ROW)
         // timer should trigger causing the first output row
         .advanceWatermarkTo(start.plus(delay).plus(delay.dividedBy(2)))
         .addElements(FeatureRow.getDefaultInstance()) // this should cause a second output row.
@@ -287,12 +289,14 @@ public class CoalesceFeatureRowsTest {
         .advanceWatermarkTo(start)
         .addElements(
             FeatureRow.newBuilder()
+                .setEventTimestamp(DEFAULT_TIMESTAMP)
                 .addFeatures(Features.of("f1", Values.ofString("a")))
                 .build())
         // this should should emit a row
         .advanceWatermarkTo(start.plus(delay).plus(delay))
         .addElements(
             FeatureRow.newBuilder()
+                .setEventTimestamp(DEFAULT_TIMESTAMP)
                 .addFeatures(Features.of("f2", Values.ofString("b")))
                 .build())
         // this should emit a row with f2 but without f1 because it hasn't had an update

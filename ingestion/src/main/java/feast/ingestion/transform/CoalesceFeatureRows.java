@@ -103,9 +103,11 @@ public class CoalesceFeatureRows extends
     FeatureRow.Builder builder = FeatureRow.newBuilder()
         .setEntityName(accum.getEntityName())
         .setGranularity(accum.getGranularity())
-        .setEntityKey(accum.getEntityKey())
-        // This will be the latest timestamp
-        .setEventTimestamp(accum.getEventTimestamp());
+        .setEntityKey(accum.getEntityKey());
+    // This will be the latest timestamp
+    if (accum.hasEventTimestamp()) {
+      builder.setEventTimestamp(accum.getEventTimestamp());
+    }
 
     Map<String, Feature> features = accum.getFeaturesMap();
     if (counter <= 0) {
@@ -144,13 +146,16 @@ public class CoalesceFeatureRows extends
         accum.setEntityName(row.getEntityName());
         accum.setEntityKey(row.getEntityKey());
         accum.setGranularity(row.getGranularity());
-        accum.setEventTimestamp(row.getEventTimestamp());
+        if (row.hasEventTimestamp()) {
+          accum.setEventTimestamp(row.getEventTimestamp());
+        }
       } else {
         for (Feature feature : row.getFeaturesList()) {
           String featureId = feature.getId();
           // only insert an older feature if there was no newer one.
           if (!features.containsKey(featureId)) {
             features.put(featureId, feature);
+            featureMarks.put(feature.getId(), rowCount);
           }
         }
       }

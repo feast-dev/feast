@@ -161,33 +161,37 @@ public class ImportJob {
     PFeatureRows pFeatureRows = PFeatureRows.of(featuresExtended);
     pFeatureRows = pFeatureRows.applyDoFn("Convert feature types", new ConvertTypesDoFn(specs));
     pFeatureRows = pFeatureRows.apply("Validate features", new ValidateTransform(specs));
-    pFeatureRows =
-        PFeatureRows.of(
-            pFeatureRows
-                .getMain()
-                .apply(
-                    "Round event timestamps to granularity",
-                    ParDo.of(new RoundEventTimestampsDoFn())),
-            pFeatureRows.getErrors());
 
     log.info(
         "A sample of size 1 of incoming rows from MAIN and ERRORS will logged every 30 seconds for visibility");
     logNRows(pFeatureRows, "Output sample", 1, Duration.standardSeconds(30));
 
-    PFeatureRows servingRows = pFeatureRows;
-    PFeatureRows warehouseRows = pFeatureRows;
+    PFeatureRows warehouseRows = roundTimestamps("Round timestamps for warehouse", pFeatureRows);
 
+    PFeatureRows servingRows = pFeatureRows;
     if (jobOptions.isCoalesceRowsEnabled()) {
       // Should we merge and dedupe rows before writing to the serving store?
       servingRows = servingRows.apply("Coalesce Rows", new CoalescePFeatureRows(
           jobOptions.getCoalesceRowsDelaySeconds(),
           jobOptions.getCoalesceRowsTimeoutSeconds()));
     }
+    servingRows = roundTimestamps("Round timestamps for serving", servingRows);
+
     if (!dryRun) {
       servingRows.apply("Write to Serving Stores", servingStoreTransform);
       warehouseRows.apply("Write to Warehouse  Stores", warehouseStoreTransform);
       pFeatureRows.getErrors().apply("Write errors", errorsStoreTransform);
     }
+  }
+
+  public PFeatureRows roundTimestamps(String name, PFeatureRows pFeatureRows) {
+    return
+        PFeatureRows.of(
+            pFeatureRows
+                .getMain()
+                .apply(name,
+                    ParDo.of(new RoundEventTimestampsDoFn())),
+            pFeatureRows.getErrors());
   }
 
   public PipelineResult run() {

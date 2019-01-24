@@ -36,8 +36,11 @@ public class ConvertTypesDoFn extends BaseFeatureDoFn {
     FeatureRow.Builder rowBuilder = FeatureRow.newBuilder();
     rowBuilder
         .setEntityName(row.getEntityName())
-        .setEventTimestamp(row.getEventTimestamp())
         .setEntityKey(row.getEntityKey());
+    if (row.hasEventTimestamp()) {
+      rowBuilder.setEventTimestamp(row.getEventTimestamp());
+    }
+
 
     for (Feature feature : row.getFeaturesList()) {
       String featureId = feature.getId();
