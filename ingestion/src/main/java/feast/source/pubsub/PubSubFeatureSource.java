@@ -96,7 +96,7 @@ public class PubSubFeatureSource extends FeatureSource {
     boolean isValid() {
       return !Strings.isNullOrEmpty(subscription) || !Strings.isNullOrEmpty(topic);
     }
-    public boolean discardUnknownFeatures = true;
+    public boolean discardUnknownFeatures = false;
   }
 
   @AutoService(FeatureSourceFactory.class)

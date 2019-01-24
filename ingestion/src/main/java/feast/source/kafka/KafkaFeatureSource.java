@@ -99,7 +99,7 @@ public class KafkaFeatureSource extends FeatureSource {
   public static class KafkaReadOptions implements Options {
     @NotEmpty public String server;
     @NotEmpty public String topics;
-    public boolean discardUnknownFeatures = true;
+    public boolean discardUnknownFeatures = false;
   }
 
   @AutoService(FeatureSourceFactory.class)
