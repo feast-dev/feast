@@ -20,20 +20,24 @@ package feast.source.pubsub;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
+import com.google.common.base.Strings;
+import feast.ingestion.transform.fn.FilterFeatureRowDoFn;
 import feast.options.Options;
 import feast.options.OptionsParser;
 import feast.source.FeatureSource;
 import feast.source.FeatureSourceFactory;
+import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.types.FeatureRowProto.FeatureRow;
+import java.util.ArrayList;
+import java.util.List;
 import javax.validation.constraints.AssertTrue;
 import lombok.Builder;
 import lombok.NonNull;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
-import org.apache.hadoop.hbase.util.Strings;
-
 
 /**
  * Transform for reading {@link feast.types.FeatureRowProto.FeatureRow FeatureRow} proto messages
@@ -50,8 +54,7 @@ public class PubSubFeatureSource extends FeatureSource {
 
   public static final String PUBSUB_FEATURE_SOURCE_TYPE = "pubsub";
 
-  @NonNull
-  private ImportSpec importSpec;
+  @NonNull private ImportSpec importSpec;
 
   @Override
   public PCollection<FeatureRow> expand(PInput input) {
@@ -61,12 +64,24 @@ public class PubSubFeatureSource extends FeatureSource {
 
     PubsubIO.Read<FeatureRow> read = readProtos();
 
-    if (!Strings.isEmpty(options.subscription)) {
+    if (!Strings.isNullOrEmpty(options.subscription)) {
       read = read.fromSubscription(options.subscription);
-    } else if (!Strings.isEmpty(options.topic)) {
+    } else if (!Strings.isNullOrEmpty(options.topic)) {
       read = read.fromTopic(options.topic);
     }
-    return input.getPipeline().apply(read);
+    PCollection<FeatureRow> featureRow =  input.getPipeline().apply(read);
+
+    if (options.discardUnknownFeatures) {
+      List<String> featureIds = new ArrayList<>();
+      for(Field field: importSpec.getSchema().getFieldsList()) {
+        String featureId = field.getFeatureId();
+        if (!Strings.isNullOrEmpty(featureId)) {
+          featureIds.add(featureId);
+        }
+      }
+      return featureRow.apply(ParDo.of(new FilterFeatureRowDoFn(featureIds)));
+    }
+    return featureRow;
   }
 
   PubsubIO.Read<FeatureRow> readProtos() {
@@ -74,19 +89,18 @@ public class PubSubFeatureSource extends FeatureSource {
   }
 
   public static class PubSubReadOptions implements Options {
-
     public String subscription;
     public String topic;
 
     @AssertTrue(message = "subscription or topic must be set")
     boolean isValid() {
-      return !Strings.isEmpty(subscription) || !Strings.isEmpty(topic);
+      return !Strings.isNullOrEmpty(subscription) || !Strings.isNullOrEmpty(topic);
     }
+    public boolean discardUnknownFeatures = false;
   }
 
   @AutoService(FeatureSourceFactory.class)
   public static class Factory implements FeatureSourceFactory {
-
     @Override
     public String getType() {
       return PUBSUB_FEATURE_SOURCE_TYPE;
