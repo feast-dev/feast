@@ -16,7 +16,6 @@
 
 syntax = "proto3";
 
-import "google/protobuf/timestamp.proto";
 import "feast/types/Value.proto";
 
 package feast.types;
@@ -27,5 +26,5 @@ option go_package = "github.com/gojek/feast/protos/generated/go/feast/types";
 
 message Feature {
   string id = 1;
-  Value value = 2;
+  feast.types.Value value = 2;
 }

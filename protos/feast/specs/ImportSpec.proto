@@ -22,7 +22,6 @@ option java_package = "feast.specs";
 option java_outer_classname = "ImportSpecProto";
 option go_package = "github.com/gojek/feast/protos/generated/go/feast/specs";
 
-import "feast/types/Value.proto";
 import "google/protobuf/timestamp.proto";
 
 message ImportSpec {

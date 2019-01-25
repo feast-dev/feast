@@ -19,7 +19,6 @@ syntax = "proto3";
 import "google/protobuf/timestamp.proto";
 import "feast/types/Feature.proto";
 import "feast/types/Granularity.proto";
-import "feast/types/Value.proto";
 
 package feast.types;
 
