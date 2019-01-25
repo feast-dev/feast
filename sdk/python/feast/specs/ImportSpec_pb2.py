@@ -12,7 +12,6 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-from feast.types import Value_pb2 as feast_dot_types_dot_Value__pb2
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
@@ -21,9 +20,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.specs',
   syntax='proto3',
   serialized_options=_b('\n\013feast.specsB\017ImportSpecProtoZ6github.com/gojek/feast/protos/generated/go/feast/specs'),
-  serialized_pb=_b('\n\x1c\x66\x65\x61st/specs/ImportSpec.proto\x12\x0b\x66\x65\x61st.specs\x1a\x17\x66\x65\x61st/types/Value.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb8\x01\n\nImportSpec\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x35\n\x07options\x18\x02 \x03(\x0b\x32$.feast.specs.ImportSpec.OptionsEntry\x12\x10\n\x08\x65ntities\x18\x03 \x03(\t\x12#\n\x06schema\x18\x04 \x01(\x0b\x32\x13.feast.specs.Schema\x1a.\n\x0cOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\xa2\x01\n\x06Schema\x12\"\n\x06\x66ields\x18\x01 \x03(\x0b\x32\x12.feast.specs.Field\x12\x19\n\x0ftimestampColumn\x18\x05 \x01(\tH\x00\x12\x34\n\x0etimestampValue\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampH\x00\x12\x16\n\x0e\x65ntityIdColumn\x18\x07 \x01(\tB\x0b\n\ttimestamp\"(\n\x05\x46ield\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x11\n\tfeatureId\x18\x02 \x01(\tBV\n\x0b\x66\x65\x61st.specsB\x0fImportSpecProtoZ6github.com/gojek/feast/protos/generated/go/feast/specsb\x06proto3')
+  serialized_pb=_b('\n\x1c\x66\x65\x61st/specs/ImportSpec.proto\x12\x0b\x66\x65\x61st.specs\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb8\x01\n\nImportSpec\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x35\n\x07options\x18\x02 \x03(\x0b\x32$.feast.specs.ImportSpec.OptionsEntry\x12\x10\n\x08\x65ntities\x18\x03 \x03(\t\x12#\n\x06schema\x18\x04 \x01(\x0b\x32\x13.feast.specs.Schema\x1a.\n\x0cOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\xa2\x01\n\x06Schema\x12\"\n\x06\x66ields\x18\x01 \x03(\x0b\x32\x12.feast.specs.Field\x12\x19\n\x0ftimestampColumn\x18\x05 \x01(\tH\x00\x12\x34\n\x0etimestampValue\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampH\x00\x12\x16\n\x0e\x65ntityIdColumn\x18\x07 \x01(\tB\x0b\n\ttimestamp\"(\n\x05\x46ield\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x11\n\tfeatureId\x18\x02 \x01(\tBV\n\x0b\x66\x65\x61st.specsB\x0fImportSpecProtoZ6github.com/gojek/feast/protos/generated/go/feast/specsb\x06proto3')
   ,
-  dependencies=[feast_dot_types_dot_Value__pb2.DESCRIPTOR,google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,])
+  dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,])
 
 
 
@@ -61,8 +60,8 @@ _IMPORTSPEC_OPTIONSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=242,
-  serialized_end=288,
+  serialized_start=217,
+  serialized_end=263,
 )
 
 _IMPORTSPEC = _descriptor.Descriptor(
@@ -112,8 +111,8 @@ _IMPORTSPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=104,
-  serialized_end=288,
+  serialized_start=79,
+  serialized_end=263,
 )
 
 
@@ -167,8 +166,8 @@ _SCHEMA = _descriptor.Descriptor(
       name='timestamp', full_name='feast.specs.Schema.timestamp',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=291,
-  serialized_end=453,
+  serialized_start=266,
+  serialized_end=428,
 )
 
 
@@ -205,8 +204,8 @@ _FIELD = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=455,
-  serialized_end=495,
+  serialized_start=430,
+  serialized_end=470,
 )
 
 _IMPORTSPEC_OPTIONSENTRY.containing_type = _IMPORTSPEC

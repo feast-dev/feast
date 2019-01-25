@@ -16,8 +16,6 @@
 
 syntax = "proto3";
 
-import "feast/types/Value.proto";
-
 package feast.storage;
 
 option java_outer_classname = "BigTableProto";

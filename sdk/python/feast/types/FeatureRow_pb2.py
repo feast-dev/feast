@@ -15,7 +15,6 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 from feast.types import Feature_pb2 as feast_dot_types_dot_Feature__pb2
 from feast.types import Granularity_pb2 as feast_dot_types_dot_Granularity__pb2
-from feast.types import Value_pb2 as feast_dot_types_dot_Value__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(
@@ -23,9 +22,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.types',
   syntax='proto3',
   serialized_options=_b('\n\013feast.typesB\017FeatureRowProtoZ6github.com/gojek/feast/protos/generated/go/feast/types'),
-  serialized_pb=_b('\n\x1c\x66\x65\x61st/types/FeatureRow.proto\x12\x0b\x66\x65\x61st.types\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19\x66\x65\x61st/types/Feature.proto\x1a\x1d\x66\x65\x61st/types/Granularity.proto\x1a\x17\x66\x65\x61st/types/Value.proto\"\x9e\x01\n\rFeatureRowKey\x12\x11\n\tentityKey\x18\x01 \x01(\t\x12\x32\n\x0e\x65ventTimestamp\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x12\n\nentityName\x18\x04 \x01(\t\x12\x32\n\x0bgranularity\x18\x05 \x01(\x0e\x32\x1d.feast.types.Granularity.Enum\"\xc3\x01\n\nFeatureRow\x12\x11\n\tentityKey\x18\x01 \x01(\t\x12&\n\x08\x66\x65\x61tures\x18\x02 \x03(\x0b\x32\x14.feast.types.Feature\x12\x32\n\x0e\x65ventTimestamp\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x12\n\nentityName\x18\x04 \x01(\t\x12\x32\n\x0bgranularity\x18\x05 \x01(\x0e\x32\x1d.feast.types.Granularity.EnumBV\n\x0b\x66\x65\x61st.typesB\x0f\x46\x65\x61tureRowProtoZ6github.com/gojek/feast/protos/generated/go/feast/typesb\x06proto3')
+  serialized_pb=_b('\n\x1c\x66\x65\x61st/types/FeatureRow.proto\x12\x0b\x66\x65\x61st.types\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19\x66\x65\x61st/types/Feature.proto\x1a\x1d\x66\x65\x61st/types/Granularity.proto\"\x9e\x01\n\rFeatureRowKey\x12\x11\n\tentityKey\x18\x01 \x01(\t\x12\x32\n\x0e\x65ventTimestamp\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x12\n\nentityName\x18\x04 \x01(\t\x12\x32\n\x0bgranularity\x18\x05 \x01(\x0e\x32\x1d.feast.types.Granularity.Enum\"\xc3\x01\n\nFeatureRow\x12\x11\n\tentityKey\x18\x01 \x01(\t\x12&\n\x08\x66\x65\x61tures\x18\x02 \x03(\x0b\x32\x14.feast.types.Feature\x12\x32\n\x0e\x65ventTimestamp\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x12\n\nentityName\x18\x04 \x01(\t\x12\x32\n\x0bgranularity\x18\x05 \x01(\x0e\x32\x1d.feast.types.Granularity.EnumBV\n\x0b\x66\x65\x61st.typesB\x0f\x46\x65\x61tureRowProtoZ6github.com/gojek/feast/protos/generated/go/feast/typesb\x06proto3')
   ,
-  dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,feast_dot_types_dot_Feature__pb2.DESCRIPTOR,feast_dot_types_dot_Granularity__pb2.DESCRIPTOR,feast_dot_types_dot_Value__pb2.DESCRIPTOR,])
+  dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,feast_dot_types_dot_Feature__pb2.DESCRIPTOR,feast_dot_types_dot_Granularity__pb2.DESCRIPTOR,])
 
 
 
@@ -77,8 +76,8 @@ _FEATUREROWKEY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=162,
-  serialized_end=320,
+  serialized_start=137,
+  serialized_end=295,
 )
 
 
@@ -136,8 +135,8 @@ _FEATUREROW = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=323,
-  serialized_end=518,
+  serialized_start=298,
+  serialized_end=493,
 )
 
 _FEATUREROWKEY.fields_by_name['eventTimestamp'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
