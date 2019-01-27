@@ -17,6 +17,8 @@
 
 package feast.storage.redis;
 
+import feast.ingestion.util.DateUtil;
+import feast.storage.RedisProto.RedisBucketKey;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -25,12 +27,11 @@ import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import feast.ingestion.util.DateUtil;
-import feast.storage.RedisProto.RedisBucketKey;
 
 public class FeatureRowToRedisMutationDoFnTest {
 
-  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void testRedisBucketKeySize() {

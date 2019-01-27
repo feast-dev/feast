@@ -224,25 +224,10 @@ public class ImportJobCSVTest {
         PCollectionList.of(ErrorsStoreService.get(MockErrorsStore.class).getWrite().getInputs())
             .apply("flatten errors input", Flatten.pCollections());
 
-    List<FeatureRow> expectedRows =
-        Lists.newArrayList(
-            normalize(
-                FeatureRow.newBuilder()
-                    .setGranularity(Granularity.Enum.NONE)
-                    .setEventTimestamp(Timestamp.getDefaultInstance())
-                    .setEntityKey("1")
-                    .setEntityName("testEntity")
-                    .addFeatures(Features.of("testEntity.none.testInt32", Values.ofInt32(101)))
-                    .addFeatures(Features.of("testEntity.none.testString", Values.ofString("a")))
-                    .build()));
-
+    PAssert.that(writtenToServing).satisfies(hasCount(1));
+    PAssert.that(writtenToWarehouse).satisfies(hasCount(1));
     PAssert.that(writtenToErrors).satisfies(hasCount(0));
 
-    PAssert.that(writtenToServing.apply("serving toFeatureRows", new ToOrderedFeatureRows()))
-        .containsInAnyOrder(expectedRows);
-
-    PAssert.that(writtenToWarehouse.apply("warehouse toFeatureRows", new ToOrderedFeatureRows()))
-        .containsInAnyOrder(expectedRows);
     testPipeline.run();
   }
 

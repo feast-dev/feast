@@ -19,10 +19,10 @@ package feast.storage.redis;
 
 import static org.junit.Assert.assertEquals;
 
+import feast.options.OptionsParser;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;
-import feast.options.OptionsParser;
 
 public class RedisStoreOptionsTest {
 

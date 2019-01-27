@@ -19,10 +19,6 @@ package feast.storage.redis;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.util.Random;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.commons.codec.digest.DigestUtils;
-import org.joda.time.Duration;
 import feast.SerializableCache;
 import feast.ingestion.model.Specs;
 import feast.ingestion.util.DateUtil;
@@ -35,7 +31,10 @@ import feast.storage.redis.RedisCustomIO.RedisMutation;
 import feast.types.FeatureProto.Feature;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.GranularityProto.Granularity;
+import java.util.Random;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.joda.time.Duration;
 
 public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRowExtended, RedisMutation> {
 
@@ -75,7 +74,9 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRowExtended, Redi
     return DigestUtils.sha1Hex(featureId.getBytes()).substring(0, 7);
   }
 
-  /** Output a redis mutation object for every feature in the feature row. */
+  /**
+   * Output a redis mutation object for every feature in the feature row.
+   */
   @ProcessElement
   public void processElement(ProcessContext context) {
     FeatureRowExtended rowExtended = context.element();
