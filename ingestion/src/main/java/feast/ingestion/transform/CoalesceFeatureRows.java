@@ -18,12 +18,11 @@
 package feast.ingestion.transform;
 
 import com.google.common.base.Preconditions;
-import com.google.protobuf.Timestamp;
+import com.google.protobuf.util.Timestamps;
 import feast.types.FeatureProto.Feature;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast_ingestion.types.CoalesceAccumProto.CoalesceAccum;
 import feast_ingestion.types.CoalesceKeyProto.CoalesceKey;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,9 +65,6 @@ import org.joda.time.Instant;
 public class CoalesceFeatureRows extends
     PTransform<PCollection<FeatureRow>, PCollection<FeatureRow>> {
 
-  private static final Comparator<Timestamp> TIMESTAMP_COMPARATOR = Comparator
-      .comparing(Timestamp::getSeconds)
-      .thenComparing(Timestamp::getNanos);
   private static final SerializableFunction<FeatureRow, CoalesceKey> KEY_FUNCTION = (row) ->
       CoalesceKey.newBuilder()
           .setEntityName(row.getEntityName())
@@ -134,7 +130,7 @@ public class CoalesceFeatureRows extends
     long rowCount = seed.getCounter();
     for (FeatureRow row : rows) {
       rowCount += 1;
-      if (TIMESTAMP_COMPARATOR.compare(accum.getEventTimestamp(), row.getEventTimestamp())
+      if (Timestamps.compare(accum.getEventTimestamp(), row.getEventTimestamp())
           <= 0) {
         // row has later timestamp than accum.
         for (Feature feature : row.getFeaturesList()) {
