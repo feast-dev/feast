@@ -25,8 +25,8 @@ import feast.ingestion.model.Specs;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.transform.FeatureIO.Write;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.storage.FeatureErrorsStoreFactory;
-import feast.storage.noop.NoOpIO;
+import feast.store.NoOpIO;
+import feast.store.errors.FeatureErrorsFactory;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -40,11 +40,12 @@ public class ErrorsStoreTransform extends FeatureIO.Write {
   private String errorsStoreType;
   private StorageSpec errorsStoreSpec;
   private Specs specs;
-  private List<FeatureErrorsStoreFactory> errorsStoreFactories;
+  private List<FeatureErrorsFactory> errorsStoreFactories;
 
   @Inject
   public ErrorsStoreTransform(
-      ImportJobPipelineOptions options, Specs specs, List<FeatureErrorsStoreFactory> errorsStoreFactories) {
+      ImportJobPipelineOptions options, Specs specs,
+      List<FeatureErrorsFactory> errorsStoreFactories) {
     this.specs = specs;
     this.errorsStoreFactories = errorsStoreFactories;
     this.errorsStoreType = options.getErrorsStoreType();
@@ -70,9 +71,9 @@ public class ErrorsStoreTransform extends FeatureIO.Write {
     return PDone.in(input.getPipeline());
   }
 
-  FeatureErrorsStoreFactory getErrorStore() {
+  FeatureErrorsFactory getErrorStore() {
     checkArgument(!errorsStoreType.isEmpty(), "Errors store type not provided");
-    for (FeatureErrorsStoreFactory errorsStoreFactory : errorsStoreFactories) {
+    for (FeatureErrorsFactory errorsStoreFactory : errorsStoreFactories) {
       if (errorsStoreFactory.getType().equals(errorsStoreType)) {
         return errorsStoreFactory;
       }

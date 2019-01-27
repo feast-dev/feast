@@ -25,7 +25,7 @@ import feast.ingestion.transform.SplitFeatures.MultiOutputSplit;
 import feast.ingestion.values.PFeatureRows;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.storage.FeatureStoreFactory;
+import feast.store.FeatureStoreFactory;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import java.util.Collection;
 import java.util.HashMap;

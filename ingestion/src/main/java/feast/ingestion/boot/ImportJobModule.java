@@ -28,12 +28,12 @@ import feast.ingestion.service.SpecService;
 import feast.ingestion.service.SpecService.Builder;
 import feast.ingestion.service.SpecService.UnsupportedBuilder;
 import feast.specs.ImportSpecProto.ImportSpec;
-import feast.storage.FeatureErrorsStoreFactory;
-import feast.storage.FeatureServingStoreFactory;
-import feast.storage.FeatureWarehouseStoreFactory;
-import feast.storage.service.FeatureErrorsStoreFactoryService;
-import feast.storage.service.FeatureServingStoreFactoryService;
-import feast.storage.service.FeatureWarehouseStoreFactoryService;
+import feast.store.errors.FeatureErrorsFactory;
+import feast.store.errors.FeatureErrorsFactoryService;
+import feast.store.serving.FeatureServingFactory;
+import feast.store.serving.FeatureServingFactoryService;
+import feast.store.warehouse.FeatureWarehouseFactory;
+import feast.store.warehouse.FeatureWarehouseFactoryService;
 import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptions;
 
@@ -78,19 +78,19 @@ public class ImportJobModule extends AbstractModule {
 
   @Provides
   @Singleton
-  List<FeatureWarehouseStoreFactory> provideWarehouseStores() {
-    return FeatureWarehouseStoreFactoryService.getAll();
+  List<FeatureWarehouseFactory> provideWarehouseStores() {
+    return FeatureWarehouseFactoryService.getAll();
   }
 
   @Provides
   @Singleton
-  List<FeatureServingStoreFactory> provideServingStores() {
-    return FeatureServingStoreFactoryService.getAll();
+  List<FeatureServingFactory> provideServingStores() {
+    return FeatureServingFactoryService.getAll();
   }
 
   @Provides
   @Singleton
-  List<FeatureErrorsStoreFactory> provideErrorsStores() {
-    return FeatureErrorsStoreFactoryService.getAll();
+  List<FeatureErrorsFactory> provideErrorsStores() {
+    return FeatureErrorsFactoryService.getAll();
   }
 }

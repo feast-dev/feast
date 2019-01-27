@@ -19,7 +19,7 @@ package feast.ingestion;
 
 import static feast.FeastMatchers.hasCount;
 import static feast.NormalizeFeatureRows.normalize;
-import static feast.storage.MockFeatureErrorsStoreFactory.MOCK_ERRORS_STORE_TYPE;
+import static feast.store.MockFeatureErrorsFactory.MOCK_ERRORS_STORE_TYPE;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.base.Charsets;
@@ -38,12 +38,12 @@ import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.service.SpecRetrievalException;
 import feast.ingestion.util.ProtoUtil;
 import feast.specs.ImportSpecProto.ImportSpec;
-import feast.storage.MockFeatureErrorsStoreFactory;
-import feast.storage.MockServingStoreFactory;
-import feast.storage.MockWarehouseStoreFactory;
-import feast.storage.service.FeatureErrorsStoreFactoryService;
-import feast.storage.service.FeatureServingStoreFactoryService;
-import feast.storage.service.FeatureWarehouseStoreFactoryService;
+import feast.store.MockFeatureErrorsFactory;
+import feast.store.MockServingFactory;
+import feast.store.MockWarehouseFactory;
+import feast.store.errors.FeatureErrorsFactoryService;
+import feast.store.serving.FeatureServingFactoryService;
+import feast.store.warehouse.FeatureWarehouseFactoryService;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.GranularityProto.Granularity;
@@ -121,16 +121,21 @@ public class ImportJobCSVTest {
     job.expand();
 
     PCollection<FeatureRowExtended> writtenToServing =
-        PCollectionList.of(FeatureServingStoreFactoryService.get(MockServingStoreFactory.class).getWrite().getInputs())
+        PCollectionList
+            .of(FeatureServingFactoryService.get(MockServingFactory.class).getWrite()
+                .getInputs())
             .apply("flatten serving input", Flatten.pCollections());
 
     PCollection<FeatureRowExtended> writtenToWarehouse =
         PCollectionList.of(
-            FeatureWarehouseStoreFactoryService.get(MockWarehouseStoreFactory.class).getWrite().getInputs())
+            FeatureWarehouseFactoryService.get(MockWarehouseFactory.class).getWrite()
+                .getInputs())
             .apply("flatten warehouse input", Flatten.pCollections());
 
     PCollection<FeatureRowExtended> writtenToErrors =
-        PCollectionList.of(FeatureErrorsStoreFactoryService.get(MockFeatureErrorsStoreFactory.class).getWrite().getInputs())
+        PCollectionList
+            .of(FeatureErrorsFactoryService.get(MockFeatureErrorsFactory.class).getWrite()
+                .getInputs())
             .apply("flatten errors input", Flatten.pCollections());
 
     List<FeatureRow> expectedRows =
@@ -212,16 +217,21 @@ public class ImportJobCSVTest {
     job.expand();
 
     PCollection<FeatureRowExtended> writtenToServing =
-        PCollectionList.of(FeatureServingStoreFactoryService.get(MockServingStoreFactory.class).getWrite().getInputs())
+        PCollectionList
+            .of(FeatureServingFactoryService.get(MockServingFactory.class).getWrite()
+                .getInputs())
             .apply("flatten serving input", Flatten.pCollections());
 
     PCollection<FeatureRowExtended> writtenToWarehouse =
         PCollectionList.of(
-            FeatureWarehouseStoreFactoryService.get(MockWarehouseStoreFactory.class).getWrite().getInputs())
+            FeatureWarehouseFactoryService.get(MockWarehouseFactory.class).getWrite()
+                .getInputs())
             .apply("flatten warehouse input", Flatten.pCollections());
 
     PCollection<FeatureRowExtended> writtenToErrors =
-        PCollectionList.of(FeatureErrorsStoreFactoryService.get(MockFeatureErrorsStoreFactory.class).getWrite().getInputs())
+        PCollectionList
+            .of(FeatureErrorsFactoryService.get(MockFeatureErrorsFactory.class).getWrite()
+                .getInputs())
             .apply("flatten errors input", Flatten.pCollections());
 
     PAssert.that(writtenToServing).satisfies(hasCount(1));
@@ -271,16 +281,21 @@ public class ImportJobCSVTest {
     job.expand();
 
     PCollection<FeatureRowExtended> writtenToServing =
-        PCollectionList.of(FeatureServingStoreFactoryService.get(MockServingStoreFactory.class).getWrite().getInputs())
+        PCollectionList
+            .of(FeatureServingFactoryService.get(MockServingFactory.class).getWrite()
+                .getInputs())
             .apply("flatten serving input", Flatten.pCollections());
 
     PCollection<FeatureRowExtended> writtenToWarehouse =
         PCollectionList.of(
-            FeatureWarehouseStoreFactoryService.get(MockWarehouseStoreFactory.class).getWrite().getInputs())
+            FeatureWarehouseFactoryService.get(MockWarehouseFactory.class).getWrite()
+                .getInputs())
             .apply("flatten warehouse input", Flatten.pCollections());
 
     PCollection<FeatureRowExtended> writtenToErrors =
-        PCollectionList.of(FeatureErrorsStoreFactoryService.get(MockFeatureErrorsStoreFactory.class).getWrite().getInputs())
+        PCollectionList
+            .of(FeatureErrorsFactoryService.get(MockFeatureErrorsFactory.class).getWrite()
+                .getInputs())
             .apply("flatten errors input", Flatten.pCollections());
 
     PAssert.that(writtenToErrors).satisfies(hasCount(0));
@@ -394,11 +409,15 @@ public class ImportJobCSVTest {
     job.expand();
 
     PCollection<FeatureRowExtended> writtenToServing =
-        PCollectionList.of(FeatureServingStoreFactoryService.get(MockServingStoreFactory.class).getWrite().getInputs())
+        PCollectionList
+            .of(FeatureServingFactoryService.get(MockServingFactory.class).getWrite()
+                .getInputs())
             .apply("flatten serving input", Flatten.pCollections());
 
     PCollection<FeatureRowExtended> writtenToErrors =
-        PCollectionList.of(FeatureErrorsStoreFactoryService.get(MockFeatureErrorsStoreFactory.class).getWrite().getInputs())
+        PCollectionList
+            .of(FeatureErrorsFactoryService.get(MockFeatureErrorsFactory.class).getWrite()
+                .getInputs())
             .apply("flatten errors input", Flatten.pCollections());
 
     PAssert.that(writtenToErrors)
@@ -459,11 +478,15 @@ public class ImportJobCSVTest {
     job.expand();
 
     PCollection<FeatureRowExtended> writtenToServing =
-        PCollectionList.of(FeatureServingStoreFactoryService.get(MockServingStoreFactory.class).getWrite().getInputs())
+        PCollectionList
+            .of(FeatureServingFactoryService.get(MockServingFactory.class).getWrite()
+                .getInputs())
             .apply("flatten serving input", Flatten.pCollections());
 
     PCollection<FeatureRowExtended> writtenToErrors =
-        PCollectionList.of(FeatureErrorsStoreFactoryService.get(MockFeatureErrorsStoreFactory.class).getWrite().getInputs())
+        PCollectionList
+            .of(FeatureErrorsFactoryService.get(MockFeatureErrorsFactory.class).getWrite()
+                .getInputs())
             .apply("flatten errors input", Flatten.pCollections());
 
     PAssert.that(writtenToErrors)
