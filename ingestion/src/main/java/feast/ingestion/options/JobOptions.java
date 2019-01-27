@@ -38,7 +38,7 @@ public class JobOptions implements Options {
     return sampleLimit;
   }
 
-  public void setSampleimit(long sampleLimit) {
+  public void setSampleLimit(long sampleLimit) {
     this.sampleLimit = sampleLimit;
   }
 
