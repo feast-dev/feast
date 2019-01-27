@@ -36,11 +36,6 @@ message ImportSpec {
   Schema schema = 4;
 }
 
-message ImportJobOptions {
-  bool coalesceRows = 1;
-  int64 coalesceRowsDelaySeconds = 2;
-}
-
 message Schema {
   repeated Field fields = 1;
   // the event timestamp to set per row.
