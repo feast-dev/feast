@@ -19,7 +19,7 @@ package feast.store.warehouse.json;
 
 import com.google.auto.service.AutoService;
 import feast.ingestion.model.Specs;
-import feast.ingestion.transform.FeatureIO.Write;
+import feast.store.FeatureStoreWrite;
 import feast.options.OptionsParser;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.store.FileStoreOptions;
@@ -33,7 +33,7 @@ public class JsonFileWarehouseFactory implements FeatureWarehouseFactory {
   private static final String JSON_FILES_TYPE = "file.json";
 
   @Override
-  public Write create(StorageSpec storageSpec, Specs specs) {
+  public FeatureStoreWrite create(StorageSpec storageSpec, Specs specs) {
     FileStoreOptions options =
         OptionsParser.parse(storageSpec.getOptionsMap(), FileStoreOptions.class);
     options.jobName = specs.getJobName();

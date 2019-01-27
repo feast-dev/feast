@@ -20,11 +20,11 @@ package feast.ingestion.transform;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import feast.ingestion.model.Specs;
-import feast.ingestion.transform.FeatureIO.Write;
 import feast.ingestion.transform.SplitFeatures.MultiOutputSplit;
 import feast.ingestion.values.PFeatureRows;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
+import feast.store.FeatureStoreWrite;
 import feast.store.FeatureStoreFactory;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import java.util.Collection;
@@ -52,14 +52,14 @@ public class SplitOutputByStore extends PTransform<PFeatureRows, PFeatureRows> {
 
   @Override
   public PFeatureRows expand(PFeatureRows input) {
-    Map<String, Write> transforms = getFeatureStoreTransforms();
+    Map<String, FeatureStoreWrite> transforms = getFeatureStoreTransforms();
     Set<String> keys = transforms.keySet();
 
     log.info(String.format("Splitting on keys = [%s]", String.join(",", keys)));
     MultiOutputSplit<String> splitter = new MultiOutputSplit<>(selector, keys, specs);
     PCollectionTuple splits = input.getMain().apply(splitter);
 
-    Map<TupleTag<FeatureRowExtended>, Write> taggedTransforms = new HashMap<>();
+    Map<TupleTag<FeatureRowExtended>, FeatureStoreWrite> taggedTransforms = new HashMap<>();
     for (String key : transforms.keySet()) {
       TupleTag<FeatureRowExtended> tag = splitter.getStrategy().getTag(key);
       taggedTransforms.put(tag, transforms.get(key));
@@ -80,9 +80,9 @@ public class SplitOutputByStore extends PTransform<PFeatureRows, PFeatureRows> {
     return storesMap;
   }
 
-  private Map<String, Write> getFeatureStoreTransforms() {
+  private Map<String, FeatureStoreWrite> getFeatureStoreTransforms() {
     Map<String, FeatureStoreFactory> storesMap = getStoresMap();
-    Map<String, Write> transforms = new HashMap<>();
+    Map<String, FeatureStoreWrite> transforms = new HashMap<>();
     Map<String, StorageSpec> storageSpecs = specs.getStorageSpecs();
     for (String storeId : storageSpecs.keySet()) {
       StorageSpec storageSpec = storageSpecs.get(storeId);
@@ -109,14 +109,14 @@ public class SplitOutputByStore extends PTransform<PFeatureRows, PFeatureRows> {
   public static class WriteTags extends
       PTransform<PCollectionTuple, PCollection<FeatureRowExtended>> {
 
-    private Map<TupleTag<FeatureRowExtended>, Write> transforms;
+    private Map<TupleTag<FeatureRowExtended>, FeatureStoreWrite> transforms;
     private TupleTag<FeatureRowExtended> mainTag;
 
     @Override
     public PCollection<FeatureRowExtended> expand(PCollectionTuple tuple) {
       List<PCollection<FeatureRowExtended>> outputList = Lists.newArrayList();
       for (TupleTag<FeatureRowExtended> tag : transforms.keySet()) {
-        Write write = transforms.get(tag);
+        FeatureStoreWrite write = transforms.get(tag);
         Preconditions.checkNotNull(write, String.format("Null transform for tag=%s", tag.getId()));
         PCollection<FeatureRowExtended> input = tuple.get(tag);
         input.apply(String.format("Write to %s", tag.getId()), write);

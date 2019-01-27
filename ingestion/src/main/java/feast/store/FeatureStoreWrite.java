@@ -17,11 +17,9 @@
 
 package feast.store;
 
-import feast.types.FeatureRowProto.FeatureRow;
+import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
-public abstract class FeatureStoreWrite extends PTransform<PCollection<FeatureRow>, PDone> {
-
-}
+public abstract class FeatureStoreWrite extends PTransform<PCollection<FeatureRowExtended>, PDone> {}

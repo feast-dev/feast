@@ -29,7 +29,7 @@ import feast.ingestion.model.Specs;
 import feast.ingestion.model.Values;
 import feast.ingestion.service.FileSpecService;
 import feast.ingestion.service.SpecService;
-import feast.ingestion.transform.FeatureIO;
+import feast.store.FeatureStoreWrite;
 import feast.ingestion.util.DateUtil;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
@@ -154,7 +154,7 @@ public class FeatureRowRedisIOWriteTest {
   @Test
   public void testWriteNoneGranularityFromOptions() throws IOException {
     Specs specs = getSpecs();
-    FeatureIO.Write write = new RedisServingFactory().create(specs.getStorageSpec("REDIS1"), specs);
+    FeatureStoreWrite write = new RedisServingFactory().create(specs.getStorageSpec("REDIS1"), specs);
 
     FeatureRowExtended rowExtended =
         FeatureRowExtended.newBuilder()
@@ -195,7 +195,7 @@ public class FeatureRowRedisIOWriteTest {
   @Test
   public void testWriteHourGranularity() throws IOException {
     Specs specs = getSpecs();
-    FeatureIO.Write write = new RedisServingFactory().create(specs.getStorageSpec("REDIS1"), specs);
+    FeatureStoreWrite write = new RedisServingFactory().create(specs.getStorageSpec("REDIS1"), specs);
 
     FeatureRowExtended rowExtended =
         FeatureRowExtended.newBuilder()

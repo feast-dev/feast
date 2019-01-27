@@ -18,11 +18,10 @@
 package feast.store;
 
 import feast.ingestion.model.Specs;
-import feast.ingestion.transform.FeatureIO;
 import feast.specs.StorageSpecProto.StorageSpec;
 
 public interface FeatureStoreFactory {
-  FeatureIO.Write create(StorageSpec storageSpec, Specs specs);
+  FeatureStoreWrite create(StorageSpec storageSpec, Specs specs);
 
   String getType();
 }

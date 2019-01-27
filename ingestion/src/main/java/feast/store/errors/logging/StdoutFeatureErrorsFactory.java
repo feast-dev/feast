@@ -19,7 +19,7 @@ package feast.store.errors.logging;
 
 import com.google.auto.service.AutoService;
 import feast.ingestion.model.Specs;
-import feast.ingestion.transform.FeatureIO.Write;
+import feast.store.FeatureStoreWrite;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.store.errors.FeatureErrorsFactory;
 import org.slf4j.event.Level;
@@ -30,7 +30,7 @@ public class StdoutFeatureErrorsFactory implements FeatureErrorsFactory {
   public static final String TYPE_STDOUT = "stdout";
 
   @Override
-  public Write create(StorageSpec storageSpec, Specs specs) {
+  public FeatureStoreWrite create(StorageSpec storageSpec, Specs specs) {
     return new LogIO.Write(Level.INFO);
   }
 

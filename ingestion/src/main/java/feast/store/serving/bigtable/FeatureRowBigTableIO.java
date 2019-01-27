@@ -20,7 +20,7 @@ package feast.store.serving.bigtable;
 import com.google.cloud.bigtable.beam.CloudBigtableConfiguration;
 import com.google.cloud.bigtable.beam.CloudBigtableIO;
 import feast.ingestion.model.Specs;
-import feast.ingestion.transform.FeatureIO;
+import feast.store.FeatureStoreWrite;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import java.util.Collections;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +34,7 @@ import org.apache.hadoop.hbase.client.Mutation;
 @Slf4j
 public class FeatureRowBigTableIO {
 
-  public static class Write extends FeatureIO.Write {
+  public static class Write extends FeatureStoreWrite {
 
     private BigTableStoreOptions bigTableOptions;
     private Specs specs;

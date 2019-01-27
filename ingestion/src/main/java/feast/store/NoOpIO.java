@@ -17,7 +17,6 @@
 
 package feast.store;
 
-import feast.ingestion.transform.FeatureIO;
 import feast.ingestion.transform.fn.Identity;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -26,7 +25,7 @@ import org.apache.beam.sdk.values.PDone;
 
 public class NoOpIO {
 
-  public static class Write extends FeatureIO.Write {
+  public static class Write extends FeatureStoreWrite {
 
     @Override
     public PDone expand(PCollection<FeatureRowExtended> input) {

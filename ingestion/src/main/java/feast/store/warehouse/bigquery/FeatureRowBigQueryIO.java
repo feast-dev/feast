@@ -21,7 +21,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
 import feast.ingestion.model.Specs;
-import feast.ingestion.transform.FeatureIO;
+import feast.store.FeatureStoreWrite;
 import feast.ingestion.transform.SplitFeatures.SingleOutputSplit;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
@@ -45,7 +45,7 @@ import org.joda.time.Duration;
 @Slf4j
 public class FeatureRowBigQueryIO {
 
-  public static class Write extends FeatureIO.Write {
+  public static class Write extends FeatureStoreWrite {
 
     private final BigQueryStoreOptions bigQueryOptions;
     private final Specs specs;

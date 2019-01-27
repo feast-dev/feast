@@ -20,7 +20,7 @@ package feast.store.warehouse.bigquery;
 import com.google.auto.service.AutoService;
 import com.google.common.base.Preconditions;
 import feast.ingestion.model.Specs;
-import feast.ingestion.transform.FeatureIO.Write;
+import feast.store.FeatureStoreWrite;
 import feast.options.OptionsParser;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.store.warehouse.FeatureWarehouseFactory;
@@ -30,7 +30,7 @@ public class BigQueryWarehouseFactory implements FeatureWarehouseFactory {
   public static String TYPE_BIGQUERY = "bigquery";
 
   @Override
-  public Write create(StorageSpec storageSpec, Specs specs) {
+  public FeatureStoreWrite create(StorageSpec storageSpec, Specs specs) {
     Preconditions.checkArgument(
         storageSpec.getType().equals(TYPE_BIGQUERY), "Storage spec type was not " + TYPE_BIGQUERY);
 

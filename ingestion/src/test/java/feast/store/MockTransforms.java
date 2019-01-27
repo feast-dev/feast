@@ -18,7 +18,6 @@
 package feast.store;
 
 import com.google.common.collect.Lists;
-import feast.ingestion.transform.FeatureIO;
 import feast.ingestion.transform.fn.Identity;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
@@ -31,7 +30,7 @@ import org.apache.beam.sdk.values.PDone;
 public class MockTransforms {
 
   @Getter
-  public static class Write extends FeatureIO.Write {
+  public static class Write extends FeatureStoreWrite {
 
     List<PCollection<FeatureRowExtended>> inputs = Lists.newArrayList();
     private StorageSpec spec;

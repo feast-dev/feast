@@ -17,7 +17,7 @@
 
 package feast.store.errors.logging;
 
-import feast.ingestion.transform.FeatureIO;
+import feast.store.FeatureStoreWrite;
 import feast.ingestion.transform.fn.LoggerDoFn;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import lombok.AllArgsConstructor;
@@ -29,7 +29,7 @@ import org.slf4j.event.Level;
 public class LogIO {
 
   @AllArgsConstructor
-  public static class Write extends FeatureIO.Write {
+  public static class Write extends FeatureStoreWrite {
 
     private Level level;
 

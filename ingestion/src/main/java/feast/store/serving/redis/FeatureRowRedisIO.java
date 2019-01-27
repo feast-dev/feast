@@ -18,7 +18,7 @@
 package feast.store.serving.redis;
 
 import feast.ingestion.model.Specs;
-import feast.ingestion.transform.FeatureIO;
+import feast.store.FeatureStoreWrite;
 import feast.store.serving.redis.RedisCustomIO.RedisMutation;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -27,7 +27,7 @@ import org.apache.beam.sdk.values.PDone;
 
 public class FeatureRowRedisIO {
 
-  public static class Write extends FeatureIO.Write {
+  public static class Write extends FeatureStoreWrite {
 
     private final RedisStoreOptions options;
     private final Specs specs;

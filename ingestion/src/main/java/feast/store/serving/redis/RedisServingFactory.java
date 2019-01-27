@@ -20,7 +20,7 @@ package feast.store.serving.redis;
 import com.google.auto.service.AutoService;
 import com.google.common.base.Preconditions;
 import feast.ingestion.model.Specs;
-import feast.ingestion.transform.FeatureIO.Write;
+import feast.store.FeatureStoreWrite;
 import feast.options.OptionsParser;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.store.serving.FeatureServingFactory;
@@ -31,7 +31,7 @@ public class RedisServingFactory implements FeatureServingFactory {
   public static final String TYPE_REDIS = "redis";
 
   @Override
-  public Write create(StorageSpec storageSpec, Specs specs) {
+  public FeatureStoreWrite create(StorageSpec storageSpec, Specs specs) {
     Preconditions.checkArgument(
         storageSpec.getType().equals(TYPE_REDIS), "Storage spec type was not " + TYPE_REDIS);
     RedisStoreOptions options =

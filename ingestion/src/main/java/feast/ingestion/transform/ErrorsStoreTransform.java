@@ -23,8 +23,8 @@ import static feast.ingestion.util.JsonUtil.convertJsonStringToMap;
 import com.google.inject.Inject;
 import feast.ingestion.model.Specs;
 import feast.ingestion.options.ImportJobPipelineOptions;
-import feast.ingestion.transform.FeatureIO.Write;
 import feast.specs.StorageSpecProto.StorageSpec;
+import feast.store.FeatureStoreWrite;
 import feast.store.NoOpIO;
 import feast.store.errors.FeatureErrorsFactory;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.hadoop.hbase.util.Strings;
 
 @Slf4j
-public class ErrorsStoreTransform extends FeatureIO.Write {
+public class ErrorsStoreTransform extends FeatureStoreWrite {
 
   private String errorsStoreType;
   private StorageSpec errorsStoreSpec;
@@ -61,7 +61,7 @@ public class ErrorsStoreTransform extends FeatureIO.Write {
 
   @Override
   public PDone expand(PCollection<FeatureRowExtended> input) {
-    Write write;
+    FeatureStoreWrite write;
     if (Strings.isEmpty(errorsStoreType)) {
       write = new NoOpIO.Write();
     } else {

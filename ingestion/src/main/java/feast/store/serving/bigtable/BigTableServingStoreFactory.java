@@ -20,7 +20,7 @@ package feast.store.serving.bigtable;
 import com.google.auto.service.AutoService;
 import com.google.common.base.Preconditions;
 import feast.ingestion.model.Specs;
-import feast.ingestion.transform.FeatureIO.Write;
+import feast.store.FeatureStoreWrite;
 import feast.options.OptionsParser;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.store.serving.FeatureServingFactory;
@@ -31,7 +31,7 @@ public class BigTableServingStoreFactory implements FeatureServingFactory {
   public static String TYPE_BIGTABLE = "bigtable";
 
   @Override
-  public Write create(StorageSpec storageSpec, Specs specs) {
+  public FeatureStoreWrite create(StorageSpec storageSpec, Specs specs) {
     Preconditions.checkArgument(storageSpec.getType().equals(getType()));
 
     BigTableStoreOptions options =

@@ -22,7 +22,7 @@ import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import feast.ingestion.transform.FeatureIO;
+import feast.store.FeatureStoreWrite;
 import feast.store.FileStoreOptions;
 import feast.store.TextFileDynamicIO;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
@@ -33,7 +33,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
 @AllArgsConstructor
-public class JsonFileWarehouseWrite extends FeatureIO.Write {
+public class JsonFileWarehouseWrite extends FeatureStoreWrite {
 
   private FileStoreOptions options;
 
