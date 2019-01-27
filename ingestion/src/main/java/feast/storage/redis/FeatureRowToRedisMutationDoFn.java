@@ -110,31 +110,6 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRowExtended, Redi
               .expiryMillis(expiryMillis)
               .method(Method.SET)
               .build());
-
-      if (!featureSpec.getGranularity().equals(Granularity.Enum.NONE)) {
-        long bucketId = getBucketId(roundedTimestamp, options.getBucketSizeDuration());
-
-        RedisBucketKey keyForValue =
-            getRedisBucketKey(entityKey, featureIdHash, roundedTimestamp.getSeconds());
-
-        context.output(
-            RedisMutation.builder()
-                .key(keyForValue.toByteArray())
-                .value(value.toByteArray())
-                .expiryMillis(expiryMillis)
-                .method(Method.SET)
-                .build());
-
-        RedisBucketKey keyForZset = getRedisBucketKey(entityKey, featureIdHash, bucketId);
-        context.output(
-            RedisMutation.builder()
-                .key(keyForZset.toByteArray())
-                .value(keyForValue.toByteArray())
-                .score(roundedTimestamp.getSeconds())
-                .expiryMillis(expiryMillis)
-                .method(Method.ZADD)
-                .build());
-      }
     }
   }
 }
