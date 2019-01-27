@@ -18,26 +18,21 @@
 package feast.storage.bigtable;
 
 import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
-import java.util.List;
+import feast.SerializableCache;
+import feast.ingestion.model.Specs;
+import feast.ingestion.util.DateUtil;
+import feast.options.OptionsParser;
+import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.storage.BigTableProto.BigTableRowKey;
+import feast.types.FeatureProto.Feature;
+import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
+import feast.types.FeatureRowProto.FeatureRow;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
-import feast.SerializableCache;
-import feast.ingestion.model.Specs;
-import feast.ingestion.util.DateUtil;
-import feast.options.OptionsParser;
-import feast.specs.EntitySpecProto.EntitySpec;
-import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.storage.BigTableProto.BigTableRowKey;
-import feast.types.FeatureProto.Feature;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
-import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.GranularityProto.Granularity;
-import feast.types.GranularityProto.Granularity.Enum;
 
 /**
  * DoFn for taking a feature row and making Bigtable mutations out of it. Also keys the mutations by
@@ -46,6 +41,8 @@ import feast.types.GranularityProto.Granularity.Enum;
 @Slf4j
 public class FeatureRowToBigTableMutationDoFn
     extends DoFn<FeatureRowExtended, KV<String, Mutation>> {
+
+  private static final String LATEST_KEY = "0";
 
   private final SerializableCache<FeatureSpec, BigTableFeatureOptions> servingOptionsCache =
       SerializableCache.<FeatureSpec, BigTableFeatureOptions>builder()
@@ -64,33 +61,21 @@ public class FeatureRowToBigTableMutationDoFn
   }
 
   public static BigTableRowKey makeBigTableRowKey(
-      String entityKey, com.google.protobuf.Timestamp timestamp, Granularity.Enum granularity) {
+      String entityKey) {
 
     return BigTableRowKey.newBuilder()
         .setSha1Prefix(DigestUtils.sha1Hex(entityKey).substring(0, 7))
         .setEntityKey(entityKey)
-        .setReversedMillis(String.valueOf(getReversedRoundedMillis(timestamp, granularity)))
+        .setReversedMillis(LATEST_KEY)
         .build();
-  }
-
-  public static long getReversedRoundedMillis(
-      com.google.protobuf.Timestamp timestamp, Granularity.Enum granularity) {
-    if (granularity == Granularity.Enum.NONE) {
-      return 0L; // We store it as zero instead of reversed Long.MAX_VALUE.
-    }
-    timestamp = DateUtil.roundToGranularity(timestamp, granularity);
-    return Long.MAX_VALUE - timestamp.getSeconds() * 1000;
   }
 
   @ProcessElement
   public void processElement(ProcessContext context) {
     FeatureRowExtended rowExtended = context.element();
     FeatureRow row = rowExtended.getRow();
-    EntitySpec entitySpec = specs.getEntitySpec(row.getEntityName());
-    List<Put> mutations = makePut(rowExtended);
-    for (Put put : mutations) {
-      context.output(KV.of(getTableName(row), put));
-    }
+    Put put = makePut(rowExtended);
+    context.output(KV.of(getTableName(row), put));
   }
 
   private String getTableName(FeatureRow row) {
@@ -107,21 +92,12 @@ public class FeatureRowToBigTableMutationDoFn
    * <p>bigtable row key = {sha1(row.key), row.key, row.timestamp} family = {feature.group,
    * granularity} qualifier = {feature.name} value = {feature.value}
    */
-  public List<Put> makePut(FeatureRowExtended rowExtended) {
+  public Put makePut(FeatureRowExtended rowExtended) {
     FeatureRow row = rowExtended.getRow();
-    Granularity.Enum granularity = row.getGranularity();
     // We always additinally overwrite a None granularity row so that it is trivial to retrieve the
     // latest across all features.
     Put latestPut =
-        new Put(
-            makeBigTableRowKey(row.getEntityKey(), row.getEventTimestamp(), Enum.NONE)
-                .toByteArray());
-    Put timeseriesPut =
-        new Put(
-            makeBigTableRowKey(row.getEntityKey(), row.getEventTimestamp(), granularity)
-                .toByteArray());
-    boolean isTimeseries = granularity.getNumber() != Enum.NONE.getNumber();
-
+        new Put(makeBigTableRowKey(row.getEntityKey()).toByteArray());
     for (Feature feature : row.getFeaturesList()) {
       FeatureSpec featureSpec = specs.getFeatureSpec(feature.getId());
       BigTableFeatureOptions options = servingOptionsCache.get(featureSpec);
@@ -129,18 +105,9 @@ public class FeatureRowToBigTableMutationDoFn
       byte[] family = options.family.getBytes(Charsets.UTF_8);
       byte[] qualifier = feature.getId().getBytes(Charsets.UTF_8);
       byte[] value = feature.getValue().toByteArray();
-      // Note version will always the same for row key.
       long version = DateUtil.toMillis(row.getEventTimestamp());
       latestPut.addColumn(family, qualifier, version, value);
-      if (isTimeseries) {
-        timeseriesPut.addColumn(family, qualifier, version, value);
-      }
     }
-
-    if (isTimeseries) {
-      return Lists.newArrayList(timeseriesPut, latestPut);
-    } else {
-      return Lists.newArrayList(latestPut);
-    }
+    return latestPut;
   }
 }

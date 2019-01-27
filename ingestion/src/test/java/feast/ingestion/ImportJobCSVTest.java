@@ -36,7 +36,6 @@ import feast.ingestion.model.Features;
 import feast.ingestion.model.Values;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.service.SpecRetrievalException;
-import feast.ingestion.util.DateUtil;
 import feast.ingestion.util.ProtoUtil;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.storage.MockErrorsStore;
@@ -45,7 +44,6 @@ import feast.storage.MockWarehouseStore;
 import feast.storage.service.ErrorsStoreService;
 import feast.storage.service.ServingStoreService;
 import feast.storage.service.WarehouseStoreService;
-import feast.types.FeatureProto.Feature;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.GranularityProto.Granularity;
@@ -173,6 +171,78 @@ public class ImportJobCSVTest {
     PAssert.that(writtenToWarehouse.apply("warehouse toFeatureRows", new ToOrderedFeatureRows()))
         .containsInAnyOrder(expectedRows);
 
+    testPipeline.run();
+  }
+
+  @Test
+  public void testImportCSV_withSample1() throws IOException {
+    ImportSpec importSpec =
+        ProtoUtil.decodeProtoYaml(
+            "---\n"
+                + "type: file.csv\n"
+                + "sourceOptions:\n"
+                + "  # path: to be overwritten in tests\n"
+                + "jobOptions:\n"
+                + "  sample.limit: 1\n"
+                + "entities:\n"
+                + "  - testEntity\n"
+                + "schema:\n"
+                + "  entityIdColumn: id\n"
+                + "  timestampValue: 2018-09-25T00:00:00.000Z\n"
+                + "  fields:\n"
+                + "    - name: id\n"
+                + "    - featureId: testEntity.none.testInt32\n"
+                + "    - featureId: testEntity.none.testString\n"
+                + "\n",
+            ImportSpec.getDefaultInstance());
+
+    File csvFile = folder.newFile("data.csv");
+    Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
+    importSpec = initImportSpec(importSpec, csvFile.toString());
+
+    ImportJobPipelineOptions options = initOptions();
+    options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
+
+    Injector injector =
+        Guice.createInjector(
+            new ImportJobModule(options, importSpec), new TestPipelineModule(testPipeline));
+
+    ImportJob job = injector.getInstance(ImportJob.class);
+    injector.getInstance(ImportJob.class);
+    job.expand();
+
+    PCollection<FeatureRowExtended> writtenToServing =
+        PCollectionList.of(ServingStoreService.get(MockServingStore.class).getWrite().getInputs())
+            .apply("flatten serving input", Flatten.pCollections());
+
+    PCollection<FeatureRowExtended> writtenToWarehouse =
+        PCollectionList.of(
+            WarehouseStoreService.get(MockWarehouseStore.class).getWrite().getInputs())
+            .apply("flatten warehouse input", Flatten.pCollections());
+
+    PCollection<FeatureRowExtended> writtenToErrors =
+        PCollectionList.of(ErrorsStoreService.get(MockErrorsStore.class).getWrite().getInputs())
+            .apply("flatten errors input", Flatten.pCollections());
+
+    List<FeatureRow> expectedRows =
+        Lists.newArrayList(
+            normalize(
+                FeatureRow.newBuilder()
+                    .setGranularity(Granularity.Enum.NONE)
+                    .setEventTimestamp(Timestamp.getDefaultInstance())
+                    .setEntityKey("1")
+                    .setEntityName("testEntity")
+                    .addFeatures(Features.of("testEntity.none.testInt32", Values.ofInt32(101)))
+                    .addFeatures(Features.of("testEntity.none.testString", Values.ofString("a")))
+                    .build()));
+
+    PAssert.that(writtenToErrors).satisfies(hasCount(0));
+
+    PAssert.that(writtenToServing.apply("serving toFeatureRows", new ToOrderedFeatureRows()))
+        .containsInAnyOrder(expectedRows);
+
+    PAssert.that(writtenToWarehouse.apply("warehouse toFeatureRows", new ToOrderedFeatureRows()))
+        .containsInAnyOrder(expectedRows);
     testPipeline.run();
   }
 

@@ -167,7 +167,6 @@ public class ImportJob {
     logNRows(pFeatureRows, "Output sample", 1, Duration.standardSeconds(30));
 
     PFeatureRows warehouseRows = roundTimestamps("Round timestamps for warehouse", pFeatureRows);
-
     PFeatureRows servingRows = pFeatureRows;
     if (jobOptions.isCoalesceRowsEnabled()) {
       // Should we merge and dedupe rows before writing to the serving store?

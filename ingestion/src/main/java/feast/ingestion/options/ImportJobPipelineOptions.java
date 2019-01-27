@@ -26,6 +26,9 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.options.Validation.Required;
 
+/**
+ * Options passed to Beam to influence the job's execution environment
+ */
 public interface ImportJobPipelineOptions extends PipelineOptions {
 
   @Description("Import spec yaml file path")
@@ -58,14 +61,6 @@ public interface ImportJobPipelineOptions extends PipelineOptions {
   String getCoreApiSpecPath();
 
   void setCoreApiSpecPath(String value);
-
-  @Override
-  @Description("The beam sink class to which the metrics will be pushed")
-  @Default.InstanceFactory(NoOpMetricsSink.class)
-  Class<? extends MetricsSink> getMetricsSink();
-
-  @Override
-  void setMetricsSink(Class<? extends MetricsSink> metricsSink);
 
   @Description(
       "Set an errors store type. One of: [stderr, stdout, file.json]. Note that you should not use "

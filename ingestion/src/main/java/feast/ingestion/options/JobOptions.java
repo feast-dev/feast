@@ -20,12 +20,18 @@ package feast.ingestion.options;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import feast.options.Options;
 
+/**
+ * JobOptions are options passed in via the import spec, they are options that dictate certain
+ * behaviour of the job, they differ from the PipelineOptions in ImportJobOptions which are used to
+ * influence the execution environment.
+ */
 public class JobOptions implements Options {
 
   private long sampleLimit;
   private boolean coalesceRowsEnabled;
   private long coalesceRowsDelaySeconds;
   private long coalesceRowsTimeoutSeconds;
+
 
   @JsonProperty(value = "sample.limit")
   public long getSampleLimit() {
