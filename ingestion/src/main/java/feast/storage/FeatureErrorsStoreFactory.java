@@ -15,27 +15,6 @@
  *
  */
 
-package feast.storage.stderr;
+package feast.storage;
 
-import com.google.auto.service.AutoService;
-import feast.ingestion.model.Specs;
-import feast.ingestion.transform.FeatureIO.Write;
-import feast.specs.StorageSpecProto.StorageSpec;
-import feast.storage.ErrorsStore;
-import org.slf4j.event.Level;
-
-@AutoService(ErrorsStore.class)
-public class StdoutErrorsStore implements ErrorsStore {
-
-  public static final String TYPE_STDOUT = "stdout";
-
-  @Override
-  public Write create(StorageSpec storageSpec, Specs specs) {
-    return new LogIO.Write(Level.INFO);
-  }
-
-  @Override
-  public String getType() {
-    return TYPE_STDOUT;
-  }
-}
+public interface FeatureErrorsStoreFactory extends FeatureStoreFactory {}

@@ -17,4 +17,25 @@
 
 package feast.storage;
 
-public interface ServingStore extends FeatureStore {}
+import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.types.FeatureRowProto.FeatureRow;
+import java.util.Collection;
+import java.util.List;
+
+/**
+ * Abstraction of Client for Feast Serving Store
+ */
+public interface FeatureServingStoreClient {
+
+  /**
+   * Get a the latest FeatureRow containing features for a single entity id
+   */
+  FeatureRow get(String entityName, String entityId, List<FeatureSpec> featureSpecs);
+
+  /**
+   * Get a the latest FeatureRow for containing features for each entity id
+   */
+  List<FeatureRow> get(
+      String entityName, Collection<String> entityIds, List<FeatureSpec> featureSpecs);
+
+}

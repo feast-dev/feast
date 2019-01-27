@@ -17,4 +17,12 @@
 
 package feast.storage;
 
-public interface ErrorsStore extends FeatureStore {}
+import feast.ingestion.model.Specs;
+import feast.ingestion.transform.FeatureIO;
+import feast.specs.StorageSpecProto.StorageSpec;
+
+public interface FeatureStoreFactory {
+  FeatureIO.Write create(StorageSpec storageSpec, Specs specs);
+
+  String getType();
+}

@@ -17,33 +17,38 @@
 
 package feast.storage.service;
 
-import avro.shaded.com.google.common.collect.Lists;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+import feast.storage.FeatureErrorsStoreFactory;
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
-import lombok.extern.slf4j.Slf4j;
-import feast.storage.ServingStore;
 
+/**
+ * Service class for fetching all the FeatureErrorsStoreFactory instances available
+ */
 @Slf4j
-public class ServingStoreService {
-  private static ServiceLoader<ServingStore> serviceLoader = ServiceLoader.load(ServingStore.class);
-  private static List<ServingStore> manuallyRegistered = new ArrayList<>();
+public class FeatureErrorsStoreFactoryService {
+
+  private static ServiceLoader<FeatureErrorsStoreFactory> serviceLoader = ServiceLoader.load(FeatureErrorsStoreFactory.class);
+  private static List<FeatureErrorsStoreFactory> manuallyRegistered = new ArrayList<>();
 
   static {
-    for (ServingStore store : getAll()) {
-      log.info("ServingStore type found: " + store.getType());
+    for (FeatureErrorsStoreFactory store : getAll()) {
+      log.info("FeatureErrorsStoreFactory type found: " + store.getType());
     }
   }
 
-  public static List<ServingStore> getAll() {
+  public static List<FeatureErrorsStoreFactory> getAll() {
     return Lists.newArrayList(
         Iterators.concat(manuallyRegistered.iterator(), serviceLoader.iterator()));
   }
 
   /** Get store of the given subclass. */
-  public static <T extends ServingStore> T get(Class<T> clazz) {
-    for (ServingStore store : getAll()) {
+  public static <T extends FeatureErrorsStoreFactory> T get(Class<T> clazz) {
+    for (FeatureErrorsStoreFactory store : getAll()) {
       if (clazz.isInstance(store)) {
         //noinspection unchecked
         return (T) store;
@@ -52,7 +57,7 @@ public class ServingStoreService {
     return null;
   }
 
-  public static void register(ServingStore store) {
+  public static void register(FeatureErrorsStoreFactory store) {
     manuallyRegistered.add(store);
   }
 }

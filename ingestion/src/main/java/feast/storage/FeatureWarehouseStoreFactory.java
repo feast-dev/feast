@@ -17,4 +17,4 @@
 
 package feast.storage;
 
-public interface WarehouseStore extends FeatureStore {}
+public interface FeatureWarehouseStoreFactory extends FeatureStoreFactory {}

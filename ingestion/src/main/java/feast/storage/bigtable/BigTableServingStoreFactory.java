@@ -23,10 +23,10 @@ import feast.ingestion.model.Specs;
 import feast.ingestion.transform.FeatureIO.Write;
 import feast.options.OptionsParser;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.storage.ServingStore;
+import feast.storage.FeatureServingStoreFactory;
 
-@AutoService(ServingStore.class)
-public class BigTableServingStoreFactory implements ServingStore {
+@AutoService(FeatureServingStoreFactory.class)
+public class BigTableServingStoreFactory implements FeatureServingStoreFactory {
   public static String TYPE_BIGTABLE = "bigtable";
 
   @Override

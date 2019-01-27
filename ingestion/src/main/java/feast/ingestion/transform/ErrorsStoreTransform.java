@@ -25,7 +25,7 @@ import feast.ingestion.model.Specs;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.transform.FeatureIO.Write;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.storage.ErrorsStore;
+import feast.storage.FeatureErrorsStoreFactory;
 import feast.storage.noop.NoOpIO;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import java.util.List;
@@ -40,13 +40,13 @@ public class ErrorsStoreTransform extends FeatureIO.Write {
   private String errorsStoreType;
   private StorageSpec errorsStoreSpec;
   private Specs specs;
-  private List<ErrorsStore> errorsStores;
+  private List<FeatureErrorsStoreFactory> errorsStoreFactories;
 
   @Inject
   public ErrorsStoreTransform(
-      ImportJobPipelineOptions options, Specs specs, List<ErrorsStore> errorsStores) {
+      ImportJobPipelineOptions options, Specs specs, List<FeatureErrorsStoreFactory> errorsStoreFactories) {
     this.specs = specs;
-    this.errorsStores = errorsStores;
+    this.errorsStoreFactories = errorsStoreFactories;
     this.errorsStoreType = options.getErrorsStoreType();
 
     if (!Strings.isEmpty(errorsStoreType)) {
@@ -70,11 +70,11 @@ public class ErrorsStoreTransform extends FeatureIO.Write {
     return PDone.in(input.getPipeline());
   }
 
-  ErrorsStore getErrorStore() {
+  FeatureErrorsStoreFactory getErrorStore() {
     checkArgument(!errorsStoreType.isEmpty(), "Errors store type not provided");
-    for (ErrorsStore errorsStore : errorsStores) {
-      if (errorsStore.getType().equals(errorsStoreType)) {
-        return errorsStore;
+    for (FeatureErrorsStoreFactory errorsStoreFactory : errorsStoreFactories) {
+      if (errorsStoreFactory.getType().equals(errorsStoreType)) {
+        return errorsStoreFactory;
       }
     }
     throw new IllegalArgumentException("Errors store type not found");

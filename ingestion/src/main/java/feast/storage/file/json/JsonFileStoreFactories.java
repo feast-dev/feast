@@ -22,19 +22,19 @@ import feast.ingestion.model.Specs;
 import feast.ingestion.transform.FeatureIO.Write;
 import feast.options.OptionsParser;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.storage.ErrorsStore;
-import feast.storage.ServingStore;
-import feast.storage.WarehouseStore;
+import feast.storage.FeatureErrorsStoreFactory;
+import feast.storage.FeatureServingStoreFactory;
+import feast.storage.FeatureWarehouseStoreFactory;
 import feast.storage.file.FileStoreOptions;
 import lombok.AllArgsConstructor;
 
-public class JsonFileStores {
+public class JsonFileStoreFactories {
 
   private static final String JSON_FILES_TYPE = "file.json";
 
-  @AutoService(WarehouseStore.class)
+  @AutoService(FeatureWarehouseStoreFactory.class)
   @AllArgsConstructor
-  public static class JsonFileWarehouseStore implements WarehouseStore {
+  public static class JsonFileWarehouseStoreFactory implements FeatureWarehouseStoreFactory {
 
     @Override
     public Write create(StorageSpec storageSpec, Specs specs) {
@@ -50,9 +50,9 @@ public class JsonFileStores {
     }
   }
 
-  @AutoService(ServingStore.class)
+  @AutoService(FeatureServingStoreFactory.class)
   @AllArgsConstructor
-  public static class JsonFileServingStore implements ServingStore {
+  public static class JsonFileServingStoreFactory implements FeatureServingStoreFactory {
 
     @Override
     public Write create(StorageSpec storageSpec, Specs specs) {
@@ -68,9 +68,9 @@ public class JsonFileStores {
     }
   }
 
-  @AutoService(ErrorsStore.class)
+  @AutoService(FeatureErrorsStoreFactory.class)
   @AllArgsConstructor
-  public static class JsonFileErrorsStore implements ErrorsStore {
+  public static class JsonFileFeatureErrorsStoreFactory implements FeatureErrorsStoreFactory {
 
     @Override
     public Write create(StorageSpec storageSpec, Specs specs) {

@@ -37,7 +37,7 @@ import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.storage.FeatureStore;
+import feast.storage.FeatureStoreFactory;
 import feast.storage.MockFeatureStore;
 import feast.storage.MockTransforms;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
@@ -78,7 +78,7 @@ public class SplitOutputByStoreTest {
                 DataStores.newBuilder().setServing(DataStore.newBuilder().setId("store2"))).build())
         .addStorage(StorageSpec.newBuilder().setId("store1").setType("type1").build())
         .addStorage(StorageSpec.newBuilder().setId("store2").setType("type2").build());
-    List<FeatureStore> stores =
+    List<FeatureStoreFactory> stores =
         Lists.newArrayList(new MockFeatureStore("type1"), new MockFeatureStore("type2"));
     Specs specs =
         Specs.of(
@@ -186,7 +186,7 @@ public class SplitOutputByStoreTest {
         "store1", StorageSpec.newBuilder().setId("store1").setType("type1").build());
     specService.storageSpecs.put(
         "store2", StorageSpec.newBuilder().setId("store2").setType("type2").build());
-    List<FeatureStore> stores =
+    List<FeatureStoreFactory> stores =
         Lists.newArrayList(new MockFeatureStore("type1"), new MockFeatureStore("type2"));
     Specs specs =
         Specs.of(
@@ -284,7 +284,7 @@ public class SplitOutputByStoreTest {
                 .build(),
             specService);
     assertNull(specs.getError());
-    List<FeatureStore> stores = Collections.emptyList();
+    List<FeatureStoreFactory> stores = Collections.emptyList();
     SplitOutputByStore split = new SplitOutputByStore(stores, selector, specs);
 
     PCollection<FeatureRowExtended> input =
@@ -346,7 +346,7 @@ public class SplitOutputByStoreTest {
                 .build(),
             specService);
     assertNull(specs.getError());
-    List<FeatureStore> stores = Collections.emptyList();
+    List<FeatureStoreFactory> stores = Collections.emptyList();
     SplitOutputByStore split = new SplitOutputByStore(stores, selector, specs);
 
     PCollection<FeatureRowExtended> input =

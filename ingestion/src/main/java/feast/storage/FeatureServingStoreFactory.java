@@ -17,13 +17,4 @@
 
 package feast.storage;
 
-import com.google.auto.service.AutoService;
-
-@AutoService(ServingStore.class)
-public class MockServingStore extends MockFeatureStore implements ServingStore {
-  public static final String MOCK_SERVING_STORE_TYPE = "serving.mock";
-
-  public MockServingStore() {
-    super(MOCK_SERVING_STORE_TYPE);
-  }
-}
+public interface FeatureServingStoreFactory extends FeatureStoreFactory {}

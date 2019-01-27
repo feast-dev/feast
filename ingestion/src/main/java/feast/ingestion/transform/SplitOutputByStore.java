@@ -25,7 +25,7 @@ import feast.ingestion.transform.SplitFeatures.MultiOutputSplit;
 import feast.ingestion.values.PFeatureRows;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.storage.FeatureStore;
+import feast.storage.FeatureStoreFactory;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import java.util.Collection;
 import java.util.HashMap;
@@ -46,7 +46,7 @@ import org.apache.beam.sdk.values.TupleTag;
 @Slf4j
 public class SplitOutputByStore extends PTransform<PFeatureRows, PFeatureRows> {
 
-  private Collection<? extends FeatureStore> stores;
+  private Collection<? extends FeatureStoreFactory> stores;
   private SerializableFunction<FeatureSpec, String> selector;
   private Specs specs;
 
@@ -72,16 +72,16 @@ public class SplitOutputByStore extends PTransform<PFeatureRows, PFeatureRows> {
         input.getErrors());
   }
 
-  private Map<String, FeatureStore> getStoresMap() {
-    Map<String, FeatureStore> storesMap = new HashMap<>();
-    for (FeatureStore servingStore : stores) {
+  private Map<String, FeatureStoreFactory> getStoresMap() {
+    Map<String, FeatureStoreFactory> storesMap = new HashMap<>();
+    for (FeatureStoreFactory servingStore : stores) {
       storesMap.put(servingStore.getType(), servingStore);
     }
     return storesMap;
   }
 
   private Map<String, Write> getFeatureStoreTransforms() {
-    Map<String, FeatureStore> storesMap = getStoresMap();
+    Map<String, FeatureStoreFactory> storesMap = getStoresMap();
     Map<String, Write> transforms = new HashMap<>();
     Map<String, StorageSpec> storageSpecs = specs.getStorageSpecs();
     for (String storeId : storageSpecs.keySet()) {

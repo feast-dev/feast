@@ -31,10 +31,10 @@ import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.storage.ServingStore;
-import feast.storage.WarehouseStore;
-import feast.storage.service.ServingStoreService;
-import feast.storage.service.WarehouseStoreService;
+import feast.storage.FeatureServingStoreFactory;
+import feast.storage.FeatureWarehouseStoreFactory;
+import feast.storage.service.FeatureServingStoreFactoryService;
+import feast.storage.service.FeatureWarehouseStoreFactoryService;
 import feast.types.FeatureProto.Feature;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.GranularityProto.Granularity.Enum;
@@ -66,10 +66,10 @@ public class ValidateFeatureRowsDoFn extends BaseFeatureDoFn {
         featureIds.add(field.getFeatureId());
       }
     }
-    for (ServingStore store : ServingStoreService.getAll()) {
+    for (FeatureServingStoreFactory store : FeatureServingStoreFactoryService.getAll()) {
       supportedServingTypes.add(store.getType());
     }
-    for (WarehouseStore store : WarehouseStoreService.getAll()) {
+    for (FeatureWarehouseStoreFactory store : FeatureWarehouseStoreFactoryService.getAll()) {
       supportedWarehouseTypes.add(store.getType());
     }
   }

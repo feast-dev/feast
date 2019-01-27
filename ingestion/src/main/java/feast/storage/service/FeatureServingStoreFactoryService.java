@@ -17,35 +17,36 @@
 
 package feast.storage.service;
 
+import avro.shaded.com.google.common.collect.Lists;
 import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import feast.storage.ErrorsStore;
-import lombok.extern.slf4j.Slf4j;
-
+import feast.storage.FeatureServingStoreFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
+import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Service class for fetching all the FeatureServingStoreFactory instances available
+ */
 @Slf4j
-public class ErrorsStoreService {
-
-  private static ServiceLoader<ErrorsStore> serviceLoader = ServiceLoader.load(ErrorsStore.class);
-  private static List<ErrorsStore> manuallyRegistered = new ArrayList<>();
+public class FeatureServingStoreFactoryService {
+  private static ServiceLoader<FeatureServingStoreFactory> serviceLoader = ServiceLoader.load(FeatureServingStoreFactory.class);
+  private static List<FeatureServingStoreFactory> manuallyRegistered = new ArrayList<>();
 
   static {
-    for (ErrorsStore store : getAll()) {
-      log.info("ErrorsStore type found: " + store.getType());
+    for (FeatureServingStoreFactory store : getAll()) {
+      log.info("FeatureServingStoreFactory type found: " + store.getType());
     }
   }
 
-  public static List<ErrorsStore> getAll() {
+  public static List<FeatureServingStoreFactory> getAll() {
     return Lists.newArrayList(
         Iterators.concat(manuallyRegistered.iterator(), serviceLoader.iterator()));
   }
 
   /** Get store of the given subclass. */
-  public static <T extends ErrorsStore> T get(Class<T> clazz) {
-    for (ErrorsStore store : getAll()) {
+  public static <T extends FeatureServingStoreFactory> T get(Class<T> clazz) {
+    for (FeatureServingStoreFactory store : getAll()) {
       if (clazz.isInstance(store)) {
         //noinspection unchecked
         return (T) store;
@@ -54,7 +55,7 @@ public class ErrorsStoreService {
     return null;
   }
 
-  public static void register(ErrorsStore store) {
+  public static void register(FeatureServingStoreFactory store) {
     manuallyRegistered.add(store);
   }
 }

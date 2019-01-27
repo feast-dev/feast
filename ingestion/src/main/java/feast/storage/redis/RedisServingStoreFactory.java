@@ -15,7 +15,7 @@
  *
  */
 
-package feast.storage.bigquery;
+package feast.storage.redis;
 
 import com.google.auto.service.AutoService;
 import com.google.common.base.Preconditions;
@@ -23,25 +23,22 @@ import feast.ingestion.model.Specs;
 import feast.ingestion.transform.FeatureIO.Write;
 import feast.options.OptionsParser;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.storage.WarehouseStore;
+import feast.storage.FeatureServingStoreFactory;
 
-@AutoService(WarehouseStore.class)
-public class BigQueryWarehouseStore implements WarehouseStore {
-  public static String TYPE_BIGQUERY = "bigquery";
+@AutoService(FeatureServingStoreFactory.class)
+public class RedisServingStoreFactory implements FeatureServingStoreFactory {
+  public static final String TYPE_REDIS = "redis";
 
   @Override
   public Write create(StorageSpec storageSpec, Specs specs) {
     Preconditions.checkArgument(
-        storageSpec.getType().equals(TYPE_BIGQUERY), "Storage spec type was not " + TYPE_BIGQUERY);
-
-    BigQueryStoreOptions options =
-        OptionsParser.parse(storageSpec.getOptionsMap(), BigQueryStoreOptions.class);
-
-    return new FeatureRowBigQueryIO.Write(options, specs);
+        storageSpec.getType().equals(TYPE_REDIS), "Storage spec type was not " + TYPE_REDIS);
+    RedisStoreOptions options =
+        OptionsParser.parse(storageSpec.getOptionsMap(), RedisStoreOptions.class);
+    return new FeatureRowRedisIO.Write(options, specs);
   }
 
-  @Override
   public String getType() {
-    return TYPE_BIGQUERY;
+    return TYPE_REDIS;
   }
 }

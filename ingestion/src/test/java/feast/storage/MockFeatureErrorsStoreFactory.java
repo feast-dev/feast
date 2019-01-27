@@ -19,11 +19,12 @@ package feast.storage;
 
 import com.google.auto.service.AutoService;
 
-@AutoService(ErrorsStore.class)
-public class MockErrorsStore extends MockFeatureStore implements ErrorsStore {
+@AutoService(FeatureErrorsStoreFactory.class)
+public class MockFeatureErrorsStoreFactory extends MockFeatureStore implements
+    FeatureErrorsStoreFactory {
   public static final String MOCK_ERRORS_STORE_TYPE = "errors.mock";
 
-  public MockErrorsStore() {
+  public MockFeatureErrorsStoreFactory() {
     super(MOCK_ERRORS_STORE_TYPE);
   }
 }

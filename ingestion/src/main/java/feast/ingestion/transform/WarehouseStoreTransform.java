@@ -25,16 +25,16 @@ import org.apache.beam.sdk.transforms.ParDo;
 import feast.ingestion.metrics.FeastMetrics;
 import feast.ingestion.model.Specs;
 import feast.ingestion.values.PFeatureRows;
-import feast.storage.WarehouseStore;
+import feast.storage.FeatureWarehouseStoreFactory;
 
 @Slf4j
 public class WarehouseStoreTransform extends PTransform<PFeatureRows, PFeatureRows> {
 
-  private List<WarehouseStore> stores;
+  private List<FeatureWarehouseStoreFactory> stores;
   private Specs specs;
 
   @Inject
-  public WarehouseStoreTransform(List<WarehouseStore> stores, Specs specs) {
+  public WarehouseStoreTransform(List<FeatureWarehouseStoreFactory> stores, Specs specs) {
     this.stores = stores;
     this.specs = specs;
   }

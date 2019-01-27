@@ -15,24 +15,16 @@
  *
  */
 
-package feast.storage.noop;
+package feast.storage;
 
 import com.google.auto.service.AutoService;
-import feast.ingestion.model.Specs;
-import feast.ingestion.transform.FeatureIO.Write;
-import feast.specs.StorageSpecProto.StorageSpec;
-import feast.storage.ServingStore;
 
-@AutoService(ServingStore.class)
-public class NoOpServingStore implements ServingStore {
+@AutoService(FeatureServingStoreFactory.class)
+public class MockServingStoreFactory extends MockFeatureStore implements
+    FeatureServingStoreFactory {
+  public static final String MOCK_SERVING_STORE_TYPE = "serving.mock";
 
-  @Override
-  public Write create(StorageSpec storageSpec, Specs specs) {
-    return new NoOpIO.Write();
-  }
-
-  @Override
-  public String getType() {
-    return "noop";
+  public MockServingStoreFactory() {
+    super(MOCK_SERVING_STORE_TYPE);
   }
 }

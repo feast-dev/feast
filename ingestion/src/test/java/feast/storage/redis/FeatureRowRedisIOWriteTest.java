@@ -110,7 +110,7 @@ public class FeatureRowRedisIOWriteTest {
 
     Specs specs = getSpecs();
     specs.validate();
-    new RedisServingStore().create(specs.getStorageSpec("REDIS1"), specs);
+    new RedisServingStoreFactory().create(specs.getStorageSpec("REDIS1"), specs);
     FeatureRowRedisIO.Write write =
         new FeatureRowRedisIO.Write(
             RedisStoreOptions.builder().host("localhost").port(REDIS_PORT).build(), specs);
@@ -154,7 +154,7 @@ public class FeatureRowRedisIOWriteTest {
   @Test
   public void testWriteNoneGranularityFromOptions() throws IOException {
     Specs specs = getSpecs();
-    FeatureIO.Write write = new RedisServingStore().create(specs.getStorageSpec("REDIS1"), specs);
+    FeatureIO.Write write = new RedisServingStoreFactory().create(specs.getStorageSpec("REDIS1"), specs);
 
     FeatureRowExtended rowExtended =
         FeatureRowExtended.newBuilder()
@@ -195,7 +195,7 @@ public class FeatureRowRedisIOWriteTest {
   @Test
   public void testWriteHourGranularity() throws IOException {
     Specs specs = getSpecs();
-    FeatureIO.Write write = new RedisServingStore().create(specs.getStorageSpec("REDIS1"), specs);
+    FeatureIO.Write write = new RedisServingStoreFactory().create(specs.getStorageSpec("REDIS1"), specs);
 
     FeatureRowExtended rowExtended =
         FeatureRowExtended.newBuilder()

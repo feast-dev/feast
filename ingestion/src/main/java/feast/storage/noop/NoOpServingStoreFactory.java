@@ -15,19 +15,24 @@
  *
  */
 
-package feast.storage;
+package feast.storage.noop;
 
-import feast.specs.FeatureSpecProto.FeatureSpec;
-import java.util.List;
-import lombok.Value;
+import com.google.auto.service.AutoService;
+import feast.ingestion.model.Specs;
+import feast.ingestion.transform.FeatureIO.Write;
+import feast.specs.StorageSpecProto.StorageSpec;
+import feast.storage.FeatureServingStoreFactory;
 
-/**
- * This class is for notifying storage plugins about new or changed FeatureSpecs so they can update
- * appropriate schemas.
- */
-@Value
-public class FeatureStoreMigration {
-  List<FeatureSpec> create;
-  List<FeatureSpec> drop;
-  List<FeatureSpec> update;
+@AutoService(FeatureServingStoreFactory.class)
+public class NoOpServingStoreFactory implements FeatureServingStoreFactory {
+
+  @Override
+  public Write create(StorageSpec storageSpec, Specs specs) {
+    return new NoOpIO.Write();
+  }
+
+  @Override
+  public String getType() {
+    return "noop";
+  }
 }

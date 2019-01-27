@@ -15,25 +15,33 @@
  *
  */
 
-package feast.storage.noop;
+package feast.storage.bigquery;
 
 import com.google.auto.service.AutoService;
+import com.google.common.base.Preconditions;
 import feast.ingestion.model.Specs;
 import feast.ingestion.transform.FeatureIO.Write;
+import feast.options.OptionsParser;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.storage.ServingStore;
-import feast.storage.WarehouseStore;
+import feast.storage.FeatureWarehouseStoreFactory;
 
-@AutoService(WarehouseStore.class)
-public class NoOpWarehouseStore implements WarehouseStore {
+@AutoService(FeatureWarehouseStoreFactory.class)
+public class BigQueryWarehouseStoreFactory implements FeatureWarehouseStoreFactory {
+  public static String TYPE_BIGQUERY = "bigquery";
 
   @Override
   public Write create(StorageSpec storageSpec, Specs specs) {
-    return new NoOpIO.Write();
+    Preconditions.checkArgument(
+        storageSpec.getType().equals(TYPE_BIGQUERY), "Storage spec type was not " + TYPE_BIGQUERY);
+
+    BigQueryStoreOptions options =
+        OptionsParser.parse(storageSpec.getOptionsMap(), BigQueryStoreOptions.class);
+
+    return new FeatureRowBigQueryIO.Write(options, specs);
   }
 
   @Override
   public String getType() {
-    return "noop";
+    return TYPE_BIGQUERY;
   }
 }

@@ -21,7 +21,7 @@ import feast.ingestion.model.Specs;
 import feast.specs.StorageSpecProto.StorageSpec;
 import lombok.Getter;
 
-public class MockFeatureStore implements FeatureStore {
+public class MockFeatureStore implements FeatureStoreFactory {
 
   private final String type;
   @Getter private MockTransforms.Write write;

@@ -21,11 +21,11 @@ import com.google.auto.service.AutoService;
 import feast.ingestion.model.Specs;
 import feast.ingestion.transform.FeatureIO.Write;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.storage.ErrorsStore;
+import feast.storage.FeatureErrorsStoreFactory;
 import org.slf4j.event.Level;
 
-@AutoService(ErrorsStore.class)
-public class StderrErrorsStore implements ErrorsStore {
+@AutoService(FeatureErrorsStoreFactory.class)
+public class StderrFeatureErrorsStoreFactory implements FeatureErrorsStoreFactory {
 
   public static final String TYPE_STDERR = "stderr";
   

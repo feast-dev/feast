@@ -19,32 +19,35 @@ package feast.storage.service;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import feast.storage.FeatureWarehouseStoreFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
 import lombok.extern.slf4j.Slf4j;
-import feast.storage.WarehouseStore;
 
+/**
+ * Service class for fetching all the FeatureWarehouseStoreFactory instances available
+ */
 @Slf4j
-public class WarehouseStoreService {
-  private static ServiceLoader<WarehouseStore> serviceLoader =
-      ServiceLoader.load(WarehouseStore.class);
-  private static List<WarehouseStore> manuallyRegistered = new ArrayList<>();
+public class FeatureWarehouseStoreFactoryService {
+  private static ServiceLoader<FeatureWarehouseStoreFactory> serviceLoader =
+      ServiceLoader.load(FeatureWarehouseStoreFactory.class);
+  private static List<FeatureWarehouseStoreFactory> manuallyRegistered = new ArrayList<>();
 
   static {
-    for (WarehouseStore store : getAll()) {
-      log.info("WarehouseStore type found: " + store.getType());
+    for (FeatureWarehouseStoreFactory store : getAll()) {
+      log.info("FeatureWarehouseStoreFactory type found: " + store.getType());
     }
 }
 
-  public static List<WarehouseStore> getAll() {
+  public static List<FeatureWarehouseStoreFactory> getAll() {
     return Lists.newArrayList(
         Iterators.concat(manuallyRegistered.iterator(), serviceLoader.iterator()));
   }
 
   /** Get store of the given subclass. */
-  public static <T extends WarehouseStore> T get(Class<T> clazz) {
-    for (WarehouseStore store : getAll()) {
+  public static <T extends FeatureWarehouseStoreFactory> T get(Class<T> clazz) {
+    for (FeatureWarehouseStoreFactory store : getAll()) {
       if (clazz.isInstance(store)) {
         //noinspection unchecked
         return (T) store;
@@ -53,7 +56,7 @@ public class WarehouseStoreService {
     return null;
   }
 
-  public static void register(WarehouseStore store) {
+  public static void register(FeatureWarehouseStoreFactory store) {
     manuallyRegistered.add(store);
   }
   }

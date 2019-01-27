@@ -21,7 +21,7 @@ import com.google.inject.Inject;
 import feast.ingestion.metrics.FeastMetrics;
 import feast.ingestion.model.Specs;
 import feast.ingestion.values.PFeatureRows;
-import feast.storage.ServingStore;
+import feast.storage.FeatureServingStoreFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -31,11 +31,11 @@ import java.util.List;
 @Slf4j
 public class ServingStoreTransform extends PTransform<PFeatureRows, PFeatureRows> {
 
-  private List<ServingStore> stores;
+  private List<FeatureServingStoreFactory> stores;
   private Specs specs;
 
   @Inject
-  public ServingStoreTransform(List<ServingStore> stores, Specs specs) {
+  public ServingStoreTransform(List<FeatureServingStoreFactory> stores, Specs specs) {
     this.stores = stores;
     this.specs = specs;
   }

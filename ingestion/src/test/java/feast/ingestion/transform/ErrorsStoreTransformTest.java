@@ -18,14 +18,14 @@
 package feast.ingestion.transform;
 
 import static feast.ingestion.model.Errors.toError;
-import static feast.storage.MockErrorsStore.MOCK_ERRORS_STORE_TYPE;
+import static feast.storage.MockFeatureErrorsStoreFactory.MOCK_ERRORS_STORE_TYPE;
 
 import feast.ingestion.model.Specs;
 import feast.ingestion.options.ImportJobPipelineOptions;
-import feast.storage.MockErrorsStore;
-import feast.storage.service.ErrorsStoreService;
-import feast.storage.stderr.StderrErrorsStore;
-import feast.storage.stderr.StdoutErrorsStore;
+import feast.storage.MockFeatureErrorsStoreFactory;
+import feast.storage.service.FeatureErrorsStoreFactoryService;
+import feast.storage.stderr.StderrFeatureErrorsStoreFactory;
+import feast.storage.stderr.StdoutFeatureErrorsStoreFactory;
 import feast.types.FeatureRowExtendedProto.Attempt;
 import feast.types.FeatureRowExtendedProto.Error;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
@@ -75,7 +75,7 @@ public class ErrorsStoreTransformTest {
 
   @Test
   public void shouldWriteToGivenErrorsStore() {
-    MockErrorsStore mockStore = new MockErrorsStore();
+    MockFeatureErrorsStoreFactory mockStore = new MockFeatureErrorsStoreFactory();
     options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
     ErrorsStoreTransform transform =
         new ErrorsStoreTransform(options, specs, Lists.newArrayList(mockStore));
@@ -91,9 +91,9 @@ public class ErrorsStoreTransformTest {
 
   @Test
   public void logErrorsToStdErr() {
-    options.setErrorsStoreType(StderrErrorsStore.TYPE_STDERR);
+    options.setErrorsStoreType(StderrFeatureErrorsStoreFactory.TYPE_STDERR);
     ErrorsStoreTransform transform =
-        new ErrorsStoreTransform(options, specs, ErrorsStoreService.getAll());
+        new ErrorsStoreTransform(options, specs, FeatureErrorsStoreFactoryService.getAll());
     inputs.apply(transform);
     pipeline.run();
   }
@@ -101,9 +101,9 @@ public class ErrorsStoreTransformTest {
 
   @Test
   public void logErrorsToStdOut() {
-    options.setErrorsStoreType(StdoutErrorsStore.TYPE_STDOUT);
+    options.setErrorsStoreType(StdoutFeatureErrorsStoreFactory.TYPE_STDOUT);
     ErrorsStoreTransform transform =
-        new ErrorsStoreTransform(options, specs, ErrorsStoreService.getAll());
+        new ErrorsStoreTransform(options, specs, FeatureErrorsStoreFactoryService.getAll());
     inputs.apply(transform);
     pipeline.run();
   }
@@ -112,7 +112,7 @@ public class ErrorsStoreTransformTest {
   public void logToNull() {
     //options.setErrorsStoreType(...); // no errors store type set
     ErrorsStoreTransform transform =
-        new ErrorsStoreTransform(options, specs, ErrorsStoreService.getAll());
+        new ErrorsStoreTransform(options, specs, FeatureErrorsStoreFactoryService.getAll());
     inputs.apply(transform);
     pipeline.run();
   }

@@ -17,12 +17,14 @@
 
 package feast.storage;
 
-import feast.ingestion.model.Specs;
-import feast.ingestion.transform.FeatureIO;
-import feast.specs.StorageSpecProto.StorageSpec;
+import com.google.auto.service.AutoService;
 
-public interface FeatureStore {
-  FeatureIO.Write create(StorageSpec storageSpec, Specs specs);
+@AutoService(FeatureWarehouseStoreFactory.class)
+public class MockWarehouseStoreFactory extends MockFeatureStore implements
+    FeatureWarehouseStoreFactory {
+  public static final String MOCK_WAREHOUSE_STORE_TYPE = "warehouse.mock";
 
-  String getType();
+  public MockWarehouseStoreFactory() {
+    super(MOCK_WAREHOUSE_STORE_TYPE);
+  }
 }

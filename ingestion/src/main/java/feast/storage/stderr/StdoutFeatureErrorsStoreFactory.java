@@ -15,30 +15,27 @@
  *
  */
 
-package feast.storage.redis;
+package feast.storage.stderr;
 
 import com.google.auto.service.AutoService;
-import com.google.common.base.Preconditions;
 import feast.ingestion.model.Specs;
 import feast.ingestion.transform.FeatureIO.Write;
-import feast.options.OptionsParser;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.storage.ServingStore;
+import feast.storage.FeatureErrorsStoreFactory;
+import org.slf4j.event.Level;
 
-@AutoService(ServingStore.class)
-public class RedisServingStore implements ServingStore {
-  public static final String TYPE_REDIS = "redis";
+@AutoService(FeatureErrorsStoreFactory.class)
+public class StdoutFeatureErrorsStoreFactory implements FeatureErrorsStoreFactory {
+
+  public static final String TYPE_STDOUT = "stdout";
 
   @Override
   public Write create(StorageSpec storageSpec, Specs specs) {
-    Preconditions.checkArgument(
-        storageSpec.getType().equals(TYPE_REDIS), "Storage spec type was not " + TYPE_REDIS);
-    RedisStoreOptions options =
-        OptionsParser.parse(storageSpec.getOptionsMap(), RedisStoreOptions.class);
-    return new FeatureRowRedisIO.Write(options, specs);
+    return new LogIO.Write(Level.INFO);
   }
 
+  @Override
   public String getType() {
-    return TYPE_REDIS;
+    return TYPE_STDOUT;
   }
 }
