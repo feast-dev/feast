@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static feast.core.validators.Matchers.checkLowerSnakeCase;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import feast.core.dao.EntityInfoRepository;
@@ -40,6 +41,8 @@ import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -256,6 +259,19 @@ public class SpecValidator {
             entityInfoRepository.existsById(name),
             Strings.lenientFormat("Entity %s not registered", name));
       }
+      Map<String, String> jobOptions = spec.getJobOptionsMap();
+      if (jobOptions.size() > 0) {
+        List<String> opts = Lists.newArrayList(
+            "sample.limit",
+            "coalesceRows.enabled",
+            "coalesceRows.delaySeconds",
+            "coalesceRows.timeoutSeconds"
+        );
+        for (String key : jobOptions.keySet()) {
+          Preconditions.checkArgument(opts.contains(key),
+              Strings.lenientFormat("Option %s is not a valid jobOption", key));
+        }
+      }
     } catch (NullPointerException | IllegalArgumentException e) {
       throw new IllegalArgumentException(
           Strings.lenientFormat("Validation for import spec failed: %s", e.getMessage()));
@@ -278,7 +294,8 @@ public class SpecValidator {
 
   private void checkFileImportSpecOption(ImportSpec spec) throws IllegalArgumentException {
     try {
-      checkArgument(!spec.getSourceOptionsOrDefault("path", "").equals(""), "File path cannot be empty");
+      checkArgument(!spec.getSourceOptionsOrDefault("path", "").equals(""),
+          "File path cannot be empty");
     } catch (NullPointerException | IllegalArgumentException e) {
       throw new IllegalArgumentException(
           Strings.lenientFormat("Invalid options: %s", e.getMessage()));
@@ -305,7 +322,8 @@ public class SpecValidator {
           "Bigquery project cannot be empty");
       checkArgument(!spec.getSourceOptionsOrThrow("dataset").equals(""),
           "Bigquery dataset cannot be empty");
-      checkArgument(!spec.getSourceOptionsOrThrow("table").equals(""), "Bigquery table cannot be empty");
+      checkArgument(!spec.getSourceOptionsOrThrow("table").equals(""),
+          "Bigquery table cannot be empty");
     } catch (NullPointerException | IllegalArgumentException e) {
       throw new IllegalArgumentException(
           Strings.lenientFormat("Invalid options: %s", e.getMessage()));

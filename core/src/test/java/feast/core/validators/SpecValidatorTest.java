@@ -811,6 +811,61 @@ public class SpecValidatorTest {
   }
 
   @Test
+  public void importSpecWithCoalesceJobOptionsShouldPassValidation() {
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    when(featureInfoRepository.existsById("some_existing_feature")).thenReturn(true);
+    when(entityInfoRepository.existsById("someEntity")).thenReturn(true);
+    Schema schema =
+        Schema.newBuilder()
+            .addFields(Field.newBuilder().setFeatureId("some_existing_feature").build())
+            .build();
+    ImportSpec input =
+        ImportSpec.newBuilder()
+            .setType("kafka")
+            .putSourceOptions("topics", "my-kafka-topic")
+            .putSourceOptions("server", "localhost:54321")
+            .putJobOptions("coalesceRows.enabled", "true")
+            .putJobOptions("coalesceRows.delaySeconds", "10000")
+            .putJobOptions("coalesceRows.timeoutSeconds", "20000")
+            .putJobOptions("sample.limit", "1000")
+            .setSchema(schema)
+            .addEntities("someEntity")
+            .build();
+    validator.validateImportSpec(input);
+  }
+
+  @Test
+  public void importSpecWithLimitJobOptionsShouldPassValidation() {
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    when(featureInfoRepository.existsById("some_existing_feature")).thenReturn(true);
+    when(entityInfoRepository.existsById("someEntity")).thenReturn(true);
+    Schema schema =
+        Schema.newBuilder()
+            .addFields(Field.newBuilder().setFeatureId("some_existing_feature").build())
+            .build();
+    ImportSpec input =
+        ImportSpec.newBuilder()
+            .setType("kafka")
+            .putSourceOptions("topics", "my-kafka-topic")
+            .putSourceOptions("server", "localhost:54321")
+            .putJobOptions("sample.limit", "1000")
+            .setSchema(schema)
+            .addEntities("someEntity")
+            .build();
+    validator.validateImportSpec(input);
+  }
+
+  @Test
   public void importSpecWithKafkaSourceWithoutOptionsShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
