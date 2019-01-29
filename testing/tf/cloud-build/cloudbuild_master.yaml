@@ -1,0 +1,19 @@
+steps:
+- name: maven:3.6.0-jdk-8-slim
+  args: ['mvn', 'clean', 'install', '-Drevision=$COMMIT_SHA']
+  id: build-jars
+
+- name: "gcr.io/cloud-builders/docker"
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/feast-core:$COMMIT_SHA', '-t', 'gcr.io/$PROJECT_ID/feast-core:latest', '--build-arg', 'RELEASE=$COMMIT_SHA', '-f', './docker/core/Dockerfile', '.']
+  id: docker-core
+  waitFor: 
+  - build-jars
+
+- name: "gcr.io/cloud-builders/docker"
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/feast-serving:$COMMIT_SHA', '-t', 'gcr.io/$PROJECT_ID/feast-serving:latest', '--build-arg', 'RELEASE=$COMMIT_SHA', '-f', './docker/serving/Dockerfile', '.']
+  id: docker-serving
+  waitFor: 
+  - build-jars
+
+timeout: 1200s
+images: ['gcr.io/$PROJECT_ID/feast-core:latest', 'gcr.io/$PROJECT_ID/feast-core:$COMMIT_SHA', 'gcr.io/$PROJECT_ID/feast-serving:latest', 'gcr.io/$PROJECT_ID/feast-serving:$COMMIT_SHA']
