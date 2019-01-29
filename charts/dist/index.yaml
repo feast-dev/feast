@@ -3,11 +3,11 @@ entries:
   feast:
   - apiVersion: v1
     appVersion: 0.1.0
-    created: 2019-01-23T15:59:57.223680331+08:00
+    created: 2019-01-29T17:38:41.064665659+08:00
     description: A Helm chart to install Feast on kubernetes
-    digest: 1b392c4fa1e3b7cff7afb1dc635a248d86c0c05d8b02b6fc4e884c20f6a03ff2
+    digest: 099023ae667dd8129fbf72adf14732cf1f32af60784d694634ef4e1983957a5a
     name: feast
     urls:
     - feast-0.1.0.tgz
     version: 0.1.0
-generated: 2019-01-23T15:59:57.222635289+08:00
+generated: 2019-01-29T17:38:41.063588825+08:00

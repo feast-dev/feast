@@ -14,6 +14,12 @@ spec:
   type: LoadBalancer
   {{- if .Values.core.service.extIPAdr }}
   loadBalancerIP: {{ .Values.core.service.extIPAdr }}
+  {{- if .Values.core.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+  {{- range .Values.core.service.loadBalancerSourceRanges }}
+  - {{ . }}
+  {{- end }}
+  {{- end }}
   {{- end }}
   ports:
   - name: http
