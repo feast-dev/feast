@@ -73,7 +73,8 @@ The following table lists the configurable parameters of the Feast chart and the
 | `core.resources.limits.memory` | core memory limits | 2G |
 | `core.resources.requests.cpu` | core cpu requested | 1 |
 | `core.resources.requests.memory` | core memory requested | 2G |
-| `core.service.extIPAdr` | external IP address for core, required so jobs on external runners can connect to core | nil | 
+| `core.service.extIPAdr` | Internal load balancer IP Address for core, required so jobs on external runners can connect to core | nil | 
+| `core.service.loadBalancerSourceRanges` | IP source ranges that will have access to core. If not set, will default to 0.0.0.0/0 | nil | 
 | `core.service.grpc.port` | core service exposed grpc port | 8433 |
 | `core.service.grpc.targetPort` | core service target grpc port | 8433 |
 | `core.service.http.port` | core service exposed http port | 80 |
@@ -101,6 +102,8 @@ The following table lists the configurable parameters of the Feast chart and the
 | `serving.service.grpc.targetPort` | serving service target grpc port | 8433 |
 | `serving.service.http.port` | serving service exposed http port | 80 |
 | `serving.service.http.targetPort` | serving service target http port | 8080 |
+| `serving.service.extIPAdr` | Internal load balancer IP Address for serving, required so jobs on external runners can connect to the service | nil | 
+| `serving.service.loadBalancerSourceRanges` | IP source ranges that will have access to serving. If not set, will default to 0.0.0.0/0 | nil |
 | `serviceAccount.name` | service account secret name to mount to deployments | nil | 
 | `serviceAccount.key` | service account secret key to mount to deployments | nil | 
 | `statsd.host` | host of statsd daemon for job metrics to be sent to | nil | 
