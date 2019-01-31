@@ -64,7 +64,6 @@
                         <goals>
                             <goal>yarn</goal>
                         </goals>
-                        <phase>compile</phase>
                         <configuration>
                             <arguments>run build</arguments>
                         </configuration>
