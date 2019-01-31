@@ -227,7 +227,7 @@ public class SpecServiceTest {
             featureGroupInfoRepository,
             schemaManager);
     exception.expect(RetrievalException.class);
-    exception.expectMessage("unable to retrieve all features requested");
+    exception.expectMessage("unable to retrieve all features requested: " + ids);
     specService.getFeatures(ids);
   }
 
@@ -304,7 +304,7 @@ public class SpecServiceTest {
             schemaManager);
 
     exception.expect(RetrievalException.class);
-    exception.expectMessage("unable to retrieve all storage requested");
+    exception.expectMessage("unable to retrieve all storage requested: " + ids);
     specService.getStorage(ids);
   }
 
