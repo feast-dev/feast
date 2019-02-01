@@ -168,7 +168,10 @@ public class RedisCustomIO {
         }
         batchCount++;
         if (batchCount >= batchSize) {
-          exec();
+          pipeline.exec();
+          pipeline.sync();
+          pipeline.multi();
+          batchCount = 0;
         }
       }
 
@@ -192,19 +195,13 @@ public class RedisCustomIO {
         }
       }
 
-      private void exec() {
-        // LOGGER.info("Flushing pipeline");
-        if (!pipeline.isInMulti()) {
-          pipeline.multi();
-        }
-        pipeline.exec();
-        pipeline.multi();
-        batchCount = 0;
-      }
-
       @FinishBundle
       public void finishBundle() {
-        exec();
+        if (pipeline.isInMulti()) {
+          pipeline.exec();
+          pipeline.sync();
+        }
+        batchCount = 0;
       }
 
       @Teardown
