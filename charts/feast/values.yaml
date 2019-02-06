@@ -36,6 +36,8 @@ core:
 
 postgresql: 
   name: feast-metadata
+  imageTag: 9.6
+  postgresPassword: password
   service: 
     port: 5432
 provisionDataStore: 
