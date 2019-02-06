@@ -17,19 +17,26 @@
   -->
 
 <Configuration status="WARN">
+    <Properties>
+        <Property name="LOG_PATTERN">
+            %d{yyyy-MM-dd HH:mm:ss.SSS} %5p ${hostName} --- [%15.15t] %-40.40c{1.} : %m%n%ex
+        </Property>
+        <Property name="APPENDER_TYPE">${env:LOG_TYPE:-Console}</Property>
+    </Properties>
     <CustomLevels>
         <CustomLevel name="AUDIT" intLevel="350" />
     </CustomLevels>
-
     <Appenders>
-        <Console name="JSONConsoleAppender" target="SYSTEM_OUT" follow="true">
-            <JsonLayout compact="true" eventEol="true" objectMessageAsJsonObject="true" />
+        <Console name="ConsoleAppender" target="SYSTEM_OUT" follow="true">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+        </Console>
+        <Console name="JSONAppender" target="SYSTEM_OUT" follow="true">
+            <JsonLayout  compact="true" eventEol="true" objectMessageAsJsonObject="true" />
         </Console>
     </Appenders>
-
     <Loggers>
         <Root level="info">
-            <AppenderRef ref="JSONConsoleAppender" />
+            <AppenderRef ref="${APPENDER_TYPE}Appender" />
         </Root>
     </Loggers>
 </Configuration>
