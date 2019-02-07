@@ -75,6 +75,8 @@ spec:
               secretKeyRef:
                 name: {{ template "postgresql.fullname" . }}
                 key: postgres-password
+          - name: LOG_TYPE
+            value: {{ .Values.core.logType }}
           - name: PROJECT_ID
             value: "{{ .Values.core.projectId}}"
           - name: TRAINING_DATASET_PREFIX
@@ -90,7 +92,7 @@ spec:
           - name: JOB_MONITOR_INITIAL_DELAY_MS
             value: "{{ .Values.core.jobs.monitoring.initialDelay }}"
           - name: JOB_ERRORS_STORE_TYPE
-            value: {{ .Values.core.jobs.errorsStoreType }}
+            value: {{ .Values.core.jobs.errorStoreType }}
           - name: JOB_ERRORS_STORE_OPTIONS
             value: {{ .Values.core.jobs.errorStoreOptions | toJson}}
           - name: STATSD_HOST
