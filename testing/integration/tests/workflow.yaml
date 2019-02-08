@@ -24,7 +24,7 @@ spec:
         arguments:
           parameters:
           - name: arg
-            value: "-var revision={{workflow.parameters.revision}} -var docker_tag=coalesce -auto-approve ."
+            value: "apply -var revision={{workflow.parameters.revision}} -var docker_tag=coalesce -auto-approve ."
           artifacts:
           - name: feast
             from: "{{steps.get-feast.outputs.artifacts.feast}}"
@@ -38,6 +38,15 @@ spec:
             from: "{{steps.get-feast.outputs.artifacts.feast}}"
           - name: feast-cli
             from: "{{steps.build-cli.outputs.artifacts.feast-cli}}"
+    - - name: terraform-destroy
+        template: terraform
+        arguments:
+          parameters:
+          - name: arg
+            value: "destroy -var revision={{workflow.parameters.revision}} -var docker_tag=coalesce -auto-approve ."
+          artifacts:
+          - name: feast
+            from: "{{steps.get-feast.outputs.artifacts.feast}}"
 
   - name: get-feast
     container:
@@ -74,12 +83,12 @@ spec:
       - name: feast-cli
         path: /bin/feast
     container:
-      image: hashicorp/terraform:light
+      image: gcr.io/kf-feast/terraform:light
       workingDir: /feast/testing/integration/tests/tf
       command: ["sh", "-c"]
       args: ['
         terraform init; 
-        terraform apply {{inputs.parameters.arg}}
+        terraform {{inputs.parameters.arg}}
       ']
   - name: run-test
     inputs:
@@ -97,3 +106,8 @@ spec:
         pytest -s
       ']
       workingDir: /feast/testing/integration/tests
+      env:
+      - name: FEAST_CORE_URL
+        value: "10.128.0.99:6565"
+      - name: FEAST_SERVING_URL
+        value: "10.128.0.100:6566"

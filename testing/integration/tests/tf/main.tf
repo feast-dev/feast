@@ -118,7 +118,6 @@ resource "null_resource" "feast_register" {
 
     # for local testing, you might want to set feast to send to localhost instead
     # command = "feast config set coreURI localhost:6565 && feast apply storage redis.yaml && feast apply storage bigquery.yaml"
-    interpreter = ["/bin/bash", "-c"]
   }
 
   depends_on = ["local_file.redis_spec", "local_file.bigquery_spec", "module.feast"]
