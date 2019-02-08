@@ -78,7 +78,6 @@ public class CoalesceFeatureRows extends
 
   CoalesceFeatureRows() {
     this(0, 0);
-
   }
 
   public CoalesceFeatureRows(long delaySeconds, long timeoutSeconds) {

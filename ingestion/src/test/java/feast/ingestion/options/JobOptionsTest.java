@@ -31,7 +31,7 @@ public class JobOptionsTest {
   @Test
   public void test_shouldParseAll() {
     Map<String, String> map = new HashMap<>();
-    map.put("coalesceRows.enabled", "true");
+    map.put("coalesceRows.enabled", "false");
     map.put("coalesceRows.delaySeconds", "123");
     map.put("coalesceRows.timeoutSeconds", "1800");
     map.put("sample.limit", "1234");
@@ -40,7 +40,7 @@ public class JobOptionsTest {
     JobOptions options = OptionsParser.parse(map, JobOptions.class);
     assertEquals(options.getSampleLimit(), 1234L);
     assertEquals(options.getCoalesceRowsDelaySeconds(), 123L);
-    assertTrue(options.isCoalesceRowsEnabled());
+    assertFalse(options.isCoalesceRowsEnabled());
     assertEquals(options.getCoalesceRowsTimeoutSeconds(), 1800L);
   }
 
@@ -49,7 +49,7 @@ public class JobOptionsTest {
     JobOptions options = OptionsParser.parse(new HashMap<>(), JobOptions.class);
     assertEquals(options.getSampleLimit(), 0L);
     assertEquals(options.getCoalesceRowsDelaySeconds(), 0L);
-    assertFalse(options.isCoalesceRowsEnabled());
+    assertTrue(options.isCoalesceRowsEnabled()); //defaults to true
     assertEquals(options.getCoalesceRowsTimeoutSeconds(), 0L);
   }
 

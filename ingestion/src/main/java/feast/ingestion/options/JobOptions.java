@@ -28,7 +28,7 @@ import feast.options.Options;
 public class JobOptions implements Options {
 
   private long sampleLimit;
-  private boolean coalesceRowsEnabled;
+  private boolean coalesceRowsEnabled = true;
   private long coalesceRowsDelaySeconds;
   private long coalesceRowsTimeoutSeconds;
 
