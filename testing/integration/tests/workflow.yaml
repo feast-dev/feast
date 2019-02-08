@@ -1,0 +1,99 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: feast-integration-test-
+spec:
+  entrypoint: run
+  arguments:
+    parameters:
+    - name: revision
+      value: integration-test
+  templates:
+  - name: run
+    steps:
+    - - name: get-feast
+        template: get-feast
+    - - name: build-cli
+        template: build-cli
+        arguments:
+          artifacts:
+          - name: feast
+            from: "{{steps.get-feast.outputs.artifacts.feast}}"
+    - - name: terraform-provision
+        template: terraform
+        arguments:
+          parameters:
+          - name: arg
+            value: "-var revision={{workflow.parameters.revision}} -var docker_tag=coalesce -auto-approve ."
+          artifacts:
+          - name: feast
+            from: "{{steps.get-feast.outputs.artifacts.feast}}"
+          - name: feast-cli
+            from: "{{steps.build-cli.outputs.artifacts.feast-cli}}"
+    - - name: test
+        template: run-test
+        arguments:
+          artifacts:
+          - name: feast
+            from: "{{steps.get-feast.outputs.artifacts.feast}}"
+          - name: feast-cli
+            from: "{{steps.build-cli.outputs.artifacts.feast-cli}}"
+
+  - name: get-feast
+    container:
+      image: alpine/git
+      args: ["clone", "--single-branch", "--branch", "{{workflow.parameters.revision}}", "https://github.com/zhilingc/feast"]
+    outputs:
+      artifacts:
+      - name: feast
+        path: /git/feast
+  - name: build-cli
+    inputs:
+      artifacts:
+      - name: feast
+        path: /go/src/github.com/gojek/feast
+    container:
+      image: grpc/go
+      command: ["/bin/bash", "-c"]
+      args: ['
+        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh;
+        make build-cli
+      ']
+      workingDir: /go/src/github.com/gojek/feast
+    outputs: 
+      artifacts:
+      - name: feast-cli
+        path: /go/src/github.com/gojek/feast/cli/bin/linux-amd64/feast
+  - name: terraform
+    inputs:
+      parameters:
+      - name: arg
+      artifacts:
+      - name: feast
+        path: /feast
+      - name: feast-cli
+        path: /bin/feast
+    container:
+      image: hashicorp/terraform:light
+      workingDir: /feast/testing/integration/tests/tf
+      command: ["sh", "-c"]
+      args: ['
+        terraform init; 
+        terraform apply {{inputs.parameters.arg}}
+      ']
+  - name: run-test
+    inputs:
+      artifacts:
+      - name: feast-cli
+        path: /bin/feast
+      - name: feast
+        path: /feast
+    container:
+      image: python:3.7.2
+      command: ["/bin/bash", "-c"]
+      args: ['
+        pip install -r /feast/sdk/python/test-requirements.txt;
+        pip install -e /feast/sdk/python;
+        pytest -s
+      ']
+      workingDir: /feast/testing/integration/tests

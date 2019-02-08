@@ -1,0 +1,13 @@
+id: myentity.minute.feature_float_redis
+name: feature_float_redis
+entity: myentity
+owner: bob@example.com
+description: test entity.
+valueType:  FLOAT
+granularity: MINUTE
+uri: https://github.com/bob/example
+dataStores:
+  serving:
+    id: REDIS
+  warehouse:
+    id: BIGQUERY
