@@ -62,8 +62,8 @@ The following table lists the configurable parameters of the Feast chart and the
 | `core.image.registry` | core docker image registry | feast | 
 | `core.image.repository` | core docker image repository | feast-core | 
 | `core.image.tag` | core docker image version | 0.1.0 | 
-| `core.jobs.errorsStoreId` | type of errors store to write errors to. One of `stdout`, `stderr`, `file.json` | stdout | 
-| `core.jobs.errorsStoreOptions` | additional options for the error store in json string format | `{}` | 
+| `core.jobs.errorStoreType` | type of errors store to write errors to. One of `stdout`, `stderr`, `file.json` | stdout | 
+| `core.jobs.errorStoreOptions` | additional options for the error store in json string format | `{}` | 
 | `core.jobs.monitoring.initialDelay` | delay before a job starts to be monitored in ms | 60000 | 
 | `core.jobs.monitoring.period` | polling interval for jobs monitoring in ms | 5000 | 
 | `core.jobs.options` | additional options to be provided to the beam job. Should be a char escaped json k-v object | {} | 
@@ -79,12 +79,10 @@ The following table lists the configurable parameters of the Feast chart and the
 | `core.service.grpc.targetPort` | core service target grpc port | 8433 |
 | `core.service.http.port` | core service exposed http port | 80 |
 | `core.service.http.targetPort` | core service target http port | 8080 |
+| `core.projectId` | GCP project ID core service resides at | gcp-project-id |
 | `core.trainingDatasetPrefix` | prefix for training datasets created in bq | fs |
 | `dataflow.location` | desired dataflow's region | nil | 
 | `dataflow.projectID` | desired dataflow's project id | nil | 
-| `postgresql.postgresPassword` | specify password if you want the postgres password secret to be generated | nil | 
-| `postgresql.resources.requests.cpu` | postgres requested cpu | 100m | 
-| `postgresql.resources.requests.memory` | postgres requested memory | 256Mi | 
 | `serving.config.maxEntityPerBatch` | max entities that can be requested at a time | 2000 | 
 | `serving.config.maxNumberOfThread` | max number of threads per instance of serving | 256 | 
 | `serving.config.redisPool.maxIdle` | max idle connections to redis | 16 | 
@@ -108,3 +106,9 @@ The following table lists the configurable parameters of the Feast chart and the
 | `serviceAccount.key` | service account secret key to mount to deployments | nil | 
 | `statsd.host` | host of statsd daemon for job metrics to be sent to | nil | 
 | `statsd.port` | port of statsd daemon for job metrics to be sent to | nil | 
+| `postgresql.provision` | Provision PostgreSQL | true | 
+| `postgresql.postgresPassword` | specify password if you want the postgres password secret to be generated | nil | 
+| `postgresql.resources.requests.cpu` | postgres requested cpu | 100m | 
+| `postgresql.resources.requests.memory` | postgres requested memory | 256Mi | 
+| `redis.provision` | Provision Redis instance | true |
+| `redis.name` | Helm release name for the Redis instance | feast-redis |
