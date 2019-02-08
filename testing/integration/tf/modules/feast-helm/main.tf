@@ -64,7 +64,7 @@ resource "local_file" "helm_values_output" {
 
 resource "helm_release" "feast" {
   name       = "feast-it"
-  repository = "https://raw.githubusercontent.com/gojek/feast/master/charts/dist/"
+  repository = "https://raw.githubusercontent.com/zhilingc/feast/master/charts/dist/"
   chart      = "feast"
   version    = "0.1.0"
 
