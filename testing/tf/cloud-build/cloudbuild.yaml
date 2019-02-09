@@ -1,6 +1,6 @@
 steps:
 - name: maven:3.6.0-jdk-8-slim
-  args: ['mvn', 'clean', 'install', '-Drevision=$TAG_NAME']
+  args: ['mvn', 'clean', 'install', '-Drevision=$TAG_NAME', '-DskipTests']
   id: build-jars
 
 - name: "gcr.io/cloud-builders/docker"
