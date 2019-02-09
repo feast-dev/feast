@@ -101,6 +101,7 @@ spec:
       image: python:3.7.2
       command: ["/bin/bash", "-c"]
       args: ['
+        feast config set coreURI 10.128.0.99:6565
         pip install -r /feast/sdk/python/test-requirements.txt;
         pip install -e /feast/sdk/python;
         pytest -s
@@ -111,3 +112,8 @@ spec:
         value: "10.128.0.99:6565"
       - name: FEAST_SERVING_URL
         value: "10.128.0.100:6566"
+      - name: PROJECT_ID
+        value: kf-feast
+      - name: BUCKET_NAME
+        value: it-feast-storage
+        

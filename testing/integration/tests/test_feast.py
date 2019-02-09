@@ -5,6 +5,9 @@ import yaml
 import os
 from time import sleep
 import pandas as pd
+from google.cloud import storage
+
+import feast.sdk.utils.gs_utils as utils
 
 from feast.sdk.resources.entity import Entity
 from feast.sdk.resources.feature import Feature
@@ -45,15 +48,23 @@ def run_job_and_wait_for_completion(job_yaml):
         sleep(10)
     return job_status
 
+'''Stage data to a remote location
+'''
+def stage_data(local, remote):
+    split = utils.split_gs_path(remote)
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(split[0])
+    blob = bucket.blob(split[1])
+
+    blob.upload_from_filename(local)
+
+
 class TestFeastIntegration:
     def test_end_to_end(self, client):
         project_id = os.environ.get("PROJECT_ID")
         bucket_name = os.environ.get("BUCKET_NAME")
 
-        subprocess.run("gsutil cp {} {}".format(
-            "data/test_data.csv", 
-            "gs://{}/test-cases/test_data.csv".format(bucket_name)
-        ).split(" "), check=True, stdout=PIPE)
+        stage_data("data/test_data.csv", "gs://{}/test-cases/test_data.csv".format(bucket_name))
         register_resources(client, "data/entity", "data/feature")
         result = run_job_and_wait_for_completion("data/import/import_csv.yaml")
         
