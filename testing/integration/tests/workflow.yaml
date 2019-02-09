@@ -4,6 +4,7 @@ metadata:
   generateName: feast-integration-test-
 spec:
   entrypoint: run
+  onExit: exit-handler
   arguments:
     parameters:
     - name: revision
@@ -38,15 +39,18 @@ spec:
             from: "{{steps.get-feast.outputs.artifacts.feast}}"
           - name: feast-cli
             from: "{{steps.build-cli.outputs.artifacts.feast-cli}}"
+  
+  - name: exit-handler
+    steps:
     - - name: terraform-destroy
-        template: terraform
+        template: terraform-destroy
         arguments:
           parameters:
           - name: arg
             value: "destroy -var revision={{workflow.parameters.revision}} -var docker_tag=coalesce -auto-approve ."
           artifacts:
           - name: feast
-            from: "{{steps.get-feast.outputs.artifacts.feast}}"
+            from: "{{workflow.outputs.artifacts.feast-repo}}"
 
   - name: get-feast
     container:
@@ -56,6 +60,7 @@ spec:
       artifacts:
       - name: feast
         path: /git/feast
+        globalName: feast-repo
   - name: build-cli
     inputs:
       artifacts:
@@ -101,7 +106,8 @@ spec:
       image: python:3.7.2
       command: ["/bin/bash", "-c"]
       args: ['
-        feast config set coreURI 10.128.0.99:6565
+        feast config set coreURI 10.128.0.99:6565;
+        pip install pytest;
         pip install -r /feast/sdk/python/test-requirements.txt;
         pip install -e /feast/sdk/python;
         pytest -s
@@ -116,4 +122,19 @@ spec:
         value: kf-feast
       - name: BUCKET_NAME
         value: it-feast-storage
+  - name: terraform-destroy
+    inputs:
+      parameters:
+      - name: arg
+      artifacts:
+      - name: feast
+        path: /feast
+    container:
+      image: gcr.io/kf-feast/terraform:integration-test
+      workingDir: /feast/testing/integration/tests/tf
+      command: ["sh", "-c"]
+      args: ['
+        terraform init;
+        terraform {{inputs.parameters.arg}}
+      ']
         
