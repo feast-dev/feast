@@ -79,7 +79,7 @@ resource "google_bigquery_dataset" "feast_bq_dataset" {
 resource "null_resource" "empty_bq" {
   provisioner "local-exec" {
     when    = "destroy"
-    command = "./scripts/empty-bq.sh ${local.project_name} feast_it"
+    command = ". ${path.module}/scripts/empty-bq.sh ${local.project_name} feast_it"
   }
 
   depends_on = ["google_bigquery_dataset.feast_bq_dataset"]
