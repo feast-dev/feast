@@ -16,7 +16,6 @@ package parse
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -96,11 +95,6 @@ func YamlToImportSpec(in []byte) (*specs.ImportSpec, error) {
 	err := yaml.Unmarshal(in, &ymlMap)
 	if err != nil {
 		return nil, err
-	}
-
-	// schema must be available for 'file' or 'bigquery'
-	if (ymlMap["type"] == "file" || ymlMap["type"] == "bigquery") && ymlMap["schema"] == nil {
-		return nil, fmt.Errorf("Schema must be specified for importing data from file or BigQuery")
 	}
 
 	// either timestampValue or timestampColumn
