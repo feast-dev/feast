@@ -20,29 +20,29 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.specs',
   syntax='proto3',
   serialized_options=_b('\n\013feast.specsB\017ImportSpecProtoZ6github.com/gojek/feast/protos/generated/go/feast/specs'),
-  serialized_pb=_b('\n\x1c\x66\x65\x61st/specs/ImportSpec.proto\x12\x0b\x66\x65\x61st.specs\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb8\x01\n\nImportSpec\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x35\n\x07options\x18\x02 \x03(\x0b\x32$.feast.specs.ImportSpec.OptionsEntry\x12\x10\n\x08\x65ntities\x18\x03 \x03(\t\x12#\n\x06schema\x18\x04 \x01(\x0b\x32\x13.feast.specs.Schema\x1a.\n\x0cOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\xa2\x01\n\x06Schema\x12\"\n\x06\x66ields\x18\x01 \x03(\x0b\x32\x12.feast.specs.Field\x12\x19\n\x0ftimestampColumn\x18\x05 \x01(\tH\x00\x12\x34\n\x0etimestampValue\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampH\x00\x12\x16\n\x0e\x65ntityIdColumn\x18\x07 \x01(\tB\x0b\n\ttimestamp\"(\n\x05\x46ield\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x11\n\tfeatureId\x18\x02 \x01(\tBV\n\x0b\x66\x65\x61st.specsB\x0fImportSpecProtoZ6github.com/gojek/feast/protos/generated/go/feast/specsb\x06proto3')
+  serialized_pb=_b('\n\x1c\x66\x65\x61st/specs/ImportSpec.proto\x12\x0b\x66\x65\x61st.specs\x1a\x1fgoogle/protobuf/timestamp.proto\"\xba\x02\n\nImportSpec\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x41\n\rsourceOptions\x18\x02 \x03(\x0b\x32*.feast.specs.ImportSpec.SourceOptionsEntry\x12;\n\njobOptions\x18\x05 \x03(\x0b\x32\'.feast.specs.ImportSpec.JobOptionsEntry\x12\x10\n\x08\x65ntities\x18\x03 \x03(\t\x12#\n\x06schema\x18\x04 \x01(\x0b\x32\x13.feast.specs.Schema\x1a\x34\n\x12SourceOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\x31\n\x0fJobOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\xa2\x01\n\x06Schema\x12\"\n\x06\x66ields\x18\x01 \x03(\x0b\x32\x12.feast.specs.Field\x12\x19\n\x0ftimestampColumn\x18\x05 \x01(\tH\x00\x12\x34\n\x0etimestampValue\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampH\x00\x12\x16\n\x0e\x65ntityIdColumn\x18\x07 \x01(\tB\x0b\n\ttimestamp\"(\n\x05\x46ield\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x11\n\tfeatureId\x18\x02 \x01(\tBV\n\x0b\x66\x65\x61st.specsB\x0fImportSpecProtoZ6github.com/gojek/feast/protos/generated/go/feast/specsb\x06proto3')
   ,
   dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,])
 
 
 
 
-_IMPORTSPEC_OPTIONSENTRY = _descriptor.Descriptor(
-  name='OptionsEntry',
-  full_name='feast.specs.ImportSpec.OptionsEntry',
+_IMPORTSPEC_SOURCEOPTIONSENTRY = _descriptor.Descriptor(
+  name='SourceOptionsEntry',
+  full_name='feast.specs.ImportSpec.SourceOptionsEntry',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='key', full_name='feast.specs.ImportSpec.OptionsEntry.key', index=0,
+      name='key', full_name='feast.specs.ImportSpec.SourceOptionsEntry.key', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='value', full_name='feast.specs.ImportSpec.OptionsEntry.value', index=1,
+      name='value', full_name='feast.specs.ImportSpec.SourceOptionsEntry.value', index=1,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -60,8 +60,45 @@ _IMPORTSPEC_OPTIONSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=217,
-  serialized_end=263,
+  serialized_start=290,
+  serialized_end=342,
+)
+
+_IMPORTSPEC_JOBOPTIONSENTRY = _descriptor.Descriptor(
+  name='JobOptionsEntry',
+  full_name='feast.specs.ImportSpec.JobOptionsEntry',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='feast.specs.ImportSpec.JobOptionsEntry.key', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='value', full_name='feast.specs.ImportSpec.JobOptionsEntry.value', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=_b('8\001'),
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=344,
+  serialized_end=393,
 )
 
 _IMPORTSPEC = _descriptor.Descriptor(
@@ -79,21 +116,28 @@ _IMPORTSPEC = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='options', full_name='feast.specs.ImportSpec.options', index=1,
+      name='sourceOptions', full_name='feast.specs.ImportSpec.sourceOptions', index=1,
       number=2, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='entities', full_name='feast.specs.ImportSpec.entities', index=2,
+      name='jobOptions', full_name='feast.specs.ImportSpec.jobOptions', index=2,
+      number=5, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='entities', full_name='feast.specs.ImportSpec.entities', index=3,
       number=3, type=9, cpp_type=9, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='schema', full_name='feast.specs.ImportSpec.schema', index=3,
+      name='schema', full_name='feast.specs.ImportSpec.schema', index=4,
       number=4, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
@@ -102,7 +146,7 @@ _IMPORTSPEC = _descriptor.Descriptor(
   ],
   extensions=[
   ],
-  nested_types=[_IMPORTSPEC_OPTIONSENTRY, ],
+  nested_types=[_IMPORTSPEC_SOURCEOPTIONSENTRY, _IMPORTSPEC_JOBOPTIONSENTRY, ],
   enum_types=[
   ],
   serialized_options=None,
@@ -112,7 +156,7 @@ _IMPORTSPEC = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=79,
-  serialized_end=263,
+  serialized_end=393,
 )
 
 
@@ -166,8 +210,8 @@ _SCHEMA = _descriptor.Descriptor(
       name='timestamp', full_name='feast.specs.Schema.timestamp',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=266,
-  serialized_end=428,
+  serialized_start=396,
+  serialized_end=558,
 )
 
 
@@ -204,12 +248,14 @@ _FIELD = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=430,
-  serialized_end=470,
+  serialized_start=560,
+  serialized_end=600,
 )
 
-_IMPORTSPEC_OPTIONSENTRY.containing_type = _IMPORTSPEC
-_IMPORTSPEC.fields_by_name['options'].message_type = _IMPORTSPEC_OPTIONSENTRY
+_IMPORTSPEC_SOURCEOPTIONSENTRY.containing_type = _IMPORTSPEC
+_IMPORTSPEC_JOBOPTIONSENTRY.containing_type = _IMPORTSPEC
+_IMPORTSPEC.fields_by_name['sourceOptions'].message_type = _IMPORTSPEC_SOURCEOPTIONSENTRY
+_IMPORTSPEC.fields_by_name['jobOptions'].message_type = _IMPORTSPEC_JOBOPTIONSENTRY
 _IMPORTSPEC.fields_by_name['schema'].message_type = _SCHEMA
 _SCHEMA.fields_by_name['fields'].message_type = _FIELD
 _SCHEMA.fields_by_name['timestampValue'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
@@ -226,10 +272,17 @@ _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 ImportSpec = _reflection.GeneratedProtocolMessageType('ImportSpec', (_message.Message,), dict(
 
-  OptionsEntry = _reflection.GeneratedProtocolMessageType('OptionsEntry', (_message.Message,), dict(
-    DESCRIPTOR = _IMPORTSPEC_OPTIONSENTRY,
+  SourceOptionsEntry = _reflection.GeneratedProtocolMessageType('SourceOptionsEntry', (_message.Message,), dict(
+    DESCRIPTOR = _IMPORTSPEC_SOURCEOPTIONSENTRY,
     __module__ = 'feast.specs.ImportSpec_pb2'
-    # @@protoc_insertion_point(class_scope:feast.specs.ImportSpec.OptionsEntry)
+    # @@protoc_insertion_point(class_scope:feast.specs.ImportSpec.SourceOptionsEntry)
+    ))
+  ,
+
+  JobOptionsEntry = _reflection.GeneratedProtocolMessageType('JobOptionsEntry', (_message.Message,), dict(
+    DESCRIPTOR = _IMPORTSPEC_JOBOPTIONSENTRY,
+    __module__ = 'feast.specs.ImportSpec_pb2'
+    # @@protoc_insertion_point(class_scope:feast.specs.ImportSpec.JobOptionsEntry)
     ))
   ,
   DESCRIPTOR = _IMPORTSPEC,
@@ -237,7 +290,8 @@ ImportSpec = _reflection.GeneratedProtocolMessageType('ImportSpec', (_message.Me
   # @@protoc_insertion_point(class_scope:feast.specs.ImportSpec)
   ))
 _sym_db.RegisterMessage(ImportSpec)
-_sym_db.RegisterMessage(ImportSpec.OptionsEntry)
+_sym_db.RegisterMessage(ImportSpec.SourceOptionsEntry)
+_sym_db.RegisterMessage(ImportSpec.JobOptionsEntry)
 
 Schema = _reflection.GeneratedProtocolMessageType('Schema', (_message.Message,), dict(
   DESCRIPTOR = _SCHEMA,
@@ -255,5 +309,6 @@ _sym_db.RegisterMessage(Field)
 
 
 DESCRIPTOR._options = None
-_IMPORTSPEC_OPTIONSENTRY._options = None
+_IMPORTSPEC_SOURCEOPTIONSENTRY._options = None
+_IMPORTSPEC_JOBOPTIONSENTRY._options = None
 # @@protoc_insertion_point(module_scope)

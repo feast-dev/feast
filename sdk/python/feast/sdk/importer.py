@@ -75,7 +75,8 @@ class Importer:
     @classmethod
     def from_csv(cls, path, entity, granularity, owner, staging_location=None,
                  id_column=None, feature_columns=None, timestamp_column=None,
-                 timestamp_value=None, serving_store=None, warehouse_store=None):
+                 timestamp_value=None, serving_store=None, warehouse_store=None,
+                 job_options={}):
         """Creates an importer from a given csv dataset. 
         This file can be either local or remote (in gcs). If it's a local file 
         then staging_location must be determined.
@@ -100,12 +101,13 @@ class Importer:
                 Serving store to write the features in this instance to.
             warehouse_store (feast.sdk.resources.feature.DataStore): Defaults to None.
                 Warehouse store to write the features in this instance to.
+            job_options (dict): Defaults to empty dict. Additional job options.
         
         Returns:
             Importer: the importer for the dataset provided.
         """
-        import_spec_options = {"format": "csv"}
-        import_spec_options["path"], require_staging = \
+        source_options = {"format": "csv"}
+        source_options["path"], require_staging = \
             _get_remote_location(path, staging_location)
         if is_gs_path(path):
             df = gcs_to_df(path)
@@ -116,10 +118,10 @@ class Importer:
                                        feature_columns, timestamp_column,
                                        timestamp_value, serving_store,
                                        warehouse_store, df)
-        iport_spec = _create_import("file", import_spec_options, entity, schema)
+        iport_spec = _create_import("file", source_options, job_options, entity, schema)
 
         props = (_properties("csv", len(df.index), require_staging,
-                             import_spec_options["path"]))
+                             source_options["path"]))
         specs = _specs(iport_spec, Entity(name=entity), features)
 
         return cls(specs, df, props)
@@ -127,7 +129,8 @@ class Importer:
     @classmethod
     def from_bq(cls, bq_path, entity, granularity, owner, limit=10,
                 id_column=None, feature_columns=None, timestamp_column=None,
-                timestamp_value=None, serving_store=None, warehouse_store=None):
+                timestamp_value=None, serving_store=None, warehouse_store=None,
+                job_options={}):
         """Creates an importer from a given bigquery table. 
         
         Args:
@@ -151,6 +154,7 @@ class Importer:
                 Serving store to write the features in this instance to.
             warehouse_store (feast.sdk.resources.feature.DataStore): Defaults to None.
                 Warehouse store to write the features in this instance to.
+            job_options (dict): Defaults to empty dict. Additional job options.
         
         Returns:
             Importer: the importer for the dataset provided.
@@ -162,7 +166,7 @@ class Importer:
         table_ref = dataset_ref.table(table_id)
         table = cli.get_table(table_ref)
 
-        import_spec_options = {
+        source_options = {
             "project": project,
             "dataset": dataset_id,
             "table": table_id
@@ -173,8 +177,8 @@ class Importer:
                                        feature_columns, timestamp_column,
                                        timestamp_value, serving_store,
                                        warehouse_store, df)
-        iport_spec = _create_import("bigquery", import_spec_options,
-                                    entity, schema)
+        iport_spec = _create_import("bigquery", source_options,
+                                    job_options, entity, schema)
 
         props = _properties("bigquery", table.num_rows, False, None)
         specs = _specs(iport_spec, Entity(name=entity), features)
@@ -183,7 +187,8 @@ class Importer:
     @classmethod
     def from_df(cls, df, entity, granularity, owner, staging_location,
                 id_column=None, feature_columns=None, timestamp_column=None,
-                timestamp_value=None, serving_store=None, warehouse_store=None):
+                timestamp_value=None, serving_store=None, warehouse_store=None,
+                job_options={}):
         """Creates an importer from a given pandas dataframe. 
         To import a file from a dataframe, the data will have to be staged.
         
@@ -207,26 +212,28 @@ class Importer:
                 Serving store to write the features in this instance to.
             warehouse_store (feast.sdk.resources.feature.DataStore): Defaults to None.
                 Warehouse store to write the features in this instance to.
+            job_options (dict): Defaults to empty dict. Additional job options.
         
         Returns:
             Importer: the importer for the dataset provided.
         """
         tmp_file_name = ("tmp_{}_{}.csv"
                          .format(entity, int(round(time.time() * 1000))))
-        import_spec_options = {
+        source_options = {
             "format": "csv"
         }
-        import_spec_options["path"], require_staging = (
+        source_options["path"], require_staging = (
             _get_remote_location(tmp_file_name, staging_location))
         schema, features = \
             _detect_schema_and_feature(entity, granularity, owner, id_column,
                                        feature_columns, timestamp_column,
                                        timestamp_value, serving_store,
                                        warehouse_store, df)
-        iport_spec = _create_import("file", import_spec_options, entity, schema)
+        iport_spec = _create_import("file", source_options, 
+            job_options, entity, schema)
 
         props = _properties("dataframe", len(df.index), require_staging,
-                            import_spec_options["path"])
+                            source_options["path"])
         specs = _specs(iport_spec, Entity(name=entity), features)
 
         return cls(specs, df, props)
@@ -434,12 +441,13 @@ def _create_feature(column, entity, granularity, owner,
     return feature
 
 
-def _create_import(import_type, options, entity, schema):
+def _create_import(import_type, source_options, job_options, entity, schema):
     """Create an import spec.
     
     Args:
         import_type (str): import type
-        options (dict): import spec options
+        source_options (dict): import spec source options
+        jobOptions (dict): import spec job options
         entity (str): entity
         schema (feast.specs.ImportSpec_pb2.Schema): schema of the file
     
@@ -449,7 +457,8 @@ def _create_import(import_type, options, entity, schema):
 
     return ImportSpec(
         type=import_type,
-        options=options,
+        sourceOptions=source_options,
+        jobOptions=job_options,
         entities=[entity],
         schema=schema)
 
