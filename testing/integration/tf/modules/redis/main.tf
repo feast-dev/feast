@@ -31,3 +31,12 @@ resource "google_compute_instance" "redis_vm" {
     startup-script = "${file("${path.module}/init.sh")}"
   }
 }
+
+
+resource "null_resource" "wait_for_startup" {
+  provisioner "local-exec" {
+    command = "${path.module}/wait-for-startup.sh ${var.name} ${google_compute_instance.redis_vm.network_interface.0.network_ip}"
+  }
+
+  depends_on = ["google_compute_instance.redis_vm"]
+}
