@@ -88,7 +88,7 @@ class TestFeastIntegration:
         got = got.drop("created_timestamp", axis=1) \
             .sort_values(["id", "event_timestamp"]) \
             .reset_index(drop=True)
-        assert pd.testing.assert_frame_equal(got, wanted, check_less_precise=True) is None
+        assert pd.testing.assert_frame_equal(got, wanted[got.columns], check_less_precise=True) is None
 
         # Check data in redis
         feature_set = FeatureSet(entity="myentity", 
