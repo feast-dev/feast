@@ -1,4 +1,5 @@
  #!/bin/bash
+
  # Copyright 2018 Google LLC
  #
  # Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +27,7 @@ echo "Waiting for cluster $2 in project $1 to reconcile..."
 
 current_status=$($gcloud_command | jq -r "$jq_query")
 
-while [[ "${current_status}" == "RECONCILING" ]]; do
+while [ "${current_status}" = "RECONCILING" ]; do
     printf "."
     sleep 5
     current_status=$($gcloud_command | jq -r "$jq_query")
