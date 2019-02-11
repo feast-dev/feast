@@ -88,7 +88,7 @@ spec:
       - name: feast-cli
         path: /bin/feast
     container:
-      image: gcr.io/kf-feast/terraform:integration-test
+      image: gcr.io/kf-feast/it-terraform:0.1.0
       workingDir: /feast/testing/integration/tests/tf
       command: ["sh", "-c"]
       args: ['
@@ -130,7 +130,7 @@ spec:
       - name: feast
         path: /feast
     container:
-      image: gcr.io/kf-feast/terraform:integration-test
+      image: gcr.io/kf-feast/it-terraform:0.1.0
       workingDir: /feast/testing/integration/tests/tf
       command: ["sh", "-c"]
       args: ['
