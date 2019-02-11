@@ -51,6 +51,7 @@ module "feast" {
   docker_tag                 = "${var.docker_tag == "" ? var.revision : var.docker_tag}"
   core_address               = "10.128.0.99"
   serving_address            = "10.128.0.100"
+  redis_address              = "10.128.0.101"
   load_balancer_source_range = "10.0.0.0/8"
   job_runner                 = "DataflowRunner"
   job_runner_options         = "'${jsonencode(local.job_runner_options)}'"
@@ -58,15 +59,6 @@ module "feast" {
   errors_store_options       = "'${jsonencode(local.errors_store_options)}'"
 
   depends_on = ["module.cluster.cluster_name", "null_resource.wait_for_regional_cluster"]
-}
-
-module "redis" {
-  source       = "../../tf/modules/redis"
-  source       = "../redis"
-  project_name = "${local.project_name}"
-  name         = "${local.cluster_name}-redis"
-  zone         = "${local.region}-a"
-  subnet       = "${local.subnetwork}"
 }
 
 resource "google_bigquery_dataset" "feast_bq_dataset" {
@@ -90,12 +82,12 @@ resource "local_file" "redis_spec" {
 id: REDIS
 type: redis
 options:
-  host: "${module.redis.instance_url}"
+  host: "${module.feast.redis_url}"
   port: "6379"
     EOT
 
   filename   = "${path.module}/redis.yaml"
-  depends_on = ["module.redis"]
+  depends_on = ["module.feast"]
 }
 
 resource "local_file" "bigquery_spec" {

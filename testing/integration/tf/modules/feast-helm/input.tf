@@ -28,6 +28,10 @@ variable "serving_address" {
   description = "Serving internal address"
 }
 
+variable "redis_address" {
+  description = "Redis internal address"
+}
+
 variable "statsd_host" {
   description = "Statsd host to write metrics to"
   default     = ""

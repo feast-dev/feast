@@ -5,3 +5,7 @@ output "core_url" {
 output "serving_url" {
   value = "${google_compute_address.serving_address.address}"
 }
+
+output "redis_url" {
+  value = "${var.redis_address}"
+}

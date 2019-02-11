@@ -74,6 +74,11 @@ resource "helm_release" "feast" {
   }
 
   set {
+    name  = "redis.master.service.loadBalancerIP"
+    value = "${var.redis_address}"
+  }
+
+  set {
     name  = "core.service.loadBalancerSourceRanges[0]"
     value = "${var.load_balancer_source_range}"
   }
