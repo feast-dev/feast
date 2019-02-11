@@ -4,9 +4,9 @@ This folder contains the Feast test infrastructure.
 
 ## Components
 
-* test-image/ - Base docker image and script for running tests.
+* docker-images/ - Docker images for running tests
 * prow/ - Prow configuration (plugins and jobs)
-* tf/ - Terraform modules to provision the base testing infrastructure on GCP
+* infrastructure/ - Terraform modules to provision the base testing infrastructure on GCP
 
 ## Set up
 
@@ -23,7 +23,7 @@ mv tf/gcs
 terraform import google_storage_bucket.kf-feast-terraform-state kf-feast-terraform-state
 ```
 
-4. Ensure that all variables are set correctly in `tf/terraform.tfvars`. It is likely that the GCP project will need to be updated.
+4. Ensure that all variables are set correctly in `infrastructure/terraform.tfvars`. It is likely that the GCP project will need to be updated.
 
 5. Create the primary Kubernetes cluster which will host Prow and Argo
 
@@ -51,7 +51,7 @@ To update Prow jobs, plugins, or the Docker image used for testing, modify one o
 
 - `prow/config.yaml`
 - `prow/plugins.yaml`
-- `test-image/Dockerfile`
-- `test-image/run.sh`
+- `docker-images/test-image/Dockerfile`
+- `docker-images/test-image/run.sh`
 
 After making modifications, run `make`. This will update the Prow configuration, build a new test image, and push it to the container registry.
