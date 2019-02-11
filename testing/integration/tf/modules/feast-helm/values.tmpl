@@ -26,7 +26,7 @@ core:
   jobs:
     runner: "${job_runner}"
     options: ${job_runner_options}
-    errorsStoreType: "${errors_store_type}"
+    errorStoreType: "${errors_store_type}"
     errorStoreOptions: ${errors_store_options}
     monitoring:
       period: 5000
@@ -41,11 +41,20 @@ postgresql:
     port: 5432
   postgresPassword: password
     
-provisionDataStore:
-  postgres: true
-
-statsd:
-  port: 8125
+postgresql: 
+  provision: true
+  imageTag: 9.6.11
+  service: 
+    port: 5432
+    
+redis:
+  name: feast-redis
+  provision: true
+  master:
+    service:
+      type: LoadBalancer
+      annotations:
+        "cloud.google.com/load-balancer-type": "Internal"
 
 serving:
   config:
