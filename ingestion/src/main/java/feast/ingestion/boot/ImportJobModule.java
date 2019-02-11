@@ -21,7 +21,7 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import feast.ingestion.model.Specs;
-import feast.ingestion.options.ImportJobOptions;
+import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.service.CoreSpecService;
 import feast.ingestion.service.FileSpecService;
 import feast.ingestion.service.SpecService;
@@ -42,24 +42,24 @@ import org.apache.beam.sdk.options.PipelineOptions;
  */
 public class ImportJobModule extends AbstractModule {
 
-  private final ImportJobOptions options;
+  private final ImportJobPipelineOptions options;
   private ImportSpec importSpec;
 
-  public ImportJobModule(ImportJobOptions options, ImportSpec importSpec) {
+  public ImportJobModule(ImportJobPipelineOptions options, ImportSpec importSpec) {
     this.options = options;
     this.importSpec = importSpec;
   }
 
   @Override
   protected void configure() {
-    bind(ImportJobOptions.class).toInstance(options);
+    bind(ImportJobPipelineOptions.class).toInstance(options);
     bind(PipelineOptions.class).toInstance(options);
     bind(ImportSpec.class).toInstance(importSpec);
   }
 
   @Provides
   @Singleton
-  Builder provideSpecService(ImportJobOptions options) {
+  Builder provideSpecService(ImportJobPipelineOptions options) {
     if (options.getCoreApiUri() != null) {
       return new CoreSpecService.Builder(options.getCoreApiUri());
     } else if (options.getCoreApiSpecPath() != null) {

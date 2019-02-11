@@ -243,7 +243,9 @@ func TestYamlToImportSpec(t *testing.T) {
 		{
 			name: "valid yaml",
 			input: []byte(`type: file
-options:
+jobOptions:
+  coalesceRows.enabled: "true"
+sourceOptions:
   format: csv
   path: jaeger_last_opportunity_sample.csv
 entities:
@@ -258,7 +260,10 @@ schema:
       featureId: driver.none.last_opportunity`),
 			expected: &specs.ImportSpec{
 				Type: "file",
-				Options: map[string]string{
+				JobOptions: map[string]string{
+					"coalesceRows.enabled": "true",
+				},
+				SourceOptions: map[string]string{
 					"format": "csv",
 					"path":   "jaeger_last_opportunity_sample.csv",
 				},
@@ -274,52 +279,6 @@ schema:
 						TimestampValue: &timestamp.Timestamp{Seconds: 1537833600},
 					},
 				},
-			},
-			err: nil,
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			spec, err := YamlToImportSpec(tc.input)
-			if tc.err == nil {
-				if err != nil {
-					t.Error(err)
-				} else if !cmp.Equal(spec, tc.expected) {
-					t.Errorf("Expected %s, got %s", tc.expected, spec)
-				}
-			} else {
-				// we expect an error
-				if err == nil {
-					t.Error(err)
-				} else if err.Error() != tc.err.Error() {
-					t.Errorf("Expected error %v, got %v", err.Error(), tc.err.Error())
-				}
-			}
-		})
-	}
-}
-
-func TestYamlToImportSpecNoSchema(t *testing.T) {
-	tt := []struct {
-		name     string
-		input    []byte
-		expected *specs.ImportSpec
-		err      error
-	}{
-		{
-			name: "valid yaml",
-			input: []byte(`type: pubsub
-options:
-  topic: projects/your-gcp-project/topics/feast-test
-entities:
-  - testentity`),
-			expected: &specs.ImportSpec{
-				Type: "pubsub",
-				Options: map[string]string{
-					"topic": "projects/your-gcp-project/topics/feast-test",
-				},
-				Entities: []string{"testentity"},
 			},
 			err: nil,
 		},

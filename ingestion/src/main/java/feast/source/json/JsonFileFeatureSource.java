@@ -56,7 +56,7 @@ public class JsonFileFeatureSource extends FeatureSource {
   @Override
   public PCollection<FeatureRow> expand(PInput input) {
     JsonFileFeatureSourceOptions options = OptionsParser
-        .parse(importSpec.getOptionsMap(), JsonFileFeatureSourceOptions.class);
+        .parse(importSpec.getSourceOptionsMap(), JsonFileFeatureSourceOptions.class);
     PCollection<String> jsonLines = input.getPipeline().apply(TextIO.read().from(options.path));
     return jsonLines.apply(
         ParDo.of(

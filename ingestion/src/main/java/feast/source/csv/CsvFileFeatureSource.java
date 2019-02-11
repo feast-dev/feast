@@ -70,7 +70,7 @@ public class CsvFileFeatureSource extends FeatureSource {
   @Override
   public PCollection<FeatureRow> expand(PInput input) {
     CsvFileFeatureSourceOptions options = OptionsParser
-        .parse(importSpec.getOptionsMap(), CsvFileFeatureSourceOptions.class);
+        .parse(importSpec.getSourceOptionsMap(), CsvFileFeatureSourceOptions.class);
     List<String> entities = importSpec.getEntitiesList();
     Preconditions.checkArgument(
         entities.size() == 1, "exactly 1 entity must be set for CSV import");
@@ -94,6 +94,11 @@ public class CsvFileFeatureSource extends FeatureSource {
         schema.getFieldsList().size() > 0,
         "CSV import needs schema with a least one field specified");
 
+    if (!Strings.isNullOrEmpty(timestampColumn)) {
+      Preconditions.checkArgument(fieldNames.contains(timestampColumn),
+          String.format("timestampColumn %s, does not match any field", timestampColumn));
+    }
+
     PCollection<StringMap> stringMaps = input.getPipeline().apply(CsvIO.read(path, fieldNames));
 
     return stringMaps.apply(
@@ -109,6 +114,9 @@ public class CsvFileFeatureSource extends FeatureSource {
                   for (Entry<String, String> entry : stringMap.entrySet()) {
                     String name = entry.getKey();
                     String value = entry.getValue();
+                    if (value.isEmpty()) {
+                      continue;
+                    }
                     Field field = fields.get(name);
 
                     // A feature can only be one of these things
@@ -136,7 +144,6 @@ public class CsvFileFeatureSource extends FeatureSource {
             }));
 
   }
-
 
   public static class CsvFileFeatureSourceOptions implements Options {
 

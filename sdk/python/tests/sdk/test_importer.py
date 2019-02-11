@@ -151,7 +151,7 @@ class TestImporter(object):
 
         import_spec = importer.spec
         assert import_spec.type == "file"
-        assert import_spec.options == {"format" : "csv", "path" : importer.remote_path}
+        assert import_spec.sourceOptions == {"format" : "csv", "path" : importer.remote_path}
         assert import_spec.entities == ["driver"]
 
         schema = import_spec.schema
@@ -185,7 +185,7 @@ class TestImporter(object):
         import_spec = importer.spec
         assert import_spec.type == "file"
         path = importer.remote_path if importer.require_staging else csv_path
-        assert import_spec.options == {"format" : "csv", "path" : path}
+        assert import_spec.sourceOptions == {"format" : "csv", "path" : path}
         assert import_spec.entities == [entity_name]
 
         schema = import_spec.schema

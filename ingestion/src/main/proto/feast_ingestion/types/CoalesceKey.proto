@@ -12,24 +12,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
-package feast;
+syntax = "proto3";
 
-import com.google.common.collect.Lists;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.junit.Assert;
+option java_package = "feast_ingestion.types";
+option java_outer_classname = "CoalesceKeyProto";
 
-public class FeastMatchers {
-
-  /**
-   * Can be used with the PAssert.that(..).satisfies(fn) method.
-   */
-  public static <T> SerializableFunction<Iterable<T>, Void> hasCount(long count) {
-    return (Iterable<T> iterable) -> {
-      Assert.assertEquals(count, Lists.newArrayList(iterable).size());
-      return null;
-    };
-  }
+message CoalesceKey {
+  string entityName = 1;
+  string entityKey = 2;
 }

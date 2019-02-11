@@ -18,7 +18,7 @@
 package feast.ingestion;
 
 import static feast.FeastMatchers.hasCount;
-import static feast.ToOrderedFeatureRows.orderedFeatureRow;
+import static feast.NormalizeFeatureRows.normalize;
 import static feast.storage.MockErrorsStore.MOCK_ERRORS_STORE_TYPE;
 import static org.junit.Assert.assertEquals;
 
@@ -34,7 +34,7 @@ import feast.ingestion.boot.ImportJobModule;
 import feast.ingestion.boot.TestPipelineModule;
 import feast.ingestion.model.Features;
 import feast.ingestion.model.Values;
-import feast.ingestion.options.ImportJobOptions;
+import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.service.SpecRetrievalException;
 import feast.ingestion.util.ProtoUtil;
 import feast.specs.ImportSpecProto.ImportSpec;
@@ -73,12 +73,13 @@ public class ImportJobCSVTest {
   public TestPipeline testPipeline = TestPipeline.create();
 
   public ImportSpec initImportSpec(ImportSpec importSpec, String dataFile) {
-    return importSpec.toBuilder().putOptions("path", dataFile).build();
+    return importSpec.toBuilder().putSourceOptions("path", dataFile).build();
   }
 
-  public ImportJobOptions initOptions() {
+  public ImportJobPipelineOptions initOptions() {
     Path path = Paths.get(Resources.getResource("core_specs/").getPath());
-    ImportJobOptions options = PipelineOptionsFactory.create().as(ImportJobOptions.class);
+    ImportJobPipelineOptions options = PipelineOptionsFactory.create()
+        .as(ImportJobPipelineOptions.class);
     options.setCoreApiSpecPath(path.toString());
     options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
     return options;
@@ -90,7 +91,7 @@ public class ImportJobCSVTest {
         ProtoUtil.decodeProtoYaml(
             "---\n"
                 + "type: file.csv\n"
-                + "options:\n"
+                + "sourceOptions:\n"
                 + "  # path: to be overwritten in tests\n"
                 + "entities:\n"
                 + "  - testEntity\n"
@@ -108,7 +109,7 @@ public class ImportJobCSVTest {
     Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
     importSpec = initImportSpec(importSpec, csvFile.toString());
 
-    ImportJobOptions options = initOptions();
+    ImportJobPipelineOptions options = initOptions();
     options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
 
     Injector injector =
@@ -134,7 +135,7 @@ public class ImportJobCSVTest {
 
     List<FeatureRow> expectedRows =
         Lists.newArrayList(
-            orderedFeatureRow(
+            normalize(
                 FeatureRow.newBuilder()
                     .setGranularity(Granularity.Enum.NONE)
                     .setEventTimestamp(Timestamp.getDefaultInstance())
@@ -143,7 +144,7 @@ public class ImportJobCSVTest {
                     .addFeatures(Features.of("testEntity.none.testInt32", Values.ofInt32(101)))
                     .addFeatures(Features.of("testEntity.none.testString", Values.ofString("a")))
                     .build()),
-            orderedFeatureRow(
+            normalize(
                 FeatureRow.newBuilder()
                     .setGranularity(Granularity.Enum.NONE)
                     .setEventTimestamp(Timestamp.getDefaultInstance())
@@ -152,7 +153,7 @@ public class ImportJobCSVTest {
                     .addFeatures(Features.of("testEntity.none.testInt32", Values.ofInt32(202)))
                     .addFeatures(Features.of("testEntity.none.testString", Values.ofString("b")))
                     .build()),
-            orderedFeatureRow(
+            normalize(
                 FeatureRow.newBuilder()
                     .setGranularity(Granularity.Enum.NONE)
                     .setEventTimestamp(Timestamp.getDefaultInstance())
@@ -173,14 +174,156 @@ public class ImportJobCSVTest {
     testPipeline.run();
   }
 
+  @Test
+  public void testImportCSV_withSample1() throws IOException {
+    ImportSpec importSpec =
+        ProtoUtil.decodeProtoYaml(
+            "---\n"
+                + "type: file.csv\n"
+                + "sourceOptions:\n"
+                + "  # path: to be overwritten in tests\n"
+                + "jobOptions:\n"
+                + "  sample.limit: 1\n"
+                + "entities:\n"
+                + "  - testEntity\n"
+                + "schema:\n"
+                + "  entityIdColumn: id\n"
+                + "  timestampValue: 2018-09-25T00:00:00.000Z\n"
+                + "  fields:\n"
+                + "    - name: id\n"
+                + "    - featureId: testEntity.none.testInt32\n"
+                + "    - featureId: testEntity.none.testString\n"
+                + "\n",
+            ImportSpec.getDefaultInstance());
+
+    File csvFile = folder.newFile("data.csv");
+    Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
+    importSpec = initImportSpec(importSpec, csvFile.toString());
+
+    ImportJobPipelineOptions options = initOptions();
+    options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
+
+    Injector injector =
+        Guice.createInjector(
+            new ImportJobModule(options, importSpec), new TestPipelineModule(testPipeline));
+
+    ImportJob job = injector.getInstance(ImportJob.class);
+    injector.getInstance(ImportJob.class);
+    job.expand();
+
+    PCollection<FeatureRowExtended> writtenToServing =
+        PCollectionList.of(ServingStoreService.get(MockServingStore.class).getWrite().getInputs())
+            .apply("flatten serving input", Flatten.pCollections());
+
+    PCollection<FeatureRowExtended> writtenToWarehouse =
+        PCollectionList.of(
+            WarehouseStoreService.get(MockWarehouseStore.class).getWrite().getInputs())
+            .apply("flatten warehouse input", Flatten.pCollections());
+
+    PCollection<FeatureRowExtended> writtenToErrors =
+        PCollectionList.of(ErrorsStoreService.get(MockErrorsStore.class).getWrite().getInputs())
+            .apply("flatten errors input", Flatten.pCollections());
+
+    PAssert.that(writtenToServing).satisfies(hasCount(1));
+    PAssert.that(writtenToWarehouse).satisfies(hasCount(1));
+    PAssert.that(writtenToErrors).satisfies(hasCount(0));
+
+    testPipeline.run();
+  }
+
+  @Test
+  public void testImportCSV_withCoalesceRows() throws IOException {
+    ImportSpec importSpec =
+        ProtoUtil.decodeProtoYaml(
+            "---\n"
+                + "type: file.csv\n"
+                + "sourceOptions:\n"
+                + "  # path: to be overwritten in tests\n"
+                + "jobOptions:\n"
+                + "  coalesceRows.enabled: true\n"
+                + "entities:\n"
+                + "  - testEntity\n"
+                + "schema:\n"
+                + "  entityIdColumn: id\n"
+                + "  timestampColumn: timestamp\n"
+                + "  fields:\n"
+                + "    - name: id\n"
+                + "    - name: timestamp\n"
+                + "    - featureId: testEntity.none.testInt32\n"
+                + "    - featureId: testEntity.none.testString\n"
+                + "\n",
+            ImportSpec.getDefaultInstance());
+
+    File csvFile = folder.newFile("data.csv");
+    Files.asCharSink(csvFile, Charsets.UTF_8)
+        .write("1,2018-09-25T00:00:00.000Z,101,a\n1,2018-09-26T00:00:00.000Z,,b\n");
+    importSpec = initImportSpec(importSpec, csvFile.toString());
+
+    ImportJobPipelineOptions options = initOptions();
+    options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
+
+    Injector injector =
+        Guice.createInjector(
+            new ImportJobModule(options, importSpec), new TestPipelineModule(testPipeline));
+
+    ImportJob job = injector.getInstance(ImportJob.class);
+    injector.getInstance(ImportJob.class);
+    job.expand();
+
+    PCollection<FeatureRowExtended> writtenToServing =
+        PCollectionList.of(ServingStoreService.get(MockServingStore.class).getWrite().getInputs())
+            .apply("flatten serving input", Flatten.pCollections());
+
+    PCollection<FeatureRowExtended> writtenToWarehouse =
+        PCollectionList.of(
+            WarehouseStoreService.get(MockWarehouseStore.class).getWrite().getInputs())
+            .apply("flatten warehouse input", Flatten.pCollections());
+
+    PCollection<FeatureRowExtended> writtenToErrors =
+        PCollectionList.of(ErrorsStoreService.get(MockErrorsStore.class).getWrite().getInputs())
+            .apply("flatten errors input", Flatten.pCollections());
+
+    PAssert.that(writtenToErrors).satisfies(hasCount(0));
+
+    PAssert.that(writtenToServing.apply("serving toFeatureRows", new ToOrderedFeatureRows()))
+        .containsInAnyOrder(
+            normalize(
+                FeatureRow.newBuilder()
+                    .setGranularity(Granularity.Enum.NONE)
+                    .setEntityKey("1")
+                    .setEntityName("testEntity")
+                    .addFeatures(Features.of("testEntity.none.testInt32", Values.ofInt32(101)))
+                    .addFeatures(Features.of("testEntity.none.testString", Values.ofString("b")))
+                    .build()));
+
+    PAssert.that(writtenToWarehouse.apply("warehouse toFeatureRows", new ToOrderedFeatureRows()))
+        .containsInAnyOrder(
+            normalize(
+                FeatureRow.newBuilder()
+                    .setGranularity(Granularity.Enum.NONE)
+                    .setEntityKey("1")
+                    .setEntityName("testEntity")
+                    .addFeatures(Features.of("testEntity.none.testInt32", Values.ofInt32(101)))
+                    .addFeatures(Features.of("testEntity.none.testString", Values.ofString("a")))
+                    .build()),
+            normalize(
+                FeatureRow.newBuilder()
+                    .setGranularity(Granularity.Enum.NONE)
+                    .setEntityKey("1")
+                    .setEntityName("testEntity")
+                    .addFeatures(Features.of("testEntity.none.testString", Values.ofString("b")))
+                    .build()));
+
+    testPipeline.run();
+  }
+
   @Test(expected = SpecRetrievalException.class)
   public void testImportCSVUnknownServingStoreError() throws IOException {
     ImportSpec importSpec =
         ProtoUtil.decodeProtoYaml(
             "---\n"
                 + "type: file.csv\n"
-                + "options:\n"
-                + "  format: csv\n"
+                + "sourceOptions:\n"
                 + "  # path: to be overwritten in tests\n"
                 + "entities:\n"
                 + "  - testEntity\n"
@@ -199,7 +342,7 @@ public class ImportJobCSVTest {
     Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
     importSpec = initImportSpec(importSpec, csvFile.toString());
 
-    ImportJobOptions options = initOptions();
+    ImportJobPipelineOptions options = initOptions();
 
     Injector injector =
         Guice.createInjector(
@@ -218,7 +361,7 @@ public class ImportJobCSVTest {
         ProtoUtil.decodeProtoYaml(
             "---\n"
                 + "type: file.csv\n"
-                + "options:\n"
+                + "sourceOptions:\n"
                 + "  # path: to be overwritten in tests\n"
                 + "entities:\n"
                 + "  - testEntity\n"
@@ -238,7 +381,7 @@ public class ImportJobCSVTest {
     Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
     importSpec = initImportSpec(importSpec, csvFile.toString());
 
-    ImportJobOptions options = initOptions();
+    ImportJobPipelineOptions options = initOptions();
     options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
 
     Injector injector =
@@ -283,7 +426,7 @@ public class ImportJobCSVTest {
         ProtoUtil.decodeProtoYaml(
             "---\n"
                 + "type: file.csv\n"
-                + "options:\n"
+                + "sourceOptions:\n"
                 + "  # path: to be overwritten in tests\n"
                 + "entities:\n"
                 + "  - testEntity\n"
@@ -303,7 +446,7 @@ public class ImportJobCSVTest {
     Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
     importSpec = initImportSpec(importSpec, csvFile.toString());
 
-    ImportJobOptions options = initOptions();
+    ImportJobPipelineOptions options = initOptions();
     options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
 
     Injector injector =
