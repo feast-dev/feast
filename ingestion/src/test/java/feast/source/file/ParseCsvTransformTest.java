@@ -15,18 +15,18 @@
  *
  */
 
-package feast.source.csv;
+package feast.source.file;
 
 import static org.junit.Assert.*;
 import static org.hamcrest.CoreMatchers.*;
 
 import com.google.common.collect.Lists;
-import feast.source.csv.CsvIO.CSVLineParser;
-import feast.source.csv.CsvIO.StringMap;
+import feast.source.common.ParseCsvTransform.CSVLineParser;
+import feast.source.common.ParseCsvTransform.StringMap;
 import java.util.List;
 import junit.framework.TestCase;
 
-public class CsvIOTest extends TestCase {
+public class ParseCsvTransformTest extends TestCase {
 
   public void testCSVLineParser_multiLines() {
     CSVLineParser parser = new CSVLineParser(Lists.newArrayList("c1", "c2"));

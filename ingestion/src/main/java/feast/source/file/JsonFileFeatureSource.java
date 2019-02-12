@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Feast Authors
+ * Copyright 2019 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  *
  */
 
-package feast.source.json;
+package feast.source.file;
 
 import static com.google.common.base.Preconditions.checkArgument;
 

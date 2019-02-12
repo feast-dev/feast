@@ -19,13 +19,19 @@ package feast.source.pubsub;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.service.AutoService;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import feast.ingestion.transform.fn.FilterFeatureRowDoFn;
 import feast.options.Options;
 import feast.options.OptionsParser;
 import feast.source.FeatureSource;
 import feast.source.FeatureSourceFactory;
+import feast.source.common.ParseCsvTransform;
+import feast.source.common.StringToValueMapTransform;
+import feast.source.common.ValueMapToFeatureRowTransform;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.types.FeatureRowProto.FeatureRow;
@@ -54,7 +60,8 @@ public class PubSubFeatureSource extends FeatureSource {
 
   public static final String PUBSUB_FEATURE_SOURCE_TYPE = "pubsub";
 
-  @NonNull private ImportSpec importSpec;
+  @NonNull
+  private ImportSpec importSpec;
 
   @Override
   public PCollection<FeatureRow> expand(PInput input) {
@@ -62,45 +69,89 @@ public class PubSubFeatureSource extends FeatureSource {
     PubSubReadOptions options =
         OptionsParser.parse(importSpec.getSourceOptionsMap(), PubSubReadOptions.class);
 
-    PubsubIO.Read<FeatureRow> read = readProtos();
-
-    if (!Strings.isNullOrEmpty(options.subscription)) {
-      read = read.fromSubscription(options.subscription);
-    } else if (!Strings.isNullOrEmpty(options.topic)) {
-      read = read.fromTopic(options.topic);
+    PCollection<FeatureRow> featureRows;
+    switch (options.format) {
+      case FEATURE_ROW_PROTO:
+        PubsubIO.Read<FeatureRow> read = fromSubscriptionOrTopic(readProtos(), options);
+        featureRows = input.getPipeline().apply(read);
+        break;
+      case CSV:
+        Preconditions.checkArgument(importSpec.getEntitiesCount() == 1,
+            "pubsub source with format csv, import spec must have one entity");
+        featureRows = input.getPipeline()
+            .apply(fromSubscriptionOrTopic(PubsubIO.readStrings(), options))
+            .apply(ParseCsvTransform.builder().header(Lists.newArrayList()).build())
+            .apply(new StringToValueMapTransform())
+            .apply(new ValueMapToFeatureRowTransform(importSpec.getEntities(0),
+                importSpec.getSchema()));
+        break;
+      case JSON:
+        Preconditions.checkArgument(importSpec.getEntitiesCount() == 1,
+            "pubsub source with format json, import spec must have one entity");
+        featureRows = input.getPipeline()
+            .apply(fromSubscriptionOrTopic(PubsubIO.readStrings(), options))
+            .apply(ParseCsvTransform.builder().header(Lists.newArrayList()).build())
+            .apply(new StringToValueMapTransform())
+            .apply(new ValueMapToFeatureRowTransform(importSpec.getEntities(0),
+                importSpec.getSchema()));
+        break;
+      default:
+        throw new IllegalArgumentException(
+            String.format("Unhandled message format %s", options.format));
     }
-    PCollection<FeatureRow> featureRow =  input.getPipeline().apply(read);
-
     if (options.discardUnknownFeatures) {
       List<String> featureIds = new ArrayList<>();
-      for(Field field: importSpec.getSchema().getFieldsList()) {
+      for (Field field : importSpec.getSchema().getFieldsList()) {
         String featureId = field.getFeatureId();
         if (!Strings.isNullOrEmpty(featureId)) {
           featureIds.add(featureId);
         }
       }
-      return featureRow.apply(ParDo.of(new FilterFeatureRowDoFn(featureIds)));
+      return featureRows.apply(ParDo.of(new FilterFeatureRowDoFn(featureIds)));
     }
-    return featureRow;
+    return featureRows;
   }
+
+  private <T> PubsubIO.Read<T> fromSubscriptionOrTopic(PubsubIO.Read<T> read,
+      PubSubReadOptions options) {
+    if (!Strings.isNullOrEmpty(options.subscription)) {
+      read = read.fromSubscription(options.subscription);
+    } else if (!Strings.isNullOrEmpty(options.topic)) {
+      read = read.fromTopic(options.topic);
+    }
+    return read;
+  }
+
 
   PubsubIO.Read<FeatureRow> readProtos() {
     return PubsubIO.readProtos(FeatureRow.class);
   }
 
+  public enum MessageFormat {
+    @JsonProperty(value = "featureRowProto")
+    FEATURE_ROW_PROTO,
+    @JsonProperty(value = "json")
+    JSON,
+    @JsonProperty(value = "csv")
+    CSV
+  }
+
   public static class PubSubReadOptions implements Options {
+
     public String subscription;
     public String topic;
+    public MessageFormat format = MessageFormat.FEATURE_ROW_PROTO;
+    public boolean discardUnknownFeatures = false;
 
     @AssertTrue(message = "subscription or topic must be set")
     boolean isValid() {
       return !Strings.isNullOrEmpty(subscription) || !Strings.isNullOrEmpty(topic);
     }
-    public boolean discardUnknownFeatures = false;
   }
 
   @AutoService(FeatureSourceFactory.class)
   public static class Factory implements FeatureSourceFactory {
+
     @Override
     public String getType() {
       return PUBSUB_FEATURE_SOURCE_TYPE;
