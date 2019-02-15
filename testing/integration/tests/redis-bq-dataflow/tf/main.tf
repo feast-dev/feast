@@ -20,7 +20,7 @@ locals {
 }
 
 module "cluster" {
-  source       = "../../tf/modules/cluster"
+  source       = "../../../tf/modules/cluster"
   cluster_name = "${local.cluster_name}"
   project_name = "${local.project_name}"
   region       = "${local.region}"
@@ -43,7 +43,7 @@ resource "null_resource" "wait_for_regional_cluster" {
 }
 
 module "feast" {
-  source                     = "../../tf/modules/feast-helm"
+  source                     = "../../../tf/modules/feast-helm"
   project_name               = "${local.project_name}"
   region                     = "${local.region}"
   subnetwork                 = "${local.subnetwork}"

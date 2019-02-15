@@ -25,7 +25,7 @@ spec:
         arguments:
           parameters:
           - name: arg
-            value: "apply -var revision={{workflow.parameters.revision}} -var docker_tag=coalesce -auto-approve ."
+            value: "apply -var revision={{workflow.parameters.revision}} -var docker_tag={{workflow.parameters.revision}} -auto-approve ."
           artifacts:
           - name: feast
             from: "{{steps.get-feast.outputs.artifacts.feast}}"

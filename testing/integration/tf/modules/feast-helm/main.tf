@@ -1,27 +1,3 @@
-# resource "kubernetes_service_account" "tiller" {
-#   metadata {
-#     name      = "tiller"
-#     namespace = "kube-system"
-#   }
-# }
-
-# resource "kubernetes_cluster_role_binding" "tiller" {
-#   metadata {
-#     name = "tiller"
-#   }
-
-#   subject {
-#     kind = "User"
-#     name = "system:serviceaccount:kube-system:tiller"
-#   }
-
-#   role_ref {
-#     kind = "ClusterRole"
-#     name = "cluster-admin"
-#   }
-
-#   depends_on = ["kubernetes_service_account.tiller"]
-# }
 
 resource "google_compute_address" "core_address" {
   project      = "${var.project_name}"
