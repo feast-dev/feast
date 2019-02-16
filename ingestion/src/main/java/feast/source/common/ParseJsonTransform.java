@@ -28,11 +28,10 @@ import com.google.gson.reflect.TypeToken;
 import feast.ingestion.model.Values;
 import feast.types.ValueProto.Value;
 import java.lang.reflect.Type;
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.Map;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 
 public class ParseJsonTransform extends
@@ -40,7 +39,30 @@ public class ParseJsonTransform extends
 
   @Override
   public PCollection<Map<String, Value>> expand(PCollection<String> input) {
-    return null;
+    return input.apply(ParDo.of(new ParseJsonDoFn()));
+  }
+
+
+  public static class ParseJsonDoFn extends DoFn<String, Map<String, Value>> {
+
+    private transient Gson gson;
+    private transient Type valueMapType;
+
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      context.output(parseJson(context.element()));
+    }
+
+    Map<String, Value> parseJson(String json) {
+      if (gson == null) {
+        GsonBuilder gsonBuilder = new GsonBuilder();
+        gsonBuilder.registerTypeAdapter(Value.class, new ValueDeserializer());
+        gson = gsonBuilder.create();
+        valueMapType = new TypeToken<Map<String, Value>>() {
+        }.getType();
+      }
+      return gson.fromJson(json, valueMapType);
+    }
   }
 
   private static class ValueDeserializer implements JsonDeserializer<Value> {
@@ -48,63 +70,30 @@ public class ParseJsonTransform extends
     @Override
     public Value deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
         throws JsonParseException {
-      if (json.isJsonArray() || json.isJsonObject()) {
-        throw new JsonParseException("Expecting primitive value");
-      }
       if (json.isJsonNull()) {
         return Value.newBuilder().build(); // return UNKNOWN value.
-      }
-      if (json.isJsonPrimitive()) {
+      } else if (json.isJsonPrimitive()) {
         JsonPrimitive primitive = json.getAsJsonPrimitive();
         if (primitive.isBoolean()) {
           return Values.ofBool(primitive.getAsBoolean());
         } else if (primitive.isString()) {
           return Values.ofString(primitive.getAsString());
         } else {
-          BigDecimal bigDec = json.getAsBigDecimal();
           // Find out if it is an int type
-          try {
-            BigInteger bigInt = bigDec.toBigIntegerExact();
-            try {
-              return Values.ofInt32(bigInt.intValueExact());
-            } catch (ArithmeticException e) {
-            }
-            return Values.ofInt64(bigDec.longValue());
-          } catch (ArithmeticException e) {
+          Double doubleVal = primitive.getAsDouble();
+          Long int64Val = primitive.getAsLong();
+
+          if (Double.compare(int64Val.doubleValue(), doubleVal) != 0.0) {
+            return Values.ofDouble(doubleVal);
+          } else {
+            return Values.ofInt64(int64Val);
           }
-          try {
-            return Values.ofFloat(bigDec.floatValue());
-          } catch (ArithmeticException e) {
-          }
-          // Just return it as a double
-          return Values.ofDouble(bigDec.doubleValue());
         }
-        return null;
+      } else if (json.isJsonArray() || json.isJsonObject()) {
+        return Values.ofString(json.toString());
+      } else {
+        throw new JsonParseException("Unknown json element type ");
       }
     }
-
-    public static class ParseJsonDoFn extends DoFn<String, Map<String, Value>> {
-
-      private transient Gson gson;
-      private transient Type valueMapType;
-
-
-      @ProcessElement
-      public void processElement(ProcessContext context) {
-        context.output(parseJson(context.element()));
-      }
-
-      Map<String, Value> parseJson(String json) {
-        if (gson == null) {
-          GsonBuilder gsonBuilder = new GsonBuilder();
-          gsonBuilder.registerTypeAdapter(Object.class, new ValueDeserializer());
-          gson = gsonBuilder.create();
-          valueMapType = new TypeToken<Map<String, Value>>() {
-          }.getType();
-        }
-        return gson.fromJson(json, valueMapType);
-      }
-    }
-
   }
 }

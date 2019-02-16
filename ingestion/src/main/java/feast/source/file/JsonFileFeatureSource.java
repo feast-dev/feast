@@ -20,19 +20,19 @@ package feast.source.file;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
+import com.google.common.base.Preconditions;
 import feast.options.Options;
 import feast.options.OptionsParser;
 import feast.source.FeatureSource;
 import feast.source.FeatureSourceFactory;
+import feast.source.common.ParseJsonTransform;
+import feast.source.common.ValueMapToFeatureRowTransform;
 import feast.specs.ImportSpecProto.ImportSpec;
+import feast.specs.ImportSpecProto.Schema;
 import feast.types.FeatureRowProto.FeatureRow;
 import javax.validation.constraints.NotEmpty;
 import lombok.AllArgsConstructor;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 
@@ -58,21 +58,14 @@ public class JsonFileFeatureSource extends FeatureSource {
     JsonFileFeatureSourceOptions options = OptionsParser
         .parse(importSpec.getSourceOptionsMap(), JsonFileFeatureSourceOptions.class);
     PCollection<String> jsonLines = input.getPipeline().apply(TextIO.read().from(options.path));
-    return jsonLines.apply(
-        ParDo.of(
-            new DoFn<String, FeatureRow>() {
-              @ProcessElement
-              public void processElement(ProcessContext context) {
-                String line = context.element();
-                FeatureRow.Builder builder = FeatureRow.newBuilder();
-                try {
-                  JsonFormat.parser().merge(line, builder);
-                  context.output(builder.build());
-                } catch (InvalidProtocolBufferException e) {
-                  throw new RuntimeException(e);
-                }
-              }
-            }));
+
+    Preconditions
+        .checkArgument(importSpec.getEntitiesCount() == 1, "Import spec must have only 1 entity");
+    String entity = importSpec.getEntities(0);
+    Schema schema = importSpec.getSchema();
+
+    return jsonLines.apply(new ParseJsonTransform())
+        .apply(new ValueMapToFeatureRowTransform(entity, schema));
   }
 
   public static class JsonFileFeatureSourceOptions implements Options {

@@ -17,6 +17,7 @@
 
 package feast.source.common;
 
+import com.google.common.collect.Lists;
 import feast.source.common.StringToValueMapTransform;
 import feast.types.ValueProto.Value;
 import java.util.HashMap;
@@ -36,7 +37,7 @@ public class StringToValueMapTransformTest {
   @Test
   public void testEmptyMap() {
     Map<String, String> map = new HashMap<>();
-    PCollection<Map<String, String>> input = pipeline.apply(Create.of(map);
+    PCollection<Map<String, String>> input = pipeline.apply(Create.of(Lists.newArrayList(map)));
 
     PCollection<Map<String, Value>> output = input.apply(new StringToValueMapTransform());
 
@@ -48,7 +49,7 @@ public class StringToValueMapTransformTest {
     Map<String, String> map = new HashMap<>();
     map.put("a", "");
     map.put("b", null);
-    PCollection<Map<String, String>> input = pipeline.apply(Create.of(map);
+    PCollection<Map<String, String>> input = pipeline.apply(Create.of(Lists.newArrayList(map)));
 
     PCollection<Map<String, Value>> output = input.apply(new StringToValueMapTransform());
 

@@ -70,9 +70,10 @@ public class PubSubFeatureSource extends FeatureSource {
         OptionsParser.parse(importSpec.getSourceOptionsMap(), PubSubReadOptions.class);
 
     PCollection<FeatureRow> featureRows;
-    switch (options.format) {
-      case FEATURE_ROW_PROTO:
-        PubsubIO.Read<FeatureRow> read = fromSubscriptionOrTopic(readProtos(), options);
+    switch (options.messageFormat) {
+      case FEATURE_ROW:
+        PubsubIO.Read<FeatureRow> read = fromSubscriptionOrTopic(
+            PubsubIO.readProtos(FeatureRow.class), options);
         featureRows = input.getPipeline().apply(read);
         break;
       case CSV:
@@ -97,7 +98,7 @@ public class PubSubFeatureSource extends FeatureSource {
         break;
       default:
         throw new IllegalArgumentException(
-            String.format("Unhandled message format %s", options.format));
+            String.format("Unhandled message format %s", options.messageFormat));
     }
     if (options.discardUnknownFeatures) {
       List<String> featureIds = new ArrayList<>();
@@ -122,14 +123,9 @@ public class PubSubFeatureSource extends FeatureSource {
     return read;
   }
 
-
-  PubsubIO.Read<FeatureRow> readProtos() {
-    return PubsubIO.readProtos(FeatureRow.class);
-  }
-
   public enum MessageFormat {
-    @JsonProperty(value = "featureRowProto")
-    FEATURE_ROW_PROTO,
+    @JsonProperty(value = "featureRow")
+    FEATURE_ROW,
     @JsonProperty(value = "json")
     JSON,
     @JsonProperty(value = "csv")
@@ -140,7 +136,7 @@ public class PubSubFeatureSource extends FeatureSource {
 
     public String subscription;
     public String topic;
-    public MessageFormat format = MessageFormat.FEATURE_ROW_PROTO;
+    public MessageFormat messageFormat = MessageFormat.FEATURE_ROW;
     public boolean discardUnknownFeatures = false;
 
     @AssertTrue(message = "subscription or topic must be set")

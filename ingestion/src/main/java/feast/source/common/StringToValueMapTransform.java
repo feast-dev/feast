@@ -34,12 +34,13 @@ import org.apache.beam.sdk.values.PCollection;
 public class StringToValueMapTransform extends
     PTransform<PCollection<Map<String, String>>, PCollection<Map<String, Value>>> {
 
+  public static MapCoder<String, Value> VALUE_MAP_CODER = MapCoder.of(StringUtf8Coder.of(),
+      ProtoCoder.of(Value.class));
 
   @Override
   public PCollection<Map<String, Value>> expand(PCollection<Map<String, String>> input) {
     return input.apply(ParDo.of(new StringToValueMapDoFn()))
-        .setCoder(MapCoder.of(StringUtf8Coder.of(),
-            ProtoCoder.of(Value.class)));
+        .setCoder(VALUE_MAP_CODER);
   }
 
   public static class StringToValueMapDoFn extends

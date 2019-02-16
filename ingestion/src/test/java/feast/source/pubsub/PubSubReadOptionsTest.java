@@ -36,7 +36,7 @@ public class PubSubReadOptionsTest {
 
     PubSubReadOptions options = OptionsParser.parse(opts, PubSubReadOptions.class);
     assertFalse(options.discardUnknownFeatures);
-    assertEquals(options.format, MessageFormat.FEATURE_ROW_PROTO); // default format
+    assertEquals(options.messageFormat, MessageFormat.FEATURE_ROW); // default format
   }
 
   @Test
@@ -47,6 +47,6 @@ public class PubSubReadOptionsTest {
 
     PubSubReadOptions options = OptionsParser.parse(opts, PubSubReadOptions.class);
     assertFalse(options.discardUnknownFeatures);
-    assertEquals(options.format, MessageFormat.CSV);
+    assertEquals(options.messageFormat, MessageFormat.CSV);
   }
 }

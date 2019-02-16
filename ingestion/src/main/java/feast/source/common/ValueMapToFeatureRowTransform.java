@@ -26,6 +26,7 @@ import feast.specs.ImportSpecProto.Schema;
 import feast.types.FeatureProto.Feature;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.ValueProto.Value;
+import feast.types.ValueProto.Value.ValCase;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
@@ -92,6 +93,10 @@ public class ValueMapToFeatureRowTransform extends
           Value value = entry.getValue();
           Field field = fields.get(name);
 
+          if (value.getValCase().equals(ValCase.VAL_NOT_SET)) {
+            continue;
+          }
+
           // A feature can only be one of these things
           if (entityIdColumn.equals(name)) {
             builder.setEntityKey(Values.asString(value).getStringVal());
@@ -104,8 +109,7 @@ public class ValueMapToFeatureRowTransform extends
           }
           // else silently ignore this column
         }
-        if (!timestampValue
-            .equals(com.google.protobuf.Timestamp.getDefaultInstance())) {
+        if (!timestampValue.equals(com.google.protobuf.Timestamp.getDefaultInstance())) {
           // This overrides any column event timestamp.
           builder.setEventTimestamp(timestampValue);
         }
