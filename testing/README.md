@@ -55,3 +55,7 @@ To update Prow jobs, plugins, or the Docker image used for testing, modify one o
 - `docker-images/test-image/run.sh`
 
 After making modifications, run `make`. This will update the Prow configuration, build a new test image, and push it to the container registry.
+
+## Installing Argo
+
+Argo is used to run integration tests. It follows the [standard installation process described in the argo quickstart](https://github.com/argoproj/argo/blob/master/demo.md), with the artifact repository [configured to use gcs](https://github.com/argoproj/argo/blob/master/ARTIFACT_REPO.md).

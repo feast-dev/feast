@@ -55,7 +55,7 @@ spec:
   - name: get-feast
     container:
       image: alpine/git
-      args: ["clone", "--single-branch", "--branch", "{{workflow.parameters.revision}}", "https://github.com/zhilingc/feast"]
+      args: ["clone", "--single-branch", "--branch", "{{workflow.parameters.revision}}", "https://github.com/gojek/feast"]
     outputs:
       artifacts:
       - name: feast
@@ -89,7 +89,7 @@ spec:
         path: /bin/feast
     container:
       image: gcr.io/kf-feast/it-terraform:0.1.0
-      workingDir: /feast/testing/integration/tests/tf
+      workingDir: /feast/testing/integration/tests/redis-bq-dataflow/tf
       command: ["sh", "-c"]
       args: ['
         terraform init; 
@@ -112,7 +112,7 @@ spec:
         pip install -e /feast/sdk/python;
         pytest -s
       ']
-      workingDir: /feast/testing/integration/tests
+      workingDir: /feast/testing/integration/tests/redis-bq-dataflow
       env:
       - name: FEAST_CORE_URL
         value: "10.128.0.99:6565"
@@ -131,7 +131,7 @@ spec:
         path: /feast
     container:
       image: gcr.io/kf-feast/it-terraform:0.1.0
-      workingDir: /feast/testing/integration/tests/tf
+      workingDir: /feast/testing/integration/tests/redis-bq-dataflow/tf
       command: ["sh", "-c"]
       args: ['
         terraform init;
