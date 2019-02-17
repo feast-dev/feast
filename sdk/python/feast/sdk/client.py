@@ -166,7 +166,7 @@ class Client:
             self._apply_entity(importer.entity)
         if apply_features:
             for feature in importer.features:
-                self._apply_feature(feature)
+                self._apply_feature(importer.features[feature])
 
         if importer.require_staging:
             print("Staging file to remote path {}"
