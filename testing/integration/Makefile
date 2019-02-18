@@ -16,10 +16,8 @@
 
 .PHONY: test-integration it-redis-bq-dataflow
 
-REVISION       				?= master
-
 test-integration:
-	@$(MAKE) it-redis-bq-dataflow REVISION=$(REVISION)
+	@$(MAKE) it-redis-bq-dataflow ID=$(ID)
 
 it-redis-bq-dataflow:
-	argo submit --watch tests/redis-bq-dataflow/workflow.yaml -p revision=$(REVISION)
+	argo submit --watch tests/redis-bq-dataflow/workflow.yaml -p id=$(ID)

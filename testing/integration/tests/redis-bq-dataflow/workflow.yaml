@@ -55,7 +55,11 @@ spec:
   - name: get-feast
     container:
       image: alpine/git
-      args: ["clone", "--single-branch", "--branch", "{{workflow.parameters.revision}}", "https://github.com/gojek/feast"]
+      args: ["
+        clone https://github.com/gojek/feast;
+        git fetch origin pull/{{workflow.parameters.prId}}/head;
+        git checkout FETCH_HEAD
+      "]
     outputs:
       artifacts:
       - name: feast

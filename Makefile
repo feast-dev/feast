@@ -16,13 +16,12 @@
 
 VERSION_FILE                = VERSION
 FEAST_VERSION               = `cat $(VERSION_FILE)`
-REVISION       				?= master
 
 test:
 	mvn test
 
 test-integration:
-	$(MAKE) -C testing/integration test-integration REVISION=$(REVISION)
+	$(MAKE) -C testing/integration test-integration ID=$(ID)
 
 build-deps:
 	$(MAKE) -C protos gen-go
