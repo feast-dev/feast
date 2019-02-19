@@ -23,7 +23,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import feast.serving.ServingAPIProto.Entity;
-import feast.serving.ServingAPIProto.TimestampRange;
 import feast.serving.config.AppConfig;
 import feast.serving.exception.FeatureRetrievalException;
 import feast.serving.model.FeatureValue;
@@ -73,21 +72,17 @@ public class FeatureRetrievalDispatcher {
    * @param entityName entity name of the feature.
    * @param entityIds list of entity ids.
    * @param featureSpecs list of request.
-   * @param timestampRange timestamp range of feature to be retrieved.
    * @return map of entityID and Entity instance.
    */
   public Map<String, Entity> dispatchFeatureRetrieval(
-      String entityName,
-      Collection<String> entityIds,
-      Collection<FeatureSpec> featureSpecs,
-      TimestampRange timestampRange) {
+      String entityName, Collection<String> entityIds, Collection<FeatureSpec> featureSpecs) {
 
     Map<String, List<FeatureSpec>> groupedFeatureSpecs = groupByStorage(featureSpecs);
 
     if (groupedFeatureSpecs.size() <= 1) {
-      return runInCurrentThread(entityName, entityIds, timestampRange, groupedFeatureSpecs);
+      return runInCurrentThread(entityName, entityIds, groupedFeatureSpecs);
     } else {
-      return runWithExecutorService(entityName, entityIds, timestampRange, groupedFeatureSpecs);
+      return runWithExecutorService(entityName, entityIds, groupedFeatureSpecs);
     }
   }
 
@@ -96,14 +91,12 @@ public class FeatureRetrievalDispatcher {
    *
    * @param entityName entity name of of the feature.
    * @param entityIds list of entity ID of the feature to be retrieved.
-   * @param tsRange timestamp range of the feature to be retrieved.
    * @param groupedFeatureSpecs feature spec grouped by storage ID.
    * @return entity map containing the result of feature retrieval.
    */
   private Map<String, Entity> runInCurrentThread(
       String entityName,
       Collection<String> entityIds,
-      TimestampRange tsRange,
       Map<String, List<FeatureSpec>> groupedFeatureSpecs) {
     try (Scope scope =
         tracer.buildSpan("FeatureRetrievalDispatcher-runInCurrentThread").startActive(true)) {
@@ -113,7 +106,7 @@ public class FeatureRetrievalDispatcher {
       FeatureStorage featureStorage = featureStorageRegistry.get(storageId);
 
       List<FeatureValue> featureValues;
-      featureValues = featureStorage.getFeature(entityName, entityIds, featureSpecs, tsRange);
+      featureValues = featureStorage.getFeature(entityName, entityIds, featureSpecs);
 
       EntityMapBuilder builder = new EntityMapBuilder();
       builder.addFeatureValueList(featureValues);
@@ -126,18 +119,15 @@ public class FeatureRetrievalDispatcher {
    *
    * @param entityName entity name of the feature.
    * @param entityIds list of entity ID.
-   * @param tsRange timestamp range of the feature.
    * @param groupedFeatureSpec feature specs grouped by serving storage ID.
    * @return entity map containing result of feature retrieval.
    */
   private Map<String, Entity> runWithExecutorService(
       String entityName,
       Collection<String> entityIds,
-      TimestampRange tsRange,
       Map<String, List<FeatureSpec>> groupedFeatureSpec) {
     try (Scope scope =
-        tracer.buildSpan("FeatureRetrievalDispatcher-runWithExecutorService")
-            .startActive(true)) {
+        tracer.buildSpan("FeatureRetrievalDispatcher-runWithExecutorService").startActive(true)) {
       Span span = scope.span();
       List<ListenableFuture<Void>> futures = new ArrayList<>();
       EntityMapBuilder entityMapBuilder = new EntityMapBuilder();
@@ -148,7 +138,7 @@ public class FeatureRetrievalDispatcher {
             executorService.submit(
                 () -> {
                   List<FeatureValue> featureValues =
-                      featureStorage.getFeature(entityName, entityIds, featureSpecs, tsRange);
+                      featureStorage.getFeature(entityName, entityIds, featureSpecs);
                   entityMapBuilder.addFeatureValueList(featureValues);
                   return null;
                 }));

@@ -20,15 +20,11 @@ package feast.serving.testutil;
 import static java.util.stream.Collectors.groupingBy;
 import static org.apache.hadoop.hbase.shaded.org.junit.Assert.assertNotNull;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertThat;
 
 import com.google.protobuf.Timestamp;
-import com.google.protobuf.util.Timestamps;
-import feast.serving.ServingAPIProto.TimestampRange;
 import feast.serving.model.FeatureValue;
 import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.types.GranularityProto.Granularity.Enum;
 import feast.types.ValueProto.Value;
 import feast.types.ValueProto.ValueType;
 import java.util.Collection;
@@ -75,10 +71,7 @@ public abstract class FeatureStoragePopulator {
   }
 
   public void validate(
-      List<FeatureValue> result,
-      List<String> entityIds,
-      List<FeatureSpec> featureSpecs,
-      TimestampRange tsRange) {
+      List<FeatureValue> result, List<String> entityIds, List<FeatureSpec> featureSpecs) {
     Map<String, Map<String, List<FeatureValue>>> entityMap = toEntityMap(result);
 
     assertNotNull(entityMap);
@@ -96,14 +89,6 @@ public abstract class FeatureStoragePopulator {
         FeatureValue featureValue = featureValueList.get(0);
         Timestamp timestamp = featureValue.getTimestamp();
         validateValue(featureValue, entityId, featureSpec, timestamp);
-
-        if (tsRange != null && !featureSpec.getGranularity().equals(Enum.NONE)) {
-          Timestamp start = tsRange.getStart();
-          Timestamp end = tsRange.getEnd();
-
-          assertThat(Timestamps.compare(start, timestamp), lessThanOrEqualTo(0));
-          assertThat(Timestamps.compare(timestamp, end), lessThanOrEqualTo(0));
-        }
       }
     }
   }

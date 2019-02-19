@@ -17,19 +17,12 @@
 
 package feast.serving.util;
 
-import feast.serving.ServingAPIProto.TimestampRange;
-
 /** Utility class for time-related function. */
 public class TimeUtil {
-  public static final int NANO_IN_MILLI = 1000000;
   public static final int NANO_IN_MICRO = 1000;
-  public static final int MILLI_IN_SECOND = 1000;
 
   private TimeUtil() {}
 
-  public static boolean isTimeFilterRequired(TimestampRange timeRange) {
-    return timeRange != null && !TimestampRange.getDefaultInstance().equals(timeRange);
-  }
 
   /**
    * Returns the current value of the running Java Virtual Machine's high-resolution time source, in

@@ -20,13 +20,10 @@ package feast.serving.service;
 import com.google.common.base.Strings;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
-import feast.serving.ServingAPIProto.TimestampRange;
 import feast.serving.exception.FeatureRetrievalException;
 import feast.serving.model.FeatureValue;
-import feast.serving.util.TimeUtil;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.storage.BigTableProto.BigTableRowKey;
-import feast.types.GranularityProto.Granularity.Enum;
 import feast.types.ValueProto.Value;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -60,13 +57,10 @@ public class BigTableFeatureStorage implements FeatureStorage {
   /** {@inheritDoc} */
   @Override
   public List<FeatureValue> getFeature(
-      String entityName,
-      Collection<String> entityIds,
-      Collection<FeatureSpec> featureSpecs,
-      TimestampRange tsRange) {
+      String entityName, Collection<String> entityIds, Collection<FeatureSpec> featureSpecs) {
     List<FeatureValue> featureValues = new ArrayList<>(entityIds.size() * featureSpecs.size());
     for (FeatureSpec featureSpec : featureSpecs) {
-      featureValues.addAll(getCurrentFeatureInternal(entityName, entityIds, featureSpec, tsRange));
+      featureValues.addAll(getCurrentFeatureInternal(entityName, entityIds, featureSpec));
     }
     return featureValues;
   }
@@ -77,18 +71,14 @@ public class BigTableFeatureStorage implements FeatureStorage {
    * @param entityName entity name.
    * @param entityIds list of entity id.
    * @param featureSpec spec of the feature.
-   * @param tsRange time range filter
    * @return list of feature value.
    */
   private List<FeatureValue> getCurrentFeatureInternal(
-      String entityName,
-      Collection<String> entityIds,
-      FeatureSpec featureSpec,
-      TimestampRange tsRange) {
+      String entityName, Collection<String> entityIds, FeatureSpec featureSpec) {
     List<FeatureValue> features = new ArrayList<>(entityIds.size());
     String featureId = featureSpec.getId();
     byte[] featureIdBytes = featureSpec.getId().getBytes();
-    List<Get> gets = createGets(entityIds, featureSpec, tsRange);
+    List<Get> gets = createGets(entityIds, featureSpec);
     try (Table table = connection.getTable(TableName.valueOf(entityName))) {
       Result[] results = table.get(gets);
       for (Result result : results) {
@@ -128,20 +118,11 @@ public class BigTableFeatureStorage implements FeatureStorage {
    *
    * @param entityIds list of entity ID.
    * @param featureSpec feature spec
-   * @param tsRange time filter
    * @return list of Get operation.
    */
-  private List<Get> createGets(
-      Collection<String> entityIds, FeatureSpec featureSpec, TimestampRange tsRange) {
+  private List<Get> createGets(Collection<String> entityIds, FeatureSpec featureSpec) {
     byte[] featureIdBytes = featureSpec.getId().getBytes();
     byte[] columnFamily = getColumnFamily(featureSpec);
-    long start = 0;
-    long end = 0;
-    if (TimeUtil.isTimeFilterRequired(tsRange)) {
-      start = Timestamps.toMillis(tsRange.getStart());
-      end = Timestamps.toMillis(tsRange.getEnd());
-    }
-
     List<Get> gets = new ArrayList<>();
     for (String entityId : entityIds) {
       String entityIdPrefix = DigestUtils.sha1Hex(entityId.getBytes()).substring(0, 7);
@@ -149,9 +130,6 @@ public class BigTableFeatureStorage implements FeatureStorage {
       Get get = new Get(btKey.toByteArray());
       get.addColumn(columnFamily, featureIdBytes);
       try {
-        if (!featureSpec.getGranularity().equals(Enum.NONE) && tsRange != null) {
-          get.setTimeRange(start, end);
-        }
         get.readVersions(1);
       } catch (IOException e) {
         log.error("should not happen");

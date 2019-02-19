@@ -27,8 +27,6 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.protobuf.util.Timestamps;
-import feast.serving.ServingAPIProto.TimestampRange;
 import feast.serving.config.AppConfig;
 import feast.specs.FeatureSpecProto.DataStore;
 import feast.specs.FeatureSpecProto.DataStores;
@@ -67,19 +65,18 @@ public class FeatureRetrievalDispatcherTest {
   public void shouldUseCurrentThreadIfRequestIsSmallEnough() {
     String entityName = "entity";
     FeatureStorage featureStorage = mock(FeatureStorage.class);
-    when(featureStorage.getFeature(
-            any(String.class), any(List.class), any(List.class), any(TimestampRange.class)))
+    when(featureStorage.getFeature(any(String.class), any(List.class), any(List.class)))
         .thenReturn(Collections.emptyList());
     when(featureStorageRegistry.get(any(String.class))).thenReturn(featureStorage);
 
     String featureId = "entity.none.feature_1";
     FeatureSpec featureSpec = FeatureSpec.newBuilder().setId(featureId).build();
     dispatcher.dispatchFeatureRetrieval(
-        entityName, entityIds, Collections.singletonList(featureSpec), null);
+        entityName, entityIds, Collections.singletonList(featureSpec));
 
     verifyZeroInteractions(executorService);
     verify(featureStorage)
-        .getFeature(entityName, entityIds, Collections.singletonList(featureSpec), null);
+        .getFeature(entityName, entityIds, Collections.singletonList(featureSpec));
   }
 
   @Test
@@ -89,8 +86,7 @@ public class FeatureRetrievalDispatcherTest {
     FeatureStorage redis1 = mock(FeatureStorage.class);
     when(featureStorageRegistry.get(storageId1)).thenReturn(redis1);
 
-    when(redis1.getFeature(
-            any(String.class), any(List.class), any(List.class), any(TimestampRange.class)))
+    when(redis1.getFeature(any(String.class), any(List.class), any(List.class)))
         .thenReturn(Collections.emptyList());
 
     String entityName = "entity";
@@ -110,23 +106,12 @@ public class FeatureRetrievalDispatcherTest {
                 DataStores.newBuilder().setServing(DataStore.newBuilder().setId(storageId1)))
             .build();
 
-    TimestampRange tsRange =
-        TimestampRange.newBuilder()
-            .setStart(Timestamps.fromSeconds(0))
-            .setEnd(Timestamps.fromSeconds(10))
-            .build();
     dispatcher.dispatchFeatureRetrieval(
         entityName,
         entityIds,
-        Arrays.asList(featureSpec1, featureSpec2),
-        tsRange);
+        Arrays.asList(featureSpec1, featureSpec2));
 
-    verify(redis1)
-        .getFeature(
-            entityName,
-            entityIds,
-            Arrays.asList(featureSpec1, featureSpec2),
-            tsRange);
+    verify(redis1).getFeature(entityName, entityIds, Arrays.asList(featureSpec1, featureSpec2));
     verifyZeroInteractions(executorService);
   }
 
@@ -140,11 +125,9 @@ public class FeatureRetrievalDispatcherTest {
     when(featureStorageRegistry.get(storageId1)).thenReturn(redis1);
     when(featureStorageRegistry.get(storageId2)).thenReturn(redis2);
 
-    when(redis1.getFeature(
-            any(String.class), any(List.class), any(List.class), any(TimestampRange.class)))
+    when(redis1.getFeature(any(String.class), any(List.class), any(List.class)))
         .thenReturn(Collections.emptyList());
-    when(redis2.getFeature(
-            any(String.class), any(List.class), any(List.class), any(TimestampRange.class)))
+    when(redis2.getFeature(any(String.class), any(List.class), any(List.class)))
         .thenReturn(Collections.emptyList());
 
     String entityName = "entity";
@@ -165,10 +148,10 @@ public class FeatureRetrievalDispatcherTest {
             .build();
 
     dispatcher.dispatchFeatureRetrieval(
-        entityName, entityIds, Arrays.asList(featureSpec1, featureSpec2), null);
+        entityName, entityIds, Arrays.asList(featureSpec1, featureSpec2));
 
-    verify(redis1).getFeature(entityName, entityIds, Collections.singletonList(featureSpec1), null);
-    verify(redis2).getFeature(entityName, entityIds, Collections.singletonList(featureSpec2), null);
+    verify(redis1).getFeature(entityName, entityIds, Collections.singletonList(featureSpec1));
+    verify(redis2).getFeature(entityName, entityIds, Collections.singletonList(featureSpec2));
     verify(executorService, atLeast(2)).submit(any(Callable.class));
   }
 

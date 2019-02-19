@@ -81,8 +81,7 @@ public class FeastServing {
           featureRetrievalDispatcher.dispatchFeatureRetrieval(
               request.getEntityName(),
               request.getEntityIdList(),
-              featureSpecs,
-              request.getTimeRange());
+              featureSpecs);
 
       scope.span().log("finished retrieving all feature");
 

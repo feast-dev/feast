@@ -20,9 +20,6 @@ package feast.serving.service;
 import static junit.framework.TestCase.fail;
 
 import com.google.protobuf.Timestamp;
-import com.google.protobuf.util.Durations;
-import com.google.protobuf.util.Timestamps;
-import feast.serving.ServingAPIProto.TimestampRange;
 import feast.serving.model.FeatureValue;
 import feast.serving.testutil.RedisPopulator;
 import feast.specs.FeatureSpecProto.DataStore;
@@ -34,7 +31,6 @@ import feast.types.ValueProto.ValueType;
 import io.opentracing.util.GlobalTracer;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import org.junit.After;
 import org.junit.Before;
@@ -102,9 +98,8 @@ public class RedisFeatureStorageTest {
     // add entity without feature
     List<String> requestEntityIds = new ArrayList<>(entityIds);
     requestEntityIds.add("100");
-    List<FeatureValue> result =
-        redisFs.getFeature(entityName, requestEntityIds, featureSpecs, null);
-    redisPopulator.validate(result, entityIds, featureSpecs, null);
+    List<FeatureValue> result = redisFs.getFeature(entityName, requestEntityIds, featureSpecs);
+    redisPopulator.validate(result, entityIds, featureSpecs);
   }
 
   @Test
@@ -119,37 +114,10 @@ public class RedisFeatureStorageTest {
 
       redisPopulator.populate(entityName, entityIds, featureSpecs, now);
 
-      List<FeatureValue> result = redisFs.getFeature(entityName, entityIds, featureSpecs, null);
-      List<FeatureValue> result2 = redisFs.getFeature(entityName, entityIds, featureSpecs, TimestampRange.getDefaultInstance());
+      List<FeatureValue> result = redisFs.getFeature(entityName, entityIds, featureSpecs);
 
-      redisPopulator.validate(result, entityIds, featureSpecs, null);
-      redisPopulator.validate(result2, entityIds, featureSpecs, null);
+      redisPopulator.validate(result, entityIds, featureSpecs);
     }
-  }
-
-  @Test
-  public void getFeatures_shouldReturnLastValueFilteredByTimestampIfSpecified() {
-    String entityIdWithOldData = "entity_old";
-    Timestamp fiveMinutesAgo = Timestamps.subtract(now, Durations.fromSeconds(300));
-
-    Timestamp start = Timestamps.subtract(now, Durations.fromSeconds(60));
-    Timestamp end = now;
-    TimestampRange tsRange = TimestampRange.newBuilder().setStart(start).setEnd(end).build();
-
-    Granularity.Enum granularity = Enum.SECOND;
-    FeatureSpec spec1 = createFeatureSpec("feature_1", granularity);
-    FeatureSpec spec2 = createFeatureSpec("feature_2", granularity);
-    List<FeatureSpec> featureSpecs = Arrays.asList(spec1, spec2);
-
-    redisPopulator.populate(entityName, entityIds, featureSpecs, now);
-    redisPopulator.populate(
-        entityName, Collections.singletonList(entityIdWithOldData), featureSpecs, fiveMinutesAgo);
-
-    List<String> allEntityIds = new ArrayList<>(entityIds);
-    allEntityIds.add(entityIdWithOldData);
-
-    List<FeatureValue> result = redisFs.getFeature(entityName, allEntityIds, featureSpecs, tsRange);
-    redisPopulator.validate(result, entityIds, featureSpecs, tsRange);
   }
 
   private FeatureSpec createFeatureSpec(String featureName, Enum granularity) {

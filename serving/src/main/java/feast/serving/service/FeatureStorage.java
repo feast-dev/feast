@@ -17,7 +17,6 @@
 
 package feast.serving.service;
 
-import feast.serving.ServingAPIProto.TimestampRange;
 import feast.serving.exception.FeatureRetrievalException;
 import feast.serving.model.FeatureValue;
 import feast.specs.FeatureSpecProto.FeatureSpec;
@@ -32,14 +31,11 @@ public interface FeatureStorage {
    * @param entityName entity name, e.g. 'driver', 'customer', 'area'
    * @param entityIds list of entity id.
    * @param featureSpecs list of feature spec for which the feature should be retrieved. * @param
-   * @param tsRange allowed event timestamp of the feature to be returned. Pass null to not filter *
-   *     by time.
    * @return list of feature value.
    * @throws FeatureRetrievalException if anything goes wrong during feature retrieval.
    */
   List<FeatureValue> getFeature(
       String entityName,
       Collection<String> entityIds,
-      Collection<FeatureSpec> featureSpecs,
-      TimestampRange tsRange);
+      Collection<FeatureSpec> featureSpecs);
 }

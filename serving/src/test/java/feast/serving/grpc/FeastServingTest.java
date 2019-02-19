@@ -23,11 +23,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.verify;
 
-import com.google.protobuf.Timestamp;
-import com.google.protobuf.util.Timestamps;
 import feast.serving.ServingAPIProto.QueryFeaturesRequest;
 import feast.serving.ServingAPIProto.QueryFeaturesResponse;
-import feast.serving.ServingAPIProto.TimestampRange;
 import feast.serving.service.FeastServing;
 import feast.serving.service.FeatureRetrievalDispatcher;
 import feast.serving.service.FeatureStorageRegistry;
@@ -66,16 +63,10 @@ public class FeastServingTest {
   @Test
   public void shouldReturnSameEntityNameAsRequest() {
     String entityName = "driver";
-    TimestampRange tsRange =
-        TimestampRange.newBuilder()
-            .setStart(Timestamps.EPOCH)
-            .setEnd(Timestamp.newBuilder().setSeconds(1234).build())
-            .build();
     QueryFeaturesRequest request =
         QueryFeaturesRequest.newBuilder()
             .setEntityName(entityName)
             .addFeatureId("driver.day.total_completed_booking")
-            .setTimeRange(tsRange)
             .build();
 
     QueryFeaturesResponse response = feast.queryFeatures(request);
@@ -89,36 +80,26 @@ public class FeastServingTest {
     String entityName = "driver";
     Collection<String> entityIds = Arrays.asList("entity1", "entity2", "entity3");
     Collection<String> featureIds = Arrays.asList("driver.day.total_completed_booking");
-    TimestampRange tsRange =
-        TimestampRange.newBuilder()
-            .setStart(Timestamps.EPOCH)
-            .setEnd(Timestamp.newBuilder().setSeconds(1234).build())
-            .build();
     QueryFeaturesRequest request =
         QueryFeaturesRequest.newBuilder()
             .setEntityName(entityName)
             .addAllEntityId(entityIds)
             .addAllFeatureId(featureIds)
-            .setTimeRange(tsRange)
             .build();
 
     ArgumentCaptor<String> entityNameArg = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<List<String>> entityIdsArg = ArgumentCaptor.forClass(List.class);
-    ArgumentCaptor<Collection<FeatureSpec>> featureSpecArg = ArgumentCaptor.forClass(Collection.class);
-    ArgumentCaptor<TimestampRange> tsRangeArg = ArgumentCaptor.forClass(TimestampRange.class);
+    ArgumentCaptor<Collection<FeatureSpec>> featureSpecArg =
+        ArgumentCaptor.forClass(Collection.class);
 
     QueryFeaturesResponse response = feast.queryFeatures(request);
     verify(featureRetrievalDispatcher)
         .dispatchFeatureRetrieval(
-            entityNameArg.capture(),
-            entityIdsArg.capture(),
-            featureSpecArg.capture(),
-            tsRangeArg.capture());
+            entityNameArg.capture(), entityIdsArg.capture(), featureSpecArg.capture());
 
     assertNotNull(response);
     assertThat(response.getEntityName(), equalTo(entityName));
     assertThat(entityNameArg.getValue(), equalTo(entityName));
     assertThat(entityIdsArg.getValue(), containsInAnyOrder(entityIds.toArray()));
-    assertThat(tsRangeArg.getValue(), equalTo(tsRange));
   }
 }

@@ -20,9 +20,6 @@ package feast.serving.service;
 import com.google.cloud.bigtable.hbase.BigtableConfiguration;
 import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import com.google.protobuf.Timestamp;
-import com.google.protobuf.util.Durations;
-import com.google.protobuf.util.Timestamps;
-import feast.serving.ServingAPIProto.TimestampRange;
 import feast.serving.model.FeatureValue;
 import feast.serving.testutil.BigTablePopulator;
 import feast.specs.FeatureSpecProto.FeatureSpec;
@@ -31,7 +28,6 @@ import feast.types.GranularityProto.Granularity.Enum;
 import feast.types.ValueProto.ValueType;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Connection;
@@ -91,13 +87,9 @@ public class BigTableFeatureStorageTestITCase {
 
     List<FeatureSpec> featureSpecs = Arrays.asList(featureSpec1, featureSpec2);
     bigTablePopulator.populate(ENTITY_NAME, entityIds, featureSpecs, now);
-    List<FeatureValue> results =
-        featureStorage.getFeature(ENTITY_NAME, entityIds, featureSpecs, null);
-    List<FeatureValue> results2 =
-        featureStorage.getFeature(ENTITY_NAME, entityIds, featureSpecs, TimestampRange.getDefaultInstance());
+    List<FeatureValue> results = featureStorage.getFeature(ENTITY_NAME, entityIds, featureSpecs);
 
-    bigTablePopulator.validate(results, entityIds, featureSpecs, null);
-    bigTablePopulator.validate(results2, entityIds, featureSpecs, null);
+    bigTablePopulator.validate(results, entityIds, featureSpecs);
   }
 
   @Test
@@ -125,8 +117,8 @@ public class BigTableFeatureStorageTestITCase {
     entityIdsWithMissingEntity.add("100");
     bigTablePopulator.populate(ENTITY_NAME, entityIds, featureSpecs, now);
     List<FeatureValue> results =
-        featureStorage.getFeature(ENTITY_NAME, entityIdsWithMissingEntity, featureSpecs, null);
-    bigTablePopulator.validate(results, entityIds, featureSpecs, null);
+        featureStorage.getFeature(ENTITY_NAME, entityIdsWithMissingEntity, featureSpecs);
+    bigTablePopulator.validate(results, entityIds, featureSpecs);
   }
 
   @Test
@@ -141,38 +133,10 @@ public class BigTableFeatureStorageTestITCase {
       List<FeatureSpec> featureSpecs = Arrays.asList(spec1, spec2);
       bigTablePopulator.populate(ENTITY_NAME, entityIds, featureSpecs, now);
 
-      List<FeatureValue> result =
-          featureStorage.getFeature(ENTITY_NAME, entityIds, featureSpecs, null);
+      List<FeatureValue> result = featureStorage.getFeature(ENTITY_NAME, entityIds, featureSpecs);
 
-      bigTablePopulator.validate(result, entityIds, featureSpecs, null);
+      bigTablePopulator.validate(result, entityIds, featureSpecs);
     }
-  }
-
-  @Test
-  public void getFeatures_shouldFilterOutOldData() {
-    String entityIdWithOldData = "entity_old_data";
-    Granularity.Enum granularity = Enum.MINUTE;
-    Timestamp fiveMinutesAgo = Timestamps.subtract(now, Durations.fromSeconds(300));
-
-    Timestamp start = Timestamps.subtract(now, Durations.fromSeconds(60));
-    Timestamp end = now;
-    TimestampRange tsRange = TimestampRange.newBuilder().setStart(start).setEnd(end).build();
-
-    FeatureSpec spec1 = createFeatureSpec("feature_1", granularity, ValueType.Enum.STRING);
-    FeatureSpec spec2 = createFeatureSpec("feature_2", granularity, ValueType.Enum.STRING);
-
-    List<FeatureSpec> featureSpecs = Arrays.asList(spec1, spec2);
-    bigTablePopulator.populate(ENTITY_NAME, entityIds, featureSpecs, now);
-    bigTablePopulator.populate(
-        ENTITY_NAME, Collections.singletonList(entityIdWithOldData), featureSpecs, fiveMinutesAgo);
-
-    List<String> allEntityIds = new ArrayList<>(entityIds);
-    allEntityIds.add(entityIdWithOldData);
-    List<FeatureValue> result =
-        featureStorage.getFeature(ENTITY_NAME, allEntityIds, featureSpecs, tsRange);
-    System.out.println(result);
-
-    bigTablePopulator.validate(result, entityIds, featureSpecs, tsRange);
   }
 
   private FeatureSpec createFeatureSpec(

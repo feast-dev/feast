@@ -40,8 +40,6 @@ message QueryFeaturesRequest {
     // e.g: "driver.day.total_accepted_booking"
     // all requested feature ID shall have same entity name.
     repeated string featureId = 3;
-    // [optional] time range filter. If not specified all feature with any timestamp will be returned.
-    TimestampRange timeRange = 4;
 }
 
 message QueryFeaturesResponse {
@@ -49,15 +47,6 @@ message QueryFeaturesResponse {
     string entityName = 1;
     // map of entity ID and its entity's properties.
     map<string, Entity> entities = 2;
-}
-
-// range of timestamp for querying
-// valid timestamp range is having start <= end
-message TimestampRange {
-    // start time of the range query.
-    google.protobuf.Timestamp start = 1;
-    // end time of the range query.
-    google.protobuf.Timestamp end = 2;
 }
 
 message Entity {

@@ -18,8 +18,6 @@
 package feast.serving.util;
 
 import com.google.common.base.Strings;
-import com.google.protobuf.Timestamp;
-import com.google.protobuf.util.Timestamps;
 import feast.serving.ServingAPIProto.QueryFeaturesRequest;
 
 public class RequestHelper {
@@ -48,29 +46,6 @@ public class RequestHelper {
         throw new IllegalArgumentException(
             "entity name of all feature ID in request details must be: " + entityName);
       }
-    }
-
-    checkTimestampRange(request);
-  }
-
-  private static void checkTimestampRange(QueryFeaturesRequest request) {
-    if (!request.hasTimeRange()) {
-      return;
-    }
-
-    Timestamp start = request.getTimeRange().getStart();
-    Timestamp end = request.getTimeRange().getEnd();
-    if (Timestamps.EPOCH.equals(start)) {
-      throw new IllegalArgumentException("start time must not be empty");
-    }
-
-    if (Timestamps.EPOCH.equals(end)) {
-      throw new IllegalArgumentException("end time must not be empty");
-    }
-
-    if (Timestamps.compare(start, end) > 0) {
-      throw new IllegalArgumentException(
-          "'end' of timestampRange must be before or same time as 'start'");
     }
   }
 }

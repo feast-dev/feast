@@ -20,12 +20,9 @@ package feast.serving.grpc;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 
-import com.google.protobuf.Timestamp;
-import com.google.protobuf.util.Timestamps;
 import com.timgroup.statsd.StatsDClient;
 import feast.serving.ServingAPIProto.QueryFeaturesRequest;
 import feast.serving.ServingAPIProto.QueryFeaturesResponse;
-import feast.serving.ServingAPIProto.TimestampRange;
 import feast.serving.service.FeastServing;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -53,19 +50,12 @@ public class ServingGrpcServiceTest {
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
 
-    TimestampRange tsRange =
-        TimestampRange.newBuilder()
-            .setStart(Timestamp.newBuilder().setSeconds(10).build())
-            .setEnd(Timestamp.newBuilder().setSeconds(11).build())
-            .build();
-
     validRequest =
         QueryFeaturesRequest.newBuilder()
             .setEntityName("driver")
             .addAllEntityId(Arrays.asList("driver1", "driver2", "driver3"))
             .addAllFeatureId(
                 Arrays.asList("driver.day.completed_booking", "driver.none.last_opportunity"))
-            .setTimeRange(tsRange)
             .build();
 
     Tracer tracer = Configuration.fromEnv("dummy").getTracer();
@@ -116,60 +106,6 @@ public class ServingGrpcServiceTest {
             .build();
 
     service.queryFeatures(differentEntityReq, mockStreamObserver);
-
-    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
-  }
-
-  @Test
-  public void shouldCallOnErrorIfTimestampRangeStartIsAfterEnd() {
-    TimestampRange invalidTsRange =
-        TimestampRange.newBuilder()
-            .setStart(Timestamps.fromSeconds(1001))
-            .setEnd(Timestamps.fromSeconds(1000))
-            .build();
-
-    QueryFeaturesRequest invalidTsRangeReq =
-        QueryFeaturesRequest.newBuilder(validRequest).setTimeRange(invalidTsRange).build();
-
-    service.queryFeatures(invalidTsRangeReq, mockStreamObserver);
-
-    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
-  }
-
-  @Test
-  public void shouldCallOnErrorIfTimestampRangeDoesntHaveStartAndEnd() {
-    TimestampRange invalidTsRange = TimestampRange.newBuilder().build();
-
-    QueryFeaturesRequest invalidTsRangeReq =
-        QueryFeaturesRequest.newBuilder(validRequest).setTimeRange(invalidTsRange).build();
-
-    service.queryFeatures(invalidTsRangeReq, mockStreamObserver);
-
-    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
-  }
-
-  @Test
-  public void shouldCallOnErrorIfTimestampRangeDoesntHaveStart() {
-    TimestampRange invalidTsRange =
-        TimestampRange.newBuilder().setEnd(Timestamps.fromSeconds(1001)).build();
-
-    QueryFeaturesRequest invalidTsRangeReq =
-        QueryFeaturesRequest.newBuilder(validRequest).setTimeRange(invalidTsRange).build();
-
-    service.queryFeatures(invalidTsRangeReq, mockStreamObserver);
-
-    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
-  }
-
-  @Test
-  public void shouldCallOnErrorIfTimestampRangeDoesntHaveEnd() {
-    TimestampRange invalidTsRange =
-        TimestampRange.newBuilder().setStart(Timestamps.fromSeconds(1001)).build();
-
-    QueryFeaturesRequest invalidTsRangeReq =
-        QueryFeaturesRequest.newBuilder(validRequest).setTimeRange(invalidTsRange).build();
-
-    service.queryFeatures(invalidTsRangeReq, mockStreamObserver);
 
     verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
   }

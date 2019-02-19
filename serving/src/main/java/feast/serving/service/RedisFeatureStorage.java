@@ -18,16 +18,11 @@
 package feast.serving.service;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.Timestamp;
-import com.google.protobuf.util.Timestamps;
-import feast.serving.ServingAPIProto.TimestampRange;
 import feast.serving.exception.FeatureRetrievalException;
 import feast.serving.model.FeatureValue;
-import feast.serving.util.TimeUtil;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.storage.RedisProto.RedisBucketKey;
 import feast.storage.RedisProto.RedisBucketValue;
-import feast.types.GranularityProto.Granularity.Enum;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
@@ -71,41 +66,19 @@ public class RedisFeatureStorage implements FeatureStorage {
   /** {@inheritDoc} */
   @Override
   public List<FeatureValue> getFeature(
-      String entityName,
-      Collection<String> entityIds,
-      Collection<FeatureSpec> featureSpecs,
-      TimestampRange tsRange) {
+      String entityName, Collection<String> entityIds, Collection<FeatureSpec> featureSpecs) {
     try (Scope scope = tracer.buildSpan("Redis-getFeature").startActive(true)) {
       List<GetRequest> getRequests = new ArrayList<>(entityIds.size() * featureSpecs.size());
-      // Granularity NONE is currently treated differently since the event timestamp is always EPOCH
-      List<GetRequest> getRequestsGranularityNone = new ArrayList<>();
       for (FeatureSpec featureSpec : featureSpecs) {
         String featureId = featureSpec.getId();
         String featureIdSha1Prefix = makeFeatureIdSha1Prefix(featureId);
         for (String entityId : entityIds) {
           RedisBucketKey key = makeBucketKey(entityId, featureIdSha1Prefix, BUCKET_ID_ZERO);
-          if (featureSpec.getGranularity().equals(Enum.NONE)) {
-            getRequestsGranularityNone.add(new GetRequest(entityId, featureId, key));
-          } else {
             getRequests.add(new GetRequest(entityId, featureId, key));
-          }
         }
       }
       scope.span().log("completed request creation");
-      List<FeatureValue> unfilteredResult = sendAndProcessMultiGet(getRequests);
-      List<FeatureValue> granularityNoneResult = sendAndProcessMultiGet(getRequestsGranularityNone);
-      List<FeatureValue> combinedResult =
-          new ArrayList<>(unfilteredResult.size() + granularityNoneResult.size());
-      if (!TimeUtil.isTimeFilterRequired(tsRange)) {
-        combinedResult.addAll(unfilteredResult);
-        combinedResult.addAll(granularityNoneResult);
-        return combinedResult;
-      }
-
-      List<FeatureValue> filteredResult = filterByTimeRange(unfilteredResult, tsRange);
-      combinedResult.addAll(granularityNoneResult);
-      combinedResult.addAll(filteredResult);
-      return combinedResult;
+      return sendAndProcessMultiGet(getRequests);
     }
   }
 
@@ -208,28 +181,6 @@ public class RedisFeatureStorage implements FeatureStorage {
    */
   private String makeFeatureIdSha1Prefix(String featureId) {
     return DigestUtils.sha1Hex(featureId.getBytes()).substring(0, 7);
-  }
-
-  /**
-   * Filter list of feature value by its timestamp
-   *
-   * @param unfilteredResult unflitered list of feature value
-   * @param tsRange time range filter
-   * @return filtered result
-   */
-  private List<FeatureValue> filterByTimeRange(
-      List<FeatureValue> unfilteredResult, TimestampRange tsRange) {
-    return unfilteredResult
-        .stream()
-        .filter(
-            v -> {
-              Timestamp start = tsRange.getStart();
-              Timestamp end = tsRange.getEnd();
-
-              return Timestamps.compare(start, v.getTimestamp()) <= 0
-                  && Timestamps.compare(v.getTimestamp(), end) <= 0;
-            })
-        .collect(Collectors.toList());
   }
 
   @AllArgsConstructor
