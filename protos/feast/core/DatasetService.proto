@@ -22,7 +22,7 @@ import "google/protobuf/timestamp.proto";
 
 option java_package = "feast.core";
 option java_outer_classname = "DatasetServiceProto";
-option go_package = "github.com/gojektech/feast/protos/generated/go/feast/core";
+option go_package = "github.com/gojek/feast/protos/generated/go/feast/core";
 
 service DatasetService {
   // Create training dataset for a feature set
