@@ -173,6 +173,26 @@ public class ValueMapToFeatureRowTransformTest {
   }
 
   @Test
+  public void testUnsetFeatureValue() {
+    Schema schema = Schema.newBuilder()
+        .addFields(Field.newBuilder().setName("x").setFeatureId("f1")).build();
+
+    Map<String, Value> map = new HashMap<>();
+    map.put("x", Value.getDefaultInstance());
+
+    PCollection<FeatureRow> output = pipeline
+        .apply(Create.of(Lists.newArrayList(map)).withCoder(VALUE_MAP_CODER))
+        .apply(new ValueMapToFeatureRowTransform("entity", schema));
+
+    PAssert.that(output).satisfies(maps -> {
+      FeatureRow row = maps.iterator().next();
+      assertEquals(0, row.getFeaturesList().size());
+      return null;
+    });
+    pipeline.run();
+  }
+
+  @Test
   public void testFieldNonFeatureIdIgnored() {
     Schema schema = Schema.newBuilder()
         .addFields(Field.newBuilder().setName("x")).build();

@@ -93,7 +93,7 @@ public class ValueMapToFeatureRowTransform extends
           Value value = entry.getValue();
           Field field = fields.get(name);
 
-          if (value.getValCase().equals(ValCase.VAL_NOT_SET)) {
+          if (value == null || value.getValCase().equals(ValCase.VAL_NOT_SET)) {
             continue;
           }
 

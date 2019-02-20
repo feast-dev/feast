@@ -17,11 +17,16 @@
 
 package feast.source.common;
 
+import static feast.source.common.StringToValueMapTransform.VALUE_MAP_CODER;
+import static org.junit.Assert.assertEquals;
+
 import com.google.common.collect.Lists;
-import feast.source.common.StringToValueMapTransform;
+import feast.ingestion.model.Values;
 import feast.types.ValueProto.Value;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -32,27 +37,40 @@ import org.junit.Test;
 public class StringToValueMapTransformTest {
 
   @Rule
-  TestPipeline pipeline = TestPipeline.create();
-
-  @Test
-  public void testEmptyMap() {
-    Map<String, String> map = new HashMap<>();
-    PCollection<Map<String, String>> input = pipeline.apply(Create.of(Lists.newArrayList(map)));
-
-    PCollection<Map<String, Value>> output = input.apply(new StringToValueMapTransform());
-
-    PAssert.that(output).containsInAnyOrder(new HashMap<>());
-  }
+  public TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void testEmptyValues() {
     Map<String, String> map = new HashMap<>();
     map.put("a", "");
-    map.put("b", null);
-    PCollection<Map<String, String>> input = pipeline.apply(Create.of(Lists.newArrayList(map)));
+    map.put("b", "");
+    PCollection<Map<String, String>> input = pipeline.apply(Create.of(Lists.newArrayList(map))
+        .withCoder(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())));
 
-    PCollection<Map<String, Value>> output = input.apply(new StringToValueMapTransform());
+    PCollection<Map<String, Value>> output = input.apply(new StringToValueMapTransform())
+        .setCoder(VALUE_MAP_CODER);
 
     PAssert.that(output).containsInAnyOrder(new HashMap<>());
+    pipeline.run();
+  }
+
+  @Test
+  public void testStringValues() {
+    Map<String, String> map = new HashMap<>();
+    map.put("a", "abcd");
+    map.put("b", "1234");
+    PCollection<Map<String, String>> input = pipeline.apply(Create.of(Lists.newArrayList(map))
+        .withCoder(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())));
+
+    PCollection<Map<String, Value>> output = input.apply(new StringToValueMapTransform())
+        .setCoder(VALUE_MAP_CODER);
+
+    PAssert.that(output).satisfies(maps -> {
+      Map<String, Value> outMap = maps.iterator().next();
+      assertEquals(outMap.get("a"), Values.ofString("abcd"));
+      assertEquals(outMap.get("b"), Values.ofString("1234"));
+      return null;
+    });
+    pipeline.run();
   }
 }
