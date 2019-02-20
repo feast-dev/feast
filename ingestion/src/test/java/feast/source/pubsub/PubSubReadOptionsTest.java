@@ -40,13 +40,35 @@ public class PubSubReadOptionsTest {
   }
 
   @Test
-  public void testParseSubscriptionWithFormat() {
+  public void testParseSubscriptionWithCsvFormat() {
     Map<String, String> opts = new HashMap<>();
     opts.put("subscription", "foo");
-    opts.put("format", "csv");
+    opts.put("messageFormat", "csv");
 
     PubSubReadOptions options = OptionsParser.parse(opts, PubSubReadOptions.class);
     assertFalse(options.discardUnknownFeatures);
     assertEquals(options.messageFormat, MessageFormat.CSV);
+  }
+
+  @Test
+  public void testParseSubscriptionWithJsonFormat() {
+    Map<String, String> opts = new HashMap<>();
+    opts.put("subscription", "foo");
+    opts.put("messageFormat", "json");
+
+    PubSubReadOptions options = OptionsParser.parse(opts, PubSubReadOptions.class);
+    assertFalse(options.discardUnknownFeatures);
+    assertEquals(options.messageFormat, MessageFormat.JSON);
+  }
+
+  @Test
+  public void testParseSubscriptionWithFeatureRowFormat() {
+    Map<String, String> opts = new HashMap<>();
+    opts.put("subscription", "foo");
+    opts.put("messageFormat", "featureRow");
+
+    PubSubReadOptions options = OptionsParser.parse(opts, PubSubReadOptions.class);
+    assertFalse(options.discardUnknownFeatures);
+    assertEquals(options.messageFormat, MessageFormat.FEATURE_ROW);
   }
 }
