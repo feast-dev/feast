@@ -18,7 +18,6 @@ Main interface for users to interact with the Core API.
 
 import os
 from datetime import datetime
-import dateutil.parser
 
 import grpc
 import pandas as pd
@@ -220,17 +219,27 @@ class Client:
                 representing the data wanted
             entity_keys (:obj: `list` of :obj: `str): list of entity keys
             ts_range (:obj: `list` of str, optional): size 2 list of start
-                timestamp and end timestamp, in ISO 8601 format. It will
+                and end time, in datetime type. It will
                 filter out any feature value having event timestamp outside
                 of the ts_range.
 
         Returns:
             pandas.DataFrame: DataFrame of results
         """
+        start = None
+        end = None
+        if ts_range is not None:
+            if len(ts_range) != 2:
+                raise ValueError("ts_range must have len 2")
+            start = ts_range[0]
+            end = ts_range[1]
+            if type(start) is not datetime or type(end) is not datetime:
+                raise TypeError("start and end must be datetime type")
+
         request = self._build_serving_request(feature_set, entity_keys)
         self._connect_serving()
         return self._response_to_df(feature_set, self._serving_service_stub
-                                    .QueryFeatures(request), ts_range)
+                                    .QueryFeatures(request), start, end)
 
     def download_dataset(self, dataset_info, dest, staging_location,
                          file_type=FileType.CSV):
@@ -299,22 +308,15 @@ class Client:
                                     entityId=entity_keys,
                                     featureId=feature_set.features)
 
-    def _response_to_df(self, feature_set, response, ts_range = None):
-        start = None
-        end = None
-        if ts_range is not None:
-            if len(ts_range) != 2:
-                raise ValueError("ts_range must have len 2")
-            start = dateutil.parser.parse(ts_range[0])
-            end = dateutil.parser.parse(ts_range[1])
-
+    def _response_to_df(self, feature_set, response, start=None, end=None):
+        is_filter_time = start is not None and end is not None
         df = pd.DataFrame(columns=[feature_set.entity] + feature_set.features)
         for entity_id in response.entities:
             feature_map = response.entities[entity_id].features
             row = {response.entityName: entity_id}
             for feature_id in feature_map:
                 v = feature_map[feature_id].value
-                if ts_range is not None and not _is_granularity_none(
+                if is_filter_time and not _is_granularity_none(
                         feature_id):
                     ts = feature_map[feature_id].timestamp.ToDatetime()
                     if ts < start or ts > end:

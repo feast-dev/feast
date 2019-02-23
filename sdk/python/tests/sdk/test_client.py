@@ -360,13 +360,11 @@ class TestClient(object):
                                     'entity.feat1': [np.NaN, 3],
                                     'entity.feat2': [np.NaN, np.NaN]}) \
             .reset_index(drop=True)
-        start = datetime.utcfromtimestamp(2).isoformat()
-        end = datetime.utcfromtimestamp(5).isoformat()
-
-        ts_range = [start, end]
+        start = datetime.utcfromtimestamp(2)
+        end = datetime.utcfromtimestamp(5)
         df = client._response_to_df(FeatureSet("entity", ["entity.feat1",
                                                           "entity.feat2"]),
-                                    response, ts_range) \
+                                    response, start, end) \
             .sort_values(['entity']) \
             .reset_index(drop=True)[expected_df.columns]
         print(df)
@@ -386,13 +384,11 @@ class TestClient(object):
                                     'entity.none.feat1': [1, 3],
                                     'entity.none.feat2': [np.NaN, np.NaN]}) \
             .reset_index(drop=True)
-        start = datetime.utcfromtimestamp(2).isoformat()
-        end = datetime.utcfromtimestamp(5).isoformat()
-
-        ts_range = [start, end]
+        start = datetime.utcfromtimestamp(2)
+        end = datetime.utcfromtimestamp(5)
         df = client._response_to_df(FeatureSet("entity", ["entity.none.feat1",
                                                           "entity.none.feat2"]),
-                                    response, ts_range) \
+                                    response, start, end) \
             .sort_values(['entity']) \
             .reset_index(drop=True)[expected_df.columns]
         print(df)
@@ -400,6 +396,17 @@ class TestClient(object):
                            check_dtype=False,
                            check_column_type=False,
                            check_index_type=False)
+
+    def test_serving_invalid_type(self, client):
+        start = "2018-01-01T01:01:01"
+        end = "2018-01-01T01:01:01"
+        ts_range = [start, end]
+        with pytest.raises(TypeError, match="start and end must be datetime "
+                                            "type"):
+            client.get_serving_data(FeatureSet("entity", ["entity.none.feat1",
+                                                          "entity.none.feat2"]),
+                                    ["1234", "5678"],
+                                    ts_range)
 
     def test_download_dataset_as_file(self, client, mocker):
         destination = "/tmp/dest_file"
