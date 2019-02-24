@@ -106,7 +106,8 @@ class Importer:
         Returns:
             Importer: the importer for the dataset provided.
         """
-        source_options = {"format": "csv"}
+        src_type = "file.csv"
+        source_options = {}
         source_options["path"], require_staging = \
             _get_remote_location(path, staging_location)
         if is_gs_path(path):
@@ -118,9 +119,10 @@ class Importer:
                                        feature_columns, timestamp_column,
                                        timestamp_value, serving_store,
                                        warehouse_store, df)
-        iport_spec = _create_import("file", source_options, job_options, entity, schema)
+        iport_spec = _create_import(src_type, source_options, job_options,
+                                    entity, schema)
 
-        props = (_properties("csv", len(df.index), require_staging,
+        props = (_properties(src_type, len(df.index), require_staging,
                              source_options["path"]))
         specs = _specs(iport_spec, Entity(name=entity), features)
 
