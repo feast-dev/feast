@@ -18,23 +18,23 @@
 package feast.ingestion.transform;
 
 import com.google.inject.Inject;
+import feast.ingestion.metrics.FeastMetrics;
+import feast.ingestion.model.Specs;
+import feast.ingestion.values.PFeatureRows;
+import feast.store.warehouse.FeatureWarehouseFactory;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import feast.ingestion.metrics.FeastMetrics;
-import feast.ingestion.model.Specs;
-import feast.ingestion.values.PFeatureRows;
-import feast.storage.WarehouseStore;
 
 @Slf4j
 public class WarehouseStoreTransform extends PTransform<PFeatureRows, PFeatureRows> {
 
-  private List<WarehouseStore> stores;
+  private List<FeatureWarehouseFactory> stores;
   private Specs specs;
 
   @Inject
-  public WarehouseStoreTransform(List<WarehouseStore> stores, Specs specs) {
+  public WarehouseStoreTransform(List<FeatureWarehouseFactory> stores, Specs specs) {
     this.stores = stores;
     this.specs = specs;
   }
@@ -48,8 +48,10 @@ public class WarehouseStoreTransform extends PTransform<PFeatureRows, PFeatureRo
                 stores,
                 (featureSpec) -> featureSpec.getDataStores().getWarehouse().getId(),
                 specs));
-    output.getMain().apply("metrics.store.main", ParDo.of(FeastMetrics.incrDoFn("warehouse_stored")));
-    output.getErrors().apply("metrics.store.errors", ParDo.of(FeastMetrics.incrDoFn("warehouse_errors")));
+    output.getMain()
+        .apply("metrics.store.main", ParDo.of(FeastMetrics.incrDoFn("warehouse_stored")));
+    output.getErrors()
+        .apply("metrics.store.errors", ParDo.of(FeastMetrics.incrDoFn("warehouse_errors")));
     return output;
   }
 }

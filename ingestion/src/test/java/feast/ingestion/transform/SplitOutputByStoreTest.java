@@ -26,7 +26,6 @@ import feast.ingestion.model.Features;
 import feast.ingestion.model.Specs;
 import feast.ingestion.model.Values;
 import feast.ingestion.service.MockSpecService;
-import feast.ingestion.transform.FeatureIO.Write;
 import feast.ingestion.transform.SplitOutputByStore.WriteTags;
 import feast.ingestion.values.PFeatureRows;
 import feast.specs.EntitySpecProto.EntitySpec;
@@ -37,9 +36,10 @@ import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.storage.FeatureStore;
-import feast.storage.MockFeatureStore;
-import feast.storage.MockTransforms;
+import feast.store.FeatureStoreWrite;
+import feast.store.FeatureStoreFactory;
+import feast.store.MockFeatureStore;
+import feast.store.MockTransforms;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.Collections;
@@ -78,7 +78,7 @@ public class SplitOutputByStoreTest {
                 DataStores.newBuilder().setServing(DataStore.newBuilder().setId("store2"))).build())
         .addStorage(StorageSpec.newBuilder().setId("store1").setType("type1").build())
         .addStorage(StorageSpec.newBuilder().setId("store2").setType("type2").build());
-    List<FeatureStore> stores =
+    List<FeatureStoreFactory> stores =
         Lists.newArrayList(new MockFeatureStore("type1"), new MockFeatureStore("type2"));
     Specs specs =
         Specs.of(
@@ -186,7 +186,7 @@ public class SplitOutputByStoreTest {
         "store1", StorageSpec.newBuilder().setId("store1").setType("type1").build());
     specService.storageSpecs.put(
         "store2", StorageSpec.newBuilder().setId("store2").setType("type2").build());
-    List<FeatureStore> stores =
+    List<FeatureStoreFactory> stores =
         Lists.newArrayList(new MockFeatureStore("type1"), new MockFeatureStore("type2"));
     Specs specs =
         Specs.of(
@@ -284,7 +284,7 @@ public class SplitOutputByStoreTest {
                 .build(),
             specService);
     assertNull(specs.getError());
-    List<FeatureStore> stores = Collections.emptyList();
+    List<FeatureStoreFactory> stores = Collections.emptyList();
     SplitOutputByStore split = new SplitOutputByStore(stores, selector, specs);
 
     PCollection<FeatureRowExtended> input =
@@ -346,7 +346,7 @@ public class SplitOutputByStoreTest {
                 .build(),
             specService);
     assertNull(specs.getError());
-    List<FeatureStore> stores = Collections.emptyList();
+    List<FeatureStoreFactory> stores = Collections.emptyList();
     SplitOutputByStore split = new SplitOutputByStore(stores, selector, specs);
 
     PCollection<FeatureRowExtended> input =
@@ -385,7 +385,7 @@ public class SplitOutputByStoreTest {
     TupleTag<FeatureRowExtended> tag3 = new TupleTag<>("TAG3");
     TupleTag<FeatureRowExtended> mainTag = new TupleTag<>("TAG4");
 
-    Map<TupleTag<FeatureRowExtended>, Write> transforms = ImmutableMap.<TupleTag<FeatureRowExtended>, Write>builder()
+    Map<TupleTag<FeatureRowExtended>, FeatureStoreWrite> transforms = ImmutableMap.<TupleTag<FeatureRowExtended>, FeatureStoreWrite>builder()
         .put(tag1, new MockTransforms.Write())
         .put(tag2, new MockTransforms.Write())
         // tag3 and mainTag do not have write transforms.
@@ -418,7 +418,7 @@ public class SplitOutputByStoreTest {
     // input 4 is is returned in the output because it is the main tag.
     PAssert.that(output).containsInAnyOrder(rowex1, rowex2, rowex4);
 
-    // Each non main tagged input should be written to corresponding Write transform
+    // Each non main tagged input should be written to corresponding FeatureStoreWrite transform
     PAssert.that(((MockTransforms.Write) transforms.get(tag1)).getInputs().get(0))
         .containsInAnyOrder(rowex1);
     PAssert.that(((MockTransforms.Write) transforms.get(tag2)).getInputs().get(0))

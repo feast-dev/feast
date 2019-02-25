@@ -23,7 +23,7 @@ import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.common.collect.Maps;
 import com.google.protobuf.Timestamp;
-import feast.storage.bigquery.ValueBigQueryBuilder;
+import feast.store.warehouse.bigquery.ValueBigQueryBuilder;
 import java.util.Map;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord;
@@ -34,8 +34,6 @@ import feast.specs.ImportSpecProto.ImportSpec;
 import feast.types.FeatureProto.Feature;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.ValueProto.Value;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This is a serializable function used with the BigQueryIO for fetching feature rows directly from

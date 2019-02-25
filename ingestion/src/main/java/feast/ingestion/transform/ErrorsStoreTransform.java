@@ -23,10 +23,10 @@ import static feast.ingestion.util.JsonUtil.convertJsonStringToMap;
 import com.google.inject.Inject;
 import feast.ingestion.model.Specs;
 import feast.ingestion.options.ImportJobPipelineOptions;
-import feast.ingestion.transform.FeatureIO.Write;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.storage.ErrorsStore;
-import feast.storage.noop.NoOpIO;
+import feast.store.FeatureStoreWrite;
+import feast.store.NoOpIO;
+import feast.store.errors.FeatureErrorsFactory;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -35,18 +35,19 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.hadoop.hbase.util.Strings;
 
 @Slf4j
-public class ErrorsStoreTransform extends FeatureIO.Write {
+public class ErrorsStoreTransform extends FeatureStoreWrite {
 
   private String errorsStoreType;
   private StorageSpec errorsStoreSpec;
   private Specs specs;
-  private List<ErrorsStore> errorsStores;
+  private List<FeatureErrorsFactory> errorsStoreFactories;
 
   @Inject
   public ErrorsStoreTransform(
-      ImportJobPipelineOptions options, Specs specs, List<ErrorsStore> errorsStores) {
+      ImportJobPipelineOptions options, Specs specs,
+      List<FeatureErrorsFactory> errorsStoreFactories) {
     this.specs = specs;
-    this.errorsStores = errorsStores;
+    this.errorsStoreFactories = errorsStoreFactories;
     this.errorsStoreType = options.getErrorsStoreType();
 
     if (!Strings.isEmpty(errorsStoreType)) {
@@ -60,7 +61,7 @@ public class ErrorsStoreTransform extends FeatureIO.Write {
 
   @Override
   public PDone expand(PCollection<FeatureRowExtended> input) {
-    Write write;
+    FeatureStoreWrite write;
     if (Strings.isEmpty(errorsStoreType)) {
       write = new NoOpIO.Write();
     } else {
@@ -70,11 +71,11 @@ public class ErrorsStoreTransform extends FeatureIO.Write {
     return PDone.in(input.getPipeline());
   }
 
-  ErrorsStore getErrorStore() {
+  FeatureErrorsFactory getErrorStore() {
     checkArgument(!errorsStoreType.isEmpty(), "Errors store type not provided");
-    for (ErrorsStore errorsStore : errorsStores) {
-      if (errorsStore.getType().equals(errorsStoreType)) {
-        return errorsStore;
+    for (FeatureErrorsFactory errorsStoreFactory : errorsStoreFactories) {
+      if (errorsStoreFactory.getType().equals(errorsStoreType)) {
+        return errorsStoreFactory;
       }
     }
     throw new IllegalArgumentException("Errors store type not found");
