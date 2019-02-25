@@ -15,13 +15,14 @@
  *
  */
 
-package feast.source.common;
+package feast.source.csv;
 
-import static feast.source.common.StringToValueMapTransform.VALUE_MAP_CODER;
+import static feast.source.csv.StringToValueMapTransform.VALUE_MAP_CODER;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.Lists;
 import feast.ingestion.model.Values;
+import feast.source.csv.StringToValueMapTransform;
 import feast.types.ValueProto.Value;
 import java.util.HashMap;
 import java.util.Map;

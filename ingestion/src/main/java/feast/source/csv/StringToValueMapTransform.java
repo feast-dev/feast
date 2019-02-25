@@ -15,7 +15,7 @@
  *
  */
 
-package feast.source.common;
+package feast.source.csv;
 
 import com.google.common.base.Strings;
 import feast.ingestion.model.Values;

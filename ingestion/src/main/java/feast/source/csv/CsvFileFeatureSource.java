@@ -15,7 +15,7 @@
  *
  */
 
-package feast.source.file;
+package feast.source.csv;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -28,8 +28,6 @@ import feast.options.Options;
 import feast.options.OptionsParser;
 import feast.source.FeatureSource;
 import feast.source.FeatureSourceFactory;
-import feast.source.common.ParseCsvTransform;
-import feast.source.common.StringToValueMapTransform;
 import feast.source.common.ValueMapToFeatureRowTransform.ValueMapToFeatureRowDoFn;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;

@@ -17,7 +17,7 @@
 
 package feast.source.common;
 
-import static feast.source.common.StringToValueMapTransform.VALUE_MAP_CODER;
+import static feast.source.csv.StringToValueMapTransform.VALUE_MAP_CODER;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.Lists;

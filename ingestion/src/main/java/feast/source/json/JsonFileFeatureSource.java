@@ -15,7 +15,7 @@
  *
  */
 
-package feast.source.file;
+package feast.source.json;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -25,7 +25,6 @@ import feast.options.Options;
 import feast.options.OptionsParser;
 import feast.source.FeatureSource;
 import feast.source.FeatureSourceFactory;
-import feast.source.common.ParseJsonTransform;
 import feast.source.common.ValueMapToFeatureRowTransform;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;

@@ -29,8 +29,9 @@ import feast.options.Options;
 import feast.options.OptionsParser;
 import feast.source.FeatureSource;
 import feast.source.FeatureSourceFactory;
-import feast.source.common.ParseCsvTransform;
-import feast.source.common.StringToValueMapTransform;
+import feast.source.csv.ParseCsvTransform;
+import feast.source.json.ParseJsonTransform;
+import feast.source.csv.StringToValueMapTransform;
 import feast.source.common.ValueMapToFeatureRowTransform;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
@@ -91,8 +92,7 @@ public class PubSubFeatureSource extends FeatureSource {
             "pubsub source with format json, import spec must have one entity");
         featureRows = input.getPipeline()
             .apply(fromSubscriptionOrTopic(PubsubIO.readStrings(), options))
-            .apply(ParseCsvTransform.builder().header(Lists.newArrayList()).build())
-            .apply(new StringToValueMapTransform())
+            .apply(new ParseJsonTransform())
             .apply(new ValueMapToFeatureRowTransform(importSpec.getEntities(0),
                 importSpec.getSchema()));
         break;

@@ -15,7 +15,7 @@
  *
  */
 
-package feast.source.common;
+package feast.source.csv;
 
 import java.io.IOException;
 import java.io.Serializable;

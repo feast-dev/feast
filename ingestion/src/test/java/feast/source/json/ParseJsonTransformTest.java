@@ -15,11 +15,12 @@
  *
  */
 
-package feast.source.common;
+package feast.source.json;
 
 import static org.junit.Assert.assertEquals;
 
 import feast.ingestion.model.Values;
+import feast.source.json.ParseJsonTransform;
 import feast.types.ValueProto.Value;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
