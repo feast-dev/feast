@@ -18,7 +18,6 @@
 package feast.source.csv;
 
 import static feast.FeastMatchers.hasCount;
-import static junit.framework.TestCase.assertTrue;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -29,6 +28,7 @@ import feast.source.csv.ParseCsvTransform.StringMap;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -63,6 +63,13 @@ public class ParseCSVTransformTest {
       assertEquals(row.get("c"), "");
       return null;
     });
+    pipeline.run();
+  }
+
+  @Test(expected = PipelineExecutionException.class)
+  public void testDuplicateHeaders() {
+    pipeline.apply(Create.of("1,2,3"))
+        .apply(ParseCsvTransform.builder().header(Lists.newArrayList("a", "a", "a")).build());
     pipeline.run();
   }
 
@@ -122,6 +129,12 @@ public class ParseCSVTransformTest {
         new StringMap().thisput("c1", "c").thisput("c2", "d")
     );
     assertThat(actual, is(expected));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testCSVLineParser_duplicateHeaders() {
+    CSVLineParser parser = new CSVLineParser(Lists.newArrayList("c1", "c1"));
+    List<StringMap> actual = parser.records("a,b");
   }
 
   @Test
