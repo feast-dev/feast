@@ -14,6 +14,12 @@ spec:
     steps:
     - - name: get-feast
         template: get-feast
+    - - name: build-push-docker
+        template: build
+        arguments:
+          artifacts:
+          - name: feast
+            from: "{{steps.get-feast.outputs.artifacts.feast}}"
     - - name: build-cli
         template: build-cli
         arguments:
@@ -25,7 +31,7 @@ spec:
         arguments:
           parameters:
           - name: arg
-            value: "apply -var revision={{workflow.parameters.revision}} -var docker_tag={{workflow.parameters.revision}} -auto-approve ."
+            value: "apply -var docker_tag=integration-test -auto-approve ."
           artifacts:
           - name: feast
             from: "{{steps.get-feast.outputs.artifacts.feast}}"
@@ -39,7 +45,7 @@ spec:
             from: "{{steps.get-feast.outputs.artifacts.feast}}"
           - name: feast-cli
             from: "{{steps.build-cli.outputs.artifacts.feast-cli}}"
-  
+
   - name: exit-handler
     steps:
     - - name: terraform-destroy
@@ -65,6 +71,28 @@ spec:
       - name: feast
         path: /git/feast
         globalName: feast-repo
+  - name: build
+    inputs:
+      artifacts:
+      - name: feast
+        path: /feast
+    container:
+      image: docker:stable
+      command: [sh, -c]
+      args: ['
+        apk add --update make;
+        make build-push-docker registry=gcr.io/kf-feast version=integration-test
+      ']
+      env:
+      - name: DOCKER_HOST
+        value: 127.0.0.1
+      workingDir: /feast
+    sidecars:
+    - name: dind
+      image: docker:stable-dind
+      securityContext:
+        privileged: true
+      mirrorVolumeMounts: true
   - name: build-cli
     inputs:
       artifacts:

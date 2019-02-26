@@ -15,11 +15,6 @@ variable "docker_tag" {
   description = "Feast build version"
 }
 
-variable "revision" {
-  default     = "master"
-  description = "Github revision to pull charts from"
-}
-
 variable "core_address" {
   description = "Core internal address"
 }
