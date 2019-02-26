@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Feast Authors
+ * Copyright 2019 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,21 +26,41 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.NonNull;
-import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class CsvIO {
+/**
+ * Transform for reading text CSV jsonfiles into a map of strings to strings. CSV format is assumed
+ * to be RFC4180.
+ */
+@Builder
+public class ParseCsvTransform extends
+    PTransform<PCollection<String>, PCollection<Map<String, String>>> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(CsvIO.class);
+  @NonNull
+  private List<String> header;
+
+  @Override
+  public PCollection<Map<String, String>> expand(PCollection<String> input) {
+    CSVLineParser csvLineParser = new CSVLineParser(header);
+    return input.apply(ParDo.of(new DoFn<String, Map<String, String>>() {
+      @ProcessElement
+      public void processElement(ProcessContext context) {
+        String line = context.element();
+        if (line != null && !line.isEmpty()) {
+          for (StringMap map : csvLineParser.records(line)) {
+            context.output(map);
+          }
+        }
+      }
+    })).setCoder(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+  }
 
   public static class StringMap extends HashMap<String, String> {
 
@@ -58,44 +78,6 @@ public class CsvIO {
       return this;
     }
   }
-
-
-  public static Read read(String inputPath, List<String> header) {
-    return Read.builder()
-        .inputPath(inputPath)
-        .csvLineParser(new CSVLineParser(header))
-        .build();
-  }
-
-  /**
-   * Transform for reading text CSV jsonfiles into a map of strings to strings. CSV format is assumed to
-   * be RFC4180.
-   */
-  @Builder
-  public static class Read extends PTransform<PInput, PCollection<StringMap>> {
-
-    @NonNull
-    private final CSVLineParser csvLineParser;
-    @NonNull
-    private String inputPath;
-
-    @Override
-    public PCollection<StringMap> expand(PInput input) {
-      PCollection<String> text = input.getPipeline().apply(TextIO.read().from(inputPath));
-      return text.apply(ParDo.of(new DoFn<String, StringMap>() {
-        @ProcessElement
-        public void processElement(ProcessContext context) {
-          String line = context.element();
-          if (line != null && !line.isEmpty()) {
-            for (StringMap map : csvLineParser.records(line)) {
-              context.output(map);
-            }
-          }
-        }
-      })).setCoder(SerializableCoder.of(StringMap.class));
-    }
-  }
-
 
   /**
    * This is a helper class to make it easy to use the commons csv parser object for one line
@@ -123,5 +105,4 @@ public class CsvIO {
       }
     }
   }
-
 }

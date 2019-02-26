@@ -180,6 +180,84 @@ public class ImportJobCSVTest {
   }
 
   @Test
+  public void testImportFileJson() throws IOException {
+    ImportSpec importSpec =
+        ProtoUtil.decodeProtoYaml(
+            "---\n"
+                + "type: file.json\n"
+                + "sourceOptions:\n"
+                + "  # path: to be overwritten in tests\n"
+                + "entities:\n"
+                + "  - testEntity\n"
+                + "schema:\n"
+                + "  entityIdColumn: id\n"
+                + "  timestampValue: 2018-09-25T00:00:00.000Z\n"
+                + "  fields:\n"
+                + "    - name: id\n"
+                + "    - name: x\n"
+                + "      featureId: testEntity.none.testInt32\n"
+                + "\n",
+            ImportSpec.getDefaultInstance());
+
+    File jsonFile = folder.newFile("data.json");
+    Files.asCharSink(jsonFile, Charsets.UTF_8).write("{\"id\":1,\"x\":101}\n{\"id\":2,\"x\":202}\n");
+    importSpec = initImportSpec(importSpec, jsonFile.toString());
+
+    ImportJobPipelineOptions options = initOptions();
+    options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
+
+    Injector injector =
+        Guice.createInjector(
+            new ImportJobModule(options, importSpec), new TestPipelineModule(testPipeline));
+
+    ImportJob job = injector.getInstance(ImportJob.class);
+    injector.getInstance(ImportJob.class);
+    job.expand();
+
+    PCollection<FeatureRowExtended> writtenToServing =
+        PCollectionList.of(ServingStoreService.get(MockServingStore.class).getWrite().getInputs())
+            .apply("flatten serving input", Flatten.pCollections());
+
+    PCollection<FeatureRowExtended> writtenToWarehouse =
+        PCollectionList.of(
+            WarehouseStoreService.get(MockWarehouseStore.class).getWrite().getInputs())
+            .apply("flatten warehouse input", Flatten.pCollections());
+
+    PCollection<FeatureRowExtended> writtenToErrors =
+        PCollectionList.of(ErrorsStoreService.get(MockErrorsStore.class).getWrite().getInputs())
+            .apply("flatten errors input", Flatten.pCollections());
+
+    List<FeatureRow> expectedRows =
+        Lists.newArrayList(
+            normalize(
+                FeatureRow.newBuilder()
+                    .setGranularity(Granularity.Enum.NONE)
+                    .setEventTimestamp(Timestamp.getDefaultInstance())
+                    .setEntityKey("1")
+                    .setEntityName("testEntity")
+                    .addFeatures(Features.of("testEntity.none.testInt32", Values.ofInt32(101)))
+                    .build()),
+            normalize(
+                FeatureRow.newBuilder()
+                    .setGranularity(Granularity.Enum.NONE)
+                    .setEventTimestamp(Timestamp.getDefaultInstance())
+                    .setEntityKey("2")
+                    .setEntityName("testEntity")
+                    .addFeatures(Features.of("testEntity.none.testInt32", Values.ofInt32(202)))
+                    .build()));
+
+    PAssert.that(writtenToErrors).satisfies(hasCount(0));
+
+    PAssert.that(writtenToServing.apply("serving toFeatureRows", new ToOrderedFeatureRows()))
+        .containsInAnyOrder(expectedRows);
+
+    PAssert.that(writtenToWarehouse.apply("warehouse toFeatureRows", new ToOrderedFeatureRows()))
+        .containsInAnyOrder(expectedRows);
+
+    testPipeline.run();
+  }
+
+  @Test
   public void testImportCSV_withSample1() throws IOException {
     ImportSpec importSpec =
         ProtoUtil.decodeProtoYaml(
