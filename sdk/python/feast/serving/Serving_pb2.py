@@ -3,7 +3,6 @@
 
 import sys
 _b=sys.version_info[0]<3 and (lambda x:x) or (lambda x:x.encode('latin1'))
-from google.protobuf.internal import enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
@@ -22,70 +21,38 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.serving',
   syntax='proto3',
   serialized_options=_b('\n\rfeast.servingB\017ServingAPIProtoZ8github.com/gojek/feast/protos/generated/go/feast/serving'),
-  serialized_pb=_b('\n\x1b\x66\x65\x61st/serving/Serving.proto\x12\rfeast.serving\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17\x66\x65\x61st/types/Value.proto\"\xde\x02\n\rQueryFeatures\x1a\x9c\x01\n\x07Request\x12\x12\n\nentityName\x18\x01 \x01(\t\x12\x10\n\x08\x65ntityId\x18\x02 \x03(\t\x12\x34\n\x0erequestDetails\x18\x03 \x03(\x0b\x32\x1c.feast.serving.RequestDetail\x12\x35\n\x0etimestampRange\x18\x04 \x01(\x0b\x32\x1d.feast.serving.TimestampRange\x1a\xad\x01\n\x08Response\x12\x12\n\nentityName\x18\x01 \x01(\t\x12\x45\n\x08\x65ntities\x18\x02 \x03(\x0b\x32\x33.feast.serving.QueryFeatures.Response.EntitiesEntry\x1a\x46\n\rEntitiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12$\n\x05value\x18\x02 \x01(\x0b\x32\x15.feast.serving.Entity:\x02\x38\x01\"[\n\rRequestDetail\x12\x11\n\tfeatureId\x18\x01 \x01(\t\x12(\n\x04type\x18\x02 \x01(\x0e\x32\x1a.feast.serving.RequestType\x12\r\n\x05limit\x18\x03 \x01(\x05\"d\n\x0eTimestampRange\x12)\n\x05start\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\'\n\x03\x65nd\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\"\x91\x01\n\x06\x45ntity\x12\x35\n\x08\x66\x65\x61tures\x18\x01 \x03(\x0b\x32#.feast.serving.Entity.FeaturesEntry\x1aP\n\rFeaturesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12.\n\x05value\x18\x02 \x01(\x0b\x32\x1f.feast.serving.FeatureValueList:\x02\x38\x01\"p\n\x10\x46\x65\x61tureValueList\x12)\n\tvalueList\x18\x01 \x01(\x0b\x32\x16.feast.types.ValueList\x12\x31\n\rtimestampList\x18\x02 \x01(\x0b\x32\x1a.feast.types.TimestampList*!\n\x0bRequestType\x12\x08\n\x04LAST\x10\x00\x12\x08\n\x04LIST\x10\x01\x32l\n\nServingAPI\x12^\n\rQueryFeatures\x12$.feast.serving.QueryFeatures.Request\x1a%.feast.serving.QueryFeatures.Response\"\x00\x42Z\n\rfeast.servingB\x0fServingAPIProtoZ8github.com/gojek/feast/protos/generated/go/feast/servingb\x06proto3')
+  serialized_pb=_b('\n\x1b\x66\x65\x61st/serving/Serving.proto\x12\rfeast.serving\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17\x66\x65\x61st/types/Value.proto\"O\n\x14QueryFeaturesRequest\x12\x12\n\nentityName\x18\x01 \x01(\t\x12\x10\n\x08\x65ntityId\x18\x02 \x03(\t\x12\x11\n\tfeatureId\x18\x03 \x03(\t\"\xb9\x01\n\x15QueryFeaturesResponse\x12\x12\n\nentityName\x18\x01 \x01(\t\x12\x44\n\x08\x65ntities\x18\x02 \x03(\x0b\x32\x32.feast.serving.QueryFeaturesResponse.EntitiesEntry\x1a\x46\n\rEntitiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12$\n\x05value\x18\x02 \x01(\x0b\x32\x15.feast.serving.Entity:\x02\x38\x01\"\x8d\x01\n\x06\x45ntity\x12\x35\n\x08\x66\x65\x61tures\x18\x01 \x03(\x0b\x32#.feast.serving.Entity.FeaturesEntry\x1aL\n\rFeaturesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x1b.feast.serving.FeatureValue:\x02\x38\x01\"`\n\x0c\x46\x65\x61tureValue\x12!\n\x05value\x18\x01 \x01(\x0b\x32\x12.feast.types.Value\x12-\n\ttimestamp\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp2j\n\nServingAPI\x12\\\n\rQueryFeatures\x12#.feast.serving.QueryFeaturesRequest\x1a$.feast.serving.QueryFeaturesResponse\"\x00\x42Z\n\rfeast.servingB\x0fServingAPIProtoZ8github.com/gojek/feast/protos/generated/go/feast/servingb\x06proto3')
   ,
   dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,feast_dot_types_dot_Value__pb2.DESCRIPTOR,])
 
-_REQUESTTYPE = _descriptor.EnumDescriptor(
-  name='RequestType',
-  full_name='feast.serving.RequestType',
-  filename=None,
-  file=DESCRIPTOR,
-  values=[
-    _descriptor.EnumValueDescriptor(
-      name='LAST', index=0, number=0,
-      serialized_options=None,
-      type=None),
-    _descriptor.EnumValueDescriptor(
-      name='LIST', index=1, number=1,
-      serialized_options=None,
-      type=None),
-  ],
-  containing_type=None,
-  serialized_options=None,
-  serialized_start=914,
-  serialized_end=947,
-)
-_sym_db.RegisterEnumDescriptor(_REQUESTTYPE)
-
-RequestType = enum_type_wrapper.EnumTypeWrapper(_REQUESTTYPE)
-LAST = 0
-LIST = 1
 
 
 
-_QUERYFEATURES_REQUEST = _descriptor.Descriptor(
-  name='Request',
-  full_name='feast.serving.QueryFeatures.Request',
+_QUERYFEATURESREQUEST = _descriptor.Descriptor(
+  name='QueryFeaturesRequest',
+  full_name='feast.serving.QueryFeaturesRequest',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='entityName', full_name='feast.serving.QueryFeatures.Request.entityName', index=0,
+      name='entityName', full_name='feast.serving.QueryFeaturesRequest.entityName', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='entityId', full_name='feast.serving.QueryFeatures.Request.entityId', index=1,
+      name='entityId', full_name='feast.serving.QueryFeaturesRequest.entityId', index=1,
       number=2, type=9, cpp_type=9, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='requestDetails', full_name='feast.serving.QueryFeatures.Request.requestDetails', index=2,
-      number=3, type=11, cpp_type=10, label=3,
+      name='featureId', full_name='feast.serving.QueryFeaturesRequest.featureId', index=2,
+      number=3, type=9, cpp_type=9, label=3,
       has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='timestampRange', full_name='feast.serving.QueryFeatures.Request.timestampRange', index=3,
-      number=4, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -101,26 +68,27 @@ _QUERYFEATURES_REQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=123,
-  serialized_end=279,
+  serialized_start=104,
+  serialized_end=183,
 )
 
-_QUERYFEATURES_RESPONSE_ENTITIESENTRY = _descriptor.Descriptor(
+
+_QUERYFEATURESRESPONSE_ENTITIESENTRY = _descriptor.Descriptor(
   name='EntitiesEntry',
-  full_name='feast.serving.QueryFeatures.Response.EntitiesEntry',
+  full_name='feast.serving.QueryFeaturesResponse.EntitiesEntry',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='key', full_name='feast.serving.QueryFeatures.Response.EntitiesEntry.key', index=0,
+      name='key', full_name='feast.serving.QueryFeaturesResponse.EntitiesEntry.key', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='value', full_name='feast.serving.QueryFeatures.Response.EntitiesEntry.value', index=1,
+      name='value', full_name='feast.serving.QueryFeaturesResponse.EntitiesEntry.value', index=1,
       number=2, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
@@ -138,26 +106,26 @@ _QUERYFEATURES_RESPONSE_ENTITIESENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=385,
-  serialized_end=455,
+  serialized_start=301,
+  serialized_end=371,
 )
 
-_QUERYFEATURES_RESPONSE = _descriptor.Descriptor(
-  name='Response',
-  full_name='feast.serving.QueryFeatures.Response',
+_QUERYFEATURESRESPONSE = _descriptor.Descriptor(
+  name='QueryFeaturesResponse',
+  full_name='feast.serving.QueryFeaturesResponse',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='entityName', full_name='feast.serving.QueryFeatures.Response.entityName', index=0,
+      name='entityName', full_name='feast.serving.QueryFeaturesResponse.entityName', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='entities', full_name='feast.serving.QueryFeatures.Response.entities', index=1,
+      name='entities', full_name='feast.serving.QueryFeaturesResponse.entities', index=1,
       number=2, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
@@ -166,7 +134,7 @@ _QUERYFEATURES_RESPONSE = _descriptor.Descriptor(
   ],
   extensions=[
   ],
-  nested_types=[_QUERYFEATURES_RESPONSE_ENTITIESENTRY, ],
+  nested_types=[_QUERYFEATURESRESPONSE_ENTITIESENTRY, ],
   enum_types=[
   ],
   serialized_options=None,
@@ -175,114 +143,8 @@ _QUERYFEATURES_RESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=282,
-  serialized_end=455,
-)
-
-_QUERYFEATURES = _descriptor.Descriptor(
-  name='QueryFeatures',
-  full_name='feast.serving.QueryFeatures',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-  ],
-  extensions=[
-  ],
-  nested_types=[_QUERYFEATURES_REQUEST, _QUERYFEATURES_RESPONSE, ],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=105,
-  serialized_end=455,
-)
-
-
-_REQUESTDETAIL = _descriptor.Descriptor(
-  name='RequestDetail',
-  full_name='feast.serving.RequestDetail',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='featureId', full_name='feast.serving.RequestDetail.featureId', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='type', full_name='feast.serving.RequestDetail.type', index=1,
-      number=2, type=14, cpp_type=8, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='limit', full_name='feast.serving.RequestDetail.limit', index=2,
-      number=3, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=457,
-  serialized_end=548,
-)
-
-
-_TIMESTAMPRANGE = _descriptor.Descriptor(
-  name='TimestampRange',
-  full_name='feast.serving.TimestampRange',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='start', full_name='feast.serving.TimestampRange.start', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='end', full_name='feast.serving.TimestampRange.end', index=1,
-      number=2, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=550,
-  serialized_end=650,
+  serialized_start=186,
+  serialized_end=371,
 )
 
 
@@ -319,8 +181,8 @@ _ENTITY_FEATURESENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=718,
-  serialized_end=798,
+  serialized_start=439,
+  serialized_end=515,
 )
 
 _ENTITY = _descriptor.Descriptor(
@@ -349,27 +211,27 @@ _ENTITY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=653,
-  serialized_end=798,
+  serialized_start=374,
+  serialized_end=515,
 )
 
 
-_FEATUREVALUELIST = _descriptor.Descriptor(
-  name='FeatureValueList',
-  full_name='feast.serving.FeatureValueList',
+_FEATUREVALUE = _descriptor.Descriptor(
+  name='FeatureValue',
+  full_name='feast.serving.FeatureValue',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='valueList', full_name='feast.serving.FeatureValueList.valueList', index=0,
+      name='value', full_name='feast.serving.FeatureValue.value', index=0,
       number=1, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='timestampList', full_name='feast.serving.FeatureValueList.timestampList', index=1,
+      name='timestamp', full_name='feast.serving.FeatureValue.timestamp', index=1,
       number=2, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
@@ -387,77 +249,45 @@ _FEATUREVALUELIST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=800,
-  serialized_end=912,
+  serialized_start=517,
+  serialized_end=613,
 )
 
-_QUERYFEATURES_REQUEST.fields_by_name['requestDetails'].message_type = _REQUESTDETAIL
-_QUERYFEATURES_REQUEST.fields_by_name['timestampRange'].message_type = _TIMESTAMPRANGE
-_QUERYFEATURES_REQUEST.containing_type = _QUERYFEATURES
-_QUERYFEATURES_RESPONSE_ENTITIESENTRY.fields_by_name['value'].message_type = _ENTITY
-_QUERYFEATURES_RESPONSE_ENTITIESENTRY.containing_type = _QUERYFEATURES_RESPONSE
-_QUERYFEATURES_RESPONSE.fields_by_name['entities'].message_type = _QUERYFEATURES_RESPONSE_ENTITIESENTRY
-_QUERYFEATURES_RESPONSE.containing_type = _QUERYFEATURES
-_REQUESTDETAIL.fields_by_name['type'].enum_type = _REQUESTTYPE
-_TIMESTAMPRANGE.fields_by_name['start'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
-_TIMESTAMPRANGE.fields_by_name['end'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
-_ENTITY_FEATURESENTRY.fields_by_name['value'].message_type = _FEATUREVALUELIST
+_QUERYFEATURESRESPONSE_ENTITIESENTRY.fields_by_name['value'].message_type = _ENTITY
+_QUERYFEATURESRESPONSE_ENTITIESENTRY.containing_type = _QUERYFEATURESRESPONSE
+_QUERYFEATURESRESPONSE.fields_by_name['entities'].message_type = _QUERYFEATURESRESPONSE_ENTITIESENTRY
+_ENTITY_FEATURESENTRY.fields_by_name['value'].message_type = _FEATUREVALUE
 _ENTITY_FEATURESENTRY.containing_type = _ENTITY
 _ENTITY.fields_by_name['features'].message_type = _ENTITY_FEATURESENTRY
-_FEATUREVALUELIST.fields_by_name['valueList'].message_type = feast_dot_types_dot_Value__pb2._VALUELIST
-_FEATUREVALUELIST.fields_by_name['timestampList'].message_type = feast_dot_types_dot_Value__pb2._TIMESTAMPLIST
-DESCRIPTOR.message_types_by_name['QueryFeatures'] = _QUERYFEATURES
-DESCRIPTOR.message_types_by_name['RequestDetail'] = _REQUESTDETAIL
-DESCRIPTOR.message_types_by_name['TimestampRange'] = _TIMESTAMPRANGE
+_FEATUREVALUE.fields_by_name['value'].message_type = feast_dot_types_dot_Value__pb2._VALUE
+_FEATUREVALUE.fields_by_name['timestamp'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
+DESCRIPTOR.message_types_by_name['QueryFeaturesRequest'] = _QUERYFEATURESREQUEST
+DESCRIPTOR.message_types_by_name['QueryFeaturesResponse'] = _QUERYFEATURESRESPONSE
 DESCRIPTOR.message_types_by_name['Entity'] = _ENTITY
-DESCRIPTOR.message_types_by_name['FeatureValueList'] = _FEATUREVALUELIST
-DESCRIPTOR.enum_types_by_name['RequestType'] = _REQUESTTYPE
+DESCRIPTOR.message_types_by_name['FeatureValue'] = _FEATUREVALUE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-QueryFeatures = _reflection.GeneratedProtocolMessageType('QueryFeatures', (_message.Message,), dict(
+QueryFeaturesRequest = _reflection.GeneratedProtocolMessageType('QueryFeaturesRequest', (_message.Message,), dict(
+  DESCRIPTOR = _QUERYFEATURESREQUEST,
+  __module__ = 'feast.serving.Serving_pb2'
+  # @@protoc_insertion_point(class_scope:feast.serving.QueryFeaturesRequest)
+  ))
+_sym_db.RegisterMessage(QueryFeaturesRequest)
 
-  Request = _reflection.GeneratedProtocolMessageType('Request', (_message.Message,), dict(
-    DESCRIPTOR = _QUERYFEATURES_REQUEST,
+QueryFeaturesResponse = _reflection.GeneratedProtocolMessageType('QueryFeaturesResponse', (_message.Message,), dict(
+
+  EntitiesEntry = _reflection.GeneratedProtocolMessageType('EntitiesEntry', (_message.Message,), dict(
+    DESCRIPTOR = _QUERYFEATURESRESPONSE_ENTITIESENTRY,
     __module__ = 'feast.serving.Serving_pb2'
-    # @@protoc_insertion_point(class_scope:feast.serving.QueryFeatures.Request)
+    # @@protoc_insertion_point(class_scope:feast.serving.QueryFeaturesResponse.EntitiesEntry)
     ))
   ,
-
-  Response = _reflection.GeneratedProtocolMessageType('Response', (_message.Message,), dict(
-
-    EntitiesEntry = _reflection.GeneratedProtocolMessageType('EntitiesEntry', (_message.Message,), dict(
-      DESCRIPTOR = _QUERYFEATURES_RESPONSE_ENTITIESENTRY,
-      __module__ = 'feast.serving.Serving_pb2'
-      # @@protoc_insertion_point(class_scope:feast.serving.QueryFeatures.Response.EntitiesEntry)
-      ))
-    ,
-    DESCRIPTOR = _QUERYFEATURES_RESPONSE,
-    __module__ = 'feast.serving.Serving_pb2'
-    # @@protoc_insertion_point(class_scope:feast.serving.QueryFeatures.Response)
-    ))
-  ,
-  DESCRIPTOR = _QUERYFEATURES,
+  DESCRIPTOR = _QUERYFEATURESRESPONSE,
   __module__ = 'feast.serving.Serving_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.QueryFeatures)
+  # @@protoc_insertion_point(class_scope:feast.serving.QueryFeaturesResponse)
   ))
-_sym_db.RegisterMessage(QueryFeatures)
-_sym_db.RegisterMessage(QueryFeatures.Request)
-_sym_db.RegisterMessage(QueryFeatures.Response)
-_sym_db.RegisterMessage(QueryFeatures.Response.EntitiesEntry)
-
-RequestDetail = _reflection.GeneratedProtocolMessageType('RequestDetail', (_message.Message,), dict(
-  DESCRIPTOR = _REQUESTDETAIL,
-  __module__ = 'feast.serving.Serving_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.RequestDetail)
-  ))
-_sym_db.RegisterMessage(RequestDetail)
-
-TimestampRange = _reflection.GeneratedProtocolMessageType('TimestampRange', (_message.Message,), dict(
-  DESCRIPTOR = _TIMESTAMPRANGE,
-  __module__ = 'feast.serving.Serving_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.TimestampRange)
-  ))
-_sym_db.RegisterMessage(TimestampRange)
+_sym_db.RegisterMessage(QueryFeaturesResponse)
+_sym_db.RegisterMessage(QueryFeaturesResponse.EntitiesEntry)
 
 Entity = _reflection.GeneratedProtocolMessageType('Entity', (_message.Message,), dict(
 
@@ -474,16 +304,16 @@ Entity = _reflection.GeneratedProtocolMessageType('Entity', (_message.Message,),
 _sym_db.RegisterMessage(Entity)
 _sym_db.RegisterMessage(Entity.FeaturesEntry)
 
-FeatureValueList = _reflection.GeneratedProtocolMessageType('FeatureValueList', (_message.Message,), dict(
-  DESCRIPTOR = _FEATUREVALUELIST,
+FeatureValue = _reflection.GeneratedProtocolMessageType('FeatureValue', (_message.Message,), dict(
+  DESCRIPTOR = _FEATUREVALUE,
   __module__ = 'feast.serving.Serving_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.FeatureValueList)
+  # @@protoc_insertion_point(class_scope:feast.serving.FeatureValue)
   ))
-_sym_db.RegisterMessage(FeatureValueList)
+_sym_db.RegisterMessage(FeatureValue)
 
 
 DESCRIPTOR._options = None
-_QUERYFEATURES_RESPONSE_ENTITIESENTRY._options = None
+_QUERYFEATURESRESPONSE_ENTITIESENTRY._options = None
 _ENTITY_FEATURESENTRY._options = None
 
 _SERVINGAPI = _descriptor.ServiceDescriptor(
@@ -492,16 +322,16 @@ _SERVINGAPI = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=949,
-  serialized_end=1057,
+  serialized_start=615,
+  serialized_end=721,
   methods=[
   _descriptor.MethodDescriptor(
     name='QueryFeatures',
     full_name='feast.serving.ServingAPI.QueryFeatures',
     index=0,
     containing_service=None,
-    input_type=_QUERYFEATURES_REQUEST,
-    output_type=_QUERYFEATURES_RESPONSE,
+    input_type=_QUERYFEATURESREQUEST,
+    output_type=_QUERYFEATURESRESPONSE,
     serialized_options=None,
   ),
 ])

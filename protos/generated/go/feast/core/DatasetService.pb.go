@@ -34,7 +34,7 @@ func (m *DatasetServiceTypes) Reset()         { *m = DatasetServiceTypes{} }
 func (m *DatasetServiceTypes) String() string { return proto.CompactTextString(m) }
 func (*DatasetServiceTypes) ProtoMessage()    {}
 func (*DatasetServiceTypes) Descriptor() ([]byte, []int) {
-	return fileDescriptor_DatasetService_37ae639a8c7b5dd5, []int{0}
+	return fileDescriptor_3edc37a8b0d37b39, []int{0}
 }
 func (m *DatasetServiceTypes) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DatasetServiceTypes.Unmarshal(m, b)
@@ -42,8 +42,8 @@ func (m *DatasetServiceTypes) XXX_Unmarshal(b []byte) error {
 func (m *DatasetServiceTypes) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_DatasetServiceTypes.Marshal(b, m, deterministic)
 }
-func (dst *DatasetServiceTypes) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DatasetServiceTypes.Merge(dst, src)
+func (m *DatasetServiceTypes) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DatasetServiceTypes.Merge(m, src)
 }
 func (m *DatasetServiceTypes) XXX_Size() int {
 	return xxx_messageInfo_DatasetServiceTypes.Size(m)
@@ -77,7 +77,7 @@ func (m *DatasetServiceTypes_CreateDatasetRequest) Reset() {
 func (m *DatasetServiceTypes_CreateDatasetRequest) String() string { return proto.CompactTextString(m) }
 func (*DatasetServiceTypes_CreateDatasetRequest) ProtoMessage()    {}
 func (*DatasetServiceTypes_CreateDatasetRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_DatasetService_37ae639a8c7b5dd5, []int{0, 0}
+	return fileDescriptor_3edc37a8b0d37b39, []int{0, 0}
 }
 func (m *DatasetServiceTypes_CreateDatasetRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DatasetServiceTypes_CreateDatasetRequest.Unmarshal(m, b)
@@ -85,8 +85,8 @@ func (m *DatasetServiceTypes_CreateDatasetRequest) XXX_Unmarshal(b []byte) error
 func (m *DatasetServiceTypes_CreateDatasetRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_DatasetServiceTypes_CreateDatasetRequest.Marshal(b, m, deterministic)
 }
-func (dst *DatasetServiceTypes_CreateDatasetRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DatasetServiceTypes_CreateDatasetRequest.Merge(dst, src)
+func (m *DatasetServiceTypes_CreateDatasetRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DatasetServiceTypes_CreateDatasetRequest.Merge(m, src)
 }
 func (m *DatasetServiceTypes_CreateDatasetRequest) XXX_Size() int {
 	return xxx_messageInfo_DatasetServiceTypes_CreateDatasetRequest.Size(m)
@@ -146,7 +146,7 @@ func (m *DatasetServiceTypes_CreateDatasetResponse) Reset() {
 func (m *DatasetServiceTypes_CreateDatasetResponse) String() string { return proto.CompactTextString(m) }
 func (*DatasetServiceTypes_CreateDatasetResponse) ProtoMessage()    {}
 func (*DatasetServiceTypes_CreateDatasetResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_DatasetService_37ae639a8c7b5dd5, []int{0, 1}
+	return fileDescriptor_3edc37a8b0d37b39, []int{0, 1}
 }
 func (m *DatasetServiceTypes_CreateDatasetResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DatasetServiceTypes_CreateDatasetResponse.Unmarshal(m, b)
@@ -154,8 +154,8 @@ func (m *DatasetServiceTypes_CreateDatasetResponse) XXX_Unmarshal(b []byte) erro
 func (m *DatasetServiceTypes_CreateDatasetResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_DatasetServiceTypes_CreateDatasetResponse.Marshal(b, m, deterministic)
 }
-func (dst *DatasetServiceTypes_CreateDatasetResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DatasetServiceTypes_CreateDatasetResponse.Merge(dst, src)
+func (m *DatasetServiceTypes_CreateDatasetResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DatasetServiceTypes_CreateDatasetResponse.Merge(m, src)
 }
 func (m *DatasetServiceTypes_CreateDatasetResponse) XXX_Size() int {
 	return xxx_messageInfo_DatasetServiceTypes_CreateDatasetResponse.Size(m)
@@ -188,7 +188,7 @@ func (m *FeatureSet) Reset()         { *m = FeatureSet{} }
 func (m *FeatureSet) String() string { return proto.CompactTextString(m) }
 func (*FeatureSet) ProtoMessage()    {}
 func (*FeatureSet) Descriptor() ([]byte, []int) {
-	return fileDescriptor_DatasetService_37ae639a8c7b5dd5, []int{1}
+	return fileDescriptor_3edc37a8b0d37b39, []int{1}
 }
 func (m *FeatureSet) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FeatureSet.Unmarshal(m, b)
@@ -196,8 +196,8 @@ func (m *FeatureSet) XXX_Unmarshal(b []byte) error {
 func (m *FeatureSet) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_FeatureSet.Marshal(b, m, deterministic)
 }
-func (dst *FeatureSet) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_FeatureSet.Merge(dst, src)
+func (m *FeatureSet) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FeatureSet.Merge(m, src)
 }
 func (m *FeatureSet) XXX_Size() int {
 	return xxx_messageInfo_FeatureSet.Size(m)
@@ -237,7 +237,7 @@ func (m *DatasetInfo) Reset()         { *m = DatasetInfo{} }
 func (m *DatasetInfo) String() string { return proto.CompactTextString(m) }
 func (*DatasetInfo) ProtoMessage()    {}
 func (*DatasetInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_DatasetService_37ae639a8c7b5dd5, []int{2}
+	return fileDescriptor_3edc37a8b0d37b39, []int{2}
 }
 func (m *DatasetInfo) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DatasetInfo.Unmarshal(m, b)
@@ -245,8 +245,8 @@ func (m *DatasetInfo) XXX_Unmarshal(b []byte) error {
 func (m *DatasetInfo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_DatasetInfo.Marshal(b, m, deterministic)
 }
-func (dst *DatasetInfo) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DatasetInfo.Merge(dst, src)
+func (m *DatasetInfo) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DatasetInfo.Merge(m, src)
 }
 func (m *DatasetInfo) XXX_Size() int {
 	return xxx_messageInfo_DatasetInfo.Size(m)
@@ -353,11 +353,9 @@ var _DatasetService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "feast/core/DatasetService.proto",
 }
 
-func init() {
-	proto.RegisterFile("feast/core/DatasetService.proto", fileDescriptor_DatasetService_37ae639a8c7b5dd5)
-}
+func init() { proto.RegisterFile("feast/core/DatasetService.proto", fileDescriptor_3edc37a8b0d37b39) }
 
-var fileDescriptor_DatasetService_37ae639a8c7b5dd5 = []byte{
+var fileDescriptor_3edc37a8b0d37b39 = []byte{
 	// 414 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x53, 0xc1, 0x6e, 0xd4, 0x30,
 	0x10, 0x25, 0xbb, 0x2d, 0x90, 0x59, 0xc1, 0xc1, 0x14, 0x88, 0x72, 0xa0, 0x51, 0x4e, 0x7b, 0xb2,

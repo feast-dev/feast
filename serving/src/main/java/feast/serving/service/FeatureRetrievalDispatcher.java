@@ -23,28 +23,21 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import feast.serving.ServingAPIProto.Entity;
-import feast.serving.ServingAPIProto.RequestType;
-import feast.serving.ServingAPIProto.TimestampRange;
 import feast.serving.config.AppConfig;
 import feast.serving.exception.FeatureRetrievalException;
 import feast.serving.model.FeatureValue;
-import feast.serving.model.Pair;
-import feast.serving.model.RequestDetailWithSpec;
 import feast.serving.util.EntityMapBuilder;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -78,54 +71,19 @@ public class FeatureRetrievalDispatcher {
    *
    * @param entityName entity name of the feature.
    * @param entityIds list of entity ids.
-   * @param requests list of request.
-   * @param timestampRange timestamp range of feature to be retrieved.
+   * @param featureSpecs list of request.
    * @return map of entityID and Entity instance.
    */
   public Map<String, Entity> dispatchFeatureRetrieval(
-      String entityName,
-      List<String> entityIds,
-      List<RequestDetailWithSpec> requests,
-      TimestampRange timestampRange) {
+      String entityName, Collection<String> entityIds, Collection<FeatureSpec> featureSpecs) {
 
-    GroupedRequest groupedRequest = groupRequestByTypeAndStorage(requests);
+    Map<String, List<FeatureSpec>> groupedFeatureSpecs = groupByStorage(featureSpecs);
 
-    if (groupedRequest.getNbThreadRequired() <= 1) {
-      return runInCurrentThread(
-          entityName, entityIds, timestampRange, groupedRequest.getRequests());
+    if (groupedFeatureSpecs.size() <= 1) {
+      return runInCurrentThread(entityName, entityIds, groupedFeatureSpecs);
     } else {
-      return runWithExecutorService(
-          entityName, entityIds, timestampRange, groupedRequest.getRequests());
+      return runWithExecutorService(entityName, entityIds, groupedFeatureSpecs);
     }
-  }
-
-  /**
-   * Group request by its type and storage ID of the feature.
-   *
-   * @param requestDetailWithSpecs list of requests.
-   * @return requests grouped by request type and storage ID.
-   */
-  private GroupedRequest groupRequestByTypeAndStorage(
-      List<RequestDetailWithSpec> requestDetailWithSpecs) {
-    Map<RequestType, List<RequestDetailWithSpec>> groupedByRequestType =
-        requestDetailWithSpecs.stream()
-            .collect(groupingBy(r -> r.getRequestDetail().getType()));
-
-    int nbThreadRequired = 0;
-    Map<RequestType, Map<String, List<RequestDetailWithSpec>>> groupedByTypeAndStorageId =
-        new HashMap<>();
-    for (Map.Entry<RequestType, List<RequestDetailWithSpec>> requestEntry :
-        groupedByRequestType.entrySet()) {
-      RequestType requestType = requestEntry.getKey();
-      List<RequestDetailWithSpec> requestDetails = requestEntry.getValue();
-
-      Map<String, List<RequestDetailWithSpec>> groupedByStorageId =
-          groupRequestByStorage(requestDetails);
-      groupedByTypeAndStorageId.put(requestType, groupedByStorageId);
-
-      nbThreadRequired += groupedByStorageId.size();
-    }
-    return new GroupedRequest(groupedByTypeAndStorageId, nbThreadRequired);
   }
 
   /**
@@ -133,55 +91,22 @@ public class FeatureRetrievalDispatcher {
    *
    * @param entityName entity name of of the feature.
    * @param entityIds list of entity ID of the feature to be retrieved.
-   * @param tsRange timestamp range of the feature to be retrieved.
-   * @param groupedRequest request grouped by type and storage ID.
+   * @param groupedFeatureSpecs feature spec grouped by storage ID.
    * @return entity map containing the result of feature retrieval.
    */
   private Map<String, Entity> runInCurrentThread(
       String entityName,
-      List<String> entityIds,
-      TimestampRange tsRange,
-      Map<RequestType, Map<String, List<RequestDetailWithSpec>>> groupedRequest) {
-    try (Scope scope = tracer.buildSpan("FeatureRetrievalDispatcher-runInCurrentThread")
-        .startActive(true)) {
-      Span span = scope.span();
-      if (groupedRequest.size() > 1) {
-        throw new IllegalArgumentException(
-            "runInCurrentThread required more than one thread to run");
-      }
+      Collection<String> entityIds,
+      Map<String, List<FeatureSpec>> groupedFeatureSpecs) {
+    try (Scope scope =
+        tracer.buildSpan("FeatureRetrievalDispatcher-runInCurrentThread").startActive(true)) {
 
-      RequestType requestType = groupedRequest.keySet().iterator().next();
-      Map<String, List<RequestDetailWithSpec>> request = groupedRequest.get(requestType);
-
-      if (request.size() > 1) {
-        throw new IllegalArgumentException(
-            "runInCurrentThread required more than one thread to run");
-      }
-
-      String storageId = request.keySet().iterator().next();
-      List<RequestDetailWithSpec> requestDetailWithSpecs = request.get(storageId);
+      String storageId = groupedFeatureSpecs.keySet().iterator().next();
+      List<FeatureSpec> featureSpecs = groupedFeatureSpecs.get(storageId);
       FeatureStorage featureStorage = featureStorageRegistry.get(storageId);
 
       List<FeatureValue> featureValues;
-      if (RequestType.LAST == requestType) {
-        span.setTag("request-type", "last");
-        List<FeatureSpec> featureSpecs =
-            requestDetailWithSpecs
-                .stream()
-                .map(RequestDetailWithSpec::getFeatureSpec)
-                .collect(Collectors.toList());
-        featureValues = featureStorage.getCurrentFeatures(entityName, entityIds, featureSpecs);
-      } else {
-        span.setTag("request-type", "list");
-        List<Pair<FeatureSpec, Integer>> featureSpecLimitPairs =
-            requestDetailWithSpecs
-                .stream()
-                .map(r -> new Pair<>(r.getFeatureSpec(), r.getRequestDetail().getLimit()))
-                .collect(Collectors.toList());
-        featureValues =
-            featureStorage.getNLatestFeaturesWithinTimestampRange(
-                entityName, entityIds, featureSpecLimitPairs, tsRange);
-      }
+      featureValues = featureStorage.getFeature(entityName, entityIds, featureSpecs);
 
       EntityMapBuilder builder = new EntityMapBuilder();
       builder.addFeatureValueList(featureValues);
@@ -194,61 +119,29 @@ public class FeatureRetrievalDispatcher {
    *
    * @param entityName entity name of the feature.
    * @param entityIds list of entity ID.
-   * @param tsRange timestamp range of the feature.
-   * @param groupedRequest request grouped by type and serving storage ID.
+   * @param groupedFeatureSpec feature specs grouped by serving storage ID.
    * @return entity map containing result of feature retrieval.
    */
   private Map<String, Entity> runWithExecutorService(
       String entityName,
-      List<String> entityIds,
-      TimestampRange tsRange,
-      Map<RequestType, Map<String, List<RequestDetailWithSpec>>> groupedRequest) {
-    try (Scope scope = tracer.buildSpan("FeatureRetrievalDispatcher-runWithExecutorService")
-        .startActive(true)) {
+      Collection<String> entityIds,
+      Map<String, List<FeatureSpec>> groupedFeatureSpec) {
+    try (Scope scope =
+        tracer.buildSpan("FeatureRetrievalDispatcher-runWithExecutorService").startActive(true)) {
       Span span = scope.span();
       List<ListenableFuture<Void>> futures = new ArrayList<>();
       EntityMapBuilder entityMapBuilder = new EntityMapBuilder();
-      for (Map.Entry<RequestType, Map<String, List<RequestDetailWithSpec>>> requestEntryPerType :
-          groupedRequest.entrySet()) {
-        RequestType requestType = requestEntryPerType.getKey();
-        for (Map.Entry<String, List<RequestDetailWithSpec>> requestEntryPerStorage :
-            requestEntryPerType.getValue().entrySet()) {
-          List<RequestDetailWithSpec> requests = requestEntryPerStorage.getValue();
-          FeatureStorage featureStorage = featureStorageRegistry
-              .get(requestEntryPerStorage.getKey());
-          if (requestType == RequestType.LAST) {
-            List<FeatureSpec> featureSpecs =
-                requests
-                    .stream()
-                    .map(RequestDetailWithSpec::getFeatureSpec)
-                    .collect(Collectors.toList());
-
-            futures.add(
-                executorService.submit(
-                    () -> {
-                      List<FeatureValue> featureValues =
-                          featureStorage.getCurrentFeatures(entityName, entityIds, featureSpecs);
-                      entityMapBuilder.addFeatureValueList(featureValues);
-                      return null;
-                    }));
-          } else {
-            List<Pair<FeatureSpec, Integer>> featureSpecLimitPairs =
-                requests
-                    .stream()
-                    .map(r -> new Pair<>(r.getFeatureSpec(), r.getRequestDetail().getLimit()))
-                    .collect(Collectors.toList());
-
-            futures.add(
-                executorService.submit(
-                    () -> {
-                      List<FeatureValue> featureValues =
-                          featureStorage.getNLatestFeaturesWithinTimestampRange(
-                              entityName, entityIds, featureSpecLimitPairs, tsRange);
-                      entityMapBuilder.addFeatureValueList(featureValues);
-                      return null;
-                    }));
-          }
-        }
+      for (Map.Entry<String, List<FeatureSpec>> entry : groupedFeatureSpec.entrySet()) {
+        FeatureStorage featureStorage = featureStorageRegistry.get(entry.getKey());
+        List<FeatureSpec> featureSpecs = entry.getValue();
+        futures.add(
+            executorService.submit(
+                () -> {
+                  List<FeatureValue> featureValues =
+                      featureStorage.getFeature(entityName, entityIds, featureSpecs);
+                  entityMapBuilder.addFeatureValueList(featureValues);
+                  return null;
+                }));
       }
       span.log("submitted all task");
       ListenableFuture<List<Void>> combined = Futures.allAsList(futures);
@@ -273,27 +166,12 @@ public class FeatureRetrievalDispatcher {
   /**
    * Group request by its serving storage ID.
    *
-   * @param requestDetailWithSpecs list of request.
+   * @param featureSpecs list of request.
    * @return request grouped by serving storage ID.
    */
-  private Map<String, List<RequestDetailWithSpec>> groupRequestByStorage(
-      List<RequestDetailWithSpec> requestDetailWithSpecs) {
-    return requestDetailWithSpecs
+  private Map<String, List<FeatureSpec>> groupByStorage(Collection<FeatureSpec> featureSpecs) {
+    return featureSpecs
         .stream()
-        .collect(groupingBy(r -> r.getFeatureSpec().getDataStores().getServing().getId()));
-  }
-
-  @AllArgsConstructor
-  @Getter
-  private static class GroupedRequest {
-
-    /**
-     * request grouped by type and its serving storage ID
-     */
-    private final Map<RequestType, Map<String, List<RequestDetailWithSpec>>> requests;
-    /**
-     * number of thread required to execute all request in parallel
-     */
-    private final int nbThreadRequired;
+        .collect(groupingBy(featureSpec -> featureSpec.getDataStores().getServing().getId()));
   }
 }

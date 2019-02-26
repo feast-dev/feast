@@ -33,7 +33,7 @@ func (m *Error) Reset()         { *m = Error{} }
 func (m *Error) String() string { return proto.CompactTextString(m) }
 func (*Error) ProtoMessage()    {}
 func (*Error) Descriptor() ([]byte, []int) {
-	return fileDescriptor_FeatureRowExtended_bfd3c37956d1a040, []int{0}
+	return fileDescriptor_7823aa2c72575793, []int{0}
 }
 func (m *Error) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Error.Unmarshal(m, b)
@@ -41,8 +41,8 @@ func (m *Error) XXX_Unmarshal(b []byte) error {
 func (m *Error) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Error.Marshal(b, m, deterministic)
 }
-func (dst *Error) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Error.Merge(dst, src)
+func (m *Error) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Error.Merge(m, src)
 }
 func (m *Error) XXX_Size() int {
 	return xxx_messageInfo_Error.Size(m)
@@ -93,7 +93,7 @@ func (m *Attempt) Reset()         { *m = Attempt{} }
 func (m *Attempt) String() string { return proto.CompactTextString(m) }
 func (*Attempt) ProtoMessage()    {}
 func (*Attempt) Descriptor() ([]byte, []int) {
-	return fileDescriptor_FeatureRowExtended_bfd3c37956d1a040, []int{1}
+	return fileDescriptor_7823aa2c72575793, []int{1}
 }
 func (m *Attempt) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Attempt.Unmarshal(m, b)
@@ -101,8 +101,8 @@ func (m *Attempt) XXX_Unmarshal(b []byte) error {
 func (m *Attempt) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Attempt.Marshal(b, m, deterministic)
 }
-func (dst *Attempt) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Attempt.Merge(dst, src)
+func (m *Attempt) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Attempt.Merge(m, src)
 }
 func (m *Attempt) XXX_Size() int {
 	return xxx_messageInfo_Attempt.Size(m)
@@ -140,7 +140,7 @@ func (m *FeatureRowExtended) Reset()         { *m = FeatureRowExtended{} }
 func (m *FeatureRowExtended) String() string { return proto.CompactTextString(m) }
 func (*FeatureRowExtended) ProtoMessage()    {}
 func (*FeatureRowExtended) Descriptor() ([]byte, []int) {
-	return fileDescriptor_FeatureRowExtended_bfd3c37956d1a040, []int{2}
+	return fileDescriptor_7823aa2c72575793, []int{2}
 }
 func (m *FeatureRowExtended) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FeatureRowExtended.Unmarshal(m, b)
@@ -148,8 +148,8 @@ func (m *FeatureRowExtended) XXX_Unmarshal(b []byte) error {
 func (m *FeatureRowExtended) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_FeatureRowExtended.Marshal(b, m, deterministic)
 }
-func (dst *FeatureRowExtended) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_FeatureRowExtended.Merge(dst, src)
+func (m *FeatureRowExtended) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FeatureRowExtended.Merge(m, src)
 }
 func (m *FeatureRowExtended) XXX_Size() int {
 	return xxx_messageInfo_FeatureRowExtended.Size(m)
@@ -188,10 +188,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("feast/types/FeatureRowExtended.proto", fileDescriptor_FeatureRowExtended_bfd3c37956d1a040)
+	proto.RegisterFile("feast/types/FeatureRowExtended.proto", fileDescriptor_7823aa2c72575793)
 }
 
-var fileDescriptor_FeatureRowExtended_bfd3c37956d1a040 = []byte{
+var fileDescriptor_7823aa2c72575793 = []byte{
 	// 338 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x91, 0xc1, 0x6b, 0xea, 0x40,
 	0x10, 0xc6, 0xf1, 0xf9, 0xf2, 0x7c, 0x4e, 0x6e, 0x8b, 0x60, 0x08, 0xd2, 0x16, 0xe9, 0xc1, 0x5e,

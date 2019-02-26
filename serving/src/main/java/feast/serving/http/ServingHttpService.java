@@ -17,16 +17,15 @@
 
 package feast.serving.http;
 
-import feast.serving.ServingAPIProto.QueryFeatures;
-import feast.serving.ServingAPIProto.QueryFeatures.Request;
+import static feast.serving.util.RequestHelper.validateRequest;
+
+import feast.serving.ServingAPIProto.QueryFeaturesRequest;
+import feast.serving.ServingAPIProto.QueryFeaturesResponse;
 import feast.serving.service.FeastServing;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import static feast.serving.util.RequestHelper.checkTimestampRange;
-import static feast.serving.util.RequestHelper.validateRequest;
 
 /** HTTP endpoint for Serving API. */
 @RestController
@@ -42,9 +41,8 @@ public class ServingHttpService {
       value = "/api/v1/features/request",
       produces = "application/json",
       consumes = "application/json")
-  public QueryFeatures.Response queryFeature(@RequestBody QueryFeatures.Request request) {
+  public QueryFeaturesResponse queryFeature(@RequestBody QueryFeaturesRequest request) {
     validateRequest(request);
-    Request validRequest = checkTimestampRange(request);
-    return feastServing.queryFeatures(validRequest);
+    return feastServing.queryFeatures(request);
   }
 }

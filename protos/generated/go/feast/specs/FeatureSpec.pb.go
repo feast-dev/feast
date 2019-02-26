@@ -41,7 +41,7 @@ func (m *FeatureSpec) Reset()         { *m = FeatureSpec{} }
 func (m *FeatureSpec) String() string { return proto.CompactTextString(m) }
 func (*FeatureSpec) ProtoMessage()    {}
 func (*FeatureSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_FeatureSpec_eccd5917f38e2b1f, []int{0}
+	return fileDescriptor_b8f1468f11147fbe, []int{0}
 }
 func (m *FeatureSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FeatureSpec.Unmarshal(m, b)
@@ -49,8 +49,8 @@ func (m *FeatureSpec) XXX_Unmarshal(b []byte) error {
 func (m *FeatureSpec) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_FeatureSpec.Marshal(b, m, deterministic)
 }
-func (dst *FeatureSpec) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_FeatureSpec.Merge(dst, src)
+func (m *FeatureSpec) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FeatureSpec.Merge(m, src)
 }
 func (m *FeatureSpec) XXX_Size() int {
 	return xxx_messageInfo_FeatureSpec.Size(m)
@@ -157,7 +157,7 @@ func (m *DataStores) Reset()         { *m = DataStores{} }
 func (m *DataStores) String() string { return proto.CompactTextString(m) }
 func (*DataStores) ProtoMessage()    {}
 func (*DataStores) Descriptor() ([]byte, []int) {
-	return fileDescriptor_FeatureSpec_eccd5917f38e2b1f, []int{1}
+	return fileDescriptor_b8f1468f11147fbe, []int{1}
 }
 func (m *DataStores) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DataStores.Unmarshal(m, b)
@@ -165,8 +165,8 @@ func (m *DataStores) XXX_Unmarshal(b []byte) error {
 func (m *DataStores) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_DataStores.Marshal(b, m, deterministic)
 }
-func (dst *DataStores) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DataStores.Merge(dst, src)
+func (m *DataStores) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DataStores.Merge(m, src)
 }
 func (m *DataStores) XXX_Size() int {
 	return xxx_messageInfo_DataStores.Size(m)
@@ -203,7 +203,7 @@ func (m *DataStore) Reset()         { *m = DataStore{} }
 func (m *DataStore) String() string { return proto.CompactTextString(m) }
 func (*DataStore) ProtoMessage()    {}
 func (*DataStore) Descriptor() ([]byte, []int) {
-	return fileDescriptor_FeatureSpec_eccd5917f38e2b1f, []int{2}
+	return fileDescriptor_b8f1468f11147fbe, []int{2}
 }
 func (m *DataStore) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DataStore.Unmarshal(m, b)
@@ -211,8 +211,8 @@ func (m *DataStore) XXX_Unmarshal(b []byte) error {
 func (m *DataStore) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_DataStore.Marshal(b, m, deterministic)
 }
-func (dst *DataStore) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DataStore.Merge(dst, src)
+func (m *DataStore) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DataStore.Merge(m, src)
 }
 func (m *DataStore) XXX_Size() int {
 	return xxx_messageInfo_DataStore.Size(m)
@@ -245,11 +245,9 @@ func init() {
 	proto.RegisterMapType((map[string]string)(nil), "feast.specs.DataStore.OptionsEntry")
 }
 
-func init() {
-	proto.RegisterFile("feast/specs/FeatureSpec.proto", fileDescriptor_FeatureSpec_eccd5917f38e2b1f)
-}
+func init() { proto.RegisterFile("feast/specs/FeatureSpec.proto", fileDescriptor_b8f1468f11147fbe) }
 
-var fileDescriptor_FeatureSpec_eccd5917f38e2b1f = []byte{
+var fileDescriptor_b8f1468f11147fbe = []byte{
 	// 479 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x53, 0x4d, 0x6b, 0xdb, 0x40,
 	0x10, 0x45, 0x56, 0x62, 0x57, 0xa3, 0x10, 0xc2, 0x52, 0x92, 0xc5, 0x6d, 0x40, 0xb8, 0x14, 0x7c,

@@ -36,7 +36,7 @@ func (m *StorageSpec) Reset()         { *m = StorageSpec{} }
 func (m *StorageSpec) String() string { return proto.CompactTextString(m) }
 func (*StorageSpec) ProtoMessage()    {}
 func (*StorageSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_StorageSpec_bfb8a5e5cf34de95, []int{0}
+	return fileDescriptor_7783b72a0d689614, []int{0}
 }
 func (m *StorageSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StorageSpec.Unmarshal(m, b)
@@ -44,8 +44,8 @@ func (m *StorageSpec) XXX_Unmarshal(b []byte) error {
 func (m *StorageSpec) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StorageSpec.Marshal(b, m, deterministic)
 }
-func (dst *StorageSpec) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StorageSpec.Merge(dst, src)
+func (m *StorageSpec) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StorageSpec.Merge(m, src)
 }
 func (m *StorageSpec) XXX_Size() int {
 	return xxx_messageInfo_StorageSpec.Size(m)
@@ -82,11 +82,9 @@ func init() {
 	proto.RegisterMapType((map[string]string)(nil), "feast.specs.StorageSpec.OptionsEntry")
 }
 
-func init() {
-	proto.RegisterFile("feast/specs/StorageSpec.proto", fileDescriptor_StorageSpec_bfb8a5e5cf34de95)
-}
+func init() { proto.RegisterFile("feast/specs/StorageSpec.proto", fileDescriptor_7783b72a0d689614) }
 
-var fileDescriptor_StorageSpec_bfb8a5e5cf34de95 = []byte{
+var fileDescriptor_7783b72a0d689614 = []byte{
 	// 227 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x92, 0x4d, 0x4b, 0x4d, 0x2c,
 	0x2e, 0xd1, 0x2f, 0x2e, 0x48, 0x4d, 0x2e, 0xd6, 0x0f, 0x2e, 0xc9, 0x2f, 0x4a, 0x4c, 0x4f, 0x0d,
