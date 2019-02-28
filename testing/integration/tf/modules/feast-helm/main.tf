@@ -40,7 +40,7 @@ resource "local_file" "helm_values_output" {
 
 resource "helm_release" "feast" {
   name       = "feast-it"
-  chart      = "${path.module}/../../../../../charts/feast"
+  chart      = "/feast/charts/feast"
   version    = "0.1.0"
 
   set {
