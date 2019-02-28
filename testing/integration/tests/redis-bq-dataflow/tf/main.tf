@@ -47,7 +47,7 @@ module "feast" {
   project_name               = "${local.project_name}"
   region                     = "${local.region}"
   subnetwork                 = "${local.subnetwork}"
-  docker_tag                 = "${var.docker_tag == "" ? var.revision : var.docker_tag}"
+  docker_tag                 = "${var.docker_tag}"
   core_address               = "10.128.0.99"
   serving_address            = "10.128.0.100"
   redis_address              = "10.128.0.101"
