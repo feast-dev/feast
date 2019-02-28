@@ -44,6 +44,7 @@ public class BigQueryStorageManager implements StorageManager {
   private static final String FIELD_ID = "id";
   private static final String FIELD_EVENT_TIMESTAMP = "event_timestamp";
   private static final String FIELD_CREATED_TIMESTAMP = "created_timestamp";
+  private static final String FIELD_JOB_ID = "job_id";
 
   private String id;
   private final BigQuery bigQuery;
@@ -103,6 +104,7 @@ public class BigQueryStorageManager implements StorageManager {
               createField(FIELD_ID, Enum.STRING, ""),
               createField(FIELD_EVENT_TIMESTAMP, Enum.TIMESTAMP, FIELD_EVENT_TIMESTAMP),
               createField(FIELD_CREATED_TIMESTAMP, Enum.TIMESTAMP, FIELD_CREATED_TIMESTAMP),
+              createField(FIELD_JOB_ID, Enum.STRING, FIELD_JOB_ID),
               createFeatureField(featureSpec));
       TableDefinition tableDefinition =
           StandardTableDefinition.newBuilder()
@@ -137,7 +139,9 @@ public class BigQueryStorageManager implements StorageManager {
                 f ->
                     !f.equals(FIELD_ID)
                         && !f.equals(FIELD_CREATED_TIMESTAMP)
-                        && !f.equals(FIELD_EVENT_TIMESTAMP))
+                        && !f.equals(FIELD_EVENT_TIMESTAMP)
+                        && !f.equals(FIELD_JOB_ID))
+
             .collect(Collectors.toList()));
     AuditLogger.log(
         Resource.STORAGE,
