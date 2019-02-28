@@ -14,12 +14,18 @@ spec:
     steps:
     - - name: get-feast
         template: get-feast
-    - - name: build-push-docker
-        template: build
+    - - name: build-jars
+        template: build-jars
         arguments:
           artifacts:
           - name: feast
             from: "{{steps.get-feast.outputs.artifacts.feast}}"
+    - - name: build-push-docker
+        template: build-docker
+        arguments:
+          artifacts:
+          - name: feast
+            from: "{{steps.build-jars.outputs.artifacts.feast-build}}"
     - - name: build-cli
         template: build-cli
         arguments:
@@ -53,7 +59,7 @@ spec:
         arguments:
           parameters:
           - name: arg
-            value: "destroy -var revision={{workflow.parameters.revision}} -var docker_tag=coalesce -auto-approve ."
+            value: "destroy -var docker_tag=integration-test -auto-approve ."
           artifacts:
           - name: feast
             from: "{{workflow.outputs.artifacts.feast-repo}}"
@@ -61,28 +67,51 @@ spec:
   - name: get-feast
     container:
       image: alpine/git
-      command: [sh, -c]
-      args: ["
+      command: 
+      - /bin/sh
+      - -c
+      - |
         git clone https://github.com/gojek/feast;
+        cd feast;
         git fetch origin pull/{{workflow.parameters.prId}}/head;
         git checkout FETCH_HEAD
-      "]
     outputs:
       artifacts:
       - name: feast
         path: /git/feast
         globalName: feast-repo
-  - name: build
+  - name: build-jars
     inputs:
       artifacts:
       - name: feast
         path: /feast
     container:
-      image: docker:stable
+      image: us.gcr.io/kf-feast/test-image:1.0.0
+      command: 
+      - /bin/bash 
+      - -c 
+      - |
+        mvn package -DskipTests -Drevision=integration-test
+      workingDir: /feast
+    outputs:
+      artifacts:
+      - name: feast-build
+        path: /feast
+        globalName: feast-build
+  - name: build-docker
+    inputs:
+      artifacts:
+      - name: feast
+        path: /feast
+    container:
+      image: gcr.io/kf-feast/docker:18.09-gcloud
       command: [sh, -c]
       args: ['
-        apk add --update make;
-        make build-push-docker registry=gcr.io/kf-feast version=integration-test
+        until docker ps; do sleep 3; done;
+        docker build -t gcr.io/kf-feast/feast-core:integration-test -f docker/core/Dockerfile --build-arg RELEASE=integration-test .;
+        docker build -t gcr.io/kf-feast/feast-serving:integration-test -f docker/serving/Dockerfile --build-arg RELEASE=integration-test .;
+        docker push gcr.io/kf-feast/feast-core:integration-test;
+        docker push gcr.io/kf-feast/feast-serving:integration-test
       ']
       env:
       - name: DOCKER_HOST
