@@ -215,16 +215,16 @@ public class ImportJobCSVTest {
     job.expand();
 
     PCollection<FeatureRowExtended> writtenToServing =
-        PCollectionList.of(ServingStoreService.get(MockServingStore.class).getWrite().getInputs())
+        PCollectionList.of(FeatureServingFactoryService.get(MockServingFactory.class).getWrite().getInputs())
             .apply("flatten serving input", Flatten.pCollections());
 
     PCollection<FeatureRowExtended> writtenToWarehouse =
         PCollectionList.of(
-            WarehouseStoreService.get(MockWarehouseStore.class).getWrite().getInputs())
+            FeatureWarehouseFactoryService.get(MockWarehouseFactory.class).getWrite().getInputs())
             .apply("flatten warehouse input", Flatten.pCollections());
 
     PCollection<FeatureRowExtended> writtenToErrors =
-        PCollectionList.of(ErrorsStoreService.get(MockErrorsStore.class).getWrite().getInputs())
+        PCollectionList.of(FeatureErrorsFactoryService.get(MockFeatureErrorsFactory.class).getWrite().getInputs())
             .apply("flatten errors input", Flatten.pCollections());
 
     List<FeatureRow> expectedRows =
