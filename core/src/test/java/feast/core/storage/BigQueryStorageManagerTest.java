@@ -115,15 +115,17 @@ public class BigQueryStorageManagerTest {
         actualTable.getTableId().getTable(),
         equalTo(String.format("%s_%s", entityName, granularity.toString().toLowerCase())));
     List<Field> fields = actualTable.getDefinition().getSchema().getFields();
-    assertThat(fields.size(), equalTo(4));
+    assertThat(fields.size(), equalTo(5));
     Field idField = fields.get(0);
     assertThat(idField.getName(), equalTo("id"));
     Field etsField = fields.get(1);
     assertThat(etsField.getName(), equalTo("event_timestamp"));
     Field ctsField = fields.get(2);
     assertThat(ctsField.getName(), equalTo("created_timestamp"));
-    Field field = fields.get(3);
+    Field field = fields.get(4);
     assertThat(field.getDescription(), equalTo(description));
+    Field jobIdField = fields.get(3);
+    assertThat(jobIdField.getName(), equalTo("job_id"));
     assertThat(field.getType(), equalTo(LegacySQLTypeName.INTEGER));
     assertThat(field.getName(), equalTo(featureName));
 

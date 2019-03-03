@@ -36,6 +36,8 @@ public class FeatureRowToBigQueryTableRowDoFn extends DoFn<FeatureRowExtended, T
   private static final String ENTITY_KEY_COLUMN = "id";
   private static final String EVENT_TIMESTAMP_COLUMN = "event_timestamp";
   private static final String CREATED_TIMESTAMP_COLUMN = "created_timestamp";
+  private static final String JOB_ID_COLUMN = "job_id";
+
 
   private Specs specs;
 
@@ -59,6 +61,7 @@ public class FeatureRowToBigQueryTableRowDoFn extends DoFn<FeatureRowExtended, T
         ValueBigQueryBuilder.bigQueryObjectOf(
             Value.newBuilder()
                 .setTimestampVal(DateUtil.toTimestamp(DateTime.now(DateTimeZone.UTC)))));
+    tableRow.set(JOB_ID_COLUMN, specs.getJobName());
 
     for (Feature feature : featureRow.getFeaturesList()) {
       Object featureValue = ValueBigQueryBuilder.bigQueryObjectOf(feature.getValue());
