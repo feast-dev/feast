@@ -17,22 +17,26 @@
 
 package feast.serving.service;
 
+import com.google.common.base.Ticker;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import lombok.extern.slf4j.Slf4j;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
 import feast.serving.exception.SpecRetrievalException;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
-
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 
 /** SpecStorage implementation with built-in in-memory cache. */
 @Slf4j
 public class CachedSpecStorage implements SpecStorage {
+  private static final int MAX_SPEC_COUNT = 1000;
+
   private final CoreService coreService;
   private final LoadingCache<String, EntitySpec> entitySpecCache;
   private final CacheLoader<String, EntitySpec> entitySpecLoader;
@@ -41,14 +45,11 @@ public class CachedSpecStorage implements SpecStorage {
   private final LoadingCache<String, StorageSpec> storageSpecCache;
   private final CacheLoader<String, StorageSpec> storageSpecLoader;
 
-  private static final Duration CACHE_DURATION;
-  private static final int MAX_SPEC_COUNT = 1000;
-
-  static {
-    CACHE_DURATION = Duration.ofMinutes(30);
-  }
-
-  public CachedSpecStorage(CoreService coreService) {
+  public CachedSpecStorage(
+      CoreService coreService,
+      ListeningExecutorService executorService,
+      Duration cacheDuration,
+      Ticker ticker) {
     this.coreService = coreService;
     entitySpecLoader =
         new CacheLoader<String, EntitySpec>() {
@@ -58,14 +59,25 @@ public class CachedSpecStorage implements SpecStorage {
           }
 
           @Override
-          public Map<String, EntitySpec> loadAll(Iterable<? extends String> keys) throws Exception {
-            return coreService.getEntitySpecs((Iterable<String>) keys);
+          public ListenableFuture<EntitySpec> reload(String key, EntitySpec oldValue)
+              throws Exception {
+            return executorService.submit(
+                () -> {
+                  EntitySpec result = oldValue;
+                  try {
+                    result = coreService.getEntitySpecs(Collections.singleton(key)).get(key);
+                  } catch (Exception e) {
+                    log.error("Error reloading entity spec");
+                  }
+                  return result;
+                });
           }
         };
     entitySpecCache =
         CacheBuilder.newBuilder()
             .maximumSize(MAX_SPEC_COUNT)
-            .expireAfterAccess(CACHE_DURATION)
+            .refreshAfterWrite(cacheDuration)
+            .ticker(ticker)
             .build(entitySpecLoader);
 
     featureSpecLoader =
@@ -76,34 +88,54 @@ public class CachedSpecStorage implements SpecStorage {
           }
 
           @Override
-          public Map<String, FeatureSpec> loadAll(Iterable<? extends String> keys)
+          public ListenableFuture<FeatureSpec> reload(String key, FeatureSpec oldValue)
               throws Exception {
-            return coreService.getFeatureSpecs((Iterable<String>) keys);
+            return executorService.submit(
+                () -> {
+                  FeatureSpec result = oldValue;
+                  try {
+                    result = coreService.getFeatureSpecs(Collections.singleton(key)).get(key);
+                  } catch (Exception e) {
+                    log.error("Error reloading feature spec");
+                  }
+                  return result;
+                });
           }
         };
     featureSpecCache =
         CacheBuilder.newBuilder()
             .maximumSize(MAX_SPEC_COUNT)
-            .expireAfterAccess(CACHE_DURATION)
+            .refreshAfterWrite(cacheDuration)
+            .ticker(ticker)
             .build(featureSpecLoader);
 
     storageSpecLoader =
         new CacheLoader<String, StorageSpec>() {
           @Override
-          public Map<String, StorageSpec> loadAll(Iterable<? extends String> keys)
-              throws Exception {
-            return coreService.getStorageSpecs((Iterable<String>) keys);
+          public StorageSpec load(String key) throws Exception {
+            return coreService.getStorageSpecs(Collections.singleton(key)).get(key);
           }
 
           @Override
-          public StorageSpec load(String key) throws Exception {
-            return coreService.getStorageSpecs(Collections.singleton(key)).get(key);
+          public ListenableFuture<StorageSpec> reload(String key, StorageSpec oldValue)
+              throws Exception {
+            return executorService.submit(
+                () -> {
+                  StorageSpec result = oldValue;
+                  try {
+                    result = coreService.getStorageSpecs(Collections.singleton(key)).get(key);
+                  } catch (Exception e) {
+                    log.error("Error reloading storage spec");
+                  }
+                  return result;
+                });
           }
         };
     storageSpecCache =
         CacheBuilder.newBuilder()
             .maximumSize(MAX_SPEC_COUNT)
-            .expireAfterAccess(CACHE_DURATION)
+            .refreshAfterWrite(cacheDuration)
+            .ticker(ticker)
             .build(storageSpecLoader);
   }
 
@@ -176,5 +208,17 @@ public class CachedSpecStorage implements SpecStorage {
   @Override
   public boolean isConnected() {
     return coreService.isConnected();
+  }
+
+  /** Preload all spec into cache. */
+  public void populateCache() {
+    Map<String, FeatureSpec> featureSpecMap = coreService.getAllFeatureSpecs();
+    featureSpecCache.putAll(featureSpecMap);
+
+    Map<String, EntitySpec> entitySpecMap = coreService.getAllEntitySpecs();
+    entitySpecCache.putAll(entitySpecMap);
+
+    Map<String, StorageSpec> storageSpecMap = coreService.getAllStorageSpecs();
+    storageSpecCache.putAll(storageSpecMap);
   }
 }

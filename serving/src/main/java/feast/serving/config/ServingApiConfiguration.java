@@ -17,8 +17,10 @@
 
 package feast.serving.config;
 
+import com.google.common.base.Ticker;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import feast.serving.service.CachedSpecStorage;
 import feast.serving.service.CoreService;
 import feast.serving.service.FeatureStorageRegistry;
@@ -26,10 +28,14 @@ import feast.serving.service.SpecStorage;
 import feast.specs.StorageSpecProto.StorageSpec;
 import io.opentracing.Tracer;
 import io.opentracing.contrib.concurrent.TracedExecutorService;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -66,9 +72,39 @@ public class ServingApiConfiguration implements WebMvcConfigurer {
   @Bean
   public SpecStorage getCoreServiceSpecStorage(
       @Value("${feast.core.host}") String coreServiceHost,
-      @Value("${feast.core.grpc.port}") String coreServicePort) {
-    return new CachedSpecStorage(
-        new CoreService(coreServiceHost, Integer.parseInt(coreServicePort)));
+      @Value("${feast.core.grpc.port}") String coreServicePort,
+      @Value("${feast.cacheDurationMinute}") int cacheDurationMinute) {
+    Duration cacheDuration = Duration.ofMinutes(cacheDurationMinute);
+
+    ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("cache-refresh-thread")
+        .setDaemon(true)
+        .build();
+    ExecutorService parentExecutor = Executors.newSingleThreadExecutor(threadFactory);
+    final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(parentExecutor);
+
+    ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+    final CachedSpecStorage cachedSpecStorage =
+        new CachedSpecStorage(
+            new CoreService(coreServiceHost, Integer.parseInt(coreServicePort)),
+            executorService,
+            cacheDuration,
+            Ticker.systemTicker());
+
+    // reload all specs including new ones periodically
+    scheduledExecutorService.schedule(new Runnable() {
+      @Override
+      public void run() {
+        cachedSpecStorage.populateCache();
+      }
+    }, cacheDurationMinute, TimeUnit.MINUTES);
+
+    // load all specs during start up
+    try {
+      cachedSpecStorage.populateCache();
+    } catch (Exception e) {
+      log.error("Unable to preload feast's spec");
+    }
+    return cachedSpecStorage;
   }
 
   @Bean
