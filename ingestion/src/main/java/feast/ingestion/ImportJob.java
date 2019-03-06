@@ -25,7 +25,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.ingestion.boot.ImportJobModule;
 import feast.ingestion.boot.PipelineModule;
-import feast.ingestion.config.ImportSpecSupplier;
+import feast.ingestion.config.ImportJobSpecsSupplier;
 import feast.ingestion.model.Specs;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.options.JobOptions;
@@ -41,6 +41,7 @@ import feast.ingestion.transform.fn.LoggerDoFn;
 import feast.ingestion.transform.fn.RoundEventTimestampsDoFn;
 import feast.ingestion.values.PFeatureRows;
 import feast.options.OptionsParser;
+import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
@@ -117,9 +118,10 @@ public class ImportJob {
       options.setJobName(generateName());
     }
     log.info("options: " + options.toString());
-    ImportSpec importSpec = new ImportSpecSupplier(options).get();
+    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(options.getImportJobSpecsPath())
+        .get();
     Injector injector =
-        Guice.createInjector(new ImportJobModule(options, importSpec), new PipelineModule());
+        Guice.createInjector(new ImportJobModule(options, importJobSpecs), new PipelineModule());
     ImportJob job = injector.getInstance(ImportJob.class);
 
     job.expand();

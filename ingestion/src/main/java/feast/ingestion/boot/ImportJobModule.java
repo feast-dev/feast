@@ -22,12 +22,7 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import feast.ingestion.model.Specs;
 import feast.ingestion.options.ImportJobPipelineOptions;
-import feast.ingestion.service.CoreSpecService;
-import feast.ingestion.service.FileSpecService;
-import feast.ingestion.service.SpecService;
-import feast.ingestion.service.SpecService.Builder;
-import feast.ingestion.service.SpecService.UnsupportedBuilder;
-import feast.specs.ImportSpecProto.ImportSpec;
+import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.store.errors.FeatureErrorsFactory;
 import feast.store.errors.FeatureErrorsFactoryService;
 import feast.store.serving.FeatureServingFactory;
@@ -43,37 +38,24 @@ import org.apache.beam.sdk.options.PipelineOptions;
 public class ImportJobModule extends AbstractModule {
 
   private final ImportJobPipelineOptions options;
-  private ImportSpec importSpec;
+  private ImportJobSpecs importJobSpecs;
 
-  public ImportJobModule(ImportJobPipelineOptions options, ImportSpec importSpec) {
+  public ImportJobModule(ImportJobPipelineOptions options, ImportJobSpecs importJobSpecs) {
     this.options = options;
-    this.importSpec = importSpec;
+    this.importJobSpecs = importJobSpecs;
   }
 
   @Override
   protected void configure() {
     bind(ImportJobPipelineOptions.class).toInstance(options);
     bind(PipelineOptions.class).toInstance(options);
-    bind(ImportSpec.class).toInstance(importSpec);
+    bind(ImportJobSpecs.class).toInstance(importJobSpecs);
   }
 
   @Provides
   @Singleton
-  Builder provideSpecService(ImportJobPipelineOptions options) {
-    if (options.getCoreApiUri() != null) {
-      return new CoreSpecService.Builder(options.getCoreApiUri());
-    } else if (options.getCoreApiSpecPath() != null) {
-      return new FileSpecService.Builder(options.getCoreApiSpecPath());
-    } else {
-      return new UnsupportedBuilder(
-          "Cannot initialise spec service as coreApiHost or specPath was not set.");
-    }
-  }
-
-  @Provides
-  @Singleton
-  Specs provideSpecs(SpecService.Builder specService) {
-    return Specs.of(options.getJobName(), importSpec, specService.build());
+  Specs provideSpecs() {
+    return Specs.of(options.getJobName(), importJobSpecs);
   }
 
   @Provides

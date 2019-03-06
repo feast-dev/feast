@@ -31,36 +31,17 @@ import org.apache.beam.sdk.options.Validation.Required;
  */
 public interface ImportJobPipelineOptions extends PipelineOptions {
 
-  @Description("Import spec yaml file path")
-  @Required(groups = {"importSpec"})
-  String getImportSpecYamlFile();
+  @Description("Path to a yaml file containing all specs needed for import job")
+  @Required(groups = {"importSpecsPath"})
+  String getImportJobSpecsPath();
 
-  void setImportSpecYamlFile(String value);
-
-  @Description("Import spec as native proto binary encoding converted to Base64 string")
-  @Required(groups = {"importSpec"})
-  String getImportSpecBase64();
-
-  void setImportSpecBase64(String value);
+  void setImportJobSpecsPath(String value);
 
   @Description("If dry run is set, execute up to feature row validation")
   @Default.Boolean(false)
   Boolean isDryRun();
 
   void setDryRun(Boolean value);
-
-  @Description("Uri of the core api service. eg: localhost:8001")
-  @Required(groups = {"coreApi"})
-  String getCoreApiUri();
-
-  void setCoreApiUri(String value);
-
-  @Description(
-      "Path to root directory of json spec jsonfiles, substitutes for the core api service")
-  @Required(groups = {"coreApi"})
-  String getCoreApiSpecPath();
-
-  void setCoreApiSpecPath(String value);
 
   @Description(
       "Set an errors store type. One of: [stderr, stdout, file.json]. Note that you should not use "
