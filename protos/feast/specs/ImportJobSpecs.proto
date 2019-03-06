@@ -28,8 +28,9 @@ option java_outer_classname = "ImportJobSpecsProto";
 option go_package = "github.com/gojek/feast/protos/generated/go/feast/specs";
 
 message ImportJobSpecs {
-  feast.specs.ImportSpec import = 1;
-  map<string, feast.specs.EntitySpec> entities = 2;
-  map<string, feast.specs.FeatureSpec> features = 3;
-  map<string, feast.specs.StorageSpec> storage = 4;
+   feast.specs.ImportSpec import = 1;
+   map<string, feast.specs.EntitySpec> entities = 2;
+   map<string, feast.specs.FeatureSpec> features = 3;
+   StorageSpec servingStorage = 4;
+   StorageSpec warehouseStorage = 5;
 }

@@ -103,18 +103,28 @@ public class ValidateFeatureRowsDoFn extends BaseFeatureDoFn {
             featureSpec, String.format("Feature spec not found featureId=%s", feature.getId()));
 
         String storageStoreId = featureSpec.getDataStores().getServing().getId();
-        StorageSpec servingStorageSpec = specs.getStorageSpec(storageStoreId);
-        checkArgument(
-            supportedServingTypes.contains(servingStorageSpec.getType()),
-            String.format("Serving storage type=%s not supported", servingStorageSpec.getType()));
+        if (!storageStoreId.equals(EMPTY_STORE)) {
+          StorageSpec servingStorageSpec = specs.getServingStorageSpec();
+          checkArgument(storageStoreId.equals(servingStorageSpec.getId()),
+              "Feature specified a serving store id, but this job only supports id="
+                  + servingStorageSpec
+                  .getId());
+          checkArgument(
+              supportedServingTypes.contains(servingStorageSpec.getType()),
+              String.format("Serving storage type=%s not supported", servingStorageSpec.getType()));
+        }
 
         String warehouseStoreId = featureSpec.getDataStores().getWarehouse().getId();
         if (!warehouseStoreId.equals(EMPTY_STORE)) {
-          StorageSpec warehouseStorageSpec = specs.getStorageSpec(warehouseStoreId);
+          StorageSpec warehouseStorageSpec = specs.getWarehouseStorageSpec();
+          checkArgument(warehouseStoreId.equals(warehouseStorageSpec.getId()),
+              "Feature specified a warehouse store id, but this job only supports id="
+                  + warehouseStorageSpec
+                  .getId());
           checkArgument(
               supportedWarehouseTypes.contains(warehouseStorageSpec.getType()),
               String.format(
-                  "Warehouse storage type=%s not supported", servingStorageSpec.getType()));
+                  "Warehouse storage type=%s not supported", warehouseStorageSpec.getType()));
         }
 
         checkArgument(

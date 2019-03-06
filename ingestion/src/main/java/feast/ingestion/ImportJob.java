@@ -42,7 +42,6 @@ import feast.ingestion.transform.fn.RoundEventTimestampsDoFn;
 import feast.ingestion.values.PFeatureRows;
 import feast.options.OptionsParser;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
-import feast.specs.ImportSpecProto.ImportSpec;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.Arrays;
@@ -76,7 +75,7 @@ public class ImportJob {
   private static Random random = new Random(System.currentTimeMillis());
 
   private final Pipeline pipeline;
-  private final ImportSpec importSpec;
+  private final ImportJobSpecs importJobSpecs;
   private final ReadFeaturesTransform readFeaturesTransform;
   private final ServingStoreTransform servingStoreTransform;
   private final WarehouseStoreTransform warehouseStoreTransform;
@@ -88,7 +87,7 @@ public class ImportJob {
   @Inject
   public ImportJob(
       Pipeline pipeline,
-      ImportSpec importSpec,
+      ImportJobSpecs importJobSpecs,
       ReadFeaturesTransform readFeaturesTransform,
       ServingStoreTransform servingStoreTransform,
       WarehouseStoreTransform warehouseStoreTransform,
@@ -96,7 +95,7 @@ public class ImportJob {
       ImportJobPipelineOptions options,
       Specs specs) {
     this.pipeline = pipeline;
-    this.importSpec = importSpec;
+    this.importJobSpecs = importJobSpecs;
     this.readFeaturesTransform = readFeaturesTransform;
     this.servingStoreTransform = servingStoreTransform;
     this.warehouseStoreTransform = warehouseStoreTransform;
@@ -143,10 +142,11 @@ public class ImportJob {
         TypeDescriptor.of(FeatureRowExtended.class), ProtoCoder.of(FeatureRowExtended.class));
     coderRegistry.registerCoderForType(TypeDescriptor.of(TableRow.class), TableRowJsonCoder.of());
 
-    JobOptions jobOptions = OptionsParser.parse(importSpec.getJobOptionsMap(), JobOptions.class);
+    JobOptions jobOptions = OptionsParser
+        .parse(importJobSpecs.getImport().getJobOptionsMap(), JobOptions.class);
 
     try {
-      log.info(JsonFormat.printer().print(importSpec));
+      log.info(JsonFormat.printer().print(importJobSpecs));
     } catch (InvalidProtocolBufferException e) {
       // pass
     }
@@ -179,8 +179,12 @@ public class ImportJob {
     servingRows = roundTimestamps("Round timestamps for serving", servingRows);
 
     if (!dryRun) {
-      servingRows.apply("Write to Serving Stores", servingStoreTransform);
-      warehouseRows.apply("Write to Warehouse  Stores", warehouseStoreTransform);
+      if (!specs.getServingStorageSpec().getId().isEmpty()) {
+        servingRows.getMain().apply("Write to Serving Stores", servingStoreTransform);
+      }
+      if (!specs.getWarehouseStorageSpec().getId().isEmpty()) {
+        warehouseRows.getMain().apply("Write to Warehouse  Stores", warehouseStoreTransform);
+      }
       pFeatureRows.getErrors().apply("Write errors", errorsStoreTransform);
     }
   }

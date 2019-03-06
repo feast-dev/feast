@@ -19,6 +19,7 @@ package feast.ingestion.transform;
 
 import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
+import feast.ingestion.model.Specs;
 import feast.source.FeatureSourceFactory;
 import feast.source.FeatureSourceFactoryService;
 import feast.specs.ImportSpecProto.ImportSpec;
@@ -32,8 +33,8 @@ public class ReadFeaturesTransform extends PTransform<PInput, PCollection<Featur
   private ImportSpec importSpec;
 
   @Inject
-  public ReadFeaturesTransform(ImportSpec importSpec) {
-    this.importSpec = importSpec;
+  public ReadFeaturesTransform(Specs specs) {
+    this.importSpec = specs.getImportSpec();
   }
 
   @Override

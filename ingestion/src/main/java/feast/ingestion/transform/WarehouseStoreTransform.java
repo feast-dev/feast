@@ -20,15 +20,18 @@ package feast.ingestion.transform;
 import com.google.inject.Inject;
 import feast.ingestion.metrics.FeastMetrics;
 import feast.ingestion.model.Specs;
-import feast.ingestion.values.PFeatureRows;
+import feast.specs.StorageSpecProto.StorageSpec;
 import feast.store.warehouse.FeatureWarehouseFactory;
+import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
 
 @Slf4j
-public class WarehouseStoreTransform extends PTransform<PFeatureRows, PFeatureRows> {
+public class WarehouseStoreTransform extends PTransform<PCollection<FeatureRowExtended>, PDone> {
 
   private List<FeatureWarehouseFactory> stores;
   private Specs specs;
@@ -40,18 +43,16 @@ public class WarehouseStoreTransform extends PTransform<PFeatureRows, PFeatureRo
   }
 
   @Override
-  public PFeatureRows expand(PFeatureRows input) {
-    PFeatureRows output =
-        input.apply(
-            "Split to warehouse stores",
-            new SplitOutputByStore(
-                stores,
-                (featureSpec) -> featureSpec.getDataStores().getWarehouse().getId(),
-                specs));
-    output.getMain()
-        .apply("metrics.store.main", ParDo.of(FeastMetrics.incrDoFn("warehouse_stored")));
-    output.getErrors()
-        .apply("metrics.store.errors", ParDo.of(FeastMetrics.incrDoFn("warehouse_errors")));
-    return output;
+  public PDone expand(PCollection<FeatureRowExtended> input) {
+    StorageSpec storageSpec = specs.getWarehouseStorageSpec();
+    for (FeatureWarehouseFactory store : stores) {
+      log.info("found type " + store.getType() + " looking for " + storageSpec.getType());
+      if (store.getType().equals(storageSpec.getType())) {
+        input.apply("metrics.store.lag", ParDo.of(FeastMetrics.lagUpdateDoFn()));
+        input.apply("metrics.store.main", ParDo.of(FeastMetrics.incrDoFn("warehouse_stored")));
+        return input.apply(store.create(storageSpec, specs));
+      }
+    }
+    throw new IllegalArgumentException("No available warehouse store type matches " + storageSpec.getType());
   }
 }

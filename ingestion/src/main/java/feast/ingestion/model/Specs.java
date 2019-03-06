@@ -27,18 +27,17 @@ import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import lombok.Builder;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
-@Builder
 @Slf4j
 @ToString
+@AllArgsConstructor
 public class Specs implements Serializable {
 
   @Getter
@@ -46,12 +45,11 @@ public class Specs implements Serializable {
   private ImportJobSpecs importJobSpecs;
 
   public static Specs of(String jobName, ImportJobSpecs importJobSpecs) {
-    Specs.SpecsBuilder specsBuilder = Specs.builder().jobName(jobName)
-        .importJobSpecs(filterToUtilized(importJobSpecs));
-    return specsBuilder.build();
+    return new Specs(jobName, filterToUtilized(importJobSpecs));
   }
 
-  public static ImportJobSpecs filterToUtilized(ImportJobSpecs importJobSpecs) {
+  static ImportJobSpecs filterToUtilized(ImportJobSpecs importJobSpecs) {
+    Specs.validate(importJobSpecs);
     ImportSpec importSpec = importJobSpecs.getImport();
     List<Field> fields = importSpec.getSchema().getFieldsList();
     List<String> featureIds = new ArrayList<>();
@@ -68,41 +66,13 @@ public class Specs implements Serializable {
     Map<String, EntitySpec> entitySpecs = Maps
         .filterEntries(importJobSpecs.getEntitiesMap(), (entry) ->
             entityNames.contains(entry.getValue().getName()));
-    Map<String, StorageSpec> storageSpecs = new HashMap<>();
 
-    for (FeatureSpec featureSpec : featureSpecs.values()) {
-      String servingStoreId = featureSpec.getDataStores().getServing().getId();
-      String warehouseStoreId = featureSpec.getDataStores().getWarehouse().getId();
-      if (!servingStoreId.isEmpty()) {
-        storageSpecs.put(servingStoreId, importJobSpecs.getStorageOrThrow(servingStoreId));
-      }
-      if (!warehouseStoreId.isEmpty()) {
-        storageSpecs.put(warehouseStoreId, importJobSpecs.getStorageOrThrow(warehouseStoreId));
-      }
-    }
     return importJobSpecs.toBuilder()
         .clearFeatures().putAllFeatures(featureSpecs)
-        .clearEntities().putAllEntities(entitySpecs)
-        .clearStorage().putAllStorage(storageSpecs).build();
+        .clearEntities().putAllEntities(entitySpecs).build();
   }
 
-  public ImportSpec getImportSpec() {
-    return importJobSpecs.getImport();
-  }
-
-  public Map<String, StorageSpec> getStorageSpecs() {
-    return importJobSpecs.getStorageMap();
-  }
-
-  public Map<String, EntitySpec> getEntitySpecs() {
-    return importJobSpecs.getEntitiesMap();
-  }
-
-  public Map<String, FeatureSpec> getFeatureSpecs() {
-    return importJobSpecs.getFeaturesMap();
-  }
-
-  public void validate() {
+  public static void validate(ImportJobSpecs importJobSpecs) {
     // Sanity checks that our maps are built correctly
     for (Entry<String, FeatureSpec> entry : importJobSpecs.getFeaturesMap().entrySet()) {
       Preconditions.checkArgument(entry.getKey().equals(entry.getValue().getId()),
@@ -114,11 +84,6 @@ public class Specs implements Serializable {
           String.format("Entity name does not match spec %s!=%s", entry.getKey(),
               entry.getValue().getName()));
     }
-    for (Entry<String, StorageSpec> entry : importJobSpecs.getStorageMap().entrySet()) {
-      Preconditions.checkArgument(entry.getKey().equals(entry.getValue().getId()),
-          String.format("Storage id does not match spec %s!=%s", entry.getKey(),
-              entry.getValue().getId()));
-    }
 
     for (FeatureSpec featureSpec : importJobSpecs.getFeaturesMap().values()) {
       // Check that feature has a matching entity
@@ -127,23 +92,31 @@ public class Specs implements Serializable {
           String.format(
               "Feature %s references unknown entity %s",
               featureSpec.getId(), featureSpec.getEntity()));
-      // Check that feature has a matching serving store
-      if (!featureSpec.getDataStores().getServing().getId().isEmpty()) {
-        Preconditions.checkArgument(
-            importJobSpecs.containsStorage(featureSpec.getDataStores().getServing().getId()),
-            String.format(
-                "Feature %s references unknown serving store %s",
-                featureSpec.getId(), featureSpec.getDataStores().getServing().getId()));
-      }
-      // Check that feature has a matching warehouse store
-      if (!featureSpec.getDataStores().getWarehouse().getId().isEmpty()) {
-        Preconditions.checkArgument(
-            importJobSpecs.containsStorage(featureSpec.getDataStores().getWarehouse().getId()),
-            String.format(
-                "Feature %s references unknown warehouse store %s",
-                featureSpec.getId(), featureSpec.getDataStores().getWarehouse().getId()));
-      }
     }
+  }
+
+  public ImportSpec getImportSpec() {
+    return importJobSpecs.getImport();
+  }
+
+  public StorageSpec getServingStorageSpec() {
+    return importJobSpecs.getServingStorage();
+  }
+
+  public StorageSpec getWarehouseStorageSpec() {
+    return importJobSpecs.getWarehouseStorage();
+  }
+
+  public Map<String, EntitySpec> getEntitySpecs() {
+    return importJobSpecs.getEntitiesMap();
+  }
+
+  public Map<String, FeatureSpec> getFeatureSpecs() {
+    return importJobSpecs.getFeaturesMap();
+  }
+
+  public void validate() {
+    validate(importJobSpecs);
   }
 
   public EntitySpec getEntitySpec(String entityName) {
@@ -158,22 +131,5 @@ public class Specs implements Serializable {
         importJobSpecs.containsFeatures(featureId),
         String.format("Unknown feature %s, spec was not initialized", featureId));
     return importJobSpecs.getFeaturesOrThrow(featureId);
-  }
-
-  public List<FeatureSpec> getFeatureSpecByServingStoreId(String storeId) {
-    List<FeatureSpec> out = new ArrayList<>();
-    for (FeatureSpec featureSpec : importJobSpecs.getFeaturesMap().values()) {
-      if (featureSpec.getDataStores().getServing().getId().equals(storeId)) {
-        out.add(featureSpec);
-      }
-    }
-    return out;
-  }
-
-  public StorageSpec getStorageSpec(String storeId) {
-    Preconditions.checkArgument(
-        importJobSpecs.containsStorage(storeId),
-        String.format("Unknown store %s, spec was not initialized", storeId));
-    return importJobSpecs.getStorageOrThrow(storeId);
   }
 }
