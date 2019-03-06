@@ -24,6 +24,7 @@ rm -f $PROTOC_ZIP
 #### dep
 On MacOS you can install or upgrade to the latest released version with Homebrew:
 
+
 ```
 brew install dep
 brew upgrade dep
@@ -34,8 +35,18 @@ On other platforms you can use the install.sh script:
 curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 ```
 
-Then just install the cli using:
+#### Building 
+
+This repo need to be checked out in `~/go/src/github.com/gojek/feast`.
+
+Then build the cli using:
 ```
 # at feast top-level directory
-make install-cli
+make build-cli
+```
+
+The built binaries will then be available in:
+```
+cli/bin/darwin-amd64/feast
+cli/bin/linux-amd64/feast
 ```
