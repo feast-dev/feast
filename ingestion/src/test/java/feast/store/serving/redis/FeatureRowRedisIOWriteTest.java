@@ -24,19 +24,19 @@ import static org.junit.Assert.assertEquals;
 import com.google.common.io.Resources;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
+import feast.ingestion.config.ImportJobSpecsSupplier;
 import feast.ingestion.model.Features;
 import feast.ingestion.model.Specs;
 import feast.ingestion.model.Values;
-import feast.ingestion.service.FileSpecService;
-import feast.ingestion.service.SpecService;
-import feast.store.FeatureStoreWrite;
 import feast.ingestion.util.DateUtil;
+import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.storage.RedisProto.RedisBucketKey;
 import feast.storage.RedisProto.RedisBucketValue;
+import feast.store.FeatureStoreWrite;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.GranularityProto.Granularity;
@@ -66,7 +66,7 @@ public class FeatureRowRedisIOWriteTest {
   private static int REDIS_PORT = 51234;
   private static Redis redis;
   private static Jedis jedis;
-  private static SpecService fileSpecService;
+  private static ImportJobSpecs importJobSpecs;
 
   @Rule
   public TestPipeline testPipeline = TestPipeline.create();
@@ -75,8 +75,8 @@ public class FeatureRowRedisIOWriteTest {
   public static void classSetup() throws IOException {
     redis = new RedisServer(REDIS_PORT);
     redis.start();
-    Path path = Paths.get(Resources.getResource("core_specs/").getPath());
-    fileSpecService = new FileSpecService.Builder(path.toString()).build();
+    Path path = Paths.get(Resources.getResource("importJobSpecs.yaml").getPath());
+    importJobSpecs = new ImportJobSpecsSupplier(path.toString()).get();
     jedis = new Jedis("localhost", REDIS_PORT);
   }
 
@@ -88,7 +88,7 @@ public class FeatureRowRedisIOWriteTest {
   Specs getSpecs() {
     Specs specs = Specs.of(
         "test job",
-        ImportSpec.newBuilder()
+        importJobSpecs.toBuilder().setImport(ImportSpec.newBuilder()
             .addEntities("testEntity")
             .setSchema(
                 Schema.newBuilder()
@@ -96,11 +96,13 @@ public class FeatureRowRedisIOWriteTest {
                     .addFields(Field.newBuilder().setFeatureId(featureHourString))
                     .addFields(Field.newBuilder().setFeatureId(featureNoneInt32))
                     .addFields(Field.newBuilder().setFeatureId(featureNoneString)))
-            .build(),
-        fileSpecService);
-    StorageSpec redisSpec = specs.getStorageSpec("REDIS1");
-    specs.getStorageSpecs().put("REDIS1",
-        redisSpec.toBuilder().putOptions("port", String.valueOf(REDIS_PORT)).build());
+        ).setServingStorage(StorageSpec.newBuilder()
+            .setId("REDIS1").setType("redis")
+                .putOptions("port", String.valueOf(REDIS_PORT))
+            .putOptions("host", "localhost")
+            .putOptions("batchSize", "1")
+            .putOptions("timeout", "2000")
+        .build()).build());
     specs.validate();
     return specs;
   }
@@ -110,7 +112,7 @@ public class FeatureRowRedisIOWriteTest {
 
     Specs specs = getSpecs();
     specs.validate();
-    new RedisServingFactory().create(specs.getStorageSpec("REDIS1"), specs);
+    new RedisServingFactory().create(specs.getServingStorageSpec(), specs);
     FeatureRowRedisIO.Write write =
         new FeatureRowRedisIO.Write(
             RedisStoreOptions.builder().host("localhost").port(REDIS_PORT).build(), specs);
@@ -154,7 +156,8 @@ public class FeatureRowRedisIOWriteTest {
   @Test
   public void testWriteNoneGranularityFromOptions() throws IOException {
     Specs specs = getSpecs();
-    FeatureStoreWrite write = new RedisServingFactory().create(specs.getStorageSpec("REDIS1"), specs);
+    FeatureStoreWrite write = new RedisServingFactory()
+        .create(specs.getServingStorageSpec(), specs);
 
     FeatureRowExtended rowExtended =
         FeatureRowExtended.newBuilder()
@@ -195,7 +198,8 @@ public class FeatureRowRedisIOWriteTest {
   @Test
   public void testWriteHourGranularity() throws IOException {
     Specs specs = getSpecs();
-    FeatureStoreWrite write = new RedisServingFactory().create(specs.getStorageSpec("REDIS1"), specs);
+    FeatureStoreWrite write = new RedisServingFactory()
+        .create(specs.getServingStorageSpec(), specs);
 
     FeatureRowExtended rowExtended =
         FeatureRowExtended.newBuilder()

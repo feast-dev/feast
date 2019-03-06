@@ -58,7 +58,7 @@ public class ErrorsStoreTransformTest {
   public void setUp() {
     options = PipelineOptionsFactory.create().as(ImportJobPipelineOptions.class);
     options.setJobName("test");
-    specs = Specs.builder().jobName("test").build();
+    specs = new Specs("test", null);
 
     errors =
         Arrays.asList(
