@@ -17,17 +17,13 @@
 
 package feast.serving.service;
 
-import com.google.common.base.Ticker;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
 import feast.serving.exception.SpecRetrievalException;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
-import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 /** SpecStorage implementation with built-in in-memory cache. */
 @Slf4j
 public class CachedSpecStorage implements SpecStorage {
-  private static final int MAX_SPEC_COUNT = 1000;
+  private static final int MAX_SPEC_COUNT = 10000;
 
   private final CoreService coreService;
   private final LoadingCache<String, EntitySpec> entitySpecCache;
@@ -45,98 +41,24 @@ public class CachedSpecStorage implements SpecStorage {
   private final LoadingCache<String, StorageSpec> storageSpecCache;
   private final CacheLoader<String, StorageSpec> storageSpecLoader;
 
-  public CachedSpecStorage(
-      CoreService coreService,
-      ListeningExecutorService executorService,
-      Duration cacheDuration,
-      Ticker ticker) {
+  public CachedSpecStorage(CoreService coreService) {
     this.coreService = coreService;
     entitySpecLoader =
-        new CacheLoader<String, EntitySpec>() {
-          @Override
-          public EntitySpec load(String key) throws Exception {
-            return coreService.getEntitySpecs(Collections.singletonList(key)).get(key);
-          }
-
-          @Override
-          public ListenableFuture<EntitySpec> reload(String key, EntitySpec oldValue)
-              throws Exception {
-            return executorService.submit(
-                () -> {
-                  EntitySpec result = oldValue;
-                  try {
-                    result = coreService.getEntitySpecs(Collections.singleton(key)).get(key);
-                  } catch (Exception e) {
-                    log.error("Error reloading entity spec");
-                  }
-                  return result;
-                });
-          }
-        };
-    entitySpecCache =
-        CacheBuilder.newBuilder()
-            .maximumSize(MAX_SPEC_COUNT)
-            .refreshAfterWrite(cacheDuration)
-            .ticker(ticker)
-            .build(entitySpecLoader);
+        CacheLoader.from(
+            (String key) -> coreService.getEntitySpecs(Collections.singletonList(key)).get(key));
+    entitySpecCache = CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(entitySpecLoader);
 
     featureSpecLoader =
-        new CacheLoader<String, FeatureSpec>() {
-          @Override
-          public FeatureSpec load(String key) throws Exception {
-            return coreService.getFeatureSpecs(Collections.singletonList(key)).get(key);
-          }
-
-          @Override
-          public ListenableFuture<FeatureSpec> reload(String key, FeatureSpec oldValue)
-              throws Exception {
-            return executorService.submit(
-                () -> {
-                  FeatureSpec result = oldValue;
-                  try {
-                    result = coreService.getFeatureSpecs(Collections.singleton(key)).get(key);
-                  } catch (Exception e) {
-                    log.error("Error reloading feature spec");
-                  }
-                  return result;
-                });
-          }
-        };
+        CacheLoader.from(
+            (String key) -> coreService.getFeatureSpecs(Collections.singletonList(key)).get(key));
     featureSpecCache =
-        CacheBuilder.newBuilder()
-            .maximumSize(MAX_SPEC_COUNT)
-            .refreshAfterWrite(cacheDuration)
-            .ticker(ticker)
-            .build(featureSpecLoader);
+        CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(featureSpecLoader);
 
     storageSpecLoader =
-        new CacheLoader<String, StorageSpec>() {
-          @Override
-          public StorageSpec load(String key) throws Exception {
-            return coreService.getStorageSpecs(Collections.singleton(key)).get(key);
-          }
-
-          @Override
-          public ListenableFuture<StorageSpec> reload(String key, StorageSpec oldValue)
-              throws Exception {
-            return executorService.submit(
-                () -> {
-                  StorageSpec result = oldValue;
-                  try {
-                    result = coreService.getStorageSpecs(Collections.singleton(key)).get(key);
-                  } catch (Exception e) {
-                    log.error("Error reloading storage spec");
-                  }
-                  return result;
-                });
-          }
-        };
+        CacheLoader.from(
+            (String key) -> coreService.getStorageSpecs(Collections.singletonList(key)).get(key));
     storageSpecCache =
-        CacheBuilder.newBuilder()
-            .maximumSize(MAX_SPEC_COUNT)
-            .refreshAfterWrite(cacheDuration)
-            .ticker(ticker)
-            .build(storageSpecLoader);
+        CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(storageSpecLoader);
   }
 
   @Override
