@@ -20,6 +20,7 @@ package feast.ingestion.config;
 import static org.junit.Assert.assertEquals;
 
 import com.google.protobuf.util.JsonFormat;
+import feast.ingestion.model.Specs;
 import feast.ingestion.util.DateUtil;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
@@ -45,22 +46,20 @@ public class ImportJobSpecsSupplierTest {
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
   String importSpecYaml =
       "---\n"
-          + "servingStorage:\n"
+          + "servingStorageSpec:\n"
           + "  id: TEST_SERVING\n"
           + "  type: serving.mock\n"
           + "  options: {}\n"
-          + "warehouseStorage:\n"
+          + "warehouseStorageSpec:\n"
           + "  id: TEST_WAREHOUSE\n"
           + "  type: warehouse.mock\n"
           + "  options: {}\n"
-          + "entities:\n"
-          + "  testEntity:\n"
-          + "    name: testEntity\n"
+          + "entitySpecs:\n"
+          + "  - name: testEntity\n"
           + "    description: This is a test entity\n"
           + "    tags: []\n"
-          + "features:\n"
-          + "  testEntity.day.testInt64:\n"
-          + "    id: testEntity.day.testInt64\n"
+          + "featureSpecs:\n"
+          + "  - id: testEntity.day.testInt64\n"
           + "    entity: testEntity\n"
           + "    granularity: DAY\n"
           + "    name: testInt64\n"
@@ -70,7 +69,7 @@ public class ImportJobSpecsSupplierTest {
           + "    valueType: INT64\n"
           + "    tags: []\n"
           + "    options: {}\n"
-          + "import:\n"
+          + "importSpec:\n"
           + "  type: file.csv\n"
           + "  sourceOptions:\n"
           + "    path: data.csv\n"
@@ -85,22 +84,6 @@ public class ImportJobSpecsSupplierTest {
           + "      - name: trips_completed\n"
           + "        featureId: driver.none.trips_completed\n"
           + "\n";
-  ImportSpec expectedImportSpec =
-      ImportSpec.newBuilder()
-          .setType("file.csv")
-          .putSourceOptions("path", "data.csv")
-          .addEntities("driver")
-          .setSchema(
-              Schema.newBuilder()
-                  .addFields(Field.newBuilder().setName("timestamp"))
-                  .addFields(Field.newBuilder().setName("driver_id"))
-                  .addFields(
-                      Field.newBuilder()
-                          .setName("trips_completed")
-                          .setFeatureId("driver.none.trips_completed"))
-                  .setEntityIdColumn("driver_id")
-                  .setTimestampValue(DateUtil.toTimestamp("2018-09-25T00:00:00.000Z")))
-          .build();
 
   @Test
   public void testSupplierImportSpecYamlFile() throws IOException {
@@ -110,6 +93,7 @@ public class ImportJobSpecsSupplierTest {
     }
 
     ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(yamlFile.toString()).get();
+    Specs specs = new Specs("", importJobSpecs);
     System.out
         .println(JsonFormat.printer().omittingInsignificantWhitespace().print(importJobSpecs));
     assertEquals(ImportSpec.newBuilder()
@@ -126,22 +110,22 @@ public class ImportJobSpecsSupplierTest {
                         .setFeatureId("driver.none.trips_completed"))
                 .setEntityIdColumn("driver_id")
                 .setTimestampValue(DateUtil.toTimestamp("2018-09-25T00:00:00.000Z")))
-        .build(), importJobSpecs.getImport());
+        .build(), importJobSpecs.getImportSpec());
 
     assertEquals(StorageSpec.newBuilder()
         .setId("TEST_SERVING")
         .setType("serving.mock")
-        .build(), importJobSpecs.getServingStorage());
+        .build(), importJobSpecs.getServingStorageSpec());
 
     assertEquals(StorageSpec.newBuilder()
         .setId("TEST_WAREHOUSE")
         .setType("warehouse.mock")
-        .build(), importJobSpecs.getWarehouseStorage());
+        .build(), importJobSpecs.getWarehouseStorageSpec());
 
     assertEquals(EntitySpec.newBuilder()
         .setName("testEntity")
         .setDescription("This is a test entity")
-        .build(), importJobSpecs.getEntitiesOrThrow("testEntity"));
+        .build(), specs.getEntitySpec("testEntity"));
 
     assertEquals(FeatureSpec.newBuilder()
         .setId("testEntity.day.testInt64")
@@ -152,6 +136,6 @@ public class ImportJobSpecsSupplierTest {
         .setValueType(Enum.INT64)
         .setGranularity(Granularity.Enum.DAY)
         .setDescription("This is test feature of type integer")
-        .build(), importJobSpecs.getFeaturesOrThrow("testEntity.day.testInt64"));
+        .build(), specs.getFeatureSpec("testEntity.day.testInt64"));
   }
 }

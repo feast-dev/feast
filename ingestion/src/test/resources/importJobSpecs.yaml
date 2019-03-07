@@ -1,20 +1,18 @@
-import: {}
-servingStorage:
+importSpec: {}
+servingStorageSpec:
   id: TEST_SERVING
   type: serving.mock
   options: {}
-warehouseStorage:
+warehouseStorageSpec:
   id: TEST_WAREHOUSE
   type: warehouse.mock
   options: {}
-entities:
-  testEntity:
-    name: testEntity
+entitySpecs:
+  - name: testEntity
     description: This is a test entity
     tags: []
-features:
-  testEntity.day.testInt64:
-    id: testEntity.day.testInt64
+featureSpecs:
+  - id: testEntity.day.testInt64
     entity: testEntity
     granularity: DAY
     name: testInt64
@@ -29,8 +27,7 @@ features:
         id: TEST_SERVING
       warehouse:
         id: TEST_WAREHOUSE
-  testEntity.hour.redisInt32:
-    id: testEntity.hour.redisInt32
+  - id: testEntity.hour.redisInt32
     entity: testEntity
     granularity: HOUR
     name: redisInt32
@@ -46,8 +43,7 @@ features:
         options:
           expiry: PT1H
           bucketSize: PT10H
-  testEntity.hour.redisString:
-    id: testEntity.hour.redisString
+  - id: testEntity.hour.redisString
     entity: testEntity
     granularity: HOUR
     name: redisString
@@ -60,8 +56,7 @@ features:
     dataStores:
       serving:
         id: REDIS1
-  testEntity.none.redisInt32:
-    id: testEntity.none.redisInt32
+  - id: testEntity.none.redisInt32
     entity: testEntity
     granularity: NONE
     name: redisInt32
@@ -76,8 +71,7 @@ features:
         id: REDIS1
         options:
           expiry: PT1H
-  testEntity.none.redisString:
-    id: testEntity.none.redisString
+  - id: testEntity.none.redisString
     entity: testEntity
     granularity: NONE
     name: redisString
@@ -90,8 +84,7 @@ features:
     dataStores:
       serving:
         id: REDIS1
-  testEntity.none.testInt32:
-    id: testEntity.none.testInt32
+  - id: testEntity.none.testInt32
     entity: testEntity
     granularity: NONE
     name: testInt32
@@ -106,8 +99,7 @@ features:
         id: TEST_SERVING
       warehouse:
         id: TEST_WAREHOUSE
-  testEntity.none.testInt64:
-    id: testEntity.none.testInt64
+  - id: testEntity.none.testInt64
     entity: testEntity
     granularity: NONE
     name: testInt64
@@ -122,8 +114,7 @@ features:
         id: TEST_SERVING
       warehouse:
         id: TEST_WAREHOUSE
-  testEntity.none.testInt64NoWarehouse:
-    id: testEntity.none.testInt64NoWarehouse
+  - id: testEntity.none.testInt64NoWarehouse
     entity: testEntity
     granularity: NONE
     name: testInt64NoWarehouse
@@ -136,8 +127,7 @@ features:
     dataStores:
       serving:
         id: TEST_SERVING
-  testEntity.none.testString:
-    id: testEntity.none.testString
+  - id: testEntity.none.testString
     entity: testEntity
     granularity: NONE
     name: testString
@@ -150,8 +140,7 @@ features:
         id: TEST_SERVING
       warehouse:
         id: TEST_WAREHOUSE
-  testEntity.none.testStringNoWarehouse:
-    id: testEntity.none.testStringNoWarehouse
+  - id: testEntity.none.testStringNoWarehouse
     entity: testEntity
     granularity: NONE
     name: testStringNoWarehouse
@@ -162,8 +151,7 @@ features:
     dataStores:
       serving:
         id: TEST_SERVING
-  testEntity.none.unknownInt32:
-    id: testEntity.none.unknownInt32
+  - id: testEntity.none.unknownInt32
     entity: testEntity
     granularity: NONE
     name: unknownInt32

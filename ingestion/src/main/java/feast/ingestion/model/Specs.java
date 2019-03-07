@@ -17,8 +17,10 @@
 
 package feast.ingestion.model;
 
+import static com.google.common.base.Predicates.not;
+
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
+import com.google.common.base.Strings;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
@@ -26,110 +28,96 @@ import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import lombok.AllArgsConstructor;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @ToString
-@AllArgsConstructor
 public class Specs implements Serializable {
 
   @Getter
+  ImportSpec importSpec;
+  @Getter
+  Map<String, EntitySpec> entitySpecs;
+  @Getter
+  Map<String, FeatureSpec> featureSpecs;
+  @Getter
+  StorageSpec servingStorageSpec;
+  @Getter
+  StorageSpec warehouseStorageSpec;
+
+  @Getter
   private String jobName;
-  private ImportJobSpecs importJobSpecs;
+
+  public Specs(String jobName, ImportJobSpecs importJobSpecs) {
+    this.jobName = jobName;
+    if (importJobSpecs != null) {
+      this.importSpec = importJobSpecs.getImportSpec();
+
+      this.entitySpecs = importJobSpecs.getEntitySpecsList().stream().collect(Collectors.toMap(
+          EntitySpec::getName,
+          entitySpec -> entitySpec
+      ));
+      this.featureSpecs = importJobSpecs.getFeatureSpecsList().stream().collect(Collectors.toMap(
+          FeatureSpec::getId,
+          featureSpec -> featureSpec
+      ));
+      this.servingStorageSpec = importJobSpecs.getServingStorageSpec();
+      this.warehouseStorageSpec = importJobSpecs.getWarehouseStorageSpec();
+    }
+  }
 
   public static Specs of(String jobName, ImportJobSpecs importJobSpecs) {
     return new Specs(jobName, filterToUtilized(importJobSpecs));
   }
 
   static ImportJobSpecs filterToUtilized(ImportJobSpecs importJobSpecs) {
-    Specs.validate(importJobSpecs);
-    ImportSpec importSpec = importJobSpecs.getImport();
+    ImportSpec importSpec = importJobSpecs.getImportSpec();
     List<Field> fields = importSpec.getSchema().getFieldsList();
-    List<String> featureIds = new ArrayList<>();
+    List<String> featureIds = fields.stream().map(Field::getFeatureId)
+        .filter(not(Strings::isNullOrEmpty))
+        .collect(Collectors.toList());
     List<String> entityNames = importSpec.getEntitiesList();
-    for (Field field : fields) {
-      if (!field.getFeatureId().isEmpty()) {
-        featureIds.add(field.getFeatureId());
-      }
-    }
 
-    Map<String, FeatureSpec> featureSpecs = Maps
-        .filterEntries(importJobSpecs.getFeaturesMap(), (entry) ->
-            featureIds.contains(entry.getValue().getId()));
-    Map<String, EntitySpec> entitySpecs = Maps
-        .filterEntries(importJobSpecs.getEntitiesMap(), (entry) ->
-            entityNames.contains(entry.getValue().getName()));
-
+    List<FeatureSpec> featureSpecs =
+        importJobSpecs.getFeatureSpecsList().stream()
+            .filter(featureSpec -> featureIds.contains(featureSpec.getId()))
+            .collect(Collectors.toList());
+    List<EntitySpec> entitySpecs =
+        importJobSpecs.getEntitySpecsList().stream()
+            .filter(entitySpec -> entityNames.contains(entitySpec.getName()))
+            .collect(Collectors.toList());
     return importJobSpecs.toBuilder()
-        .clearFeatures().putAllFeatures(featureSpecs)
-        .clearEntities().putAllEntities(entitySpecs).build();
-  }
-
-  public static void validate(ImportJobSpecs importJobSpecs) {
-    // Sanity checks that our maps are built correctly
-    for (Entry<String, FeatureSpec> entry : importJobSpecs.getFeaturesMap().entrySet()) {
-      Preconditions.checkArgument(entry.getKey().equals(entry.getValue().getId()),
-          String.format("Feature id does not match spec %s!=%s", entry.getKey(),
-              entry.getValue().getId()));
-    }
-    for (Entry<String, EntitySpec> entry : importJobSpecs.getEntitiesMap().entrySet()) {
-      Preconditions.checkArgument(entry.getKey().equals(entry.getValue().getName()),
-          String.format("Entity name does not match spec %s!=%s", entry.getKey(),
-              entry.getValue().getName()));
-    }
-
-    for (FeatureSpec featureSpec : importJobSpecs.getFeaturesMap().values()) {
-      // Check that feature has a matching entity
-      Preconditions.checkArgument(
-          importJobSpecs.containsEntities(featureSpec.getEntity()),
-          String.format(
-              "Feature %s references unknown entity %s",
-              featureSpec.getId(), featureSpec.getEntity()));
-    }
-  }
-
-  public ImportSpec getImportSpec() {
-    return importJobSpecs.getImport();
-  }
-
-  public StorageSpec getServingStorageSpec() {
-    return importJobSpecs.getServingStorage();
-  }
-
-  public StorageSpec getWarehouseStorageSpec() {
-    return importJobSpecs.getWarehouseStorage();
-  }
-
-  public Map<String, EntitySpec> getEntitySpecs() {
-    return importJobSpecs.getEntitiesMap();
-  }
-
-  public Map<String, FeatureSpec> getFeatureSpecs() {
-    return importJobSpecs.getFeaturesMap();
+        .clearFeatureSpecs().addAllFeatureSpecs(featureSpecs)
+        .clearEntitySpecs().addAllEntitySpecs(entitySpecs).build();
   }
 
   public void validate() {
-    validate(importJobSpecs);
+    for (String entityName : importSpec.getEntitiesList()) {
+      getEntitySpec(entityName);
+    }
+    for (Field field : importSpec.getSchema().getFieldsList()) {
+      if (!Strings.isNullOrEmpty(field.getFeatureId())) {
+        getFeatureSpec(field.getFeatureId());
+      }
+    }
   }
 
   public EntitySpec getEntitySpec(String entityName) {
     Preconditions.checkArgument(
-        importJobSpecs.containsEntities(entityName),
+        entitySpecs.containsKey(entityName),
         String.format("Unknown entity %s, spec was not initialized", entityName));
-    return importJobSpecs.getEntitiesOrThrow(entityName);
+    return entitySpecs.get(entityName);
   }
 
   public FeatureSpec getFeatureSpec(String featureId) {
     Preconditions.checkArgument(
-        importJobSpecs.containsFeatures(featureId),
+        featureSpecs.containsKey(featureId),
         String.format("Unknown feature %s, spec was not initialized", featureId));
-    return importJobSpecs.getFeaturesOrThrow(featureId);
+    return featureSpecs.get(featureId);
   }
 }

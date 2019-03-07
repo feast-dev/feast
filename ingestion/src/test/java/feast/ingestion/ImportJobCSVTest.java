@@ -76,7 +76,7 @@ public class ImportJobCSVTest {
   public ImportJobSpecs getImportJobSpecs(ImportSpec importSpec, String dataFile) {
     Path path = Paths.get(Resources.getResource("importJobSpecs.yaml").getPath());
     ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(path.toString()).get();
-    return importJobSpecs.toBuilder().setImport(
+    return importJobSpecs.toBuilder().setImportSpec(
         importSpec.toBuilder().putSourceOptions("path", dataFile)
     ).build();
   }
@@ -573,7 +573,7 @@ public class ImportJobCSVTest {
     options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
 
     ImportJobSpecs importJobSpecs = getImportJobSpecs(importSpec, csvFile.toString()).toBuilder()
-        .clearWarehouseStorage().build();
+        .clearWarehouseStorageSpec().build();
 
     Injector injector =
         Guice.createInjector(

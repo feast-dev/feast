@@ -88,7 +88,7 @@ public class FeatureRowRedisIOWriteTest {
   Specs getSpecs() {
     Specs specs = Specs.of(
         "test job",
-        importJobSpecs.toBuilder().setImport(ImportSpec.newBuilder()
+        importJobSpecs.toBuilder().setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
             .setSchema(
                 Schema.newBuilder()
@@ -96,7 +96,7 @@ public class FeatureRowRedisIOWriteTest {
                     .addFields(Field.newBuilder().setFeatureId(featureHourString))
                     .addFields(Field.newBuilder().setFeatureId(featureNoneInt32))
                     .addFields(Field.newBuilder().setFeatureId(featureNoneString)))
-        ).setServingStorage(StorageSpec.newBuilder()
+        ).setServingStorageSpec(StorageSpec.newBuilder()
             .setId("REDIS1").setType("redis")
                 .putOptions("port", String.valueOf(REDIS_PORT))
             .putOptions("host", "localhost")

@@ -48,7 +48,7 @@ public class SpecsTest {
   @Test
   public void testSingleFeatureAndEntity() {
     ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
-        .setImport(ImportSpec.newBuilder()
+        .setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
             .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
         ).build();
@@ -57,7 +57,7 @@ public class SpecsTest {
     specs.validate();
 
     assertEquals("testjob", specs.getJobName());
-    assertEquals(importJobSpecs.getImport(), specs.getImportSpec());
+    assertEquals(importJobSpecs.getImportSpec(), specs.getImportSpec());
 
     assertEquals(1, specs.getEntitySpecs().size());
     assertTrue(specs.getEntitySpecs().containsKey("testEntity"));
@@ -71,7 +71,7 @@ public class SpecsTest {
   @Test(expected = IllegalArgumentException.class)
   public void testErrorOnUnknownEntity() {
     ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
-        .setImport(ImportSpec.newBuilder()
+        .setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
             .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
         ).build();
@@ -85,7 +85,7 @@ public class SpecsTest {
   @Test(expected = IllegalArgumentException.class)
   public void testErrorOnUnknownFeature() {
     ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
-        .setImport(ImportSpec.newBuilder()
+        .setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
             .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
         ).build();
@@ -99,7 +99,7 @@ public class SpecsTest {
   @Test
   public void testGetFeatureSpec() {
     ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
-        .setImport(ImportSpec.newBuilder()
+        .setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
             .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
         ).build();
@@ -114,7 +114,7 @@ public class SpecsTest {
   @Test
   public void testGetEntitySpec() {
     ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
-        .setImport(ImportSpec.newBuilder()
+        .setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
             .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
         ).build();
@@ -128,7 +128,7 @@ public class SpecsTest {
   @Test
   public void testGetStorageSpec() {
     ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
-        .setImport(ImportSpec.newBuilder()
+        .setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
             .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
         ).build();
@@ -143,7 +143,7 @@ public class SpecsTest {
   @Test(expected = IllegalArgumentException.class)
   public void testFeatureSpecReferencesUnknownEntity() {
     ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
-        .setImport(ImportSpec.newBuilder()
+        .setImportSpec(ImportSpec.newBuilder()
             .addEntities("totally_different_entity")
             .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
         ).build();

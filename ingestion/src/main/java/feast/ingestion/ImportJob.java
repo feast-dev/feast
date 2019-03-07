@@ -143,7 +143,7 @@ public class ImportJob {
     coderRegistry.registerCoderForType(TypeDescriptor.of(TableRow.class), TableRowJsonCoder.of());
 
     JobOptions jobOptions = OptionsParser
-        .parse(importJobSpecs.getImport().getJobOptionsMap(), JobOptions.class);
+        .parse(importJobSpecs.getImportSpec().getJobOptionsMap(), JobOptions.class);
 
     try {
       log.info(JsonFormat.printer().print(importJobSpecs));
