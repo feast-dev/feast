@@ -75,7 +75,7 @@ public class FeatureRowRedisIOWriteTest {
   public static void classSetup() throws IOException {
     redis = new RedisServer(REDIS_PORT);
     redis.start();
-    Path path = Paths.get(Resources.getResource("importJobSpecs.yaml").getPath());
+    Path path = Paths.get(Resources.getResource("specs/").getPath());
     importJobSpecs = new ImportJobSpecsSupplier(path.toString()).get();
     jedis = new Jedis("localhost", REDIS_PORT);
   }

@@ -17,28 +17,34 @@
 
 package feast.ingestion.config;
 
+import com.google.common.base.Strings;
 import feast.ingestion.util.PathUtil;
 import feast.ingestion.util.ProtoUtil;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.function.Supplier;
 
 public class ImportJobSpecsSupplier implements Supplier<ImportJobSpecs> {
 
-  private String path;
+  public static final String IMPORT_JOB_SPECS_FILENAME = "importJobSpecs.yaml";
+
+  private Path importJobSpecsPath;
   private ImportJobSpecs importJobSpecs;
 
-  public ImportJobSpecsSupplier(String path) {
-    this.path = path;
+  public ImportJobSpecsSupplier(String workspace) {
+    if (!Strings.isNullOrEmpty(workspace)) {
+      this.importJobSpecsPath = PathUtil.getPath(workspace).resolve(IMPORT_JOB_SPECS_FILENAME);
+    }
   }
 
   private ImportJobSpecs create() {
     try {
-      if (path != null) {
-        return ProtoUtil.decodeProtoYamlFile(
-            PathUtil.getPath(path), ImportJobSpecs.getDefaultInstance());
+      if (importJobSpecsPath != null) {
+        return ProtoUtil
+            .decodeProtoYamlFile(importJobSpecsPath, ImportJobSpecs.getDefaultInstance());
       } else {
-        return ImportJobSpecs.newBuilder().build();
+        return ImportJobSpecs.getDefaultInstance();
       }
     } catch (IOException e) {
       throw new RuntimeException(e);

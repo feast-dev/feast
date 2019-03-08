@@ -117,7 +117,7 @@ public class ImportJob {
       options.setJobName(generateName());
     }
     log.info("options: " + options.toString());
-    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(options.getImportJobSpecsPath())
+    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(options.getWorkspace())
         .get();
     Injector injector =
         Guice.createInjector(new ImportJobModule(options, importJobSpecs), new PipelineModule());
@@ -181,7 +181,7 @@ public class ImportJob {
     if (!dryRun) {
       servingRows.apply("Write to Serving Stores", servingStoreTransform);
       warehouseRows.apply("Write to Warehouse  Stores", warehouseStoreTransform);
-      pFeatureRows.getErrors().apply("Write errors", errorsStoreTransform);
+      pFeatureRows.getErrors().apply(errorsStoreTransform);
     }
   }
 

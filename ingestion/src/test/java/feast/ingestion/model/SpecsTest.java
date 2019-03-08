@@ -43,7 +43,7 @@ public class SpecsTest {
 
   @Before
   public void before() {
-    Path path = Paths.get(Resources.getResource("importJobSpecs.yaml").getPath());
+    Path path = Paths.get(Resources.getResource("specs/").getPath());
     importJobSpecs = new ImportJobSpecsSupplier(path.toString()).get();
   }
 

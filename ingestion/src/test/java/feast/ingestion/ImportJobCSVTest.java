@@ -19,7 +19,6 @@ package feast.ingestion;
 
 import static feast.FeastMatchers.hasCount;
 import static feast.NormalizeFeatureRows.normalize;
-import static feast.store.MockFeatureErrorsFactory.MOCK_ERRORS_STORE_TYPE;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.base.Charsets;
@@ -74,8 +73,8 @@ public class ImportJobCSVTest {
   public TestPipeline testPipeline = TestPipeline.create();
 
   public ImportJobSpecs getImportJobSpecs(ImportSpec importSpec, String dataFile) {
-    Path path = Paths.get(Resources.getResource("importJobSpecs.yaml").getPath());
-    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(path.toString()).get();
+    Path workspacePath = Paths.get(Resources.getResource("specs").getPath());
+    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(workspacePath.toString()).get();
     return importJobSpecs.toBuilder().setImportSpec(
         importSpec.toBuilder().putSourceOptions("path", dataFile)
     ).build();
@@ -84,7 +83,6 @@ public class ImportJobCSVTest {
   public ImportJobPipelineOptions initOptions() {
     ImportJobPipelineOptions options = PipelineOptionsFactory.create()
         .as(ImportJobPipelineOptions.class);
-    options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
     return options;
   }
 
@@ -112,7 +110,6 @@ public class ImportJobCSVTest {
     Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
 
     ImportJobPipelineOptions options = initOptions();
-    options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
 
     Injector injector =
         Guice.createInjector(
@@ -207,7 +204,6 @@ public class ImportJobCSVTest {
         .write("{\"id\":1,\"x\":101}\n{\"id\":2,\"x\":202}\n");
 
     ImportJobPipelineOptions options = initOptions();
-    options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
 
     Injector injector =
         Guice.createInjector(
@@ -290,7 +286,6 @@ public class ImportJobCSVTest {
     Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
 
     ImportJobPipelineOptions options = initOptions();
-    options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
 
     Injector injector =
         Guice.createInjector(
@@ -354,7 +349,6 @@ public class ImportJobCSVTest {
         .write("1,2018-09-25T00:00:00.000Z,101,a\n1,2018-09-26T00:00:00.000Z,,b\n");
 
     ImportJobPipelineOptions options = initOptions();
-    options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
 
     Injector injector =
         Guice.createInjector(
@@ -501,7 +495,6 @@ public class ImportJobCSVTest {
     Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
 
     ImportJobPipelineOptions options = initOptions();
-    options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
 
     Injector injector =
         Guice.createInjector(
@@ -570,7 +563,6 @@ public class ImportJobCSVTest {
     Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
 
     ImportJobPipelineOptions options = initOptions();
-    options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
 
     ImportJobSpecs importJobSpecs = getImportJobSpecs(importSpec, csvFile.toString()).toBuilder()
         .clearWarehouseStorageSpecs().build();
@@ -610,7 +602,6 @@ public class ImportJobCSVTest {
   }
 
 
-
   @Test
   public void testImportWithoutWarehouseStoreSetByFeature() throws IOException {
     ImportSpec importSpec =
@@ -637,7 +628,6 @@ public class ImportJobCSVTest {
     Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
 
     ImportJobPipelineOptions options = initOptions();
-    options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
 
     Injector injector =
         Guice.createInjector(

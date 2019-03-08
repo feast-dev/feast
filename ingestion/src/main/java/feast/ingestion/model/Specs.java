@@ -49,6 +49,8 @@ public class Specs implements Serializable {
   Map<String, StorageSpec> servingStorageSpecs;
   @Getter
   Map<String, StorageSpec> warehouseStorageSpecs;
+  @Getter
+  StorageSpec errorsStoreSpec;
 
   @Getter
   private String jobName;
@@ -77,6 +79,7 @@ public class Specs implements Serializable {
               StorageSpec::getId,
               storageSpec -> storageSpec
           ));
+      this.errorsStoreSpec = importJobSpecs.getErrorsStorageSpec();
     }
   }
 

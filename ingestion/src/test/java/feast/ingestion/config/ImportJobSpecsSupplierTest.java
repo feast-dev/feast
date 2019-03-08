@@ -86,12 +86,12 @@ public class ImportJobSpecsSupplierTest {
 
   @Test
   public void testSupplierImportSpecYamlFile() throws IOException {
-    File yamlFile = temporaryFolder.newFile("importSpec.yaml");
+    File yamlFile = temporaryFolder.newFile("importJobSpecs.yaml");
     try (PrintWriter printWriter = new PrintWriter(Files.newOutputStream(yamlFile.toPath()))) {
       printWriter.print(importSpecYaml);
     }
 
-    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(yamlFile.toString()).get();
+    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(yamlFile.getParent()).get();
     Specs specs = new Specs("", importJobSpecs);
     System.out
         .println(JsonFormat.printer().omittingInsignificantWhitespace().print(importJobSpecs));

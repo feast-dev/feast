@@ -7,6 +7,10 @@ warehouseStorageSpecs:
   - id: TEST_WAREHOUSE
     type: warehouse.mock
     options: {}
+errorsStorageSpec:
+  id: errors
+  type: errors.mock
+  options: {}
 entitySpecs:
   - name: testEntity
     description: This is a test entity
