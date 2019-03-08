@@ -17,10 +17,24 @@
 
 package feast.core.grpc;
 
+import com.google.common.base.Strings;
 import com.google.protobuf.Empty;
 import com.timgroup.statsd.StatsDClient;
 import feast.core.CoreServiceGrpc.CoreServiceImplBase;
-import feast.core.CoreServiceProto.CoreServiceTypes.*;
+import feast.core.CoreServiceProto.CoreServiceTypes.ApplyEntityResponse;
+import feast.core.CoreServiceProto.CoreServiceTypes.ApplyFeatureGroupResponse;
+import feast.core.CoreServiceProto.CoreServiceTypes.ApplyFeatureResponse;
+import feast.core.CoreServiceProto.CoreServiceTypes.ApplyStorageResponse;
+import feast.core.CoreServiceProto.CoreServiceTypes.GetEntitiesRequest;
+import feast.core.CoreServiceProto.CoreServiceTypes.GetEntitiesResponse;
+import feast.core.CoreServiceProto.CoreServiceTypes.GetFeaturesRequest;
+import feast.core.CoreServiceProto.CoreServiceTypes.GetFeaturesResponse;
+import feast.core.CoreServiceProto.CoreServiceTypes.GetStorageRequest;
+import feast.core.CoreServiceProto.CoreServiceTypes.GetStorageResponse;
+import feast.core.CoreServiceProto.CoreServiceTypes.ListEntitiesResponse;
+import feast.core.CoreServiceProto.CoreServiceTypes.ListFeaturesResponse;
+import feast.core.CoreServiceProto.CoreServiceTypes.ListStorageResponse;
+import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.exception.RegistrationException;
 import feast.core.exception.RetrievalException;
 import feast.core.model.EntityInfo;
@@ -31,27 +45,37 @@ import feast.core.service.SpecService;
 import feast.core.validators.SpecValidator;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureGroupSpecProto;
+import feast.specs.FeatureSpecProto.DataStore;
+import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import java.util.List;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.lognet.springboot.grpc.GRpcService;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-/** Implementation of the feast core GRPC service. */
+/**
+ * Implementation of the feast core GRPC service.
+ */
 @Slf4j
 @GRpcService
 public class CoreServiceImpl extends CoreServiceImplBase {
-  @Autowired private SpecService specService;
 
-  @Autowired private SpecValidator validator;
+  @Autowired
+  private SpecService specService;
 
-  @Autowired private StatsDClient statsDClient;
+  @Autowired
+  private SpecValidator validator;
+
+  @Autowired
+  private StatsDClient statsDClient;
+
+  @Autowired
+  private StorageSpecs storageSpecs;
 
   /**
    * Gets specs for all entities requested in the request. If the retrieval of any one of them
@@ -84,7 +108,9 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     }
   }
 
-  /** Gets specs for all entities registered in the registry. */
+  /**
+   * Gets specs for all entities registered in the registry.
+   */
   @Override
   public void listEntities(Empty request, StreamObserver<ListEntitiesResponse> responseObserver) {
     long now = System.currentTimeMillis();
@@ -142,7 +168,9 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     }
   }
 
-  /** Gets specs for all features registered in the registry. TODO: some kind of pagination */
+  /**
+   * Gets specs for all features registered in the registry. TODO: some kind of pagination
+   */
   @Override
   public void listFeatures(Empty request, StreamObserver<ListFeaturesResponse> responseObserver) {
     long now = System.currentTimeMillis();
@@ -200,7 +228,9 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     }
   }
 
-  /** Gets specs for all storage registered in the registry. */
+  /**
+   * Gets specs for all storage registered in the registry.
+   */
   @Override
   public void listStorage(Empty request, StreamObserver<ListStorageResponse> responseObserver) {
     long now = System.currentTimeMillis();
@@ -236,6 +266,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void applyFeature(
       FeatureSpec request, StreamObserver<ApplyFeatureResponse> responseObserver) {
     try {
+      request = applyDefaultStores(request);
       validator.validateFeatureSpec(request);
       FeatureInfo feature = specService.applyFeature(request);
       ApplyFeatureResponse response =
@@ -249,6 +280,27 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       log.error("Error in applyFeature: {}", e);
       responseObserver.onError(getBadRequestException(e));
     }
+  }
+
+  public FeatureSpec applyDefaultStores(FeatureSpec featureSpec) {
+    DataStores.Builder dataStoreBuilder = DataStores.newBuilder();
+    if (Strings.isNullOrEmpty(featureSpec.getDataStores().getServing().getId())) {
+      log.info("Feature has no serving store specified using default");
+      if (storageSpecs.getServingStorageSpec() != null) {
+        dataStoreBuilder.setServing(DataStore.newBuilder()
+            .setId(storageSpecs.getServingStorageSpec().getId())
+            .putAllOptions(storageSpecs.getServingStorageSpec().getOptionsMap()));
+      }
+    }
+    if (Strings.isNullOrEmpty(featureSpec.getDataStores().getServing().getId())) {
+      if (storageSpecs.getWarehouseStorageSpec() != null) {
+        log.info("Feature has no warehouse store specified using default");
+        dataStoreBuilder.setWarehouse(DataStore.newBuilder()
+            .setId(storageSpecs.getWarehouseStorageSpec().getId())
+            .putAllOptions(storageSpecs.getWarehouseStorageSpec().getOptionsMap()));
+      }
+    }
+    return featureSpec.toBuilder().setDataStores(dataStoreBuilder).build();
   }
 
   /**

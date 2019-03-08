@@ -55,6 +55,7 @@ import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -62,6 +63,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -109,12 +111,12 @@ public class JobManagementService {
       Map<String, Object> objectMap = new Gson().fromJson(json, typeToken.getType());
       ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
       String yaml = yamlMapper.writer().writeValueAsString(objectMap);
-      Files.write(destination, Lists.newArrayList(yaml), StandardOpenOption.WRITE);
+      Files.write(destination, Lists.newArrayList(yaml));
     } catch (JsonProcessingException | InvalidProtocolBufferException e) {
       throw new JobExecutionException("Cannot serialise to ImportJobSpecs to YAML", e);
     } catch (IOException e) {
       throw new JobExecutionException(
-          String.format("Cannot write ImportJobSpecs to workspace %s", destination));
+          String.format("Cannot write ImportJobSpecs to workspace %s", destination), e);
     }
   }
 
@@ -123,28 +125,36 @@ public class JobManagementService {
         .stream()
         .map(EntityInfo::getEntitySpec)
         .collect(Collectors.toList());
-    List<String> featureIds = importSpec.getSchema().getFieldsList().stream()
-        .map(Field::getFeatureId).filter(not(Strings::isNullOrEmpty)).collect(Collectors.toList());
-    List<FeatureSpec> featureSpecs = specService.getFeatures(featureIds)
+    Set<String> featureIds = importSpec.getSchema().getFieldsList().stream()
+        .map(Field::getFeatureId).filter(not(Strings::isNullOrEmpty)).collect(Collectors.toSet());
+    List<FeatureSpec> featureSpecs = specService.getFeatures(Lists.newArrayList(featureIds))
         .stream()
         .map(FeatureInfo::getFeatureSpec)
         .collect(Collectors.toList());
 
-    List<String> servingStoreIds = featureSpecs.stream()
+    Set<String> servingStoreIds = featureSpecs.stream()
         .map(featureSpec -> featureSpec.getDataStores().getServing().getId())
         .filter(not(Strings::isNullOrEmpty))
-        .collect(Collectors.toList());
-    servingStoreIds.add(StorageConfig.DEFAULT_SERVING_ID);
-    List<StorageSpec> servingStorageSpecs = specService.getStorage(servingStoreIds).stream()
+        .collect(Collectors.toSet());
+    if (!servingStoreIds.contains(StorageConfig.DEFAULT_SERVING_ID)
+        && storageSpecs.getServingStorageSpec() != null) {
+      servingStoreIds.add(StorageConfig.DEFAULT_SERVING_ID);
+    }
+    List<StorageSpec> servingStorageSpecs = specService
+        .getStorage(Lists.newArrayList(servingStoreIds)).stream()
         .map(StorageInfo::getStorageSpec)
         .collect(Collectors.toList());
 
-    List<String> warehouseStoreIds = featureSpecs.stream()
+    Set<String> warehouseStoreIds = featureSpecs.stream()
         .map(featureSpec -> featureSpec.getDataStores().getWarehouse().getId())
         .filter(not(Strings::isNullOrEmpty))
-        .collect(Collectors.toList());
-    warehouseStoreIds.add(StorageConfig.DEFAULT_WAREHOUSE_ID);
-    List<StorageSpec> warehouseStorageSpecs = specService.getStorage(warehouseStoreIds).stream()
+        .collect(Collectors.toSet());
+    if (!warehouseStoreIds.contains(StorageConfig.DEFAULT_WAREHOUSE_ID)
+        && storageSpecs.getWarehouseStorageSpec() != null) {
+      warehouseStoreIds.add(StorageConfig.DEFAULT_WAREHOUSE_ID);
+    }
+    List<StorageSpec> warehouseStorageSpecs = specService
+        .getStorage(Lists.newArrayList(warehouseStoreIds)).stream()
         .map(StorageInfo::getStorageSpec)
         .collect(Collectors.toList());
 
@@ -154,8 +164,10 @@ public class JobManagementService {
         .addAllEntitySpecs(entitySpecs)
         .addAllFeatureSpecs(featureSpecs)
         .addAllServingStorageSpecs(servingStorageSpecs)
-        .addAllWarehouseStorageSpecs(warehouseStorageSpecs)
-        .setErrorsStorageSpec(storageSpecs.getErrorsStorageSpec());
+        .addAllWarehouseStorageSpecs(warehouseStorageSpecs);
+    if (storageSpecs.getErrorsStorageSpec() != null) {
+      importJobSpecsBuilder.setErrorsStorageSpec(storageSpecs.getErrorsStorageSpec());
+    }
 
     return importJobSpecsBuilder.build();
   }
@@ -202,6 +214,13 @@ public class JobManagementService {
   public String submitJob(ImportSpec importSpec, String namePrefix) {
     String jobId = createJobId(namePrefix);
     Path workspace = PathUtil.getPath(defaults.getWorkspace()).resolve(jobId);
+    try {
+      Files.createDirectory(workspace);
+    } catch (FileAlreadyExistsException e) {
+    } catch (IOException e) {
+      throw new RuntimeException(
+          String.format("Could not initialise job workspace job: %s", workspace.toString()), e);
+    }
     ImportJobSpecs importJobSpecs = buildImportJobSpecs(importSpec, jobId);
     writeImportJobSpecs(importJobSpecs, workspace);
 
