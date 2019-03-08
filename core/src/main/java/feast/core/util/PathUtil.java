@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Feast Authors
+ * Copyright 2019 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,23 +15,27 @@
  *
  */
 
-package feast.core.config;
+package feast.core.util;
 
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
-/**
- * Default options for import job execution
- */
-@Getter
-@Setter
-@Builder
-public class ImportJobDefaults {
+public class PathUtil {
 
-  private String importJobOptions;
-  private String runner;
-  private String workspace;
-  private String executable;
+  /**
+   * Gets a path with a schema if present
+   */
+  public static Path getPath(String value) {
+    if (value.contains("://")) {
+      try {
+        return Paths.get(new URI(value));
+      } catch (URISyntaxException e) {
+        throw new IllegalArgumentException(e);
+      }
+    } else {
+      return Paths.get(value);
+    }
+  }
 }
-
