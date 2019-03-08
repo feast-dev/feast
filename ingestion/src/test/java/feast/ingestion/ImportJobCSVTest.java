@@ -573,7 +573,7 @@ public class ImportJobCSVTest {
     options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
 
     ImportJobSpecs importJobSpecs = getImportJobSpecs(importSpec, csvFile.toString()).toBuilder()
-        .clearWarehouseStorageSpec().build();
+        .clearWarehouseStorageSpecs().build();
 
     Injector injector =
         Guice.createInjector(
@@ -610,10 +610,7 @@ public class ImportJobCSVTest {
   }
 
 
-  /*
-   * ingestion no longer cares what the feature themselves say about which store they should write
-   * it instead always writes to the specs.getServingStoreSpec() and specs.getWarehouseStoreSpec().
-   */
+
   @Test
   public void testImportWithoutWarehouseStoreSetByFeature() throws IOException {
     ImportSpec importSpec =
@@ -672,7 +669,7 @@ public class ImportJobCSVTest {
 
     PAssert.that(writtenToErrors).satisfies(hasCount(0));
     PAssert.that(writtenToServing).satisfies(hasCount(3));
-    PAssert.that(writtenToWarehouse).satisfies(hasCount(3));
+    PAssert.that(writtenToWarehouse).satisfies(hasCount(0));
     testPipeline.run();
   }
 }

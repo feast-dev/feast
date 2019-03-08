@@ -1,12 +1,12 @@
 importSpec: {}
-servingStorageSpec:
-  id: TEST_SERVING
-  type: serving.mock
-  options: {}
-warehouseStorageSpec:
-  id: TEST_WAREHOUSE
-  type: warehouse.mock
-  options: {}
+servingStorageSpecs:
+  - id: TEST_SERVING
+    type: serving.mock
+    options: {}
+warehouseStorageSpecs:
+  - id: TEST_WAREHOUSE
+    type: warehouse.mock
+    options: {}
 entitySpecs:
   - name: testEntity
     description: This is a test entity

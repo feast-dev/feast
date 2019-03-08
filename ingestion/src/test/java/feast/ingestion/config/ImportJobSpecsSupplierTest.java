@@ -30,7 +30,6 @@ import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.GranularityProto.Granularity;
-import feast.types.ValueProto.ValueType;
 import feast.types.ValueProto.ValueType.Enum;
 import java.io.File;
 import java.io.IOException;
@@ -46,14 +45,14 @@ public class ImportJobSpecsSupplierTest {
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
   String importSpecYaml =
       "---\n"
-          + "servingStorageSpec:\n"
-          + "  id: TEST_SERVING\n"
-          + "  type: serving.mock\n"
-          + "  options: {}\n"
-          + "warehouseStorageSpec:\n"
-          + "  id: TEST_WAREHOUSE\n"
-          + "  type: warehouse.mock\n"
-          + "  options: {}\n"
+          + "servingStorageSpecs:\n"
+          + "  - id: TEST_SERVING\n"
+          + "    type: serving.mock\n"
+          + "    options: {}\n"
+          + "warehouseStorageSpecs:\n"
+          + "  - id: TEST_WAREHOUSE\n"
+          + "    type: warehouse.mock\n"
+          + "    options: {}\n"
           + "entitySpecs:\n"
           + "  - name: testEntity\n"
           + "    description: This is a test entity\n"
@@ -115,12 +114,12 @@ public class ImportJobSpecsSupplierTest {
     assertEquals(StorageSpec.newBuilder()
         .setId("TEST_SERVING")
         .setType("serving.mock")
-        .build(), importJobSpecs.getServingStorageSpec());
+        .build(), importJobSpecs.getServingStorageSpecs(0));
 
     assertEquals(StorageSpec.newBuilder()
         .setId("TEST_WAREHOUSE")
         .setType("warehouse.mock")
-        .build(), importJobSpecs.getWarehouseStorageSpec());
+        .build(), importJobSpecs.getWarehouseStorageSpecs(0));
 
     assertEquals(EntitySpec.newBuilder()
         .setName("testEntity")

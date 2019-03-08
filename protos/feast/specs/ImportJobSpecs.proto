@@ -31,6 +31,6 @@ message ImportJobSpecs {
   feast.specs.ImportSpec importSpec = 1;
   repeated feast.specs.EntitySpec entitySpecs = 2;
   repeated feast.specs.FeatureSpec featureSpecs = 3;
-  StorageSpec servingStorageSpec = 4;
-  StorageSpec warehouseStorageSpec = 5;
+  repeated StorageSpec servingStorageSpecs = 4;
+  repeated StorageSpec warehouseStorageSpecs = 5;
 }

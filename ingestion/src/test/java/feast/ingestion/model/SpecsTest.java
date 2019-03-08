@@ -18,7 +18,9 @@
 package feast.ingestion.model;
 
 import static junit.framework.TestCase.assertTrue;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 import com.google.common.io.Resources;
 import feast.ingestion.config.ImportJobSpecsSupplier;
@@ -65,7 +67,7 @@ public class SpecsTest {
     assertEquals(1, specs.getFeatureSpecs().size());
     assertTrue(specs.getFeatureSpecs().containsKey("testEntity.none.testInt32"));
 
-    assertTrue(specs.getServingStorageSpec().getId().equals("TEST_SERVING"));
+    assertTrue(specs.getServingStorageSpecs().containsKey("TEST_SERVING"));
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -136,8 +138,8 @@ public class SpecsTest {
     Specs specs = Specs.of("testjob", importJobSpecs);
     specs.validate();
 
-    assertEquals("TEST_SERVING", specs.getServingStorageSpec().getId());
-    assertEquals("TEST_WAREHOUSE", specs.getWarehouseStorageSpec().getId());
+    assertThat(specs.getWarehouseStorageSpecs().keySet(), containsInAnyOrder("TEST_WAREHOUSE"));
+    assertThat(specs.getWarehouseStorageSpecs().keySet(), containsInAnyOrder("TEST_WAREHOUSE"));
   }
 
   @Test(expected = IllegalArgumentException.class)

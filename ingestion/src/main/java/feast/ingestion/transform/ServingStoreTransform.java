@@ -21,19 +21,14 @@ import com.google.inject.Inject;
 import feast.ingestion.metrics.FeastMetrics;
 import feast.ingestion.model.Specs;
 import feast.ingestion.values.PFeatureRows;
-import feast.specs.StorageSpecProto.StorageSpec;
 import feast.store.serving.FeatureServingFactory;
-import feast.types.FeatureRowExtendedProto;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 
 @Slf4j
-public class ServingStoreTransform extends PTransform<PCollection<FeatureRowExtended>, PDone> {
+public class ServingStoreTransform extends PTransform<PFeatureRows, PFeatureRows> {
 
   private List<FeatureServingFactory> stores;
   private Specs specs;
@@ -45,15 +40,18 @@ public class ServingStoreTransform extends PTransform<PCollection<FeatureRowExte
   }
 
   @Override
-  public PDone expand(PCollection<FeatureRowExtended> input) {
-    StorageSpec storageSpec = specs.getServingStorageSpec();
-    for (FeatureServingFactory store : stores) {
-      if (store.getType().equals(storageSpec.getType())) {
-        input.apply("metrics.store.lag", ParDo.of(FeastMetrics.lagUpdateDoFn()));
-        input.apply("metrics.store.main", ParDo.of(FeastMetrics.incrDoFn("serving_stored")));
-        return input.apply(store.create(storageSpec, specs));
-      }
-    }
-    throw new IllegalArgumentException("No available serving store type matches " + storageSpec.getType());
+  public PFeatureRows expand(PFeatureRows input) {
+    PFeatureRows output =
+        input.apply(
+            "Split to serving stores",
+            new SplitOutputByStore(
+                stores, (featureSpec) -> featureSpec.getDataStores().getServing().getId(), specs,
+                specs.getServingStorageSpecs()));
+
+    output.getMain().apply("metrics.store.lag", ParDo.of(FeastMetrics.lagUpdateDoFn()));
+    output.getMain().apply("metrics.store.main", ParDo.of(FeastMetrics.incrDoFn("serving_stored")));
+    output.getErrors()
+        .apply("metrics.store.errors", ParDo.of(FeastMetrics.incrDoFn("serving_errors")));
+    return output;
   }
 }

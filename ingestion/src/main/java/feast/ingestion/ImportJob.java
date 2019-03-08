@@ -179,12 +179,8 @@ public class ImportJob {
     servingRows = roundTimestamps("Round timestamps for serving", servingRows);
 
     if (!dryRun) {
-      if (!specs.getServingStorageSpec().getId().isEmpty()) {
-        servingRows.getMain().apply("Write to Serving Stores", servingStoreTransform);
-      }
-      if (!specs.getWarehouseStorageSpec().getId().isEmpty()) {
-        warehouseRows.getMain().apply("Write to Warehouse  Stores", warehouseStoreTransform);
-      }
+      servingRows.apply("Write to Serving Stores", servingStoreTransform);
+      warehouseRows.apply("Write to Warehouse  Stores", warehouseStoreTransform);
       pFeatureRows.getErrors().apply("Write errors", errorsStoreTransform);
     }
   }

@@ -46,9 +46,9 @@ public class Specs implements Serializable {
   @Getter
   Map<String, FeatureSpec> featureSpecs;
   @Getter
-  StorageSpec servingStorageSpec;
+  Map<String, StorageSpec> servingStorageSpecs;
   @Getter
-  StorageSpec warehouseStorageSpec;
+  Map<String, StorageSpec> warehouseStorageSpecs;
 
   @Getter
   private String jobName;
@@ -66,8 +66,17 @@ public class Specs implements Serializable {
           FeatureSpec::getId,
           featureSpec -> featureSpec
       ));
-      this.servingStorageSpec = importJobSpecs.getServingStorageSpec();
-      this.warehouseStorageSpec = importJobSpecs.getWarehouseStorageSpec();
+
+      this.servingStorageSpecs = importJobSpecs.getServingStorageSpecsList().stream()
+          .collect(Collectors.toMap(
+              StorageSpec::getId,
+              storageSpec -> storageSpec
+          ));
+      this.warehouseStorageSpecs = importJobSpecs.getWarehouseStorageSpecsList().stream()
+          .collect(Collectors.toMap(
+              StorageSpec::getId,
+              storageSpec -> storageSpec
+          ));
     }
   }
 

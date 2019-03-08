@@ -96,13 +96,13 @@ public class FeatureRowRedisIOWriteTest {
                     .addFields(Field.newBuilder().setFeatureId(featureHourString))
                     .addFields(Field.newBuilder().setFeatureId(featureNoneInt32))
                     .addFields(Field.newBuilder().setFeatureId(featureNoneString)))
-        ).setServingStorageSpec(StorageSpec.newBuilder()
+        ).addServingStorageSpecs(StorageSpec.newBuilder()
             .setId("REDIS1").setType("redis")
-                .putOptions("port", String.valueOf(REDIS_PORT))
+            .putOptions("port", String.valueOf(REDIS_PORT))
             .putOptions("host", "localhost")
             .putOptions("batchSize", "1")
             .putOptions("timeout", "2000")
-        .build()).build());
+            .build()).build());
     specs.validate();
     return specs;
   }
@@ -112,7 +112,7 @@ public class FeatureRowRedisIOWriteTest {
 
     Specs specs = getSpecs();
     specs.validate();
-    new RedisServingFactory().create(specs.getServingStorageSpec(), specs);
+    new RedisServingFactory().create(specs.getServingStorageSpecs().get("REDIS1"), specs);
     FeatureRowRedisIO.Write write =
         new FeatureRowRedisIO.Write(
             RedisStoreOptions.builder().host("localhost").port(REDIS_PORT).build(), specs);
@@ -157,7 +157,7 @@ public class FeatureRowRedisIOWriteTest {
   public void testWriteNoneGranularityFromOptions() throws IOException {
     Specs specs = getSpecs();
     FeatureStoreWrite write = new RedisServingFactory()
-        .create(specs.getServingStorageSpec(), specs);
+        .create(specs.getServingStorageSpecs().get("REDIS1"), specs);
 
     FeatureRowExtended rowExtended =
         FeatureRowExtended.newBuilder()
@@ -199,7 +199,7 @@ public class FeatureRowRedisIOWriteTest {
   public void testWriteHourGranularity() throws IOException {
     Specs specs = getSpecs();
     FeatureStoreWrite write = new RedisServingFactory()
-        .create(specs.getServingStorageSpec(), specs);
+        .create(specs.getServingStorageSpecs().get("REDIS1"), specs);
 
     FeatureRowExtended rowExtended =
         FeatureRowExtended.newBuilder()
