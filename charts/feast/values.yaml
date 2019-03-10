@@ -24,7 +24,8 @@ core:
     http: 
       port: 80
       targetPort: 8080
-  jobs: 
+  jobs:
+    workspace: "/tmp"
     runner: DirectRunner
     options: "{}"
     errorStoreType: "stdout"
@@ -34,6 +35,16 @@ core:
       initialDelay: 60000
   trainingDatasetPrefix: "fs"
   # logType: JSON
+
+store:
+  errors:
+    type: "stdout"
+  warehouse:
+    type: "bigquery"
+    options: '{"project": "gcp-project-id", "dataset": "feast"}'
+  serving:
+    type: "redis"
+    options: '{"host": "...", "port": "6379"}'
 
 postgresql: 
   provision: true
