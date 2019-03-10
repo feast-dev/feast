@@ -17,6 +17,9 @@
 
 package feast.core.validators;
 
+import static feast.core.config.StorageConfig.DEFAULT_ERRORS_ID;
+import static feast.core.config.StorageConfig.DEFAULT_SERVING_ID;
+import static feast.core.config.StorageConfig.DEFAULT_WAREHOUSE_ID;
 import static org.mockito.Mockito.when;
 
 import com.google.common.base.Strings;
@@ -623,6 +626,87 @@ public class SpecValidatorTest {
             + "any special characters.");
     validator.validateEntitySpec(input);
   }
+
+  @Test
+  public void testServingStorageSpec_withValidTypes() {
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    validator.validateServingStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_SERVING_ID)
+        .setType("redis").build());
+    validator.validateServingStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_SERVING_ID)
+        .setType("bigtable").build());
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testServingStorageSpec_withInvalidType() {
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    validator.validateServingStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_SERVING_ID)
+        .setType("invalid").build());
+  }
+
+  @Test
+  public void testWarehouseStorageSpec_withValidTypes() {
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    validator.validateWarehouseStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_WAREHOUSE_ID)
+        .setType("file.json").build());
+    validator.validateWarehouseStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_WAREHOUSE_ID)
+        .setType("bigquery").build());
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testWarehouseStorageSpec_withInvalidType() {
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    validator.validateWarehouseStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_WAREHOUSE_ID)
+        .setType("invalid").build());
+  }
+
+  @Test
+  public void testErrorsStorageSpec_withValidTypes() {
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    validator.validateErrorsStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_ERRORS_ID)
+        .setType("file.json").build());
+    validator.validateErrorsStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_ERRORS_ID)
+        .setType("stderr").build());
+    validator.validateErrorsStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_ERRORS_ID)
+        .setType("stderr").build());
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testErrorsStorageSpec_withInvalidType() {
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    validator.validateErrorsStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_ERRORS_ID)
+        .setType("invalid").build());
+  }
+
 
   @Test
   public void storageSpecWithoutIdShouldThrowIllegalArgumentException() {
