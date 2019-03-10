@@ -62,13 +62,12 @@ The following table lists the configurable parameters of the Feast chart and the
 | `core.image.registry` | core docker image registry | feast | 
 | `core.image.repository` | core docker image repository | feast-core | 
 | `core.image.tag` | core docker image version | 0.1.0 | 
-| `core.jobs.errorStoreType` | type of errors store to write errors to. One of `stdout`, `stderr`, `file.json` | stdout | 
-| `core.jobs.errorStoreOptions` | additional options for the error store in json string format | `{}` | 
-| `core.jobs.monitoring.initialDelay` | delay before a job starts to be monitored in ms | 60000 | 
+| `core.jobs.monitoring.initialDelay` | delay before a job starts to be monitored in ms | 60000 |
 | `core.jobs.monitoring.period` | polling interval for jobs monitoring in ms | 5000 | 
 | `core.jobs.options` | additional options to be provided to the beam job. Should be a char escaped json k-v object | {} | 
 | `core.jobs.runner` | beam job runner - one of `DirectRunner`, `FlinkRunner` or `DataflowRunner` | DirectRunner | 
-| `core.replicaCount` | core deployment replica count | 3 | 
+| `core.jobs.workspace` | workspace path for ingestion jobs, used for separate job workspaces to share importJobSpecs.yaml with ingestion and for writing errors to if no default errors store is configured | nil |
+| `core.replicaCount` | core deployment replica count | 3 |
 | `core.resources.limits.cpu` | core cpu limits | 1 |
 | `core.resources.limits.memory` | core memory limits | 2G |
 | `core.resources.requests.cpu` | core cpu requested | 1 |
@@ -103,10 +102,16 @@ The following table lists the configurable parameters of the Feast chart and the
 | `serving.service.extIPAdr` | Internal load balancer IP Address for serving, required so jobs on external runners can connect to the service | nil | 
 | `serving.service.loadBalancerSourceRanges` | IP source ranges that will have access to serving. If not set, will default to 0.0.0.0/0 | nil |
 | `serviceAccount.name` | service account secret name to mount to deployments | nil | 
-| `serviceAccount.key` | service account secret key to mount to deployments | nil | 
+| `serviceAccount.key` | service account secret key to mount to deployments | nil |
 | `statsd.host` | host of statsd daemon for job metrics to be sent to | nil | 
-| `statsd.port` | port of statsd daemon for job metrics to be sent to | nil | 
-| `postgresql.provision` | Provision PostgreSQL | true | 
+| `statsd.port` | port of statsd daemon for job metrics to be sent to | nil |
+| `store.errors.type` | type of default errors store to write errors to. One of `stdout`, `stderr`, `file.json` | nil |
+| `store.errors.options` | additional options for the default error store in json string format | `{}` |
+| `store.serving.type` | type of default serving store to write errors to. One of `redis`, `bigtable` | nil |
+| `store.serving.options` | additional options for the default serving store in json string format | `{}` |
+| `store.warehouse.type` | type of default warehouse store to write errors to. One of `bigquery`, `file.json` | nil |
+| `store.warehouse.options` | additional options for the default warehouse store in json string format | `{}` |
+| `postgresql.provision` | Provision PostgreSQL | true |
 | `postgresql.postgresPassword` | specify password if you want the postgres password secret to be generated | nil | 
 | `postgresql.resources.requests.cpu` | postgres requested cpu | 100m | 
 | `postgresql.resources.requests.memory` | postgres requested memory | 256Mi | 
