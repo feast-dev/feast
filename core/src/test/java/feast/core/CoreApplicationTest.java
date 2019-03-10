@@ -1,5 +1,6 @@
 package feast.core;
 
+import static feast.core.config.StorageConfig.DEFAULT_ERRORS_ID;
 import static feast.core.config.StorageConfig.DEFAULT_SERVING_ID;
 import static feast.core.config.StorageConfig.DEFAULT_WAREHOUSE_ID;
 import static org.junit.Assert.assertEquals;
@@ -38,7 +39,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.test.context.junit4.SpringRunner;
 
 /**
@@ -51,7 +51,8 @@ import org.springframework.test.context.junit4.SpringRunner;
     "feast.store.warehouse.type=file.json",
     "feast.store.warehouse.options={\"path\":\"/tmp/foobar\"}",
     "feast.store.serving.type=redis",
-    "feast.store.serving.options={\"host\":\"localhost\",\"port\":1234}"
+    "feast.store.serving.options={\"host\":\"localhost\",\"port\":1234}",
+    "feast.store.errors.type=stderr"
 })
 public class CoreApplicationTest {
 
@@ -87,20 +88,16 @@ public class CoreApplicationTest {
     CoreServiceGrpc.CoreServiceBlockingStub coreService = CoreServiceGrpc.newBlockingStub(channel);
     JobServiceGrpc.JobServiceBlockingStub jobService = JobServiceGrpc.newBlockingStub(channel);
 
-    coreService.applyEntity(
-        EntitySpec.newBuilder().setName("test").build());
-
-    coreService.applyFeature(
-        FeatureSpec.newBuilder()
-            .setId("test.none.int64")
-            .setName("int64")
-            .setEntity("test")
-            .setGranularity(Enum.NONE)
-            .setValueType(ValueType.Enum.INT64)
-            .setOwner("hermione@example.com")
-            .setDescription("Test is a test")
-            .setUri("http://example.com/test.none.int64").build());
-
+    EntitySpec entitySpec = EntitySpec.newBuilder().setName("test").build();
+    FeatureSpec featureSpec = FeatureSpec.newBuilder()
+        .setId("test.none.int64")
+        .setName("int64")
+        .setEntity("test")
+        .setGranularity(Enum.NONE)
+        .setValueType(ValueType.Enum.INT64)
+        .setOwner("hermione@example.com")
+        .setDescription("Test is a test")
+        .setUri("http://example.com/test.none.int64").build();
     ImportSpec importSpec = ImportSpec.newBuilder()
         .setSchema(Schema.newBuilder()
             .setEntityIdColumn("id")
@@ -110,6 +107,9 @@ public class CoreApplicationTest {
         .addEntities("test")
         .setType("file.csv")
         .putSourceOptions("path", "/tmp/foobar").build();
+
+    coreService.applyEntity(entitySpec);
+    coreService.applyFeature(featureSpec);
     SubmitImportJobRequest jobSubmitReq = SubmitImportJobRequest.newBuilder()
         .setImportSpec(importSpec).build();
 
@@ -123,7 +123,21 @@ public class CoreApplicationTest {
     String jobId = jobSubmitRes.getJobId();
     assertEquals(args.get(1), Paths.get(jobDefaults.getWorkspace()).resolve(jobId));
     assertEquals(ImportJobSpecs.newBuilder()
+        .setJobId("")
         .setImportSpec(importSpec)
+        .setErrorsStorageSpec(StorageSpec.newBuilder()
+            .setId(DEFAULT_ERRORS_ID)
+            .setType("stderr"))
+        .addEntitySpecs(entitySpec)
+        .addServingStorageSpecs(StorageSpec.newBuilder()
+            .setId(DEFAULT_SERVING_ID)
+            .setType("redis")
+            .putOptions("host", "localhost").putOptions("port", "1234"))
+        .addWarehouseStorageSpecs(StorageSpec.newBuilder()
+            .setId(DEFAULT_WAREHOUSE_ID)
+            .setType("file.json")
+            .putOptions("path", "/tmp/foobar"))
+
         .build(), args.get(0));
   }
 

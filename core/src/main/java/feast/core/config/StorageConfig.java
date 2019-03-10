@@ -6,14 +6,18 @@ import com.google.common.base.Strings;
 import feast.core.validators.SpecValidator;
 import feast.specs.StorageSpecProto.StorageSpec;
 import java.util.Map;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+@AllArgsConstructor
+@NoArgsConstructor
 public class StorageConfig {
 
   public static final String DEFAULT_SERVING_ID = "SERVING";
@@ -37,7 +41,17 @@ public class StorageConfig {
         .setType(type)
         .putAllOptions(optionsMap)
         .build();
-    validator.validateStorageSpec(storageSpec);
+    switch (id) {
+      case DEFAULT_SERVING_ID:
+        validator.validateServingStorageSpec(storageSpec);
+        break;
+      case DEFAULT_WAREHOUSE_ID:
+        validator.validateWarehouseStorageSpec(storageSpec);
+        break;
+      case DEFAULT_ERRORS_ID:
+        validator.validateErrorsStorageSpec(storageSpec);
+        break;
+    }
     return storageSpec;
   }
 
