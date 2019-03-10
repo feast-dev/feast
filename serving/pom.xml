@@ -232,6 +232,13 @@
       <version>2.23.0</version>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava-testlib</artifactId>
+      <version>26.0-jre</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
 
