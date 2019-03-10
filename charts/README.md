@@ -34,8 +34,8 @@ The components included in this chart are:
 
 Components that Feast supports, but this installation will not include are:
 
-- Storage
-  - `Redis` or `Postgres` dbs for feature storage
+- Serving Storage
+  - `Redis` or `Bigtable` dbs for feature serving storage
 - [TICK stack](https://www.influxdata.com/time-series-platform/) for metrics monitoring
   - Set `statsd.host` and `statsd.port` to direct job metrics to your metrics store.
   - Note that if you do not provision a metrics store, feast will only retain the latest metrics from your jobs.
