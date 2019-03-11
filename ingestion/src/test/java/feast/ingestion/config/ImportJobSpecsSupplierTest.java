@@ -40,17 +40,22 @@ import org.junit.rules.TemporaryFolder;
 
 public class ImportJobSpecsSupplierTest {
 
-  @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+  @Rule
+  public TemporaryFolder temporaryFolder = new TemporaryFolder();
   String importSpecYaml =
       "---\n"
-          + "servingStorageSpecs:\n"
-          + "  - id: TEST_SERVING\n"
-          + "    type: serving.mock\n"
-          + "    options: {}\n"
-          + "warehouseStorageSpecs:\n"
-          + "  - id: TEST_WAREHOUSE\n"
-          + "    type: warehouse.mock\n"
-          + "    options: {}\n"
+          + "servingStorageSpec:\n"
+          + "  id: TEST_SERVING\n"
+          + "  type: serving.mock\n"
+          + "  options: {}\n"
+          + "warehouseStorageSpec:\n"
+          + "  id: TEST_WAREHOUSE\n"
+          + "  type: warehouse.mock\n"
+          + "  options: {}\n"
+          + "errorsStorageSpec:\n"
+          + "  id: ERRORS\n"
+          + "  type: stdout\n"
+          + "  options: {}\n"
           + "entitySpecs:\n"
           + "  - name: testEntity\n"
           + "    description: This is a test entity\n"
@@ -110,13 +115,20 @@ public class ImportJobSpecsSupplierTest {
             .build(),
         importJobSpecs.getImportSpec());
 
-    assertEquals(
-        StorageSpec.newBuilder().setId("TEST_SERVING").setType("serving.mock").build(),
-        importJobSpecs.getServingStorageSpecs(0));
+    assertEquals(StorageSpec.newBuilder()
+        .setId("TEST_SERVING")
+        .setType("serving.mock")
+        .build(), importJobSpecs.getServingStorageSpec());
 
-    assertEquals(
-        StorageSpec.newBuilder().setId("TEST_WAREHOUSE").setType("warehouse.mock").build(),
-        importJobSpecs.getWarehouseStorageSpecs(0));
+    assertEquals(StorageSpec.newBuilder()
+        .setId("TEST_WAREHOUSE")
+        .setType("warehouse.mock")
+        .build(), importJobSpecs.getWarehouseStorageSpec());
+
+    assertEquals(StorageSpec.newBuilder()
+        .setId("ERRORS")
+        .setType("stdout")
+        .build(), importJobSpecs.getErrorsStorageSpec());
 
     assertEquals(
         EntitySpec.newBuilder()

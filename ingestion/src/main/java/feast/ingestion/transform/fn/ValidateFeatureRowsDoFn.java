@@ -31,7 +31,6 @@ import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
-import feast.specs.StorageSpecProto.StorageSpec;
 import feast.store.serving.FeatureServingFactory;
 import feast.store.serving.FeatureServingFactoryService;
 import feast.store.warehouse.FeatureWarehouseFactory;
@@ -46,7 +45,6 @@ import java.util.Set;
 
 public class ValidateFeatureRowsDoFn extends BaseFeatureDoFn {
 
-  private static final String EMPTY_STORE = "";
   private final List<String> featureIds = new ArrayList<>();
 
   private Set<String> supportedServingTypes = new HashSet<>();
@@ -98,22 +96,6 @@ public class ValidateFeatureRowsDoFn extends BaseFeatureDoFn {
         FeatureSpec featureSpec = specs.getFeatureSpec(feature.getId());
         checkNotNull(
             featureSpec, String.format("Feature spec not found featureId=%s", feature.getId()));
-
-        String servingStoreId = featureSpec.getDataStores().getServing().getId();
-        if (!servingStoreId.equals(EMPTY_STORE)) {
-          StorageSpec servingStorageSpec = specs.getServingStorageSpecs()
-              .getOrDefault(servingStoreId, null);
-          checkNotNull(servingStorageSpec,
-              "Serving storage specs not found for store id " + servingStoreId);
-        }
-
-        String warehouseStoreId = featureSpec.getDataStores().getWarehouse().getId();
-        if (!warehouseStoreId.equals(EMPTY_STORE)) {
-          StorageSpec warehouseStorageSpec = specs.getWarehouseStorageSpecs()
-              .getOrDefault(warehouseStoreId, null);
-          checkNotNull(warehouseStorageSpec,
-              "Warehouse storage specs not found for store id " + servingStoreId);
-        }
 
         checkArgument(
             featureSpec.getEntity().equals(row.getEntityName()),

@@ -18,6 +18,8 @@
 package feast.store.serving.bigtable;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import feast.SerializableCache;
 import feast.ingestion.model.Specs;
 import feast.ingestion.util.DateUtil;
@@ -48,15 +50,18 @@ public class FeatureRowToBigTableMutationDoFn
       SerializableCache.<FeatureSpec, BigTableFeatureOptions>builder()
           .loadingFunction(
               (featureSpec) ->
-                  OptionsParser.parse(
-                      featureSpec.getDataStores().getServing().getOptionsMap(),
+                  OptionsParser.lenientParse(
+                      featureSpec.getOptionsMap(),
                       BigTableFeatureOptions.class))
           .build();
   private final String tablePrefix;
+  private final String family;
   private final Specs specs;
 
-  FeatureRowToBigTableMutationDoFn(String tablePrefix, Specs specs) {
+
+  FeatureRowToBigTableMutationDoFn(String tablePrefix, String family, Specs specs) {
     this.tablePrefix = tablePrefix;
+    this.family = family;
     this.specs = specs;
   }
 
@@ -100,7 +105,10 @@ public class FeatureRowToBigTableMutationDoFn
       FeatureSpec featureSpec = specs.getFeatureSpec(feature.getId());
       BigTableFeatureOptions options = servingOptionsCache.get(featureSpec);
 
-      byte[] family = options.family.getBytes(Charsets.UTF_8);
+      Preconditions.checkArgument(!Strings.isNullOrEmpty(this.family)
+          || !Strings.isNullOrEmpty(options.family));
+      byte[] family = (!Strings.isNullOrEmpty(options.family) ? options.family : this.family)
+          .getBytes(Charsets.UTF_8);
       byte[] qualifier = feature.getId().getBytes(Charsets.UTF_8);
       byte[] value = feature.getValue().toByteArray();
       long version = DateUtil.toMillis(row.getEventTimestamp());

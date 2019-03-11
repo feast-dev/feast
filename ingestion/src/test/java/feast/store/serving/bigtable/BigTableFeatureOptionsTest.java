@@ -17,9 +17,9 @@
 
 package feast.store.serving.bigtable;
 
+import feast.options.OptionsParser;
 import org.junit.Assert;
 import org.junit.Test;
-import feast.options.OptionsParser;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
 public class BigTableFeatureOptionsTest {
@@ -28,7 +28,7 @@ public class BigTableFeatureOptionsTest {
   public void testParse() {
     BigTableFeatureOptions options =
         OptionsParser.parse(
-            ImmutableMap.<String, String>builder().put("family", "family1").build(),
+            ImmutableMap.<String, String>builder().put("bigtable.family", "family1").build(),
             BigTableFeatureOptions.class);
     Assert.assertEquals("family1", options.family);
   }
@@ -39,6 +39,6 @@ public class BigTableFeatureOptionsTest {
         OptionsParser.parse(
             ImmutableMap.<String, String>builder().build(),
             BigTableFeatureOptions.class);
-    Assert.assertEquals(BigTableFeatureOptions.DEFAULT_FAMILY, options.family);
+    Assert.assertEquals(null, options.family);
   }
 }

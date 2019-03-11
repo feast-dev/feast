@@ -26,7 +26,7 @@ import javax.validation.constraints.Positive;
 import org.junit.Test;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
-public class FeastOptionsParserTest {
+public class OptionsParserTest {
 
   @Test
   public void getJsonSchema() {
@@ -40,6 +40,17 @@ public class FeastOptionsParserTest {
     TestType1 options =
         OptionsParser.parse(
             ImmutableMap.<String, String>builder().put("foo", "x").put("bar", "1").build(),
+            TestType1.class);
+    assertEquals("x", options.foo);
+    assertEquals(1, options.bar);
+  }
+
+  @Test
+  public void lenientParseOptions() {
+    TestType1 options =
+        OptionsParser.lenientParse(
+            ImmutableMap.<String, String>builder().put("foo", "x").put("bar", "1")
+                .put("ignoreme", "123").build(),
             TestType1.class);
     assertEquals("x", options.foo);
     assertEquals(1, options.bar);
@@ -92,11 +103,13 @@ public class FeastOptionsParserTest {
   }
 
   public static class TestType1 implements Options {
+
     public String foo;
     public int bar;
   }
 
   public static class TestType2 implements Options {
+
     @JsonProperty(value = "test.foo")
     public String foo;
 
@@ -105,7 +118,10 @@ public class FeastOptionsParserTest {
   }
 
   public static class TestType3 implements Options {
-    @NotNull public String foo;
-    @Positive public int bar;
+
+    @NotNull
+    public String foo;
+    @Positive
+    public int bar;
   }
 }

@@ -55,10 +55,8 @@ import redis.embedded.RedisServer;
 
 public class FeatureRowRedisIOWriteTest {
 
-  private static final String featureNoneInt32 = "testEntity.redisInt32";
-  private static final String featureNoneString = "testEntity.redisString";
-  private static final String featureHourInt32 = "testEntity.redisInt32";
-  private static final String featureHourString = "testEntity.redisString";
+  private static final String featureInt32 = "testEntity.testInt32";
+  private static final String featureString = "testEntity.testString";
 
   private static int REDIS_PORT = 51234;
   private static Redis redis;
@@ -89,11 +87,9 @@ public class FeatureRowRedisIOWriteTest {
             .addEntities("testEntity")
             .setSchema(
                 Schema.newBuilder()
-                    .addFields(Field.newBuilder().setFeatureId(featureHourInt32))
-                    .addFields(Field.newBuilder().setFeatureId(featureHourString))
-                    .addFields(Field.newBuilder().setFeatureId(featureNoneInt32))
-                    .addFields(Field.newBuilder().setFeatureId(featureNoneString)))
-        ).addServingStorageSpecs(StorageSpec.newBuilder()
+                    .addFields(Field.newBuilder().setFeatureId(featureInt32))
+                    .addFields(Field.newBuilder().setFeatureId(featureString)))
+        ).setServingStorageSpec(StorageSpec.newBuilder()
             .setId("REDIS1").setType("redis")
             .putOptions("port", String.valueOf(REDIS_PORT))
             .putOptions("host", "localhost")
@@ -109,7 +105,7 @@ public class FeatureRowRedisIOWriteTest {
 
     Specs specs = getSpecs();
     specs.validate();
-    new RedisServingFactory().create(specs.getServingStorageSpecs().get("REDIS1"), specs);
+    new RedisServingFactory().create(specs.getServingStorageSpec(), specs);
     FeatureRowRedisIO.Write write =
         new FeatureRowRedisIO.Write(
             RedisStoreOptions.builder().host("localhost").port(REDIS_PORT).build(), specs);
@@ -123,8 +119,8 @@ public class FeatureRowRedisIOWriteTest {
                     .setEntityName("testEntity")
                     .setEntityKey("1")
                     .setEventTimestamp(now)
-                    .addFeatures(Features.of(featureNoneInt32, Values.ofInt32(1)))
-                    .addFeatures(Features.of(featureNoneString, Values.ofString("a"))))
+                    .addFeatures(Features.of(featureInt32, Values.ofInt32(1)))
+                    .addFeatures(Features.of(featureString, Values.ofString("a"))))
             .build();
 
     PCollection<FeatureRowExtended> input = testPipeline.apply(Create.of(rowExtended));
@@ -134,9 +130,9 @@ public class FeatureRowRedisIOWriteTest {
     testPipeline.run();
 
     RedisBucketKey featureInt32Key =
-        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureNoneInt32), 0L);
+        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureInt32), 0L);
     RedisBucketKey featureStringKey =
-        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureNoneString), 0L);
+        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureString), 0L);
 
     RedisBucketValue featureInt32Value =
         RedisBucketValue.parseFrom(jedis.get(featureInt32Key.toByteArray()));
@@ -153,7 +149,7 @@ public class FeatureRowRedisIOWriteTest {
   public void testWriteFromOptions() throws IOException {
     Specs specs = getSpecs();
     FeatureStoreWrite write = new RedisServingFactory()
-        .create(specs.getServingStorageSpecs().get("REDIS1"), specs);
+        .create(specs.getServingStorageSpec(), specs);
 
     Timestamp now = DateUtil.toTimestamp(DateTime.now());
     FeatureRowExtended rowExtended =
@@ -163,8 +159,8 @@ public class FeatureRowRedisIOWriteTest {
                     .setEntityName("testEntity")
                     .setEntityKey("1")
                     .setEventTimestamp(now)
-                    .addFeatures(Features.of(featureNoneInt32, Values.ofInt32(1)))
-                    .addFeatures(Features.of(featureNoneString, Values.ofString("a"))))
+                    .addFeatures(Features.of(featureInt32, Values.ofInt32(1)))
+                    .addFeatures(Features.of(featureString, Values.ofString("a"))))
             .build();
 
     PCollection<FeatureRowExtended> input = testPipeline.apply(Create.of(rowExtended));
@@ -174,9 +170,9 @@ public class FeatureRowRedisIOWriteTest {
     testPipeline.run();
 
     RedisBucketKey featureInt32Key =
-        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureNoneInt32), 0L);
+        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureInt32), 0L);
     RedisBucketKey featureStringKey =
-        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureNoneString), 0L);
+        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureString), 0L);
 
     RedisBucketValue featureInt32Value =
         RedisBucketValue.parseFrom(jedis.get(featureInt32Key.toByteArray()));
@@ -187,5 +183,8 @@ public class FeatureRowRedisIOWriteTest {
     assertEquals(now, featureInt32Value.getEventTimestamp());
     assertEquals(Values.ofString("a"), featureStringValue.getValue());
     assertEquals(now, featureStringValue.getEventTimestamp());
+
+    // Timestamp is 0 for NONE granularity
+    assertEquals(Timestamp.getDefaultInstance(), featureStringValue.getEventTimestamp());
   }
 }

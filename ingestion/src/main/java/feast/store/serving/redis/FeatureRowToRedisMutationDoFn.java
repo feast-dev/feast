@@ -17,8 +17,6 @@
 
 package feast.store.serving.redis;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import feast.SerializableCache;
 import feast.ingestion.model.Specs;
 import feast.ingestion.util.DateUtil;
@@ -42,8 +40,8 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRowExtended, Redi
       SerializableCache.<FeatureSpec, RedisFeatureOptions>builder()
           .loadingFunction(
               (featureSpec) ->
-                  OptionsParser.parse(
-                      featureSpec.getDataStores().getServing().getOptionsMap(),
+                  OptionsParser.lenientParse(
+                      featureSpec.getOptionsMap(),
                       RedisFeatureOptions.class))
           .build();
   private Specs specs;

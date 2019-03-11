@@ -47,7 +47,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.assertj.core.util.Lists;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -66,16 +65,11 @@ public class ErrorsStoreTransformTest {
   private PCollection<FeatureRowExtended> inputs;
   private List<FeatureRowExtended> errors;
 
-  public Specs getSpecs(StorageSpec errorsStorageSpec) {
-    return new Specs("test", ImportJobSpecs.newBuilder()
-        .setErrorsStorageSpec(errorsStorageSpec).build()
-    );
-  }
-
   public Specs getSpecs(String errorsStorageType) {
     return new Specs("test", ImportJobSpecs.newBuilder()
-        .setErrorsStorageSpec(StorageSpec.newBuilder().setType(errorsStorageType)).build()
-    );
+        .setErrorsStorageSpec(StorageSpec.newBuilder()
+            .setId("ERRORS")
+            .setType(errorsStorageType)).build());
   }
 
   @Before
@@ -98,14 +92,16 @@ public class ErrorsStoreTransformTest {
 
   @Test
   public void shouldWriteToGivenErrorsStore() {
-    MockFeatureErrorsFactory mockStore = new MockFeatureErrorsFactory();
-    ErrorsStoreTransform transform =
-        new ErrorsStoreTransform(options, getSpecs(MOCK_ERRORS_STORE_TYPE),
-            Lists.newArrayList(mockStore));
+    ErrorsStoreTransform transform = new ErrorsStoreTransform(
+        FeatureErrorsFactoryService.getAll(),
+        getSpecs(MOCK_ERRORS_STORE_TYPE), options);
     transform.expand(inputs);
 
+    MockFeatureErrorsFactory factory = FeatureErrorsFactoryService
+        .get(MockFeatureErrorsFactory.class);
+
     PCollection<FeatureRowExtended> writtenToErrors =
-        PCollectionList.of(mockStore.getWrite().getInputs())
+        PCollectionList.of(factory.getWrite().getInputs())
             .apply("flatten errors input", Flatten.pCollections());
 
     PAssert.that(writtenToErrors).containsInAnyOrder(errors);
@@ -114,9 +110,9 @@ public class ErrorsStoreTransformTest {
 
   @Test
   public void logErrorsToStdErr() {
-    ErrorsStoreTransform transform =
-        new ErrorsStoreTransform(options, getSpecs(TYPE_STDERR),
-            FeatureErrorsFactoryService.getAll());
+    ErrorsStoreTransform transform = new ErrorsStoreTransform(
+        FeatureErrorsFactoryService.getAll(),
+        getSpecs(TYPE_STDERR), options);
     inputs.apply(transform);
     pipeline.run();
   }
@@ -124,9 +120,9 @@ public class ErrorsStoreTransformTest {
 
   @Test
   public void logErrorsToStdOut() {
-    ErrorsStoreTransform transform =
-        new ErrorsStoreTransform(options, getSpecs(TYPE_STDOUT),
-            FeatureErrorsFactoryService.getAll());
+    ErrorsStoreTransform transform = new ErrorsStoreTransform(
+        FeatureErrorsFactoryService.getAll(),
+        getSpecs(TYPE_STDOUT), options);
     inputs.apply(transform);
     pipeline.run();
   }
@@ -135,8 +131,9 @@ public class ErrorsStoreTransformTest {
   public void logErrorsToWorkspace() throws IOException, InterruptedException {
     String tempWorkspace = tempFolder.newFolder().toString();
     options.setWorkspace(tempWorkspace);
-    ErrorsStoreTransform transform =
-        new ErrorsStoreTransform(options, getSpecs(""), FeatureErrorsFactoryService.getAll());
+    ErrorsStoreTransform transform = new ErrorsStoreTransform(
+        FeatureErrorsFactoryService.getAll(),
+        getSpecs(""), options);
     inputs.apply(transform);
     pipeline.run().waitUntilFinish();
 

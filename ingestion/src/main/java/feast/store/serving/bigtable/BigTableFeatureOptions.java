@@ -17,10 +17,11 @@
 
 package feast.store.serving.bigtable;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import feast.options.Options;
 
 public class BigTableFeatureOptions implements Options {
-  public static final String DEFAULT_FAMILY = "default";
 
-  public String family = DEFAULT_FAMILY;
+  @JsonProperty(value = "bigtable.family")
+  public String family;
 }
