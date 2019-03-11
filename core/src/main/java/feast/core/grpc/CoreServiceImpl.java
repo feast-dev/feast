@@ -288,16 +288,14 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       log.info("Feature has no serving store specified using default");
       if (storageSpecs.getServingStorageSpec() != null) {
         dataStoreBuilder.setServing(DataStore.newBuilder()
-            .setId(storageSpecs.getServingStorageSpec().getId())
-            .putAllOptions(storageSpecs.getServingStorageSpec().getOptionsMap()));
+            .setId(storageSpecs.getServingStorageSpec().getId()));
       }
     }
     if (Strings.isNullOrEmpty(featureSpec.getDataStores().getServing().getId())) {
       if (storageSpecs.getWarehouseStorageSpec() != null) {
         log.info("Feature has no warehouse store specified using default");
         dataStoreBuilder.setWarehouse(DataStore.newBuilder()
-            .setId(storageSpecs.getWarehouseStorageSpec().getId())
-            .putAllOptions(storageSpecs.getWarehouseStorageSpec().getOptionsMap()));
+            .setId(storageSpecs.getWarehouseStorageSpec().getId()));
       }
     }
     return featureSpec.toBuilder().setDataStores(dataStoreBuilder).build();
