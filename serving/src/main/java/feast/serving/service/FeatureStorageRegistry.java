@@ -17,7 +17,6 @@
 
 package feast.serving.service;
 
-import com.google.cloud.bigtable.hbase.BigtableConfiguration;
 import com.google.common.annotations.VisibleForTesting;
 import feast.serving.config.AppConfig;
 import feast.specs.StorageSpecProto.StorageSpec;
@@ -25,13 +24,15 @@ import io.opentracing.Tracer;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.hadoop.hbase.client.Connection;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
-/** Service providing a mapping of storage ID and its {@link FeatureStorage} */
+/**
+ * Service providing a mapping of storage ID and its {@link FeatureStorage}
+ */
 @Slf4j
 public class FeatureStorageRegistry {
+
   private final Map<String, FeatureStorage> featureStorageMap = new ConcurrentHashMap<>();
 
   private final AppConfig appConfig;
@@ -40,17 +41,6 @@ public class FeatureStorageRegistry {
   public FeatureStorageRegistry(AppConfig appConfig, Tracer tracer) {
     this.appConfig = appConfig;
     this.tracer = tracer;
-  }
-
-  /**
-   * Check whether the storageId is known.
-   *
-   * @param storageId storage ID.
-   * @return true if the registry has the associated feature storage instance, otherwise return
-   *     false.
-   */
-  public boolean hasStorageId(String storageId) {
-    return featureStorageMap.containsKey(storageId);
   }
 
   /**
@@ -76,11 +66,8 @@ public class FeatureStorageRegistry {
     FeatureStorage fs;
 
     if (storageSpec.getType().equals(BigTableFeatureStorage.TYPE)) {
-      Connection c =
-          BigtableConfiguration.connect(
-              options.get(BigTableFeatureStorage.OPT_BIGTABLE_PROJECT),
-              options.get(BigTableFeatureStorage.OPT_BIGTABLE_INSTANCE));
-      fs = new BigTableFeatureStorage(c);
+
+      fs = new BigTableFeatureStorage(storageSpec);
       featureStorageMap.put(storageSpec.getId(), fs);
     } else if (storageSpec.getType().equals(RedisFeatureStorage.TYPE)) {
       JedisPoolConfig poolConfig = new JedisPoolConfig();

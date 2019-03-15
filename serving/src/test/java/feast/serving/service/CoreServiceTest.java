@@ -17,12 +17,14 @@
 
 package feast.serving.service;
 
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.everyItem;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.collection.IsIn.isIn;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 import feast.core.CoreServiceGrpc.CoreServiceImplBase;
@@ -34,7 +36,6 @@ import feast.core.CoreServiceProto.CoreServiceTypes.GetStorageRequest;
 import feast.core.CoreServiceProto.CoreServiceTypes.GetStorageResponse;
 import feast.core.CoreServiceProto.CoreServiceTypes.ListEntitiesResponse;
 import feast.core.CoreServiceProto.CoreServiceTypes.ListFeaturesResponse;
-import feast.core.CoreServiceProto.CoreServiceTypes.ListStorageResponse;
 import feast.serving.exception.SpecRetrievalException;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
@@ -62,9 +63,11 @@ import org.junit.rules.ExpectedException;
 
 public class CoreServiceTest {
 
-  @Rule public final GrpcCleanupRule grpcCleanupRule = new GrpcCleanupRule();
+  @Rule
+  public final GrpcCleanupRule grpcCleanupRule = new GrpcCleanupRule();
 
-  @Rule public final ExpectedException expectedException = ExpectedException.none();
+  @Rule
+  public final ExpectedException expectedException = ExpectedException.none();
 
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   private CoreService client;
@@ -272,8 +275,7 @@ public class CoreServiceTest {
   }
 
   @Test
-  public void getStorageSpecs_shouldSendCorrectRequest() {
-    List<String> storageIds = Arrays.asList("redis1", "big_table1");
+  public void getServingStorageSpec_shouldSendCorrectRequest() {
     AtomicReference<GetStorageRequest> deliveredRequest = new AtomicReference<>();
     CoreServiceImplBase service =
         new CoreServiceImplBase() {
@@ -283,26 +285,21 @@ public class CoreServiceTest {
             deliveredRequest.set(request);
             responseObserver.onNext(
                 GetStorageResponse.newBuilder()
-                    .addAllStorageSpecs(getFakeStorageSpecs().values())
+                    .addStorageSpecs(getFakeStorageSpec())
                     .build());
             responseObserver.onCompleted();
           }
         };
-
     serviceRegistry.addService(service);
+    client.getServingStorageSpec();
 
-    client.getStorageSpecs(storageIds);
-
-    List<ByteString> expected =
-        storageIds.stream().map(s -> ByteString.copyFromUtf8(s)).collect(Collectors.toList());
-    List<ByteString> actual = deliveredRequest.get().getIdsList().asByteStringList();
-
+    List<String> expected = Lists.newArrayList(FeastServing.SERVING_STORAGE_ID);
+    List<String> actual = deliveredRequest.get().getIdsList();
     assertThat(actual, containsInAnyOrder(expected.toArray()));
   }
 
   @Test
-  public void getStorageSpecs_shouldReturnRequestedStorageSpecs() {
-    List<String> storageIds = Arrays.asList("redis1", "big_table1");
+  public void getServingStorageSpec_shouldReturnRequestedStorageSpec() {
     AtomicReference<GetStorageRequest> deliveredRequest = new AtomicReference<>();
     CoreServiceImplBase service =
         new CoreServiceImplBase() {
@@ -312,7 +309,7 @@ public class CoreServiceTest {
             deliveredRequest.set(request);
             responseObserver.onNext(
                 GetStorageResponse.newBuilder()
-                    .addAllStorageSpecs(getFakeStorageSpecs().values())
+                    .addStorageSpecs(getFakeStorageSpec())
                     .build());
             responseObserver.onCompleted();
           }
@@ -320,50 +317,17 @@ public class CoreServiceTest {
 
     serviceRegistry.addService(service);
 
-    Map<String, StorageSpec> results = client.getStorageSpecs(storageIds);
+    StorageSpec result = client.getServingStorageSpec();
 
-    assertThat(results.entrySet(), everyItem(isIn(getFakeStorageSpecs().entrySet())));
+    assertThat(result, equalTo(getFakeStorageSpec()));
   }
 
   @Test
   public void getStorageSpecs_shouldThrowSpecsRetrievalExceptionWhenErrorHappen() {
     expectedException.expect(SpecRetrievalException.class);
-    expectedException.expectMessage("Unable to retrieve storage specs");
+    expectedException.expectMessage("Unable to retrieve storage spec");
     expectedException.expectCause(instanceOf(StatusRuntimeException.class));
-
-    List<String> storageIds = Arrays.asList("redis1", "big_table1");
-    client.getStorageSpecs(storageIds);
-  }
-
-  @Test
-  public void getAllStorageSpecs_shouldReturnRequestedStorageSpecs() {
-    CoreServiceImplBase service =
-        new CoreServiceImplBase() {
-          @Override
-          public void listStorage(
-              Empty request, StreamObserver<ListStorageResponse> responseObserver) {
-            responseObserver.onNext(
-                ListStorageResponse.newBuilder()
-                    .addAllStorageSpecs(getFakeStorageSpecs().values())
-                    .build());
-            responseObserver.onCompleted();
-          }
-        };
-
-    serviceRegistry.addService(service);
-
-    Map<String, StorageSpec> results = client.getAllStorageSpecs();
-
-    assertThat(results.entrySet(), everyItem(isIn(getFakeStorageSpecs().entrySet())));
-  }
-
-  @Test
-  public void getAllStorageSpecs_shouldThrowSpecsRetrievalExceptionWhenErrorHappen() {
-    expectedException.expect(SpecRetrievalException.class);
-    expectedException.expectMessage("Unable to retrieve storage specs");
-    expectedException.expectCause(instanceOf(StatusRuntimeException.class));
-
-    client.getAllStorageSpecs();
+    client.getServingStorageSpec();
   }
 
   private Map<String, FeatureSpec> getFakeFeatureSpecs() {
@@ -410,12 +374,11 @@ public class CoreServiceTest {
         .collect(Collectors.toMap(EntitySpec::getName, Function.identity()));
   }
 
-  private Map<String, StorageSpec> getFakeStorageSpecs() {
-    StorageSpec spec1 = StorageSpec.newBuilder().setId("redis1").build();
-
-    StorageSpec spec2 = StorageSpec.newBuilder().setId("bigtable1").build();
-
-    return Stream.of(spec1, spec2)
-        .collect(Collectors.toMap(StorageSpec::getId, Function.identity()));
+  private StorageSpec getFakeStorageSpec() {
+    StorageSpec spec = StorageSpec.newBuilder().setId(FeastServing.SERVING_STORAGE_ID)
+        .setType("redis")
+        .putOptions("host", "localhost")
+        .putOptions("port", "1234").build();
+    return spec;
   }
 }

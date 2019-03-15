@@ -17,18 +17,21 @@
 
 package feast.serving.service;
 
-import com.google.common.base.Strings;
+import com.google.cloud.bigtable.hbase.BigtableConfiguration;
+import com.google.common.base.Preconditions;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import feast.serving.exception.FeatureRetrievalException;
 import feast.serving.model.FeatureValue;
 import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.specs.StorageSpecProto.StorageSpec;
 import feast.storage.BigTableProto.BigTableRowKey;
 import feast.types.ValueProto.Value;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.hadoop.hbase.Cell;
@@ -38,23 +41,51 @@ import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Table;
 
-/** Connector to BigTable instance. */
+/**
+ * Connector to BigTable instance.
+ */
 @Slf4j
 public class BigTableFeatureStorage implements FeatureStorage {
 
   public static final String TYPE = "bigtable";
-  private static final byte[] DEFAULT_COLUMN_FAMILY = "default".getBytes();
+  private static final String DEFAULT_COLUMN_FAMILY = "default";
   public static String OPT_BIGTABLE_PROJECT = "project";
   public static String OPT_BIGTABLE_INSTANCE = "instance";
   public static String OPT_BIGTABLE_TABLE_PREFIX = "tablePrefix";
-  public static String SERVING_OPT_BIGTABLE_COLUMN_FAMILY = "family";
-  private final Connection connection;
+  public static String STORAGE_OPT_BIGTABLE_COLUMN_FAMILY = "family";
+  public static String FEATURE_OPT_BIGTABLE_COLUMN_FAMILY = "bigtable.family";
 
-  public BigTableFeatureStorage(Connection connection) {
-    this.connection = connection;
+  private final StorageSpec storageSpec;
+  private final BigTableConnectionFactory connectionFactory;
+  private transient Connection connection;
+
+
+  public BigTableFeatureStorage(StorageSpec storageSpec) {
+    Preconditions.checkArgument(storageSpec.getType().equals(TYPE));
+    this.storageSpec = storageSpec;
+    this.connectionFactory = new BigTableConnectionFactory(storageSpec);
   }
 
-  /** {@inheritDoc} */
+  /**
+   * For tests
+   */
+  public BigTableFeatureStorage(StorageSpec storageSpec,
+      BigTableConnectionFactory connectionFactory) {
+    Preconditions.checkArgument(storageSpec.getType().equals(TYPE));
+    this.storageSpec = storageSpec;
+    this.connectionFactory = connectionFactory;
+  }
+
+  protected Connection getConnection() {
+    if (connection == null) {
+      connection = connectionFactory.connect();
+    }
+    return connection;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public List<FeatureValue> getFeature(
       String entityName, Collection<String> entityIds, Collection<FeatureSpec> featureSpecs) {
@@ -79,7 +110,7 @@ public class BigTableFeatureStorage implements FeatureStorage {
     String featureId = featureSpec.getId();
     byte[] featureIdBytes = featureSpec.getId().getBytes();
     List<Get> gets = createGets(entityIds, featureSpec);
-    try (Table table = connection.getTable(TableName.valueOf(entityName))) {
+    try (Table table = getConnection().getTable(TableName.valueOf(entityName))) {
       Result[] results = table.get(gets);
       for (Result result : results) {
         Cell currentCell = result.getColumnLatestCell(getColumnFamily(featureSpec), featureIdBytes);
@@ -164,10 +195,23 @@ public class BigTableFeatureStorage implements FeatureStorage {
    */
   private byte[] getColumnFamily(FeatureSpec fs) {
     String family =
-        fs.getDataStores().getServing().getOptionsMap().get(SERVING_OPT_BIGTABLE_COLUMN_FAMILY);
-    if (Strings.isNullOrEmpty(family)) {
-      return DEFAULT_COLUMN_FAMILY;
+        fs.getOptionsOrDefault(FEATURE_OPT_BIGTABLE_COLUMN_FAMILY, null);
+    if (family == null) {
+      family = storageSpec
+          .getOptionsOrDefault(STORAGE_OPT_BIGTABLE_COLUMN_FAMILY, DEFAULT_COLUMN_FAMILY);
     }
     return family.getBytes();
+  }
+
+  @AllArgsConstructor
+  public static class BigTableConnectionFactory {
+
+    private StorageSpec storageSpec;
+
+    Connection connect() {
+      return BigtableConfiguration.connect(
+          storageSpec.getOptionsOrThrow(BigTableFeatureStorage.OPT_BIGTABLE_PROJECT),
+          storageSpec.getOptionsOrThrow(BigTableFeatureStorage.OPT_BIGTABLE_INSTANCE));
+    }
   }
 }

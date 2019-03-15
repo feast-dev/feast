@@ -27,7 +27,6 @@ import feast.specs.StorageSpecProto.StorageSpec;
 import io.opentracing.Tracer;
 import io.opentracing.contrib.concurrent.TracedExecutorService;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -90,10 +89,8 @@ public class ServingApiConfiguration implements WebMvcConfigurer {
       SpecStorage specStorage, AppConfig appConfig, Tracer tracer) {
     FeatureStorageRegistry registry = new FeatureStorageRegistry(appConfig, tracer);
     try {
-      Map<String, StorageSpec> storageSpecs = specStorage.getAllStorageSpecs();
-      for (StorageSpec storageSpec : storageSpecs.values()) {
-        registry.connect(storageSpec);
-      }
+      StorageSpec storageSpec = specStorage.getServingStorageSpec();
+      registry.connect(storageSpec);
     } catch (Exception e) {
       log.error(
           "Unable to create a pre-populated storage registry, connection will be made in ad-hoc basis",
