@@ -83,7 +83,7 @@ public class FeatureRowToBigTableMutationDoFn
   }
 
   private String getTableName(FeatureRow row) {
-    if (tablePrefix != null) {
+    if (!Strings.isNullOrEmpty(tablePrefix)) {
       return tablePrefix + row.getEntityName();
     } else {
       return row.getEntityName();

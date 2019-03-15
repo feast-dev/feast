@@ -18,26 +18,23 @@
 package feast.core.config;
 
 import com.google.common.base.Charsets;
+import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
+import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.dao.EntityInfoRepository;
 import feast.core.dao.FeatureGroupInfoRepository;
 import feast.core.dao.FeatureInfoRepository;
-import feast.core.dao.StorageInfoRepository;
-import feast.core.model.StorageInfo;
 import feast.core.storage.BigQueryViewTemplater;
 import feast.core.storage.SchemaManager;
 import feast.core.validators.SpecValidator;
-import feast.specs.StorageSpecProto.StorageSpec;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Configuration providing utility objects for the core application.
@@ -45,8 +42,13 @@ import java.util.stream.Collectors;
 @Configuration
 public class ServerUtilConfig {
 
+
+  @Autowired
+  private StorageSpecs storageSpecs;
+
   /**
    * Get a BigQuery view templater.
+   *
    * @return BigQueryViewTemplater
    */
   @Bean
@@ -60,38 +62,33 @@ public class ServerUtilConfig {
 
   /**
    * Get the storage schema manager.
+   *
    * @return SchemaManager
    */
   @Bean
-  public SchemaManager schemaManager(StorageInfoRepository storageInfoRepository,
-                                     BigQueryViewTemplater bigQueryViewTemplater) {
-    List<StorageSpec> storageSpecList =
-            storageInfoRepository
-                    .findAll()
-                    .stream()
-                    .map(StorageInfo::getStorageSpec)
-                    .collect(Collectors.toList());
-    SchemaManager schemaManager = new SchemaManager(bigQueryViewTemplater);
-    schemaManager.registerStorages(storageSpecList);
+  public SchemaManager schemaManager(BigQueryViewTemplater bigQueryViewTemplater) {
+    SchemaManager schemaManager = new SchemaManager(bigQueryViewTemplater, storageSpecs);
+    schemaManager.registerStorages(Lists.newArrayList(
+        storageSpecs.getWarehouseStorageSpec(),
+        storageSpecs.getServingStorageSpec()));
     return schemaManager;
   }
 
   /**
    * Get a spec validator.
+   *
    * @return SpecValidator
    */
   @Bean
   public SpecValidator specValidator(
-          StorageInfoRepository storageInfoRepository,
-          EntityInfoRepository entityInfoRepository,
-          FeatureGroupInfoRepository featureGroupInfoRepository,
-          FeatureInfoRepository featureInfoRepository) {
+      EntityInfoRepository entityInfoRepository,
+      FeatureGroupInfoRepository featureGroupInfoRepository,
+      FeatureInfoRepository featureInfoRepository) {
     SpecValidator specValidator =
-            new SpecValidator(
-                    storageInfoRepository,
-                    entityInfoRepository,
-                    featureGroupInfoRepository,
-                    featureInfoRepository);
+        new SpecValidator(
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
     return specValidator;
   }
 }

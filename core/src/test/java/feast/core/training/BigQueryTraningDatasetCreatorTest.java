@@ -28,6 +28,8 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import feast.core.DatasetServiceProto.DatasetInfo;
 import feast.core.DatasetServiceProto.FeatureSet;
+import feast.core.storage.BigQueryStorageManager;
+import feast.specs.StorageSpecProto.StorageSpec;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
@@ -36,25 +38,35 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-public class BigQueryDatasetCreatorTest {
+public class BigQueryTraningDatasetCreatorTest {
+
   public static final String projectId = "the-project";
   public static final String datasetPrefix = "feast";
   // class under test
-  private BigQueryDatasetCreator creator;
-  @Mock private BigQueryDatasetTemplater templater;
-  @Mock private BigQuery bq;
-  @Mock private Clock clock;
+  private BigQueryTraningDatasetCreator creator;
+  @Mock
+  private BigQueryDatasetTemplater templater;
+  @Mock
+  private BigQuery bq;
+  @Mock
+  private Clock clock;
 
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
-
-    creator = new BigQueryDatasetCreator(templater, bq, clock, projectId, datasetPrefix);
+    when(templater.getStorageSpec()).thenReturn(StorageSpec.newBuilder()
+        .setId("BIGQUERY1")
+        .setType(BigQueryStorageManager.TYPE)
+        .putOptions("project", "project")
+        .putOptions("dataset", "dataset")
+        .build());
+    creator = new BigQueryTraningDatasetCreator(templater, clock, projectId, datasetPrefix, bq);
 
     when(templater.createQuery(
-            any(FeatureSet.class), any(Timestamp.class), any(Timestamp.class), anyLong()))
+        any(FeatureSet.class), any(Timestamp.class), any(Timestamp.class), anyLong()))
         .thenReturn("SELECT * FROM `project.dataset.table`");
   }
+
 
   @Test
   public void shouldCreateCorrectDatasetIfPrefixNotSpecified() {
@@ -106,7 +118,8 @@ public class BigQueryDatasetCreatorTest {
         dsInfo.getTableUrl(),
         equalTo(
             String.format(
-                "%s.%s_%s.%s", projectId, datasetPrefix, entityName, "mydataset_0_20180101_20190101")));
+                "%s.%s_%s.%s", projectId, datasetPrefix, entityName,
+                "mydataset_0_20180101_20190101")));
     assertThat(dsInfo.getName(), equalTo("mydataset_0_20180101_20190101"));
   }
 

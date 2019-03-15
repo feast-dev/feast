@@ -19,26 +19,43 @@ package feast.core.http;
 
 import feast.core.JobServiceProto.JobServiceTypes.GetJobResponse;
 import feast.core.JobServiceProto.JobServiceTypes.ListJobsResponse;
-import feast.core.UIServiceProto.UIServiceTypes.*;
+import feast.core.UIServiceProto.UIServiceTypes.EntityDetail;
+import feast.core.UIServiceProto.UIServiceTypes.FeatureDetail;
+import feast.core.UIServiceProto.UIServiceTypes.FeatureGroupDetail;
+import feast.core.UIServiceProto.UIServiceTypes.GetEntityResponse;
+import feast.core.UIServiceProto.UIServiceTypes.GetFeatureGroupResponse;
+import feast.core.UIServiceProto.UIServiceTypes.GetFeatureResponse;
+import feast.core.UIServiceProto.UIServiceTypes.GetStorageResponse;
+import feast.core.UIServiceProto.UIServiceTypes.ListEntitiesResponse;
+import feast.core.UIServiceProto.UIServiceTypes.ListFeatureGroupsResponse;
+import feast.core.UIServiceProto.UIServiceTypes.ListFeaturesResponse;
+import feast.core.UIServiceProto.UIServiceTypes.ListStorageResponse;
+import feast.core.UIServiceProto.UIServiceTypes.StorageDetail;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureGroupInfo;
 import feast.core.model.FeatureInfo;
 import feast.core.model.StorageInfo;
 import feast.core.service.JobManagementService;
 import feast.core.service.SpecService;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
 
-/** Web service serving the feast UI. */
+/**
+ * Web service serving the feast UI.
+ */
 @CrossOrigin(maxAge = 3600)
 @RestController
 @Slf4j
 public class UiServiceController {
+
   private final SpecService specService;
   private final JobManagementService jobManagementService;
 
@@ -48,7 +65,9 @@ public class UiServiceController {
     this.jobManagementService = jobManagementService;
   }
 
-  /** List all feature specs registered in the registry. */
+  /**
+   * List all feature specs registered in the registry.
+   */
   @RequestMapping(
       value = "/api/ui/features",
       produces = "application/json",
@@ -59,7 +78,8 @@ public class UiServiceController {
           specService
               .listFeatures()
               .stream()
-              .map(FeatureInfo::getFeatureDetail)
+              .map((fi) -> fi
+                  .getFeatureDetail(specService.getStorageSpecs()))
               .collect(Collectors.toList());
       return ListFeaturesResponse.newBuilder().addAllFeatures(features).build();
     } catch (Exception e) {
@@ -68,7 +88,9 @@ public class UiServiceController {
     }
   }
 
-  /** Get a single feature spec by ID. */
+  /**
+   * Get a single feature spec by ID.
+   */
   @RequestMapping(
       value = "/api/ui/features/{id}",
       produces = "application/json",
@@ -78,7 +100,7 @@ public class UiServiceController {
       FeatureInfo featureInfo = specService.getFeatures(Arrays.asList(id)).get(0);
       FeatureInfo resolved = featureInfo.resolve();
       return GetFeatureResponse.newBuilder()
-          .setFeature(resolved.getFeatureDetail())
+          .setFeature(resolved.getFeatureDetail(specService.getStorageSpecs()))
           .setRawSpec(featureInfo.getFeatureSpec())
           .build();
     } catch (Exception e) {
@@ -87,7 +109,9 @@ public class UiServiceController {
     }
   }
 
-  /** List all feature group specs registered in the registry. */
+  /**
+   * List all feature group specs registered in the registry.
+   */
   @RequestMapping(
       value = "/api/ui/feature_groups",
       produces = "application/json",
@@ -107,7 +131,9 @@ public class UiServiceController {
     }
   }
 
-  /** Get a single feature group spec by ID. */
+  /**
+   * Get a single feature group spec by ID.
+   */
   @RequestMapping(
       value = "/api/ui/feature_groups/{id}",
       produces = "application/json",
@@ -124,7 +150,9 @@ public class UiServiceController {
     }
   }
 
-  /** List all entity specs registered in the registry. */
+  /**
+   * List all entity specs registered in the registry.
+   */
   @RequestMapping(
       value = "/api/ui/entities",
       produces = "application/json",
@@ -144,7 +172,9 @@ public class UiServiceController {
     }
   }
 
-  /** Get a single entity spec by name. */
+  /**
+   * Get a single entity spec by name.
+   */
   @RequestMapping(
       value = "/api/ui/entities/{id}",
       produces = "application/json",
@@ -159,7 +189,9 @@ public class UiServiceController {
     }
   }
 
-  /** List all storage specs registered in the registry. */
+  /**
+   * List all storage specs registered in the registry.
+   */
   @RequestMapping(
       value = "/api/ui/storage",
       produces = "application/json",
@@ -179,7 +211,9 @@ public class UiServiceController {
     }
   }
 
-  /** Get a single storage spec by name. */
+  /**
+   * Get a single storage spec by name.
+   */
   @RequestMapping(
       value = "/api/ui/storage/{id}",
       produces = "application/json",
@@ -204,7 +238,9 @@ public class UiServiceController {
     }
   }
 
-  /** Get a single job by id. */
+  /**
+   * Get a single job by id.
+   */
   @RequestMapping(
       value = "/api/ui/jobs/{id}",
       produces = "application/json",

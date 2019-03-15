@@ -27,4 +27,5 @@ option go_package = "github.com/gojek/feast/protos/generated/go/feast/specs";
 message FeatureGroupSpec {
   string id = 1;
   repeated string tags = 2;
+  map<string, string> options = 3;
 }

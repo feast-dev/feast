@@ -32,11 +32,9 @@ import feast.core.DatasetServiceProto.FeatureSet;
 import feast.core.dao.FeatureInfoRepository;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureInfo;
-import feast.core.model.StorageInfo;
+import feast.core.storage.BigQueryStorageManager;
 import feast.core.training.BigQueryDatasetTemplater.Features;
 import feast.specs.EntitySpecProto.EntitySpec;
-import feast.specs.FeatureSpecProto.DataStore;
-import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
 import java.io.InputStream;
@@ -58,21 +56,30 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
 public class BigQueryDatasetTemplaterTest {
+
   private BigQueryDatasetTemplater templater;
   private BasicFormatterImpl formatter = new BasicFormatterImpl();
 
-  @Mock private FeatureInfoRepository featureInfoRespository;
+  @Mock
+  private FeatureInfoRepository featureInfoRespository;
   private String sqlTemplate;
 
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
+    StorageSpec storageSpec = StorageSpec.newBuilder()
+        .setId("BIGQUERY1")
+        .setType(BigQueryStorageManager.TYPE)
+        .putOptions("project", "project")
+        .putOptions("dataset", "dataset")
+        .build();
 
     Jinjava jinjava = new Jinjava();
     Resource resource = new ClassPathResource("templates/bq_training.tmpl");
     InputStream resourceInputStream = resource.getInputStream();
     sqlTemplate = CharStreams.toString(new InputStreamReader(resourceInputStream, Charsets.UTF_8));
-    templater = new BigQueryDatasetTemplater(jinjava, sqlTemplate, featureInfoRespository);
+    templater = new BigQueryDatasetTemplater(jinjava, sqlTemplate, storageSpec,
+        featureInfoRespository);
   }
 
   @Test(expected = NoSuchElementException.class)
@@ -87,8 +94,16 @@ public class BigQueryDatasetTemplaterTest {
 
   @Test
   public void shouldPassCorrectArgumentToTemplateEngine() {
+    StorageSpec storageSpec = StorageSpec.newBuilder()
+        .setId("BIGQUERY1")
+        .setType(BigQueryStorageManager.TYPE)
+        .putOptions("project", "project")
+        .putOptions("dataset", "dataset")
+        .build();
+
     Jinjava jinjava = mock(Jinjava.class);
-    templater = new BigQueryDatasetTemplater(jinjava, sqlTemplate, featureInfoRespository);
+    templater = new BigQueryDatasetTemplater(jinjava, sqlTemplate, storageSpec,
+        featureInfoRespository);
 
     Timestamp startDate =
         Timestamps.fromSeconds(Instant.parse("2018-01-01T00:00:00.00Z").getEpochSecond());
@@ -198,23 +213,13 @@ public class BigQueryDatasetTemplaterTest {
   }
 
   private FeatureInfo createFeatureInfo(String id, String tableId) {
-    StorageSpec storageSpec =
-        StorageSpec.newBuilder()
-            .setId("BQ")
-            .setType("bigquery")
-            .putOptions("project", tableId.split("\\.")[0])
-            .putOptions("dataset", tableId.split("\\.")[1])
-            .build();
-    StorageInfo storageInfo = new StorageInfo(storageSpec);
-
     FeatureSpec fs =
         FeatureSpec.newBuilder()
             .setId(id)
-            .setDataStores(DataStores.newBuilder().setWarehouse(DataStore.newBuilder().setId("BQ")))
             .build();
 
     EntitySpec entitySpec = EntitySpec.newBuilder().setName(id.split("\\.")[0]).build();
     EntityInfo entityInfo = new EntityInfo(entitySpec);
-    return new FeatureInfo(fs, entityInfo, null, storageInfo, null);
+    return new FeatureInfo(fs, entityInfo, null);
   }
 }

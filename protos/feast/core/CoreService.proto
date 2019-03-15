@@ -83,11 +83,6 @@ service CoreService {
     */
     rpc ApplyEntity(feast.specs.EntitySpec) returns (CoreServiceTypes.ApplyEntityResponse) {};
 
-    /*
-    Register a new storage spec to the metadata store, or update an existing storage.
-    If any validation errors occur, only the first encountered error will be returned.
-    */
-    rpc ApplyStorage(feast.specs.StorageSpec) returns (CoreServiceTypes.ApplyStorageResponse) {};
 }
 
 message CoreServiceTypes {
@@ -144,8 +139,4 @@ message CoreServiceTypes {
       string featureGroupId = 1;
   }
 
-  // Storage registration response
-  message ApplyStorageResponse {
-      string storageId = 1;
-  }
 }
