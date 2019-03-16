@@ -93,21 +93,21 @@ spec:
             value: "{{ .Values.core.jobs.monitoring.initialDelay }}"
           {{- if .Values.store.serving }}
           - name: STORE_SERVING_TYPE
-            value: {{ .VAlues.store.serving.type }}
+            value: {{ .Values.store.serving.type }}
           - name: STORE_SERVING_OPTIONS
-            value: {{ .VAlues.store.serving.options | toJson}}
+            value: {{ .Values.store.serving.options | toJson}}
           {{- end }}
           {{- if .Values.store.warehouse }}
           - name: STORE_WAREHOUSE_TYPE
-            value: {{ .VAlues.store.warheouse.type }}
+            value: {{ .Values.store.warheouse.type }}
           - name: STORE_WAREHOUSE_OPTIONS
-            value: {{ .VAlues.store.warehouse.options | toJson}}
+            value: {{ .Values.store.warehouse.options | toJson}}
           {{- end }}
           {{- if .Values.store.errors }}
           - name: STORE_ERRORS_TYPE
-            value: {{ .VAlues.store.errors.type }}
+            value: {{ .Values.store.errors.type }}
           - name: STORE_ERRORS_OPTIONS
-            value: {{ .VAlues.store.errors.options | toJson}}
+            value: {{ .Values.store.errors.options | toJson}}
           {{- end }}
           - name: STATSD_HOST
             value: {{ .Values.statsd.host }}
