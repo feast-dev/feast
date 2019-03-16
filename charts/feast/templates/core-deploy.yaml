@@ -99,7 +99,7 @@ spec:
           {{- end }}
           {{- if .Values.store.warehouse }}
           - name: STORE_WAREHOUSE_TYPE
-            value: {{ .Values.store.warheouse.type }}
+            value: {{ .Values.store.warehouse.type }}
           - name: STORE_WAREHOUSE_OPTIONS
             value: {{ .Values.store.warehouse.options | toJson}}
           {{- end }}
