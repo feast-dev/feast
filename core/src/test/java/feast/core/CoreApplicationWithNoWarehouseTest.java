@@ -4,6 +4,7 @@ import static feast.core.config.StorageConfig.DEFAULT_ERRORS_ID;
 import static feast.core.config.StorageConfig.DEFAULT_SERVING_ID;
 import static feast.core.config.StorageConfig.DEFAULT_WAREHOUSE_ID;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 
 import com.google.protobuf.Timestamp;
@@ -50,13 +51,11 @@ import org.springframework.test.context.junit4.SpringRunner;
 @SpringBootTest(properties = {
     "feast.jobs.workspace=${java.io.tmpdir}${random.uuid}",
     "spring.datasource.url=jdbc:h2:mem:testdb",
-    "feast.store.warehouse.type=file.json",
-    "feast.store.warehouse.options={\"path\":\"/tmp/foobar\"}",
     "feast.store.serving.type=redis",
     "feast.store.serving.options={\"host\":\"localhost\",\"port\":1234}",
     "feast.store.errors.type=stderr"
 })
-public class CoreApplicationTest {
+public class CoreApplicationWithNoWarehouseTest {
 
   @Autowired
   SpecService specService;
@@ -69,12 +68,11 @@ public class CoreApplicationTest {
   public void test_withProperties_systemServingAndWarehouseStoresRegistered() throws IOException {
     Files.createDirectory(Paths.get(jobDefaults.getWorkspace()));
 
-    List<StorageInfo> warehouseStorageInfo = specService
-        .getStorage(Collections.singletonList(DEFAULT_WAREHOUSE_ID));
-    assertEquals(warehouseStorageInfo.size(), 1);
-    assertEquals(warehouseStorageInfo.get(0).getStorageSpec(), StorageSpec.newBuilder()
-        .setId(DEFAULT_WAREHOUSE_ID).setType("file.json").putOptions("path", "/tmp/foobar")
-        .build());
+    try {
+      specService.getStorage(Collections.singletonList(DEFAULT_WAREHOUSE_ID));
+      fail("should have thrown exception");
+    } catch (feast.core.exception.RetrievalException e) {
+    }
 
     List<StorageInfo> servingStorageInfo = specService
         .getStorage(Collections.singletonList(DEFAULT_SERVING_ID));
@@ -133,16 +131,11 @@ public class CoreApplicationTest {
         .addEntitySpecs(entitySpec)
         .addFeatureSpecs(featureSpec.toBuilder()
             .setDataStores(DataStores.newBuilder()
-                .setWarehouse(DataStore.newBuilder().setId(DEFAULT_WAREHOUSE_ID))
                 .setServing(DataStore.newBuilder().setId(DEFAULT_SERVING_ID))))
         .addServingStorageSpecs(StorageSpec.newBuilder()
             .setId(DEFAULT_SERVING_ID)
             .setType("redis")
             .putOptions("host", "localhost").putOptions("port", "1234"))
-        .addWarehouseStorageSpecs(StorageSpec.newBuilder()
-            .setId(DEFAULT_WAREHOUSE_ID)
-            .setType("file.json")
-            .putOptions("path", "/tmp/foobar"))
         .build(), args.get(0));
   }
 

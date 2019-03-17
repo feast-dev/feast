@@ -19,7 +19,11 @@ public class OnContextRefresh {
 
   @EventListener
   public void onApplicationEvent(ContextRefreshedEvent event) {
-    specService.registerStorage(storageSpecs.getServingStorageSpec());
-    specService.registerStorage(storageSpecs.getWarehouseStorageSpec());
+    if (storageSpecs.getServingStorageSpec() != null) {
+      specService.registerStorage(storageSpecs.getServingStorageSpec());
+    }
+    if (storageSpecs.getWarehouseStorageSpec() != null) {
+      specService.registerStorage(storageSpecs.getWarehouseStorageSpec());
+    }
   }
 }

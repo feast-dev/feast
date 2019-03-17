@@ -58,7 +58,6 @@ import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -153,10 +152,13 @@ public class JobManagementService {
         && storageSpecs.getWarehouseStorageSpec() != null) {
       warehouseStoreIds.add(StorageConfig.DEFAULT_WAREHOUSE_ID);
     }
-    List<StorageSpec> warehouseStorageSpecs = specService
-        .getStorage(Lists.newArrayList(warehouseStoreIds)).stream()
-        .map(StorageInfo::getStorageSpec)
-        .collect(Collectors.toList());
+    List<StorageSpec> warehouseStorageSpecs = Lists.newArrayList();
+    if (warehouseStoreIds.size() > 0) {
+      warehouseStorageSpecs = specService
+          .getStorage(Lists.newArrayList(warehouseStoreIds)).stream()
+          .map(StorageInfo::getStorageSpec)
+          .collect(Collectors.toList());
+    }
 
     ImportJobSpecs.Builder importJobSpecsBuilder = ImportJobSpecs.newBuilder()
         .setJobId(jobId)
