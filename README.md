@@ -41,6 +41,10 @@ __Discovery__: Feast allows users to easily explore and discover features and th
 * [Components](docs/components.md)
 * [Concepts](docs/concepts.md)
 
+For Feast administrators:
+* [Installation quickstart](docs/install.md}
+* [Helm charts](charts/README.md} details
+
 ## Notice
 
 Feast is still under active development. Your feedback and contributions are important to us.
