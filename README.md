@@ -43,7 +43,7 @@ __Discovery__: Feast allows users to easily explore and discover features and th
 
 For Feast administrators:
 * [Installation quickstart](docs/install.md}
-* [Helm charts](charts/README.md} details
+* [Helm charts](charts/README.md) details
 
 ## Notice
 
