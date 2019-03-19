@@ -33,7 +33,7 @@ func (m *FeatureRowKey) Reset()         { *m = FeatureRowKey{} }
 func (m *FeatureRowKey) String() string { return proto.CompactTextString(m) }
 func (*FeatureRowKey) ProtoMessage()    {}
 func (*FeatureRowKey) Descriptor() ([]byte, []int) {
-	return fileDescriptor_fbbea9c89787d1c7, []int{0}
+	return fileDescriptor_FeatureRow_44b5ccd93feeaf74, []int{0}
 }
 func (m *FeatureRowKey) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FeatureRowKey.Unmarshal(m, b)
@@ -41,8 +41,8 @@ func (m *FeatureRowKey) XXX_Unmarshal(b []byte) error {
 func (m *FeatureRowKey) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_FeatureRowKey.Marshal(b, m, deterministic)
 }
-func (m *FeatureRowKey) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_FeatureRowKey.Merge(m, src)
+func (dst *FeatureRowKey) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FeatureRowKey.Merge(dst, src)
 }
 func (m *FeatureRowKey) XXX_Size() int {
 	return xxx_messageInfo_FeatureRowKey.Size(m)
@@ -96,7 +96,7 @@ func (m *FeatureRow) Reset()         { *m = FeatureRow{} }
 func (m *FeatureRow) String() string { return proto.CompactTextString(m) }
 func (*FeatureRow) ProtoMessage()    {}
 func (*FeatureRow) Descriptor() ([]byte, []int) {
-	return fileDescriptor_fbbea9c89787d1c7, []int{1}
+	return fileDescriptor_FeatureRow_44b5ccd93feeaf74, []int{1}
 }
 func (m *FeatureRow) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FeatureRow.Unmarshal(m, b)
@@ -104,8 +104,8 @@ func (m *FeatureRow) XXX_Unmarshal(b []byte) error {
 func (m *FeatureRow) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_FeatureRow.Marshal(b, m, deterministic)
 }
-func (m *FeatureRow) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_FeatureRow.Merge(m, src)
+func (dst *FeatureRow) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FeatureRow.Merge(dst, src)
 }
 func (m *FeatureRow) XXX_Size() int {
 	return xxx_messageInfo_FeatureRow.Size(m)
@@ -156,9 +156,11 @@ func init() {
 	proto.RegisterType((*FeatureRow)(nil), "feast.types.FeatureRow")
 }
 
-func init() { proto.RegisterFile("feast/types/FeatureRow.proto", fileDescriptor_fbbea9c89787d1c7) }
+func init() {
+	proto.RegisterFile("feast/types/FeatureRow.proto", fileDescriptor_FeatureRow_44b5ccd93feeaf74)
+}
 
-var fileDescriptor_fbbea9c89787d1c7 = []byte{
+var fileDescriptor_FeatureRow_44b5ccd93feeaf74 = []byte{
 	// 305 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xd4, 0x92, 0x41, 0x4b, 0xfb, 0x40,
 	0x10, 0xc5, 0x49, 0xfb, 0xff, 0x8b, 0x9d, 0x60, 0x85, 0xe0, 0x21, 0x96, 0x56, 0x43, 0x4f, 0x39,

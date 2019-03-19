@@ -44,7 +44,7 @@ func (m *QueryFeaturesRequest) Reset()         { *m = QueryFeaturesRequest{} }
 func (m *QueryFeaturesRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryFeaturesRequest) ProtoMessage()    {}
 func (*QueryFeaturesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_7609de6de542e6f0, []int{0}
+	return fileDescriptor_Serving_fa8a820cedf8e8f2, []int{0}
 }
 func (m *QueryFeaturesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_QueryFeaturesRequest.Unmarshal(m, b)
@@ -52,8 +52,8 @@ func (m *QueryFeaturesRequest) XXX_Unmarshal(b []byte) error {
 func (m *QueryFeaturesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_QueryFeaturesRequest.Marshal(b, m, deterministic)
 }
-func (m *QueryFeaturesRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryFeaturesRequest.Merge(m, src)
+func (dst *QueryFeaturesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryFeaturesRequest.Merge(dst, src)
 }
 func (m *QueryFeaturesRequest) XXX_Size() int {
 	return xxx_messageInfo_QueryFeaturesRequest.Size(m)
@@ -99,7 +99,7 @@ func (m *QueryFeaturesResponse) Reset()         { *m = QueryFeaturesResponse{} }
 func (m *QueryFeaturesResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryFeaturesResponse) ProtoMessage()    {}
 func (*QueryFeaturesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_7609de6de542e6f0, []int{1}
+	return fileDescriptor_Serving_fa8a820cedf8e8f2, []int{1}
 }
 func (m *QueryFeaturesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_QueryFeaturesResponse.Unmarshal(m, b)
@@ -107,8 +107,8 @@ func (m *QueryFeaturesResponse) XXX_Unmarshal(b []byte) error {
 func (m *QueryFeaturesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_QueryFeaturesResponse.Marshal(b, m, deterministic)
 }
-func (m *QueryFeaturesResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryFeaturesResponse.Merge(m, src)
+func (dst *QueryFeaturesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryFeaturesResponse.Merge(dst, src)
 }
 func (m *QueryFeaturesResponse) XXX_Size() int {
 	return xxx_messageInfo_QueryFeaturesResponse.Size(m)
@@ -145,7 +145,7 @@ func (m *Entity) Reset()         { *m = Entity{} }
 func (m *Entity) String() string { return proto.CompactTextString(m) }
 func (*Entity) ProtoMessage()    {}
 func (*Entity) Descriptor() ([]byte, []int) {
-	return fileDescriptor_7609de6de542e6f0, []int{2}
+	return fileDescriptor_Serving_fa8a820cedf8e8f2, []int{2}
 }
 func (m *Entity) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Entity.Unmarshal(m, b)
@@ -153,8 +153,8 @@ func (m *Entity) XXX_Unmarshal(b []byte) error {
 func (m *Entity) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Entity.Marshal(b, m, deterministic)
 }
-func (m *Entity) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Entity.Merge(m, src)
+func (dst *Entity) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Entity.Merge(dst, src)
 }
 func (m *Entity) XXX_Size() int {
 	return xxx_messageInfo_Entity.Size(m)
@@ -186,7 +186,7 @@ func (m *FeatureValue) Reset()         { *m = FeatureValue{} }
 func (m *FeatureValue) String() string { return proto.CompactTextString(m) }
 func (*FeatureValue) ProtoMessage()    {}
 func (*FeatureValue) Descriptor() ([]byte, []int) {
-	return fileDescriptor_7609de6de542e6f0, []int{3}
+	return fileDescriptor_Serving_fa8a820cedf8e8f2, []int{3}
 }
 func (m *FeatureValue) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FeatureValue.Unmarshal(m, b)
@@ -194,8 +194,8 @@ func (m *FeatureValue) XXX_Unmarshal(b []byte) error {
 func (m *FeatureValue) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_FeatureValue.Marshal(b, m, deterministic)
 }
-func (m *FeatureValue) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_FeatureValue.Merge(m, src)
+func (dst *FeatureValue) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FeatureValue.Merge(dst, src)
 }
 func (m *FeatureValue) XXX_Size() int {
 	return xxx_messageInfo_FeatureValue.Size(m)
@@ -303,9 +303,11 @@ var _ServingAPI_serviceDesc = grpc.ServiceDesc{
 	Metadata: "feast/serving/Serving.proto",
 }
 
-func init() { proto.RegisterFile("feast/serving/Serving.proto", fileDescriptor_7609de6de542e6f0) }
+func init() {
+	proto.RegisterFile("feast/serving/Serving.proto", fileDescriptor_Serving_fa8a820cedf8e8f2)
+}
 
-var fileDescriptor_7609de6de542e6f0 = []byte{
+var fileDescriptor_Serving_fa8a820cedf8e8f2 = []byte{
 	// 429 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x53, 0xd1, 0x8a, 0xd3, 0x40,
 	0x14, 0x75, 0x5a, 0x5c, 0x36, 0x77, 0x0d, 0xca, 0xe0, 0x62, 0xc8, 0x8a, 0x96, 0xac, 0x0f, 0x01,

@@ -1,6 +1,7 @@
 # Feast CLI
 
-The feast command-line tool, `feast`, is used to register resources to feast, as well as manage and run ingestion jobs.
+The feast command-line tool, `feast`, is used to register resources to
+feast, as well as manage and run ingestion jobs.
 
 ## Installation
 
@@ -10,32 +11,39 @@ The quickest way to get the CLI is to download the compiled binary: #TODO
 
 ### Building from source
 
-The following dependencies are required to install the CLI from source:
-#### protoc
-To install protoc, find the compiled binary for your distribution [here](https://github.com/protocolbuffers/protobuf/releases), then install it:
-```
-PROTOC_VERSION=3.3.0
+The following dependencies are required to build the CLI from source:
+* [`go`](https://golang.org/)
+* [`protoc`](https://developers.google.com/protocol-buffers/)
+* [`dep`](https://github.com/golang/dep)
 
-curl -OL https://github.com/google/protobuf/releases/download/v$PROTOC_VERSION/$PROTOC_ZIP
-unzip -o $PROTOC_ZIP -d /usr/local bin/protoc
-rm -f $PROTOC_ZIP
-```
+See below for specific instructions on how to install the dependencies.
 
-#### dep
-On MacOS you can install or upgrade to the latest released version with Homebrew:
-
-```
-brew install dep
-brew upgrade dep
-```
-
-On other platforms you can use the install.sh script:
-```
-curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-```
-
-Then just install the cli using:
-```
+After the dependencies are installed, you can build the CLI using:
+```sh
 # at feast top-level directory
-make install-cli
+$ make build-cli
+```
+
+### Dependencies
+
+#### `protoc-gen-go`
+
+To ensure you have a matching version of `protoc-gen-go`, install the vendored version:
+```sh
+$ go install  ./vendor/github.com/golang/protobuf/protoc-gen-go
+$ which protoc-gen-go
+~/go/bin/protoc-gen-go
+```
+
+#### `dep`
+
+On MacOS you can install or upgrade to the latest released version with Homebrew:
+```sh
+$ brew install dep
+$ brew upgrade dep
+```
+
+On other platforms you can use the `install.sh` script:
+```sh
+$ curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 ```

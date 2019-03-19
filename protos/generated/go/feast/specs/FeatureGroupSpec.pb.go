@@ -31,7 +31,7 @@ func (m *FeatureGroupSpec) Reset()         { *m = FeatureGroupSpec{} }
 func (m *FeatureGroupSpec) String() string { return proto.CompactTextString(m) }
 func (*FeatureGroupSpec) ProtoMessage()    {}
 func (*FeatureGroupSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_df3b6a9e736b5719, []int{0}
+	return fileDescriptor_FeatureGroupSpec_1fd10deeef20baa7, []int{0}
 }
 func (m *FeatureGroupSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FeatureGroupSpec.Unmarshal(m, b)
@@ -39,8 +39,8 @@ func (m *FeatureGroupSpec) XXX_Unmarshal(b []byte) error {
 func (m *FeatureGroupSpec) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_FeatureGroupSpec.Marshal(b, m, deterministic)
 }
-func (m *FeatureGroupSpec) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_FeatureGroupSpec.Merge(m, src)
+func (dst *FeatureGroupSpec) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FeatureGroupSpec.Merge(dst, src)
 }
 func (m *FeatureGroupSpec) XXX_Size() int {
 	return xxx_messageInfo_FeatureGroupSpec.Size(m)
@@ -76,9 +76,11 @@ func init() {
 	proto.RegisterType((*FeatureGroupSpec)(nil), "feast.specs.FeatureGroupSpec")
 }
 
-func init() { proto.RegisterFile("feast/specs/FeatureGroupSpec.proto", fileDescriptor_df3b6a9e736b5719) }
+func init() {
+	proto.RegisterFile("feast/specs/FeatureGroupSpec.proto", fileDescriptor_FeatureGroupSpec_1fd10deeef20baa7)
+}
 
-var fileDescriptor_df3b6a9e736b5719 = []byte{
+var fileDescriptor_FeatureGroupSpec_1fd10deeef20baa7 = []byte{
 	// 203 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x52, 0x4a, 0x4b, 0x4d, 0x2c,
 	0x2e, 0xd1, 0x2f, 0x2e, 0x48, 0x4d, 0x2e, 0xd6, 0x77, 0x4b, 0x4d, 0x2c, 0x29, 0x2d, 0x4a, 0x75,

@@ -34,7 +34,7 @@ func (m *ImportSpec) Reset()         { *m = ImportSpec{} }
 func (m *ImportSpec) String() string { return proto.CompactTextString(m) }
 func (*ImportSpec) ProtoMessage()    {}
 func (*ImportSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_bf21bfd2215b3e0c, []int{0}
+	return fileDescriptor_ImportSpec_a027fec3e71fec8d, []int{0}
 }
 func (m *ImportSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ImportSpec.Unmarshal(m, b)
@@ -42,8 +42,8 @@ func (m *ImportSpec) XXX_Unmarshal(b []byte) error {
 func (m *ImportSpec) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ImportSpec.Marshal(b, m, deterministic)
 }
-func (m *ImportSpec) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ImportSpec.Merge(m, src)
+func (dst *ImportSpec) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ImportSpec.Merge(dst, src)
 }
 func (m *ImportSpec) XXX_Size() int {
 	return xxx_messageInfo_ImportSpec.Size(m)
@@ -107,7 +107,7 @@ func (m *Schema) Reset()         { *m = Schema{} }
 func (m *Schema) String() string { return proto.CompactTextString(m) }
 func (*Schema) ProtoMessage()    {}
 func (*Schema) Descriptor() ([]byte, []int) {
-	return fileDescriptor_bf21bfd2215b3e0c, []int{1}
+	return fileDescriptor_ImportSpec_a027fec3e71fec8d, []int{1}
 }
 func (m *Schema) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Schema.Unmarshal(m, b)
@@ -115,8 +115,8 @@ func (m *Schema) XXX_Unmarshal(b []byte) error {
 func (m *Schema) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Schema.Marshal(b, m, deterministic)
 }
-func (m *Schema) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Schema.Merge(m, src)
+func (dst *Schema) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Schema.Merge(dst, src)
 }
 func (m *Schema) XXX_Size() int {
 	return xxx_messageInfo_Schema.Size(m)
@@ -260,7 +260,7 @@ func (m *Field) Reset()         { *m = Field{} }
 func (m *Field) String() string { return proto.CompactTextString(m) }
 func (*Field) ProtoMessage()    {}
 func (*Field) Descriptor() ([]byte, []int) {
-	return fileDescriptor_bf21bfd2215b3e0c, []int{2}
+	return fileDescriptor_ImportSpec_a027fec3e71fec8d, []int{2}
 }
 func (m *Field) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Field.Unmarshal(m, b)
@@ -268,8 +268,8 @@ func (m *Field) XXX_Unmarshal(b []byte) error {
 func (m *Field) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Field.Marshal(b, m, deterministic)
 }
-func (m *Field) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Field.Merge(m, src)
+func (dst *Field) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Field.Merge(dst, src)
 }
 func (m *Field) XXX_Size() int {
 	return xxx_messageInfo_Field.Size(m)
@@ -302,9 +302,11 @@ func init() {
 	proto.RegisterType((*Field)(nil), "feast.specs.Field")
 }
 
-func init() { proto.RegisterFile("feast/specs/ImportSpec.proto", fileDescriptor_bf21bfd2215b3e0c) }
+func init() {
+	proto.RegisterFile("feast/specs/ImportSpec.proto", fileDescriptor_ImportSpec_a027fec3e71fec8d)
+}
 
-var fileDescriptor_bf21bfd2215b3e0c = []byte{
+var fileDescriptor_ImportSpec_a027fec3e71fec8d = []byte{
 	// 440 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x53, 0x5d, 0x8f, 0x93, 0x40,
 	0x14, 0x5d, 0xca, 0x16, 0xed, 0x6d, 0xdc, 0x9a, 0xab, 0x0f, 0x84, 0x6c, 0x62, 0xd3, 0x07, 0x6d,

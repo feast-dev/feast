@@ -30,7 +30,7 @@ func (m *Feature) Reset()         { *m = Feature{} }
 func (m *Feature) String() string { return proto.CompactTextString(m) }
 func (*Feature) ProtoMessage()    {}
 func (*Feature) Descriptor() ([]byte, []int) {
-	return fileDescriptor_4e19474999533fc9, []int{0}
+	return fileDescriptor_Feature_9650e908dedbbf49, []int{0}
 }
 func (m *Feature) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Feature.Unmarshal(m, b)
@@ -38,8 +38,8 @@ func (m *Feature) XXX_Unmarshal(b []byte) error {
 func (m *Feature) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Feature.Marshal(b, m, deterministic)
 }
-func (m *Feature) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Feature.Merge(m, src)
+func (dst *Feature) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Feature.Merge(dst, src)
 }
 func (m *Feature) XXX_Size() int {
 	return xxx_messageInfo_Feature.Size(m)
@@ -68,9 +68,9 @@ func init() {
 	proto.RegisterType((*Feature)(nil), "feast.types.Feature")
 }
 
-func init() { proto.RegisterFile("feast/types/Feature.proto", fileDescriptor_4e19474999533fc9) }
+func init() { proto.RegisterFile("feast/types/Feature.proto", fileDescriptor_Feature_9650e908dedbbf49) }
 
-var fileDescriptor_4e19474999533fc9 = []byte{
+var fileDescriptor_Feature_9650e908dedbbf49 = []byte{
 	// 173 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x92, 0x4c, 0x4b, 0x4d, 0x2c,
 	0x2e, 0xd1, 0x2f, 0xa9, 0x2c, 0x48, 0x2d, 0xd6, 0x77, 0x4b, 0x4d, 0x2c, 0x29, 0x2d, 0x4a, 0xd5,
