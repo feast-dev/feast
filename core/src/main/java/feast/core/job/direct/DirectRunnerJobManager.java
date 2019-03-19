@@ -78,7 +78,7 @@ public class DirectRunnerJobManager implements JobManager {
     commands.add("-jar");
     commands.add(defaults.getExecutable());
     commands.add(option("jobName", importJobSpecs.getJobId()));
-    commands.add(option("workspace", workspace.toString()));
+    commands.add(option("workspace", workspace.toUri().toString()));
     commands.add(option("runner", defaults.getRunner()));
 
     options.forEach((k, v) -> commands.add(option(k, v)));

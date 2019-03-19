@@ -74,7 +74,7 @@ public class ImportJobCSVTest {
 
   public ImportJobSpecs getImportJobSpecs(ImportSpec importSpec, String dataFile) {
     Path workspacePath = Paths.get(Resources.getResource("specs").getPath());
-    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(workspacePath.toString()).get();
+    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(workspacePath.toUri().toString()).get();
     return importJobSpecs.toBuilder().setImportSpec(
         importSpec.toBuilder().putSourceOptions("path", dataFile)
     ).build();
