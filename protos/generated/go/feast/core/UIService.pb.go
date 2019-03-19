@@ -36,7 +36,7 @@ func (m *UIServiceTypes) Reset()         { *m = UIServiceTypes{} }
 func (m *UIServiceTypes) String() string { return proto.CompactTextString(m) }
 func (*UIServiceTypes) ProtoMessage()    {}
 func (*UIServiceTypes) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c13b3edb35d457e8, []int{0}
+	return fileDescriptor_UIService_07f94aecf154b17a, []int{0}
 }
 func (m *UIServiceTypes) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UIServiceTypes.Unmarshal(m, b)
@@ -44,8 +44,8 @@ func (m *UIServiceTypes) XXX_Unmarshal(b []byte) error {
 func (m *UIServiceTypes) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UIServiceTypes.Marshal(b, m, deterministic)
 }
-func (m *UIServiceTypes) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UIServiceTypes.Merge(m, src)
+func (dst *UIServiceTypes) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UIServiceTypes.Merge(dst, src)
 }
 func (m *UIServiceTypes) XXX_Size() int {
 	return xxx_messageInfo_UIServiceTypes.Size(m)
@@ -70,7 +70,7 @@ func (m *UIServiceTypes_EntityDetail) Reset()         { *m = UIServiceTypes_Enti
 func (m *UIServiceTypes_EntityDetail) String() string { return proto.CompactTextString(m) }
 func (*UIServiceTypes_EntityDetail) ProtoMessage()    {}
 func (*UIServiceTypes_EntityDetail) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c13b3edb35d457e8, []int{0, 0}
+	return fileDescriptor_UIService_07f94aecf154b17a, []int{0, 0}
 }
 func (m *UIServiceTypes_EntityDetail) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UIServiceTypes_EntityDetail.Unmarshal(m, b)
@@ -78,8 +78,8 @@ func (m *UIServiceTypes_EntityDetail) XXX_Unmarshal(b []byte) error {
 func (m *UIServiceTypes_EntityDetail) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UIServiceTypes_EntityDetail.Marshal(b, m, deterministic)
 }
-func (m *UIServiceTypes_EntityDetail) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UIServiceTypes_EntityDetail.Merge(m, src)
+func (dst *UIServiceTypes_EntityDetail) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UIServiceTypes_EntityDetail.Merge(dst, src)
 }
 func (m *UIServiceTypes_EntityDetail) XXX_Size() int {
 	return xxx_messageInfo_UIServiceTypes_EntityDetail.Size(m)
@@ -122,7 +122,7 @@ func (m *UIServiceTypes_GetEntityRequest) Reset()         { *m = UIServiceTypes_
 func (m *UIServiceTypes_GetEntityRequest) String() string { return proto.CompactTextString(m) }
 func (*UIServiceTypes_GetEntityRequest) ProtoMessage()    {}
 func (*UIServiceTypes_GetEntityRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c13b3edb35d457e8, []int{0, 1}
+	return fileDescriptor_UIService_07f94aecf154b17a, []int{0, 1}
 }
 func (m *UIServiceTypes_GetEntityRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UIServiceTypes_GetEntityRequest.Unmarshal(m, b)
@@ -130,8 +130,8 @@ func (m *UIServiceTypes_GetEntityRequest) XXX_Unmarshal(b []byte) error {
 func (m *UIServiceTypes_GetEntityRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UIServiceTypes_GetEntityRequest.Marshal(b, m, deterministic)
 }
-func (m *UIServiceTypes_GetEntityRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UIServiceTypes_GetEntityRequest.Merge(m, src)
+func (dst *UIServiceTypes_GetEntityRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UIServiceTypes_GetEntityRequest.Merge(dst, src)
 }
 func (m *UIServiceTypes_GetEntityRequest) XXX_Size() int {
 	return xxx_messageInfo_UIServiceTypes_GetEntityRequest.Size(m)
@@ -160,7 +160,7 @@ func (m *UIServiceTypes_GetEntityResponse) Reset()         { *m = UIServiceTypes
 func (m *UIServiceTypes_GetEntityResponse) String() string { return proto.CompactTextString(m) }
 func (*UIServiceTypes_GetEntityResponse) ProtoMessage()    {}
 func (*UIServiceTypes_GetEntityResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c13b3edb35d457e8, []int{0, 2}
+	return fileDescriptor_UIService_07f94aecf154b17a, []int{0, 2}
 }
 func (m *UIServiceTypes_GetEntityResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UIServiceTypes_GetEntityResponse.Unmarshal(m, b)
@@ -168,8 +168,8 @@ func (m *UIServiceTypes_GetEntityResponse) XXX_Unmarshal(b []byte) error {
 func (m *UIServiceTypes_GetEntityResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UIServiceTypes_GetEntityResponse.Marshal(b, m, deterministic)
 }
-func (m *UIServiceTypes_GetEntityResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UIServiceTypes_GetEntityResponse.Merge(m, src)
+func (dst *UIServiceTypes_GetEntityResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UIServiceTypes_GetEntityResponse.Merge(dst, src)
 }
 func (m *UIServiceTypes_GetEntityResponse) XXX_Size() int {
 	return xxx_messageInfo_UIServiceTypes_GetEntityResponse.Size(m)
@@ -198,7 +198,7 @@ func (m *UIServiceTypes_ListEntitiesResponse) Reset()         { *m = UIServiceTy
 func (m *UIServiceTypes_ListEntitiesResponse) String() string { return proto.CompactTextString(m) }
 func (*UIServiceTypes_ListEntitiesResponse) ProtoMessage()    {}
 func (*UIServiceTypes_ListEntitiesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c13b3edb35d457e8, []int{0, 3}
+	return fileDescriptor_UIService_07f94aecf154b17a, []int{0, 3}
 }
 func (m *UIServiceTypes_ListEntitiesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UIServiceTypes_ListEntitiesResponse.Unmarshal(m, b)
@@ -206,8 +206,8 @@ func (m *UIServiceTypes_ListEntitiesResponse) XXX_Unmarshal(b []byte) error {
 func (m *UIServiceTypes_ListEntitiesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UIServiceTypes_ListEntitiesResponse.Marshal(b, m, deterministic)
 }
-func (m *UIServiceTypes_ListEntitiesResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UIServiceTypes_ListEntitiesResponse.Merge(m, src)
+func (dst *UIServiceTypes_ListEntitiesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UIServiceTypes_ListEntitiesResponse.Merge(dst, src)
 }
 func (m *UIServiceTypes_ListEntitiesResponse) XXX_Size() int {
 	return xxx_messageInfo_UIServiceTypes_ListEntitiesResponse.Size(m)
@@ -242,7 +242,7 @@ func (m *UIServiceTypes_FeatureDetail) Reset()         { *m = UIServiceTypes_Fea
 func (m *UIServiceTypes_FeatureDetail) String() string { return proto.CompactTextString(m) }
 func (*UIServiceTypes_FeatureDetail) ProtoMessage()    {}
 func (*UIServiceTypes_FeatureDetail) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c13b3edb35d457e8, []int{0, 4}
+	return fileDescriptor_UIService_07f94aecf154b17a, []int{0, 4}
 }
 func (m *UIServiceTypes_FeatureDetail) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UIServiceTypes_FeatureDetail.Unmarshal(m, b)
@@ -250,8 +250,8 @@ func (m *UIServiceTypes_FeatureDetail) XXX_Unmarshal(b []byte) error {
 func (m *UIServiceTypes_FeatureDetail) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UIServiceTypes_FeatureDetail.Marshal(b, m, deterministic)
 }
-func (m *UIServiceTypes_FeatureDetail) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UIServiceTypes_FeatureDetail.Merge(m, src)
+func (dst *UIServiceTypes_FeatureDetail) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UIServiceTypes_FeatureDetail.Merge(dst, src)
 }
 func (m *UIServiceTypes_FeatureDetail) XXX_Size() int {
 	return xxx_messageInfo_UIServiceTypes_FeatureDetail.Size(m)
@@ -315,7 +315,7 @@ func (m *UIServiceTypes_GetFeatureRequest) Reset()         { *m = UIServiceTypes
 func (m *UIServiceTypes_GetFeatureRequest) String() string { return proto.CompactTextString(m) }
 func (*UIServiceTypes_GetFeatureRequest) ProtoMessage()    {}
 func (*UIServiceTypes_GetFeatureRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c13b3edb35d457e8, []int{0, 5}
+	return fileDescriptor_UIService_07f94aecf154b17a, []int{0, 5}
 }
 func (m *UIServiceTypes_GetFeatureRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UIServiceTypes_GetFeatureRequest.Unmarshal(m, b)
@@ -323,8 +323,8 @@ func (m *UIServiceTypes_GetFeatureRequest) XXX_Unmarshal(b []byte) error {
 func (m *UIServiceTypes_GetFeatureRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UIServiceTypes_GetFeatureRequest.Marshal(b, m, deterministic)
 }
-func (m *UIServiceTypes_GetFeatureRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UIServiceTypes_GetFeatureRequest.Merge(m, src)
+func (dst *UIServiceTypes_GetFeatureRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UIServiceTypes_GetFeatureRequest.Merge(dst, src)
 }
 func (m *UIServiceTypes_GetFeatureRequest) XXX_Size() int {
 	return xxx_messageInfo_UIServiceTypes_GetFeatureRequest.Size(m)
@@ -354,7 +354,7 @@ func (m *UIServiceTypes_GetFeatureResponse) Reset()         { *m = UIServiceType
 func (m *UIServiceTypes_GetFeatureResponse) String() string { return proto.CompactTextString(m) }
 func (*UIServiceTypes_GetFeatureResponse) ProtoMessage()    {}
 func (*UIServiceTypes_GetFeatureResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c13b3edb35d457e8, []int{0, 6}
+	return fileDescriptor_UIService_07f94aecf154b17a, []int{0, 6}
 }
 func (m *UIServiceTypes_GetFeatureResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UIServiceTypes_GetFeatureResponse.Unmarshal(m, b)
@@ -362,8 +362,8 @@ func (m *UIServiceTypes_GetFeatureResponse) XXX_Unmarshal(b []byte) error {
 func (m *UIServiceTypes_GetFeatureResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UIServiceTypes_GetFeatureResponse.Marshal(b, m, deterministic)
 }
-func (m *UIServiceTypes_GetFeatureResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UIServiceTypes_GetFeatureResponse.Merge(m, src)
+func (dst *UIServiceTypes_GetFeatureResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UIServiceTypes_GetFeatureResponse.Merge(dst, src)
 }
 func (m *UIServiceTypes_GetFeatureResponse) XXX_Size() int {
 	return xxx_messageInfo_UIServiceTypes_GetFeatureResponse.Size(m)
@@ -399,7 +399,7 @@ func (m *UIServiceTypes_ListFeaturesResponse) Reset()         { *m = UIServiceTy
 func (m *UIServiceTypes_ListFeaturesResponse) String() string { return proto.CompactTextString(m) }
 func (*UIServiceTypes_ListFeaturesResponse) ProtoMessage()    {}
 func (*UIServiceTypes_ListFeaturesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c13b3edb35d457e8, []int{0, 7}
+	return fileDescriptor_UIService_07f94aecf154b17a, []int{0, 7}
 }
 func (m *UIServiceTypes_ListFeaturesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UIServiceTypes_ListFeaturesResponse.Unmarshal(m, b)
@@ -407,8 +407,8 @@ func (m *UIServiceTypes_ListFeaturesResponse) XXX_Unmarshal(b []byte) error {
 func (m *UIServiceTypes_ListFeaturesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UIServiceTypes_ListFeaturesResponse.Marshal(b, m, deterministic)
 }
-func (m *UIServiceTypes_ListFeaturesResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UIServiceTypes_ListFeaturesResponse.Merge(m, src)
+func (dst *UIServiceTypes_ListFeaturesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UIServiceTypes_ListFeaturesResponse.Merge(dst, src)
 }
 func (m *UIServiceTypes_ListFeaturesResponse) XXX_Size() int {
 	return xxx_messageInfo_UIServiceTypes_ListFeaturesResponse.Size(m)
@@ -439,7 +439,7 @@ func (m *UIServiceTypes_FeatureGroupDetail) Reset()         { *m = UIServiceType
 func (m *UIServiceTypes_FeatureGroupDetail) String() string { return proto.CompactTextString(m) }
 func (*UIServiceTypes_FeatureGroupDetail) ProtoMessage()    {}
 func (*UIServiceTypes_FeatureGroupDetail) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c13b3edb35d457e8, []int{0, 8}
+	return fileDescriptor_UIService_07f94aecf154b17a, []int{0, 8}
 }
 func (m *UIServiceTypes_FeatureGroupDetail) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UIServiceTypes_FeatureGroupDetail.Unmarshal(m, b)
@@ -447,8 +447,8 @@ func (m *UIServiceTypes_FeatureGroupDetail) XXX_Unmarshal(b []byte) error {
 func (m *UIServiceTypes_FeatureGroupDetail) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UIServiceTypes_FeatureGroupDetail.Marshal(b, m, deterministic)
 }
-func (m *UIServiceTypes_FeatureGroupDetail) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UIServiceTypes_FeatureGroupDetail.Merge(m, src)
+func (dst *UIServiceTypes_FeatureGroupDetail) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UIServiceTypes_FeatureGroupDetail.Merge(dst, src)
 }
 func (m *UIServiceTypes_FeatureGroupDetail) XXX_Size() int {
 	return xxx_messageInfo_UIServiceTypes_FeatureGroupDetail.Size(m)
@@ -484,7 +484,7 @@ func (m *UIServiceTypes_GetFeatureGroupRequest) Reset()         { *m = UIService
 func (m *UIServiceTypes_GetFeatureGroupRequest) String() string { return proto.CompactTextString(m) }
 func (*UIServiceTypes_GetFeatureGroupRequest) ProtoMessage()    {}
 func (*UIServiceTypes_GetFeatureGroupRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c13b3edb35d457e8, []int{0, 9}
+	return fileDescriptor_UIService_07f94aecf154b17a, []int{0, 9}
 }
 func (m *UIServiceTypes_GetFeatureGroupRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UIServiceTypes_GetFeatureGroupRequest.Unmarshal(m, b)
@@ -492,8 +492,8 @@ func (m *UIServiceTypes_GetFeatureGroupRequest) XXX_Unmarshal(b []byte) error {
 func (m *UIServiceTypes_GetFeatureGroupRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UIServiceTypes_GetFeatureGroupRequest.Marshal(b, m, deterministic)
 }
-func (m *UIServiceTypes_GetFeatureGroupRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UIServiceTypes_GetFeatureGroupRequest.Merge(m, src)
+func (dst *UIServiceTypes_GetFeatureGroupRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UIServiceTypes_GetFeatureGroupRequest.Merge(dst, src)
 }
 func (m *UIServiceTypes_GetFeatureGroupRequest) XXX_Size() int {
 	return xxx_messageInfo_UIServiceTypes_GetFeatureGroupRequest.Size(m)
@@ -524,7 +524,7 @@ func (m *UIServiceTypes_GetFeatureGroupResponse) Reset() {
 func (m *UIServiceTypes_GetFeatureGroupResponse) String() string { return proto.CompactTextString(m) }
 func (*UIServiceTypes_GetFeatureGroupResponse) ProtoMessage()    {}
 func (*UIServiceTypes_GetFeatureGroupResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c13b3edb35d457e8, []int{0, 10}
+	return fileDescriptor_UIService_07f94aecf154b17a, []int{0, 10}
 }
 func (m *UIServiceTypes_GetFeatureGroupResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UIServiceTypes_GetFeatureGroupResponse.Unmarshal(m, b)
@@ -532,8 +532,8 @@ func (m *UIServiceTypes_GetFeatureGroupResponse) XXX_Unmarshal(b []byte) error {
 func (m *UIServiceTypes_GetFeatureGroupResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UIServiceTypes_GetFeatureGroupResponse.Marshal(b, m, deterministic)
 }
-func (m *UIServiceTypes_GetFeatureGroupResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UIServiceTypes_GetFeatureGroupResponse.Merge(m, src)
+func (dst *UIServiceTypes_GetFeatureGroupResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UIServiceTypes_GetFeatureGroupResponse.Merge(dst, src)
 }
 func (m *UIServiceTypes_GetFeatureGroupResponse) XXX_Size() int {
 	return xxx_messageInfo_UIServiceTypes_GetFeatureGroupResponse.Size(m)
@@ -564,7 +564,7 @@ func (m *UIServiceTypes_ListFeatureGroupsResponse) Reset() {
 func (m *UIServiceTypes_ListFeatureGroupsResponse) String() string { return proto.CompactTextString(m) }
 func (*UIServiceTypes_ListFeatureGroupsResponse) ProtoMessage()    {}
 func (*UIServiceTypes_ListFeatureGroupsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c13b3edb35d457e8, []int{0, 11}
+	return fileDescriptor_UIService_07f94aecf154b17a, []int{0, 11}
 }
 func (m *UIServiceTypes_ListFeatureGroupsResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UIServiceTypes_ListFeatureGroupsResponse.Unmarshal(m, b)
@@ -572,8 +572,8 @@ func (m *UIServiceTypes_ListFeatureGroupsResponse) XXX_Unmarshal(b []byte) error
 func (m *UIServiceTypes_ListFeatureGroupsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UIServiceTypes_ListFeatureGroupsResponse.Marshal(b, m, deterministic)
 }
-func (m *UIServiceTypes_ListFeatureGroupsResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UIServiceTypes_ListFeatureGroupsResponse.Merge(m, src)
+func (dst *UIServiceTypes_ListFeatureGroupsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UIServiceTypes_ListFeatureGroupsResponse.Merge(dst, src)
 }
 func (m *UIServiceTypes_ListFeatureGroupsResponse) XXX_Size() int {
 	return xxx_messageInfo_UIServiceTypes_ListFeatureGroupsResponse.Size(m)
@@ -604,7 +604,7 @@ func (m *UIServiceTypes_StorageDetail) Reset()         { *m = UIServiceTypes_Sto
 func (m *UIServiceTypes_StorageDetail) String() string { return proto.CompactTextString(m) }
 func (*UIServiceTypes_StorageDetail) ProtoMessage()    {}
 func (*UIServiceTypes_StorageDetail) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c13b3edb35d457e8, []int{0, 12}
+	return fileDescriptor_UIService_07f94aecf154b17a, []int{0, 12}
 }
 func (m *UIServiceTypes_StorageDetail) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UIServiceTypes_StorageDetail.Unmarshal(m, b)
@@ -612,8 +612,8 @@ func (m *UIServiceTypes_StorageDetail) XXX_Unmarshal(b []byte) error {
 func (m *UIServiceTypes_StorageDetail) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UIServiceTypes_StorageDetail.Marshal(b, m, deterministic)
 }
-func (m *UIServiceTypes_StorageDetail) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UIServiceTypes_StorageDetail.Merge(m, src)
+func (dst *UIServiceTypes_StorageDetail) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UIServiceTypes_StorageDetail.Merge(dst, src)
 }
 func (m *UIServiceTypes_StorageDetail) XXX_Size() int {
 	return xxx_messageInfo_UIServiceTypes_StorageDetail.Size(m)
@@ -649,7 +649,7 @@ func (m *UIServiceTypes_GetStorageRequest) Reset()         { *m = UIServiceTypes
 func (m *UIServiceTypes_GetStorageRequest) String() string { return proto.CompactTextString(m) }
 func (*UIServiceTypes_GetStorageRequest) ProtoMessage()    {}
 func (*UIServiceTypes_GetStorageRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c13b3edb35d457e8, []int{0, 13}
+	return fileDescriptor_UIService_07f94aecf154b17a, []int{0, 13}
 }
 func (m *UIServiceTypes_GetStorageRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UIServiceTypes_GetStorageRequest.Unmarshal(m, b)
@@ -657,8 +657,8 @@ func (m *UIServiceTypes_GetStorageRequest) XXX_Unmarshal(b []byte) error {
 func (m *UIServiceTypes_GetStorageRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UIServiceTypes_GetStorageRequest.Marshal(b, m, deterministic)
 }
-func (m *UIServiceTypes_GetStorageRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UIServiceTypes_GetStorageRequest.Merge(m, src)
+func (dst *UIServiceTypes_GetStorageRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UIServiceTypes_GetStorageRequest.Merge(dst, src)
 }
 func (m *UIServiceTypes_GetStorageRequest) XXX_Size() int {
 	return xxx_messageInfo_UIServiceTypes_GetStorageRequest.Size(m)
@@ -687,7 +687,7 @@ func (m *UIServiceTypes_GetStorageResponse) Reset()         { *m = UIServiceType
 func (m *UIServiceTypes_GetStorageResponse) String() string { return proto.CompactTextString(m) }
 func (*UIServiceTypes_GetStorageResponse) ProtoMessage()    {}
 func (*UIServiceTypes_GetStorageResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c13b3edb35d457e8, []int{0, 14}
+	return fileDescriptor_UIService_07f94aecf154b17a, []int{0, 14}
 }
 func (m *UIServiceTypes_GetStorageResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UIServiceTypes_GetStorageResponse.Unmarshal(m, b)
@@ -695,8 +695,8 @@ func (m *UIServiceTypes_GetStorageResponse) XXX_Unmarshal(b []byte) error {
 func (m *UIServiceTypes_GetStorageResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UIServiceTypes_GetStorageResponse.Marshal(b, m, deterministic)
 }
-func (m *UIServiceTypes_GetStorageResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UIServiceTypes_GetStorageResponse.Merge(m, src)
+func (dst *UIServiceTypes_GetStorageResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UIServiceTypes_GetStorageResponse.Merge(dst, src)
 }
 func (m *UIServiceTypes_GetStorageResponse) XXX_Size() int {
 	return xxx_messageInfo_UIServiceTypes_GetStorageResponse.Size(m)
@@ -725,7 +725,7 @@ func (m *UIServiceTypes_ListStorageResponse) Reset()         { *m = UIServiceTyp
 func (m *UIServiceTypes_ListStorageResponse) String() string { return proto.CompactTextString(m) }
 func (*UIServiceTypes_ListStorageResponse) ProtoMessage()    {}
 func (*UIServiceTypes_ListStorageResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c13b3edb35d457e8, []int{0, 15}
+	return fileDescriptor_UIService_07f94aecf154b17a, []int{0, 15}
 }
 func (m *UIServiceTypes_ListStorageResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UIServiceTypes_ListStorageResponse.Unmarshal(m, b)
@@ -733,8 +733,8 @@ func (m *UIServiceTypes_ListStorageResponse) XXX_Unmarshal(b []byte) error {
 func (m *UIServiceTypes_ListStorageResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UIServiceTypes_ListStorageResponse.Marshal(b, m, deterministic)
 }
-func (m *UIServiceTypes_ListStorageResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UIServiceTypes_ListStorageResponse.Merge(m, src)
+func (dst *UIServiceTypes_ListStorageResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UIServiceTypes_ListStorageResponse.Merge(dst, src)
 }
 func (m *UIServiceTypes_ListStorageResponse) XXX_Size() int {
 	return xxx_messageInfo_UIServiceTypes_ListStorageResponse.Size(m)
@@ -1119,9 +1119,11 @@ var _UIService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "feast/core/UIService.proto",
 }
 
-func init() { proto.RegisterFile("feast/core/UIService.proto", fileDescriptor_c13b3edb35d457e8) }
+func init() {
+	proto.RegisterFile("feast/core/UIService.proto", fileDescriptor_UIService_07f94aecf154b17a)
+}
 
-var fileDescriptor_c13b3edb35d457e8 = []byte{
+var fileDescriptor_UIService_07f94aecf154b17a = []byte{
 	// 784 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0x4d, 0x6f, 0xd3, 0x40,
 	0x10, 0xcd, 0x47, 0x49, 0x9a, 0x69, 0x5a, 0xe8, 0x82, 0xda, 0xb0, 0x50, 0x51, 0x99, 0x03, 0x91,

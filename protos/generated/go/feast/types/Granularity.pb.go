@@ -35,7 +35,6 @@ var Granularity_Enum_name = map[int32]string{
 	3: "MINUTE",
 	4: "SECOND",
 }
-
 var Granularity_Enum_value = map[string]int32{
 	"NONE":   0,
 	"DAY":    1,
@@ -47,9 +46,8 @@ var Granularity_Enum_value = map[string]int32{
 func (x Granularity_Enum) String() string {
 	return proto.EnumName(Granularity_Enum_name, int32(x))
 }
-
 func (Granularity_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_846024d9f96d5fa2, []int{0, 0}
+	return fileDescriptor_Granularity_1271850b4f4bfac4, []int{0, 0}
 }
 
 type Granularity struct {
@@ -62,7 +60,7 @@ func (m *Granularity) Reset()         { *m = Granularity{} }
 func (m *Granularity) String() string { return proto.CompactTextString(m) }
 func (*Granularity) ProtoMessage()    {}
 func (*Granularity) Descriptor() ([]byte, []int) {
-	return fileDescriptor_846024d9f96d5fa2, []int{0}
+	return fileDescriptor_Granularity_1271850b4f4bfac4, []int{0}
 }
 func (m *Granularity) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Granularity.Unmarshal(m, b)
@@ -70,8 +68,8 @@ func (m *Granularity) XXX_Unmarshal(b []byte) error {
 func (m *Granularity) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Granularity.Marshal(b, m, deterministic)
 }
-func (m *Granularity) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Granularity.Merge(m, src)
+func (dst *Granularity) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Granularity.Merge(dst, src)
 }
 func (m *Granularity) XXX_Size() int {
 	return xxx_messageInfo_Granularity.Size(m)
@@ -87,9 +85,11 @@ func init() {
 	proto.RegisterEnum("feast.types.Granularity_Enum", Granularity_Enum_name, Granularity_Enum_value)
 }
 
-func init() { proto.RegisterFile("feast/types/Granularity.proto", fileDescriptor_846024d9f96d5fa2) }
+func init() {
+	proto.RegisterFile("feast/types/Granularity.proto", fileDescriptor_Granularity_1271850b4f4bfac4)
+}
 
-var fileDescriptor_846024d9f96d5fa2 = []byte{
+var fileDescriptor_Granularity_1271850b4f4bfac4 = []byte{
 	// 183 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x92, 0x4d, 0x4b, 0x4d, 0x2c,
 	0x2e, 0xd1, 0x2f, 0xa9, 0x2c, 0x48, 0x2d, 0xd6, 0x77, 0x2f, 0x4a, 0xcc, 0x2b, 0xcd, 0x49, 0x2c,

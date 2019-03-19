@@ -44,7 +44,6 @@ var ValueType_Enum_name = map[int32]string{
 	7: "BOOL",
 	8: "TIMESTAMP",
 }
-
 var ValueType_Enum_value = map[string]int32{
 	"UNKNOWN":   0,
 	"BYTES":     1,
@@ -60,9 +59,8 @@ var ValueType_Enum_value = map[string]int32{
 func (x ValueType_Enum) String() string {
 	return proto.EnumName(ValueType_Enum_name, int32(x))
 }
-
 func (ValueType_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_47c504407d284ecc, []int{0, 0}
+	return fileDescriptor_Value_8f69b75784c97601, []int{0, 0}
 }
 
 type ValueType struct {
@@ -75,7 +73,7 @@ func (m *ValueType) Reset()         { *m = ValueType{} }
 func (m *ValueType) String() string { return proto.CompactTextString(m) }
 func (*ValueType) ProtoMessage()    {}
 func (*ValueType) Descriptor() ([]byte, []int) {
-	return fileDescriptor_47c504407d284ecc, []int{0}
+	return fileDescriptor_Value_8f69b75784c97601, []int{0}
 }
 func (m *ValueType) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ValueType.Unmarshal(m, b)
@@ -83,8 +81,8 @@ func (m *ValueType) XXX_Unmarshal(b []byte) error {
 func (m *ValueType) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ValueType.Marshal(b, m, deterministic)
 }
-func (m *ValueType) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ValueType.Merge(m, src)
+func (dst *ValueType) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ValueType.Merge(dst, src)
 }
 func (m *ValueType) XXX_Size() int {
 	return xxx_messageInfo_ValueType.Size(m)
@@ -115,7 +113,7 @@ func (m *Value) Reset()         { *m = Value{} }
 func (m *Value) String() string { return proto.CompactTextString(m) }
 func (*Value) ProtoMessage()    {}
 func (*Value) Descriptor() ([]byte, []int) {
-	return fileDescriptor_47c504407d284ecc, []int{1}
+	return fileDescriptor_Value_8f69b75784c97601, []int{1}
 }
 func (m *Value) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Value.Unmarshal(m, b)
@@ -123,8 +121,8 @@ func (m *Value) XXX_Unmarshal(b []byte) error {
 func (m *Value) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Value.Marshal(b, m, deterministic)
 }
-func (m *Value) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Value.Merge(m, src)
+func (dst *Value) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Value.Merge(dst, src)
 }
 func (m *Value) XXX_Size() int {
 	return xxx_messageInfo_Value.Size(m)
@@ -429,7 +427,7 @@ func (m *ValueList) Reset()         { *m = ValueList{} }
 func (m *ValueList) String() string { return proto.CompactTextString(m) }
 func (*ValueList) ProtoMessage()    {}
 func (*ValueList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_47c504407d284ecc, []int{2}
+	return fileDescriptor_Value_8f69b75784c97601, []int{2}
 }
 func (m *ValueList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ValueList.Unmarshal(m, b)
@@ -437,8 +435,8 @@ func (m *ValueList) XXX_Unmarshal(b []byte) error {
 func (m *ValueList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ValueList.Marshal(b, m, deterministic)
 }
-func (m *ValueList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ValueList.Merge(m, src)
+func (dst *ValueList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ValueList.Merge(dst, src)
 }
 func (m *ValueList) XXX_Size() int {
 	return xxx_messageInfo_ValueList.Size(m)
@@ -763,7 +761,7 @@ func (m *BytesList) Reset()         { *m = BytesList{} }
 func (m *BytesList) String() string { return proto.CompactTextString(m) }
 func (*BytesList) ProtoMessage()    {}
 func (*BytesList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_47c504407d284ecc, []int{3}
+	return fileDescriptor_Value_8f69b75784c97601, []int{3}
 }
 func (m *BytesList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BytesList.Unmarshal(m, b)
@@ -771,8 +769,8 @@ func (m *BytesList) XXX_Unmarshal(b []byte) error {
 func (m *BytesList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_BytesList.Marshal(b, m, deterministic)
 }
-func (m *BytesList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_BytesList.Merge(m, src)
+func (dst *BytesList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BytesList.Merge(dst, src)
 }
 func (m *BytesList) XXX_Size() int {
 	return xxx_messageInfo_BytesList.Size(m)
@@ -801,7 +799,7 @@ func (m *StringList) Reset()         { *m = StringList{} }
 func (m *StringList) String() string { return proto.CompactTextString(m) }
 func (*StringList) ProtoMessage()    {}
 func (*StringList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_47c504407d284ecc, []int{4}
+	return fileDescriptor_Value_8f69b75784c97601, []int{4}
 }
 func (m *StringList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StringList.Unmarshal(m, b)
@@ -809,8 +807,8 @@ func (m *StringList) XXX_Unmarshal(b []byte) error {
 func (m *StringList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StringList.Marshal(b, m, deterministic)
 }
-func (m *StringList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StringList.Merge(m, src)
+func (dst *StringList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StringList.Merge(dst, src)
 }
 func (m *StringList) XXX_Size() int {
 	return xxx_messageInfo_StringList.Size(m)
@@ -839,7 +837,7 @@ func (m *Int32List) Reset()         { *m = Int32List{} }
 func (m *Int32List) String() string { return proto.CompactTextString(m) }
 func (*Int32List) ProtoMessage()    {}
 func (*Int32List) Descriptor() ([]byte, []int) {
-	return fileDescriptor_47c504407d284ecc, []int{5}
+	return fileDescriptor_Value_8f69b75784c97601, []int{5}
 }
 func (m *Int32List) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Int32List.Unmarshal(m, b)
@@ -847,8 +845,8 @@ func (m *Int32List) XXX_Unmarshal(b []byte) error {
 func (m *Int32List) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Int32List.Marshal(b, m, deterministic)
 }
-func (m *Int32List) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Int32List.Merge(m, src)
+func (dst *Int32List) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Int32List.Merge(dst, src)
 }
 func (m *Int32List) XXX_Size() int {
 	return xxx_messageInfo_Int32List.Size(m)
@@ -877,7 +875,7 @@ func (m *Int64List) Reset()         { *m = Int64List{} }
 func (m *Int64List) String() string { return proto.CompactTextString(m) }
 func (*Int64List) ProtoMessage()    {}
 func (*Int64List) Descriptor() ([]byte, []int) {
-	return fileDescriptor_47c504407d284ecc, []int{6}
+	return fileDescriptor_Value_8f69b75784c97601, []int{6}
 }
 func (m *Int64List) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Int64List.Unmarshal(m, b)
@@ -885,8 +883,8 @@ func (m *Int64List) XXX_Unmarshal(b []byte) error {
 func (m *Int64List) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Int64List.Marshal(b, m, deterministic)
 }
-func (m *Int64List) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Int64List.Merge(m, src)
+func (dst *Int64List) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Int64List.Merge(dst, src)
 }
 func (m *Int64List) XXX_Size() int {
 	return xxx_messageInfo_Int64List.Size(m)
@@ -915,7 +913,7 @@ func (m *DoubleList) Reset()         { *m = DoubleList{} }
 func (m *DoubleList) String() string { return proto.CompactTextString(m) }
 func (*DoubleList) ProtoMessage()    {}
 func (*DoubleList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_47c504407d284ecc, []int{7}
+	return fileDescriptor_Value_8f69b75784c97601, []int{7}
 }
 func (m *DoubleList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DoubleList.Unmarshal(m, b)
@@ -923,8 +921,8 @@ func (m *DoubleList) XXX_Unmarshal(b []byte) error {
 func (m *DoubleList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_DoubleList.Marshal(b, m, deterministic)
 }
-func (m *DoubleList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DoubleList.Merge(m, src)
+func (dst *DoubleList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DoubleList.Merge(dst, src)
 }
 func (m *DoubleList) XXX_Size() int {
 	return xxx_messageInfo_DoubleList.Size(m)
@@ -953,7 +951,7 @@ func (m *FloatList) Reset()         { *m = FloatList{} }
 func (m *FloatList) String() string { return proto.CompactTextString(m) }
 func (*FloatList) ProtoMessage()    {}
 func (*FloatList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_47c504407d284ecc, []int{8}
+	return fileDescriptor_Value_8f69b75784c97601, []int{8}
 }
 func (m *FloatList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FloatList.Unmarshal(m, b)
@@ -961,8 +959,8 @@ func (m *FloatList) XXX_Unmarshal(b []byte) error {
 func (m *FloatList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_FloatList.Marshal(b, m, deterministic)
 }
-func (m *FloatList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_FloatList.Merge(m, src)
+func (dst *FloatList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FloatList.Merge(dst, src)
 }
 func (m *FloatList) XXX_Size() int {
 	return xxx_messageInfo_FloatList.Size(m)
@@ -991,7 +989,7 @@ func (m *BoolList) Reset()         { *m = BoolList{} }
 func (m *BoolList) String() string { return proto.CompactTextString(m) }
 func (*BoolList) ProtoMessage()    {}
 func (*BoolList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_47c504407d284ecc, []int{9}
+	return fileDescriptor_Value_8f69b75784c97601, []int{9}
 }
 func (m *BoolList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BoolList.Unmarshal(m, b)
@@ -999,8 +997,8 @@ func (m *BoolList) XXX_Unmarshal(b []byte) error {
 func (m *BoolList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_BoolList.Marshal(b, m, deterministic)
 }
-func (m *BoolList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_BoolList.Merge(m, src)
+func (dst *BoolList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BoolList.Merge(dst, src)
 }
 func (m *BoolList) XXX_Size() int {
 	return xxx_messageInfo_BoolList.Size(m)
@@ -1029,7 +1027,7 @@ func (m *TimestampList) Reset()         { *m = TimestampList{} }
 func (m *TimestampList) String() string { return proto.CompactTextString(m) }
 func (*TimestampList) ProtoMessage()    {}
 func (*TimestampList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_47c504407d284ecc, []int{10}
+	return fileDescriptor_Value_8f69b75784c97601, []int{10}
 }
 func (m *TimestampList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TimestampList.Unmarshal(m, b)
@@ -1037,8 +1035,8 @@ func (m *TimestampList) XXX_Unmarshal(b []byte) error {
 func (m *TimestampList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_TimestampList.Marshal(b, m, deterministic)
 }
-func (m *TimestampList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_TimestampList.Merge(m, src)
+func (dst *TimestampList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TimestampList.Merge(dst, src)
 }
 func (m *TimestampList) XXX_Size() int {
 	return xxx_messageInfo_TimestampList.Size(m)
@@ -1071,9 +1069,9 @@ func init() {
 	proto.RegisterEnum("feast.types.ValueType_Enum", ValueType_Enum_name, ValueType_Enum_value)
 }
 
-func init() { proto.RegisterFile("feast/types/Value.proto", fileDescriptor_47c504407d284ecc) }
+func init() { proto.RegisterFile("feast/types/Value.proto", fileDescriptor_Value_8f69b75784c97601) }
 
-var fileDescriptor_47c504407d284ecc = []byte{
+var fileDescriptor_Value_8f69b75784c97601 = []byte{
 	// 626 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x94, 0xd1, 0x6f, 0x9a, 0x50,
 	0x14, 0xc6, 0xb9, 0x22, 0x0a, 0xc7, 0x36, 0x21, 0x37, 0xd9, 0xda, 0x34, 0x6d, 0x47, 0x7c, 0xe2,
