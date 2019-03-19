@@ -42,8 +42,8 @@ __Discovery__: Feast allows users to easily explore and discover features and th
 * [Concepts](docs/concepts.md)
 
 For Feast administrators:
-* [Installation quickstart](docs/install.md}
-* [Helm charts](charts/README.md} details
+* [Installation quickstart](docs/install.md)
+* [Helm charts](charts/README.md) details
 
 ## Notice
 
