@@ -19,7 +19,6 @@ package feast.ingestion.options;
 
 import com.google.auto.service.AutoService;
 import java.util.Collections;
-import org.apache.beam.sdk.metrics.MetricsSink;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -31,51 +30,17 @@ import org.apache.beam.sdk.options.Validation.Required;
  */
 public interface ImportJobPipelineOptions extends PipelineOptions {
 
-  @Description("Import spec yaml file path")
-  @Required(groups = {"importSpec"})
-  String getImportSpecYamlFile();
+  @Description("Path to a workspace directory containing importJobSpecs.yaml")
+  @Required
+  String getWorkspace();
 
-  void setImportSpecYamlFile(String value);
-
-  @Description("Import spec as native proto binary encoding converted to Base64 string")
-  @Required(groups = {"importSpec"})
-  String getImportSpecBase64();
-
-  void setImportSpecBase64(String value);
+  void setWorkspace(String value);
 
   @Description("If dry run is set, execute up to feature row validation")
   @Default.Boolean(false)
   Boolean isDryRun();
 
   void setDryRun(Boolean value);
-
-  @Description("Uri of the core api service. eg: localhost:8001")
-  @Required(groups = {"coreApi"})
-  String getCoreApiUri();
-
-  void setCoreApiUri(String value);
-
-  @Description(
-      "Path to root directory of json spec jsonfiles, substitutes for the core api service")
-  @Required(groups = {"coreApi"})
-  String getCoreApiSpecPath();
-
-  void setCoreApiSpecPath(String value);
-
-  @Description(
-      "Set an errors store type. One of: [stderr, stdout, file.json]. Note that you should not use "
-          + "stderr/stdout in production unless your data volume is extremely small.")
-  String getErrorsStoreType();
-
-  void setErrorsStoreType(String value);
-
-  @Description(
-      "Provide errors store options as a json string containing key-values. Options required"
-          + "depend on the type of store set.")
-  @Default.String("{}")
-  String getErrorsStoreOptions();
-
-  void setErrorsStoreOptions(String value);
 
   @AutoService(PipelineOptionsRegistrar.class)
   class ImportJobPipelineOptionsRegistrar implements PipelineOptionsRegistrar {

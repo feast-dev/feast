@@ -24,7 +24,8 @@ import com.google.api.services.dataflow.model.Job;
 import com.google.common.base.Strings;
 import feast.core.config.ImportJobDefaults;
 import feast.core.job.direct.DirectRunnerJobManager;
-import feast.specs.ImportSpecProto.ImportSpec;
+import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
+import java.nio.file.Path;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -33,7 +34,6 @@ public class DataflowJobManager extends DirectRunnerJobManager {
   private final String projectId;
   private final String location;
   private final Dataflow dataflow;
-  private ImportJobDefaults defaults;
 
   public DataflowJobManager(
       Dataflow dataflow, String projectId, String location, ImportJobDefaults importJobDefaults) {
@@ -43,12 +43,11 @@ public class DataflowJobManager extends DirectRunnerJobManager {
     this.projectId = projectId;
     this.location = location;
     this.dataflow = dataflow;
-    this.defaults = importJobDefaults;
   }
 
   @Override
-  public String submitJob(ImportSpec importSpec, String jobId) {
-    return super.submitJob(importSpec, jobId);
+  public String submitJob(ImportJobSpecs importJobSpecs, Path workspace) {
+    return super.submitJob(importJobSpecs, workspace);
   }
 
   @Override

@@ -20,9 +20,9 @@ package feast.core.job.flink;
 import feast.core.config.ImportJobDefaults;
 import feast.core.job.JobManager;
 import feast.core.util.TypeConversion;
-import feast.specs.ImportSpecProto.ImportSpec;
+import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
+import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -48,10 +48,10 @@ public class FlinkJobManager implements JobManager {
   }
 
   @Override
-  public String submitJob(ImportSpec importSpec, String jobId) {
-    flinkCli.parseParameters(createRunArgs(importSpec, jobId));
+  public String submitJob(ImportJobSpecs importJobSpecs, Path workspace) {
+    flinkCli.parseParameters(createRunArgs(importJobSpecs, workspace));
 
-    return getFlinkJobId(jobId);
+    return getFlinkJobId(importJobSpecs.getJobId());
   }
 
   @Override
@@ -70,7 +70,7 @@ public class FlinkJobManager implements JobManager {
     return "";
   }
 
-  private String[] createRunArgs(ImportSpec importSpec, String jobId) {
+  private String[] createRunArgs(ImportJobSpecs importJobSpecs, Path workspace) {
     Map<String, String> options =
         TypeConversion.convertJsonStringToMap(defaults.getImportJobOptions());
     List<String> commands = new ArrayList<>();
@@ -79,16 +79,12 @@ public class FlinkJobManager implements JobManager {
     commands.add("-m");
     commands.add(masterUrl);
     commands.add(defaults.getExecutable());
-    commands.add(option("jobName", jobId));
+    commands.add(option("jobName", importJobSpecs.getJobId()));
     commands.add(option("runner", defaults.getRunner()));
-    commands.add(
-        option("importSpecBase64", Base64.getEncoder().encodeToString(importSpec.toByteArray())));
-    commands.add(option("coreApiUri", defaults.getCoreApiUri()));
-    commands.add(option("errorsStoreType", defaults.getErrorsStoreType()));
-    commands.add(option("errorsStoreOptions", defaults.getErrorsStoreOptions()));
+    commands.add(option("workspace", workspace.toString()));
 
     options.forEach((k, v) -> commands.add(option(k, v)));
-    return commands.toArray(new String[] {});
+    return commands.toArray(new String[]{});
   }
 
   private String[] createStopArgs(String extId) {
@@ -97,7 +93,7 @@ public class FlinkJobManager implements JobManager {
     commands.add("-m");
     commands.add(masterUrl);
     commands.add(extId);
-    return commands.toArray(new String[] {});
+    return commands.toArray(new String[]{});
   }
 
   private String option(String key, String value) {

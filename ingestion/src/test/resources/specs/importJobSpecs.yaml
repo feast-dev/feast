@@ -1,0 +1,172 @@
+importSpec: {}
+servingStorageSpecs:
+  - id: TEST_SERVING
+    type: serving.mock
+    options: {}
+warehouseStorageSpecs:
+  - id: TEST_WAREHOUSE
+    type: warehouse.mock
+    options: {}
+errorsStorageSpec:
+  id: errors
+  type: errors.mock
+  options: {}
+entitySpecs:
+  - name: testEntity
+    description: This is a test entity
+    tags: []
+featureSpecs:
+  - id: testEntity.day.testInt64
+    entity: testEntity
+    granularity: DAY
+    name: testInt64
+    owner: feast@example.com
+    description: This is test feature of type integer
+    uri: https://example.com/
+    valueType: INT64
+    tags: []
+    options: {}
+    dataStores:
+      serving:
+        id: TEST_SERVING
+      warehouse:
+        id: TEST_WAREHOUSE
+  - id: testEntity.hour.redisInt32
+    entity: testEntity
+    granularity: HOUR
+    name: redisInt32
+    owner: feast@example.com
+    description: This is test feature of type integer that goes to redis
+    uri: https://example.com/
+    valueType: INT32
+    tags: []
+    options: {}
+    dataStores:
+      serving:
+        id: REDIS1
+        options:
+          expiry: PT1H
+          bucketSize: PT10H
+  - id: testEntity.hour.redisString
+    entity: testEntity
+    granularity: HOUR
+    name: redisString
+    owner: feast@example.com
+    description: This is test feature of type integer that goes to redis
+    uri: https://example.com/
+    valueType: STRING
+    tags: []
+    options: {}
+    dataStores:
+      serving:
+        id: REDIS1
+  - id: testEntity.none.redisInt32
+    entity: testEntity
+    granularity: NONE
+    name: redisInt32
+    owner: feast@example.com
+    description: This is test feature of type integer the goes to redis
+    uri: https://example.com/
+    valueType: INT32
+    tags: []
+    options: {}
+    dataStores:
+      serving:
+        id: REDIS1
+        options:
+          expiry: PT1H
+  - id: testEntity.none.redisString
+    entity: testEntity
+    granularity: NONE
+    name: redisString
+    owner: feast@example.com
+    description: This is test feature of type integer that goes to redis
+    uri: https://example.com/
+    valueType: STRING
+    tags: []
+    options: {}
+    dataStores:
+      serving:
+        id: REDIS1
+  - id: testEntity.none.testInt32
+    entity: testEntity
+    granularity: NONE
+    name: testInt32
+    owner: feast@example.com
+    description: This is test feature of type integer
+    uri: https://example.com/
+    valueType: INT32
+    tags: []
+    options: {}
+    dataStores:
+      serving:
+        id: TEST_SERVING
+      warehouse:
+        id: TEST_WAREHOUSE
+  - id: testEntity.none.testInt64
+    entity: testEntity
+    granularity: NONE
+    name: testInt64
+    owner: feast@example.com
+    description: This is test feature of type integer
+    uri: https://example.com/
+    valueType: INT64
+    tags: []
+    options: {}
+    dataStores:
+      serving:
+        id: TEST_SERVING
+      warehouse:
+        id: TEST_WAREHOUSE
+  - id: testEntity.none.testInt64NoWarehouse
+    entity: testEntity
+    granularity: NONE
+    name: testInt64NoWarehouse
+    owner: feast@example.com
+    description: This is test feature of type integer
+    uri: https://example.com/
+    valueType: INT64
+    tags: []
+    options: {}
+    dataStores:
+      serving:
+        id: TEST_SERVING
+  - id: testEntity.none.testString
+    entity: testEntity
+    granularity: NONE
+    name: testString
+    owner: feast@example.com
+    description: This is test feature of type integer
+    uri: https://example.com/
+    valueType: STRING
+    dataStores:
+      serving:
+        id: TEST_SERVING
+      warehouse:
+        id: TEST_WAREHOUSE
+  - id: testEntity.none.testStringNoWarehouse
+    entity: testEntity
+    granularity: NONE
+    name: testStringNoWarehouse
+    owner: feast@example.com
+    description: This is test feature of type integer
+    uri: https://example.com/
+    valueType: STRING
+    dataStores:
+      serving:
+        id: TEST_SERVING
+  - id: testEntity.none.unknownInt32
+    entity: testEntity
+    granularity: NONE
+    name: unknownInt32
+    owner: feast@example.com
+    description: This is test feature of type integer that goes to an unknown serving
+      store
+    uri: https://example.com/
+    valueType: INT32
+    tags: []
+    options: {}
+    dataStores:
+      serving:
+        id: UNKNOWN1
+        options: {}

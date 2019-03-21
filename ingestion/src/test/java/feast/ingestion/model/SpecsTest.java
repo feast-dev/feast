@@ -18,26 +18,24 @@
 package feast.ingestion.model;
 
 import static junit.framework.TestCase.assertTrue;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.Lists;
 import com.google.common.io.Resources;
-import feast.ingestion.service.FileSpecService;
-import feast.specs.FeatureSpecProto.DataStore;
-import feast.specs.FeatureSpecProto.DataStores;
-import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.ingestion.config.ImportJobSpecsSupplier;
+import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 
 public class SpecsTest {
 
-  FileSpecService specService;
+  ImportJobSpecs importJobSpecs;
 
   private Field.Builder newField(String featureId) {
     return Field.newBuilder().setFeatureId(featureId);
@@ -45,23 +43,23 @@ public class SpecsTest {
 
   @Before
   public void before() {
-    Path path = Paths.get(Resources.getResource("core_specs/").getPath());
-    specService = new FileSpecService(path.toString());
+    Path path = Paths.get(Resources.getResource("specs/").getPath());
+    importJobSpecs = new ImportJobSpecsSupplier(path.toString()).get();
   }
 
   @Test
   public void testSingleFeatureAndEntity() {
-    ImportSpec importSpec =
-        ImportSpec.newBuilder()
+    ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
+        .setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
             .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
-            .build();
+        ).build();
 
-    Specs specs = Specs.of("testjob", importSpec, specService);
+    Specs specs = Specs.of("testjob", importJobSpecs);
     specs.validate();
 
     assertEquals("testjob", specs.getJobName());
-    assertEquals(importSpec, specs.getImportSpec());
+    assertEquals(importJobSpecs.getImportSpec(), specs.getImportSpec());
 
     assertEquals(1, specs.getEntitySpecs().size());
     assertTrue(specs.getEntitySpecs().containsKey("testEntity"));
@@ -69,18 +67,18 @@ public class SpecsTest {
     assertEquals(1, specs.getFeatureSpecs().size());
     assertTrue(specs.getFeatureSpecs().containsKey("testEntity.none.testInt32"));
 
-    assertTrue(specs.getStorageSpecs().containsKey("TEST_SERVING"));
+    assertTrue(specs.getServingStorageSpecs().containsKey("TEST_SERVING"));
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testErrorOnUnknownEntity() {
-    ImportSpec importSpec =
-        ImportSpec.newBuilder()
+    ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
+        .setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
             .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
-            .build();
+        ).build();
 
-    Specs specs = Specs.of("testjob", importSpec, specService);
+    Specs specs = Specs.of("testjob", importJobSpecs);
     specs.validate();
 
     specs.getEntitySpec("unknown");
@@ -88,13 +86,13 @@ public class SpecsTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void testErrorOnUnknownFeature() {
-    ImportSpec importSpec =
-        ImportSpec.newBuilder()
+    ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
+        .setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
             .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
-            .build();
+        ).build();
 
-    Specs specs = Specs.of("testjob", importSpec, specService);
+    Specs specs = Specs.of("testjob", importJobSpecs);
     specs.validate();
 
     specs.getFeatureSpec("unknown");
@@ -102,13 +100,13 @@ public class SpecsTest {
 
   @Test
   public void testGetFeatureSpec() {
-    ImportSpec importSpec =
-        ImportSpec.newBuilder()
+    ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
+        .setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
             .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
-            .build();
+        ).build();
 
-    Specs specs = Specs.of("testjob", importSpec, specService);
+    Specs specs = Specs.of("testjob", importJobSpecs);
     specs.validate();
 
     assertEquals(
@@ -117,13 +115,13 @@ public class SpecsTest {
 
   @Test
   public void testGetEntitySpec() {
-    ImportSpec importSpec =
-        ImportSpec.newBuilder()
+    ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
+        .setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
             .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
-            .build();
+        ).build();
 
-    Specs specs = Specs.of("testjob", importSpec, specService);
+    Specs specs = Specs.of("testjob", importJobSpecs);
     specs.validate();
 
     assertEquals("testEntity", specs.getEntitySpec("testEntity").getName());
@@ -131,79 +129,28 @@ public class SpecsTest {
 
   @Test
   public void testGetStorageSpec() {
-    ImportSpec importSpec =
-        ImportSpec.newBuilder()
+    ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
+        .setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
             .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
-            .build();
+        ).build();
 
-    Specs specs = Specs.of("testjob", importSpec, specService);
+    Specs specs = Specs.of("testjob", importJobSpecs);
     specs.validate();
 
-    assertEquals("TEST_SERVING", specs.getStorageSpec("TEST_SERVING").getId());
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testErrorOnUnknownStore() {
-    ImportSpec importSpec =
-        ImportSpec.newBuilder()
-            .addEntities("testEntity")
-            .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
-            .build();
-
-    Specs specs = Specs.of("testjob", importSpec, specService);
-    specs.validate();
-
-    specs.getStorageSpec("Unknown feature unknown, spec was not initialized");
+    assertThat(specs.getWarehouseStorageSpecs().keySet(), containsInAnyOrder("TEST_WAREHOUSE"));
+    assertThat(specs.getWarehouseStorageSpecs().keySet(), containsInAnyOrder("TEST_WAREHOUSE"));
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testFeatureSpecReferencesUnknownEntity() {
-    ImportSpec importSpec =
-        ImportSpec.newBuilder()
+    ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
+        .setImportSpec(ImportSpec.newBuilder()
             .addEntities("totally_different_entity")
             .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
-            .build();
+        ).build();
 
-    Specs specs = Specs.of("testjob", importSpec, specService);
+    Specs specs = Specs.of("testjob", importJobSpecs);
     specs.validate();
-  }
-
-  @Test
-  public void testGetFeatureSpecByStoreId() {
-    ImportSpec importSpec =
-        ImportSpec.newBuilder()
-            .addEntities("testEntity")
-            .setSchema(
-                Schema.newBuilder()
-                    .addAllFields(
-                        Lists.newArrayList(
-                            newField("testEntity.none.testInt32").build(),
-                            newField("testEntity.none.testString").build())))
-            .build();
-
-    Specs specs = Specs.of("testjob", importSpec, specService);
-    specs.validate();
-
-    FeatureSpec testStringSpec = specs.getFeatureSpec("testEntity.none.testString");
-    DataStores dataStores =
-        testStringSpec
-            .getDataStores()
-            .toBuilder()
-            .setServing(DataStore.newBuilder().setId("differentStoreId"))
-            .build();
-    testStringSpec = testStringSpec.toBuilder().setDataStores(dataStores).build();
-
-    // we change one of the specs to point at a different store id.
-    specs.getFeatureSpecs().put("testEntity.none.testString", testStringSpec);
-
-    List<FeatureSpec> featureSpecs1 = specs.getFeatureSpecByServingStoreId("TEST_SERVING");
-    assertEquals(1, featureSpecs1.size());
-    assertEquals("testEntity.none.testInt32", featureSpecs1.get(0).getId());
-
-
-    List<FeatureSpec> featureSpecs2 = specs.getFeatureSpecByServingStoreId("differentStoreId");
-    assertEquals(1, featureSpecs2.size());
-    assertEquals(testStringSpec, featureSpecs2.get(0));
   }
 }

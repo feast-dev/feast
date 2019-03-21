@@ -24,6 +24,7 @@ import static feast.core.validators.Matchers.checkLowerSnakeCase;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Streams;
 import feast.core.dao.EntityInfoRepository;
 import feast.core.dao.FeatureGroupInfoRepository;
 import feast.core.dao.FeatureInfoRepository;
@@ -45,21 +46,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Autowired;
 
 public class SpecValidator {
 
-  private static final String FILE_ERROR_STORE_TYPE = "file.json";
   private static final String NO_STORE = "";
-  private static String[] SUPPORTED_WAREHOUSE_STORES =
+  private static final String[] SUPPORTED_WAREHOUSE_STORES =
       new String[]{
-          BigQueryStorageManager.TYPE, FILE_ERROR_STORE_TYPE,
+          BigQueryStorageManager.TYPE, "file.json",
       };
-  private static String[] SUPPORTED_SERVING_STORES =
+  private static final String[] SUPPORTED_SERVING_STORES =
       new String[]{
           BigTableStorageManager.TYPE, PostgresStorageManager.TYPE, RedisStorageManager.TYPE,
       };
+  private static final String[] SUPPORTED_ERRORS_STORES = new String[]{"file.json", "stderr",
+      "stdout"};
+
   private StorageInfoRepository storageInfoRepository;
   private EntityInfoRepository entityInfoRepository;
   private FeatureGroupInfoRepository featureGroupInfoRepository;
@@ -200,21 +202,63 @@ public class SpecValidator {
     }
   }
 
-  // TODO: add validation for storage types and options
   public void validateStorageSpec(StorageSpec spec) throws IllegalArgumentException {
     try {
       checkArgument(!spec.getId().equals(""), "Id field cannot be empty");
       Matchers.checkUpperSnakeCase(spec.getId(), "Id");
-      checkArgument(
-          Stream.concat(
-              Arrays.stream(SUPPORTED_SERVING_STORES),
-              Arrays.stream(SUPPORTED_WAREHOUSE_STORES))
-              .collect(Collectors.toList())
-              .contains(spec.getType()));
+      checkArgument(Streams.concat(
+          Arrays.stream(SUPPORTED_SERVING_STORES),
+          Arrays.stream(SUPPORTED_WAREHOUSE_STORES)).collect(Collectors.toList())
+              .contains(spec.getType()),
+          "Store type not supported " + spec.getType());
     } catch (NullPointerException | IllegalArgumentException e) {
       throw new IllegalArgumentException(
           Strings.lenientFormat(
-              "Validation for storage spec with id %s failed: %s", spec.getId(), e.getMessage()));
+              "Validation for storage spec with id %s failed: %s", spec.getId(), e.getMessage()),
+          e);
+    }
+  }
+
+  // TODO: add validation for storage types and options
+  public void validateServingStorageSpec(StorageSpec spec) throws IllegalArgumentException {
+    try {
+      checkArgument(!spec.getId().equals(""), "Id field cannot be empty");
+      Matchers.checkUpperSnakeCase(spec.getId(), "Id");
+      checkArgument(Arrays.asList(SUPPORTED_SERVING_STORES).contains(spec.getType()),
+          "Serving store type not supported " + spec.getType());
+    } catch (NullPointerException | IllegalArgumentException e) {
+      throw new IllegalArgumentException(
+          Strings.lenientFormat(
+              "Validation for storage spec with id %s failed: %s", spec.getId(), e.getMessage()),
+          e);
+    }
+  }
+
+  public void validateWarehouseStorageSpec(StorageSpec spec) throws IllegalArgumentException {
+    try {
+      checkArgument(!spec.getId().equals(""), "Id field cannot be empty");
+      Matchers.checkUpperSnakeCase(spec.getId(), "Id");
+      checkArgument(Arrays.asList(SUPPORTED_WAREHOUSE_STORES).contains(spec.getType()),
+          "Warehouse store type not supported " + spec.getType());
+    } catch (NullPointerException | IllegalArgumentException e) {
+      throw new IllegalArgumentException(
+          Strings.lenientFormat(
+              "Validation for storage spec with id %s failed: %s", spec.getId(), e.getMessage()),
+          e);
+    }
+  }
+
+  public void validateErrorsStorageSpec(StorageSpec spec) throws IllegalArgumentException {
+    try {
+      checkArgument(!spec.getId().equals(""), "Id field cannot be empty");
+      Matchers.checkUpperSnakeCase(spec.getId(), "Id");
+      checkArgument(Arrays.asList(SUPPORTED_ERRORS_STORES).contains(spec.getType()),
+          "Errors store type not supported " + spec.getType());
+    } catch (NullPointerException | IllegalArgumentException e) {
+      throw new IllegalArgumentException(
+          Strings.lenientFormat(
+              "Validation for storage spec with id %s failed: %s", spec.getId(), e.getMessage()),
+          e);
     }
   }
 

@@ -25,7 +25,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.ingestion.boot.ImportJobModule;
 import feast.ingestion.boot.PipelineModule;
-import feast.ingestion.config.ImportSpecSupplier;
+import feast.ingestion.config.ImportJobSpecsSupplier;
 import feast.ingestion.model.Specs;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.options.JobOptions;
@@ -41,7 +41,7 @@ import feast.ingestion.transform.fn.LoggerDoFn;
 import feast.ingestion.transform.fn.RoundEventTimestampsDoFn;
 import feast.ingestion.values.PFeatureRows;
 import feast.options.OptionsParser;
-import feast.specs.ImportSpecProto.ImportSpec;
+import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.Arrays;
@@ -75,7 +75,7 @@ public class ImportJob {
   private static Random random = new Random(System.currentTimeMillis());
 
   private final Pipeline pipeline;
-  private final ImportSpec importSpec;
+  private final ImportJobSpecs importJobSpecs;
   private final ReadFeaturesTransform readFeaturesTransform;
   private final ServingStoreTransform servingStoreTransform;
   private final WarehouseStoreTransform warehouseStoreTransform;
@@ -87,7 +87,7 @@ public class ImportJob {
   @Inject
   public ImportJob(
       Pipeline pipeline,
-      ImportSpec importSpec,
+      ImportJobSpecs importJobSpecs,
       ReadFeaturesTransform readFeaturesTransform,
       ServingStoreTransform servingStoreTransform,
       WarehouseStoreTransform warehouseStoreTransform,
@@ -95,7 +95,7 @@ public class ImportJob {
       ImportJobPipelineOptions options,
       Specs specs) {
     this.pipeline = pipeline;
-    this.importSpec = importSpec;
+    this.importJobSpecs = importJobSpecs;
     this.readFeaturesTransform = readFeaturesTransform;
     this.servingStoreTransform = servingStoreTransform;
     this.warehouseStoreTransform = warehouseStoreTransform;
@@ -117,9 +117,10 @@ public class ImportJob {
       options.setJobName(generateName());
     }
     log.info("options: " + options.toString());
-    ImportSpec importSpec = new ImportSpecSupplier(options).get();
+    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(options.getWorkspace())
+        .get();
     Injector injector =
-        Guice.createInjector(new ImportJobModule(options, importSpec), new PipelineModule());
+        Guice.createInjector(new ImportJobModule(options, importJobSpecs), new PipelineModule());
     ImportJob job = injector.getInstance(ImportJob.class);
 
     job.expand();
@@ -141,10 +142,11 @@ public class ImportJob {
         TypeDescriptor.of(FeatureRowExtended.class), ProtoCoder.of(FeatureRowExtended.class));
     coderRegistry.registerCoderForType(TypeDescriptor.of(TableRow.class), TableRowJsonCoder.of());
 
-    JobOptions jobOptions = OptionsParser.parse(importSpec.getJobOptionsMap(), JobOptions.class);
+    JobOptions jobOptions = OptionsParser
+        .parse(importJobSpecs.getImportSpec().getJobOptionsMap(), JobOptions.class);
 
     try {
-      log.info(JsonFormat.printer().print(importSpec));
+      log.info(JsonFormat.printer().print(importJobSpecs));
     } catch (InvalidProtocolBufferException e) {
       // pass
     }
@@ -179,7 +181,7 @@ public class ImportJob {
     if (!dryRun) {
       servingRows.apply("Write to Serving Stores", servingStoreTransform);
       warehouseRows.apply("Write to Warehouse  Stores", warehouseStoreTransform);
-      pFeatureRows.getErrors().apply("Write errors", errorsStoreTransform);
+      pFeatureRows.getErrors().apply(errorsStoreTransform);
     }
   }
 

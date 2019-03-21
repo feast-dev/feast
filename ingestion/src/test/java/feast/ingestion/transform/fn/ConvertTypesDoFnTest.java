@@ -18,8 +18,6 @@
 package feast.ingestion.transform.fn;
 
 
-import static feast.FeastMatchers.hasCount;
-
 import com.google.common.collect.Lists;
 import feast.ingestion.model.Features;
 import feast.ingestion.model.Specs;
@@ -27,17 +25,16 @@ import feast.ingestion.model.Values;
 import feast.ingestion.util.DateUtil;
 import feast.ingestion.values.PFeatureRows;
 import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.specs.ImportJobSpecsProto;
 import feast.types.FeatureRowExtendedProto.Attempt;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.ValueProto.ValueType.Enum;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -60,19 +57,20 @@ public class ConvertTypesDoFnTest {
             Features.of("STRING_TO_TIMESTAMP", Values.ofString("2019-01-31T19:19:19.123Z"))
         ))).build();
 
-    Map<String, FeatureSpec> featureSpecs = new HashMap<>();
-    featureSpecs.put("STRING_TO_INT32", FeatureSpec.newBuilder().setValueType(Enum.INT32).build());
-    featureSpecs.put("STRING_TO_INT64", FeatureSpec.newBuilder().setValueType(Enum.INT64).build());
-    featureSpecs.put("STRING_TO_FLOAT", FeatureSpec.newBuilder().setValueType(Enum.FLOAT).build());
-    featureSpecs.put("STRING_TO_DOUBLE", FeatureSpec.newBuilder().setValueType(Enum.DOUBLE).build());
-    featureSpecs.put("STRING_TO_BOOL", FeatureSpec.newBuilder().setValueType(Enum.BOOL).build());
-    featureSpecs.put("STRING_TO_STRING", FeatureSpec.newBuilder().setValueType(Enum.STRING).build());
-    featureSpecs.put("STRING_TO_TIMESTAMP", FeatureSpec.newBuilder().setValueType(Enum.TIMESTAMP).build());
-
+    List<FeatureSpec> featureSpecs = Lists.newArrayList(
+        FeatureSpec.newBuilder().setId("STRING_TO_INT32").setValueType(Enum.INT32).build(),
+        FeatureSpec.newBuilder().setId("STRING_TO_INT64").setValueType(Enum.INT64).build(),
+        FeatureSpec.newBuilder().setId("STRING_TO_FLOAT").setValueType(Enum.FLOAT).build(),
+        FeatureSpec.newBuilder().setId("STRING_TO_DOUBLE").setValueType(Enum.DOUBLE).build(),
+        FeatureSpec.newBuilder().setId("STRING_TO_BOOL").setValueType(Enum.BOOL).build(),
+        FeatureSpec.newBuilder().setId("STRING_TO_STRING").setValueType(Enum.STRING).build(),
+        FeatureSpec.newBuilder().setId("STRING_TO_TIMESTAMP").setValueType(Enum.TIMESTAMP).build()
+    );
     PFeatureRows output = PFeatureRows.of(pipeline.apply(Create.of(row)))
         .applyDoFn("name",
-            new ConvertTypesDoFn(Specs.builder().featureSpecs(featureSpecs).build()));
-
+            new ConvertTypesDoFn(
+                new Specs("", ImportJobSpecsProto.ImportJobSpecs.newBuilder()
+                    .addAllFeatureSpecs(featureSpecs).build())));
 
     PAssert.that(output.getErrors()).satisfies(rows -> {
       if (rows.iterator().hasNext()) {

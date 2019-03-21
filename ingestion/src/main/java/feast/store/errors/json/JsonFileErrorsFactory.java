@@ -31,7 +31,7 @@ import lombok.AllArgsConstructor;
 
 public class JsonFileErrorsFactory implements FeatureErrorsFactory {
 
-  private static final String JSON_FILES_TYPE = "file.json";
+  public static final String JSON_FILES_TYPE = "file.json";
 
   @Override
   public FeatureStoreWrite create(StorageSpec storageSpec, Specs specs) {

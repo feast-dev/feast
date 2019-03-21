@@ -24,8 +24,8 @@ import feast.ingestion.transform.SplitFeatures.MultiOutputSplit;
 import feast.ingestion.values.PFeatureRows;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.store.FeatureStoreWrite;
 import feast.store.FeatureStoreFactory;
+import feast.store.FeatureStoreWrite;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import java.util.Collection;
 import java.util.HashMap;
@@ -49,6 +49,7 @@ public class SplitOutputByStore extends PTransform<PFeatureRows, PFeatureRows> {
   private Collection<? extends FeatureStoreFactory> stores;
   private SerializableFunction<FeatureSpec, String> selector;
   private Specs specs;
+  private Map<String, StorageSpec> storageSpecs;
 
   @Override
   public PFeatureRows expand(PFeatureRows input) {
@@ -83,7 +84,6 @@ public class SplitOutputByStore extends PTransform<PFeatureRows, PFeatureRows> {
   private Map<String, FeatureStoreWrite> getFeatureStoreTransforms() {
     Map<String, FeatureStoreFactory> storesMap = getStoresMap();
     Map<String, FeatureStoreWrite> transforms = new HashMap<>();
-    Map<String, StorageSpec> storageSpecs = specs.getStorageSpecs();
     for (String storeId : storageSpecs.keySet()) {
       StorageSpec storageSpec = storageSpecs.get(storeId);
       String type = storageSpec.getType();
