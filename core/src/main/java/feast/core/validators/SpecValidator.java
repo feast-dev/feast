@@ -96,16 +96,13 @@ public class SpecValidator {
 
       // check id validity
       String[] idSplit = spec.getId().split("\\.");
-      checkArgument(idSplit.length == 3, "Id must contain entity, granularity, name");
+      checkArgument(idSplit.length == 2, "Id must contain entity, name");
       checkArgument(
           idSplit[0].equals(spec.getEntity()),
-          "Id must be in format entity.granularity.name, entity in Id does not match entity provided.");
+          "Id must be in format entity.name, entity in Id does not match entity provided.");
       checkArgument(
-          idSplit[1].equals(spec.getGranularity().toString().toLowerCase()),
-          "Id must be in format entity.granularity.name, granularity in Id does not match granularity provided.");
-      checkArgument(
-          idSplit[2].equals(spec.getName()),
-          "Id must be in format entity.granularity.name, name in Id does not match name provided.");
+          idSplit[1].equals(spec.getName()),
+          "Id must be in format entity.name, name in Id does not match name provided.");
 
       // check if referenced objects exist
       checkArgument(

@@ -63,7 +63,7 @@ public class DatasetServiceImplTest {
     validFeatureSet =
         FeatureSet.newBuilder()
             .setEntityName("myentity")
-            .addFeatureIds("myentity.none.feature1")
+            .addFeatureIds("myentity.feature1")
             .addFeatureIds("myentity.second.feature2")
             .build();
   }
@@ -169,8 +169,8 @@ public class DatasetServiceImplTest {
     FeatureSet emptyFeatureSet =
         FeatureSet.newBuilder()
             .setEntityName("myentity")
-            .addFeatureIds("myentity.none.feature1")
-            .addFeatureIds("driver.none.feature2")
+            .addFeatureIds("myentity.feature1")
+            .addFeatureIds("driver.feature2")
             .build();
 
     CreateDatasetRequest request =

@@ -191,8 +191,7 @@ public class BigQueryStorageManager implements StorageManager {
 
   private String createTableName(FeatureSpec featureSpec) {
     String entityName = featureSpec.getEntity().toLowerCase();
-    String granularity = featureSpec.getGranularity().toString().toLowerCase();
-    return String.format("%s_%s", entityName, granularity);
+    return String.format("%s", entityName);
   }
 
   private void createOrUpdateView(String tableName, List<String> features) {

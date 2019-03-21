@@ -23,7 +23,6 @@ import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.types.GranularityProto.Granularity.Enum;
 import feast.types.ValueProto.ValueType;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -92,20 +91,19 @@ public class CoreApplicationWithNoWarehouseTest {
 
     EntitySpec entitySpec = EntitySpec.newBuilder().setName("test").build();
     FeatureSpec featureSpec = FeatureSpec.newBuilder()
-        .setId("test.none.int64")
+        .setId("test.int64")
         .setName("int64")
         .setEntity("test")
-        .setGranularity(Enum.NONE)
         .setValueType(ValueType.Enum.INT64)
         .setOwner("hermione@example.com")
         .setDescription("Test is a test")
-        .setUri("http://example.com/test.none.int64").build();
+        .setUri("http://example.com/test.int64").build();
     ImportSpec importSpec = ImportSpec.newBuilder()
         .setSchema(Schema.newBuilder()
             .setEntityIdColumn("id")
             .setTimestampValue(Timestamp.getDefaultInstance())
             .addFields(Field.newBuilder().setName("id"))
-            .addFields(Field.newBuilder().setName("a").setFeatureId("test.none.int64")))
+            .addFields(Field.newBuilder().setName("a").setFeatureId("test.int64")))
         .addEntities("test")
         .setType("file.csv")
         .putSourceOptions("path", "/tmp/foobar").build();
