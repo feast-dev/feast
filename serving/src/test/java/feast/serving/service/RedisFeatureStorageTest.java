@@ -25,8 +25,6 @@ import feast.serving.testutil.RedisPopulator;
 import feast.specs.FeatureSpecProto.DataStore;
 import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.types.GranularityProto.Granularity;
-import feast.types.GranularityProto.Granularity.Enum;
 import feast.types.ValueProto.ValueType;
 import io.opentracing.util.GlobalTracer;
 import java.util.ArrayList;
@@ -78,17 +76,15 @@ public class RedisFeatureStorageTest {
   public void getFeatures_shouldNotReturnMissingValue() {
     FeatureSpec featureSpec1 =
         FeatureSpec.newBuilder()
-            .setId("entity.none.feature_1")
+            .setId("entity.feature_1")
             .setEntity(entityName)
-            .setGranularity(Enum.NONE)
             .setValueType(ValueType.Enum.STRING)
             .build();
 
     FeatureSpec featureSpec2 =
         FeatureSpec.newBuilder()
-            .setId("entity.none.feature_2")
+            .setId("entity.feature_2")
             .setEntity(entityName)
-            .setGranularity(Enum.NONE)
             .setValueType(ValueType.Enum.STRING)
             .build();
 
@@ -104,39 +100,32 @@ public class RedisFeatureStorageTest {
 
   @Test
   public void getFeatures_shouldReturnLastValue() {
-    for (Granularity.Enum granularity : Granularity.Enum.values()) {
-      if (granularity.equals(Enum.NONE) || granularity.equals(Enum.UNRECOGNIZED)) {
-        continue;
-      }
-      FeatureSpec spec1 = createFeatureSpec("feature_1", Enum.NONE);
-      FeatureSpec spec2 = createFeatureSpec("feature_2", granularity);
-      List<FeatureSpec> featureSpecs = Arrays.asList(spec1, spec2);
+    FeatureSpec spec1 = createFeatureSpec("feature_1");
+    FeatureSpec spec2 = createFeatureSpec("feature_2");
+    List<FeatureSpec> featureSpecs = Arrays.asList(spec1, spec2);
 
-      redisPopulator.populate(entityName, entityIds, featureSpecs, now);
+    redisPopulator.populate(entityName, entityIds, featureSpecs, now);
 
-      List<FeatureValue> result = redisFs.getFeature(entityName, entityIds, featureSpecs);
+    List<FeatureValue> result = redisFs.getFeature(entityName, entityIds, featureSpecs);
 
-      redisPopulator.validate(result, entityIds, featureSpecs);
-    }
+    redisPopulator.validate(result, entityIds, featureSpecs);
   }
 
-  private FeatureSpec createFeatureSpec(String featureName, Enum granularity) {
+  private FeatureSpec createFeatureSpec(String featureName) {
     DataStore servingDatastoreSpec = DataStore.newBuilder().setId("REDIS").build();
-    return createFeatureSpec(featureName, granularity, ValueType.Enum.STRING, servingDatastoreSpec);
+    return createFeatureSpec(featureName, ValueType.Enum.STRING, servingDatastoreSpec);
   }
 
   private FeatureSpec createFeatureSpec(
-      String featureName, Enum granularity, ValueType.Enum valType, DataStore dataStoreSpec) {
+      String featureName, ValueType.Enum valType, DataStore dataStoreSpec) {
     String entityName = "entity";
-    String featureId =
-        String.format("%s.%s.%s", entityName, granularity.toString().toLowerCase(), featureName);
+    String featureId = String.format("%s.%s", entityName, featureName);
     FeatureSpec spec =
         FeatureSpec.newBuilder()
             .setDataStores(DataStores.newBuilder().setServing(dataStoreSpec))
             .setEntity(entityName)
             .setId(featureId)
             .setName(featureName)
-            .setGranularity(granularity)
             .setValueType(valType)
             .build();
 
