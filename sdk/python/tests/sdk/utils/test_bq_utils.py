@@ -25,7 +25,7 @@ from feast.specs.StorageSpec_pb2 import StorageSpec
 def test_get_table_name():
     project_name = "my_project"
     dataset_name = "my_dataset"
-    feature_id = "myentity.none.feature1"
+    feature_id = "myentity.feature1"
     storage_spec = StorageSpec(
         id="BIGQUERY1",
         type="bigquery",
@@ -38,7 +38,7 @@ def test_get_table_name():
 
 
 def test_get_table_name_not_bq():
-    feature_id = "myentity.none.feature1"
+    feature_id = "myentity.feature1"
     storage_spec = StorageSpec(id="REDIS1", type="redis")
     with pytest.raises(
             ValueError, match="storage spec is not BigQuery storage spec"):

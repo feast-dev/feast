@@ -208,7 +208,7 @@ public class EntityMapBuilderTest {
   private List<String> createFeatureIds(int count) {
     List<String> featureIds = new ArrayList<>();
     for (int i = 0; i < count; i++) {
-      featureIds.add("entity.none.feature_" + i);
+      featureIds.add("entity.feature_" + i);
     }
     return featureIds;
   }

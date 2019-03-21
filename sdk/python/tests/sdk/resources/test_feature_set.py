@@ -19,7 +19,7 @@ from feast.sdk.resources.feature_set import FeatureSet, DatasetInfo
 class TestFeatureSet(object):
     def test_features(self):
         entity_name = "driver"
-        features = ["driver.hour.feature1", "driver.hour.feature2"]
+        features = ["driver.feature1", "driver.feature2"]
 
         feature_set = FeatureSet(entity_name, features)
         assert len(feature_set.features) == 2
@@ -28,7 +28,7 @@ class TestFeatureSet(object):
 
     def test_different_entity(self):
         entity_name = "driver"
-        features = ["customer.hour.feature1", "driver.day.feature1"]
+        features = ["customer.feature1", "driver.feature1"]
         with pytest.raises(
                 ValueError,
                 match="feature set has different entity: customer"):

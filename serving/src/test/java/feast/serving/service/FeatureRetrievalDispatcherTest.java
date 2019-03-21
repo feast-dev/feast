@@ -69,7 +69,7 @@ public class FeatureRetrievalDispatcherTest {
         .thenReturn(Collections.emptyList());
     when(featureStorageRegistry.get(any(String.class))).thenReturn(featureStorage);
 
-    String featureId = "entity.none.feature_1";
+    String featureId = "entity.feature_1";
     FeatureSpec featureSpec = FeatureSpec.newBuilder().setId(featureId).build();
     dispatcher.dispatchFeatureRetrieval(
         entityName, entityIds, Collections.singletonList(featureSpec));
@@ -90,7 +90,7 @@ public class FeatureRetrievalDispatcherTest {
         .thenReturn(Collections.emptyList());
 
     String entityName = "entity";
-    String featureId1 = "entity.none.feature_1";
+    String featureId1 = "entity.feature_1";
     FeatureSpec featureSpec1 =
         FeatureSpec.newBuilder()
             .setId(featureId1)
@@ -98,7 +98,7 @@ public class FeatureRetrievalDispatcherTest {
                 DataStores.newBuilder().setServing(DataStore.newBuilder().setId(storageId1)))
             .build();
 
-    String featureId2 = "entity.none.feature_2";
+    String featureId2 = "entity.feature_2";
     FeatureSpec featureSpec2 =
         FeatureSpec.newBuilder()
             .setId(featureId2)
@@ -131,7 +131,7 @@ public class FeatureRetrievalDispatcherTest {
         .thenReturn(Collections.emptyList());
 
     String entityName = "entity";
-    String featureId1 = "entity.none.feature_1";
+    String featureId1 = "entity.feature_1";
     FeatureSpec featureSpec1 =
         FeatureSpec.newBuilder()
             .setId(featureId1)
@@ -139,7 +139,7 @@ public class FeatureRetrievalDispatcherTest {
                 DataStores.newBuilder().setServing(DataStore.newBuilder().setId(storageId1)))
             .build();
 
-    String featureId2 = "entity.none.feature_2";
+    String featureId2 = "entity.feature_2";
     FeatureSpec featureSpec2 =
         FeatureSpec.newBuilder()
             .setId(featureId2)

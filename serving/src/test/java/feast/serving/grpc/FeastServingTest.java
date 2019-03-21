@@ -66,7 +66,7 @@ public class FeastServingTest {
     QueryFeaturesRequest request =
         QueryFeaturesRequest.newBuilder()
             .setEntityName(entityName)
-            .addFeatureId("driver.day.total_completed_booking")
+            .addFeatureId("driver.total_completed_booking")
             .build();
 
     QueryFeaturesResponse response = feast.queryFeatures(request);
@@ -79,7 +79,7 @@ public class FeastServingTest {
   public void shouldPassValidRequestToFeatureRetrievalDispatcher() {
     String entityName = "driver";
     Collection<String> entityIds = Arrays.asList("entity1", "entity2", "entity3");
-    Collection<String> featureIds = Arrays.asList("driver.day.total_completed_booking");
+    Collection<String> featureIds = Arrays.asList("driver.total_completed_booking");
     QueryFeaturesRequest request =
         QueryFeaturesRequest.newBuilder()
             .setEntityName(entityName)

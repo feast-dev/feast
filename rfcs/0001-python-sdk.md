@@ -143,14 +143,13 @@ schema:
   fields:
   - name: start_time
   - name: s2id
-  - featureId: s2id.minute.surge_factor
+  - featureId: s2id.surge_factor
     name: surge_factor
   timestampColumn: start_time
 
-id: s2id.minute.surge_factor
+id: s2id.surge_factor
 name: surge_factor
 owner: user@website.com
-granularity: MINUTE
 valueType: DOUBLE
 entity: s2id
 dataStores: {}
