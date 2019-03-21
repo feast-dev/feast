@@ -17,8 +17,29 @@
 
 package feast.serving.service;
 
+import static org.hamcrest.CoreMatchers.everyItem;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.collection.IsIn.isIn;
+import static org.junit.Assert.assertThat;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
+import feast.core.CoreServiceGrpc.CoreServiceImplBase;
+import feast.core.CoreServiceProto.CoreServiceTypes.GetEntitiesRequest;
+import feast.core.CoreServiceProto.CoreServiceTypes.GetEntitiesResponse;
+import feast.core.CoreServiceProto.CoreServiceTypes.GetFeaturesRequest;
+import feast.core.CoreServiceProto.CoreServiceTypes.GetFeaturesResponse;
+import feast.core.CoreServiceProto.CoreServiceTypes.GetStorageRequest;
+import feast.core.CoreServiceProto.CoreServiceTypes.GetStorageResponse;
+import feast.core.CoreServiceProto.CoreServiceTypes.ListEntitiesResponse;
+import feast.core.CoreServiceProto.CoreServiceTypes.ListFeaturesResponse;
+import feast.core.CoreServiceProto.CoreServiceTypes.ListStorageResponse;
+import feast.serving.exception.SpecRetrievalException;
+import feast.specs.EntitySpecProto.EntitySpec;
+import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.specs.StorageSpecProto.StorageSpec;
+import feast.types.ValueProto.ValueType;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessChannelBuilder;
@@ -26,20 +47,6 @@ import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.grpc.testing.GrpcCleanupRule;
 import io.grpc.util.MutableHandlerRegistry;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import feast.core.CoreServiceGrpc.CoreServiceImplBase;
-import feast.core.CoreServiceProto.CoreServiceTypes.*;
-import feast.serving.exception.SpecRetrievalException;
-import feast.specs.EntitySpecProto.EntitySpec;
-import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.specs.StorageSpecProto.StorageSpec;
-import feast.types.GranularityProto.Granularity.Enum;
-import feast.types.ValueProto.ValueType;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -47,12 +54,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static org.hamcrest.CoreMatchers.everyItem;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.collection.IsIn.isIn;
-import static org.junit.Assert.assertThat;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 public class CoreServiceTest {
 
@@ -367,7 +373,6 @@ public class CoreServiceTest {
             .setName("total_accepted_booking")
             .setOwner("dummy@go-jek.com")
             .setDescription("awesome feature")
-            .setGranularity(Enum.DAY)
             .setValueType(ValueType.Enum.STRING)
             .build();
 
@@ -377,7 +382,6 @@ public class CoreServiceTest {
             .setName("ping")
             .setOwner("dummy@go-jek.com")
             .setDescription("awesome feature")
-            .setGranularity(Enum.SECOND)
             .setValueType(ValueType.Enum.INT64)
             .build();
 

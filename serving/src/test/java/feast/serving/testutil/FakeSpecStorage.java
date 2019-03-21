@@ -25,7 +25,6 @@ import feast.specs.FeatureSpecProto.DataStore;
 import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.types.GranularityProto.Granularity;
 import feast.types.ValueProto.ValueType;
 
 import java.util.Collections;
@@ -59,7 +58,6 @@ public class FakeSpecStorage implements SpecStorage {
 
     FeatureSpec lastOpportunity =
         FeatureSpec.newBuilder()
-            .setGranularity(Granularity.Enum.NONE)
             .setId(lastOpportunityId)
             .setName(lastOpportunityName)
             .setValueType(ValueType.Enum.INT64)
@@ -68,7 +66,6 @@ public class FakeSpecStorage implements SpecStorage {
 
     FeatureSpec totalCompleted =
         FeatureSpec.newBuilder()
-            .setGranularity(Granularity.Enum.DAY)
             .setId(dailyCompletedBookingId)
             .setName(dailyCompletedBookingName)
             .setValueType(ValueType.Enum.INT64)
