@@ -1,11 +1,11 @@
 # Copyright 2018 The Feast Authors
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     https://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -25,6 +25,7 @@ class FeatureGroup():
     """
     Wrapper class for feast feature group
     """
+
     def __init__(self, id, tags=[], warehouse_store=None, serving_store=None):
         """Create FeatureGroup instance.
 
@@ -43,10 +44,10 @@ class FeatureGroup():
             serving_store_spec = serving_store.spec
         if (warehouse_store is not None):
             warehouse_store_spec = warehouse_store.spec
-        data_stores = DataStores(serving=serving_store_spec,
-            warehouse = warehouse_store_spec)
-        self.__spec = FeatureGroupSpec(id=id, tags=tags,
-            dataStores=data_stores)
+        data_stores = DataStores(
+            serving=serving_store_spec, warehouse=warehouse_store_spec)
+        self.__spec = FeatureGroupSpec(
+            id=id, tags=tags, dataStores=data_stores)
 
     @property
     def spec(self):
@@ -55,11 +56,11 @@ class FeatureGroup():
     @property
     def id(self):
         return self.__spec.id
-    
+
     @id.setter
     def id(self, value):
         self.__spec.id = value
-    
+
     @property
     def warehouse_store(self):
         return self.__spec.dataStores.warehouse
@@ -75,7 +76,7 @@ class FeatureGroup():
     @serving_store.setter
     def serving_store(self, value):
         self.__spec.dataStores.warehouse.CopyFrom(value)
-    
+
     @property
     def tags(self):
         return self.__spec.tags
