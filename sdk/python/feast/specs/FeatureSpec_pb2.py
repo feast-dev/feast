@@ -14,7 +14,6 @@ _sym_db = _symbol_database.Default()
 
 from feast.specs import EntitySpec_pb2 as feast_dot_specs_dot_EntitySpec__pb2
 from feast.specs import StorageSpec_pb2 as feast_dot_specs_dot_StorageSpec__pb2
-from feast.types import Granularity_pb2 as feast_dot_types_dot_Granularity__pb2
 from feast.types import Value_pb2 as feast_dot_types_dot_Value__pb2
 
 
@@ -23,9 +22,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.specs',
   syntax='proto3',
   serialized_options=_b('\n\013feast.specsB\020FeatureSpecProtoZ6github.com/gojek/feast/protos/generated/go/feast/specs'),
-  serialized_pb=_b('\n\x1d\x66\x65\x61st/specs/FeatureSpec.proto\x12\x0b\x66\x65\x61st.specs\x1a\x1c\x66\x65\x61st/specs/EntitySpec.proto\x1a\x1d\x66\x65\x61st/specs/StorageSpec.proto\x1a\x1d\x66\x65\x61st/types/Granularity.proto\x1a\x17\x66\x65\x61st/types/Value.proto\"\xfe\x02\n\x0b\x46\x65\x61tureSpec\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\r\n\x05owner\x18\x03 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x04 \x01(\t\x12\x0b\n\x03uri\x18\x05 \x01(\t\x12\x32\n\x0bgranularity\x18\x06 \x01(\x0e\x32\x1d.feast.types.Granularity.Enum\x12.\n\tvalueType\x18\x07 \x01(\x0e\x32\x1b.feast.types.ValueType.Enum\x12\x0e\n\x06\x65ntity\x18\x08 \x01(\t\x12\r\n\x05group\x18\t \x01(\t\x12\x0c\n\x04tags\x18\n \x03(\t\x12\x36\n\x07options\x18\x0b \x03(\x0b\x32%.feast.specs.FeatureSpec.OptionsEntry\x12+\n\ndataStores\x18\x0c \x01(\x0b\x32\x17.feast.specs.DataStores\x1a.\n\x0cOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"`\n\nDataStores\x12\'\n\x07serving\x18\x01 \x01(\x0b\x32\x16.feast.specs.DataStore\x12)\n\twarehouse\x18\x02 \x01(\x0b\x32\x16.feast.specs.DataStore\"}\n\tDataStore\x12\n\n\x02id\x18\x01 \x01(\t\x12\x34\n\x07options\x18\x02 \x03(\x0b\x32#.feast.specs.DataStore.OptionsEntry\x1a.\n\x0cOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x42W\n\x0b\x66\x65\x61st.specsB\x10\x46\x65\x61tureSpecProtoZ6github.com/gojek/feast/protos/generated/go/feast/specsb\x06proto3')
+  serialized_pb=_b('\n\x1d\x66\x65\x61st/specs/FeatureSpec.proto\x12\x0b\x66\x65\x61st.specs\x1a\x1c\x66\x65\x61st/specs/EntitySpec.proto\x1a\x1d\x66\x65\x61st/specs/StorageSpec.proto\x1a\x17\x66\x65\x61st/types/Value.proto\"\xca\x02\n\x0b\x46\x65\x61tureSpec\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\r\n\x05owner\x18\x03 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x04 \x01(\t\x12\x0b\n\x03uri\x18\x05 \x01(\t\x12.\n\tvalueType\x18\x07 \x01(\x0e\x32\x1b.feast.types.ValueType.Enum\x12\x0e\n\x06\x65ntity\x18\x08 \x01(\t\x12\r\n\x05group\x18\t \x01(\t\x12\x0c\n\x04tags\x18\n \x03(\t\x12\x36\n\x07options\x18\x0b \x03(\x0b\x32%.feast.specs.FeatureSpec.OptionsEntry\x12+\n\ndataStores\x18\x0c \x01(\x0b\x32\x17.feast.specs.DataStores\x1a.\n\x0cOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"`\n\nDataStores\x12\'\n\x07serving\x18\x01 \x01(\x0b\x32\x16.feast.specs.DataStore\x12)\n\twarehouse\x18\x02 \x01(\x0b\x32\x16.feast.specs.DataStore\"}\n\tDataStore\x12\n\n\x02id\x18\x01 \x01(\t\x12\x34\n\x07options\x18\x02 \x03(\x0b\x32#.feast.specs.DataStore.OptionsEntry\x1a.\n\x0cOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x42W\n\x0b\x66\x65\x61st.specsB\x10\x46\x65\x61tureSpecProtoZ6github.com/gojek/feast/protos/generated/go/feast/specsb\x06proto3')
   ,
-  dependencies=[feast_dot_specs_dot_EntitySpec__pb2.DESCRIPTOR,feast_dot_specs_dot_StorageSpec__pb2.DESCRIPTOR,feast_dot_types_dot_Granularity__pb2.DESCRIPTOR,feast_dot_types_dot_Value__pb2.DESCRIPTOR,])
+  dependencies=[feast_dot_specs_dot_EntitySpec__pb2.DESCRIPTOR,feast_dot_specs_dot_StorageSpec__pb2.DESCRIPTOR,feast_dot_types_dot_Value__pb2.DESCRIPTOR,])
 
 
 
@@ -63,8 +62,8 @@ _FEATURESPEC_OPTIONSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=500,
-  serialized_end=546,
+  serialized_start=417,
+  serialized_end=463,
 )
 
 _FEATURESPEC = _descriptor.Descriptor(
@@ -110,49 +109,42 @@ _FEATURESPEC = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='granularity', full_name='feast.specs.FeatureSpec.granularity', index=5,
-      number=6, type=14, cpp_type=8, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='valueType', full_name='feast.specs.FeatureSpec.valueType', index=6,
+      name='valueType', full_name='feast.specs.FeatureSpec.valueType', index=5,
       number=7, type=14, cpp_type=8, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='entity', full_name='feast.specs.FeatureSpec.entity', index=7,
+      name='entity', full_name='feast.specs.FeatureSpec.entity', index=6,
       number=8, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='group', full_name='feast.specs.FeatureSpec.group', index=8,
+      name='group', full_name='feast.specs.FeatureSpec.group', index=7,
       number=9, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='tags', full_name='feast.specs.FeatureSpec.tags', index=9,
+      name='tags', full_name='feast.specs.FeatureSpec.tags', index=8,
       number=10, type=9, cpp_type=9, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='options', full_name='feast.specs.FeatureSpec.options', index=10,
+      name='options', full_name='feast.specs.FeatureSpec.options', index=9,
       number=11, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='dataStores', full_name='feast.specs.FeatureSpec.dataStores', index=11,
+      name='dataStores', full_name='feast.specs.FeatureSpec.dataStores', index=10,
       number=12, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
@@ -170,8 +162,8 @@ _FEATURESPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=164,
-  serialized_end=546,
+  serialized_start=133,
+  serialized_end=463,
 )
 
 
@@ -208,8 +200,8 @@ _DATASTORES = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=548,
-  serialized_end=644,
+  serialized_start=465,
+  serialized_end=561,
 )
 
 
@@ -246,8 +238,8 @@ _DATASTORE_OPTIONSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=500,
-  serialized_end=546,
+  serialized_start=417,
+  serialized_end=463,
 )
 
 _DATASTORE = _descriptor.Descriptor(
@@ -283,12 +275,11 @@ _DATASTORE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=646,
-  serialized_end=771,
+  serialized_start=563,
+  serialized_end=688,
 )
 
 _FEATURESPEC_OPTIONSENTRY.containing_type = _FEATURESPEC
-_FEATURESPEC.fields_by_name['granularity'].enum_type = feast_dot_types_dot_Granularity__pb2._GRANULARITY_ENUM
 _FEATURESPEC.fields_by_name['valueType'].enum_type = feast_dot_types_dot_Value__pb2._VALUETYPE_ENUM
 _FEATURESPEC.fields_by_name['options'].message_type = _FEATURESPEC_OPTIONSENTRY
 _FEATURESPEC.fields_by_name['dataStores'].message_type = _DATASTORES
