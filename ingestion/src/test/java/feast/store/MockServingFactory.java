@@ -23,6 +23,7 @@ import feast.store.serving.FeatureServingFactory;
 @AutoService(FeatureServingFactory.class)
 public class MockServingFactory extends MockFeatureStore implements
     FeatureServingFactory {
+
   public static final String MOCK_SERVING_STORE_TYPE = "serving.mock";
 
   public MockServingFactory() {

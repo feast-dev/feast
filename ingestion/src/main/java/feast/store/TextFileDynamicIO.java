@@ -56,7 +56,7 @@ public class TextFileDynamicIO {
               .withDestinationCoder(StringUtf8Coder.of())
               .withNaming(
                   Contextful.fn(
-                      (key) -> FileIO.Write.defaultNaming(folderName + "/" + key + "/part-", suffix)))
+                      (key) -> FileIO.Write.defaultNaming(folderName + "/" + key + "/part", suffix)))
               .via(Contextful.fn(KV::getValue), Contextful.fn((entityName) -> TextIO.sink()))
               .to(options.path);
 

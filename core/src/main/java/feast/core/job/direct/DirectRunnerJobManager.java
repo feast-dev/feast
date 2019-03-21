@@ -22,11 +22,11 @@ import feast.core.config.ImportJobDefaults;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
 import feast.core.util.TypeConversion;
-import feast.specs.ImportSpecProto.ImportSpec;
+import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -45,8 +45,9 @@ public class DirectRunnerJobManager implements JobManager {
   }
 
   @Override
-  public String submitJob(ImportSpec importSpec, String jobId) {
-    ProcessBuilder pb = getProcessBuilder(importSpec, jobId);
+  public String submitJob(ImportJobSpecs importJobSpecs, Path workspace) {
+    ProcessBuilder pb = getProcessBuilder(importJobSpecs, workspace);
+
     log.info(String.format("Executing command: %s", String.join(" ", pb.command())));
 
     try {
@@ -66,25 +67,19 @@ public class DirectRunnerJobManager implements JobManager {
   /**
    * Builds the command to execute the ingestion job
    *
-   * @param importSpec
-   * @param jobId
    * @return configured ProcessBuilder
    */
   @VisibleForTesting
-  public ProcessBuilder getProcessBuilder(ImportSpec importSpec, String jobId) {
+  public ProcessBuilder getProcessBuilder(ImportJobSpecs importJobSpecs, Path workspace) {
     Map<String, String> options =
         TypeConversion.convertJsonStringToMap(defaults.getImportJobOptions());
     List<String> commands = new ArrayList<>();
     commands.add("java");
     commands.add("-jar");
     commands.add(defaults.getExecutable());
-    commands.add(option("jobName", jobId));
+    commands.add(option("jobName", importJobSpecs.getJobId()));
+    commands.add(option("workspace", workspace.toUri().toString()));
     commands.add(option("runner", defaults.getRunner()));
-    commands.add(
-        option("importSpecBase64", Base64.getEncoder().encodeToString(importSpec.toByteArray())));
-    commands.add(option("coreApiUri", defaults.getCoreApiUri()));
-    commands.add(option("errorsStoreType", defaults.getErrorsStoreType()));
-    commands.add(option("errorsStoreOptions", defaults.getErrorsStoreOptions()));
 
     options.forEach((k, v) -> commands.add(option(k, v)));
     return new ProcessBuilder(commands);
@@ -99,7 +94,7 @@ public class DirectRunnerJobManager implements JobManager {
   @VisibleForTesting
   public String runProcess(Process p) {
     try (BufferedReader outputStream =
-            new BufferedReader(new InputStreamReader(p.getInputStream()));
+        new BufferedReader(new InputStreamReader(p.getInputStream()));
         BufferedReader errorsStream =
             new BufferedReader(new InputStreamReader(p.getErrorStream()))) {
       String extId = "";

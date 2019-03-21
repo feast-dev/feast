@@ -23,6 +23,7 @@ import feast.store.warehouse.FeatureWarehouseFactory;
 @AutoService(FeatureWarehouseFactory.class)
 public class MockWarehouseFactory extends MockFeatureStore implements
     FeatureWarehouseFactory {
+
   public static final String MOCK_WAREHOUSE_STORE_TYPE = "warehouse.mock";
 
   public MockWarehouseFactory() {

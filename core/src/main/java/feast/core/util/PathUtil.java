@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Feast Authors
+ * Copyright 2019 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,19 +15,27 @@
  *
  */
 
-package feast.ingestion.service;
+package feast.core.util;
 
-/** Application-specific exception for any failure of retrieving feature/entity/storage spec. */
-public class SpecRetrievalException extends RuntimeException {
-  public SpecRetrievalException() {
-    super();
-  }
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
-  public SpecRetrievalException(String message) {
-    super(message);
-  }
+public class PathUtil {
 
-  public SpecRetrievalException(String message, Throwable cause) {
-    super(message, cause);
+  /**
+   * Gets a path with a schema if present
+   */
+  public static Path getPath(String value) {
+    if (value.contains("://")) {
+      try {
+        return Paths.get(new URI(value));
+      } catch (URISyntaxException e) {
+        throw new IllegalArgumentException(e);
+      }
+    } else {
+      return Paths.get(value);
+    }
   }
 }

@@ -45,7 +45,8 @@ public class ServingStoreTransform extends PTransform<PFeatureRows, PFeatureRows
         input.apply(
             "Split to serving stores",
             new SplitOutputByStore(
-                stores, (featureSpec) -> featureSpec.getDataStores().getServing().getId(), specs));
+                stores, (featureSpec) -> featureSpec.getDataStores().getServing().getId(), specs,
+                specs.getServingStorageSpecs()));
 
     output.getMain().apply("metrics.store.lag", ParDo.of(FeastMetrics.lagUpdateDoFn()));
     output.getMain().apply("metrics.store.main", ParDo.of(FeastMetrics.incrDoFn("serving_stored")));

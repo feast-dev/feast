@@ -15,6 +15,7 @@
  *
  */
 
+
 package feast.ingestion.transform;
 
 import com.google.inject.Inject;
@@ -47,7 +48,8 @@ public class WarehouseStoreTransform extends PTransform<PFeatureRows, PFeatureRo
             new SplitOutputByStore(
                 stores,
                 (featureSpec) -> featureSpec.getDataStores().getWarehouse().getId(),
-                specs));
+                specs,
+                specs.getWarehouseStorageSpecs()));
     output.getMain()
         .apply("metrics.store.main", ParDo.of(FeastMetrics.incrDoFn("warehouse_stored")));
     output.getErrors()

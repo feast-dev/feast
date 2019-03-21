@@ -24,7 +24,8 @@ import lombok.Getter;
 public class MockFeatureStore implements FeatureStoreFactory {
 
   private final String type;
-  @Getter private MockTransforms.Write write;
+  @Getter
+  private MockTransforms.Write write;
 
   public MockFeatureStore(String type) {
     this.type = type;
