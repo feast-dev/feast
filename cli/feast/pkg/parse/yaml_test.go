@@ -40,7 +40,6 @@ entity: test
 owner: bob@example.com
 description: testing feature
 valueType:  INT64
-granularity: NONE
 uri: https://github.com/bob/example
 dataStores:
   serving:
@@ -53,7 +52,6 @@ dataStores:
 				Name:        "test_feature_two",
 				Description: "testing feature",
 				Uri:         "https://github.com/bob/example",
-				Granularity: types.Granularity_NONE,
 				ValueType:   types.ValueType_INT64,
 				Entity:      "test",
 				DataStores: &specs.DataStores{

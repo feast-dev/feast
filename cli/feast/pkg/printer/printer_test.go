@@ -28,7 +28,6 @@ func TestPrintFeature(t *testing.T) {
 					Name:        "test_feature_two",
 					Description: "testing feature",
 					Uri:         "https://github.com/bob/example",
-					Granularity: types.Granularity_NONE,
 					ValueType:   types.ValueType_INT64,
 					Entity:      "test",
 					DataStores: &specs.DataStores{
@@ -70,7 +69,6 @@ Related Jobs:
 					Name:        "test_feature_two",
 					Description: "testing feature",
 					Uri:         "https://github.com/bob/example",
-					Granularity: types.Granularity_NONE,
 					ValueType:   types.ValueType_INT64,
 					Entity:      "test",
 				},

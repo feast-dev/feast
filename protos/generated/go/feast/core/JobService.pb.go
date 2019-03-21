@@ -36,7 +36,7 @@ func (m *JobServiceTypes) Reset()         { *m = JobServiceTypes{} }
 func (m *JobServiceTypes) String() string { return proto.CompactTextString(m) }
 func (*JobServiceTypes) ProtoMessage()    {}
 func (*JobServiceTypes) Descriptor() ([]byte, []int) {
-	return fileDescriptor_JobService_c970f49698845549, []int{0}
+	return fileDescriptor_JobService_edcd183b773c9f62, []int{0}
 }
 func (m *JobServiceTypes) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_JobServiceTypes.Unmarshal(m, b)
@@ -70,7 +70,7 @@ func (m *JobServiceTypes_SubmitImportJobRequest) Reset() {
 func (m *JobServiceTypes_SubmitImportJobRequest) String() string { return proto.CompactTextString(m) }
 func (*JobServiceTypes_SubmitImportJobRequest) ProtoMessage()    {}
 func (*JobServiceTypes_SubmitImportJobRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_JobService_c970f49698845549, []int{0, 0}
+	return fileDescriptor_JobService_edcd183b773c9f62, []int{0, 0}
 }
 func (m *JobServiceTypes_SubmitImportJobRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_JobServiceTypes_SubmitImportJobRequest.Unmarshal(m, b)
@@ -117,7 +117,7 @@ func (m *JobServiceTypes_SubmitImportJobResponse) Reset() {
 func (m *JobServiceTypes_SubmitImportJobResponse) String() string { return proto.CompactTextString(m) }
 func (*JobServiceTypes_SubmitImportJobResponse) ProtoMessage()    {}
 func (*JobServiceTypes_SubmitImportJobResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_JobService_c970f49698845549, []int{0, 1}
+	return fileDescriptor_JobService_edcd183b773c9f62, []int{0, 1}
 }
 func (m *JobServiceTypes_SubmitImportJobResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_JobServiceTypes_SubmitImportJobResponse.Unmarshal(m, b)
@@ -155,7 +155,7 @@ func (m *JobServiceTypes_ListJobsResponse) Reset()         { *m = JobServiceType
 func (m *JobServiceTypes_ListJobsResponse) String() string { return proto.CompactTextString(m) }
 func (*JobServiceTypes_ListJobsResponse) ProtoMessage()    {}
 func (*JobServiceTypes_ListJobsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_JobService_c970f49698845549, []int{0, 2}
+	return fileDescriptor_JobService_edcd183b773c9f62, []int{0, 2}
 }
 func (m *JobServiceTypes_ListJobsResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_JobServiceTypes_ListJobsResponse.Unmarshal(m, b)
@@ -193,7 +193,7 @@ func (m *JobServiceTypes_GetJobRequest) Reset()         { *m = JobServiceTypes_G
 func (m *JobServiceTypes_GetJobRequest) String() string { return proto.CompactTextString(m) }
 func (*JobServiceTypes_GetJobRequest) ProtoMessage()    {}
 func (*JobServiceTypes_GetJobRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_JobService_c970f49698845549, []int{0, 3}
+	return fileDescriptor_JobService_edcd183b773c9f62, []int{0, 3}
 }
 func (m *JobServiceTypes_GetJobRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_JobServiceTypes_GetJobRequest.Unmarshal(m, b)
@@ -231,7 +231,7 @@ func (m *JobServiceTypes_GetJobResponse) Reset()         { *m = JobServiceTypes_
 func (m *JobServiceTypes_GetJobResponse) String() string { return proto.CompactTextString(m) }
 func (*JobServiceTypes_GetJobResponse) ProtoMessage()    {}
 func (*JobServiceTypes_GetJobResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_JobService_c970f49698845549, []int{0, 4}
+	return fileDescriptor_JobService_edcd183b773c9f62, []int{0, 4}
 }
 func (m *JobServiceTypes_GetJobResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_JobServiceTypes_GetJobResponse.Unmarshal(m, b)
@@ -269,7 +269,7 @@ func (m *JobServiceTypes_AbortJobRequest) Reset()         { *m = JobServiceTypes
 func (m *JobServiceTypes_AbortJobRequest) String() string { return proto.CompactTextString(m) }
 func (*JobServiceTypes_AbortJobRequest) ProtoMessage()    {}
 func (*JobServiceTypes_AbortJobRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_JobService_c970f49698845549, []int{0, 5}
+	return fileDescriptor_JobService_edcd183b773c9f62, []int{0, 5}
 }
 func (m *JobServiceTypes_AbortJobRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_JobServiceTypes_AbortJobRequest.Unmarshal(m, b)
@@ -307,7 +307,7 @@ func (m *JobServiceTypes_AbortJobResponse) Reset()         { *m = JobServiceType
 func (m *JobServiceTypes_AbortJobResponse) String() string { return proto.CompactTextString(m) }
 func (*JobServiceTypes_AbortJobResponse) ProtoMessage()    {}
 func (*JobServiceTypes_AbortJobResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_JobService_c970f49698845549, []int{0, 6}
+	return fileDescriptor_JobService_edcd183b773c9f62, []int{0, 6}
 }
 func (m *JobServiceTypes_AbortJobResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_JobServiceTypes_AbortJobResponse.Unmarshal(m, b)
@@ -356,7 +356,7 @@ func (m *JobServiceTypes_JobDetail) Reset()         { *m = JobServiceTypes_JobDe
 func (m *JobServiceTypes_JobDetail) String() string { return proto.CompactTextString(m) }
 func (*JobServiceTypes_JobDetail) ProtoMessage()    {}
 func (*JobServiceTypes_JobDetail) Descriptor() ([]byte, []int) {
-	return fileDescriptor_JobService_c970f49698845549, []int{0, 7}
+	return fileDescriptor_JobService_edcd183b773c9f62, []int{0, 7}
 }
 func (m *JobServiceTypes_JobDetail) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_JobServiceTypes_JobDetail.Unmarshal(m, b)
@@ -639,10 +639,10 @@ var _JobService_serviceDesc = grpc.ServiceDesc{
 }
 
 func init() {
-	proto.RegisterFile("feast/core/JobService.proto", fileDescriptor_JobService_c970f49698845549)
+	proto.RegisterFile("feast/core/JobService.proto", fileDescriptor_JobService_edcd183b773c9f62)
 }
 
-var fileDescriptor_JobService_c970f49698845549 = []byte{
+var fileDescriptor_JobService_edcd183b773c9f62 = []byte{
 	// 621 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x54, 0xdd, 0x4e, 0xdb, 0x4c,
 	0x10, 0x55, 0x62, 0x08, 0xf1, 0xf0, 0x7d, 0x80, 0x56, 0x15, 0x58, 0x4b, 0x25, 0x52, 0xa4, 0x4a,

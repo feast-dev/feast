@@ -31,7 +31,7 @@ func (m *FeatureGroupSpec) Reset()         { *m = FeatureGroupSpec{} }
 func (m *FeatureGroupSpec) String() string { return proto.CompactTextString(m) }
 func (*FeatureGroupSpec) ProtoMessage()    {}
 func (*FeatureGroupSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_FeatureGroupSpec_1fd10deeef20baa7, []int{0}
+	return fileDescriptor_FeatureGroupSpec_21c67ee01edd412c, []int{0}
 }
 func (m *FeatureGroupSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FeatureGroupSpec.Unmarshal(m, b)
@@ -77,10 +77,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("feast/specs/FeatureGroupSpec.proto", fileDescriptor_FeatureGroupSpec_1fd10deeef20baa7)
+	proto.RegisterFile("feast/specs/FeatureGroupSpec.proto", fileDescriptor_FeatureGroupSpec_21c67ee01edd412c)
 }
 
-var fileDescriptor_FeatureGroupSpec_1fd10deeef20baa7 = []byte{
+var fileDescriptor_FeatureGroupSpec_21c67ee01edd412c = []byte{
 	// 203 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x52, 0x4a, 0x4b, 0x4d, 0x2c,
 	0x2e, 0xd1, 0x2f, 0x2e, 0x48, 0x4d, 0x2e, 0xd6, 0x77, 0x4b, 0x4d, 0x2c, 0x29, 0x2d, 0x4a, 0x75,

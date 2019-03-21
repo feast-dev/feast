@@ -34,7 +34,7 @@ func (m *ImportSpec) Reset()         { *m = ImportSpec{} }
 func (m *ImportSpec) String() string { return proto.CompactTextString(m) }
 func (*ImportSpec) ProtoMessage()    {}
 func (*ImportSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ImportSpec_a027fec3e71fec8d, []int{0}
+	return fileDescriptor_ImportSpec_673bc4f248a91137, []int{0}
 }
 func (m *ImportSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ImportSpec.Unmarshal(m, b)
@@ -107,7 +107,7 @@ func (m *Schema) Reset()         { *m = Schema{} }
 func (m *Schema) String() string { return proto.CompactTextString(m) }
 func (*Schema) ProtoMessage()    {}
 func (*Schema) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ImportSpec_a027fec3e71fec8d, []int{1}
+	return fileDescriptor_ImportSpec_673bc4f248a91137, []int{1}
 }
 func (m *Schema) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Schema.Unmarshal(m, b)
@@ -260,7 +260,7 @@ func (m *Field) Reset()         { *m = Field{} }
 func (m *Field) String() string { return proto.CompactTextString(m) }
 func (*Field) ProtoMessage()    {}
 func (*Field) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ImportSpec_a027fec3e71fec8d, []int{2}
+	return fileDescriptor_ImportSpec_673bc4f248a91137, []int{2}
 }
 func (m *Field) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Field.Unmarshal(m, b)
@@ -303,10 +303,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("feast/specs/ImportSpec.proto", fileDescriptor_ImportSpec_a027fec3e71fec8d)
+	proto.RegisterFile("feast/specs/ImportSpec.proto", fileDescriptor_ImportSpec_673bc4f248a91137)
 }
 
-var fileDescriptor_ImportSpec_a027fec3e71fec8d = []byte{
+var fileDescriptor_ImportSpec_673bc4f248a91137 = []byte{
 	// 440 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x53, 0x5d, 0x8f, 0x93, 0x40,
 	0x14, 0x5d, 0xca, 0x16, 0xed, 0x6d, 0xdc, 0x9a, 0xab, 0x0f, 0x84, 0x6c, 0x62, 0xd3, 0x07, 0x6d,
