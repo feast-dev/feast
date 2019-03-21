@@ -17,12 +17,11 @@
 
 package feast.ingestion.metrics;
 
-import feast.ingestion.util.DateUtil;
+import com.google.protobuf.util.Timestamps;
 import feast.types.FeatureProto.Feature;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto;
 import feast.types.FeatureRowProto.FeatureRow;
-import java.time.Instant;
 import lombok.AllArgsConstructor;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -31,8 +30,7 @@ public class FeastMetrics {
 
   public static final String FEAST_NAMESPACE = "feast";
 
-  private FeastMetrics() {
-  }
+  private FeastMetrics() {}
 
   private static void inc(String name) {
     Metrics.counter(FeastMetrics.FEAST_NAMESPACE, name).inc();
@@ -75,19 +73,13 @@ public class FeastMetrics {
   public static class CalculateLagMetricFunc extends DoFn<FeatureRowExtended, FeatureRowExtended> {
 
     @ProcessElement
-    public void processElement(@Element FeatureRowExtended element,
-        OutputReceiver<FeatureRowExtended> out) {
+    public void processElement(
+        @Element FeatureRowExtended element, OutputReceiver<FeatureRowExtended> out) {
       FeatureRowProto.FeatureRow row = element.getRow();
       com.google.protobuf.Timestamp eventTimestamp = row.getEventTimestamp();
-      Instant now = Instant.now();
-      com.google.protobuf.Timestamp roundedCurrentTimestamp =
-          DateUtil.roundToGranularity(
-              com.google.protobuf.Timestamp.newBuilder()
-                  .setSeconds(now.getEpochSecond())
-                  .setNanos(now.getNano())
-                  .build(),
-              row.getGranularity());
-      long lagSeconds = roundedCurrentTimestamp.getSeconds() - eventTimestamp.getSeconds();
+
+      com.google.protobuf.Timestamp now = Timestamps.fromMillis(System.currentTimeMillis());
+      long lagSeconds = now.getSeconds() - eventTimestamp.getSeconds();
       FeastMetrics.update("row:lag", lagSeconds);
       out.output(element);
     }
