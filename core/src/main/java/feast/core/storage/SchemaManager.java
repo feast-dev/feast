@@ -23,7 +23,6 @@ import com.google.common.base.Preconditions;
 import feast.core.config.StorageConfig.StorageSpecs;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +37,12 @@ public class SchemaManager {
   public SchemaManager(BigQueryViewTemplater viewTemplater, StorageSpecs storageSpecs) {
     this.viewTemplater = viewTemplater;
     this.storageSpecs = storageSpecs;
+    if (storageSpecs.getServingStorageSpec() != null) {
+      registerStorage(storageSpecs.getServingStorageSpec());
+    }
+    if (storageSpecs.getWarehouseStorageSpec() != null) {
+      registerStorage(storageSpecs.getWarehouseStorageSpec());
+    }
   }
 
   /**
@@ -46,13 +51,13 @@ public class SchemaManager {
    * @param featureSpec spec of the new feature.
    */
   public void registerFeature(FeatureSpec featureSpec) {
-    if (storageSpecs.getServingStorageSpec() != null) {
-      StorageManager servingStorageManager = storageRegistry
-          .get(storageSpecs.getServingStorageSpec().getId());
-      Preconditions.checkNotNull(servingStorageManager,
-          "Serving storage spec has no associated storage manager");
-      servingStorageManager.registerNewFeature(featureSpec);
-    }
+    Preconditions.checkNotNull(storageSpecs.getServingStorageSpec(),
+        "Attempted to register feature but no serving storage is configured");
+    StorageManager servingStorageManager = storageRegistry
+        .get(storageSpecs.getServingStorageSpec().getId());
+    Preconditions.checkNotNull(servingStorageManager,
+        "Serving storage spec has no associated storage manager");
+    servingStorageManager.registerNewFeature(featureSpec);
 
     if (storageSpecs.getWarehouseStorageSpec() != null) {
       StorageManager warehouseStorageManager = storageRegistry
@@ -100,14 +105,5 @@ public class SchemaManager {
         return;
     }
     storageRegistry.put(id, storageManager);
-  }
-
-  /**
-   * Register several storage specs.
-   */
-  public void registerStorages(List<StorageSpec> storageSpecs) {
-    for (StorageSpec storageSpec : storageSpecs) {
-      registerStorage(storageSpec);
-    }
   }
 }

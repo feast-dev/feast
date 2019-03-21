@@ -67,11 +67,8 @@ public class ServerUtilConfig {
    */
   @Bean
   public SchemaManager schemaManager(BigQueryViewTemplater bigQueryViewTemplater) {
-    SchemaManager schemaManager = new SchemaManager(bigQueryViewTemplater, storageSpecs);
-    schemaManager.registerStorages(Lists.newArrayList(
-        storageSpecs.getWarehouseStorageSpec(),
-        storageSpecs.getServingStorageSpec()));
-    return schemaManager;
+    return new SchemaManager(bigQueryViewTemplater, storageSpecs);
+
   }
 
   /**

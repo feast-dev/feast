@@ -15,8 +15,6 @@ import feast.core.job.JobManager;
 import feast.core.model.StorageInfo;
 import feast.core.service.SpecService;
 import feast.specs.EntitySpecProto.EntitySpec;
-import feast.specs.FeatureSpecProto.DataStore;
-import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.ImportSpecProto.Field;
@@ -129,10 +127,8 @@ public class CoreApplicationWithNoWarehouseTest {
             .setId(DEFAULT_ERRORS_ID)
             .setType("stderr"))
         .addEntitySpecs(entitySpec)
-        .addFeatureSpecs(featureSpec.toBuilder()
-            .setDataStores(DataStores.newBuilder()
-                .setServing(DataStore.newBuilder().setId(DEFAULT_SERVING_ID))))
-        .addServingStorageSpecs(StorageSpec.newBuilder()
+        .addFeatureSpecs(featureSpec)
+        .setServingStorageSpec(StorageSpec.newBuilder()
             .setId(DEFAULT_SERVING_ID)
             .setType("redis")
             .putOptions("host", "localhost").putOptions("port", "1234"))
