@@ -15,10 +15,10 @@
  *
  */
 
-package feast.source.kafka.deserializer;
+package feast.source.kafka;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.types.FeatureRowProto.FeatureRowKey;
+import feast.types.FeatureRowProto.FeatureRow;
 import java.util.Map;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -26,20 +26,19 @@ import org.apache.kafka.common.serialization.Deserializer;
 /**
  * Deserializer for Kafka to deserialize Protocol Buffers messages
  *
- * @param <FeatureRowKey> Protobuf message type
+ * @param <FeatureRow> Protobuf message type
  */
-public class FeatureRowKeyDeserializer implements Deserializer<FeatureRowKey> {
+public class FeatureRowDeserializer implements Deserializer<FeatureRow> {
 
   @Override
   public void configure(Map configs, boolean isKey) {}
 
   @Override
-  public FeatureRowKey deserialize(String topic, byte[] data) {
+  public FeatureRow deserialize(String topic, byte[] data) {
     try {
-      return FeatureRowKey.parseFrom(data);
+      return FeatureRow.parseFrom(data);
     } catch (InvalidProtocolBufferException e) {
-      throw new SerializationException(
-          "Error deserializing FeatureRowKey from Protobuf message", e);
+      throw new SerializationException("Error deserializing FeatureRow from Protobuf message", e);
     }
   }
 
