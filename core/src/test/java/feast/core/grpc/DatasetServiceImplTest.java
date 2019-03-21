@@ -64,7 +64,7 @@ public class DatasetServiceImplTest {
         FeatureSet.newBuilder()
             .setEntityName("myentity")
             .addFeatureIds("myentity.feature1")
-            .addFeatureIds("myentity.second.feature2")
+            .addFeatureIds("myentity.feature2")
             .build();
   }
 

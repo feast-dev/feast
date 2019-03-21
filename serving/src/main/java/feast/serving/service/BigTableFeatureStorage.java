@@ -140,7 +140,7 @@ public class BigTableFeatureStorage implements FeatureStorage {
   }
 
   /**
-   * Create BigTableRowKey based on entityId, timestamp, and granularity.
+   * Create BigTableRowKey based on entityId, and timestamp.
    *
    * @param entityIdPrefix hash prefix of entity ID.
    * @param entityId entity ID value

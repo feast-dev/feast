@@ -34,7 +34,7 @@ func TestYamlToFeatureSpec(t *testing.T) {
 	}{
 		{
 			name: "valid yaml",
-			input: []byte(`id: test.none.test_feature_two
+			input: []byte(`id: test.test_feature_two
 name: test_feature_two
 entity: test
 owner: bob@example.com
@@ -47,7 +47,7 @@ dataStores:
   warehouse:
     id: BIGQUERY`),
 			expected: &specs.FeatureSpec{
-				Id:          "test.none.test_feature_two",
+				Id:          "test.test_feature_two",
 				Owner:       "bob@example.com",
 				Name:        "test_feature_two",
 				Description: "testing feature",
@@ -255,7 +255,7 @@ schema:
     - name: timestamp
     - name: driver_id
     - name: last_opportunity
-      featureId: driver.none.last_opportunity`),
+      featureId: driver.last_opportunity`),
 			expected: &specs.ImportSpec{
 				Type: "file",
 				JobOptions: map[string]string{
@@ -270,7 +270,7 @@ schema:
 					Fields: []*specs.Field{
 						{Name: "timestamp"},
 						{Name: "driver_id"},
-						{Name: "last_opportunity", FeatureId: "driver.none.last_opportunity"},
+						{Name: "last_opportunity", FeatureId: "driver.last_opportunity"},
 					},
 					EntityIdColumn: "driver_id",
 					Timestamp: &specs.Schema_TimestampValue{

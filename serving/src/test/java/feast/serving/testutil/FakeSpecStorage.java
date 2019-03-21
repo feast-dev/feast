@@ -43,9 +43,9 @@ public class FakeSpecStorage implements SpecStorage {
   public FakeSpecStorage() {
     // populate with hardcoded value
     String bigTableId = "BIGTABLE1";
-    String lastOpportunityId = "driver.none.last_opportunity";
+    String lastOpportunityId = "driver.last_opportunity";
     String lastOpportunityName = "last_opportunity";
-    String dailyCompletedBookingId = "driver.day.total_completed_booking";
+    String dailyCompletedBookingId = "driver.total_completed_booking";
     String dailyCompletedBookingName = "total_completed_booking";
     DataStore bigTable = DataStore.newBuilder().setId(bigTableId).build();
 

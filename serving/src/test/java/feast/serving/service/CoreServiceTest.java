@@ -181,7 +181,7 @@ public class CoreServiceTest {
   @Test
   public void getFeatureSpecs_shouldSendCorrectRequest() {
     List<String> featureIds =
-        Arrays.asList("driver.day.total_accepted_booking", "driver.second.ping_location");
+        Arrays.asList("driver.total_accepted_booking", "driver.ping_location");
     AtomicReference<GetFeaturesRequest> deliveredRequest = new AtomicReference<>();
     CoreServiceImplBase service =
         new CoreServiceImplBase() {
@@ -208,7 +208,7 @@ public class CoreServiceTest {
   @Test
   public void getFeatureSpecs_shouldReturnRequestedFeatureSpecs() {
     List<String> featureIds =
-        Arrays.asList("driver.day.total_accepted_booking", "driver.second.ping_location");
+        Arrays.asList("driver.total_accepted_booking", "driver.ping_location");
     AtomicReference<GetFeaturesRequest> deliveredRequest = new AtomicReference<>();
     CoreServiceImplBase service =
         new CoreServiceImplBase() {
@@ -238,7 +238,7 @@ public class CoreServiceTest {
     expectedException.expectCause(instanceOf(StatusRuntimeException.class));
 
     List<String> featureIds =
-        Arrays.asList("driver.day.total_accepted_booking", "driver.second.ping_location");
+        Arrays.asList("driver.total_accepted_booking", "driver.ping_location");
     client.getFeatureSpecs(featureIds);
   }
 
@@ -369,7 +369,7 @@ public class CoreServiceTest {
   private Map<String, FeatureSpec> getFakeFeatureSpecs() {
     FeatureSpec spec1 =
         FeatureSpec.newBuilder()
-            .setId("driver.day.total_accepted_booking")
+            .setId("driver.total_accepted_booking")
             .setName("total_accepted_booking")
             .setOwner("dummy@go-jek.com")
             .setDescription("awesome feature")
@@ -378,7 +378,7 @@ public class CoreServiceTest {
 
     FeatureSpec spec2 =
         FeatureSpec.newBuilder()
-            .setId("driver.second.ping")
+            .setId("driver.ping")
             .setName("ping")
             .setOwner("dummy@go-jek.com")
             .setDescription("awesome feature")

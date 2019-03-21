@@ -23,7 +23,7 @@ func TestPrintFeature(t *testing.T) {
 			name: "with storage",
 			input: &core.UIServiceTypes_FeatureDetail{
 				Spec: &specs.FeatureSpec{
-					Id:          "test.none.test_feature_two",
+					Id:          "test.test_feature_two",
 					Owner:       "bob@example.com",
 					Name:        "test_feature_two",
 					Description: "testing feature",
@@ -44,7 +44,7 @@ func TestPrintFeature(t *testing.T) {
 				LastUpdated:  &timestamp.Timestamp{Seconds: 1},
 				Created:      &timestamp.Timestamp{Seconds: 1},
 			},
-			expected: fmt.Sprintf(`Id:	test.none.test_feature_two
+			expected: fmt.Sprintf(`Id:	test.test_feature_two
 Entity:	test
 Owner:	bob@example.com
 Description:	testing feature
@@ -64,7 +64,7 @@ Related Jobs:
 			name: "no storage",
 			input: &core.UIServiceTypes_FeatureDetail{
 				Spec: &specs.FeatureSpec{
-					Id:          "test.none.test_feature_two",
+					Id:          "test.test_feature_two",
 					Owner:       "bob@example.com",
 					Name:        "test_feature_two",
 					Description: "testing feature",
@@ -77,7 +77,7 @@ Related Jobs:
 				LastUpdated:  &timestamp.Timestamp{Seconds: 1},
 				Created:      &timestamp.Timestamp{Seconds: 1},
 			},
-			expected: fmt.Sprintf(`Id:	test.none.test_feature_two
+			expected: fmt.Sprintf(`Id:	test.test_feature_two
 Entity:	test
 Owner:	bob@example.com
 Description:	testing feature

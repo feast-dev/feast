@@ -174,7 +174,7 @@ public class UIServiceImplTest {
 
   @Test
   public void getFeature_shouldReturnCorrectFeatureDetail() {
-    String featureId = "entity.granularity.feature";
+    String featureId = "entity.feature";
     FeatureInfo featureInfo = createFeatureInfo(featureId);
 
     when(specService.getFeatures(Collections.singletonList(featureId)))
@@ -221,8 +221,8 @@ public class UIServiceImplTest {
 
   @Test
   public void listFeature_shouldReturnAllFeatures() {
-    String featureId1 = "entity.granularity.feature1";
-    String featureId2 = "entity.granularity.feature2";
+    String featureId1 = "entity.feature1";
+    String featureId2 = "entity.feature2";
 
     FeatureInfo featureInfo1 = createFeatureInfo(featureId1);
     FeatureInfo featureInfo2 = createFeatureInfo(featureId2);
