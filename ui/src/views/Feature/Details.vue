@@ -8,11 +8,6 @@
             {{ feature.spec.entity }}
           </router-link>
         </li>
-        <li>
-          <router-link class="uk-link-reset" :to="'/features/'+feature.spec.entity+'/'+feature.spec.granularity">
-            {{ feature.spec.granularity }}
-          </router-link>
-        </li>
         <li><span>{{ feature.spec.name }}</span></li>
       </ul>
     </div>
@@ -34,10 +29,6 @@
                 {{ feature.spec.entity }}
               </router-link>
             </td>
-          </tr>
-          <tr>
-            <td>Granularity:</td>
-            <td>{{ feature.spec.granularity }}</td>
           </tr>
           <tr>
             <td>Value type:</td>
@@ -168,7 +159,6 @@
             name: "",
             owner: "",
             description: "",
-            granularity: 'NONE',
             valueType: "",
             entity: "",
             group: "",
@@ -216,7 +206,7 @@
       fetchData() {
         let featureId = this.$route.params.id;
         this.$http.get(process.env.VUE_APP_ROOT_API + '/features/'+featureId).then(response => {
-          this.feature = filters.fillGranularity(response.body['feature']);
+          this.feature = response.body['feature'];
           this.yaml = json2yaml.stringify(response.body['rawSpec']);
         }, response => {
           this.error = response.statusText;

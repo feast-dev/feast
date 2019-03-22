@@ -26,11 +26,6 @@ export default new Router({
       component: FeatureList
     },
     {
-      path: '/features/:entity/:granularity',
-      name: 'features-by-entity-granularity',
-      component: FeatureList
-    },
-    {
       path: '/feature/:id',
       name: 'feature-details',
       component: FeatureDetails
