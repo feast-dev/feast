@@ -243,7 +243,8 @@ class Importer:
         tmp_file_name = ("tmp_{}_{}.csv".format(entity,
                                                 int(round(
                                                     time.time() * 1000))))
-        source_options = {"format": "csv"}
+        src_type = "file.csv"
+        source_options = {}
         source_options["path"], require_staging = (_get_remote_location(
             tmp_file_name, staging_location))
         schema, features = \
@@ -251,7 +252,7 @@ class Importer:
                                        feature_columns, timestamp_column,
                                        timestamp_value, serving_store,
                                        warehouse_store, df)
-        iport_spec = _create_import("file", source_options, job_options,
+        iport_spec = _create_import(src_type, source_options, job_options,
                                     entity, schema)
 
         props = _properties("dataframe", len(df.index), require_staging,
