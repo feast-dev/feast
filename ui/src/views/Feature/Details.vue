@@ -46,10 +46,6 @@
             <td>URI:</td>
             <td><a :href="feature.spec.uri">{{ feature.spec.uri }}</a></td>
           </tr>
-          <tr v-if="feature.bigqueryView">
-            <td>BigQuery view:</td>
-            <td><a :href="feature.bigqueryView">{{ feature.bigqueryView }}</a></td>
-          </tr>
           <tr>
             <td>Created:</td>
             <td>{{ feature.created }}</td>
@@ -63,6 +59,14 @@
             <td>
               <router-link :to="{path:'/storage/'+feature.spec.dataStores.serving.id,params:{id:feature.spec.dataStores.serving.id}}">
                 {{ feature.spec.dataStores.serving.id }}
+              </router-link>
+            </td>
+          </tr>
+          <tr>
+            <td>Warehouse store:</td>
+            <td>
+              <router-link :to="{path:'/storage/'+feature.spec.dataStores.warehouse.id,params:{id:feature.spec.dataStores.warehouse.id}}">
+                {{ feature.spec.dataStores.warehouse.id }}
               </router-link>
             </td>
           </tr>
@@ -195,9 +199,7 @@
         return `{
   "entityName": "${ this.feature.spec.entity }",
   "entityId": [${ '"' + this.entityList.join('","') + '"' }],
-  "requestDetails": [{
-    "featureId": "${ this.feature.spec.id }"
-  }]
+  "featureId": ["${ this.feature.spec.id }"]
 }`
       }
     },
