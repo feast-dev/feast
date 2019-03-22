@@ -47,7 +47,7 @@ func (x Granularity_Enum) String() string {
 	return proto.EnumName(Granularity_Enum_name, int32(x))
 }
 func (Granularity_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_Granularity_1271850b4f4bfac4, []int{0, 0}
+	return fileDescriptor_Granularity_4b57756f7a751fdb, []int{0, 0}
 }
 
 type Granularity struct {
@@ -60,7 +60,7 @@ func (m *Granularity) Reset()         { *m = Granularity{} }
 func (m *Granularity) String() string { return proto.CompactTextString(m) }
 func (*Granularity) ProtoMessage()    {}
 func (*Granularity) Descriptor() ([]byte, []int) {
-	return fileDescriptor_Granularity_1271850b4f4bfac4, []int{0}
+	return fileDescriptor_Granularity_4b57756f7a751fdb, []int{0}
 }
 func (m *Granularity) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Granularity.Unmarshal(m, b)
@@ -86,10 +86,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("feast/types/Granularity.proto", fileDescriptor_Granularity_1271850b4f4bfac4)
+	proto.RegisterFile("feast/types/Granularity.proto", fileDescriptor_Granularity_4b57756f7a751fdb)
 }
 
-var fileDescriptor_Granularity_1271850b4f4bfac4 = []byte{
+var fileDescriptor_Granularity_4b57756f7a751fdb = []byte{
 	// 183 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x92, 0x4d, 0x4b, 0x4d, 0x2c,
 	0x2e, 0xd1, 0x2f, 0xa9, 0x2c, 0x48, 0x2d, 0xd6, 0x77, 0x2f, 0x4a, 0xcc, 0x2b, 0xcd, 0x49, 0x2c,

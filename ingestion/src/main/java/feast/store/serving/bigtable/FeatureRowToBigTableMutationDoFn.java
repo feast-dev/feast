@@ -60,8 +60,7 @@ public class FeatureRowToBigTableMutationDoFn
     this.specs = specs;
   }
 
-  public static BigTableRowKey makeBigTableRowKey(
-      String entityKey) {
+  public static BigTableRowKey makeBigTableRowKey(String entityKey) {
 
     return BigTableRowKey.newBuilder()
         .setSha1Prefix(DigestUtils.sha1Hex(entityKey).substring(0, 7))
@@ -89,15 +88,14 @@ public class FeatureRowToBigTableMutationDoFn
   /**
    * Given an row and a feature info service, build a BigTable Put mutation
    *
-   * <p>bigtable row key = {sha1(row.key), row.key, row.timestamp} family = {feature.group,
-   * granularity} qualifier = {feature.name} value = {feature.value}
+   * <p>bigtable row key = {sha1(row.key), row.key, row.timestamp} family = {feature.group}
+   * qualifier = {feature.name} value = {feature.value}
    */
   public Put makePut(FeatureRowExtended rowExtended) {
     FeatureRow row = rowExtended.getRow();
     // We always additinally overwrite a None granularity row so that it is trivial to retrieve the
     // latest across all features.
-    Put latestPut =
-        new Put(makeBigTableRowKey(row.getEntityKey()).toByteArray());
+    Put latestPut = new Put(makeBigTableRowKey(row.getEntityKey()).toByteArray());
     for (Feature feature : row.getFeaturesList()) {
       FeatureSpec featureSpec = specs.getFeatureSpec(feature.getId());
       BigTableFeatureOptions options = servingOptionsCache.get(featureSpec);

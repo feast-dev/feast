@@ -14,8 +14,6 @@
       <tr>
         <th v-for="column in columns" v-bind:key="column.name">
           {{ column.name }}
-          <span uk-tooltip="title: Identifies the level of time detail for a feature, e.g. every event, minute, hour, or day. Aggregation windowing." uk-icon="icon: info"
-                v-if="column.name == 'Granularity'"></span>
           <span uk-icon="icon: chevron-up"
                 v-if="column.sortable && !column.reverse"
                 v-on:click="sortByColumn(column)"></span>
@@ -43,11 +41,6 @@
         <td class="uk-table-link">
           <router-link class="uk-link-reset" :to="'/features/'+item.spec.entity">
             {{ item.spec.entity }}
-          </router-link>
-        </td>
-        <td class="uk-table-link">
-          <router-link class="uk-link-reset" :to="'/features/'+item.spec.entity+'/'+item.spec.granularity">
-            {{ item.spec.granularity }}
           </router-link>
         </td>
         <td class="uk-table-link">
@@ -143,7 +136,6 @@
         list: [],
         columns: [
           {name: "Entity", sortable: true, reverse: false},
-          {name: "Granularity", sortable: true, reverse: false},
           {name: "Name", sortable: true, reverse: false},
           {name: "Description", sortable: false},
           {name: "Owner", sortable: true, reverse: false},
@@ -157,7 +149,7 @@
         empty: false,
         loading: false,
         search: [],
-        searchEntities: ["entity", "granularity", "name", "owner","tags"],
+        searchEntities: ["entity", "name", "owner","tags"],
         searchSeparator: ':',
         selectedFeature: {},
         options: [],
@@ -208,8 +200,6 @@
           if (typeof response.body['features'] === "undefined") {
             this.empty = true;
           } else {
-            // TODO: Handle nulls better.
-            response.body['features'].forEach(b => filters.fillGranularity(b));
             this.list = response.body['features'];
             this.populate();
           }
@@ -238,11 +228,7 @@
       updateRoute (route) {
         // TODO: Handle arbitrary search queries
         if (typeof route['entity'] !== "undefined") {
-          if (typeof route['granularity'] !== "undefined") {
-            this.$router.push({path: '/features/' + route['entity'] + '/' + route['granularity'], params: route});
-          } else {
-            this.$router.push({path: '/features/' + route['entity'], params: route});
-          }
+          this.$router.push({path: '/features/' + route['entity'], params: route});
         } else {
           this.$router.push({path: '/features', params: route});
         }

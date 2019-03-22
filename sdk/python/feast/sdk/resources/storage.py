@@ -1,11 +1,11 @@
 # Copyright 2018 The Feast Authors
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     https://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -24,7 +24,8 @@ class Storage:
     """
     Wrapper class for feast storage
     """
-    def __init__(self, id = "", type = "", options={}):
+
+    def __init__(self, id="", type="", options={}):
         """Create Storage instance.
 
         Args:
@@ -32,7 +33,7 @@ class Storage:
             type (str): storage type
             options (dict, optional) : map of storage options
         """
-        self.__spec = StorageSpec(id = id, type = type, options = options)
+        self.__spec = StorageSpec(id=id, type=type, options=options)
 
     @property
     def spec(self):

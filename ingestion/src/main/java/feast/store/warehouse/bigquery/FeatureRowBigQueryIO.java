@@ -21,13 +21,10 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
 import feast.ingestion.model.Specs;
-import feast.store.FeatureStoreWrite;
-import feast.ingestion.transform.SplitFeatures.SingleOutputSplit;
 import feast.specs.EntitySpecProto.EntitySpec;
-import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.store.FeatureStoreWrite;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.GranularityProto.Granularity;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -38,6 +35,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.Duration;
@@ -60,11 +58,6 @@ public class FeatureRowBigQueryIO {
 
     @Override
     public PDone expand(PCollection<FeatureRowExtended> input) {
-      SingleOutputSplit<Enum> granularitySplitter =
-          new SingleOutputSplit<>(FeatureSpec::getGranularity, specs);
-      PCollection<FeatureRowExtended> features =
-          input.apply("Split by granularity", granularitySplitter);
-
       FeatureRowToBigQueryTableRowDoFn toTableRowDoFn = new FeatureRowToBigQueryTableRowDoFn(specs);
       BigQueryIO.Write<FeatureRowExtended> write =
           BigQueryIO.<FeatureRowExtended>write()
@@ -75,9 +68,7 @@ public class FeatureRowBigQueryIO {
                       FeatureRow row = featureRowExtended.getRow();
                       EntitySpec entityInfo = specs.getEntitySpec(row.getEntityName());
 
-                      Granularity.Enum granularity = row.getGranularity();
-                      String tableName =
-                          entityInfo.getName() + "_" + granularity.name().toLowerCase();
+                      String tableName = entityInfo.getName();
                       return bigQueryOptions.project
                           + ":"
                           + bigQueryOptions.dataset
@@ -105,16 +96,16 @@ public class FeatureRowBigQueryIO {
         write =
             write.withCustomGcsTempLocation(StaticValueProvider.of(bigQueryOptions.tempLocation));
       }
-      switch (input.isBounded()) {
-        case UNBOUNDED:
-          write =
-              write
-                  .withTriggeringFrequency(triggerFrequency)
-                  // this is apparently supposed to be the default according to beam code comments.
-                  .withNumFileShards(100);
-      }
-      WriteResult result = features.apply(write);
 
+      if (input.isBounded() == IsBounded.UNBOUNDED) {
+        write =
+            write
+                .withTriggeringFrequency(triggerFrequency)
+                // this is apparently supposed to be the default according to beam code
+                // comments.
+                .withNumFileShards(100);
+      }
+      WriteResult result = input.apply(write);
       return PDone.in(input.getPipeline());
     }
   }

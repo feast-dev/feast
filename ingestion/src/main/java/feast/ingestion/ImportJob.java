@@ -38,7 +38,6 @@ import feast.ingestion.transform.ValidateTransform;
 import feast.ingestion.transform.WarehouseStoreTransform;
 import feast.ingestion.transform.fn.ConvertTypesDoFn;
 import feast.ingestion.transform.fn.LoggerDoFn;
-import feast.ingestion.transform.fn.RoundEventTimestampsDoFn;
 import feast.ingestion.values.PFeatureRows;
 import feast.options.OptionsParser;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
@@ -168,7 +167,7 @@ public class ImportJob {
         "A sample of size 1 of incoming rows from MAIN and ERRORS will logged every 30 seconds for visibility");
     logNRows(pFeatureRows, "Output sample", 1, Duration.standardSeconds(30));
 
-    PFeatureRows warehouseRows = roundTimestamps("Round timestamps for warehouse", pFeatureRows);
+    PFeatureRows warehouseRows = pFeatureRows;
     PFeatureRows servingRows = pFeatureRows;
     if (jobOptions.isCoalesceRowsEnabled()) {
       // Should we merge and dedupe rows before writing to the serving store?
@@ -176,23 +175,12 @@ public class ImportJob {
           jobOptions.getCoalesceRowsDelaySeconds(),
           jobOptions.getCoalesceRowsTimeoutSeconds()));
     }
-    servingRows = roundTimestamps("Round timestamps for serving", servingRows);
 
     if (!dryRun) {
       servingRows.apply("Write to Serving Stores", servingStoreTransform);
       warehouseRows.apply("Write to Warehouse  Stores", warehouseStoreTransform);
       pFeatureRows.getErrors().apply(errorsStoreTransform);
     }
-  }
-
-  public PFeatureRows roundTimestamps(String name, PFeatureRows pFeatureRows) {
-    return
-        PFeatureRows.of(
-            pFeatureRows
-                .getMain()
-                .apply(name,
-                    ParDo.of(new RoundEventTimestampsDoFn())),
-            pFeatureRows.getErrors());
   }
 
   public PipelineResult run() {

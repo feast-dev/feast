@@ -40,8 +40,7 @@ public class RedisPopulator extends FeatureStoragePopulator {
       Timestamp timestamp) {
     for (FeatureSpec fs : featureSpecs) {
       for (String entityId : entityIds) {
-        Timestamp roundedTimestamp = TimeUtil.roundFloorTimestamp(timestamp, fs.getGranularity());
-        addData(entityId, fs, roundedTimestamp);
+        addData(entityId, fs, timestamp);
       }
     }
   }

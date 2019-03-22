@@ -16,8 +16,6 @@
  */
 package feast.core.training;
 
-import static java.util.stream.Collectors.groupingBy;
-
 import com.google.protobuf.Timestamp;
 import com.hubspot.jinjava.Jinjava;
 import feast.core.DatasetServiceProto.FeatureSet;
@@ -26,13 +24,10 @@ import feast.core.model.FeatureInfo;
 import feast.core.model.StorageInfo;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.types.GranularityProto.Granularity;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,8 +41,6 @@ public class BigQueryDatasetTemplater {
   private final Jinjava jinjava;
   private final String template;
   private final DateTimeFormatter formatter;
-  private Comparator<? super FeatureGroup> featureGroupComparator =
-      new FeatureGroupTemplateComparator().reversed();
 
   public BigQueryDatasetTemplater(
       Jinjava jinjava, String templateString, FeatureInfoRepository featureInfoRepository) {
@@ -77,40 +70,29 @@ public class BigQueryDatasetTemplater {
       throw new NoSuchElementException("features not found: " + featureIds);
     }
 
-    List<Feature> features = toFeatureTemplates(featureInfos);
-    List<FeatureGroup> featureGroups = groupFeatureTemplate(features);
+    String tableId = getBqTableId(featureInfos.get(0));
+    Features features = new Features(featureIds, tableId);
 
     String startDateStr = formatDateString(startDate);
     String endDateStr = formatDateString(endDate);
     String limitStr = (limit != 0) ? String.valueOf(limit) : null;
-    return renderTemplate(featureGroups, startDateStr, endDateStr, limitStr);
+    return renderTemplate(features, startDateStr, endDateStr, limitStr);
   }
 
   private String renderTemplate(
-      List<FeatureGroup> featureGroups, String startDateStr, String endDateStr, String limitStr) {
+      Features features, String startDateStr, String endDateStr, String limitStr) {
     Map<String, Object> context = new HashMap<>();
-    featureGroups.sort(featureGroupComparator);
 
-    context.put("feature_groups", featureGroups);
+    context.put("feature_set", features);
     context.put("start_date", startDateStr);
     context.put("end_date", endDateStr);
     context.put("limit", limitStr);
     return jinjava.render(template, context);
   }
 
-  private List<Feature> toFeatureTemplates(List<FeatureInfo> featureInfos) {
-    return featureInfos
-        .stream()
-        .map(
-            fi -> {
-              StorageInfo whStorage = fi.getWarehouseStore();
-              String tableId = getBqTableId(fi.getFeatureSpec(), whStorage);
-              return new Feature(fi.getId(), fi.getGranularity(), tableId);
-            })
-        .collect(Collectors.toList());
-  }
+  private String getBqTableId(FeatureInfo featureInfo) {
+    StorageInfo whStorage = featureInfo.getWarehouseStore();
 
-  private String getBqTableId(FeatureSpec featureSpec, StorageInfo whStorage) {
     String type = whStorage.getType();
     if (!"bigquery".equals(type)) {
       throw new IllegalArgumentException(
@@ -121,23 +103,8 @@ public class BigQueryDatasetTemplater {
     Map<String, String> options = storageSpec.getOptionsMap();
     String projectId = options.get("project");
     String dataset = options.get("dataset");
-    String entityName = featureSpec.getEntity().toLowerCase();
-    String granularity = featureSpec.getGranularity().toString().toLowerCase();
-    return String.format("%s.%s.%s_%s", projectId, dataset, entityName, granularity);
-  }
-
-  private List<FeatureGroup> groupFeatureTemplate(List<Feature> features) {
-    Map<String, List<Feature>> groupedFeature =
-        features.stream().collect(groupingBy(Feature::getTableId));
-    List<FeatureGroup> featureGroups = new ArrayList<>();
-    for (Map.Entry<String, List<Feature>> entry : groupedFeature.entrySet()) {
-      String tableId = entry.getKey();
-      Granularity.Enum granularity = entry.getValue().get(0).granularity;
-      FeatureGroup group = new FeatureGroup(tableId, granularity, entry.getValue());
-
-      featureGroups.add(group);
-    }
-    return featureGroups;
+    String entityName = featureInfo.getFeatureSpec().getEntity().toLowerCase();
+    return String.format("%s.%s.%s", projectId, dataset, entityName);
   }
 
   private String formatDateString(Timestamp timestamp) {
@@ -146,55 +113,16 @@ public class BigQueryDatasetTemplater {
   }
 
   @Getter
-  static final class FeatureGroup {
+  static final class Features {
+    final List<String> columns;
     final String tableId;
-    final Granularity.Enum granularity;
-    final List<Feature> features;
 
-    public FeatureGroup(String tableId, Granularity.Enum granularity, List<Feature> features) {
+    public Features(List<String> featureIds, String tableId) {
+      this.columns = featureIds.stream()
+          .map(f -> f.replace(".", "_"))
+          .collect(Collectors.toList());
       this.tableId = tableId;
-      this.granularity = granularity;
-      this.features = features;
-    }
-
-    public String getTempTable() {
-      return tableId.replaceAll("[^a-zA-Z0-9]", "_");
-    }
-
-    public String getGranularityStr() {
-      return granularity.toString().toLowerCase();
     }
   }
 
-  @Getter
-  static final class Feature {
-    final String featureId;
-    final String tableId;
-    final Granularity.Enum granularity;
-
-    public Feature(String featureId, Granularity.Enum granularity, String tableId) {
-      this.featureId = featureId;
-      this.tableId = tableId;
-      this.granularity = granularity;
-    }
-
-    public String getName() {
-      return featureId.split("\\.")[2];
-    }
-
-    public String getColumn() {
-      return featureId.replace(".", "_");
-    }
-  }
-
-  private static final class FeatureGroupTemplateComparator implements Comparator<FeatureGroup> {
-    @Override
-    public int compare(FeatureGroup o1, FeatureGroup o2) {
-      if (o1.granularity != o2.granularity) {
-        return o1.granularity.getNumber() - o2.granularity.getNumber();
-      }
-
-      return o1.tableId.compareTo(o2.tableId);
-    }
-  }
 }

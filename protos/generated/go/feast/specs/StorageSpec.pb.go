@@ -36,7 +36,7 @@ func (m *StorageSpec) Reset()         { *m = StorageSpec{} }
 func (m *StorageSpec) String() string { return proto.CompactTextString(m) }
 func (*StorageSpec) ProtoMessage()    {}
 func (*StorageSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_StorageSpec_ceee6ec6c0eb3849, []int{0}
+	return fileDescriptor_StorageSpec_bfb8a5e5cf34de95, []int{0}
 }
 func (m *StorageSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StorageSpec.Unmarshal(m, b)
@@ -83,10 +83,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("feast/specs/StorageSpec.proto", fileDescriptor_StorageSpec_ceee6ec6c0eb3849)
+	proto.RegisterFile("feast/specs/StorageSpec.proto", fileDescriptor_StorageSpec_bfb8a5e5cf34de95)
 }
 
-var fileDescriptor_StorageSpec_ceee6ec6c0eb3849 = []byte{
+var fileDescriptor_StorageSpec_bfb8a5e5cf34de95 = []byte{
 	// 227 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x92, 0x4d, 0x4b, 0x4d, 0x2c,
 	0x2e, 0xd1, 0x2f, 0x2e, 0x48, 0x4d, 0x2e, 0xd6, 0x0f, 0x2e, 0xc9, 0x2f, 0x4a, 0x4c, 0x4f, 0x0d,

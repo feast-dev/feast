@@ -40,8 +40,6 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.ViewDefinition;
 import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.types.GranularityProto.Granularity;
-import feast.types.GranularityProto.Granularity.Enum;
 import feast.types.ValueProto.ValueType;
 import java.util.ArrayList;
 import java.util.List;
@@ -77,8 +75,7 @@ public class BigQueryStorageManagerTest {
     when(bigQuery.getDataset(any(String.class))).thenReturn(null);
     String featureName = "my_feature";
     String entityName = "my_entity";
-    Granularity.Enum granularity = Enum.DAY;
-    String featureId = createFeatureId(entityName, granularity, featureName);
+    String featureId = createFeatureId(entityName, featureName);
     String description = "my feature is awesome";
     ValueType.Enum type = ValueType.Enum.INT64;
 
@@ -87,7 +84,6 @@ public class BigQueryStorageManagerTest {
             .setEntity(entityName)
             .setId(featureId)
             .setName(featureName)
-            .setGranularity(granularity)
             .setDescription(description)
             .setValueType(type)
             .build();
@@ -113,7 +109,7 @@ public class BigQueryStorageManagerTest {
     TableInfo actualTable = capturedValues.get(0);
     assertThat(
         actualTable.getTableId().getTable(),
-        equalTo(String.format("%s_%s", entityName, granularity.toString().toLowerCase())));
+        equalTo(String.format("%s", entityName)));
     List<Field> fields = actualTable.getDefinition().getSchema().getFields();
     assertThat(fields.size(), equalTo(5));
     Field idField = fields.get(0);
@@ -133,21 +129,20 @@ public class BigQueryStorageManagerTest {
     TableInfo actualView = capturedValues.get(1);
     assertThat(
         actualView.getTableId().getTable(),
-        equalTo(String.format("%s_%s_view", entityName, granularity.toString().toLowerCase())));
+        equalTo(String.format("%s_view", entityName)));
     ViewDefinition actualDefinition = actualView.getDefinition();
     assertThat(
         actualDefinition.getQuery(),
         equalTo(
             String.format(
-                "%s_%s.%s", entityName, granularity.toString().toLowerCase(), featureName)));
+                "%s.%s", entityName, featureName)));
   }
 
   @Test
   public void shouldNotUpdateTableIfColumnExists() {
     String featureName = "my_feature";
     String entityName = "my_entity";
-    Granularity.Enum granularity = Enum.DAY;
-    String featureId = createFeatureId(entityName, granularity, featureName);
+    String featureId = createFeatureId(entityName, featureName);
     String description = "my feature is awesome";
     ValueType.Enum type = ValueType.Enum.BOOL;
     LegacySQLTypeName sqlType = LegacySQLTypeName.BOOLEAN;
@@ -169,7 +164,6 @@ public class BigQueryStorageManagerTest {
             .setEntity(entityName)
             .setId(featureId)
             .setName(featureName)
-            .setGranularity(granularity)
             .setDescription(description)
             .setValueType(type)
             .build();
@@ -184,8 +178,7 @@ public class BigQueryStorageManagerTest {
   public void shouldUpdateTableAndViewIfColumnNotExists() {
     String newFeatureName = "my_feature";
     String entityName = "my_entity";
-    Granularity.Enum granularity = Enum.DAY;
-    String featureId = createFeatureId(entityName, granularity, newFeatureName);
+    String featureId = createFeatureId(entityName, newFeatureName);
     String description = "my feature is awesome";
     ValueType.Enum type = ValueType.Enum.BOOL;
     LegacySQLTypeName sqlType = LegacySQLTypeName.BOOLEAN;
@@ -203,7 +196,6 @@ public class BigQueryStorageManagerTest {
             .setEntity(entityName)
             .setId(featureId)
             .setName(newFeatureName)
-            .setGranularity(granularity)
             .setDescription(description)
             .setValueType(type)
             .build();
@@ -230,22 +222,21 @@ public class BigQueryStorageManagerTest {
     TableInfo actualView = capturedArgs.get(1);
     assertThat(
         actualView.getTableId().getTable(),
-        equalTo(String.format("%s_%s_view", entityName, granularity.toString().toLowerCase())));
+        equalTo(String.format("%s_view", entityName)));
     ViewDefinition actualDefinition = actualView.getDefinition();
     assertThat(
         actualDefinition.getQuery(),
         equalTo(
             String.format(
-                "%s_%s.%s.%s",
+                "%s.%s.%s",
                 entityName,
-                granularity.toString().toLowerCase(),
                 existingFeatureName,
                 newFeatureName)));
   }
 
   private String createFeatureId(
-      String entityName, Granularity.Enum granualrity, String featureName) {
-    return String.format("%s.%s.%s", entityName, granualrity.toString(), featureName).toLowerCase();
+      String entityName, String featureName) {
+    return String.format("%s.%s", entityName, featureName).toLowerCase();
   }
 
   private Table createTable(FeatureSchema... featureSchemas) {

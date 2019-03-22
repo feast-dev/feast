@@ -18,7 +18,6 @@ syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
 import "feast/types/Feature.proto";
-import "feast/types/Granularity.proto";
 
 option java_package = "feast_ingestion.types";
 option java_outer_classname = "CoalesceAccumProto";
@@ -28,7 +27,6 @@ message CoalesceAccum {
   string entityKey = 1;
   google.protobuf.Timestamp eventTimestamp = 3;
   string entityName = 4;
-  feast.types.Granularity.Enum granularity = 5;
 
   map<string, feast.types.Feature> features = 6;
   // map of features to their counter values when they were last added to accumulator

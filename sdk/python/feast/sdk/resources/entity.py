@@ -1,11 +1,11 @@
 # Copyright 2018 The Feast Authors
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     https://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -34,8 +34,7 @@ class Entity:
             tags (list[str], optional): defaults to []. 
                 list of tags for this entity
         """
-        self.__spec = EntitySpec(name=name, description=description,
-            tags=tags)
+        self.__spec = EntitySpec(name=name, description=description, tags=tags)
 
     @property
     def spec(self):
@@ -77,20 +76,15 @@ class Entity:
             content = yaml.safe_load(file.read())
             entity = cls()
             entity.__spec = Parse(
-                json.dumps(content),
-                EntitySpec(),
-                ignore_unknown_fields=False)
+                json.dumps(content), EntitySpec(), ignore_unknown_fields=False)
             return entity
 
-    def create_feature(self, name, granularity, value_type, owner,
-                       description):
+    def create_feature(self, name, value_type, owner, description):
         """Create a feature related to this entity
         
         Args:
             name (str): feature name
-            granularity (feast.types.Granularity_pb2.Granularity): granularity 
-                of the feature. e.g.: Granularity.NONE, Granularity.SECOND, etc
-            value_type (feast.types.ValueType_pb2.ValueType): value type of 
+            value_type (feast.types.ValueType_pb2.ValueType): value type of
                 the feature
             owner (str): owner of the feature
             description (str): feature's description

@@ -55,7 +55,7 @@ public class ServingGrpcServiceTest {
             .setEntityName("driver")
             .addAllEntityId(Arrays.asList("driver1", "driver2", "driver3"))
             .addAllFeatureId(
-                Arrays.asList("driver.day.completed_booking", "driver.none.last_opportunity"))
+                Arrays.asList("driver.completed_booking", "driver.last_opportunity"))
             .build();
 
     Tracer tracer = Configuration.fromEnv("dummy").getTracer();
@@ -102,7 +102,7 @@ public class ServingGrpcServiceTest {
   public void shouldCallOnErrorIfFeatureIdsContainsDifferentEntity() {
     QueryFeaturesRequest differentEntityReq =
         QueryFeaturesRequest.newBuilder(validRequest)
-            .addFeatureId("customer.day.order_made")
+            .addFeatureId("customer.order_made")
             .build();
 
     service.queryFeatures(differentEntityReq, mockStreamObserver);

@@ -25,7 +25,6 @@ import static org.hamcrest.Matchers.not;
 import com.google.protobuf.Timestamp;
 import junit.framework.TestCase;
 import org.joda.time.DateTime;
-import feast.types.GranularityProto.Granularity.Enum;
 
 public class DateUtilTest extends TestCase {
   public void testStringToTimestamp() {
@@ -62,64 +61,5 @@ public class DateUtilTest extends TestCase {
     assertThat(9, is(equalTo(datetime.getMinuteOfHour())));
     assertThat(34, is(equalTo(datetime.getSecondOfMinute())));
     assertThat(123, is(equalTo(datetime.getMillisOfSecond())));
-  }
-
-  public void testRoundToSecondGranularity() {
-    Timestamp timestamp1 = DateUtil.toTimestamp("2018-07-03T15:09:34.123888999Z");
-    Timestamp timestamp2 = DateUtil.roundToGranularity(timestamp1, Enum.SECOND);
-    DateTime actual = DateUtil.toDateTime(timestamp2);
-    assertThat(2018, is(equalTo(actual.getYear())));
-    assertThat(7, is(equalTo(actual.getMonthOfYear())));
-    assertThat(3, is(equalTo(actual.getDayOfMonth())));
-    assertThat(15, is(equalTo(actual.getHourOfDay())));
-    assertThat(9, is(equalTo(actual.getMinuteOfHour())));
-    assertThat(34, is(equalTo(actual.getSecondOfMinute())));
-    assertThat(0, is(equalTo(actual.getMillisOfSecond())));
-  }
-
-  public void testRoundToMinuteGranularity() {
-    Timestamp timestamp1 = DateUtil.toTimestamp("2018-07-03T15:09:34.123888999Z");
-    Timestamp timestamp2 = DateUtil.roundToGranularity(timestamp1, Enum.MINUTE);
-    DateTime actual = DateUtil.toDateTime(timestamp2);
-    assertThat(2018, is(equalTo(actual.getYear())));
-    assertThat(7, is(equalTo(actual.getMonthOfYear())));
-    assertThat(3, is(equalTo(actual.getDayOfMonth())));
-    assertThat(15, is(equalTo(actual.getHourOfDay())));
-    assertThat(9, is(equalTo(actual.getMinuteOfHour())));
-    assertThat(0, is(equalTo(actual.getSecondOfMinute())));
-    assertThat(0, is(equalTo(actual.getMillisOfSecond())));
-  }
-
-  public void testRoundToHourGranularity() {
-    Timestamp timestamp1 = DateUtil.toTimestamp("2018-07-03T15:09:34.123888999Z");
-    Timestamp timestamp2 = DateUtil.roundToGranularity(timestamp1, Enum.HOUR);
-    DateTime actual = DateUtil.toDateTime(timestamp2);
-    assertThat(2018, is(equalTo(actual.getYear())));
-    assertThat(7, is(equalTo(actual.getMonthOfYear())));
-    assertThat(3, is(equalTo(actual.getDayOfMonth())));
-    assertThat(15, is(equalTo(actual.getHourOfDay())));
-    assertThat(0, is(equalTo(actual.getMinuteOfHour())));
-    assertThat(0, is(equalTo(actual.getSecondOfMinute())));
-    assertThat(0, is(equalTo(actual.getMillisOfSecond())));
-  }
-
-  public void testRoundToDayGranularity() {
-    Timestamp timestamp1 = DateUtil.toTimestamp("2018-07-03T15:09:34.123888999Z");
-    Timestamp timestamp2 = DateUtil.roundToGranularity(timestamp1, Enum.DAY);
-    DateTime actual = DateUtil.toDateTime(timestamp2);
-    assertThat(2018, is(equalTo(actual.getYear())));
-    assertThat(7, is(equalTo(actual.getMonthOfYear())));
-    assertThat(3, is(equalTo(actual.getDayOfMonth())));
-    assertThat(0, is(equalTo(actual.getHourOfDay())));
-    assertThat(0, is(equalTo(actual.getMinuteOfHour())));
-    assertThat(0, is(equalTo(actual.getSecondOfMinute())));
-    assertThat(0, is(equalTo(actual.getMillisOfSecond())));
-  }
-
-  public void testRoundToNoneGranularity() {
-    Timestamp timestamp1 = DateUtil.toTimestamp("2018-07-03T15:09:34.123888999Z");
-    Timestamp timestamp2 = DateUtil.roundToGranularity(timestamp1, Enum.NONE);
-    DateTime actual = DateUtil.toDateTime(timestamp2);
-    assertThat(0L, is(equalTo(actual.getMillis())));
   }
 }

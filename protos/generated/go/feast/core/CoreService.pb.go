@@ -35,7 +35,7 @@ func (m *CoreServiceTypes) Reset()         { *m = CoreServiceTypes{} }
 func (m *CoreServiceTypes) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes) ProtoMessage()    {}
 func (*CoreServiceTypes) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_f716411f9ac886b5, []int{0}
+	return fileDescriptor_CoreService_a0e9a1504f969203, []int{0}
 }
 func (m *CoreServiceTypes) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes.Unmarshal(m, b)
@@ -66,7 +66,7 @@ func (m *CoreServiceTypes_GetEntitiesRequest) Reset()         { *m = CoreService
 func (m *CoreServiceTypes_GetEntitiesRequest) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_GetEntitiesRequest) ProtoMessage()    {}
 func (*CoreServiceTypes_GetEntitiesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_f716411f9ac886b5, []int{0, 0}
+	return fileDescriptor_CoreService_a0e9a1504f969203, []int{0, 0}
 }
 func (m *CoreServiceTypes_GetEntitiesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_GetEntitiesRequest.Unmarshal(m, b)
@@ -104,7 +104,7 @@ func (m *CoreServiceTypes_GetEntitiesResponse) Reset()         { *m = CoreServic
 func (m *CoreServiceTypes_GetEntitiesResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_GetEntitiesResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_GetEntitiesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_f716411f9ac886b5, []int{0, 1}
+	return fileDescriptor_CoreService_a0e9a1504f969203, []int{0, 1}
 }
 func (m *CoreServiceTypes_GetEntitiesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_GetEntitiesResponse.Unmarshal(m, b)
@@ -142,7 +142,7 @@ func (m *CoreServiceTypes_ListEntitiesResponse) Reset()         { *m = CoreServi
 func (m *CoreServiceTypes_ListEntitiesResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_ListEntitiesResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_ListEntitiesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_f716411f9ac886b5, []int{0, 2}
+	return fileDescriptor_CoreService_a0e9a1504f969203, []int{0, 2}
 }
 func (m *CoreServiceTypes_ListEntitiesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_ListEntitiesResponse.Unmarshal(m, b)
@@ -181,7 +181,7 @@ func (m *CoreServiceTypes_GetFeaturesRequest) Reset()         { *m = CoreService
 func (m *CoreServiceTypes_GetFeaturesRequest) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_GetFeaturesRequest) ProtoMessage()    {}
 func (*CoreServiceTypes_GetFeaturesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_f716411f9ac886b5, []int{0, 3}
+	return fileDescriptor_CoreService_a0e9a1504f969203, []int{0, 3}
 }
 func (m *CoreServiceTypes_GetFeaturesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_GetFeaturesRequest.Unmarshal(m, b)
@@ -219,7 +219,7 @@ func (m *CoreServiceTypes_GetFeaturesResponse) Reset()         { *m = CoreServic
 func (m *CoreServiceTypes_GetFeaturesResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_GetFeaturesResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_GetFeaturesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_f716411f9ac886b5, []int{0, 4}
+	return fileDescriptor_CoreService_a0e9a1504f969203, []int{0, 4}
 }
 func (m *CoreServiceTypes_GetFeaturesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_GetFeaturesResponse.Unmarshal(m, b)
@@ -257,7 +257,7 @@ func (m *CoreServiceTypes_ListFeaturesResponse) Reset()         { *m = CoreServi
 func (m *CoreServiceTypes_ListFeaturesResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_ListFeaturesResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_ListFeaturesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_f716411f9ac886b5, []int{0, 5}
+	return fileDescriptor_CoreService_a0e9a1504f969203, []int{0, 5}
 }
 func (m *CoreServiceTypes_ListFeaturesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_ListFeaturesResponse.Unmarshal(m, b)
@@ -296,7 +296,7 @@ func (m *CoreServiceTypes_GetStorageRequest) Reset()         { *m = CoreServiceT
 func (m *CoreServiceTypes_GetStorageRequest) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_GetStorageRequest) ProtoMessage()    {}
 func (*CoreServiceTypes_GetStorageRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_f716411f9ac886b5, []int{0, 6}
+	return fileDescriptor_CoreService_a0e9a1504f969203, []int{0, 6}
 }
 func (m *CoreServiceTypes_GetStorageRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_GetStorageRequest.Unmarshal(m, b)
@@ -334,7 +334,7 @@ func (m *CoreServiceTypes_GetStorageResponse) Reset()         { *m = CoreService
 func (m *CoreServiceTypes_GetStorageResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_GetStorageResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_GetStorageResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_f716411f9ac886b5, []int{0, 7}
+	return fileDescriptor_CoreService_a0e9a1504f969203, []int{0, 7}
 }
 func (m *CoreServiceTypes_GetStorageResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_GetStorageResponse.Unmarshal(m, b)
@@ -372,7 +372,7 @@ func (m *CoreServiceTypes_ListStorageResponse) Reset()         { *m = CoreServic
 func (m *CoreServiceTypes_ListStorageResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_ListStorageResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_ListStorageResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_f716411f9ac886b5, []int{0, 8}
+	return fileDescriptor_CoreService_a0e9a1504f969203, []int{0, 8}
 }
 func (m *CoreServiceTypes_ListStorageResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_ListStorageResponse.Unmarshal(m, b)
@@ -411,7 +411,7 @@ func (m *CoreServiceTypes_ApplyEntityResponse) Reset()         { *m = CoreServic
 func (m *CoreServiceTypes_ApplyEntityResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_ApplyEntityResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_ApplyEntityResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_f716411f9ac886b5, []int{0, 9}
+	return fileDescriptor_CoreService_a0e9a1504f969203, []int{0, 9}
 }
 func (m *CoreServiceTypes_ApplyEntityResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_ApplyEntityResponse.Unmarshal(m, b)
@@ -450,7 +450,7 @@ func (m *CoreServiceTypes_ApplyFeatureResponse) Reset()         { *m = CoreServi
 func (m *CoreServiceTypes_ApplyFeatureResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_ApplyFeatureResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_ApplyFeatureResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_f716411f9ac886b5, []int{0, 10}
+	return fileDescriptor_CoreService_a0e9a1504f969203, []int{0, 10}
 }
 func (m *CoreServiceTypes_ApplyFeatureResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_ApplyFeatureResponse.Unmarshal(m, b)
@@ -493,7 +493,7 @@ func (m *CoreServiceTypes_ApplyFeatureGroupResponse) String() string {
 }
 func (*CoreServiceTypes_ApplyFeatureGroupResponse) ProtoMessage() {}
 func (*CoreServiceTypes_ApplyFeatureGroupResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_f716411f9ac886b5, []int{0, 11}
+	return fileDescriptor_CoreService_a0e9a1504f969203, []int{0, 11}
 }
 func (m *CoreServiceTypes_ApplyFeatureGroupResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_ApplyFeatureGroupResponse.Unmarshal(m, b)
@@ -532,7 +532,7 @@ func (m *CoreServiceTypes_ApplyStorageResponse) Reset()         { *m = CoreServi
 func (m *CoreServiceTypes_ApplyStorageResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_ApplyStorageResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_ApplyStorageResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_f716411f9ac886b5, []int{0, 12}
+	return fileDescriptor_CoreService_a0e9a1504f969203, []int{0, 12}
 }
 func (m *CoreServiceTypes_ApplyStorageResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_ApplyStorageResponse.Unmarshal(m, b)
@@ -1006,10 +1006,10 @@ var _CoreService_serviceDesc = grpc.ServiceDesc{
 }
 
 func init() {
-	proto.RegisterFile("feast/core/CoreService.proto", fileDescriptor_CoreService_f716411f9ac886b5)
+	proto.RegisterFile("feast/core/CoreService.proto", fileDescriptor_CoreService_a0e9a1504f969203)
 }
 
-var fileDescriptor_CoreService_f716411f9ac886b5 = []byte{
+var fileDescriptor_CoreService_a0e9a1504f969203 = []byte{
 	// 602 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0x5b, 0x6f, 0x12, 0x41,
 	0x14, 0x86, 0x34, 0x69, 0xe0, 0x40, 0x4c, 0x3b, 0x34, 0x8a, 0x23, 0x35, 0xcd, 0x26, 0x36, 0x7d,

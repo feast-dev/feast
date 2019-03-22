@@ -25,7 +25,6 @@ import feast.specs.FeatureSpecProto.DataStore;
 import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.types.GranularityProto.Granularity;
 import feast.types.ValueProto.ValueType;
 
 import java.util.Collections;
@@ -44,9 +43,9 @@ public class FakeSpecStorage implements SpecStorage {
   public FakeSpecStorage() {
     // populate with hardcoded value
     String bigTableId = "BIGTABLE1";
-    String lastOpportunityId = "driver.none.last_opportunity";
+    String lastOpportunityId = "driver.last_opportunity";
     String lastOpportunityName = "last_opportunity";
-    String dailyCompletedBookingId = "driver.day.total_completed_booking";
+    String dailyCompletedBookingId = "driver.total_completed_booking";
     String dailyCompletedBookingName = "total_completed_booking";
     DataStore bigTable = DataStore.newBuilder().setId(bigTableId).build();
 
@@ -59,7 +58,6 @@ public class FakeSpecStorage implements SpecStorage {
 
     FeatureSpec lastOpportunity =
         FeatureSpec.newBuilder()
-            .setGranularity(Granularity.Enum.NONE)
             .setId(lastOpportunityId)
             .setName(lastOpportunityName)
             .setValueType(ValueType.Enum.INT64)
@@ -68,7 +66,6 @@ public class FakeSpecStorage implements SpecStorage {
 
     FeatureSpec totalCompleted =
         FeatureSpec.newBuilder()
-            .setGranularity(Granularity.Enum.DAY)
             .setId(dailyCompletedBookingId)
             .setName(dailyCompletedBookingName)
             .setValueType(ValueType.Enum.INT64)

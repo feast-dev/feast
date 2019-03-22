@@ -1,17 +1,16 @@
 # Copyright 2018 The Feast Authors
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     https://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 Main interface for users to interact with the Core API. 
 """
@@ -77,9 +76,10 @@ class Client:
         if self._core_url is None:
             self._core_url = os.getenv(FEAST_CORE_URL_ENV_KEY)
             if self._core_url is None:
-                raise ValueError("Core API URL not set. Either set the " +
-                                 "environment variable {} or set it explicitly."
-                                 .format(FEAST_CORE_URL_ENV_KEY))
+                raise ValueError(
+                    "Core API URL not set. Either set the " +
+                    "environment variable {} or set it explicitly.".format(
+                        FEAST_CORE_URL_ENV_KEY))
         return self._core_url
 
     @core_url.setter
@@ -91,9 +91,10 @@ class Client:
         if self._serving_url is None:
             self._serving_url = os.getenv(FEAST_SERVING_URL_ENV_KEY)
             if self._serving_url is None:
-                raise ValueError("Serving API URL not set. Either set the " +
-                                 "environment variable {} or set it explicitly."
-                                 .format(FEAST_SERVING_URL_ENV_KEY))
+                raise ValueError(
+                    "Serving API URL not set. Either set the " +
+                    "environment variable {} or set it explicitly.".format(
+                        FEAST_SERVING_URL_ENV_KEY))
         return self._serving_url
 
     @serving_url.setter
@@ -127,8 +128,11 @@ class Client:
         else:
             return self._apply(obj)
 
-    def run(self, importer, name_override=None,
-            apply_entity=False, apply_features=False):
+    def run(self,
+            importer,
+            name_override=None,
+            apply_entity=False,
+            apply_features=False):
         """
         Run an import job
         Args:
@@ -143,8 +147,7 @@ class Client:
             (str) job ID of the import job
         """
         request = JobServiceTypes.SubmitImportJobRequest(
-            importSpec=importer.spec
-        )
+            importSpec=importer.spec)
         if name_override is not None:
             request.name = name_override
 
@@ -155,18 +158,22 @@ class Client:
                 self._apply_feature(importer.features[feature])
 
         if importer.require_staging:
-            print("Staging file to remote path {}"
-                  .format(importer.remote_path))
+            print("Staging file to remote path {}".format(
+                importer.remote_path))
             importer.stage()
-        print("Submitting job with spec:\n {}"
-              .format(spec_to_yaml(importer.spec)))
+        print("Submitting job with spec:\n {}".format(
+            spec_to_yaml(importer.spec)))
         self._connect_core()
         response = self._job_service_stub.SubmitJob(request)
         print("Submitted job with id: {}".format(response.jobId))
         return response.jobId
 
-    def create_dataset(self, feature_set, start_date, end_date,
-                       limit=None, name_prefix=None):
+    def create_dataset(self,
+                       feature_set,
+                       start_date,
+                       end_date,
+                       limit=None,
+                       name_prefix=None):
         """
         Create training dataset for a feature set. The training dataset
         will be bounded by event timestamp between start_date and end_date.
@@ -187,16 +194,15 @@ class Client:
             feast.resources.feature_set.DatasetInfo: DatasetInfo containing
             the information of training dataset
         """
-        self._check_create_dataset_args(feature_set, start_date,
-                                        end_date, limit)
+        self._check_create_dataset_args(feature_set, start_date, end_date,
+                                        limit)
 
         req = DatasetServiceTypes.CreateDatasetRequest(
             featureSet=feature_set.proto,
             startDate=_timestamp_from_datetime(_parse_date(start_date)),
             endDate=_timestamp_from_datetime(_parse_date(end_date)),
             limit=limit,
-            namePrefix=name_prefix
-        )
+            namePrefix=name_prefix)
         if self.verbose:
             print("creating training dataset for features: " +
                   str(feature_set.features))
@@ -238,10 +244,14 @@ class Client:
 
         request = self._build_serving_request(feature_set, entity_keys)
         self._connect_serving()
-        return self._response_to_df(feature_set, self._serving_service_stub
-                                    .QueryFeatures(request), start, end)
+        return self._response_to_df(
+            feature_set, self._serving_service_stub.QueryFeatures(request),
+            start, end)
 
-    def download_dataset(self, dataset_info, dest, staging_location,
+    def download_dataset(self,
+                         dataset_info,
+                         dest,
+                         staging_location,
                          file_type=FileType.CSV):
         """
         Download training dataset as file
@@ -257,10 +267,7 @@ class Client:
             str: path to the downloaded file
         """
         return self._table_downloader.download_table_as_file(
-            dataset_info.table_id,
-            dest,
-            staging_location,
-            file_type)
+            dataset_info.table_id, dest, staging_location, file_type)
 
     def download_dataset_to_df(self, dataset_info, staging_location):
         """
@@ -275,8 +282,7 @@ class Client:
 
         """
         return self._table_downloader.download_table_as_df(
-            dataset_info.table_id,
-            staging_location)
+            dataset_info.table_id, staging_location)
 
     def close(self):
         """
@@ -304,9 +310,10 @@ class Client:
 
     def _build_serving_request(self, feature_set, entity_keys):
         """Helper function to build serving service request."""
-        return QueryFeaturesRequest(entityName=feature_set.entity,
-                                    entityId=entity_keys,
-                                    featureId=feature_set.features)
+        return QueryFeaturesRequest(
+            entityName=feature_set.entity,
+            entityId=entity_keys,
+            featureId=feature_set.features)
 
     def _response_to_df(self, feature_set, response, start=None, end=None):
         is_filter_time = start is not None and end is not None
@@ -316,8 +323,7 @@ class Client:
             row = {response.entityName: entity_id}
             for feature_id in feature_map:
                 v = feature_map[feature_id].value
-                if is_filter_time and not _is_granularity_none(
-                        feature_id):
+                if is_filter_time:
                     ts = feature_map[feature_id].timestamp.ToDatetime()
                     if ts < start or ts > end:
                         continue
@@ -353,9 +359,9 @@ class Client:
         """
         self._connect_core()
         response = self._core_service_stub.ApplyFeature(feature.spec)
-        if self.verbose: print(
-            "Successfully applied feature with id: {}\n---\n{}"
-                .format(response.featureId, feature))
+        if self.verbose:
+            print("Successfully applied feature with id: {}\n---\n{}".format(
+                response.featureId, feature))
         return response.featureId
 
     def _apply_entity(self, entity):
@@ -367,8 +373,8 @@ class Client:
         self._connect_core()
         response = self._core_service_stub.ApplyEntity(entity.spec)
         if self.verbose:
-            print("Successfully applied entity with name: {}\n---\n{}"
-                  .format(response.entityName, entity))
+            print("Successfully applied entity with name: {}\n---\n{}".format(
+                response.entityName, entity))
         return response.entityName
 
     def _apply_feature_group(self, feature_group):
@@ -381,9 +387,9 @@ class Client:
         self._connect_core()
         response = self._core_service_stub.ApplyFeatureGroup(
             feature_group.spec)
-        if self.verbose: print("Successfully applied feature group with id: " +
-                               "{}\n---\n{}".format(response.featureGroupId,
-                                                    feature_group))
+        if self.verbose:
+            print("Successfully applied feature group with id: " +
+                  "{}\n---\n{}".format(response.featureGroupId, feature_group))
         return response.featureGroupId
 
     def _apply_storage(self, storage):
@@ -394,12 +400,13 @@ class Client:
         """
         self._connect_core()
         response = self._core_service_stub.ApplyStorage(storage.spec)
-        if self.verbose: print("Successfully applied storage with id: " +
-                               "{}\n{}".format(response.storageId, storage))
+        if self.verbose:
+            print("Successfully applied storage with id: " +
+                  "{}\n{}".format(response.storageId, storage))
         return response.storageId
 
-    def _check_create_dataset_args(self, feature_set, start_date,
-                                   end_date, limit):
+    def _check_create_dataset_args(self, feature_set, start_date, end_date,
+                                   limit):
         if len(feature_set.features) < 1:
             raise ValueError("feature set is empty")
 
@@ -431,7 +438,3 @@ def _timestamp_from_datetime(dt):
     ts = Timestamp()
     ts.FromDatetime(dt)
     return ts
-
-
-def _is_granularity_none(feature_id):
-    return feature_id.split(".")[1] == "none"

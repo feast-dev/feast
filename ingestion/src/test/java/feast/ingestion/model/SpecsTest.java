@@ -52,7 +52,7 @@ public class SpecsTest {
     ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
         .setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
-            .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
+            .setSchema(Schema.newBuilder().addFields(newField("testEntity.testInt32")))
         ).build();
 
     Specs specs = Specs.of("testjob", importJobSpecs);
@@ -65,7 +65,7 @@ public class SpecsTest {
     assertTrue(specs.getEntitySpecs().containsKey("testEntity"));
 
     assertEquals(1, specs.getFeatureSpecs().size());
-    assertTrue(specs.getFeatureSpecs().containsKey("testEntity.none.testInt32"));
+    assertTrue(specs.getFeatureSpecs().containsKey("testEntity.testInt32"));
 
     assertTrue(specs.getServingStorageSpecs().containsKey("TEST_SERVING"));
   }
@@ -75,7 +75,7 @@ public class SpecsTest {
     ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
         .setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
-            .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
+            .setSchema(Schema.newBuilder().addFields(newField("testEntity.testInt32")))
         ).build();
 
     Specs specs = Specs.of("testjob", importJobSpecs);
@@ -89,7 +89,7 @@ public class SpecsTest {
     ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
         .setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
-            .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
+            .setSchema(Schema.newBuilder().addFields(newField("testEntity.testInt32")))
         ).build();
 
     Specs specs = Specs.of("testjob", importJobSpecs);
@@ -103,14 +103,14 @@ public class SpecsTest {
     ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
         .setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
-            .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
+            .setSchema(Schema.newBuilder().addFields(newField("testEntity.testInt32")))
         ).build();
 
     Specs specs = Specs.of("testjob", importJobSpecs);
     specs.validate();
 
     assertEquals(
-        "testEntity.none.testInt32", specs.getFeatureSpec("testEntity.none.testInt32").getId());
+        "testEntity.testInt32", specs.getFeatureSpec("testEntity.testInt32").getId());
   }
 
   @Test
@@ -118,7 +118,7 @@ public class SpecsTest {
     ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
         .setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
-            .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
+            .setSchema(Schema.newBuilder().addFields(newField("testEntity.testInt32")))
         ).build();
 
     Specs specs = Specs.of("testjob", importJobSpecs);
@@ -132,7 +132,7 @@ public class SpecsTest {
     ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
         .setImportSpec(ImportSpec.newBuilder()
             .addEntities("testEntity")
-            .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
+            .setSchema(Schema.newBuilder().addFields(newField("testEntity.testInt32")))
         ).build();
 
     Specs specs = Specs.of("testjob", importJobSpecs);
@@ -147,7 +147,7 @@ public class SpecsTest {
     ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
         .setImportSpec(ImportSpec.newBuilder()
             .addEntities("totally_different_entity")
-            .setSchema(Schema.newBuilder().addFields(newField("testEntity.none.testInt32")))
+            .setSchema(Schema.newBuilder().addFields(newField("testEntity.testInt32")))
         ).build();
 
     Specs specs = Specs.of("testjob", importJobSpecs);

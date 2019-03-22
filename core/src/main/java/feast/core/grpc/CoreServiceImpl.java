@@ -283,7 +283,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   public FeatureSpec applyDefaultStores(FeatureSpec featureSpec) {
-    DataStores.Builder dataStoreBuilder = DataStores.newBuilder();
+    DataStores.Builder dataStoreBuilder = featureSpec.getDataStores().toBuilder();
     if (Strings.isNullOrEmpty(featureSpec.getDataStores().getServing().getId())) {
       log.info("Feature has no serving store specified using default");
       if (storageSpecs.getServingStorageSpec() != null) {

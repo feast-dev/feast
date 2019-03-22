@@ -8,11 +8,6 @@
             {{ feature.spec.entity }}
           </router-link>
         </li>
-        <li>
-          <router-link class="uk-link-reset" :to="'/features/'+feature.spec.entity+'/'+feature.spec.granularity">
-            {{ feature.spec.granularity }}
-          </router-link>
-        </li>
         <li><span>{{ feature.spec.name }}</span></li>
       </ul>
     </div>
@@ -36,10 +31,6 @@
             </td>
           </tr>
           <tr>
-            <td>Granularity:</td>
-            <td>{{ feature.spec.granularity }}</td>
-          </tr>
-          <tr>
             <td>Value type:</td>
             <td>{{ feature.spec.valueType }}</td>
           </tr>
@@ -55,10 +46,6 @@
             <td>URI:</td>
             <td><a :href="feature.spec.uri">{{ feature.spec.uri }}</a></td>
           </tr>
-          <tr v-if="feature.bigqueryView">
-            <td>BigQuery view:</td>
-            <td><a :href="feature.bigqueryView">{{ feature.bigqueryView }}</a></td>
-          </tr>
           <tr>
             <td>Created:</td>
             <td>{{ feature.created }}</td>
@@ -72,6 +59,14 @@
             <td>
               <router-link :to="{path:'/storage/'+feature.spec.dataStores.serving.id,params:{id:feature.spec.dataStores.serving.id}}">
                 {{ feature.spec.dataStores.serving.id }}
+              </router-link>
+            </td>
+          </tr>
+          <tr>
+            <td>Warehouse store:</td>
+            <td>
+              <router-link :to="{path:'/storage/'+feature.spec.dataStores.warehouse.id,params:{id:feature.spec.dataStores.warehouse.id}}">
+                {{ feature.spec.dataStores.warehouse.id }}
               </router-link>
             </td>
           </tr>
@@ -168,7 +163,6 @@
             name: "",
             owner: "",
             description: "",
-            granularity: 'NONE',
             valueType: "",
             entity: "",
             group: "",
@@ -205,9 +199,7 @@
         return `{
   "entityName": "${ this.feature.spec.entity }",
   "entityId": [${ '"' + this.entityList.join('","') + '"' }],
-  "requestDetails": [{
-    "featureId": "${ this.feature.spec.id }"
-  }]
+  "featureId": ["${ this.feature.spec.id }"]
 }`
       }
     },
@@ -216,7 +208,7 @@
       fetchData() {
         let featureId = this.$route.params.id;
         this.$http.get(process.env.VUE_APP_ROOT_API + '/features/'+featureId).then(response => {
-          this.feature = filters.fillGranularity(response.body['feature']);
+          this.feature = response.body['feature'];
           this.yaml = json2yaml.stringify(response.body['rawSpec']);
         }, response => {
           this.error = response.statusText;
