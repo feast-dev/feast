@@ -10,18 +10,18 @@ core:
   resources: 
     limits: 
       cpu: 8
-      memory: 8G
+      memory: 6G
     requests: 
       cpu: 2
-      memory: 4G
+      memory: 3G
   rollingUpdate: 
     maxSurge: 2
     maxUnavailable: 0
   service: 
-    grpc: 
+    grpc:
       port: 6565
       targetPort: 6565
-    http: 
+    http:
       port: 80
       targetPort: 8080
     # loadBalancerSourceRanges sets the accepted IP ranges for firewall ingress rule

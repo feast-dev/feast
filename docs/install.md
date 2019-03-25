@@ -18,7 +18,8 @@ Redis will be used for the feature serving database.
 
 * Kubernetes cluster
   * The user should have a GKE cluster provisioned, with `kubectl` set
-    up to access this cluster
+    up to access this cluster. Note the minimum cluster requirements
+    below.
   * This cluster should have the right scopes to start jobs on
     Dataflow and to modify BigQuery datasets and tables. The simplest
     way to set this up is by setting the scope to `cloud-platform` when
@@ -35,6 +36,11 @@ Redis will be used for the feature serving database.
     is active in the root of the repository
 * Feast CLI binaries
   * You can use pre-built binaries or [compile your own](../cli/README.md).
+
+### GKE cluster requirements
+
+The recommended minimum GKE cluster is six `n1-standard-2` (each 2
+vCPUs, 7.5 GB memory).
 
 ## Set up the environment
 
