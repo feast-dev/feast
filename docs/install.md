@@ -33,6 +33,8 @@ Redis will be used for the feature serving database.
   * You have cloned the [Feast
     repository](https://github.com/gojek/feast/) and your command line
     is active in the root of the repository
+* Feast CLI binaries
+  * You can use pre-built binaries or [compile your own](../cli/README.md).
 
 ## Set up the environment
 
@@ -84,4 +86,33 @@ helm install --name feast charts/dist/feast-${FEAST_VERSION}.tgz \
 --set core.projectId=${GCP_PROJECT} \
 --set core.image.tag=${FEAST_VERSION} \
 --set serving.image.tag=${FEAST_VERSION}
+```
+
+## Register storage locations
+
+You will need to register one warehouse store and one serving
+store. This is done using [specs](specs.md).
+
+`bqStore.yml`
+```
+id: BIGQUERY1
+type: bigquery
+options:
+  project: "my-project"
+  dataset: "feast"
+  tempLocation: "gs://temp-bucket"
+```
+
+`redis.yml`
+```
+id: REDIS1
+type: redis
+options:
+  host: someRedisHost
+  port: 6379
+```
+
+Register the storage spec:
+```sh
+feast register storage bqStore.yml redis.yml
 ```
