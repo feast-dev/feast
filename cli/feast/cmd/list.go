@@ -22,7 +22,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/gojek/feast/cli/feast/pkg/util"
+	"github.com/gojek/feast/cli/feast/pkg/timeutil"
 	"github.com/gojek/feast/protos/generated/go/feast/core"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -144,7 +144,7 @@ func listJobs(ctx context.Context, cli core.JobServiceClient) error {
 	fmt.Fprintf(w, "------\t----\t------\t------\t---\n")
 	for _, job := range response.GetJobs() {
 		fmt.Fprintf(w, strings.Join(
-			[]string{job.Id, job.Type, job.Runner, job.Status, util.ParseAge(*job.Created)}, "\t")+"\n")
+			[]string{job.Id, job.Type, job.Runner, job.Status, timeutil.DurationUntilNowInHumanFormat(*job.Created)}, "\t")+"\n")
 	}
 	w.Flush()
 	return nil

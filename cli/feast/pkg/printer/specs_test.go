@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/gojek/feast/cli/feast/pkg/util"
+	"github.com/gojek/feast/cli/feast/pkg/timeutil"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 
@@ -58,8 +58,8 @@ LastUpdated:	%s
 Related Jobs:
 - job1
 - job2`,
-				util.ParseTimestamp(timestamp.Timestamp{Seconds: 1}),
-				util.ParseTimestamp(timestamp.Timestamp{Seconds: 1})),
+				timeutil.FormatToRFC3339(timestamp.Timestamp{Seconds: 1}),
+				timeutil.FormatToRFC3339(timestamp.Timestamp{Seconds: 1})),
 		}, {
 			name: "no storage",
 			input: &core.UIServiceTypes_FeatureDetail{
@@ -88,8 +88,8 @@ LastUpdated:	%s
 Related Jobs:
 - job1
 - job2`,
-				util.ParseTimestamp(timestamp.Timestamp{Seconds: 1}),
-				util.ParseTimestamp(timestamp.Timestamp{Seconds: 1})),
+				timeutil.FormatToRFC3339(timestamp.Timestamp{Seconds: 1}),
+				timeutil.FormatToRFC3339(timestamp.Timestamp{Seconds: 1})),
 		},
 	}
 
@@ -121,7 +121,7 @@ LastUpdated:	%s
 Related Jobs:
 - job1
 - job2`,
-		util.ParseTimestamp(timestamp.Timestamp{Seconds: 1}))
+		timeutil.FormatToRFC3339(timestamp.Timestamp{Seconds: 1}))
 	if out != expected {
 		t.Errorf("Expected output:\n%s \nActual:\n%s \n", expected, out)
 	}
@@ -146,7 +146,7 @@ Options:
   option1: value1
   option2: value2
 LastUpdated:	%s`,
-		util.ParseTimestamp(timestamp.Timestamp{Seconds: 1}))
+		timeutil.FormatToRFC3339(timestamp.Timestamp{Seconds: 1}))
 	if out != expected {
 		t.Errorf("Expected output:\n%s \nActual:\n%s \n", expected, out)
 	}

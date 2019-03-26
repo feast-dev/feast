@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package timeutil
 
 import (
 	"fmt"
@@ -22,9 +22,8 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 )
 
-// ParseAge parses a given timestamp to a human readable duration.
-func ParseAge(createdTimestamp timestamp.Timestamp) string {
-	timeSinceCreation := float64(time.Now().Unix() - createdTimestamp.GetSeconds())
+func DurationUntilNowInHumanFormat(timestamp timestamp.Timestamp) string {
+	timeSinceCreation := float64(time.Now().Unix() - timestamp.GetSeconds())
 	if days := math.Floor(timeSinceCreation / float64(8.64e+4)); days > 0 {
 		return fmt.Sprintf("%dd", int(days))
 	} else if hours := math.Floor(timeSinceCreation / float64(3.6e+3)); hours > 0 {
@@ -33,8 +32,7 @@ func ParseAge(createdTimestamp timestamp.Timestamp) string {
 	return fmt.Sprintf("%dm", int(math.Floor(timeSinceCreation/float64(60))))
 }
 
-// ParseTimestamp parses a given timestamp to a human readable format.
-func ParseTimestamp(ts timestamp.Timestamp) string {
+func FormatToRFC3339(ts timestamp.Timestamp) string {
 	t := time.Unix(ts.GetSeconds(), int64(ts.GetNanos()))
 	return t.Format(time.RFC3339)
 }

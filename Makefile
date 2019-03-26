@@ -23,12 +23,11 @@ test:
 test-integration:
 	$(MAKE) -C testing/integration test-integration ID=$(ID)
 
-build-deps:
+build-proto:
 	$(MAKE) -C protos gen-go
-	dep ensure
 
 build-cli:
-	$(MAKE) build-deps
+	$(MAKE) build-proto
 	$(MAKE) -C cli build-all
 
 build-java:
