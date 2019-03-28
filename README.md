@@ -45,6 +45,9 @@ For Feast administrators:
 * [Installation quickstart](docs/install.md)
 * [Helm charts](charts/README.md) details
 
+For Feast end users:
+* [Creating features](docs/endusers.md)
+
 For Feast developers:
 * [Building the CLI](cli/README.md)
 
