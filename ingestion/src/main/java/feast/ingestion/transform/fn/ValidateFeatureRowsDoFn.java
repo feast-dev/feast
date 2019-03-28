@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.protobuf.util.Timestamps;
 import feast.ingestion.exceptions.ValidationException;
 import feast.ingestion.metrics.FeastMetrics;
 import feast.ingestion.model.Specs;
@@ -89,6 +90,8 @@ public class ValidateFeatureRowsDoFn extends BaseFeatureDoFn {
               "Row entity not found in import spec entities. entity=%s", row.getEntityName()));
 
       checkArgument(row.hasEventTimestamp(), "Must have eventTimestamp set");
+      Timestamps.checkValid(row.getEventTimestamp());
+
       checkArgument(row.getFeaturesCount() > 0, "Must have at least one feature set");
 
       for (Feature feature : row.getFeaturesList()) {
