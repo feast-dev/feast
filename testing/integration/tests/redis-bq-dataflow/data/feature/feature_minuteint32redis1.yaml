@@ -1,10 +1,9 @@
-id: myentity.minute.feature_int32_redis
+id: myentity.feature_int32_redis
 name: feature_int32_redis
 entity: myentity
 owner: bob@example.com
 description: test entity.
 valueType:  INT32
-granularity: MINUTE
 uri: https://github.com/bob/example
 dataStores:
   serving:

@@ -1,5 +1,5 @@
 provider "google" {
-  version     = "~> 1.20"
+  version     = "2.1.0"
   # credentials = "${file("~/.secrets/${local.project_name}.json")}"
   project     = "${local.project_name}"
 }

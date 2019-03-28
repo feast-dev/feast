@@ -65,15 +65,7 @@ resource "google_bigquery_dataset" "feast_bq_dataset" {
   description                 = "Feast integration test dataset"
   default_table_expiration_ms = 36000000
   location                    = "US"
-}
-
-resource "null_resource" "empty_bq" {
-  provisioner "local-exec" {
-    when    = "destroy"
-    command = ". ${path.module}/scripts/empty-bq.sh ${local.project_name} feast_it"
-  }
-
-  depends_on = ["google_bigquery_dataset.feast_bq_dataset"]
+  delete_contents_on_destroy  = true
 }
 
 resource "local_file" "redis_spec" {

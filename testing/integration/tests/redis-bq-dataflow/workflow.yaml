@@ -20,18 +20,18 @@ spec:
           artifacts:
           - name: feast
             from: "{{steps.get-feast.outputs.artifacts.feast}}"
+      - name: build-cli
+        template: build-cli
+        arguments:
+          artifacts:
+          - name: feast
+            from: "{{steps.get-feast.outputs.artifacts.feast}}"
     - - name: build-push-docker
         template: build-docker
         arguments:
           artifacts:
           - name: feast
             from: "{{steps.build-jars.outputs.artifacts.feast-build}}"
-    - - name: build-cli
-        template: build-cli
-        arguments:
-          artifacts:
-          - name: feast
-            from: "{{steps.get-feast.outputs.artifacts.feast}}"
     - - name: terraform-provision
         template: terraform
         arguments:
