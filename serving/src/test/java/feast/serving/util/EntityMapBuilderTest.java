@@ -19,7 +19,6 @@ package feast.serving.util;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
@@ -27,16 +26,12 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
-import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
+import feast.serving.ServingAPIProto;
 import feast.serving.ServingAPIProto.Entity;
-import feast.serving.ServingAPIProto.FeatureValueList;
 import feast.serving.model.FeatureValue;
-import feast.types.ValueProto.TimestampList;
 import feast.types.ValueProto.Value;
-import feast.types.ValueProto.ValueList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -58,15 +53,14 @@ public class EntityMapBuilderTest {
     EntityMapBuilder builder = new EntityMapBuilder();
     List<String> entityIds = createEntityIds(1);
     List<String> featureIds = createFeatureIds(1);
-    Timestamp start = Timestamps.fromSeconds(0);
-    Timestamp end = Timestamps.fromSeconds(10);
-    List<FeatureValue> featureValueList = createFeatureValues(entityIds, featureIds, start, end);
+    Timestamp timestamp = Timestamps.fromSeconds(0);
+    List<FeatureValue> featureValueList = createFeatureValues(entityIds, featureIds, timestamp);
 
     builder.addFeatureValueList(featureValueList);
 
     Map<String, Entity> result = builder.toEntityMap();
 
-    validate(result, entityIds, featureIds, start, end);
+    validate(result, entityIds, featureIds, timestamp);
   }
 
   @Test
@@ -74,14 +68,13 @@ public class EntityMapBuilderTest {
     EntityMapBuilder builder = new EntityMapBuilder();
     List<String> entityIds = createEntityIds(10);
     List<String> featureIds = createFeatureIds(1);
-    Timestamp start = Timestamps.fromSeconds(0);
-    Timestamp end = Timestamps.fromSeconds(10);
-    List<FeatureValue> featureValueList = createFeatureValues(entityIds, featureIds, start, end);
+    Timestamp timestamp = Timestamps.fromSeconds(0);
+    List<FeatureValue> featureValueList = createFeatureValues(entityIds, featureIds, timestamp);
 
     builder.addFeatureValueList(featureValueList);
 
     Map<String, Entity> result = builder.toEntityMap();
-    validate(result, entityIds, featureIds, start, end);
+    validate(result, entityIds, featureIds, timestamp);
   }
 
   @Test
@@ -89,15 +82,14 @@ public class EntityMapBuilderTest {
     EntityMapBuilder builder = new EntityMapBuilder();
     List<String> entityIds = createEntityIds(10);
     List<String> featureIds = createFeatureIds(10);
-    Timestamp start = Timestamps.fromSeconds(0);
-    Timestamp end = Timestamps.fromSeconds(10);
-    List<FeatureValue> featureValueList = createFeatureValues(entityIds, featureIds, start, end);
+    Timestamp timestamp = Timestamps.fromSeconds(0);
+    List<FeatureValue> featureValueList = createFeatureValues(entityIds, featureIds, timestamp);
 
     builder.addFeatureValueList(featureValueList);
 
     Map<String, Entity> result = builder.toEntityMap();
 
-    validate(result, entityIds, featureIds, start, end);
+    validate(result, entityIds, featureIds, timestamp);
   }
 
   @Test
@@ -105,19 +97,18 @@ public class EntityMapBuilderTest {
     EntityMapBuilder builder = new EntityMapBuilder();
     List<String> entityIds = createEntityIds(20);
     List<String> featureIds = createFeatureIds(20);
-    Timestamp start = Timestamps.fromSeconds(0);
-    Timestamp end = Timestamps.fromSeconds(10);
+    Timestamp timestamp = Timestamps.fromSeconds(0);
     List<FeatureValue> featureValueList1 =
-        createFeatureValues(entityIds.subList(0, 10), featureIds, start, end);
+        createFeatureValues(entityIds.subList(0, 10), featureIds, timestamp);
     List<FeatureValue> featureValueList2 =
-        createFeatureValues(entityIds.subList(10, 20), featureIds, start, end);
+        createFeatureValues(entityIds.subList(10, 20), featureIds, timestamp);
 
     builder.addFeatureValueList(featureValueList1);
     builder.addFeatureValueList(featureValueList2);
 
     Map<String, Entity> result = builder.toEntityMap();
 
-    validate(result, entityIds, featureIds, start, end);
+    validate(result, entityIds, featureIds, timestamp);
   }
 
   @Test
@@ -125,19 +116,18 @@ public class EntityMapBuilderTest {
     EntityMapBuilder builder = new EntityMapBuilder();
     List<String> entityIds = createEntityIds(20);
     List<String> featureIds = createFeatureIds(20);
-    Timestamp start = Timestamps.fromSeconds(0);
-    Timestamp end = Timestamps.fromSeconds(10);
+    Timestamp timestamp = Timestamps.fromSeconds(0);
     List<FeatureValue> featureValueList1 =
-        createFeatureValues(entityIds, featureIds.subList(0, 10), start, end);
+        createFeatureValues(entityIds, featureIds.subList(0, 10), timestamp);
     List<FeatureValue> featureValueList2 =
-        createFeatureValues(entityIds, featureIds.subList(10, 20), start, end);
+        createFeatureValues(entityIds, featureIds.subList(10, 20), timestamp);
 
     builder.addFeatureValueList(featureValueList1);
     builder.addFeatureValueList(featureValueList2);
 
     Map<String, Entity> result = builder.toEntityMap();
 
-    validate(result, entityIds, featureIds, start, end);
+    validate(result, entityIds, featureIds, timestamp);
   }
 
   @Test
@@ -153,8 +143,7 @@ public class EntityMapBuilderTest {
     EntityMapBuilder builder = new EntityMapBuilder();
     List<String> entityIds = createEntityIds(20);
     List<String> featureIds = createFeatureIds(featurePerThread * nbThread);
-    Timestamp start = Timestamps.fromSeconds(0);
-    Timestamp end = Timestamps.fromSeconds(10);
+    Timestamp timestamp = Timestamps.fromSeconds(0);
 
     List<List<FeatureValue>> featureValueList = new ArrayList<>();
     for (int i = 0; i < nbThread; i++) {
@@ -162,8 +151,7 @@ public class EntityMapBuilderTest {
           createFeatureValues(
               entityIds,
               featureIds.subList(i * featurePerThread, (i + 1) * featurePerThread),
-              start,
-              end));
+              timestamp));
     }
 
     List<ListenableFuture<Void>> futures = new ArrayList<>();
@@ -192,7 +180,7 @@ public class EntityMapBuilderTest {
 
     all.get();
 
-    validate(builder.toEntityMap(), entityIds, featureIds, start, end);
+    validate(builder.toEntityMap(), entityIds, featureIds, timestamp);
     assertThat(overlaps.get(), greaterThan(0));
   }
 
@@ -200,34 +188,19 @@ public class EntityMapBuilderTest {
       Map<String, Entity> result,
       List<String> entityIds,
       List<String> featureIds,
-      Timestamp start,
-      Timestamp end) {
+      Timestamp timestamp) {
     assertThat(result.size(), equalTo(entityIds.size()));
     for (String entityId : entityIds) {
       Entity entity = result.get(entityId);
       assertNotNull(entity);
-      Map<String, FeatureValueList> featureValueListMap = entity.getFeaturesMap();
-      assertNotNull(featureValueListMap);
-      assertThat(featureValueListMap.size(), equalTo(featureIds.size()));
+      Map<String, ServingAPIProto.FeatureValue> featureValueMap = entity.getFeaturesMap();
+      assertNotNull(featureValueMap);
+      assertThat(featureValueMap.size(), equalTo(featureIds.size()));
       for (String featureId : featureIds) {
-        FeatureValueList featureValueList = featureValueListMap.get(featureId);
-        Duration duration = Timestamps.between(start, end);
-        int count = (int) duration.getSeconds();
+        ServingAPIProto.FeatureValue featureValue = featureValueMap.get(featureId);
 
-        ValueList valueList = featureValueList.getValueList();
-        TimestampList tsList = featureValueList.getTimestampList();
-        assertThat(valueList.getInt64List().getValCount(), equalTo(count));
-        assertThat(tsList.getValCount(), equalTo(count));
-
-        // check ordering
-        for (int i = 0; i < count; i++) {
-          if (i == 0) {
-            continue;
-          }
-
-          // compare that timestamp is ordered in descending order.
-          assertThat(Timestamps.compare(tsList.getVal(i), tsList.getVal(i - 1)), lessThan(0));
-        }
+        assertThat(featureValue.getTimestamp(), equalTo(timestamp));
+        assertThat(timestamp.getSeconds(), equalTo(featureValue.getValue().getInt64Val()));
       }
     }
   }
@@ -235,7 +208,7 @@ public class EntityMapBuilderTest {
   private List<String> createFeatureIds(int count) {
     List<String> featureIds = new ArrayList<>();
     for (int i = 0; i < count; i++) {
-      featureIds.add("entity.none.feature_" + i);
+      featureIds.add("entity.feature_" + i);
     }
     return featureIds;
   }
@@ -249,20 +222,16 @@ public class EntityMapBuilderTest {
   }
 
   private List<FeatureValue> createFeatureValues(
-      List<String> entityIds, List<String> featureIds, Timestamp start, Timestamp end) {
+      List<String> entityIds, List<String> featureIds, Timestamp timestamp) {
     List<FeatureValue> featureValues = new ArrayList<>();
     for (String entityId : entityIds) {
       for (String featureId : featureIds) {
-        for (Timestamp iter = start;
-            Timestamps.compare(iter, end) < 0;
-            iter = Timestamps.add(iter, Durations.fromSeconds(1))) {
-          featureValues.add(
-              new FeatureValue(
-                  featureId,
-                  entityId,
-                  Value.newBuilder().setInt64Val(iter.getSeconds()).build(),
-                  iter));
-        }
+        featureValues.add(
+            new FeatureValue(
+                featureId,
+                entityId,
+                Value.newBuilder().setInt64Val(timestamp.getSeconds()).build(),
+                timestamp));
       }
     }
     return featureValues;

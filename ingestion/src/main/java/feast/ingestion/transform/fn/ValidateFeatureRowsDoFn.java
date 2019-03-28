@@ -31,13 +31,12 @@ import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.storage.ServingStore;
-import feast.storage.WarehouseStore;
-import feast.storage.service.ServingStoreService;
-import feast.storage.service.WarehouseStoreService;
+import feast.store.serving.FeatureServingFactory;
+import feast.store.serving.FeatureServingFactoryService;
+import feast.store.warehouse.FeatureWarehouseFactory;
+import feast.store.warehouse.FeatureWarehouseFactoryService;
 import feast.types.FeatureProto.Feature;
 import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.GranularityProto.Granularity.Enum;
 import feast.types.ValueProto.ValueType;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -66,10 +65,10 @@ public class ValidateFeatureRowsDoFn extends BaseFeatureDoFn {
         featureIds.add(field.getFeatureId());
       }
     }
-    for (ServingStore store : ServingStoreService.getAll()) {
+    for (FeatureServingFactory store : FeatureServingFactoryService.getAll()) {
       supportedServingTypes.add(store.getType());
     }
-    for (WarehouseStore store : WarehouseStoreService.getAll()) {
+    for (FeatureWarehouseFactory store : FeatureWarehouseFactoryService.getAll()) {
       supportedWarehouseTypes.add(store.getType());
     }
   }
@@ -79,7 +78,6 @@ public class ValidateFeatureRowsDoFn extends BaseFeatureDoFn {
     FeatureRow row = context.element().getRow();
     EntitySpec entitySpec = specs.getEntitySpec(row.getEntityName());
     Preconditions.checkNotNull(entitySpec, "Entity spec not found for " + row.getEntityName());
-    ImportSpec importSpec = specs.getImportSpec();
 
     try {
       checkArgument(!row.getEntityKey().isEmpty(), "Entity key must not be empty");
@@ -90,10 +88,6 @@ public class ValidateFeatureRowsDoFn extends BaseFeatureDoFn {
           String.format(
               "Row entity not found in import spec entities. entity=%s", row.getEntityName()));
 
-      checkArgument(
-          !row.getGranularity().equals(Enum.UNRECOGNIZED),
-          String.format("Unrecognised granularity %s", row.getGranularity()));
-
       checkArgument(row.hasEventTimestamp(), "Must have eventTimestamp set");
       checkArgument(row.getFeaturesCount() > 0, "Must have at least one feature set");
 
@@ -102,19 +96,20 @@ public class ValidateFeatureRowsDoFn extends BaseFeatureDoFn {
         checkNotNull(
             featureSpec, String.format("Feature spec not found featureId=%s", feature.getId()));
 
-        String storageStoreId = featureSpec.getDataStores().getServing().getId();
-        StorageSpec servingStorageSpec = specs.getStorageSpec(storageStoreId);
-        checkArgument(
-            supportedServingTypes.contains(servingStorageSpec.getType()),
-            String.format("Serving storage type=%s not supported", servingStorageSpec.getType()));
+        String servingStoreId = featureSpec.getDataStores().getServing().getId();
+        if (!servingStoreId.equals(EMPTY_STORE)) {
+          StorageSpec servingStorageSpec = specs.getServingStorageSpecs()
+              .getOrDefault(servingStoreId, null);
+          checkNotNull(servingStorageSpec,
+              "Serving storage specs not found for store id " + servingStoreId);
+        }
 
         String warehouseStoreId = featureSpec.getDataStores().getWarehouse().getId();
         if (!warehouseStoreId.equals(EMPTY_STORE)) {
-          StorageSpec warehouseStorageSpec = specs.getStorageSpec(warehouseStoreId);
-          checkArgument(
-              supportedWarehouseTypes.contains(warehouseStorageSpec.getType()),
-              String.format(
-                  "Warehouse storage type=%s not supported", servingStorageSpec.getType()));
+          StorageSpec warehouseStorageSpec = specs.getWarehouseStorageSpecs()
+              .getOrDefault(warehouseStoreId, null);
+          checkNotNull(warehouseStorageSpec,
+              "Warehouse storage specs not found for store id " + servingStoreId);
         }
 
         checkArgument(
@@ -122,11 +117,6 @@ public class ValidateFeatureRowsDoFn extends BaseFeatureDoFn {
             String.format(
                 "Feature must have same entity as row. featureId=%s FeatureRow.entityName=%s FeatureSpec.entity=%s",
                 feature.getId(), row.getEntityName(), featureSpec.getEntity()));
-
-        checkArgument(
-            featureSpec.getGranularity().equals(row.getGranularity()),
-            String.format(
-                "Feature must have same granularity as entity, featureId=%s", feature.getId()));
 
         ValueType.Enum expectedType = featureSpec.getValueType();
         ValueType.Enum actualType = Values.toValueType(feature.getValue());

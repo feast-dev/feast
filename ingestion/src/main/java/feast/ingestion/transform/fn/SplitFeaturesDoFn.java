@@ -50,7 +50,6 @@ public class SplitFeaturesDoFn<T> extends DoFn<FeatureRowExtended, FeatureRowExt
       if (builder == null) {
         builder =
             FeatureRow.newBuilder()
-                .setGranularity(row.getGranularity())
                 .setEventTimestamp(row.getEventTimestamp())
                 .setEntityName(row.getEntityName())
                 .setEntityKey(row.getEntityKey());

@@ -1,7 +1,6 @@
 {
-  "id": "user.none.completed_orders",
+  "id": "user.completed_orders",
   "entity": "user",
-  "granularity": "NONE",
   "name": "completed_orders",
   "owner": "feast@example.com",
   "description": "This feature represents a user's total completed orders",

@@ -1,35 +1,25 @@
 # Copyright 2018 The Feast Authors
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     https://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import yaml
-import json
 import enum
-from feast.specs.FeatureSpec_pb2 import FeatureSpec, DataStores, DataStore
-from feast.sdk.utils.print_utils import spec_to_yaml
-from feast.types.Granularity_pb2 import Granularity as Granularity_pb2
+import json
+
+import yaml
 from google.protobuf.json_format import Parse
 
-
-class Granularity(enum.Enum):
-    """
-    Feature's Granularity
-    """
-    NONE = 0
-    DAY = 1
-    HOUR = 2
-    MINUTE = 3
-    SECOND = 4
+from feast.sdk.utils.print_utils import spec_to_yaml
+from feast.specs.FeatureSpec_pb2 import FeatureSpec, DataStores, DataStore
 
 
 class ValueType(enum.Enum):
@@ -51,16 +41,24 @@ class Feature:
     """
     Wrapper class for feast feature
     """
-    def __init__(self, name='', entity='', granularity=Granularity.NONE,
-        owner='', value_type=ValueType.DOUBLE, description='', uri='',
-        warehouse_store=None, serving_store=None, group='', tags=[], options={}):
+
+    def __init__(self,
+                 name='',
+                 entity='',
+                 owner='',
+                 value_type=ValueType.DOUBLE,
+                 description='',
+                 uri='',
+                 warehouse_store=None,
+                 serving_store=None,
+                 group='',
+                 tags=[],
+                 options={}):
         """Create feast feature instance.
         
         Args:
             name (str): name of feature, in lower snake case
             entity (str): entity the feature belongs to, in lower case
-            granularity (feast.sdk.resources.feature.Granularity):
-                granularity of the feature
             owner (str): owner of the feature
             value_type (feast.sdk.resources.feature.ValueType): defaults to
                 ValueType.DOUBLE. value type of the feature
@@ -75,21 +73,27 @@ class Feature:
             tags (list[str], optional): tags assigned to the feature
             options (dic, optional): additional options for the feature
         """
-        id = '.'.join([entity,
-                       Granularity_pb2.Enum.Name(granularity.value), name]).lower()
-    
+        id = '{}.{}'.format(entity, name).lower()
         warehouse_store_spec = None
         serving_store_spec = None
-        if (serving_store is not None):
+        if serving_store is not None:
             serving_store_spec = serving_store.spec
-        if (warehouse_store is not None):
+        if warehouse_store is not None:
             warehouse_store_spec = warehouse_store.spec
-        data_stores = DataStores(serving = serving_store_spec,
-            warehouse = warehouse_store_spec)
-        self.__spec = FeatureSpec(id=id, granularity=granularity.value,
-            name=name, entity=entity, owner=owner, dataStores=data_stores,
-            description=description, uri=uri, valueType=value_type.value,
-            group=group, tags=tags, options=options)
+        data_stores = DataStores(
+            serving=serving_store_spec, warehouse=warehouse_store_spec)
+        self.__spec = FeatureSpec(
+            id=id,
+            name=name,
+            entity=entity,
+            owner=owner,
+            dataStores=data_stores,
+            description=description,
+            uri=uri,
+            valueType=value_type.value,
+            group=group,
+            tags=tags,
+            options=options)
 
     @property
     def spec(self):
@@ -107,18 +111,7 @@ class Feature:
     def name(self, value):
         self.__spec.name = value
         id_split = self.id.split('.')
-        id_split[2] = value
-        self.__spec.id = '.'.join(id_split)
-
-    @property
-    def granularity(self):
-        return Granularity(self.__spec.granularity)
-
-    @granularity.setter
-    def granularity(self, value):
-        self.__spec.granularity = value.value
-        id_split = self.id.split('.')
-        id_split[1] = Granularity_pb2.Enum.Name(self.__spec.granularity).lower()
+        id_split[1] = value
         self.__spec.id = '.'.join(id_split)
 
     @property
@@ -226,7 +219,7 @@ class Feature:
                 FeatureSpec(),
                 ignore_unknown_fields=False)
             return feature
-            
+
     def __str__(self):
         """Print the feature in yaml format
         
@@ -249,7 +242,7 @@ class Feature:
 
 class Datastore:
     def __init__(self, id, options={}):
-        self.__spec = DataStore(id = id, options = options)
+        self.__spec = DataStore(id=id, options=options)
 
     def __str__(self):
         """Print the datastore in yaml format

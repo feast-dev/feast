@@ -11,6 +11,6 @@ schema:
   fields:
     - name: id
     - name: name
-    - featureId: user.none.age
-    - featureId: user.none.completed_orders
+    - featureId: user.age
+    - featureId: user.completed_orders
 

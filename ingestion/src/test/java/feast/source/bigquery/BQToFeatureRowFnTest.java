@@ -26,7 +26,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.common.collect.Lists;
 import com.google.protobuf.Timestamp;
-import feast.source.bigquery.BigQueryToFeatureRowFn;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord;
 import org.joda.time.DateTime;
@@ -62,7 +61,7 @@ public class BQToFeatureRowFnTest {
                     .addFields(
                         Field.newBuilder()
                             .setName("bq_value")
-                            .setFeatureId("testEntity.day.testInt64")))
+                            .setFeatureId("testEntity.testInt64")))
             .build();
 
     GenericRecord record = mock(GenericRecord.class);
@@ -86,7 +85,7 @@ public class BQToFeatureRowFnTest {
         row.getFeaturesList(),
         equalTo(
             Lists.newArrayList(
-                Features.of("testEntity.day.testInt64", Values.ofInt64(Long.MAX_VALUE)))));
+                Features.of("testEntity.testInt64", Values.ofInt64(Long.MAX_VALUE)))));
   }
 
   @Test
@@ -105,7 +104,7 @@ public class BQToFeatureRowFnTest {
                     .addFields(
                         Field.newBuilder()
                             .setName("bq_value")
-                            .setFeatureId("testEntity.day.testInt64")))
+                            .setFeatureId("testEntity.testInt64")))
             .build();
 
     GenericRecord record = mock(GenericRecord.class);
@@ -129,6 +128,6 @@ public class BQToFeatureRowFnTest {
         row.getFeaturesList(),
         equalTo(
             Lists.newArrayList(
-                Features.of("testEntity.day.testInt64", Values.ofInt64(Long.MAX_VALUE)))));
+                Features.of("testEntity.testInt64", Values.ofInt64(Long.MAX_VALUE)))));
   }
 }

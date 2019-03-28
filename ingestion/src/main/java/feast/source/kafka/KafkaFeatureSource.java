@@ -59,19 +59,16 @@ public class KafkaFeatureSource extends FeatureSource {
     checkArgument(importSpec.getType().equals(KAFKA_FEATURE_SOURCE_TYPE));
 
     KafkaReadOptions options =
-        OptionsParser.parse(importSpec.getOptionsMap(), KafkaReadOptions.class);
+        OptionsParser.parse(importSpec.getSourceOptionsMap(), KafkaReadOptions.class);
 
     List<String> topicsList = new ArrayList<>(Arrays.asList(options.topics.split(",")));
 
-    KafkaIO.Read<FeatureRowKey, FeatureRow> kafkaIOReader =
-        KafkaIO.<FeatureRowKey, FeatureRow>read()
+    PCollection<KafkaRecord<FeatureRowKey, FeatureRow>> featureRowRecord =
+        input.getPipeline().apply( KafkaIO.<FeatureRowKey, FeatureRow>read()
             .withBootstrapServers(options.server)
             .withTopics(topicsList)
             .withKeyDeserializer(FeatureRowKeyDeserializer.class)
-            .withValueDeserializer(FeatureRowDeserializer.class);
-
-    PCollection<KafkaRecord<FeatureRowKey, FeatureRow>> featureRowRecord =
-        input.getPipeline().apply(kafkaIOReader);
+            .withValueDeserializer(FeatureRowDeserializer.class));
 
     PCollection<FeatureRow> featureRow =  featureRowRecord.apply(
         ParDo.of(

@@ -6,62 +6,71 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import feast.core.config.ImportJobDefaults;
+import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.ImportSpecProto.ImportSpec;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import org.apache.flink.client.cli.CliFrontend;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 public class FlinkJobManagerTest {
-  @Mock private CliFrontend flinkCli;
-  @Mock private FlinkRestApi flinkRestApi;
 
+  @Rule
+  public TemporaryFolder tempFolder = new TemporaryFolder();
+  @Mock
+  private CliFrontend flinkCli;
+  @Mock
+  private FlinkRestApi flinkRestApi;
   private FlinkJobConfig config;
   private ImportJobDefaults defaults;
   private FlinkJobManager flinkJobManager;
+  private Path workspace;
 
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
     config = new FlinkJobConfig("localhost:8081", "/etc/flink/conf");
+    workspace = Paths.get(tempFolder.newFolder().toString());
     defaults =
-        new ImportJobDefaults(
-            "localhost:8080",
-            "FlinkRunner",
-            "{\"key\":\"value\"}",
-            "ingestion.jar",
-            "stderr",
-            "{}");
+        ImportJobDefaults.builder().
+            runner("FlinkRunner").importJobOptions("{\"key\":\"value\"}")
+            .executable("ingestion.jar")
+            .workspace(workspace.toString()).build();
 
     flinkJobManager = new FlinkJobManager(flinkCli, config, flinkRestApi, defaults);
   }
 
   @Test
-  public void shouldPassCorrectArgumentForSubmittingJob() {
+  public void shouldPassCorrectArgumentForSubmittingJob() throws IOException {
     FlinkJobList response = new FlinkJobList();
     response.setJobs(Collections.singletonList(new FlinkJob("1234", "job1", "RUNNING")));
     when(flinkRestApi.getJobsOverview()).thenReturn(response);
 
     ImportSpec importSpec = ImportSpec.newBuilder().setType("file").build();
     String jobName = "importjob";
-    flinkJobManager.submitJob(importSpec, jobName);
+    ImportJobSpecs importJobSpecs = ImportJobSpecs.newBuilder().setJobId(jobName)
+        .setImportSpec(importSpec).build();
+
+    flinkJobManager.submitJob(importJobSpecs, Paths.get("/tmp/foobar"));
     String[] expected =
-        new String[] {
-          "run",
-          "-d",
-          "-m",
-          config.getMasterUrl(),
-          defaults.getExecutable(),
-          "--jobName=" + jobName,
-          "--runner=FlinkRunner",
-          "--importSpecBase64=CgRmaWxl",
-          "--coreApiUri=" + defaults.getCoreApiUri(),
-          "--errorsStoreType=" + defaults.getErrorsStoreType(),
-          "--errorsStoreOptions=" + defaults.getErrorsStoreOptions(),
-          "--key=value"
+        new String[]{
+            "run",
+            "-d",
+            "-m",
+            config.getMasterUrl(),
+            defaults.getExecutable(),
+            "--jobName=" + jobName,
+            "--runner=FlinkRunner",
+            "--workspace=/tmp/foobar",
+            "--key=value"
         };
 
     ArgumentCaptor<String[]> argumentCaptor = ArgumentCaptor.forClass(String[].class);
@@ -80,7 +89,9 @@ public class FlinkJobManagerTest {
     when(flinkRestApi.getJobsOverview()).thenReturn(response);
 
     ImportSpec importSpec = ImportSpec.newBuilder().setType("file").build();
-    String jobId = flinkJobManager.submitJob(importSpec, jobName);
+    ImportJobSpecs importJobSpecs = ImportJobSpecs.newBuilder().setJobId(jobName)
+        .setImportSpec(importSpec).build();
+    String jobId = flinkJobManager.submitJob(importJobSpecs, workspace);
 
     assertThat(jobId, equalTo(flinkJobId));
   }
@@ -92,10 +103,10 @@ public class FlinkJobManagerTest {
     flinkJobManager.abortJob(jobId);
 
     String[] expected = new String[]{
-      "cancel",
-      "-m",
-      config.getMasterUrl(),
-      jobId
+        "cancel",
+        "-m",
+        config.getMasterUrl(),
+        jobId
     };
 
     ArgumentCaptor<String[]> argumentCaptor = ArgumentCaptor.forClass(String[].class);

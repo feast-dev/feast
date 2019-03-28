@@ -43,7 +43,7 @@ public class StatsdMetricPusher {
       // `row:result` <- all
       // `scope:scope_id:result` <- per scope, either feature or entity
       // for examples:
-      // 1. feature:driver.minute.ping_sequence_weak_dir_change_mean:error
+      // 1. feature:driver.ping_sequence_weak_dir_change_mean:error
       // 2. entity:driver:stored
       // currently there are 3 results:
       // 1. valid

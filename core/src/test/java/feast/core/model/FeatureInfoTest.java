@@ -22,7 +22,6 @@ import feast.core.UIServiceProto.UIServiceTypes.FeatureDetail;
 import feast.specs.FeatureSpecProto.DataStore;
 import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.types.GranularityProto.Granularity;
 import feast.types.ValueProto.ValueType;
 import org.junit.Before;
 import org.junit.Rule;
@@ -49,12 +48,11 @@ public class FeatureInfoTest {
     entityInfo.setName("entity");
 
     featureInfo = new FeatureInfo();
-    featureInfo.setId("entity.NONE.name");
+    featureInfo.setId("entity.name");
     featureInfo.setName("name");
     featureInfo.setOwner("owner");
     featureInfo.setDescription("desc");
     featureInfo.setUri("uri");
-    featureInfo.setGranularity(Granularity.Enum.NONE);
     featureInfo.setValueType(ValueType.Enum.BYTES);
     featureInfo.setEntity(entityInfo);
     featureInfo.setOptions("{}");
@@ -82,13 +80,12 @@ public class FeatureInfoTest {
 
     featureSpec =
         FeatureSpec.newBuilder()
-            .setId("entity.NONE.name")
+            .setId("entity.name")
             .setName("name")
             .setOwner("owner")
             .setDescription("desc")
             .setEntity("entity")
             .setUri("uri")
-            .setGranularity(Granularity.Enum.NONE)
             .setValueType(ValueType.Enum.BYTES)
             .addTags("tag1")
             .addTags("tag2")
@@ -133,12 +130,11 @@ public class FeatureInfoTest {
     featureGroupInfo.setWarehouseStore(warehouseStorage);
     featureGroupInfo.setTags("inherited");
     FeatureInfo featureInfo = new FeatureInfo();
-    featureInfo.setId("entity.NONE.name");
+    featureInfo.setId("entity.name");
     featureInfo.setName("name");
     featureInfo.setOwner("owner");
     featureInfo.setDescription("desc");
     featureInfo.setUri("uri");
-    featureInfo.setGranularity(Granularity.Enum.NONE);
     featureInfo.setValueType(ValueType.Enum.BYTES);
     featureInfo.setEntity(entityInfo);
     featureInfo.setOptions("{}");
@@ -157,14 +153,13 @@ public class FeatureInfoTest {
 
     FeatureSpec expected =
         FeatureSpec.newBuilder()
-            .setId("entity.NONE.name")
+            .setId("entity.name")
             .setName("name")
             .setOwner("owner")
             .setDescription("desc")
             .setEntity("entity")
             .setUri("uri")
             .setGroup("testGroup")
-            .setGranularity(Granularity.Enum.NONE)
             .setValueType(ValueType.Enum.BYTES)
             .addTags("tag1")
             .addTags("tag2")
@@ -187,13 +182,12 @@ public class FeatureInfoTest {
 
     FeatureSpec update =
         FeatureSpec.newBuilder()
-            .setId("entity.NONE.name")
+            .setId("entity.name")
             .setName("name")
             .setOwner("owner2")
             .setDescription("overwrite")
             .setEntity("entity")
             .setUri("new_uri")
-            .setGranularity(Granularity.Enum.NONE)
             .setValueType(ValueType.Enum.BYTES)
             .addTags("new_tag")
             .setDataStores(dataStores)
@@ -216,13 +210,12 @@ public class FeatureInfoTest {
 
     FeatureSpec update =
             FeatureSpec.newBuilder()
-                    .setId("entity.NONE.name")
+                    .setId("entity.name")
                     .setName("name")
                     .setOwner("owner2")
                     .setDescription("overwrite")
                     .setEntity("entity")
                     .setUri("new_uri")
-                    .setGranularity(Granularity.Enum.NONE)
                     .setValueType(ValueType.Enum.INT32)
                     .addTags("new_tag")
                     .setDataStores(dataStores)
@@ -238,13 +231,12 @@ public class FeatureInfoTest {
   public void shouldThrowExceptionIfImmutableFieldsChangedToNull() {
     FeatureSpec update =
             FeatureSpec.newBuilder()
-                    .setId("entity.NONE.name")
+                    .setId("entity.name")
                     .setName("name")
                     .setOwner("owner2")
                     .setDescription("overwrite")
                     .setEntity("entity")
                     .setUri("new_uri")
-                    .setGranularity(Granularity.Enum.NONE)
                     .setValueType(ValueType.Enum.BYTES)
                     .addTags("new_tag")
                     .build();

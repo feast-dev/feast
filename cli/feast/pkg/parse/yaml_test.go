@@ -34,13 +34,12 @@ func TestYamlToFeatureSpec(t *testing.T) {
 	}{
 		{
 			name: "valid yaml",
-			input: []byte(`id: test.none.test_feature_two
+			input: []byte(`id: test.test_feature_two
 name: test_feature_two
 entity: test
 owner: bob@example.com
 description: testing feature
 valueType:  INT64
-granularity: NONE
 uri: https://github.com/bob/example
 dataStores:
   serving:
@@ -48,12 +47,11 @@ dataStores:
   warehouse:
     id: BIGQUERY`),
 			expected: &specs.FeatureSpec{
-				Id:          "test.none.test_feature_two",
+				Id:          "test.test_feature_two",
 				Owner:       "bob@example.com",
 				Name:        "test_feature_two",
 				Description: "testing feature",
 				Uri:         "https://github.com/bob/example",
-				Granularity: types.Granularity_NONE,
 				ValueType:   types.ValueType_INT64,
 				Entity:      "test",
 				DataStores: &specs.DataStores{
@@ -243,7 +241,9 @@ func TestYamlToImportSpec(t *testing.T) {
 		{
 			name: "valid yaml",
 			input: []byte(`type: file
-options:
+jobOptions:
+  coalesceRows.enabled: "true"
+sourceOptions:
   format: csv
   path: jaeger_last_opportunity_sample.csv
 entities:
@@ -255,10 +255,13 @@ schema:
     - name: timestamp
     - name: driver_id
     - name: last_opportunity
-      featureId: driver.none.last_opportunity`),
+      featureId: driver.last_opportunity`),
 			expected: &specs.ImportSpec{
 				Type: "file",
-				Options: map[string]string{
+				JobOptions: map[string]string{
+					"coalesceRows.enabled": "true",
+				},
+				SourceOptions: map[string]string{
 					"format": "csv",
 					"path":   "jaeger_last_opportunity_sample.csv",
 				},
@@ -267,59 +270,13 @@ schema:
 					Fields: []*specs.Field{
 						{Name: "timestamp"},
 						{Name: "driver_id"},
-						{Name: "last_opportunity", FeatureId: "driver.none.last_opportunity"},
+						{Name: "last_opportunity", FeatureId: "driver.last_opportunity"},
 					},
 					EntityIdColumn: "driver_id",
 					Timestamp: &specs.Schema_TimestampValue{
 						TimestampValue: &timestamp.Timestamp{Seconds: 1537833600},
 					},
 				},
-			},
-			err: nil,
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			spec, err := YamlToImportSpec(tc.input)
-			if tc.err == nil {
-				if err != nil {
-					t.Error(err)
-				} else if !cmp.Equal(spec, tc.expected) {
-					t.Errorf("Expected %s, got %s", tc.expected, spec)
-				}
-			} else {
-				// we expect an error
-				if err == nil {
-					t.Error(err)
-				} else if err.Error() != tc.err.Error() {
-					t.Errorf("Expected error %v, got %v", err.Error(), tc.err.Error())
-				}
-			}
-		})
-	}
-}
-
-func TestYamlToImportSpecNoSchema(t *testing.T) {
-	tt := []struct {
-		name     string
-		input    []byte
-		expected *specs.ImportSpec
-		err      error
-	}{
-		{
-			name: "valid yaml",
-			input: []byte(`type: pubsub
-options:
-  topic: projects/your-gcp-project/topics/feast-test
-entities:
-  - testentity`),
-			expected: &specs.ImportSpec{
-				Type: "pubsub",
-				Options: map[string]string{
-					"topic": "projects/your-gcp-project/topics/feast-test",
-				},
-				Entities: []string{"testentity"},
 			},
 			err: nil,
 		},

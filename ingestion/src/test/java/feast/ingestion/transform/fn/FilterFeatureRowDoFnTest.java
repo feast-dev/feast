@@ -34,9 +34,9 @@ public class FilterFeatureRowDoFnTest {
 
   @Test
   public void shouldIgnoreUnspecifiedFeatureID() {
-    String featureId1 = "testentity.none.feature1";
-    String featureId2 = "testentity.hour.feature2";
-    String featureId3 = "testentity.day.feature3";
+    String featureId1 = "testentity.feature1";
+    String featureId2 = "testentity.feature2";
+    String featureId3 = "testentity.feature3";
 
     List<String> specifiedFeatureIds = Arrays.asList(featureId1, featureId2, featureId3);
     FilterFeatureRowDoFn doFn = new FilterFeatureRowDoFn(specifiedFeatureIds);
@@ -52,7 +52,7 @@ public class FilterFeatureRowDoFnTest {
             .addFeatures(
                 Feature.newBuilder().setId(featureId3).setValue(Value.newBuilder().setInt64Val(12)))
             // this feature should be ignored
-            .addFeatures(Feature.newBuilder().setId("testEntity.none.unknown_feature"))
+            .addFeatures(Feature.newBuilder().setId("testEntity.unknown_feature"))
             .build();
 
     PCollection<FeatureRow> output = testPipeline.apply(Create.of(row))

@@ -23,7 +23,6 @@ import feast.core.util.TypeConversion;
 import feast.specs.FeatureSpecProto.DataStore;
 import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.types.GranularityProto.Granularity;
 import feast.types.ValueProto.ValueType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -61,9 +60,6 @@ public class FeatureInfo extends AbstractTimestampEntity {
 
   @Column(name = "uri", nullable = false)
   private String uri;
-
-  @Enumerated(EnumType.STRING)
-  private Granularity.Enum granularity;
 
   @Enumerated(EnumType.STRING)
   private ValueType.Enum valueType;
@@ -120,7 +116,6 @@ public class FeatureInfo extends AbstractTimestampEntity {
     this.owner = spec.getOwner();
     this.description = spec.getDescription();
     this.uri = spec.getUri();
-    this.granularity = spec.getGranularity();
     this.valueType = spec.getValueType();
     this.entity = entityInfo;
     this.featureGroup = featureGroupInfo;
@@ -144,7 +139,6 @@ public class FeatureInfo extends AbstractTimestampEntity {
     this.owner = other.owner;
     this.description = other.description;
     this.uri = other.uri;
-    this.granularity = other.granularity;
     this.valueType = other.valueType;
     this.entity = other.entity;
     this.featureGroup = other.featureGroup;
@@ -183,7 +177,6 @@ public class FeatureInfo extends AbstractTimestampEntity {
             .setOwner(owner)
             .setDescription(description)
             .setUri(uri)
-            .setGranularity(granularity)
             .setValueType(valueType)
             .setEntity(entity.getName())
             .addAllTags(convertTagStringToList(tags))
@@ -250,8 +243,8 @@ public class FeatureInfo extends AbstractTimestampEntity {
     String dataset = opts.get(BigQueryStorageManager.OPT_BIGQUERY_DATASET);
 
     return String.format(
-        "https://bigquery.cloud.google.com/table/%s:%s.%s_%s_view",
-        projectId, dataset, entity.getName(), granularity.toString().toLowerCase());
+        "https://bigquery.cloud.google.com/table/%s:%s.%s_view",
+        projectId, dataset, entity.getName());
   }
 
   /**
@@ -276,7 +269,6 @@ public class FeatureInfo extends AbstractTimestampEntity {
     FeatureSpec spec = this.getFeatureSpec();
     return spec.getName().equals(update.getName())
         && spec.getEntity().equals(update.getEntity())
-        && spec.getGranularity().equals(update.getGranularity())
         && spec.getValueType().equals(update.getValueType())
         && spec.getGroup().equals(update.getGroup())
         && spec.getOptionsMap().equals(update.getOptionsMap())

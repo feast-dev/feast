@@ -21,21 +21,20 @@ import com.google.inject.Inject;
 import feast.ingestion.metrics.FeastMetrics;
 import feast.ingestion.model.Specs;
 import feast.ingestion.values.PFeatureRows;
-import feast.storage.ServingStore;
+import feast.store.serving.FeatureServingFactory;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 
-import java.util.List;
-
 @Slf4j
 public class ServingStoreTransform extends PTransform<PFeatureRows, PFeatureRows> {
 
-  private List<ServingStore> stores;
+  private List<FeatureServingFactory> stores;
   private Specs specs;
 
   @Inject
-  public ServingStoreTransform(List<ServingStore> stores, Specs specs) {
+  public ServingStoreTransform(List<FeatureServingFactory> stores, Specs specs) {
     this.stores = stores;
     this.specs = specs;
   }
@@ -46,11 +45,13 @@ public class ServingStoreTransform extends PTransform<PFeatureRows, PFeatureRows
         input.apply(
             "Split to serving stores",
             new SplitOutputByStore(
-                stores, (featureSpec) -> featureSpec.getDataStores().getServing().getId(), specs));
+                stores, (featureSpec) -> featureSpec.getDataStores().getServing().getId(), specs,
+                specs.getServingStorageSpecs()));
 
     output.getMain().apply("metrics.store.lag", ParDo.of(FeastMetrics.lagUpdateDoFn()));
     output.getMain().apply("metrics.store.main", ParDo.of(FeastMetrics.incrDoFn("serving_stored")));
-    output.getErrors().apply("metrics.store.errors", ParDo.of(FeastMetrics.incrDoFn("serving_errors")));
+    output.getErrors()
+        .apply("metrics.store.errors", ParDo.of(FeastMetrics.incrDoFn("serving_errors")));
     return output;
   }
 }
