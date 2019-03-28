@@ -43,7 +43,7 @@ resource "template_file" "helm_values" {
     store_serving_option   = "'${jsonencode(local.serving_option)}'"
     project_id             = "${var.project_name}"
     region                 = "${var.region}"
-    workspace              = "${var.bucket_name}/workspace"
+    workspace              = "gs://${var.bucket_name}/workspace"
   }
 }
 
