@@ -94,11 +94,12 @@ class TestFeastIntegration:
         feature_set = FeatureSet(entity="myentity", 
             features=["myentity." + f for f in features])
         actual_latest = client.get_serving_data(feature_set, entity_keys=[str(id) for id in list(wanted.id.unique())])
-        actual_latest = actual_latest.sort_values(["id"])
+        actual_latest = actual_latest.sort_values(["myentity"])
         wanted['event_timestamp'] = pd.to_datetime(wanted['event_timestamp'])
-        wanted_latest = wanted.loc[wanted.groupby('id').event_timestamp.idxmax(),:]
+        wanted_latest = wanted.loc[wanted.groupby('myentity').event_timestamp.idxmax(),:]
         wanted_latest.columns = ["myentity", "timestamp"] + ["myentity." + f for f in features]
-        wanted_latest = wanted_latest.sort_values(["id"])[actual_latest.columns] \
+        wanted_latest = wanted_latest[actual_latest.columns] \
+            .sort_values(["myentity"]) \
             .reset_index(drop=True)
         wanted_latest["myentity"] = wanted_latest["myentity"].astype(str)
         
