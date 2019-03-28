@@ -36,7 +36,6 @@ import feast.specs.FeatureSpecProto.DataStore;
 import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.types.GranularityProto.Granularity;
 import feast.types.ValueProto.ValueType;
 import org.junit.Before;
 import org.junit.Rule;
@@ -86,12 +85,11 @@ public class SpecServiceTest {
 
   private FeatureInfo newTestFeatureInfo(String name) {
     FeatureInfo feature = new FeatureInfo();
-    feature.setId(Strings.lenientFormat("entity.NONE.%s", name));
+    feature.setId(Strings.lenientFormat("entity.%s", name));
     feature.setName(name);
     feature.setEntity(newTestEntityInfo("entity"));
     feature.setDescription("");
     feature.setOwner("@test");
-    feature.setGranularity(Granularity.Enum.NONE);
     feature.setValueType(ValueType.Enum.BOOL);
     feature.setUri("");
     feature.setWarehouseStore(newTestStorageInfo("BIGQUERY1", "BIGQUERY"));
@@ -180,7 +178,7 @@ public class SpecServiceTest {
     FeatureInfo feature1 = newTestFeatureInfo("feature1");
     FeatureInfo feature2 = newTestFeatureInfo("feature2");
 
-    ArrayList<String> ids = Lists.newArrayList("entity.none.feature1", "entity.none.feature2");
+    ArrayList<String> ids = Lists.newArrayList("entity.feature1", "entity.feature2");
     when(featureInfoRepository.findAllById(any(Iterable.class))).thenReturn(Lists.newArrayList(feature1, feature2));
     SpecService specService =
         new SpecService(
@@ -199,7 +197,7 @@ public class SpecServiceTest {
     FeatureInfo feature1 = newTestFeatureInfo("feature1");
     FeatureInfo feature2 = newTestFeatureInfo("feature2");
 
-    ArrayList<String> ids = Lists.newArrayList("entity.none.feature1", "entity.none.feature2", "entity.none.feature2");
+    ArrayList<String> ids = Lists.newArrayList("entity.feature1", "entity.feature2", "entity.feature2");
     when(featureInfoRepository.findAllById(any(Iterable.class))).thenReturn(Lists.newArrayList(feature1, feature2));
     SpecService specService =
         new SpecService(
@@ -217,7 +215,7 @@ public class SpecServiceTest {
   public void shouldThrowRetrievalExceptionIfAnyFeatureNotFound() {
     FeatureInfo feature2 = newTestFeatureInfo("feature2");
 
-    ArrayList<String> ids = Lists.newArrayList("entity.none.feature1", "entity.none.feature2");
+    ArrayList<String> ids = Lists.newArrayList("entity.feature1", "entity.feature2");
     when(featureInfoRepository.findAllById(ids)).thenReturn(Lists.newArrayList(feature2));
     SpecService specService =
         new SpecService(
@@ -340,14 +338,13 @@ public class SpecServiceTest {
 
     FeatureSpec spec =
         FeatureSpec.newBuilder()
-            .setId("entity.none.name")
+            .setId("entity.name")
             .setName("name")
             .setOwner("owner")
             .setDescription("desc")
             .setEntity("entity")
             .setUri("uri")
             .setGroup("testGroup")
-            .setGranularity(Granularity.Enum.NONE)
             .setValueType(ValueType.Enum.BYTES)
             .build();
 
@@ -361,14 +358,13 @@ public class SpecServiceTest {
 
     FeatureSpec resolvedSpec =
         FeatureSpec.newBuilder()
-            .setId("entity.none.name")
+            .setId("entity.name")
             .setName("name")
             .setOwner("owner")
             .setDescription("desc")
             .setEntity("entity")
             .setUri("uri")
             .setGroup("testGroup")
-            .setGranularity(Granularity.Enum.NONE)
             .setValueType(ValueType.Enum.BYTES)
             .setDataStores(dataStores)
             .build();

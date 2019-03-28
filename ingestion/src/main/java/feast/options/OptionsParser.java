@@ -22,7 +22,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import com.google.common.collect.Lists;
-import feast.source.csv.CsvFileFeatureSource.CsvFileFeatureSourceOptions;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;

@@ -11,6 +11,6 @@ schema:
   fields:
     - name: timestamp
     - name: id
-    - featureId: testEntity.none.testInt32
-    - featureId: testEntity.none.testString
+    - featureId: testEntity.testInt32
+    - featureId: testEntity.testString
 

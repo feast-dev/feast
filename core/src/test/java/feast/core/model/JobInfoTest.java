@@ -41,9 +41,8 @@ public class JobInfoTest {
             .build();
 
     ImportSpecProto.ImportSpec importSpec = ImportSpecProto.ImportSpec.newBuilder()
-            .setType("file")
-            .putOptions("format", "csv")
-            .putOptions("path", "gs://some/path")
+            .setType("file.csv")
+            .putSourceOptions("path", "gs://some/path")
             .addEntities("entity")
             .setSchema(schema)
             .build();
@@ -52,9 +51,9 @@ public class JobInfoTest {
     JobInfo expected = new JobInfo();
     expected.setId("fake-job-id");
     expected.setExtId("fake-ext-id");
-    expected.setType("file");
+    expected.setType("file.csv");
     expected.setRunner("DataflowRunner");
-    expected.setOptions(TypeConversion.convertMapToJsonString(importSpec.getOptionsMap()));
+    expected.setSourceOptions(TypeConversion.convertMapToJsonString(importSpec.getSourceOptionsMap()));
 
     List<EntityInfo> entities = new ArrayList<>();
     EntityInfo entityInfo = new EntityInfo();
@@ -75,7 +74,7 @@ public class JobInfoTest {
     assertThat(actual.getRunner(), equalTo(expected.getRunner()));
     assertThat(actual.getEntities(), equalTo(expected.getEntities()));
     assertThat(actual.getFeatures(), equalTo(expected.getFeatures()));
-    assertThat(actual.getOptions(), equalTo(expected.getOptions()));
+    assertThat(actual.getSourceOptions(), equalTo(expected.getSourceOptions()));
     assertThat(actual.getRaw(), equalTo(expected.getRaw()));
   }
 }

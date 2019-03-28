@@ -17,7 +17,7 @@
 
 package feast.core.config;
 
-import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -26,13 +26,12 @@ import lombok.Setter;
  */
 @Getter
 @Setter
-@AllArgsConstructor
+@Builder
 public class ImportJobDefaults {
-  private String coreApiUri;
-  private String runner;
+
   private String importJobOptions;
+  private String runner;
+  private String workspace;
   private String executable;
-  private String errorsStoreType;
-  private String errorsStoreOptions;
 }
 

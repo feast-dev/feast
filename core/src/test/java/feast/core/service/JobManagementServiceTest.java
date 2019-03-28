@@ -28,12 +28,14 @@ import com.google.common.collect.Lists;
 import com.google.protobuf.Timestamp;
 import feast.core.JobServiceProto.JobServiceTypes.JobDetail;
 import feast.core.config.ImportJobDefaults;
+import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.dao.JobInfoRepository;
 import feast.core.dao.MetricsRepository;
 import feast.core.exception.RetrievalException;
 import feast.core.job.JobManager;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
+import feast.specs.StorageSpecProto.StorageSpec;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Date;
@@ -47,18 +49,28 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
 public class JobManagementServiceTest {
-  @Rule public final ExpectedException exception = ExpectedException.none();
-  @Mock private JobInfoRepository jobInfoRepository;
-  @Mock private MetricsRepository metricsRepository;
-  @Mock private JobManager jobManager;
+
+  @Rule
+  public final ExpectedException exception = ExpectedException.none();
+  @Mock
+  private JobInfoRepository jobInfoRepository;
+  @Mock
+  private MetricsRepository metricsRepository;
+  @Mock
+  private JobManager jobManager;
   private ImportJobDefaults defaults;
+  @Mock
+  private SpecService specService;
+  private StorageSpecs storageSpecs;
 
   @Before
   public void setUp() {
     initMocks(this);
     defaults =
-        new ImportJobDefaults(
-            "localhost:8433", "DirectRunner", "", "/feast-import.jar", "stderr", "");
+        ImportJobDefaults.builder()
+            .runner("DirectRunner").executable("/feast-import.jar").build();
+    storageSpecs = StorageSpecs.builder()
+        .errorsStorageSpec(StorageSpec.newBuilder().setType("stderr").build()).build();
   }
 
   @Test
@@ -66,6 +78,7 @@ public class JobManagementServiceTest {
     JobInfo jobInfo1 =
         new JobInfo(
             "job1",
+            "",
             "",
             "",
             "",
@@ -84,6 +97,7 @@ public class JobManagementServiceTest {
             "",
             "",
             "",
+            "",
             Collections.emptyList(),
             Collections.emptyList(),
             Collections.emptyList(),
@@ -93,7 +107,8 @@ public class JobManagementServiceTest {
     jobInfo2.setLastUpdated(Date.from(Instant.ofEpochSecond(1)));
     when(jobInfoRepository.findAll()).thenReturn(Lists.newArrayList(jobInfo1, jobInfo2));
     JobManagementService jobManagementService =
-        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults);
+        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults,
+            specService, storageSpecs);
     List<JobDetail> actual = jobManagementService.listJobs();
     List<JobDetail> expected =
         Lists.newArrayList(
@@ -121,6 +136,7 @@ public class JobManagementServiceTest {
             "",
             "",
             "",
+            "",
             Collections.emptyList(),
             Collections.emptyList(),
             Collections.emptyList(),
@@ -130,7 +146,8 @@ public class JobManagementServiceTest {
     jobInfo1.setLastUpdated(Date.from(Instant.ofEpochSecond(1)));
     when(jobInfoRepository.findById("job1")).thenReturn(Optional.of(jobInfo1));
     JobManagementService jobManagementService =
-        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults);
+        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults,
+            specService, storageSpecs);
     JobDetail actual = jobManagementService.getJob("job1");
     JobDetail expected =
         JobDetail.newBuilder()
@@ -146,7 +163,7 @@ public class JobManagementServiceTest {
   public void shouldThrowErrorIfJobIdNotFoundWhenGettingJob() {
     when(jobInfoRepository.findById("job1")).thenReturn(Optional.empty());
     JobManagementService jobManagementService =
-        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults);
+        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults, specService, storageSpecs);
     exception.expect(RetrievalException.class);
     exception.expectMessage("Unable to retrieve job with id job1");
     jobManagementService.getJob("job1");
@@ -156,7 +173,7 @@ public class JobManagementServiceTest {
   public void shouldThrowErrorIfJobIdNotFoundWhenAbortingJob() {
     when(jobInfoRepository.findById("job1")).thenReturn(Optional.empty());
     JobManagementService jobManagementService =
-        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults);
+        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults, specService, storageSpecs);
     exception.expect(RetrievalException.class);
     exception.expectMessage("Unable to retrieve job with id job1");
     jobManagementService.abortJob("job1");
@@ -168,7 +185,7 @@ public class JobManagementServiceTest {
     job.setStatus(JobStatus.COMPLETED);
     when(jobInfoRepository.findById("job1")).thenReturn(Optional.of(job));
     JobManagementService jobManagementService =
-        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults);
+        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults, specService, storageSpecs);
     exception.expect(IllegalStateException.class);
     exception.expectMessage("Unable to stop job already in terminal state");
     jobManagementService.abortJob("job1");
@@ -181,7 +198,7 @@ public class JobManagementServiceTest {
     job.setExtId("extId1");
     when(jobInfoRepository.findById("job1")).thenReturn(Optional.of(job));
     JobManagementService jobManagementService =
-        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults);
+        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults, specService, storageSpecs);
     jobManagementService.abortJob("job1");
     ArgumentCaptor<JobInfo> jobCapture = ArgumentCaptor.forClass(JobInfo.class);
     verify(jobInfoRepository).saveAndFlush(jobCapture.capture());
@@ -195,7 +212,7 @@ public class JobManagementServiceTest {
 
     ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
     JobManagementService jobExecutionService =
-        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults);
+        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults, specService, storageSpecs);
     jobExecutionService.updateJobStatus("jobid", JobStatus.PENDING);
 
     verify(jobInfoRepository, times(1)).save(jobInfoArgumentCaptor.capture());
@@ -212,7 +229,7 @@ public class JobManagementServiceTest {
 
     ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
     JobManagementService jobExecutionService =
-        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults);
+        new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults, specService, storageSpecs);
     jobExecutionService.updateJobExtId("jobid", "extid");
 
     verify(jobInfoRepository, times(1)).save(jobInfoArgumentCaptor.capture());

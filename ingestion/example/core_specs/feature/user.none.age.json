@@ -1,7 +1,6 @@
 {
-  "id": "user.none.age",
+  "id": "user.age",
   "entity": "user",
-  "granularity": "NONE",
   "name": "age",
   "owner": "feast@example.com",
   "description": "This feature represents a user's age",

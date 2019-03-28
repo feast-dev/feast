@@ -18,7 +18,6 @@
 package feast.ingestion;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.collect.Lists;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -26,9 +25,11 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.ingestion.boot.ImportJobModule;
 import feast.ingestion.boot.PipelineModule;
-import feast.ingestion.config.ImportSpecSupplier;
+import feast.ingestion.config.ImportJobSpecsSupplier;
 import feast.ingestion.model.Specs;
-import feast.ingestion.options.ImportJobOptions;
+import feast.ingestion.options.ImportJobPipelineOptions;
+import feast.ingestion.options.JobOptions;
+import feast.ingestion.transform.CoalescePFeatureRows;
 import feast.ingestion.transform.ErrorsStoreTransform;
 import feast.ingestion.transform.ReadFeaturesTransform;
 import feast.ingestion.transform.ServingStoreTransform;
@@ -37,13 +38,12 @@ import feast.ingestion.transform.ValidateTransform;
 import feast.ingestion.transform.WarehouseStoreTransform;
 import feast.ingestion.transform.fn.ConvertTypesDoFn;
 import feast.ingestion.transform.fn.LoggerDoFn;
-import feast.ingestion.transform.fn.RoundEventTimestampsDoFn;
 import feast.ingestion.values.PFeatureRows;
-import feast.specs.ImportSpecProto.ImportSpec;
+import feast.options.OptionsParser;
+import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
@@ -55,7 +55,6 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
@@ -63,7 +62,6 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.joda.time.DateTime;
@@ -76,27 +74,27 @@ public class ImportJob {
   private static Random random = new Random(System.currentTimeMillis());
 
   private final Pipeline pipeline;
-  private final ImportSpec importSpec;
+  private final ImportJobSpecs importJobSpecs;
   private final ReadFeaturesTransform readFeaturesTransform;
   private final ServingStoreTransform servingStoreTransform;
   private final WarehouseStoreTransform warehouseStoreTransform;
   private final ErrorsStoreTransform errorsStoreTransform;
   private final boolean dryRun;
-  private final ImportJobOptions options;
+  private final ImportJobPipelineOptions options;
   private final Specs specs;
 
   @Inject
   public ImportJob(
       Pipeline pipeline,
-      ImportSpec importSpec,
+      ImportJobSpecs importJobSpecs,
       ReadFeaturesTransform readFeaturesTransform,
       ServingStoreTransform servingStoreTransform,
       WarehouseStoreTransform warehouseStoreTransform,
       ErrorsStoreTransform errorsStoreTransform,
-      ImportJobOptions options,
+      ImportJobPipelineOptions options,
       Specs specs) {
     this.pipeline = pipeline;
-    this.importSpec = importSpec;
+    this.importJobSpecs = importJobSpecs;
     this.readFeaturesTransform = readFeaturesTransform;
     this.servingStoreTransform = servingStoreTransform;
     this.warehouseStoreTransform = warehouseStoreTransform;
@@ -112,15 +110,16 @@ public class ImportJob {
 
   public static PipelineResult mainWithResult(String[] args) {
     log.info("Arguments: " + Arrays.toString(args));
-    ImportJobOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(ImportJobOptions.class);
+    ImportJobPipelineOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(ImportJobPipelineOptions.class);
     if (options.getJobName().isEmpty()) {
       options.setJobName(generateName());
     }
     log.info("options: " + options.toString());
-    ImportSpec importSpec = new ImportSpecSupplier(options).get();
+    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(options.getWorkspace())
+        .get();
     Injector injector =
-        Guice.createInjector(new ImportJobModule(options, importSpec), new PipelineModule());
+        Guice.createInjector(new ImportJobModule(options, importJobSpecs), new PipelineModule());
     ImportJob job = injector.getInstance(ImportJob.class);
 
     job.expand();
@@ -142,17 +141,19 @@ public class ImportJob {
         TypeDescriptor.of(FeatureRowExtended.class), ProtoCoder.of(FeatureRowExtended.class));
     coderRegistry.registerCoderForType(TypeDescriptor.of(TableRow.class), TableRowJsonCoder.of());
 
+    JobOptions jobOptions = OptionsParser
+        .parse(importJobSpecs.getImportSpec().getJobOptionsMap(), JobOptions.class);
+
     try {
-      log.info(JsonFormat.printer().print(importSpec));
+      log.info(JsonFormat.printer().print(importJobSpecs));
     } catch (InvalidProtocolBufferException e) {
       // pass
     }
-
     specs.validate();
 
     PCollection<FeatureRow> features = pipeline.apply("Read", readFeaturesTransform);
-    if (options.getLimit() != null && options.getLimit() > 0) {
-      features = features.apply(Sample.any(options.getLimit()));
+    if (jobOptions.getSampleLimit() > 0) {
+      features = features.apply(Sample.any(jobOptions.getSampleLimit()));
     }
 
     PCollection<FeatureRowExtended> featuresExtended =
@@ -161,31 +162,24 @@ public class ImportJob {
     PFeatureRows pFeatureRows = PFeatureRows.of(featuresExtended);
     pFeatureRows = pFeatureRows.applyDoFn("Convert feature types", new ConvertTypesDoFn(specs));
     pFeatureRows = pFeatureRows.apply("Validate features", new ValidateTransform(specs));
-    pFeatureRows =
-        PFeatureRows.of(
-            pFeatureRows
-                .getMain()
-                .apply(
-                    "Round event timestamps to granularity",
-                    ParDo.of(new RoundEventTimestampsDoFn())),
-            pFeatureRows.getErrors());
+
+    log.info(
+        "A sample of size 1 of incoming rows from MAIN and ERRORS will logged every 30 seconds for visibility");
+    logNRows(pFeatureRows, "Output sample", 1, Duration.standardSeconds(30));
+
+    PFeatureRows warehouseRows = pFeatureRows;
+    PFeatureRows servingRows = pFeatureRows;
+    if (jobOptions.isCoalesceRowsEnabled()) {
+      // Should we merge and dedupe rows before writing to the serving store?
+      servingRows = servingRows.apply("Coalesce Rows", new CoalescePFeatureRows(
+          jobOptions.getCoalesceRowsDelaySeconds(),
+          jobOptions.getCoalesceRowsTimeoutSeconds()));
+    }
 
     if (!dryRun) {
-      List<PCollection<FeatureRowExtended>> errors = Lists.newArrayList();
-      pFeatureRows = pFeatureRows.apply("Write to Serving Stores", servingStoreTransform);
-      errors.add(pFeatureRows.getErrors());
-      pFeatureRows = PFeatureRows.of(pFeatureRows.getMain());
-
-      log.info(
-          "A sample of any 2 rows from each of MAIN, RETRIES and ERRORS will logged for convenience");
-      logNRows(pFeatureRows, "Output sample", 2);
-
-      PFeatureRows.of(pFeatureRows.getMain())
-          .apply("Write to Warehouse  Stores", warehouseStoreTransform);
-      errors.add(pFeatureRows.getErrors());
-
-      PCollectionList.of(errors).apply("flatten errors", Flatten.pCollections())
-          .apply("Write serving errors", errorsStoreTransform);
+      servingRows.apply("Write to Serving Stores", servingStoreTransform);
+      warehouseRows.apply("Write to Warehouse  Stores", warehouseStoreTransform);
+      pFeatureRows.getErrors().apply(errorsStoreTransform);
     }
   }
 
@@ -195,17 +189,16 @@ public class ImportJob {
     return result;
   }
 
-  public void logNRows(PFeatureRows pFeatureRows, String name, int limit) {
+  public void logNRows(PFeatureRows pFeatureRows, String name, long limit, Duration period) {
     PCollection<FeatureRowExtended> main = pFeatureRows.getMain();
     PCollection<FeatureRowExtended> errors = pFeatureRows.getErrors();
 
     if (main.isBounded().equals(IsBounded.UNBOUNDED)) {
       Window<FeatureRowExtended> minuteWindow =
-          Window.<FeatureRowExtended>into(FixedWindows.of(Duration.standardMinutes(1L)))
+          Window.<FeatureRowExtended>into(FixedWindows.of(period))
               .triggering(AfterWatermark.pastEndOfWindow())
               .discardingFiredPanes()
-              .withAllowedLateness(Duration.standardMinutes(1));
-
+              .withAllowedLateness(Duration.ZERO);
       main = main.apply(minuteWindow);
       errors = errors.apply(minuteWindow);
     }

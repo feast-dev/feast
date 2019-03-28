@@ -33,14 +33,12 @@ import feast.core.dao.FeatureInfoRepository;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureInfo;
 import feast.core.model.StorageInfo;
-import feast.core.training.BigQueryDatasetTemplater.FeatureGroup;
+import feast.core.training.BigQueryDatasetTemplater.Features;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.DataStore;
 import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.types.GranularityProto.Granularity;
-import feast.types.GranularityProto.Granularity.Enum;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.time.Instant;
@@ -82,7 +80,7 @@ public class BigQueryDatasetTemplaterTest {
     FeatureSet fs =
         FeatureSet.newBuilder()
             .setEntityName("myentity")
-            .addAllFeatureIds(Arrays.asList("myentity.day.feature1", "myentity.day.feature2"))
+            .addAllFeatureIds(Arrays.asList("myentity.feature1", "myentity.feature2"))
             .build();
     templater.createQuery(fs, Timestamps.fromSeconds(0), Timestamps.fromSeconds(1), 0);
   }
@@ -97,11 +95,11 @@ public class BigQueryDatasetTemplaterTest {
     Timestamp endDate =
         Timestamps.fromSeconds(Instant.parse("2019-01-01T00:00:00.00Z").getEpochSecond());
     int limit = 100;
-    String featureId = "myentity.day.feature1";
-    String tableId = "project.dataset.myentity_day";
+    String featureId = "myentity.feature1";
+    String tableId = "project.dataset.myentity";
 
     when(featureInfoRespository.findAllById(any(List.class)))
-        .thenReturn(Collections.singletonList(createFeatureInfo(featureId, Enum.DAY, tableId)));
+        .thenReturn(Collections.singletonList(createFeatureInfo(featureId, tableId)));
 
     FeatureSet fs =
         FeatureSet.newBuilder()
@@ -123,27 +121,24 @@ public class BigQueryDatasetTemplaterTest {
     assertThat(actualContext.get("end_date"), equalTo("2019-01-01"));
     assertThat(actualContext.get("limit"), equalTo(String.valueOf(limit)));
 
-    List<FeatureGroup> featureGroups = (List<FeatureGroup>) actualContext.get("feature_groups");
-    assertThat(featureGroups.size(), equalTo(1));
-    assertThat(featureGroups.get(0).granularity, equalTo(Enum.DAY));
-    assertThat(featureGroups.get(0).features.size(), equalTo(1));
-    assertThat(featureGroups.get(0).features.get(0).featureId, equalTo(featureId));
-    assertThat(featureGroups.get(0).features.get(0).granularity, equalTo(Enum.DAY));
-    assertThat(featureGroups.get(0).features.get(0).tableId, equalTo(tableId));
+    Features features = (Features) actualContext.get("feature_set");
+    assertThat(features.getColumns().size(), equalTo(1));
+    assertThat(features.getColumns().get(0), equalTo(featureId.replace(".", "_")));
+    assertThat(features.getTableId(), equalTo(tableId));
   }
 
   @Test
   public void shouldRenderCorrectQuery1() throws Exception {
-    String tableId1 = "project.dataset.myentity_day";
-    String featureId1 = "myentity.day.feature1";
-    String featureId2 = "myentity.day.feature2";
+    String tableId1 = "project.dataset.myentity";
+    String featureId1 = "myentity.feature1";
+    String featureId2 = "myentity.feature2";
 
-    FeatureInfo featureInfo1 = createFeatureInfo(featureId1, Enum.DAY, tableId1);
-    FeatureInfo featureInfo2 = createFeatureInfo(featureId2, Enum.DAY, tableId1);
+    FeatureInfo featureInfo1 = createFeatureInfo(featureId1, tableId1);
+    FeatureInfo featureInfo2 = createFeatureInfo(featureId2, tableId1);
 
-    String tableId2 = "project.dataset.myentity_none";
-    String featureId3 = "myentity.none.feature3";
-    FeatureInfo featureInfo3 = createFeatureInfo(featureId3, Enum.NONE, tableId2);
+    String tableId2 = "project.dataset.myentity";
+    String featureId3 = "myentity.feature3";
+    FeatureInfo featureInfo3 = createFeatureInfo(featureId3, tableId2);
 
     when(featureInfoRespository.findAllById(any(List.class)))
         .thenReturn(Arrays.asList(featureInfo1, featureInfo2, featureInfo3));
@@ -166,52 +161,14 @@ public class BigQueryDatasetTemplaterTest {
 
   @Test
   public void shouldRenderCorrectQuery2() throws Exception {
-    String tableId1 = "project.dataset.myentity_day";
-    String featureId1 = "myentity.day.feature1";
-    String featureId2 = "myentity.day.feature2";
-
-    FeatureInfo featureInfo1 = createFeatureInfo(featureId1, Enum.DAY, tableId1);
-    FeatureInfo featureInfo2 = createFeatureInfo(featureId2, Enum.DAY, tableId1);
-
-    String tableId2 = "project.dataset.myentity_none";
-    String featureId3 = "myentity.none.feature3";
-    FeatureInfo featureInfo3 = createFeatureInfo(featureId3, Enum.NONE, tableId2);
-
-    when(featureInfoRespository.findAllById(any(List.class)))
-        .thenReturn(Arrays.asList(featureInfo1, featureInfo2, featureInfo3));
-
-    FeatureSet fs =
-        FeatureSet.newBuilder()
-            .setEntityName("myentity")
-            .addAllFeatureIds(Arrays.asList(featureId1, featureId2, featureId3))
-            .build();
-    Timestamp startDate =
-        Timestamps.fromSeconds(Instant.parse("2018-01-02T00:00:00.00Z").getEpochSecond());
-    Timestamp endDate =
-        Timestamps.fromSeconds(Instant.parse("2018-01-30T12:11:11.00Z").getEpochSecond());
-    int limit = 0;
-
-    String query = templater.createQuery(fs, startDate, endDate, limit);
-
-    checkExpectedQuery(query, "expQuery2.sql");
-  }
-
-  @Test
-  public void shouldRenderCorrectQuery3() throws Exception {
     List<FeatureInfo> featureInfos = new ArrayList<>();
     List<String> featureIds = new ArrayList<>();
-    for (Granularity.Enum granularity : Granularity.Enum.values()) {
-      if (granularity.equals(Enum.UNRECOGNIZED)) {
-        continue;
-      }
 
-      String granularityStr = granularity.toString().toLowerCase();
-      String tableId = "project.dataset.myentity_" + granularityStr;
-      String featureId = "myentity." + granularityStr + ".feature1";
+    String tableId = "project.dataset.myentity";
+    String featureId = "myentity.feature1";
 
-      featureInfos.add(createFeatureInfo(featureId, granularity, tableId));
-      featureIds.add(featureId);
-    }
+    featureInfos.add(createFeatureInfo(featureId, tableId));
+    featureIds.add(featureId);
 
     when(featureInfoRespository.findAllById(any(List.class))).thenReturn(featureInfos);
 
@@ -224,7 +181,7 @@ public class BigQueryDatasetTemplaterTest {
 
     String query = templater.createQuery(featureSet, startDate, endDate, 1000);
 
-    checkExpectedQuery(query, "expQuery3.sql");
+    checkExpectedQuery(query, "expQuery2.sql");
   }
 
   private void checkExpectedQuery(String query, String pathToExpQuery) throws Exception {
@@ -240,7 +197,7 @@ public class BigQueryDatasetTemplaterTest {
     assertThat(query, equalTo(expQuery));
   }
 
-  private FeatureInfo createFeatureInfo(String id, Granularity.Enum granularity, String tableId) {
+  private FeatureInfo createFeatureInfo(String id, String tableId) {
     StorageSpec storageSpec =
         StorageSpec.newBuilder()
             .setId("BQ")
@@ -253,7 +210,6 @@ public class BigQueryDatasetTemplaterTest {
     FeatureSpec fs =
         FeatureSpec.newBuilder()
             .setId(id)
-            .setGranularity(granularity)
             .setDataStores(DataStores.newBuilder().setWarehouse(DataStore.newBuilder().setId("BQ")))
             .build();
 

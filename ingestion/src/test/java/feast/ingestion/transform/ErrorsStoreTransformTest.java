@@ -18,19 +18,27 @@
 package feast.ingestion.transform;
 
 import static feast.ingestion.model.Errors.toError;
-import static feast.storage.MockErrorsStore.MOCK_ERRORS_STORE_TYPE;
+import static feast.store.MockFeatureErrorsFactory.MOCK_ERRORS_STORE_TYPE;
+import static feast.store.errors.logging.StderrFeatureErrorsFactory.TYPE_STDERR;
+import static feast.store.errors.logging.StdoutFeatureErrorsFactory.TYPE_STDOUT;
+import static org.junit.Assert.assertEquals;
 
 import feast.ingestion.model.Specs;
-import feast.ingestion.options.ImportJobOptions;
-import feast.storage.MockErrorsStore;
-import feast.storage.service.ErrorsStoreService;
-import feast.storage.stderr.StderrErrorsStore;
-import feast.storage.stderr.StdoutErrorsStore;
+import feast.ingestion.options.ImportJobPipelineOptions;
+import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
+import feast.specs.StorageSpecProto.StorageSpec;
+import feast.store.MockFeatureErrorsFactory;
+import feast.store.errors.FeatureErrorsFactoryService;
 import feast.types.FeatureRowExtendedProto.Attempt;
 import feast.types.FeatureRowExtendedProto.Error;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -43,22 +51,37 @@ import org.assertj.core.util.Lists;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+@Slf4j
 public class ErrorsStoreTransformTest {
+
+  @Rule
+  public TemporaryFolder tempFolder = new TemporaryFolder();
 
   @Rule
   public TestPipeline pipeline = TestPipeline.create();
 
-  private ImportJobOptions options;
-  private Specs specs;
+  private ImportJobPipelineOptions options;
   private PCollection<FeatureRowExtended> inputs;
   private List<FeatureRowExtended> errors;
 
+  public Specs getSpecs(StorageSpec errorsStorageSpec) {
+    return new Specs("test", ImportJobSpecs.newBuilder()
+        .setErrorsStorageSpec(errorsStorageSpec).build()
+    );
+  }
+
+  public Specs getSpecs(String errorsStorageType) {
+    return new Specs("test", ImportJobSpecs.newBuilder()
+        .setErrorsStorageSpec(StorageSpec.newBuilder().setType(errorsStorageType)).build()
+    );
+  }
+
   @Before
   public void setUp() {
-    options = PipelineOptionsFactory.create().as(ImportJobOptions.class);
+    options = PipelineOptionsFactory.create().as(ImportJobPipelineOptions.class);
     options.setJobName("test");
-    specs = Specs.builder().jobName("test").build();
 
     errors =
         Arrays.asList(
@@ -75,10 +98,10 @@ public class ErrorsStoreTransformTest {
 
   @Test
   public void shouldWriteToGivenErrorsStore() {
-    MockErrorsStore mockStore = new MockErrorsStore();
-    options.setErrorsStoreType(MOCK_ERRORS_STORE_TYPE);
+    MockFeatureErrorsFactory mockStore = new MockFeatureErrorsFactory();
     ErrorsStoreTransform transform =
-        new ErrorsStoreTransform(options, specs, Lists.newArrayList(mockStore));
+        new ErrorsStoreTransform(options, getSpecs(MOCK_ERRORS_STORE_TYPE),
+            Lists.newArrayList(mockStore));
     transform.expand(inputs);
 
     PCollection<FeatureRowExtended> writtenToErrors =
@@ -91,9 +114,9 @@ public class ErrorsStoreTransformTest {
 
   @Test
   public void logErrorsToStdErr() {
-    options.setErrorsStoreType(StderrErrorsStore.TYPE_STDERR);
     ErrorsStoreTransform transform =
-        new ErrorsStoreTransform(options, specs, ErrorsStoreService.getAll());
+        new ErrorsStoreTransform(options, getSpecs(TYPE_STDERR),
+            FeatureErrorsFactoryService.getAll());
     inputs.apply(transform);
     pipeline.run();
   }
@@ -101,20 +124,33 @@ public class ErrorsStoreTransformTest {
 
   @Test
   public void logErrorsToStdOut() {
-    options.setErrorsStoreType(StdoutErrorsStore.TYPE_STDOUT);
     ErrorsStoreTransform transform =
-        new ErrorsStoreTransform(options, specs, ErrorsStoreService.getAll());
+        new ErrorsStoreTransform(options, getSpecs(TYPE_STDOUT),
+            FeatureErrorsFactoryService.getAll());
     inputs.apply(transform);
     pipeline.run();
   }
 
   @Test
-  public void logToNull() {
-    //options.setErrorsStoreType(...); // no errors store type set
+  public void logErrorsToWorkspace() throws IOException, InterruptedException {
+    String tempWorkspace = tempFolder.newFolder().toString();
+    options.setWorkspace(tempWorkspace);
     ErrorsStoreTransform transform =
-        new ErrorsStoreTransform(options, specs, ErrorsStoreService.getAll());
+        new ErrorsStoreTransform(options, getSpecs(""), FeatureErrorsFactoryService.getAll());
     inputs.apply(transform);
-    pipeline.run();
+    pipeline.run().waitUntilFinish();
+
+    int lineCount = Files.list(Paths.get(tempWorkspace)
+        .resolve("errors") // errors workspace dir
+        .resolve("test") // test entity dir
+    ).flatMap(path -> {
+      try {
+        return Files.readAllLines(path).stream();
+      } catch (IOException e) {
+        throw new RuntimeException();
+      }
+    }).collect(Collectors.toList()).size();
+    assertEquals(2, lineCount);
   }
 }
 

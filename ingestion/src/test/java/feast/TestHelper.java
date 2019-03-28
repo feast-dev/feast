@@ -23,9 +23,6 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.gson.Gson;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Optional;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import feast.ingestion.options.ImportJobOptions;
 
 public class TestHelper {
   public static void writeYaml(Object model, OutputStream outputStream) throws IOException {
