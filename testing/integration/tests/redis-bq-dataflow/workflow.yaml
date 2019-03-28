@@ -9,6 +9,10 @@ spec:
     parameters:
     - name: revision
       value: integration-test
+    - name: prId
+      value: "none"
+    - name: gitRef
+      value: "none"
   templates:
   - name: run
     steps:
@@ -19,13 +23,13 @@ spec:
         arguments:
           artifacts:
           - name: feast
-            from: "{{steps.get-feast.outputs.artifacts.feast}}"
+            from: "{{steps.get-feast.outputs.artifacts.feast-repo}}"
       - name: build-cli
         template: build-cli
         arguments:
           artifacts:
           - name: feast
-            from: "{{steps.get-feast.outputs.artifacts.feast}}"
+            from: "{{steps.get-feast.outputs.artifacts.feast-repo}}"
     - - name: build-push-docker
         template: build-docker
         arguments:
@@ -40,7 +44,7 @@ spec:
             value: "apply -var docker_tag=integration-test -auto-approve ."
           artifacts:
           - name: feast
-            from: "{{steps.get-feast.outputs.artifacts.feast}}"
+            from: "{{steps.get-feast.outputs.artifacts.feast-repo}}"
           - name: feast-cli
             from: "{{steps.build-cli.outputs.artifacts.feast-cli}}"
     - - name: test
@@ -48,7 +52,7 @@ spec:
         arguments:
           artifacts:
           - name: feast
-            from: "{{steps.get-feast.outputs.artifacts.feast}}"
+            from: "{{steps.get-feast.outputs.artifacts.feast-repo}}"
           - name: feast-cli
             from: "{{steps.build-cli.outputs.artifacts.feast-cli}}"
 
@@ -63,8 +67,20 @@ spec:
           artifacts:
           - name: feast
             from: "{{workflow.outputs.artifacts.feast-repo}}"
-
   - name: get-feast
+    steps:
+    - - name: get-feast-pr
+        template: get-feast-pr
+        when: "{{workflow.parameters.prId}} != none"
+      - name: get-feast-gitref
+        template: get-feast-gitref
+        when: "{{workflow.parameters.gitRef}} != none"
+    outputs:
+      artifacts:
+      - name: feast-repo
+        from: "{{workflow.outputs.artifacts.feast-repo}}"
+        globalName: feast-repo
+  - name: get-feast-pr
     container:
       image: alpine/git
       command: 
@@ -75,6 +91,21 @@ spec:
         cd feast;
         git fetch origin pull/{{workflow.parameters.prId}}/head;
         git checkout FETCH_HEAD
+    outputs:
+      artifacts:
+      - name: feast
+        path: /git/feast
+        globalName: feast-repo
+  - name: get-feast-gitref
+    container:
+      image: alpine/git
+      command: 
+      - /bin/sh
+      - -c
+      - |
+        git clone https://github.com/gojek/feast;
+        cd feast;
+        git checkout {{workflow.parameters.gitRef}}
     outputs:
       artifacts:
       - name: feast
