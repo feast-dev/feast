@@ -98,8 +98,7 @@ class TestFeastIntegration:
         wanted['event_timestamp'] = pd.to_datetime(wanted['event_timestamp'])
         wanted_latest = wanted.loc[wanted.groupby('id').event_timestamp.idxmax(),:]
         wanted_latest.columns = ["myentity", "timestamp"] + ["myentity." + f for f in features]
-        wanted_latest = wanted_latest[actual_latest.columns] \
-            .sort_values(["id"]) \
+        wanted_latest = wanted_latest.sort_values(["id"])[actual_latest.columns] \
             .reset_index(drop=True)
         wanted_latest["myentity"] = wanted_latest["myentity"].astype(str)
         
