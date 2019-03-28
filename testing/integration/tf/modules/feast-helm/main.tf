@@ -56,7 +56,7 @@ resource "local_file" "helm_values_output" {
 
 resource "helm_release" "feast" {
   name       = "feast-it"
-  chart      = "/tmp/feast/charts/feast"
+  chart      = "/feast/charts/feast"
 
   set {
     name  = "core.service.extIPAdr"
