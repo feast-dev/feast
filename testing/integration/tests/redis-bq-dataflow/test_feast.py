@@ -83,7 +83,7 @@ class TestFeastIntegration:
         wanted['event_timestamp'] = pd.to_datetime(wanted['event_timestamp'])\
             .dt.strftime("%Y-%m-%d %H:%M:%S UTC")
         got = TableDownloader().download_table_as_df(
-            project_id + ".feast_it.myentity_minute",
+            project_id + ".feast_it.myentity",
             "gs://{}/test-cases/extract.csv".format(bucket_name))
         got = got.drop("created_timestamp", axis=1) \
             .sort_values(["id", "event_timestamp"]) \
@@ -92,12 +92,12 @@ class TestFeastIntegration:
 
         # Check data in redis
         feature_set = FeatureSet(entity="myentity", 
-            features=["myentity.minute." + f for f in features])
+            features=["myentity." + f for f in features])
         actual_latest = client.get_serving_data(feature_set, entity_keys=[str(id) for id in list(wanted.id.unique())])
         actual_latest = actual_latest.sort_values(["id"])
         wanted['event_timestamp'] = pd.to_datetime(wanted['event_timestamp'])
         wanted_latest = wanted.loc[wanted.groupby('id').event_timestamp.idxmax(),:]
-        wanted_latest.columns = ["myentity", "timestamp"] + ["myentity.minute." + f for f in features]
+        wanted_latest.columns = ["myentity", "timestamp"] + ["myentity." + f for f in features]
         wanted_latest = wanted_latest[actual_latest.columns] \
             .sort_values(["id"]) \
             .reset_index(drop=True)
