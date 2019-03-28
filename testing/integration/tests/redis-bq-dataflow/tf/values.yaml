@@ -4,7 +4,7 @@ core:
     pullPolicy: IfNotPresent
     registry: gcr.io/kf-feast
     repository: feast-core
-    tag: "${docker_tag}"
+    tag: "integration-test"
   replicaCount: 1
   resources:
     limits:
@@ -24,15 +24,15 @@ core:
       port: 80
       targetPort: 8080
   jobs:
-    workspace: "${workspace}"
-    runner: "${job_runner}"
-    options: ${job_runner_options}
+    workspace: "it-feast-storage/workspace"
+    runner: "DataflowRunner"
+    options: '{"autoscalingAlgorithm":"THROUGHPUT_BASED","maxNumWorkers":"64","project":"kf-feast","region":"us-central1","subnetwork":"regions/us-central1/subnetworks/default","tempLocation":"gs://it-feast-storage/tempJob"}'
     monitoring:
       period: 5000
       initialDelay: 60000
 dataflow:
-  projectID: "${project_id}"
-  location: "${region}"
+  projectID: "kf-feast"
+  location: "us-central1"
 
 postgresql:
   name: feast-metadata
@@ -67,7 +67,7 @@ serving:
     pullPolicy: IfNotPresent
     registry: gcr.io/kf-feast
     repository: feast-serving
-    tag: "${docker_tag}"
+    tag: "integration-test"
   jaeger:
     enabled: false
   replicaCount: 1
@@ -92,10 +92,10 @@ serving:
 store:
  errors:
    type: "file.json"
-   options: ${store_error_option}
+   options: '{"path":"gs://it-feast-storage/error-log"}'
  warehouse:
    type: "bigquery"
-   options: ${store_warehouse_option}
+   options: '{"dataset":"feast_it","project":"kf-feast"}'
  serving:
    type: "redis"
-   options: ${store_serving_option}
+   options: '{"host":"10.128.0.101","port":"6379"}'

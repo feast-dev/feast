@@ -42,22 +42,20 @@ variable "job_runner_options" {
   default = "'{}'"
 }
 
-variable "errors_store_type" {
-  description = "Job errors store type. One of stdout, stderr, file.json"
-  default     = "stdout"
-}
-
-variable "errors_store_options" {
-  description = "Errors store options as a json string"
-  default = "'{}'"
-}
-
 variable "load_balancer_source_range" {
   description = "ingress filter for google internal load balancer"
+}
+
+variable "bq_dataset" {
+  description = "BigQuery dataset for warehouse"
 }
 
 variable depends_on {
   default = []
 
   type = "list"
+}
+
+variable "bucket_name" {
+  description = "Working storage for feast"
 }

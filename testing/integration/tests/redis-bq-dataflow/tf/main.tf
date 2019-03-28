@@ -54,8 +54,8 @@ module "feast" {
   load_balancer_source_range = "10.0.0.0/8"
   job_runner                 = "DataflowRunner"
   job_runner_options         = "'${jsonencode(local.job_runner_options)}'"
-  errors_store_type          = "file.json"
-  errors_store_options       = "'${jsonencode(local.errors_store_options)}'"
+  bucket_name                = "${local.cluster_name}-storage"
+  bq_dataset                 = "${google_bigquery_dataset.feast_bq_dataset.dataset_id}"
 
   depends_on = ["module.cluster.cluster_name", "null_resource.wait_for_regional_cluster"]
 }
@@ -66,42 +66,4 @@ resource "google_bigquery_dataset" "feast_bq_dataset" {
   default_table_expiration_ms = 36000000
   location                    = "US"
   delete_contents_on_destroy  = true
-}
-
-resource "local_file" "redis_spec" {
-  content = <<EOT
-id: REDIS
-type: redis
-options:
-  host: "${module.feast.redis_url}"
-  port: "6379"
-    EOT
-
-  filename   = "${path.module}/redis.yaml"
-  depends_on = ["module.feast"]
-}
-
-resource "local_file" "bigquery_spec" {
-  content = <<EOT
-id: BIGQUERY
-type: bigquery
-options:
-  dataset: "feast_it"
-  project: ${local.project_name}
-  tempLocation: gs://${local.cluster_name}-storage/bigquery-staging
-  EOT
-
-  filename   = "${path.module}/bigquery.yaml"
-  depends_on = ["google_bigquery_dataset.feast_bq_dataset"]
-}
-
-resource "null_resource" "feast_register" {
-  provisioner "local-exec" {
-    command = "feast config set coreURI ${module.feast.core_url}:6565 && feast apply storage redis.yaml && feast apply storage bigquery.yaml"
-
-    # for local testing, you might want to set feast to send to localhost instead
-    # command = "feast config set coreURI localhost:6565 && feast apply storage redis.yaml && feast apply storage bigquery.yaml"
-  }
-
-  depends_on = ["local_file.redis_spec", "local_file.bigquery_spec", "module.feast"]
 }
