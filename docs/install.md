@@ -51,7 +51,7 @@ GCP_PROJECT=my-feast-project
 FEAST_CLUSTER=feast
 FEAST_REPO=$(pwd)
 FEAST_VERSION=0.1.0
-FEAST_STORAGE_BUCKET=gs://${PROJECT}-feast
+FEAST_STORAGE_BUCKET=gs://my-feast-bucket
 ```
 
 Ensure that your `kubectl` context is set to the correct cluster
@@ -94,6 +94,18 @@ helm install --name feast charts/dist/feast-${FEAST_VERSION}.tgz \
 --set serving.image.tag=${FEAST_VERSION}
 ```
 
+## Configure Feast CLI
+
+Make sure your CLI is correctly configured for your Feast Core. You can find this IP via:
+```sh
+kubectl describe service feast-core
+```
+
+The configure the `coreURI` IP and port as follows:
+```sh
+feast config set coreURI 10.0.0.1:6565
+```
+
 ## Register storage locations
 
 You will need to register one warehouse store and one serving
@@ -104,17 +116,20 @@ store. This is done using [specs](specs.md).
 id: BIGQUERY1
 type: bigquery
 options:
-  project: "my-project"
+  project: "my-feast-project"
   dataset: "feast"
-  tempLocation: "gs://temp-bucket"
+  tempLocation: "gs://my-feast-bucket"
 ```
+
+Replace the `host` with the IP address of your `feast-redis-master`
+service.
 
 `redis.yml`
 ```
 id: REDIS1
 type: redis
 options:
-  host: someRedisHost
+  host: 10.19.255.250
   port: 6379
 ```
 
