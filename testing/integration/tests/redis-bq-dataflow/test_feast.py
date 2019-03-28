@@ -85,7 +85,7 @@ class TestFeastIntegration:
         got = TableDownloader().download_table_as_df(
             project_id + ".feast_it.myentity",
             "gs://{}/test-cases/extract.csv".format(bucket_name))
-        got = got.drop("created_timestamp", axis=1) \
+        got = got.drop(["created_timestamp", "job_id"], axis=1) \
             .sort_values(["id", "event_timestamp"]) \
             .reset_index(drop=True)
         assert pd.testing.assert_frame_equal(got, wanted[got.columns], check_less_precise=True) is None
