@@ -121,7 +121,7 @@ spec:
       command: 
       - /bin/bash 
       - -c 
-      - mvn package -DskipTests -Drevision=integration-test -T 4 -DdependencyLocationsEnabled=false
+      - mvn package -DskipTests -Drevision=integration-test -T 6 -DdependencyLocationsEnabled=false
       workingDir: /feast
       resources:
         requests:

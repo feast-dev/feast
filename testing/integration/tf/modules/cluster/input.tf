@@ -19,6 +19,11 @@ variable "subnetwork" {
   default = "default"
 }
 
+variable "gke_machine_type" {
+  description = "The machine type for the default node pool"
+  default = "n1-standard-4"
+}
+
 variable "bucket_name" {
   description = "Working storage for feast"
 }

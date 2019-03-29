@@ -27,6 +27,7 @@ module "cluster" {
   bucket_name  = "${local.cluster_name}-storage"
   network      = "${local.network}"
   subnetwork   = "${local.subnetwork}"
+  gke_machine_type = "n1-standard-8"
 }
 
 resource "null_resource" "wait_for_regional_cluster" {

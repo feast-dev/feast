@@ -20,7 +20,7 @@ resource "google_container_cluster" "feast_k8s" {
   enable_legacy_abac = true
 
   node_config {
-    machine_type = "n1-standard-4"
+    machine_type = "${var.gke_machine_type}"
     disk_size_gb = "50"
 
     oauth_scopes = [
