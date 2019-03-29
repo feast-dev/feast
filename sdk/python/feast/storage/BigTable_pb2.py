@@ -12,7 +12,6 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-from feast.types import Value_pb2 as feast_dot_types_dot_Value__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(
@@ -20,9 +19,8 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.storage',
   syntax='proto3',
   serialized_options=_b('\n\rfeast.storageB\rBigTableProtoZ8github.com/gojek/feast/protos/generated/go/feast/storage'),
-  serialized_pb=_b('\n\x1c\x66\x65\x61st/storage/BigTable.proto\x12\rfeast.storage\x1a\x17\x66\x65\x61st/types/Value.proto\"O\n\x0e\x42igTableRowKey\x12\x12\n\nsha1Prefix\x18\x01 \x01(\t\x12\x11\n\tentityKey\x18\x02 \x01(\t\x12\x16\n\x0ereversedMillis\x18\x03 \x01(\tBX\n\rfeast.storageB\rBigTableProtoZ8github.com/gojek/feast/protos/generated/go/feast/storageb\x06proto3')
-  ,
-  dependencies=[feast_dot_types_dot_Value__pb2.DESCRIPTOR,])
+  serialized_pb=_b('\n\x1c\x66\x65\x61st/storage/BigTable.proto\x12\rfeast.storage\"O\n\x0e\x42igTableRowKey\x12\x12\n\nsha1Prefix\x18\x01 \x01(\t\x12\x11\n\tentityKey\x18\x02 \x01(\t\x12\x16\n\x0ereversedMillis\x18\x03 \x01(\tBX\n\rfeast.storageB\rBigTableProtoZ8github.com/gojek/feast/protos/generated/go/feast/storageb\x06proto3')
+)
 
 
 
@@ -67,8 +65,8 @@ _BIGTABLEROWKEY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=72,
-  serialized_end=151,
+  serialized_start=47,
+  serialized_end=126,
 )
 
 DESCRIPTOR.message_types_by_name['BigTableRowKey'] = _BIGTABLEROWKEY

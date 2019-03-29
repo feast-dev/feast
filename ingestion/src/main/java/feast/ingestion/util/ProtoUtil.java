@@ -26,18 +26,18 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class ProtoUtil {
-  private ProtoUtil() {}
+
+  private ProtoUtil() {
+  }
 
   public static <T extends Message> T decodeProtoYamlFile(Path path, T prototype)
       throws IOException {
-    ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
-    ObjectMap map = yamlMapper.readerFor(ObjectMap.class).readValue(path.toFile());
-    ObjectMapper jsonMapper = new ObjectMapper(new JsonFactory());
-    String json = jsonMapper.writerFor(ObjectMap.class).writeValueAsString(map);
-    return decodeProtoJson(json, prototype);
+    String yaml = String.join("\n", Files.readAllLines(path));
+    return decodeProtoYaml(yaml, prototype);
   }
 
   public static <T extends Message> T decodeProtoYaml(String yamlString, T prototype)

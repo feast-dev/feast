@@ -96,7 +96,7 @@
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-nio</artifactId>
-      <version>0.64.0-alpha</version>
+      <version>0.83.0-alpha</version>
     </dependency>
 
     <dependency>
@@ -228,12 +228,6 @@
 
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-java-io-jdbc</artifactId>
-      <version>${org.apache.beam.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-kafka</artifactId>
       <version>${org.apache.beam.version}</version>
     </dependency>
@@ -300,12 +294,6 @@
       <groupId>org.jtwig</groupId>
       <artifactId>jtwig-core</artifactId>
       <version>5.87.0.RELEASE</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.postgresql</groupId>
-      <artifactId>postgresql</artifactId>
-      <version>42.2.5</version>
     </dependency>
 
     <dependency>

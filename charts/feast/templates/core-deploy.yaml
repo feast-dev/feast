@@ -75,24 +75,42 @@ spec:
               secretKeyRef:
                 name: {{ template "postgresql.fullname" . }}
                 key: postgres-password
+          - name: LOG_TYPE
+            value: {{ .Values.core.logType }}
           - name: PROJECT_ID
             value: "{{ .Values.core.projectId}}"
           - name: TRAINING_DATASET_PREFIX
             value: "{{ .Values.core.trainingDatasetPrefix }}"
-          - name: CORE_API_URI
-            value: {{ .Values.core.service.extIPAdr }}:{{ .Values.core.service.grpc.targetPort }}
           - name: JOB_RUNNER
             value: {{ .Values.core.jobs.runner }}
+          - name: JOB_WORKSPACE
+            value: {{ .Values.core.jobs.workspace }}
           - name: JOB_OPTIONS
             value: {{ .Values.core.jobs.options | toJson}}
           - name: JOB_MONITOR_PERIOD_MS
             value: "{{ .Values.core.jobs.monitoring.period }}"
           - name: JOB_MONITOR_INITIAL_DELAY_MS
             value: "{{ .Values.core.jobs.monitoring.initialDelay }}"
-          - name: JOB_ERRORS_STORE_TYPE
-            value: {{ .Values.core.jobs.errorsStoreType }}
-          - name: JOB_ERRORS_STORE_OPTIONS
-            value: {{ .Values.core.jobs.errorStoreOptions | toJson}}
+          {{- if .Values.store }}
+          {{- if .Values.store.serving }}
+          - name: STORE_SERVING_TYPE
+            value: {{ .Values.store.serving.type }}
+          - name: STORE_SERVING_OPTIONS
+            value: {{ .Values.store.serving.options | toJson}}
+          {{- end }}
+          {{- if .Values.store.warehouse }}
+          - name: STORE_WAREHOUSE_TYPE
+            value: {{ .Values.store.warehouse.type }}
+          - name: STORE_WAREHOUSE_OPTIONS
+            value: {{ .Values.store.warehouse.options | toJson}}
+          {{- end }}
+          {{- if .Values.store.errors }}
+          - name: STORE_ERRORS_TYPE
+            value: {{ .Values.store.errors.type }}
+          - name: STORE_ERRORS_OPTIONS
+            value: {{ .Values.store.errors.options | toJson}}
+          {{- end }}
+          {{- end }}
           - name: STATSD_HOST
             value: {{ .Values.statsd.host }}
           - name: STATSD_PORT

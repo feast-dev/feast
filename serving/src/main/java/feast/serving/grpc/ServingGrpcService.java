@@ -17,16 +17,14 @@
 
 package feast.serving.grpc;
 
-import static feast.serving.util.RequestHelper.checkTimestampRange;
 import static feast.serving.util.RequestHelper.validateRequest;
 import static feast.serving.util.StatsUtil.makeStatsdTags;
 import static io.grpc.Status.Code.INTERNAL;
-import static io.grpc.Status.Code.NOT_FOUND;
 
 import com.timgroup.statsd.StatsDClient;
 import feast.serving.ServingAPIGrpc.ServingAPIImplBase;
-import feast.serving.ServingAPIProto.QueryFeatures.Request;
-import feast.serving.ServingAPIProto.QueryFeatures.Response;
+import feast.serving.ServingAPIProto.QueryFeaturesRequest;
+import feast.serving.ServingAPIProto.QueryFeaturesResponse;
 import feast.serving.service.FeastServing;
 import feast.serving.util.TimeUtil;
 import io.grpc.Status;
@@ -39,9 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.lognet.springboot.grpc.GRpcService;
 import org.springframework.beans.factory.annotation.Autowired;
 
-/**
- * Grpc service implementation for Serving API.
- */
+/** Grpc service implementation for Serving API. */
 @Slf4j
 @GRpcService
 public class ServingGrpcService extends ServingAPIImplBase {
@@ -57,25 +53,19 @@ public class ServingGrpcService extends ServingAPIImplBase {
     this.statsDClient = statsDClient;
   }
 
-  /**
-   * Query feature values from Feast storage.
-   */
+  /** Query feature values from Feast storage. */
   @Override
-  public void queryFeatures(Request request, StreamObserver<Response> responseObserver) {
+  public void queryFeatures(QueryFeaturesRequest request, StreamObserver<QueryFeaturesResponse> responseObserver) {
     long currentMicro = TimeUtil.microTime();
-    Span span =
-        tracer
-            .buildSpan("ServingGrpcService-queryFeatures")
-            .start();
+    Span span = tracer.buildSpan("ServingGrpcService-queryFeatures").start();
     String[] tags = makeStatsdTags(request);
     statsDClient.increment("query_features_count", tags);
     statsDClient.gauge("query_features_entity_count", request.getEntityIdCount(), tags);
-    statsDClient.gauge("query_features_feature_count", request.getRequestDetailsCount(), tags);
+    statsDClient.gauge("query_features_feature_count", request.getFeatureIdCount(), tags);
     try (Scope scope = tracer.scopeManager().activate(span, false)) {
       Span innerSpan = scope.span();
       validateRequest(request);
-      Request validRequest = checkTimestampRange(request);
-      Response response = feast.queryFeatures(validRequest);
+      QueryFeaturesResponse response = feast.queryFeatures(request);
 
       innerSpan.log("calling onNext");
       responseObserver.onNext(response);
@@ -90,8 +80,7 @@ public class ServingGrpcService extends ServingAPIImplBase {
           new StatusRuntimeException(
               Status.fromCode(INTERNAL).withDescription(e.getMessage()).withCause(e)));
     } finally {
-      statsDClient
-          .gauge("query_features_latency_us", TimeUtil.microTime() - currentMicro, tags);
+      statsDClient.gauge("query_features_latency_us", TimeUtil.microTime() - currentMicro, tags);
       span.finish();
     }
   }

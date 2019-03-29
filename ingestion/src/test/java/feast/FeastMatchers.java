@@ -26,7 +26,7 @@ public class FeastMatchers {
   /**
    * Can be used with the PAssert.that(..).satisfies(fn) method.
    */
-  public static <T> SerializableFunction<Iterable<T>, Void> hasCount(int count) {
+  public static <T> SerializableFunction<Iterable<T>, Void> hasCount(long count) {
     return (Iterable<T> iterable) -> {
       Assert.assertEquals(count, Lists.newArrayList(iterable).size());
       return null;

@@ -12,7 +12,6 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 from feast.types import Value_pb2 as feast_dot_types_dot_Value__pb2
 
 
@@ -21,9 +20,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.types',
   syntax='proto3',
   serialized_options=_b('\n\013feast.typesB\014FeatureProtoZ6github.com/gojek/feast/protos/generated/go/feast/types'),
-  serialized_pb=_b('\n\x19\x66\x65\x61st/types/Feature.proto\x12\x0b\x66\x65\x61st.types\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17\x66\x65\x61st/types/Value.proto\"8\n\x07\x46\x65\x61ture\x12\n\n\x02id\x18\x01 \x01(\t\x12!\n\x05value\x18\x02 \x01(\x0b\x32\x12.feast.types.ValueBS\n\x0b\x66\x65\x61st.typesB\x0c\x46\x65\x61tureProtoZ6github.com/gojek/feast/protos/generated/go/feast/typesb\x06proto3')
+  serialized_pb=_b('\n\x19\x66\x65\x61st/types/Feature.proto\x12\x0b\x66\x65\x61st.types\x1a\x17\x66\x65\x61st/types/Value.proto\"8\n\x07\x46\x65\x61ture\x12\n\n\x02id\x18\x01 \x01(\t\x12!\n\x05value\x18\x02 \x01(\x0b\x32\x12.feast.types.ValueBS\n\x0b\x66\x65\x61st.typesB\x0c\x46\x65\x61tureProtoZ6github.com/gojek/feast/protos/generated/go/feast/typesb\x06proto3')
   ,
-  dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,feast_dot_types_dot_Value__pb2.DESCRIPTOR,])
+  dependencies=[feast_dot_types_dot_Value__pb2.DESCRIPTOR,])
 
 
 
@@ -61,8 +60,8 @@ _FEATURE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=100,
-  serialized_end=156,
+  serialized_start=67,
+  serialized_end=123,
 )
 
 _FEATURE.fields_by_name['value'].message_type = feast_dot_types_dot_Value__pb2._VALUE

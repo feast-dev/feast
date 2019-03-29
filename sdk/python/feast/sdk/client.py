@@ -1,28 +1,25 @@
 # Copyright 2018 The Feast Authors
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     https://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 Main interface for users to interact with the Core API. 
 """
 
-import enum
 import os
 from datetime import datetime
 
 import grpc
 import pandas as pd
-import dateutil.parser
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
@@ -38,19 +35,8 @@ from feast.sdk.resources.feature_set import DatasetInfo, FileType
 from feast.sdk.resources.storage import Storage
 from feast.sdk.utils.bq_util import TableDownloader
 from feast.sdk.utils.print_utils import spec_to_yaml
-from feast.serving.Serving_pb2 import QueryFeatures, RequestDetail, \
-    TimestampRange
+from feast.serving.Serving_pb2 import QueryFeaturesRequest
 from feast.serving.Serving_pb2_grpc import ServingAPIStub
-
-
-class ServingRequestType(enum.Enum):
-    """
-    Request type for serving api
-    """
-    LAST = 0
-    """ Get last value of a feature """
-    LIST = 1
-    """ Get list of value of a feature """
 
 
 class Client:
@@ -90,9 +76,10 @@ class Client:
         if self._core_url is None:
             self._core_url = os.getenv(FEAST_CORE_URL_ENV_KEY)
             if self._core_url is None:
-                raise ValueError("Core API URL not set. Either set the " +
-                                 "environment variable {} or set it explicitly."
-                                 .format(FEAST_CORE_URL_ENV_KEY))
+                raise ValueError(
+                    "Core API URL not set. Either set the " +
+                    "environment variable {} or set it explicitly.".format(
+                        FEAST_CORE_URL_ENV_KEY))
         return self._core_url
 
     @core_url.setter
@@ -104,9 +91,10 @@ class Client:
         if self._serving_url is None:
             self._serving_url = os.getenv(FEAST_SERVING_URL_ENV_KEY)
             if self._serving_url is None:
-                raise ValueError("Serving API URL not set. Either set the " +
-                                 "environment variable {} or set it explicitly."
-                                 .format(FEAST_SERVING_URL_ENV_KEY))
+                raise ValueError(
+                    "Serving API URL not set. Either set the " +
+                    "environment variable {} or set it explicitly.".format(
+                        FEAST_SERVING_URL_ENV_KEY))
         return self._serving_url
 
     @serving_url.setter
@@ -122,7 +110,6 @@ class Client:
         if not isinstance(val, bool):
             raise TypeError("verbose should be a boolean value")
         self._verbose = val
-
 
     def apply(self, obj):
         """Create or update one or many feast's resource
@@ -141,8 +128,11 @@ class Client:
         else:
             return self._apply(obj)
 
-    def run(self, importer, name_override=None,
-            apply_entity=False, apply_features=False):
+    def run(self,
+            importer,
+            name_override=None,
+            apply_entity=False,
+            apply_features=False):
         """
         Run an import job
         Args:
@@ -157,8 +147,7 @@ class Client:
             (str) job ID of the import job
         """
         request = JobServiceTypes.SubmitImportJobRequest(
-            importSpec=importer.spec
-        )
+            importSpec=importer.spec)
         if name_override is not None:
             request.name = name_override
 
@@ -166,21 +155,25 @@ class Client:
             self._apply_entity(importer.entity)
         if apply_features:
             for feature in importer.features:
-                self._apply_feature(feature)
+                self._apply_feature(importer.features[feature])
 
         if importer.require_staging:
-            print("Staging file to remote path {}"
-                  .format(importer.remote_path))
+            print("Staging file to remote path {}".format(
+                importer.remote_path))
             importer.stage()
-        print("Submitting job with spec:\n {}"
-              .format(spec_to_yaml(importer.spec)))
+        print("Submitting job with spec:\n {}".format(
+            spec_to_yaml(importer.spec)))
         self._connect_core()
         response = self._job_service_stub.SubmitJob(request)
         print("Submitted job with id: {}".format(response.jobId))
         return response.jobId
 
-    def create_dataset(self, feature_set, start_date, end_date,
-                                limit=None, name_prefix=None):
+    def create_dataset(self,
+                       feature_set,
+                       start_date,
+                       end_date,
+                       limit=None,
+                       name_prefix=None):
         """
         Create training dataset for a feature set. The training dataset
         will be bounded by event timestamp between start_date and end_date.
@@ -201,16 +194,15 @@ class Client:
             feast.resources.feature_set.DatasetInfo: DatasetInfo containing
             the information of training dataset
         """
-        self._check_create_dataset_args(feature_set, start_date,
-                                                 end_date, limit)
+        self._check_create_dataset_args(feature_set, start_date, end_date,
+                                        limit)
 
         req = DatasetServiceTypes.CreateDatasetRequest(
             featureSet=feature_set.proto,
             startDate=_timestamp_from_datetime(_parse_date(start_date)),
             endDate=_timestamp_from_datetime(_parse_date(end_date)),
             limit=limit,
-            namePrefix=name_prefix
-        )
+            namePrefix=name_prefix)
         if self.verbose:
             print("creating training dataset for features: " +
                   str(feature_set.features))
@@ -222,12 +214,8 @@ class Client:
                                                   resp.datasetInfo.tableUrl))
         return DatasetInfo(resp.datasetInfo.name, resp.datasetInfo.tableUrl)
 
-    def get_serving_data(self, feature_set, entity_keys,
-                         request_type=ServingRequestType.LAST,
-                         ts_range=[], limit=10):
-        """Get data from the feast serving layer. You can either retrieve the
-        the latest value, or a list of the latest values, up to a provided
-        limit.
+    def get_serving_data(self, feature_set, entity_keys, ts_range=None):
+        """Get feature value from feast serving API.
 
         If server_url is not provided, the value stored in the environment variable
         FEAST_SERVING_URL is used to connect to the serving server instead.
@@ -236,28 +224,34 @@ class Client:
             feature_set (feast.sdk.resources.feature_set.FeatureSet): feature set
                 representing the data wanted
             entity_keys (:obj: `list` of :obj: `str): list of entity keys
-            request_type (feast.sdk.utils.types.ServingRequestType):
-                (default: feast.sdk.utils.types.ServingRequestType.LAST) type of
-                request: one of [LIST, LAST]
-            ts_range (:obj: `list` of str, optional): size 2 list of start 
-                timestamp and end timestamp, in ISO 8601 format. Only required if
-                request_type is set to LIST
-            limit (int, optional): (default: 10) number of values to get. Only
-                required if request_type is set to LIST
+            ts_range (:obj: `list` of str, optional): size 2 list of start
+                and end time, in datetime type. It will
+                filter out any feature value having event timestamp outside
+                of the ts_range.
 
         Returns:
             pandas.DataFrame: DataFrame of results
         """
+        start = None
+        end = None
+        if ts_range is not None:
+            if len(ts_range) != 2:
+                raise ValueError("ts_range must have len 2")
+            start = ts_range[0]
+            end = ts_range[1]
+            if type(start) is not datetime or type(end) is not datetime:
+                raise TypeError("start and end must be datetime type")
 
-        ts_range = [_timestamp_from_datetime(dateutil.parser.parse(dt))
-                    for dt in ts_range]
-        request = self._build_serving_request(feature_set, entity_keys,
-                                              request_type, ts_range, limit)
+        request = self._build_serving_request(feature_set, entity_keys)
         self._connect_serving()
-        return self._response_to_df(feature_set, self._serving_service_stub
-                                    .QueryFeatures(request))
+        return self._response_to_df(
+            feature_set, self._serving_service_stub.QueryFeatures(request),
+            start, end)
 
-    def download_dataset(self, dataset_info, dest, staging_location,
+    def download_dataset(self,
+                         dataset_info,
+                         dest,
+                         staging_location,
                          file_type=FileType.CSV):
         """
         Download training dataset as file
@@ -273,10 +267,7 @@ class Client:
             str: path to the downloaded file
         """
         return self._table_downloader.download_table_as_file(
-            dataset_info.table_id,
-            dest,
-            staging_location,
-            file_type)
+            dataset_info.table_id, dest, staging_location, file_type)
 
     def download_dataset_to_df(self, dataset_info, staging_location):
         """
@@ -291,8 +282,7 @@ class Client:
 
         """
         return self._table_downloader.download_table_as_df(
-            dataset_info.table_id,
-            staging_location)
+            dataset_info.table_id, staging_location)
 
     def close(self):
         """
@@ -309,7 +299,8 @@ class Client:
             self.__core_channel = grpc.insecure_channel(self.core_url)
             self._core_service_stub = CoreServiceStub(self.__core_channel)
             self._job_service_stub = JobServiceStub(self.__core_channel)
-            self._dataset_service_stub = DatasetServiceStub(self.__core_channel)
+            self._dataset_service_stub = DatasetServiceStub(
+                self.__core_channel)
 
     def _connect_serving(self):
         """Connect to serving api"""
@@ -317,49 +308,28 @@ class Client:
             self.__serving_channel = grpc.insecure_channel(self.serving_url)
             self._serving_service_stub = ServingAPIStub(self.__serving_channel)
 
-    def _build_serving_request(self, feature_set, entity_keys, request_type,
-                               ts_range, limit):
+    def _build_serving_request(self, feature_set, entity_keys):
         """Helper function to build serving service request."""
-        request = QueryFeatures.Request(entityName=feature_set.entity,
-                                        entityId=entity_keys)
-        features = [RequestDetail(featureId=feat_id, type=request_type.value)
-                    for feat_id in feature_set.features]
+        return QueryFeaturesRequest(
+            entityName=feature_set.entity,
+            entityId=entity_keys,
+            featureId=feature_set.features)
 
-        if request_type == ServingRequestType.LIST:
-            ts_range = TimestampRange(start=ts_range[0], end=ts_range[1])
-            request.timestampRange.CopyFrom(ts_range)
-            for feature in features:
-                feature.limit = limit
-        request.requestDetails.extend(features)
-        return request
-
-    def _response_to_df(self, feature_set, response):
-        entity_tables = []
-        for entity_key in response.entities:
-            feature_tables = []
-            features = response.entities[entity_key].features
-            for feature_name in features:
-                rows = []
-                v_list = features[feature_name].valueList
-                v_list = getattr(v_list, v_list.WhichOneof("valueList")).val
-                for idx in range(len(v_list)):
-                    row = {response.entityName: entity_key,
-                           feature_name: v_list[idx]}
-                    if features[feature_name].HasField("timestampList"):
-                        ts_seconds = \
-                            features[feature_name].timestampList.val[idx].seconds
-                        row["timestamp"] = datetime.fromtimestamp(ts_seconds)
-                    rows.append(row)
-                feature_tables.append(pd.DataFrame(rows))
-            entity_table = feature_tables[0]
-            for idx in range(1, len(feature_tables)):
-                entity_table = pd.merge(left=entity_table,
-                                        right=feature_tables[idx], how='outer')
-            entity_tables.append(entity_table)
-        if len(entity_tables) == 0:
-            return pd.DataFrame(columns=[feature_set.entity, "timestamp"] +
-                                        feature_set.features)
-        df = pd.concat(entity_tables)
+    def _response_to_df(self, feature_set, response, start=None, end=None):
+        is_filter_time = start is not None and end is not None
+        df = pd.DataFrame(columns=[feature_set.entity] + feature_set.features)
+        for entity_id in response.entities:
+            feature_map = response.entities[entity_id].features
+            row = {response.entityName: entity_id}
+            for feature_id in feature_map:
+                v = feature_map[feature_id].value
+                if is_filter_time:
+                    ts = feature_map[feature_id].timestamp.ToDatetime()
+                    if ts < start or ts > end:
+                        continue
+                v = getattr(v, v.WhichOneof("val"))
+                row[feature_id] = v
+            df = df.append(row, ignore_index=True)
         return df.reset_index(drop=True)
 
     def _apply(self, obj):
@@ -389,8 +359,9 @@ class Client:
         """
         self._connect_core()
         response = self._core_service_stub.ApplyFeature(feature.spec)
-        if self.verbose: print("Successfully applied feature with id: {}\n---\n{}"
-                               .format(response.featureId, feature))
+        if self.verbose:
+            print("Successfully applied feature with id: {}\n---\n{}".format(
+                response.featureId, feature))
         return response.featureId
 
     def _apply_entity(self, entity):
@@ -402,8 +373,8 @@ class Client:
         self._connect_core()
         response = self._core_service_stub.ApplyEntity(entity.spec)
         if self.verbose:
-            print("Successfully applied entity with name: {}\n---\n{}"
-                  .format(response.entityName, entity))
+            print("Successfully applied entity with name: {}\n---\n{}".format(
+                response.entityName, entity))
         return response.entityName
 
     def _apply_feature_group(self, feature_group):
@@ -414,10 +385,11 @@ class Client:
                 feature group to apply
         """
         self._connect_core()
-        response = self._core_service_stub.ApplyFeatureGroup(feature_group.spec)
-        if self.verbose: print("Successfully applied feature group with id: " +
-                               "{}\n---\n{}".format(response.featureGroupId,
-                                                    feature_group))
+        response = self._core_service_stub.ApplyFeatureGroup(
+            feature_group.spec)
+        if self.verbose:
+            print("Successfully applied feature group with id: " +
+                  "{}\n---\n{}".format(response.featureGroupId, feature_group))
         return response.featureGroupId
 
     def _apply_storage(self, storage):
@@ -428,12 +400,13 @@ class Client:
         """
         self._connect_core()
         response = self._core_service_stub.ApplyStorage(storage.spec)
-        if self.verbose: print("Successfully applied storage with id: " +
-                               "{}\n{}".format(response.storageId, storage))
+        if self.verbose:
+            print("Successfully applied storage with id: " +
+                  "{}\n{}".format(response.storageId, storage))
         return response.storageId
 
-    def _check_create_dataset_args(self, feature_set, start_date,
-                                            end_date, limit):
+    def _check_create_dataset_args(self, feature_set, start_date, end_date,
+                                   limit):
         if len(feature_set.features) < 1:
             raise ValueError("feature set is empty")
 

@@ -1,10 +1,9 @@
-id: myentity.none.feature_bool_redis1
+id: myentity.feature_bool_redis1
 name: feature_bool_redis1
 entity: myentity
 owner: bob@example.com
 description: test entity.
 valueType:  BOOL
-granularity: NONE
 uri: https://github.com/bob/example
 dataStores:
   serving:

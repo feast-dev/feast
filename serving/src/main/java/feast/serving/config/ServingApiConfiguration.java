@@ -30,6 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,15 +41,12 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.protobuf.ProtobufJsonFormatHttpMessageConverter;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-/**
- * Global bean configuration.
- */
+/** Global bean configuration. */
 @Slf4j
 @Configuration
 public class ServingApiConfiguration implements WebMvcConfigurer {
 
-  @Autowired
-  private ProtobufJsonFormatHttpMessageConverter protobufConverter;
+  @Autowired private ProtobufJsonFormatHttpMessageConverter protobufConverter;
 
   @Bean
   public AppConfig getAppConfig(
@@ -66,9 +65,24 @@ public class ServingApiConfiguration implements WebMvcConfigurer {
   @Bean
   public SpecStorage getCoreServiceSpecStorage(
       @Value("${feast.core.host}") String coreServiceHost,
-      @Value("${feast.core.grpc.port}") String coreServicePort) {
-    return new CachedSpecStorage(
-        new CoreService(coreServiceHost, Integer.parseInt(coreServicePort)));
+      @Value("${feast.core.grpc.port}") String coreServicePort,
+      @Value("${feast.cacheDurationMinute}") int cacheDurationMinute) {
+    ScheduledExecutorService scheduledExecutorService =
+        Executors.newSingleThreadScheduledExecutor();
+    final CachedSpecStorage cachedSpecStorage =
+        new CachedSpecStorage(new CoreService(coreServiceHost, Integer.parseInt(coreServicePort)));
+
+    // reload all specs including new ones periodically
+    scheduledExecutorService.schedule(
+        () -> cachedSpecStorage.populateCache(), cacheDurationMinute, TimeUnit.MINUTES);
+
+    // load all specs during start up
+    try {
+      cachedSpecStorage.populateCache();
+    } catch (Exception e) {
+      log.error("Unable to preload feast's spec");
+    }
+    return cachedSpecStorage;
   }
 
   @Bean

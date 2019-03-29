@@ -17,6 +17,9 @@
 
 package feast.core.validators;
 
+import static feast.core.config.StorageConfig.DEFAULT_ERRORS_ID;
+import static feast.core.config.StorageConfig.DEFAULT_SERVING_ID;
+import static feast.core.config.StorageConfig.DEFAULT_WAREHOUSE_ID;
 import static org.mockito.Mockito.when;
 
 import com.google.common.base.Strings;
@@ -35,7 +38,6 @@ import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.types.GranularityProto.Granularity;
 import java.util.Optional;
 import org.junit.Before;
 import org.junit.Rule;
@@ -168,10 +170,9 @@ public class SpecValidatorTest {
             .setOwner("owner")
             .setDescription("dasdad")
             .setEntity("entity")
-            .setGranularity(Granularity.Enum.forNumber(1))
             .build();
     exception.expect(IllegalArgumentException.class);
-    exception.expectMessage("Id must contain entity, granularity, name");
+    exception.expectMessage("Id must contain entity, name");
     validator.validateFeatureSpec(input);
   }
 
@@ -185,41 +186,16 @@ public class SpecValidatorTest {
             featureInfoRepository);
     FeatureSpec input =
         FeatureSpec.newBuilder()
-            .setId("notentity.granularity.name")
+            .setId("notentity.name")
             .setName("name")
             .setOwner("owner")
             .setDescription("dasdad")
             .setEntity("entity")
-            .setGranularity(Granularity.Enum.forNumber(1))
             .build();
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage(
-        "Id must be in format entity.granularity.name, "
+        "Id must be in format entity.name, "
             + "entity in Id does not match entity provided.");
-    validator.validateFeatureSpec(input);
-  }
-
-  @Test
-  public void featureSpecWithIdWithoutMatchingGranularityShouldThrowIllegalArgumentException() {
-    SpecValidator validator =
-        new SpecValidator(
-            storageInfoRepository,
-            entityInfoRepository,
-            featureGroupInfoRepository,
-            featureInfoRepository);
-    FeatureSpec input =
-        FeatureSpec.newBuilder()
-            .setId("entity.granularity.name")
-            .setName("name")
-            .setOwner("owner")
-            .setDescription("dasdad")
-            .setEntity("entity")
-            .setGranularity(Granularity.Enum.forNumber(0))
-            .build();
-    exception.expect(IllegalArgumentException.class);
-    exception.expectMessage(
-        "Id must be in format entity.granularity.name, "
-            + "granularity in Id does not match granularity provided.");
     validator.validateFeatureSpec(input);
   }
 
@@ -233,16 +209,15 @@ public class SpecValidatorTest {
             featureInfoRepository);
     FeatureSpec input =
         FeatureSpec.newBuilder()
-            .setId("entity.none.notname")
+            .setId("entity.notname")
             .setName("name")
             .setOwner("owner")
             .setDescription("dasdad")
             .setEntity("entity")
-            .setGranularity(Granularity.Enum.forNumber(0))
             .build();
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage(
-        "Id must be in format entity.granularity.name, "
+        "Id must be in format entity.name, "
             + "name in Id does not match name provided.");
     validator.validateFeatureSpec(input);
   }
@@ -258,12 +233,11 @@ public class SpecValidatorTest {
             featureInfoRepository);
     FeatureSpec input =
         FeatureSpec.newBuilder()
-            .setId("entity.none.name")
+            .setId("entity.name")
             .setName("name")
             .setOwner("owner")
             .setDescription("dasdad")
             .setEntity("entity")
-            .setGranularity(Granularity.Enum.forNumber(0))
             .build();
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage("Entity with name entity does not exist");
@@ -282,12 +256,11 @@ public class SpecValidatorTest {
             featureInfoRepository);
     FeatureSpec input =
         FeatureSpec.newBuilder()
-            .setId("entity.none.name")
+            .setId("entity.name")
             .setName("name")
             .setOwner("owner")
             .setDescription("dasdad")
             .setEntity("entity")
-            .setGranularity(Granularity.Enum.forNumber(0))
             .setGroup("group")
             .build();
     exception.expect(IllegalArgumentException.class);
@@ -309,12 +282,11 @@ public class SpecValidatorTest {
     DataStores dataStores = DataStores.newBuilder().setServing(servingStore).build();
     FeatureSpec input =
         FeatureSpec.newBuilder()
-            .setId("entity.none.name")
+            .setId("entity.name")
             .setName("name")
             .setOwner("owner")
             .setDescription("dasdad")
             .setEntity("entity")
-            .setGranularity(Granularity.Enum.forNumber(0))
             .setDataStores(dataStores)
             .build();
     exception.expect(IllegalArgumentException.class);
@@ -345,13 +317,12 @@ public class SpecValidatorTest {
     DataStores dataStores = DataStores.newBuilder().setWarehouse(warehouseStore).build();
     FeatureSpec input =
         FeatureSpec.newBuilder()
-            .setId("entity.none.name")
+            .setId("entity.name")
             .setName("name")
             .setOwner("owner")
             .setDescription("dasdad")
             .setEntity("entity")
             .setGroup("group")
-            .setGranularity(Granularity.Enum.forNumber(0))
             .setDataStores(dataStores)
             .build();
     exception.expect(IllegalArgumentException.class);
@@ -384,12 +355,11 @@ public class SpecValidatorTest {
         DataStores.newBuilder().setServing(servingStore).setWarehouse(warehouseStore).build();
     FeatureSpec input =
         FeatureSpec.newBuilder()
-            .setId("entity.none.name")
+            .setId("entity.name")
             .setName("name")
             .setOwner("owner")
             .setDescription("dasdad")
             .setEntity("entity")
-            .setGranularity(Granularity.Enum.forNumber(0))
             .setDataStores(dataStores)
             .build();
     exception.expect(IllegalArgumentException.class);
@@ -420,12 +390,11 @@ public class SpecValidatorTest {
         DataStores.newBuilder().setServing(servingStore).build();
     FeatureSpec input =
         FeatureSpec.newBuilder()
-            .setId("entity.none.name")
+            .setId("entity.name")
             .setName("name")
             .setOwner("owner")
             .setDescription("dasdad")
             .setEntity("entity")
-            .setGranularity(Granularity.Enum.forNumber(0))
             .setDataStores(dataStores)
             .build();
     validator.validateFeatureSpec(input);
@@ -461,12 +430,11 @@ public class SpecValidatorTest {
         DataStores.newBuilder().setServing(servingStore).setWarehouse(warehouseStore).build();
     FeatureSpec input =
         FeatureSpec.newBuilder()
-            .setId("entity.none.name")
+            .setId("entity.name")
             .setName("name")
             .setOwner("owner")
             .setDescription("dasdad")
             .setEntity("entity")
-            .setGranularity(Granularity.Enum.forNumber(0))
             .setDataStores(dataStores)
             .build();
     exception.expect(IllegalArgumentException.class);
@@ -508,12 +476,11 @@ public class SpecValidatorTest {
         DataStores.newBuilder().setServing(servingStore).setWarehouse(warehouseStore).build();
     FeatureSpec input =
         FeatureSpec.newBuilder()
-            .setId("entity.none.name")
+            .setId("entity.name")
             .setName("name")
             .setOwner("owner")
             .setDescription("dasdad")
             .setEntity("entity")
-            .setGranularity(Granularity.Enum.forNumber(0))
             .setDataStores(dataStores)
             .build();
     exception.expect(IllegalArgumentException.class);
@@ -625,6 +592,87 @@ public class SpecValidatorTest {
   }
 
   @Test
+  public void testServingStorageSpec_withValidTypes() {
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    validator.validateServingStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_SERVING_ID)
+        .setType("redis").build());
+    validator.validateServingStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_SERVING_ID)
+        .setType("bigtable").build());
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testServingStorageSpec_withInvalidType() {
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    validator.validateServingStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_SERVING_ID)
+        .setType("invalid").build());
+  }
+
+  @Test
+  public void testWarehouseStorageSpec_withValidTypes() {
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    validator.validateWarehouseStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_WAREHOUSE_ID)
+        .setType("file.json").build());
+    validator.validateWarehouseStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_WAREHOUSE_ID)
+        .setType("bigquery").build());
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testWarehouseStorageSpec_withInvalidType() {
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    validator.validateWarehouseStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_WAREHOUSE_ID)
+        .setType("invalid").build());
+  }
+
+  @Test
+  public void testErrorsStorageSpec_withValidTypes() {
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    validator.validateErrorsStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_ERRORS_ID)
+        .setType("file.json").build());
+    validator.validateErrorsStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_ERRORS_ID)
+        .setType("stderr").build());
+    validator.validateErrorsStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_ERRORS_ID)
+        .setType("stderr").build());
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testErrorsStorageSpec_withInvalidType() {
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    validator.validateErrorsStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_ERRORS_ID)
+        .setType("invalid").build());
+  }
+
+
+  @Test
   public void storageSpecWithoutIdShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
@@ -709,7 +757,7 @@ public class SpecValidatorTest {
     ImportSpec input =
         ImportSpec.newBuilder()
             .setType("file.csv")
-            .putOptions("path", "gs://asdasd")
+            .putSourceOptions("path", "gs://asdasd")
             .build();
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage(
@@ -728,9 +776,9 @@ public class SpecValidatorTest {
     ImportSpec input =
         ImportSpec.newBuilder()
             .setType("bigquery")
-            .putOptions("project", "my-google-project")
-            .putOptions("dataset", "feast")
-            .putOptions("table", "feast")
+            .putSourceOptions("project", "my-google-project")
+            .putSourceOptions("dataset", "feast")
+            .putSourceOptions("table", "feast")
             .build();
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage(
@@ -750,7 +798,7 @@ public class SpecValidatorTest {
     ImportSpec input =
         ImportSpec.newBuilder()
             .setType("pubsub")
-            .putOptions("topic", "my/pubsub/topic")
+            .putSourceOptions("topic", "my/pubsub/topic")
             .addEntities("someEntity")
             .build();
     exception.expect(IllegalArgumentException.class);
@@ -775,7 +823,7 @@ public class SpecValidatorTest {
     ImportSpec input =
         ImportSpec.newBuilder()
             .setType("pubsub")
-            .putOptions("topic", "my/pubsub/topic")
+            .putSourceOptions("topic", "my/pubsub/topic")
             .setSchema(schema)
             .addEntities("someEntity")
             .build();
@@ -802,8 +850,63 @@ public class SpecValidatorTest {
     ImportSpec input =
         ImportSpec.newBuilder()
             .setType("kafka")
-            .putOptions("topics", "my-kafka-topic")
-            .putOptions("server", "localhost:54321")
+            .putSourceOptions("topics", "my-kafka-topic")
+            .putSourceOptions("server", "localhost:54321")
+            .setSchema(schema)
+            .addEntities("someEntity")
+            .build();
+    validator.validateImportSpec(input);
+  }
+
+  @Test
+  public void importSpecWithCoalesceJobOptionsShouldPassValidation() {
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    when(featureInfoRepository.existsById("some_existing_feature")).thenReturn(true);
+    when(entityInfoRepository.existsById("someEntity")).thenReturn(true);
+    Schema schema =
+        Schema.newBuilder()
+            .addFields(Field.newBuilder().setFeatureId("some_existing_feature").build())
+            .build();
+    ImportSpec input =
+        ImportSpec.newBuilder()
+            .setType("kafka")
+            .putSourceOptions("topics", "my-kafka-topic")
+            .putSourceOptions("server", "localhost:54321")
+            .putJobOptions("coalesceRows.enabled", "true")
+            .putJobOptions("coalesceRows.delaySeconds", "10000")
+            .putJobOptions("coalesceRows.timeoutSeconds", "20000")
+            .putJobOptions("sample.limit", "1000")
+            .setSchema(schema)
+            .addEntities("someEntity")
+            .build();
+    validator.validateImportSpec(input);
+  }
+
+  @Test
+  public void importSpecWithLimitJobOptionsShouldPassValidation() {
+    SpecValidator validator =
+        new SpecValidator(
+            storageInfoRepository,
+            entityInfoRepository,
+            featureGroupInfoRepository,
+            featureInfoRepository);
+    when(featureInfoRepository.existsById("some_existing_feature")).thenReturn(true);
+    when(entityInfoRepository.existsById("someEntity")).thenReturn(true);
+    Schema schema =
+        Schema.newBuilder()
+            .addFields(Field.newBuilder().setFeatureId("some_existing_feature").build())
+            .build();
+    ImportSpec input =
+        ImportSpec.newBuilder()
+            .setType("kafka")
+            .putSourceOptions("topics", "my-kafka-topic")
+            .putSourceOptions("server", "localhost:54321")
+            .putJobOptions("sample.limit", "1000")
             .setSchema(schema)
             .addEntities("someEntity")
             .build();

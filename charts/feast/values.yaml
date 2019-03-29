@@ -3,9 +3,9 @@ core:
   projectId: "gcp-project-id"
   image: 
     pullPolicy: IfNotPresent
-    registry: feast
+    registry: gcr.io/kf-feast
     repository: feast-core
-    tag: "0.1.0"
+    tag: "1234"
   replicaCount: 3
   resources: 
     limits: 
@@ -24,22 +24,37 @@ core:
     http: 
       port: 80
       targetPort: 8080
-  jobs: 
+  jobs:
+    workspace: "/tmp"
     runner: DirectRunner
     options: "{}"
-    errorsStoreType: "stdout"
+    errorStoreType: "stdout"
     errorStoreOptions: "{}"
     monitoring:
       period: 5000
       initialDelay: 60000
   trainingDatasetPrefix: "fs"
+  # logType: JSON
+
+#store:
+#  errors:
+#    type: "stdout"
+#  warehouse:
+#    type: "bigquery"
+#    options: '{"project": "gcp-project-id", "dataset": "feast"}'
+#  serving:
+#    type: "redis"
+#    options: '{"host": "...", "port": "6379"}'
 
 postgresql: 
-  name: feast-metadata
+  provision: true
+  imageTag: 9.6.11
   service: 
     port: 5432
-provisionDataStore: 
-  postgres: true
+    
+redis:
+  name: feast-redis
+  provision: true
 
 serving: 
   config: 
@@ -51,9 +66,9 @@ serving:
     timeout: 5
   image: 
     pullPolicy: IfNotPresent
-    registry: feast
+    registry: gcr.io/kf-feast
     repository: feast-serving
-    tag: "0.1.0"
+    tag: "1234"
   replicaCount: 4
   resources: 
     limits: 

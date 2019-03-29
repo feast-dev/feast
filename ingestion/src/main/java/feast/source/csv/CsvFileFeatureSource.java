@@ -24,25 +24,20 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import feast.ingestion.metrics.FeastMetrics;
-import feast.ingestion.model.Values;
-import feast.ingestion.util.DateUtil;
 import feast.options.Options;
 import feast.options.OptionsParser;
 import feast.source.FeatureSource;
 import feast.source.FeatureSourceFactory;
-import feast.source.csv.CsvIO.StringMap;
+import feast.source.common.ValueMapToFeatureRowTransform.ValueMapToFeatureRowDoFn;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;
-import feast.types.FeatureProto.Feature;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import javax.validation.constraints.NotEmpty;
 import lombok.AllArgsConstructor;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
@@ -70,7 +65,7 @@ public class CsvFileFeatureSource extends FeatureSource {
   @Override
   public PCollection<FeatureRow> expand(PInput input) {
     CsvFileFeatureSourceOptions options = OptionsParser
-        .parse(importSpec.getOptionsMap(), CsvFileFeatureSourceOptions.class);
+        .parse(importSpec.getSourceOptionsMap(), CsvFileFeatureSourceOptions.class);
     List<String> entities = importSpec.getEntitiesList();
     Preconditions.checkArgument(
         entities.size() == 1, "exactly 1 entity must be set for CSV import");
@@ -94,49 +89,15 @@ public class CsvFileFeatureSource extends FeatureSource {
         schema.getFieldsList().size() > 0,
         "CSV import needs schema with a least one field specified");
 
-    PCollection<StringMap> stringMaps = input.getPipeline().apply(CsvIO.read(path, fieldNames));
-
-    return stringMaps.apply(
-        ParDo.of(
-            new DoFn<StringMap, FeatureRow>() {
-              @ProcessElement
-              public void processElement(ProcessContext context) {
-                FeatureRow.Builder builder = FeatureRow.newBuilder();
-                try {
-                  StringMap stringMap = context.element();
-                  builder.setEntityName(entity);
-
-                  for (Entry<String, String> entry : stringMap.entrySet()) {
-                    String name = entry.getKey();
-                    String value = entry.getValue();
-                    Field field = fields.get(name);
-
-                    // A feature can only be one of these things
-                    if (entityIdColumn.equals(name)) {
-                      builder.setEntityKey(value);
-                    } else if (timestampColumn.equals(name)) {
-                      builder.setEventTimestamp(DateUtil.toTimestamp(value));
-                    } else if (!Strings.isNullOrEmpty(field.getFeatureId())) {
-                      String featureId = field.getFeatureId();
-                      builder.addFeatures(
-                          Feature.newBuilder().setId(featureId).setValue(Values.ofString(value)));
-                    }
-                    // else silently ignore this column
-                  }
-                  if (!schema.getTimestampValue()
-                      .equals(com.google.protobuf.Timestamp.getDefaultInstance())) {
-                    // This overrides any column event timestamp.
-                    builder.setEventTimestamp(schema.getTimestampValue());
-                  }
-                  context.output(builder.build());
-                } catch (Exception e) {
-                  FeastMetrics.inc(builder.build(), "input_errors");
-                }
-              }
-            }));
-
+    if (!Strings.isNullOrEmpty(timestampColumn)) {
+      Preconditions.checkArgument(fieldNames.contains(timestampColumn),
+          String.format("timestampColumn %s, does not match any field", timestampColumn));
+    }
+    PCollection<String> text = input.getPipeline().apply(TextIO.read().from(path));
+    return text.apply(ParseCsvTransform.builder().header(fieldNames).build())
+        .apply(new StringToValueMapTransform())
+        .apply(ParDo.of(ValueMapToFeatureRowDoFn.of(entity, schema)));
   }
-
 
   public static class CsvFileFeatureSourceOptions implements Options {
 

@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package feast.ingestion.values;
 
 import feast.ingestion.transform.fn.BaseFeatureDoFn;

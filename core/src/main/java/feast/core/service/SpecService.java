@@ -90,7 +90,7 @@ public class SpecService {
     List<EntityInfo> entityInfos = this.entityInfoRepository.findAllById(dedupIds);
     if (entityInfos.size() < dedupIds.size()) {
       throw new RetrievalException(
-          "unable to retrieve all entities requested"); // TODO: check and return exactly which ones
+          "unable to retrieve all entities requested " + ids);
     }
     return entityInfos;
   }
@@ -122,7 +122,7 @@ public class SpecService {
     List<FeatureInfo> featureInfos = this.featureInfoRepository.findAllById(dedupIds);
     if (featureInfos.size() < dedupIds.size()) {
       throw new RetrievalException(
-          "unable to retrieve all features requested"); // TODO: check and return exactly which ones
+          "unable to retrieve all features requested: " + ids);
     }
     return featureInfos;
   }
@@ -154,8 +154,7 @@ public class SpecService {
     List<FeatureGroupInfo> featureGroupInfos = this.featureGroupInfoRepository.findAllById(dedupIds);
     if (featureGroupInfos.size() < dedupIds.size()) {
       throw new RetrievalException(
-          "unable to retrieve all feature groups requested"); // TODO: check and return exactly
-      // which ones
+          "unable to retrieve all feature groups requested " + dedupIds);
     }
     return featureGroupInfos;
   }
@@ -187,7 +186,7 @@ public class SpecService {
     List<StorageInfo> storageInfos = this.storageInfoRepository.findAllById(dedupIds);
     if (storageInfos.size() < dedupIds.size()) {
       throw new RetrievalException(
-          "unable to retrieve all storage requested"); // TODO: check and return exactly which ones
+          "unable to retrieve all storage requested: " + ids);
     }
     return storageInfos;
   }

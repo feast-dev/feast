@@ -1,11 +1,11 @@
 # Copyright 2018 The Feast Authors
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     https://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -73,9 +73,18 @@ class Importer:
         return self._specs.get("entity")
 
     @classmethod
-    def from_csv(cls, path, entity, granularity, owner, staging_location=None,
-                 id_column=None, feature_columns=None, timestamp_column=None,
-                 timestamp_value=None, serving_store=None, warehouse_store=None):
+    def from_csv(cls,
+                 path,
+                 entity,
+                 owner,
+                 staging_location=None,
+                 id_column=None,
+                 feature_columns=None,
+                 timestamp_column=None,
+                 timestamp_value=None,
+                 serving_store=None,
+                 warehouse_store=None,
+                 job_options={}):
         """Creates an importer from a given csv dataset. 
         This file can be either local or remote (in gcs). If it's a local file 
         then staging_location must be determined.
@@ -83,7 +92,6 @@ class Importer:
         Args:
             path (str): path to csv file
             entity (str): entity id
-            granularity (Granularity): granularity of data
             owner (str): owner
             staging_location (str, optional): Defaults to None. Staging location 
                 for ingesting a local csv file.
@@ -100,41 +108,52 @@ class Importer:
                 Serving store to write the features in this instance to.
             warehouse_store (feast.sdk.resources.feature.DataStore): Defaults to None.
                 Warehouse store to write the features in this instance to.
+            job_options (dict): Defaults to empty dict. Additional job options.
         
         Returns:
             Importer: the importer for the dataset provided.
         """
-        import_spec_options = {"format": "csv"}
-        import_spec_options["path"], require_staging = \
+        src_type = "file.csv"
+        source_options = {}
+        source_options["path"], require_staging = \
             _get_remote_location(path, staging_location)
         if is_gs_path(path):
             df = gcs_to_df(path)
         else:
             df = pd.read_csv(path)
         schema, features = \
-            _detect_schema_and_feature(entity, granularity, owner, id_column,
+            _detect_schema_and_feature(entity,  owner, id_column,
                                        feature_columns, timestamp_column,
                                        timestamp_value, serving_store,
                                        warehouse_store, df)
-        iport_spec = _create_import("file", import_spec_options, entity, schema)
+        iport_spec = _create_import(src_type, source_options, job_options,
+                                    entity, schema)
 
-        props = (_properties("csv", len(df.index), require_staging,
-                             import_spec_options["path"]))
+        props = (_properties(src_type, len(df.index), require_staging,
+                             source_options["path"]))
         specs = _specs(iport_spec, Entity(name=entity), features)
 
         return cls(specs, df, props)
 
     @classmethod
-    def from_bq(cls, bq_path, entity, granularity, owner, limit=10,
-                id_column=None, feature_columns=None, timestamp_column=None,
-                timestamp_value=None, serving_store=None, warehouse_store=None):
+    def from_bq(cls,
+                bq_path,
+                entity,
+                owner,
+                limit=10,
+                id_column=None,
+                feature_columns=None,
+                timestamp_column=None,
+                timestamp_value=None,
+                serving_store=None,
+                warehouse_store=None,
+                job_options={}):
         """Creates an importer from a given bigquery table. 
         
         Args:
             bq_path (str): path to bigquery table, in the format 
                             project.dataset.table
             entity (str): entity id
-            granularity (Granularity): granularity of data
             owner (str): owner
             limit (int, optional): Defaults to 10. The maximum number of rows to 
                 read into the importer df.
@@ -151,6 +170,7 @@ class Importer:
                 Serving store to write the features in this instance to.
             warehouse_store (feast.sdk.resources.feature.DataStore): Defaults to None.
                 Warehouse store to write the features in this instance to.
+            job_options (dict): Defaults to empty dict. Additional job options.
         
         Returns:
             Importer: the importer for the dataset provided.
@@ -162,18 +182,18 @@ class Importer:
         table_ref = dataset_ref.table(table_id)
         table = cli.get_table(table_ref)
 
-        import_spec_options = {
+        source_options = {
             "project": project,
             "dataset": dataset_id,
             "table": table_id
         }
         df = head(cli, table, limit)
         schema, features = \
-            _detect_schema_and_feature(entity, granularity, owner, id_column,
+            _detect_schema_and_feature(entity,  owner, id_column,
                                        feature_columns, timestamp_column,
                                        timestamp_value, serving_store,
                                        warehouse_store, df)
-        iport_spec = _create_import("bigquery", import_spec_options,
+        iport_spec = _create_import("bigquery", source_options, job_options,
                                     entity, schema)
 
         props = _properties("bigquery", table.num_rows, False, None)
@@ -181,16 +201,24 @@ class Importer:
         return cls(specs, df, props)
 
     @classmethod
-    def from_df(cls, df, entity, granularity, owner, staging_location,
-                id_column=None, feature_columns=None, timestamp_column=None,
-                timestamp_value=None, serving_store=None, warehouse_store=None):
+    def from_df(cls,
+                df,
+                entity,
+                owner,
+                staging_location,
+                id_column=None,
+                feature_columns=None,
+                timestamp_column=None,
+                timestamp_value=None,
+                serving_store=None,
+                warehouse_store=None,
+                job_options={}):
         """Creates an importer from a given pandas dataframe. 
         To import a file from a dataframe, the data will have to be staged.
         
         Args:
             path (str): path to csv file
             entity (str): entity id
-            granularity (Granularity): granularity of data
             owner (str): owner
             staging_location (str): Defaults to None. Staging location 
                                                 for ingesting a local csv file.
@@ -207,26 +235,28 @@ class Importer:
                 Serving store to write the features in this instance to.
             warehouse_store (feast.sdk.resources.feature.DataStore): Defaults to None.
                 Warehouse store to write the features in this instance to.
+            job_options (dict): Defaults to empty dict. Additional job options.
         
         Returns:
             Importer: the importer for the dataset provided.
         """
-        tmp_file_name = ("tmp_{}_{}.csv"
-                         .format(entity, int(round(time.time() * 1000))))
-        import_spec_options = {
-            "format": "csv"
-        }
-        import_spec_options["path"], require_staging = (
-            _get_remote_location(tmp_file_name, staging_location))
+        tmp_file_name = ("tmp_{}_{}.csv".format(entity,
+                                                int(round(
+                                                    time.time() * 1000))))
+        src_type = "file.csv"
+        source_options = {}
+        source_options["path"], require_staging = (_get_remote_location(
+            tmp_file_name, staging_location))
         schema, features = \
-            _detect_schema_and_feature(entity, granularity, owner, id_column,
+            _detect_schema_and_feature(entity,  owner, id_column,
                                        feature_columns, timestamp_column,
                                        timestamp_value, serving_store,
                                        warehouse_store, df)
-        iport_spec = _create_import("file", import_spec_options, entity, schema)
+        iport_spec = _create_import(src_type, source_options, job_options,
+                                    entity, schema)
 
         props = _properties("dataframe", len(df.index), require_staging,
-                            import_spec_options["path"])
+                            source_options["path"])
         specs = _specs(iport_spec, Entity(name=entity), features)
 
         return cls(specs, df, props)
@@ -293,11 +323,7 @@ def _specs(iport, entity, features):
         [type] -- [description]
     """
 
-    return {
-        "import": iport,
-        "features": features,
-        "entity": entity
-    }
+    return {"import": iport, "features": features, "entity": entity}
 
 
 def _get_remote_location(path, staging_location):
@@ -321,16 +347,13 @@ def _get_remote_location(path, staging_location):
     return staging_location + "/" + filename, True
 
 
-def _detect_schema_and_feature(entity, granularity, owner, id_column,
-                               feature_columns, timestamp_column,
-                               timestamp_value, serving_store,
-                               warehouse_store, df):
+def _detect_schema_and_feature(entity, owner, id_column, feature_columns,
+                               timestamp_column, timestamp_value,
+                               serving_store, warehouse_store, df):
     """Create schema object for import spec.
     
     Args:
         entity (str): entity name
-        granularity (feast.types.Granularity_pb2.Granularity): granularity of 
-            the feature
         id_column (str): column name of entity id
         timestamp_column (str): column name of timestamp
         timestamp_value (datetime.datetime): timestamp to apply to all 
@@ -365,19 +388,19 @@ def _detect_schema_and_feature(entity, granularity, owner, id_column,
             ts = Timestamp()
             ts.GetCurrentTime()
         else:
-            ts = Timestamp(seconds=
-                           int((timestamp_value - datetime.datetime(1970, 1, 1))
-                               .total_seconds()))
+            ts = Timestamp(
+                seconds=int((timestamp_value -
+                             datetime.datetime(1970, 1, 1)).total_seconds()))
         schema.timestampValue.CopyFrom(ts)
 
     features = {}
     if feature_columns is not None:
-        # check if all column exist and create feature accordingly                
+        # check if all column exist and create feature accordingly
         for column in feature_columns:
             if column not in df.columns:
-                raise ValueError("Column with name {} is not found".format(column))
-            features[column] = _create_feature(df[column], entity,
-                                               granularity, owner,
+                raise ValueError(
+                    "Column with name {} is not found".format(column))
+            features[column] = _create_feature(df[column], entity, owner,
                                                serving_store, warehouse_store)
     else:
         # get all column except entity id and timestampColumn
@@ -385,8 +408,7 @@ def _detect_schema_and_feature(entity, granularity, owner, id_column,
         _remove_safely(feature_columns, schema.entityIdColumn)
         _remove_safely(feature_columns, schema.timestampColumn)
         for column in feature_columns:
-            features[column] = _create_feature(df[column], entity,
-                                               granularity, owner,
+            features[column] = _create_feature(df[column], entity, owner,
                                                serving_store, warehouse_store)
 
     for col in df.columns:
@@ -402,15 +424,12 @@ def _detect_schema_and_feature(entity, granularity, owner, id_column,
     return schema, features_dict
 
 
-def _create_feature(column, entity, granularity, owner,
-                    serving_store, warehouse_store):
+def _create_feature(column, entity, owner, serving_store, warehouse_store):
     """Create Feature object. 
     
     Args:
         column (pandas.Series): data column
         entity (str): entity name
-        granularity (feast.types.Granularity_pb2.Granularity): granularity of 
-            the feature
         owner (str): owner of the feature
         serving_store (feast.sdk.resources.feature.DataStore): Defaults to None.
             Serving store to write the features in this instance to.
@@ -424,7 +443,6 @@ def _create_feature(column, entity, granularity, owner,
     feature = Feature(
         name=column.name,
         entity=entity,
-        granularity=granularity,
         owner=owner,
         value_type=dtype_to_value_type(column.dtype))
     if serving_store is not None:
@@ -434,12 +452,13 @@ def _create_feature(column, entity, granularity, owner,
     return feature
 
 
-def _create_import(import_type, options, entity, schema):
+def _create_import(import_type, source_options, job_options, entity, schema):
     """Create an import spec.
     
     Args:
         import_type (str): import type
-        options (dict): import spec options
+        source_options (dict): import spec source options
+        jobOptions (dict): import spec job options
         entity (str): entity
         schema (feast.specs.ImportSpec_pb2.Schema): schema of the file
     
@@ -449,7 +468,8 @@ def _create_import(import_type, options, entity, schema):
 
     return ImportSpec(
         type=import_type,
-        options=options,
+        sourceOptions=source_options,
+        jobOptions=job_options,
         entities=[entity],
         schema=schema)
 

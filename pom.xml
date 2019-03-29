@@ -120,6 +120,7 @@
                             <goals>
                                 <goal>compile</goal>
                                 <goal>compile-custom</goal>
+                                <goal>test-compile</goal>
                             </goals>
                         </execution>
                     </executions>

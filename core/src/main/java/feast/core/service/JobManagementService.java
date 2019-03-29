@@ -17,9 +17,21 @@
 
 package feast.core.service;
 
+import static com.google.common.base.Predicates.not;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import feast.core.JobServiceProto.JobServiceTypes.JobDetail;
 import feast.core.config.ImportJobDefaults;
+import feast.core.config.StorageConfig;
+import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.dao.JobInfoRepository;
 import feast.core.dao.MetricsRepository;
 import feast.core.exception.JobExecutionException;
@@ -29,13 +41,28 @@ import feast.core.job.Runner;
 import feast.core.log.Action;
 import feast.core.log.AuditLogger;
 import feast.core.log.Resource;
+import feast.core.model.EntityInfo;
+import feast.core.model.FeatureInfo;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
 import feast.core.model.Metrics;
+import feast.core.model.StorageInfo;
+import feast.core.util.PathUtil;
+import feast.specs.EntitySpecProto.EntitySpec;
+import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
+import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
+import feast.specs.StorageSpecProto.StorageSpec;
+import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,24 +72,106 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 public class JobManagementService {
+
   private static final String JOB_PREFIX_DEFAULT = "feastimport";
   private static final String UNKNOWN_EXT_JOB_ID = "";
+  private static final String IMPORT_JOB_SPECS_FILENAME = "importJobSpecs.yaml";
 
   private JobInfoRepository jobInfoRepository;
   private MetricsRepository metricsRepository;
   private JobManager jobManager;
   private ImportJobDefaults defaults;
+  private SpecService specService;
+  private StorageSpecs storageSpecs;
 
   @Autowired
   public JobManagementService(
       JobInfoRepository jobInfoRepository,
       MetricsRepository metricsRepository,
       JobManager jobManager,
-      ImportJobDefaults defaults) {
+      ImportJobDefaults defaults,
+      SpecService specService,
+      StorageSpecs storageSpecs) {
     this.jobInfoRepository = jobInfoRepository;
     this.metricsRepository = metricsRepository;
     this.jobManager = jobManager;
     this.defaults = defaults;
+    this.specService = specService;
+    this.storageSpecs = storageSpecs;
+  }
+
+  public void writeImportJobSpecs(ImportJobSpecs importJobSpecs, Path workspace) {
+    Path destination = workspace.resolve(IMPORT_JOB_SPECS_FILENAME);
+    log.info("Writing ImportJobSpecs to {}", destination);
+    try {
+      String json = JsonFormat.printer().omittingInsignificantWhitespace().print(importJobSpecs);
+      TypeToken<Map<String, Object>> typeToken = new TypeToken<Map<String, Object>>() {
+      };
+      Map<String, Object> objectMap = new Gson().fromJson(json, typeToken.getType());
+      ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
+      String yaml = yamlMapper.writer().writeValueAsString(objectMap);
+      Files.write(destination, Lists.newArrayList(yaml));
+    } catch (JsonProcessingException | InvalidProtocolBufferException e) {
+      throw new JobExecutionException("Cannot serialise to ImportJobSpecs to YAML", e);
+    } catch (IOException e) {
+      throw new JobExecutionException(
+          String.format("Cannot write ImportJobSpecs to workspace %s", destination), e);
+    }
+  }
+
+  private ImportJobSpecs buildImportJobSpecs(ImportSpec importSpec, String jobId) {
+    List<EntitySpec> entitySpecs = specService.getEntities(importSpec.getEntitiesList())
+        .stream()
+        .map(EntityInfo::getEntitySpec)
+        .collect(Collectors.toList());
+    Set<String> featureIds = importSpec.getSchema().getFieldsList().stream()
+        .map(Field::getFeatureId).filter(not(Strings::isNullOrEmpty)).collect(Collectors.toSet());
+    List<FeatureSpec> featureSpecs = specService.getFeatures(Lists.newArrayList(featureIds))
+        .stream()
+        .map(FeatureInfo::getFeatureSpec)
+        .collect(Collectors.toList());
+
+    Set<String> servingStoreIds = featureSpecs.stream()
+        .map(featureSpec -> featureSpec.getDataStores().getServing().getId())
+        .filter(not(Strings::isNullOrEmpty))
+        .collect(Collectors.toSet());
+    if (!servingStoreIds.contains(StorageConfig.DEFAULT_SERVING_ID)
+        && storageSpecs.getServingStorageSpec() != null) {
+      servingStoreIds.add(StorageConfig.DEFAULT_SERVING_ID);
+    }
+    List<StorageSpec> servingStorageSpecs = specService
+        .getStorage(Lists.newArrayList(servingStoreIds)).stream()
+        .map(StorageInfo::getStorageSpec)
+        .collect(Collectors.toList());
+
+    Set<String> warehouseStoreIds = featureSpecs.stream()
+        .map(featureSpec -> featureSpec.getDataStores().getWarehouse().getId())
+        .filter(not(Strings::isNullOrEmpty))
+        .collect(Collectors.toSet());
+    if (!warehouseStoreIds.contains(StorageConfig.DEFAULT_WAREHOUSE_ID)
+        && storageSpecs.getWarehouseStorageSpec() != null) {
+      warehouseStoreIds.add(StorageConfig.DEFAULT_WAREHOUSE_ID);
+    }
+    List<StorageSpec> warehouseStorageSpecs = Lists.newArrayList();
+    if (warehouseStoreIds.size() > 0) {
+      warehouseStorageSpecs = specService
+          .getStorage(Lists.newArrayList(warehouseStoreIds)).stream()
+          .map(StorageInfo::getStorageSpec)
+          .collect(Collectors.toList());
+    }
+
+    ImportJobSpecs.Builder importJobSpecsBuilder = ImportJobSpecs.newBuilder()
+        .setJobId(jobId)
+        .setImportSpec(importSpec)
+        .addAllEntitySpecs(entitySpecs)
+        .addAllFeatureSpecs(featureSpecs)
+        .addAllServingStorageSpecs(servingStorageSpecs)
+        .addAllWarehouseStorageSpecs(warehouseStorageSpecs);
+    if (storageSpecs.getErrorsStorageSpec() != null) {
+      importJobSpecsBuilder.setErrorsStorageSpec(storageSpecs.getErrorsStorageSpec());
+    }
+
+    return importJobSpecsBuilder.build();
   }
 
   /**
@@ -96,6 +205,7 @@ public class JobManagementService {
     return jobDetailBuilder.build();
   }
 
+
   /**
    * Submit ingestion job to runner.
    *
@@ -105,11 +215,23 @@ public class JobManagementService {
    */
   public String submitJob(ImportSpec importSpec, String namePrefix) {
     String jobId = createJobId(namePrefix);
+    Path workspace = PathUtil.getPath(defaults.getWorkspace()).resolve(jobId);
+    try {
+      Files.createDirectory(workspace);
+    } catch (FileAlreadyExistsException e) {
+    } catch (IOException e) {
+      throw new RuntimeException(
+          String.format("Could not initialise job workspace job: %s", workspace.toString()), e);
+    }
+    ImportJobSpecs importJobSpecs = buildImportJobSpecs(importSpec, jobId);
+    writeImportJobSpecs(importJobSpecs, workspace);
+
     boolean isDirectRunner = Runner.DIRECT.getName().equals(defaults.getRunner());
     try {
       if (!isDirectRunner) {
         JobInfo jobInfo =
-            new JobInfo(jobId, UNKNOWN_EXT_JOB_ID, defaults.getRunner(), importSpec, JobStatus.PENDING);
+            new JobInfo(jobId, UNKNOWN_EXT_JOB_ID, defaults.getRunner(), importSpec,
+                JobStatus.PENDING);
         jobInfoRepository.save(jobInfo);
       }
 
@@ -120,7 +242,7 @@ public class JobManagementService {
           "Building graph and submitting to %s",
           defaults.getRunner());
 
-      String extId = jobManager.submitJob(importSpec, jobId);
+      String extId = jobManager.submitJob(importJobSpecs, workspace);
       if (extId.isEmpty()) {
         throw new RuntimeException(
             String.format("Could not submit job: \n%s", "unable to retrieve job external id"));
@@ -180,9 +302,6 @@ public class JobManagementService {
 
   /**
    * Update a given job's status
-   *
-   * @param jobId
-   * @param status
    */
   void updateJobStatus(String jobId, JobStatus status) {
     Optional<JobInfo> jobRecordOptional = jobInfoRepository.findById(jobId);
@@ -195,9 +314,6 @@ public class JobManagementService {
 
   /**
    * Update a given job's external id
-   *
-   * @param jobId
-   * @param jobExtId
    */
   void updateJobExtId(String jobId, String jobExtId) {
     Optional<JobInfo> jobRecordOptional = jobInfoRepository.findById(jobId);

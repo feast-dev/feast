@@ -65,7 +65,7 @@ If release name contains chart name it will be used as a full name.
 {{- end -}}
 
 {{/*
-Generate postgres secret name
+Generate postgresql secret name
 */}}
 {{- define "postgresql.secretName" -}}
 {{ default (include "postgresql.fullname" .) .Values.existingSecret }}

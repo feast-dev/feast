@@ -11,5 +11,5 @@ schema:
   fields:
     - name: id
     - name: timestamp
-    - featureId: product.day.completed_orders
+    - featureId: product.completed_orders
 

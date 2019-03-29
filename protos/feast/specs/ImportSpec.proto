@@ -22,18 +22,14 @@ option java_package = "feast.specs";
 option java_outer_classname = "ImportSpecProto";
 option go_package = "github.com/gojek/feast/protos/generated/go/feast/specs";
 
-import "feast/types/Value.proto";
 import "google/protobuf/timestamp.proto";
 
 message ImportSpec {
-  // type should define what sort of store it is
-  // pubsub: topic, subscription (already a featureRow)
-  // kafka: ? (already a featureRow)
-  // file: csv, parquet, json
-  // bigquery: table, query
   string type = 1;
 
-  map<string, string> options = 2;
+  map<string, string> sourceOptions = 2;
+
+  map<string, string> jobOptions = 5;
 
   repeated string entities = 3;
 
@@ -42,7 +38,8 @@ message ImportSpec {
 
 message Schema {
   repeated Field fields = 1;
-  oneof timestamp { // the event timestamp to set per row.
+  // the event timestamp to set per row.
+  oneof timestamp {
     string timestampColumn = 5;
     google.protobuf.Timestamp timestampValue = 6;
   }

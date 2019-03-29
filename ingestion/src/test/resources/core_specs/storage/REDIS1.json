@@ -1,9 +1,0 @@
-{
-  "id": "REDIS1",
-  "type": "redis",
-  "options": {
-    "host": "localhost",
-    "batchSize": "1",
-    "timeout": "2000"
-  }
-}
