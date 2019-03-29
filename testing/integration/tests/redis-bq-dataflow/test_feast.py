@@ -61,7 +61,6 @@ def _stage_data(local, remote):
 '''Get the BQ data and get only columns to compare, 
   then sort by id and timestamp
 '''
-
 def _get_data_from_bq_and_sort(table_name, bucket_name):
     got = TableDownloader().download_table_as_df(
             table_name,
@@ -93,12 +92,7 @@ class TestFeastIntegration:
             .reset_index(drop=True)
         wanted['event_timestamp'] = pd.to_datetime(wanted['event_timestamp'])\
             .dt.strftime("%Y-%m-%d %H:%M:%S UTC")
-        got = TableDownloader().download_table_as_df(
-            project_id + ".feast_it.myentity",
-            "gs://{}/test-cases/extract.csv".format(bucket_name))
-        got = got.drop(["created_timestamp", "job_id"], axis=1) \
-            .sort_values(["id", "event_timestamp"]) \
-            .reset_index(drop=True)
+        got = _get_data_from_bq_and_sort(project_id + ".feast_it.myentity", bucket_name)
         assert pd.testing.assert_frame_equal(got, wanted[got.columns], check_less_precise=True) is None
 
         # Check data in redis
