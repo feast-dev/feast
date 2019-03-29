@@ -29,10 +29,7 @@ import (
 
 var (
 	waitJobComplete = false
-<<<<<<< HEAD
-=======
 	jobName         = "feastimport"
->>>>>>> 79abea3dde21c2856d23cba8866a1e06b6166939
 )
 
 // jobsCmd represents the jobs command
