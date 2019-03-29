@@ -29,6 +29,7 @@ import (
 
 var (
 	waitJobComplete = false
+	jobName         = "feastimport"
 )
 
 // jobsCmd represents the jobs command
@@ -69,6 +70,7 @@ var jobsAbortCmd = &cobra.Command{
 
 func init() {
 	jobsRunCmd.Flags().BoolVar(&waitJobComplete, "wait", false, "wait for job to run to completion")
+	jobsRunCmd.Flags().StringVar(&jobName, "name", "feastimport", "job name to be submitted")
 	jobsCmd.AddCommand(jobsRunCmd)
 	jobsCmd.AddCommand(jobsAbortCmd)
 	rootCmd.AddCommand(jobsCmd)
@@ -86,6 +88,7 @@ func runJob(ctx context.Context, path string) error {
 	initConn()
 	jobsClient := core.NewJobServiceClient(coreConn)
 	out, err := jobsClient.SubmitJob(ctx, &core.JobServiceTypes_SubmitImportJobRequest{
+		Name:       jobName,
 		ImportSpec: is,
 	})
 	if err != nil {
