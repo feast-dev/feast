@@ -1,0 +1,235 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: feast-integration-test-
+spec:
+  entrypoint: run
+  onExit: exit-handler
+  arguments:
+    parameters:
+    - name: revision
+      value: integration-test
+    - name: prId
+      value: "none"
+    - name: gitRef
+      value: "none"
+  templates:
+  - name: run
+    steps:
+    - - name: get-feast
+        template: get-feast
+    - - name: build-jars
+        template: build-jars
+        arguments:
+          artifacts:
+          - name: feast
+            from: "{{steps.get-feast.outputs.artifacts.feast-repo}}"
+      - name: build-cli
+        template: build-cli
+        arguments:
+          artifacts:
+          - name: feast
+            from: "{{steps.get-feast.outputs.artifacts.feast-repo}}"
+    - - name: build-push-docker
+        template: build-docker
+        arguments:
+          artifacts:
+          - name: feast
+            from: "{{steps.build-jars.outputs.artifacts.feast-build}}"
+    - - name: terraform-provision
+        template: terraform
+        arguments:
+          parameters:
+          - name: arg
+            value: "apply -var docker_tag=integration-test -auto-approve ."
+          artifacts:
+          - name: feast
+            from: "{{steps.get-feast.outputs.artifacts.feast-repo}}"
+          - name: feast-cli
+            from: "{{steps.build-cli.outputs.artifacts.feast-cli}}"
+    - - name: test
+        template: run-test
+        arguments:
+          artifacts:
+          - name: feast
+            from: "{{steps.get-feast.outputs.artifacts.feast-repo}}"
+          - name: feast-cli
+            from: "{{steps.build-cli.outputs.artifacts.feast-cli}}"
+
+  - name: exit-handler
+    steps:
+    - - name: terraform-destroy
+        template: terraform-destroy
+        arguments:
+          parameters:
+          - name: arg
+            value: "destroy -var docker_tag=integration-test -auto-approve ."
+          artifacts:
+          - name: feast
+            from: "{{workflow.outputs.artifacts.feast-repo}}"
+  - name: get-feast
+    steps:
+    - - name: get-feast-by-pullrequest
+        template: get-feast-by-pullrequest
+        when: "{{workflow.parameters.prId}} != none"
+      - name: get-feast-by-gitref
+        template: get-feast-by-gitref
+        when: "{{workflow.parameters.gitRef}} != none"
+    outputs:
+      artifacts:
+      - name: feast-repo
+        from: "{{workflow.outputs.artifacts.feast-repo}}"
+        globalName: feast-repo
+  - name: get-feast-by-pullrequest
+    container:
+      image: alpine/git
+      command: 
+      - /bin/sh
+      - -c
+      - |
+        git clone https://github.com/gojek/feast;
+        cd feast;
+        git fetch origin pull/{{workflow.parameters.prId}}/head;
+        git checkout FETCH_HEAD
+    outputs:
+      artifacts:
+      - name: feast
+        path: /git/feast
+        globalName: feast-repo
+  - name: get-feast-by-gitref
+    container:
+      image: alpine/git
+      command: 
+      - /bin/sh
+      - -c
+      - |
+        git clone https://github.com/gojek/feast;
+        cd feast;
+        git checkout {{workflow.parameters.gitRef}}
+    outputs:
+      artifacts:
+      - name: feast
+        path: /git/feast
+        globalName: feast-repo
+  - name: build-jars
+    inputs:
+      artifacts:
+      - name: feast
+        path: /feast
+    container:
+      image: us.gcr.io/kf-feast/test-image:1.0.0
+      command: 
+      - /bin/bash 
+      - -c 
+      - mvn package -DskipTests -Drevision=integration-test -T 6 -DdependencyLocationsEnabled=false
+      workingDir: /feast
+      resources:
+        requests:
+          cpu: 3000m
+    outputs:
+      artifacts:
+      - name: feast-build
+        path: /feast
+        globalName: feast-build
+  - name: build-docker
+    inputs:
+      artifacts:
+      - name: feast
+        path: /feast
+    container:
+      image: gcr.io/kf-feast/docker:18.09-gcloud
+      command: [sh, -c]
+      args: ['
+        until docker ps; do sleep 3; done;
+        docker build -t gcr.io/kf-feast/feast-core:integration-test -f docker/core/Dockerfile --build-arg RELEASE=integration-test .;
+        docker build -t gcr.io/kf-feast/feast-serving:integration-test -f docker/serving/Dockerfile --build-arg RELEASE=integration-test .;
+        docker push gcr.io/kf-feast/feast-core:integration-test;
+        docker push gcr.io/kf-feast/feast-serving:integration-test
+      ']
+      env:
+      - name: DOCKER_HOST
+        value: 127.0.0.1
+      workingDir: /feast
+    sidecars:
+    - name: dind
+      image: docker:stable-dind
+      securityContext:
+        privileged: true
+      mirrorVolumeMounts: true
+  - name: build-cli
+    inputs:
+      artifacts:
+      - name: feast
+        path: /go/src/github.com/gojek/feast
+    container:
+      image: grpc/go
+      command: ["/bin/bash", "-c"]
+      args: ['
+        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh;
+        make build-cli
+      ']
+      workingDir: /go/src/github.com/gojek/feast
+    outputs: 
+      artifacts:
+      - name: feast-cli
+        path: /go/src/github.com/gojek/feast/cli/bin/linux-amd64/feast
+  - name: terraform
+    inputs:
+      parameters:
+      - name: arg
+      artifacts:
+      - name: feast
+        path: /feast
+      - name: feast-cli
+        path: /bin/feast
+    container:
+      image: gcr.io/kf-feast/it-terraform:0.1.0
+      workingDir: /feast/testing/integration/tests/redis-bq-dataflow/tf
+      command: ["sh", "-c"]
+      args: ['
+        terraform init; 
+        terraform {{inputs.parameters.arg}}
+      ']
+  - name: run-test
+    inputs:
+      artifacts:
+      - name: feast-cli
+        path: /bin/feast
+      - name: feast
+        path: /feast
+    container:
+      image: python:3.7.2
+      command: ["/bin/bash", "-c"]
+      args: ['
+        feast config set coreURI 10.128.0.99:6565;
+        pip install pytest;
+        pip install -r /feast/sdk/python/test-requirements.txt;
+        pip install -e /feast/sdk/python;
+        pytest --capture=no
+      ']
+      workingDir: /feast/testing/integration/tests/redis-bq-dataflow
+      env:
+      - name: FEAST_CORE_URL
+        value: "10.128.0.99:6565"
+      - name: FEAST_SERVING_URL
+        value: "10.128.0.100:6566"
+      - name: PROJECT_ID
+        value: kf-feast
+      - name: BUCKET_NAME
+        value: it-feast-storage
+  - name: terraform-destroy
+    inputs:
+      parameters:
+      - name: arg
+      artifacts:
+      - name: feast
+        path: /feast
+    container:
+      image: gcr.io/kf-feast/it-terraform:0.1.0
+      workingDir: /feast/testing/integration/tests/redis-bq-dataflow/tf
+      command: ["sh", "-c"]
+      args: ['
+        terraform init;
+        terraform {{inputs.parameters.arg}}
+      ']
+        
