@@ -121,9 +121,11 @@ spec:
       command: 
       - /bin/bash 
       - -c 
-      - |
-        mvn package -DskipTests -Drevision=integration-test
+      - mvn package -DskipTests -Drevision=integration-test -T 4 -DdependencyLocationsEnabled=false
       workingDir: /feast
+      resources:
+        requests:
+          cpu: 3000m
     outputs:
       artifacts:
       - name: feast-build
@@ -203,7 +205,7 @@ spec:
         pip install pytest;
         pip install -r /feast/sdk/python/test-requirements.txt;
         pip install -e /feast/sdk/python;
-        pytest -s
+        pytest --capture=no
       ']
       workingDir: /feast/testing/integration/tests/redis-bq-dataflow
       env:
