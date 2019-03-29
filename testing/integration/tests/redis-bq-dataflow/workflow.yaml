@@ -69,18 +69,18 @@ spec:
             from: "{{workflow.outputs.artifacts.feast-repo}}"
   - name: get-feast
     steps:
-    - - name: get-feast-pr
-        template: get-feast-pr
+    - - name: get-feast-by-pullrequest
+        template: get-feast-by-pullrequest
         when: "{{workflow.parameters.prId}} != none"
-      - name: get-feast-gitref
-        template: get-feast-gitref
+      - name: get-feast-by-gitref
+        template: get-feast-by-gitref
         when: "{{workflow.parameters.gitRef}} != none"
     outputs:
       artifacts:
       - name: feast-repo
         from: "{{workflow.outputs.artifacts.feast-repo}}"
         globalName: feast-repo
-  - name: get-feast-pr
+  - name: get-feast-by-pullrequest
     container:
       image: alpine/git
       command: 
@@ -96,7 +96,7 @@ spec:
       - name: feast
         path: /git/feast
         globalName: feast-repo
-  - name: get-feast-gitref
+  - name: get-feast-by-gitref
     container:
       image: alpine/git
       command: 
