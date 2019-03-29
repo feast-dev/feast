@@ -51,7 +51,7 @@ public class JsonFileErrorsWrite extends FeatureStoreWrite {
                             JsonFormat.printer()
                                 .omittingInsignificantWhitespace()
                                 .print(rowExtended));
-                      } catch (InvalidProtocolBufferException e) {
+                      } catch (Exception e) {
                         return KV.of(
                             rowExtended.getRow().getEntityName(),
                             e.toString());
