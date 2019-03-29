@@ -39,18 +39,24 @@ public class JsonFileErrorsWrite extends FeatureStoreWrite {
 
   @Override
   public PDone expand(PCollection<FeatureRowExtended> input) {
-    return input.apply("Map to strings", MapElements.into(kvs(strings(), strings())).via(
-        (rowExtended) -> {
-          try {
-            return KV.of(
-                rowExtended.getRow().getEntityName(),
-                JsonFormat.printer().omittingInsignificantWhitespace()
-                    .print(rowExtended)
-            );
-          } catch (InvalidProtocolBufferException e) {
-            throw new RuntimeException(e);
-          }
-        }
-    )).apply("Write Error Json Files", new TextFileDynamicIO.Write(options, ".json"));
+    return input
+        .apply(
+            "Map to strings",
+            MapElements.into(kvs(strings(), strings()))
+                .via(
+                    (rowExtended) -> {
+                      try {
+                        return KV.of(
+                            rowExtended.getRow().getEntityName(),
+                            JsonFormat.printer()
+                                .omittingInsignificantWhitespace()
+                                .print(rowExtended));
+                      } catch (InvalidProtocolBufferException e) {
+                        return KV.of(
+                            rowExtended.getRow().getEntityName(),
+                            e.toString());
+                      }
+                    }))
+        .apply("Write Error Json Files", new TextFileDynamicIO.Write(options, ".json"));
   }
 }
