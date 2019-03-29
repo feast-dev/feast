@@ -21,7 +21,7 @@ def client():
 
 '''Init the system by registering relevant resources.
 '''
-def register_resources(client, entities_fldr, features_fldr):
+def _register_resources(client, entities_fldr, features_fldr):
     resources = []
     for ent_file in os.listdir(entities_fldr):
         resources.append(Entity.from_yaml(os.path.join(entities_fldr, ent_file)))
@@ -31,7 +31,7 @@ def register_resources(client, entities_fldr, features_fldr):
 
 '''Run an import job given an import spec.
 '''
-def run_job_and_wait_for_completion(job_yaml):
+def _run_job_and_wait_for_completion(job_yaml):
     out = subprocess.run("feast jobs run {}".format(job_yaml).split(" "),
         check=True, stdout=PIPE)
     job_id = out.stdout.decode('utf-8').split(' ')[-1]
@@ -50,7 +50,7 @@ def run_job_and_wait_for_completion(job_yaml):
 
 '''Stage data to a remote location
 '''
-def stage_data(local, remote):
+def _stage_data(local, remote):
     split = utils.split_gs_path(remote)
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(split[0])
@@ -58,15 +58,26 @@ def stage_data(local, remote):
 
     blob.upload_from_filename(local)
 
+'''Get the BQ data and get only columns to compare, 
+  then sort by id and timestamp
+'''
+
+def _get_data_from_bq_and_sort(table_name, bucket_name):
+    got = TableDownloader().download_table_as_df(
+            table_name,
+            "gs://{}/test-cases/extract.csv".format(bucket_name))
+    return got.drop(["created_timestamp", "job_id"], axis=1) \
+            .sort_values(["id", "event_timestamp"]) \
+            .reset_index(drop=True)
 
 class TestFeastIntegration:
     def test_end_to_end(self, client):
         project_id = os.environ.get("PROJECT_ID")
         bucket_name = os.environ.get("BUCKET_NAME")
 
-        stage_data("data/test_data.csv", "gs://{}/test-cases/test_data.csv".format(bucket_name))
-        register_resources(client, "data/entity", "data/feature")
-        result = run_job_and_wait_for_completion("data/import/import_csv.yaml")
+        _stage_data("data/test_data.csv", "gs://{}/test-cases/test_data.csv".format(bucket_name))
+        _register_resources(client, "data/entity", "data/feature")
+        result = _run_job_and_wait_for_completion("data/import/import_csv.yaml")
         
         # Ensure that the job is able to reach completion
         assert result == "COMPLETED"
@@ -96,12 +107,12 @@ class TestFeastIntegration:
         actual_latest = client.get_serving_data(feature_set, entity_keys=[str(id) for id in list(wanted.id.unique())])
         actual_latest = actual_latest.sort_values(["myentity"])
         wanted['event_timestamp'] = pd.to_datetime(wanted['event_timestamp'])
-        wanted_latest = wanted.loc[wanted.groupby('myentity').event_timestamp.idxmax(),:]
+        wanted_latest = wanted.loc[wanted.groupby('id').event_timestamp.idxmax(),:]
         wanted_latest.columns = ["myentity", "timestamp"] + ["myentity." + f for f in features]
         wanted_latest = wanted_latest[actual_latest.columns] \
             .sort_values(["myentity"]) \
             .reset_index(drop=True)
-        wanted_latest["myentity"] = wanted_latest["myentity"].astype(str)
+        wanted_latest["myentity"] = wanted_latest["myentity"].apply(str)
         
         assert pd.testing.assert_frame_equal(actual_latest, wanted_latest, check_less_precise=True) is None
 
