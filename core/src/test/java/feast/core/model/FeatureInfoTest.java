@@ -166,16 +166,16 @@ public class FeatureInfoTest {
   @Test
   public void shouldThrowExceptionIfImmutableFieldsChanged() {
     FeatureSpec update =
-            FeatureSpec.newBuilder()
-                    .setId("entity.name")
-                    .setName("name")
-                    .setOwner("owner2")
-                    .setDescription("overwrite")
-                    .setEntity("entity")
-                    .setUri("new_uri")
-                    .setValueType(ValueType.Enum.INT32)
-                    .addTags("new_tag")
-                    .build();
+        FeatureSpec.newBuilder()
+            .setId("entity.name")
+            .setName("name")
+            .setOwner("owner2")
+            .setDescription("overwrite")
+            .setEntity("entity")
+            .setUri("new_uri")
+            .setValueType(ValueType.Enum.INT32)
+            .addTags("new_tag")
+            .build();
 
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage(
@@ -187,16 +187,16 @@ public class FeatureInfoTest {
   @Test
   public void shouldThrowExceptionIfImmutableFieldsChangedToNull() {
     FeatureSpec update =
-            FeatureSpec.newBuilder()
-                    .setId("entity.name")
-                    .setName("name")
-                    .setOwner("owner2")
-                    .setDescription("overwrite")
-                    .setEntity("entity")
-                    .setUri("new_uri")
-                    .setValueType(ValueType.Enum.BYTES)
-                    .addTags("new_tag")
-                    .build();
+        FeatureSpec.newBuilder()
+            .setId("entity.name")
+            .setName("name")
+            .setOwner("owner2")
+            .setDescription("overwrite")
+            .setEntity("entity")
+            .setUri("new_uri")
+            //.setValueType(<not set>)
+            .addTags("new_tag")
+            .build();
 
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage(
@@ -209,7 +209,8 @@ public class FeatureInfoTest {
     String link = featureInfo.createBigqueryViewLink(StorageSpec.newBuilder()
         .setType("bigquery").setId("BQ").putOptions("project", "project1")
         .putOptions("dataset", "dataset1").build());
-    assertEquals(link, "https://bigquery.cloud.google.com/table/project1:dataset1.entity_none_view");
+    assertEquals(link,
+        "https://bigquery.cloud.google.com/table/project1:dataset1.entity_view");
   }
 
   @Test

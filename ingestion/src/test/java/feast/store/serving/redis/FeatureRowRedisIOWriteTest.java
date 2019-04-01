@@ -183,8 +183,5 @@ public class FeatureRowRedisIOWriteTest {
     assertEquals(now, featureInt32Value.getEventTimestamp());
     assertEquals(Values.ofString("a"), featureStringValue.getValue());
     assertEquals(now, featureStringValue.getEventTimestamp());
-
-    // Timestamp is 0 for NONE granularity
-    assertEquals(Timestamp.getDefaultInstance(), featureStringValue.getEventTimestamp());
   }
 }

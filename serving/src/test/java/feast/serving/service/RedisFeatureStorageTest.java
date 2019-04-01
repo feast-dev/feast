@@ -110,7 +110,7 @@ public class RedisFeatureStorageTest {
   }
 
   private FeatureSpec createFeatureSpec(String featureName) {
-    return createFeatureSpec(featureName, ValueType.Enum.STRING, servingDatastoreSpec);
+    return createFeatureSpec(featureName, ValueType.Enum.STRING);
   }
 
   private FeatureSpec createFeatureSpec(
