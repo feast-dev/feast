@@ -31,7 +31,7 @@ func (m *EntitySpec) Reset()         { *m = EntitySpec{} }
 func (m *EntitySpec) String() string { return proto.CompactTextString(m) }
 func (*EntitySpec) ProtoMessage()    {}
 func (*EntitySpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_EntitySpec_df39fb3786bb4912, []int{0}
+	return fileDescriptor_EntitySpec_b8950ded39b854cb, []int{0}
 }
 func (m *EntitySpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_EntitySpec.Unmarshal(m, b)
@@ -77,10 +77,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("feast/specs/EntitySpec.proto", fileDescriptor_EntitySpec_df39fb3786bb4912)
+	proto.RegisterFile("feast/specs/EntitySpec.proto", fileDescriptor_EntitySpec_b8950ded39b854cb)
 }
 
-var fileDescriptor_EntitySpec_df39fb3786bb4912 = []byte{
+var fileDescriptor_EntitySpec_b8950ded39b854cb = []byte{
 	// 177 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x92, 0x49, 0x4b, 0x4d, 0x2c,
 	0x2e, 0xd1, 0x2f, 0x2e, 0x48, 0x4d, 0x2e, 0xd6, 0x77, 0xcd, 0x2b, 0xc9, 0x2c, 0xa9, 0x0c, 0x2e,

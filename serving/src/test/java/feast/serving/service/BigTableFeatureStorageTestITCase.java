@@ -23,8 +23,6 @@ import com.google.protobuf.Timestamp;
 import feast.serving.model.FeatureValue;
 import feast.serving.testutil.BigTablePopulator;
 import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.types.GranularityProto.Granularity;
-import feast.types.GranularityProto.Granularity.Enum;
 import feast.types.ValueProto.ValueType;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,22 +64,20 @@ public class BigTableFeatureStorageTestITCase {
   }
 
   @Test
-  public void getFeatures_shouldWorkForGranularityNone() {
+  public void getFeatures_shouldReturnLastValue() {
     FeatureSpec featureSpec1 =
         FeatureSpec.newBuilder()
             .setEntity(ENTITY_NAME)
-            .setId("test_entity.none.feature_1")
+            .setId("test_entity.feature_1")
             .setName("feature_1")
-            .setGranularity(Granularity.Enum.NONE)
             .setValueType(ValueType.Enum.STRING)
             .build();
 
     FeatureSpec featureSpec2 =
         FeatureSpec.newBuilder()
             .setEntity(ENTITY_NAME)
-            .setId("test_entity.none.feature_2")
+            .setId("test_entity.feature_2")
             .setName("feature_2")
-            .setGranularity(Granularity.Enum.NONE)
             .setValueType(ValueType.Enum.STRING)
             .build();
 
@@ -97,18 +93,16 @@ public class BigTableFeatureStorageTestITCase {
     FeatureSpec featureSpec1 =
         FeatureSpec.newBuilder()
             .setEntity(ENTITY_NAME)
-            .setId("test_entity.none.feature_1")
+            .setId("test_entity.feature_1")
             .setName("feature_granularity_none")
-            .setGranularity(Granularity.Enum.NONE)
             .setValueType(ValueType.Enum.STRING)
             .build();
 
     FeatureSpec featureSpec2 =
         FeatureSpec.newBuilder()
             .setEntity(ENTITY_NAME)
-            .setId("test_entity.none.feature_2")
+            .setId("test_entity.feature_2")
             .setName("feature_2")
-            .setGranularity(Granularity.Enum.NONE)
             .setValueType(ValueType.Enum.STRING)
             .build();
 
@@ -119,41 +113,6 @@ public class BigTableFeatureStorageTestITCase {
     List<FeatureValue> results =
         featureStorage.getFeature(ENTITY_NAME, entityIdsWithMissingEntity, featureSpecs);
     bigTablePopulator.validate(results, entityIds, featureSpecs);
-  }
-
-  @Test
-  public void getFeatures_shouldWorkForOtherGranularity() {
-    for (Granularity.Enum granularity : Granularity.Enum.values()) {
-      if (granularity.equals(Enum.NONE) || granularity.equals(Enum.UNRECOGNIZED)) {
-        continue;
-      }
-      FeatureSpec spec1 = createFeatureSpec("feature_1", granularity, ValueType.Enum.STRING);
-      FeatureSpec spec2 = createFeatureSpec("feature_2", granularity, ValueType.Enum.STRING);
-
-      List<FeatureSpec> featureSpecs = Arrays.asList(spec1, spec2);
-      bigTablePopulator.populate(ENTITY_NAME, entityIds, featureSpecs, now);
-
-      List<FeatureValue> result = featureStorage.getFeature(ENTITY_NAME, entityIds, featureSpecs);
-
-      bigTablePopulator.validate(result, entityIds, featureSpecs);
-    }
-  }
-
-  private FeatureSpec createFeatureSpec(
-      String featureName, Enum granularity, ValueType.Enum valType) {
-    String entityName = ENTITY_NAME;
-    String featureId =
-        String.format("%s.%s.%s", entityName, granularity.toString().toLowerCase(), featureName);
-    FeatureSpec spec =
-        FeatureSpec.newBuilder()
-            .setEntity(entityName)
-            .setId(featureId)
-            .setName(featureName)
-            .setGranularity(granularity)
-            .setValueType(valType)
-            .build();
-
-    return spec;
   }
 
   private List<String> createEntityIds(int count) {

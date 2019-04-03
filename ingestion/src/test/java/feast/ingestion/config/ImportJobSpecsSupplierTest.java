@@ -29,7 +29,6 @@ import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;
 import feast.specs.StorageSpecProto.StorageSpec;
-import feast.types.GranularityProto.Granularity;
 import feast.types.ValueProto.ValueType.Enum;
 import java.io.File;
 import java.io.IOException;
@@ -41,8 +40,7 @@ import org.junit.rules.TemporaryFolder;
 
 public class ImportJobSpecsSupplierTest {
 
-  @Rule
-  public TemporaryFolder temporaryFolder = new TemporaryFolder();
+  @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
   String importSpecYaml =
       "---\n"
           + "servingStorageSpecs:\n"
@@ -58,9 +56,8 @@ public class ImportJobSpecsSupplierTest {
           + "    description: This is a test entity\n"
           + "    tags: []\n"
           + "featureSpecs:\n"
-          + "  - id: testEntity.day.testInt64\n"
+          + "  - id: testEntity.testInt64\n"
           + "    entity: testEntity\n"
-          + "    granularity: DAY\n"
           + "    name: testInt64\n"
           + "    owner: feast@example.com\n"
           + "    description: This is test feature of type integer\n"
@@ -81,7 +78,7 @@ public class ImportJobSpecsSupplierTest {
           + "      - name: timestamp\n"
           + "      - name: driver_id\n"
           + "      - name: trips_completed\n"
-          + "        featureId: driver.none.trips_completed\n"
+          + "        featureId: driver.trips_completed\n"
           + "\n";
 
   @Test
@@ -93,48 +90,51 @@ public class ImportJobSpecsSupplierTest {
 
     ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(yamlFile.getParent()).get();
     Specs specs = new Specs("", importJobSpecs);
-    System.out
-        .println(JsonFormat.printer().omittingInsignificantWhitespace().print(importJobSpecs));
-    assertEquals(ImportSpec.newBuilder()
-        .setType("file.csv")
-        .putSourceOptions("path", "data.csv")
-        .addEntities("driver")
-        .setSchema(
-            Schema.newBuilder()
-                .addFields(Field.newBuilder().setName("timestamp"))
-                .addFields(Field.newBuilder().setName("driver_id"))
-                .addFields(
-                    Field.newBuilder()
-                        .setName("trips_completed")
-                        .setFeatureId("driver.none.trips_completed"))
-                .setEntityIdColumn("driver_id")
-                .setTimestampValue(DateUtil.toTimestamp("2018-09-25T00:00:00.000Z")))
-        .build(), importJobSpecs.getImportSpec());
+    System.out.println(
+        JsonFormat.printer().omittingInsignificantWhitespace().print(importJobSpecs));
+    assertEquals(
+        ImportSpec.newBuilder()
+            .setType("file.csv")
+            .putSourceOptions("path", "data.csv")
+            .addEntities("driver")
+            .setSchema(
+                Schema.newBuilder()
+                    .addFields(Field.newBuilder().setName("timestamp"))
+                    .addFields(Field.newBuilder().setName("driver_id"))
+                    .addFields(
+                        Field.newBuilder()
+                            .setName("trips_completed")
+                            .setFeatureId("driver.trips_completed"))
+                    .setEntityIdColumn("driver_id")
+                    .setTimestampValue(DateUtil.toTimestamp("2018-09-25T00:00:00.000Z")))
+            .build(),
+        importJobSpecs.getImportSpec());
 
-    assertEquals(StorageSpec.newBuilder()
-        .setId("TEST_SERVING")
-        .setType("serving.mock")
-        .build(), importJobSpecs.getServingStorageSpecs(0));
+    assertEquals(
+        StorageSpec.newBuilder().setId("TEST_SERVING").setType("serving.mock").build(),
+        importJobSpecs.getServingStorageSpecs(0));
 
-    assertEquals(StorageSpec.newBuilder()
-        .setId("TEST_WAREHOUSE")
-        .setType("warehouse.mock")
-        .build(), importJobSpecs.getWarehouseStorageSpecs(0));
+    assertEquals(
+        StorageSpec.newBuilder().setId("TEST_WAREHOUSE").setType("warehouse.mock").build(),
+        importJobSpecs.getWarehouseStorageSpecs(0));
 
-    assertEquals(EntitySpec.newBuilder()
-        .setName("testEntity")
-        .setDescription("This is a test entity")
-        .build(), specs.getEntitySpec("testEntity"));
+    assertEquals(
+        EntitySpec.newBuilder()
+            .setName("testEntity")
+            .setDescription("This is a test entity")
+            .build(),
+        specs.getEntitySpec("testEntity"));
 
-    assertEquals(FeatureSpec.newBuilder()
-        .setId("testEntity.day.testInt64")
-        .setEntity("testEntity")
-        .setName("testInt64")
-        .setOwner("feast@example.com")
-        .setUri("https://example.com/")
-        .setValueType(Enum.INT64)
-        .setGranularity(Granularity.Enum.DAY)
-        .setDescription("This is test feature of type integer")
-        .build(), specs.getFeatureSpec("testEntity.day.testInt64"));
+    assertEquals(
+        FeatureSpec.newBuilder()
+            .setId("testEntity.testInt64")
+            .setEntity("testEntity")
+            .setName("testInt64")
+            .setOwner("feast@example.com")
+            .setUri("https://example.com/")
+            .setValueType(Enum.INT64)
+            .setDescription("This is test feature of type integer")
+            .build(),
+        specs.getFeatureSpec("testEntity.testInt64"));
   }
 }

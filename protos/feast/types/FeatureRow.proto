@@ -18,7 +18,6 @@ syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
 import "feast/types/Feature.proto";
-import "feast/types/Granularity.proto";
 
 package feast.types;
 
@@ -31,5 +30,4 @@ message FeatureRow {
   repeated Feature features = 2;
   google.protobuf.Timestamp eventTimestamp = 3;
   string entityName = 4;
-  Granularity.Enum granularity = 5;
 }

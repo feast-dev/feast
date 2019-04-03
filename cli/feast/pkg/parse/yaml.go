@@ -34,7 +34,6 @@ func YamlToFeatureSpec(in []byte) (*specs.FeatureSpec, error) {
 	if err != nil {
 		return nil, err
 	}
-	ymlMap["granularity"] = granularityOf(ymlMap["granularity"].(string))
 	ymlMap["valueType"] = valueTypeOf(ymlMap["valueType"].(string))
 	if err != nil {
 		return nil, err
@@ -129,10 +128,6 @@ func YamlToImportSpec(in []byte) (*specs.ImportSpec, error) {
 		is.Schema.Timestamp = &specs.Schema_TimestampColumn{TimestampColumn: timestampColumn}
 	}
 	return &is, err
-}
-
-func granularityOf(str string) types.Granularity_Enum {
-	return types.Granularity_Enum(types.Granularity_Enum_value[str])
 }
 
 func valueTypeOf(str string) types.ValueType_Enum {

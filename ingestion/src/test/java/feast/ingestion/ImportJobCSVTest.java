@@ -27,7 +27,7 @@ import com.google.common.io.Files;
 import com.google.common.io.Resources;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.google.protobuf.Timestamp;
+import com.google.protobuf.util.Timestamps;
 import feast.ToOrderedFeatureRows;
 import feast.ingestion.boot.ImportJobModule;
 import feast.ingestion.boot.TestPipelineModule;
@@ -46,11 +46,11 @@ import feast.store.serving.FeatureServingFactoryService;
 import feast.store.warehouse.FeatureWarehouseFactoryService;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.GranularityProto.Granularity;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.ParseException;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -87,7 +87,7 @@ public class ImportJobCSVTest {
   }
 
   @Test
-  public void testImportCSV() throws IOException {
+  public void testImportCSV() throws IOException, ParseException {
     ImportSpec importSpec =
         ProtoUtil.decodeProtoYaml(
             "---\n"
@@ -101,8 +101,8 @@ public class ImportJobCSVTest {
                 + "  timestampValue: 2018-09-25T00:00:00.000Z\n"
                 + "  fields:\n"
                 + "    - name: id\n"
-                + "    - featureId: testEntity.none.testInt32\n"
-                + "    - featureId: testEntity.none.testString\n"
+                + "    - featureId: testEntity.testInt32\n"
+                + "    - featureId: testEntity.testString\n"
                 + "\n",
             ImportSpec.getDefaultInstance());
 
@@ -142,33 +142,32 @@ public class ImportJobCSVTest {
         Lists.newArrayList(
             normalize(
                 FeatureRow.newBuilder()
-                    .setGranularity(Granularity.Enum.NONE)
-                    .setEventTimestamp(Timestamp.getDefaultInstance())
+                    .setEventTimestamp(Timestamps.parse("2018-09-25T00:00:00.000Z"))
                     .setEntityKey("1")
                     .setEntityName("testEntity")
-                    .addFeatures(Features.of("testEntity.none.testInt32", Values.ofInt32(101)))
-                    .addFeatures(Features.of("testEntity.none.testString", Values.ofString("a")))
+                    .addFeatures(Features.of("testEntity.testInt32", Values.ofInt32(101)))
+                    .addFeatures(Features.of("testEntity.testString", Values.ofString("a")))
                     .build()),
             normalize(
                 FeatureRow.newBuilder()
-                    .setGranularity(Granularity.Enum.NONE)
-                    .setEventTimestamp(Timestamp.getDefaultInstance())
+                    .setEventTimestamp(Timestamps.parse("2018-09-25T00:00:00.000Z"))
                     .setEntityKey("2")
                     .setEntityName("testEntity")
-                    .addFeatures(Features.of("testEntity.none.testInt32", Values.ofInt32(202)))
-                    .addFeatures(Features.of("testEntity.none.testString", Values.ofString("b")))
+                    .addFeatures(Features.of("testEntity.testInt32", Values.ofInt32(202)))
+                    .addFeatures(Features.of("testEntity.testString", Values.ofString("b")))
                     .build()),
             normalize(
                 FeatureRow.newBuilder()
-                    .setGranularity(Granularity.Enum.NONE)
-                    .setEventTimestamp(Timestamp.getDefaultInstance())
+                    .setEventTimestamp(Timestamps.parse("2018-09-25T00:00:00.000Z"))
                     .setEntityKey("3")
                     .setEntityName("testEntity")
-                    .addFeatures(Features.of("testEntity.none.testInt32", Values.ofInt32(303)))
-                    .addFeatures(Features.of("testEntity.none.testString", Values.ofString("c")))
+                    .addFeatures(Features.of("testEntity.testInt32", Values.ofInt32(303)))
+                    .addFeatures(Features.of("testEntity.testString", Values.ofString("c")))
                     .build()));
 
     PAssert.that(writtenToErrors).satisfies(hasCount(0));
+    PAssert.that(writtenToServing).satisfies(hasCount(3));
+    PAssert.that(writtenToWarehouse).satisfies(hasCount(3));
 
     PAssert.that(writtenToServing.apply("serving toFeatureRows", new ToOrderedFeatureRows()))
         .containsInAnyOrder(expectedRows);
@@ -180,7 +179,7 @@ public class ImportJobCSVTest {
   }
 
   @Test
-  public void testImportFileJson() throws IOException {
+  public void testImportFileJson() throws IOException, ParseException {
     ImportSpec importSpec =
         ProtoUtil.decodeProtoYaml(
             "---\n"
@@ -195,7 +194,7 @@ public class ImportJobCSVTest {
                 + "  fields:\n"
                 + "    - name: id\n"
                 + "    - name: x\n"
-                + "      featureId: testEntity.none.testInt32\n"
+                + "      featureId: testEntity.testInt32\n"
                 + "\n",
             ImportSpec.getDefaultInstance());
 
@@ -234,19 +233,17 @@ public class ImportJobCSVTest {
         Lists.newArrayList(
             normalize(
                 FeatureRow.newBuilder()
-                    .setGranularity(Granularity.Enum.NONE)
-                    .setEventTimestamp(Timestamp.getDefaultInstance())
+                    .setEventTimestamp(Timestamps.parse("2018-09-25T00:00:00.000Z"))
                     .setEntityKey("1")
                     .setEntityName("testEntity")
-                    .addFeatures(Features.of("testEntity.none.testInt32", Values.ofInt32(101)))
+                    .addFeatures(Features.of("testEntity.testInt32", Values.ofInt32(101)))
                     .build()),
             normalize(
                 FeatureRow.newBuilder()
-                    .setGranularity(Granularity.Enum.NONE)
-                    .setEventTimestamp(Timestamp.getDefaultInstance())
+                    .setEventTimestamp(Timestamps.parse("2018-09-25T00:00:00.000Z"))
                     .setEntityKey("2")
                     .setEntityName("testEntity")
-                    .addFeatures(Features.of("testEntity.none.testInt32", Values.ofInt32(202)))
+                    .addFeatures(Features.of("testEntity.testInt32", Values.ofInt32(202)))
                     .build()));
 
     PAssert.that(writtenToErrors).satisfies(hasCount(0));
@@ -277,8 +274,8 @@ public class ImportJobCSVTest {
                 + "  timestampValue: 2018-09-25T00:00:00.000Z\n"
                 + "  fields:\n"
                 + "    - name: id\n"
-                + "    - featureId: testEntity.none.testInt32\n"
-                + "    - featureId: testEntity.none.testString\n"
+                + "    - featureId: testEntity.testInt32\n"
+                + "    - featureId: testEntity.testString\n"
                 + "\n",
             ImportSpec.getDefaultInstance());
 
@@ -322,7 +319,7 @@ public class ImportJobCSVTest {
   }
 
   @Test
-  public void testImportCSV_withCoalesceRows() throws IOException {
+  public void testImportCSV_withCoalesceRows() throws IOException, ParseException {
     ImportSpec importSpec =
         ProtoUtil.decodeProtoYaml(
             "---\n"
@@ -339,8 +336,8 @@ public class ImportJobCSVTest {
                 + "  fields:\n"
                 + "    - name: id\n"
                 + "    - name: timestamp\n"
-                + "    - featureId: testEntity.none.testInt32\n"
-                + "    - featureId: testEntity.none.testString\n"
+                + "    - featureId: testEntity.testInt32\n"
+                + "    - featureId: testEntity.testString\n"
                 + "\n",
             ImportSpec.getDefaultInstance());
 
@@ -383,29 +380,29 @@ public class ImportJobCSVTest {
         .containsInAnyOrder(
             normalize(
                 FeatureRow.newBuilder()
-                    .setGranularity(Granularity.Enum.NONE)
                     .setEntityKey("1")
                     .setEntityName("testEntity")
-                    .addFeatures(Features.of("testEntity.none.testInt32", Values.ofInt32(101)))
-                    .addFeatures(Features.of("testEntity.none.testString", Values.ofString("b")))
+                    .addFeatures(Features.of("testEntity.testInt32", Values.ofInt32(101)))
+                    .addFeatures(Features.of("testEntity.testString", Values.ofString("b")))
+                    .setEventTimestamp(Timestamps.parse("2018-09-26T00:00:00.000Z"))
                     .build()));
 
     PAssert.that(writtenToWarehouse.apply("warehouse toFeatureRows", new ToOrderedFeatureRows()))
         .containsInAnyOrder(
             normalize(
                 FeatureRow.newBuilder()
-                    .setGranularity(Granularity.Enum.NONE)
                     .setEntityKey("1")
                     .setEntityName("testEntity")
-                    .addFeatures(Features.of("testEntity.none.testInt32", Values.ofInt32(101)))
-                    .addFeatures(Features.of("testEntity.none.testString", Values.ofString("a")))
+                    .addFeatures(Features.of("testEntity.testInt32", Values.ofInt32(101)))
+                    .addFeatures(Features.of("testEntity.testString", Values.ofString("a")))
+                    .setEventTimestamp(Timestamps.parse("2018-09-25T00:00:00.000Z"))
                     .build()),
             normalize(
                 FeatureRow.newBuilder()
-                    .setGranularity(Granularity.Enum.NONE)
                     .setEntityKey("1")
                     .setEntityName("testEntity")
-                    .addFeatures(Features.of("testEntity.none.testString", Values.ofString("b")))
+                    .addFeatures(Features.of("testEntity.testString", Values.ofString("b")))
+                    .setEventTimestamp(Timestamps.parse("2018-09-26T00:00:00.000Z"))
                     .build()));
 
     testPipeline.run();
@@ -429,9 +426,9 @@ public class ImportJobCSVTest {
                 + "  timestampValue: 2018-09-25T00:00:00.000Z\n"
                 + "  fields:\n"
                 + "    - name: id\n"
-                + "    - featureId: testEntity.none.unknownInt32\n"
+                + "    - featureId: testEntity.unknownInt32\n"
                 // Unknown store is not available
-                + "    - featureId: testEntity.none.testString\n"
+                + "    - featureId: testEntity.testString\n"
                 + "\n",
             ImportSpec.getDefaultInstance());
 
@@ -484,8 +481,8 @@ public class ImportJobCSVTest {
                 + "  timestampValue: 2018-09-25T00:00:00.000Z\n"
                 + "  fields:\n"
                 + "    - name: id\n"
-                + "    - featureId: testEntity.none.testString\n"
-                + "    - featureId: testEntity.none.testInt32\n"
+                + "    - featureId: testEntity.testString\n"
+                + "    - featureId: testEntity.testInt32\n"
                 + "\n",
             ImportSpec.getDefaultInstance());
 
@@ -552,8 +549,8 @@ public class ImportJobCSVTest {
                 + "  timestampValue: 2018-09-25T00:00:00.000Z\n"
                 + "  fields:\n"
                 + "    - name: id\n"
-                + "    - featureId: testEntity.none.testInt64NoWarehouse\n"
-                + "    - featureId: testEntity.none.testStringNoWarehouse\n"
+                + "    - featureId: testEntity.testInt64NoWarehouse\n"
+                + "    - featureId: testEntity.testStringNoWarehouse\n"
                 + "\n",
             ImportSpec.getDefaultInstance());
 
@@ -617,8 +614,8 @@ public class ImportJobCSVTest {
                 + "  timestampValue: 2018-09-25T00:00:00.000Z\n"
                 + "  fields:\n"
                 + "    - name: id\n"
-                + "    - featureId: testEntity.none.testInt64NoWarehouse\n"
-                + "    - featureId: testEntity.none.testStringNoWarehouse\n"
+                + "    - featureId: testEntity.testInt64NoWarehouse\n"
+                + "    - featureId: testEntity.testStringNoWarehouse\n"
                 + "\n",
             ImportSpec.getDefaultInstance());
 

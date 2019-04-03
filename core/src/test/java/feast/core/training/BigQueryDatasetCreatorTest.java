@@ -63,7 +63,7 @@ public class BigQueryDatasetCreatorTest {
     FeatureSet featureSet =
         FeatureSet.newBuilder()
             .setEntityName(entityName)
-            .addAllFeatureIds(Arrays.asList("myentity.none.feature1", "myentity.none.feature2"))
+            .addAllFeatureIds(Arrays.asList("myentity.feature1", "myentity.feature2"))
             .build();
 
     Timestamp startDate =
@@ -90,7 +90,7 @@ public class BigQueryDatasetCreatorTest {
     FeatureSet featureSet =
         FeatureSet.newBuilder()
             .setEntityName(entityName)
-            .addAllFeatureIds(Arrays.asList("myentity.none.feature1", "myentity.none.feature2"))
+            .addAllFeatureIds(Arrays.asList("myentity.feature1", "myentity.feature2"))
             .build();
 
     Timestamp startDate =
@@ -115,7 +115,7 @@ public class BigQueryDatasetCreatorTest {
     FeatureSet featureSet =
         FeatureSet.newBuilder()
             .setEntityName("myentity")
-            .addAllFeatureIds(Arrays.asList("myentity.none.feature1", "myentity.none.feature2"))
+            .addAllFeatureIds(Arrays.asList("myentity.feature1", "myentity.feature2"))
             .build();
 
     Timestamp startDate = Timestamps.fromSeconds(0);

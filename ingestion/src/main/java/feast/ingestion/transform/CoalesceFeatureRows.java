@@ -59,16 +59,18 @@ import org.joda.time.Instant;
  * Takes FeatureRow, and merges them if they have the same FeatureRowKey, so that the latest values
  * will be emitted. It emits only once for batch.
  *
- * For streaming we emits after a delay of 10 seconds (event time) by default we keep the previous
- * state around for merging with future events. These timeout after 30 minutes by default.
+ * <p>For streaming we emits after a delay of 10 seconds (event time) by default we keep the
+ * previous state around for merging with future events. These timeout after 30 minutes by default.
  */
-public class CoalesceFeatureRows extends
-    PTransform<PCollection<FeatureRow>, PCollection<FeatureRow>> {
+public class CoalesceFeatureRows
+    extends PTransform<PCollection<FeatureRow>, PCollection<FeatureRow>> {
 
-  private static final SerializableFunction<FeatureRow, CoalesceKey> KEY_FUNCTION = (row) ->
-      CoalesceKey.newBuilder()
-          .setEntityName(row.getEntityName())
-          .setEntityKey(row.getEntityKey()).build();
+  private static final SerializableFunction<FeatureRow, CoalesceKey> KEY_FUNCTION =
+      (row) ->
+          CoalesceKey.newBuilder()
+              .setEntityName(row.getEntityName())
+              .setEntityKey(row.getEntityKey())
+              .build();
 
   private static final Duration DEFAULT_DELAY = Duration.standardSeconds(10);
   private static final Duration DEFAULT_TIMEOUT = Duration.ZERO;
@@ -89,16 +91,15 @@ public class CoalesceFeatureRows extends
     this.timeout = (timeout.isEqual(Duration.ZERO)) ? DEFAULT_TIMEOUT : timeout;
   }
 
-  /**
-   * Return a FeatureRow of the new features accumulated since the given timestamp
-   */
+  /** Return a FeatureRow of the new features accumulated since the given timestamp */
   public static FeatureRow toFeatureRow(CoalesceAccum accum, long counter) {
-    Preconditions.checkArgument(counter <=
-        accum.getCounter(), "Accumulator has no features at or newer than the provided counter");
-    FeatureRow.Builder builder = FeatureRow.newBuilder()
-        .setEntityName(accum.getEntityName())
-        .setGranularity(accum.getGranularity())
-        .setEntityKey(accum.getEntityKey());
+    Preconditions.checkArgument(
+        counter <= accum.getCounter(),
+        "Accumulator has no features at or newer than the provided counter");
+    FeatureRow.Builder builder =
+        FeatureRow.newBuilder()
+            .setEntityName(accum.getEntityName())
+            .setEntityKey(accum.getEntityKey());
     // This will be the latest timestamp
     if (accum.hasEventTimestamp()) {
       builder.setEventTimestamp(accum.getEventTimestamp());
@@ -108,12 +109,15 @@ public class CoalesceFeatureRows extends
     if (counter <= 0) {
       builder.addAllFeatures(features.values());
     } else {
-      List<Feature> featureList = accum.getFeatureMarksMap().entrySet().stream()
-          .filter((e) -> e.getValue() > counter)
-          .map((e) -> features.get(e.getKey()))
-          .collect(Collectors.toList());
+      List<Feature> featureList =
+          accum
+              .getFeatureMarksMap()
+              .entrySet()
+              .stream()
+              .filter((e) -> e.getValue() > counter)
+              .map((e) -> features.get(e.getKey()))
+              .collect(Collectors.toList());
       builder.addAllFeatures(featureList);
-
     }
     return builder.build();
   }
@@ -129,8 +133,7 @@ public class CoalesceFeatureRows extends
     long rowCount = seed.getCounter();
     for (FeatureRow row : rows) {
       rowCount += 1;
-      if (Timestamps.compare(accum.getEventTimestamp(), row.getEventTimestamp())
-          <= 0) {
+      if (Timestamps.compare(accum.getEventTimestamp(), row.getEventTimestamp()) <= 0) {
         // row has later timestamp than accum.
         for (Feature feature : row.getFeaturesList()) {
           features.put(feature.getId(), feature);
@@ -140,7 +143,6 @@ public class CoalesceFeatureRows extends
         }
         accum.setEntityName(row.getEntityName());
         accum.setEntityKey(row.getEntityKey());
-        accum.setGranularity(row.getGranularity());
         if (row.hasEventTimestamp()) {
           accum.setEventTimestamp(row.getEventTimestamp());
         }
@@ -168,15 +170,19 @@ public class CoalesceFeatureRows extends
 
   @Override
   public PCollection<FeatureRow> expand(PCollection<FeatureRow> input) {
-    PCollection<KV<CoalesceKey, FeatureRow>> kvs = input
-        .apply(WithKeys.of(KEY_FUNCTION).withKeyType(TypeDescriptor.of(CoalesceKey.class)))
-        .setCoder(KvCoder.of(ProtoCoder.of(CoalesceKey.class), ProtoCoder.of(FeatureRow.class)));
+    PCollection<KV<CoalesceKey, FeatureRow>> kvs =
+        input
+            .apply(WithKeys.of(KEY_FUNCTION).withKeyType(TypeDescriptor.of(CoalesceKey.class)))
+            .setCoder(
+                KvCoder.of(ProtoCoder.of(CoalesceKey.class), ProtoCoder.of(FeatureRow.class)));
 
     if (kvs.isBounded().equals(IsBounded.UNBOUNDED)) {
-      return kvs.apply("Configure window", Window.<KV<CoalesceKey, FeatureRow>>configure()
-          .withAllowedLateness(Duration.ZERO)
-          .discardingFiredPanes()
-          .triggering(AfterProcessingTime.pastFirstElementInPane()))
+      return kvs.apply(
+              "Configure window",
+              Window.<KV<CoalesceKey, FeatureRow>>configure()
+                  .withAllowedLateness(Duration.ZERO)
+                  .discardingFiredPanes()
+                  .triggering(AfterProcessingTime.pastFirstElementInPane()))
           .apply(ParDo.of(new CombineStateDoFn(delay, timeout)))
           .apply(Values.create());
     } else {
@@ -185,22 +191,25 @@ public class CoalesceFeatureRows extends
     }
   }
 
-
   @Slf4j
   @AllArgsConstructor
-  public static class CombineStateDoFn extends
-      DoFn<KV<CoalesceKey, FeatureRow>, KV<CoalesceKey, FeatureRow>> {
+  public static class CombineStateDoFn
+      extends DoFn<KV<CoalesceKey, FeatureRow>, KV<CoalesceKey, FeatureRow>> {
 
     @StateId("lastKnownAccumValue")
     private final StateSpec<ValueState<CoalesceAccum>> lastKnownAccumValueSpecs =
         StateSpecs.value(ProtoCoder.of(CoalesceAccum.class));
+
     @StateId("newElementsBag")
     private final StateSpec<BagState<FeatureRow>> newElementsBag =
         StateSpecs.bag(ProtoCoder.of(FeatureRow.class));
+
     @StateId("lastTimerTimestamp")
     private final StateSpec<ValueState<Instant>> lastTimerTimestamp = StateSpecs.value();
+
     @TimerId("bufferTimer")
     private final TimerSpec bufferTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
     @TimerId("timeoutTimer")
     private final TimerSpec timeoutTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -208,7 +217,8 @@ public class CoalesceFeatureRows extends
     private Duration timeout;
 
     @ProcessElement
-    public void processElement(ProcessContext context,
+    public void processElement(
+        ProcessContext context,
         @StateId("newElementsBag") BagState<FeatureRow> newElementsBag,
         @TimerId("bufferTimer") Timer bufferTimer,
         @TimerId("timeoutTimer") Timer timeoutTimer,
@@ -222,7 +232,8 @@ public class CoalesceFeatureRows extends
         // We never timeout the state if a timeout is not set.
         timeoutTimer.offset(timeout).setRelative();
       }
-      if (lastTimerTimestamp == null || lastTimerTimestamp.isBefore(contextTimestamp)
+      if (lastTimerTimestamp == null
+          || lastTimerTimestamp.isBefore(contextTimestamp)
           || lastTimerTimestamp.equals(contextTimestamp)) {
         lastTimerTimestamp = context.timestamp().plus(delay);
         log.debug("Setting timer for key {} to {}", context.element().getKey(), lastTimerTimestamp);
@@ -233,7 +244,8 @@ public class CoalesceFeatureRows extends
 
     @OnTimer("bufferTimer")
     public void bufferOnTimer(
-        OnTimerContext context, OutputReceiver<KV<CoalesceKey, FeatureRow>> out,
+        OnTimerContext context,
+        OutputReceiver<KV<CoalesceKey, FeatureRow>> out,
         @StateId("newElementsBag") BagState<FeatureRow> newElementsBag,
         @StateId("lastKnownAccumValue") ValueState<CoalesceAccum> lastKnownAccumValue) {
       log.debug("bufferOnTimer triggered {}", context.timestamp());
@@ -242,7 +254,8 @@ public class CoalesceFeatureRows extends
 
     @OnTimer("timeoutTimer")
     public void timeoutOnTimer(
-        OnTimerContext context, OutputReceiver<KV<CoalesceKey, FeatureRow>> out,
+        OnTimerContext context,
+        OutputReceiver<KV<CoalesceKey, FeatureRow>> out,
         @StateId("newElementsBag") BagState<FeatureRow> newElementsBag,
         @StateId("lastKnownAccumValue") ValueState<CoalesceAccum> lastKnownAccumValue) {
       log.debug("timeoutOnTimer triggered {}", context.timestamp());

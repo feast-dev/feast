@@ -20,11 +20,12 @@ package feast.ingestion.util;
 import com.google.protobuf.Timestamp;
 import java.time.Instant;
 import org.joda.time.DateTime;
-import org.joda.time.DateTimeField;
 import org.joda.time.DateTimeZone;
-import org.joda.time.MutableDateTime;
-import org.joda.time.format.*;
-import feast.types.GranularityProto.Granularity;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.DateTimeFormatterBuilder;
+import org.joda.time.format.DateTimeParser;
+import org.joda.time.format.ISODateTimeFormat;
 
 public class DateUtil {
 
@@ -34,12 +35,12 @@ public class DateUtil {
     DateTimeFormatterBuilder formatterBuilder = new DateTimeFormatterBuilder();
     DateTimeFormatter base = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
     DateTimeFormatter zone = DateTimeFormat.forPattern(" ZZZ");
-    DateTimeParser fractionSecondParser = new DateTimeFormatterBuilder()
-            .appendLiteral(".")
-            .appendFractionOfSecond(1,6)
-            .toParser();
+    DateTimeParser fractionSecondParser =
+        new DateTimeFormatterBuilder().appendLiteral(".").appendFractionOfSecond(1, 6).toParser();
 
-    FALLBACK_TIMESTAMP_FORMAT = formatterBuilder.append(base)
+    FALLBACK_TIMESTAMP_FORMAT =
+        formatterBuilder
+            .append(base)
             .appendOptional(fractionSecondParser)
             .append(zone)
             .toFormatter();
@@ -92,31 +93,5 @@ public class DateUtil {
 
   public static long toMillis(Timestamp timestamp) {
     return toDateTime(timestamp).getMillis();
-  }
-
-  public static Timestamp roundToGranularity(Timestamp timestamp, Granularity.Enum granularity) {
-    MutableDateTime dt = new MutableDateTime(DateTimeZone.UTC);
-    DateTimeField roundingField;
-    switch (granularity) {
-      case DAY:
-        roundingField = dt.getChronology().dayOfMonth();
-        break;
-      case HOUR:
-        roundingField = dt.getChronology().hourOfDay();
-        break;
-      case MINUTE:
-        roundingField = dt.getChronology().minuteOfHour();
-        break;
-      case SECOND:
-        roundingField = dt.getChronology().secondOfMinute();
-        break;
-      case NONE:
-        return Timestamp.newBuilder().setSeconds(0).setNanos(0).build();
-      default:
-        throw new RuntimeException("Unrecognised time series granularity");
-    }
-    dt.setRounding(roundingField, MutableDateTime.ROUND_FLOOR);
-    dt.setMillis(toDateTime(timestamp).getMillis());
-    return toTimestamp(dt.toDateTime());
   }
 }

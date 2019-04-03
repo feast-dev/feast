@@ -22,7 +22,6 @@ import static feast.store.serving.redis.FeatureRowToRedisMutationDoFn.getRedisBu
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.io.Resources;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
 import feast.ingestion.config.ImportJobSpecsSupplier;
 import feast.ingestion.model.Features;
@@ -39,8 +38,6 @@ import feast.storage.RedisProto.RedisBucketValue;
 import feast.store.FeatureStoreWrite;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.GranularityProto.Granularity;
-import feast.types.ValueProto.Value;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -58,10 +55,10 @@ import redis.embedded.RedisServer;
 
 public class FeatureRowRedisIOWriteTest {
 
-  private static final String featureNoneInt32 = "testEntity.none.redisInt32";
-  private static final String featureNoneString = "testEntity.none.redisString";
-  private static final String featureHourInt32 = "testEntity.hour.redisInt32";
-  private static final String featureHourString = "testEntity.hour.redisString";
+  private static final String featureNoneInt32 = "testEntity.redisInt32";
+  private static final String featureNoneString = "testEntity.redisString";
+  private static final String featureHourInt32 = "testEntity.redisInt32";
+  private static final String featureHourString = "testEntity.redisString";
 
   private static int REDIS_PORT = 51234;
   private static Redis redis;
@@ -108,7 +105,7 @@ public class FeatureRowRedisIOWriteTest {
   }
 
   @Test
-  public void testWriteNoneGranularity() throws IOException {
+  public void testWrite() throws IOException {
 
     Specs specs = getSpecs();
     specs.validate();
@@ -117,14 +114,15 @@ public class FeatureRowRedisIOWriteTest {
         new FeatureRowRedisIO.Write(
             RedisStoreOptions.builder().host("localhost").port(REDIS_PORT).build(), specs);
 
+    Timestamp now = DateUtil.toTimestamp(DateTime.now());
+
     FeatureRowExtended rowExtended =
         FeatureRowExtended.newBuilder()
             .setRow(
                 FeatureRow.newBuilder()
                     .setEntityName("testEntity")
                     .setEntityKey("1")
-                    .setGranularity(Granularity.Enum.NONE)
-                    .setEventTimestamp(DateUtil.toTimestamp(DateTime.now()))
+                    .setEventTimestamp(now)
                     .addFeatures(Features.of(featureNoneInt32, Values.ofInt32(1)))
                     .addFeatures(Features.of(featureNoneString, Values.ofString("a"))))
             .build();
@@ -146,27 +144,25 @@ public class FeatureRowRedisIOWriteTest {
         RedisBucketValue.parseFrom(jedis.get(featureStringKey.toByteArray()));
 
     assertEquals(Values.ofInt32(1), featureInt32Value.getValue());
-    // Timestamp is 0 for NONE granularity
-    assertEquals(Timestamp.getDefaultInstance(), featureInt32Value.getEventTimestamp());
+    assertEquals(now, featureInt32Value.getEventTimestamp());
     assertEquals(Values.ofString("a"), featureStringValue.getValue());
-    // Timestamp is 0 for NONE granularity
-    assertEquals(Timestamp.getDefaultInstance(), featureStringValue.getEventTimestamp());
+    assertEquals(now, featureStringValue.getEventTimestamp());
   }
 
   @Test
-  public void testWriteNoneGranularityFromOptions() throws IOException {
+  public void testWriteFromOptions() throws IOException {
     Specs specs = getSpecs();
     FeatureStoreWrite write = new RedisServingFactory()
         .create(specs.getServingStorageSpecs().get("REDIS1"), specs);
 
+    Timestamp now = DateUtil.toTimestamp(DateTime.now());
     FeatureRowExtended rowExtended =
         FeatureRowExtended.newBuilder()
             .setRow(
                 FeatureRow.newBuilder()
                     .setEntityName("testEntity")
                     .setEntityKey("1")
-                    .setGranularity(Granularity.Enum.NONE)
-                    .setEventTimestamp(DateUtil.toTimestamp(DateTime.now()))
+                    .setEventTimestamp(now)
                     .addFeatures(Features.of(featureNoneInt32, Values.ofInt32(1)))
                     .addFeatures(Features.of(featureNoneString, Values.ofString("a"))))
             .build();
@@ -188,53 +184,8 @@ public class FeatureRowRedisIOWriteTest {
         RedisBucketValue.parseFrom(jedis.get(featureStringKey.toByteArray()));
 
     assertEquals(Values.ofInt32(1), featureInt32Value.getValue());
-    // Timestamp is 0 for NONE granularity
-    assertEquals(Timestamp.getDefaultInstance(), featureInt32Value.getEventTimestamp());
+    assertEquals(now, featureInt32Value.getEventTimestamp());
     assertEquals(Values.ofString("a"), featureStringValue.getValue());
-    // Timestamp is 0 for NONE granularity
-    assertEquals(Timestamp.getDefaultInstance(), featureStringValue.getEventTimestamp());
-  }
-
-  @Test
-  public void testWriteHourGranularity() throws IOException {
-    Specs specs = getSpecs();
-    FeatureStoreWrite write = new RedisServingFactory()
-        .create(specs.getServingStorageSpecs().get("REDIS1"), specs);
-
-    FeatureRowExtended rowExtended =
-        FeatureRowExtended.newBuilder()
-            .setRow(
-                FeatureRow.newBuilder()
-                    .setEntityName("testEntity")
-                    .setEntityKey("1")
-                    .setGranularity(Granularity.Enum.HOUR)
-                    .setEventTimestamp(DateUtil.toTimestamp(DateTime.now()))
-                    .addFeatures(Features.of(featureHourInt32, Values.ofInt32(1)))
-                    .addFeatures(Features.of(featureHourString, Values.ofString("a"))))
-            .build();
-
-    PCollection<FeatureRowExtended> input = testPipeline.apply(Create.of(rowExtended));
-
-    input.apply("write to embedded redis", write);
-
-    testPipeline.run();
-
-    Timestamp rowTimestamp = rowExtended.getRow().getEventTimestamp();
-    Timestamp roundedTimestamp = DateUtil.roundToGranularity(rowTimestamp, Granularity.Enum.HOUR);
-
-    RedisBucketKey featureInt32LatestKey =
-        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureHourInt32), 0L);
-    RedisBucketKey featureStringLatestKey =
-        getRedisBucketKey("1", getFeatureIdSha1Prefix(featureHourString), 0L);
-
-    checkRedisValue(featureInt32LatestKey, Values.ofInt32(1), roundedTimestamp);
-    checkRedisValue(featureStringLatestKey, Values.ofString("a"), roundedTimestamp);
-  }
-
-  void checkRedisValue(RedisBucketKey key, Value expectedValue, Timestamp expectedTimestamp)
-      throws InvalidProtocolBufferException {
-    RedisBucketValue featureInt32Value = RedisBucketValue.parseFrom(jedis.get(key.toByteArray()));
-    assertEquals(expectedValue, featureInt32Value.getValue());
-    assertEquals(expectedTimestamp, featureInt32Value.getEventTimestamp());
+    assertEquals(now, featureStringValue.getEventTimestamp());
   }
 }

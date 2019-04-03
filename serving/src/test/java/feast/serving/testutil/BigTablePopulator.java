@@ -100,9 +100,7 @@ public class BigTablePopulator extends FeatureStoragePopulator {
     try (Table table = connection.getTable(tableName)) {
       for (FeatureSpec featureSpec : featureSpecs) {
         for (String entityId : entityIds) {
-          Timestamp roundedTimestamp =
-              TimeUtil.roundFloorTimestamp(timestamp, featureSpec.getGranularity());
-          Put put = makePut(entityId, featureSpec, roundedTimestamp);
+          Put put = makePut(entityId, featureSpec, timestamp);
           table.put(put);
         }
       }

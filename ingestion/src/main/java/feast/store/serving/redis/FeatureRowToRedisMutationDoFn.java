@@ -54,13 +54,6 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRowExtended, Redi
     this.random = new Random();
   }
 
-  // TODO when extracting to a storage module, use reasonable defaults per granularity.
-  // TODO check is greater than 1
-  static long getBucketId(com.google.protobuf.Timestamp eventTimestamp, Duration bucketSize) {
-    checkArgument(bucketSize.getStandardSeconds() > 0, "BucketSize must be greater than zero");
-    return eventTimestamp.getSeconds() / bucketSize.getStandardSeconds();
-  }
-
   static RedisBucketKey getRedisBucketKey(
       String entityId, String featureIdSha1Prefix, long bucketId) {
     return RedisBucketKey.newBuilder()
@@ -91,13 +84,10 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRowExtended, Redi
 
       RedisFeatureOptions options = servingOptionsCache.get(featureSpec);
 
-      com.google.protobuf.Timestamp roundedTimestamp =
-          DateUtil.roundToGranularity(row.getEventTimestamp(), featureSpec.getGranularity());
-
       RedisBucketValue value =
           RedisBucketValue.newBuilder()
               .setValue(feature.getValue())
-              .setEventTimestamp(roundedTimestamp)
+              .setEventTimestamp(row.getEventTimestamp())
               .build();
       RedisBucketKey keyForLatest = getRedisBucketKey(entityKey, featureIdHash, 0L);
 

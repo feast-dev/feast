@@ -91,6 +91,7 @@ spec:
             value: "{{ .Values.core.jobs.monitoring.period }}"
           - name: JOB_MONITOR_INITIAL_DELAY_MS
             value: "{{ .Values.core.jobs.monitoring.initialDelay }}"
+          {{- if .Values.store }}
           {{- if .Values.store.serving }}
           - name: STORE_SERVING_TYPE
             value: {{ .Values.store.serving.type }}
@@ -108,6 +109,7 @@ spec:
             value: {{ .Values.store.errors.type }}
           - name: STORE_ERRORS_OPTIONS
             value: {{ .Values.store.errors.options | toJson}}
+          {{- end }}
           {{- end }}
           - name: STATSD_HOST
             value: {{ .Values.statsd.host }}
