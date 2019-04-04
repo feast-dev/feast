@@ -14,12 +14,10 @@ spec:
   type: LoadBalancer
   {{- if .Values.serving.service.extIPAdr }}
   loadBalancerIP: {{ .Values.serving.service.extIPAdr }}
+  {{- end }}
   {{- if .Values.serving.service.loadBalancerSourceRanges }}
   loadBalancerSourceRanges:
-  {{- range .Values.serving.service.loadBalancerSourceRanges }}
-  - {{ . }}
-  {{- end }}
-  {{- end }}
+{{ toYaml .Values.serving.service.loadBalancerSourceRanges | indent 2 }}
   {{- end }}
   ports:
   - name: grpc

@@ -45,8 +45,9 @@ def _run_job_and_wait_for_completion(job_yaml):
             "feast get job {}".format(job_id).split(" "), check=True, stdout=PIPE
         )
         job_details = yaml.load(out.stdout.decode("utf-8").replace("\t", " "))
-        job_status = job_details["Status"]
-        print("Job id {} currently {}".format(job_id, job_status))
+        if job_details["Status"] != job_status:
+            job_status = job_details["Status"]
+            print("Job id {} currently {}".format(job_id, job_status))
         if job_status in terminal_states:
             break
         sleep(10)
@@ -73,11 +74,12 @@ class TestFeastIntegration:
             expected = (
                 pd.DataFrame.from_records(avro_reader)
                 .drop(columns=["created_timestamp"])
-                .sort_values(["id", "event_timestamp"]).reset_index(drop=True)
+                .sort_values(["id", "event_timestamp"])
+                .reset_index(drop=True)
             )
 
-        # self.run_batch_import(bucket_name, client)
-        # self.validate_warehouse_data(project_id, expected)
+        self.run_batch_import(bucket_name, client)
+        self.validate_warehouse_data(project_id, expected)
         self.validate_serving_data(client, expected)
 
     @staticmethod
@@ -92,14 +94,6 @@ class TestFeastIntegration:
 
     @staticmethod
     def validate_serving_data(client, expected):
-        # features_type_mapping = {
-        #     "myentity": np.string_,
-        #     "myentity.feature_double_redis": np.float64,
-        #     "myentity.feature_float_redis": np.float64,
-        #     "myentity.feature_int32_redis": np.int64,
-        #     "myentity.feature_int64_redis": np.int64,
-        # }
-
         features = {
             "myentity.feature_double_redis",
             "myentity.feature_float_redis",
@@ -107,32 +101,33 @@ class TestFeastIntegration:
             "myentity.feature_int64_redis",
         }
 
-        feature_set = FeatureSet(
-            entity="myentity", features=[f for f in features]
-        )
-        actual = client.get_serving_data(
-            feature_set, entity_keys=[str(id) for id in list(expected.id.unique())]
-        )
+        feature_set = FeatureSet(entity="myentity", features=[f for f in features])
+        entity_keys = [str(id) for id in list(expected.id.unique())]
+        actual = client.get_serving_data(feature_set, entity_keys=entity_keys)
         actual = actual.sort_values(["myentity"]).reset_index(drop=True)
 
+        # Serving store returns only latest feature values so we update expected values
+        # to only have the feature values with latest event timestamp
         expected = expected.loc[expected.groupby("id")["event_timestamp"].idxmax()]
+        # Ensure the columns in expected are the same as those in actual
+        # For example, in actual there is not event_timestamp column
         expected = expected.rename(columns={"id": "myentity"})
-        expected = expected[[c.replace("myentity.", "") for c in actual.columns]].reset_index(drop=True)
-
-        print(expected.dtypes)
-        print("============================================================")
-        print(actual.dtypes)
+        expected = expected[
+            [c.replace("myentity.", "") for c in actual.columns]
+        ].reset_index(drop=True)
 
         np.testing.assert_array_equal(expected, actual)
 
     @staticmethod
     def validate_warehouse_data(project_id, expected):
-        # TODO: change the dataset back
         actual = (
             bq_util.query_to_dataframe(
-                f"SELECT * FROM `dheryanto.myentity_view`", project=project_id
+                f"SELECT * FROM `feast_it.myentity_view`", project=project_id
             )
+            # created_timestamp is not relevant for validating correctness of import
+            # and retrieval of feature values
             .drop(columns=["created_timestamp"])
-            .sort_values(["id", "event_timestamp"]).reset_index(drop=True)
+            .sort_values(["id", "event_timestamp"])
+            .reset_index(drop=True)
         )
         assert expected.equals(actual)

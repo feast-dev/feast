@@ -24,6 +24,9 @@ core:
     http: 
       port: 80
       targetPort: 8080
+    # loadBalancerSourceRanges sets the accepted IP ranges for firewall ingress rule
+    # this firewall rule is usually created when the service type is "LoadBalancer"
+    # loadBalancerSourceRanges: ["10.0.0.0/8"]
   jobs:
     workspace: "/tmp"
     runner: DirectRunner
@@ -87,6 +90,9 @@ serving:
     http: 
       port: 80
       targetPort: 8080
+    # loadBalancerSourceRanges sets the accepted IP ranges for firewall ingress rule
+    # this firewall rule is usually created when the service type is "LoadBalancer"
+    # loadBalancerSourceRanges: ["10.0.0.0/8"]
   jaeger:
     enabled: false
 

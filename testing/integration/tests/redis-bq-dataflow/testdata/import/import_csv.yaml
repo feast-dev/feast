@@ -1,7 +1,6 @@
 type: file.csv
 sourceOptions:
-#  TODO revert this change
-  path: gs://gojek-dheryanto-dev/test-cases/myentity.csv
+  path: gs://it-feast-storage/test-cases/test_data.csv
 entities:
   - myentity
 schema:
