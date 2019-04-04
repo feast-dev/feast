@@ -92,29 +92,38 @@ class TestFeastIntegration:
 
     @staticmethod
     def validate_serving_data(client, expected):
-        features_type_mapping = {
-            "myentity": np.string_,
-            "myentity.feature_double_redis": np.float64,
-            "myentity.feature_float_redis": np.float64,
-            "myentity.feature_int32_redis": np.int64,
-            "myentity.feature_int64_redis": np.int64,
+        # features_type_mapping = {
+        #     "myentity": np.string_,
+        #     "myentity.feature_double_redis": np.float64,
+        #     "myentity.feature_float_redis": np.float64,
+        #     "myentity.feature_int32_redis": np.int64,
+        #     "myentity.feature_int64_redis": np.int64,
+        # }
+
+        features = {
+            "myentity.feature_double_redis",
+            "myentity.feature_float_redis",
+            "myentity.feature_int32_redis",
+            "myentity.feature_int64_redis",
         }
 
         feature_set = FeatureSet(
-            entity="myentity", features=[f for f in features_type_mapping.keys() if "." in f]
+            entity="myentity", features=[f for f in features]
         )
         actual = client.get_serving_data(
             feature_set, entity_keys=[str(id) for id in list(expected.id.unique())]
-        ).astype(features_type_mapping)
+        )
         actual = actual.sort_values(["myentity"]).reset_index(drop=True)
-        actual = actual.astype({"myentity": np.object})
-        expected = expected
 
-        print(expected.head().values, actual.head(10).values)
+        expected = expected.loc[expected.groupby("id")["event_timestamp"].idxmax()]
+        expected = expected.rename(columns={"id": "myentity"})
+        expected = expected[[c.replace("myentity.", "") for c in actual.columns]].reset_index(drop=True)
+
+        print(expected.dtypes)
+        print("============================================================")
         print(actual.dtypes)
-        print(actual.shape)
-        print(expected.shape)
-        # assert expected.equals(actual)
+
+        np.testing.assert_array_equal(expected, actual)
 
     @staticmethod
     def validate_warehouse_data(project_id, expected):
