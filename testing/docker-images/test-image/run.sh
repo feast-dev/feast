@@ -34,7 +34,7 @@ fi
 echo "sha:"
 git rev-parse HEAD
 echo ""
-echo "running unit tests"
+echo "running tests"
 echo ""
 
 $@
