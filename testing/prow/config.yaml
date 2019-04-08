@@ -24,7 +24,7 @@ postsubmits:
       - image: us.gcr.io/kf-feast/test-image:1.0.0
         args: ["make", "test"]
         imagePullPolicy: Always
-  - name: presubmit-integration-test-batch
+  - name: postsubmit-integration-test-batch
     always_run: true
     spec:
       containers:
