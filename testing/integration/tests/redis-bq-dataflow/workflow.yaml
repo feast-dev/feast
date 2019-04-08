@@ -117,15 +117,11 @@ spec:
       - name: feast
         path: /feast
     container:
-      image: us.gcr.io/kf-feast/test-image:1.0.0
-      command: 
-      - /bin/bash 
-      - -c 
+      image: maven:3.6.0-jdk-8-slim
+      command: ["/bin/bash", "-c"]
+      args:
       - mvn package -DskipTests -Drevision=integration-test -T 6 -DdependencyLocationsEnabled=false
       workingDir: /feast
-      resources:
-        requests:
-          cpu: 3000m
     outputs:
       artifacts:
       - name: feast-build
@@ -160,19 +156,21 @@ spec:
     inputs:
       artifacts:
       - name: feast
-        path: /go/src/github.com/gojek/feast
+        path: /build/feast
     container:
-      image: grpc/go
+      image: golang:1.12
       command: ["/bin/bash", "-c"]
-      args: ['
-        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh;
-        make build-cli
-      ']
-      workingDir: /go/src/github.com/gojek/feast
+      args:
+      - |
+        GOOS=linux go build -o feast-cli-v0.0.0-linux-amd64  ./cli/feast
+        GOOS=linux go build -o feast-cli-v0.0.0-darwin-amd64 ./cli/feast
+        # Fix the feast cli binary name for use by subsequent steps
+        cp feast-cli-v0.0.0-linux-amd64 /usr/local/bin/feast
+      workingDir: /build/feast
     outputs: 
       artifacts:
       - name: feast-cli
-        path: /go/src/github.com/gojek/feast/cli/bin/linux-amd64/feast
+        path: /usr/local/bin/feast
   - name: terraform
     inputs:
       parameters:
@@ -186,10 +184,10 @@ spec:
       image: gcr.io/kf-feast/it-terraform:0.1.0
       workingDir: /feast/testing/integration/tests/redis-bq-dataflow/tf
       command: ["sh", "-c"]
-      args: ['
-        terraform init; 
+      args:
+      - |
+        terraform init
         terraform {{inputs.parameters.arg}}
-      ']
   - name: run-test
     inputs:
       artifacts:
