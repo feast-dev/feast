@@ -21,7 +21,7 @@ test:
 	mvn test
 
 test-integration:
-	$(MAKE) -C testing/integration test-integration ID=$(ID)
+	$(MAKE) -C testing/integration test-integration TYPE=$(TYPE) ID=$(ID)
 
 build-proto:
 	$(MAKE) -C protos gen-go

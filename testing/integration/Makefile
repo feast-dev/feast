@@ -16,8 +16,10 @@
 
 .PHONY: test-integration it-redis-bq-dataflow
 
+ifeq ($(TYPE), "PR")
 test-integration:
-	@$(MAKE) it-redis-bq-dataflow ID=$(ID)
-
-it-redis-bq-dataflow:
 	argo submit --watch tests/redis-bq-dataflow/workflow.yaml -p prId=$(ID)
+else
+test-integration:
+	argo submit --watch tests/redis-bq-dataflow/workflow.yaml -p gitRef=$(ID)
+endif
