@@ -25,6 +25,7 @@ import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.types.ValueProto.ValueType;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 

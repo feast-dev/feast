@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gojek/feast/cli/feast/pkg/util"
+	"github.com/gojek/feast/cli/feast/pkg/timeutil"
 	"github.com/gojek/feast/protos/generated/go/feast/core"
 )
 
@@ -30,7 +30,7 @@ func PrintJobDetail(jobDetail *core.JobServiceTypes_JobDetail) string {
 		fmt.Sprintf("%s:\t%s", "Type", jobDetail.GetType()),
 		fmt.Sprintf("%s:\t%s", "Runner", jobDetail.GetRunner()),
 		fmt.Sprintf("%s:\t%s", "Status", jobDetail.GetStatus()),
-		fmt.Sprintf("%s:\t%s", "Age", util.ParseAge(*jobDetail.GetCreated())),
+		fmt.Sprintf("%s:\t%s", "Age", timeutil.DurationUntilNowInHumanFormat(*jobDetail.GetCreated())),
 	}
 	lines = append(lines, "Metrics:")
 	for k, v := range jobDetail.GetMetrics() {

@@ -63,7 +63,8 @@ public class HealthController {
         return ResponseEntity.ok("healthy");
       }
       log.error("Unable to reach DB");
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Unable to establish connection with DB");
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body("Unable to establish connection with DB");
     } catch (SQLException e) {
       log.error("Unable to reach DB: {}", e);
       return ResponseEntity.status(INTERNAL_SERVER_ERROR).body(e.getMessage());

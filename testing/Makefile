@@ -32,6 +32,6 @@ update-config: get-cluster-credentials
 update-plugins: get-cluster-credentials
 	kubectl create configmap plugins --from-file=plugins.yaml=prow/plugins.yaml --dry-run -o yaml | kubectl replace configmap plugins -f -
 
-build-push:
-	docker build test-image/ -t $(REGISTRY)/$(PROJECT)/test-image:$(VERSION)
+build-push-test-image:
+	docker build -f docker-images/test-image/Dockerfile -t $(REGISTRY)/$(PROJECT)/test-image:$(VERSION) .
 	$(PUSH) "$(REGISTRY)/$(PROJECT)/test-image:$(VERSION)"
