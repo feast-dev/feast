@@ -16,7 +16,7 @@ import imp
 import os
 from setuptools import find_packages, setup, Command
 
-NAME = 'Feast'
+NAME = 'feast'
 DESCRIPTION = 'Python sdk for Feast'
 URL = 'https://github.com/gojek/feast'
 AUTHOR = 'Feast'
