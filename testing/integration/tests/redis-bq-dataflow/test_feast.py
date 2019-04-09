@@ -85,8 +85,8 @@ class TestFeastIntegration:
     @staticmethod
     def run_batch_import(bucket_name, client):
         _stage_data(
-            "testdata/myentity.avro",
-            "gs://{}/test-cases/myentity.avro".format(bucket_name),
+            "testdata/myentity.csv",
+            "gs://{}/test-cases/myentity.csv".format(bucket_name),
         )
         _register_resources(client, "testdata/entity", "testdata/feature")
         job_status = _run_job_and_wait_for_completion("testdata/import/import_csv.yaml")
