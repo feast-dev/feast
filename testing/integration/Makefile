@@ -16,7 +16,7 @@
 
 .PHONY: test-integration it-redis-bq-dataflow
 
-ifeq ($(TYPE), "PR")
+ifeq ($(TYPE), PR)
 test-integration:
 	argo submit --watch tests/redis-bq-dataflow/workflow.yaml -p prId=$(ID)
 else

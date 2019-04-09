@@ -11,7 +11,7 @@ presubmits:
     always_run: false
     spec:
       containers:
-      - image: us.gcr.io/kf-feast/test-image:1.0.0
+      - image: us.gcr.io/kf-feast/gcloud-argo:1.0.0
         args: ["make", "test-integration", "ID=$PULL_NUMBER", "TYPE=PR"]
         imagePullPolicy: Always
     trigger: integration-batch
@@ -28,7 +28,7 @@ postsubmits:
     always_run: true
     spec:
       containers:
-      - image: us.gcr.io/kf-feast/test-image:1.0.0
+      - image: us.gcr.io/kf-feast/gcloud-argo:1.0.0
         args: ["make", "test-integration", "ID=$PULL_BASE_REF", "TYPE=GITREF"]
         imagePullPolicy: Always
     trigger: integration-batch
