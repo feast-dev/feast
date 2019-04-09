@@ -1,6 +1,6 @@
 type: file.csv
 sourceOptions:
-  path: gs://it-feast-storage/test-cases/myentity.avro
+  path: gs://it-feast-storage/test-cases/myentity.csv
 entities:
   - myentity
 schema:
