@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gojek/feast/cli/feast/pkg/util"
+	"github.com/gojek/feast/cli/feast/pkg/timeutil"
 	"github.com/gojek/feast/protos/generated/go/feast/core"
 )
 
@@ -29,8 +29,8 @@ func PrintFeatureDetail(featureDetail *core.UIServiceTypes_FeatureDetail) string
 			lines = append(lines, fmt.Sprintf("  %s:\t%s", "Warehouse", wh.GetId()))
 		}
 	}
-	lines = append(lines, fmt.Sprintf("%s:\t%s", "Created", util.ParseTimestamp(*featureDetail.GetCreated())))
-	lines = append(lines, fmt.Sprintf("%s:\t%s", "LastUpdated", util.ParseTimestamp(*featureDetail.GetLastUpdated())))
+	lines = append(lines, fmt.Sprintf("%s:\t%s", "Created", timeutil.FormatToRFC3339(*featureDetail.GetCreated())))
+	lines = append(lines, fmt.Sprintf("%s:\t%s", "LastUpdated", timeutil.FormatToRFC3339(*featureDetail.GetLastUpdated())))
 	if jobs := featureDetail.GetJobs(); len(jobs) > 0 {
 		lines = append(lines, "Related Jobs:")
 		for _, job := range jobs {
@@ -56,7 +56,7 @@ func PrintEntityDetail(entityDetail *core.UIServiceTypes_EntityDetail) string {
 	if tags := spec.GetTags(); len(tags) > 0 {
 		lines = append(lines, fmt.Sprintf("Tags: %s", strings.Join(tags, ",")))
 	}
-	lines = append(lines, fmt.Sprintf("%s:\t%s", "LastUpdated", util.ParseTimestamp(*entityDetail.GetLastUpdated())))
+	lines = append(lines, fmt.Sprintf("%s:\t%s", "LastUpdated", timeutil.FormatToRFC3339(*entityDetail.GetLastUpdated())))
 	lines = append(lines, "Related Jobs:")
 	for _, job := range entityDetail.GetJobs() {
 		lines = append(lines, fmt.Sprintf("- %s", job))
@@ -78,7 +78,7 @@ func PrintStorageDetail(storageDetail *core.UIServiceTypes_StorageDetail) string
 	for k, v := range spec.GetOptions() {
 		lines = append(lines, fmt.Sprintf("  %s: %s", k, v))
 	}
-	lines = append(lines, fmt.Sprintf("%s:\t%s", "LastUpdated", util.ParseTimestamp(*storageDetail.GetLastUpdated())))
+	lines = append(lines, fmt.Sprintf("%s:\t%s", "LastUpdated", timeutil.FormatToRFC3339(*storageDetail.GetLastUpdated())))
 	out := strings.Join(lines, "\n")
 	fmt.Println(out)
 	return out

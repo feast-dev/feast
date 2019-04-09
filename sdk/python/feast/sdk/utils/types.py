@@ -13,9 +13,10 @@
 # limitations under the License.
 
 from feast.sdk.resources.feature import ValueType
+import numpy as np
 
 # mapping of pandas dtypes to feast value type strings
-_DTYPE_TO_VALUE_TYPE_MAPPING = {
+DTYPE_TO_VALUE_TYPE_MAPPING = {
     "float64": ValueType.DOUBLE,
     "float32": ValueType.FLOAT,
     "int64": ValueType.INT64,
@@ -32,6 +33,20 @@ _DTYPE_TO_VALUE_TYPE_MAPPING = {
     "object": ValueType.STRING
 }
 
+# Mapping of feast value type to Pandas DataFrame dtypes
+# Integer and floating values are all 64-bit for better integration
+# with BigQuery data types
+FEAST_VALUETYPE_TO_DTYPE = {
+    "bytesVal": np.byte,
+    "stringVal": np.object,
+    "int32Val": np.int64,
+    "int64Val": np.int64,
+    "doubleVal": np.float64,
+    "floatVal": np.float64,
+    "boolVal": np.bool,
+    "timestampVal": np.datetime64,
+}
+
 
 def dtype_to_value_type(dtype):
     """Returns the equivalent feast valueType for the given dtype
@@ -42,4 +57,4 @@ def dtype_to_value_type(dtype):
     Returns:
         feast.types.ValueType2.ValueType: equivalent feast valuetype
     """
-    return _DTYPE_TO_VALUE_TYPE_MAPPING[dtype.__str__()]
+    return DTYPE_TO_VALUE_TYPE_MAPPING[dtype.__str__()]

@@ -14,12 +14,17 @@
 
 import os
 
+import fastavro
+import pandas as pd
 import pytest
 from google.cloud.bigquery.table import Table
+from google.cloud.exceptions import NotFound
 
 from feast.sdk.resources.feature_set import FileType
-from feast.sdk.utils.bq_util import TableDownloader, get_table_name
+from feast.sdk.utils.bq_util import TableDownloader, get_table_name, query_to_dataframe
 from feast.specs.StorageSpec_pb2 import StorageSpec
+
+testdata_path = os.path.abspath(os.path.join(__file__, "..", "..", "..", "data"))
 
 
 def test_get_table_name():
@@ -29,27 +34,53 @@ def test_get_table_name():
     storage_spec = StorageSpec(
         id="BIGQUERY1",
         type="bigquery",
-        options={
-            "project": project_name,
-            "dataset": dataset_name
-        })
-    assert get_table_name(feature_id, storage_spec) == \
-           "my_project.my_dataset.myentity_none"
+        options={"project": project_name, "dataset": dataset_name},
+    )
+    assert (
+        get_table_name(feature_id, storage_spec)
+        == "my_project.my_dataset.myentity_none"
+    )
 
 
 def test_get_table_name_not_bq():
     feature_id = "myentity.feature1"
     storage_spec = StorageSpec(id="REDIS1", type="redis")
-    with pytest.raises(
-            ValueError, match="storage spec is not BigQuery storage spec"):
+    with pytest.raises(ValueError, match="storage spec is not BigQuery storage spec"):
         get_table_name(feature_id, storage_spec)
+
+
+@pytest.mark.skipif(
+    os.getenv("SKIP_BIGQUERY_TEST") is not None,
+    reason="SKIP_BIGQUERY_TEST is set in the environment",
+)
+def test_query_to_dataframe():
+    with open(
+        os.path.join(testdata_path, "austin_bikeshare.bikeshare_stations.avro"), "rb"
+    ) as expected_file:
+        avro_reader = fastavro.reader(expected_file)
+        expected = pd.DataFrame.from_records(avro_reader)
+
+    query = "SELECT * FROM `bigquery-public-data.austin_bikeshare.bikeshare_stations`"
+    actual = query_to_dataframe(query)
+    assert expected.equals(actual)
+
+
+@pytest.mark.skipif(
+    os.getenv("SKIP_BIGQUERY_TEST") is not None,
+    reason="SKIP_BIGQUERY_TEST is set in the environment",
+)
+def test_query_to_dataframe_for_non_existing_dataset():
+    query = "SELECT * FROM `bigquery-public-data.this_dataset_should_not_exists.bikeshare_stations`"
+    with pytest.raises(NotFound):
+        query_to_dataframe(query)
 
 
 class TestTableDownloader(object):
     def test_download_table_as_df(self, mocker):
         self._stop_time(mocker)
         mocked_gcs_to_df = mocker.patch(
-            "feast.sdk.utils.bq_util.gcs_to_df", return_value=None)
+            "feast.sdk.utils.bq_util.gcs_to_df", return_value=None
+        )
 
         staging_path = "gs://temp/"
         staging_file_name = "temp_0"
@@ -59,19 +90,15 @@ class TestTableDownloader(object):
         exp_staging_path = os.path.join(staging_path, staging_file_name)
 
         table_dldr._bq = _Mock_BQ_Client()
-        mocker.patch.object(
-            table_dldr._bq, "extract_table", return_value=_Job())
+        mocker.patch.object(table_dldr._bq, "extract_table", return_value=_Job())
 
-        table_dldr.download_table_as_df(
-            table_id, staging_location=staging_path)
+        table_dldr.download_table_as_df(table_id, staging_location=staging_path)
 
         assert len(table_dldr._bq.extract_table.call_args_list) == 1
-        args, kwargs = \
-            table_dldr._bq.extract_table.call_args_list[0]
-        assert args[0].full_table_id == Table.from_string(
-            table_id).full_table_id
+        args, kwargs = table_dldr._bq.extract_table.call_args_list[0]
+        assert args[0].full_table_id == Table.from_string(table_id).full_table_id
         assert args[1] == exp_staging_path
-        assert kwargs['job_config'].destination_format == "CSV"
+        assert kwargs["job_config"].destination_format == "CSV"
         mocked_gcs_to_df.assert_called_once_with(exp_staging_path)
 
     def test_download_csv(self, mocker):
@@ -90,14 +117,15 @@ class TestTableDownloader(object):
         table_id = "project_id.dataset_id.table_id"
         table_dldr = TableDownloader()
         with pytest.raises(
-                ValueError, match="staging_uri must be a directory in "
-                "GCS"):
-            table_dldr.download_table_as_file(table_id, "/tmp/dst",
-                                              "/local/directory", FileType.CSV)
+            ValueError, match="staging_uri must be a directory in " "GCS"
+        ):
+            table_dldr.download_table_as_file(
+                table_id, "/tmp/dst", "/local/directory", FileType.CSV
+            )
 
         with pytest.raises(
-                ValueError, match="staging_uri must be a directory in "
-                "GCS"):
+            ValueError, match="staging_uri must be a directory in " "GCS"
+        ):
             table_dldr.download_table_as_df(table_id, "/local/directory")
 
     def _test_download_file(self, mocker, type):
@@ -110,28 +138,27 @@ class TestTableDownloader(object):
         mock_blob = _Blob()
         mocker.patch.object(mock_blob, "download_to_filename")
         table_dldr._bq = _Mock_BQ_Client()
-        mocker.patch.object(
-            table_dldr._bq, "extract_table", return_value=_Job())
+        mocker.patch.object(table_dldr._bq, "extract_table", return_value=_Job())
         table_dldr._gcs = _Mock_GCS_Client()
         mocker.patch.object(
-            table_dldr._gcs, "get_bucket", return_value=_Bucket(mock_blob))
+            table_dldr._gcs, "get_bucket", return_value=_Bucket(mock_blob)
+        )
 
         table_dldr.download_table_as_file(
-            table_id, dst_path, staging_location=staging_path, file_type=type)
+            table_id, dst_path, staging_location=staging_path, file_type=type
+        )
 
         exp_staging_path = os.path.join(staging_path, staging_file_name)
         assert len(table_dldr._bq.extract_table.call_args_list) == 1
-        args, kwargs = \
-            table_dldr._bq.extract_table.call_args_list[0]
-        assert args[0].full_table_id == Table.from_string(
-            table_id).full_table_id
+        args, kwargs = table_dldr._bq.extract_table.call_args_list[0]
+        assert args[0].full_table_id == Table.from_string(table_id).full_table_id
         assert args[1] == exp_staging_path
-        assert kwargs['job_config'].destination_format == str(type)
+        assert kwargs["job_config"].destination_format == str(type)
 
         mock_blob.download_to_filename.assert_called_once_with(dst_path)
 
     def _stop_time(self, mocker):
-        mocker.patch('time.time', return_value=0)
+        mocker.patch("time.time", return_value=0)
 
 
 class _Mock_BQ_Client:
