@@ -12,7 +12,7 @@ presubmits:
     spec:
       containers:
       - image: us.gcr.io/kf-feast/gcloud-argo:1.0.0
-        args: ["make", "test-integration", "ID=$PULL_NUMBER", "TYPE=PR"]
+        args: ["make", "test-integration", "ID=$(PULL_NUMBER)", "TYPE=PR"]
         imagePullPolicy: Always
     trigger: (?m)integration-batch
     rerun_command: integration-batch

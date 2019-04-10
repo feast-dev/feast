@@ -14,12 +14,28 @@
 #  limitations under the License.
 # 
 
-.PHONY: test-integration it-redis-bq-dataflow
+.PHONY: test-integration wait-job
 
 ifeq ($(TYPE), PR)
 test-integration:
-	argo submit --watch tests/redis-bq-dataflow/workflow.yaml -p prId=$(ID)
+	$(shell argo submit tests/redis-bq-dataflow/workflow.yaml -p prId=$(ID))
+	$(eval job_name := $(shell argo list -o=name | head -n 1))
+	wait-job job_name=$(job_name)
 else
 test-integration:
-	argo submit --watch tests/redis-bq-dataflow/workflow.yaml -p gitRef=$(ID)
+	$(shell argo submit tests/redis-bq-dataflow/workflow.yaml -p gitRef=$(ID))
+	$(eval job_name := $(shell argo list -o=name | head -n 1))
+	wait-job job_name=$(job_name)
 endif
+
+wait-job:
+	job_status=$$(argo get $(job_name) | grep "Status" | awk -F ' ' '{print $$2}'); \
+	while [ "$${job_status}" == "Running" ]; do \
+		echo "$(job_name): $${job_status}"; \
+		argo wait $(job_name); \
+		job_status=$(argo get $(job_name) | grep "Status" | awk -F ' ' '{print $2}'); \
+	done; \
+	if [ "$${job_status}" != "Succeeded" ]; then \
+		echo integration test failed. Check logs for job name $(job_name) for more details.; \
+		exit 1; \
+	fi
