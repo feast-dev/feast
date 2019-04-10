@@ -1,0 +1,7 @@
+id: myentity.feature_int64_redis
+name: feature_int64_redis
+entity: myentity
+owner: bob@example.com
+description: test entity.
+valueType:  INT64
+uri: https://github.com/bob/example
