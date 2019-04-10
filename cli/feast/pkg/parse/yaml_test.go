@@ -40,12 +40,7 @@ entity: test
 owner: bob@example.com
 description: testing feature
 valueType:  INT64
-uri: https://github.com/bob/example
-dataStores:
-  serving:
-    id: REDIS
-  warehouse:
-    id: BIGQUERY`),
+uri: https://github.com/bob/example`),
 			expected: &specs.FeatureSpec{
 				Id:          "test.test_feature_two",
 				Owner:       "bob@example.com",
@@ -54,14 +49,6 @@ dataStores:
 				Uri:         "https://github.com/bob/example",
 				ValueType:   types.ValueType_INT64,
 				Entity:      "test",
-				DataStores: &specs.DataStores{
-					Serving: &specs.DataStore{
-						Id: "REDIS",
-					},
-					Warehouse: &specs.DataStore{
-						Id: "BIGQUERY",
-					},
-				},
 			},
 			err: nil,
 		},
@@ -144,23 +131,10 @@ func TestYamlToFeatureGroupSpec(t *testing.T) {
 			input: []byte(`id: test
 tags:
 - tag1
-- tag2
-dataStores:
-  serving:
-    id: REDIS
-  warehouse:
-    id: BIGQUERY`),
+- tag2`),
 			expected: &specs.FeatureGroupSpec{
 				Id:   "test",
 				Tags: []string{"tag1", "tag2"},
-				DataStores: &specs.DataStores{
-					Serving: &specs.DataStore{
-						Id: "REDIS",
-					},
-					Warehouse: &specs.DataStore{
-						Id: "BIGQUERY",
-					},
-				},
 			},
 			err: nil,
 		},
@@ -187,50 +161,6 @@ dataStores:
 	}
 }
 
-func TestYamlToStorageSpec(t *testing.T) {
-	tt := []struct {
-		name     string
-		input    []byte
-		expected *specs.StorageSpec
-		err      error
-	}{
-		{
-			name: "valid yaml",
-			input: []byte(`id: REDIS1
-type: REDIS
-options:
-  redis.host: localhost`),
-			expected: &specs.StorageSpec{
-				Id:   "REDIS1",
-				Type: "REDIS",
-				Options: map[string]string{
-					"redis.host": "localhost",
-				},
-			},
-			err: nil,
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			spec, err := YamlToStorageSpec(tc.input)
-			if tc.err == nil {
-				if err != nil {
-					t.Error(err)
-				} else if !cmp.Equal(spec, tc.expected) {
-					t.Errorf("Expected %s, got %s", tc.expected, spec)
-				}
-			} else {
-				// we expect an error
-				if err == nil {
-					t.Error(err)
-				} else if err.Error() != tc.err.Error() {
-					t.Errorf("Expected error %v, got %v", err.Error(), tc.err.Error())
-				}
-			}
-		})
-	}
-}
 func TestYamlToImportSpec(t *testing.T) {
 	tt := []struct {
 		name     string

@@ -39,7 +39,6 @@ func (m *MockCoreServiceClient) EXPECT() *MockCoreServiceClientMockRecorder {
 
 // ApplyEntity mocks base method
 func (m *MockCoreServiceClient) ApplyEntity(arg0 context.Context, arg1 *specs.EntitySpec, arg2 ...grpc.CallOption) (*core.CoreServiceTypes_ApplyEntityResponse, error) {
-	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -52,14 +51,12 @@ func (m *MockCoreServiceClient) ApplyEntity(arg0 context.Context, arg1 *specs.En
 
 // ApplyEntity indicates an expected call of ApplyEntity
 func (mr *MockCoreServiceClientMockRecorder) ApplyEntity(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApplyEntity", reflect.TypeOf((*MockCoreServiceClient)(nil).ApplyEntity), varargs...)
 }
 
 // ApplyFeature mocks base method
 func (m *MockCoreServiceClient) ApplyFeature(arg0 context.Context, arg1 *specs.FeatureSpec, arg2 ...grpc.CallOption) (*core.CoreServiceTypes_ApplyFeatureResponse, error) {
-	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -72,14 +69,12 @@ func (m *MockCoreServiceClient) ApplyFeature(arg0 context.Context, arg1 *specs.F
 
 // ApplyFeature indicates an expected call of ApplyFeature
 func (mr *MockCoreServiceClientMockRecorder) ApplyFeature(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApplyFeature", reflect.TypeOf((*MockCoreServiceClient)(nil).ApplyFeature), varargs...)
 }
 
 // ApplyFeatureGroup mocks base method
 func (m *MockCoreServiceClient) ApplyFeatureGroup(arg0 context.Context, arg1 *specs.FeatureGroupSpec, arg2 ...grpc.CallOption) (*core.CoreServiceTypes_ApplyFeatureGroupResponse, error) {
-	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -92,34 +87,12 @@ func (m *MockCoreServiceClient) ApplyFeatureGroup(arg0 context.Context, arg1 *sp
 
 // ApplyFeatureGroup indicates an expected call of ApplyFeatureGroup
 func (mr *MockCoreServiceClientMockRecorder) ApplyFeatureGroup(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApplyFeatureGroup", reflect.TypeOf((*MockCoreServiceClient)(nil).ApplyFeatureGroup), varargs...)
 }
 
-// ApplyStorage mocks base method
-func (m *MockCoreServiceClient) ApplyStorage(arg0 context.Context, arg1 *specs.StorageSpec, arg2 ...grpc.CallOption) (*core.CoreServiceTypes_ApplyStorageResponse, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "ApplyStorage", varargs...)
-	ret0, _ := ret[0].(*core.CoreServiceTypes_ApplyStorageResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ApplyStorage indicates an expected call of ApplyStorage
-func (mr *MockCoreServiceClientMockRecorder) ApplyStorage(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApplyStorage", reflect.TypeOf((*MockCoreServiceClient)(nil).ApplyStorage), varargs...)
-}
-
 // GetEntities mocks base method
 func (m *MockCoreServiceClient) GetEntities(arg0 context.Context, arg1 *core.CoreServiceTypes_GetEntitiesRequest, arg2 ...grpc.CallOption) (*core.CoreServiceTypes_GetEntitiesResponse, error) {
-	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -132,14 +105,12 @@ func (m *MockCoreServiceClient) GetEntities(arg0 context.Context, arg1 *core.Cor
 
 // GetEntities indicates an expected call of GetEntities
 func (mr *MockCoreServiceClientMockRecorder) GetEntities(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEntities", reflect.TypeOf((*MockCoreServiceClient)(nil).GetEntities), varargs...)
 }
 
 // GetFeatures mocks base method
 func (m *MockCoreServiceClient) GetFeatures(arg0 context.Context, arg1 *core.CoreServiceTypes_GetFeaturesRequest, arg2 ...grpc.CallOption) (*core.CoreServiceTypes_GetFeaturesResponse, error) {
-	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -152,34 +123,12 @@ func (m *MockCoreServiceClient) GetFeatures(arg0 context.Context, arg1 *core.Cor
 
 // GetFeatures indicates an expected call of GetFeatures
 func (mr *MockCoreServiceClientMockRecorder) GetFeatures(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFeatures", reflect.TypeOf((*MockCoreServiceClient)(nil).GetFeatures), varargs...)
 }
 
-// GetStorage mocks base method
-func (m *MockCoreServiceClient) GetStorage(arg0 context.Context, arg1 *core.CoreServiceTypes_GetStorageRequest, arg2 ...grpc.CallOption) (*core.CoreServiceTypes_GetStorageResponse, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "GetStorage", varargs...)
-	ret0, _ := ret[0].(*core.CoreServiceTypes_GetStorageResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetStorage indicates an expected call of GetStorage
-func (mr *MockCoreServiceClientMockRecorder) GetStorage(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStorage", reflect.TypeOf((*MockCoreServiceClient)(nil).GetStorage), varargs...)
-}
-
 // ListEntities mocks base method
 func (m *MockCoreServiceClient) ListEntities(arg0 context.Context, arg1 *empty.Empty, arg2 ...grpc.CallOption) (*core.CoreServiceTypes_ListEntitiesResponse, error) {
-	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -192,14 +141,12 @@ func (m *MockCoreServiceClient) ListEntities(arg0 context.Context, arg1 *empty.E
 
 // ListEntities indicates an expected call of ListEntities
 func (mr *MockCoreServiceClientMockRecorder) ListEntities(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListEntities", reflect.TypeOf((*MockCoreServiceClient)(nil).ListEntities), varargs...)
 }
 
 // ListFeatures mocks base method
 func (m *MockCoreServiceClient) ListFeatures(arg0 context.Context, arg1 *empty.Empty, arg2 ...grpc.CallOption) (*core.CoreServiceTypes_ListFeaturesResponse, error) {
-	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
@@ -212,27 +159,6 @@ func (m *MockCoreServiceClient) ListFeatures(arg0 context.Context, arg1 *empty.E
 
 // ListFeatures indicates an expected call of ListFeatures
 func (mr *MockCoreServiceClientMockRecorder) ListFeatures(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListFeatures", reflect.TypeOf((*MockCoreServiceClient)(nil).ListFeatures), varargs...)
-}
-
-// ListStorage mocks base method
-func (m *MockCoreServiceClient) ListStorage(arg0 context.Context, arg1 *empty.Empty, arg2 ...grpc.CallOption) (*core.CoreServiceTypes_ListStorageResponse, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "ListStorage", varargs...)
-	ret0, _ := ret[0].(*core.CoreServiceTypes_ListStorageResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ListStorage indicates an expected call of ListStorage
-func (mr *MockCoreServiceClientMockRecorder) ListStorage(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListStorage", reflect.TypeOf((*MockCoreServiceClient)(nil).ListStorage), varargs...)
 }

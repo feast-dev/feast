@@ -53,18 +53,6 @@ service CoreService {
     */
     rpc ListFeatures(google.protobuf.Empty) returns (CoreServiceTypes.ListFeaturesResponse) {};
 
-   /*
-    Get storage specs specified in request.
-    This process returns a list of storage specs.
-    */
-    rpc GetStorage(CoreServiceTypes.GetStorageRequest) returns (CoreServiceTypes.GetStorageResponse){};
-
-    /*
-    Get all storage specs.
-    This process returns a list of storage specs.
-    */
-    rpc ListStorage(google.protobuf.Empty) returns (CoreServiceTypes.ListStorageResponse) {};
-
     /*
     Register a new feature to the metadata store, or update an existing feature.
     If any validation errors occur, only the first encountered error will be returned.
@@ -109,19 +97,6 @@ message CoreServiceTypes {
 
   message ListFeaturesResponse {
       repeated feast.specs.FeatureSpec features = 1;
-  }
-
-  // Storage spec retrieval
-  message GetStorageRequest {
-      repeated string ids = 1;
-  }
-
-  message GetStorageResponse {
-      repeated feast.specs.StorageSpec storageSpecs = 1;
-  }
-
-  message ListStorageResponse {
-      repeated feast.specs.StorageSpec storageSpecs = 1;
   }
 
   // Entity registration response

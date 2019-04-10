@@ -37,11 +37,9 @@ Valid resources include:
 - entity
 - feature
 - featureGroup
-- storage
 
 Examples:
 - feast apply entity entity.yml
-- feast apply storage storage1.yml storage2.yml
 - feast apply feature *-feature.yml`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
@@ -90,8 +88,6 @@ func apply(ctx context.Context, coreCli core.CoreServiceClient, resource string,
 		return applyFeatureGroup(ctx, coreCli, yml)
 	case "entity":
 		return applyEntity(ctx, coreCli, yml)
-	case "storage":
-		return applyStorage(ctx, coreCli, yml)
 	default:
 		return "", fmt.Errorf("invalid resource %s: please choose one of [feature, featureGroup, entity, storage]", resource)
 	}
@@ -122,15 +118,6 @@ func applyEntity(ctx context.Context, coreCli core.CoreServiceClient, yml []byte
 	}
 	_, err = coreCli.ApplyEntity(ctx, es)
 	return es.GetName(), err
-}
-
-func applyStorage(ctx context.Context, coreCli core.CoreServiceClient, yml []byte) (string, error) {
-	ss, err := parse.YamlToStorageSpec(yml)
-	if err != nil {
-		return "", err
-	}
-	_, err = coreCli.ApplyStorage(ctx, ss)
-	return ss.GetId(), err
 }
 
 func isYaml(path string) bool {
