@@ -14,7 +14,8 @@ presubmits:
       - image: us.gcr.io/kf-feast/gcloud-argo:1.0.0
         args: ["make", "test-integration", "ID=$PULL_NUMBER", "TYPE=PR"]
         imagePullPolicy: Always
-    trigger: integration-batch
+    trigger: (?m)integration-batch
+    rerun_command: integration-batch
 postsubmits:
   gojek/feast:
   - name: postsubmit-unit-tests
@@ -31,7 +32,6 @@ postsubmits:
       - image: us.gcr.io/kf-feast/gcloud-argo:1.0.0
         args: ["make", "test-integration", "ID=$PULL_BASE_REF", "TYPE=GITREF"]
         imagePullPolicy: Always
-    trigger: integration-batch
 tide:
   queries:
   - repos:

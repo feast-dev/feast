@@ -31,17 +31,6 @@ then
     git checkout pull_"${PULL_NUMBER}"
 fi
 
-echo "connecting to test cluster..."
-gcloud container clusters get-credentials primary-test-cluster --zone us-central1-a --project kf-feast
-echo "testing connection to argo..."
-argo list
-if [ $? -ne 0 ]
-then
-    echo "failed to connect to argo"
-    echo "exiting"
-    exit 1
-fi
-
 echo "sha:"
 git rev-parse HEAD
 echo ""

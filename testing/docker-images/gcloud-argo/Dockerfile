@@ -1,6 +1,6 @@
 FROM debian:stretch
 
-RUN apt-get update && apt-get install -y make curl gnupg wget python
+RUN apt-get update && apt-get install -y make curl gnupg wget python git
 
 # Install kubectl gcloud and argo
 RUN wget -qO- https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-241.0.0-linux-x86_64.tar.gz | tar xzf - \
