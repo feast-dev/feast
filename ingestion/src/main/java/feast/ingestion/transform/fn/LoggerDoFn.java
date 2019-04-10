@@ -17,7 +17,6 @@
 
 package feast.ingestion.transform.fn;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
@@ -46,7 +45,7 @@ public class LoggerDoFn extends DoFn<Message, Void> {
     String message;
     try {
       message = prefix + printer.print(context.element());
-    } catch (InvalidProtocolBufferException e) {
+    } catch (Exception e) {
       log.error(e.getMessage(), e);
       message = prefix + context.element().toString();
     }
