@@ -22,7 +22,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/gojek/feast/cli/feast/pkg/util"
+	"github.com/gojek/feast/cli/feast/pkg/timeutil"
 	"github.com/gojek/feast/protos/generated/go/feast/core"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -38,7 +38,6 @@ var listCmd = &cobra.Command{
 Valid resources include:
 - entities
 - features
-- storage
 - jobs
 
 Examples:
@@ -73,12 +72,10 @@ func list(resource string) error {
 		return listFeatures(ctx, core.NewCoreServiceClient(coreConn))
 	case "entities":
 		return listEntities(ctx, core.NewCoreServiceClient(coreConn))
-	case "storage":
-		return listStorage(ctx, core.NewCoreServiceClient(coreConn))
 	case "jobs":
 		return listJobs(ctx, core.NewJobServiceClient(coreConn))
 	default:
-		return fmt.Errorf("invalid resource %s: please choose one of [features, entities, storage, jobs]", resource)
+		return fmt.Errorf("invalid resource %s: please choose one of [features, entities, jobs]", resource)
 	}
 }
 
@@ -116,23 +113,6 @@ func listEntities(ctx context.Context, cli core.CoreServiceClient) error {
 	return nil
 }
 
-func listStorage(ctx context.Context, cli core.CoreServiceClient) error {
-	response, err := cli.ListStorage(ctx, &empty.Empty{})
-	if err != nil {
-		return err
-	}
-	w := new(tabwriter.Writer)
-	w.Init(os.Stdout, 0, 8, 2, ' ', 0)
-	fmt.Fprintf(w, "ID\tTYPE\n")
-	fmt.Fprintf(w, "--\t----\t\n")
-	for _, feat := range response.GetStorageSpecs() {
-		fmt.Fprintf(w, strings.Join(
-			[]string{feat.Id, feat.Type}, "\t")+"\n")
-	}
-	w.Flush()
-	return nil
-}
-
 func listJobs(ctx context.Context, cli core.JobServiceClient) error {
 	response, err := cli.ListJobs(ctx, &empty.Empty{})
 	if err != nil {
@@ -144,7 +124,7 @@ func listJobs(ctx context.Context, cli core.JobServiceClient) error {
 	fmt.Fprintf(w, "------\t----\t------\t------\t---\n")
 	for _, job := range response.GetJobs() {
 		fmt.Fprintf(w, strings.Join(
-			[]string{job.Id, job.Type, job.Runner, job.Status, util.ParseAge(*job.Created)}, "\t")+"\n")
+			[]string{job.Id, job.Type, job.Runner, job.Status, timeutil.DurationUntilNowInHumanFormat(*job.Created)}, "\t")+"\n")
 	}
 	w.Flush()
 	return nil

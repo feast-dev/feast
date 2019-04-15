@@ -75,18 +75,6 @@ func YamlToFeatureGroupSpec(in []byte) (*specs.FeatureGroupSpec, error) {
 	return &fgs, err
 }
 
-// YamlToStorageSpec parses the given yaml and returns the corresponding
-// storage spec, if possible.
-func YamlToStorageSpec(in []byte) (*specs.StorageSpec, error) {
-	j, err := yaml.YAMLToJSON(in)
-	if err != nil {
-		return nil, err
-	}
-	var ss specs.StorageSpec
-	err = json.Unmarshal(j, &ss)
-	return &ss, err
-}
-
 // YamlToImportSpec parses the given yaml and returns the corresponding import
 // spec, if possible.
 func YamlToImportSpec(in []byte) (*specs.ImportSpec, error) {

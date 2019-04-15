@@ -1,0 +1,19 @@
+type: file.csv
+sourceOptions:
+  path: gs://it-feast-storage/test-cases/myentity.csv
+entities:
+  - myentity
+schema:
+  entityIdColumn: entity
+  timestampColumn: ts
+  fields:
+    - name: entity
+    - name: ts
+    - name: feature1
+      featureId: myentity.feature_double_redis
+    - name: feature2
+      featureId: myentity.feature_float_redis
+    - name: feature3
+      featureId: myentity.feature_int32_redis
+    - name: feature4
+      featureId: myentity.feature_int64_redis

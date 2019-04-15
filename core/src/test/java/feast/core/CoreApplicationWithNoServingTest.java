@@ -38,7 +38,7 @@ import org.springframework.test.context.junit4.SpringRunner;
  */
 @RunWith(SpringRunner.class)
 @SpringBootTest(properties = {
-    "feast.jobs.workspace=${java.io.tmpdir}${random.uuid}",
+    "feast.jobs.workspace=${java.io.tmpdir}/${random.uuid}",
     "spring.datasource.url=jdbc:h2:mem:testdb",
     "feast.store.warehouse.type=file.json",
     "feast.store.warehouse.options={\"path\":\"/tmp/foobar\"}",
