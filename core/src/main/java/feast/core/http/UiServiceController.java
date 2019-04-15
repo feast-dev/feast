@@ -31,6 +31,7 @@ import feast.core.UIServiceProto.UIServiceTypes.ListFeatureGroupsResponse;
 import feast.core.UIServiceProto.UIServiceTypes.ListFeaturesResponse;
 import feast.core.UIServiceProto.UIServiceTypes.ListStorageResponse;
 import feast.core.UIServiceProto.UIServiceTypes.StorageDetail;
+import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureGroupInfo;
 import feast.core.model.FeatureInfo;
@@ -99,8 +100,10 @@ public class UiServiceController {
     try {
       FeatureInfo featureInfo = specService.getFeatures(Arrays.asList(id)).get(0);
       FeatureInfo resolved = featureInfo.resolve();
+      StorageSpecs storageSpecs = specService.getStorageSpecs();
+      FeatureDetail featureDetail = resolved.getFeatureDetail(storageSpecs);
       return GetFeatureResponse.newBuilder()
-          .setFeature(resolved.getFeatureDetail(specService.getStorageSpecs()))
+          .setFeature(featureDetail)
           .setRawSpec(featureInfo.getFeatureSpec())
           .build();
     } catch (Exception e) {
