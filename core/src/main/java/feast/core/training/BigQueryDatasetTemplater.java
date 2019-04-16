@@ -70,8 +70,10 @@ public class BigQueryDatasetTemplater {
       throw new NoSuchElementException("features not found: " + featureIds);
     }
 
+    assert featureInfos.size() > 0;
     String tableId = getBqTableId(featureInfos.get(0));
-    Features features = new Features(featureIds, tableId);
+    String entityName = featureInfos.get(0).getEntity().getName();
+    Features features = new Features(featureIds, tableId, entityName);
 
     String startDateStr = formatDateString(startDate);
     String endDateStr = formatDateString(endDate);
@@ -117,9 +119,11 @@ public class BigQueryDatasetTemplater {
     final List<String> columns;
     final String tableId;
 
-    public Features(List<String> featureIds, String tableId) {
-      this.columns = featureIds.stream()
-          .map(f -> f.replace(".", "_"))
+    Features(List<String> featureIds, String tableId, String entityName) {
+      // columns represent the column name in BigQuery
+      // feature with id "myentity.myfeature" will be represented as column "myfeature" in BigQuery
+      columns = featureIds.stream()
+          .map(f -> f.replace(".", "_").replace(entityName + "_", ""))
           .collect(Collectors.toList());
       this.tableId = tableId;
     }

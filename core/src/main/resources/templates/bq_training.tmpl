@@ -1,11 +1,9 @@
 SELECT
-  {{ feature_set.tableId }}.id,
-  {{ feature_set.tableId }}.event_timestamp
-  {% for feature in feature_set.columns -%}
-  ,{{ feature }}
-  {%- endfor %}
+  id,
+  event_timestamp{%- if feature_set.columns | length > 0 %},{%- endif %}
+  {{ feature_set.columns | join(',') }}
 FROM
-  {{ feature_set.tableId }}
+  `{{ feature_set.tableId }}`
 WHERE event_timestamp >= TIMESTAMP("{{ start_date }}") AND event_timestamp <= TIMESTAMP(DATETIME_ADD("{{ end_date }}", INTERVAL 1 DAY))
 {% if limit is not none -%}
 LIMIT {{ limit }}
