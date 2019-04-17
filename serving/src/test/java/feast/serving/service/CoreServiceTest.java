@@ -17,14 +17,12 @@
 
 package feast.serving.service;
 
-import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.everyItem;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.collection.IsIn.isIn;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 import feast.core.CoreServiceGrpc.CoreServiceImplBase;
@@ -32,8 +30,6 @@ import feast.core.CoreServiceProto.CoreServiceTypes.GetEntitiesRequest;
 import feast.core.CoreServiceProto.CoreServiceTypes.GetEntitiesResponse;
 import feast.core.CoreServiceProto.CoreServiceTypes.GetFeaturesRequest;
 import feast.core.CoreServiceProto.CoreServiceTypes.GetFeaturesResponse;
-import feast.core.CoreServiceProto.CoreServiceTypes.GetStorageRequest;
-import feast.core.CoreServiceProto.CoreServiceTypes.GetStorageResponse;
 import feast.core.CoreServiceProto.CoreServiceTypes.ListEntitiesResponse;
 import feast.core.CoreServiceProto.CoreServiceTypes.ListFeaturesResponse;
 import feast.serving.exception.SpecRetrievalException;
@@ -274,61 +270,6 @@ public class CoreServiceTest {
     client.getAllFeatureSpecs();
   }
 
-  @Test
-  public void getServingStorageSpec_shouldSendCorrectRequest() {
-    AtomicReference<GetStorageRequest> deliveredRequest = new AtomicReference<>();
-    CoreServiceImplBase service =
-        new CoreServiceImplBase() {
-          @Override
-          public void getStorage(
-              GetStorageRequest request, StreamObserver<GetStorageResponse> responseObserver) {
-            deliveredRequest.set(request);
-            responseObserver.onNext(
-                GetStorageResponse.newBuilder()
-                    .addStorageSpecs(getFakeStorageSpec())
-                    .build());
-            responseObserver.onCompleted();
-          }
-        };
-    serviceRegistry.addService(service);
-    client.getServingStorageSpec();
-
-    List<String> expected = Lists.newArrayList(FeastServing.SERVING_STORAGE_ID);
-    List<String> actual = deliveredRequest.get().getIdsList();
-    assertThat(actual, containsInAnyOrder(expected.toArray()));
-  }
-
-  @Test
-  public void getServingStorageSpec_shouldReturnRequestedStorageSpec() {
-    AtomicReference<GetStorageRequest> deliveredRequest = new AtomicReference<>();
-    CoreServiceImplBase service =
-        new CoreServiceImplBase() {
-          @Override
-          public void getStorage(
-              GetStorageRequest request, StreamObserver<GetStorageResponse> responseObserver) {
-            deliveredRequest.set(request);
-            responseObserver.onNext(
-                GetStorageResponse.newBuilder()
-                    .addStorageSpecs(getFakeStorageSpec())
-                    .build());
-            responseObserver.onCompleted();
-          }
-        };
-
-    serviceRegistry.addService(service);
-
-    StorageSpec result = client.getServingStorageSpec();
-
-    assertThat(result, equalTo(getFakeStorageSpec()));
-  }
-
-  @Test
-  public void getStorageSpecs_shouldThrowSpecsRetrievalExceptionWhenErrorHappen() {
-    expectedException.expect(SpecRetrievalException.class);
-    expectedException.expectMessage("Unable to retrieve storage spec");
-    expectedException.expectCause(instanceOf(StatusRuntimeException.class));
-    client.getServingStorageSpec();
-  }
 
   private Map<String, FeatureSpec> getFakeFeatureSpecs() {
     FeatureSpec spec1 =

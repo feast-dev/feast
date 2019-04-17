@@ -98,11 +98,6 @@ public class FakeSpecStorage implements SpecStorage {
   }
 
   @Override
-  public StorageSpec getServingStorageSpec() {
-    return null;
-  }
-
-  @Override
   public boolean isConnected() {
     return true;
   }

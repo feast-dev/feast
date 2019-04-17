@@ -90,19 +90,6 @@ public class CachedSpecStorage implements SpecStorage {
   }
 
   @Override
-  public StorageSpec getServingStorageSpec() {
-    if (storageSpec == null) {
-      try {
-        storageSpec = coreService.getServingStorageSpec();
-      } catch (Exception e) {
-        log.error("Error while retrieving storage spec: {}", e);
-        throw new SpecRetrievalException("Error while retrieving storage spec", e);
-      }
-    }
-    return storageSpec;
-  }
-
-  @Override
   public boolean isConnected() {
     return coreService.isConnected();
   }
@@ -116,7 +103,5 @@ public class CachedSpecStorage implements SpecStorage {
 
     Map<String, EntitySpec> entitySpecMap = coreService.getAllEntitySpecs();
     entitySpecCache.putAll(entitySpecMap);
-
-    getServingStorageSpec();
   }
 }

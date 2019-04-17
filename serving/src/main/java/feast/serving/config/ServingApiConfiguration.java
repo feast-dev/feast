@@ -17,8 +17,11 @@
 
 package feast.serving.config;
 
+import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import feast.serving.service.CachedSpecStorage;
 import feast.serving.service.CoreService;
 import feast.serving.service.FeatureStorageRegistry;
@@ -26,7 +29,10 @@ import feast.serving.service.SpecStorage;
 import feast.specs.StorageSpecProto.StorageSpec;
 import io.opentracing.Tracer;
 import io.opentracing.contrib.concurrent.TracedExecutorService;
+import java.lang.reflect.Type;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -40,12 +46,24 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.protobuf.ProtobufJsonFormatHttpMessageConverter;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-/** Global bean configuration. */
+/**
+ * Global bean configuration.
+ */
 @Slf4j
 @Configuration
 public class ServingApiConfiguration implements WebMvcConfigurer {
 
-  @Autowired private ProtobufJsonFormatHttpMessageConverter protobufConverter;
+  @Autowired
+  private ProtobufJsonFormatHttpMessageConverter protobufConverter;
+
+  private static Map<String, String> convertJsonStringToMap(String jsonString) {
+    if (jsonString == null || jsonString.equals("") || jsonString.equals("{}")) {
+      return Collections.emptyMap();
+    }
+    Type stringMapType = new TypeToken<Map<String, String>>() {
+    }.getType();
+    return new Gson().fromJson(jsonString, stringMapType);
+  }
 
   @Bean
   public AppConfig getAppConfig(
@@ -86,10 +104,21 @@ public class ServingApiConfiguration implements WebMvcConfigurer {
 
   @Bean
   public FeatureStorageRegistry getFeatureStorageRegistry(
-      SpecStorage specStorage, AppConfig appConfig, Tracer tracer) {
+      @Value("${feast.store.serving.type}") String storageType,
+      @Value("${feast.store.serving.options}") String storageOptions,
+      AppConfig appConfig, Tracer tracer) {
+    storageOptions = Strings.isNullOrEmpty(storageOptions) ? "{}" : storageOptions;
+    Map<String, String> optionsMap = convertJsonStringToMap(storageOptions);
+    StorageSpec storageSpec = StorageSpec.getDefaultInstance();
+    if (Strings.isNullOrEmpty(storageType)) {
+      storageSpec = StorageSpec.newBuilder()
+          .setId("SERVING")
+          .setType(storageType)
+          .putAllOptions(optionsMap)
+          .build();
+    }
     FeatureStorageRegistry registry = new FeatureStorageRegistry(appConfig, tracer);
     try {
-      StorageSpec storageSpec = specStorage.getServingStorageSpec();
       registry.connect(storageSpec);
     } catch (Exception e) {
       log.error(

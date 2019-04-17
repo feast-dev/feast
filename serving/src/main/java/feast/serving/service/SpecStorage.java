@@ -55,13 +55,6 @@ public interface SpecStorage {
   Map<String, FeatureSpec> getFeatureSpecs(Iterable<String> featureIds);
 
   /**
-   * Get the serving {@link StorageSpec} from Core API.
-   *
-   * @return {@link StorageSpec}
-   */
-  StorageSpec getServingStorageSpec();
-
-  /**
    * Check whether connection to spec storage is ready.
    *
    * @return return true if it is ready. Otherwise, return false.

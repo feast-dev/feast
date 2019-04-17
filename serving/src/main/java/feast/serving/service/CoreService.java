@@ -23,14 +23,11 @@ import feast.core.CoreServiceProto.CoreServiceTypes.GetEntitiesRequest;
 import feast.core.CoreServiceProto.CoreServiceTypes.GetEntitiesResponse;
 import feast.core.CoreServiceProto.CoreServiceTypes.GetFeaturesRequest;
 import feast.core.CoreServiceProto.CoreServiceTypes.GetFeaturesResponse;
-import feast.core.CoreServiceProto.CoreServiceTypes.GetStorageRequest;
-import feast.core.CoreServiceProto.CoreServiceTypes.GetStorageResponse;
 import feast.core.CoreServiceProto.CoreServiceTypes.ListEntitiesResponse;
 import feast.core.CoreServiceProto.CoreServiceTypes.ListFeaturesResponse;
 import feast.serving.exception.SpecRetrievalException;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.specs.StorageSpecProto.StorageSpec;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -117,19 +114,6 @@ public class CoreService implements SpecStorage {
     } catch (StatusRuntimeException e) {
       log.error("GRPC error in getFeatureSpecs: {}", e.getStatus());
       throw new SpecRetrievalException("Unable to retrieve feature specs", e);
-    }
-  }
-
-  @Override
-  public StorageSpec getServingStorageSpec() {
-    try {
-      GetStorageRequest request = GetStorageRequest.newBuilder()
-          .addIds(FeastServing.SERVING_STORAGE_ID).build();
-      GetStorageResponse response = blockingStub.getStorage(request);
-      return response.getStorageSpecs(0);
-    } catch (StatusRuntimeException e) {
-      log.error("GRPC error in getServingStorageSpec: {}", e.getStatus());
-      throw new SpecRetrievalException("Unable to retrieve storage spec", e);
     }
   }
 

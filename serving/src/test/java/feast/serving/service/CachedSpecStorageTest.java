@@ -85,28 +85,4 @@ public class CachedSpecStorageTest {
     assertThat(result.size(), equalTo(1));
     assertThat(result2.size(), equalTo(1));
   }
-
-  @Test
-  public void whenPopulateCache_shouldCacheServingStorageSpec() {
-    Map<String, FeatureSpec> featureSpecMap = new HashMap<>();
-    featureSpecMap.put("feature_1", mock(FeatureSpec.class));
-
-    Map<String, StorageSpec> storageSpecMap = new HashMap<>();
-    storageSpecMap.put("storage_1", mock(StorageSpec.class));
-
-    Map<String, EntitySpec> entitySpecMap = new HashMap<>();
-    entitySpecMap.put("entity_1", mock(EntitySpec.class));
-
-    StorageSpec storageSpec = StorageSpec.newBuilder().setId("SERVING").build();
-
-    when(coreService.getAllFeatureSpecs()).thenReturn(featureSpecMap);
-    when(coreService.getAllEntitySpecs()).thenReturn(entitySpecMap);
-    when(coreService.getServingStorageSpec())
-        .thenReturn(storageSpec);
-
-    cachedSpecStorage.populateCache();
-    assertEquals(storageSpec, cachedSpecStorage.getServingStorageSpec());
-    assertEquals(storageSpec, cachedSpecStorage.getServingStorageSpec());
-    verify(coreService, times(1)).getServingStorageSpec();
-  }
 }
