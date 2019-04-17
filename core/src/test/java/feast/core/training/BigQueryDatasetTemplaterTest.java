@@ -96,6 +96,7 @@ public class BigQueryDatasetTemplaterTest {
         Timestamps.fromSeconds(Instant.parse("2019-01-01T00:00:00.00Z").getEpochSecond());
     int limit = 100;
     String featureId = "myentity.feature1";
+    String expectedColumnName = "feature1";
     String tableId = "project.dataset.myentity";
 
     when(featureInfoRespository.findAllById(any(List.class)))
@@ -123,7 +124,7 @@ public class BigQueryDatasetTemplaterTest {
 
     Features features = (Features) actualContext.get("feature_set");
     assertThat(features.getColumns().size(), equalTo(1));
-    assertThat(features.getColumns().get(0), equalTo(featureId.replace(".", "_")));
+    assertThat(features.getColumns().get(0), equalTo(expectedColumnName));
     assertThat(features.getTableId(), equalTo(tableId));
   }
 
