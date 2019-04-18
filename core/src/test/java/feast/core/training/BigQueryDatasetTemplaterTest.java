@@ -96,11 +96,11 @@ public class BigQueryDatasetTemplaterTest {
         Timestamps.fromSeconds(Instant.parse("2019-01-01T00:00:00.00Z").getEpochSecond());
     int limit = 100;
     String featureId = "myentity.feature1";
-    String expectedColumnName = "feature1";
+    String featureName = "feature1";
     String tableId = "project.dataset.myentity";
 
     when(featureInfoRespository.findAllById(any(List.class)))
-        .thenReturn(Collections.singletonList(createFeatureInfo(featureId, tableId)));
+        .thenReturn(Collections.singletonList(createFeatureInfo(featureId, featureName, tableId)));
 
     FeatureSet fs =
         FeatureSet.newBuilder()
@@ -124,7 +124,7 @@ public class BigQueryDatasetTemplaterTest {
 
     Features features = (Features) actualContext.get("feature_set");
     assertThat(features.getColumns().size(), equalTo(1));
-    assertThat(features.getColumns().get(0), equalTo(expectedColumnName));
+    assertThat(features.getColumns().get(0), equalTo(featureName));
     assertThat(features.getTableId(), equalTo(tableId));
   }
 
@@ -132,14 +132,17 @@ public class BigQueryDatasetTemplaterTest {
   public void shouldRenderCorrectQuery1() throws Exception {
     String tableId1 = "project.dataset.myentity";
     String featureId1 = "myentity.feature1";
+    String featureName1 = "feature1";
     String featureId2 = "myentity.feature2";
+    String featureName2 = "feature2";
 
-    FeatureInfo featureInfo1 = createFeatureInfo(featureId1, tableId1);
-    FeatureInfo featureInfo2 = createFeatureInfo(featureId2, tableId1);
+    FeatureInfo featureInfo1 = createFeatureInfo(featureId1, featureName1, tableId1);
+    FeatureInfo featureInfo2 = createFeatureInfo(featureId2, featureName2, tableId1);
 
     String tableId2 = "project.dataset.myentity";
     String featureId3 = "myentity.feature3";
-    FeatureInfo featureInfo3 = createFeatureInfo(featureId3, tableId2);
+    String featureName3 = "feature3";
+    FeatureInfo featureInfo3 = createFeatureInfo(featureId3, featureName3, tableId2);
 
     when(featureInfoRespository.findAllById(any(List.class)))
         .thenReturn(Arrays.asList(featureInfo1, featureInfo2, featureInfo3));
@@ -167,8 +170,9 @@ public class BigQueryDatasetTemplaterTest {
 
     String tableId = "project.dataset.myentity";
     String featureId = "myentity.feature1";
+    String featureName = "feature1";
 
-    featureInfos.add(createFeatureInfo(featureId, tableId));
+    featureInfos.add(createFeatureInfo(featureId, featureName, tableId));
     featureIds.add(featureId);
 
     when(featureInfoRespository.findAllById(any(List.class))).thenReturn(featureInfos);
@@ -198,7 +202,7 @@ public class BigQueryDatasetTemplaterTest {
     assertThat(query, equalTo(expQuery));
   }
 
-  private FeatureInfo createFeatureInfo(String id, String tableId) {
+  private FeatureInfo createFeatureInfo(String featureId, String featureName, String tableId) {
     StorageSpec storageSpec =
         StorageSpec.newBuilder()
             .setId("BQ")
@@ -210,11 +214,12 @@ public class BigQueryDatasetTemplaterTest {
 
     FeatureSpec fs =
         FeatureSpec.newBuilder()
-            .setId(id)
+            .setId(featureId)
+            .setName(featureName)
             .setDataStores(DataStores.newBuilder().setWarehouse(DataStore.newBuilder().setId("BQ")))
             .build();
 
-    EntitySpec entitySpec = EntitySpec.newBuilder().setName(id.split("\\.")[0]).build();
+    EntitySpec entitySpec = EntitySpec.newBuilder().setName(featureId.split("\\.")[0]).build();
     EntityInfo entityInfo = new EntityInfo(entitySpec);
     return new FeatureInfo(fs, entityInfo, null, storageInfo, null);
   }
