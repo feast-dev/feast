@@ -95,6 +95,8 @@ postgresql:
   provision: true
   persistence:
     enabled: false
+  # Hardcoded password here because this Feast is only for testing
+  postgresqlPassword: HaeYeeMa7eD1
 
 redis:
   provision: true

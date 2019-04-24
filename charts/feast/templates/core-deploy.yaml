@@ -76,7 +76,7 @@ spec:
             valueFrom:
               secretKeyRef:
                 name: {{ template "postgresql.fullname" . }}
-                key: postgres-password
+                key: postgresql-password
           - name: LOG_TYPE
             value: {{ .Values.core.logType }}
           - name: PROJECT_ID
