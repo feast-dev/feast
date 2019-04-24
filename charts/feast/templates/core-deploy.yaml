@@ -37,19 +37,21 @@ spec:
             path: /ping
             port: {{ .Values.core.service.http.targetPort }}
             scheme: HTTP
-          initialDelaySeconds: 120
+          initialDelaySeconds: {{ .Values.core.livenessProbe.initialDelaySeconds }}
           periodSeconds: 10
           successThreshold: 1
           timeoutSeconds: 5
+          failureThreshold: {{ .Values.core.livenessProbe.failureThreshold }}
         readinessProbe:
           httpGet:
             path: /healthz
             port: {{ .Values.core.service.http.targetPort }}
             scheme: HTTP
-          initialDelaySeconds: 120
-          periodSeconds: 10
+          initialDelaySeconds: {{ .Values.core.readinessProbe.initialDelaySeconds }}
+          periodSeconds: 5
           successThreshold: 1
-          timeoutSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: {{ .Values.core.readinessProbe.failureThreshold }}
         resources:
           requests:
             cpu: {{ .Values.core.resources.requests.cpu }}
@@ -59,9 +61,9 @@ spec:
             memory: {{ .Values.core.resources.limits.memory }}
         {{- if .Values.serviceAccount }}
         volumeMounts:
-          - mountPath: "/etc/gcloud/service-accounts"
-            name: "{{ .Values.serviceAccount.name }}"
-            readOnly: false
+          - name: "{{ .Values.serviceAccount.name }}"
+            mountPath: "/etc/gcloud/service-accounts"
+            readOnly: true
         {{- end }}
         env:
           - name: GRPC_PORT
@@ -123,9 +125,9 @@ spec:
           {{- end }}
           {{- if .Values.serviceAccount }}
           - name: GOOGLE_APPLICATION_CREDENTIALS
-            value: /etc/gcloud/service-accounts/key.json
+            value: /etc/gcloud/service-accounts/{{ .Values.serviceAccount.key }}
       volumes:
         - name: "{{ .Values.serviceAccount.name }}"
           secret:
-            secretName: "{{ .Values.serviceAccount.key }}"
+            secretName: "{{ .Values.serviceAccount.name }}"
           {{- end }}

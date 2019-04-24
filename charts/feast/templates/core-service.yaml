@@ -8,10 +8,12 @@ metadata:
     chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+  {{- with .Values.core.service.annotations }}
   annotations:
-    cloud.google.com/load-balancer-type: "Internal"
+{{ toYaml . | indent 4 }}
+  {{- end }}
 spec:
-  type: LoadBalancer
+  type: {{ .Values.core.service.type }}
   {{- if .Values.core.service.extIPAdr }}
   loadBalancerIP: {{ .Values.core.service.extIPAdr }}
   {{- end }}
