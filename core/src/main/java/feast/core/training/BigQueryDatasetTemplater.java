@@ -22,19 +22,15 @@ import feast.core.DatasetServiceProto.FeatureSet;
 import feast.core.dao.FeatureInfoRepository;
 import feast.core.model.FeatureInfo;
 import feast.core.model.StorageInfo;
-import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
+import lombok.Getter;
+
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
-import lombok.Getter;
 
 public class BigQueryDatasetTemplater {
   private final FeatureInfoRepository featureInfoRepository;
@@ -59,19 +55,17 @@ public class BigQueryDatasetTemplater {
    * @param limit limit
    * @return SQL query for creating training table.
    */
-  public String createQuery(
-      FeatureSet featureSet, Timestamp startDate, Timestamp endDate, long limit) {
+  String createQuery(FeatureSet featureSet, Timestamp startDate, Timestamp endDate, long limit) {
     List<String> featureIds = featureSet.getFeatureIdsList();
     List<FeatureInfo> featureInfos = featureInfoRepository.findAllById(featureIds);
+    Features features = new Features(featureInfos);
+
     if (featureInfos.size() < featureIds.size()) {
       Set<String> foundFeatureIds =
           featureInfos.stream().map(FeatureInfo::getId).collect(Collectors.toSet());
       featureIds.removeAll(foundFeatureIds);
       throw new NoSuchElementException("features not found: " + featureIds);
     }
-
-    String tableId = getBqTableId(featureInfos.get(0));
-    Features features = new Features(featureIds, tableId);
 
     String startDateStr = formatDateString(startDate);
     String endDateStr = formatDateString(endDate);
@@ -90,7 +84,7 @@ public class BigQueryDatasetTemplater {
     return jinjava.render(template, context);
   }
 
-  private String getBqTableId(FeatureInfo featureInfo) {
+  private static String getBqTableId(FeatureInfo featureInfo) {
     StorageInfo whStorage = featureInfo.getWarehouseStore();
 
     String type = whStorage.getType();
@@ -117,12 +111,9 @@ public class BigQueryDatasetTemplater {
     final List<String> columns;
     final String tableId;
 
-    public Features(List<String> featureIds, String tableId) {
-      this.columns = featureIds.stream()
-          .map(f -> f.replace(".", "_"))
-          .collect(Collectors.toList());
-      this.tableId = tableId;
+    Features(List<FeatureInfo> featureInfos) {
+      columns = featureInfos.stream().map(FeatureInfo::getName).collect(Collectors.toList());
+      tableId = featureInfos.size() > 0 ? getBqTableId(featureInfos.get(0)) : "";
     }
   }
-
 }
