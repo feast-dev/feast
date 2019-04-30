@@ -74,8 +74,10 @@ func list(resource string) error {
 		return listEntities(ctx, core.NewCoreServiceClient(coreConn))
 	case "jobs":
 		return listJobs(ctx, core.NewJobServiceClient(coreConn))
+	case "storage":
+		return listStorage(ctx, core.NewCoreServiceClient(coreConn))
 	default:
-		return fmt.Errorf("invalid resource %s: please choose one of [features, entities, jobs]", resource)
+		return fmt.Errorf("invalid resource %s: please choose one of [features, storage, entities, jobs]", resource)
 	}
 }
 
@@ -125,6 +127,24 @@ func listJobs(ctx context.Context, cli core.JobServiceClient) error {
 	for _, job := range response.GetJobs() {
 		fmt.Fprintf(w, strings.Join(
 			[]string{job.Id, job.Type, job.Runner, job.Status, timeutil.DurationUntilNowInHumanFormat(*job.Created)}, "\t")+"\n")
+	}
+	w.Flush()
+	return nil
+}
+
+// This function is deprecated, and may be removed in subsequent versions.
+func listStorage(ctx context.Context, cli core.CoreServiceClient) error {
+	response, err := cli.ListStorage(ctx, &empty.Empty{})
+	if err != nil {
+		return err
+	}
+	w := new(tabwriter.Writer)
+	w.Init(os.Stdout, 0, 8, 2, ' ', 0)
+	fmt.Fprintf(w, "ID\tTYPE\n")
+	fmt.Fprintf(w, "--\t----\t\n")
+	for _, feat := range response.GetStorageSpecs() {
+		fmt.Fprintf(w, strings.Join(
+			[]string{feat.Id, feat.Type}, "\t")+"\n")
 	}
 	w.Flush()
 	return nil

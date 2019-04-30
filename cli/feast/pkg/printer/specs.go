@@ -56,3 +56,22 @@ func PrintEntityDetail(entityDetail *core.UIServiceTypes_EntityDetail) string {
 	fmt.Println(out)
 	return out
 }
+
+// PrintStorageDetail prints the details about the feature.
+// Prints and returns the resultant formatted string.
+// This function is deprecated, and may be removed in subsequent versions.
+func PrintStorageDetail(storageDetail *core.UIServiceTypes_StorageDetail) string {
+	spec := storageDetail.GetSpec()
+	lines := []string{
+		fmt.Sprintf("%s:\t%s", "Id", spec.GetId()),
+		fmt.Sprintf("%s:\t%s", "Type", spec.GetType()),
+		fmt.Sprintf("Options:"),
+	}
+	for k, v := range spec.GetOptions() {
+		lines = append(lines, fmt.Sprintf("  %s: %s", k, v))
+	}
+	lines = append(lines, fmt.Sprintf("%s:\t%s", "LastUpdated", timeutil.FormatToRFC3339(*storageDetail.GetLastUpdated())))
+	out := strings.Join(lines, "\n")
+	fmt.Println(out)
+	return out
+}

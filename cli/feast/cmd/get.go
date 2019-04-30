@@ -53,10 +53,12 @@ func get(resource string, id string) error {
 		return getFeature(ctx, core.NewUIServiceClient(coreConn), id)
 	case "entity":
 		return getEntity(ctx, core.NewUIServiceClient(coreConn), id)
+	case "storage":
+		return getStorage(ctx, core.NewUIServiceClient(coreConn), id)
 	case "job":
 		return getJob(ctx, core.NewJobServiceClient(coreConn), id)
 	default:
-		return fmt.Errorf("invalid resource %s: please choose one of [features, entities, jobs]", resource)
+		return fmt.Errorf("invalid resource %s: please choose one of [features, entities, storage, jobs]", resource)
 	}
 }
 
@@ -75,6 +77,16 @@ func getEntity(ctx context.Context, cli core.UIServiceClient, id string) error {
 		return err
 	}
 	printer.PrintEntityDetail(response.GetEntity())
+	return nil
+}
+
+// This function is deprecated, and may be removed in subsequent versions.
+func getStorage(ctx context.Context, cli core.UIServiceClient, id string) error {
+	response, err := cli.GetStorage(ctx, &core.UIServiceTypes_GetStorageRequest{Id: id})
+	if err != nil {
+		return err
+	}
+	printer.PrintStorageDetail(response.GetStorage())
 	return nil
 }
 
