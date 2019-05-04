@@ -47,6 +47,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class ServingApiConfiguration implements WebMvcConfigurer {
 
   @Autowired private ProtobufJsonFormatHttpMessageConverter protobufConverter;
+  private ScheduledExecutorService scheduledExecutorService =
+      Executors.newSingleThreadScheduledExecutor();
 
   @Bean
   public AppConfig getAppConfig(
@@ -67,14 +69,12 @@ public class ServingApiConfiguration implements WebMvcConfigurer {
       @Value("${feast.core.host}") String coreServiceHost,
       @Value("${feast.core.grpc.port}") String coreServicePort,
       @Value("${feast.cacheDurationMinute}") int cacheDurationMinute) {
-    ScheduledExecutorService scheduledExecutorService =
-        Executors.newSingleThreadScheduledExecutor();
     final CachedSpecStorage cachedSpecStorage =
         new CachedSpecStorage(new CoreService(coreServiceHost, Integer.parseInt(coreServicePort)));
 
     // reload all specs including new ones periodically
     scheduledExecutorService.schedule(
-        () -> cachedSpecStorage.populateCache(), cacheDurationMinute, TimeUnit.MINUTES);
+        cachedSpecStorage::populateCache, cacheDurationMinute, TimeUnit.MINUTES);
 
     // load all specs during start up
     try {
