@@ -1,5 +1,4 @@
-[![Build Status](https://travis-ci.com/gojek/feast.svg?branch=master)](https://travis-ci.com/gojek/feast)
-# Feast - Feature Store for Machine Learning
+# Feast - Feature Store for Machine Learning [![Build Status](https://travis-ci.com/gojek/feast.svg?branch=master)](https://travis-ci.com/gojek/feast)
 
 ## Overview
 
