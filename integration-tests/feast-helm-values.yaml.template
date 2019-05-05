@@ -1,6 +1,6 @@
 # Required environment variables to supply for this template:
 # ============================================================
-# - DRONE_BUILD_NUMBER
+# - BUILD_NUMBER
 # - FEAST_IMAGE_TAG
 # - FEAST_WAREHOUSE_DATASET
 #
@@ -27,45 +27,45 @@ core:
         ---
         apiVersion: ambassador/v1
         kind: Mapping
-        name: feast_core_grpc_core_service_mapping_build_${DRONE_BUILD_NUMBER}
+        name: feast_core_grpc_core_service_mapping_build_${BUILD_NUMBER}
         grpc: True
         headers:
           :authority: ${FEAST_CORE_URL}
         prefix: /feast.core.CoreService
         rewrite: /feast.core.CoreService
-        service: feast-${DRONE_BUILD_NUMBER}-core:6565
+        service: feast-${BUILD_NUMBER}-core:6565
         timeout_ms: 60000
         ---
         apiVersion: ambassador/v1
         kind: Mapping
-        name: feast_core_grpc_job_service_mapping_build_${DRONE_BUILD_NUMBER}
+        name: feast_core_grpc_job_service_mapping_build_${BUILD_NUMBER}
         grpc: True
         headers:
           :authority: ${FEAST_CORE_URL}
         prefix: /feast.core.JobService
         rewrite: /feast.core.JobService
-        service: feast-${DRONE_BUILD_NUMBER}-core:6565
+        service: feast-${BUILD_NUMBER}-core:6565
         timeout_ms: 120000
         ---
         apiVersion: ambassador/v1
         kind: Mapping
-        name: feast_core_grpc_ui_service_mapping_build_${DRONE_BUILD_NUMBER}
+        name: feast_core_grpc_ui_service_mapping_build_${BUILD_NUMBER}
         grpc: True
         headers:
           :authority: ${FEAST_CORE_URL}
         prefix: /feast.core.UIService
         rewrite: /feast.core.UIService
-        service: feast-${DRONE_BUILD_NUMBER}-core:6565
+        service: feast-${BUILD_NUMBER}-core:6565
         ---
         apiVersion: ambassador/v1
         kind: Mapping
-        name: feast_core_grpc_dataset_service_mapping_build_${DRONE_BUILD_NUMBER}
+        name: feast_core_grpc_dataset_service_mapping_build_${BUILD_NUMBER}
         grpc: True
         headers:
           :authority: ${FEAST_CORE_URL}
         prefix: /feast.core.DatasetService
         rewrite: /feast.core.DatasetService
-        service: feast-${DRONE_BUILD_NUMBER}-core:6565
+        service: feast-${BUILD_NUMBER}-core:6565
     grpc: 
       port: 6565
       targetPort: 6565
@@ -86,10 +86,10 @@ store:
    type: "stdout"
  warehouse:
    type: "bigquery"
-   options: '{"project": "kf-feast", "dataset": "${FEAST_WAREHOUSE_DATASET}", "tempLocation": "gs://feast-templocation-kf-feast/warehouse_build_${DRONE_BUILD_NUMBER}"}'
+   options: '{"project": "kf-feast", "dataset": "${FEAST_WAREHOUSE_DATASET}", "tempLocation": "gs://feast-templocation-kf-feast/warehouse_build_${BUILD_NUMBER}"}'
  serving:
    type: "redis"
-   options: '{"host": "feast-${DRONE_BUILD_NUMBER}-redis-master", "port": "6379"}'
+   options: '{"host": "feast-${BUILD_NUMBER}-redis-master", "port": "6379"}'
 
 postgresql: 
   provision: true
@@ -121,13 +121,13 @@ serving:
         ---
         apiVersion: ambassador/v1
         kind: Mapping
-        name: feast_serving_grpc_serving_api_mapping_build_${DRONE_BUILD_NUMBER}
+        name: feast_serving_grpc_serving_api_mapping_build_${BUILD_NUMBER}
         grpc: True
         headers:
           :authority: ${FEAST_SERVING_URL}
         prefix: /feast.serving.ServingAPI
         rewrite: /feast.serving.ServingAPI
-        service: feast-${DRONE_BUILD_NUMBER}-serving:6565
+        service: feast-${BUILD_NUMBER}-serving:6565
         timeout_ms: 30000
     grpc: 
       port: 6565
@@ -140,4 +140,4 @@ serving:
 # want to mount the secret of.
 serviceAccount:
   name: feast-service-account
-  key: kf-feast-32465f737896.json
+  key: feast-service-account.json

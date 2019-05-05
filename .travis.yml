@@ -1,0 +1,117 @@
+cache:
+  directories:
+  - $HOME/.m2 
+
+matrix:
+  include:
+  - stage: unit test
+    name: test ingestion
+    language: java
+    jdk: openjdk8
+    install: echo "skip mvn install"
+    script: mvn --projects ingestion --batch-mode test
+
+  - stage: unit test
+    name: test core
+    language: java
+    jdk: openjdk8
+    install: echo "skip mvn install"
+    script: mvn --projects core --batch-mode test 
+
+  - stage: unit test
+    name: test serving
+    language: java
+    jdk: openjdk8
+    install: echo "skip mvn install"
+    script: mvn --projects serving --batch-mode test
+
+  - stage: unit test
+    name: test cli
+    language: go
+    go: 1.12.x
+    env: GO111MODULE=on
+    script: go test ./cli/feast/...
+
+  - stage: build
+    name: build core
+    language: java
+    jdk: openjdk8
+    services: docker
+    before_install: .travis/decrypt_secrets.sh
+    install: . .travis/install_google_cloud_sdk.sh
+    before_script: .travis/prepare_maven_cache_for_docker.sh
+    script: 
+    - docker build --tag=us.gcr.io/kf-feast/feast-core:${TRAVIS_COMMIT} --build-arg=REVISION=${TRAVIS_COMMIT} --file Dockerfiles/core/Dockerfile .
+    - docker push us.gcr.io/kf-feast/feast-core:${TRAVIS_COMMIT}
+    if: type != pull_request
+
+  - stage: build
+    name: build serving
+    language: java
+    jdk: openjdk8
+    services: docker
+    before_install: .travis/decrypt_secrets.sh
+    install: . .travis/install_google_cloud_sdk.sh
+    before_script: .travis/prepare_maven_cache_for_docker.sh
+    script: 
+    - docker build --tag=us.gcr.io/kf-feast/feast-serving:${TRAVIS_COMMIT} --build-arg=REVISION=${TRAVIS_COMMIT} --file Dockerfiles/serving/Dockerfile . 
+    - docker push us.gcr.io/kf-feast/feast-serving:${TRAVIS_COMMIT}
+    if: type != pull_request
+
+  - stage: build
+    name: build cli
+    language: go
+    go: 1.12.x
+    env: 
+    - GO111MODULE=on
+    - FEAST_CLI_GCS_URI=gs://feast-templocation-kf-feast/build_${TRAVIS_BUILD_NUMBER}/cli/feast
+    before_install: .travis/decrypt_secrets.sh
+    install: . .travis/install_google_cloud_sdk.sh
+    script: 
+    - go build -o ./cli/build/feast ./cli/feast
+    - gsutil cp ./cli/build/feast ${FEAST_CLI_GCS_URI}
+    if: type != pull_request
+
+  - stage: integration test
+    name: test batch and streaming import job
+    language: python
+    python: 3.6
+    env:
+    - BATCH_IMPORT_DATA_LOCAL_PATH=${TRAVIS_BUILD_DIR}/integration-tests/testdata/feature_values/ingestion_1.csv
+    - BATCH_IMPORT_DATA_GCS_PATH=gs://feast-templocation-kf-feast/build_${TRAVIS_BUILD_NUMBER}/integration-tests/testdata/feature_values/ingestion_1.csv
+    - FEAST_IMAGE_TAG=${TRAVIS_COMMIT}
+    - FEAST_CLI_GCS_URI=gs://feast-templocation-kf-feast/build_${TRAVIS_BUILD_NUMBER}/cli/feast
+    - FEAST_WAREHOUSE_DATASET=feast_build_${TRAVIS_BUILD_NUMBER}
+    - FEAST_CORE_URI=localhost:6565
+    - FEAST_SERVING_URI=localhost:6566
+    - KAFKA_BROKERS=localhost:9092
+    - KAFKA_TOPICS=feast-topic
+    before_install: .travis/decrypt_secrets.sh
+    install: 
+    - . .travis/install_google_cloud_sdk.sh
+    - . .travis/install_feast_sdk.sh
+    before_script: 
+    - .travis/start_local_feast.sh
+    - .travis/prepare_testdata.sh
+    script: 
+    - .travis/run_batch_import_and_validate.sh
+    - .travis/run_streaming_import_and_validate.sh
+    after_script: .travis/cleanup_testdata.sh
+    if: type != pull_request
+
+  - stage: deployment test
+    name: test helm deployment 
+    language: minimal
+    env:
+    - BUILD_NUMBER=${TRAVIS_BUILD_NUMBER}
+    - FEAST_IMAGE_TAG=${TRAVIS_COMMIT}
+    - FEAST_WAREHOUSE_DATASET=feast_build_${TRAVIS_BUILD_NUMBER}
+    - RELEASE_NAME=feast-build-${TRAVIS_BUILD_NUMBER}
+    before_install: .travis/decrypt_secrets.sh
+    install: 
+    - . .travis/install_google_cloud_sdk.sh
+    - . .travis/install_helm.sh
+    before_script: envsubst < ${TRAVIS_BUILD_DIR}/integration-tests/feast-helm-values.yaml.template > ${TRAVIS_BUILD_DIR}/integration-tests/feast-helm-values.yaml
+    script: helm install --name ${RELEASE_NAME} --wait --timeout 300 ./charts/feast -f ${TRAVIS_BUILD_DIR}/integration-tests/feast-helm-values.yaml
+    after_script: helm delete --purge ${RELEASE_NAME}
+    if: type != pull_request

@@ -4,6 +4,9 @@ scratch*
 ### Local Environment ###
 *local*.env
 
+### Secret ###
+**/service_account.json
+
 ### Gradle ###
 **/.gradle
 !gradle/wrapper/gradle-wrapper.jar
