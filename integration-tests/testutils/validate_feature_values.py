@@ -13,7 +13,9 @@ from testutils.spec import get_entity_name, get_feature_infos
 warnings.simplefilter("ignore")
 
 
-def validate_warehouse(entity_name, feature_infos, feature_values_filepath, dataset):
+def validate_warehouse(
+    entity_name, feature_infos, feature_values_filepath, dataset, project=None
+):
     print("\n[Validating warehouse data]")
 
     expected = pd.read_csv(
@@ -30,7 +32,8 @@ def validate_warehouse(entity_name, feature_infos, feature_values_filepath, data
     #       "ensuring correct value types"
     actual = (
         bq_util.query_to_dataframe(
-            f"SELECT {','.join(expected.columns)} FROM `{dataset}.{entity_name}_view`"
+            f"SELECT {','.join(expected.columns)} FROM `{dataset}.{entity_name}_view`",
+            project=project,
         )
         .sort_values(["id", "event_timestamp"])
         .reset_index(drop=True)
@@ -72,6 +75,7 @@ def main():
     parser.add_argument("--expected-serving-values-file")
     parser.add_argument("--bigquery-dataset-for-warehouse")
     parser.add_argument("--feast-serving-url")
+    parser.add_argument("--project")
     args = parser.parse_args()
 
     feast_client = Client(serving_url=args.feast_serving_url)
@@ -86,6 +90,7 @@ def main():
             feature_infos,
             args.expected_warehouse_values_file,
             args.bigquery_dataset_for_warehouse,
+            args.project,
         )
     else:
         print("\n[Skipping validation of Feast Warehouse data]")
