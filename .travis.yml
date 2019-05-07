@@ -8,21 +8,18 @@ matrix:
     name: test ingestion
     language: java
     jdk: openjdk8
-    install: echo "skip mvn install"
     script: mvn --projects ingestion --batch-mode test
 
   - stage: unit test
     name: test core
     language: java
     jdk: openjdk8
-    install: echo "skip mvn install"
     script: mvn --projects core --batch-mode test 
 
   - stage: unit test
     name: test serving
     language: java
     jdk: openjdk8
-    install: echo "skip mvn install"
     script: mvn --projects serving --batch-mode test
 
   - stage: unit test
