@@ -38,19 +38,21 @@ spec:
             path: /ping
             port: {{ .Values.serving.service.http.targetPort }}
             scheme: HTTP
-          initialDelaySeconds: 60
+          initialDelaySeconds: {{ .Values.serving.livenessProbe.initialDelaySeconds }}
           periodSeconds: 10
           successThreshold: 1
           timeoutSeconds: 5
+          failureThreshold: {{ .Values.serving.livenessProbe.failureThreshold }}
         readinessProbe:
           httpGet:
             path: /healthz
             port: {{ .Values.serving.service.http.targetPort }}
             scheme: HTTP
-          initialDelaySeconds: 100
-          periodSeconds: 10
+          initialDelaySeconds: {{ .Values.serving.readinessProbe.initialDelaySeconds }}
+          periodSeconds: 5
           successThreshold: 1
-          timeoutSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: {{ .Values.serving.readinessProbe.failureThreshold }}
         resources:
           requests:
             cpu: "{{ .Values.serving.resources.requests.cpu }}"

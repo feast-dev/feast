@@ -1,5 +1,4 @@
-![](http://prow.feast.ai/badge.svg?jobs=postsubmit-unit-tests)
-# Feast - Feature Store for Machine Learning
+# Feast - Feature Store for Machine Learning [![Build Status](https://travis-ci.com/gojek/feast.svg?branch=master)](https://travis-ci.com/gojek/feast)
 
 ## Overview
 

@@ -1,0 +1,3 @@
+pandas==0.23.*
+numpy==1.15.*
+kafka-python==1.4.*
