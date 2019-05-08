@@ -99,11 +99,6 @@ func TestPrintStorage(t *testing.T) {
 	expected := fmt.Sprintf(`Id:	REDIS1
 Type:	redis
 Options:
-  option1: value1
-  option2: value2
-	expected := fmt.Sprintf(`Id:	REDIS1
-Type:	redis
-Options:
 LastUpdated:	%s`,
 		timeutil.FormatToRFC3339(timestamp.Timestamp{Seconds: 1}))
 	if out != expected {
