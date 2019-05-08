@@ -35,7 +35,7 @@ func (m *CoreServiceTypes) Reset()         { *m = CoreServiceTypes{} }
 func (m *CoreServiceTypes) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes) ProtoMessage()    {}
 func (*CoreServiceTypes) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_2a8027cc475c1cee, []int{0}
+	return fileDescriptor_CoreService_334455c996aa931b, []int{0}
 }
 func (m *CoreServiceTypes) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes.Unmarshal(m, b)
@@ -66,7 +66,7 @@ func (m *CoreServiceTypes_GetEntitiesRequest) Reset()         { *m = CoreService
 func (m *CoreServiceTypes_GetEntitiesRequest) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_GetEntitiesRequest) ProtoMessage()    {}
 func (*CoreServiceTypes_GetEntitiesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_2a8027cc475c1cee, []int{0, 0}
+	return fileDescriptor_CoreService_334455c996aa931b, []int{0, 0}
 }
 func (m *CoreServiceTypes_GetEntitiesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_GetEntitiesRequest.Unmarshal(m, b)
@@ -104,7 +104,7 @@ func (m *CoreServiceTypes_GetEntitiesResponse) Reset()         { *m = CoreServic
 func (m *CoreServiceTypes_GetEntitiesResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_GetEntitiesResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_GetEntitiesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_2a8027cc475c1cee, []int{0, 1}
+	return fileDescriptor_CoreService_334455c996aa931b, []int{0, 1}
 }
 func (m *CoreServiceTypes_GetEntitiesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_GetEntitiesResponse.Unmarshal(m, b)
@@ -142,7 +142,7 @@ func (m *CoreServiceTypes_ListEntitiesResponse) Reset()         { *m = CoreServi
 func (m *CoreServiceTypes_ListEntitiesResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_ListEntitiesResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_ListEntitiesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_2a8027cc475c1cee, []int{0, 2}
+	return fileDescriptor_CoreService_334455c996aa931b, []int{0, 2}
 }
 func (m *CoreServiceTypes_ListEntitiesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_ListEntitiesResponse.Unmarshal(m, b)
@@ -181,7 +181,7 @@ func (m *CoreServiceTypes_GetFeaturesRequest) Reset()         { *m = CoreService
 func (m *CoreServiceTypes_GetFeaturesRequest) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_GetFeaturesRequest) ProtoMessage()    {}
 func (*CoreServiceTypes_GetFeaturesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_2a8027cc475c1cee, []int{0, 3}
+	return fileDescriptor_CoreService_334455c996aa931b, []int{0, 3}
 }
 func (m *CoreServiceTypes_GetFeaturesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_GetFeaturesRequest.Unmarshal(m, b)
@@ -219,7 +219,7 @@ func (m *CoreServiceTypes_GetFeaturesResponse) Reset()         { *m = CoreServic
 func (m *CoreServiceTypes_GetFeaturesResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_GetFeaturesResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_GetFeaturesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_2a8027cc475c1cee, []int{0, 4}
+	return fileDescriptor_CoreService_334455c996aa931b, []int{0, 4}
 }
 func (m *CoreServiceTypes_GetFeaturesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_GetFeaturesResponse.Unmarshal(m, b)
@@ -257,7 +257,7 @@ func (m *CoreServiceTypes_ListFeaturesResponse) Reset()         { *m = CoreServi
 func (m *CoreServiceTypes_ListFeaturesResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_ListFeaturesResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_ListFeaturesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_2a8027cc475c1cee, []int{0, 5}
+	return fileDescriptor_CoreService_334455c996aa931b, []int{0, 5}
 }
 func (m *CoreServiceTypes_ListFeaturesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_ListFeaturesResponse.Unmarshal(m, b)
@@ -284,6 +284,121 @@ func (m *CoreServiceTypes_ListFeaturesResponse) GetFeatures() []*specs.FeatureSp
 	return nil
 }
 
+// Storage spec retrieval
+type CoreServiceTypes_GetStorageRequest struct {
+	Ids                  []string `protobuf:"bytes,1,rep,name=ids,proto3" json:"ids,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *CoreServiceTypes_GetStorageRequest) Reset()         { *m = CoreServiceTypes_GetStorageRequest{} }
+func (m *CoreServiceTypes_GetStorageRequest) String() string { return proto.CompactTextString(m) }
+func (*CoreServiceTypes_GetStorageRequest) ProtoMessage()    {}
+func (*CoreServiceTypes_GetStorageRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_CoreService_334455c996aa931b, []int{0, 6}
+}
+func (m *CoreServiceTypes_GetStorageRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CoreServiceTypes_GetStorageRequest.Unmarshal(m, b)
+}
+func (m *CoreServiceTypes_GetStorageRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CoreServiceTypes_GetStorageRequest.Marshal(b, m, deterministic)
+}
+func (dst *CoreServiceTypes_GetStorageRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CoreServiceTypes_GetStorageRequest.Merge(dst, src)
+}
+func (m *CoreServiceTypes_GetStorageRequest) XXX_Size() int {
+	return xxx_messageInfo_CoreServiceTypes_GetStorageRequest.Size(m)
+}
+func (m *CoreServiceTypes_GetStorageRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CoreServiceTypes_GetStorageRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CoreServiceTypes_GetStorageRequest proto.InternalMessageInfo
+
+func (m *CoreServiceTypes_GetStorageRequest) GetIds() []string {
+	if m != nil {
+		return m.Ids
+	}
+	return nil
+}
+
+type CoreServiceTypes_GetStorageResponse struct {
+	StorageSpecs         []*specs.StorageSpec `protobuf:"bytes,1,rep,name=storageSpecs,proto3" json:"storageSpecs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
+}
+
+func (m *CoreServiceTypes_GetStorageResponse) Reset()         { *m = CoreServiceTypes_GetStorageResponse{} }
+func (m *CoreServiceTypes_GetStorageResponse) String() string { return proto.CompactTextString(m) }
+func (*CoreServiceTypes_GetStorageResponse) ProtoMessage()    {}
+func (*CoreServiceTypes_GetStorageResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_CoreService_334455c996aa931b, []int{0, 7}
+}
+func (m *CoreServiceTypes_GetStorageResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CoreServiceTypes_GetStorageResponse.Unmarshal(m, b)
+}
+func (m *CoreServiceTypes_GetStorageResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CoreServiceTypes_GetStorageResponse.Marshal(b, m, deterministic)
+}
+func (dst *CoreServiceTypes_GetStorageResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CoreServiceTypes_GetStorageResponse.Merge(dst, src)
+}
+func (m *CoreServiceTypes_GetStorageResponse) XXX_Size() int {
+	return xxx_messageInfo_CoreServiceTypes_GetStorageResponse.Size(m)
+}
+func (m *CoreServiceTypes_GetStorageResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CoreServiceTypes_GetStorageResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CoreServiceTypes_GetStorageResponse proto.InternalMessageInfo
+
+func (m *CoreServiceTypes_GetStorageResponse) GetStorageSpecs() []*specs.StorageSpec {
+	if m != nil {
+		return m.StorageSpecs
+	}
+	return nil
+}
+
+type CoreServiceTypes_ListStorageResponse struct {
+	StorageSpecs         []*specs.StorageSpec `protobuf:"bytes,1,rep,name=storageSpecs,proto3" json:"storageSpecs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
+}
+
+func (m *CoreServiceTypes_ListStorageResponse) Reset()         { *m = CoreServiceTypes_ListStorageResponse{} }
+func (m *CoreServiceTypes_ListStorageResponse) String() string { return proto.CompactTextString(m) }
+func (*CoreServiceTypes_ListStorageResponse) ProtoMessage()    {}
+func (*CoreServiceTypes_ListStorageResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_CoreService_334455c996aa931b, []int{0, 8}
+}
+func (m *CoreServiceTypes_ListStorageResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CoreServiceTypes_ListStorageResponse.Unmarshal(m, b)
+}
+func (m *CoreServiceTypes_ListStorageResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CoreServiceTypes_ListStorageResponse.Marshal(b, m, deterministic)
+}
+func (dst *CoreServiceTypes_ListStorageResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CoreServiceTypes_ListStorageResponse.Merge(dst, src)
+}
+func (m *CoreServiceTypes_ListStorageResponse) XXX_Size() int {
+	return xxx_messageInfo_CoreServiceTypes_ListStorageResponse.Size(m)
+}
+func (m *CoreServiceTypes_ListStorageResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CoreServiceTypes_ListStorageResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CoreServiceTypes_ListStorageResponse proto.InternalMessageInfo
+
+func (m *CoreServiceTypes_ListStorageResponse) GetStorageSpecs() []*specs.StorageSpec {
+	if m != nil {
+		return m.StorageSpecs
+	}
+	return nil
+}
+
 // Entity registration response
 type CoreServiceTypes_ApplyEntityResponse struct {
 	EntityName           string   `protobuf:"bytes,1,opt,name=entityName,proto3" json:"entityName,omitempty"`
@@ -296,7 +411,7 @@ func (m *CoreServiceTypes_ApplyEntityResponse) Reset()         { *m = CoreServic
 func (m *CoreServiceTypes_ApplyEntityResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_ApplyEntityResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_ApplyEntityResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_2a8027cc475c1cee, []int{0, 6}
+	return fileDescriptor_CoreService_334455c996aa931b, []int{0, 9}
 }
 func (m *CoreServiceTypes_ApplyEntityResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_ApplyEntityResponse.Unmarshal(m, b)
@@ -335,7 +450,7 @@ func (m *CoreServiceTypes_ApplyFeatureResponse) Reset()         { *m = CoreServi
 func (m *CoreServiceTypes_ApplyFeatureResponse) String() string { return proto.CompactTextString(m) }
 func (*CoreServiceTypes_ApplyFeatureResponse) ProtoMessage()    {}
 func (*CoreServiceTypes_ApplyFeatureResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_2a8027cc475c1cee, []int{0, 7}
+	return fileDescriptor_CoreService_334455c996aa931b, []int{0, 10}
 }
 func (m *CoreServiceTypes_ApplyFeatureResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_ApplyFeatureResponse.Unmarshal(m, b)
@@ -378,7 +493,7 @@ func (m *CoreServiceTypes_ApplyFeatureGroupResponse) String() string {
 }
 func (*CoreServiceTypes_ApplyFeatureGroupResponse) ProtoMessage() {}
 func (*CoreServiceTypes_ApplyFeatureGroupResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_CoreService_2a8027cc475c1cee, []int{0, 8}
+	return fileDescriptor_CoreService_334455c996aa931b, []int{0, 11}
 }
 func (m *CoreServiceTypes_ApplyFeatureGroupResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CoreServiceTypes_ApplyFeatureGroupResponse.Unmarshal(m, b)
@@ -413,6 +528,9 @@ func init() {
 	proto.RegisterType((*CoreServiceTypes_GetFeaturesRequest)(nil), "feast.core.CoreServiceTypes.GetFeaturesRequest")
 	proto.RegisterType((*CoreServiceTypes_GetFeaturesResponse)(nil), "feast.core.CoreServiceTypes.GetFeaturesResponse")
 	proto.RegisterType((*CoreServiceTypes_ListFeaturesResponse)(nil), "feast.core.CoreServiceTypes.ListFeaturesResponse")
+	proto.RegisterType((*CoreServiceTypes_GetStorageRequest)(nil), "feast.core.CoreServiceTypes.GetStorageRequest")
+	proto.RegisterType((*CoreServiceTypes_GetStorageResponse)(nil), "feast.core.CoreServiceTypes.GetStorageResponse")
+	proto.RegisterType((*CoreServiceTypes_ListStorageResponse)(nil), "feast.core.CoreServiceTypes.ListStorageResponse")
 	proto.RegisterType((*CoreServiceTypes_ApplyEntityResponse)(nil), "feast.core.CoreServiceTypes.ApplyEntityResponse")
 	proto.RegisterType((*CoreServiceTypes_ApplyFeatureResponse)(nil), "feast.core.CoreServiceTypes.ApplyFeatureResponse")
 	proto.RegisterType((*CoreServiceTypes_ApplyFeatureGroupResponse)(nil), "feast.core.CoreServiceTypes.ApplyFeatureGroupResponse")
@@ -438,6 +556,14 @@ type CoreServiceClient interface {
 	// Get all entities
 	// This process returns a list of entity specs.
 	ListEntities(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*CoreServiceTypes_ListEntitiesResponse, error)
+	//
+	// Get storage specs specified in request.
+	// This process returns a list of storage specs.
+	GetStorage(ctx context.Context, in *CoreServiceTypes_GetStorageRequest, opts ...grpc.CallOption) (*CoreServiceTypes_GetStorageResponse, error)
+	//
+	// Get all storage specs.
+	// This process returns a list of storage specs.
+	ListStorage(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*CoreServiceTypes_ListStorageResponse, error)
 	//
 	// Get features specified in request.
 	// This process returns a list of feature specs.
@@ -480,6 +606,26 @@ func (c *coreServiceClient) GetEntities(ctx context.Context, in *CoreServiceType
 func (c *coreServiceClient) ListEntities(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*CoreServiceTypes_ListEntitiesResponse, error) {
 	out := new(CoreServiceTypes_ListEntitiesResponse)
 	err := c.cc.Invoke(ctx, "/feast.core.CoreService/ListEntities", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// Deprecated: Do not use.
+func (c *coreServiceClient) GetStorage(ctx context.Context, in *CoreServiceTypes_GetStorageRequest, opts ...grpc.CallOption) (*CoreServiceTypes_GetStorageResponse, error) {
+	out := new(CoreServiceTypes_GetStorageResponse)
+	err := c.cc.Invoke(ctx, "/feast.core.CoreService/GetStorage", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// Deprecated: Do not use.
+func (c *coreServiceClient) ListStorage(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*CoreServiceTypes_ListStorageResponse, error) {
+	out := new(CoreServiceTypes_ListStorageResponse)
+	err := c.cc.Invoke(ctx, "/feast.core.CoreService/ListStorage", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -542,6 +688,14 @@ type CoreServiceServer interface {
 	// This process returns a list of entity specs.
 	ListEntities(context.Context, *empty.Empty) (*CoreServiceTypes_ListEntitiesResponse, error)
 	//
+	// Get storage specs specified in request.
+	// This process returns a list of storage specs.
+	GetStorage(context.Context, *CoreServiceTypes_GetStorageRequest) (*CoreServiceTypes_GetStorageResponse, error)
+	//
+	// Get all storage specs.
+	// This process returns a list of storage specs.
+	ListStorage(context.Context, *empty.Empty) (*CoreServiceTypes_ListStorageResponse, error)
+	//
 	// Get features specified in request.
 	// This process returns a list of feature specs.
 	GetFeatures(context.Context, *CoreServiceTypes_GetFeaturesRequest) (*CoreServiceTypes_GetFeaturesResponse, error)
@@ -599,6 +753,42 @@ func _CoreService_ListEntities_Handler(srv interface{}, ctx context.Context, dec
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CoreServiceServer).ListEntities(ctx, req.(*empty.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CoreService_GetStorage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CoreServiceTypes_GetStorageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoreServiceServer).GetStorage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/feast.core.CoreService/GetStorage",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoreServiceServer).GetStorage(ctx, req.(*CoreServiceTypes_GetStorageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CoreService_ListStorage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(empty.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoreServiceServer).ListStorage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/feast.core.CoreService/ListStorage",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoreServiceServer).ListStorage(ctx, req.(*empty.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -706,6 +896,14 @@ var _CoreService_serviceDesc = grpc.ServiceDesc{
 			Handler:    _CoreService_ListEntities_Handler,
 		},
 		{
+			MethodName: "GetStorage",
+			Handler:    _CoreService_GetStorage_Handler,
+		},
+		{
+			MethodName: "ListStorage",
+			Handler:    _CoreService_ListStorage_Handler,
+		},
+		{
 			MethodName: "GetFeatures",
 			Handler:    _CoreService_GetFeatures_Handler,
 		},
@@ -731,42 +929,46 @@ var _CoreService_serviceDesc = grpc.ServiceDesc{
 }
 
 func init() {
-	proto.RegisterFile("feast/core/CoreService.proto", fileDescriptor_CoreService_2a8027cc475c1cee)
+	proto.RegisterFile("feast/core/CoreService.proto", fileDescriptor_CoreService_334455c996aa931b)
 }
 
-var fileDescriptor_CoreService_2a8027cc475c1cee = []byte{
-	// 513 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x55, 0xdf, 0x6f, 0xd3, 0x30,
-	0x10, 0x4e, 0x35, 0x40, 0xeb, 0x75, 0x42, 0xc3, 0x9b, 0xa0, 0x98, 0x0d, 0x4d, 0x79, 0x98, 0xf6,
-	0x64, 0xc3, 0x7e, 0xf0, 0xce, 0xa6, 0x31, 0xc1, 0x26, 0x84, 0x52, 0x78, 0x19, 0xe2, 0x21, 0x4d,
-	0xaf, 0x21, 0xd0, 0xd6, 0xc1, 0x76, 0x90, 0xf2, 0x1f, 0xf2, 0x27, 0xf0, 0xe7, 0xa0, 0xda, 0x5e,
-	0xe2, 0x76, 0xe9, 0x3a, 0xa1, 0xbe, 0xb5, 0x77, 0xf7, 0x7d, 0xe7, 0xcf, 0xf7, 0xf9, 0x02, 0x3b,
-	0x43, 0x8c, 0x95, 0xe6, 0x89, 0x90, 0xc8, 0xcf, 0x84, 0xc4, 0x1e, 0xca, 0xdf, 0x59, 0x82, 0x2c,
-	0x97, 0x42, 0x0b, 0x02, 0x26, 0xcb, 0xa6, 0x59, 0xea, 0x2a, 0x55, 0x8e, 0x89, 0xe2, 0xe7, 0x13,
-	0x9d, 0xe9, 0xb2, 0x97, 0x63, 0x62, 0x2b, 0xe9, 0xae, 0x9f, 0x7d, 0x87, 0xb1, 0x2e, 0x24, 0x7a,
-	0xe9, 0xb0, 0x21, 0x7d, 0x21, 0x45, 0x91, 0x2f, 0xa2, 0xe8, 0x69, 0x21, 0xe3, 0xd4, 0xa7, 0x78,
-	0x91, 0x0a, 0x91, 0x8e, 0x90, 0x9b, 0x7f, 0xfd, 0x62, 0xc8, 0x71, 0x9c, 0xeb, 0xd2, 0x26, 0xc3,
-	0x3f, 0x0f, 0x60, 0xd3, 0x3b, 0xfe, 0xe7, 0x32, 0x47, 0x45, 0xf7, 0x81, 0x5c, 0xa0, 0x36, 0x47,
-	0xcd, 0x50, 0x45, 0xf8, 0xab, 0x40, 0xa5, 0xc9, 0x26, 0xac, 0x65, 0x03, 0xd5, 0x6d, 0xed, 0xad,
-	0x1d, 0xb4, 0xa3, 0xe9, 0x4f, 0xfa, 0x01, 0xb6, 0x66, 0xea, 0x54, 0x2e, 0x26, 0x0a, 0xc9, 0x11,
-	0xac, 0xa3, 0x8b, 0x99, 0xea, 0xce, 0xe1, 0x33, 0x66, 0xef, 0xc3, 0x1c, 0x91, 0xd5, 0x77, 0x10,
-	0x55, 0x85, 0xf4, 0x12, 0xb6, 0xaf, 0x32, 0xb5, 0x22, 0x32, 0x2b, 0xc0, 0x5d, 0xd7, 0x1d, 0x02,
-	0x2e, 0x8d, 0x80, 0xba, 0xce, 0xf5, 0x3c, 0x86, 0xf5, 0xa1, 0x8b, 0xb9, 0x9e, 0xdd, 0x99, 0x9e,
-	0xde, 0x98, 0xa2, 0xaa, 0x92, 0x5e, 0x59, 0x05, 0x2b, 0x62, 0x3b, 0x81, 0xad, 0xb7, 0x79, 0x3e,
-	0x2a, 0xad, 0xbe, 0x8a, 0xec, 0x25, 0x80, 0x51, 0x59, 0x7e, 0x8c, 0xc7, 0xd8, 0x6d, 0xed, 0xb5,
-	0x0e, 0xda, 0x91, 0x17, 0xa1, 0xc7, 0xb0, 0x6d, 0x60, 0x8e, 0xb4, 0xc2, 0xed, 0x40, 0xdb, 0x51,
-	0xbf, 0x1f, 0x38, 0x58, 0x1d, 0xa0, 0x67, 0xf0, 0xdc, 0x47, 0x19, 0x83, 0x55, 0xd0, 0x7d, 0x78,
-	0x3c, 0xf4, 0xe2, 0x15, 0x7e, 0x2e, 0x7a, 0xf8, 0xf7, 0x21, 0x74, 0x3c, 0x2b, 0x11, 0x09, 0x1d,
-	0xcf, 0x1d, 0x84, 0xb3, 0xfa, 0x4d, 0xb0, 0x79, 0xcb, 0xb1, 0xdb, 0x7e, 0xa3, 0xaf, 0xee, 0x0f,
-	0xb0, 0x27, 0x0d, 0x03, 0xf2, 0x15, 0x36, 0x7c, 0x17, 0x91, 0xa7, 0xcc, 0x9a, 0x9f, 0xdd, 0x98,
-	0x9f, 0x9d, 0x4f, 0xcd, 0x4f, 0x5f, 0xdf, 0xc9, 0xdd, 0x64, 0xc4, 0x30, 0x70, 0x82, 0x6e, 0xe6,
-	0xbb, 0x5c, 0xd0, 0x9c, 0xff, 0x96, 0x0b, 0x9a, 0xb7, 0x4e, 0x2d, 0xa8, 0x6a, 0xfa, 0xff, 0x82,
-	0x1a, 0xc8, 0xbf, 0xc1, 0x86, 0x3f, 0x76, 0xb2, 0xd0, 0x97, 0x4b, 0xe8, 0x9b, 0x1c, 0x17, 0x06,
-	0x64, 0x04, 0x4f, 0x6e, 0xb9, 0x8a, 0xec, 0x36, 0xf5, 0xa8, 0x36, 0x1a, 0x7d, 0x73, 0xef, 0x46,
-	0x33, 0x26, 0x0d, 0x03, 0x72, 0x0d, 0x1d, 0xef, 0xc1, 0x90, 0x45, 0x5b, 0x62, 0xc9, 0x14, 0x1a,
-	0xde, 0x5c, 0x18, 0x9c, 0x7e, 0x01, 0x6f, 0xa1, 0x9f, 0xfa, 0x0b, 0xf3, 0xd3, 0x74, 0x0c, 0xd7,
-	0x27, 0x69, 0xa6, 0xbf, 0x17, 0x7d, 0x96, 0x88, 0x31, 0x4f, 0xc5, 0x0f, 0xfc, 0xc9, 0xed, 0x4a,
-	0x36, 0x43, 0x52, 0x3c, 0xc5, 0x09, 0xca, 0x58, 0xe3, 0x80, 0xa7, 0x82, 0xd7, 0xdf, 0x8d, 0xfe,
-	0x23, 0x93, 0x3f, 0xfa, 0x17, 0x00, 0x00, 0xff, 0xff, 0xfb, 0x2c, 0xe4, 0xf3, 0x4c, 0x06, 0x00,
-	0x00,
+var fileDescriptor_CoreService_334455c996aa931b = []byte{
+	// 589 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x55, 0xdb, 0x6e, 0x13, 0x3d,
+	0x10, 0x4e, 0xfe, 0x48, 0xfd, 0x9b, 0x49, 0x84, 0x5a, 0xa7, 0x82, 0x60, 0x5a, 0x54, 0xad, 0x44,
+	0xd5, 0x2b, 0xbb, 0xf4, 0xc0, 0x15, 0x37, 0xb4, 0x2a, 0x11, 0xb4, 0x42, 0x68, 0x03, 0x37, 0x05,
+	0x2e, 0x72, 0x98, 0x2c, 0x0b, 0x49, 0xbc, 0xd8, 0x0e, 0x52, 0xde, 0x80, 0x47, 0xe0, 0x19, 0x78,
+	0x4a, 0x14, 0xdb, 0xdd, 0x75, 0xd2, 0x4d, 0x37, 0x42, 0xb9, 0xdb, 0x9d, 0xc3, 0x37, 0x1e, 0x7f,
+	0xf3, 0x79, 0x60, 0x77, 0x80, 0x1d, 0xa5, 0x79, 0x4f, 0x48, 0xe4, 0x17, 0x42, 0x62, 0x1b, 0xe5,
+	0xcf, 0xb8, 0x87, 0x2c, 0x91, 0x42, 0x0b, 0x02, 0xc6, 0xcb, 0x66, 0x5e, 0xea, 0x22, 0x55, 0x82,
+	0x3d, 0xc5, 0x2f, 0xc7, 0x3a, 0xd6, 0xd3, 0x76, 0x82, 0x3d, 0x1b, 0x49, 0xf7, 0x7c, 0xef, 0x6b,
+	0xec, 0xe8, 0x89, 0x44, 0xcf, 0x1d, 0xe4, 0xb8, 0x5b, 0x52, 0x4c, 0x92, 0x65, 0x10, 0x6d, 0x2d,
+	0x64, 0x27, 0xf2, 0x21, 0x9e, 0x44, 0x42, 0x44, 0x43, 0xe4, 0xe6, 0xaf, 0x3b, 0x19, 0x70, 0x1c,
+	0x25, 0x7a, 0x6a, 0x9d, 0xc1, 0xef, 0x0d, 0xd8, 0xf2, 0x8e, 0xff, 0x61, 0x9a, 0xa0, 0xa2, 0x07,
+	0x40, 0x5a, 0xa8, 0xcd, 0x51, 0x63, 0x54, 0x21, 0xfe, 0x98, 0xa0, 0xd2, 0x64, 0x0b, 0x2a, 0x71,
+	0x5f, 0x35, 0xcb, 0xfb, 0x95, 0xc3, 0x6a, 0x38, 0xfb, 0xa4, 0x6f, 0xa1, 0x31, 0x17, 0xa7, 0x12,
+	0x31, 0x56, 0x48, 0x4e, 0x60, 0x13, 0x9d, 0xcd, 0x44, 0xd7, 0x8e, 0x1f, 0x31, 0x7b, 0x1f, 0xe6,
+	0x88, 0x2c, 0xbb, 0x83, 0x30, 0x0d, 0xa4, 0x57, 0xb0, 0x73, 0x1d, 0xab, 0x35, 0x81, 0xd9, 0x06,
+	0xdc, 0x75, 0xdd, 0xd3, 0xc0, 0x95, 0x69, 0x20, 0x8b, 0x73, 0x35, 0x4f, 0x61, 0x73, 0xe0, 0x6c,
+	0xae, 0x66, 0x73, 0xae, 0xa6, 0x47, 0x53, 0x98, 0x46, 0xd2, 0x6b, 0xdb, 0xc1, 0x9a, 0xd0, 0x9e,
+	0xc1, 0x76, 0x0b, 0xb5, 0x63, 0x73, 0x79, 0x07, 0xa1, 0xe9, 0x34, 0x0d, 0x73, 0x25, 0x5f, 0x42,
+	0x5d, 0x65, 0x73, 0x90, 0x5f, 0xd6, 0x1b, 0x94, 0x70, 0x2e, 0x9a, 0xb6, 0xa1, 0x31, 0x6b, 0x64,
+	0xbd, 0xa0, 0x67, 0xd0, 0x78, 0x95, 0x24, 0xc3, 0xa9, 0xe5, 0x2b, 0x05, 0x7d, 0x0a, 0x60, 0x58,
+	0x9b, 0xbe, 0xeb, 0x8c, 0xb0, 0x59, 0xde, 0x2f, 0x1f, 0x56, 0x43, 0xcf, 0x42, 0x4f, 0x61, 0xc7,
+	0xa4, 0xb9, 0x4b, 0x4a, 0xf3, 0x76, 0xa1, 0xea, 0xae, 0xea, 0x4d, 0xdf, 0xa5, 0x65, 0x06, 0x7a,
+	0x01, 0x8f, 0xfd, 0x2c, 0x23, 0x98, 0x34, 0xf5, 0x00, 0x1e, 0x0c, 0x3c, 0x7b, 0x9a, 0xbf, 0x60,
+	0x3d, 0xfe, 0xf3, 0x3f, 0xd4, 0x3c, 0x69, 0x10, 0x09, 0x35, 0x6f, 0xda, 0x09, 0x67, 0x99, 0xc6,
+	0xd9, 0xa2, 0x84, 0xd8, 0x5d, 0xfd, 0xd0, 0xa3, 0xd5, 0x13, 0xec, 0x49, 0x83, 0x12, 0xf9, 0x04,
+	0x75, 0x5f, 0x15, 0xe4, 0x21, 0xb3, 0x62, 0x66, 0xb7, 0x62, 0x66, 0x97, 0x33, 0x31, 0xd3, 0xe7,
+	0xf7, 0x62, 0xe7, 0x09, 0x2b, 0x28, 0x11, 0x09, 0x90, 0xcd, 0x0e, 0x61, 0x45, 0xc7, 0x9b, 0x9f,
+	0x45, 0xca, 0x57, 0x8e, 0x77, 0x05, 0x2b, 0xbf, 0xfe, 0x2b, 0x93, 0xcf, 0x50, 0xf3, 0x66, 0x6b,
+	0x69, 0x3f, 0x47, 0x85, 0xfd, 0xe4, 0xa2, 0x5b, 0x8a, 0x6e, 0x15, 0x58, 0x4c, 0xd1, 0xc2, 0x0b,
+	0x51, 0x4c, 0xd1, 0xa2, 0xb8, 0x33, 0x8a, 0xd2, 0xa2, 0xff, 0x4e, 0x51, 0x0e, 0xf8, 0x17, 0xa8,
+	0xfb, 0x83, 0x4c, 0x96, 0xbe, 0x1c, 0x05, 0xf0, 0x79, 0x1a, 0x0a, 0x4a, 0x64, 0x08, 0xdb, 0x77,
+	0x74, 0x42, 0xf6, 0xf2, 0x6a, 0xa4, 0x3b, 0x87, 0xbe, 0x58, 0xb9, 0xd0, 0x9c, 0xec, 0x82, 0x12,
+	0xb9, 0x81, 0x9a, 0xf7, 0x04, 0x90, 0x65, 0xef, 0x78, 0x01, 0x0b, 0x39, 0xaf, 0x48, 0x50, 0x3a,
+	0xff, 0x08, 0xde, 0xca, 0x3d, 0xf7, 0x57, 0xda, 0xfb, 0x19, 0x0d, 0x37, 0x67, 0x51, 0xac, 0xbf,
+	0x4e, 0xba, 0xac, 0x27, 0x46, 0x3c, 0x12, 0xdf, 0xf0, 0x3b, 0xb7, 0x4b, 0xd3, 0x90, 0xa4, 0x78,
+	0x84, 0x63, 0x94, 0x1d, 0x8d, 0x7d, 0x1e, 0x09, 0x9e, 0x6d, 0xf6, 0xee, 0x86, 0xf1, 0x9f, 0xfc,
+	0x0d, 0x00, 0x00, 0xff, 0xff, 0x58, 0xe3, 0xdf, 0xd7, 0xee, 0x07, 0x00, 0x00,
 }

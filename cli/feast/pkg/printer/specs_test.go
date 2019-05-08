@@ -85,3 +85,28 @@ Related Jobs:
 		t.Errorf("Expected output:\n%s \nActual:\n%s \n", expected, out)
 	}
 }
+
+func TestPrintStorage(t *testing.T) {
+	storageDetail := &core.UIServiceTypes_StorageDetail{
+		Spec: &specs.StorageSpec{
+			Id:   "REDIS1",
+			Type: "redis",
+			Options: map[string]string{
+				"option1": "value1",
+				"option2": "value2",
+			},
+		},
+		LastUpdated: &timestamp.Timestamp{Seconds: 1},
+	}
+	out := PrintStorageDetail(storageDetail)
+	expected := fmt.Sprintf(`Id:	REDIS1	
+Type:	redis	
+Options:	
+  option1: value1	
+  option2: value2	
+LastUpdated:	%s`,
+		timeutil.FormatToRFC3339(timestamp.Timestamp{Seconds: 1}))
+	if out != expected {
+		t.Errorf("Expected output:\n%s \nActual:\n%s \n", expected, out)
+	}
+}
