@@ -52,7 +52,7 @@ public class FeatureRowBigTableIO {
       PCollection<KV<String, Mutation>> mutations =
           input.apply(
               "Map to BigTable mutations",
-              ParDo.of(new FeatureRowToBigTableMutationDoFn(bigTableOptions.prefix, specs)));
+              ParDo.of(new FeatureRowToBigTableMutationDoFn(bigTableOptions.prefix, bigTableOptions.family, specs)));
 
       PCollection<KV<String, Iterable<Mutation>>> iterableMutations =
           mutations.apply(

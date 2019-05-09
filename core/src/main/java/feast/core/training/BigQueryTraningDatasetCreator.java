@@ -18,6 +18,7 @@ package feast.core.training;
 
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQuery.JobOption;
+import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.JobException;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.TableId;
@@ -33,27 +34,37 @@ import java.time.format.DateTimeFormatter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class BigQueryDatasetCreator {
+public class BigQueryTraningDatasetCreator {
 
-  private final String projectId;
-  private final String datasetPrefix;
   private final BigQueryDatasetTemplater templater;
-  private final BigQuery bigQuery;
   private final DateTimeFormatter formatter;
   private final Clock clock;
+  private final String projectId;
+  private final String datasetPrefix;
+  private transient BigQuery bigQuery;
 
-  public BigQueryDatasetCreator(
+
+  public BigQueryTraningDatasetCreator(
       BigQueryDatasetTemplater templater,
-      BigQuery bigQuery,
       Clock clock,
       String projectId,
       String datasetPrefix) {
+    this(templater, clock, projectId, datasetPrefix,
+        BigQueryOptions.newBuilder().setProjectId(projectId).build().getService());
+  }
+
+  public BigQueryTraningDatasetCreator(
+      BigQueryDatasetTemplater templater,
+      Clock clock,
+      String projectId,
+      String datasetPrefix,
+      BigQuery bigQuery) {
     this.templater = templater;
+    this.clock = clock;
+    this.formatter = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneId.of("UTC"));
     this.projectId = projectId;
     this.datasetPrefix = datasetPrefix;
     this.bigQuery = bigQuery;
-    this.clock = clock;
-    this.formatter = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneId.of("UTC"));
   }
 
   /**

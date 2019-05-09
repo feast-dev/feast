@@ -18,6 +18,7 @@
 package feast.options;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
@@ -33,7 +34,9 @@ import javax.validation.ValidatorFactory;
 
 public class OptionsParser {
 
-  private static final ObjectMapper mapper = new ObjectMapper();
+  private static final ObjectMapper strictMapper = new ObjectMapper();
+  private static final ObjectMapper lenientMapper = new ObjectMapper()
+      .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
   private static final Validator validator;
 
   static {
@@ -46,21 +49,21 @@ public class OptionsParser {
    * Return a json schema string representing an options class for error messages
    */
   static <T extends Options> String getJsonSchema(Class<T> optionsClass) {
-    JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(mapper);
+    JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(strictMapper);
     JsonSchema schema = null;
     try {
       schema = schemaGen.generateSchema(optionsClass);
       schema.setId(null); // clear the ID as it's visual noise
-      return mapper.writer().forType(JsonSchema.class).writeValueAsString(schema);
+      return strictMapper.writer().forType(JsonSchema.class).writeValueAsString(schema);
     } catch (IOException e) {
       return "";
     }
   }
 
-  /**
-   * Construct a class from string options and validate with any javax validation annotations
-   */
-  public static <T extends Options> T parse(Map<String, String> optionsMap, Class<T> clazz) {
+
+  private static <T extends Options> T parse(Map<String, String> optionsMap, Class<T> clazz,
+      boolean lenient) {
+    ObjectMapper mapper = lenient ? lenientMapper : strictMapper;
     List<String> messages = Lists.newArrayList();
     T options;
     try {
@@ -85,5 +88,21 @@ public class OptionsParser {
       throw new IllegalArgumentException(String.join(", ", messages));
     }
     return options;
+  }
+
+  /**
+   * Construct a class from string options and validate with any javax validation annotations,
+   * unknown options are ignored
+   */
+  public static <T extends Options> T lenientParse(Map<String, String> optionsMap, Class<T> clazz) {
+    return parse(optionsMap, clazz, true);
+  }
+
+
+  /**
+   * Construct a class from string options and validate with any javax validation annotations
+   */
+  public static <T extends Options> T parse(Map<String, String> optionsMap, Class<T> clazz) {
+    return parse(optionsMap, clazz, false);
   }
 }

@@ -17,12 +17,17 @@
 
 package feast.store.serving.bigtable;
 
+import feast.options.Options;
 import java.io.Serializable;
 import javax.validation.constraints.NotEmpty;
-import feast.options.Options;
 
 public class BigTableStoreOptions implements Options, Serializable {
-  @NotEmpty public String project;
-  @NotEmpty public String instance;
+
+  public static final String DEFAULT_FAMILY = "default";
+  @NotEmpty
+  public String project;
+  @NotEmpty
+  public String instance;
+  public String family = DEFAULT_FAMILY;
   public String prefix;
 }

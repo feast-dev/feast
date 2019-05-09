@@ -19,41 +19,17 @@
 package feast.ingestion.transform;
 
 import com.google.inject.Inject;
-import feast.ingestion.metrics.FeastMetrics;
 import feast.ingestion.model.Specs;
-import feast.ingestion.values.PFeatureRows;
+import feast.store.serving.FeatureServingFactory;
 import feast.store.warehouse.FeatureWarehouseFactory;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 
 @Slf4j
-public class WarehouseStoreTransform extends PTransform<PFeatureRows, PFeatureRows> {
-
-  private List<FeatureWarehouseFactory> stores;
-  private Specs specs;
+public class WarehouseStoreTransform extends BaseStoreTransform {
 
   @Inject
   public WarehouseStoreTransform(List<FeatureWarehouseFactory> stores, Specs specs) {
-    this.stores = stores;
-    this.specs = specs;
-  }
-
-  @Override
-  public PFeatureRows expand(PFeatureRows input) {
-    PFeatureRows output =
-        input.apply(
-            "Split to warehouse stores",
-            new SplitOutputByStore(
-                stores,
-                (featureSpec) -> featureSpec.getDataStores().getWarehouse().getId(),
-                specs,
-                specs.getWarehouseStorageSpecs()));
-    output.getMain()
-        .apply("metrics.store.main", ParDo.of(FeastMetrics.incrDoFn("warehouse_stored")));
-    output.getErrors()
-        .apply("metrics.store.errors", ParDo.of(FeastMetrics.incrDoFn("warehouse_errors")));
-    return output;
+    super(stores, specs.getWarehouseStorageSpec(), specs);
   }
 }

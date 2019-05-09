@@ -30,11 +30,8 @@ import feast.core.CoreServiceProto.CoreServiceTypes.GetEntitiesRequest;
 import feast.core.CoreServiceProto.CoreServiceTypes.GetEntitiesResponse;
 import feast.core.CoreServiceProto.CoreServiceTypes.GetFeaturesRequest;
 import feast.core.CoreServiceProto.CoreServiceTypes.GetFeaturesResponse;
-import feast.core.CoreServiceProto.CoreServiceTypes.GetStorageRequest;
-import feast.core.CoreServiceProto.CoreServiceTypes.GetStorageResponse;
 import feast.core.CoreServiceProto.CoreServiceTypes.ListEntitiesResponse;
 import feast.core.CoreServiceProto.CoreServiceTypes.ListFeaturesResponse;
-import feast.core.CoreServiceProto.CoreServiceTypes.ListStorageResponse;
 import feast.serving.exception.SpecRetrievalException;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
@@ -62,9 +59,11 @@ import org.junit.rules.ExpectedException;
 
 public class CoreServiceTest {
 
-  @Rule public final GrpcCleanupRule grpcCleanupRule = new GrpcCleanupRule();
+  @Rule
+  public final GrpcCleanupRule grpcCleanupRule = new GrpcCleanupRule();
 
-  @Rule public final ExpectedException expectedException = ExpectedException.none();
+  @Rule
+  public final ExpectedException expectedException = ExpectedException.none();
 
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   private CoreService client;
@@ -271,100 +270,6 @@ public class CoreServiceTest {
     client.getAllFeatureSpecs();
   }
 
-  @Test
-  public void getStorageSpecs_shouldSendCorrectRequest() {
-    List<String> storageIds = Arrays.asList("redis1", "big_table1");
-    AtomicReference<GetStorageRequest> deliveredRequest = new AtomicReference<>();
-    CoreServiceImplBase service =
-        new CoreServiceImplBase() {
-          @Override
-          public void getStorage(
-              GetStorageRequest request, StreamObserver<GetStorageResponse> responseObserver) {
-            deliveredRequest.set(request);
-            responseObserver.onNext(
-                GetStorageResponse.newBuilder()
-                    .addAllStorageSpecs(getFakeStorageSpecs().values())
-                    .build());
-            responseObserver.onCompleted();
-          }
-        };
-
-    serviceRegistry.addService(service);
-
-    client.getStorageSpecs(storageIds);
-
-    List<ByteString> expected =
-        storageIds.stream().map(s -> ByteString.copyFromUtf8(s)).collect(Collectors.toList());
-    List<ByteString> actual = deliveredRequest.get().getIdsList().asByteStringList();
-
-    assertThat(actual, containsInAnyOrder(expected.toArray()));
-  }
-
-  @Test
-  public void getStorageSpecs_shouldReturnRequestedStorageSpecs() {
-    List<String> storageIds = Arrays.asList("redis1", "big_table1");
-    AtomicReference<GetStorageRequest> deliveredRequest = new AtomicReference<>();
-    CoreServiceImplBase service =
-        new CoreServiceImplBase() {
-          @Override
-          public void getStorage(
-              GetStorageRequest request, StreamObserver<GetStorageResponse> responseObserver) {
-            deliveredRequest.set(request);
-            responseObserver.onNext(
-                GetStorageResponse.newBuilder()
-                    .addAllStorageSpecs(getFakeStorageSpecs().values())
-                    .build());
-            responseObserver.onCompleted();
-          }
-        };
-
-    serviceRegistry.addService(service);
-
-    Map<String, StorageSpec> results = client.getStorageSpecs(storageIds);
-
-    assertThat(results.entrySet(), everyItem(isIn(getFakeStorageSpecs().entrySet())));
-  }
-
-  @Test
-  public void getStorageSpecs_shouldThrowSpecsRetrievalExceptionWhenErrorHappen() {
-    expectedException.expect(SpecRetrievalException.class);
-    expectedException.expectMessage("Unable to retrieve storage specs");
-    expectedException.expectCause(instanceOf(StatusRuntimeException.class));
-
-    List<String> storageIds = Arrays.asList("redis1", "big_table1");
-    client.getStorageSpecs(storageIds);
-  }
-
-  @Test
-  public void getAllStorageSpecs_shouldReturnRequestedStorageSpecs() {
-    CoreServiceImplBase service =
-        new CoreServiceImplBase() {
-          @Override
-          public void listStorage(
-              Empty request, StreamObserver<ListStorageResponse> responseObserver) {
-            responseObserver.onNext(
-                ListStorageResponse.newBuilder()
-                    .addAllStorageSpecs(getFakeStorageSpecs().values())
-                    .build());
-            responseObserver.onCompleted();
-          }
-        };
-
-    serviceRegistry.addService(service);
-
-    Map<String, StorageSpec> results = client.getAllStorageSpecs();
-
-    assertThat(results.entrySet(), everyItem(isIn(getFakeStorageSpecs().entrySet())));
-  }
-
-  @Test
-  public void getAllStorageSpecs_shouldThrowSpecsRetrievalExceptionWhenErrorHappen() {
-    expectedException.expect(SpecRetrievalException.class);
-    expectedException.expectMessage("Unable to retrieve storage specs");
-    expectedException.expectCause(instanceOf(StatusRuntimeException.class));
-
-    client.getAllStorageSpecs();
-  }
 
   private Map<String, FeatureSpec> getFakeFeatureSpecs() {
     FeatureSpec spec1 =
@@ -410,12 +315,11 @@ public class CoreServiceTest {
         .collect(Collectors.toMap(EntitySpec::getName, Function.identity()));
   }
 
-  private Map<String, StorageSpec> getFakeStorageSpecs() {
-    StorageSpec spec1 = StorageSpec.newBuilder().setId("redis1").build();
-
-    StorageSpec spec2 = StorageSpec.newBuilder().setId("bigtable1").build();
-
-    return Stream.of(spec1, spec2)
-        .collect(Collectors.toMap(StorageSpec::getId, Function.identity()));
+  private StorageSpec getFakeStorageSpec() {
+    StorageSpec spec = StorageSpec.newBuilder().setId(FeastServing.SERVING_STORAGE_ID)
+        .setType("redis")
+        .putOptions("host", "localhost")
+        .putOptions("port", "1234").build();
+    return spec;
   }
 }

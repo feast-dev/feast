@@ -17,13 +17,19 @@
 
 package feast.core.service;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.MockitoAnnotations.initMocks;
+
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.dao.EntityInfoRepository;
 import feast.core.dao.FeatureGroupInfoRepository;
 import feast.core.dao.FeatureInfoRepository;
-import feast.core.dao.StorageInfoRepository;
-import feast.core.exception.RegistrationException;
 import feast.core.exception.RetrievalException;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureGroupInfo;
@@ -32,11 +38,11 @@ import feast.core.model.StorageInfo;
 import feast.core.storage.SchemaManager;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
-import feast.specs.FeatureSpecProto.DataStore;
-import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.ValueProto.ValueType;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -44,25 +50,20 @@ import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.mockito.MockitoAnnotations.initMocks;
-
 public class SpecServiceTest {
-  @Mock EntityInfoRepository entityInfoRepository;
-  @Mock FeatureInfoRepository featureInfoRepository;
-  @Mock FeatureGroupInfoRepository featureGroupInfoRepository;
-  @Mock StorageInfoRepository storageInfoRepository;
-  @Mock SchemaManager schemaManager;
 
-  @Rule public final ExpectedException exception = ExpectedException.none();
+  @Rule
+  public final ExpectedException exception = ExpectedException.none();
+  @Mock
+  EntityInfoRepository entityInfoRepository;
+  @Mock
+  FeatureInfoRepository featureInfoRepository;
+  @Mock
+  FeatureGroupInfoRepository featureGroupInfoRepository;
+  @Mock
+  SchemaManager schemaManager;
+  @Mock
+  StorageSpecs storageSpecs;
 
   @Before
   public void setUp() {
@@ -92,8 +93,6 @@ public class SpecServiceTest {
     feature.setOwner("@test");
     feature.setValueType(ValueType.Enum.BOOL);
     feature.setUri("");
-    feature.setWarehouseStore(newTestStorageInfo("BIGQUERY1", "BIGQUERY"));
-    feature.setServingStore(newTestStorageInfo("REDIS1", "REDIS"));
     return feature;
   }
 
@@ -103,14 +102,15 @@ public class SpecServiceTest {
     EntityInfo entity2 = newTestEntityInfo("entity2");
 
     ArrayList<String> ids = Lists.newArrayList("entity1", "entity2");
-    when(entityInfoRepository.findAllById(any(Iterable.class))).thenReturn(Lists.newArrayList(entity1, entity2));
+    when(entityInfoRepository.findAllById(any(Iterable.class)))
+        .thenReturn(Lists.newArrayList(entity1, entity2));
     SpecService specService =
         new SpecService(
             entityInfoRepository,
             featureInfoRepository,
-            storageInfoRepository,
             featureGroupInfoRepository,
-            schemaManager);
+            schemaManager,
+            storageSpecs);
     List<EntityInfo> actual = specService.getEntities(ids);
     List<EntityInfo> expected = Lists.newArrayList(entity1, entity2);
     assertThat(actual, equalTo(expected));
@@ -122,14 +122,15 @@ public class SpecServiceTest {
     EntityInfo entity2 = newTestEntityInfo("entity2");
 
     ArrayList<String> ids = Lists.newArrayList("entity1", "entity2", "entity2");
-    when(entityInfoRepository.findAllById(any(Iterable.class))).thenReturn(Lists.newArrayList(entity1, entity2));
+    when(entityInfoRepository.findAllById(any(Iterable.class)))
+        .thenReturn(Lists.newArrayList(entity1, entity2));
     SpecService specService =
         new SpecService(
             entityInfoRepository,
             featureInfoRepository,
-            storageInfoRepository,
             featureGroupInfoRepository,
-            schemaManager);
+            schemaManager,
+            storageSpecs);
     List<EntityInfo> actual = specService.getEntities(ids);
     List<EntityInfo> expected = Lists.newArrayList(entity1, entity2);
     assertThat(actual, equalTo(expected));
@@ -145,9 +146,9 @@ public class SpecServiceTest {
         new SpecService(
             entityInfoRepository,
             featureInfoRepository,
-            storageInfoRepository,
             featureGroupInfoRepository,
-            schemaManager);
+            schemaManager,
+            storageSpecs);
 
     exception.expect(RetrievalException.class);
     exception.expectMessage("unable to retrieve all entities requested");
@@ -164,9 +165,9 @@ public class SpecServiceTest {
         new SpecService(
             entityInfoRepository,
             featureInfoRepository,
-            storageInfoRepository,
             featureGroupInfoRepository,
-            schemaManager);
+            schemaManager,
+            storageSpecs);
 
     List<EntityInfo> actual = specService.listEntities();
     List<EntityInfo> expected = Lists.newArrayList(entity1, entity2);
@@ -184,9 +185,9 @@ public class SpecServiceTest {
         new SpecService(
             entityInfoRepository,
             featureInfoRepository,
-            storageInfoRepository,
             featureGroupInfoRepository,
-            schemaManager);
+            schemaManager,
+            storageSpecs);
     List<FeatureInfo> actual = specService.getFeatures(ids);
     List<FeatureInfo> expected = Lists.newArrayList(feature1, feature2);
     assertThat(actual, equalTo(expected));
@@ -203,9 +204,9 @@ public class SpecServiceTest {
         new SpecService(
             entityInfoRepository,
             featureInfoRepository,
-            storageInfoRepository,
             featureGroupInfoRepository,
-            schemaManager);
+            schemaManager,
+            storageSpecs);
     List<FeatureInfo> actual = specService.getFeatures(ids);
     List<FeatureInfo> expected = Lists.newArrayList(feature1, feature2);
     assertThat(actual, equalTo(expected));
@@ -221,9 +222,9 @@ public class SpecServiceTest {
         new SpecService(
             entityInfoRepository,
             featureInfoRepository,
-            storageInfoRepository,
             featureGroupInfoRepository,
-            schemaManager);
+            schemaManager,
+            storageSpecs);
     exception.expect(RetrievalException.class);
     exception.expectMessage("unable to retrieve all features requested: " + ids);
     specService.getFeatures(ids);
@@ -239,9 +240,9 @@ public class SpecServiceTest {
         new SpecService(
             entityInfoRepository,
             featureInfoRepository,
-            storageInfoRepository,
             featureGroupInfoRepository,
-            schemaManager);
+            schemaManager,
+            storageSpecs);
     List<FeatureInfo> actual = specService.listFeatures();
     List<FeatureInfo> expected = Lists.newArrayList(feature1, feature2);
     assertThat(actual, equalTo(expected));
@@ -251,17 +252,17 @@ public class SpecServiceTest {
   public void shouldGetStorageMatchingIds() {
     StorageInfo redisStorage = newTestStorageInfo("REDIS1", "REDIS");
     StorageInfo bqStorage = newTestStorageInfo("BIGQUERY1", "BIGQUERY");
+    when(storageSpecs.getServingStorageSpec()).thenReturn(redisStorage.getStorageSpec());
+    when(storageSpecs.getWarehouseStorageSpec()).thenReturn(bqStorage.getStorageSpec());
 
     ArrayList<String> ids = Lists.newArrayList("REDIS1", "BIGQUERY1");
-    when(storageInfoRepository.findAllById(any(Iterable.class)))
-        .thenReturn(Lists.newArrayList(redisStorage, bqStorage));
     SpecService specService =
         new SpecService(
             entityInfoRepository,
             featureInfoRepository,
-            storageInfoRepository,
             featureGroupInfoRepository,
-            schemaManager);
+            schemaManager,
+            storageSpecs);
     List<StorageInfo> actual = specService.getStorage(ids);
     List<StorageInfo> expected = Lists.newArrayList(redisStorage, bqStorage);
     assertThat(actual, equalTo(expected));
@@ -271,17 +272,17 @@ public class SpecServiceTest {
   public void shouldDeduplicateGetStorage() {
     StorageInfo redisStorage = newTestStorageInfo("REDIS1", "REDIS");
     StorageInfo bqStorage = newTestStorageInfo("BIGQUERY1", "BIGQUERY");
-
+    when(storageSpecs.getServingStorageSpec()).thenReturn(redisStorage.getStorageSpec());
+    when(storageSpecs.getWarehouseStorageSpec()).thenReturn(bqStorage.getStorageSpec());
     ArrayList<String> ids = Lists.newArrayList("REDIS1", "BIGQUERY1", "BIGQUERY1");
-    when(storageInfoRepository.findAllById(any(Iterable.class)))
-        .thenReturn(Lists.newArrayList(redisStorage, bqStorage));
+
     SpecService specService =
         new SpecService(
             entityInfoRepository,
             featureInfoRepository,
-            storageInfoRepository,
             featureGroupInfoRepository,
-            schemaManager);
+            schemaManager,
+            storageSpecs);
     List<StorageInfo> actual = specService.getStorage(ids);
     List<StorageInfo> expected = Lists.newArrayList(redisStorage, bqStorage);
     assertThat(actual, equalTo(expected));
@@ -290,16 +291,16 @@ public class SpecServiceTest {
   @Test
   public void shouldThrowRetrievalExceptionIfAnyStorageNotFound() {
     StorageInfo redisStorage = newTestStorageInfo("REDIS1", "REDIS");
+    when(storageSpecs.getServingStorageSpec()).thenReturn(redisStorage.getStorageSpec());
 
     ArrayList<String> ids = Lists.newArrayList("REDIS1", "BIGQUERY1");
-    when(storageInfoRepository.findAllById(ids)).thenReturn(Lists.newArrayList(redisStorage));
     SpecService specService =
         new SpecService(
             entityInfoRepository,
             featureInfoRepository,
-            storageInfoRepository,
             featureGroupInfoRepository,
-            schemaManager);
+            schemaManager,
+            storageSpecs);
 
     exception.expect(RetrievalException.class);
     exception.expectMessage("unable to retrieve all storage requested: " + ids);
@@ -310,15 +311,16 @@ public class SpecServiceTest {
   public void shouldListAllStorageRegistered() {
     StorageInfo redisStorage = newTestStorageInfo("REDIS1", "REDIS");
     StorageInfo bqStorage = newTestStorageInfo("BIGQUERY1", "BIGQUERY");
+    when(storageSpecs.getServingStorageSpec()).thenReturn(redisStorage.getStorageSpec());
+    when(storageSpecs.getWarehouseStorageSpec()).thenReturn(bqStorage.getStorageSpec());
 
-    when(storageInfoRepository.findAll()).thenReturn(Lists.newArrayList(redisStorage, bqStorage));
     SpecService specService =
         new SpecService(
             entityInfoRepository,
             featureInfoRepository,
-            storageInfoRepository,
             featureGroupInfoRepository,
-            schemaManager);
+            schemaManager,
+            storageSpecs);
     List<StorageInfo> actual = specService.listStorage();
     List<StorageInfo> expected = Lists.newArrayList(redisStorage, bqStorage);
     assertThat(actual, equalTo(expected));
@@ -328,8 +330,6 @@ public class SpecServiceTest {
   public void shouldRegisterFeatureWithGroupInheritance() {
     FeatureGroupInfo group = new FeatureGroupInfo();
     group.setId("testGroup");
-    group.setServingStore(newTestStorageInfo("REDIS1", "REDIS"));
-    group.setWarehouseStore(newTestStorageInfo("BIGQUERY1", "BIGQUERY"));
     when(featureGroupInfoRepository.findById("testGroup")).thenReturn(Optional.of(group));
 
     EntityInfo entity = new EntityInfo();
@@ -348,14 +348,6 @@ public class SpecServiceTest {
             .setValueType(ValueType.Enum.BYTES)
             .build();
 
-    DataStore servingDataStore = DataStore.newBuilder().setId("REDIS1").build();
-    DataStore warehouseDataStore = DataStore.newBuilder().setId("BIGQUERY1").build();
-    DataStores dataStores =
-        DataStores.newBuilder()
-            .setServing(servingDataStore)
-            .setWarehouse(warehouseDataStore)
-            .build();
-
     FeatureSpec resolvedSpec =
         FeatureSpec.newBuilder()
             .setId("entity.name")
@@ -366,21 +358,20 @@ public class SpecServiceTest {
             .setUri("uri")
             .setGroup("testGroup")
             .setValueType(ValueType.Enum.BYTES)
-            .setDataStores(dataStores)
             .build();
 
     ArgumentCaptor<FeatureSpec> resolvedSpecCaptor = ArgumentCaptor.forClass(FeatureSpec.class);
 
-    FeatureInfo featureInfo = new FeatureInfo(spec, entity, null, null, group);
+    FeatureInfo featureInfo = new FeatureInfo(spec, entity, group);
     when(featureInfoRepository.saveAndFlush(featureInfo)).thenReturn(featureInfo);
 
     SpecService specService =
         new SpecService(
             entityInfoRepository,
             featureInfoRepository,
-            storageInfoRepository,
             featureGroupInfoRepository,
-            schemaManager);
+            schemaManager,
+            storageSpecs);
     FeatureInfo actual = specService.applyFeature(spec);
     verify(schemaManager).registerFeature(resolvedSpecCaptor.capture());
 
@@ -389,68 +380,25 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void shouldRegisterFeatureGroupIfStoresArePresent() {
-    StorageInfo bqStore = newTestStorageInfo("BIGQUERY1", "bigquery");
-    StorageInfo redisStore = newTestStorageInfo("REDIS1", "redis");
-    DataStore servingDataStore = DataStore.newBuilder().setId("REDIS1").build();
-    DataStore warehouseDataStore = DataStore.newBuilder().setId("BIGQUERY1").build();
-    DataStores dataStores =
-        DataStores.newBuilder()
-            .setServing(servingDataStore)
-            .setWarehouse(warehouseDataStore)
-            .build();
+  public void shouldRegisterFeatureGroup() {
     FeatureGroupSpec spec =
         FeatureGroupSpec.newBuilder()
             .setId("group")
             .addTags("tag")
-            .setDataStores(dataStores)
             .build();
-    FeatureGroupInfo expectedFeatureGroupInfo = new FeatureGroupInfo(spec, redisStore, bqStore);
+    FeatureGroupInfo expectedFeatureGroupInfo = new FeatureGroupInfo(spec);
 
-    when(storageInfoRepository.findById("BIGQUERY1")).thenReturn(Optional.of(bqStore));
-    when(storageInfoRepository.findById("REDIS1")).thenReturn(Optional.of(redisStore));
     when(featureGroupInfoRepository.saveAndFlush(expectedFeatureGroupInfo))
         .thenReturn(expectedFeatureGroupInfo);
     SpecService specService =
         new SpecService(
             entityInfoRepository,
             featureInfoRepository,
-            storageInfoRepository,
             featureGroupInfoRepository,
-            schemaManager);
+            schemaManager,
+            storageSpecs);
     FeatureGroupInfo actual = specService.applyFeatureGroup(spec);
     assertThat(actual, equalTo(expectedFeatureGroupInfo));
-  }
-
-  @Test
-  public void shouldThrowRegistrationExceptionWhenRegisteringFeatureGroupIfStoresMissing() {
-    StorageInfo bqStore = newTestStorageInfo("BIGQUERY1", "bigquery");
-    DataStore servingDataStore = DataStore.newBuilder().setId("REDIS1").build();
-    DataStore warehouseDataStore = DataStore.newBuilder().setId("BIGQUERY1").build();
-    DataStores dataStores =
-        DataStores.newBuilder()
-            .setServing(servingDataStore)
-            .setWarehouse(warehouseDataStore)
-            .build();
-    FeatureGroupSpec spec =
-        FeatureGroupSpec.newBuilder()
-            .setId("group")
-            .addTags("tag")
-            .setDataStores(dataStores)
-            .build();
-    when(storageInfoRepository.findById("BIGQUERY1")).thenReturn(Optional.of(bqStore));
-    when(storageInfoRepository.findById("REDIS1")).thenReturn(Optional.empty());
-
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            storageInfoRepository,
-            featureGroupInfoRepository,
-            schemaManager);
-
-    exception.expect(RegistrationException.class);
-    specService.applyFeatureGroup(spec);
   }
 
   @Test
@@ -467,27 +415,10 @@ public class SpecServiceTest {
         new SpecService(
             entityInfoRepository,
             featureInfoRepository,
-            storageInfoRepository,
             featureGroupInfoRepository,
-            schemaManager);
+            schemaManager,
+            storageSpecs);
     EntityInfo actual = specService.applyEntity(spec);
     assertThat(actual, equalTo(entityInfo));
   }
-
-  @Test
-  public void shouldRegisterStorage() {
-    StorageSpec spec = StorageSpec.newBuilder().setId("REDIS1").setType("redis").build();
-    StorageInfo storageInfo = new StorageInfo(spec);
-    when(storageInfoRepository.saveAndFlush(storageInfo)).thenReturn(storageInfo);
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            storageInfoRepository,
-            featureGroupInfoRepository,
-            schemaManager);
-    StorageInfo actual = specService.registerStorage(spec);
-    assertThat(actual, equalTo(storageInfo));
-  }
-
 }

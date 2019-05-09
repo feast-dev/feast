@@ -21,48 +21,7 @@ func TestPrintFeature(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "with storage",
-			input: &core.UIServiceTypes_FeatureDetail{
-				Spec: &specs.FeatureSpec{
-					Id:          "test.test_feature_two",
-					Owner:       "bob@example.com",
-					Name:        "test_feature_two",
-					Description: "testing feature",
-					Uri:         "https://github.com/bob/example",
-					ValueType:   types.ValueType_INT64,
-					Entity:      "test",
-					DataStores: &specs.DataStores{
-						Serving: &specs.DataStore{
-							Id: "REDIS",
-						},
-						Warehouse: &specs.DataStore{
-							Id: "BIGQUERY",
-						},
-					},
-				},
-				BigqueryView: "bqurl",
-				Jobs:         []string{"job1", "job2"},
-				LastUpdated:  &timestamp.Timestamp{Seconds: 1},
-				Created:      &timestamp.Timestamp{Seconds: 1},
-			},
-			expected: fmt.Sprintf(`Id:	test.test_feature_two
-Entity:	test
-Owner:	bob@example.com
-Description:	testing feature
-ValueType:	INT64
-Uri:	https://github.com/bob/example
-DataStores: 
-  Serving:	REDIS
-  Warehouse:	BIGQUERY
-Created:	%s
-LastUpdated:	%s
-Related Jobs:
-- job1
-- job2`,
-				timeutil.FormatToRFC3339(timestamp.Timestamp{Seconds: 1}),
-				timeutil.FormatToRFC3339(timestamp.Timestamp{Seconds: 1})),
-		}, {
-			name: "no storage",
+			name: "feature",
 			input: &core.UIServiceTypes_FeatureDetail{
 				Spec: &specs.FeatureSpec{
 					Id:          "test.test_feature_two",

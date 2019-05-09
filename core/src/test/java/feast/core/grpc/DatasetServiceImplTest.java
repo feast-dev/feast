@@ -15,7 +15,7 @@ import feast.core.DatasetServiceProto.DatasetInfo;
 import feast.core.DatasetServiceProto.FeatureSet;
 import feast.core.DatasetServiceProto.DatasetServiceTypes.CreateDatasetRequest;
 import feast.core.DatasetServiceProto.DatasetServiceTypes.CreateDatasetResponse;
-import feast.core.training.BigQueryDatasetCreator;
+import feast.core.training.BigQueryTraningDatasetCreator;
 import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
@@ -33,7 +33,7 @@ public class DatasetServiceImplTest {
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
   @Rule public final ExpectedException expectedException = ExpectedException.none();
 
-  @Mock private BigQueryDatasetCreator trainingDatasetCreator;
+  @Mock private BigQueryTraningDatasetCreator trainingDatasetCreator;
   private DatasetServiceGrpc.DatasetServiceBlockingStub client;
 
   private Timestamp validStartDate;

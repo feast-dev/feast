@@ -23,7 +23,7 @@ import feast.core.DatasetServiceProto.DatasetInfo;
 import feast.core.DatasetServiceProto.FeatureSet;
 import feast.core.DatasetServiceProto.DatasetServiceTypes.CreateDatasetRequest;
 import feast.core.DatasetServiceProto.DatasetServiceTypes.CreateDatasetResponse;
-import feast.core.training.BigQueryDatasetCreator;
+import feast.core.training.BigQueryTraningDatasetCreator;
 import io.grpc.Status;
 import io.grpc.Status.Code;
 import io.grpc.stub.StreamObserver;
@@ -37,10 +37,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 @GRpcService
 public class DatasetServiceImpl extends DatasetServiceImplBase {
 
-  private final BigQueryDatasetCreator datasetCreator;
+  private final BigQueryTraningDatasetCreator datasetCreator;
 
   @Autowired
-  public DatasetServiceImpl(BigQueryDatasetCreator DatasetCreator) {
+  public DatasetServiceImpl(BigQueryTraningDatasetCreator DatasetCreator) {
     this.datasetCreator = DatasetCreator;
   }
 

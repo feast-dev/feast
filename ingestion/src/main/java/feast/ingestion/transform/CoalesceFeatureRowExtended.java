@@ -16,7 +16,6 @@
 
 package feast.ingestion.transform;
 
-import feast.ingestion.values.PFeatureRows;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import lombok.AllArgsConstructor;
@@ -25,23 +24,19 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/**
- * This class is a work around to make some refactoring easier. PFeatureRows should be deprecated.
- */
 @AllArgsConstructor
-public class CoalescePFeatureRows extends
-    PTransform<PFeatureRows, PFeatureRows> {
+public class CoalesceFeatureRowExtended extends
+    PTransform<PCollection<FeatureRowExtended>, PCollection<FeatureRowExtended>> {
 
   private long delaySeconds;
   private long timeoutSeconds;
 
   @Override
-  public PFeatureRows expand(PFeatureRows input) {
-    PCollection<FeatureRowExtended> output = input.getMain()
+  public PCollection<FeatureRowExtended> expand(PCollection<FeatureRowExtended> input) {
+    return input
         .apply(MapElements.into(TypeDescriptor.of(FeatureRow.class))
             .via(FeatureRowExtended::getRow))
         .apply(new CoalesceFeatureRows(delaySeconds, timeoutSeconds))
         .apply(new ToFeatureRowExtended());
-    return PFeatureRows.of(output, input.getErrors());
   }
 }

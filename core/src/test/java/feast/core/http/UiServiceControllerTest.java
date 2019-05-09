@@ -1,35 +1,37 @@
 package feast.core.http;
 
-import feast.core.UIServiceProto;
+import static feast.specs.FeatureSpecProto.FeatureSpec;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import feast.core.UIServiceProto.UIServiceTypes.EntityDetail;
 import feast.core.UIServiceProto.UIServiceTypes.FeatureDetail;
 import feast.core.UIServiceProto.UIServiceTypes.FeatureGroupDetail;
 import feast.core.UIServiceProto.UIServiceTypes.StorageDetail;
+import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureGroupInfo;
 import feast.core.model.FeatureInfo;
 import feast.core.model.StorageInfo;
 import feast.core.service.JobManagementService;
 import feast.core.service.SpecService;
-import feast.specs.FeatureSpecProto;
+import java.util.Collections;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Collections;
-
-import static feast.specs.FeatureSpecProto.*;
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 public class UiServiceControllerTest {
+
   private UiServiceController goodUiServiceController;
   private UiServiceController badUiServiceController;
 
   @Before
   public void setUp() throws Exception {
+    StorageSpecs storageSpecs = StorageSpecs.builder().build();
+
     FeatureInfo mockFeatureInfo = mock(FeatureInfo.class);
-    when(mockFeatureInfo.getFeatureDetail()).thenReturn(FeatureDetail.getDefaultInstance());
+    when(mockFeatureInfo.getFeatureDetail(storageSpecs))
+        .thenReturn(FeatureDetail.getDefaultInstance());
     when(mockFeatureInfo.getFeatureSpec()).thenReturn(FeatureSpec.getDefaultInstance());
     when(mockFeatureInfo.resolve()).thenReturn(mockFeatureInfo);
 
@@ -44,6 +46,7 @@ public class UiServiceControllerTest {
     when(mockStorageInfo.getStorageDetail()).thenReturn(StorageDetail.getDefaultInstance());
 
     SpecService goodMockSpecService = mock(SpecService.class);
+    when(goodMockSpecService.getStorageSpecs()).thenReturn(storageSpecs);
     when(goodMockSpecService.listFeatures()).thenReturn(Collections.singletonList(mockFeatureInfo));
     when(goodMockSpecService.getFeatures(Collections.singletonList("1")))
         .thenReturn(Collections.singletonList(mockFeatureInfo));
@@ -87,7 +90,7 @@ public class UiServiceControllerTest {
   }
 
   @Test(expected = Exception.class)
-  public void listFeaturesWithExecption() {
+  public void listFeaturesWithException() {
     badUiServiceController.listFeatures();
   }
 
