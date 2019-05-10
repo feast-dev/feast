@@ -142,7 +142,8 @@ public class CoreService implements SpecStorage {
    */
   public boolean isConnected() {
     ConnectivityState state = channel.getState(true);
-    return state.compareTo(ConnectivityState.READY) == 0;
+    return state == ConnectivityState.IDLE
+        || state == ConnectivityState.READY;
   }
 
   /**
