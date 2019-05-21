@@ -11,6 +11,12 @@ plugins:
   - verify-owners 
   - wip         
   - trigger
+  - config-updater
+
+config_updater:
+  maps:
+    .prow/config.yaml:
+      name: config
 
 external_plugins:
   gojek/feast:
