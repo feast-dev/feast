@@ -1,0 +1,103 @@
+prowjob_namespace: default
+pod_namespace: test-pods
+
+plank:
+  allow_cancellations: true
+  job_url_prefix: http://prow.feast.ai/view/gcs
+  report_template: '[Full PR test history](https://prow.feast.ai/pr-history?org={{.Spec.Refs.Org}}&repo={{.Spec.Refs.Repo}}&pr={{with index .Spec.Refs.Pulls 0}}{{.Number}}{{end}})'
+  default_decoration_config:
+    timeout: 7200000000000    # 2h
+    grace_period: 15000000000 # 15s
+    utility_images:
+      clonerefs: gcr.io/k8s-prow/clonerefs:v20190221-d14461a
+      initupload: gcr.io/k8s-prow/initupload:v20190221-d14461a
+      entrypoint: gcr.io/k8s-prow/entrypoint:v20190221-d14461a
+      sidecar: gcr.io/k8s-prow/sidecar:v20190221-d14461a
+    gcs_configuration:
+      bucket: feast-templocation-kf-feast
+      path_strategy: explicit
+    gcs_credentials_secret: prow-service-account
+
+deck:
+  tide_update_period: 1s
+  spyglass:
+    size_limit: 500e+6 # 500MB
+    viewers:
+      "started.json|finished.json": ["metadata"]
+      "build-log.txt": ["buildlog"]
+      "report.xml": ["junit"]
+      "artifacts/.*\\.xml": ["junit"]
+      "surefire-reports/.*\\.xml": ["junit"]
+
+tide:
+  queries:
+  - repos:
+    - gojek/feast
+    labels:
+    - lgtm
+    - approved
+    missingLabels:
+    - do-not-merge
+    - do-not-merge/hold
+    - do-not-merge/invalid-owners-file
+    - do-not-merge/work-in-progress
+    - needs-rebase
+  merge_method:
+    gojek/feast: squash
+  blocker_label: merge-blocker
+  squash_label: tide/squash
+
+presubmits:
+  gojek/feast:
+  - name: hello-world
+    decorate: true
+    always_run: true
+    spec:
+      containers:
+      - image: alpine
+        command: ["echo", "Hello World"]
+
+# postsubmits:
+#   gojek/feast:
+#   - name: hello-world
+#     decorate: true
+#     spec:
+#       containers:
+#       - image: alpine
+#         command: ["echo", "Hello World"]
+
+# presubmits:
+#   gojek/feast:
+#   - name: presubmit-unit-tests
+#     always_run: true
+#     spec:
+#       containers:
+#       - image: us.gcr.io/kf-feast/test-image:1.0.0
+#         args: ["make", "test"]
+#         imagePullPolicy: Always
+#   - name: presubmit-integration-test-batch
+#     always_run: false
+#     spec:
+#       containers:
+#       - image: us.gcr.io/kf-feast/gcloud-argo:1.0.0
+#         args: ["make", "test-integration", "ID=$(PULL_NUMBER)", "TYPE=PR"]
+#         imagePullPolicy: Always
+#     trigger: (?m)integration-batch
+#     rerun_command: integration-batch
+
+# postsubmits:
+#   gojek/feast:
+#   - name: postsubmit-unit-tests
+#     always_run: true
+#     spec:
+#       containers:
+#       - image: us.gcr.io/kf-feast/test-image:1.0.0
+#         args: ["make", "test"]
+#         imagePullPolicy: Always
+#   - name: postsubmit-integration-test-batch
+#     always_run: true
+#     spec:
+#       containers:
+#       - image: us.gcr.io/kf-feast/gcloud-argo:1.0.0
+#         args: ["make", "test-integration", "ID=$PULL_BASE_REF", "TYPE=GITREF"]
+#         imagePullPolicy: Always

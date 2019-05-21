@@ -1,0 +1,19 @@
+plugins:
+  gojek/feast:
+  - approve      
+  - assign
+  - help
+  - hold
+  - label
+  - lgtm
+  - lifecycle     
+  - size
+  - verify-owners 
+  - wip         
+  - trigger
+
+external_plugins:
+  gojek/feast:
+  - name: needs-rebase
+    events:
+    - pull_request
