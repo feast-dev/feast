@@ -2,8 +2,8 @@
 
 ## Code reviews
 
-All submissions, including submissions by project members, require review. We use GitHub pull
-requests for this purpose. Consult GitHub Help for more information on using pull requests.
+Code submission to Feast (including submission from project maintainers) requires review and approval.
+Please submit a **pull request** to initiate the code review process. We use [prow](https://github.com/kubernetes/test-infra/tree/master/prow) to manage the testing and reviewing of pull requests. Please refer to [config.yaml](../.prow/config.yaml) for details on the test jobs. 
 
 ## Code conventions
 
@@ -19,3 +19,5 @@ https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xm
 Make sure you apply `go fmt`.
 
 ### JavaScript
+
+TODO

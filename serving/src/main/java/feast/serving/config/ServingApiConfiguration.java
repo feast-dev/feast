@@ -110,14 +110,13 @@ public class ServingApiConfiguration implements WebMvcConfigurer {
       AppConfig appConfig, Tracer tracer) {
     storageOptions = Strings.isNullOrEmpty(storageOptions) ? "{}" : storageOptions;
     Map<String, String> optionsMap = convertJsonStringToMap(storageOptions);
-    StorageSpec storageSpec = StorageSpec.getDefaultInstance();
-    if (Strings.isNullOrEmpty(storageType)) {
-      storageSpec = StorageSpec.newBuilder()
-          .setId("SERVING")
-          .setType(storageType)
-          .putAllOptions(optionsMap)
-          .build();
-    }
+
+    StorageSpec storageSpec = StorageSpec.newBuilder()
+            .setId("SERVING")
+            .setType(storageType)
+            .putAllOptions(optionsMap)
+            .build();
+
     FeatureStorageRegistry registry = new FeatureStorageRegistry(appConfig, tracer);
     try {
       registry.connect(storageSpec);
