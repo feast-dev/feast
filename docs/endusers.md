@@ -68,5 +68,80 @@ dataStores:
 
 Register it:
 ```sh
-feast apply feature wordCount.yml
+feast apply feature wordCountFeature.yml
+```
+
+## Ingest data for your feature
+
+Feast supports ingesting feature from 4 type of sources:
+
+* File (either CSV or JSON)
+* Bigquery Table
+* Pubsub Topic
+* Pubsub Subscription
+
+[[More details]](specs.md#import-spec)
+
+Let's take a look on how to create an import job spec and ingest some data from a CSV file.
+
+### Prepare your data
+`word_counts.csv`
+```csv
+count,word
+28944,the
+27317,and
+21120,i
+20136,to
+17181,of
+14945,a
+13989,you
+12949,my
+11513,in
+11488,that
+9545,is
+8855,not
+8293,with
+8043,me
+8003,it
+...
+```  
+
+And then upload it into your Google Storage bucket:
+
+```sh
+gsutil cp word_counts.csv gs://your-bucket
+```
+
+### Define the job import spec
+`shakespeareWordCountsImport.yml`
+```yaml
+type: file.csv
+sourceOptions:
+  path: gs://your-bucket/word_counts.csv
+entities:
+  - word
+schema:
+  entityIdColumn: word
+  timestampValue: 2019-01-01T00:00:00.000Z
+  fields:    
+    - name: count
+      featureId: word.count
+    - name: word  
+```
+
+### Start the ingestion job
+Next, use `feast` CLI to run your ingestion job, defined in 
+`shakespeareWordCountsImport.yml`:
+```sh
+feast jobs run shakespeareWordCountsImport.yml
+```
+
+You can also list recent ingestion jobs by running:
+```sh
+feast list jobs
+```
+
+Or get detailed information about the results of ingestion with:
+```sh
+feast get job <id>
 ```

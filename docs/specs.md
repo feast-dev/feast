@@ -141,7 +141,7 @@ Following section describes the import spec that has to be created for each of s
 Example of csv file import spec:
 ```
 type: file.csv
-options:
+sourceOptions:
   path: gs://my-bucket/customer_total_purchase.csv
 entities:
   - customer
@@ -152,12 +152,12 @@ schema:
     - name: timestamp
     - name: customer_id
     - name: total_purchase
-      featureId: customer_id.none.total_purchase
+      featureId: customer_id.total_purchase
 ```
 Example of json file import spec:
 ```
 type: file.json
-options:
+sourceOptions:
   path: gs://my-bucket/customer_total_purchase.json
 entities:
   - customer
@@ -168,7 +168,7 @@ schema:
     - name: timestamp
     - name: customer_id
     - name: total_purchase
-      featureId: customer_id.none.total_purchase
+      featureId: customer_id.total_purchase
 ```
 Notes on import spec for `file` type:
 - The `type` field must be `file.csv` or `file.json`
@@ -183,7 +183,7 @@ Notes on import spec for `file` type:
 
 Import spec for Big Query is almost similar to importing a file. The only difference is that all `schema.fields.name` has to match column name of the source table. 
 
-For example to import following table from BigQuery table `gcp-project.source-dataset.source-table` to a feature with id `customer.none.last_login`:
+For example to import following table from BigQuery table `gcp-project.source-dataset.source-table` to a feature with id `customer.last_login`:
 
 |customer_id|last_login|
 |------------|---|
@@ -205,7 +205,7 @@ schema:
     fields:
     - name: customer_id
     - name: last_login
-        featureId: customer.none.last_login
+        featureId: customer.last_login
 ```
 
 Notes on import spec for `bigquery` type:
@@ -235,7 +235,7 @@ schema:
     fields:
     - name: customer_id
     - name: last_login
-        featureId: customer.none.last_login
+        featureId: customer.last_login
 ```
 
 #### PubSub
@@ -251,7 +251,7 @@ entities:
   - customer
 schema:
   fields:
-  - featureId: customer.none.last_login
+  - featureId: customer.last_login
 ```
 
 Or if the source data is a subscription with name `feast-test-subscription`
@@ -263,7 +263,7 @@ entities:
   - customer
 schema:
   fields:
-  - featureId: customer.none.last_login
+  - featureId: customer.last_login
 ```
 
 The PubSub source type expects that all messages that the ingestion job receives are binary encoded FeatureRow protobufs. See [FeatureRow.proto](protos/feast/types/FeatureRow.proto).
