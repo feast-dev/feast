@@ -33,19 +33,17 @@ A Feature is an individual measurable property or characteristic of an Entity. A
 
 1. Entity - it must be associated with a known Entity to Feast (see Entity Spec)
 2. ValueType - the feature type must be defined, e.g. String, Bytes, Int64, Int32, Float etc.
-3. Granularity - Time series features require a defined granularity
-4. Data stores - for both serving and training must be defined
+3. Data stores - for both serving and training must be defined
 
 Following is en example of feature spec
 
 ```
-id: titanic_passenger.none.alone
+id: titanic_passenger.alone
 name: alone
 entity: titanic_passenger
 owner: zhiling.c@go-jek.com
 description: binary variable denoting whether the passenger was alone on the titanic.
 valueType:  INT64
-granularity: NONE
 uri: http://jupyter.s.ds.golabs.io/user/your_user/lab/tree/shared/zhiling.c/feast_titanic/titanic.ipynb
 dataStores:
   serving:
@@ -59,11 +57,10 @@ dataStores:
 |Name|Type|Convention|Description|
 |:----:|----|----------|-----------|
 |`entity`|string|lower snake case (e.g. `driver`, `driver_area`)| Entity related to this feature|
-|`id`|string|lower snake case with format `[entity].[granularity].[featureName]` (e.g.: `customer.none.age_prediction`) | feature id is a unique identifier of a feature, it is used both for feature retrieval from serving / warehouse|
+|`id`|string|lower snake case with format `[entity].[featureName]` (e.g.: `customer.age_prediction`) | feature id is a unique identifier of a feature, it is used both for feature retrieval from serving / warehouse|
 |`name`|string|lower snake case, e.g: `age_prediction`| short name of a feature |
 |`owner`|string|use email or any unique identifier| `owner` is mainly be used to inform user who is responsible of maintaining the feature |
 |`description`|string| Keep the description concise, more information about the feature can be provided as documentation linked by `uri` | human readable description of a feature |
-|`granularity`| Enum (one of: `NONE`, `SECOND`, `MINUTE`, `HOUR`, `DAY`) | N.A. | Identifies the level of detail for a feature, e.g. every second, minute, hour, day, or none.|
 |`valueType`| Enum(one of: `BYTES`,`STRING`,`INT32`,`INT64`,`DOUBLE`,`FLOAT`, `BOOL`, `TIMESTAMP`)| N.A.| Value type of the feature |
 |`group`| string | lower snake case | feature group inherited by this feature.|
 | `tags` | List of string | N.A. | Free form grouping |
@@ -90,13 +87,12 @@ Example of feature spec having storage option:
 1. Redis
 
 ```
-id: driver.day.completed_booking
+id: driver.completed_booking
 name: completed_booking
 entity: driver
 owner: zhiling.c@go-jek.com
 description: total daily completed booking of a driver.
 valueType:  INT64
-granularity: DAY
 uri: -
 dataStores:
   serving:
@@ -110,13 +106,12 @@ dataStores:
 2. BigTable
 
 ```
-id: driver.day.completed_booking
+id: driver.completed_booking
 name: completed_booking
 entity: driver
 owner: zhiling.c@go-jek.com
 description: total daily completed booking of a driver.
 valueType:  INT64
-granularity: DAY
 uri: -
 dataStores:
   serving:
@@ -206,7 +201,7 @@ entities:
     - customer
 schema:
     entityIdColumn: customer_id
-    timestampValue: 2018-10-25T00:00:00.000Z # ignored because features have NONE granularity
+    timestampValue: 2018-10-25T00:00:00.000Z
     fields:
     - name: customer_id
     - name: last_login
@@ -236,7 +231,7 @@ entities:
     - customer
 schema:
     entityIdColumn: customer_id
-    timestampValue: 2018-10-25T00:00:00.000Z # ignored because features have NONE granularity
+    timestampValue: 2018-10-25T00:00:00.000Z
     fields:
     - name: customer_id
     - name: last_login

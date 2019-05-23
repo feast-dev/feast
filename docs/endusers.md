@@ -35,7 +35,7 @@ Then register an entity, which is for grouping features under a unique
 key or id. Typically these map to a domain object, e.g., a customer, a
 merchant, a sales region.
 
-`wordEntity.yml`
+[`wordEntity.yml`](../examples/wordEntity.yml)
 ```
 name: word
 description: word found in shakespearean works
@@ -50,15 +50,14 @@ feast apply entity wordEntity.yml
 
 Next, define your feature:
 
-`wordCount.yml`
+[`wordCountFeature.yml`](../examples/wordCountFeature.yml)
 ```
-id: word.none.count
+id: word.count
 name: count
 entity: word
 owner: bob@feast.com
 description: number of times the word appears
 valueType:  INT64
-granularity: NONE
 uri: https://github.com/bob/example
 dataStores:
   serving:
