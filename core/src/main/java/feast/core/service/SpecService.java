@@ -18,12 +18,13 @@
 package feast.core.service;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.protobuf.util.JsonFormat;
+import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.dao.EntityInfoRepository;
 import feast.core.dao.FeatureGroupInfoRepository;
 import feast.core.dao.FeatureInfoRepository;
-import feast.core.dao.StorageInfoRepository;
 import feast.core.exception.RegistrationException;
 import feast.core.exception.RetrievalException;
 import feast.core.log.Action;
@@ -34,17 +35,18 @@ import feast.core.model.FeatureGroupInfo;
 import feast.core.model.FeatureInfo;
 import feast.core.model.StorageInfo;
 import feast.core.storage.SchemaManager;
-import feast.core.util.TypeConversion;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 /**
  * Facilitates management of specs within the Feast registry. This includes getting existing specs
@@ -53,24 +55,26 @@ import java.util.List;
 @Slf4j
 @Service
 public class SpecService {
+
   private final EntityInfoRepository entityInfoRepository;
   private final FeatureInfoRepository featureInfoRepository;
-  private final StorageInfoRepository storageInfoRepository;
   private final FeatureGroupInfoRepository featureGroupInfoRepository;
   private final SchemaManager schemaManager;
+  @Getter
+  private final StorageSpecs storageSpecs;
 
   @Autowired
   public SpecService(
       EntityInfoRepository entityInfoRegistry,
       FeatureInfoRepository featureInfoRegistry,
-      StorageInfoRepository storageInfoRegistry,
       FeatureGroupInfoRepository featureGroupInfoRepository,
-      SchemaManager schemaManager) {
+      SchemaManager schemaManager,
+      StorageSpecs storageSpecs) {
     this.entityInfoRepository = entityInfoRegistry;
     this.featureInfoRepository = featureInfoRegistry;
-    this.storageInfoRepository = storageInfoRegistry;
     this.featureGroupInfoRepository = featureGroupInfoRepository;
     this.schemaManager = schemaManager;
+    this.storageSpecs = storageSpecs;
   }
 
   /**
@@ -151,7 +155,8 @@ public class SpecService {
     }
     Set<String> dedupIds = Sets.newHashSet(ids);
 
-    List<FeatureGroupInfo> featureGroupInfos = this.featureGroupInfoRepository.findAllById(dedupIds);
+    List<FeatureGroupInfo> featureGroupInfos = this.featureGroupInfoRepository
+        .findAllById(dedupIds);
     if (featureGroupInfos.size() < dedupIds.size()) {
       throw new RetrievalException(
           "unable to retrieve all feature groups requested " + dedupIds);
@@ -182,11 +187,24 @@ public class SpecService {
       throw new IllegalArgumentException("ids cannot be empty");
     }
     Set<String> dedupIds = Sets.newHashSet(ids);
-
-    List<StorageInfo> storageInfos = this.storageInfoRepository.findAllById(dedupIds);
-    if (storageInfos.size() < dedupIds.size()) {
+    List<StorageInfo> storageInfos = Lists.newArrayList();
+    StorageSpecs storageSpecs = getStorageSpecs();
+    Map<String, StorageSpec> map = new HashMap<>();
+    if (storageSpecs.getServingStorageSpec() != null) {
+      map.put(storageSpecs.getServingStorageSpec().getId(), storageSpecs.getServingStorageSpec());
+    }
+    if (storageSpecs.getWarehouseStorageSpec() != null) {
+      map.put(storageSpecs.getWarehouseStorageSpec().getId(), storageSpecs.getWarehouseStorageSpec());
+    }
+    for (String id : dedupIds) {
+      if (map.containsKey(id)) {
+        storageInfos.add(new StorageInfo(map.get(id)));
+      }
+    }
+    if (dedupIds.size() != storageInfos.size()) {
       throw new RetrievalException(
           "unable to retrieve all storage requested: " + ids);
+
     }
     return storageInfos;
   }
@@ -198,7 +216,9 @@ public class SpecService {
    * @throws RetrievalException if retrieval fails
    */
   public List<StorageInfo> listStorage() {
-    return this.storageInfoRepository.findAll();
+    return Lists.newArrayList(
+        new StorageInfo(getStorageSpecs().getServingStorageSpec()),
+        new StorageInfo(getStorageSpecs().getWarehouseStorageSpec()));
   }
 
   /**
@@ -224,13 +244,7 @@ public class SpecService {
         EntityInfo entity = entityInfoRepository.findById(spec.getEntity()).orElse(null);
         FeatureGroupInfo featureGroupInfo =
             featureGroupInfoRepository.findById(spec.getGroup()).orElse(null);
-        StorageInfo servingStore =
-            storageInfoRepository.findById(spec.getDataStores().getServing().getId()).orElse(null);
-        StorageInfo warehouseStore =
-            storageInfoRepository
-                .findById(spec.getDataStores().getWarehouse().getId())
-                .orElse(null);
-        featureInfo = new FeatureInfo(spec, entity, servingStore, warehouseStore, featureGroupInfo);
+        featureInfo = new FeatureInfo(spec, entity, featureGroupInfo);
         FeatureInfo resolvedFeatureInfo = featureInfo.resolve();
         FeatureSpec resolvedFeatureSpec = resolvedFeatureInfo.getFeatureSpec();
         schemaManager.registerFeature(resolvedFeatureSpec);
@@ -272,21 +286,7 @@ public class SpecService {
         featureGroupInfo.update(spec);
         action = Action.UPDATE;
       } else {
-        StorageInfo servingStore =
-            storageInfoRepository
-                .findById(
-                    spec.getDataStores().hasServing()
-                        ? spec.getDataStores().getServing().getId()
-                        : "")
-                .orElse(null);
-        StorageInfo warehouseStore =
-            storageInfoRepository
-                .findById(
-                    spec.getDataStores().hasServing()
-                        ? spec.getDataStores().getWarehouse().getId()
-                        : "")
-                .orElse(null);
-        featureGroupInfo = new FeatureGroupInfo(spec, servingStore, warehouseStore);
+        featureGroupInfo = new FeatureGroupInfo(spec);
         action = Action.REGISTER;
       }
       FeatureGroupInfo out = featureGroupInfoRepository.saveAndFlush(featureGroupInfo);
@@ -332,50 +332,12 @@ public class SpecService {
         throw new RegistrationException("failed to register or update entity");
       }
       AuditLogger.log(
-          Resource.FEATURE_GROUP, spec.getName(), action, "Entity: %s", JsonFormat.printer().print(spec));
+          Resource.FEATURE_GROUP, spec.getName(), action, "Entity: %s",
+          JsonFormat.printer().print(spec));
       return out;
     } catch (Exception e) {
       throw new RegistrationException(
           Strings.lenientFormat("Failed to apply entity %s: %s", spec, e.getMessage()), e);
-    }
-  }
-
-  /**
-   * Registers given storage spec to the registry
-   *
-   * @param spec StorageSpec
-   * @return registered StorageInfo
-   * @throws RegistrationException if registration fails
-   */
-  public StorageInfo registerStorage(StorageSpec spec) {
-    try {
-      StorageInfo storageInfo = storageInfoRepository.findById(spec.getId()).orElse(null);
-      if (storageInfo != null) {
-        if (!storageInfo.getType().equals(spec.getType())
-            && !storageInfo
-                .getOptions()
-                .equals(TypeConversion.convertMapToJsonString(spec.getOptionsMap()))) {
-          throw new IllegalArgumentException("updating storage specs is not allowed");
-        }
-        return storageInfo;
-      } else {
-        storageInfo = new StorageInfo(spec);
-        StorageInfo out = storageInfoRepository.saveAndFlush(storageInfo);
-        if (!out.getId().equals(spec.getId())) {
-          throw new RegistrationException("failed to register or update storage");
-        }
-        schemaManager.registerStorage(spec);
-        AuditLogger.log(
-            Resource.STORAGE,
-            spec.getId(),
-            Action.REGISTER,
-            "New storage registered: %s",
-            JsonFormat.printer().print(spec));
-        return out;
-      }
-    } catch (Exception e) {
-      throw new RegistrationException(
-          Strings.lenientFormat("Failed to register new storage %s: %s", spec, e.getMessage()), e);
     }
   }
 }

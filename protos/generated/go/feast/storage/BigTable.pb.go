@@ -32,7 +32,7 @@ func (m *BigTableRowKey) Reset()         { *m = BigTableRowKey{} }
 func (m *BigTableRowKey) String() string { return proto.CompactTextString(m) }
 func (*BigTableRowKey) ProtoMessage()    {}
 func (*BigTableRowKey) Descriptor() ([]byte, []int) {
-	return fileDescriptor_BigTable_b21fd22f0059068f, []int{0}
+	return fileDescriptor_BigTable_367a7ab40da489b0, []int{0}
 }
 func (m *BigTableRowKey) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BigTableRowKey.Unmarshal(m, b)
@@ -78,10 +78,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("feast/storage/BigTable.proto", fileDescriptor_BigTable_b21fd22f0059068f)
+	proto.RegisterFile("feast/storage/BigTable.proto", fileDescriptor_BigTable_367a7ab40da489b0)
 }
 
-var fileDescriptor_BigTable_b21fd22f0059068f = []byte{
+var fileDescriptor_BigTable_367a7ab40da489b0 = []byte{
 	// 193 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x5c, 0x8f, 0xb1, 0x0b, 0x82, 0x40,
 	0x18, 0x47, 0xb1, 0x20, 0xf0, 0x40, 0x87, 0x9b, 0x1c, 0x24, 0xa2, 0x21, 0x9a, 0x3c, 0xa2, 0xa5,

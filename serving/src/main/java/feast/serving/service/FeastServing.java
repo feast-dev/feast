@@ -22,14 +22,10 @@ import feast.serving.ServingAPIProto.Entity;
 import feast.serving.ServingAPIProto.QueryFeaturesRequest;
 import feast.serving.ServingAPIProto.QueryFeaturesResponse;
 import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.specs.StorageSpecProto.StorageSpec;
 import io.opentracing.Scope;
 import io.opentracing.Tracer;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -42,19 +38,18 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class FeastServing {
 
+  public static final String SERVING_STORAGE_ID = "SERVING";
+
   private final SpecStorage specStorage;
-  private final FeatureStorageRegistry featureStorageRegistry;
   private final Tracer tracer;
   private final FeatureRetrievalDispatcher featureRetrievalDispatcher;
 
   @Autowired
   public FeastServing(
       FeatureRetrievalDispatcher featureRetrievalDispatcher,
-      FeatureStorageRegistry featureStorageRegistry,
       SpecStorage specStorage,
       Tracer tracer) {
     this.specStorage = specStorage;
-    this.featureStorageRegistry = featureStorageRegistry;
     this.featureRetrievalDispatcher = featureRetrievalDispatcher;
     this.tracer = tracer;
   }
@@ -68,13 +63,6 @@ public class FeastServing {
   public QueryFeaturesResponse queryFeatures(QueryFeaturesRequest request) {
     try (Scope scope = tracer.buildSpan("FeastServing-queryFeatures").startActive(true)) {
       Collection<FeatureSpec> featureSpecs = getFeatureSpecs(request.getFeatureIdList());
-
-      // create connection to feature storage if necessary
-      checkAndConnectFeatureStorage(
-          featureSpecs
-              .stream()
-              .map(featureSpec -> featureSpec.getDataStores().getServing().getId())
-              .collect(Collectors.toList()));
 
       scope.span().log("start retrieving all feature");
       Map<String, Entity> result =
@@ -90,29 +78,6 @@ public class FeastServing {
           .setEntityName(request.getEntityName())
           .putAllEntities(result)
           .build();
-    }
-  }
-
-  /**
-   * Check whether {@code featureStorageRegistry} has the connection to the associated feature
-   * storage. If the connection doesn't exist then create one by first retrieve storage spec from
-   * the {@code specStorage}.
-   *
-   * @param storageIds collection of storage ID to be checked.
-   */
-  private void checkAndConnectFeatureStorage(Collection<String> storageIds) {
-    List<String> unknownStorageId = new ArrayList<>();
-    for (String storageId : storageIds) {
-      if (!featureStorageRegistry.hasStorageId(storageId)) {
-        unknownStorageId.add(storageId);
-      }
-    }
-
-    if (!unknownStorageId.isEmpty()) {
-      Map<String, StorageSpec> storageSpecs = specStorage.getStorageSpecs(unknownStorageId);
-      for (StorageSpec spec : storageSpecs.values()) {
-        featureStorageRegistry.connect(spec);
-      }
     }
   }
 

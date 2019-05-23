@@ -1,24 +1,16 @@
 package feast.core;
 
-import static feast.core.config.StorageConfig.DEFAULT_ERRORS_ID;
-import static feast.core.config.StorageConfig.DEFAULT_SERVING_ID;
 import static feast.core.config.StorageConfig.DEFAULT_WAREHOUSE_ID;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.any;
 
 import com.google.protobuf.Timestamp;
-import feast.core.JobServiceProto.JobServiceTypes.SubmitImportJobRequest;
-import feast.core.JobServiceProto.JobServiceTypes.SubmitImportJobResponse;
 import feast.core.config.ImportJobDefaults;
 import feast.core.job.JobManager;
 import feast.core.model.StorageInfo;
 import feast.core.service.SpecService;
 import feast.specs.EntitySpecProto.EntitySpec;
-import feast.specs.FeatureSpecProto.DataStore;
-import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;
@@ -30,13 +22,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
-import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;

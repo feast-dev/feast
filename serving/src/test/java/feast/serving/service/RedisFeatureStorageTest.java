@@ -22,8 +22,6 @@ import static junit.framework.TestCase.fail;
 import com.google.protobuf.Timestamp;
 import feast.serving.model.FeatureValue;
 import feast.serving.testutil.RedisPopulator;
-import feast.specs.FeatureSpecProto.DataStore;
-import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.types.ValueProto.ValueType;
 import io.opentracing.util.GlobalTracer;
@@ -112,17 +110,15 @@ public class RedisFeatureStorageTest {
   }
 
   private FeatureSpec createFeatureSpec(String featureName) {
-    DataStore servingDatastoreSpec = DataStore.newBuilder().setId("REDIS").build();
-    return createFeatureSpec(featureName, ValueType.Enum.STRING, servingDatastoreSpec);
+    return createFeatureSpec(featureName, ValueType.Enum.STRING);
   }
 
   private FeatureSpec createFeatureSpec(
-      String featureName, ValueType.Enum valType, DataStore dataStoreSpec) {
+      String featureName, ValueType.Enum valType) {
     String entityName = "entity";
     String featureId = String.format("%s.%s", entityName, featureName);
     FeatureSpec spec =
         FeatureSpec.newBuilder()
-            .setDataStores(DataStores.newBuilder().setServing(dataStoreSpec))
             .setEntity(entityName)
             .setId(featureId)
             .setName(featureName)

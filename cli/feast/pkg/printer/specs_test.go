@@ -2,6 +2,7 @@ package printer
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/gojek/feast/cli/feast/pkg/timeutil"
@@ -20,48 +21,7 @@ func TestPrintFeature(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "with storage",
-			input: &core.UIServiceTypes_FeatureDetail{
-				Spec: &specs.FeatureSpec{
-					Id:          "test.test_feature_two",
-					Owner:       "bob@example.com",
-					Name:        "test_feature_two",
-					Description: "testing feature",
-					Uri:         "https://github.com/bob/example",
-					ValueType:   types.ValueType_INT64,
-					Entity:      "test",
-					DataStores: &specs.DataStores{
-						Serving: &specs.DataStore{
-							Id: "REDIS",
-						},
-						Warehouse: &specs.DataStore{
-							Id: "BIGQUERY",
-						},
-					},
-				},
-				BigqueryView: "bqurl",
-				Jobs:         []string{"job1", "job2"},
-				LastUpdated:  &timestamp.Timestamp{Seconds: 1},
-				Created:      &timestamp.Timestamp{Seconds: 1},
-			},
-			expected: fmt.Sprintf(`Id:	test.test_feature_two
-Entity:	test
-Owner:	bob@example.com
-Description:	testing feature
-ValueType:	INT64
-Uri:	https://github.com/bob/example
-DataStores: 
-  Serving:	REDIS
-  Warehouse:	BIGQUERY
-Created:	%s
-LastUpdated:	%s
-Related Jobs:
-- job1
-- job2`,
-				timeutil.FormatToRFC3339(timestamp.Timestamp{Seconds: 1}),
-				timeutil.FormatToRFC3339(timestamp.Timestamp{Seconds: 1})),
-		}, {
-			name: "no storage",
+			name: "feature",
 			input: &core.UIServiceTypes_FeatureDetail{
 				Spec: &specs.FeatureSpec{
 					Id:          "test.test_feature_two",
@@ -132,6 +92,25 @@ func TestPrintStorage(t *testing.T) {
 		Spec: &specs.StorageSpec{
 			Id:   "REDIS1",
 			Type: "redis",
+		},
+		LastUpdated: &timestamp.Timestamp{Seconds: 1},
+	}
+	out := PrintStorageDetail(storageDetail)
+	expected := fmt.Sprintf(`Id:	REDIS1
+Type:	redis
+Options:
+LastUpdated:	%s`,
+		timeutil.FormatToRFC3339(timestamp.Timestamp{Seconds: 1}))
+	if out != expected {
+		t.Errorf("Expected output:\n%s \nActual:\n%s \n", expected, out)
+	}
+}
+
+func TestPrintStorageWithOptions(t *testing.T) {
+	storageDetail := &core.UIServiceTypes_StorageDetail{
+		Spec: &specs.StorageSpec{
+			Id:   "REDIS1",
+			Type: "redis",
 			Options: map[string]string{
 				"option1": "value1",
 				"option2": "value2",
@@ -140,14 +119,24 @@ func TestPrintStorage(t *testing.T) {
 		LastUpdated: &timestamp.Timestamp{Seconds: 1},
 	}
 	out := PrintStorageDetail(storageDetail)
-	expected := fmt.Sprintf(`Id:	REDIS1
-Type:	redis
-Options:
-  option1: value1
-  option2: value2
-LastUpdated:	%s`,
-		timeutil.FormatToRFC3339(timestamp.Timestamp{Seconds: 1}))
-	if out != expected {
-		t.Errorf("Expected output:\n%s \nActual:\n%s \n", expected, out)
+
+	// Since map iteration order in Golang is radomized and "Options" is stored in a map,
+	// this test just check that the output "contains" the key and value
+	// rather than checking the exact match
+
+	expected := []string{
+		"Id:	REDIS1",
+		"Type:	redis",
+		"Options:",
+		"  option1: value1",
+		"  option2: value2",
+		fmt.Sprintf("LastUpdated:	%s", timeutil.FormatToRFC3339(timestamp.Timestamp{Seconds: 1})),
 	}
+
+	for _, want := range expected {
+		if !strings.Contains(out, want) {
+			t.Errorf("Missing \"%s\" from actual output\nActual output:\n%s", want, out)
+		}
+	}
+
 }

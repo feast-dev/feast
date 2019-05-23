@@ -44,7 +44,7 @@ func (m *QueryFeaturesRequest) Reset()         { *m = QueryFeaturesRequest{} }
 func (m *QueryFeaturesRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryFeaturesRequest) ProtoMessage()    {}
 func (*QueryFeaturesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_Serving_fa8a820cedf8e8f2, []int{0}
+	return fileDescriptor_Serving_f91320f9a3f0c4cf, []int{0}
 }
 func (m *QueryFeaturesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_QueryFeaturesRequest.Unmarshal(m, b)
@@ -99,7 +99,7 @@ func (m *QueryFeaturesResponse) Reset()         { *m = QueryFeaturesResponse{} }
 func (m *QueryFeaturesResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryFeaturesResponse) ProtoMessage()    {}
 func (*QueryFeaturesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_Serving_fa8a820cedf8e8f2, []int{1}
+	return fileDescriptor_Serving_f91320f9a3f0c4cf, []int{1}
 }
 func (m *QueryFeaturesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_QueryFeaturesResponse.Unmarshal(m, b)
@@ -145,7 +145,7 @@ func (m *Entity) Reset()         { *m = Entity{} }
 func (m *Entity) String() string { return proto.CompactTextString(m) }
 func (*Entity) ProtoMessage()    {}
 func (*Entity) Descriptor() ([]byte, []int) {
-	return fileDescriptor_Serving_fa8a820cedf8e8f2, []int{2}
+	return fileDescriptor_Serving_f91320f9a3f0c4cf, []int{2}
 }
 func (m *Entity) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Entity.Unmarshal(m, b)
@@ -186,7 +186,7 @@ func (m *FeatureValue) Reset()         { *m = FeatureValue{} }
 func (m *FeatureValue) String() string { return proto.CompactTextString(m) }
 func (*FeatureValue) ProtoMessage()    {}
 func (*FeatureValue) Descriptor() ([]byte, []int) {
-	return fileDescriptor_Serving_fa8a820cedf8e8f2, []int{3}
+	return fileDescriptor_Serving_f91320f9a3f0c4cf, []int{3}
 }
 func (m *FeatureValue) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FeatureValue.Unmarshal(m, b)
@@ -304,10 +304,10 @@ var _ServingAPI_serviceDesc = grpc.ServiceDesc{
 }
 
 func init() {
-	proto.RegisterFile("feast/serving/Serving.proto", fileDescriptor_Serving_fa8a820cedf8e8f2)
+	proto.RegisterFile("feast/serving/Serving.proto", fileDescriptor_Serving_f91320f9a3f0c4cf)
 }
 
-var fileDescriptor_Serving_fa8a820cedf8e8f2 = []byte{
+var fileDescriptor_Serving_f91320f9a3f0c4cf = []byte{
 	// 429 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x53, 0xd1, 0x8a, 0xd3, 0x40,
 	0x14, 0x75, 0x5a, 0x5c, 0x36, 0x77, 0x0d, 0xca, 0xe0, 0x62, 0xc8, 0x8a, 0x96, 0xac, 0x0f, 0x01,

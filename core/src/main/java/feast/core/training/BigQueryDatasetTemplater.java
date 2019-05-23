@@ -21,29 +21,41 @@ import com.hubspot.jinjava.Jinjava;
 import feast.core.DatasetServiceProto.FeatureSet;
 import feast.core.dao.FeatureInfoRepository;
 import feast.core.model.FeatureInfo;
-import feast.core.model.StorageInfo;
+import feast.core.storage.BigQueryStorageManager;
 import feast.specs.StorageSpecProto.StorageSpec;
-import lombok.Getter;
-
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.Getter;
+
 
 public class BigQueryDatasetTemplater {
+
   private final FeatureInfoRepository featureInfoRepository;
   private final Jinjava jinjava;
   private final String template;
+  private final StorageSpec storageSpec;
   private final DateTimeFormatter formatter;
 
   public BigQueryDatasetTemplater(
-      Jinjava jinjava, String templateString, FeatureInfoRepository featureInfoRepository) {
+      Jinjava jinjava, String templateString, StorageSpec storageSpec,
+      FeatureInfoRepository featureInfoRepository) {
+    this.storageSpec = storageSpec;
     this.featureInfoRepository = featureInfoRepository;
     this.jinjava = jinjava;
     this.template = templateString;
     this.formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.of("UTC"));
+  }
+
+  protected StorageSpec getStorageSpec() {
+    return storageSpec;
   }
 
   /**
@@ -58,7 +70,8 @@ public class BigQueryDatasetTemplater {
   String createQuery(FeatureSet featureSet, Timestamp startDate, Timestamp endDate, long limit) {
     List<String> featureIds = featureSet.getFeatureIdsList();
     List<FeatureInfo> featureInfos = featureInfoRepository.findAllById(featureIds);
-    Features features = new Features(featureInfos);
+    String tableId = featureInfos.size() > 0 ? getBqTableId(featureInfos.get(0)) : "";
+    Features features = new Features(featureInfos, tableId);
 
     if (featureInfos.size() < featureIds.size()) {
       Set<String> foundFeatureIds =
@@ -84,16 +97,15 @@ public class BigQueryDatasetTemplater {
     return jinjava.render(template, context);
   }
 
-  private static String getBqTableId(FeatureInfo featureInfo) {
-    StorageInfo whStorage = featureInfo.getWarehouseStore();
+  private String getBqTableId(FeatureInfo featureInfo) {
+    String type = storageSpec.getType();
 
-    String type = whStorage.getType();
-    if (!"bigquery".equals(type)) {
+    if (!BigQueryStorageManager.TYPE.equals(type)) {
       throw new IllegalArgumentException(
           "One of the feature has warehouse storage other than bigquery");
     }
 
-    StorageSpec storageSpec = whStorage.getStorageSpec();
+    StorageSpec storageSpec = getStorageSpec();
     Map<String, String> options = storageSpec.getOptionsMap();
     String projectId = options.get("project");
     String dataset = options.get("dataset");
@@ -108,12 +120,13 @@ public class BigQueryDatasetTemplater {
 
   @Getter
   static final class Features {
+
     final List<String> columns;
     final String tableId;
 
-    Features(List<FeatureInfo> featureInfos) {
+    Features(List<FeatureInfo> featureInfos, String tableId) {
       columns = featureInfos.stream().map(FeatureInfo::getName).collect(Collectors.toList());
-      tableId = featureInfos.size() > 0 ? getBqTableId(featureInfos.get(0)) : "";
+      this.tableId = tableId;
     }
   }
 }

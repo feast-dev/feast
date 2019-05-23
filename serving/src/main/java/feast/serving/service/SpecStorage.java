@@ -28,6 +28,7 @@ import java.util.Map;
  * StorageSpec}.
  */
 public interface SpecStorage {
+
   /**
    * Get a map of {@link EntitySpec} from Core API, given a collection of entityId.
    *
@@ -52,29 +53,6 @@ public interface SpecStorage {
    * @throws SpecRetrievalException if any error happens during retrieval
    */
   Map<String, FeatureSpec> getFeatureSpecs(Iterable<String> featureIds);
-
-  /**
-   * Get all {@link FeatureSpec} available in Core API.
-   *
-   * @return map of {@link FeatureSpec}, where the key is feature id.
-   */
-  Map<String, FeatureSpec> getAllFeatureSpecs();
-
-  /**
-   * Get map of {@link StorageSpec} from Core API, given a collection of storageId.
-   *
-   * @param storageIds collection of storageId to retrieve.
-   * @return map of {@link StorageSpec}, where the key is storage id.
-   * @throws SpecRetrievalException if any error happens during retrieval
-   */
-  Map<String, StorageSpec> getStorageSpecs(Iterable<String> storageIds);
-
-  /**
-   * Get all {@link StorageSpec} from Core API.
-   *
-   * @return map of {@link StorageSpec}, where the key is storage id.
-   */
-  Map<String, StorageSpec> getAllStorageSpecs();
 
   /**
    * Check whether connection to spec storage is ready.

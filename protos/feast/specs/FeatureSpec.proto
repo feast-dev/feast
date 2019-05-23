@@ -36,16 +36,5 @@ message FeatureSpec {
   string entity = 8;
   string group = 9;
   repeated string tags = 10;
-  map<string,string> options = 11;
-  DataStores dataStores = 12;
-}
-
-message DataStores {
-  DataStore serving = 1;
-  DataStore warehouse = 2;
-}
-
-message DataStore {
-  string id = 1;
-  map<string,string> options = 2;
+  map<string, string> options = 11;
 }

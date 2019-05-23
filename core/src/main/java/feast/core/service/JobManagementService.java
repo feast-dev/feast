@@ -30,7 +30,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.JobServiceProto.JobServiceTypes.JobDetail;
 import feast.core.config.ImportJobDefaults;
-import feast.core.config.StorageConfig;
 import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.dao.JobInfoRepository;
 import feast.core.dao.MetricsRepository;
@@ -46,14 +45,12 @@ import feast.core.model.FeatureInfo;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
 import feast.core.model.Metrics;
-import feast.core.model.StorageInfo;
 import feast.core.util.PathUtil;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
-import feast.specs.StorageSpecProto.StorageSpec;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -131,42 +128,17 @@ public class JobManagementService {
         .map(FeatureInfo::getFeatureSpec)
         .collect(Collectors.toList());
 
-    Set<String> servingStoreIds = featureSpecs.stream()
-        .map(featureSpec -> featureSpec.getDataStores().getServing().getId())
-        .filter(not(Strings::isNullOrEmpty))
-        .collect(Collectors.toSet());
-    if (!servingStoreIds.contains(StorageConfig.DEFAULT_SERVING_ID)
-        && storageSpecs.getServingStorageSpec() != null) {
-      servingStoreIds.add(StorageConfig.DEFAULT_SERVING_ID);
-    }
-    List<StorageSpec> servingStorageSpecs = specService
-        .getStorage(Lists.newArrayList(servingStoreIds)).stream()
-        .map(StorageInfo::getStorageSpec)
-        .collect(Collectors.toList());
-
-    Set<String> warehouseStoreIds = featureSpecs.stream()
-        .map(featureSpec -> featureSpec.getDataStores().getWarehouse().getId())
-        .filter(not(Strings::isNullOrEmpty))
-        .collect(Collectors.toSet());
-    if (!warehouseStoreIds.contains(StorageConfig.DEFAULT_WAREHOUSE_ID)
-        && storageSpecs.getWarehouseStorageSpec() != null) {
-      warehouseStoreIds.add(StorageConfig.DEFAULT_WAREHOUSE_ID);
-    }
-    List<StorageSpec> warehouseStorageSpecs = Lists.newArrayList();
-    if (warehouseStoreIds.size() > 0) {
-      warehouseStorageSpecs = specService
-          .getStorage(Lists.newArrayList(warehouseStoreIds)).stream()
-          .map(StorageInfo::getStorageSpec)
-          .collect(Collectors.toList());
-    }
-
     ImportJobSpecs.Builder importJobSpecsBuilder = ImportJobSpecs.newBuilder()
         .setJobId(jobId)
         .setImportSpec(importSpec)
         .addAllEntitySpecs(entitySpecs)
-        .addAllFeatureSpecs(featureSpecs)
-        .addAllServingStorageSpecs(servingStorageSpecs)
-        .addAllWarehouseStorageSpecs(warehouseStorageSpecs);
+        .addAllFeatureSpecs(featureSpecs);
+    if (storageSpecs.getServingStorageSpec() != null) {
+      importJobSpecsBuilder.setServingStorageSpec(storageSpecs.getServingStorageSpec());
+    }
+    if (storageSpecs.getWarehouseStorageSpec() != null) {
+      importJobSpecsBuilder.setWarehouseStorageSpec(storageSpecs.getWarehouseStorageSpec());
+    }
     if (storageSpecs.getErrorsStorageSpec() != null) {
       importJobSpecsBuilder.setErrorsStorageSpec(storageSpecs.getErrorsStorageSpec());
     }

@@ -138,7 +138,6 @@ public class EntityMapBuilderTest {
         MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(nbThread));
     CountDownLatch latch = new CountDownLatch(1);
     AtomicBoolean running = new AtomicBoolean();
-    AtomicInteger overlaps = new AtomicInteger();
 
     EntityMapBuilder builder = new EntityMapBuilder();
     List<String> entityIds = createEntityIds(20);
@@ -165,9 +164,6 @@ public class EntityMapBuilderTest {
                 } catch (InterruptedException e) {
                   e.printStackTrace();
                 }
-                if (running.get()) {
-                  overlaps.incrementAndGet();
-                }
                 running.set(true);
                 builder.addFeatureValueList(featureValueList.get(j));
                 running.set(false);
@@ -181,7 +177,6 @@ public class EntityMapBuilderTest {
     all.get();
 
     validate(builder.toEntityMap(), entityIds, featureIds, timestamp);
-    assertThat(overlaps.get(), greaterThan(0));
   }
 
   private void validate(

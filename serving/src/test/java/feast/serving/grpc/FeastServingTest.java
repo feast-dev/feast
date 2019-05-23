@@ -28,6 +28,7 @@ import feast.serving.ServingAPIProto.QueryFeaturesResponse;
 import feast.serving.service.FeastServing;
 import feast.serving.service.FeatureRetrievalDispatcher;
 import feast.serving.service.FeatureStorageRegistry;
+import feast.serving.service.RedisFeatureStorage;
 import feast.serving.service.SpecStorage;
 import feast.serving.testutil.FakeSpecStorage;
 import feast.specs.FeatureSpecProto.FeatureSpec;
@@ -45,8 +46,10 @@ public class FeastServingTest {
 
   SpecStorage specStorage;
 
-  @Mock FeatureStorageRegistry featureStorageRegistry;
-  @Mock FeatureRetrievalDispatcher featureRetrievalDispatcher;
+  @Mock
+  FeatureStorageRegistry featureStorageRegistry;
+  @Mock
+  FeatureRetrievalDispatcher featureRetrievalDispatcher;
 
   // class under test
   private FeastServing feast;
@@ -54,10 +57,9 @@ public class FeastServingTest {
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
-    specStorage = new FakeSpecStorage();
-    feast =
-        new FeastServing(
-            featureRetrievalDispatcher, featureStorageRegistry, specStorage, GlobalTracer.get());
+    specStorage = new FakeSpecStorage(RedisFeatureStorage.TYPE);
+    feast = new FeastServing(
+            featureRetrievalDispatcher, specStorage, GlobalTracer.get());
   }
 
   @Test

@@ -33,7 +33,7 @@ func (m *FeatureRow) Reset()         { *m = FeatureRow{} }
 func (m *FeatureRow) String() string { return proto.CompactTextString(m) }
 func (*FeatureRow) ProtoMessage()    {}
 func (*FeatureRow) Descriptor() ([]byte, []int) {
-	return fileDescriptor_FeatureRow_d1e0ebd91cde1799, []int{0}
+	return fileDescriptor_FeatureRow_b534c07ebff1be93, []int{0}
 }
 func (m *FeatureRow) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FeatureRow.Unmarshal(m, b)
@@ -86,10 +86,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("feast/types/FeatureRow.proto", fileDescriptor_FeatureRow_d1e0ebd91cde1799)
+	proto.RegisterFile("feast/types/FeatureRow.proto", fileDescriptor_FeatureRow_b534c07ebff1be93)
 }
 
-var fileDescriptor_FeatureRow_d1e0ebd91cde1799 = []byte{
+var fileDescriptor_FeatureRow_b534c07ebff1be93 = []byte{
 	// 248 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x90, 0xc1, 0x4a, 0x85, 0x40,
 	0x14, 0x86, 0xb1, 0x1b, 0xd1, 0x3d, 0x42, 0xc1, 0xd0, 0xc2, 0xe4, 0x52, 0xd2, 0xca, 0xd5, 0x9c,

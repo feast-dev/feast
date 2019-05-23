@@ -43,7 +43,7 @@ func (m *RedisBucketKey) Reset()         { *m = RedisBucketKey{} }
 func (m *RedisBucketKey) String() string { return proto.CompactTextString(m) }
 func (*RedisBucketKey) ProtoMessage()    {}
 func (*RedisBucketKey) Descriptor() ([]byte, []int) {
-	return fileDescriptor_Redis_749687aada0bf97b, []int{0}
+	return fileDescriptor_Redis_cef62c817c1622ce, []int{0}
 }
 func (m *RedisBucketKey) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RedisBucketKey.Unmarshal(m, b)
@@ -99,7 +99,7 @@ func (m *RedisBucketValue) Reset()         { *m = RedisBucketValue{} }
 func (m *RedisBucketValue) String() string { return proto.CompactTextString(m) }
 func (*RedisBucketValue) ProtoMessage()    {}
 func (*RedisBucketValue) Descriptor() ([]byte, []int) {
-	return fileDescriptor_Redis_749687aada0bf97b, []int{1}
+	return fileDescriptor_Redis_cef62c817c1622ce, []int{1}
 }
 func (m *RedisBucketValue) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RedisBucketValue.Unmarshal(m, b)
@@ -147,7 +147,7 @@ func (m *RedisBucketValueList) Reset()         { *m = RedisBucketValueList{} }
 func (m *RedisBucketValueList) String() string { return proto.CompactTextString(m) }
 func (*RedisBucketValueList) ProtoMessage()    {}
 func (*RedisBucketValueList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_Redis_749687aada0bf97b, []int{2}
+	return fileDescriptor_Redis_cef62c817c1622ce, []int{2}
 }
 func (m *RedisBucketValueList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RedisBucketValueList.Unmarshal(m, b)
@@ -180,9 +180,9 @@ func init() {
 	proto.RegisterType((*RedisBucketValueList)(nil), "feast.storage.RedisBucketValueList")
 }
 
-func init() { proto.RegisterFile("feast/storage/Redis.proto", fileDescriptor_Redis_749687aada0bf97b) }
+func init() { proto.RegisterFile("feast/storage/Redis.proto", fileDescriptor_Redis_cef62c817c1622ce) }
 
-var fileDescriptor_Redis_749687aada0bf97b = []byte{
+var fileDescriptor_Redis_cef62c817c1622ce = []byte{
 	// 325 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x91, 0xcd, 0x4f, 0xf2, 0x40,
 	0x10, 0xc6, 0xd3, 0x97, 0x57, 0x22, 0x4b, 0x24, 0x66, 0x35, 0xb1, 0x36, 0x26, 0x34, 0x9c, 0x7a,

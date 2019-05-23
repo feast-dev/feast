@@ -30,29 +30,10 @@ public class RedisFeatureOptionsTest {
     RedisFeatureOptions options =
         OptionsParser.parse(
             ImmutableMap.<String, String>builder()
-                .put("bucketSize", "PT3H")
-                .put("expiry", "PT6H")
+                .put("redis.expiry", "PT6H")
                 .build(),
             RedisFeatureOptions.class);
-    Assert.assertEquals("PT3H", options.bucketSize);
     Assert.assertEquals("PT6H", options.expiry);
-
-    Assert.assertEquals(Duration.standardHours(3), options.getBucketSizeDuration());
-    Assert.assertEquals(Duration.standardHours(6), options.getExpiryDuration());
-  }
-
-  @Test
-  public void testParseNoBucketSize() {
-    RedisFeatureOptions options =
-        OptionsParser.parse(
-            ImmutableMap.<String, String>builder()
-                .put("expiry", "PT6H")
-                .build(),
-            RedisFeatureOptions.class);
-    Assert.assertEquals(RedisFeatureOptions.DEFAULT_BUCKET_SIZE, options.bucketSize);
-    Assert.assertEquals("PT6H", options.expiry);
-
-    Assert.assertEquals(Duration.standardHours(1), options.getBucketSizeDuration());
     Assert.assertEquals(Duration.standardHours(6), options.getExpiryDuration());
   }
 
@@ -62,13 +43,9 @@ public class RedisFeatureOptionsTest {
     RedisFeatureOptions options =
         OptionsParser.parse(
             ImmutableMap.<String, String>builder()
-                .put("bucketSize", "PT3H")
                 .build(),
             RedisFeatureOptions.class);
     Assert.assertEquals(RedisFeatureOptions.DEFAULT_EXPIRY, options.expiry);
-    Assert.assertEquals("PT3H", options.bucketSize);
-
     Assert.assertEquals(Duration.ZERO, options.getExpiryDuration());
-    Assert.assertEquals(Duration.standardHours(3), options.getBucketSizeDuration());
   }
 }

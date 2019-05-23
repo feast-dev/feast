@@ -6,22 +6,23 @@ core:
     registry: gcr.io/kf-feast
     repository: feast-core
     tag: "1234"
-  replicaCount: 3
+  replicaCount: 1
   resources: 
     limits: 
-      cpu: 8
-      memory: 6G
+      cpu: 4
+      memory: 8G
     requests: 
       cpu: 2
-      memory: 3G
+      memory: 4G
   rollingUpdate: 
     maxSurge: 2
     maxUnavailable: 0
   service: 
-    grpc:
+    type: ClusterIP
+    grpc: 
       port: 6565
       targetPort: 6565
-    http:
+    http: 
       port: 80
       targetPort: 8080
     # loadBalancerSourceRanges sets the accepted IP ranges for firewall ingress rule
@@ -38,6 +39,12 @@ core:
       initialDelay: 60000
   trainingDatasetPrefix: "fs"
   # logType: JSON
+  livenessProbe:
+    initialDelaySeconds: 120
+    failureThreshold: 3
+  readinessProbe:
+    initialDelaySeconds: 60
+    failureThreshold: 1
 
 #store:
 #  errors:
@@ -49,15 +56,15 @@ core:
 #    type: "redis"
 #    options: '{"host": "...", "port": "6379"}'
 
-postgresql: 
-  provision: true
-  imageTag: 9.6.11
-  service: 
-    port: 5432
+# postgresql: 
+#   provision: true
+#   persistence:
+#     enabled: false
     
-redis:
-  name: feast-redis
-  provision: true
+# redis:
+#   provision: true
+#   cluster:
+#     enabled: false
 
 serving: 
   config: 
@@ -72,7 +79,7 @@ serving:
     registry: gcr.io/kf-feast
     repository: feast-serving
     tag: "1234"
-  replicaCount: 4
+  replicaCount: 1
   resources: 
     limits: 
       cpu: 2
@@ -84,6 +91,7 @@ serving:
     maxSurge: 2
     maxUnavailable: 0
   service: 
+    type: ClusterIP
     grpc: 
       port: 6565
       targetPort: 6565
@@ -95,6 +103,12 @@ serving:
     # loadBalancerSourceRanges: ["10.0.0.0/8"]
   jaeger:
     enabled: false
+  livenessProbe:
+    initialDelaySeconds: 120
+    failureThreshold: 3
+  readinessProbe:
+    initialDelaySeconds: 60
+    failureThreshold: 1
 
 # Enable only if you have an existing service account you 
 # want to mount the secret of.

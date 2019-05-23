@@ -28,11 +28,9 @@ import com.google.common.collect.Streams;
 import feast.core.dao.EntityInfoRepository;
 import feast.core.dao.FeatureGroupInfoRepository;
 import feast.core.dao.FeatureInfoRepository;
-import feast.core.dao.StorageInfoRepository;
-import feast.core.model.FeatureGroupInfo;
-import feast.core.model.StorageInfo;
 import feast.core.storage.BigQueryStorageManager;
 import feast.core.storage.BigTableStorageManager;
+import feast.core.storage.JsonFileStorageManager;
 import feast.core.storage.PostgresStorageManager;
 import feast.core.storage.RedisStorageManager;
 import feast.specs.EntitySpecProto.EntitySpec;
@@ -53,7 +51,7 @@ public class SpecValidator {
   private static final String NO_STORE = "";
   private static final String[] SUPPORTED_WAREHOUSE_STORES =
       new String[]{
-          BigQueryStorageManager.TYPE, "file.json",
+          BigQueryStorageManager.TYPE, JsonFileStorageManager.TYPE
       };
   private static final String[] SUPPORTED_SERVING_STORES =
       new String[]{
@@ -62,19 +60,16 @@ public class SpecValidator {
   private static final String[] SUPPORTED_ERRORS_STORES = new String[]{"file.json", "stderr",
       "stdout"};
 
-  private StorageInfoRepository storageInfoRepository;
   private EntityInfoRepository entityInfoRepository;
   private FeatureGroupInfoRepository featureGroupInfoRepository;
   private FeatureInfoRepository featureInfoRepository;
 
   @Autowired
   public SpecValidator(
-      StorageInfoRepository storageInfoRepository,
       EntityInfoRepository entityInfoRepository,
       FeatureGroupInfoRepository featureGroupInfoRepository,
       FeatureInfoRepository featureInfoRepository) {
 
-    this.storageInfoRepository = storageInfoRepository;
     this.entityInfoRepository = entityInfoRepository;
     this.featureGroupInfoRepository = featureGroupInfoRepository;
     this.featureInfoRepository = featureInfoRepository;
@@ -109,46 +104,12 @@ public class SpecValidator {
           entityInfoRepository.existsById(spec.getEntity()),
           Strings.lenientFormat("Entity with name %s does not exist", spec.getEntity()));
 
-      // TODO: clean up store validation for features
-      String servingStoreId = NO_STORE;
-      String warehouseStoreId = NO_STORE;
-      if (spec.hasDataStores()) {
-        servingStoreId =
-            spec.getDataStores().hasServing() ? spec.getDataStores().getServing().getId() : "";
-        warehouseStoreId =
-            spec.getDataStores().hasWarehouse() ? spec.getDataStores().getWarehouse().getId() : "";
-      }
       if (!spec.getGroup().equals("")) {
         Optional groupOptional = featureGroupInfoRepository.findById(spec.getGroup());
         if (!groupOptional.isPresent()) {
           throw new IllegalArgumentException(
               Strings.lenientFormat("Group with id %s does not exist", spec.getGroup()));
         }
-        FeatureGroupInfo group = (FeatureGroupInfo) groupOptional.get();
-        servingStoreId =
-            servingStoreId.equals(NO_STORE) ? group.getServingStore().getId() : servingStoreId;
-        warehouseStoreId =
-            warehouseStoreId.equals(NO_STORE) ? group.getWarehouseStore().getId()
-                : warehouseStoreId;
-      }
-      Optional<StorageInfo> servingStore = storageInfoRepository.findById(servingStoreId);
-      Optional<StorageInfo> warehouseStore = storageInfoRepository.findById(warehouseStoreId);
-      checkArgument(
-          servingStore.isPresent(),
-          Strings.lenientFormat("Serving store with id %s does not exist", servingStoreId));
-      checkArgument(
-          Arrays.asList(SUPPORTED_SERVING_STORES).contains(servingStore.get().getType()),
-          Strings.lenientFormat("Unsupported serving store type", servingStore.get().getType()));
-
-      if (!warehouseStoreId.equals(NO_STORE)) {
-        checkArgument(
-            warehouseStore.isPresent(),
-            Strings.lenientFormat("Warehouse store with id %s does not exist", warehouseStoreId));
-
-        checkArgument(
-            Arrays.asList(SUPPORTED_WAREHOUSE_STORES).contains(warehouseStore.get().getType()),
-            Strings.lenientFormat(
-                "Unsupported warehouse store type", warehouseStore.get().getType()));
       }
 
     } catch (NullPointerException | IllegalArgumentException e) {
@@ -162,22 +123,6 @@ public class SpecValidator {
     try {
       checkArgument(!spec.getId().equals(""), "Id field cannot be empty");
       checkLowerSnakeCase(spec.getId(), "Id");
-      if (spec.hasDataStores()) {
-        if (spec.getDataStores().hasServing()
-            && !spec.getDataStores().getServing().getId().equals("")) {
-          String servingStoreId = spec.getDataStores().getServing().getId();
-          checkArgument(
-              storageInfoRepository.existsById(servingStoreId),
-              Strings.lenientFormat("Serving store with id %s does not exist", servingStoreId));
-        }
-        if (spec.getDataStores().hasWarehouse()
-            && !spec.getDataStores().getWarehouse().getId().equals("")) {
-          String warehouseStoreId = spec.getDataStores().getWarehouse().getId();
-          checkArgument(
-              storageInfoRepository.existsById(warehouseStoreId),
-              Strings.lenientFormat("Warehouse store with id %s does not exist", warehouseStoreId));
-        }
-      }
     } catch (NullPointerException | IllegalArgumentException e) {
       throw new IllegalArgumentException(
           Strings.lenientFormat(

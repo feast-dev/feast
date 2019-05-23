@@ -18,8 +18,7 @@ Redis will be used for the feature serving database.
 
 * Kubernetes cluster
   * The user should have a GKE cluster provisioned, with `kubectl` set
-    up to access this cluster. Note the minimum cluster requirements
-    below.
+    up to access this cluster
   * This cluster should have the right scopes to start jobs on
     Dataflow and to modify BigQuery datasets and tables. The simplest
     way to set this up is by setting the scope to `cloud-platform` when
@@ -34,13 +33,6 @@ Redis will be used for the feature serving database.
   * You have cloned the [Feast
     repository](https://github.com/gojek/feast/) and your command line
     is active in the root of the repository
-* Feast CLI binaries
-  * You can use pre-built binaries or [compile your own](../cli/README.md).
-
-### GKE cluster requirements
-
-The recommended minimum GKE cluster is six `n1-standard-2` (each 2
-vCPUs, 7.5 GB memory).
 
 ## Set up the environment
 
@@ -51,7 +43,7 @@ GCP_PROJECT=my-feast-project
 FEAST_CLUSTER=feast
 FEAST_REPO=$(pwd)
 FEAST_VERSION=0.1.0
-FEAST_STORAGE_BUCKET=gs://my-feast-bucket
+FEAST_STORAGE_BUCKET=gs://${GCP_PROJECT}-feast
 ```
 
 Ensure that your `kubectl` context is set to the correct cluster
@@ -92,48 +84,4 @@ helm install --name feast charts/dist/feast-${FEAST_VERSION}.tgz \
 --set core.projectId=${GCP_PROJECT} \
 --set core.image.tag=${FEAST_VERSION} \
 --set serving.image.tag=${FEAST_VERSION}
-```
-
-## Configure Feast CLI
-
-Make sure your CLI is correctly configured for your Feast Core. You can find this IP via:
-```sh
-kubectl describe service feast-core
-```
-
-The configure the `coreURI` IP and port as follows:
-```sh
-feast config set coreURI 10.0.0.1:6565
-```
-
-## Register storage locations
-
-You will need to register one warehouse store and one serving
-store. This is done using [specs](specs.md).
-
-`bqStore.yml`
-```
-id: BIGQUERY1
-type: bigquery
-options:
-  project: "my-feast-project"
-  dataset: "feast"
-  tempLocation: "gs://my-feast-bucket"
-```
-
-Replace the `host` with the IP address of your `feast-redis-master`
-service.
-
-`redis.yml`
-```
-id: REDIS1
-type: redis
-options:
-  host: 10.19.255.250
-  port: 6379
-```
-
-Register the storage spec:
-```sh
-feast register storage bqStore.yml redis.yml
 ```

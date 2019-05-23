@@ -17,12 +17,16 @@
 
 package feast.serving.service;
 
+import static org.mockito.Mockito.when;
+
 import com.google.cloud.bigtable.hbase.BigtableConfiguration;
 import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import com.google.protobuf.Timestamp;
 import feast.serving.model.FeatureValue;
+import feast.serving.service.BigTableFeatureStorage.BigTableConnectionFactory;
 import feast.serving.testutil.BigTablePopulator;
 import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.ValueProto.ValueType;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,16 +36,16 @@ import org.apache.hadoop.hbase.client.Connection;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 public class BigTableFeatureStorageTestITCase {
+
   private static final String ENTITY_NAME = "test_entity";
 
   // The object under test
   BigTableFeatureStorage featureStorage;
-
   private BigTablePopulator bigTablePopulator;
   private List<String> entityIds;
-
   private Timestamp now;
   private Connection connection;
 
@@ -50,9 +54,16 @@ public class BigTableFeatureStorageTestITCase {
     Configuration config = BigtableConfiguration.configure("dummyProject", "dummyInstance");
     config.set(BigtableOptionsFactory.BIGTABLE_EMULATOR_HOST_KEY, "localhost:8080");
     connection = BigtableConfiguration.connect(config);
+
+    BigTableConnectionFactory connectionFactory = Mockito.mock(BigTableConnectionFactory.class);
+    when(connectionFactory.connect()).thenReturn(connection);
+
     // ideally use bigtable emulator.
     bigTablePopulator = new BigTablePopulator(connection);
-    featureStorage = new BigTableFeatureStorage(connection);
+    StorageSpec storageSpec = StorageSpec.newBuilder()
+        .setId(FeastServing.SERVING_STORAGE_ID)
+        .setType(BigTableFeatureStorage.TYPE).build();
+    featureStorage = new BigTableFeatureStorage(storageSpec, connectionFactory);
 
     entityIds = createEntityIds(10);
     now = Timestamp.newBuilder().setSeconds(System.currentTimeMillis() / 1000).build();

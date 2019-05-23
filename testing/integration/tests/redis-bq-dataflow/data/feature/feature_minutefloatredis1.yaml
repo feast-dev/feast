@@ -1,7 +1,0 @@
-id: myentity.feature_float_redis
-name: feature_float_redis
-entity: myentity
-owner: bob@example.com
-description: test entity.
-valueType:  FLOAT
-uri: https://github.com/bob/example

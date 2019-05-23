@@ -38,19 +38,21 @@ spec:
             path: /ping
             port: {{ .Values.serving.service.http.targetPort }}
             scheme: HTTP
-          initialDelaySeconds: 60
+          initialDelaySeconds: {{ .Values.serving.livenessProbe.initialDelaySeconds }}
           periodSeconds: 10
           successThreshold: 1
           timeoutSeconds: 5
+          failureThreshold: {{ .Values.serving.livenessProbe.failureThreshold }}
         readinessProbe:
           httpGet:
             path: /healthz
             port: {{ .Values.serving.service.http.targetPort }}
             scheme: HTTP
-          initialDelaySeconds: 100
-          periodSeconds: 10
+          initialDelaySeconds: {{ .Values.serving.readinessProbe.initialDelaySeconds }}
+          periodSeconds: 5
           successThreshold: 1
-          timeoutSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: {{ .Values.serving.readinessProbe.failureThreshold }}
         resources:
           requests:
             cpu: "{{ .Values.serving.resources.requests.cpu }}"
@@ -67,6 +69,10 @@ spec:
             value: "{{ printf "%s.%s.svc.cluster.local" (include "feast.core.name" .) .Release.Namespace }}"
           - name: FEAST_CORE_GRPC_PORT
             value: "{{ .Values.core.service.grpc.port }}"
+          - name: STORE_SERVING_TYPE
+            value: {{ .Values.store.serving.type }}
+          - name: STORE_SERVING_OPTIONS
+            value: {{ .Values.store.serving.options | toJson}}
           - name: FEAST_MAX_NB_THREAD
             value: "{{ .Values.serving.config.maxNumberOfThread }}"
           - name: FEAST_MAX_ENTITY_PER_BATCH

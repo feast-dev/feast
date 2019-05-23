@@ -17,29 +17,26 @@
 
 package feast.core.model;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
+
 import com.google.protobuf.Timestamp;
 import feast.core.UIServiceProto.UIServiceTypes.FeatureGroupDetail;
-import feast.core.exception.RetrievalException;
 import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
-import feast.specs.FeatureSpecProto.DataStore;
-import feast.specs.FeatureSpecProto.DataStores;
+import java.util.Date;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import java.util.Date;
-
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
-
 public class FeatureGroupInfoTest {
+
+  @Rule
+  public final ExpectedException exception = ExpectedException.none();
   private FeatureGroupInfo featureGroupInfo;
   private FeatureGroupSpec featureGroupSpec;
   private StorageInfo servingStorage;
   private StorageInfo warehouseStorage;
-
-  @Rule public final ExpectedException exception = ExpectedException.none();
 
   @Before
   public void setUp() {
@@ -52,22 +49,14 @@ public class FeatureGroupInfoTest {
     featureGroupInfo = new FeatureGroupInfo();
     featureGroupInfo.setId("test");
     featureGroupInfo.setTags("tag1,tag2");
-    featureGroupInfo.setServingStore(servingStorage);
-    featureGroupInfo.setServingStoreOpts("{}");
-    featureGroupInfo.setWarehouseStore(warehouseStorage);
-    featureGroupInfo.setWarehouseStoreOpts("{}");
 
-    DataStore servingStore = DataStore.newBuilder().setId("REDIS1").build();
-    DataStore warehouseStore = DataStore.newBuilder().setId("REDIS2").build();
-    DataStores dataStores =
-        DataStores.newBuilder().setServing(servingStore).setWarehouse(warehouseStore).build();
-
+    featureGroupInfo.setOptions("{\"foo\":\"bar\"}");
     featureGroupSpec =
         FeatureGroupSpec.newBuilder()
             .setId("test")
             .addTags("tag1")
             .addTags("tag2")
-            .setDataStores(dataStores)
+            .putOptions("foo", "bar")
             .build();
   }
 
@@ -79,7 +68,7 @@ public class FeatureGroupInfoTest {
   @Test
   public void shouldCorrectlyInitialiseFromGivenSpec() {
     assertThat(
-        new FeatureGroupInfo(featureGroupSpec, servingStorage, warehouseStorage),
+        new FeatureGroupInfo(featureGroupSpec),
         equalTo(featureGroupInfo));
   }
 
@@ -94,36 +83,26 @@ public class FeatureGroupInfoTest {
 
   @Test
   public void shouldUpdateTags() {
-    DataStore servingStore = DataStore.newBuilder().setId("REDIS1").build();
-    DataStore warehouseStore = DataStore.newBuilder().setId("REDIS2").build();
-    DataStores dataStores =
-        DataStores.newBuilder().setServing(servingStore).setWarehouse(warehouseStore).build();
-
     FeatureGroupSpec update =
         FeatureGroupSpec.newBuilder()
             .setId("test")
             .addTags("newtag")
-            .setDataStores(dataStores)
+            .putOptions("foo", "bar")
             .build();
     featureGroupInfo.update(update);
 
-    FeatureGroupInfo expected = new FeatureGroupInfo(update, servingStorage, warehouseStorage);
+    FeatureGroupInfo expected = new FeatureGroupInfo(update);
     assertThat(featureGroupInfo, equalTo(expected));
   }
 
   @Test
-  public void shouldThrowErrorIfDatastoresChanged() {
-    DataStore servingStore = DataStore.newBuilder().setId("REDIS3").build();
-    DataStore warehouseStore = DataStore.newBuilder().setId("REDIS2").build();
-    DataStores dataStores =
-            DataStores.newBuilder().setServing(servingStore).setWarehouse(warehouseStore).build();
-
+  public void shouldThrowErrorIfOptionsChanged() {
     FeatureGroupSpec update =
-            FeatureGroupSpec.newBuilder()
-                    .setId("test")
-                    .addTags("newtag")
-                    .setDataStores(dataStores)
-                    .build();
+        FeatureGroupSpec.newBuilder()
+            .setId("test")
+            .addTags("newtag")
+            .putOptions("new", "option")
+            .build();
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage("Feature group already exists. Update only allowed for fields: [tags]");
     featureGroupInfo.update(update);
