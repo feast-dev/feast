@@ -8,7 +8,7 @@
   own](../cli/README.md).
 
 Make sure your CLI is correctly configured for your Feast Core. If
-you're running a local Fesst Core, it would be:
+you're running a local Feast Core, it would be:
 ```sh
 feast config set coreURI localhost
 ```
@@ -80,9 +80,9 @@ Feast supports ingesting feature from 4 type of sources:
 * Pubsub Topic
 * Pubsub Subscription
 
-[[More details]](specs.md#import-spec)
-
-Let's take a look on how to create an import job spec and ingest some data from a CSV file.
+Let's take a look on how to create an import job spec and ingest some data from a CSV file. 
+You may find more information on how to ingest data from different sources 
+here: [[Import Specs]](specs.md#import-spec)
 
 ### Prepare your data
 `word_counts.csv`
