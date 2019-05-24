@@ -107,8 +107,8 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <nodeVersion>v9.9.0</nodeVersion>
-                    <yarnVersion>v1.13.0</yarnVersion>
+                    <nodeVersion>v10.15.3</nodeVersion>
+                    <yarnVersion>v1.16.0</yarnVersion>
                     <workingDirectory>../ui</workingDirectory>
                     <installDirectory>target</installDirectory>
                 </configuration>
@@ -273,22 +273,22 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.9.8</version>
+            <version>2.9.9</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
-            <version>2.9.8</version>
+            <version>2.9.9</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>2.9.8</version>
+            <version>2.9.9</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
-            <version>2.9.8</version>
+            <version>2.9.9</version>
         </dependency>
 
         <!--compile 'com.github.spullara.mustache.java:compiler:0.9.5'-->
