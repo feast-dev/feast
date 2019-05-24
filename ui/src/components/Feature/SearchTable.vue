@@ -122,7 +122,6 @@
 
 <script>
   import vSelect from 'vue-select';
-  import filters from '@/filters';
 
   export default {
     name: 'FeaturesSearchTable',
