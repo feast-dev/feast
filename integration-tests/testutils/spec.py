@@ -12,6 +12,12 @@ def get_entity_name(entity_spec_file):
 
 def get_feature_infos(feature_specs_files):
     value_type_to_dtype = {
+        "INT32": np.int32,
+        "INT64": np.int64,
+        "DOUBLE": np.float64,
+        "FLOAT": np.float64,
+    }
+    value_type_to_pandas_dtype = {
         "INT32": "Int32",
         "INT64": "Int64",
         "DOUBLE": np.float64,
@@ -27,6 +33,7 @@ def get_feature_infos(feature_specs_files):
                 "id": feature_spec["id"],
                 "name": feature_spec["name"],
                 "dtype": value_type_to_dtype[feature_spec["valueType"]],
+                "pandas_dtype": value_type_to_pandas_dtype[feature_spec["valueType"]]
             }
         )
     assert len(feature_infos) > 0

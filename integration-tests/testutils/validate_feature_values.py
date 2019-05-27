@@ -22,14 +22,14 @@ def validate_warehouse(
         feature_values_filepath,
         names=["id", "event_timestamp"] + [f["name"] for f in feature_infos],
         dtype=dict(
-            [("id", np.string_)] + [(f["name"], f["dtype"]) for f in feature_infos]
+            [("id", np.string_)] + [(f["name"], f["pandas_dtype"]) for f in feature_infos]
         ),
         parse_dates=["event_timestamp"],
     )
 
     dtypes = {"event_timestamp": "datetime64[ns]"}
     for f in feature_infos:
-        dtypes[f["name"]] = f["dtype"]
+        dtypes[f["name"]] = f["pandas_dtype"]
 
     # TODO: Retrieve actual values via Feast Core rather than directly from BigQuery
     #       Need to change Python SDK so can retrieve values via Feast Core while
@@ -56,7 +56,7 @@ def validate_serving(entity_name, feature_infos, feature_values_filepath, feast_
         feature_values_filepath,
         names=[entity_name] + [f["id"] for f in feature_infos],
         dtype=dict(
-            [(entity_name, np.string_)] + [(f["id"], f["dtype"]) for f in feature_infos]
+            [(entity_name, np.string_)] + [(f["id"], f["pandas_dtype"]) for f in feature_infos]
         ),
     )
     actual = (
