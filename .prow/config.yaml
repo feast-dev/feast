@@ -118,7 +118,7 @@ presubmits:
           export FEAST_HOME=${PWD}
           export FEAST_IMAGE_REGISTRY=us.gcr.io
           export FEAST_IMAGE_TAG=${PULL_PULL_SHA}
-          export FEAST_WAREHOUSE_DATASET=feast_build_${BUILD_ID:0:5}
+          export FEAST_WAREHOUSE_DATASET=feast_build_${BUILD_ID}
           export FEAST_CORE_URL=build-${BUILD_ID:0:5}.drone.feast.ai:80
           export FEAST_SERVING_URL=build-${BUILD_ID:0:5}.drone.feast.ai:80
           export FEAST_RELEASE_NAME=feast-${BUILD_ID:0:5}
