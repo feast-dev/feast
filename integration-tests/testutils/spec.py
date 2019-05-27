@@ -12,8 +12,8 @@ def get_entity_name(entity_spec_file):
 
 def get_feature_infos(feature_specs_files):
     value_type_to_dtype = {
-        "INT32": np.int64,
-        "INT64": np.int64,
+        "INT32": "Int32",
+        "INT64": "Int64",
         "DOUBLE": np.float64,
         "FLOAT": np.float64,
     }
