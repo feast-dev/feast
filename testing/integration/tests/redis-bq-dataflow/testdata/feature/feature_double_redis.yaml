@@ -1,7 +1,0 @@
-id: myentity.feature_double_redis
-name: feature_double_redis
-entity: myentity
-owner: bob@example.com
-description: test entity.
-valueType:  DOUBLE
-uri: https://github.com/bob/example

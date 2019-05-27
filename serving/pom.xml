@@ -37,6 +37,11 @@
       <name>bintray</name>
       <url>https://jcenter.bintray.com</url>
     </repository>
+    <repository>
+      <id>spring-plugins</id>
+      <name>Spring Plugins</name>
+      <url> http://repo.spring.io/plugins-release</url>
+    </repository>
   </repositories>
 
   <build>

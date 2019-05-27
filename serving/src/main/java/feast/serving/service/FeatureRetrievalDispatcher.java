@@ -17,27 +17,16 @@
 
 package feast.serving.service;
 
-import static java.util.stream.Collectors.groupingBy;
-
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.collect.Lists;
 import feast.serving.ServingAPIProto.Entity;
-import feast.serving.config.AppConfig;
-import feast.serving.exception.FeatureRetrievalException;
 import feast.serving.model.FeatureValue;
 import feast.serving.util.EntityMapBuilder;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import io.opentracing.Scope;
-import io.opentracing.Span;
 import io.opentracing.Tracer;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -48,19 +37,13 @@ public class FeatureRetrievalDispatcher {
 
   private final FeatureStorageRegistry featureStorageRegistry;
   private final Tracer tracer;
-  private final ListeningExecutorService executorService;
-  private final int timeout;
 
   @Autowired
   public FeatureRetrievalDispatcher(
       FeatureStorageRegistry featureStorageRegistry,
-      ListeningExecutorService executorService,
-      AppConfig appConfig,
       Tracer tracer) {
     this.featureStorageRegistry = featureStorageRegistry;
     this.tracer = tracer;
-    this.executorService = executorService;
-    this.timeout = appConfig.getTimeout();
   }
 
   /**
@@ -77,13 +60,7 @@ public class FeatureRetrievalDispatcher {
   public Map<String, Entity> dispatchFeatureRetrieval(
       String entityName, Collection<String> entityIds, Collection<FeatureSpec> featureSpecs) {
 
-    Map<String, List<FeatureSpec>> groupedFeatureSpecs = groupByStorage(featureSpecs);
-
-    if (groupedFeatureSpecs.size() <= 1) {
-      return runInCurrentThread(entityName, entityIds, groupedFeatureSpecs);
-    } else {
-      return runWithExecutorService(entityName, entityIds, groupedFeatureSpecs);
-    }
+    return runInCurrentThread(entityName, entityIds, Lists.newArrayList(featureSpecs));
   }
 
   /**
@@ -91,18 +68,17 @@ public class FeatureRetrievalDispatcher {
    *
    * @param entityName entity name of of the feature.
    * @param entityIds list of entity ID of the feature to be retrieved.
-   * @param groupedFeatureSpecs feature spec grouped by storage ID.
+   * @param featureSpecs list of feature specs
    * @return entity map containing the result of feature retrieval.
    */
   private Map<String, Entity> runInCurrentThread(
       String entityName,
       Collection<String> entityIds,
-      Map<String, List<FeatureSpec>> groupedFeatureSpecs) {
+      List<FeatureSpec> featureSpecs) {
     try (Scope scope =
         tracer.buildSpan("FeatureRetrievalDispatcher-runInCurrentThread").startActive(true)) {
 
-      String storageId = groupedFeatureSpecs.keySet().iterator().next();
-      List<FeatureSpec> featureSpecs = groupedFeatureSpecs.get(storageId);
+      String storageId = FeastServing.SERVING_STORAGE_ID;
       FeatureStorage featureStorage = featureStorageRegistry.get(storageId);
 
       List<FeatureValue> featureValues;
@@ -112,66 +88,5 @@ public class FeatureRetrievalDispatcher {
       builder.addFeatureValueList(featureValues);
       return builder.toEntityMap();
     }
-  }
-
-  /**
-   * Execute feature retrieval in parallel using executor service.
-   *
-   * @param entityName entity name of the feature.
-   * @param entityIds list of entity ID.
-   * @param groupedFeatureSpec feature specs grouped by serving storage ID.
-   * @return entity map containing result of feature retrieval.
-   */
-  private Map<String, Entity> runWithExecutorService(
-      String entityName,
-      Collection<String> entityIds,
-      Map<String, List<FeatureSpec>> groupedFeatureSpec) {
-    try (Scope scope =
-        tracer.buildSpan("FeatureRetrievalDispatcher-runWithExecutorService").startActive(true)) {
-      Span span = scope.span();
-      List<ListenableFuture<Void>> futures = new ArrayList<>();
-      EntityMapBuilder entityMapBuilder = new EntityMapBuilder();
-      for (Map.Entry<String, List<FeatureSpec>> entry : groupedFeatureSpec.entrySet()) {
-        FeatureStorage featureStorage = featureStorageRegistry.get(entry.getKey());
-        List<FeatureSpec> featureSpecs = entry.getValue();
-        futures.add(
-            executorService.submit(
-                () -> {
-                  List<FeatureValue> featureValues =
-                      featureStorage.getFeature(entityName, entityIds, featureSpecs);
-                  entityMapBuilder.addFeatureValueList(featureValues);
-                  return null;
-                }));
-      }
-      span.log("submitted all task");
-      ListenableFuture<List<Void>> combined = Futures.allAsList(futures);
-      try {
-        combined.get(timeout, TimeUnit.SECONDS);
-        span.log("completed getting all result");
-        return entityMapBuilder.toEntityMap();
-      } catch (InterruptedException e) {
-        log.error("Interrupted exception while processing futures", e);
-        throw new FeatureRetrievalException("Interrupted exception while processing futures", e);
-      } catch (ExecutionException e) {
-        log.error("Execution exception while processing futures", e);
-        throw new FeatureRetrievalException("Execution exception while processing futures", e);
-      } catch (TimeoutException e) {
-        log.error("Timeout exception while processing futures", e);
-        throw new FeatureRetrievalException(
-            "Timeout exception exception while processing futures", e);
-      }
-    }
-  }
-
-  /**
-   * Group request by its serving storage ID.
-   *
-   * @param featureSpecs list of request.
-   * @return request grouped by serving storage ID.
-   */
-  private Map<String, List<FeatureSpec>> groupByStorage(Collection<FeatureSpec> featureSpecs) {
-    return featureSpecs
-        .stream()
-        .collect(groupingBy(featureSpec -> featureSpec.getDataStores().getServing().getId()));
   }
 }

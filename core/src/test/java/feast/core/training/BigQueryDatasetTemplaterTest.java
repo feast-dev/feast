@@ -32,11 +32,9 @@ import feast.core.DatasetServiceProto.FeatureSet;
 import feast.core.dao.FeatureInfoRepository;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureInfo;
-import feast.core.model.StorageInfo;
+import feast.core.storage.BigQueryStorageManager;
 import feast.core.training.BigQueryDatasetTemplater.Features;
 import feast.specs.EntitySpecProto.EntitySpec;
-import feast.specs.FeatureSpecProto.DataStore;
-import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
 import java.io.InputStream;
@@ -58,21 +56,30 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
 public class BigQueryDatasetTemplaterTest {
+
   private BigQueryDatasetTemplater templater;
   private BasicFormatterImpl formatter = new BasicFormatterImpl();
 
-  @Mock private FeatureInfoRepository featureInfoRespository;
+  @Mock
+  private FeatureInfoRepository featureInfoRespository;
   private String sqlTemplate;
 
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
+    StorageSpec storageSpec = StorageSpec.newBuilder()
+        .setId("BIGQUERY1")
+        .setType(BigQueryStorageManager.TYPE)
+        .putOptions("project", "project")
+        .putOptions("dataset", "dataset")
+        .build();
 
     Jinjava jinjava = new Jinjava();
     Resource resource = new ClassPathResource("templates/bq_training.tmpl");
     InputStream resourceInputStream = resource.getInputStream();
     sqlTemplate = CharStreams.toString(new InputStreamReader(resourceInputStream, Charsets.UTF_8));
-    templater = new BigQueryDatasetTemplater(jinjava, sqlTemplate, featureInfoRespository);
+    templater = new BigQueryDatasetTemplater(jinjava, sqlTemplate, storageSpec,
+        featureInfoRespository);
   }
 
   @Test(expected = NoSuchElementException.class)
@@ -87,8 +94,16 @@ public class BigQueryDatasetTemplaterTest {
 
   @Test
   public void shouldPassCorrectArgumentToTemplateEngine() {
+    StorageSpec storageSpec = StorageSpec.newBuilder()
+        .setId("BIGQUERY1")
+        .setType(BigQueryStorageManager.TYPE)
+        .putOptions("project", "project")
+        .putOptions("dataset", "dataset")
+        .build();
+
     Jinjava jinjava = mock(Jinjava.class);
-    templater = new BigQueryDatasetTemplater(jinjava, sqlTemplate, featureInfoRespository);
+    templater = new BigQueryDatasetTemplater(jinjava, sqlTemplate, storageSpec,
+        featureInfoRespository);
 
     Timestamp startDate =
         Timestamps.fromSeconds(Instant.parse("2018-01-01T00:00:00.00Z").getEpochSecond());
@@ -97,10 +112,9 @@ public class BigQueryDatasetTemplaterTest {
     int limit = 100;
     String featureId = "myentity.feature1";
     String featureName = "feature1";
-    String tableId = "project.dataset.myentity";
 
     when(featureInfoRespository.findAllById(any(List.class)))
-        .thenReturn(Collections.singletonList(createFeatureInfo(featureId, featureName, tableId)));
+        .thenReturn(Collections.singletonList(createFeatureInfo(featureId, featureName)));
 
     FeatureSet fs =
         FeatureSet.newBuilder()
@@ -125,24 +139,21 @@ public class BigQueryDatasetTemplaterTest {
     Features features = (Features) actualContext.get("feature_set");
     assertThat(features.getColumns().size(), equalTo(1));
     assertThat(features.getColumns().get(0), equalTo(featureName));
-    assertThat(features.getTableId(), equalTo(tableId));
   }
 
   @Test
   public void shouldRenderCorrectQuery1() throws Exception {
-    String tableId1 = "project.dataset.myentity";
     String featureId1 = "myentity.feature1";
     String featureName1 = "feature1";
     String featureId2 = "myentity.feature2";
     String featureName2 = "feature2";
 
-    FeatureInfo featureInfo1 = createFeatureInfo(featureId1, featureName1, tableId1);
-    FeatureInfo featureInfo2 = createFeatureInfo(featureId2, featureName2, tableId1);
+    FeatureInfo featureInfo1 = createFeatureInfo(featureId1, featureName1);
+    FeatureInfo featureInfo2 = createFeatureInfo(featureId2, featureName2);
 
-    String tableId2 = "project.dataset.myentity";
     String featureId3 = "myentity.feature3";
     String featureName3 = "feature3";
-    FeatureInfo featureInfo3 = createFeatureInfo(featureId3, featureName3, tableId2);
+    FeatureInfo featureInfo3 = createFeatureInfo(featureId3, featureName3);
 
     when(featureInfoRespository.findAllById(any(List.class)))
         .thenReturn(Arrays.asList(featureInfo1, featureInfo2, featureInfo3));
@@ -168,11 +179,10 @@ public class BigQueryDatasetTemplaterTest {
     List<FeatureInfo> featureInfos = new ArrayList<>();
     List<String> featureIds = new ArrayList<>();
 
-    String tableId = "project.dataset.myentity";
     String featureId = "myentity.feature1";
     String featureName = "feature1";
 
-    featureInfos.add(createFeatureInfo(featureId, featureName, tableId));
+    featureInfos.add(createFeatureInfo(featureId, featureName));
     featureIds.add(featureId);
 
     when(featureInfoRespository.findAllById(any(List.class))).thenReturn(featureInfos);
@@ -202,25 +212,15 @@ public class BigQueryDatasetTemplaterTest {
     assertThat(query, equalTo(expQuery));
   }
 
-  private FeatureInfo createFeatureInfo(String featureId, String featureName, String tableId) {
-    StorageSpec storageSpec =
-        StorageSpec.newBuilder()
-            .setId("BQ")
-            .setType("bigquery")
-            .putOptions("project", tableId.split("\\.")[0])
-            .putOptions("dataset", tableId.split("\\.")[1])
-            .build();
-    StorageInfo storageInfo = new StorageInfo(storageSpec);
-
+  private FeatureInfo createFeatureInfo(String featureId, String featureName) {
     FeatureSpec fs =
         FeatureSpec.newBuilder()
             .setId(featureId)
             .setName(featureName)
-            .setDataStores(DataStores.newBuilder().setWarehouse(DataStore.newBuilder().setId("BQ")))
             .build();
 
     EntitySpec entitySpec = EntitySpec.newBuilder().setName(featureId.split("\\.")[0]).build();
     EntityInfo entityInfo = new EntityInfo(entitySpec);
-    return new FeatureInfo(fs, entityInfo, null, storageInfo, null);
+    return new FeatureInfo(fs, entityInfo, null);
   }
 }

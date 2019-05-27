@@ -18,6 +18,7 @@
 package feast.ingestion;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.common.base.Strings;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -26,10 +27,11 @@ import com.google.protobuf.util.JsonFormat;
 import feast.ingestion.boot.ImportJobModule;
 import feast.ingestion.boot.PipelineModule;
 import feast.ingestion.config.ImportJobSpecsSupplier;
+import feast.ingestion.metrics.FeastMetrics;
 import feast.ingestion.model.Specs;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.options.JobOptions;
-import feast.ingestion.transform.CoalescePFeatureRows;
+import feast.ingestion.transform.CoalesceFeatureRowExtended;
 import feast.ingestion.transform.ErrorsStoreTransform;
 import feast.ingestion.transform.ReadFeaturesTransform;
 import feast.ingestion.transform.ServingStoreTransform;
@@ -167,19 +169,22 @@ public class ImportJob {
         "A sample of size 1 of incoming rows from MAIN and ERRORS will logged every 30 seconds for visibility");
     logNRows(pFeatureRows, "Output sample", 1, Duration.standardSeconds(30));
 
-    PFeatureRows warehouseRows = pFeatureRows;
-    PFeatureRows servingRows = pFeatureRows;
+    PCollection<FeatureRowExtended> warehouseRows = pFeatureRows.getMain();
+    PCollection<FeatureRowExtended> servingRows = pFeatureRows.getMain();
+    PCollection<FeatureRowExtended> errorRows = pFeatureRows.getErrors();
     if (jobOptions.isCoalesceRowsEnabled()) {
       // Should we merge and dedupe rows before writing to the serving store?
-      servingRows = servingRows.apply("Coalesce Rows", new CoalescePFeatureRows(
+      servingRows = servingRows.apply("Coalesce Rows", new CoalesceFeatureRowExtended(
           jobOptions.getCoalesceRowsDelaySeconds(),
           jobOptions.getCoalesceRowsTimeoutSeconds()));
     }
 
     if (!dryRun) {
       servingRows.apply("Write to Serving Stores", servingStoreTransform);
-      warehouseRows.apply("Write to Warehouse  Stores", warehouseStoreTransform);
-      pFeatureRows.getErrors().apply(errorsStoreTransform);
+      if (!Strings.isNullOrEmpty(importJobSpecs.getWarehouseStorageSpec().getId())) {
+        warehouseRows.apply("Write to Warehouse  Stores", warehouseStoreTransform);
+      }
+      errorRows.apply(errorsStoreTransform);
     }
   }
 
@@ -202,6 +207,8 @@ public class ImportJob {
       main = main.apply(minuteWindow);
       errors = errors.apply(minuteWindow);
     }
+
+    main.apply("metrics.store.lag", ParDo.of(FeastMetrics.lagUpdateDoFn()));
 
     main.apply("Sample success", Sample.any(limit))
         .apply("Log success sample", ParDo.of(new LoggerDoFn(Level.INFO, name + " MAIN ")));

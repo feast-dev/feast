@@ -17,25 +17,34 @@
 
 package feast.core.model;
 
+import static feast.core.util.TypeConversion.convertJsonStringToMap;
+import static feast.core.util.TypeConversion.convertTagStringToList;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Maps;
 import feast.core.UIServiceProto.UIServiceTypes.FeatureDetail;
+import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.storage.BigQueryStorageManager;
 import feast.core.util.TypeConversion;
-import feast.specs.FeatureSpecProto.DataStore;
-import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.ValueProto.ValueType;
+import java.util.ArrayList;
+import java.util.List;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.FetchType;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToMany;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
-
-import javax.persistence.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import static feast.core.util.TypeConversion.convertJsonStringToMap;
-import static feast.core.util.TypeConversion.convertTagStringToList;
 
 /**
  * A row in the registry storing information about a single feature, including its relevant
@@ -48,7 +57,8 @@ import static feast.core.util.TypeConversion.convertTagStringToList;
 @Table(name = "features")
 public class FeatureInfo extends AbstractTimestampEntity {
 
-  @Id private String id;
+  @Id
+  private String id;
 
   @Column(name = "name", nullable = false)
   private String name;
@@ -79,20 +89,6 @@ public class FeatureInfo extends AbstractTimestampEntity {
   @Column(name = "options")
   private String options;
 
-  @ManyToOne
-  @JoinColumn(name = "serving_store_id")
-  private StorageInfo servingStore;
-
-  @Column(name = "serving_store_opts")
-  private String servingStoreOpts;
-
-  @ManyToOne
-  @JoinColumn(name = "warehouse_store_id")
-  private StorageInfo warehouseStore;
-
-  @Column(name = "warehouse_store_opts")
-  private String warehouseStoreOpts;
-
   @Column(name = "big_query_view")
   private String bigQueryView;
 
@@ -109,8 +105,6 @@ public class FeatureInfo extends AbstractTimestampEntity {
   public FeatureInfo(
       FeatureSpec spec,
       EntityInfo entityInfo,
-      StorageInfo servingStore,
-      StorageInfo warehouseStore,
       FeatureGroupInfo featureGroupInfo) {
     this.id = spec.getId();
     this.name = spec.getName();
@@ -120,18 +114,9 @@ public class FeatureInfo extends AbstractTimestampEntity {
     this.valueType = spec.getValueType();
     this.entity = entityInfo;
     this.featureGroup = featureGroupInfo;
+    this.bigQueryView = "";
     this.tags = String.join(",", spec.getTagsList());
     this.options = TypeConversion.convertMapToJsonString(spec.getOptionsMap());
-    if (spec.getDataStores() != null) {
-      this.servingStore = servingStore;
-      this.servingStoreOpts =
-          TypeConversion.convertMapToJsonString(spec.getDataStores().getServing().getOptionsMap());
-      this.warehouseStore = warehouseStore;
-      this.warehouseStoreOpts =
-          TypeConversion.convertMapToJsonString(
-              spec.getDataStores().getWarehouse().getOptionsMap());
-    }
-    this.bigQueryView = createBigqueryViewLink(warehouseStore);
   }
 
   public FeatureInfo(FeatureInfo other) {
@@ -145,10 +130,6 @@ public class FeatureInfo extends AbstractTimestampEntity {
     this.featureGroup = other.featureGroup;
     this.tags = other.tags;
     this.options = other.options;
-    this.warehouseStore = other.warehouseStore;
-    this.warehouseStoreOpts = other.warehouseStoreOpts;
-    this.servingStore = other.servingStore;
-    this.servingStoreOpts = other.servingStoreOpts;
     this.bigQueryView = other.bigQueryView;
     this.enabled = other.enabled;
     this.setLastUpdated(other.getLastUpdated());
@@ -160,17 +141,6 @@ public class FeatureInfo extends AbstractTimestampEntity {
    * resolve inheritance from associated feature groups.
    */
   public FeatureSpec getFeatureSpec() {
-    DataStores.Builder dataStoreBuilder = DataStores.newBuilder();
-    if (servingStore != null) {
-      DataStore servingDataStore = buildDataStore(servingStore.getId(), servingStoreOpts);
-      dataStoreBuilder.setServing(servingDataStore);
-    }
-    if (warehouseStore != null) {
-      DataStore warehouseDataStore = buildDataStore(warehouseStore.getId(), warehouseStoreOpts);
-      dataStoreBuilder.setWarehouse(warehouseDataStore);
-    }
-    DataStores dataStores = dataStoreBuilder.build();
-
     FeatureSpec.Builder builder =
         FeatureSpec.newBuilder()
             .setId(id)
@@ -181,8 +151,7 @@ public class FeatureInfo extends AbstractTimestampEntity {
             .setValueType(valueType)
             .setEntity(entity.getName())
             .addAllTags(convertTagStringToList(tags))
-            .putAllOptions(convertJsonStringToMap(options))
-            .setDataStores(dataStores);
+            .putAllOptions(convertJsonStringToMap(options));
     if (featureGroup != null) {
       builder.setGroup(featureGroup.getId());
     }
@@ -197,51 +166,37 @@ public class FeatureInfo extends AbstractTimestampEntity {
       return this;
     }
     FeatureInfo featureInfoCopy = new FeatureInfo(this);
-    if (featureInfoCopy.servingStore == null) {
-      featureInfoCopy.servingStore = featureGroup.getServingStore();
-    }
-    if (featureInfoCopy.warehouseStore == null) {
-      featureInfoCopy.warehouseStore = featureGroup.getWarehouseStore();
-    }
-
     List<String> resolvedTags = new ArrayList<>();
     resolvedTags.addAll(convertTagStringToList(featureInfoCopy.tags));
     resolvedTags.addAll(convertTagStringToList(featureGroup.getTags()));
+    featureGroup.getOptions();
     featureInfoCopy.tags = String.join(",", resolvedTags);
 
-    featureInfoCopy.bigQueryView = createBigqueryViewLink(featureInfoCopy.warehouseStore);
     return featureInfoCopy;
   }
 
-  /** Get the feature detail containing both spec and metadata, associated with this record. */
-  public FeatureDetail getFeatureDetail() {
+  /**
+   * Get the feature detail containing both spec and metadata, associated with this record.
+   */
+  public FeatureDetail getFeatureDetail(StorageSpecs storageSpecs) {
     return FeatureDetail.newBuilder()
         .setSpec(this.getFeatureSpec())
-        .setBigqueryView(this.bigQueryView)
+        .setBigqueryView(!Strings.isNullOrEmpty(bigQueryView) ? bigQueryView
+            : createBigqueryViewLink(storageSpecs.getWarehouseStorageSpec()))
         .setEnabled(this.enabled)
         .setLastUpdated(TypeConversion.convertTimestamp(this.getLastUpdated()))
         .setCreated(TypeConversion.convertTimestamp(this.getCreated()))
         .build();
   }
 
-  private DataStore buildDataStore(String id, String opts) {
-    DataStore.Builder builder = DataStore.newBuilder();
-    if (id != null) {
-      builder.setId(id);
-    }
-    if (opts != null) {
-      builder.putAllOptions(convertJsonStringToMap(opts));
-    }
-    return builder.build();
-  }
-
-  private String createBigqueryViewLink(StorageInfo warehouseStore) {
-    if (warehouseStore == null || !warehouseStore.getType().equals(BigQueryStorageManager.TYPE)) {
+  protected String createBigqueryViewLink(StorageSpec storageSpec) {
+    if (storageSpec == null || !storageSpec.getType().equals(BigQueryStorageManager.TYPE)) {
       return "N.A.";
     }
-    Map<String, String> opts = convertJsonStringToMap(warehouseStore.getOptions());
-    String projectId = opts.get(BigQueryStorageManager.OPT_BIGQUERY_PROJECT);
-    String dataset = opts.get(BigQueryStorageManager.OPT_BIGQUERY_DATASET);
+    String projectId = storageSpec
+        .getOptionsOrDefault(BigQueryStorageManager.OPT_BIGQUERY_PROJECT, null);
+    String dataset = storageSpec
+        .getOptionsOrDefault(BigQueryStorageManager.OPT_BIGQUERY_DATASET, null);
 
     return String.format(
         "https://bigquery.cloud.google.com/table/%s:%s.%s_view",
@@ -272,7 +227,6 @@ public class FeatureInfo extends AbstractTimestampEntity {
         && spec.getEntity().equals(update.getEntity())
         && spec.getValueType().equals(update.getValueType())
         && spec.getGroup().equals(update.getGroup())
-        && spec.getOptionsMap().equals(update.getOptionsMap())
-        && spec.getDataStores().equals(update.getDataStores());
+        && Maps.difference(spec.getOptionsMap(), update.getOptionsMap()).areEqual();
   }
 }

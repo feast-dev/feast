@@ -18,26 +18,32 @@
 package feast.serving.service;
 
 import com.google.protobuf.Empty;
+import feast.core.CoreServiceGrpc;
+import feast.core.CoreServiceProto.CoreServiceTypes.GetEntitiesRequest;
+import feast.core.CoreServiceProto.CoreServiceTypes.GetEntitiesResponse;
+import feast.core.CoreServiceProto.CoreServiceTypes.GetFeaturesRequest;
+import feast.core.CoreServiceProto.CoreServiceTypes.GetFeaturesResponse;
+import feast.core.CoreServiceProto.CoreServiceTypes.ListEntitiesResponse;
+import feast.core.CoreServiceProto.CoreServiceTypes.ListFeaturesResponse;
+import feast.serving.exception.SpecRetrievalException;
+import feast.specs.EntitySpecProto.EntitySpec;
+import feast.specs.FeatureSpecProto.FeatureSpec;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
-import lombok.extern.slf4j.Slf4j;
-import feast.core.CoreServiceGrpc;
-import feast.core.CoreServiceProto.CoreServiceTypes.*;
-import feast.serving.exception.SpecRetrievalException;
-import feast.specs.EntitySpecProto.EntitySpec;
-import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.specs.StorageSpecProto.StorageSpec;
-
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
-/** Class responsible for retrieving Feature, Entity, and Storage Spec from Feast Core service. */
+/**
+ * Class responsible for retrieving Feature, Entity, and Storage Spec from Feast Core service.
+ */
 @Slf4j
 public class CoreService implements SpecStorage {
+
   private final ManagedChannel channel;
   private final CoreServiceGrpc.CoreServiceBlockingStub blockingStub;
 
@@ -130,59 +136,18 @@ public class CoreService implements SpecStorage {
   }
 
   /**
-   * Get map of {@link StorageSpec} from Core API, given a collection of storageId.
-   *
-   * @param storageIds collection of storageId to retrieve.
-   * @return map of storage id as key and {@link StorageSpec} as value.
-   * @throws SpecRetrievalException if any error happens during retrieval
-   */
-  public Map<String, StorageSpec> getStorageSpecs(Iterable<String> storageIds) {
-    try {
-      GetStorageRequest request = GetStorageRequest.newBuilder().addAllIds(storageIds).build();
-
-      GetStorageResponse response = blockingStub.getStorage(request);
-      return response
-          .getStorageSpecsList()
-          .stream()
-          .collect(Collectors.toMap(StorageSpec::getId, Function.identity()));
-    } catch (StatusRuntimeException e) {
-      log.error("GRPC error in getStorageSpecs: {}", e.getStatus());
-      throw new SpecRetrievalException("Unable to retrieve storage specs", e);
-    }
-  }
-
-  /**
-   * Get all {@link StorageSpec} from Core API.
-   *
-   * @return map of storage id as key and {@link StorageSpec} as value.
-   */
-  public Map<String, StorageSpec> getAllStorageSpecs() {
-    try {
-      ListStorageResponse response = blockingStub.listStorage(Empty.getDefaultInstance());
-      return response
-          .getStorageSpecsList()
-          .stream()
-          .collect(Collectors.toMap(StorageSpec::getId, Function.identity()));
-    } catch (StatusRuntimeException e) {
-      log.error("GRPC error in getAllStorageSpecs, {}", e.getStatus());
-      throw new SpecRetrievalException("Unable to retrieve storage specs", e);
-    }
-  }
-
-  /**
    * Check whether connection to core service is ready.
    *
    * @return return true if it is ready. Otherwise, return false.
    */
   public boolean isConnected() {
     ConnectivityState state = channel.getState(true);
-    return state.compareTo(ConnectivityState.READY) == 0;
+    return state == ConnectivityState.IDLE
+        || state == ConnectivityState.READY;
   }
 
   /**
    * Shutdown GRPC channel.
-   *
-   * @throws InterruptedException
    */
   public void shutdown() throws InterruptedException {
     log.info("Shutting down CoreService");

@@ -17,38 +17,29 @@
 
 package feast.core.grpc;
 
-import com.google.common.base.Strings;
 import com.google.protobuf.Empty;
 import com.timgroup.statsd.StatsDClient;
 import feast.core.CoreServiceGrpc.CoreServiceImplBase;
 import feast.core.CoreServiceProto.CoreServiceTypes.ApplyEntityResponse;
 import feast.core.CoreServiceProto.CoreServiceTypes.ApplyFeatureGroupResponse;
 import feast.core.CoreServiceProto.CoreServiceTypes.ApplyFeatureResponse;
-import feast.core.CoreServiceProto.CoreServiceTypes.ApplyStorageResponse;
 import feast.core.CoreServiceProto.CoreServiceTypes.GetEntitiesRequest;
 import feast.core.CoreServiceProto.CoreServiceTypes.GetEntitiesResponse;
 import feast.core.CoreServiceProto.CoreServiceTypes.GetFeaturesRequest;
 import feast.core.CoreServiceProto.CoreServiceTypes.GetFeaturesResponse;
-import feast.core.CoreServiceProto.CoreServiceTypes.GetStorageRequest;
-import feast.core.CoreServiceProto.CoreServiceTypes.GetStorageResponse;
 import feast.core.CoreServiceProto.CoreServiceTypes.ListEntitiesResponse;
 import feast.core.CoreServiceProto.CoreServiceTypes.ListFeaturesResponse;
-import feast.core.CoreServiceProto.CoreServiceTypes.ListStorageResponse;
 import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.exception.RegistrationException;
 import feast.core.exception.RetrievalException;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureGroupInfo;
 import feast.core.model.FeatureInfo;
-import feast.core.model.StorageInfo;
 import feast.core.service.SpecService;
 import feast.core.validators.SpecValidator;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureGroupSpecProto;
-import feast.specs.FeatureSpecProto.DataStore;
-import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.specs.StorageSpecProto.StorageSpec;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -198,66 +189,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   /**
-   * Gets specs for all storage requested in the request. If the retrieval of any one of them fails,
-   * the whole request will fail, giving an internal error.
-   */
-  @Override
-  public void getStorage(
-      GetStorageRequest request, StreamObserver<GetStorageResponse> responseObserver) {
-    long now = System.currentTimeMillis();
-    statsDClient.increment("get_storage_request_count");
-    try {
-      List<StorageSpec> storageSpecs =
-          specService
-              .getStorage(request.getIdsList())
-              .stream()
-              .map(StorageInfo::getStorageSpec)
-              .collect(Collectors.toList());
-      GetStorageResponse response =
-          GetStorageResponse.newBuilder().addAllStorageSpecs(storageSpecs).build();
-      responseObserver.onNext(response);
-      responseObserver.onCompleted();
-      statsDClient.increment("get_storage_request_success");
-    } catch (RetrievalException | IllegalArgumentException e) {
-      statsDClient.increment("get_storage_request_failed");
-      log.error("Error in getStorage: {}", e);
-      responseObserver.onError(getRuntimeException(e));
-    } finally {
-      long duration = System.currentTimeMillis() - now;
-      statsDClient.gauge("get_storage_latency_ms", duration);
-    }
-  }
-
-  /**
-   * Gets specs for all storage registered in the registry.
-   */
-  @Override
-  public void listStorage(Empty request, StreamObserver<ListStorageResponse> responseObserver) {
-    long now = System.currentTimeMillis();
-    statsDClient.increment("list_storage_request_count");
-    try {
-      List<StorageSpec> storageSpecs =
-          specService
-              .listStorage()
-              .stream()
-              .map(StorageInfo::getStorageSpec)
-              .collect(Collectors.toList());
-      ListStorageResponse response =
-          ListStorageResponse.newBuilder().addAllStorageSpecs(storageSpecs).build();
-      responseObserver.onNext(response);
-      responseObserver.onCompleted();
-      statsDClient.increment("list_storage_request_success");
-    } catch (RetrievalException e) {
-      statsDClient.increment("list_storage_request_failed");
-      log.error("Error in listStorage: {}", e);
-      responseObserver.onError(getRuntimeException(e));
-    } finally {
-      long duration = System.currentTimeMillis() - now;
-      statsDClient.gauge("list_storage_latency_ms", duration);
-    }
-  }
-
-  /**
    * Registers a single feature spec to the registry. If validation fails, will returns a bad
    * request error. If registration fails (e.g. connection to the db is interrupted), an internal
    * error will be returned.
@@ -266,7 +197,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void applyFeature(
       FeatureSpec request, StreamObserver<ApplyFeatureResponse> responseObserver) {
     try {
-      request = applyDefaultStores(request);
       validator.validateFeatureSpec(request);
       FeatureInfo feature = specService.applyFeature(request);
       ApplyFeatureResponse response =
@@ -280,25 +210,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       log.error("Error in applyFeature: {}", e);
       responseObserver.onError(getBadRequestException(e));
     }
-  }
-
-  public FeatureSpec applyDefaultStores(FeatureSpec featureSpec) {
-    DataStores.Builder dataStoreBuilder = featureSpec.getDataStores().toBuilder();
-    if (Strings.isNullOrEmpty(featureSpec.getDataStores().getServing().getId())) {
-      log.info("Feature has no serving store specified using default");
-      if (storageSpecs.getServingStorageSpec() != null) {
-        dataStoreBuilder.setServing(DataStore.newBuilder()
-            .setId(storageSpecs.getServingStorageSpec().getId()));
-      }
-    }
-    if (Strings.isNullOrEmpty(featureSpec.getDataStores().getServing().getId())) {
-      if (storageSpecs.getWarehouseStorageSpec() != null) {
-        log.info("Feature has no warehouse store specified using default");
-        dataStoreBuilder.setWarehouse(DataStore.newBuilder()
-            .setId(storageSpecs.getWarehouseStorageSpec().getId()));
-      }
-    }
-    return featureSpec.toBuilder().setDataStores(dataStoreBuilder).build();
   }
 
   /**
@@ -346,30 +257,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onError(getRuntimeException(e));
     } catch (IllegalArgumentException e) {
       log.error("Error in applyEntity: {}", e);
-      responseObserver.onError(getBadRequestException(e));
-    }
-  }
-
-  /**
-   * Registers a single storage to the registry. If validation fails, will returns a bad request
-   * error. If registration fails (e.g. connection to the db is interrupted), an internal error will
-   * be returned.
-   */
-  @Override
-  public void applyStorage(
-      StorageSpec request, StreamObserver<ApplyStorageResponse> responseObserver) {
-    try {
-      validator.validateStorageSpec(request);
-      StorageInfo storage = specService.registerStorage(request);
-      ApplyStorageResponse response =
-          ApplyStorageResponse.newBuilder().setStorageId(storage.getId()).build();
-      responseObserver.onNext(response);
-      responseObserver.onCompleted();
-    } catch (RegistrationException e) {
-      log.error("Error in registerStorage: {}", e);
-      responseObserver.onError(getRuntimeException(e));
-    } catch (IllegalArgumentException e) {
-      log.error("Error in registerStorage: {}", e);
       responseObserver.onError(getBadRequestException(e));
     }
   }

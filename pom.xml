@@ -24,7 +24,7 @@
     <name>Feast Parent</name>
 
     <properties>
-        <revision>0.1.0</revision>
+        <revision>0.1.1</revision>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <protocVersion>3.6.1</protocVersion>
         <grpcVersion>1.14.0</grpcVersion>

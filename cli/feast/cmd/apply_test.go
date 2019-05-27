@@ -16,9 +16,10 @@ package cmd
 
 import (
 	"context"
+	"testing"
+
 	"github.com/gojek/feast/cli/feast/cmd/mock"
 	"github.com/golang/mock/gomock"
-	"testing"
 
 	"github.com/gojek/feast/protos/generated/go/feast/core"
 )
@@ -28,7 +29,6 @@ func Test_apply(t *testing.T) {
 	mockCore.EXPECT().ApplyEntity(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	mockCore.EXPECT().ApplyFeature(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	mockCore.EXPECT().ApplyFeatureGroup(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-	mockCore.EXPECT().ApplyStorage(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 
 	type args struct {
 		ctx          context.Context
@@ -45,89 +45,78 @@ func Test_apply(t *testing.T) {
 		{
 			name: "test apply invalid resource",
 			args: args{
-				ctx: context.Background(),
-				coreCli: mockCore,
-				resource: "invalidResource",
+				ctx:          context.Background(),
+				coreCli:      mockCore,
+				resource:     "invalidResource",
 				fileLocation: "testdata/valid_entity.yaml",
 			},
-			want: "",
+			want:    "",
 			wantErr: true,
 		},
 		{
 			name: "test apply entity",
 			args: args{
-				ctx: context.Background(),
-				coreCli: mockCore,
-				resource: "entity",
+				ctx:          context.Background(),
+				coreCli:      mockCore,
+				resource:     "entity",
 				fileLocation: "testdata/valid_entity.yaml",
 			},
-			want: "myentity",
+			want:    "myentity",
 			wantErr: false,
 		},
 		{
 			name: "test apply entity with non-existent file",
 			args: args{
-				ctx: context.Background(),
-				coreCli: mockCore,
-				resource: "entity",
+				ctx:          context.Background(),
+				coreCli:      mockCore,
+				resource:     "entity",
 				fileLocation: "testdata/file_not_exists.yaml",
 			},
-			want: "",
+			want:    "",
 			wantErr: true,
 		},
 		{
 			name: "test apply entity with no tag",
 			args: args{
-				ctx: context.Background(),
-				coreCli: mockCore,
-				resource: "entity",
+				ctx:          context.Background(),
+				coreCli:      mockCore,
+				resource:     "entity",
 				fileLocation: "testdata/valid_entity_no_tag.yaml",
 			},
-			want: "myentity",
+			want:    "myentity",
 			wantErr: false,
 		},
 		{
 			name: "test apply invalid syntax in entity yaml",
 			args: args{
-				ctx: context.Background(),
-				coreCli: mockCore,
-				resource: "entity",
+				ctx:          context.Background(),
+				coreCli:      mockCore,
+				resource:     "entity",
 				fileLocation: "testdata/invalid_entity.yaml",
 			},
-			want: "",
+			want:    "",
 			wantErr: true,
 		},
 		{
 			name: "test apply feature",
 			args: args{
-				ctx: context.Background(),
-				coreCli: mockCore,
-				resource: "feature",
+				ctx:          context.Background(),
+				coreCli:      mockCore,
+				resource:     "feature",
 				fileLocation: "testdata/valid_feature.yaml",
 			},
-			want: "myentity.feature_bool_redis1",
+			want:    "myentity.feature_bool_redis1",
 			wantErr: false,
 		},
 		{
 			name: "test apply feature group",
 			args: args{
-				ctx: context.Background(),
-				coreCli: mockCore,
-				resource: "featureGroup",
+				ctx:          context.Background(),
+				coreCli:      mockCore,
+				resource:     "featureGroup",
 				fileLocation: "testdata/valid_feature_group.yaml",
 			},
-			want: "my_fg",
-			wantErr: false,
-		},
-		{
-			name: "test apply storage",
-			args: args{
-				ctx: context.Background(),
-				coreCli: mockCore,
-				resource: "storage",
-				fileLocation: "testdata/valid_storage.yaml",
-			},
-			want: "BIGQUERY1",
+			want:    "my_fg",
 			wantErr: false,
 		},
 	}

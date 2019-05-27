@@ -18,26 +18,22 @@
 package feast.store.serving.redis;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.joda.time.Duration;
-import org.joda.time.format.ISOPeriodFormat;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import feast.options.Options;
 import feast.options.Validation.ISO8601Duration;
+import org.joda.time.Duration;
+import org.joda.time.format.ISOPeriodFormat;
 
 public class RedisFeatureOptions implements Options {
-  static final String DEFAULT_BUCKET_SIZE = "PT1H";
+
   static final String DEFAULT_EXPIRY = "PT0H";
 
-  @ISO8601Duration public String expiry = DEFAULT_EXPIRY; // ISO8601 Period
-
-  @ISO8601Duration public String bucketSize = DEFAULT_BUCKET_SIZE; // ISO8601 Period
+  @ISO8601Duration
+  @JsonProperty(value = "redis.expiry")
+  public String expiry = DEFAULT_EXPIRY; // ISO8601 Period
 
   @JsonIgnore
   Duration getExpiryDuration() {
     return ISOPeriodFormat.standard().parsePeriod(expiry).toStandardDuration();
-  }
-
-  @JsonIgnore
-  Duration getBucketSizeDuration() {
-    return ISOPeriodFormat.standard().parsePeriod(bucketSize).toStandardDuration();
   }
 }

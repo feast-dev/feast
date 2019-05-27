@@ -43,7 +43,7 @@ GCP_PROJECT=my-feast-project
 FEAST_CLUSTER=feast
 FEAST_REPO=$(pwd)
 FEAST_VERSION=0.1.0
-FEAST_STORAGE_BUCKET=gs://${PROJECT}-feast
+FEAST_STORAGE_BUCKET=gs://${GCP_PROJECT}-feast
 ```
 
 Ensure that your `kubectl` context is set to the correct cluster

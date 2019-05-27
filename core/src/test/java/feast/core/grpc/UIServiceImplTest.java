@@ -24,6 +24,7 @@ import feast.core.UIServiceProto.UIServiceTypes.ListFeatureGroupsResponse;
 import feast.core.UIServiceProto.UIServiceTypes.ListFeaturesResponse;
 import feast.core.UIServiceProto.UIServiceTypes.ListStorageResponse;
 import feast.core.UIServiceProto.UIServiceTypes.StorageDetail;
+import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureGroupInfo;
 import feast.core.model.FeatureInfo;
@@ -49,17 +50,20 @@ import org.mockito.Mock;
 
 public class UIServiceImplTest {
 
-  @Mock public SpecService specService;
-
-  @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-
-  @Rule public final ExpectedException expectedException = ExpectedException.none();
-
+  @Rule
+  public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
+  @Rule
+  public final ExpectedException expectedException = ExpectedException.none();
+  @Mock
+  public SpecService specService;
   private UIServiceGrpc.UIServiceBlockingStub client;
+
+  private StorageSpecs storageSpecs;
 
   @Before
   public void setUp() throws Exception {
     specService = mock(SpecService.class);
+    storageSpecs = StorageSpecs.builder().build();
 
     UIServiceImpl service = new UIServiceImpl(specService);
 
@@ -70,6 +74,8 @@ public class UIServiceImplTest {
             .addService(service)
             .build()
             .start());
+
+    when(specService.getStorageSpecs()).thenReturn(storageSpecs);
 
     client =
         UIServiceGrpc.newBlockingStub(
@@ -183,7 +189,7 @@ public class UIServiceImplTest {
     GetFeatureRequest req = GetFeatureRequest.newBuilder().setId(featureId).build();
     GetFeatureResponse resp = client.getFeature(req);
 
-    FeatureDetail expected = featureInfo.getFeatureDetail();
+    FeatureDetail expected = featureInfo.getFeatureDetail(storageSpecs);
     FeatureDetail actual = resp.getFeature();
 
     assertThat(actual, equalTo(expected));
@@ -236,7 +242,8 @@ public class UIServiceImplTest {
 
     assertThat(
         actual,
-        containsInAnyOrder(featureInfos.stream().map(FeatureInfo::getFeatureDetail).toArray()));
+        containsInAnyOrder(
+            featureInfos.stream().map((fi) -> fi.getFeatureDetail(storageSpecs)).toArray()));
   }
 
   @Test
@@ -410,32 +417,21 @@ public class UIServiceImplTest {
   }
 
   private FeatureInfo createFeatureInfo(String featureId) {
-    StorageSpec warehouseSpec = StorageSpec.newBuilder().setId("warehouse").build();
-    StorageSpec servingSpec = StorageSpec.newBuilder().setId("serving").build();
     EntitySpec entitySpec = EntitySpec.newBuilder().setName("entity").build();
-
-    StorageInfo warehouseStoreInfo = new StorageInfo(warehouseSpec);
-    StorageInfo servingStoreInfo = new StorageInfo(servingSpec);
 
     EntityInfo entityInfo = new EntityInfo(entitySpec);
     FeatureSpec featureSpec = FeatureSpec.newBuilder().setId(featureId).build();
     FeatureInfo featureInfo =
-        new FeatureInfo(featureSpec, entityInfo, servingStoreInfo, warehouseStoreInfo, null);
+        new FeatureInfo(featureSpec, entityInfo, null);
     featureInfo.setCreated(new Date());
     featureInfo.setLastUpdated(new Date());
     return featureInfo;
   }
 
   private FeatureGroupInfo createFeatureGroupInfo(String featureGroupId) {
-    StorageSpec warehouseSpec = StorageSpec.newBuilder().setId("warehouse").build();
-    StorageSpec servingSpec = StorageSpec.newBuilder().setId("serving").build();
-
-    StorageInfo warehouseStoreInfo = new StorageInfo(warehouseSpec);
-    StorageInfo servingStoreInfo = new StorageInfo(servingSpec);
-
     FeatureGroupSpec featureGroupSpec = FeatureGroupSpec.newBuilder().setId(featureGroupId).build();
     FeatureGroupInfo featureGroupInfo =
-        new FeatureGroupInfo(featureGroupSpec, servingStoreInfo, warehouseStoreInfo);
+        new FeatureGroupInfo(featureGroupSpec);
     featureGroupInfo.setCreated(new Date());
     featureGroupInfo.setLastUpdated(new Date());
     return featureGroupInfo;

@@ -22,23 +22,16 @@ import static feast.core.config.StorageConfig.DEFAULT_SERVING_ID;
 import static feast.core.config.StorageConfig.DEFAULT_WAREHOUSE_ID;
 import static org.mockito.Mockito.when;
 
-import com.google.common.base.Strings;
 import feast.core.dao.EntityInfoRepository;
 import feast.core.dao.FeatureGroupInfoRepository;
 import feast.core.dao.FeatureInfoRepository;
-import feast.core.dao.StorageInfoRepository;
-import feast.core.model.FeatureGroupInfo;
-import feast.core.model.StorageInfo;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
-import feast.specs.FeatureSpecProto.DataStore;
-import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;
 import feast.specs.StorageSpecProto.StorageSpec;
-import java.util.Optional;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -52,21 +45,18 @@ public class SpecValidatorTest {
   private FeatureInfoRepository featureInfoRepository;
   private FeatureGroupInfoRepository featureGroupInfoRepository;
   private EntityInfoRepository entityInfoRepository;
-  private StorageInfoRepository storageInfoRepository;
 
   @Before
   public void setUp() {
     featureInfoRepository = Mockito.mock(FeatureInfoRepository.class);
     featureGroupInfoRepository = Mockito.mock(FeatureGroupInfoRepository.class);
     entityInfoRepository = Mockito.mock(EntityInfoRepository.class);
-    storageInfoRepository = Mockito.mock(StorageInfoRepository.class);
   }
 
   @Test
   public void featureSpecWithoutIdShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -80,7 +70,6 @@ public class SpecValidatorTest {
   public void featureSpecWithoutNameShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -94,7 +83,6 @@ public class SpecValidatorTest {
   public void featureSpecWithInvalidNameShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -110,7 +98,6 @@ public class SpecValidatorTest {
   public void featureSpecWithoutOwnerShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -124,7 +111,7 @@ public class SpecValidatorTest {
   public void featureSpecWithoutDescriptionShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
+
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -139,7 +126,6 @@ public class SpecValidatorTest {
   public void featureSpecWithoutEntityShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -159,7 +145,6 @@ public class SpecValidatorTest {
   public void featureSpecWithIdWithoutThreeWordsShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -180,7 +165,6 @@ public class SpecValidatorTest {
   public void featureSpecWithIdWithoutMatchingEntityShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -203,7 +187,6 @@ public class SpecValidatorTest {
   public void featureSpecWithIdWithoutMatchingNameShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -227,7 +210,6 @@ public class SpecValidatorTest {
     when(entityInfoRepository.existsById("entity")).thenReturn(false);
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -250,7 +232,6 @@ public class SpecValidatorTest {
     when(featureGroupInfoRepository.existsById("group")).thenReturn(false);
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -268,231 +249,11 @@ public class SpecValidatorTest {
     validator.validateFeatureSpec(input);
   }
 
-  @Test
-  public void featureSpecWithoutExistingServingStoreShouldThrowIllegalArgumentException() {
-    when(entityInfoRepository.existsById("entity")).thenReturn(true);
-    when(storageInfoRepository.existsById("REDIS1")).thenReturn(false);
-    SpecValidator validator =
-        new SpecValidator(
-            storageInfoRepository,
-            entityInfoRepository,
-            featureGroupInfoRepository,
-            featureInfoRepository);
-    DataStore servingStore = DataStore.newBuilder().setId("REDIS1").build();
-    DataStores dataStores = DataStores.newBuilder().setServing(servingStore).build();
-    FeatureSpec input =
-        FeatureSpec.newBuilder()
-            .setId("entity.name")
-            .setName("name")
-            .setOwner("owner")
-            .setDescription("dasdad")
-            .setEntity("entity")
-            .setDataStores(dataStores)
-            .build();
-    exception.expect(IllegalArgumentException.class);
-    exception.expectMessage("Serving store with id REDIS1 does not exist");
-    validator.validateFeatureSpec(input);
-  }
-
-  @Test
-  public void featureSpecWithoutServingStoreShouldInheritServingStoreIdFromGroup() {
-    when(entityInfoRepository.existsById("entity")).thenReturn(true);
-    when(storageInfoRepository.existsById("REDIS1")).thenReturn(true);
-    when(storageInfoRepository.existsById("REDIS2")).thenReturn(false);
-    FeatureGroupInfo fgi = new FeatureGroupInfo();
-    StorageInfo redis1 = new StorageInfo();
-    redis1.setId("REDIS1");
-    redis1.setType("redis");
-    fgi.setServingStore(redis1);
-    when(storageInfoRepository.findById("REDIS1")).thenReturn(Optional.of(redis1));
-    when(featureGroupInfoRepository.existsById("group")).thenReturn(true);
-    when(featureGroupInfoRepository.findById("group")).thenReturn(Optional.of(fgi));
-    SpecValidator validator =
-        new SpecValidator(
-            storageInfoRepository,
-            entityInfoRepository,
-            featureGroupInfoRepository,
-            featureInfoRepository);
-    DataStore warehouseStore = DataStore.newBuilder().setId("REDIS2").build();
-    DataStores dataStores = DataStores.newBuilder().setWarehouse(warehouseStore).build();
-    FeatureSpec input =
-        FeatureSpec.newBuilder()
-            .setId("entity.name")
-            .setName("name")
-            .setOwner("owner")
-            .setDescription("dasdad")
-            .setEntity("entity")
-            .setGroup("group")
-            .setDataStores(dataStores)
-            .build();
-    exception.expect(IllegalArgumentException.class);
-    exception.expectMessage("Warehouse store with id REDIS2 does not exist");
-    validator.validateFeatureSpec(input);
-  }
-
-  @Test
-  public void featureSpecWithoutExistingWarehouseStoreShouldThrowIllegalArgumentException() {
-    String servingStoreId = "REDIS1";
-    String warehouseStoreId = "BIGQUERY";
-    when(entityInfoRepository.existsById("entity")).thenReturn(true);
-    when(storageInfoRepository.existsById(servingStoreId)).thenReturn(true);
-    when(storageInfoRepository.existsById(warehouseStoreId)).thenReturn(false);
-
-    StorageInfo redis1 = new StorageInfo();
-    redis1.setId(servingStoreId);
-    redis1.setType("redis");
-    when(storageInfoRepository.findById(servingStoreId)).thenReturn(Optional.of(redis1));
-
-    SpecValidator validator =
-        new SpecValidator(
-            storageInfoRepository,
-            entityInfoRepository,
-            featureGroupInfoRepository,
-            featureInfoRepository);
-    DataStore servingStore = DataStore.newBuilder().setId(servingStoreId).build();
-    DataStore warehouseStore = DataStore.newBuilder().setId(warehouseStoreId).build();
-    DataStores dataStores =
-        DataStores.newBuilder().setServing(servingStore).setWarehouse(warehouseStore).build();
-    FeatureSpec input =
-        FeatureSpec.newBuilder()
-            .setId("entity.name")
-            .setName("name")
-            .setOwner("owner")
-            .setDescription("dasdad")
-            .setEntity("entity")
-            .setDataStores(dataStores)
-            .build();
-    exception.expect(IllegalArgumentException.class);
-    exception.expectMessage(
-        String.format("Warehouse store with id %s does not exist", warehouseStoreId));
-    validator.validateFeatureSpec(input);
-  }
-
-  @Test
-  public void featureSpecWithoutWarehouseStoreShouldBeAllowed() {
-    String servingStoreId = "REDIS1";
-    when(entityInfoRepository.existsById("entity")).thenReturn(true);
-    when(storageInfoRepository.existsById(servingStoreId)).thenReturn(true);
-
-    StorageInfo redis1 = new StorageInfo();
-    redis1.setId(servingStoreId);
-    redis1.setType("redis");
-    when(storageInfoRepository.findById(servingStoreId)).thenReturn(Optional.of(redis1));
-
-    SpecValidator validator =
-        new SpecValidator(
-            storageInfoRepository,
-            entityInfoRepository,
-            featureGroupInfoRepository,
-            featureInfoRepository);
-    DataStore servingStore = DataStore.newBuilder().setId(servingStoreId).build();
-    DataStores dataStores =
-        DataStores.newBuilder().setServing(servingStore).build();
-    FeatureSpec input =
-        FeatureSpec.newBuilder()
-            .setId("entity.name")
-            .setName("name")
-            .setOwner("owner")
-            .setDescription("dasdad")
-            .setEntity("entity")
-            .setDataStores(dataStores)
-            .build();
-    validator.validateFeatureSpec(input);
-  }
-
-  @Test
-  public void featureSpecWithUnsupportedWarehouseStoreShouldThrowIllegalArgumentException() {
-    String servingStoreId = "REDIS1";
-    StorageSpec servingStoreSpec = StorageSpec.newBuilder().setId(servingStoreId).setType("redis")
-        .build();
-    StorageInfo servingStoreInfo = new StorageInfo(servingStoreSpec);
-
-    String warehouseStoreId = "REDIS2";
-    StorageSpec warehouseStoreSpec = StorageSpec.newBuilder().setId(warehouseStoreId)
-        .setType("redis").build();
-    StorageInfo warehouseStoreInfo = new StorageInfo(warehouseStoreSpec);
-
-    when(entityInfoRepository.existsById("entity")).thenReturn(true);
-    when(storageInfoRepository.existsById(servingStoreId)).thenReturn(true);
-    when(storageInfoRepository.existsById(warehouseStoreId)).thenReturn(true);
-    when(storageInfoRepository.findById(servingStoreId)).thenReturn(Optional.of(servingStoreInfo));
-    when(storageInfoRepository.findById(warehouseStoreId))
-        .thenReturn(Optional.of(warehouseStoreInfo));
-    SpecValidator validator =
-        new SpecValidator(
-            storageInfoRepository,
-            entityInfoRepository,
-            featureGroupInfoRepository,
-            featureInfoRepository);
-    DataStore servingStore = DataStore.newBuilder().setId(servingStoreId).build();
-    DataStore warehouseStore = DataStore.newBuilder().setId(warehouseStoreId).build();
-    DataStores dataStores =
-        DataStores.newBuilder().setServing(servingStore).setWarehouse(warehouseStore).build();
-    FeatureSpec input =
-        FeatureSpec.newBuilder()
-            .setId("entity.name")
-            .setName("name")
-            .setOwner("owner")
-            .setDescription("dasdad")
-            .setEntity("entity")
-            .setDataStores(dataStores)
-            .build();
-    exception.expect(IllegalArgumentException.class);
-    exception.expectMessage(Strings.lenientFormat("Unsupported warehouse store type", "redis"));
-    validator.validateFeatureSpec(input);
-  }
-
-  @Test
-  public void featureSpecWithUnsupportedServingStoreShouldThrowIllegalArgumentException() {
-    String servingStoreName = "CASSANDRA";
-    StorageSpec redis1Spec = StorageSpec.newBuilder()
-        .setId(servingStoreName)
-        .setType("cassandra")
-        .build();
-    StorageInfo redis1StorageInfo = new StorageInfo(redis1Spec);
-
-    String warehouseStorageName = "BIGQUERY";
-    StorageSpec bqSpec = StorageSpec.newBuilder()
-        .setId(warehouseStorageName)
-        .setType("bigquery")
-        .build();
-    StorageInfo bqInfo = new StorageInfo(bqSpec);
-
-    when(entityInfoRepository.existsById("entity")).thenReturn(true);
-    when(storageInfoRepository.existsById(servingStoreName)).thenReturn(true);
-    when(storageInfoRepository.existsById(warehouseStorageName)).thenReturn(true);
-    when(storageInfoRepository.findById(servingStoreName))
-        .thenReturn(Optional.of(redis1StorageInfo));
-    when(storageInfoRepository.findById(warehouseStorageName)).thenReturn(Optional.of(bqInfo));
-    SpecValidator validator =
-        new SpecValidator(
-            storageInfoRepository,
-            entityInfoRepository,
-            featureGroupInfoRepository,
-            featureInfoRepository);
-    DataStore servingStore = DataStore.newBuilder().setId(servingStoreName).build();
-    DataStore warehouseStore = DataStore.newBuilder().setId(warehouseStorageName).build();
-    DataStores dataStores =
-        DataStores.newBuilder().setServing(servingStore).setWarehouse(warehouseStore).build();
-    FeatureSpec input =
-        FeatureSpec.newBuilder()
-            .setId("entity.name")
-            .setName("name")
-            .setOwner("owner")
-            .setDescription("dasdad")
-            .setEntity("entity")
-            .setDataStores(dataStores)
-            .build();
-    exception.expect(IllegalArgumentException.class);
-    exception.expectMessage(Strings.lenientFormat("Unsupported serving store type", "cassandra"));
-    validator.validateFeatureSpec(input);
-  }
 
   @Test
   public void featureGroupSpecWithoutIdShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -506,7 +267,6 @@ public class SpecValidatorTest {
   public void featureGroupSpecWithoutValidIdShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -519,52 +279,9 @@ public class SpecValidatorTest {
   }
 
   @Test
-  public void featureGroupSpecWithNonexistentServingStoreShouldThrowIllegalArgumentException() {
-    when(storageInfoRepository.existsById("REDIS1")).thenReturn(false);
-    SpecValidator validator =
-        new SpecValidator(
-            storageInfoRepository,
-            entityInfoRepository,
-            featureGroupInfoRepository,
-            featureInfoRepository);
-    DataStore servingDataStore = DataStore.newBuilder().setId("REDIS1").build();
-    DataStores dataStores = DataStores.newBuilder().setServing(servingDataStore).build();
-    FeatureGroupSpec input =
-        FeatureGroupSpec.newBuilder().setId("valid").setDataStores(dataStores).build();
-    exception.expect(IllegalArgumentException.class);
-    exception.expectMessage("Serving store with id REDIS1 does not exist");
-    validator.validateFeatureGroupSpec(input);
-  }
-
-  @Test
-  public void featureGroupSpecWithNonexistentWarehouseStoreShouldThrowIllegalArgumentException() {
-    when(storageInfoRepository.existsById("REDIS1")).thenReturn(true);
-    when(storageInfoRepository.existsById("REDIS2")).thenReturn(false);
-    SpecValidator validator =
-        new SpecValidator(
-            storageInfoRepository,
-            entityInfoRepository,
-            featureGroupInfoRepository,
-            featureInfoRepository);
-    DataStore servingDataStore = DataStore.newBuilder().setId("REDIS1").build();
-    DataStore warehouseDataStore = DataStore.newBuilder().setId("REDIS2").build();
-    DataStores dataStores =
-        DataStores.newBuilder()
-            .setServing(servingDataStore)
-            .setWarehouse(warehouseDataStore)
-            .build();
-    FeatureGroupSpec input =
-        FeatureGroupSpec.newBuilder().setId("valid").setDataStores(dataStores).build();
-    exception.expect(IllegalArgumentException.class);
-    exception.expectMessage("Warehouse store with id REDIS2 does not exist");
-    validator.validateFeatureGroupSpec(input);
-  }
-
-  @Test
   public void entitySpecWithoutNameShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -578,7 +295,6 @@ public class SpecValidatorTest {
   public void entitySpecWithInvalidNameShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -595,7 +311,6 @@ public class SpecValidatorTest {
   public void testServingStorageSpec_withValidTypes() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -609,7 +324,6 @@ public class SpecValidatorTest {
   public void testServingStorageSpec_withInvalidType() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -621,7 +335,6 @@ public class SpecValidatorTest {
   public void testWarehouseStorageSpec_withValidTypes() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -635,7 +348,6 @@ public class SpecValidatorTest {
   public void testWarehouseStorageSpec_withInvalidType() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -647,7 +359,6 @@ public class SpecValidatorTest {
   public void testErrorsStorageSpec_withValidTypes() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -663,7 +374,6 @@ public class SpecValidatorTest {
   public void testErrorsStorageSpec_withInvalidType() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -676,7 +386,6 @@ public class SpecValidatorTest {
   public void storageSpecWithoutIdShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -690,7 +399,6 @@ public class SpecValidatorTest {
   public void importSpecWithInvalidTypeShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -704,7 +412,6 @@ public class SpecValidatorTest {
   public void pubsubImportSpecWithoutTopicOrSubscriptionShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -719,7 +426,6 @@ public class SpecValidatorTest {
   public void fileImportSpecWithoutSupportedFileFormatShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -735,7 +441,6 @@ public class SpecValidatorTest {
   public void fileImportSpecWithoutValidPathShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -750,7 +455,6 @@ public class SpecValidatorTest {
   public void fileImportSpecWithoutEntityIdColumnInSchemaShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -769,7 +473,6 @@ public class SpecValidatorTest {
   public void bigQueryImportSpecWithoutEntityIdColumnInSchemaShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -790,7 +493,6 @@ public class SpecValidatorTest {
   public void importSpecWithoutValidEntityShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -810,7 +512,6 @@ public class SpecValidatorTest {
   public void importSpecWithUnregisteredFeaturesShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -837,7 +538,6 @@ public class SpecValidatorTest {
   public void importSpecWithKafkaSourceAndCorrectOptionsShouldPassValidation() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -862,7 +562,6 @@ public class SpecValidatorTest {
   public void importSpecWithCoalesceJobOptionsShouldPassValidation() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -891,7 +590,6 @@ public class SpecValidatorTest {
   public void importSpecWithLimitJobOptionsShouldPassValidation() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);
@@ -917,7 +615,6 @@ public class SpecValidatorTest {
   public void importSpecWithKafkaSourceWithoutOptionsShouldThrowIllegalArgumentException() {
     SpecValidator validator =
         new SpecValidator(
-            storageInfoRepository,
             entityInfoRepository,
             featureGroupInfoRepository,
             featureInfoRepository);

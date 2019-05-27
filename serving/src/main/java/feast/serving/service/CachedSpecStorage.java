@@ -28,18 +28,20 @@ import java.util.Collections;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
-/** SpecStorage implementation with built-in in-memory cache. */
+/**
+ * SpecStorage implementation with built-in in-memory cache.
+ */
 @Slf4j
 public class CachedSpecStorage implements SpecStorage {
-  private static final int MAX_SPEC_COUNT = 10000;
+
+  private static final int MAX_SPEC_COUNT = 1000;
 
   private final CoreService coreService;
   private final LoadingCache<String, EntitySpec> entitySpecCache;
   private final CacheLoader<String, EntitySpec> entitySpecLoader;
   private final LoadingCache<String, FeatureSpec> featureSpecCache;
   private final CacheLoader<String, FeatureSpec> featureSpecLoader;
-  private final LoadingCache<String, StorageSpec> storageSpecCache;
-  private final CacheLoader<String, StorageSpec> storageSpecLoader;
+  private StorageSpec storageSpec;
 
   public CachedSpecStorage(CoreService coreService) {
     this.coreService = coreService;
@@ -53,12 +55,6 @@ public class CachedSpecStorage implements SpecStorage {
             (String key) -> coreService.getFeatureSpecs(Collections.singletonList(key)).get(key));
     featureSpecCache =
         CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(featureSpecLoader);
-
-    storageSpecLoader =
-        CacheLoader.from(
-            (String key) -> coreService.getStorageSpecs(Collections.singletonList(key)).get(key));
-    storageSpecCache =
-        CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(storageSpecLoader);
   }
 
   @Override
@@ -94,53 +90,18 @@ public class CachedSpecStorage implements SpecStorage {
   }
 
   @Override
-  public Map<String, FeatureSpec> getAllFeatureSpecs() {
-    try {
-      Map<String, FeatureSpec> result = coreService.getAllFeatureSpecs();
-      featureSpecCache.putAll(result);
-      return result;
-    } catch (Exception e) {
-      log.error("Error while retrieving feature spec: {}", e);
-      throw new SpecRetrievalException("Error while retrieving feature spec", e);
-    }
-  }
-
-  @Override
-  public Map<String, StorageSpec> getStorageSpecs(Iterable<String> storageIds) {
-    try {
-      return storageSpecCache.getAll(storageIds);
-    } catch (Exception e) {
-      log.error("Error while retrieving storage spec: {}", e);
-      throw new SpecRetrievalException("Error while retrieving storage spec", e);
-    }
-  }
-
-  @Override
-  public Map<String, StorageSpec> getAllStorageSpecs() {
-    try {
-      Map<String, StorageSpec> result = coreService.getAllStorageSpecs();
-      storageSpecCache.putAll(result);
-      return result;
-    } catch (Exception e) {
-      log.error("Error while retrieving storage spec: {}", e);
-      throw new SpecRetrievalException("Error while retrieving storage spec", e);
-    }
-  }
-
-  @Override
   public boolean isConnected() {
     return coreService.isConnected();
   }
 
-  /** Preload all spec into cache. */
+  /**
+   * Preload all spec into cache.
+   */
   public void populateCache() {
     Map<String, FeatureSpec> featureSpecMap = coreService.getAllFeatureSpecs();
     featureSpecCache.putAll(featureSpecMap);
 
     Map<String, EntitySpec> entitySpecMap = coreService.getAllEntitySpecs();
     entitySpecCache.putAll(entitySpecMap);
-
-    Map<String, StorageSpec> storageSpecMap = coreService.getAllStorageSpecs();
-    storageSpecCache.putAll(storageSpecMap);
   }
 }

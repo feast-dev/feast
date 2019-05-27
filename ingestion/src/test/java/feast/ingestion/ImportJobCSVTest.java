@@ -38,6 +38,7 @@ import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.util.ProtoUtil;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.ImportSpecProto.ImportSpec;
+import feast.specs.StorageSpecProto.StorageSpec;
 import feast.store.MockFeatureErrorsFactory;
 import feast.store.MockServingFactory;
 import feast.store.MockWarehouseFactory;
@@ -534,8 +535,8 @@ public class ImportJobCSVTest {
   }
 
 
-  @Test
-  public void testImportWithoutWarehouseStore() throws IOException {
+  @Test(expected = IllegalArgumentException.class)
+  public void testImportWithUnsupportedWarehouse() throws IOException {
     ImportSpec importSpec =
         ProtoUtil.decodeProtoYaml(
             "---\n"
@@ -562,7 +563,8 @@ public class ImportJobCSVTest {
     ImportJobPipelineOptions options = initOptions();
 
     ImportJobSpecs importJobSpecs = getImportJobSpecs(importSpec, csvFile.toString()).toBuilder()
-        .clearWarehouseStorageSpecs().build();
+        .setWarehouseStorageSpec(StorageSpec.newBuilder().setId("WAREHOUSE").setType("unknown"))
+        .build();
 
     Injector injector =
         Guice.createInjector(
@@ -573,29 +575,6 @@ public class ImportJobCSVTest {
 
     injector.getInstance(ImportJob.class);
     job.expand();
-
-    PCollection<FeatureRowExtended> writtenToServing =
-        PCollectionList
-            .of(FeatureServingFactoryService.get(MockServingFactory.class).getWrite()
-                .getInputs())
-            .apply("flatten serving input", Flatten.pCollections());
-
-    PCollection<FeatureRowExtended> writtenToWarehouse =
-        PCollectionList
-            .of(FeatureWarehouseFactoryService.get(MockWarehouseFactory.class).getWrite()
-                .getInputs())
-            .apply("flatten warehouse input", Flatten.pCollections());
-
-    PCollection<FeatureRowExtended> writtenToErrors =
-        PCollectionList
-            .of(FeatureErrorsFactoryService.get(MockFeatureErrorsFactory.class).getWrite()
-                .getInputs())
-            .apply("flatten errors input", Flatten.pCollections());
-
-    PAssert.that(writtenToErrors).satisfies(hasCount(0));
-    PAssert.that(writtenToWarehouse).satisfies(hasCount(0));
-    PAssert.that(writtenToServing).satisfies(hasCount(3));
-    testPipeline.run();
   }
 
 
@@ -614,21 +593,22 @@ public class ImportJobCSVTest {
                 + "  timestampValue: 2018-09-25T00:00:00.000Z\n"
                 + "  fields:\n"
                 + "    - name: id\n"
-                + "    - featureId: testEntity.testInt64NoWarehouse\n"
-                + "    - featureId: testEntity.testStringNoWarehouse\n"
+                + "    - featureId: testEntity.testInt64\n"
+                + "    - featureId: testEntity.testString\n"
                 + "\n",
             ImportSpec.getDefaultInstance());
 
     File csvFile = folder.newFile("data.csv");
 
-    // Note the string and integer features are in the wrong positions for the import spec.
     Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
 
     ImportJobPipelineOptions options = initOptions();
 
+    ImportJobSpecs importJobSpecs = getImportJobSpecs(importSpec, csvFile.toString()).toBuilder()
+        .clearWarehouseStorageSpec().build();
     Injector injector =
         Guice.createInjector(
-            new ImportJobModule(options, getImportJobSpecs(importSpec, csvFile.toString())),
+            new ImportJobModule(options, importJobSpecs),
             new TestPipelineModule(testPipeline));
 
     ImportJob job = injector.getInstance(ImportJob.class);

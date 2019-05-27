@@ -17,16 +17,11 @@
 
 package feast.serving.testutil;
 
-import feast.serving.service.BigTableFeatureStorage;
-import feast.serving.service.RedisFeatureStorage;
 import feast.serving.service.SpecStorage;
 import feast.specs.EntitySpecProto.EntitySpec;
-import feast.specs.FeatureSpecProto.DataStore;
-import feast.specs.FeatureSpecProto.DataStores;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.ValueProto.ValueType;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,19 +33,28 @@ public class FakeSpecStorage implements SpecStorage {
 
   Map<String, EntitySpec> entitySpecMap = new HashMap<>();
   Map<String, FeatureSpec> featureSpecMap = new HashMap<>();
-  Map<String, StorageSpec> storageSpecMap = new HashMap<>();
+  StorageSpec storageSpec;
 
-  public FakeSpecStorage() {
-    // populate with hardcoded value
-    String bigTableId = "BIGTABLE1";
+  public FakeSpecStorage(String storageType) {
     String lastOpportunityId = "driver.last_opportunity";
     String lastOpportunityName = "last_opportunity";
     String dailyCompletedBookingId = "driver.total_completed_booking";
     String dailyCompletedBookingName = "total_completed_booking";
-    DataStore bigTable = DataStore.newBuilder().setId(bigTableId).build();
 
-    String redisId = "REDIS1";
-    DataStore redis = DataStore.newBuilder().setId(redisId).build();
+    if (storageType.equals("bigtable")) {
+      // populate with hardcoded value
+      storageSpec = StorageSpec.newBuilder().setId("SERVING").setType("bigtable")
+          .putOptions("project", "project")
+          .putOptions("instance", "instance")
+          .putOptions("family", "default")
+          .putOptions("prefix", "")
+          .build();
+    } else if (storageType.equals("redis")) {
+      storageSpec = StorageSpec.newBuilder().setId("SERVING").setType("redis")
+          .putOptions("host", "localhost")
+          .putOptions("port", "1234")
+          .build();
+    }
 
     EntitySpec driver = EntitySpec.newBuilder().setName("driver").build();
 
@@ -61,7 +65,6 @@ public class FakeSpecStorage implements SpecStorage {
             .setId(lastOpportunityId)
             .setName(lastOpportunityName)
             .setValueType(ValueType.Enum.INT64)
-            .setDataStores(DataStores.newBuilder().setServing(redis).build())
             .build();
 
     FeatureSpec totalCompleted =
@@ -69,30 +72,10 @@ public class FakeSpecStorage implements SpecStorage {
             .setId(dailyCompletedBookingId)
             .setName(dailyCompletedBookingName)
             .setValueType(ValueType.Enum.INT64)
-            .setDataStores(DataStores.newBuilder().setServing(redis).build())
             .build();
 
     featureSpecMap.put(lastOpportunityId, lastOpportunity);
     featureSpecMap.put(dailyCompletedBookingId, totalCompleted);
-
-    StorageSpec bigTableSpec =
-        StorageSpec.newBuilder()
-            .setId(bigTableId)
-            .setType(RedisFeatureStorage.TYPE)
-            .putOptions(BigTableFeatureStorage.OPT_BIGTABLE_PROJECT, "the-big-data-staging-007")
-            .putOptions(BigTableFeatureStorage.OPT_BIGTABLE_INSTANCE, "ds-staging")
-            .build();
-
-    StorageSpec redisSpec =
-        StorageSpec.newBuilder()
-            .setId(redisId)
-            .setType(RedisFeatureStorage.TYPE)
-            .putOptions(RedisFeatureStorage.OPT_REDIS_HOST, "10.148.0.6")
-            .putOptions(RedisFeatureStorage.OPT_REDIS_PORT, "6379")
-            .build();
-
-    storageSpecMap.put(bigTableId, bigTableSpec);
-    storageSpecMap.put(redisId, redisSpec);
   }
 
   @Override
@@ -112,23 +95,6 @@ public class FakeSpecStorage implements SpecStorage {
     return StreamSupport.stream(featureIds.spliterator(), false)
         .filter(featureSpecMap::containsKey)
         .collect(Collectors.toMap(Function.identity(), featureSpecMap::get));
-  }
-
-  @Override
-  public Map<String, FeatureSpec> getAllFeatureSpecs() {
-    return Collections.unmodifiableMap(featureSpecMap);
-  }
-
-  @Override
-  public Map<String, StorageSpec> getStorageSpecs(Iterable<String> storageIds) {
-    return StreamSupport.stream(storageIds.spliterator(), false)
-        .filter(storageSpecMap::containsKey)
-        .collect(Collectors.toMap(Function.identity(), storageSpecMap::get));
-  }
-
-  @Override
-  public Map<String, StorageSpec> getAllStorageSpecs() {
-    return Collections.unmodifiableMap(storageSpecMap);
   }
 
   @Override

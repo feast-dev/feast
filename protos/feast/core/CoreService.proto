@@ -41,6 +41,22 @@ service CoreService {
     */
     rpc ListEntities(google.protobuf.Empty) returns (CoreServiceTypes.ListEntitiesResponse) {};
 
+    /*
+    Get storage specs specified in request.
+    This process returns a list of storage specs.
+    */
+    rpc GetStorage(CoreServiceTypes.GetStorageRequest) returns (CoreServiceTypes.GetStorageResponse){
+        option deprecated = true; 
+    };
+
+     /*
+    Get all storage specs.
+    This process returns a list of storage specs.
+    */ 
+    rpc ListStorage(google.protobuf.Empty) returns (CoreServiceTypes.ListStorageResponse) {
+        option deprecated = true;
+    };
+
    /*
     Get features specified in request.
     This process returns a list of feature specs.
@@ -52,18 +68,6 @@ service CoreService {
     This process returns a list of entity specs.
     */
     rpc ListFeatures(google.protobuf.Empty) returns (CoreServiceTypes.ListFeaturesResponse) {};
-
-   /*
-    Get storage specs specified in request.
-    This process returns a list of storage specs.
-    */
-    rpc GetStorage(CoreServiceTypes.GetStorageRequest) returns (CoreServiceTypes.GetStorageResponse){};
-
-    /*
-    Get all storage specs.
-    This process returns a list of storage specs.
-    */
-    rpc ListStorage(google.protobuf.Empty) returns (CoreServiceTypes.ListStorageResponse) {};
 
     /*
     Register a new feature to the metadata store, or update an existing feature.
@@ -83,11 +87,6 @@ service CoreService {
     */
     rpc ApplyEntity(feast.specs.EntitySpec) returns (CoreServiceTypes.ApplyEntityResponse) {};
 
-    /*
-    Register a new storage spec to the metadata store, or update an existing storage.
-    If any validation errors occur, only the first encountered error will be returned.
-    */
-    rpc ApplyStorage(feast.specs.StorageSpec) returns (CoreServiceTypes.ApplyStorageResponse) {};
 }
 
 message CoreServiceTypes {
@@ -144,8 +143,4 @@ message CoreServiceTypes {
       string featureGroupId = 1;
   }
 
-  // Storage registration response
-  message ApplyStorageResponse {
-      string storageId = 1;
-  }
 }

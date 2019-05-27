@@ -1,5 +1,4 @@
-![](http://prow.feast.ai/badge.svg?jobs=postsubmit-unit-tests)
-# Feast - Feature Store for Machine Learning
+# Feast - Feature Store for Machine Learning [![Build Status](http://prow.feast.ai/badge.svg?jobs=integration-test)](http://prow.feast.ai)
 
 ## Overview
 
@@ -47,7 +46,7 @@ For Feast administrators:
 
 ## Notice
 
-Feast is still under active development. Your feedback and contributions are important to us.
+Feast is still under active development. Your feedback and contributions are important to us. Please check our [contributing guide](CONTRIBUTING.md) for details.
 
 ## Source Code Headers
 

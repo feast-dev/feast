@@ -19,7 +19,6 @@ var getCmd = &cobra.Command{
 Valid resources include:
 - entity
 - feature
-- storage
 - job
 
 Examples:
@@ -81,6 +80,7 @@ func getEntity(ctx context.Context, cli core.UIServiceClient, id string) error {
 	return nil
 }
 
+// This function is deprecated, and may be removed in subsequent versions.
 func getStorage(ctx context.Context, cli core.UIServiceClient, id string) error {
 	response, err := cli.GetStorage(ctx, &core.UIServiceTypes_GetStorageRequest{Id: id})
 	if err != nil {

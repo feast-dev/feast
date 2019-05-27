@@ -19,24 +19,30 @@ package feast.core.storage;
 
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
-import com.google.cloud.bigtable.hbase.BigtableConfiguration;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.hadoop.hbase.client.Connection;
-import feast.specs.FeatureSpecProto.DataStore;
+import com.google.common.base.Preconditions;
+import feast.core.config.StorageConfig.StorageSpecs;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
-
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class SchemaManager {
+
   private final Map<String, StorageManager> storageRegistry = new ConcurrentHashMap<>();
   private final BigQueryViewTemplater viewTemplater;
+  private final StorageSpecs storageSpecs;
 
-  public SchemaManager(BigQueryViewTemplater viewTemplater) {
+  public SchemaManager(BigQueryViewTemplater viewTemplater, StorageSpecs storageSpecs) {
     this.viewTemplater = viewTemplater;
+    this.storageSpecs = storageSpecs;
+    if (storageSpecs.getServingStorageSpec() != null) {
+      registerStorage(storageSpecs.getServingStorageSpec());
+    }
+    if (storageSpecs.getWarehouseStorageSpec() != null) {
+      registerStorage(storageSpecs.getWarehouseStorageSpec());
+    }
   }
 
   /**
@@ -45,15 +51,19 @@ public class SchemaManager {
    * @param featureSpec spec of the new feature.
    */
   public void registerFeature(FeatureSpec featureSpec) {
-    DataStore servingDataStore = featureSpec.getDataStores().getServing();
-    StorageManager servingStorageManager = storageRegistry.get(servingDataStore.getId());
-    if (servingStorageManager != null) {
-      servingStorageManager.registerNewFeature(featureSpec);
-    }
+    Preconditions.checkNotNull(storageSpecs.getServingStorageSpec(),
+        "Attempted to register feature but no serving storage is configured");
+    StorageManager servingStorageManager = storageRegistry
+        .get(storageSpecs.getServingStorageSpec().getId());
+    Preconditions.checkNotNull(servingStorageManager,
+        "Serving storage spec has no associated storage manager");
+    servingStorageManager.registerNewFeature(featureSpec);
 
-    DataStore warehouseDataStore = featureSpec.getDataStores().getWarehouse();
-    StorageManager warehouseStorageManager = storageRegistry.get(warehouseDataStore.getId());
-    if (warehouseStorageManager != null) {
+    if (storageSpecs.getWarehouseStorageSpec() != null) {
+      StorageManager warehouseStorageManager = storageRegistry
+          .get(storageSpecs.getWarehouseStorageSpec().getId());
+      Preconditions.checkNotNull(warehouseStorageManager,
+          "Warehouse storage spec has no associated storage manager");
       warehouseStorageManager.registerNewFeature(featureSpec);
     }
   }
@@ -64,17 +74,13 @@ public class SchemaManager {
    * @param storageSpec new storage spec.
    */
   public void registerStorage(StorageSpec storageSpec) {
-    String storageType = storageSpec.getType();
     Map<String, String> options = storageSpec.getOptionsMap();
     String id = storageSpec.getId();
     StorageManager storageManager = null;
 
     switch (storageSpec.getType()) {
       case BigTableStorageManager.TYPE:
-        String btProjectId = options.get(BigTableStorageManager.OPT_BIGTABLE_PROJECT);
-        String instanceId = options.get(BigTableStorageManager.OPT_BIGTABLE_INSTANCE);
-        Connection connection = BigtableConfiguration.connect(btProjectId, instanceId);
-        storageManager = new BigTableStorageManager(id, connection);
+        storageManager = new BigTableStorageManager(storageSpec);
         break;
       case BigQueryStorageManager.TYPE:
         String datasetName = options.get(BigQueryStorageManager.OPT_BIGQUERY_DATASET);
@@ -83,6 +89,9 @@ public class SchemaManager {
             BigQueryOptions.newBuilder().setProjectId(bqProjectId).build().getService();
         storageManager =
             new BigQueryStorageManager(id, bigQuery, bqProjectId, datasetName, viewTemplater);
+        break;
+      case JsonFileStorageManager.TYPE:
+        storageManager = new JsonFileStorageManager(storageSpec);
         break;
       case PostgresStorageManager.TYPE:
         String connectionUri = options.get(PostgresStorageManager.OPT_POSTGRES_URI);
@@ -95,18 +104,6 @@ public class SchemaManager {
         log.warn("Unknown storage type: {} \n {}", storageSpec.getType(), storageSpec);
         return;
     }
-
     storageRegistry.put(id, storageManager);
-  }
-
-  /**
-   * Register several storage specs.
-   *
-   * @param storageSpecs
-   */
-  public void registerStorages(List<StorageSpec> storageSpecs) {
-    for (StorageSpec storageSpec : storageSpecs) {
-      registerStorage(storageSpec);
-    }
   }
 }
