@@ -5,45 +5,29 @@ feast, as well as manage and run ingestion jobs.
 
 ## Installation
 
-### Download the compiled binary
+The quickest way to get the CLI is to download the compiled binary: 
 
-The quickest way to get the CLI is to download the compiled binary: #TODO
+```sh
+# For Mac OS users
+wget https://github.com/gojek/feast/releases/download/v0.1.1/feast-cli-v0.1.1-darwin-amd64
+chmod +x feast-cli-v0.1.1-darwin-amd64
+sudo mv feast-cli-v0.1.1-darwin-amd64 /usr/local/bin/
+
+# For Linux users
+wget https://github.com/gojek/feast/releases/download/v0.1.1/feast-cli-v0.1.1-linux-amd64
+chmod +x feast-cli-v0.1.1-linux-amd64
+sudo mv feast-cli-v0.1.1-linux-amd64 /usr/local/bin/
+```
 
 ### Building from source
 
-The following dependencies are required to build the CLI from source:
-* [`go`](https://golang.org/)
-* [`protoc`](https://developers.google.com/protocol-buffers/)
-* [`dep`](https://github.com/golang/dep)
+If you want to develop the CLI or build it from source, you need to have at least Golang version 1.11 installed because Feast use go modules.
 
-See below for specific instructions on how to install the dependencies.
-
-After the dependencies are installed, you can build the CLI using:
 ```sh
-# at feast top-level directory
-$ make build-cli
-```
+git clone https://github.com/gojek/feast
+cd feast
+go build -o feast ./cli/feast
 
-### Dependencies
-
-#### `protoc-gen-go`
-
-To ensure you have a matching version of `protoc-gen-go`, install the vendored version:
-```sh
-$ go install  ./vendor/github.com/golang/protobuf/protoc-gen-go
-$ which protoc-gen-go
-~/go/bin/protoc-gen-go
-```
-
-#### `dep`
-
-On MacOS you can install or upgrade to the latest released version with Homebrew:
-```sh
-$ brew install dep
-$ brew upgrade dep
-```
-
-On other platforms you can use the `install.sh` script:
-```sh
-$ curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+# Test running feast-cli
+./feast
 ```
