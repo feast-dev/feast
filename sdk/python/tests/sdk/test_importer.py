@@ -164,9 +164,8 @@ class TestImporter(object):
             assert feature.id == "driver." + feature.name
 
         import_spec = importer.spec
-        assert import_spec.type == "file"
+        assert import_spec.type == "file.csv"
         assert import_spec.sourceOptions == {
-            "format": "csv",
             "path": importer.remote_path
         }
         assert import_spec.entities == ["driver"]
@@ -182,6 +181,27 @@ class TestImporter(object):
             assert col == field.name
             if col in feature_columns:
                 assert field.featureId == "driver." + col
+    
+    def test_stage_df_without_timestamp(self, mocker):
+        mocker.patch("feast.sdk.importer.df_to_gcs", return_value=True)
+        feature_columns = [
+            "avg_distance_completed", "avg_customer_distance_completed",
+            "avg_distance_cancelled"
+        ]
+        csv_path = "tests/data/driver_features.csv"
+        entity_name = "driver"
+        owner = "owner@feast.com"
+        staging_location = "gs://test-bucket"
+        id_column = "driver_id"
+        importer = Importer.from_csv(
+            path=csv_path,
+            entity=entity_name,
+            owner=owner,
+            staging_location=staging_location,
+            id_column=id_column,
+            feature_columns=feature_columns)
+
+        importer.stage()
 
     def _validate_csv_importer(self,
                                importer,
@@ -228,6 +248,7 @@ class TestImporter(object):
             if col in feature_columns:
                 assert field.featureId == '{}.{}'.format(entity_name,
                                                          col).lower()
+    
 
 
 class TestHelpers:

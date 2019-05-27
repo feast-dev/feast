@@ -267,7 +267,8 @@ class Importer:
         if not self.require_staging:
             return
         ts_col = self.spec.schema.timestampColumn
-        _convert_timestamp(self.df, ts_col)
+        if ts_col != "":
+            _convert_timestamp(self.df, ts_col)
         df_to_gcs(self.df, self.remote_path)
 
     def describe(self):

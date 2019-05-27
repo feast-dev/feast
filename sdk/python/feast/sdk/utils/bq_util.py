@@ -74,7 +74,8 @@ def get_table_name(feature_id, storage_spec):
     except KeyError:
         raise ValueError("storage spec has empty project or dataset option")
 
-    table_name = "_".join(feature_id.split(".")[:2])
+    print(feature_id)
+    table_name = feature_id.split(".")[0]
     return ".".join([project, dataset, table_name])
 
 

@@ -325,7 +325,7 @@ class TestClient(object):
             })
         expected_df = pd.DataFrame({'entity': ["1", "2"],
                                     'entity.feat1': [1, 3],
-                                    'entity.feat2': [np.NaN, 4]}) \
+                                    'entity.feat2': [np.nan, 4]}) \
             .reset_index(drop=True)
         df = client._response_to_df(FeatureSet("entity", ["entity.feat1",
                                                           "entity.feat2"]),
