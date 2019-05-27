@@ -11,12 +11,12 @@ The quickest way to get the CLI is to download the compiled binary:
 # For Mac OS users
 wget https://github.com/gojek/feast/releases/download/v0.1.1/feast-cli-v0.1.1-darwin-amd64
 chmod +x feast-cli-v0.1.1-darwin-amd64
-sudo mv feast-cli-v0.1.1-darwin-amd64 /usr/local/bin/
+sudo mv feast-cli-v0.1.1-darwin-amd64 /usr/local/bin/feast
 
 # For Linux users
 wget https://github.com/gojek/feast/releases/download/v0.1.1/feast-cli-v0.1.1-linux-amd64
 chmod +x feast-cli-v0.1.1-linux-amd64
-sudo mv feast-cli-v0.1.1-linux-amd64 /usr/local/bin/
+sudo mv feast-cli-v0.1.1-linux-amd64 /usr/local/bin/feast
 ```
 
 ### Building from source
