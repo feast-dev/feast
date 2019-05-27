@@ -28,6 +28,6 @@ git clone https://github.com/gojek/feast
 cd feast
 go build -o feast ./cli/feast
 
-# Test running feast-cli
+# Test running feast CLI
 ./feast
 ```
