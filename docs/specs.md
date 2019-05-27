@@ -33,7 +33,6 @@ A Feature is an individual measurable property or characteristic of an Entity. A
 
 1. Entity - it must be associated with a known Entity to Feast (see Entity Spec)
 2. ValueType - the feature type must be defined, e.g. String, Bytes, Int64, Int32, Float etc.
-3. Data stores - for both serving and training must be defined
 
 Following is en example of feature spec
 
@@ -45,11 +44,6 @@ owner: zhiling.c@go-jek.com
 description: binary variable denoting whether the passenger was alone on the titanic.
 valueType:  INT64
 uri: http://jupyter.s.ds.golabs.io/user/your_user/lab/tree/shared/zhiling.c/feast_titanic/titanic.ipynb
-dataStores:
-  serving:
-    id: REDIS1
-  warehouse:
-    id: BIGQUERY1
 ```
 
 ### Attributes Supported In Feature Spec
@@ -65,62 +59,6 @@ dataStores:
 |`group`| string | lower snake case | feature group inherited by this feature.|
 | `tags` | List of string | N.A. | Free form grouping |
 | `options` | Key value string | N.A. | Option is used for extendability of feature spec|
-| `dataStores`| See below table | See below table | Storage used to store the feature|
-
-#### DataStores 
-`dataStores` attribute is used to define which storage to be used by the said feature. Feature must define two kind of storage: serving and warehouse. See storage spec section for more details about storage. Following table define attributes of `dataStores`. `dataStores` contains two parts: `serving` and `warehouse`. `serving` attribute is used to define what serving storage to be used, same goes for `warehouse` which define warehouse storage to be used.
-
-|Name|Type|Convention|Description|
-|----|----|----------|-----------|
-|`id`|string| Upper snake case (e.g. BIGTABLE_STAGING)| identifier of the storage (see storage spec)|
-|`options`| key-value string| N.A. | feature specific storage option |
-
-
-#### Feature-specific storage option
-|Storage Type|Key|Value Convetion|Description|
-|------------|---|---------------|-----------|
-|Redis|`expiry`| ISO8601 Period String (e.g. PT1H for 1 hour)| It is recommended to set expiry for redis so that old data might be removed. No data expiration is applied if `expiry` is not specified. |
-|Redis|`bucketSize`| ISO8601 Period String (e.g. PT1H for 1 hour) | It is used for bucketing time-series data in order to optimize range query. Default: 1 hour |
-|Big Table | `family` | As short as possible | See [Big table column family](https://cloud.google.com/bigtable/docs/schema-design#column_families). Default: `default`|
-
-Example of feature spec having storage option:
-1. Redis
-
-```
-id: driver.completed_booking
-name: completed_booking
-entity: driver
-owner: zhiling.c@go-jek.com
-description: total daily completed booking of a driver.
-valueType:  INT64
-uri: -
-dataStores:
-  serving:
-    id: REDIS1
-    options:
-      expiry: P10D // 10 days
-      bucketSize : P2D // 2 days bucket size
-  warehouse:
-    id: BIGQUERY1
-```
-2. BigTable
-
-```
-id: driver.completed_booking
-name: completed_booking
-entity: driver
-owner: zhiling.c@go-jek.com
-description: total daily completed booking of a driver.
-valueType:  INT64
-uri: -
-dataStores:
-  serving:
-    id: BIGTABLE1
-    options:
-      family: driver 
-  warehouse:
-    id: BIGQUERY1
-```
 
 ## Import Spec
 Import spec describe how data is ingested into Feast to populate one or more features. An import spec contains information about:

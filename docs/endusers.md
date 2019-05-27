@@ -59,11 +59,6 @@ owner: bob@feast.com
 description: number of times the word appears
 valueType:  INT64
 uri: https://github.com/bob/example
-dataStores:
-  serving:
-    id: REDIS1
-  warehouse:
-    id: BIGQUERY1
 ```
 
 Register it:
