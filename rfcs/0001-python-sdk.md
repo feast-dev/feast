@@ -53,7 +53,6 @@ customer_entity = Entity('customer', "desc", tags=["loyal", "customer"])
 
 customer_age = Feature(name='age', 
                        entity="customer",
-                       granularity=Granularity.DAY, 
                        owner='user@website.com',
                        description="Customer's age",
                        value_type=ValueType.INT64, 
@@ -62,7 +61,6 @@ customer_age = Feature(name='age',
 
 customer_balance = Feature(name='balance', 
                            entity="customer",
-                           granularity=Granularity.DAY, 
                            owner='user@website.com', 
                            value_type=ValueType.FLOAT, 
                            description="Customer's account balance",
@@ -103,7 +101,6 @@ Importers allow for the creation of jobs to ingest feature data into Feast. Impo
 
 ```python
 cust_importer = Importer.from_csv('customer_features.csv', 
-                                    granularity=Granularity.DAY, 
                                     entity='customer', 
                                     owner='user@website.com',
                                     staging_location="gs://my-bucket/feast",
@@ -116,7 +113,6 @@ cust_importer = Importer.from_csv('customer_features.csv',
 ```python
 driver_importer_from_bq = Importer.from_bq("my_project.dataset1.table1", 
                                            entity="s2id", 
-                                           granularity=Granularity.MINUTE, 
                                            owner='user@website.com',
                                            timestamp_column="start_time")
 ```
@@ -161,7 +157,6 @@ dataStores: {}
 my_pandas_df = pd.read_csv("driver_features.csv")
 driver_importer_from_df = Importer.from_df(my_pandas_df, 
                                            entity='driver', 
-                                           granularity=Granularity.DAY, 
                                            owner='user@website.com',  
                                            staging_location="gs://staging-bucket/feast",
                                            id_column="driver_id", 
@@ -207,10 +202,10 @@ customer_age.dump("customer_entity.yaml")
 
 ### Create a “feature set” which can be used to query both training data and serving data.
 
-The feature set is simply an object that locally tracks which entity, granularity, and features you are interested in.
+The feature set is simply an object that locally tracks which entity, and features you are interested in.
 
 ```python
-driver_feature_set = FeatureSet(entity='driver', granularity='minute', features=['latitude', 'longitude', 'event_time'])
+driver_feature_set = FeatureSet(entity='driver', features=['latitude', 'longitude', 'event_time'])
 ```
 
 ### Produce training dataset
@@ -337,7 +332,6 @@ Initializes a `feature` during instantiation.
 Args:
   name (str): name of feature, in lower snake case
   entity (str): entity the feature belongs to, in lower case
-  granularity (int): granularity of the feature, one of Granularity.Enum
   owner (str): owner of the feature
   value_type (feast.types.ValueType_pb2.ValueType): defaults to ValueType.DOUBLE. value type of the feature
   description (str): defaults to "". description of the feature
@@ -376,7 +370,6 @@ Creates an `importer` from a given csv dataset. This file can be either local or
 Args:
   path (str): path to csv file
   entity (str): entity id
-  granularity (Granularity): granularity of data
   owner (str): owner
   staging_location (str, optional): Defaults to None. Staging location for ingesting a local csv file.
   id_column (str, optional): Defaults to None. Id column in the csv. If not set, will default to the `entity` argument.
@@ -396,7 +389,6 @@ Creates an `importer` from a given BigQuery table.
 Args:
   path (str): path to csv file
   entity (str): entity id
-  granularity (Granularity): granularity of data
   owner (str): owner
   staging_location (str, optional): Defaults to None. Staging location for ingesting a local csv file.
   id_column (str, optional): Defaults to None. Id column in the csv. If not set, will default to the `entity` argument.
@@ -415,8 +407,7 @@ Creates an importer from a given pandas dataframe. To import a file from a dataf
 ```
 Args:
   path (str): path to csv file
-  entity (str): entity id
-  granularity (Granularity): granularity of data
+  entity (str): entity id  
   owner (str): owner
   staging_location (str, optional): Defaults to None. Staging location for ingesting a local csv file.
   id_column (str, optional): Defaults to None. Id column in the csv. If not set, will default to the `entity` argument.

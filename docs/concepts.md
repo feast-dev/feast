@@ -19,7 +19,6 @@ A Feature is an individual measurable property or characteristic of an Entity. I
 * Entity - It must be associated with a known Entity within Feast
 * ValueType - The feature type must be defined, e.g. String, Bytes, Int64, Int32, Float etc.
 * Requirements - Properties related to how a feature should be stored for serving and training
-* Granularity - Time series features require a defined granularity
 * StorageType - For both serving and training a storage type must be defined
 
 Feast needs to know these attributes in order to be able to ingest, store and serve a feature. A Feature is only a feature when Feast knows about it; This seems contrite, but it introduces a best practice whereby a feature only becomes available for ingestion, serving and training in production when Feast has added the feature to its catalog.

@@ -5,11 +5,11 @@ core:
     pullPolicy: IfNotPresent
     registry: gcr.io/kf-feast
     repository: feast-core
-    tag: "0.1.1"
-  replicaCount: 1
+    tag: "1234"
+  replicaCount: 3
   resources: 
     limits: 
-      cpu: 4
+      cpu: 8
       memory: 8G
     requests: 
       cpu: 2
@@ -18,18 +18,13 @@ core:
     maxSurge: 2
     maxUnavailable: 0
   service: 
-    type: ClusterIP
     grpc: 
       port: 6565
       targetPort: 6565
     http: 
       port: 80
       targetPort: 8080
-    # loadBalancerSourceRanges sets the accepted IP ranges for firewall ingress rule
-    # this firewall rule is usually created when the service type is "LoadBalancer"
-    # loadBalancerSourceRanges: ["10.0.0.0/8"]
-  jobs:
-    workspace: "/tmp"
+  jobs: 
     runner: DirectRunner
     options: "{}"
     errorStoreType: "stdout"
@@ -39,32 +34,16 @@ core:
       initialDelay: 60000
   trainingDatasetPrefix: "fs"
   # logType: JSON
-  livenessProbe:
-    initialDelaySeconds: 120
-    failureThreshold: 3
-  readinessProbe:
-    initialDelaySeconds: 60
-    failureThreshold: 1
 
-#store:
-#  errors:
-#    type: "stdout"
-#  warehouse:
-#    type: "bigquery"
-#    options: '{"project": "gcp-project-id", "dataset": "feast"}'
-#  serving:
-#    type: "redis"
-#    options: '{"host": "...", "port": "6379"}'
-
-# postgresql: 
-#   provision: true
-#   persistence:
-#     enabled: false
+postgresql: 
+  provision: true
+  imageTag: 9.6.11
+  service: 
+    port: 5432
     
-# redis:
-#   provision: true
-#   cluster:
-#     enabled: false
+redis:
+  name: feast-redis
+  provision: true
 
 serving: 
   config: 
@@ -78,8 +57,8 @@ serving:
     pullPolicy: IfNotPresent
     registry: gcr.io/kf-feast
     repository: feast-serving
-    tag: "0.1.1"
-  replicaCount: 1
+    tag: "1234"
+  replicaCount: 4
   resources: 
     limits: 
       cpu: 2
@@ -91,24 +70,14 @@ serving:
     maxSurge: 2
     maxUnavailable: 0
   service: 
-    type: ClusterIP
     grpc: 
       port: 6565
       targetPort: 6565
     http: 
       port: 80
       targetPort: 8080
-    # loadBalancerSourceRanges sets the accepted IP ranges for firewall ingress rule
-    # this firewall rule is usually created when the service type is "LoadBalancer"
-    # loadBalancerSourceRanges: ["10.0.0.0/8"]
   jaeger:
     enabled: false
-  livenessProbe:
-    initialDelaySeconds: 120
-    failureThreshold: 3
-  readinessProbe:
-    initialDelaySeconds: 60
-    failureThreshold: 1
 
 # Enable only if you have an existing service account you 
 # want to mount the secret of.

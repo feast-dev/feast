@@ -36,7 +36,7 @@ message QueryFeaturesRequest {
     // List of entity ID.
     repeated string entityId = 2;
     // List of feature ID.
-    // feature ID is in the form of [entity_name].[granularity].[feature_name]
+    // feature ID is in the form of [entity_name].[feature_name]
     // e.g: "driver.day.total_accepted_booking"
     // all requested feature ID shall have same entity name.
     repeated string featureId = 3;

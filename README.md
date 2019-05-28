@@ -44,6 +44,12 @@ For Feast administrators:
 * [Installation quickstart](docs/install.md)
 * [Helm charts](charts/README.md) details
 
+For Feast end users:
+* [Creating features](docs/endusers.md)
+
+For Feast developers:
+* [Building the CLI](cli/README.md)
+
 ## Notice
 
 Feast is still under active development. Your feedback and contributions are important to us. Please check our [contributing guide](CONTRIBUTING.md) for details.

@@ -31,8 +31,8 @@ type QueryFeaturesRequest struct {
 	// List of entity ID.
 	EntityId []string `protobuf:"bytes,2,rep,name=entityId,proto3" json:"entityId,omitempty"`
 	// List of feature ID.
-	// feature ID is in the form of [entity_name].[granularity].[feature_name]
-	// e.g: "driver.day.total_accepted_booking"
+	// feature ID is in the form of [entity_name].[feature_name]
+	// e.g: "driver.total_accepted_booking"
 	// all requested feature ID shall have same entity name.
 	FeatureId            []string `protobuf:"bytes,3,rep,name=featureId,proto3" json:"featureId,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
