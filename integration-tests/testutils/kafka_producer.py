@@ -38,8 +38,10 @@ def produce_feature_rows(
             feature.id = info["id"]
             feature_value = Value()
             feature_name = info["name"]
-            if info["dtype"] is np.int64:
+            if info["dtype"] is "Int64":
                 feature_value.int64Val = row[feature_name]
+            elif info["dtype"] is "Int32":
+                feature_value.int32Val = row[feature_name]
             elif info["dtype"] is np.float64:
                 feature_value.doubleVal = row[feature_name]
             else:

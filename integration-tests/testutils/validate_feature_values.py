@@ -27,6 +27,10 @@ def validate_warehouse(
         parse_dates=["event_timestamp"],
     )
 
+    dtypes = {"event_timestamp": "datetime64[ns]"}
+    for f in feature_infos:
+        dtypes[f["name"]] = f["dtype"]
+
     # TODO: Retrieve actual values via Feast Core rather than directly from BigQuery
     #       Need to change Python SDK so can retrieve values via Feast Core while
     #       "ensuring correct value types"
@@ -37,7 +41,7 @@ def validate_warehouse(
         )
         .sort_values(["id", "event_timestamp"])
         .reset_index(drop=True)
-        .astype({"event_timestamp": "datetime64[ns]"})
+        .astype(dtypes)
     )[expected.columns]
 
     pd.testing.assert_frame_equal(expected, actual)

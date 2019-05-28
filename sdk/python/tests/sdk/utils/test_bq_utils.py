@@ -38,7 +38,7 @@ def test_get_table_name():
     )
     assert (
         get_table_name(feature_id, storage_spec)
-        == "my_project.my_dataset.myentity_none"
+        == "my_project.my_dataset.myentity"
     )
 
 
@@ -47,23 +47,6 @@ def test_get_table_name_not_bq():
     storage_spec = StorageSpec(id="REDIS1", type="redis")
     with pytest.raises(ValueError, match="storage spec is not BigQuery storage spec"):
         get_table_name(feature_id, storage_spec)
-
-
-@pytest.mark.skipif(
-    os.getenv("SKIP_BIGQUERY_TEST") is not None,
-    reason="SKIP_BIGQUERY_TEST is set in the environment",
-)
-def test_query_to_dataframe():
-    with open(
-        os.path.join(testdata_path, "austin_bikeshare.bikeshare_stations.avro"), "rb"
-    ) as expected_file:
-        avro_reader = fastavro.reader(expected_file)
-        expected = pd.DataFrame.from_records(avro_reader)
-
-    query = "SELECT * FROM `bigquery-public-data.austin_bikeshare.bikeshare_stations`"
-    actual = query_to_dataframe(query)
-    assert expected.equals(actual)
-
 
 @pytest.mark.skipif(
     os.getenv("SKIP_BIGQUERY_TEST") is not None,
