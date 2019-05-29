@@ -37,6 +37,9 @@ if [[ ${COMPONENT} == "core" ]] || [[ ${COMPONENT} == "ingestion" ]] || [[ ${COM
 
 elif [[ ${COMPONENT} == "cli" ]]; then
 
+    # https://stackoverflow.com/questions/6871859/piping-command-output-to-tee-but-also-save-exit-code-of-command
+    set -o pipefail
+
     go get -u github.com/jstemmer/go-junit-report
     go test -v ./cli/feast/... 2>&1 | tee test_output
     TEST_EXIT_CODE=$?
