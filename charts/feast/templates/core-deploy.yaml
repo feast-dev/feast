@@ -80,7 +80,7 @@ spec:
           - name: DB_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: {{ .Values.global.postgresql.existingSecret }}
+                name: {{ template "postgresql.secretName" . }}
                 key: postgresql-password
           - name: LOG_TYPE
             value: {{ .Values.core.logType }}

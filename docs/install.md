@@ -80,8 +80,12 @@ gcloud --project=${GCP_PROJECT} compute instances create ${FEAST_REDIS_GCE_INSTA
   --metadata startup-script="apt-get -y install redis-server; echo 'bind 0.0.0.0' >> /etc/redis/redis.conf; sudo systemctl enable redis; sudo systemctl restart redis"
 ```
 
-When the command above completes, it will output details of the newly created VM. Set the variable for the Redis instance internal IP, according the `gcloud` output.
-```
+When the command above completes, it will output details of the newly created VM. Set the variable `FEAST_SERVING_REDIS_HOST` for the Redis instance internal ip, according the `gcloud` output.
+```bash
+# Example output:
+# NAME         ZONE          MACHINE_TYPE   INTERNAL_IP   STATUS
+# feast-redis  asia-east1-a  n1-highmem-2   10.148.1.122  RUNNING
+
 FEAST_SERVING_REDIS_HOST=10.148.1.122
 ```
 
