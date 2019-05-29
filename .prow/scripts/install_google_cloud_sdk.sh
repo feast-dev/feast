@@ -39,3 +39,6 @@ if [[ ${KEY_FILE} ]]; then
     gcloud -q container clusters get-credentials ${KUBE_CLUSTER_NAME} --zone ${KUBE_CLUSTER_ZONE} --project ${GOOGLE_PROJECT_ID}
     export GOOGLE_APPLICATION_CREDENTIALS=${KEY_FILE}
 fi
+
+# Restore bash option
+set +e
