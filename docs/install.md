@@ -13,7 +13,7 @@ This guide assumes you are using Google Container Engine (GKE) and have enabled 
 
 #### Feast Setup Configuration
 
-Open your terminal and set these variables (by executing all the lines in the terminal) according to your Google Cloud environment and Feast configuration.
+Open your terminal and set these variables (by executing all the lines below in the terminal) according to your Google Cloud environment and Feast configuration.
 
 ```bash
 GCP_PROJECT=project-id
