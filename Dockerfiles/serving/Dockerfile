@@ -8,7 +8,7 @@ RUN mvn --projects serving -Drevision=$REVISION -DskipTests=true --batch-mode pa
 FROM openjdk:8-jre-alpine as production
 ARG REVISION=dev
 COPY --from=builder /build/serving/target/feast-serving-$REVISION.jar /usr/share/feast/feast-serving.jar
-ENTRYPOINT ["/usr/bin/java", \
+ENTRYPOINT ["java", \
       "-XX:+UseG1GC", \
       "-XX:+UseStringDeduplication", \
       "-XX:+UnlockExperimentalVMOptions", \
