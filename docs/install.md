@@ -45,7 +45,7 @@ FEAST_STAGING_LOCATION_GCS_URI=gs://bucket
 - Ensure you have **Owner** role or **Editor** role with permissions to create and manage **service accounts**. If not, please ask the owners in your Google Cloud project to give you permissions.
 
 Run the following command to create a new cluster in GKE (Google Kubernetes Engine).
-> You can skip it if you want to install Feast in an existing Kubernetes cluster
+> You can skip this step if you want to install Feast in an existing Kubernetes cluster
 ```
 gcloud container --project "${GCP_PROJECT}" clusters create "${FEAST_CLUSTER_NAME}" \
   --zone "${GCP_ZONE}" --no-enable-basic-auth --cluster-version "1.12.7-gke.10" \
@@ -230,7 +230,7 @@ kubectl get svc --selector release=${FEAST_HELM_RELEASE_NAME}
 # feast-postgresql-headless   ClusterIP      None            <none>        5432/TCP                      2m30s
 # feast-serving               LoadBalancer   10.71.244.137   10.148.2.71   6565:30540/TCP,80:31324/TCP   2m30s
 
-# Set the following variables based on the values above 
+# Set the following variables based on the "EXTERNAL-IP" values above 
 # These variables will be used by Feast CLI and Feast SDK later
 FEAST_CORE_URI=10.148.2.69:6565
 FEAST_SERVING_URI=10.148.2.71:6565
