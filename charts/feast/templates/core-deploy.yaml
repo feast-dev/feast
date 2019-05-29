@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "feast.core.name" . }}
@@ -11,6 +11,11 @@ metadata:
     heritage: {{ .Release.Service }}
 spec:
   replicas: {{ .Values.core.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "feast.name" . }}
+      component: core
+      release: {{ .Release.Name }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -75,7 +80,7 @@ spec:
           - name: DB_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: {{ template "postgresql.fullname" . }}
+                name: {{ .Values.global.postgresql.existingSecret }}
                 key: postgresql-password
           - name: LOG_TYPE
             value: {{ .Values.core.logType }}
