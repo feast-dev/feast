@@ -42,7 +42,7 @@ FEAST_STAGING_LOCATION_GCS_URI=gs://bucket
 - Make sure you have `gcloud` command installed. If not follow this link https://cloud.google.com/sdk/install  
 - Ensure you have `kubectl` command installed. If not follow this [link](https://kubernetes.io/docs/tasks/tools/install-kubectl/) or install via gcloud  
 `gcloud components install kubectl`
-- Ensure you have **Owner** role or **Editor** role with permissions to create and manage **service accounts**. If not, please ask the owners in your Google Cloud project to give you permissions.
+- Ensure you have **Owner** role or **Editor** role with `Project IAM Admin`, `Kubernetes Engine Admin` and `BigQuery Admin` roles. If not, please ask the owners in your Google Cloud project to give you permissions.
 
 Run the following command to create a new cluster in GKE (Google Kubernetes Engine).
 > You can skip this step if you want to install Feast in an existing Kubernetes cluster
@@ -69,6 +69,9 @@ Run the following to create a virtual machine (VM) in Google Compute Engine (GCE
 > You can skip this step if you want to store Feast feature values for serving in an existing (non-clustered and non-authenticated) Redis instance.
 
 ```bash
+# Comment out "--no-address" option if you do not have a NAT router set up in your project
+# With no external ip, the VM instance requires a NAT router to access internet
+
 gcloud --project=${GCP_PROJECT} compute instances create ${FEAST_REDIS_GCE_INSTANCE_NAME} \
   --zone=${GCP_ZONE} \
   --boot-disk-size=200GB \
@@ -80,7 +83,7 @@ gcloud --project=${GCP_PROJECT} compute instances create ${FEAST_REDIS_GCE_INSTA
   --metadata startup-script="apt-get -y install redis-server; echo 'bind 0.0.0.0' >> /etc/redis/redis.conf; sudo systemctl enable redis; sudo systemctl restart redis"
 ```
 
-When the command above completes, it will output details of the newly created VM. Set the variable `FEAST_SERVING_REDIS_HOST` for the Redis instance internal ip, according the `gcloud` output.
+When the command above completes, it will output details of the newly created VM. Set the variable `FEAST_SERVING_REDIS_HOST` to the `INTERNAL_IP` value from the `gcloud` output.
 ```bash
 # Example output:
 # NAME         ZONE          MACHINE_TYPE   INTERNAL_IP   STATUS
@@ -227,7 +230,7 @@ Wait for about 2 minutes :alarm_clock: then make sure Feast deployment is succes
 kubectl get pod
 
 # Retrieve the internal load balancer IP for feast-core and feast-serving services
-kubectl get svc --selector release=${FEAST_HELM_RELEASE_NAME}
+kubectl get svc --selector release=${FEAST_HELM_RELEASE_NAME} 
 # NAME                        TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)                       AGE
 # feast-core                  LoadBalancer   10.71.250.224   10.148.2.69   80:31652/TCP,6565:30148/TCP   2m30s
 # feast-postgresql            ClusterIP      10.71.249.72    <none>        5432/TCP                      2m30s
