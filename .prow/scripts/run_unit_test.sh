@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -e
 
 # This script will run unit test for a specific Feast component:
 # - core, ingestion, serving or cli
