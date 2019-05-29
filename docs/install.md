@@ -247,7 +247,7 @@ To ensure that Feast has been succesfully installed, we'll run the following tes
 Make sure you have installed `feast` command and `feast` Python package. If not follow this [link](../cli/README.md#installation) to install Feast CLI and run `pip3 install -U feast` to install the Python package.
 
 ```bash
-# Configure feast command to know the URI for Feast Core
+# Configure feast CLI so it knows the URI for Feast Core
 feast config set coreURI ${FEAST_CORE_URI}
 
 # Ensure your working directory is Feast repository root folder
