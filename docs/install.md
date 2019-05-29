@@ -230,7 +230,7 @@ kubectl get svc --selector release=${FEAST_HELM_RELEASE_NAME}
 # feast-postgresql-headless   ClusterIP      None            <none>        5432/TCP                      2m30s
 # feast-serving               LoadBalancer   10.71.244.137   10.148.2.71   6565:30540/TCP,80:31324/TCP   2m30s
 
-# Set the following variables for use by Feast CLI and Feast SDK
+# Set the following variables based on the values above for use by Feast CLI and Feast SDK
 FEAST_CORE_URI=10.148.2.69:6565
 FEAST_SERVING_URI=10.148.2.71:6565
 ```
