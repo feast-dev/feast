@@ -1,10 +1,10 @@
 ## Feast Installation
 
-This is a step-by-step quickstart to install Feast for Feast administrators.
+This is a step-by-step quickstart guide to install Feast for Feast administrators.
 
 Feast is designed to run on Kubernetes and currently requires managed
 services from Google Cloud Platform:
-- **Dataflow** for running import jobs to load feature values into Feast)
+- **Dataflow** for running import jobs to load feature values into Feast
 - **BigQuery** for storing training data. BigQuery is the default Feast Warehouse store
 - **Pub/Sub** for providing streaming feature values. This is used only if you are streaming import job
 - **Cloud Storage** for storing log and temporary files
