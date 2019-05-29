@@ -236,7 +236,7 @@ FEAST_CORE_URI=10.148.2.69:6565
 FEAST_SERVING_URI=10.148.2.71:6565
 ```
 
-#### Test The Installation
+#### Test the Installation
 
 To ensure that Feast has been succesfully installed, we'll run the following tests:
 - Create entity
