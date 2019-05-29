@@ -213,12 +213,12 @@ Install Feast using the values in `/tmp/feast-helm-values.yaml`.
 
 Then run the following to install Feast Helm release:
 
-```
+```bash
 helm install --name ${FEAST_HELM_RELEASE_NAME} ./charts/feast -f /tmp/feast-helm-values.yaml
 ```
 
 Wait for about 2 minutes :alarm_clock: then make sure Feast deployment is successful.
-```
+```bash
 # Make sure all the pods have statuses "READY: 1/1" and "STATUS: RUNNING"
 kubectl get pod
 
