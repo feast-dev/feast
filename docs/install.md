@@ -33,6 +33,7 @@ FEAST_HELM_RELEASE_NAME=feast
 # Make sure you follow this convention when naming your dataset
 # https://cloud.google.com/bigquery/docs/datasets#dataset-naming
 FEAST_WAREHOUSE_BIGQUERY_DATASET=feast
+# Make sure this bucket has been created
 FEAST_STAGING_LOCATION_GCS_URI=gs://bucket
 ```
 
