@@ -26,6 +26,8 @@ GCP_DATAFLOW_MAX_NUM_WORKERS=4
 FEAST_CLUSTER_NAME=feast
 FEAST_SERVICE_ACCOUNT_NAME=feast
 FEAST_REDIS_GCE_INSTANCE_NAME=feast-redis
+# Set this to your preferred Postgres password.
+# Postgres is used to save Feast entity and feature specs and other configuration.
 FEAST_POSTGRES_PASSWORD=iK4aehe7aiso
 FEAST_HELM_RELEASE_NAME=feast
 # Make sure you follow this convention when naming your dataset
