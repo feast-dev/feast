@@ -17,6 +17,8 @@ Open your terminal and set these variables (by executing all the lines below in 
 
 ```bash
 GCP_PROJECT=project-id
+# Please use one of these available Dataflow regional endpoints:
+# https://cloud.google.com/dataflow/docs/concepts/regional-endpoints
 GCP_REGION=asia-east1
 GCP_ZONE=asia-east1-a
 GCP_NETWORK=default
