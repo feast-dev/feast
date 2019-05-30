@@ -1,4 +1,4 @@
-# Feast - Feature Store for Machine Learning [![Build Status](https://travis-ci.com/gojek/feast.svg?branch=master)](https://travis-ci.com/gojek/feast)
+# Feast - Feature Store for Machine Learning [![Build Status](http://prow.feast.ai/badge.svg?jobs=integration-test)](http://prow.feast.ai)
 
 ## Overview
 
@@ -44,9 +44,15 @@ For Feast administrators:
 * [Installation quickstart](docs/install.md)
 * [Helm charts](charts/README.md) details
 
+For Feast end users:
+* [Creating features](docs/endusers.md)
+
+For Feast developers:
+* [Building the CLI](cli/README.md)
+
 ## Notice
 
-Feast is still under active development. Your feedback and contributions are important to us.
+Feast is still under active development. Your feedback and contributions are important to us. Please check our [contributing guide](CONTRIBUTING.md) for details.
 
 ## Source Code Headers
 

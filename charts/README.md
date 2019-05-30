@@ -58,7 +58,7 @@ kubectl delete persistentvolumeclaim feast-postgresql
 The following table lists the configurable parameters of the Feast chart and their default values.
 
 | var | desc | default | 
-| -- | -- | -- | 
+| --- | --- | --- | 
 | `core.image.registry` | core docker image registry | feast | 
 | `core.image.repository` | core docker image repository | feast-core | 
 | `core.image.tag` | core docker image version | 0.1.0 | 

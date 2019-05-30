@@ -39,8 +39,8 @@ DTYPE_TO_VALUE_TYPE_MAPPING = {
 FEAST_VALUETYPE_TO_DTYPE = {
     "bytesVal": np.byte,
     "stringVal": np.object,
-    "int32Val": np.int64,
-    "int64Val": np.int64,
+    "int32Val": "Int32", # Use pandas nullable int type
+    "int64Val": "Int64", # Use pandas nullable int type
     "doubleVal": np.float64,
     "floatVal": np.float64,
     "boolVal": np.bool,

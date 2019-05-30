@@ -6,8 +6,9 @@ google-resumable-media==0.3.1
 googleapis-common-protos>=1.5.5
 grpcio>=1.16.1
 numpy
-pandas
+pandas>=0.24.0
 protobuf>=3.0.0
 pytest
 pytest-mock
 PyYAML
+fastavro>=0.21.23

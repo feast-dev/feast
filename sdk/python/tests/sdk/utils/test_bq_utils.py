@@ -37,8 +37,8 @@ def test_get_table_name():
         options={"project": project_name, "dataset": dataset_name},
     )
     assert (
-            get_table_name(feature_id, storage_spec)
-            == "my_project.my_dataset.myentity_none"
+        get_table_name(feature_id, storage_spec)
+        == "my_project.my_dataset.myentity_none"
     )
 
 
@@ -55,7 +55,7 @@ def test_get_table_name_not_bq():
 )
 def test_query_to_dataframe():
     with open(
-            os.path.join(testdata_path, "austin_bikeshare.bikeshare_stations.avro"), "rb"
+        os.path.join(testdata_path, "austin_bikeshare.bikeshare_stations.avro"), "rb"
     ) as expected_file:
         avro_reader = fastavro.reader(expected_file)
         expected = pd.DataFrame.from_records(avro_reader)
@@ -80,6 +80,7 @@ class TestTableDownloader(object):
         self._stop_time(mocker)
         mocked_gcs_to_df = mocker.patch(
             "feast.sdk.utils.bq_util.gcs_to_df", return_value=None
+        )
 
         staging_path = "gs://temp/"
         staging_file_name = "temp_0"
@@ -116,14 +117,14 @@ class TestTableDownloader(object):
         full_table_id = "project_id.dataset_id.table_id"
         table_dldr = TableDownloader()
         with pytest.raises(
-                ValueError, match="staging_uri must be a directory in " "GCS"
+            ValueError, match="staging_uri must be a directory in " "GCS"
         ):
             table_dldr.download_table_as_file(
                 full_table_id, "/tmp/dst", "/local/directory", FileType.CSV
             )
 
         with pytest.raises(
-                ValueError, match="staging_uri must be a directory in " "GCS"
+            ValueError, match="staging_uri must be a directory in " "GCS"
         ):
             table_dldr.download_table_as_df(full_table_id, "/local/directory")
 

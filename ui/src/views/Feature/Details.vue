@@ -144,7 +144,6 @@
 
 <script>
   import vSelect from 'vue-select';
-  import filters from '@/filters';
   import json2yaml from 'json2yaml';
   import ClipboardJS from 'clipboard';
 
