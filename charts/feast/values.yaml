@@ -10,10 +10,10 @@ core:
   resources: 
     limits: 
       cpu: 4
-      memory: 8G
+      memory: 6G
     requests: 
-      cpu: 2
-      memory: 4G
+      cpu: 1
+      memory: 2G
   rollingUpdate: 
     maxSurge: 2
     maxUnavailable: 0
@@ -30,6 +30,7 @@ core:
     # loadBalancerSourceRanges: ["10.0.0.0/8"]
   jobs:
     workspace: "/tmp"
+    # runner specifies the Beam pipeline runner, use either DirectRunner (for development) or DataflowRunner (for production)
     runner: DirectRunner
     options: "{}"
     errorStoreType: "stdout"
@@ -46,25 +47,30 @@ core:
     initialDelaySeconds: 60
     failureThreshold: 1
 
-#store:
-#  errors:
-#    type: "stdout"
-#  warehouse:
-#    type: "bigquery"
-#    options: '{"project": "gcp-project-id", "dataset": "feast"}'
-#  serving:
-#    type: "redis"
-#    options: '{"host": "...", "port": "6379"}'
+# dataflow configuration is required when core.jobs.runner=DataflowRunner
+# dataflow:
+#   projectID: ${GCP_PROJECT}
+#   location: ${GCP_REGION}
 
-# postgresql: 
-#   provision: true
-#   persistence:
-#     enabled: false
+store:
+ errors:
+   type: "stdout"
+ warehouse:
+   type: "bigquery"
+   # options: '{"project": "gcp-project-id", "dataset": "feast"}'
+ serving:
+   type: "redis"
+   # options: '{"host": "redis-master", "port": "6379"}'
+
+postgresql: 
+  provision: true
+  persistence:
+    enabled: true
     
-# redis:
-#   provision: true
-#   cluster:
-#     enabled: false
+redis:
+  provision: false
+  cluster:
+    enabled: false
 
 serving: 
   config: 
@@ -86,7 +92,7 @@ serving:
       memory: 4G
     requests: 
       cpu: 1
-      memory: 2G
+      memory: 1G
   rollingUpdate: 
     maxSurge: 2
     maxUnavailable: 0
@@ -107,14 +113,14 @@ serving:
     initialDelaySeconds: 120
     failureThreshold: 3
   readinessProbe:
-    initialDelaySeconds: 60
+    initialDelaySeconds: 30
     failureThreshold: 1
 
 # Enable only if you have an existing service account you 
 # want to mount the secret of.
 # serviceAccount:
 #   name: feast-service-account
-#   key: feast-service-account-key
+#   key: service-account.json
 
 statsd:
   host: "localhost"
