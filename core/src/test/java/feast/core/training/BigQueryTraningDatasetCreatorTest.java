@@ -16,13 +16,6 @@
  */
 package feast.core.training;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import com.google.cloud.bigquery.BigQuery;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
@@ -37,6 +30,13 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class BigQueryTraningDatasetCreatorTest {
 
@@ -87,12 +87,14 @@ public class BigQueryTraningDatasetCreatorTest {
 
     DatasetInfo dsInfo =
         creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
-    assertThat(dsInfo.getName(), equalTo("myentity_0_20180101_20190101"));
+    assertThat(dsInfo.getName(),
+        equalTo("feast_myentity_b0009f0f7df634ddc130571319e0deb9742eb1da"));
     assertThat(
         dsInfo.getTableUrl(),
         equalTo(
             String.format(
-                "%s.%s_%s.%s", projectId, datasetPrefix, entityName, "0_20180101_20190101")));
+                "%s.dataset.%s_%s_%s", projectId, datasetPrefix, entityName,
+                "b0009f0f7df634ddc130571319e0deb9742eb1da")));
   }
 
   @Test
@@ -118,9 +120,11 @@ public class BigQueryTraningDatasetCreatorTest {
         dsInfo.getTableUrl(),
         equalTo(
             String.format(
-                "%s.%s_%s.%s", projectId, datasetPrefix, entityName,
-                "mydataset_0_20180101_20190101")));
-    assertThat(dsInfo.getName(), equalTo("mydataset_0_20180101_20190101"));
+                "%s.dataset.%s_%s_%s_%s", projectId, datasetPrefix, entityName,
+                namePrefix,
+                "b0009f0f7df634ddc130571319e0deb9742eb1da")));
+    assertThat(dsInfo.getName(),
+        equalTo("feast_myentity_mydataset_b0009f0f7df634ddc130571319e0deb9742eb1da"));
   }
 
   @Test

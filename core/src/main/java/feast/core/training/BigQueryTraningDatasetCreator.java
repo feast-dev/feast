@@ -19,11 +19,13 @@ package feast.core.training;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQuery.JobOption;
 import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobException;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
+import com.google.cloud.bigquery.TableResult;
 import com.google.common.base.Strings;
 import com.google.protobuf.Timestamp;
 import feast.core.DatasetServiceProto.DatasetInfo;
@@ -99,26 +101,27 @@ public class BigQueryTraningDatasetCreator {
       String tableDescription = createBqTableDescription(featureSet, startDate, endDate, query);
 
       Map<String, String> options = templater.getStorageSpec().getOptionsMap();
+      String bq_dataset = options.get("dataset");
 
       TableId destinationTableId =
-          TableId.of(projectId, options.get("dataset"), tableName);
+          TableId.of(projectId, bq_dataset, tableName);
 
-      if (!bigQuery.getTable(destinationTableId).exists()) {
+      if (bigQuery.getTable(destinationTableId) == null) {
         QueryJobConfiguration queryConfig =
             QueryJobConfiguration.newBuilder(query)
                 .setAllowLargeResults(true)
                 .setDestinationTable(destinationTableId)
                 .build();
         JobOption jobOption = JobOption.fields();
-        bigQuery.query(queryConfig, jobOption);
-
+        TableResult res = bigQuery.query(queryConfig, jobOption);
+        if(res!= null) {
+          Table destinationTable = bigQuery.getTable(destinationTableId);
+          TableInfo tableInfo = destinationTable.toBuilder()
+              .setDescription(tableDescription)
+              .build();
+          bigQuery.update(tableInfo);
+        }
       }
-
-      Table destinationTable = bigQuery.getTable(destinationTableId);
-      TableInfo tableInfo = destinationTable.toBuilder()
-          .setDescription(tableDescription)
-          .build();
-      bigQuery.update(tableInfo);
 
       return DatasetInfo.newBuilder()
           .setName(tableName)
