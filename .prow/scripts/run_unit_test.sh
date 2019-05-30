@@ -44,7 +44,8 @@ elif [[ ${COMPONENT} == "cli" ]]; then
 
 elif [[ ${COMPONENT} == "python-sdk" ]]; then
 
-    pip install -r test-requirements.txt
+    cd sdk/python
+    pip install -r requirements-test.txt
     pip install .
     pytest ./tests --junitxml=${ARTIFACTS}/unittest-pythonsdk-report.xml
     TEST_EXIT_CODE=$?
