@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -e
 
 # This script will run unit test for a specific Feast component:
 # - core, ingestion, serving or cli
@@ -36,6 +35,9 @@ if [[ ${COMPONENT} == "core" ]] || [[ ${COMPONENT} == "ingestion" ]] || [[ ${COM
     cp -r ${COMPONENT}/target/surefire-reports /logs/artifacts/surefire-reports
 
 elif [[ ${COMPONENT} == "cli" ]]; then
+
+    # https://stackoverflow.com/questions/6871859/piping-command-output-to-tee-but-also-save-exit-code-of-command
+    set -o pipefail
 
     go get -u github.com/jstemmer/go-junit-report
     go test -v ./cli/feast/... 2>&1 | tee test_output
