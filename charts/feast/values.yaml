@@ -30,7 +30,8 @@ core:
     # loadBalancerSourceRanges: ["10.0.0.0/8"]
   jobs:
     workspace: "/tmp"
-    runner: DataflowRunner
+    # runner specifies the Beam pipeline runner, use either DirectRunner (for development) or DataflowRunner (for production)
+    runner: DirectRunner
     options: "{}"
     errorStoreType: "stdout"
     errorStoreOptions: "{}"
@@ -45,6 +46,11 @@ core:
   readinessProbe:
     initialDelaySeconds: 60
     failureThreshold: 1
+
+# dataflow configuration is required when core.jobs.runner=DataflowRunner
+# dataflow:
+#   projectID: ${GCP_PROJECT}
+#   location: ${GCP_REGION}
 
 store:
  errors:

@@ -177,6 +177,7 @@ global:
 core:
   projectId: ${GCP_PROJECT}
   jobs:
+    runner: DataflowRunner
     options: '{"project": "${GCP_PROJECT}","region": "${GCP_REGION}","subnetwork": "regions/${GCP_REGION}/subnetworks/${GCP_SUBNETWORK}", "maxNumWorkers": "${GCP_DATAFLOW_MAX_NUM_WORKERS}", "autoscalingAlgorithm": "THROUGHPUT_BASED"}'
   service:
     type: LoadBalancer
