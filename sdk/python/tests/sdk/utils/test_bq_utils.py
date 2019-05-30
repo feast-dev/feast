@@ -37,8 +37,8 @@ def test_get_table_name():
         options={"project": project_name, "dataset": dataset_name},
     )
     assert (
-        get_table_name(feature_id, storage_spec)
-        == "my_project.my_dataset.myentity_none"
+            get_table_name(feature_id, storage_spec)
+            == "my_project.my_dataset.myentity_none"
     )
 
 
@@ -55,7 +55,7 @@ def test_get_table_name_not_bq():
 )
 def test_query_to_dataframe():
     with open(
-        os.path.join(testdata_path, "austin_bikeshare.bikeshare_stations.avro"), "rb"
+            os.path.join(testdata_path, "austin_bikeshare.bikeshare_stations.avro"), "rb"
     ) as expected_file:
         avro_reader = fastavro.reader(expected_file)
         expected = pd.DataFrame.from_records(avro_reader)
@@ -80,11 +80,10 @@ class TestTableDownloader(object):
         self._stop_time(mocker)
         mocked_gcs_to_df = mocker.patch(
             "feast.sdk.utils.bq_util.gcs_to_df", return_value=None
-        )
 
         staging_path = "gs://temp/"
         staging_file_name = "temp_0"
-        table_id = "project_id.dataset_id.table_id"
+        full_table_id = "project_id.dataset_id.table_id"
 
         table_dldr = TableDownloader()
         exp_staging_path = os.path.join(staging_path, staging_file_name)
@@ -92,11 +91,11 @@ class TestTableDownloader(object):
         table_dldr._bq = _Mock_BQ_Client()
         mocker.patch.object(table_dldr._bq, "extract_table", return_value=_Job())
 
-        table_dldr.download_table_as_df(table_id, staging_location=staging_path)
+        table_dldr.download_table_as_df(full_table_id, staging_location=staging_path)
 
         assert len(table_dldr._bq.extract_table.call_args_list) == 1
         args, kwargs = table_dldr._bq.extract_table.call_args_list[0]
-        assert args[0].full_table_id == Table.from_string(table_id).full_table_id
+        assert args[0].full_table_id == Table.from_string(full_table_id).full_table_id
         assert args[1] == exp_staging_path
         assert kwargs["job_config"].destination_format == "CSV"
         mocked_gcs_to_df.assert_called_once_with(exp_staging_path)
@@ -114,25 +113,25 @@ class TestTableDownloader(object):
         self._test_download_file(mocker, FileType.JSON)
 
     def test_download_invalid_staging_url(self):
-        table_id = "project_id.dataset_id.table_id"
+        full_table_id = "project_id.dataset_id.table_id"
         table_dldr = TableDownloader()
         with pytest.raises(
-            ValueError, match="staging_uri must be a directory in " "GCS"
+                ValueError, match="staging_uri must be a directory in " "GCS"
         ):
             table_dldr.download_table_as_file(
-                table_id, "/tmp/dst", "/local/directory", FileType.CSV
+                full_table_id, "/tmp/dst", "/local/directory", FileType.CSV
             )
 
         with pytest.raises(
-            ValueError, match="staging_uri must be a directory in " "GCS"
+                ValueError, match="staging_uri must be a directory in " "GCS"
         ):
-            table_dldr.download_table_as_df(table_id, "/local/directory")
+            table_dldr.download_table_as_df(full_table_id, "/local/directory")
 
     def _test_download_file(self, mocker, type):
         staging_path = "gs://temp/"
         staging_file_name = "temp_0"
         dst_path = "/tmp/myfile.csv"
-        table_id = "project_id.dataset_id.table_id"
+        full_table_id = "project_id.dataset_id.table_id"
 
         table_dldr = TableDownloader()
         mock_blob = _Blob()
@@ -145,13 +144,13 @@ class TestTableDownloader(object):
         )
 
         table_dldr.download_table_as_file(
-            table_id, dst_path, staging_location=staging_path, file_type=type
+            full_table_id, dst_path, staging_location=staging_path, file_type=type
         )
 
         exp_staging_path = os.path.join(staging_path, staging_file_name)
         assert len(table_dldr._bq.extract_table.call_args_list) == 1
         args, kwargs = table_dldr._bq.extract_table.call_args_list[0]
-        assert args[0].full_table_id == Table.from_string(table_id).full_table_id
+        assert args[0].full_table_id == Table.from_string(full_table_id).full_table_id
         assert args[1] == exp_staging_path
         assert kwargs["job_config"].destination_format == str(type)
 

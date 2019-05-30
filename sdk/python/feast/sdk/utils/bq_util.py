@@ -197,11 +197,11 @@ class TableDownloader:
             self._bq = BQClient()
         return self._bq
 
-    def download_table_as_file(self, table_id, dest, staging_location, file_type):
+    def download_table_as_file(self, full_table_id, dest, staging_location, file_type):
         """
         Download a bigquery table as file
         Args:
-            table_id (str): fully qualified BigQuery table id
+            full_table_id (str): fully qualified BigQuery table id
             dest (str): destination filename
             staging_location (str): url to staging_location (currently
                 support a folder in GCS)
@@ -218,7 +218,7 @@ class TableDownloader:
 
         job_config = ExtractJobConfig()
         job_config.destination_format = file_type
-        src_table = Table.from_string(table_id)
+        src_table = Table.from_string(full_table_id)
         job = self.bq.extract_table(src_table, staging_file_path, job_config=job_config)
 
         # await completion
@@ -230,11 +230,11 @@ class TableDownloader:
         blob.download_to_filename(dest)
         return dest
 
-    def download_table_as_df(self, table_id, staging_location):
+    def download_table_as_df(self, full_table_id, staging_location):
         """
         Download a BigQuery table as Pandas Dataframe
         Args:
-            table_id (src) : fully qualified BigQuery table id
+            full_table_id (src) : fully qualified BigQuery table id
             staging_location: url to staging_location (currently
                 support a folder in GCS)
 
@@ -250,7 +250,7 @@ class TableDownloader:
         job_config = ExtractJobConfig()
         job_config.destination_format = DestinationFormat.CSV
         job = self.bq.extract_table(
-            Table.from_string(table_id), staging_file_path, job_config=job_config
+            Table.from_string(full_table_id), staging_file_path, job_config=job_config
         )
 
         # await completion

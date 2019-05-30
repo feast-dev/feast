@@ -66,16 +66,16 @@ class FileType(object):
 
 
 class DatasetInfo:
-    def __init__(self, name, table_id):
+    def __init__(self, name, full_table_id):
         """
             Create instance of DatasetInfo with a BigQuery table as its
             backing store.
         Args:
             name: (str) dataset name
-            table_id: (str) fully qualified table id
+            full_table_id: (str) fully qualified table id
         """
         self._name = name
-        self._table_id = table_id
+        self._full_table_id = full_table_id
 
     @property
     def name(self):
@@ -87,10 +87,10 @@ class DatasetInfo:
         return self._name
 
     @property
-    def table_id(self):
+    def full_table_id(self):
         """
 
         Returns: fully qualified table id
 
         """
-        return self._table_id
+        return self._full_table_id

@@ -21,16 +21,25 @@ import com.google.cloud.bigquery.BigQuery.JobOption;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.JobException;
 import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableInfo;
 import com.google.common.base.Strings;
 import com.google.protobuf.Timestamp;
 import feast.core.DatasetServiceProto.DatasetInfo;
 import feast.core.DatasetServiceProto.FeatureSet;
 import feast.core.exception.TrainingDatasetCreationException;
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -85,23 +94,35 @@ public class BigQueryTraningDatasetCreator {
       String namePrefix) {
     try {
       String query = templater.createQuery(featureSet, startDate, endDate, limit);
-      String tableName = createBqTableName(startDate, endDate, namePrefix);
-      String bqDatasetName = createBqDatasetName(featureSet.getEntityName());
+      String tableName = createBqTableName(datasetPrefix, featureSet, startDate, endDate,
+          namePrefix);
+      String tableDescription = createBqTableDescription(featureSet, startDate, endDate, query);
 
-      createBqDatasetIfMissing(bqDatasetName);
+      Map<String, String> options = templater.getStorageSpec().getOptionsMap();
 
-      TableId destinationTable =
-          TableId.of(projectId, createBqDatasetName(featureSet.getEntityName()), tableName);
-      QueryJobConfiguration queryConfig =
-          QueryJobConfiguration.newBuilder(query)
-              .setAllowLargeResults(true)
-              .setDestinationTable(destinationTable)
-              .build();
-      JobOption jobOption = JobOption.fields();
-      bigQuery.query(queryConfig, jobOption);
+      TableId destinationTableId =
+          TableId.of(projectId, options.get("dataset"), tableName);
+
+      if (!bigQuery.getTable(destinationTableId).exists()) {
+        QueryJobConfiguration queryConfig =
+            QueryJobConfiguration.newBuilder(query)
+                .setAllowLargeResults(true)
+                .setDestinationTable(destinationTableId)
+                .build();
+        JobOption jobOption = JobOption.fields();
+        bigQuery.query(queryConfig, jobOption);
+
+      }
+
+      Table destinationTable = bigQuery.getTable(destinationTableId);
+      TableInfo tableInfo = destinationTable.toBuilder()
+          .setDescription(tableDescription)
+          .build();
+      bigQuery.update(tableInfo);
+
       return DatasetInfo.newBuilder()
-          .setName(createTrainingDatasetName(namePrefix, featureSet.getEntityName(), tableName))
-          .setTableUrl(toTableUrl(destinationTable))
+          .setName(tableName)
+          .setTableUrl(toTableUrl(destinationTableId))
           .build();
     } catch (JobException e) {
       log.error("Failed creating training dataset", e);
@@ -112,31 +133,54 @@ public class BigQueryTraningDatasetCreator {
     }
   }
 
-  private void createBqDatasetIfMissing(String bqDatasetName) {
-    if (bigQuery.getDataset(bqDatasetName) != null) {
-      return;
+  private String createBqTableName(String datasetPrefix, FeatureSet featureSet, Timestamp startDate,
+      Timestamp endDate, String namePrefix) {
+
+    List<String> features = new ArrayList(featureSet.getFeatureIdsList());
+    Collections.sort(features);
+
+    String datasetId = String.format("%s_%s_%s", features, startDate, endDate);
+    String hashText;
+
+    // create hash from datasetId
+    try {
+      MessageDigest md = MessageDigest.getInstance("SHA-1");
+      byte[] messageDigest = md.digest(datasetId.getBytes());
+      BigInteger no = new BigInteger(1, messageDigest);
+      hashText = no.toString(16);
+      while (hashText.length() < 32) {
+        hashText = "0" + hashText;
+      }
+    } catch (NoSuchAlgorithmException e) {
+      throw new RuntimeException(e);
     }
 
-    // create dataset
-    bigQuery.create(com.google.cloud.bigquery.DatasetInfo.of(bqDatasetName));
-  }
-
-  private String createBqTableName(Timestamp startDate, Timestamp endDate, String namePrefix) {
-    String currentTime = String.valueOf(clock.millis());
     if (!Strings.isNullOrEmpty(namePrefix)) {
       //  only alphanumeric and underscore are allowed
       namePrefix = namePrefix.replaceAll("[^a-zA-Z0-9_]", "_");
       return String.format(
-          "%s_%s_%s_%s",
-          namePrefix, currentTime, formatTimestamp(startDate), formatTimestamp(endDate));
+          "%s_%s_%s_%s", datasetPrefix, featureSet.getEntityName(), namePrefix, hashText);
     }
 
     return String.format(
-        "%s_%s_%s", currentTime, formatTimestamp(startDate), formatTimestamp(endDate));
+        "%s_%s_%s", datasetPrefix, featureSet.getEntityName(), hashText);
   }
 
-  private String createBqDatasetName(String entity) {
-    return String.format("%s_%s", datasetPrefix, entity);
+  private String createBqTableDescription(FeatureSet featureSet, Timestamp startDate, Timestamp
+      endDate, String query) {
+    String currentTime = Instant.now().toString();
+    return new StringBuilder()
+        .append("Feast Dataset for ")
+        .append(featureSet.getEntityName())
+        .append(" features.\nContains data from ")
+        .append(formatTimestamp(startDate))
+        .append(" to ")
+        .append(formatTimestamp(endDate))
+        .append(".\nLast edited at ")
+        .append(currentTime)
+        .append(".\n\n-----\n\n")
+        .append(query)
+        .toString();
   }
 
   private String formatTimestamp(Timestamp timestamp) {
@@ -149,10 +193,4 @@ public class BigQueryTraningDatasetCreator {
         "%s.%s.%s", tableId.getProject(), tableId.getDataset(), tableId.getTable());
   }
 
-  private String createTrainingDatasetName(String namePrefix, String entityName, String tableName) {
-    if (!Strings.isNullOrEmpty(namePrefix)) {
-      return tableName;
-    }
-    return String.format("%s_%s", entityName, tableName);
-  }
 }
