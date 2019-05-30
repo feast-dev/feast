@@ -10,7 +10,7 @@ ARG REVISION=dev
 COPY --from=builder /build/core/target/feast-core-$REVISION.jar /usr/share/feast/feast-core.jar
 COPY --from=builder /build/ingestion/target/feast-ingestion-$REVISION.jar /usr/share/feast/feast-ingestion.jar
 ENV JOB_EXECUTABLE=/usr/share/feast/feast-ingestion.jar
-ENTRYPOINT ["/usr/bin/java", \
+ENTRYPOINT ["java", \
 "-XX:+UnlockExperimentalVMOptions", \
 "-XX:+UseCGroupMemoryLimitForHeap", \
 "-jar", "/usr/share/feast/feast-core.jar"]
