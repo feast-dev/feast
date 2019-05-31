@@ -26,7 +26,7 @@ GCP_SUBNETWORK=default
 GCP_DATAFLOW_MAX_NUM_WORKERS=4
 
 FEAST_CLUSTER_NAME=feast
-FEAST_SERVICE_ACCOUNT_NAME=feast
+FEAST_SERVICE_ACCOUNT_NAME=feast-service-account
 FEAST_REDIS_GCE_INSTANCE_NAME=feast-redis
 # Set this to your preferred Postgres password.
 # Postgres is used to save Feast entity and feature specs and other configuration.
@@ -71,9 +71,6 @@ Run the following to create a virtual machine (VM) in Google Compute Engine (GCE
 > You can skip this step if you want to store Feast feature values for serving in an existing (non-clustered and non-authenticated) Redis instance.
 
 ```bash
-# Comment out "--no-address" option if you do not have a NAT router set up in your project
-# With no external ip, the VM instance requires a NAT router to access internet
-
 gcloud --project=${GCP_PROJECT} compute instances create ${FEAST_REDIS_GCE_INSTANCE_NAME} \
   --zone=${GCP_ZONE} \
   --boot-disk-size=200GB \
@@ -82,10 +79,14 @@ gcloud --project=${GCP_PROJECT} compute instances create ${FEAST_REDIS_GCE_INSTA
   --network=${GCP_NETWORK} \
   --subnet=${GCP_SUBNETWORK} \
   --no-address \
-  --metadata startup-script="apt-get -y install redis-server; echo 'bind 0.0.0.0' >> /etc/redis/redis.conf; sudo systemctl enable redis; sudo systemctl restart redis"
+  --metadata startup-script="apt-get -y install redis-server; echo 'bind 0.0.0.0' >> /etc/redis/redis.conf; systemctl enable redis; systemctl restart redis"
 ```
 
+**NOTE**  
+Comment out `--no-address` option if you do not have a NAT router set up in your project (especially in newly created Google Cloud Project). This will assign a public IP to the redis instance so it can access the internet without a NAT router. With no public IP, the instance requires a NAT router to access internet.
+
 When the command above completes, it will output details of the newly created VM. Set the variable `FEAST_SERVING_REDIS_HOST` to the `INTERNAL_IP` value from the `gcloud` output.
+
 ```bash
 # Example output:
 # NAME         ZONE          MACHINE_TYPE   INTERNAL_IP   STATUS
@@ -162,10 +163,11 @@ Run the following command to create a helm values configuration file for Feast i
 > - `core.service.loadBalancerSourceRanges`
 > - `serving.service.annotations`
 > - `serving.service.loadBalancerSourceRanges`
-> 
-> **IMPORTANT NOTE**  
-> Commenting out those fields is **not** recommended, however, because it will **expose your Feast service to the public internet**.
->
+
+**IMPORTANT NOTE**  
+
+Commenting out those fields is **not** recommended, however, because it will **expose your Feast service to the public internet**.
+
 > A better approach if you don't have VPN setup to your Google Cloud network is to create a new VM that will act as a [bastion host](https://en.wikipedia.org/wiki/Bastion_host). You will then access Feast services after SSH-ing to this bastion host (because you can then access Feast services via the internal load balancer IP).
 
 ```bash
