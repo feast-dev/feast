@@ -23,13 +23,13 @@ import feast.core.DatasetServiceProto.DatasetInfo;
 import feast.core.DatasetServiceProto.FeatureSet;
 import feast.core.storage.BigQueryStorageManager;
 import feast.specs.StorageSpecProto.StorageSpec;
-import java.time.Clock;
-import java.time.Instant;
-import java.util.Arrays;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+
+import java.time.Instant;
+import java.util.Arrays;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -44,32 +44,29 @@ public class BigQueryTraningDatasetCreatorTest {
   public static final String datasetPrefix = "feast";
   // class under test
   private BigQueryTraningDatasetCreator creator;
-  @Mock
-  private BigQueryDatasetTemplater templater;
-  @Mock
-  private BigQuery bq;
-  @Mock
-  private Clock clock;
+  @Mock private BigQueryDatasetTemplater templater;
+  @Mock private BigQuery bq;
 
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
     MockitoAnnotations.initMocks(this);
-    when(templater.getStorageSpec()).thenReturn(StorageSpec.newBuilder()
-        .setId("BIGQUERY1")
-        .setType(BigQueryStorageManager.TYPE)
-        .putOptions("project", "project")
-        .putOptions("dataset", "dataset")
-        .build());
-    creator = new BigQueryTraningDatasetCreator(templater, clock, projectId, datasetPrefix, bq);
+    when(templater.getStorageSpec())
+        .thenReturn(
+            StorageSpec.newBuilder()
+                .setId("BIGQUERY1")
+                .setType(BigQueryStorageManager.TYPE)
+                .putOptions("project", "project")
+                .putOptions("dataset", "dataset")
+                .build());
+    creator = new BigQueryTraningDatasetCreator(templater, projectId, datasetPrefix, bq);
 
     when(templater.createQuery(
-        any(FeatureSet.class), any(Timestamp.class), any(Timestamp.class), anyLong()))
+            any(FeatureSet.class), any(Timestamp.class), any(Timestamp.class), anyLong()))
         .thenReturn("SELECT * FROM `project.dataset.table`");
   }
 
-
   @Test
-  public void shouldCreateCorrectDatasetIfPrefixNotSpecified() {
+  public void shouldCreateCorrqectDatasetIfPrefixNotSpecified() {
     String entityName = "myentity";
 
     FeatureSet featureSet =
@@ -85,16 +82,15 @@ public class BigQueryTraningDatasetCreatorTest {
     long limit = 999;
     String namePrefix = "";
 
-    DatasetInfo dsInfo =
-        creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
-    assertThat(dsInfo.getName(),
-        equalTo("feast_myentity_b0009f0f7df634ddc130571319e0deb9742eb1da"));
+    DatasetInfo dsInfo = creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
+    assertThat(
+        dsInfo.getName(), equalTo("feast_myentity_b0009f0f7df634ddc130571319e0deb9742eb1da"));
     assertThat(
         dsInfo.getTableUrl(),
         equalTo(
             String.format(
-                "%s.dataset.%s_%s_%s", projectId, datasetPrefix, entityName,
-                "b0009f0f7df634ddc130571319e0deb9742eb1da")));
+                "%s.dataset.%s_%s_%s",
+                projectId, datasetPrefix, entityName, "b0009f0f7df634ddc130571319e0deb9742eb1da")));
   }
 
   @Test
@@ -114,16 +110,19 @@ public class BigQueryTraningDatasetCreatorTest {
     long limit = 999;
     String namePrefix = "mydataset";
 
-    DatasetInfo dsInfo =
-        creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
+    DatasetInfo dsInfo = creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
     assertThat(
         dsInfo.getTableUrl(),
         equalTo(
             String.format(
-                "%s.dataset.%s_%s_%s_%s", projectId, datasetPrefix, entityName,
+                "%s.dataset.%s_%s_%s_%s",
+                projectId,
+                datasetPrefix,
+                entityName,
                 namePrefix,
                 "b0009f0f7df634ddc130571319e0deb9742eb1da")));
-    assertThat(dsInfo.getName(),
+    assertThat(
+        dsInfo.getName(),
         equalTo("feast_myentity_mydataset_b0009f0f7df634ddc130571319e0deb9742eb1da"));
   }
 

@@ -28,7 +28,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -42,16 +41,14 @@ public class BigQueryTraningDatasetCreator {
 
   private final BigQueryDatasetTemplater templater;
   private final DateTimeFormatter formatter;
-  private final Clock clock;
   private final String projectId;
   private final String datasetPrefix;
   private transient BigQuery bigQuery;
 
   public BigQueryTraningDatasetCreator(
-      BigQueryDatasetTemplater templater, Clock clock, String projectId, String datasetPrefix) {
+      BigQueryDatasetTemplater templater, String projectId, String datasetPrefix) {
     this(
         templater,
-        clock,
         projectId,
         datasetPrefix,
         BigQueryOptions.newBuilder().setProjectId(projectId).build().getService());
@@ -59,12 +56,10 @@ public class BigQueryTraningDatasetCreator {
 
   public BigQueryTraningDatasetCreator(
       BigQueryDatasetTemplater templater,
-      Clock clock,
       String projectId,
       String datasetPrefix,
       BigQuery bigQuery) {
     this.templater = templater;
-    this.clock = clock;
     this.formatter = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneId.of("UTC"));
     this.projectId = projectId;
     this.datasetPrefix = datasetPrefix;
