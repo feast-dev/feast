@@ -42,7 +42,15 @@ elif [[ ${COMPONENT} == "cli" ]]; then
     go get -u github.com/jstemmer/go-junit-report
     go test -v ./cli/feast/... 2>&1 | tee test_output
     TEST_EXIT_CODE=$?
-    cat test_output | ${GOPATH}/bin/go-junit-report > ${ARTIFACTS}/report.xml
+    cat test_output | ${GOPATH}/bin/go-junit-report > ${ARTIFACTS}/unittest-cli-report.xml
+
+elif [[ ${COMPONENT} == "python-sdk" ]]; then
+
+    cd sdk/python
+    pip install -r requirements-test.txt
+    pip install .
+    pytest ./tests --junitxml=${ARTIFACTS}/unittest-pythonsdk-report.xml
+    TEST_EXIT_CODE=$?
 
 else
     usage; exit 1
