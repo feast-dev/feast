@@ -67,7 +67,8 @@ public class BigQueryTraningDatasetCreator {
   }
 
   /**
-   * Create dataset for a feature set
+   * Create a training dataset for a feature set for features created between startDate (inclusive)
+   * and endDate (inclusive)
    *
    * @param featureSet feature set for which the training dataset should be created
    * @param startDate starting date of the training dataset (inclusive)
@@ -90,9 +91,9 @@ public class BigQueryTraningDatasetCreator {
 
       Map<String, String> options = templater.getStorageSpec().getOptionsMap();
       String bq_dataset = options.get("dataset");
-
       TableId destinationTableId = TableId.of(projectId, bq_dataset, tableName);
 
+      // Create the BigQuery table that will store the training dataset if not exists
       if (bigQuery.getTable(destinationTableId) == null) {
         QueryJobConfiguration queryConfig =
             QueryJobConfiguration.newBuilder(query)
@@ -100,8 +101,8 @@ public class BigQueryTraningDatasetCreator {
                 .setDestinationTable(destinationTableId)
                 .build();
         JobOption jobOption = JobOption.fields();
-        TableResult res = bigQuery.query(queryConfig, jobOption);
-        if (res != null) {
+        TableResult tableResult = bigQuery.query(queryConfig, jobOption);
+        if (tableResult != null) {
           Table destinationTable = bigQuery.getTable(destinationTableId);
           TableInfo tableInfo =
               destinationTable.toBuilder().setDescription(tableDescription).build();
