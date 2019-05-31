@@ -16,21 +16,15 @@
  */
 package feast.core.training;
 
-import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.*;
 import com.google.cloud.bigquery.BigQuery.JobOption;
-import com.google.cloud.bigquery.BigQueryOptions;
-import com.google.cloud.bigquery.Job;
-import com.google.cloud.bigquery.JobException;
-import com.google.cloud.bigquery.QueryJobConfiguration;
-import com.google.cloud.bigquery.Table;
-import com.google.cloud.bigquery.TableId;
-import com.google.cloud.bigquery.TableInfo;
-import com.google.cloud.bigquery.TableResult;
 import com.google.common.base.Strings;
 import com.google.protobuf.Timestamp;
 import feast.core.DatasetServiceProto.DatasetInfo;
 import feast.core.DatasetServiceProto.FeatureSet;
 import feast.core.exception.TrainingDatasetCreationException;
+import lombok.extern.slf4j.Slf4j;
+
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -42,7 +36,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class BigQueryTraningDatasetCreator {
@@ -54,13 +47,13 @@ public class BigQueryTraningDatasetCreator {
   private final String datasetPrefix;
   private transient BigQuery bigQuery;
 
-
   public BigQueryTraningDatasetCreator(
-      BigQueryDatasetTemplater templater,
-      Clock clock,
-      String projectId,
-      String datasetPrefix) {
-    this(templater, clock, projectId, datasetPrefix,
+      BigQueryDatasetTemplater templater, Clock clock, String projectId, String datasetPrefix) {
+    this(
+        templater,
+        clock,
+        projectId,
+        datasetPrefix,
         BigQueryOptions.newBuilder().setProjectId(projectId).build().getService());
   }
 
@@ -96,15 +89,14 @@ public class BigQueryTraningDatasetCreator {
       String namePrefix) {
     try {
       String query = templater.createQuery(featureSet, startDate, endDate, limit);
-      String tableName = createBqTableName(datasetPrefix, featureSet, startDate, endDate,
-          namePrefix);
+      String tableName =
+          createBqTableName(datasetPrefix, featureSet, startDate, endDate, namePrefix);
       String tableDescription = createBqTableDescription(featureSet, startDate, endDate, query);
 
       Map<String, String> options = templater.getStorageSpec().getOptionsMap();
       String bq_dataset = options.get("dataset");
 
-      TableId destinationTableId =
-          TableId.of(projectId, bq_dataset, tableName);
+      TableId destinationTableId = TableId.of(projectId, bq_dataset, tableName);
 
       if (bigQuery.getTable(destinationTableId) == null) {
         QueryJobConfiguration queryConfig =
@@ -114,11 +106,10 @@ public class BigQueryTraningDatasetCreator {
                 .build();
         JobOption jobOption = JobOption.fields();
         TableResult res = bigQuery.query(queryConfig, jobOption);
-        if(res!= null) {
+        if (res != null) {
           Table destinationTable = bigQuery.getTable(destinationTableId);
-          TableInfo tableInfo = destinationTable.toBuilder()
-              .setDescription(tableDescription)
-              .build();
+          TableInfo tableInfo =
+              destinationTable.toBuilder().setDescription(tableDescription).build();
           bigQuery.update(tableInfo);
         }
       }
@@ -136,8 +127,12 @@ public class BigQueryTraningDatasetCreator {
     }
   }
 
-  private String createBqTableName(String datasetPrefix, FeatureSet featureSet, Timestamp startDate,
-      Timestamp endDate, String namePrefix) {
+  private String createBqTableName(
+      String datasetPrefix,
+      FeatureSet featureSet,
+      Timestamp startDate,
+      Timestamp endDate,
+      String namePrefix) {
 
     List<String> features = new ArrayList(featureSet.getFeatureIdsList());
     Collections.sort(features);
@@ -165,12 +160,11 @@ public class BigQueryTraningDatasetCreator {
           "%s_%s_%s_%s", datasetPrefix, featureSet.getEntityName(), namePrefix, hashText);
     }
 
-    return String.format(
-        "%s_%s_%s", datasetPrefix, featureSet.getEntityName(), hashText);
+    return String.format("%s_%s_%s", datasetPrefix, featureSet.getEntityName(), hashText);
   }
 
-  private String createBqTableDescription(FeatureSet featureSet, Timestamp startDate, Timestamp
-      endDate, String query) {
+  private String createBqTableDescription(
+      FeatureSet featureSet, Timestamp startDate, Timestamp endDate, String query) {
     String currentTime = Instant.now().toString();
     return new StringBuilder()
         .append("Feast Dataset for ")
@@ -195,5 +189,4 @@ public class BigQueryTraningDatasetCreator {
     return String.format(
         "%s.%s.%s", tableId.getProject(), tableId.getDataset(), tableId.getTable());
   }
-
 }
