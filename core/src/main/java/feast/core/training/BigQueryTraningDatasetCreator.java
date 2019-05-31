@@ -161,19 +161,13 @@ public class BigQueryTraningDatasetCreator {
 
   private String createBqTableDescription(
       FeatureSet featureSet, Timestamp startDate, Timestamp endDate, String query) {
-    String currentTime = Instant.now().toString();
-    return new StringBuilder()
-        .append("Feast Dataset for ")
-        .append(featureSet.getEntityName())
-        .append(" features.\nContains data from ")
-        .append(formatTimestamp(startDate))
-        .append(" to ")
-        .append(formatTimestamp(endDate))
-        .append(".\nLast edited at ")
-        .append(currentTime)
-        .append(".\n\n-----\n\n")
-        .append(query)
-        .toString();
+    return String.format(
+        "Feast Dataset for %s features.\nContains data from %s to %s.\n Last edited at %s.\n\n-----\n\n%s",
+        featureSet.getEntityName(),
+        formatTimestamp(startDate),
+        formatTimestamp(endDate),
+        Instant.now(),
+        query);
   }
 
   private String formatTimestamp(Timestamp timestamp) {
