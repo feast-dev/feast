@@ -82,7 +82,8 @@ gcloud --project=${GCP_PROJECT} compute instances create ${FEAST_REDIS_GCE_INSTA
   --metadata startup-script="apt-get -y install redis-server; echo 'bind 0.0.0.0' >> /etc/redis/redis.conf; systemctl enable redis; systemctl restart redis"
 ```
 
-*NOTE:* Comment out "--no-address" option if you do not have a NAT router set up in your project (especially in vanilla Google Cloud Project). This will assign a public IP to the redis instance so it can access the internet without a NAT router. With no external ip, the instance requires a NAT router to access internet.
+**NOTE**  
+Comment out `--no-address` option if you do not have a NAT router set up in your project (especially in newly created Google Cloud Project). This will assign a public IP to the redis instance so it can access the internet without a NAT router. With no public IP, the instance requires a NAT router to access internet.
 
 When the command above completes, it will output details of the newly created VM. Set the variable `FEAST_SERVING_REDIS_HOST` to the `INTERNAL_IP` value from the `gcloud` output.
 
