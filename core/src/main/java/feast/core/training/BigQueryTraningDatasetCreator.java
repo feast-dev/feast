@@ -51,7 +51,6 @@ public class BigQueryTraningDatasetCreator {
   private final String datasetPrefix;
   private transient BigQuery bigQuery;
 
-
   public BigQueryTraningDatasetCreator(
       BigQueryDatasetTemplater templater,
       String projectId,
@@ -73,7 +72,8 @@ public class BigQueryTraningDatasetCreator {
   }
 
   /**
-   * Create dataset for a feature set
+   * Create a training dataset for a feature set for features created between startDate (inclusive)
+   * and endDate (inclusive)
    *
    * @param featureSet feature set for which the training dataset should be created
    * @param startDate starting date of the training dataset (inclusive)
@@ -90,16 +90,15 @@ public class BigQueryTraningDatasetCreator {
       String namePrefix) {
     try {
       String query = templater.createQuery(featureSet, startDate, endDate, limit);
-      String tableName = createBqTableName(datasetPrefix, featureSet, startDate, endDate,
-          namePrefix);
+      String tableName =
+          createBqTableName(datasetPrefix, featureSet, startDate, endDate, namePrefix);
       String tableDescription = createBqTableDescription(featureSet, startDate, endDate, query);
 
       Map<String, String> options = templater.getStorageSpec().getOptionsMap();
       String bq_dataset = options.get("dataset");
+      TableId destinationTableId = TableId.of(projectId, bq_dataset, tableName);
 
-      TableId destinationTableId =
-          TableId.of(projectId, bq_dataset, tableName);
-
+      // Create the BigQuery table that will store the training dataset if not exists
       if (bigQuery.getTable(destinationTableId) == null) {
         QueryJobConfiguration queryConfig =
             QueryJobConfiguration.newBuilder(query)
@@ -110,9 +109,8 @@ public class BigQueryTraningDatasetCreator {
         TableResult res = bigQuery.query(queryConfig, jobOption);
         if (res != null) {
           Table destinationTable = bigQuery.getTable(destinationTableId);
-          TableInfo tableInfo = destinationTable.toBuilder()
-              .setDescription(tableDescription)
-              .build();
+          TableInfo tableInfo =
+              destinationTable.toBuilder().setDescription(tableDescription).build();
           bigQuery.update(tableInfo);
         }
       }
@@ -126,12 +124,17 @@ public class BigQueryTraningDatasetCreator {
       throw new TrainingDatasetCreationException("Failed creating training dataset", e);
     } catch (InterruptedException e) {
       log.error("Training dataset creation was interrupted", e);
-      throw new TrainingDatasetCreationException("Training dataset creation was interrupted", e);
+      throw new TrainingDatasetCreationException("Training dataset creation was interrupted",
+          e);
     }
   }
 
-  private String createBqTableName(String datasetPrefix, FeatureSet featureSet, Timestamp startDate,
-      Timestamp endDate, String namePrefix) {
+  private String createBqTableName(
+      String datasetPrefix,
+      FeatureSet featureSet,
+      Timestamp startDate,
+      Timestamp endDate,
+      String namePrefix) {
 
     List<String> features = new ArrayList(featureSet.getFeatureIdsList());
     Collections.sort(features);
@@ -164,21 +167,15 @@ public class BigQueryTraningDatasetCreator {
         "%s_%s_%s", datasetPrefix, featureSet.getEntityName(), hashText.toString());
   }
 
-  private String createBqTableDescription(FeatureSet featureSet, Timestamp startDate, Timestamp
-      endDate, String query) {
-    String currentTime = Instant.now().toString();
-    return new StringBuilder()
-        .append("Feast Dataset for ")
-        .append(featureSet.getEntityName())
-        .append(" features.\nContains data from ")
-        .append(formatTimestamp(startDate))
-        .append(" to ")
-        .append(formatTimestamp(endDate))
-        .append(".\nLast edited at ")
-        .append(currentTime)
-        .append(".\n\n-----\n\n")
-        .append(query)
-        .toString();
+  private String createBqTableDescription(
+      FeatureSet featureSet, Timestamp startDate, Timestamp endDate, String query) {
+    return String.format(
+        "Feast Dataset for %s features.\nContains data from %s to %s.\n Last edited at %s.\n\n-----\n\n%s",
+        featureSet.getEntityName(),
+        formatTimestamp(startDate),
+        formatTimestamp(endDate),
+        Instant.now(),
+        query);
   }
 
   private String formatTimestamp(Timestamp timestamp) {
@@ -190,5 +187,4 @@ public class BigQueryTraningDatasetCreator {
     return String.format(
         "%s.%s.%s", tableId.getProject(), tableId.getDataset(), tableId.getTable());
   }
-
 }

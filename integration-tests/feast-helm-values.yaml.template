@@ -91,12 +91,15 @@ store:
    type: "redis"
    options: '{"host": "feast-${BUILD_ID}-redis-master", "port": "6379"}'
 
+global:
+  postgresql:
+    # Hardcoded password here because this Feast is only for testing
+    postgresqlPassword: HaeYeeMa7eD1
+
 postgresql: 
   provision: true
   persistence:
     enabled: false
-  # Hardcoded password here because this Feast is only for testing
-  postgresqlPassword: HaeYeeMa7eD1
 
 redis:
   provision: true

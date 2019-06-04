@@ -85,6 +85,25 @@ presubmits:
           value: "on"
         command: [".prow/scripts/run_unit_test.sh", "--component", "cli"]
 
+  - name: unit-test-python-sdk
+    decorate: true
+    always_run: true
+    spec:
+      volumes:
+      - name: service-account
+        secret:
+          secretName: prow-service-account
+      containers:
+      - image: python:3.6
+        volumeMounts:
+        - name: service-account
+          mountPath: /etc/service-account
+          readOnly: true
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /etc/service-account/service-account.json
+        command: [".prow/scripts/run_unit_test.sh", "--component", "python-sdk"]
+
   - name: integration-test
     decorate: true
     always_run: true

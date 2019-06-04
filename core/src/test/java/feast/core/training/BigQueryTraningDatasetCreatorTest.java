@@ -49,7 +49,7 @@ public class BigQueryTraningDatasetCreatorTest {
   private BigQuery bq;
 
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
     MockitoAnnotations.initMocks(this);
     when(templater.getStorageSpec()).thenReturn(StorageSpec.newBuilder()
         .setId("BIGQUERY1")
@@ -64,9 +64,8 @@ public class BigQueryTraningDatasetCreatorTest {
         .thenReturn("SELECT * FROM `project.dataset.table`");
   }
 
-
   @Test
-  public void shouldCreateCorrectDatasetIfPrefixNotSpecified() {
+  public void shouldCreateCorrqectDatasetIfPrefixNotSpecified() {
     String entityName = "myentity";
 
     FeatureSet featureSet =
@@ -82,16 +81,15 @@ public class BigQueryTraningDatasetCreatorTest {
     long limit = 999;
     String namePrefix = "";
 
-    DatasetInfo dsInfo =
-        creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
-    assertThat(dsInfo.getName(),
-        equalTo("feast_myentity_b0009f0f7df634ddc130571319e0deb9742eb1da"));
+    DatasetInfo dsInfo = creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
+    assertThat(
+        dsInfo.getName(), equalTo("feast_myentity_b0009f0f7df634ddc130571319e0deb9742eb1da"));
     assertThat(
         dsInfo.getTableUrl(),
         equalTo(
             String.format(
-                "%s.dataset.%s_%s_%s", projectId, datasetPrefix, entityName,
-                "b0009f0f7df634ddc130571319e0deb9742eb1da")));
+                "%s.dataset.%s_%s_%s",
+                projectId, datasetPrefix, entityName, "b0009f0f7df634ddc130571319e0deb9742eb1da")));
   }
 
   @Test
@@ -111,16 +109,19 @@ public class BigQueryTraningDatasetCreatorTest {
     long limit = 999;
     String namePrefix = "mydataset";
 
-    DatasetInfo dsInfo =
-        creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
+    DatasetInfo dsInfo = creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
     assertThat(
         dsInfo.getTableUrl(),
         equalTo(
             String.format(
-                "%s.dataset.%s_%s_%s_%s", projectId, datasetPrefix, entityName,
+                "%s.dataset.%s_%s_%s_%s",
+                projectId,
+                datasetPrefix,
+                entityName,
                 namePrefix,
                 "b0009f0f7df634ddc130571319e0deb9742eb1da")));
-    assertThat(dsInfo.getName(),
+    assertThat(
+        dsInfo.getName(),
         equalTo("feast_myentity_mydataset_b0009f0f7df634ddc130571319e0deb9742eb1da"));
   }
 
