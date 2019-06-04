@@ -38,7 +38,7 @@ def test_get_table_name():
     )
     assert (
         get_table_name(feature_id, storage_spec)
-        == "my_project.my_dataset.myentity_none"
+        == "my_project.my_dataset.myentity"
     )
 
 

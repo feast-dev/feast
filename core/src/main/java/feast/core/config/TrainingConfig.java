@@ -42,7 +42,6 @@ public class TrainingConfig {
       @Value("${feast.core.datasetPrefix}") String datasetPrefix) {
     BigQuery bigquery = BigQueryOptions.newBuilder().setProjectId(projectId).build().getService();
     Clock clock = Clock.systemUTC();
-    return new BigQueryTraningDatasetCreator(templater, clock,
-        projectId, datasetPrefix);
+    return new BigQueryTraningDatasetCreator(templater, projectId, datasetPrefix);
   }
 }

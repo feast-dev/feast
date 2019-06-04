@@ -23,7 +23,6 @@ import feast.core.DatasetServiceProto.DatasetInfo;
 import feast.core.DatasetServiceProto.FeatureSet;
 import feast.core.storage.BigQueryStorageManager;
 import feast.specs.StorageSpecProto.StorageSpec;
-import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
 import org.junit.Before;
@@ -48,8 +47,6 @@ public class BigQueryTraningDatasetCreatorTest {
   private BigQueryDatasetTemplater templater;
   @Mock
   private BigQuery bq;
-  @Mock
-  private Clock clock;
 
   @Before
   public void setUp() throws Exception {
@@ -60,7 +57,7 @@ public class BigQueryTraningDatasetCreatorTest {
         .putOptions("project", "project")
         .putOptions("dataset", "dataset")
         .build());
-    creator = new BigQueryTraningDatasetCreator(templater, clock, projectId, datasetPrefix, bq);
+    creator = new BigQueryTraningDatasetCreator(templater, projectId, datasetPrefix, bq);
 
     when(templater.createQuery(
         any(FeatureSet.class), any(Timestamp.class), any(Timestamp.class), anyLong()))

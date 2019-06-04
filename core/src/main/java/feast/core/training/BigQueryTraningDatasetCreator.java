@@ -19,7 +19,6 @@ package feast.core.training;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQuery.JobOption;
 import com.google.cloud.bigquery.BigQueryOptions;
-import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobException;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Table;
@@ -34,7 +33,6 @@ import feast.core.exception.TrainingDatasetCreationException;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -49,7 +47,6 @@ public class BigQueryTraningDatasetCreator {
 
   private final BigQueryDatasetTemplater templater;
   private final DateTimeFormatter formatter;
-  private final Clock clock;
   private final String projectId;
   private final String datasetPrefix;
   private transient BigQuery bigQuery;
@@ -57,21 +54,18 @@ public class BigQueryTraningDatasetCreator {
 
   public BigQueryTraningDatasetCreator(
       BigQueryDatasetTemplater templater,
-      Clock clock,
       String projectId,
       String datasetPrefix) {
-    this(templater, clock, projectId, datasetPrefix,
+    this(templater, projectId, datasetPrefix,
         BigQueryOptions.newBuilder().setProjectId(projectId).build().getService());
   }
 
   public BigQueryTraningDatasetCreator(
       BigQueryDatasetTemplater templater,
-      Clock clock,
       String projectId,
       String datasetPrefix,
       BigQuery bigQuery) {
     this.templater = templater;
-    this.clock = clock;
     this.formatter = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneId.of("UTC"));
     this.projectId = projectId;
     this.datasetPrefix = datasetPrefix;
@@ -114,7 +108,7 @@ public class BigQueryTraningDatasetCreator {
                 .build();
         JobOption jobOption = JobOption.fields();
         TableResult res = bigQuery.query(queryConfig, jobOption);
-        if(res!= null) {
+        if (res != null) {
           Table destinationTable = bigQuery.getTable(destinationTableId);
           TableInfo tableInfo = destinationTable.toBuilder()
               .setDescription(tableDescription)
@@ -143,16 +137,16 @@ public class BigQueryTraningDatasetCreator {
     Collections.sort(features);
 
     String datasetId = String.format("%s_%s_%s", features, startDate, endDate);
-    String hashText;
+    StringBuilder hashText;
 
     // create hash from datasetId
     try {
       MessageDigest md = MessageDigest.getInstance("SHA-1");
       byte[] messageDigest = md.digest(datasetId.getBytes());
       BigInteger no = new BigInteger(1, messageDigest);
-      hashText = no.toString(16);
+      hashText = new StringBuilder(no.toString(16));
       while (hashText.length() < 32) {
-        hashText = "0" + hashText;
+        hashText.insert(0, "0");
       }
     } catch (NoSuchAlgorithmException e) {
       throw new RuntimeException(e);
@@ -162,11 +156,12 @@ public class BigQueryTraningDatasetCreator {
       //  only alphanumeric and underscore are allowed
       namePrefix = namePrefix.replaceAll("[^a-zA-Z0-9_]", "_");
       return String.format(
-          "%s_%s_%s_%s", datasetPrefix, featureSet.getEntityName(), namePrefix, hashText);
+          "%s_%s_%s_%s", datasetPrefix, featureSet.getEntityName(), namePrefix,
+          hashText.toString());
     }
 
     return String.format(
-        "%s_%s_%s", datasetPrefix, featureSet.getEntityName(), hashText);
+        "%s_%s_%s", datasetPrefix, featureSet.getEntityName(), hashText.toString());
   }
 
   private String createBqTableDescription(FeatureSet featureSet, Timestamp startDate, Timestamp
