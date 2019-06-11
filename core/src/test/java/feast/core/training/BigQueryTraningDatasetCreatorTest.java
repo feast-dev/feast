@@ -65,7 +65,7 @@ public class BigQueryTraningDatasetCreatorTest {
   }
 
   @Test
-  public void shouldCreateCorrqectDatasetIfPrefixNotSpecified() {
+  public void shouldCreateCorrectDatasetIfPrefixNotSpecified() {
     String entityName = "myentity";
 
     FeatureSet featureSet =
