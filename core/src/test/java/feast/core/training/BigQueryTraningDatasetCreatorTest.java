@@ -37,6 +37,14 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+// TODO: Should consider testing with "actual" BigQuery vs mocking it
+//       because the mocked BigQuery client is very basic and may miss important functionalities
+//       such as an actual table / dataset is actually created
+//       In the test method, should probably add a condition so that tests can be skipped if
+//       the user running the tests do not have permission to manage BigQuery (although ideally they should have)
+//       Example of adding the condition whether or not to accept the test result as valid:
+//       https://stackoverflow.com/questions/1689242/conditionally-ignoring-tests-in-junit-4
+
 public class BigQueryTraningDatasetCreatorTest {
 
   public static final String projectId = "the-project";
