@@ -266,7 +266,7 @@ class Client:
             str: path to the downloaded file
         """
         return self._table_downloader.download_table_as_file(
-            dataset_info.table_id, dest, staging_location, file_type
+            dataset_info.full_table_id, dest, staging_location, file_type
         )
 
     def download_dataset_to_df(self, dataset_info, staging_location):
@@ -282,7 +282,7 @@ class Client:
 
         """
         return self._table_downloader.download_table_as_df(
-            dataset_info.table_id, staging_location
+            dataset_info.full_table_id, staging_location
         )
 
     def close(self):

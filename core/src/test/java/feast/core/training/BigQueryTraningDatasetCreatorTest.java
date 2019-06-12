@@ -16,13 +16,6 @@
  */
 package feast.core.training;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import com.google.cloud.bigquery.BigQuery;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
@@ -30,13 +23,27 @@ import feast.core.DatasetServiceProto.DatasetInfo;
 import feast.core.DatasetServiceProto.FeatureSet;
 import feast.core.storage.BigQueryStorageManager;
 import feast.specs.StorageSpecProto.StorageSpec;
-import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+// TODO: Should consider testing with "actual" BigQuery vs mocking it
+//       because the mocked BigQuery client is very basic and may miss important functionalities
+//       such as an actual table / dataset is actually created
+//       In the test method, should probably add a condition so that tests can be skipped if
+//       the user running the tests do not have permission to manage BigQuery (although ideally they should have)
+//       Example of adding the condition whether or not to accept the test result as valid:
+//       https://stackoverflow.com/questions/1689242/conditionally-ignoring-tests-in-junit-4
 
 public class BigQueryTraningDatasetCreatorTest {
 
@@ -48,11 +55,9 @@ public class BigQueryTraningDatasetCreatorTest {
   private BigQueryDatasetTemplater templater;
   @Mock
   private BigQuery bq;
-  @Mock
-  private Clock clock;
 
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
     MockitoAnnotations.initMocks(this);
     when(templater.getStorageSpec()).thenReturn(StorageSpec.newBuilder()
         .setId("BIGQUERY1")
@@ -60,13 +65,12 @@ public class BigQueryTraningDatasetCreatorTest {
         .putOptions("project", "project")
         .putOptions("dataset", "dataset")
         .build());
-    creator = new BigQueryTraningDatasetCreator(templater, clock, projectId, datasetPrefix, bq);
+    creator = new BigQueryTraningDatasetCreator(templater, projectId, datasetPrefix, bq);
 
     when(templater.createQuery(
         any(FeatureSet.class), any(Timestamp.class), any(Timestamp.class), anyLong()))
         .thenReturn("SELECT * FROM `project.dataset.table`");
   }
-
 
   @Test
   public void shouldCreateCorrectDatasetIfPrefixNotSpecified() {
@@ -85,14 +89,15 @@ public class BigQueryTraningDatasetCreatorTest {
     long limit = 999;
     String namePrefix = "";
 
-    DatasetInfo dsInfo =
-        creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
-    assertThat(dsInfo.getName(), equalTo("myentity_0_20180101_20190101"));
+    DatasetInfo dsInfo = creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
+    assertThat(
+        dsInfo.getName(), equalTo("feast_myentity_b0009f0f7df634ddc130571319e0deb9742eb1da"));
     assertThat(
         dsInfo.getTableUrl(),
         equalTo(
             String.format(
-                "%s.%s_%s.%s", projectId, datasetPrefix, entityName, "0_20180101_20190101")));
+                "%s.dataset.%s_%s_%s",
+                projectId, datasetPrefix, entityName, "b0009f0f7df634ddc130571319e0deb9742eb1da")));
   }
 
   @Test
@@ -112,15 +117,20 @@ public class BigQueryTraningDatasetCreatorTest {
     long limit = 999;
     String namePrefix = "mydataset";
 
-    DatasetInfo dsInfo =
-        creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
+    DatasetInfo dsInfo = creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
     assertThat(
         dsInfo.getTableUrl(),
         equalTo(
             String.format(
-                "%s.%s_%s.%s", projectId, datasetPrefix, entityName,
-                "mydataset_0_20180101_20190101")));
-    assertThat(dsInfo.getName(), equalTo("mydataset_0_20180101_20190101"));
+                "%s.dataset.%s_%s_%s_%s",
+                projectId,
+                datasetPrefix,
+                entityName,
+                namePrefix,
+                "b0009f0f7df634ddc130571319e0deb9742eb1da")));
+    assertThat(
+        dsInfo.getName(),
+        equalTo("feast_myentity_mydataset_b0009f0f7df634ddc130571319e0deb9742eb1da"));
   }
 
   @Test

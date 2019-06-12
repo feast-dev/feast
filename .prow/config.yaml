@@ -54,16 +54,38 @@ presubmits:
     decorate: true
     always_run: true
     spec:
+      volumes:
+      - name: service-account
+        secret:
+          secretName: prow-service-account
       containers:
       - image: maven:3.6-jdk-8
+        volumeMounts:
+        - name: service-account
+          mountPath: /etc/service-account
+          readOnly: true
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /etc/service-account/service-account.json
         command: [".prow/scripts/run_unit_test.sh", "--component", "core"]
 
   - name: unit-test-ingestion
     decorate: true
     always_run: true
     spec:
+      volumes:
+      - name: service-account
+        secret:
+          secretName: prow-service-account
       containers:
       - image: maven:3.6-jdk-8
+        volumeMounts:
+        - name: service-account
+          mountPath: /etc/service-account
+          readOnly: true
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /etc/service-account/service-account.json
         command: [".prow/scripts/run_unit_test.sh", "--component", "ingestion"]
 
   - name: unit-test-serving

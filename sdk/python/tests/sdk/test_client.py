@@ -198,7 +198,7 @@ class TestClient(object):
         ds = client.create_dataset(fs, start_date, end_date)
 
         assert "dataset_name" == ds.name
-        assert "project.dataset.table" == ds.table_id
+        assert "project.dataset.table" == ds.full_table_id
         mock_trn_stub.CreateDataset.assert_called_once_with(
             DatasetServiceTypes.CreateDatasetRequest(
                 featureSet=fs.proto,
@@ -229,7 +229,7 @@ class TestClient(object):
         ds = client.create_dataset(fs, start_date, end_date, limit=limit)
 
         assert "dataset_name" == ds.name
-        assert "project.dataset.table" == ds.table_id
+        assert "project.dataset.table" == ds.full_table_id
         mock_trn_stub.CreateDataset.assert_called_once_with(
             DatasetServiceTypes.CreateDatasetRequest(
                 featureSet=fs.proto,
@@ -263,7 +263,7 @@ class TestClient(object):
             fs, start_date, end_date, limit=limit, name_prefix=name_prefix)
 
         assert "dataset_name" == ds.name
-        assert "project.dataset.table" == ds.table_id
+        assert "project.dataset.table" == ds.full_table_id
         mock_dssvc_stub.CreateDataset.assert_called_once_with(
             DatasetServiceTypes.CreateDatasetRequest(
                 featureSet=fs.proto,
@@ -427,9 +427,9 @@ class TestClient(object):
             table_dlder, "download_table_as_file", return_value=destination)
 
         client._table_downloader = table_dlder
-        table_id = "project.dataset.table"
+        full_table_id = "project.dataset.table"
         staging_location = "gs://gcs_bucket/"
-        dataset = DatasetInfo("mydataset", table_id)
+        dataset = DatasetInfo("mydataset", full_table_id)
 
         result = client.download_dataset(
             dataset,
@@ -439,7 +439,7 @@ class TestClient(object):
 
         assert result == destination
         table_dlder.download_table_as_file.assert_called_once_with(
-            table_id, destination, staging_location, FileType.CSV)
+            full_table_id, destination, staging_location, FileType.CSV)
 
     def _create_query_features_response(self, entity_name, entities):
         response = QueryFeaturesResponse(entityName=entity_name)

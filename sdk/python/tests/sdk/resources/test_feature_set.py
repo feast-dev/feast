@@ -38,7 +38,7 @@ class TestFeatureSet(object):
 class TestDatasetInfo(object):
     def test_creation(self):
         name = "dataset_name"
-        table_id = "gcp-project.dataset.table_name"
-        dataset = DatasetInfo(name, table_id)
+        full_table_id = "gcp-project.dataset.table_name"
+        dataset = DatasetInfo(name, full_table_id)
         assert dataset.name == name
-        assert dataset.table_id == table_id
+        assert dataset.full_table_id == full_table_id
