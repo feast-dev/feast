@@ -4,6 +4,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -21,6 +22,9 @@ import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.testing.GrpcCleanupRule;
 import java.text.ParseException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -78,7 +82,8 @@ public class DatasetServiceImplTest {
             any(Timestamp.class),
             any(Timestamp.class),
             anyLong(),
-            anyString()))
+            anyString(),
+            anyMap()))
         .thenReturn(datasetInfo);
 
     long limit = 9999;
@@ -95,7 +100,44 @@ public class DatasetServiceImplTest {
     client.createDataset(request);
 
     verify(trainingDatasetCreator)
-        .createDataset(validFeatureSet, validStartDate, validEndDate, limit, namePrefix);
+        .createDataset(validFeatureSet, validStartDate, validEndDate, limit, namePrefix, Collections
+            .emptyMap());
+  }
+
+  @SuppressWarnings("ResultOfMethodCallIgnored")
+  @Test
+  public void shouldCallcreateDatasetWithCorrectRequestWithFilters() {
+    DatasetInfo datasetInfo =
+        DatasetInfo.newBuilder().setName("mydataset").setTableUrl("project.dataset.table").build();
+    when(trainingDatasetCreator.createDataset(
+        any(FeatureSet.class),
+        any(Timestamp.class),
+        any(Timestamp.class),
+        anyLong(),
+        anyString(),
+        anyMap()))
+        .thenReturn(datasetInfo);
+
+    long limit = 9999;
+    String namePrefix = "mydataset";
+    Map<String, String> filters = new HashMap<>();
+    filters.put("key1", "value1");
+    filters.put("key2", "value2");
+    CreateDatasetRequest request =
+        CreateDatasetRequest.newBuilder()
+            .setFeatureSet(validFeatureSet)
+            .setStartDate(validStartDate)
+            .setEndDate(validEndDate)
+            .setLimit(limit)
+            .setNamePrefix(namePrefix)
+            .putAllFilters(filters)
+            .build();
+
+    client.createDataset(request);
+
+
+    verify(trainingDatasetCreator)
+        .createDataset(validFeatureSet, validStartDate, validEndDate, limit, namePrefix, filters);
   }
 
   @Test
@@ -107,7 +149,8 @@ public class DatasetServiceImplTest {
             any(Timestamp.class),
             any(Timestamp.class),
             anyLong(),
-            anyString()))
+            anyString(),
+            anyMap()))
         .thenReturn(datasetInfo);
 
     long limit = 9999;

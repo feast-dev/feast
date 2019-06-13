@@ -42,6 +42,8 @@ message DatasetServiceTypes {
     int64 limit = 4;
     // (optional) prefix for dataset name
     string namePrefix = 5;
+    // (optional) additional WHERE clause, all filter entry will be combined with logic AND
+    map<string, string> filters = 6;
   }
 
   message CreateDatasetResponse {

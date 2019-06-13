@@ -25,6 +25,7 @@ import feast.core.storage.BigQueryStorageManager;
 import feast.specs.StorageSpecProto.StorageSpec;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Collections;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -34,6 +35,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -68,7 +70,7 @@ public class BigQueryTraningDatasetCreatorTest {
     creator = new BigQueryTraningDatasetCreator(templater, projectId, datasetPrefix, bq);
 
     when(templater.createQuery(
-        any(FeatureSet.class), any(Timestamp.class), any(Timestamp.class), anyLong()))
+        any(FeatureSet.class), any(Timestamp.class), any(Timestamp.class), anyLong(), anyMap()))
         .thenReturn("SELECT * FROM `project.dataset.table`");
   }
 
@@ -89,7 +91,8 @@ public class BigQueryTraningDatasetCreatorTest {
     long limit = 999;
     String namePrefix = "";
 
-    DatasetInfo dsInfo = creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
+    DatasetInfo dsInfo = creator.createDataset(featureSet, startDate, endDate, limit, namePrefix, Collections
+        .emptyMap());
     assertThat(
         dsInfo.getName(), equalTo("feast_myentity_b0009f0f7df634ddc130571319e0deb9742eb1da"));
     assertThat(
@@ -117,7 +120,7 @@ public class BigQueryTraningDatasetCreatorTest {
     long limit = 999;
     String namePrefix = "mydataset";
 
-    DatasetInfo dsInfo = creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
+    DatasetInfo dsInfo = creator.createDataset(featureSet, startDate, endDate, limit, namePrefix, Collections.emptyMap());
     assertThat(
         dsInfo.getTableUrl(),
         equalTo(
@@ -146,8 +149,8 @@ public class BigQueryTraningDatasetCreatorTest {
     long limit = 999;
     String namePrefix = "";
 
-    creator.createDataset(featureSet, startDate, endDate, limit, namePrefix);
+    creator.createDataset(featureSet, startDate, endDate, limit, namePrefix, Collections.emptyMap());
 
-    verify(templater).createQuery(featureSet, startDate, endDate, limit);
+    verify(templater).createQuery(featureSet, startDate, endDate, limit, Collections.emptyMap());
   }
 }

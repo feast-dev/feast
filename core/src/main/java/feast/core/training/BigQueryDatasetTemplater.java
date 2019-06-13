@@ -23,18 +23,18 @@ import feast.core.dao.FeatureInfoRepository;
 import feast.core.model.FeatureInfo;
 import feast.core.storage.BigQueryStorageManager;
 import feast.specs.StorageSpecProto.StorageSpec;
+import feast.types.ValueProto.ValueType.Enum;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.Getter;
-
 
 public class BigQueryDatasetTemplater {
 
@@ -45,7 +45,9 @@ public class BigQueryDatasetTemplater {
   private final DateTimeFormatter formatter;
 
   public BigQueryDatasetTemplater(
-      Jinjava jinjava, String templateString, StorageSpec storageSpec,
+      Jinjava jinjava,
+      String templateString,
+      StorageSpec storageSpec,
       FeatureInfoRepository featureInfoRepository) {
     this.storageSpec = storageSpec;
     this.featureInfoRepository = featureInfoRepository;
@@ -65,35 +67,77 @@ public class BigQueryDatasetTemplater {
    * @param startDate start date
    * @param endDate end date
    * @param limit limit
+   * @param filters additional WHERE clause
    * @return SQL query for creating training table.
    */
-  String createQuery(FeatureSet featureSet, Timestamp startDate, Timestamp endDate, long limit) {
+  String createQuery(
+      FeatureSet featureSet,
+      Timestamp startDate,
+      Timestamp endDate,
+      long limit,
+      Map<String, String> filters) {
     List<String> featureIds = featureSet.getFeatureIdsList();
-    List<FeatureInfo> featureInfos = featureInfoRepository.findAllById(featureIds);
-    String tableId = featureInfos.size() > 0 ? getBqTableId(featureInfos.get(0)) : "";
-    Features features = new Features(featureInfos, tableId);
+    List<FeatureInfo> featureInfos = getFeatureInfosOrThrow(featureIds);
+    List<FeatureInfo> featureFilterInfos =  getFeatureInfosOrThrow(new ArrayList<>(filters.keySet()));
 
+    Map<String, FeatureInfo> featureInfoMap = new HashMap<>();
+    for (FeatureInfo featureInfo: featureFilterInfos) {
+      featureInfoMap.put(featureInfo.getId(), featureInfo);
+    }
+
+    // split filter based on ValueType of the feature
+    Map<String, Object> numberFilters = new HashMap<>();
+    Map<String, Object> stringFilters = new HashMap<>();
+    for (Map.Entry<String, String> filter : filters.entrySet()) {
+      FeatureInfo featureInfo = featureInfoMap.get(filter.getKey());
+      if (isMappableToString(featureInfo.getValueType())) {
+        stringFilters.put(featureInfo.getName(), filter.getValue());
+      } else {
+        numberFilters.put(featureInfo.getName(), filter.getValue());
+      }
+    }
+
+    List<String> featureNames = getFeatureNames(featureInfos);
+    String tableId = getBqTableId(featureInfos.get(0));
+    String startDateStr = formatDateString(startDate);
+    String endDateStr = formatDateString(endDate);
+    String limitStr = (limit != 0) ? String.valueOf(limit) : null;
+    return renderTemplate(tableId, featureNames, startDateStr, endDateStr, limitStr,
+        numberFilters, stringFilters);
+  }
+
+  private boolean isMappableToString(Enum valueType) {
+    return valueType.equals(Enum.STRING);
+  }
+
+  private List<String> getFeatureNames(List<FeatureInfo> featureInfos) {
+    return featureInfos.stream().map(FeatureInfo::getName).collect(Collectors.toList());
+  }
+
+  private List<FeatureInfo> getFeatureInfosOrThrow(List<String> featureIds) {
+    List<FeatureInfo> featureInfos = featureInfoRepository.findAllById(featureIds);
     if (featureInfos.size() < featureIds.size()) {
       Set<String> foundFeatureIds =
           featureInfos.stream().map(FeatureInfo::getId).collect(Collectors.toSet());
       featureIds.removeAll(foundFeatureIds);
       throw new NoSuchElementException("features not found: " + featureIds);
     }
-
-    String startDateStr = formatDateString(startDate);
-    String endDateStr = formatDateString(endDate);
-    String limitStr = (limit != 0) ? String.valueOf(limit) : null;
-    return renderTemplate(features, startDateStr, endDateStr, limitStr);
+    return featureInfos;
   }
 
   private String renderTemplate(
-      Features features, String startDateStr, String endDateStr, String limitStr) {
+      String tableId, List<String> features, String startDateStr, String endDateStr, String limitStr,
+      Map<String, Object> numberFilters,
+      Map<String, Object> stringFilters) {
     Map<String, Object> context = new HashMap<>();
 
-    context.put("feature_set", features);
+    context.put("table_id", tableId);
+    context.put("features", features);
     context.put("start_date", startDateStr);
     context.put("end_date", endDateStr);
     context.put("limit", limitStr);
+    context.put("number_filters", numberFilters);
+    context.put("string_filters", stringFilters);
     return jinjava.render(template, context);
   }
 
@@ -116,17 +160,5 @@ public class BigQueryDatasetTemplater {
   private String formatDateString(Timestamp timestamp) {
     Instant instant = Instant.ofEpochSecond(timestamp.getSeconds()).truncatedTo(ChronoUnit.DAYS);
     return formatter.format(instant);
-  }
-
-  @Getter
-  static final class Features {
-
-    final List<String> columns;
-    final String tableId;
-
-    Features(List<FeatureInfo> featureInfos, String tableId) {
-      columns = featureInfos.stream().map(FeatureInfo::getName).collect(Collectors.toList());
-      this.tableId = tableId;
-    }
   }
 }

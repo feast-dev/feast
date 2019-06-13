@@ -80,6 +80,7 @@ public class BigQueryTraningDatasetCreator {
    * @param endDate end date of the training dataset (inclusive)
    * @param limit maximum number of row should be created.
    * @param namePrefix prefix for dataset name
+   * @param filters additional where clause
    * @return dataset info associated with the created training dataset
    */
   public DatasetInfo createDataset(
@@ -87,9 +88,10 @@ public class BigQueryTraningDatasetCreator {
       Timestamp startDate,
       Timestamp endDate,
       long limit,
-      String namePrefix) {
+      String namePrefix,
+      Map<String, String> filters) {
     try {
-      String query = templater.createQuery(featureSet, startDate, endDate, limit);
+      String query = templater.createQuery(featureSet, startDate, endDate, limit, filters);
       String tableName =
           createBqTableName(datasetPrefix, featureSet, startDate, endDate, namePrefix);
       String tableDescription = createBqTableDescription(featureSet, startDate, endDate, query);
