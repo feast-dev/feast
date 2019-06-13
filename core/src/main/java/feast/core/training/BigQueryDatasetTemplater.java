@@ -78,17 +78,24 @@ public class BigQueryDatasetTemplater {
       Map<String, String> filters) {
     List<String> featureIds = featureSet.getFeatureIdsList();
     List<FeatureInfo> featureInfos = getFeatureInfosOrThrow(featureIds);
-    List<FeatureInfo> featureFilterInfos =  getFeatureInfosOrThrow(new ArrayList<>(filters.keySet()));
 
+    // split filter based on ValueType of the feature
+    Map<String, String> tmpFilter = new HashMap<>(filters);
+    Map<String, String> numberFilters = new HashMap<>();
+    Map<String, String> stringFilters = new HashMap<>();
+    if (filters.containsKey("job_id")) {
+      stringFilters.put("job_id", tmpFilter.get("job_id"));
+      tmpFilter.remove("job_id");
+    }
+
+    List<FeatureInfo> featureFilterInfos =  getFeatureInfosOrThrow(new ArrayList<>(tmpFilter.keySet()));
     Map<String, FeatureInfo> featureInfoMap = new HashMap<>();
     for (FeatureInfo featureInfo: featureFilterInfos) {
       featureInfoMap.put(featureInfo.getId(), featureInfo);
     }
 
-    // split filter based on ValueType of the feature
-    Map<String, Object> numberFilters = new HashMap<>();
-    Map<String, Object> stringFilters = new HashMap<>();
-    for (Map.Entry<String, String> filter : filters.entrySet()) {
+
+    for (Map.Entry<String, String> filter : tmpFilter.entrySet()) {
       FeatureInfo featureInfo = featureInfoMap.get(filter.getKey());
       if (isMappableToString(featureInfo.getValueType())) {
         stringFilters.put(featureInfo.getName(), filter.getValue());
@@ -127,8 +134,8 @@ public class BigQueryDatasetTemplater {
 
   private String renderTemplate(
       String tableId, List<String> features, String startDateStr, String endDateStr, String limitStr,
-      Map<String, Object> numberFilters,
-      Map<String, Object> stringFilters) {
+      Map<String, String> numberFilters,
+      Map<String, String> stringFilters) {
     Map<String, Object> context = new HashMap<>();
 
     context.put("table_id", tableId);

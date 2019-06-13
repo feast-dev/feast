@@ -304,6 +304,42 @@ public class BigQueryDatasetTemplaterTest {
     checkExpectedQuery(query, "expQueryWithNumberAndStringFilter.sql");
   }
 
+
+  @Test
+  public void shouldRenderCorrectQueryWithJobIdFilter() throws Exception {
+    List<FeatureInfo> featureInfos = new ArrayList<>();
+    List<String> featureIds = new ArrayList<>();
+
+    String featureId = "myentity.feature1";
+    String featureId2 = "myentity.feature2";
+    String featureName = "feature1";
+    String featureName2 = "feature2";
+
+    featureInfos.add(createFeatureInfo(featureId, featureName, Enum.INT64));
+    featureInfos.add(createFeatureInfo(featureId2, featureName2, Enum.STRING));
+    featureIds.add(featureId);
+    featureIds.add(featureId2);
+
+    when(featureInfoRespository.findAllById(any(List.class))).thenReturn(featureInfos);
+
+    Timestamp startDate =
+        Timestamps.fromSeconds(Instant.parse("2018-01-02T00:00:00.00Z").getEpochSecond());
+    Timestamp endDate =
+        Timestamps.fromSeconds(Instant.parse("2018-01-30T12:11:11.00Z").getEpochSecond());
+    FeatureSet featureSet =
+        FeatureSet.newBuilder().setEntityName("myentity").addAllFeatureIds(featureIds).build();
+
+    Map<String, String> filter = new HashMap<>();
+    filter.put("myentity.feature1", "10");
+    filter.put("myentity.feature2", "HELLO");
+    filter.put("job_id", "1234567890");
+
+    String query =
+        templater.createQuery(featureSet, startDate, endDate, 1000, filter);
+
+    checkExpectedQuery(query, "expQueryWithJobIdFilter.sql");
+  }
+
   private void checkExpectedQuery(String query, String pathToExpQuery) throws Exception {
     String tmpl =
         CharStreams.toString(
