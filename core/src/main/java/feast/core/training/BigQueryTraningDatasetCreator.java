@@ -30,15 +30,10 @@ import com.google.protobuf.Timestamp;
 import feast.core.DatasetServiceProto.DatasetInfo;
 import feast.core.DatasetServiceProto.FeatureSet;
 import feast.core.exception.TrainingDatasetCreationException;
-import java.math.BigInteger;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import feast.core.util.UuidProvider;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,13 +44,19 @@ public class BigQueryTraningDatasetCreator {
   private final DateTimeFormatter formatter;
   private final String projectId;
   private final String datasetPrefix;
+  private final UuidProvider uuidProvider;
   private transient BigQuery bigQuery;
 
   public BigQueryTraningDatasetCreator(
       BigQueryDatasetTemplater templater,
       String projectId,
-      String datasetPrefix) {
-    this(templater, projectId, datasetPrefix,
+      String datasetPrefix,
+      UuidProvider uuidProvider) {
+    this(
+        templater,
+        projectId,
+        datasetPrefix,
+        uuidProvider,
         BigQueryOptions.newBuilder().setProjectId(projectId).build().getService());
   }
 
@@ -63,12 +64,14 @@ public class BigQueryTraningDatasetCreator {
       BigQueryDatasetTemplater templater,
       String projectId,
       String datasetPrefix,
+      UuidProvider uuidProvider,
       BigQuery bigQuery) {
     this.templater = templater;
     this.formatter = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneId.of("UTC"));
     this.projectId = projectId;
     this.datasetPrefix = datasetPrefix;
     this.bigQuery = bigQuery;
+    this.uuidProvider = uuidProvider;
   }
 
   /**
@@ -92,8 +95,7 @@ public class BigQueryTraningDatasetCreator {
       Map<String, String> filters) {
     try {
       String query = templater.createQuery(featureSet, startDate, endDate, limit, filters);
-      String tableName =
-          createBqTableName(datasetPrefix, featureSet, startDate, endDate, namePrefix);
+      String tableName = createBqTableName(datasetPrefix, featureSet, namePrefix);
       String tableDescription = createBqTableDescription(featureSet, startDate, endDate, query);
 
       Map<String, String> options = templater.getStorageSpec().getOptionsMap();
@@ -126,47 +128,22 @@ public class BigQueryTraningDatasetCreator {
       throw new TrainingDatasetCreationException("Failed creating training dataset", e);
     } catch (InterruptedException e) {
       log.error("Training dataset creation was interrupted", e);
-      throw new TrainingDatasetCreationException("Training dataset creation was interrupted",
-          e);
+      throw new TrainingDatasetCreationException("Training dataset creation was interrupted", e);
     }
   }
 
-  private String createBqTableName(
-      String datasetPrefix,
-      FeatureSet featureSet,
-      Timestamp startDate,
-      Timestamp endDate,
-      String namePrefix) {
+  private String createBqTableName(String datasetPrefix, FeatureSet featureSet, String namePrefix) {
 
-    List<String> features = new ArrayList(featureSet.getFeatureIdsList());
-    Collections.sort(features);
-
-    String datasetId = String.format("%s_%s_%s", features, startDate, endDate);
-    StringBuilder hashText;
-
-    // create hash from datasetId
-    try {
-      MessageDigest md = MessageDigest.getInstance("SHA-1");
-      byte[] messageDigest = md.digest(datasetId.getBytes());
-      BigInteger no = new BigInteger(1, messageDigest);
-      hashText = new StringBuilder(no.toString(16));
-      while (hashText.length() < 32) {
-        hashText.insert(0, "0");
-      }
-    } catch (NoSuchAlgorithmException e) {
-      throw new RuntimeException(e);
-    }
+    String suffix = uuidProvider.getUuid();
 
     if (!Strings.isNullOrEmpty(namePrefix)) {
       //  only alphanumeric and underscore are allowed
       namePrefix = namePrefix.replaceAll("[^a-zA-Z0-9_]", "_");
       return String.format(
-          "%s_%s_%s_%s", datasetPrefix, featureSet.getEntityName(), namePrefix,
-          hashText.toString());
+          "%s_%s_%s_%s", datasetPrefix, featureSet.getEntityName(), namePrefix, suffix);
     }
 
-    return String.format(
-        "%s_%s_%s", datasetPrefix, featureSet.getEntityName(), hashText.toString());
+    return String.format("%s_%s_%s", datasetPrefix, featureSet.getEntityName(), suffix);
   }
 
   private String createBqTableDescription(

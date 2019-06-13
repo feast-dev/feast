@@ -22,6 +22,7 @@ import com.google.protobuf.util.Timestamps;
 import feast.core.DatasetServiceProto.DatasetInfo;
 import feast.core.DatasetServiceProto.FeatureSet;
 import feast.core.storage.BigQueryStorageManager;
+import feast.core.util.UuidProvider;
 import feast.specs.StorageSpecProto.StorageSpec;
 import java.time.Instant;
 import java.util.Arrays;
@@ -57,6 +58,8 @@ public class BigQueryTraningDatasetCreatorTest {
   private BigQueryDatasetTemplater templater;
   @Mock
   private BigQuery bq;
+  @Mock
+  private UuidProvider uuidProvider;
 
   @Before
   public void setUp() {
@@ -67,8 +70,9 @@ public class BigQueryTraningDatasetCreatorTest {
         .putOptions("project", "project")
         .putOptions("dataset", "dataset")
         .build());
-    creator = new BigQueryTraningDatasetCreator(templater, projectId, datasetPrefix, bq);
+    creator = new BigQueryTraningDatasetCreator(templater, projectId, datasetPrefix, uuidProvider, bq);
 
+    when(uuidProvider.getUuid()).thenReturn("b0009f0f7df634ddc130571319e0deb9742eb1da");
     when(templater.createQuery(
         any(FeatureSet.class), any(Timestamp.class), any(Timestamp.class), anyLong(), anyMap()))
         .thenReturn("SELECT * FROM `project.dataset.table`");
