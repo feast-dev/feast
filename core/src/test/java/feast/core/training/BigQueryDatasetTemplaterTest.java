@@ -33,16 +33,18 @@ import feast.core.dao.FeatureInfoRepository;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureInfo;
 import feast.core.storage.BigQueryStorageManager;
-import feast.core.training.BigQueryDatasetTemplater.Features;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
+import feast.types.ValueProto.ValueType;
+import feast.types.ValueProto.ValueType.Enum;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -60,26 +62,26 @@ public class BigQueryDatasetTemplaterTest {
   private BigQueryDatasetTemplater templater;
   private BasicFormatterImpl formatter = new BasicFormatterImpl();
 
-  @Mock
-  private FeatureInfoRepository featureInfoRespository;
+  @Mock private FeatureInfoRepository featureInfoRespository;
   private String sqlTemplate;
 
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
-    StorageSpec storageSpec = StorageSpec.newBuilder()
-        .setId("BIGQUERY1")
-        .setType(BigQueryStorageManager.TYPE)
-        .putOptions("project", "project")
-        .putOptions("dataset", "dataset")
-        .build();
+    StorageSpec storageSpec =
+        StorageSpec.newBuilder()
+            .setId("BIGQUERY1")
+            .setType(BigQueryStorageManager.TYPE)
+            .putOptions("project", "project")
+            .putOptions("dataset", "dataset")
+            .build();
 
     Jinjava jinjava = new Jinjava();
     Resource resource = new ClassPathResource("templates/bq_training.tmpl");
     InputStream resourceInputStream = resource.getInputStream();
     sqlTemplate = CharStreams.toString(new InputStreamReader(resourceInputStream, Charsets.UTF_8));
-    templater = new BigQueryDatasetTemplater(jinjava, sqlTemplate, storageSpec,
-        featureInfoRespository);
+    templater =
+        new BigQueryDatasetTemplater(jinjava, sqlTemplate, storageSpec, featureInfoRespository);
   }
 
   @Test(expected = NoSuchElementException.class)
@@ -89,21 +91,23 @@ public class BigQueryDatasetTemplaterTest {
             .setEntityName("myentity")
             .addAllFeatureIds(Arrays.asList("myentity.feature1", "myentity.feature2"))
             .build();
-    templater.createQuery(fs, Timestamps.fromSeconds(0), Timestamps.fromSeconds(1), 0);
+    templater.createQuery(
+        fs, Timestamps.fromSeconds(0), Timestamps.fromSeconds(1), 0, Collections.emptyMap());
   }
 
   @Test
   public void shouldPassCorrectArgumentToTemplateEngine() {
-    StorageSpec storageSpec = StorageSpec.newBuilder()
-        .setId("BIGQUERY1")
-        .setType(BigQueryStorageManager.TYPE)
-        .putOptions("project", "project")
-        .putOptions("dataset", "dataset")
-        .build();
+    StorageSpec storageSpec =
+        StorageSpec.newBuilder()
+            .setId("BIGQUERY1")
+            .setType(BigQueryStorageManager.TYPE)
+            .putOptions("project", "project")
+            .putOptions("dataset", "dataset")
+            .build();
 
     Jinjava jinjava = mock(Jinjava.class);
-    templater = new BigQueryDatasetTemplater(jinjava, sqlTemplate, storageSpec,
-        featureInfoRespository);
+    templater =
+        new BigQueryDatasetTemplater(jinjava, sqlTemplate, storageSpec, featureInfoRespository);
 
     Timestamp startDate =
         Timestamps.fromSeconds(Instant.parse("2018-01-01T00:00:00.00Z").getEpochSecond());
@@ -114,7 +118,7 @@ public class BigQueryDatasetTemplaterTest {
     String featureName = "feature1";
 
     when(featureInfoRespository.findAllById(any(List.class)))
-        .thenReturn(Collections.singletonList(createFeatureInfo(featureId, featureName)));
+        .thenReturn(Collections.singletonList(createFeatureInfo(featureId, featureName, Enum.INT64)));
 
     FeatureSet fs =
         FeatureSet.newBuilder()
@@ -122,7 +126,7 @@ public class BigQueryDatasetTemplaterTest {
             .addAllFeatureIds(Arrays.asList(featureId))
             .build();
 
-    templater.createQuery(fs, startDate, endDate, limit);
+    templater.createQuery(fs, startDate, endDate, limit, Collections.emptyMap());
 
     ArgumentCaptor<String> templateArg = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<Map<String, Object>> contextArg = ArgumentCaptor.forClass(Map.class);
@@ -136,9 +140,8 @@ public class BigQueryDatasetTemplaterTest {
     assertThat(actualContext.get("end_date"), equalTo("2019-01-01"));
     assertThat(actualContext.get("limit"), equalTo(String.valueOf(limit)));
 
-    Features features = (Features) actualContext.get("feature_set");
-    assertThat(features.getColumns().size(), equalTo(1));
-    assertThat(features.getColumns().get(0), equalTo(featureName));
+    List<String> features = (List<String>) actualContext.get("features");
+    assertThat(features.get(0), equalTo(featureName));
   }
 
   @Test
@@ -148,12 +151,12 @@ public class BigQueryDatasetTemplaterTest {
     String featureId2 = "myentity.feature2";
     String featureName2 = "feature2";
 
-    FeatureInfo featureInfo1 = createFeatureInfo(featureId1, featureName1);
-    FeatureInfo featureInfo2 = createFeatureInfo(featureId2, featureName2);
+    FeatureInfo featureInfo1 = createFeatureInfo(featureId1, featureName1, Enum.INT64);
+    FeatureInfo featureInfo2 = createFeatureInfo(featureId2, featureName2, Enum.INT64);
 
     String featureId3 = "myentity.feature3";
     String featureName3 = "feature3";
-    FeatureInfo featureInfo3 = createFeatureInfo(featureId3, featureName3);
+    FeatureInfo featureInfo3 = createFeatureInfo(featureId3, featureName3, Enum.INT64);
 
     when(featureInfoRespository.findAllById(any(List.class)))
         .thenReturn(Arrays.asList(featureInfo1, featureInfo2, featureInfo3));
@@ -169,7 +172,7 @@ public class BigQueryDatasetTemplaterTest {
         Timestamps.fromSeconds(Instant.parse("2018-01-30T12:11:11.00Z").getEpochSecond());
     int limit = 100;
 
-    String query = templater.createQuery(fs, startDate, endDate, limit);
+    String query = templater.createQuery(fs, startDate, endDate, limit, Collections.emptyMap());
 
     checkExpectedQuery(query, "expQuery1.sql");
   }
@@ -182,7 +185,7 @@ public class BigQueryDatasetTemplaterTest {
     String featureId = "myentity.feature1";
     String featureName = "feature1";
 
-    featureInfos.add(createFeatureInfo(featureId, featureName));
+    featureInfos.add(createFeatureInfo(featureId, featureName, Enum.INT64));
     featureIds.add(featureId);
 
     when(featureInfoRespository.findAllById(any(List.class))).thenReturn(featureInfos);
@@ -194,9 +197,147 @@ public class BigQueryDatasetTemplaterTest {
     FeatureSet featureSet =
         FeatureSet.newBuilder().setEntityName("myentity").addAllFeatureIds(featureIds).build();
 
-    String query = templater.createQuery(featureSet, startDate, endDate, 1000);
+    String query =
+        templater.createQuery(featureSet, startDate, endDate, 1000, Collections.emptyMap());
 
     checkExpectedQuery(query, "expQuery2.sql");
+  }
+
+  @Test
+  public void shouldRenderCorrectQueryWithNumberFilter() throws Exception {
+    List<FeatureInfo> featureInfos = new ArrayList<>();
+    List<String> featureIds = new ArrayList<>();
+
+    String featureId = "myentity.feature1";
+    String featureId2 = "myentity.feature2";
+    String featureName = "feature1";
+    String featureName2 = "feature2";
+
+    featureInfos.add(createFeatureInfo(featureId, featureName, Enum.INT64));
+    featureInfos.add(createFeatureInfo(featureId2, featureName2, Enum.INT64));
+    featureIds.add(featureId);
+    featureIds.add(featureId2);
+
+    when(featureInfoRespository.findAllById(any(List.class))).thenReturn(featureInfos);
+
+    Timestamp startDate =
+        Timestamps.fromSeconds(Instant.parse("2018-01-02T00:00:00.00Z").getEpochSecond());
+    Timestamp endDate =
+        Timestamps.fromSeconds(Instant.parse("2018-01-30T12:11:11.00Z").getEpochSecond());
+    FeatureSet featureSet =
+        FeatureSet.newBuilder().setEntityName("myentity").addAllFeatureIds(featureIds).build();
+
+    Map<String, String> filter = new HashMap<>();
+    filter.put("myentity.feature1", "10");
+
+    String query =
+        templater.createQuery(featureSet, startDate, endDate, 1000, filter);
+
+    checkExpectedQuery(query, "expQueryWithNumberFilter.sql");
+  }
+
+  @Test
+  public void shouldRenderCorrectQueryWithStringFilter() throws Exception {
+    List<FeatureInfo> featureInfos = new ArrayList<>();
+    List<String> featureIds = new ArrayList<>();
+
+    String featureId = "myentity.feature1";
+    String featureId2 = "myentity.feature2";
+    String featureName = "feature1";
+    String featureName2 = "feature2";
+
+    featureInfos.add(createFeatureInfo(featureId, featureName, Enum.STRING));
+    featureInfos.add(createFeatureInfo(featureId2, featureName2, Enum.STRING));
+    featureIds.add(featureId);
+    featureIds.add(featureId2);
+
+    when(featureInfoRespository.findAllById(any(List.class))).thenReturn(featureInfos);
+
+    Timestamp startDate =
+        Timestamps.fromSeconds(Instant.parse("2018-01-02T00:00:00.00Z").getEpochSecond());
+    Timestamp endDate =
+        Timestamps.fromSeconds(Instant.parse("2018-01-30T12:11:11.00Z").getEpochSecond());
+    FeatureSet featureSet =
+        FeatureSet.newBuilder().setEntityName("myentity").addAllFeatureIds(featureIds).build();
+
+    Map<String, String> filter = new HashMap<>();
+    filter.put("myentity.feature1", "10");
+
+    String query =
+        templater.createQuery(featureSet, startDate, endDate, 1000, filter);
+
+    checkExpectedQuery(query, "expQueryWithStringFilter.sql");
+  }
+
+
+  @Test
+  public void shouldRenderCorrectQueryWithStringAndNumberFilter() throws Exception {
+    List<FeatureInfo> featureInfos = new ArrayList<>();
+    List<String> featureIds = new ArrayList<>();
+
+    String featureId = "myentity.feature1";
+    String featureId2 = "myentity.feature2";
+    String featureName = "feature1";
+    String featureName2 = "feature2";
+
+    featureInfos.add(createFeatureInfo(featureId, featureName, Enum.INT64));
+    featureInfos.add(createFeatureInfo(featureId2, featureName2, Enum.STRING));
+    featureIds.add(featureId);
+    featureIds.add(featureId2);
+
+    when(featureInfoRespository.findAllById(any(List.class))).thenReturn(featureInfos);
+
+    Timestamp startDate =
+        Timestamps.fromSeconds(Instant.parse("2018-01-02T00:00:00.00Z").getEpochSecond());
+    Timestamp endDate =
+        Timestamps.fromSeconds(Instant.parse("2018-01-30T12:11:11.00Z").getEpochSecond());
+    FeatureSet featureSet =
+        FeatureSet.newBuilder().setEntityName("myentity").addAllFeatureIds(featureIds).build();
+
+    Map<String, String> filter = new HashMap<>();
+    filter.put("myentity.feature1", "10");
+    filter.put("myentity.feature2", "HELLO");
+
+    String query =
+        templater.createQuery(featureSet, startDate, endDate, 1000, filter);
+
+    checkExpectedQuery(query, "expQueryWithNumberAndStringFilter.sql");
+  }
+
+
+  @Test
+  public void shouldRenderCorrectQueryWithJobIdFilter() throws Exception {
+    List<FeatureInfo> featureInfos = new ArrayList<>();
+    List<String> featureIds = new ArrayList<>();
+
+    String featureId = "myentity.feature1";
+    String featureId2 = "myentity.feature2";
+    String featureName = "feature1";
+    String featureName2 = "feature2";
+
+    featureInfos.add(createFeatureInfo(featureId, featureName, Enum.INT64));
+    featureInfos.add(createFeatureInfo(featureId2, featureName2, Enum.STRING));
+    featureIds.add(featureId);
+    featureIds.add(featureId2);
+
+    when(featureInfoRespository.findAllById(any(List.class))).thenReturn(featureInfos);
+
+    Timestamp startDate =
+        Timestamps.fromSeconds(Instant.parse("2018-01-02T00:00:00.00Z").getEpochSecond());
+    Timestamp endDate =
+        Timestamps.fromSeconds(Instant.parse("2018-01-30T12:11:11.00Z").getEpochSecond());
+    FeatureSet featureSet =
+        FeatureSet.newBuilder().setEntityName("myentity").addAllFeatureIds(featureIds).build();
+
+    Map<String, String> filter = new HashMap<>();
+    filter.put("myentity.feature1", "10");
+    filter.put("myentity.feature2", "HELLO");
+    filter.put("job_id", "1234567890");
+
+    String query =
+        templater.createQuery(featureSet, startDate, endDate, 1000, filter);
+
+    checkExpectedQuery(query, "expQueryWithJobIdFilter.sql");
   }
 
   private void checkExpectedQuery(String query, String pathToExpQuery) throws Exception {
@@ -212,11 +353,12 @@ public class BigQueryDatasetTemplaterTest {
     assertThat(query, equalTo(expQuery));
   }
 
-  private FeatureInfo createFeatureInfo(String featureId, String featureName) {
+  private FeatureInfo createFeatureInfo(String featureId, String featureName, ValueType.Enum valueType) {
     FeatureSpec fs =
         FeatureSpec.newBuilder()
             .setId(featureId)
             .setName(featureName)
+            .setValueType(valueType)
             .build();
 
     EntitySpec entitySpec = EntitySpec.newBuilder().setName(featureId.split("\\.")[0]).build();

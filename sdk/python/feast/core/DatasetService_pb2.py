@@ -20,12 +20,49 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.core',
   syntax='proto3',
   serialized_options=_b('\n\nfeast.coreB\023DatasetServiceProtoZ5github.com/gojek/feast/protos/generated/go/feast/core'),
-  serialized_pb=_b('\n\x1f\x66\x65\x61st/core/DatasetService.proto\x12\nfeast.core\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa0\x02\n\x13\x44\x61tasetServiceTypes\x1a\xc1\x01\n\x14\x43reateDatasetRequest\x12*\n\nfeatureSet\x18\x01 \x01(\x0b\x32\x16.feast.core.FeatureSet\x12-\n\tstartDate\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12+\n\x07\x65ndDate\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\r\n\x05limit\x18\x04 \x01(\x03\x12\x12\n\nnamePrefix\x18\x05 \x01(\t\x1a\x45\n\x15\x43reateDatasetResponse\x12,\n\x0b\x64\x61tasetInfo\x18\x01 \x01(\x0b\x32\x17.feast.core.DatasetInfo\"4\n\nFeatureSet\x12\x12\n\nentityName\x18\x01 \x01(\t\x12\x12\n\nfeatureIds\x18\x02 \x03(\t\"-\n\x0b\x44\x61tasetInfo\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x10\n\x08tableUrl\x18\x02 \x01(\t2\x90\x01\n\x0e\x44\x61tasetService\x12~\n\rCreateDataset\x12\x34.feast.core.DatasetServiceTypes.CreateDatasetRequest\x1a\x35.feast.core.DatasetServiceTypes.CreateDatasetResponse\"\x00\x42X\n\nfeast.coreB\x13\x44\x61tasetServiceProtoZ5github.com/gojek/feast/protos/generated/go/feast/coreb\x06proto3')
+  serialized_pb=_b('\n\x1f\x66\x65\x61st/core/DatasetService.proto\x12\nfeast.core\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa4\x03\n\x13\x44\x61tasetServiceTypes\x1a\xc5\x02\n\x14\x43reateDatasetRequest\x12*\n\nfeatureSet\x18\x01 \x01(\x0b\x32\x16.feast.core.FeatureSet\x12-\n\tstartDate\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12+\n\x07\x65ndDate\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\r\n\x05limit\x18\x04 \x01(\x03\x12\x12\n\nnamePrefix\x18\x05 \x01(\t\x12R\n\x07\x66ilters\x18\x06 \x03(\x0b\x32\x41.feast.core.DatasetServiceTypes.CreateDatasetRequest.FiltersEntry\x1a.\n\x0c\x46iltersEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\x45\n\x15\x43reateDatasetResponse\x12,\n\x0b\x64\x61tasetInfo\x18\x01 \x01(\x0b\x32\x17.feast.core.DatasetInfo\"4\n\nFeatureSet\x12\x12\n\nentityName\x18\x01 \x01(\t\x12\x12\n\nfeatureIds\x18\x02 \x03(\t\"-\n\x0b\x44\x61tasetInfo\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x10\n\x08tableUrl\x18\x02 \x01(\t2\x90\x01\n\x0e\x44\x61tasetService\x12~\n\rCreateDataset\x12\x34.feast.core.DatasetServiceTypes.CreateDatasetRequest\x1a\x35.feast.core.DatasetServiceTypes.CreateDatasetResponse\"\x00\x42X\n\nfeast.coreB\x13\x44\x61tasetServiceProtoZ5github.com/gojek/feast/protos/generated/go/feast/coreb\x06proto3')
   ,
   dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,])
 
 
 
+
+_DATASETSERVICETYPES_CREATEDATASETREQUEST_FILTERSENTRY = _descriptor.Descriptor(
+  name='FiltersEntry',
+  full_name='feast.core.DatasetServiceTypes.CreateDatasetRequest.FiltersEntry',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='feast.core.DatasetServiceTypes.CreateDatasetRequest.FiltersEntry.key', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='value', full_name='feast.core.DatasetServiceTypes.CreateDatasetRequest.FiltersEntry.value', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=_b('8\001'),
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=384,
+  serialized_end=430,
+)
 
 _DATASETSERVICETYPES_CREATEDATASETREQUEST = _descriptor.Descriptor(
   name='CreateDatasetRequest',
@@ -69,10 +106,17 @@ _DATASETSERVICETYPES_CREATEDATASETREQUEST = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='filters', full_name='feast.core.DatasetServiceTypes.CreateDatasetRequest.filters', index=5,
+      number=6, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
-  nested_types=[],
+  nested_types=[_DATASETSERVICETYPES_CREATEDATASETREQUEST_FILTERSENTRY, ],
   enum_types=[
   ],
   serialized_options=None,
@@ -82,7 +126,7 @@ _DATASETSERVICETYPES_CREATEDATASETREQUEST = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=105,
-  serialized_end=298,
+  serialized_end=430,
 )
 
 _DATASETSERVICETYPES_CREATEDATASETRESPONSE = _descriptor.Descriptor(
@@ -111,8 +155,8 @@ _DATASETSERVICETYPES_CREATEDATASETRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=300,
-  serialized_end=369,
+  serialized_start=432,
+  serialized_end=501,
 )
 
 _DATASETSERVICETYPES = _descriptor.Descriptor(
@@ -135,7 +179,7 @@ _DATASETSERVICETYPES = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=81,
-  serialized_end=369,
+  serialized_end=501,
 )
 
 
@@ -172,8 +216,8 @@ _FEATURESET = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=371,
-  serialized_end=423,
+  serialized_start=503,
+  serialized_end=555,
 )
 
 
@@ -210,13 +254,15 @@ _DATASETINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=425,
-  serialized_end=470,
+  serialized_start=557,
+  serialized_end=602,
 )
 
+_DATASETSERVICETYPES_CREATEDATASETREQUEST_FILTERSENTRY.containing_type = _DATASETSERVICETYPES_CREATEDATASETREQUEST
 _DATASETSERVICETYPES_CREATEDATASETREQUEST.fields_by_name['featureSet'].message_type = _FEATURESET
 _DATASETSERVICETYPES_CREATEDATASETREQUEST.fields_by_name['startDate'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
 _DATASETSERVICETYPES_CREATEDATASETREQUEST.fields_by_name['endDate'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
+_DATASETSERVICETYPES_CREATEDATASETREQUEST.fields_by_name['filters'].message_type = _DATASETSERVICETYPES_CREATEDATASETREQUEST_FILTERSENTRY
 _DATASETSERVICETYPES_CREATEDATASETREQUEST.containing_type = _DATASETSERVICETYPES
 _DATASETSERVICETYPES_CREATEDATASETRESPONSE.fields_by_name['datasetInfo'].message_type = _DATASETINFO
 _DATASETSERVICETYPES_CREATEDATASETRESPONSE.containing_type = _DATASETSERVICETYPES
@@ -228,6 +274,13 @@ _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 DatasetServiceTypes = _reflection.GeneratedProtocolMessageType('DatasetServiceTypes', (_message.Message,), dict(
 
   CreateDatasetRequest = _reflection.GeneratedProtocolMessageType('CreateDatasetRequest', (_message.Message,), dict(
+
+    FiltersEntry = _reflection.GeneratedProtocolMessageType('FiltersEntry', (_message.Message,), dict(
+      DESCRIPTOR = _DATASETSERVICETYPES_CREATEDATASETREQUEST_FILTERSENTRY,
+      __module__ = 'feast.core.DatasetService_pb2'
+      # @@protoc_insertion_point(class_scope:feast.core.DatasetServiceTypes.CreateDatasetRequest.FiltersEntry)
+      ))
+    ,
     DESCRIPTOR = _DATASETSERVICETYPES_CREATEDATASETREQUEST,
     __module__ = 'feast.core.DatasetService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.DatasetServiceTypes.CreateDatasetRequest)
@@ -246,6 +299,7 @@ DatasetServiceTypes = _reflection.GeneratedProtocolMessageType('DatasetServiceTy
   ))
 _sym_db.RegisterMessage(DatasetServiceTypes)
 _sym_db.RegisterMessage(DatasetServiceTypes.CreateDatasetRequest)
+_sym_db.RegisterMessage(DatasetServiceTypes.CreateDatasetRequest.FiltersEntry)
 _sym_db.RegisterMessage(DatasetServiceTypes.CreateDatasetResponse)
 
 FeatureSet = _reflection.GeneratedProtocolMessageType('FeatureSet', (_message.Message,), dict(
@@ -264,6 +318,7 @@ _sym_db.RegisterMessage(DatasetInfo)
 
 
 DESCRIPTOR._options = None
+_DATASETSERVICETYPES_CREATEDATASETREQUEST_FILTERSENTRY._options = None
 
 _DATASETSERVICE = _descriptor.ServiceDescriptor(
   name='DatasetService',
@@ -271,8 +326,8 @@ _DATASETSERVICE = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=473,
-  serialized_end=617,
+  serialized_start=605,
+  serialized_end=749,
   methods=[
   _descriptor.MethodDescriptor(
     name='CreateDataset',

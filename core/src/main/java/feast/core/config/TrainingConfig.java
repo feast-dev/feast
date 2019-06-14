@@ -1,7 +1,5 @@
 package feast.core.config;
 
-import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.common.base.Charsets;
 import com.google.common.io.CharStreams;
 import com.hubspot.jinjava.Jinjava;
@@ -9,6 +7,7 @@ import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.dao.FeatureInfoRepository;
 import feast.core.training.BigQueryDatasetTemplater;
 import feast.core.training.BigQueryTraningDatasetCreator;
+import feast.core.util.RandomUuidProvider;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -18,9 +17,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
-/**
- * Configuration related to training API
- */
+/** Configuration related to training API */
 @Configuration
 public class TrainingConfig {
 
@@ -37,10 +34,9 @@ public class TrainingConfig {
   @Bean
   public BigQueryTraningDatasetCreator getBigQueryTrainingDatasetCreator(
       BigQueryDatasetTemplater templater,
-      StorageSpecs storageSpecs,
       @Value("${feast.core.projectId}") String projectId,
       @Value("${feast.core.datasetPrefix}") String datasetPrefix) {
-    BigQuery bigquery = BigQueryOptions.newBuilder().setProjectId(projectId).build().getService();
-    return new BigQueryTraningDatasetCreator(templater, projectId, datasetPrefix);
+    return new BigQueryTraningDatasetCreator(
+        templater, projectId, datasetPrefix, new RandomUuidProvider());
   }
 }

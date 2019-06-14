@@ -66,7 +66,8 @@ public class DatasetServiceImpl extends DatasetServiceImplBase {
               request.getStartDate(),
               request.getEndDate(),
               request.getLimit(),
-              request.getNamePrefix());
+              request.getNamePrefix(),
+              request.getFiltersMap());
       CreateDatasetResponse response =
           CreateDatasetResponse.newBuilder().setDatasetInfo(datasetInfo).build();
 

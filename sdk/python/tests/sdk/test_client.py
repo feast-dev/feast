@@ -177,6 +177,10 @@ class TestClient(object):
                 ValueError, match="limit is not a positive integer"):
             client.create_dataset(feature_set, "2018-12-01", "2018-12-02", -1)
 
+        with pytest.raises(ValueError, match="filters is not dictionary"):
+            client.create_dataset(feature_set, "2018-12-01", "2018-12-02",
+                                  10, filters="filter")
+
     def test_create_dataset(self, client, mocker):
         entity_name = "myentity"
         feature_ids = ["myentity.feature1", "myentity.feature2"]
@@ -206,6 +210,40 @@ class TestClient(object):
                 endDate=_timestamp_from_datetime(_parse_date(end_date)),
                 limit=None,
                 namePrefix=None))
+
+    def test_create_dataset_with_filters(self, client, mocker):
+        entity_name = "myentity"
+        feature_ids = ["myentity.feature1", "myentity.feature2"]
+        fs = FeatureSet(entity_name, feature_ids)
+        start_date = "2018-01-02"
+        end_date = "2018-12-31"
+
+        ds_pb = DatasetInfo_pb(
+            name="dataset_name", tableUrl="project.dataset.table")
+
+        mock_trn_stub = training.DatasetServiceStub(grpc.insecure_channel(""))
+        mocker.patch.object(
+            mock_trn_stub,
+            "CreateDataset",
+            return_value=DatasetServiceTypes.CreateDatasetResponse(
+                datasetInfo=ds_pb))
+        client._dataset_service_stub = mock_trn_stub
+
+        job_filter = {"job_id": 12345}
+        ds = client.create_dataset(fs, start_date, end_date,
+                                   filters=job_filter)
+
+        assert "dataset_name" == ds.name
+        assert "project.dataset.table" == ds.full_table_id
+        mock_trn_stub.CreateDataset.assert_called_once_with(
+            DatasetServiceTypes.CreateDatasetRequest(
+                featureSet=fs.proto,
+                startDate=_timestamp_from_datetime(_parse_date(start_date)),
+                endDate=_timestamp_from_datetime(_parse_date(end_date)),
+                limit=None,
+                namePrefix=None,
+                filters={"job_id": "12345"}))
+
 
     def test_create_dataset_with_limit(self, client, mocker):
         entity_name = "myentity"
