@@ -169,7 +169,8 @@ class Client:
         return response.jobId
 
     def create_dataset(
-        self, feature_set, start_date, end_date, limit=None, name_prefix=None
+        self, feature_set, start_date, end_date, limit=None,
+            name_prefix=None, filters=None
     ):
         """
         Create training dataset for a feature set. The training dataset
@@ -187,11 +188,21 @@ class Client:
             limit (int, optional): (default: None) maximum number of row
                 returned
             name_prefix (str, optional): (default: None) name prefix.
+            filters (dict, optional): (default: None) conditional clause
+                that will be used to filter dataset. Keys of filters could be
+                feature id or job_id.
         :return:
             feast.resources.feature_set.DatasetInfo: DatasetInfo containing
-            the information of training dataset
+            the information of training dataset.
         """
-        self._check_create_dataset_args(feature_set, start_date, end_date, limit)
+        self._check_create_dataset_args(feature_set, start_date, end_date,
+                                        limit, filters)
+
+        conv_filters = None
+        if filters is not None:
+            conv_filters = {}
+            for k, v in filters.items():
+                conv_filters[str(k)] = str(v)
 
         req = DatasetServiceTypes.CreateDatasetRequest(
             featureSet=feature_set.proto,
@@ -199,6 +210,7 @@ class Client:
             endDate=_timestamp_from_datetime(_parse_date(end_date)),
             limit=limit,
             namePrefix=name_prefix,
+            filters=conv_filters
         )
         if self.verbose:
             print(
@@ -421,7 +433,8 @@ class Client:
             )
         return response.storageId
 
-    def _check_create_dataset_args(self, feature_set, start_date, end_date, limit):
+    def _check_create_dataset_args(self, feature_set, start_date, end_date,
+                                   limit, filters):
         if len(feature_set.features) < 1:
             raise ValueError("feature set is empty")
 
@@ -432,6 +445,9 @@ class Client:
 
         if limit is not None and limit < 1:
             raise ValueError("limit is not a positive integer")
+
+        if filters is not None and not isinstance(filters, dict):
+            raise ValueError("filters is not dictionary")
 
 
 def _parse_date(date):
