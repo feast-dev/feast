@@ -85,7 +85,7 @@ public class JobInfo extends AbstractTimestampEntity {
   private JobStatus status;
 
   // Raw import spec, stored as a json string.
-  @Column(name = "raw", length = 4096)
+  @Column(name = "raw", length = 40960)
   private String raw;
 
   public JobInfo() {
