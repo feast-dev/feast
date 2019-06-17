@@ -19,6 +19,7 @@ package feast.core.service;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -47,6 +48,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.springframework.data.domain.Sort;
 
 public class JobManagementServiceTest {
 
@@ -105,7 +107,8 @@ public class JobManagementServiceTest {
             "");
     jobInfo2.setCreated(Date.from(Instant.ofEpochSecond(1)));
     jobInfo2.setLastUpdated(Date.from(Instant.ofEpochSecond(1)));
-    when(jobInfoRepository.findAll()).thenReturn(Lists.newArrayList(jobInfo1, jobInfo2));
+    when(jobInfoRepository.findAll(any(Sort.class)))
+            .thenReturn(Lists.newArrayList(jobInfo1, jobInfo2));
     JobManagementService jobManagementService =
         new JobManagementService(jobInfoRepository, metricsRepository, jobManager, defaults,
             specService, storageSpecs);
