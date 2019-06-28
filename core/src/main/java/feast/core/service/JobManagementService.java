@@ -312,4 +312,8 @@ public class JobManagementService {
     String dateSuffix = String.valueOf(Instant.now().toEpochMilli());
     return namePrefix.isEmpty() ? JOB_PREFIX_DEFAULT + dateSuffix : namePrefix + dateSuffix;
   }
+
+  public String getWorkspace() {
+    return defaults.getWorkspace();
+  }
 }

@@ -17,24 +17,22 @@
 
 package feast.core.grpc;
 
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
 import com.google.protobuf.Empty;
+import com.google.protobuf.Timestamp;
 import com.timgroup.statsd.StatsDClient;
 import feast.core.CoreServiceGrpc.CoreServiceImplBase;
-import feast.core.CoreServiceProto.CoreServiceTypes.ApplyEntityResponse;
-import feast.core.CoreServiceProto.CoreServiceTypes.ApplyFeatureGroupResponse;
-import feast.core.CoreServiceProto.CoreServiceTypes.ApplyFeatureResponse;
-import feast.core.CoreServiceProto.CoreServiceTypes.GetEntitiesRequest;
-import feast.core.CoreServiceProto.CoreServiceTypes.GetEntitiesResponse;
-import feast.core.CoreServiceProto.CoreServiceTypes.GetFeaturesRequest;
-import feast.core.CoreServiceProto.CoreServiceTypes.GetFeaturesResponse;
-import feast.core.CoreServiceProto.CoreServiceTypes.ListEntitiesResponse;
-import feast.core.CoreServiceProto.CoreServiceTypes.ListFeaturesResponse;
+import feast.core.CoreServiceProto.CoreServiceTypes.*;
+import feast.core.CoreServiceProto.CoreServiceTypes.GetUploadUrlResponse.HttpMethod;
 import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.exception.RegistrationException;
 import feast.core.exception.RetrievalException;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureGroupInfo;
 import feast.core.model.FeatureInfo;
+import feast.core.service.JobManagementService;
 import feast.core.service.SpecService;
 import feast.core.validators.SpecValidator;
 import feast.specs.EntitySpecProto.EntitySpec;
@@ -43,30 +41,40 @@ import feast.specs.FeatureSpecProto.FeatureSpec;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import java.util.List;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.lang3.RandomUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URLEncodedUtils;
 import org.lognet.springboot.grpc.GRpcService;
 import org.springframework.beans.factory.annotation.Autowired;
 
-/**
- * Implementation of the feast core GRPC service.
- */
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.charset.Charset;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+/** Implementation of the feast core GRPC service. */
 @Slf4j
 @GRpcService
 public class CoreServiceImpl extends CoreServiceImplBase {
 
-  @Autowired
-  private SpecService specService;
+  private static final String UPLOAD_URL_DIR = "uploads";
+  private static final long UPLOAD_URL_VALIDITY_IN_MINUTES = 5;
+  private Storage storage = StorageOptions.getDefaultInstance().getService();
 
-  @Autowired
-  private SpecValidator validator;
+  @Autowired private SpecService specService;
+  @Autowired private SpecValidator validator;
+  @Autowired private StatsDClient statsDClient;
+  @Autowired private JobManagementService jobManagementService;
+  @Autowired private StorageSpecs storageSpecs;
 
-  @Autowired
-  private StatsDClient statsDClient;
-
-  @Autowired
-  private StorageSpecs storageSpecs;
+  public void setStorage(Storage storage) {
+    this.storage = storage;
+  }
 
   /**
    * Gets specs for all entities requested in the request. If the retrieval of any one of them
@@ -79,9 +87,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     statsDClient.increment("get_entities_request_count");
     try {
       List<EntitySpec> entitySpecs =
-          specService
-              .getEntities(request.getIdsList())
-              .stream()
+          specService.getEntities(request.getIdsList()).stream()
               .map(EntityInfo::getEntitySpec)
               .collect(Collectors.toList());
       GetEntitiesResponse response =
@@ -99,18 +105,14 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     }
   }
 
-  /**
-   * Gets specs for all entities registered in the registry.
-   */
+  /** Gets specs for all entities registered in the registry. */
   @Override
   public void listEntities(Empty request, StreamObserver<ListEntitiesResponse> responseObserver) {
     long now = System.currentTimeMillis();
     statsDClient.increment("list_entities_request_count");
     try {
       List<EntitySpec> entitySpecs =
-          specService
-              .listEntities()
-              .stream()
+          specService.listEntities().stream()
               .map(EntityInfo::getEntitySpec)
               .collect(Collectors.toList());
       ListEntitiesResponse response =
@@ -139,9 +141,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     statsDClient.increment("get_features_request_count");
     try {
       List<FeatureSpec> featureSpecs =
-          specService
-              .getFeatures(request.getIdsList())
-              .stream()
+          specService.getFeatures(request.getIdsList()).stream()
               .map(FeatureInfo::getFeatureSpec)
               .collect(Collectors.toList());
       GetFeaturesResponse response =
@@ -159,18 +159,14 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     }
   }
 
-  /**
-   * Gets specs for all features registered in the registry. TODO: some kind of pagination
-   */
+  /** Gets specs for all features registered in the registry. TODO: some kind of pagination */
   @Override
   public void listFeatures(Empty request, StreamObserver<ListFeaturesResponse> responseObserver) {
     long now = System.currentTimeMillis();
     statsDClient.increment("list_features_request_count");
     try {
       List<FeatureSpec> featureSpecs =
-          specService
-              .listFeatures()
-              .stream()
+          specService.listFeatures().stream()
               .map(FeatureInfo::getFeatureSpec)
               .collect(Collectors.toList());
       ListFeaturesResponse response =
@@ -258,6 +254,108 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     } catch (IllegalArgumentException e) {
       log.error("Error in applyEntity: {}", e);
       responseObserver.onError(getBadRequestException(e));
+    }
+  }
+
+  /**
+   * Create a signed URL where a feast can upload csv or json file
+   * to Google Cloud Storage by making an HTTP PUT request
+   *
+   * @param request
+   * @param responseObserver
+   */
+  @Override
+  public void getUploadUrl(
+      GetUploadUrlRequest request, StreamObserver<GetUploadUrlResponse> responseObserver) {
+    String bucketName = null;
+
+    try {
+      bucketName = getBucketNameFromWorkspace(jobManagementService.getWorkspace());
+    } catch (IllegalArgumentException e) {
+      responseObserver.onError(
+          Status.FAILED_PRECONDITION
+              .withDescription("Failed to get upload URL from workspace\n" + e.getMessage())
+              .asRuntimeException());
+    }
+    assert StringUtils.isNotEmpty(bucketName);
+
+    // Generated file names are always unique
+    String fileName =
+        String.format(
+            "%s-%s", System.currentTimeMillis(), DigestUtils.sha1Hex(RandomUtils.nextBytes(8)));
+
+    BlobInfo blobInfo =
+        BlobInfo.newBuilder(
+                bucketName,
+                String.format(
+                    "%s/%s.%s",
+                    UPLOAD_URL_DIR, fileName, request.getFileType().toString().toLowerCase()))
+            .build();
+
+    URL signedUrl = null;
+    try {
+      signedUrl =
+              storage.signUrl(
+                      blobInfo,
+                      UPLOAD_URL_VALIDITY_IN_MINUTES,
+                      TimeUnit.MINUTES,
+                      Storage.SignUrlOption.httpMethod(com.google.cloud.storage.HttpMethod.PUT));
+    } catch (Exception e) {
+      responseObserver.onError(
+              Status.FAILED_PRECONDITION
+                      .withDescription("Failed to create signed URL. Please check your Feast deployment config\n" + e.getMessage())
+                      .asRuntimeException());
+    }
+    assert signedUrl != null;
+    long expiryInEpochTime = -1;
+
+    // Retrieve the actual expiry timestamp from the created signed URL
+    try {
+      List<NameValuePair> params =
+          URLEncodedUtils.parse(signedUrl.toURI(), Charset.forName("UTF-8"));
+      for (NameValuePair param : params) {
+        if (param.getName().equals("Expires")) {
+          expiryInEpochTime = Long.parseLong(param.getValue());
+        }
+      }
+    } catch (URISyntaxException e) {
+      responseObserver.onError(
+          Status.UNKNOWN
+              .withDescription("Failed to parse signed upload URL\n" + e.getMessage())
+              .asRuntimeException());
+    }
+
+    GetUploadUrlResponse response =
+        GetUploadUrlResponse.newBuilder()
+            .setUrl(signedUrl.toString())
+            .setHttpMethod(HttpMethod.PUT)
+            .setExpiration(Timestamp.newBuilder().setSeconds(expiryInEpochTime))
+            .build();
+
+    responseObserver.onNext(response);
+    responseObserver.onCompleted();
+  }
+
+  static String getBucketNameFromWorkspace(String workspace) {
+    if (StringUtils.isEmpty(workspace)) {
+      throw new IllegalArgumentException("Workspace cannot be empty");
+    }
+
+    int start = workspace.indexOf("gs://");
+    if (start < 0 || workspace.trim().length() <= 5) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot get bucket from workspace '%s' because it does not start with gs://[bucket_name]",
+              workspace));
+    }
+
+    // Find the index where the "bucket name" string ends
+    // start searching after the string "gs://" (length of 5)
+    int end = workspace.indexOf("/", 5);
+    if (end < 0) {
+      return workspace.substring(5);
+    } else {
+      return workspace.substring(5, end);
     }
   }
 
