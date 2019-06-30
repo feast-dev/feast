@@ -336,7 +336,14 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     responseObserver.onCompleted();
   }
 
-  static String getBucketNameFromWorkspace(String workspace) {
+  /**
+   * Get Google Cloud Storage (GCS) bucket name from job workspace value
+   *
+   * @param workspace job workspace in Feast
+   * @return bucket name
+   * @throws IllegalArgumentException if workspace is not a valid GCS URI e.g when workspace is set to a local path
+   */
+  static String getBucketNameFromWorkspace(String workspace) throws IllegalArgumentException {
     if (StringUtils.isEmpty(workspace)) {
       throw new IllegalArgumentException("Workspace cannot be empty");
     }
