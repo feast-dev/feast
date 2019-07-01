@@ -89,13 +89,13 @@ class TestTableDownloader(object):
         table_dldr = TableDownloader()
         exp_staging_path = os.path.join(staging_path, staging_file_name)
 
-        table_dldr._bq = _Mock_BQ_Client()
-        mocker.patch.object(table_dldr._bq, "extract_table", return_value=_Job())
+        table_dldr._bqclient = _Mock_BQ_Client()
+        mocker.patch.object(table_dldr._bqclient, "extract_table", return_value=_Job())
 
         table_dldr.download_table_as_df(full_table_id, staging_location=staging_path)
 
-        assert len(table_dldr._bq.extract_table.call_args_list) == 1
-        args, kwargs = table_dldr._bq.extract_table.call_args_list[0]
+        assert len(table_dldr._bqclient.extract_table.call_args_list) == 1
+        args, kwargs = table_dldr._bqclient.extract_table.call_args_list[0]
         assert args[0].full_table_id == Table.from_string(full_table_id).full_table_id
         assert args[1] == exp_staging_path
         assert kwargs["job_config"].destination_format == "CSV"
@@ -137,11 +137,11 @@ class TestTableDownloader(object):
         table_dldr = TableDownloader()
         mock_blob = _Blob()
         mocker.patch.object(mock_blob, "download_to_filename")
-        table_dldr._bq = _Mock_BQ_Client()
-        mocker.patch.object(table_dldr._bq, "extract_table", return_value=_Job())
-        table_dldr._gcs = _Mock_GCS_Client()
+        table_dldr._bqclient = _Mock_BQ_Client()
+        mocker.patch.object(table_dldr._bqclient, "extract_table", return_value=_Job())
+        table_dldr._storageclient = _Mock_GCS_Client()
         mocker.patch.object(
-            table_dldr._gcs, "get_bucket", return_value=_Bucket(mock_blob)
+            table_dldr._storageclient, "get_bucket", return_value=_Bucket(mock_blob)
         )
 
         table_dldr.download_table_as_file(
@@ -149,8 +149,8 @@ class TestTableDownloader(object):
         )
 
         exp_staging_path = os.path.join(staging_path, staging_file_name)
-        assert len(table_dldr._bq.extract_table.call_args_list) == 1
-        args, kwargs = table_dldr._bq.extract_table.call_args_list[0]
+        assert len(table_dldr._bqclient.extract_table.call_args_list) == 1
+        args, kwargs = table_dldr._bqclient.extract_table.call_args_list[0]
         assert args[0].full_table_id == Table.from_string(full_table_id).full_table_id
         assert args[1] == exp_staging_path
         assert kwargs["job_config"].destination_format == str(type)
