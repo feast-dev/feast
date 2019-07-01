@@ -73,7 +73,7 @@ core:
       port: 80
       targetPort: 8080
   jobs:
-    workspace: "/tmp"
+    workspace: "gs://feast-templocation-kf-feast"
     runner: DirectRunner
     options: "{}"
     errorStoreType: "stdout"
