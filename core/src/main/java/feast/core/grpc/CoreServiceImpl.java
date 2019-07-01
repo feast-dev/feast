@@ -258,8 +258,8 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   /**
-   * Create a signed URL where a feast can upload csv or json file
-   * to Google Cloud Storage by making an HTTP PUT request
+   * Create a signed URL where a feast can upload csv or json file to Google Cloud Storage by making
+   * an HTTP PUT request
    *
    * @param request
    * @param responseObserver
@@ -295,16 +295,18 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     URL signedUrl = null;
     try {
       signedUrl =
-              storage.signUrl(
-                      blobInfo,
-                      UPLOAD_URL_VALIDITY_IN_MINUTES,
-                      TimeUnit.MINUTES,
-                      Storage.SignUrlOption.httpMethod(com.google.cloud.storage.HttpMethod.PUT));
+          storage.signUrl(
+              blobInfo,
+              UPLOAD_URL_VALIDITY_IN_MINUTES,
+              TimeUnit.MINUTES,
+              Storage.SignUrlOption.httpMethod(com.google.cloud.storage.HttpMethod.PUT));
     } catch (Exception e) {
       responseObserver.onError(
-              Status.FAILED_PRECONDITION
-                      .withDescription("Failed to create signed URL. Please check your Feast deployment config\n" + e.getMessage())
-                      .asRuntimeException());
+          Status.FAILED_PRECONDITION
+              .withDescription(
+                  "Failed to create signed URL. Please check your Feast deployment config\n"
+                      + e.getMessage())
+              .asRuntimeException());
     }
     assert signedUrl != null;
     long expiryInEpochTime = -1;
@@ -328,6 +330,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     GetUploadUrlResponse response =
         GetUploadUrlResponse.newBuilder()
             .setUrl(signedUrl.toString())
+            .setPath(signedUrl.getPath().substring(1))
             .setHttpMethod(HttpMethod.PUT)
             .setExpiration(Timestamp.newBuilder().setSeconds(expiryInEpochTime))
             .build();
@@ -341,7 +344,8 @@ public class CoreServiceImpl extends CoreServiceImplBase {
    *
    * @param workspace job workspace in Feast
    * @return bucket name
-   * @throws IllegalArgumentException if workspace is not a valid GCS URI e.g when workspace is set to a local path
+   * @throws IllegalArgumentException if workspace is not a valid GCS URI e.g when workspace is set
+   *     to a local path
    */
   static String getBucketNameFromWorkspace(String workspace) throws IllegalArgumentException {
     if (StringUtils.isEmpty(workspace)) {
