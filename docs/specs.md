@@ -40,10 +40,10 @@ Following is en example of feature spec
 id: titanic_passenger.alone
 name: alone
 entity: titanic_passenger
-owner: zhiling.c@go-jek.com
+owner: captain@titanic.com
 description: binary variable denoting whether the passenger was alone on the titanic.
 valueType:  INT64
-uri: http://jupyter.s.ds.golabs.io/user/your_user/lab/tree/shared/zhiling.c/feast_titanic/titanic.ipynb
+uri: http://example-jupyter.com/user/your_user/lab/tree/shared/zhiling.c/feast_titanic/titanic.ipynb
 ```
 
 ### Attributes Supported In Feature Spec
