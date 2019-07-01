@@ -28,6 +28,7 @@ REQUIRED = [
     "google-cloud-bigquery>=1.8.0",
     "google-cloud-storage>=1.13.0",
     "googleapis-common-protos>=1.5.5",
+    "google-cloud-bigquery-storage>=0.4.0"
     "grpcio>=1.16.1",
     "pandas>=0.24.0",
     "protobuf>=3.0.0",
