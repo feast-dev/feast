@@ -107,7 +107,7 @@ class TestClient(object):
         mocker.patch.object(
             grpc_stub,
             'ApplyFeatureGroup',
-            return_value=CoreServiceTypes.ApplyFeaturimeGroupResponse(
+            return_value=CoreServiceTypes.ApplyFeatureGroupResponse(
                 featureGroupId="test"))
         mocker.patch.object(
             grpc_stub,
