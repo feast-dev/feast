@@ -15,12 +15,14 @@
 import io
 import os
 import re
+import tempfile
 import time
 
 import pandas as pd
+import requests
 from google.cloud import storage
 
-_GCS_PATH_REGEX = r'^gs:\/\/[a-z0-9\.\-_\/]*$'
+_GCS_PATH_REGEX = r"^gs:\/\/[a-z0-9\.\-_\/]*$"
 
 
 def gcs_to_df(path):
@@ -36,8 +38,8 @@ def gcs_to_df(path):
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.blob(blob_name)
-    temp_file_path = 'temp{}.csv'.format(int(round(time.time() * 1000)))
-    with open(temp_file_path, 'wb') as temp_file:
+    temp_file_path = "temp{}.csv".format(int(round(time.time() * 1000)))
+    with open(temp_file_path, "wb") as temp_file:
         blob.download_to_file(temp_file)
     df = pd.read_csv(temp_file_path)
     os.remove(temp_file_path)
@@ -61,9 +63,15 @@ def df_to_gcs(df, path):
     blob.upload_from_string(s.getvalue())
 
 
+def df_to_gcs_signed_url(df, signed_url):
+    f = tempfile.NamedTemporaryFile()
+    df.to_csv(f)
+    requests.put(signed_url, data=f)
+
+
 def split_gs_path(path):
     path = path.replace("gs://", "", 1)
-    return path.split('/', 1)
+    return path.split("/", 1)
 
 
 def is_gs_path(path):
