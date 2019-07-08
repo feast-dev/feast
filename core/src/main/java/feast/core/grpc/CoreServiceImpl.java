@@ -63,7 +63,7 @@ import java.util.stream.Collectors;
 public class CoreServiceImpl extends CoreServiceImplBase {
 
   private static final String UPLOAD_URL_DIR = "uploads";
-  private static final long UPLOAD_URL_VALIDITY_IN_MINUTES = 5;
+  private static final int UPLOAD_URL_VALIDITY_IN_MINUTES = 5;
   private Storage storage = StorageOptions.getDefaultInstance().getService();
 
   @Autowired private SpecService specService;
@@ -71,6 +71,10 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   @Autowired private StatsDClient statsDClient;
   @Autowired private JobManagementService jobManagementService;
   @Autowired private StorageSpecs storageSpecs;
+
+  public static long getUploadUrlValidityInMinutes() {
+    return UPLOAD_URL_VALIDITY_IN_MINUTES;
+  }
 
   public void setStorage(Storage storage) {
     this.storage = storage;
@@ -258,8 +262,8 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   /**
-   * Create a signed URL where a feast can upload csv or json file to Google Cloud Storage by making
-   * an HTTP PUT request
+   * Get a signed URL where a Feast client can upload a CSV or JSON file by making an HTTP PUT
+   * request. The signed URL references a bucket and blob in Google Cloud Storage.
    *
    * @param request
    * @param responseObserver

@@ -49,9 +49,13 @@ public class CoreServiceImplTest {
     // Google Cloud Storage service
     assumeTrue(StringUtils.isNotEmpty(System.getenv("GOOGLE_APPLICATION_CREDENTIALS")));
 
-    // Mock the workspace output from jobManagementService to a bucket we can use for testing
-    String bucketName = "feast-templocation-kf-feast";
-    when(jobManagementService.getWorkspace()).thenReturn("gs://" + bucketName);
+    // Skip this test if "test_bucket" system property is not set
+    // Use "-Dtestbucket=mybucket" when running the unit test to set the value
+    String testBucket = System.getProperty("testbucket");
+    assumeTrue(StringUtils.isNotEmpty(testBucket));
+
+    // Mock the workspace output from jobManagementService to a bucket we want to use for testing
+    when(jobManagementService.getWorkspace()).thenReturn("gs://" + testBucket);
 
     // Start a local grpc server
     String serverName = InProcessServerBuilder.generateName();
@@ -71,11 +75,14 @@ public class CoreServiceImplTest {
             GetUploadUrlRequest.newBuilder().setFileType(FileType.CSV).build());
 
     // Make sure the signed URL response allows upload using PUT method and the link is valid for
-    // the next 5 minutes
+    // the next 5 minutes (the default validity duration) i.e. between now and the next 6 minutes
     assertEquals(response.getHttpMethod(), HttpMethod.PUT);
     assertTrue(response.getExpiration().getSeconds() > System.currentTimeMillis() / 1000);
     assertTrue(
-        response.getExpiration().getSeconds() < (System.currentTimeMillis() + 6 * 60_000) / 1000);
+        response.getExpiration().getSeconds()
+            < (System.currentTimeMillis()
+                    + (CoreServiceImpl.getUploadUrlValidityInMinutes() + 1) * 60_000)
+                / 1000);
 
     // Test that we can upload data using the signed URL from the response
     String uploadUrl = response.getUrl();
@@ -96,7 +103,7 @@ public class CoreServiceImplTest {
             uploadUrl.indexOf("?"));
     File tempFile = File.createTempFile("prefix", "suffix");
     tempFile.deleteOnExit();
-    storage.get(BlobId.of(bucketName, fileName)).downloadTo(tempFile.toPath());
+    storage.get(BlobId.of(testBucket, fileName)).downloadTo(tempFile.toPath());
     List<String> strings = Files.readAllLines(tempFile.toPath());
     assertEquals(strings.get(0), "1,2,3");
     assertEquals(strings.get(1), "4,5,6");

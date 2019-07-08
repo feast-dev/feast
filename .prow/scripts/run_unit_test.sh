@@ -7,6 +7,10 @@
 # - downloading maven cache repository
 # - saving the test output report so it can be viewed with Spyglass in Prow
 
+# Bucket in GCS used for running unit tests, when the unit tests need an 
+# actual running GCS (e.g. because there is no existing mock implementation of the function to test)
+TEST_BUCKET=feast-templocation-kf-feast
+
 usage()
 {
     echo "usage: run_unit_test.sh
@@ -30,7 +34,7 @@ fi
 if [[ ${COMPONENT} == "core" ]] || [[ ${COMPONENT} == "ingestion" ]] || [[ ${COMPONENT} == "serving" ]]; then
 
     .prow/scripts/prepare_maven_cache.sh --archive-uri gs://feast-templocation-kf-feast/.m2.tar --output-dir /root/
-    mvn --projects ${COMPONENT} test
+    mvn --projects ${COMPONENT} -Dtestbucket=feast-templocation-kf-feast test
     TEST_EXIT_CODE=$?
     cp -r ${COMPONENT}/target/surefire-reports /logs/artifacts/surefire-reports
 
