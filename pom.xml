@@ -29,7 +29,7 @@
         <protocVersion>3.6.1</protocVersion>
         <grpcVersion>1.14.0</grpcVersion>
         <protobufVersion>3.6.1</protobufVersion>
-        <springBootVersion>2.0.4.RELEASE</springBootVersion>
+        <springBootVersion>2.0.9.RELEASE</springBootVersion>
     </properties>
 
     <distributionManagement>

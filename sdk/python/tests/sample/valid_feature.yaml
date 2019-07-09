@@ -5,8 +5,3 @@ owner: bob@example.com
 description: test entity.
 valueType:  BOOL
 uri: https://github.com/bob/example
-dataStores:
-  serving:
-    id: REDIS1
-  warehouse:
-    id: BIGQUERY1

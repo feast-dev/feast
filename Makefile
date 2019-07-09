@@ -25,6 +25,7 @@ test-integration:
 
 build-proto:
 	$(MAKE) -C protos gen-go
+	$(MAKE) -C protos gen-python
 
 build-cli:
 	$(MAKE) build-proto

@@ -142,7 +142,7 @@ presubmits:
         os: ubuntu
       containers:
       - image: google/cloud-sdk
-        # securityContext and docker socket vol mounts are needed because we are building
+        # securityContext and docker socket volume mounts are needed because we are building
         # Docker images in this job
         securityContext:
           privileged: true

@@ -23,6 +23,7 @@ import "feast/specs/FeatureSpec.proto";
 import "feast/specs/FeatureGroupSpec.proto";
 import "feast/specs/StorageSpec.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option java_package = "feast.core";
 option java_outer_classname = "CoreServiceProto";
@@ -33,114 +34,149 @@ service CoreService {
     Get entities specified in request.
     This process returns a list of entity specs.
     */
-    rpc GetEntities(CoreServiceTypes.GetEntitiesRequest) returns (CoreServiceTypes.GetEntitiesResponse){};
+    rpc GetEntities (CoreServiceTypes.GetEntitiesRequest) returns (CoreServiceTypes.GetEntitiesResponse) {
+    };
 
     /*
     Get all entities
     This process returns a list of entity specs.
     */
-    rpc ListEntities(google.protobuf.Empty) returns (CoreServiceTypes.ListEntitiesResponse) {};
+    rpc ListEntities (google.protobuf.Empty) returns (CoreServiceTypes.ListEntitiesResponse) {
+    };
 
     /*
     Get storage specs specified in request.
     This process returns a list of storage specs.
     */
-    rpc GetStorage(CoreServiceTypes.GetStorageRequest) returns (CoreServiceTypes.GetStorageResponse){
-        option deprecated = true; 
-    };
-
-     /*
-    Get all storage specs.
-    This process returns a list of storage specs.
-    */ 
-    rpc ListStorage(google.protobuf.Empty) returns (CoreServiceTypes.ListStorageResponse) {
+    rpc GetStorage (CoreServiceTypes.GetStorageRequest) returns (CoreServiceTypes.GetStorageResponse) {
         option deprecated = true;
     };
 
-   /*
-    Get features specified in request.
-    This process returns a list of feature specs.
-    */
-    rpc GetFeatures(CoreServiceTypes.GetFeaturesRequest) returns (CoreServiceTypes.GetFeaturesResponse){};
+    /*
+   Get all storage specs.
+   This process returns a list of storage specs.
+   */
+    rpc ListStorage (google.protobuf.Empty) returns (CoreServiceTypes.ListStorageResponse) {
+        option deprecated = true;
+    };
+
+    /*
+     Get features specified in request.
+     This process returns a list of feature specs.
+     */
+    rpc GetFeatures (CoreServiceTypes.GetFeaturesRequest) returns (CoreServiceTypes.GetFeaturesResponse) {
+    };
 
     /*
     Get all features.
     This process returns a list of entity specs.
     */
-    rpc ListFeatures(google.protobuf.Empty) returns (CoreServiceTypes.ListFeaturesResponse) {};
+    rpc ListFeatures (google.protobuf.Empty) returns (CoreServiceTypes.ListFeaturesResponse) {
+    };
 
     /*
     Register a new feature to the metadata store, or update an existing feature.
     If any validation errors occur, only the first encountered error will be returned.
     */
-    rpc ApplyFeature(feast.specs.FeatureSpec) returns (CoreServiceTypes.ApplyFeatureResponse) {};
+    rpc ApplyFeature (feast.specs.FeatureSpec) returns (CoreServiceTypes.ApplyFeatureResponse) {
+    };
 
     /*
     Register a new feature group to the metadata store, or update an existing feature group.
     If any validation errors occur, only the first encountered error will be returned.
     */
-    rpc ApplyFeatureGroup(feast.specs.FeatureGroupSpec) returns (CoreServiceTypes.ApplyFeatureGroupResponse) {};
+    rpc ApplyFeatureGroup (feast.specs.FeatureGroupSpec) returns (CoreServiceTypes.ApplyFeatureGroupResponse) {
+    };
 
     /*
     Register a new entity to the metadata store, or update an existing entity.
     If any validation errors occur, only the first encountered error will be returned.
     */
-    rpc ApplyEntity(feast.specs.EntitySpec) returns (CoreServiceTypes.ApplyEntityResponse) {};
+    rpc ApplyEntity (feast.specs.EntitySpec) returns (CoreServiceTypes.ApplyEntityResponse) {
+    };
 
+    /*
+    Request a signed URL where a Feast client can upload a feature values file for an import job.
+    The signed URL will be valid by default for 5 minutes during which the client can start
+    uploading the feature values file. As of 2019-06-28, only CSV and JSON files are supported,
+    and the upload must complete in one PUT request i.e. resumable upload is not supported.
+    */
+    rpc GetUploadUrl (CoreServiceTypes.GetUploadUrlRequest) returns (CoreServiceTypes.GetUploadUrlResponse) {
+    };
 }
 
 message CoreServiceTypes {
-  message GetEntitiesRequest {
-      repeated string ids = 1;
-  }
+    message GetEntitiesRequest {
+        repeated string ids = 1;
+    }
 
-  message GetEntitiesResponse {
-      repeated feast.specs.EntitySpec entities = 1;
-  }
+    message GetEntitiesResponse {
+        repeated feast.specs.EntitySpec entities = 1;
+    }
 
-  message ListEntitiesResponse {
-      repeated feast.specs.EntitySpec entities = 1;
-  }
+    message ListEntitiesResponse {
+        repeated feast.specs.EntitySpec entities = 1;
+    }
 
-  // Feature retrieval
-  message GetFeaturesRequest {
-      repeated string ids = 1;
-  }
+    // Feature retrieval
+    message GetFeaturesRequest {
+        repeated string ids = 1;
+    }
 
-  message GetFeaturesResponse {
-      repeated feast.specs.FeatureSpec features = 1;
-  }
+    message GetFeaturesResponse {
+        repeated feast.specs.FeatureSpec features = 1;
+    }
 
-  message ListFeaturesResponse {
-      repeated feast.specs.FeatureSpec features = 1;
-  }
+    message ListFeaturesResponse {
+        repeated feast.specs.FeatureSpec features = 1;
+    }
 
-  // Storage spec retrieval
-  message GetStorageRequest {
-      repeated string ids = 1;
-  }
+    // Storage spec retrieval
+    message GetStorageRequest {
+        repeated string ids = 1;
+    }
 
-  message GetStorageResponse {
-      repeated feast.specs.StorageSpec storageSpecs = 1;
-  }
+    message GetStorageResponse {
+        repeated feast.specs.StorageSpec storageSpecs = 1;
+    }
 
-  message ListStorageResponse {
-      repeated feast.specs.StorageSpec storageSpecs = 1;
-  }
+    message ListStorageResponse {
+        repeated feast.specs.StorageSpec storageSpecs = 1;
+    }
 
-  // Entity registration response
-  message ApplyEntityResponse {
-      string entityName = 1;
-  }
-  
-  // Feature registration response
-  message ApplyFeatureResponse {
-      string featureId = 1;
-  }
+    // Entity registration response
+    message ApplyEntityResponse {
+        string entityName = 1;
+    }
 
-  // Feature group registration response
-  message ApplyFeatureGroupResponse {
-      string featureGroupId = 1;
-  }
+    // Feature registration response
+    message ApplyFeatureResponse {
+        string featureId = 1;
+    }
 
+    // Feature group registration response
+    message ApplyFeatureGroupResponse {
+        string featureGroupId = 1;
+    }
+
+    message GetUploadUrlRequest {
+        enum FileType {
+            CSV = 0;
+            JSON = 1;
+        }
+        FileType fileType = 1;
+    }
+
+    message GetUploadUrlResponse {
+        // url specifies the full signed URL where a client can make a request to upload file to GCS
+        string url = 1;
+        enum HttpMethod {
+            PUT = 0;
+        }
+        HttpMethod httpMethod = 2;
+        // expiration specifies the timestamp the signed URL is valid until
+        google.protobuf.Timestamp expiration = 3;
+        // path specifies the location in GCS where the file is saved to i.e. gs://[path]
+        string path = 4;
+    }
 }

@@ -16,17 +16,19 @@ import os
 import tempfile
 import time
 from datetime import datetime
-import pytz
+
 import fastavro
 import pandas as pd
-from google.cloud import bigquery
+import pytz
+from google.cloud import bigquery, bigquery_storage_v1beta1
+from google.cloud import storage
 from google.cloud.bigquery.client import Client as BQClient
 from google.cloud.bigquery.job import ExtractJobConfig, DestinationFormat
 from google.cloud.bigquery.table import Table
 from google.cloud.exceptions import NotFound
 from google.cloud.storage import Client as GCSClient
-from google.cloud import storage
 
+from feast.sdk.resources.feature_set import FileType
 from feast.sdk.utils.gs_utils import is_gs_path, split_gs_path, gcs_to_df
 
 
@@ -182,34 +184,55 @@ def query_to_dataframe(
 
 class TableDownloader:
     def __init__(self):
-        self._bq = None
-        self._gcs = None
+        self._bqclient = None
+        self._storageclient = None
+        self._bqstorageclient = None
 
     @property
-    def gcs(self):
-        if self._gcs is None:
-            self._gcs = GCSClient()
-        return self._gcs
+    def storageclient(self):
+        if self._storageclient is None:
+            self._storageclient = GCSClient()
+        return self._storageclient
 
     @property
-    def bq(self):
-        if self._bq is None:
-            self._bq = BQClient()
-        return self._bq
+    def bqclient(self):
+        if self._bqclient is None:
+            self._bqclient = BQClient()
+        return self._bqclient
 
-    def download_table_as_file(self, full_table_id, dest, staging_location, file_type):
+    @property
+    def bqstorageclient(self):
+        if self._bqstorageclient is None:
+            self._bqstorageclient = bigquery_storage_v1beta1.BigQueryStorageClient()
+        return self._bqstorageclient
+
+    def download_table_as_file(
+        self, full_table_id, dest, file_type, staging_location=None
+    ):
         """
         Download a bigquery table as file
         Args:
             full_table_id (str): fully qualified BigQuery table id
             dest (str): destination filename
-            staging_location (str): url to staging_location (currently
-                support a folder in GCS)
             file_type (feast.sdk.resources.feature_set.FileType): (default:
                 FileType.CSV) exported file format
+            staging_location (str, optional): url to staging_location (currently
+                support a folder in GCS)
         Returns: (str) path to the downloaded file
 
         """
+        if not staging_location:
+            df = self.download_table_as_df(full_table_id)
+            if file_type == FileType.CSV:
+                df.to_csv(dest, index=False)
+            elif file_type == FileType.JSON:
+                df.to_json(dest, index=False)
+            else:
+                raise ValueError(
+                    "Only FileType: CSV and JSON are supported for download_table_as_file without staging location"
+                )
+            return dest
+
         if not is_gs_path(staging_location):
             raise ValueError("staging_uri must be a directory in GCS")
 
@@ -219,18 +242,20 @@ class TableDownloader:
         job_config = ExtractJobConfig()
         job_config.destination_format = file_type
         src_table = Table.from_string(full_table_id)
-        job = self.bq.extract_table(src_table, staging_file_path, job_config=job_config)
+        job = self.bqclient.extract_table(
+            src_table, staging_file_path, job_config=job_config
+        )
 
         # await completion
         job.result()
 
         bucket_name, blob_name = split_gs_path(staging_file_path)
-        bucket = self.gcs.get_bucket(bucket_name)
+        bucket = self.storageclient.get_bucket(bucket_name)
         blob = bucket.blob(blob_name)
         blob.download_to_filename(dest)
         return dest
 
-    def download_table_as_df(self, full_table_id, staging_location):
+    def download_table_as_df(self, full_table_id, staging_location=None):
         """
         Download a BigQuery table as Pandas Dataframe
         Args:
@@ -241,6 +266,11 @@ class TableDownloader:
         Returns: pandas.DataFrame: dataframe of the training dataset
 
         """
+        if not staging_location:
+            table = bigquery.TableReference.from_string(full_table_id)
+            rows = self.bqclient.list_rows(table)
+            return rows.to_dataframe(bqstorage_client=self.bqstorageclient)
+
         if not is_gs_path(staging_location):
             raise ValueError("staging_uri must be a directory in GCS")
 
@@ -249,7 +279,7 @@ class TableDownloader:
 
         job_config = ExtractJobConfig()
         job_config.destination_format = DestinationFormat.CSV
-        job = self.bq.extract_table(
+        job = self.bqclient.extract_table(
             Table.from_string(full_table_id), staging_file_path, job_config=job_config
         )
 
