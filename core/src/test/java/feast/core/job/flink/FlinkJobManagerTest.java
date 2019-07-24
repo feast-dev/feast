@@ -54,12 +54,9 @@ public class FlinkJobManagerTest {
     response.setJobs(Collections.singletonList(new FlinkJob("1234", "job1", "RUNNING")));
     when(flinkRestApi.getJobsOverview()).thenReturn(response);
 
-    ImportSpec importSpec = ImportSpec.newBuilder().setType("file").build();
     String jobName = "importjob";
-    ImportJobSpecs importJobSpecs = ImportJobSpecs.newBuilder().setJobId(jobName)
-        .setImportSpec(importSpec).build();
 
-    flinkJobManager.submitJob(importJobSpecs, Paths.get("/tmp/foobar"));
+    flinkJobManager.startJob(jobName, Paths.get("/tmp/foobar"));
     String[] expected =
         new String[]{
             "run",
@@ -88,10 +85,7 @@ public class FlinkJobManagerTest {
     response.setJobs(Collections.singletonList(new FlinkJob(flinkJobId, jobName, "RUNNING")));
     when(flinkRestApi.getJobsOverview()).thenReturn(response);
 
-    ImportSpec importSpec = ImportSpec.newBuilder().setType("file").build();
-    ImportJobSpecs importJobSpecs = ImportJobSpecs.newBuilder().setJobId(jobName)
-        .setImportSpec(importSpec).build();
-    String jobId = flinkJobManager.submitJob(importJobSpecs, workspace);
+    String jobId = flinkJobManager.startJob(jobName, workspace);
 
     assertThat(jobId, equalTo(flinkJobId));
   }

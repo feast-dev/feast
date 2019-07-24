@@ -19,8 +19,8 @@ package feast.core.job.flink;
 
 import feast.core.config.ImportJobDefaults;
 import feast.core.job.JobManager;
+import feast.core.model.JobInfo;
 import feast.core.util.TypeConversion;
-import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,10 +48,16 @@ public class FlinkJobManager implements JobManager {
   }
 
   @Override
-  public String submitJob(ImportJobSpecs importJobSpecs, Path workspace) {
-    flinkCli.parseParameters(createRunArgs(importJobSpecs, workspace));
+  public String startJob(String name, Path workspace) {
+    flinkCli.parseParameters(createRunArgs(name, workspace));
 
-    return getFlinkJobId(importJobSpecs.getJobId());
+    return getFlinkJobId(name);
+  }
+
+  // TODO
+  @Override
+  public String updateJob(JobInfo jobInfo, Path workspace) {
+    return null;
   }
 
   @Override
@@ -70,7 +76,7 @@ public class FlinkJobManager implements JobManager {
     return "";
   }
 
-  private String[] createRunArgs(ImportJobSpecs importJobSpecs, Path workspace) {
+  private String[] createRunArgs(String name, Path workspace) {
     Map<String, String> options =
         TypeConversion.convertJsonStringToMap(defaults.getImportJobOptions());
     List<String> commands = new ArrayList<>();
@@ -79,7 +85,7 @@ public class FlinkJobManager implements JobManager {
     commands.add("-m");
     commands.add(masterUrl);
     commands.add(defaults.getExecutable());
-    commands.add(option("jobName", importJobSpecs.getJobId()));
+    commands.add(option("jobName", name));
     commands.add(option("runner", defaults.getRunner()));
     commands.add(option("workspace", workspace.toString()));
 

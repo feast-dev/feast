@@ -26,8 +26,6 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.common.collect.Lists;
 import feast.core.config.ImportJobDefaults;
 import feast.core.util.PathUtil;
-import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
-import feast.specs.ImportSpecProto.ImportSpec;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -73,19 +71,16 @@ public class DataflowJobManagerTest {
 
   @Test
   public void shouldBuildProcessBuilderWithCorrectOptions() {
-    ImportSpec importSpec = ImportSpec.newBuilder().setType("file").build();
     String jobName = "test";
-    ImportJobSpecs importJobSpecs = ImportJobSpecs.newBuilder().setJobId(jobName)
-        .setImportSpec(importSpec).build();
 
-    ProcessBuilder pb = dfJobManager.getProcessBuilder(importJobSpecs, Paths.get("/tmp/foobar"));
+    ProcessBuilder pb = dfJobManager.getProcessBuilder(jobName, Paths.get("/tmp/foobar"));
     List<String> expected =
         Lists.newArrayList(
             "java",
             "-jar",
             "ingestion.jar",
-            "--jobName=test",
             "--workspace=file:///tmp/foobar",
+            "--jobName=test",
             "--runner=DataflowRunner",
             "--key=value");
     assertThat(pb.command(), equalTo(expected));
@@ -93,19 +88,18 @@ public class DataflowJobManagerTest {
 
   @Test
   public void shouldBuildProcessBuilderWithGCSWorkspace() {
-    ImportSpec importSpec = ImportSpec.newBuilder().setType("file").build();
-    String jobName = "test";
-    ImportJobSpecs importJobSpecs = ImportJobSpecs.newBuilder().setJobId(jobName)
-        .setImportSpec(importSpec).build();
 
-    ProcessBuilder pb = dfJobManager.getProcessBuilder(importJobSpecs, PathUtil.getPath("gs://bucket/tmp/foobar"));
+    String jobName = "test";
+
+    ProcessBuilder pb = dfJobManager
+        .getProcessBuilder(jobName, PathUtil.getPath("gs://bucket/tmp/foobar"));
     List<String> expected =
         Lists.newArrayList(
             "java",
             "-jar",
             "ingestion.jar",
-            "--jobName=test",
             "--workspace=gs://bucket/tmp/foobar",
+            "--jobName=test",
             "--runner=DataflowRunner",
             "--key=value");
     assertThat(pb.command(), equalTo(expected));

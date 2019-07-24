@@ -63,10 +63,10 @@ public class JobServiceImpl extends JobServiceGrpc.JobServiceImplBase {
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (IllegalArgumentException e) {
-      log.error("Error in submitJob: {}", e);
+      log.error("Error in startJob: {}", e);
       responseObserver.onError(getBadRequestException(e));
     } catch (JobExecutionException e) {
-      log.error("Error in submitJob: {}", e);
+      log.error("Error in startJob: {}", e);
       responseObserver.onError(getRuntimeException(e));
     }
   }

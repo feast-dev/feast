@@ -226,7 +226,7 @@ public class JobManagementService {
           "Building graph and submitting to %s",
           defaults.getRunner());
 
-      String extId = jobManager.submitJob(importJobSpecs, workspace);
+      String extId = jobManager.startJob(jobId, workspace);
       if (extId.isEmpty()) {
         throw new RuntimeException(
             String.format("Could not submit job: \n%s", "unable to retrieve job external id"));
