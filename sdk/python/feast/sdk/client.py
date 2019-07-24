@@ -253,9 +253,11 @@ class Client:
         return DatasetInfo(resp.datasetInfo.name, resp.datasetInfo.tableUrl)
 
     # TODO: Consider returning a value that the caller can reference to delete loaded features?
-    def load_features_from_dataframe(self, dataframe, entity_name, entity_key):
+    def load_features_from_dataframe(
+        self, dataframe, entity_name, entity_key_column, timestamp_column=None
+    ):
         """
-        Write feature values in pandas DataFrame to Feast.
+        Write features from pandas DataFrame to Feast.
 
         The caller needs to specify the entity this DataFrame represents and
         which column contains the key (or id) for the entity.
@@ -263,7 +265,8 @@ class Client:
         Args:
             dataframe (pandas.Dataframe): DataFrame containing the features to load
             entity_name (str): Entity represented by this DataFrame
-            entity_key (str): Column in the DataFrame that contains the key value for the entity
+            entity_key_column (str): Column in the DataFrame that contains the key value for the entity
+            timestamp_column (:obj:`str`,optional): Column in the DataFrame that contains timestamp value for a row of features
 
         Returns:
             NoneType: If all features loaded successfully
