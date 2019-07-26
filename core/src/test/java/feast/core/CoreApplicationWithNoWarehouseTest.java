@@ -112,7 +112,7 @@ public class CoreApplicationWithNoWarehouseTest {
         .setImportSpec(importSpec).build();
 
     Map<Integer, Object> args = new HashMap<>();
-    Mockito.when(jobManager.submitJob(any(), any())).thenAnswer((Answer<String>) invocation -> {
+    Mockito.when(jobManager.startJob(any(), any())).thenAnswer((Answer<String>) invocation -> {
       args.put(0, invocation.getArgument(0));
       args.put(1, invocation.getArgument(1));
       return "externalJobId1234";

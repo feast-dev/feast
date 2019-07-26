@@ -26,11 +26,20 @@ import feast.core.dao.FeatureGroupInfoRepository;
 import feast.core.dao.FeatureInfoRepository;
 import feast.core.storage.BigQueryViewTemplater;
 import feast.core.storage.SchemaManager;
+import feast.core.stream.FeatureStream;
+import feast.core.stream.kafka.KafkaFeatureStream;
+import feast.core.stream.kafka.KafkaFeatureStreamConfig;
 import feast.core.validators.SpecValidator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.HashMap;
+import java.util.Map;
+import javax.naming.ConfigurationException;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
@@ -87,5 +96,29 @@ public class ServerUtilConfig {
             featureGroupInfoRepository,
             featureInfoRepository);
     return specValidator;
+  }
+
+  /**
+   * Get the featureStream
+   * @param type type of stream, e.g. kafka
+   * @param options options in the format of a json key-value map
+   * @return FeatureStream object
+   * @throws ConfigurationException
+   */
+  @Bean
+  public FeatureStream featureStream(@Value("${feast.stream.type}") String type,
+      @Value("${feast.stream.options}") String options) throws ConfigurationException {
+    switch (type) {
+      case "kafka":
+        KafkaFeatureStreamConfig config = KafkaFeatureStreamConfig.fromJSON(options);
+        Map<String, Object> map = new HashMap<>();
+        map.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, config.getBootstrapServers());
+        map.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "1000");
+        AdminClient client = AdminClient.create(map);
+        return new KafkaFeatureStream(client, config);
+      default:
+        throw new ConfigurationException(
+            "Invalid feature stream type set in feast.stream.type. Supported types: [kafka]");
+    }
   }
 }

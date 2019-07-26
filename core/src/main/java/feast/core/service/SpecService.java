@@ -27,14 +27,17 @@ import feast.core.dao.FeatureGroupInfoRepository;
 import feast.core.dao.FeatureInfoRepository;
 import feast.core.exception.RegistrationException;
 import feast.core.exception.RetrievalException;
+import feast.core.exception.TopicExistsException;
 import feast.core.log.Action;
 import feast.core.log.AuditLogger;
 import feast.core.log.Resource;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureGroupInfo;
 import feast.core.model.FeatureInfo;
+import feast.core.model.FeatureStreamTopic;
 import feast.core.model.StorageInfo;
 import feast.core.storage.SchemaManager;
+import feast.core.stream.FeatureStream;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
@@ -60,6 +63,9 @@ public class SpecService {
   private final FeatureInfoRepository featureInfoRepository;
   private final FeatureGroupInfoRepository featureGroupInfoRepository;
   private final SchemaManager schemaManager;
+  private final FeatureStreamService featureStreamService;
+  private final JobManagementService jobManagementService;
+
   @Getter
   private final StorageSpecs storageSpecs;
 
@@ -68,11 +74,15 @@ public class SpecService {
       EntityInfoRepository entityInfoRegistry,
       FeatureInfoRepository featureInfoRegistry,
       FeatureGroupInfoRepository featureGroupInfoRepository,
+      FeatureStreamService featureStreamService,
+      JobManagementService jobManagementService,
       SchemaManager schemaManager,
       StorageSpecs storageSpecs) {
     this.entityInfoRepository = entityInfoRegistry;
     this.featureInfoRepository = featureInfoRegistry;
     this.featureGroupInfoRepository = featureGroupInfoRepository;
+    this.featureStreamService = featureStreamService;
+    this.jobManagementService = jobManagementService;
     this.schemaManager = schemaManager;
     this.storageSpecs = storageSpecs;
   }
@@ -194,7 +204,8 @@ public class SpecService {
       map.put(storageSpecs.getServingStorageSpec().getId(), storageSpecs.getServingStorageSpec());
     }
     if (storageSpecs.getWarehouseStorageSpec() != null) {
-      map.put(storageSpecs.getWarehouseStorageSpec().getId(), storageSpecs.getWarehouseStorageSpec());
+      map.put(storageSpecs.getWarehouseStorageSpec().getId(),
+          storageSpecs.getWarehouseStorageSpec());
     }
     for (String id : dedupIds) {
       if (map.containsKey(id)) {
@@ -317,22 +328,30 @@ public class SpecService {
    * @throws RegistrationException if registration fails
    */
   public EntityInfo applyEntity(EntitySpec spec) {
+    EntityInfo out;
     try {
       EntityInfo entityInfo = entityInfoRepository.findById(spec.getName()).orElse(null);
       Action action;
       if (entityInfo != null) {
         entityInfo.update(spec);
         action = Action.UPDATE;
+        out = entityInfoRepository.saveAndFlush(entityInfo);
+        if (!out.getName().equals(spec.getName())) {
+          throw new RegistrationException("failed to register or update entity");
+        }
       } else {
         entityInfo = new EntityInfo(spec);
+        FeatureStreamTopic topic = featureStreamService.provisionTopic(entityInfo);
+        entityInfo.setTopic(topic);
         action = Action.REGISTER;
-      }
-      EntityInfo out = entityInfoRepository.saveAndFlush(entityInfo);
-      if (!out.getName().equals(spec.getName())) {
-        throw new RegistrationException("failed to register or update entity");
+        out = entityInfoRepository.saveAndFlush(entityInfo);
+        if (!out.getName().equals(spec.getName())) {
+          featureStreamService.deleteTopic(topic);
+          throw new RegistrationException("failed to register or update entity");
+        }
       }
       AuditLogger.log(
-          Resource.FEATURE_GROUP, spec.getName(), action, "Entity: %s",
+          Resource.ENTITY, spec.getName(), action, "Entity: %s",
           JsonFormat.printer().print(spec));
       return out;
     } catch (Exception e) {

@@ -61,6 +61,10 @@ public class SpecServiceTest {
   @Mock
   FeatureGroupInfoRepository featureGroupInfoRepository;
   @Mock
+  FeatureStreamService featureStreamService;
+  @Mock
+  JobManagementService jobManagementService;
+  @Mock
   SchemaManager schemaManager;
   @Mock
   StorageSpecs storageSpecs;

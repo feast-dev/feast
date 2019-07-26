@@ -49,6 +49,9 @@ public class EntityInfo extends AbstractTimestampEntity {
   @Column(name = "tags")
   private String tags;
 
+  @JoinColumn(name = "topic")
+  private FeatureStreamTopic topic;
+
   @ManyToMany(mappedBy = "entities")
   private List<JobInfo> jobs;
 
