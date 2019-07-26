@@ -20,25 +20,42 @@ from datetime import datetime
 
 import grpc
 import pandas as pd
-from google.protobuf.timestamp_pb2 import Timestamp
-
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.core.CoreService_pb2 import CoreServiceTypes
-from feast.core.JobService_pb2 import JobServiceTypes
-from feast.core.JobService_pb2_grpc import JobServiceStub
 from feast.core.DatasetService_pb2 import DatasetServiceTypes
 from feast.core.DatasetService_pb2_grpc import DatasetServiceStub
+from feast.core.JobService_pb2 import JobServiceTypes
+from feast.core.JobService_pb2_grpc import JobServiceStub
 from feast.sdk.env import FEAST_CORE_URL_ENV_KEY, FEAST_SERVING_URL_ENV_KEY
 from feast.sdk.resources.entity import Entity
 from feast.sdk.resources.feature import Feature
 from feast.sdk.resources.feature_group import FeatureGroup
 from feast.sdk.resources.feature_set import DatasetInfo, FileType
-from feast.sdk.resources.storage import Storage
+from feast.sdk.utils import types
 from feast.sdk.utils.bq_util import TableDownloader
 from feast.sdk.utils.print_utils import spec_to_yaml
-from feast.sdk.utils import types
 from feast.serving.Serving_pb2 import QueryFeaturesRequest
 from feast.serving.Serving_pb2_grpc import ServingAPIStub
+from google.protobuf.timestamp_pb2 import Timestamp
+
+
+def _feast_core_apply_entity_stub(entity):
+    pass
+
+
+def _feast_core_apply_features_stub(features):
+    pass
+
+
+def _feast_core_get_message_endpoints_stub(entity):
+    return None, None
+
+
+class FeatureRowProducer(object):
+    def __init__(self, x, y) -> None:
+        pass
+
+    def send(self, dataframe):
+        pass
 
 
 class Client:
@@ -234,6 +251,37 @@ class Client:
                 )
             )
         return DatasetInfo(resp.datasetInfo.name, resp.datasetInfo.tableUrl)
+
+    # TODO: Consider returning a value that the caller can reference to delete loaded features?
+    def load_features_from_dataframe(
+        self, dataframe, entity_name, entity_key_column, timestamp_column=None
+    ):
+        """
+        Write features from pandas DataFrame to Feast.
+
+        The caller needs to specify the entity this DataFrame represents and
+        which column contains the key (or id) for the entity.
+
+        Args:
+            dataframe (pandas.Dataframe): DataFrame containing the features to load
+            entity_name (str): Entity represented by this DataFrame
+            entity_key_column (str): Column in the DataFrame that contains the key value for the entity
+            timestamp_column (:obj:`str`,optional): Column in the DataFrame that contains timestamp value for a row of features
+
+        Returns:
+            NoneType: If all features loaded successfully
+
+        Raises:
+            ValueError: If any of the arguments are invalid
+        """
+        entity = None
+        features = None
+
+        _feast_core_apply_entity_stub(entity)
+        _feast_core_apply_features_stub(features)
+        message_brokers, topic_name = _feast_core_get_message_endpoints_stub(entity)
+        feature_row_producer = FeatureRowProducer(message_brokers, topic_name)
+        feature_row_producer.send(dataframe)
 
     def get_serving_data(self, feature_set, entity_keys, ts_range=None):
         """Get feature value from feast serving API.
