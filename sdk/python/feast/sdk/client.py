@@ -59,6 +59,9 @@ class FeatureRowProducer(object):
 
 
 class Client:
+    def get_topic(self):
+        return self._core_service_stub.GetTopic()
+
     def __init__(self, core_url=None, serving_url=None, verbose=False):
         """Create an instance of Feast client which is connected to feast
         endpoint specified in the parameter. If no url is provided, the
