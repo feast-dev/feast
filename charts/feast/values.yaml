@@ -5,7 +5,7 @@ core:
     pullPolicy: IfNotPresent
     registry: gcr.io/kf-feast
     repository: feast-core
-    tag: "0.1.1"
+    tag: "0.1.2"
   replicaCount: 1
   resources: 
     limits: 
@@ -84,7 +84,7 @@ serving:
     pullPolicy: IfNotPresent
     registry: gcr.io/kf-feast
     repository: feast-serving
-    tag: "0.1.1"
+    tag: "0.1.2"
   replicaCount: 1
   resources: 
     limits: 
