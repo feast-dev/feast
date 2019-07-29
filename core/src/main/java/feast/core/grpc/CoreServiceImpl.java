@@ -32,7 +32,7 @@ import feast.core.exception.RetrievalException;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureGroupInfo;
 import feast.core.model.FeatureInfo;
-import feast.core.service.JobManagementService;
+import feast.core.service.JobCoordinatorService;
 import feast.core.service.SpecService;
 import feast.core.validators.SpecValidator;
 import feast.specs.EntitySpecProto.EntitySpec;
@@ -69,7 +69,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   @Autowired private SpecService specService;
   @Autowired private SpecValidator validator;
   @Autowired private StatsDClient statsDClient;
-  @Autowired private JobManagementService jobManagementService;
+  @Autowired private JobCoordinatorService jobCoordinatorService;
   @Autowired private StorageSpecs storageSpecs;
 
   public static long getUploadUrlValidityInMinutes() {
@@ -274,7 +274,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     String bucketName = null;
 
     try {
-      bucketName = getBucketNameFromWorkspace(jobManagementService.getWorkspace());
+      bucketName = getBucketNameFromWorkspace(jobCoordinatorService.getWorkspace());
     } catch (IllegalArgumentException e) {
       responseObserver.onError(
           Status.FAILED_PRECONDITION

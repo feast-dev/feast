@@ -63,7 +63,7 @@ public class SpecServiceTest {
   @Mock
   FeatureStreamService featureStreamService;
   @Mock
-  JobManagementService jobManagementService;
+  JobCoordinatorService jobCoordinatorService;
   @Mock
   SchemaManager schemaManager;
   @Mock
@@ -113,6 +113,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     List<EntityInfo> actual = specService.getEntities(ids);
@@ -133,6 +135,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     List<EntityInfo> actual = specService.getEntities(ids);
@@ -151,6 +155,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
 
@@ -170,6 +176,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
 
@@ -190,6 +198,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     List<FeatureInfo> actual = specService.getFeatures(ids);
@@ -209,6 +219,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     List<FeatureInfo> actual = specService.getFeatures(ids);
@@ -227,6 +239,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     exception.expect(RetrievalException.class);
@@ -245,6 +259,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     List<FeatureInfo> actual = specService.listFeatures();
@@ -265,6 +281,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     List<StorageInfo> actual = specService.getStorage(ids);
@@ -285,6 +303,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     List<StorageInfo> actual = specService.getStorage(ids);
@@ -303,6 +323,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
 
@@ -323,6 +345,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     List<StorageInfo> actual = specService.listStorage();
@@ -374,6 +398,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     FeatureInfo actual = specService.applyFeature(spec);
@@ -399,6 +425,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     FeatureGroupInfo actual = specService.applyFeatureGroup(spec);
@@ -420,6 +448,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     EntityInfo actual = specService.applyEntity(spec);

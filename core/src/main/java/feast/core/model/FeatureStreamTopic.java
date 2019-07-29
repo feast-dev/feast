@@ -20,7 +20,6 @@ package feast.core.model;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
-import javax.persistence.JoinColumn;
 import javax.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -37,7 +36,10 @@ import lombok.Setter;
 public class FeatureStreamTopic extends AbstractTimestampEntity {
 
   @Id
-  @Column(name = "name", nullable = false)
+  @Column(name = "name", nullable = false, unique = true)
   private String name;
 
+  public FeatureStreamTopic() {
+    super();
+  }
 }

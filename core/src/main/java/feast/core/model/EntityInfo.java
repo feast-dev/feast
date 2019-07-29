@@ -49,6 +49,7 @@ public class EntityInfo extends AbstractTimestampEntity {
   @Column(name = "tags")
   private String tags;
 
+  @OneToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "topic")
   private FeatureStreamTopic topic;
 

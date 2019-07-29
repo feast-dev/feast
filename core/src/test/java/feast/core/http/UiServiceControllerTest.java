@@ -14,7 +14,7 @@ import feast.core.model.EntityInfo;
 import feast.core.model.FeatureGroupInfo;
 import feast.core.model.FeatureInfo;
 import feast.core.model.StorageInfo;
-import feast.core.service.JobManagementService;
+import feast.core.service.JobStatusService;
 import feast.core.service.SpecService;
 import java.util.Collections;
 import org.junit.Before;
@@ -61,10 +61,10 @@ public class UiServiceControllerTest {
     when(goodMockSpecService.getStorage(Collections.singletonList("1")))
         .thenReturn(Collections.singletonList(mockStorageInfo));
 
-    JobManagementService goodMockJobMangementService = mock(JobManagementService.class);
+    JobStatusService goodMockJobStatusService = mock(JobStatusService.class);
 
     goodUiServiceController =
-        new UiServiceController(goodMockSpecService, goodMockJobMangementService);
+        new UiServiceController(goodMockSpecService, goodMockJobStatusService);
 
     SpecService badMockSpecService = mock(SpecService.class);
     when(badMockSpecService.listFeatures()).thenReturn(null);
@@ -76,10 +76,10 @@ public class UiServiceControllerTest {
     when(badMockSpecService.listStorage()).thenReturn(null);
     when(badMockSpecService.getStorage(Collections.singletonList("1"))).thenReturn(null);
 
-    JobManagementService badMockJobMangementService = mock(JobManagementService.class);
+    JobStatusService badMockJobStatusService = mock(JobStatusService.class);
 
     badUiServiceController =
-        new UiServiceController(badMockSpecService, badMockJobMangementService);
+        new UiServiceController(badMockSpecService, badMockJobStatusService);
   }
 
   @Test

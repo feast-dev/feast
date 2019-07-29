@@ -139,6 +139,13 @@ class CoreServiceServicer(object):
 
   def ApplyFeatureGroup(self, request, context):
     """
+    Register a list of features to the metadata store, or update existing features.
+    If any validation errors occur, only the first encountered error will be returned.
+
+    rpc ApplyFeatures (CoreServiceTypes.ApplyFeaturesRequest) returns (CoreServiceTypes.ApplyFeaturesResponse) {
+    };
+
+
     Register a new feature group to the metadata store, or update an existing feature group.
     If any validation errors occur, only the first encountered error will be returned.
     """
@@ -158,7 +165,7 @@ class CoreServiceServicer(object):
   def GetUploadUrl(self, request, context):
     """
     Request a signed URL where a Feast client can upload a feature values file for an import job.
-    The signed URL be default will be valid by default for 5 minutes during which the client can start
+    The signed URL will be valid by default for 5 minutes during which the client can start
     uploading the feature values file. As of 2019-06-28, only CSV and JSON files are supported,
     and the upload must complete in one PUT request i.e. resumable upload is not supported.
     """

@@ -64,7 +64,7 @@ public class SpecService {
   private final FeatureGroupInfoRepository featureGroupInfoRepository;
   private final SchemaManager schemaManager;
   private final FeatureStreamService featureStreamService;
-  private final JobManagementService jobManagementService;
+  private final JobCoordinatorService jobCoordinatorService;
 
   @Getter
   private final StorageSpecs storageSpecs;
@@ -75,14 +75,14 @@ public class SpecService {
       FeatureInfoRepository featureInfoRegistry,
       FeatureGroupInfoRepository featureGroupInfoRepository,
       FeatureStreamService featureStreamService,
-      JobManagementService jobManagementService,
+      JobCoordinatorService jobCoordinatorService,
       SchemaManager schemaManager,
       StorageSpecs storageSpecs) {
     this.entityInfoRepository = entityInfoRegistry;
     this.featureInfoRepository = featureInfoRegistry;
     this.featureGroupInfoRepository = featureGroupInfoRepository;
     this.featureStreamService = featureStreamService;
-    this.jobManagementService = jobManagementService;
+    this.jobCoordinatorService = jobCoordinatorService;
     this.schemaManager = schemaManager;
     this.storageSpecs = storageSpecs;
   }

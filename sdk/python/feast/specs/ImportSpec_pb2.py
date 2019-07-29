@@ -271,41 +271,41 @@ DESCRIPTOR.message_types_by_name['Schema'] = _SCHEMA
 DESCRIPTOR.message_types_by_name['Field'] = _FIELD
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-ImportSpec = _reflection.GeneratedProtocolMessageType('ImportSpec', (_message.Message,), dict(
+ImportSpec = _reflection.GeneratedProtocolMessageType('ImportSpec', (_message.Message,), {
 
-  SourceOptionsEntry = _reflection.GeneratedProtocolMessageType('SourceOptionsEntry', (_message.Message,), dict(
-    DESCRIPTOR = _IMPORTSPEC_SOURCEOPTIONSENTRY,
-    __module__ = 'feast.specs.ImportSpec_pb2'
+  'SourceOptionsEntry' : _reflection.GeneratedProtocolMessageType('SourceOptionsEntry', (_message.Message,), {
+    'DESCRIPTOR' : _IMPORTSPEC_SOURCEOPTIONSENTRY,
+    '__module__' : 'feast.specs.ImportSpec_pb2'
     # @@protoc_insertion_point(class_scope:feast.specs.ImportSpec.SourceOptionsEntry)
-    ))
+    })
   ,
 
-  JobOptionsEntry = _reflection.GeneratedProtocolMessageType('JobOptionsEntry', (_message.Message,), dict(
-    DESCRIPTOR = _IMPORTSPEC_JOBOPTIONSENTRY,
-    __module__ = 'feast.specs.ImportSpec_pb2'
+  'JobOptionsEntry' : _reflection.GeneratedProtocolMessageType('JobOptionsEntry', (_message.Message,), {
+    'DESCRIPTOR' : _IMPORTSPEC_JOBOPTIONSENTRY,
+    '__module__' : 'feast.specs.ImportSpec_pb2'
     # @@protoc_insertion_point(class_scope:feast.specs.ImportSpec.JobOptionsEntry)
-    ))
+    })
   ,
-  DESCRIPTOR = _IMPORTSPEC,
-  __module__ = 'feast.specs.ImportSpec_pb2'
+  'DESCRIPTOR' : _IMPORTSPEC,
+  '__module__' : 'feast.specs.ImportSpec_pb2'
   # @@protoc_insertion_point(class_scope:feast.specs.ImportSpec)
-  ))
+  })
 _sym_db.RegisterMessage(ImportSpec)
 _sym_db.RegisterMessage(ImportSpec.SourceOptionsEntry)
 _sym_db.RegisterMessage(ImportSpec.JobOptionsEntry)
 
-Schema = _reflection.GeneratedProtocolMessageType('Schema', (_message.Message,), dict(
-  DESCRIPTOR = _SCHEMA,
-  __module__ = 'feast.specs.ImportSpec_pb2'
+Schema = _reflection.GeneratedProtocolMessageType('Schema', (_message.Message,), {
+  'DESCRIPTOR' : _SCHEMA,
+  '__module__' : 'feast.specs.ImportSpec_pb2'
   # @@protoc_insertion_point(class_scope:feast.specs.Schema)
-  ))
+  })
 _sym_db.RegisterMessage(Schema)
 
-Field = _reflection.GeneratedProtocolMessageType('Field', (_message.Message,), dict(
-  DESCRIPTOR = _FIELD,
-  __module__ = 'feast.specs.ImportSpec_pb2'
+Field = _reflection.GeneratedProtocolMessageType('Field', (_message.Message,), {
+  'DESCRIPTOR' : _FIELD,
+  '__module__' : 'feast.specs.ImportSpec_pb2'
   # @@protoc_insertion_point(class_scope:feast.specs.Field)
-  ))
+  })
 _sym_db.RegisterMessage(Field)
 
 

@@ -6,6 +6,7 @@ import static feast.core.config.StorageConfig.DEFAULT_WAREHOUSE_ID;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 import com.google.protobuf.Timestamp;
 import feast.core.JobServiceProto.JobServiceTypes.SubmitImportJobRequest;
@@ -13,7 +14,10 @@ import feast.core.JobServiceProto.JobServiceTypes.SubmitImportJobResponse;
 import feast.core.config.ImportJobDefaults;
 import feast.core.job.JobManager;
 import feast.core.model.StorageInfo;
+import feast.core.service.FeatureStreamService;
 import feast.core.service.SpecService;
+import feast.core.stream.FeatureStream;
+import feast.core.stream.kafka.KafkaFeatureStream;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
@@ -33,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,7 +56,9 @@ import org.springframework.test.context.junit4.SpringRunner;
     "spring.datasource.url=jdbc:h2:mem:testdb",
     "feast.store.serving.type=redis",
     "feast.store.serving.options={\"host\":\"localhost\",\"port\":1234}",
-    "feast.store.errors.type=stderr"
+    "feast.store.errors.type=stderr",
+    "feast.stream.type=kafka",
+    "feast.stream.options={\"bootstrapServers\":\"localhost:8081\"}"
 })
 @DirtiesContext
 public class CoreApplicationWithNoWarehouseTest {
@@ -62,6 +69,8 @@ public class CoreApplicationWithNoWarehouseTest {
   ImportJobDefaults jobDefaults;
   @Autowired
   JobManager jobManager;
+  @Autowired
+  FeatureStream featureStream;
 
   @Test
   public void test_withProperties_systemServingAndWarehouseStoresRegistered() throws IOException {
@@ -96,20 +105,11 @@ public class CoreApplicationWithNoWarehouseTest {
         .setOwner("hermione@example.com")
         .setDescription("Test is a test")
         .setUri("http://example.com/test.int64").build();
-    ImportSpec importSpec = ImportSpec.newBuilder()
-        .setSchema(Schema.newBuilder()
-            .setEntityIdColumn("id")
-            .setTimestampValue(Timestamp.getDefaultInstance())
-            .addFields(Field.newBuilder().setName("id"))
-            .addFields(Field.newBuilder().setName("a").setFeatureId("test.int64")))
-        .addEntities("test")
-        .setType("file.csv")
-        .putSourceOptions("path", "/tmp/foobar").build();
+
+    when(featureStream.generateTopicName(ArgumentMatchers.anyString())).thenReturn("my-topic");
 
     coreService.applyEntity(entitySpec);
     coreService.applyFeature(featureSpec);
-    SubmitImportJobRequest jobSubmitReq = SubmitImportJobRequest.newBuilder()
-        .setImportSpec(importSpec).build();
 
     Map<Integer, Object> args = new HashMap<>();
     Mockito.when(jobManager.startJob(any(), any())).thenAnswer((Answer<String>) invocation -> {
@@ -117,22 +117,6 @@ public class CoreApplicationWithNoWarehouseTest {
       args.put(1, invocation.getArgument(1));
       return "externalJobId1234";
     });
-    SubmitImportJobResponse jobSubmitRes = jobService.submitJob(jobSubmitReq);
-    String jobId = jobSubmitRes.getJobId();
-    assertEquals(args.get(1), Paths.get(jobDefaults.getWorkspace()).resolve(jobId));
-    assertEquals(ImportJobSpecs.newBuilder()
-        .setJobId(jobId)
-        .setImportSpec(importSpec)
-        .setErrorsStorageSpec(StorageSpec.newBuilder()
-            .setId(DEFAULT_ERRORS_ID)
-            .setType("stderr"))
-        .addEntitySpecs(entitySpec)
-        .addFeatureSpecs(featureSpec)
-        .setServingStorageSpec(StorageSpec.newBuilder()
-            .setId(DEFAULT_SERVING_ID)
-            .setType("redis")
-            .putOptions("host", "localhost").putOptions("port", "1234"))
-        .build(), args.get(0));
   }
 
   @TestConfiguration
@@ -141,6 +125,11 @@ public class CoreApplicationWithNoWarehouseTest {
     @Bean
     public JobManager jobManager() {
       return Mockito.mock(JobManager.class);
+    }
+
+    @Bean
+    public FeatureStream featureStream() {
+      return Mockito.mock(KafkaFeatureStream.class);
     }
   }
 }
