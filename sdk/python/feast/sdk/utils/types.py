@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from feast.sdk.resources.feature import ValueType
+from feast.types.Value_pb2 import ValueType
 import numpy as np
 
 # mapping of pandas dtypes to feast value type strings
@@ -30,7 +30,25 @@ DTYPE_TO_VALUE_TYPE_MAPPING = {
     "datetime64[ns]": ValueType.TIMESTAMP,
     "datetime64[ns, tz]": ValueType.TIMESTAMP,
     "category": ValueType.STRING,
-    "object": ValueType.STRING
+    "object": ValueType.STRING,
+}
+
+# Mapping of Pandas dtype to attribute name in Feast Value
+DTYPE_TO_FEAST_VALUE_ATTR_NAME = {
+    "float64": "doubleVal",
+    "float32": "floatVal",
+    "int64": "int64Val",
+    "uint64": "int64Val",
+    "int32": "int32Val",
+    "uint32": "int32Val",
+    "uint8": "int32Val",
+    "int8": "int32Val",
+    "bool": "boolVal",
+    "timedelta": "int64Val",
+    "datetime64[ns]": "timestampVal",
+    "datetime64[ns, tz]": "timestampVal",
+    "category": "stringVal",
+    "object": "stringVal",
 }
 
 # Mapping of feast value type to Pandas DataFrame dtypes
@@ -39,14 +57,17 @@ DTYPE_TO_VALUE_TYPE_MAPPING = {
 FEAST_VALUETYPE_TO_DTYPE = {
     "bytesVal": np.byte,
     "stringVal": np.object,
-    "int32Val": "Int32", # Use pandas nullable int type
-    "int64Val": "Int64", # Use pandas nullable int type
+    "int32Val": "Int32",  # Use pandas nullable int type
+    "int64Val": "Int64",  # Use pandas nullable int type
     "doubleVal": np.float64,
     "floatVal": np.float64,
     "boolVal": np.bool,
     "timestampVal": np.datetime64,
 }
 
+
+def dtype_to_feast_value_attr(dtype):
+    return DTYPE_TO_FEAST_VALUE_ATTR_NAME[dtype.__str__()]
 
 def dtype_to_value_type(dtype):
     """Returns the equivalent feast valueType for the given dtype
