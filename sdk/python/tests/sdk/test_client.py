@@ -20,7 +20,6 @@ import grpc_testing
 import numpy as np
 import pandas as pd
 import pytest
-from feast.specs.EntitySpec_pb2 import EntitySpec
 from google.protobuf.timestamp_pb2 import Timestamp
 from pandas.util.testing import assert_frame_equal
 
@@ -38,13 +37,13 @@ from feast.sdk.resources.entity import Entity
 from feast.sdk.resources.feature import Feature
 from feast.sdk.resources.feature_group import FeatureGroup
 from feast.sdk.resources.feature_set import FeatureSet, DatasetInfo, FileType
-from feast.sdk.resources.storage import Storage
 from feast.sdk.utils.bq_util import TableDownloader
 from feast.serving.Serving_pb2 import (
     QueryFeaturesRequest,
     QueryFeaturesResponse,
     FeatureValue,
 )
+from feast.specs.EntitySpec_pb2 import EntitySpec
 from feast.specs.FeatureSpec_pb2 import FeatureSpec
 from feast.specs.ImportSpec_pb2 import ImportSpec
 from feast.specs.StorageSpec_pb2 import StorageSpec
@@ -58,6 +57,24 @@ class TestClient(object):
         mocker.patch.object(cli, "_connect_core")
         mocker.patch.object(cli, "_connect_serving")
         return cli
+
+    @pytest.fixture
+    def mock_feast_client(self):
+        mock_feast_client = Client()
+        mock_message_producer = MagicMock()
+        mock_feast_client._message_producer = mock_message_producer
+        mock_grpc_channel = grpc_testing.channel(
+            service_descriptors=[], time=datetime.now()
+        )
+        mock_core_service_stub = core.CoreServiceStub(mock_grpc_channel)
+        mock_core_service_stub.ApplyEntity = MagicMock()
+        mock_core_service_stub.ApplyFeatures = MagicMock()
+        mock_core_service_stub.GetTopic = MagicMock()
+        mock_core_service_stub.GetTopic.return_value = CoreServiceTypes.GetTopicResponse(
+            messageBrokerURI="mock.broker.local:9092", topicName="mock_topic"
+        )
+        mock_feast_client._core_service_stub = mock_core_service_stub
+        return mock_feast_client
 
     def test_apply_single_feature(self, client, mocker):
         my_feature = Feature(name="test", entity="test")
@@ -513,26 +530,194 @@ class TestClient(object):
             id=id, type="bigquery", options={"project": project, "dataset": dataset}
         )
 
-    def test_load_features_from_dataframe(self):
-        dataframe = pd.DataFrame({"entity_id": [1, 3, 4, 1], "feature_1": [1, 2, 5, 9]})
-
-        mock_feast_client = Client()
-        mock_message_producer = MagicMock()
-        mock_feast_client._message_producer = mock_message_producer
-        mock_grpc_channel = grpc_testing.channel(
-            service_descriptors=[], time=datetime.now()
+    @pytest.mark.parametrize(
+        "dataframe, expected",
+        [
+            (
+                pd.DataFrame({"entity_id": [1, 3, 4, 1], "feature_1": [1, 2, 5, 9]}),
+                pd.DataFrame(
+                    {
+                        "entity_id": [1, 3, 4, 1],
+                        "feature_1": [1, 2, 5, 9],
+                        "_event_timestamp": np.datetime64("now"),
+                    }
+                ),
+            )
+        ],
+    )
+    def test_ensure_valid_timestamp_in_dataframe_with_no_timestamp(
+        self, mock_feast_client, dataframe, expected
+    ):
+        timestamp_column = mock_feast_client._ensure_valid_timestamp_in_dataframe(
+            dataframe
         )
-        mock_core_service_stub = core.CoreServiceStub(mock_grpc_channel)
-        mock_core_service_stub.ApplyEntity = MagicMock()
-        mock_core_service_stub.ApplyFeatures = MagicMock()
-        mock_core_service_stub.GetTopic = MagicMock()
-        mock_core_service_stub.GetTopic.return_value = CoreServiceTypes.GetTopicResponse(
-            messageBrokerURI="mock.broker.local:9092", topicName="mock_topic"
-        )
+        pd.testing.assert_frame_equal(dataframe, expected, check_less_precise=0)
+        assert timestamp_column == "_event_timestamp"
 
-        mock_feast_client._core_service_stub = mock_core_service_stub
+    @pytest.mark.parametrize(
+        "dataframe, expected",
+        [
+            (
+                pd.DataFrame(
+                    {
+                        "entity_id": [1, 3, 4, 1],
+                        "feature_1": [1, 2, 5, 9],
+                        "timestamp": [1, 1, 1, 1],
+                    }
+                ),
+                pd.DataFrame(
+                    {
+                        "entity_id": [1, 3, 4, 1],
+                        "feature_1": [1, 2, 5, 9],
+                        "timestamp": [np.datetime64(1, "ns") for _ in range(4)],
+                    }
+                ),
+            ),
+            (
+                pd.DataFrame(
+                    {
+                        "entity_id": [1, 3, 4, 1],
+                        "feature_1": [1, 2, 5, 9],
+                        "timestamp": [
+                            datetime(
+                                year=2019, month=5, day=5, hour=15, minute=12, second=5
+                            )
+                            for _ in range(4)
+                        ],
+                    }
+                ),
+                pd.DataFrame(
+                    {
+                        "entity_id": [1, 3, 4, 1],
+                        "feature_1": [1, 2, 5, 9],
+                        "timestamp": [np.datetime64(1557069125, "s") for _ in range(4)],
+                    }
+                ),
+            ),
+            (
+                pd.DataFrame(
+                    {
+                        "entity_id": [1, 3, 4, 1],
+                        "feature_1": [1, 2, 5, 9],
+                        "timestamp": ["2019-05-05T14:00:00" for _ in range(4)],
+                    }
+                ),
+                pd.DataFrame(
+                    {
+                        "entity_id": [1, 3, 4, 1],
+                        "feature_1": [1, 2, 5, 9],
+                        "timestamp": [np.datetime64(1557064800, "s") for _ in range(4)],
+                    }
+                ),
+            ),
+            (
+                pd.DataFrame(
+                    {
+                        "entity_id": [1, 3, 4, 1],
+                        "feature_1": [1, 2, 5, 9],
+                        "timestamp": ["2019-05-05T14:00:00+07:00" for _ in range(4)],
+                    }
+                ),
+                pd.DataFrame(
+                    {
+                        "entity_id": [1, 3, 4, 1],
+                        "feature_1": [1, 2, 5, 9],
+                        "timestamp": [np.datetime64(1557039600, "s") for _ in range(4)],
+                    }
+                ),
+            ),
+        ],
+    )
+    def test_ensure_valid_timestamp_in_dataframe_with_existing_timestamp(
+        self, mock_feast_client, dataframe, expected
+    ):
+        mock_feast_client._ensure_valid_timestamp_in_dataframe(
+            dataframe, timestamp_column="timestamp"
+        )
+        pd.testing.assert_frame_equal(dataframe, expected, check_less_precise=0)
+
+    @pytest.mark.parametrize(
+        "dataframe",
+        [pd.DataFrame({"entity_id": [1, 3, 4, 1], "feature_1": [1, 2, 5, 9]})],
+    )
+    def test_ensure_valid_timestamp_in_dataframe_with_invalid_timestamp_column(
+        self, mock_feast_client, dataframe
+    ):
+        with pytest.raises(ValueError):
+            mock_feast_client._ensure_valid_timestamp_in_dataframe(
+                dataframe=dataframe, timestamp_column="non_existent_timestamp_column"
+            )
+
+    @pytest.mark.parametrize(
+        "dataframe",
+        [
+            pd.DataFrame(
+                {
+                    "entity_id": [1, 3, 4, 1],
+                    "feature_1": [1, 2, 5, 9],
+                    "timestamp": ["invalid value" for _ in range(4)],
+                }
+            )
+        ],
+    )
+    def test_ensure_valid_timestamp_in_dataframe_with_invalid_timestamp_value(
+        self, mock_feast_client, dataframe
+    ):
+        with pytest.raises(ValueError):
+            mock_feast_client._ensure_valid_timestamp_in_dataframe(
+                dataframe=dataframe, timestamp_column="timestamp"
+            )
+
+    @pytest.mark.parametrize(
+        "dataframe",
+        [
+            pd.DataFrame({"entity_id": [1, 3, 4, 1], "feature_1": [1, 2, 5, 9]}),
+            pd.DataFrame(
+                {
+                    "entity_id": [1, 3],
+                    "feature_1": [1, 2],
+                    "feature_2": ["text", np.NaN],
+                }
+            ),
+        ],
+    )
+    def test_load_features_from_dataframe(self, mock_feast_client, dataframe):
         mock_feast_client.load_features_from_dataframe(
             dataframe=dataframe, entity_name="entity", entity_key_column="entity_id"
         )
+        mock_feast_client._core_service_stub.ApplyEntity.assert_called_with(
+            EntitySpec(name="entity", description="", tags=[])
+        )
+        mock_feast_client._core_service_stub.ApplyFeatures.assert_called()
 
-        # core_service_stub_mock.ApplyEntity.assert_called_with(entity_spec)
+    @pytest.mark.parametrize(
+        "dataframe",
+        [
+            pd.DataFrame({"entity_id": [1, 3, 4, 1], "feature_1": [1, 2, 5, 9]}),
+            pd.DataFrame(
+                {
+                    "entity_id": [1, 3, 4],
+                    "feature_1": [1, 7, np.NaN],
+                    "feature_2": ["text", np.NaN, "text"],
+                }
+            ),
+        ],
+    )
+    def test_load_features_from_dataframe_with_inconsiste(self, mock_feast_client, dataframe):
+        mock_feast_client.load_features_from_dataframe(
+            dataframe=dataframe, entity_name="entity", entity_key_column="entity_id"
+        )
+        mock_feast_client._core_service_stub.ApplyEntity.assert_called_with(
+            EntitySpec(name="entity", description="", tags=[])
+        )
+        mock_feast_client._core_service_stub.ApplyFeatures.assert_called()
+
+    def test_load_features_from_dataframe_with_non_existent_entity_key_column(self):
+        dataframe = pd.DataFrame({"entity_id": [1, 3, 4, 1], "feature_1": [1, 2, 5, 9]})
+        mock_feast_client = Client()
+        with pytest.raises(ValueError):
+            mock_feast_client.load_features_from_dataframe(
+                dataframe=dataframe,
+                entity_name="entity",
+                entity_key_column="non_existent_entity_key_column",
+            )

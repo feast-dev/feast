@@ -18,13 +18,10 @@ import logging
 import os
 from datetime import datetime
 
+import feast.sdk.utils.types
 import grpc
 import numpy as np
 import pandas as pd
-from google.protobuf.timestamp_pb2 import Timestamp
-from kafka import KafkaProducer
-
-import feast.sdk.utils.types
 from feast.core.CoreService_pb2 import CoreServiceTypes
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.DatasetService_pb2 import DatasetServiceTypes
@@ -47,6 +44,9 @@ from feast.specs.FeatureSpec_pb2 import FeatureSpec
 from feast.types import Feature_pb2
 from feast.types.FeatureRow_pb2 import FeatureRow
 from feast.types.Value_pb2 import Value
+from google.protobuf.timestamp_pb2 import Timestamp
+from kafka import KafkaProducer
+from tqdm import tqdm
 
 
 def _feast_core_apply_entity_stub(entity):
@@ -268,60 +268,94 @@ class Client:
             )
         return DatasetInfo(resp.datasetInfo.name, resp.datasetInfo.tableUrl)
 
+    def _ensure_valid_timestamp_in_dataframe(self, dataframe, timestamp_column=None):
+        if timestamp_column is None:
+            self.logger.info(
+                'No "timestamp_column" is specified, Feast will assign current '
+                "time as the event timestamp for the features"
+            )
+            dataframe["_event_timestamp"] = np.datetime64("now")
+            timestamp_column = "_event_timestamp"
+        elif timestamp_column not in dataframe.columns:
+            raise ValueError(
+                f'timestamp_column "{timestamp_column}" does not exist in the Dataframe'
+            )
+        # Ensure timestamp value is in format that Feast accepts
+        if dataframe[timestamp_column].dtype == object:
+            dataframe[timestamp_column] = pd.to_datetime(
+                dataframe[timestamp_column], utc=True
+            )
+        dataframe[timestamp_column] = dataframe[timestamp_column].astype(
+            "datetime64[ns]"
+        )
+        return timestamp_column
+
     def load_features_from_dataframe(
         self,
         dataframe: pd.DataFrame,
-        entity_name,
-        entity_key_column,
-        timestamp_column=None,
-        entity_description="",
+        entity_name: str,
+        entity_key_column: str,
+        timestamp_column: str = None,
+        entity_description: str = "",
         entity_tags: list = None,
-        timeout=None,
+        timeout: int = None,
     ):
         """
         Write features from pandas DataFrame to Feast.
 
-        The caller needs to specify the entity this DataFrame represents and
-        which column contains the key (or id) for the entity.
+        The caller needs to specify the entity name this DataFrame represents and
+        which column contains the key value for the entity. If "timestamp_column"
+        is None then all features will be assigned the same default timestamp
+        value of current time.
 
-        if timestamp_column is None then will by default assign event timestamp to current time
+        All columns in the dataframe, except "timestamp_column" and "entity_key_column"
+        will be treated as features in Feast, with column name as the feature name.
+        If only a subset of columns or custom feature names are required, user is
+        required to modify the DataFrame metadata (e.g. removing/renaming the
+        columns) before calling this method.
+
+        This method will publish all features to the message and wait until
+        it receives confirmation from the broker that the features are received
+        successfully. If timeout is set to "None" and the broker gets
+        disconnected during transfer, the process may seem to hang. It is therefore
+        recommended to set a timeout value (in seconds).
 
         Args:
-            dataframe (pandas.Dataframe): DataFrame containing the features to load
-            entity_name (str): Entity represented by this DataFrame
-            entity_key_column (str): Column in the DataFrame that contains the key value for the entity
-            timestamp_column (:obj:`str`,optional): Column in the DataFrame that contains timestamp value for a row of features
-            entity_tags (list): List of entity tags (string)
+            dataframe (pandas.Dataframe): DataFrame containing the features to load into Feast.
+            entity_name (str): The name of the entity represented by this DataFrame.
+            entity_key_column (str): Column in the DataFrame that contains the key value for the entity.
+            timestamp_column (:obj:`str`,optional): Column in the DataFrame that contains timestamp value for a feature.
+            entity_description (str): Human friendly description of the entity represented by the DataFrame.
+            entity_tags (:obj:`list`,optional): The tags to assign to this entity. Tags can be used e.g. for filtering.
+            timeout (:obj:`int`,optional): how long (in seconds) should the client wait for all the features to be
+                published successfully. If set to "None", the client will wait indefinitely.
 
         Returns:
             NoneType: If all features loaded successfully
 
         Raises:
-            ValueError: If any of the arguments are invalid
+            ValueError: If the method is called with invalid arguments or the DataFrame contains invalid values
+            TypeError: If there is a type mismatch between the actual type and the inferred type from the DataFrame
         """
         if entity_key_column not in dataframe.columns:
             raise ValueError(
                 f'entity_key_column "{entity_key_column}" does not exist in the Dataframe'
             )
 
-        if timestamp_column is None:
-            dataframe["_event_timestamp"] = np.datetime64("now")
-            timestamp_column = "_event_timestamp"
-        elif timestamp_column not in dataframe.columns:
-            raise ValueError(
-                f'timestamp_column "{entity_key_column}" does not exist in the Dataframe'
-            )
-        # Ensure timestamp value is in format that Feast accepts
-        dataframe[timestamp_column] = dataframe[timestamp_column].astype(
-            "datetime64[ns]"
+        timestamp_column = self._ensure_valid_timestamp_in_dataframe(
+            dataframe, timestamp_column=timestamp_column
         )
 
         if entity_tags is None:
             entity_tags = []
 
+        if self._core_service_stub is None:
+            self._connect_core()
+
         entity_spec = EntitySpec(
             name=entity_name, description=entity_description, tags=entity_tags
         )
+        self.logger.info(f"Registering entity\n{entity_spec}")
         self._core_service_stub.ApplyEntity(entity_spec)
 
         apply_features_request = CoreServiceTypes.ApplyFeaturesRequest()
@@ -329,7 +363,6 @@ class Client:
             if column == entity_key_column or column == timestamp_column:
                 continue
             feature_name = column
-            print(feast.sdk.utils.types.dtype_to_value_type(dataframe[column].dtype))
             feature_spec = FeatureSpec(
                 id=f"{entity_name}.{feature_name}",
                 name=feature_name,
@@ -339,6 +372,7 @@ class Client:
                 entity=entity_name,
             )
             apply_features_request.featureSpecs.extend([feature_spec])
+        self.logger.info(f"Registering features\n{apply_features_request.featureSpecs}")
         self._core_service_stub.ApplyFeatures(apply_features_request)
 
         get_topic_response = self._core_service_stub.GetTopic(
@@ -350,10 +384,13 @@ class Client:
         )
 
         if self._message_producer is None:
-            # Feast 0.2 only support Kafka brokers
+            # Feast 0.2 only supports Kafka brokers
             self._message_producer = KafkaProducer(bootstrap_servers=bootstrap_servers)
 
-        for index, row in dataframe.iterrows():
+        self.logger.info(f"Publishing features")
+        for index, row in tqdm(
+            dataframe.iterrows(), unit="rows", total=dataframe.shape[0]
+        ):
             event_timestamp = Timestamp()
             event_timestamp.FromNanoseconds(row[timestamp_column].value)
             feature_row = FeatureRow(
@@ -364,9 +401,16 @@ class Client:
                     continue
                 feature_name = column
                 feature_value = Value()
-                feature_value.__setattr__(
-                    dtype_to_feast_value_attr(dataframe[column].dtype), row[column]
-                )
+                feature_value_attr = dtype_to_feast_value_attr(dataframe[column].dtype)
+                try:
+                    feature_value.__setattr__(feature_value_attr, row[column])
+                except TypeError as type_error:
+                    # Numpy treats NaN as float. So if there is NaN values in column of
+                    # "str" type, __setattr__ will raise TypeError. This handles that case.
+                    if feature_value_attr == "stringVal" and pd.isnull(row[column]):
+                        feature_value.__setattr__("stringVal", "")
+                    else:
+                        raise type_error
                 feature_row.features.extend(
                     [
                         Feature_pb2.Feature(
@@ -374,13 +418,19 @@ class Client:
                         )
                     ]
                 )
-            self._message_producer.send(topic_name, feature_row.SerializeToString())
+            self._message_producer.send(
+                topic_name,
+                feature_row.SerializeToString(),
+                timestamp_ms=int(row[timestamp_column].value // 1e6),
+            )
 
         # Wait for all messages to be completely sent
         self._message_producer.flush(timeout=timeout)
+        return
 
     def get_serving_data(self, feature_set, entity_keys, ts_range=None):
-        """Get feature value from feast serving API.
+        """
+        Get feature value from feast serving API.
 
         If server_url is not provided, the value stored in the environment variable
         FEAST_SERVING_URL is used to connect to the serving server instead.
