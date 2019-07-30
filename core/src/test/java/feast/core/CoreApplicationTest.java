@@ -109,9 +109,9 @@ public class CoreApplicationTest {
         .setUri("http://example.com/test.int64").build();
 
     when(featureStream.generateTopicName(ArgumentMatchers.anyString())).thenReturn("my-topic");
+    when(featureStream.getType()).thenReturn("kafka");
 
     coreService.applyEntity(entitySpec);
-    coreService.applyFeature(featureSpec);
 
     Map<Integer, Object> args = new HashMap<>();
     when(jobManager.startJob(any(), any())).thenAnswer((Answer<String>) invocation -> {
@@ -120,6 +120,7 @@ public class CoreApplicationTest {
       return "externalJobId1234";
     });
 
+    coreService.applyFeature(featureSpec);
   }
 
   @TestConfiguration

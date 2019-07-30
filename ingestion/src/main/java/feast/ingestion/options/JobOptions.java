@@ -46,7 +46,6 @@ public class JobOptions implements Options {
   public boolean isCoalesceRowsEnabled() {
     return coalesceRowsEnabled;
   }
-
   public void setCoalesceRowsEnabled(boolean coalesceRows) {
     this.coalesceRowsEnabled = coalesceRows;
   }

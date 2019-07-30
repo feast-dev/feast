@@ -27,7 +27,6 @@ import feast.core.dao.FeatureGroupInfoRepository;
 import feast.core.dao.FeatureInfoRepository;
 import feast.core.exception.RegistrationException;
 import feast.core.exception.RetrievalException;
-import feast.core.exception.TopicExistsException;
 import feast.core.log.Action;
 import feast.core.log.AuditLogger;
 import feast.core.log.Resource;
@@ -35,17 +34,19 @@ import feast.core.model.EntityInfo;
 import feast.core.model.FeatureGroupInfo;
 import feast.core.model.FeatureInfo;
 import feast.core.model.FeatureStreamTopic;
+import feast.core.model.JobInfo;
 import feast.core.model.StorageInfo;
 import feast.core.storage.SchemaManager;
-import feast.core.stream.FeatureStream;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.StorageSpecProto.StorageSpec;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -256,9 +257,6 @@ public class SpecService {
         FeatureGroupInfo featureGroupInfo =
             featureGroupInfoRepository.findById(spec.getGroup()).orElse(null);
         featureInfo = new FeatureInfo(spec, entity, featureGroupInfo);
-        FeatureInfo resolvedFeatureInfo = featureInfo.resolve();
-        FeatureSpec resolvedFeatureSpec = resolvedFeatureInfo.getFeatureSpec();
-        schemaManager.registerFeature(resolvedFeatureSpec);
         action = Action.REGISTER;
       }
       FeatureInfo out = featureInfoRepository.saveAndFlush(featureInfo);
@@ -271,12 +269,32 @@ public class SpecService {
           action,
           "Feature applied: %s",
           JsonFormat.printer().print(spec));
+
+      startOrUpdateJob(featureInfo.getEntity());
+
       return out;
 
     } catch (Exception e) {
       throw new RegistrationException(
           Strings.lenientFormat("Failed to apply feature %s: %s", spec, e.getMessage()), e);
     }
+  }
+
+  /**
+   * Applies the given set of feature specs to the registry. If a feature does not yet exist, it
+   * will be registered to the system. If it does, the existing feature will be updated with the new
+   * information. This action will be transactional, if any of the features fail to be registered,
+   * all changes will be rolled back and an exception will be thrown.
+   *
+   * <p>Note that specifications that will affect downstream resources (e.g. id, storage location)
+   * cannot be changed.
+   *
+   * @param specs List of FeatureSpecs
+   * @return registered FeatureInfos
+   * @throws RegistrationException if registration fails
+   */
+  public List<FeatureInfo> applyFeatures(List<FeatureSpec> specs) {
+    return Lists.newArrayList();
   }
 
   /**
@@ -335,6 +353,7 @@ public class SpecService {
       if (entityInfo != null) {
         entityInfo.update(spec);
         action = Action.UPDATE;
+
         out = entityInfoRepository.saveAndFlush(entityInfo);
         if (!out.getName().equals(spec.getName())) {
           throw new RegistrationException("failed to register or update entity");
@@ -343,6 +362,7 @@ public class SpecService {
         entityInfo = new EntityInfo(spec);
         FeatureStreamTopic topic = featureStreamService.provisionTopic(entityInfo);
         entityInfo.setTopic(topic);
+
         action = Action.REGISTER;
         out = entityInfoRepository.saveAndFlush(entityInfo);
         if (!out.getName().equals(spec.getName())) {
@@ -357,6 +377,28 @@ public class SpecService {
     } catch (Exception e) {
       throw new RegistrationException(
           Strings.lenientFormat("Failed to apply entity %s: %s", spec, e.getMessage()), e);
+    }
+  }
+
+  private void startOrUpdateJob(EntityInfo entityInfo) {
+    List<FeatureInfo> features = featureInfoRepository.findByEntityName(entityInfo.getName());
+    List<FeatureSpec> featureSpecs = features.stream().map(FeatureInfo::getFeatureSpec)
+        .collect(Collectors.toList());
+    ImportJobSpecs importJobSpecs = jobCoordinatorService
+        .createImportJobSpecs(entityInfo.getTopic().getName(), entityInfo.getEntitySpec(),
+            featureSpecs, storageSpecs.getServingStorageSpec(),
+            storageSpecs.getErrorsStorageSpec());
+
+    if (entityInfo.getJobs().size() != 0) {
+      // if job exists, update
+      JobInfo existingJob = entityInfo.getJobs().get(0);
+      importJobSpecs = importJobSpecs.toBuilder().setJobId(existingJob.getId()).build();
+      jobCoordinatorService.updateJob(importJobSpecs);
+    } else {
+      // if job doesn't exist, create
+      JobInfo job = jobCoordinatorService.startJob(importJobSpecs);
+      entityInfo.setJobs(Lists.newArrayList(job));
+      entityInfoRepository.saveAndFlush(entityInfo);
     }
   }
 }

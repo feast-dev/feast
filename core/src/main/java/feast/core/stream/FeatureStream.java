@@ -1,8 +1,23 @@
 package feast.core.stream;
 
+import java.util.Map;
 import org.apache.kafka.common.errors.TopicExistsException;
 
 public interface FeatureStream {
+
+  /**
+   * Gets the type of feature stream
+   * @return type of feature stream
+   */
+  String getType();
+
+  /**
+   * Gets options for connecting to the feature stream. Maps directly to the import job
+   * spec's sourceOptions map.
+   *
+   * @return Map<String, String> of feature stream options
+   */
+  Map<String, String> getFeatureStreamOptions();
 
   /**
    * Provisions a topic in the feast stream for the given topic name.

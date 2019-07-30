@@ -28,11 +28,28 @@ option java_outer_classname = "ImportJobSpecsProto";
 option go_package = "github.com/gojek/feast/protos/generated/go/feast/specs";
 
 message ImportJobSpecs {
+  // Job ID of the job using this import job spec.
   string jobId = 1;
-  feast.specs.ImportSpec importSpec = 2;
-  repeated feast.specs.EntitySpec entitySpecs = 3;
-  repeated feast.specs.FeatureSpec featureSpecs = 4;
-  StorageSpec servingStorageSpec = 5;
-  StorageSpec warehouseStorageSpec = 6;
-  StorageSpec errorsStorageSpec = 7;
+
+  // Source type
+  string type = 2;
+
+  // Feature row source options, should contain necessary information to
+  // connect to and retrieve feature rows from the feature stream.
+  map<string, string> sourceOptions = 3;
+
+  // Job specific options, to control behavior of row sampling and coalescing.
+  map<string, string> jobOptions = 4;
+
+  // Entity spec of entity associated with this job.
+  feast.specs.EntitySpec entitySpec = 5;
+
+  // List of feature specs of features that this job will populate.
+  repeated feast.specs.FeatureSpec featureSpecs = 6;
+
+  // Storage spec of the sink to write the features to.
+  StorageSpec sinkStorageSpec = 7;
+
+  // Storage spec of errors store.
+  StorageSpec errorsStorageSpec = 8;
 }

@@ -1,5 +1,7 @@
 package feast.core.stream.kafka;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsEqual.equalTo;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -54,6 +56,14 @@ public class KafkaFeatureStreamTest {
 
     expectedException.expect(TopicExistsException.class);
     kafkaFeatureStream.provisionTopic("my-topic");
+  }
+
+  @Test
+  public void shouldReturnCorrectFeatureStreamOptions() {
+    Map<String, String> expected = new HashMap<>();
+    expected.put("discardUnknownFeatures", "true");
+    expected.put("server", "localhost:8121");
+    assertThat(kafkaFeatureStream.getFeatureStreamOptions(), equalTo(expected));
   }
 }
 

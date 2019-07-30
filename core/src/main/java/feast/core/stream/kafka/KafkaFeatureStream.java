@@ -4,6 +4,8 @@ import com.google.common.base.Strings;
 import feast.core.exception.TopicExistsException;
 import feast.core.stream.FeatureStream;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import lombok.AllArgsConstructor;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -14,8 +16,23 @@ import org.apache.kafka.clients.admin.NewTopic;
 @AllArgsConstructor
 public class KafkaFeatureStream implements FeatureStream {
 
+  private static String FEATURE_STREAM_TYPE = "kafka";
+
   private AdminClient client;
   private KafkaFeatureStreamConfig config;
+
+  @Override
+  public String getType() {
+    return FEATURE_STREAM_TYPE;
+  }
+
+  @Override
+  public Map<String, String> getFeatureStreamOptions() {
+    Map<String, String> options = new HashMap<>();
+    options.put("discardUnknownFeatures", "true");
+    options.put("server", config.getBootstrapServers());
+    return options;
+  }
 
   @Override
   public void provisionTopic(String topicName) throws RuntimeException {

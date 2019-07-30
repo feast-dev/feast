@@ -21,6 +21,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.JobServiceProto.JobServiceTypes.JobDetail;
 import feast.core.util.TypeConversion;
+import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.ImportSpecProto;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -84,7 +86,7 @@ public class JobInfo extends AbstractTimestampEntity {
   @Column(name = "status", length = 16)
   private JobStatus status;
 
-  // Raw import spec, stored as a json string.
+  // Raw import job spec, stored as a json string.
   @Column(name = "raw", length = 40960)
   private String raw;
 
@@ -96,30 +98,29 @@ public class JobInfo extends AbstractTimestampEntity {
       String jobId,
       String extId,
       String runner,
-      ImportSpecProto.ImportSpec importSpec,
+      ImportJobSpecs importJobSpecs,
       JobStatus status)
       throws InvalidProtocolBufferException {
     this.id = jobId;
     this.extId = extId;
-    this.type = importSpec.getType();
+    this.type = importJobSpecs.getType();
     this.runner = runner;
-    this.sourceOptions = TypeConversion.convertMapToJsonString(importSpec.getSourceOptionsMap());
-    this.jobOptions = TypeConversion.convertMapToJsonString(importSpec.getJobOptionsMap());
+    this.sourceOptions = TypeConversion.convertMapToJsonString(importJobSpecs.getSourceOptionsMap());
+    this.jobOptions = TypeConversion.convertMapToJsonString(importJobSpecs.getJobOptionsMap());
     this.entities = new ArrayList<>();
-    for (String entity : importSpec.getEntitiesList()) {
-      EntityInfo entityInfo = new EntityInfo();
-      entityInfo.setName(entity);
-      this.entities.add(entityInfo);
-    }
+
+    EntityInfo entityInfo = new EntityInfo();
+    entityInfo.setName(importJobSpecs.getEntitySpec().getName());
+    this.entities.add(entityInfo);
+
     this.features = new ArrayList<>();
-    for (ImportSpecProto.Field field : importSpec.getSchema().getFieldsList()) {
-      if (!field.getFeatureId().equals("")) {
-        FeatureInfo featureInfo = new FeatureInfo();
-        featureInfo.setId(field.getFeatureId());
-        this.features.add(featureInfo);
-      }
+    for (FeatureSpec featureSpec : importJobSpecs.getFeatureSpecsList()) {
+      FeatureInfo featureInfo = new FeatureInfo();
+      featureInfo.setId(featureSpec.getId());
+      this.features.add(featureInfo);
     }
-    this.raw = JsonFormat.printer().print(importSpec);
+
+    this.raw = JsonFormat.printer().print(importJobSpecs);
     this.status = status;
   }
 

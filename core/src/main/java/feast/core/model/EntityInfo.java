@@ -30,7 +30,8 @@ import static feast.core.util.TypeConversion.convertTagStringToList;
 import static feast.core.util.TypeConversion.convertTimestamp;
 
 /**
- * A row in the registry storing information about a single Entity, including its relevant metadata.
+ * A row in the registry storing information about a single Entity, including its relevant
+ * metadata.
  */
 @AllArgsConstructor
 @Getter
@@ -53,7 +54,7 @@ public class EntityInfo extends AbstractTimestampEntity {
   @JoinColumn(name = "topic")
   private FeatureStreamTopic topic;
 
-  @ManyToMany(mappedBy = "entities")
+  @ManyToMany(mappedBy = "entities", fetch = FetchType.EAGER)
   private List<JobInfo> jobs;
 
   @Column(name = "enabled")
@@ -69,7 +70,9 @@ public class EntityInfo extends AbstractTimestampEntity {
     this.tags = String.join(",", spec.getTagsList());
   }
 
-  /** Get the entity spec associated with this record. */
+  /**
+   * Get the entity spec associated with this record.
+   */
   public EntitySpec getEntitySpec() {
     return EntitySpec.newBuilder()
         .setName(name)
@@ -78,7 +81,9 @@ public class EntityInfo extends AbstractTimestampEntity {
         .build();
   }
 
-  /** Get the entity detail containing both spec and metadata, associated with this record. */
+  /**
+   * Get the entity detail containing both spec and metadata, associated with this record.
+   */
   public EntityDetail getEntityDetail() {
     return EntityDetail.newBuilder()
         .setSpec(this.getEntitySpec())

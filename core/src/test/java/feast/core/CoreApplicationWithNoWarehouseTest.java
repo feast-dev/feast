@@ -12,7 +12,11 @@ import com.google.protobuf.Timestamp;
 import feast.core.JobServiceProto.JobServiceTypes.SubmitImportJobRequest;
 import feast.core.JobServiceProto.JobServiceTypes.SubmitImportJobResponse;
 import feast.core.config.ImportJobDefaults;
+import feast.core.dao.FeatureInfoRepository;
 import feast.core.job.JobManager;
+import feast.core.model.EntityInfo;
+import feast.core.model.FeatureGroupInfo;
+import feast.core.model.FeatureInfo;
 import feast.core.model.StorageInfo;
 import feast.core.service.FeatureStreamService;
 import feast.core.service.SpecService;
@@ -31,6 +35,7 @@ import io.grpc.ManagedChannelBuilder;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -107,9 +112,9 @@ public class CoreApplicationWithNoWarehouseTest {
         .setUri("http://example.com/test.int64").build();
 
     when(featureStream.generateTopicName(ArgumentMatchers.anyString())).thenReturn("my-topic");
+    when(featureStream.getType()).thenReturn("kafka");
 
     coreService.applyEntity(entitySpec);
-    coreService.applyFeature(featureSpec);
 
     Map<Integer, Object> args = new HashMap<>();
     Mockito.when(jobManager.startJob(any(), any())).thenAnswer((Answer<String>) invocation -> {
@@ -117,6 +122,10 @@ public class CoreApplicationWithNoWarehouseTest {
       args.put(1, invocation.getArgument(1));
       return "externalJobId1234";
     });
+
+    coreService.applyFeature(featureSpec);
+
+
   }
 
   @TestConfiguration
