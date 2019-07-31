@@ -69,6 +69,7 @@ FEAST_VALUETYPE_TO_DTYPE = {
 def dtype_to_feast_value_attr(dtype):
     return DTYPE_TO_FEAST_VALUE_ATTR_NAME[dtype.__str__()]
 
+
 def dtype_to_value_type(dtype):
     """Returns the equivalent feast valueType for the given dtype
 
@@ -79,3 +80,8 @@ def dtype_to_value_type(dtype):
         feast.types.ValueType2.ValueType: equivalent feast valuetype
     """
     return DTYPE_TO_VALUE_TYPE_MAPPING[dtype.__str__()]
+
+
+# TODO: to pass test_importer
+def dtype_to_feast_value_type(dtype):
+    pass

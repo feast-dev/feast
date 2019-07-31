@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from datetime import datetime
+from unittest import mock
 from unittest.mock import MagicMock
 
 import grpc
@@ -20,6 +21,7 @@ import grpc_testing
 import numpy as np
 import pandas as pd
 import pytest
+from freezegun import freeze_time
 from google.protobuf.timestamp_pb2 import Timestamp
 from pandas.util.testing import assert_frame_equal
 
@@ -548,11 +550,16 @@ class TestClient(object):
     def test_ensure_valid_timestamp_in_dataframe_with_no_timestamp(
         self, mock_feast_client, dataframe, expected
     ):
-        timestamp_column = mock_feast_client._ensure_valid_timestamp_in_dataframe(
+        timestamp_column_created = mock_feast_client._ensure_valid_timestamp_in_dataframe(
             dataframe
         )
-        pd.testing.assert_frame_equal(dataframe, expected, check_less_precise=0)
-        assert timestamp_column == "_event_timestamp"
+        assert dataframe.columns.values.tolist() == expected.columns.values.tolist()
+        assert timestamp_column_created == "_event_timestamp"
+        timestamp_second_difference = int(
+            (expected["_event_timestamp"] - dataframe["_event_timestamp"]).mean()
+            / np.timedelta64(1, "s")
+        )
+        assert timestamp_second_difference < 3
 
     @pytest.mark.parametrize(
         "dataframe, expected",
@@ -674,9 +681,9 @@ class TestClient(object):
             pd.DataFrame({"entity_id": [1, 3, 4, 1], "feature_1": [1, 2, 5, 9]}),
             pd.DataFrame(
                 {
-                    "entity_id": [1, 3],
-                    "feature_1": [1, 2],
-                    "feature_2": ["text", np.NaN],
+                    "entity_id": [1, 3, 4],
+                    "feature_1": [1, 7, np.NaN],
+                    "feature_2": ["text", np.NaN, "text"],
                 }
             ),
         ],
@@ -692,29 +699,11 @@ class TestClient(object):
 
     @pytest.mark.parametrize(
         "dataframe",
-        [
-            pd.DataFrame({"entity_id": [1, 3, 4, 1], "feature_1": [1, 2, 5, 9]}),
-            pd.DataFrame(
-                {
-                    "entity_id": [1, 3, 4],
-                    "feature_1": [1, 7, np.NaN],
-                    "feature_2": ["text", np.NaN, "text"],
-                }
-            ),
-        ],
+        [pd.DataFrame({"entity_id": [1, 3, 4, 1], "feature_1": [1, 2, 5, 9]})],
     )
-    def test_load_features_from_dataframe_with_inconsiste(self, mock_feast_client, dataframe):
-        mock_feast_client.load_features_from_dataframe(
-            dataframe=dataframe, entity_name="entity", entity_key_column="entity_id"
-        )
-        mock_feast_client._core_service_stub.ApplyEntity.assert_called_with(
-            EntitySpec(name="entity", description="", tags=[])
-        )
-        mock_feast_client._core_service_stub.ApplyFeatures.assert_called()
-
-    def test_load_features_from_dataframe_with_non_existent_entity_key_column(self):
-        dataframe = pd.DataFrame({"entity_id": [1, 3, 4, 1], "feature_1": [1, 2, 5, 9]})
-        mock_feast_client = Client()
+    def test_load_features_from_dataframe_with_non_existent_entity_key_column(
+        self, mock_feast_client, dataframe
+    ):
         with pytest.raises(ValueError):
             mock_feast_client.load_features_from_dataframe(
                 dataframe=dataframe,

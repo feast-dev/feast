@@ -269,6 +269,23 @@ class Client:
         return DatasetInfo(resp.datasetInfo.name, resp.datasetInfo.tableUrl)
 
     def _ensure_valid_timestamp_in_dataframe(self, dataframe, timestamp_column=None):
+        """
+        Helper method to ensure the DataFrame has valid column containing feature timestamps.
+
+        If timestamp_column is set to "None", a new column "_event_timestamp" will be
+        created with value equal to the current time. All the features in the DataFrame
+        will then have the same timestamp value of current time.
+
+        Args:
+            dataframe (pandas.DataFrame): DataFrame containing features
+            timestamp_column (:obj:`str`, optional): Column in the DataFrame representing feature timestamp
+
+        Returns:
+            The "timestamp_column" passed in as argument or the newly created
+            "timestamp_column" if the argument is "None". The return value can be used
+            by the caller to know the "timestamp_column" created by this method, if any.
+
+        """
         if timestamp_column is None:
             self.logger.info(
                 'No "timestamp_column" is specified, Feast will assign current '
@@ -314,7 +331,7 @@ class Client:
         required to modify the DataFrame metadata (e.g. removing/renaming the
         columns) before calling this method.
 
-        This method will publish all features to the message and wait until
+        This method will publish all features to the message broker and wait until
         it receives confirmation from the broker that the features are received
         successfully. If timeout is set to "None" and the broker gets
         disconnected during transfer, the process may seem to hang. It is therefore
