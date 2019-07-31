@@ -123,8 +123,7 @@ public class ImportJob {
       options.setJobName(generateName());
     }
     log.info("options: " + options.toString());
-    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(options.getWorkspace())
-        .get();
+    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(options.getWorkspace()).get();
     Injector injector =
         Guice.createInjector(new ImportJobModule(options, importJobSpecs), new PipelineModule());
     ImportJob job = injector.getInstance(ImportJob.class);
@@ -148,8 +147,8 @@ public class ImportJob {
         TypeDescriptor.of(FeatureRowExtended.class), ProtoCoder.of(FeatureRowExtended.class));
     coderRegistry.registerCoderForType(TypeDescriptor.of(TableRow.class), TableRowJsonCoder.of());
 
-    JobOptions jobOptions = OptionsParser
-        .parse(importJobSpecs.getJobOptionsMap(), JobOptions.class);
+    JobOptions jobOptions =
+        OptionsParser.parse(importJobSpecs.getJobOptionsMap(), JobOptions.class);
 
     try {
       log.info(JsonFormat.printer().print(importJobSpecs));
@@ -188,6 +187,12 @@ public class ImportJob {
     return result;
   }
 
+  private PCollection<FeatureRowExtended> setupSink(PCollection<FeatureRowExtended> featureRows) {
+    return featureRows;
+  }
+
+
+
   public void logNRows(PFeatureRows pFeatureRows, String name, long limit, Duration period) {
     PCollection<FeatureRowExtended> main = pFeatureRows.getMain();
     PCollection<FeatureRowExtended> errors = pFeatureRows.getErrors();
@@ -220,16 +225,21 @@ public class ImportJob {
     }
   }
 
-  private PDone applySinkTransform(String sinkType, JobOptions jobOptions,
-      PCollection<FeatureRowExtended> featureRows) {
+
+
+  private PDone applySinkTransform(
+      String sinkType, JobOptions jobOptions, PCollection<FeatureRowExtended> featureRows) {
     switch (sinkType) {
       case RedisServingFactory.TYPE_REDIS:
       case BigTableServingStoreFactory.TYPE_BIGTABLE:
         if (jobOptions.isCoalesceRowsEnabled()) {
           // Should we merge and dedupe rows before writing to the serving store?
-          featureRows = featureRows.apply("Coalesce Rows", new CoalesceFeatureRowExtended(
-              jobOptions.getCoalesceRowsDelaySeconds(),
-              jobOptions.getCoalesceRowsTimeoutSeconds()));
+          featureRows =
+              featureRows.apply(
+                  "Coalesce Rows",
+                  new CoalesceFeatureRowExtended(
+                      jobOptions.getCoalesceRowsDelaySeconds(),
+                      jobOptions.getCoalesceRowsTimeoutSeconds()));
         }
         return featureRows.apply("Write to Serving Store", servingStoreTransform);
       case BigQueryWarehouseFactory.TYPE_BIGQUERY:
