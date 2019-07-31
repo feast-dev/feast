@@ -71,9 +71,9 @@ public class EntityInfoTest {
 
   @Test
   public void shouldUpdateTagAndDescription() {
-    EntityInfo entityInfo = new EntityInfo("entity", "test entity", "tag1,tag2", Lists.newArrayList(), false);
+    EntityInfo entityInfo = new EntityInfo("entity", "test entity", "tag1,tag2", new FeatureStreamTopic("feast-entity-features"),Lists.newArrayList(), false);
     EntitySpec update = EntitySpec.newBuilder().setName("entity").setDescription("overwrite").addTags("newtag").build();
-    EntityInfo expected = new EntityInfo("entity", "overwrite", "newtag", Lists.newArrayList(), false);
+    EntityInfo expected = new EntityInfo("entity", "overwrite", "newtag",  new FeatureStreamTopic("feast-entity-features"), Lists.newArrayList(), false);
     entityInfo.update(update);
     assertThat(entityInfo, equalTo(expected));
   }

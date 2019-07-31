@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.protobuf.util.Timestamps;
 import feast.ingestion.exceptions.ValidationException;
 import feast.ingestion.metrics.FeastMetrics;
@@ -58,12 +59,7 @@ public class ValidateFeatureRowsDoFn extends BaseFeatureDoFn {
 
   @Setup
   public void setup() {
-    ImportSpec importSpec = specs.getImportSpec();
-    for (Field field : importSpec.getSchema().getFieldsList()) {
-      if (!Strings.isNullOrEmpty(field.getFeatureId())) {
-        featureIds.add(field.getFeatureId());
-      }
-    }
+    specs.getFeatureSpecs().keySet().stream().forEach(featureIds::add);
     for (FeatureServingFactory store : FeatureServingFactoryService.getAll()) {
       supportedServingTypes.add(store.getType());
     }

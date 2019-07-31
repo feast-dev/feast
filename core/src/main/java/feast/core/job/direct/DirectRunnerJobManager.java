@@ -21,8 +21,11 @@ import com.google.common.annotations.VisibleForTesting;
 import feast.core.config.ImportJobDefaults;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
+import feast.core.model.EntityInfo;
+import feast.core.model.FeatureInfo;
+import feast.core.model.JobInfo;
+import feast.core.model.StorageInfo;
 import feast.core.util.TypeConversion;
-import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
@@ -45,8 +48,8 @@ public class DirectRunnerJobManager implements JobManager {
   }
 
   @Override
-  public String submitJob(ImportJobSpecs importJobSpecs, Path workspace) {
-    ProcessBuilder pb = getProcessBuilder(importJobSpecs, workspace);
+  public String startJob(String name, Path workspace) {
+    ProcessBuilder pb = getProcessBuilder(name, workspace);
 
     log.info(String.format("Executing command: %s", String.join(" ", pb.command())));
 
@@ -57,6 +60,12 @@ public class DirectRunnerJobManager implements JobManager {
       log.error("Error submitting job", e);
       throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
     }
+  }
+
+  //TODO: update job when new features added to existing entity
+  @Override
+  public String updateJob(JobInfo jobInfo, Path workspace) {
+    return null;
   }
 
   @Override
@@ -70,15 +79,15 @@ public class DirectRunnerJobManager implements JobManager {
    * @return configured ProcessBuilder
    */
   @VisibleForTesting
-  public ProcessBuilder getProcessBuilder(ImportJobSpecs importJobSpecs, Path workspace) {
+  public ProcessBuilder getProcessBuilder(String name, Path workspace) {
     Map<String, String> options =
         TypeConversion.convertJsonStringToMap(defaults.getImportJobOptions());
     List<String> commands = new ArrayList<>();
     commands.add("java");
     commands.add("-jar");
     commands.add(defaults.getExecutable());
-    commands.add(option("jobName", importJobSpecs.getJobId()));
     commands.add(option("workspace", workspace.toUri().toString()));
+    commands.add(option("jobName", name));
     commands.add(option("runner", defaults.getRunner()));
 
     options.forEach((k, v) -> commands.add(option(k, v)));

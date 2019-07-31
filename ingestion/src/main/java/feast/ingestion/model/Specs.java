@@ -37,19 +37,12 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @ToString
+@Getter
 public class Specs implements Serializable {
 
-  @Getter
-  ImportSpec importSpec;
-  @Getter
   Map<String, EntitySpec> entitySpecs;
-  @Getter
   Map<String, FeatureSpec> featureSpecs;
-  @Getter
-  StorageSpec servingStorageSpec;
-  @Getter
-  StorageSpec warehouseStorageSpec;
-  @Getter
+  StorageSpec sinkStoreSpec;
   StorageSpec errorsStoreSpec;
 
   @Getter
@@ -58,57 +51,20 @@ public class Specs implements Serializable {
   public Specs(String jobName, ImportJobSpecs importJobSpecs) {
     this.jobName = jobName;
     if (importJobSpecs != null) {
-      this.importSpec = importJobSpecs.getImportSpec();
 
-      this.entitySpecs = importJobSpecs.getEntitySpecsList().stream().collect(Collectors.toMap(
-          EntitySpec::getName,
-          entitySpec -> entitySpec
-      ));
+      this.entitySpecs.put(importJobSpecs.getJobId(), importJobSpecs.getEntitySpec());
       this.featureSpecs = importJobSpecs.getFeatureSpecsList().stream().collect(Collectors.toMap(
           FeatureSpec::getId,
           featureSpec -> featureSpec
       ));
 
-      this.servingStorageSpec = importJobSpecs.getServingStorageSpec();
-      this.warehouseStorageSpec = importJobSpecs.getWarehouseStorageSpec();
+      this.sinkStoreSpec = importJobSpecs.getSinkStorageSpec();
       this.errorsStoreSpec = importJobSpecs.getErrorsStorageSpec();
     }
   }
 
   public static Specs of(String jobName, ImportJobSpecs importJobSpecs) {
-    return new Specs(jobName, filterToUtilized(importJobSpecs));
-  }
-
-  static ImportJobSpecs filterToUtilized(ImportJobSpecs importJobSpecs) {
-    ImportSpec importSpec = importJobSpecs.getImportSpec();
-    List<Field> fields = importSpec.getSchema().getFieldsList();
-    List<String> featureIds = fields.stream().map(Field::getFeatureId)
-        .filter(not(Strings::isNullOrEmpty))
-        .collect(Collectors.toList());
-    List<String> entityNames = importSpec.getEntitiesList();
-
-    List<FeatureSpec> featureSpecs =
-        importJobSpecs.getFeatureSpecsList().stream()
-            .filter(featureSpec -> featureIds.contains(featureSpec.getId()))
-            .collect(Collectors.toList());
-    List<EntitySpec> entitySpecs =
-        importJobSpecs.getEntitySpecsList().stream()
-            .filter(entitySpec -> entityNames.contains(entitySpec.getName()))
-            .collect(Collectors.toList());
-    return importJobSpecs.toBuilder()
-        .clearFeatureSpecs().addAllFeatureSpecs(featureSpecs)
-        .clearEntitySpecs().addAllEntitySpecs(entitySpecs).build();
-  }
-
-  public void validate() {
-    for (String entityName : importSpec.getEntitiesList()) {
-      getEntitySpec(entityName);
-    }
-    for (Field field : importSpec.getSchema().getFieldsList()) {
-      if (!Strings.isNullOrEmpty(field.getFeatureId())) {
-        getFeatureSpec(field.getFeatureId());
-      }
-    }
+    return new Specs(jobName, importJobSpecs);
   }
 
   public EntitySpec getEntitySpec(String entityName) {

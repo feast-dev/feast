@@ -17,10 +17,14 @@
 
 package feast.core.dao;
 
+import feast.core.model.EntityInfo;
 import feast.core.model.FeatureInfo;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 /** JPA repository supplying FeatureInfo objects keyed by ID. */
 @Repository
-public interface FeatureInfoRepository extends JpaRepository<FeatureInfo, String> {}
+public interface FeatureInfoRepository extends JpaRepository<FeatureInfo, String> {
+  List<FeatureInfo> findByEntityName(String entityName);
+}

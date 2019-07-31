@@ -1,24 +1,18 @@
 package feast.core;
 
-import static feast.core.config.StorageConfig.DEFAULT_ERRORS_ID;
 import static feast.core.config.StorageConfig.DEFAULT_SERVING_ID;
 import static feast.core.config.StorageConfig.DEFAULT_WAREHOUSE_ID;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
-import com.google.protobuf.Timestamp;
-import feast.core.JobServiceProto.JobServiceTypes.SubmitImportJobRequest;
-import feast.core.JobServiceProto.JobServiceTypes.SubmitImportJobResponse;
 import feast.core.config.ImportJobDefaults;
 import feast.core.job.JobManager;
 import feast.core.model.StorageInfo;
 import feast.core.service.SpecService;
+import feast.core.stream.FeatureStream;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
-import feast.specs.ImportSpecProto.Field;
-import feast.specs.ImportSpecProto.ImportSpec;
-import feast.specs.ImportSpecProto.Schema;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.ValueProto.ValueType;
 import io.grpc.ManagedChannel;
@@ -32,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,7 +47,9 @@ import org.springframework.test.context.junit4.SpringRunner;
     "feast.store.warehouse.options={\"path\":\"/tmp/foobar\"}",
     "feast.store.serving.type=redis",
     "feast.store.serving.options={\"host\":\"localhost\",\"port\":1234}",
-    "feast.store.errors.type=stderr"
+    "feast.store.errors.type=stderr",
+    "feast.stream.type=kafka",
+    "feast.stream.options={\"bootstrapServers\":\"localhost:8081\"}"
 })
 @DirtiesContext
 public class CoreApplicationTest {
@@ -63,6 +60,8 @@ public class CoreApplicationTest {
   ImportJobDefaults jobDefaults;
   @Autowired
   JobManager jobManager;
+  @Autowired
+  FeatureStream featureStream;
 
   @Test
   public void test_withProperties_systemServingAndWarehouseStoresRegistered() throws IOException {
@@ -87,7 +86,6 @@ public class CoreApplicationTest {
     ManagedChannelBuilder<?> channelBuilder = ManagedChannelBuilder.forAddress("localhost", 6565);
     ManagedChannel channel = channelBuilder.usePlaintext(true).build();
     CoreServiceGrpc.CoreServiceBlockingStub coreService = CoreServiceGrpc.newBlockingStub(channel);
-    JobServiceGrpc.JobServiceBlockingStub jobService = JobServiceGrpc.newBlockingStub(channel);
 
     EntitySpec entitySpec = EntitySpec.newBuilder().setName("test").build();
     FeatureSpec featureSpec = FeatureSpec.newBuilder()
@@ -98,47 +96,20 @@ public class CoreApplicationTest {
         .setOwner("hermione@example.com")
         .setDescription("Test is a test")
         .setUri("http://example.com/test.int64").build();
-    ImportSpec importSpec = ImportSpec.newBuilder()
-        .setSchema(Schema.newBuilder()
-            .setEntityIdColumn("id")
-            .setTimestampValue(Timestamp.getDefaultInstance())
-            .addFields(Field.newBuilder().setName("id"))
-            .addFields(Field.newBuilder().setName("a").setFeatureId("test.int64")))
-        .addEntities("test")
-        .setType("file.csv")
-        .putSourceOptions("path", "/tmp/foobar").build();
+
+    when(featureStream.generateTopicName(ArgumentMatchers.anyString())).thenReturn("my-topic");
+    when(featureStream.getType()).thenReturn("kafka");
 
     coreService.applyEntity(entitySpec);
-    coreService.applyFeature(featureSpec);
-    SubmitImportJobRequest jobSubmitReq = SubmitImportJobRequest.newBuilder()
-        .setImportSpec(importSpec).build();
 
     Map<Integer, Object> args = new HashMap<>();
-    Mockito.when(jobManager.submitJob(any(), any())).thenAnswer((Answer<String>) invocation -> {
+    when(jobManager.startJob(any(), any())).thenAnswer((Answer<String>) invocation -> {
       args.put(0, invocation.getArgument(0));
       args.put(1, invocation.getArgument(1));
       return "externalJobId1234";
     });
-    SubmitImportJobResponse jobSubmitRes = jobService.submitJob(jobSubmitReq);
-    String jobId = jobSubmitRes.getJobId();
-    assertEquals(args.get(1), Paths.get(jobDefaults.getWorkspace()).resolve(jobId));
-    assertEquals(ImportJobSpecs.newBuilder()
-        .setJobId(jobId)
-        .setImportSpec(importSpec)
-        .setErrorsStorageSpec(StorageSpec.newBuilder()
-            .setId(DEFAULT_ERRORS_ID)
-            .setType("stderr"))
-        .addEntitySpecs(entitySpec)
-        .addFeatureSpecs(featureSpec)
-        .setServingStorageSpec(StorageSpec.newBuilder()
-            .setId(DEFAULT_SERVING_ID)
-            .setType("redis")
-            .putOptions("host", "localhost").putOptions("port", "1234"))
-        .setWarehouseStorageSpec(StorageSpec.newBuilder()
-            .setId(DEFAULT_WAREHOUSE_ID)
-            .setType("file.json")
-            .putOptions("path", "/tmp/foobar"))
-        .build(), args.get(0));
+
+    coreService.applyFeature(featureSpec);
   }
 
   @TestConfiguration
@@ -147,6 +118,11 @@ public class CoreApplicationTest {
     @Bean
     public JobManager jobManager() {
       return Mockito.mock(JobManager.class);
+    }
+
+    @Bean
+    public FeatureStream featureStream() {
+      return Mockito.mock(FeatureStream.class);
     }
   }
 }

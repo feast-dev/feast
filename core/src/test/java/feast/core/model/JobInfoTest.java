@@ -20,6 +20,9 @@ package feast.core.model;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.util.TypeConversion;
+import feast.specs.EntitySpecProto.EntitySpec;
+import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.ImportSpecProto;
 import org.junit.Test;
 
@@ -32,19 +35,12 @@ import static org.junit.Assert.assertThat;
 public class JobInfoTest {
   @Test
   public void shouldInitialiseGivenJobIdAndSpec() throws InvalidProtocolBufferException {
-    ImportSpecProto.Schema schema = ImportSpecProto.Schema.newBuilder()
-            .setEntityIdColumn("entity")
-            .setTimestampColumn("timestamp")
-            .addFields(ImportSpecProto.Field.newBuilder().setName("entity").build())
-            .addFields(ImportSpecProto.Field.newBuilder().setName("timestamp").build())
-            .addFields(ImportSpecProto.Field.newBuilder().setName("feature").setFeatureId("feature").build())
-            .build();
 
-    ImportSpecProto.ImportSpec importSpec = ImportSpecProto.ImportSpec.newBuilder()
+    ImportJobSpecs importSpec = ImportJobSpecs.newBuilder()
             .setType("file.csv")
             .putSourceOptions("path", "gs://some/path")
-            .addEntities("entity")
-            .setSchema(schema)
+            .setEntitySpec(EntitySpec.newBuilder().setName("entity").build())
+            .addFeatureSpecs(FeatureSpec.newBuilder().setName("feature").build())
             .build();
 
     JobInfo actual = new JobInfo("fake-job-id", "fake-ext-id", "DataflowRunner",importSpec, JobStatus.PENDING);

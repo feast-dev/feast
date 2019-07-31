@@ -28,6 +28,6 @@ public class ServingStoreTransform extends BaseStoreTransform {
 
   @Inject
   public ServingStoreTransform(List<FeatureServingFactory> stores, Specs specs) {
-    super(stores, specs.getServingStorageSpec(), specs);
+    super(stores, specs.getSinkStoreSpec(), specs);
   }
 }

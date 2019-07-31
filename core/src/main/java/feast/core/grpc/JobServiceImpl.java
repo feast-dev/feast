@@ -27,9 +27,7 @@ import feast.core.JobServiceProto.JobServiceTypes.JobDetail;
 import feast.core.JobServiceProto.JobServiceTypes.ListJobsResponse;
 import feast.core.JobServiceProto.JobServiceTypes.SubmitImportJobRequest;
 import feast.core.JobServiceProto.JobServiceTypes.SubmitImportJobResponse;
-import feast.core.exception.JobExecutionException;
-import feast.core.service.JobManagementService;
-import feast.core.validators.SpecValidator;
+import feast.core.service.JobStatusService;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -42,53 +40,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 @Slf4j
 @GRpcService
 public class JobServiceImpl extends JobServiceGrpc.JobServiceImplBase {
-  @Autowired private JobManagementService jobManagementService;
-
-  @Autowired private SpecValidator validator;
+  @Autowired private JobStatusService jobStatusService;
 
   /**
-   * submit a job to the runner by providing an import spec.
-   *
-   * @param request ImportJobRequest object containing an import spec
-   * @param responseObserver
+   * Deprecated
    */
   @Override
   public void submitJob(
-      SubmitImportJobRequest request, StreamObserver<SubmitImportJobResponse> responseObserver) {
-    try {
-      validator.validateImportSpec(request.getImportSpec());
-      String jobID = jobManagementService.submitJob(request.getImportSpec(), request.getName());
-      SubmitImportJobResponse response =
-          SubmitImportJobResponse.newBuilder().setJobId(jobID).build();
-      responseObserver.onNext(response);
-      responseObserver.onCompleted();
-    } catch (IllegalArgumentException e) {
-      log.error("Error in submitJob: {}", e);
-      responseObserver.onError(getBadRequestException(e));
-    } catch (JobExecutionException e) {
-      log.error("Error in submitJob: {}", e);
-      responseObserver.onError(getRuntimeException(e));
-    }
-  }
+      SubmitImportJobRequest request, StreamObserver<SubmitImportJobResponse> responseObserver) {}
 
   /**
-   * Abort a job given its feast-internal job id
-   *
-   * @param request AbortJobRequest object containing feast job id
-   * @param responseObserver
+   * Deprecated
    */
   @Override
-  public void abortJob(AbortJobRequest request, StreamObserver<AbortJobResponse> responseObserver) {
-    try {
-      jobManagementService.abortJob(request.getId());
-      AbortJobResponse response = AbortJobResponse.newBuilder().setId(request.getId()).build();
-      responseObserver.onNext(response);
-      responseObserver.onCompleted();
-    } catch (Exception e) {
-      log.error("Error aborting job with id {}: {}", request.getId(), e);
-      responseObserver.onError(getRuntimeException(e));
-    }
-  }
+  public void abortJob(AbortJobRequest request, StreamObserver<AbortJobResponse> responseObserver) {}
 
   /**
    * List all jobs previously submitted to the system.
@@ -99,7 +64,7 @@ public class JobServiceImpl extends JobServiceGrpc.JobServiceImplBase {
   @Override
   public void listJobs(Empty request, StreamObserver<ListJobsResponse> responseObserver) {
     try {
-      List<JobDetail> jobs = jobManagementService.listJobs();
+      List<JobDetail> jobs = jobStatusService.listJobs();
       ListJobsResponse response = ListJobsResponse.newBuilder().addAllJobs(jobs).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
@@ -118,7 +83,7 @@ public class JobServiceImpl extends JobServiceGrpc.JobServiceImplBase {
   @Override
   public void getJob(GetJobRequest request, StreamObserver<GetJobResponse> responseObserver) {
     try {
-      JobDetail job = jobManagementService.getJob(request.getId());
+      JobDetail job = jobStatusService.getJob(request.getId());
       GetJobResponse response = GetJobResponse.newBuilder().setJob(job).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();

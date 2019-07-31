@@ -3,12 +3,16 @@ package feast.core;
 import static feast.core.config.StorageConfig.DEFAULT_WAREHOUSE_ID;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.when;
 
 import com.google.protobuf.Timestamp;
 import feast.core.config.ImportJobDefaults;
 import feast.core.job.JobManager;
 import feast.core.model.StorageInfo;
+import feast.core.service.FeatureStreamService;
 import feast.core.service.SpecService;
+import feast.core.stream.FeatureStream;
+import feast.core.stream.kafka.KafkaFeatureStream;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportSpecProto.Field;
@@ -25,6 +29,7 @@ import java.util.Collections;
 import java.util.List;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -42,7 +47,9 @@ import org.springframework.test.context.junit4.SpringRunner;
     "spring.datasource.url=jdbc:h2:mem:testdb",
     "feast.store.warehouse.type=file.json",
     "feast.store.warehouse.options={\"path\":\"/tmp/foobar\"}",
-    "feast.store.errors.type=stderr"
+    "feast.store.errors.type=stderr",
+    "feast.stream.type=kafka",
+    "feast.stream.options={\"bootstrapServers\":\"localhost:8081\"}"
 })
 @DirtiesContext
 public class CoreApplicationWithNoServingTest {
@@ -53,6 +60,8 @@ public class CoreApplicationWithNoServingTest {
   ImportJobDefaults jobDefaults;
   @Autowired
   JobManager jobManager;
+  @Autowired
+  FeatureStream featureStream;
 
   @Test
   public void test_withProperties_systemServingAndWarehouseStoresRegistered() throws IOException {
@@ -79,16 +88,8 @@ public class CoreApplicationWithNoServingTest {
         .setOwner("hermione@example.com")
         .setDescription("Test is a test")
         .setUri("http://example.com/test.int64").build();
-    ImportSpec importSpec = ImportSpec.newBuilder()
-        .setSchema(Schema.newBuilder()
-            .setEntityIdColumn("id")
-            .setTimestampValue(Timestamp.getDefaultInstance())
-            .addFields(Field.newBuilder().setName("id"))
-            .addFields(Field.newBuilder().setName("a").setFeatureId("test.int64")))
-        .addEntities("test")
-        .setType("file.csv")
-        .putSourceOptions("path", "/tmp/foobar").build();
 
+    when(featureStream.generateTopicName(ArgumentMatchers.anyString())).thenReturn("my-topic");
     coreService.applyEntity(entitySpec);
     try {
       coreService.applyFeature(featureSpec);
@@ -103,6 +104,11 @@ public class CoreApplicationWithNoServingTest {
     @Bean
     public JobManager jobManager() {
       return Mockito.mock(JobManager.class);
+    }
+
+    @Bean
+    public FeatureStream featureStream() {
+      return Mockito.mock(FeatureStream.class);
     }
   }
 }

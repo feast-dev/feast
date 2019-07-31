@@ -9,7 +9,7 @@ import feast.core.CoreServiceProto.CoreServiceTypes.GetUploadUrlRequest;
 import feast.core.CoreServiceProto.CoreServiceTypes.GetUploadUrlRequest.FileType;
 import feast.core.CoreServiceProto.CoreServiceTypes.GetUploadUrlResponse;
 import feast.core.CoreServiceProto.CoreServiceTypes.GetUploadUrlResponse.HttpMethod;
-import feast.core.service.JobManagementService;
+import feast.core.service.JobCoordinatorService;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.testing.GrpcCleanupRule;
@@ -40,7 +40,7 @@ public class CoreServiceImplTest {
 
   @InjectMocks private CoreServiceImpl coreService = new CoreServiceImpl();
 
-  @Mock private JobManagementService jobManagementService;
+  @Mock private JobCoordinatorService jobCoordinatorService;
 
   @Test
   public void getUploadUrl() throws IOException {
@@ -54,8 +54,8 @@ public class CoreServiceImplTest {
     String testBucket = System.getProperty("testbucket");
     assumeTrue(StringUtils.isNotEmpty(testBucket));
 
-    // Mock the workspace output from jobManagementService to a bucket we want to use for testing
-    when(jobManagementService.getWorkspace()).thenReturn("gs://" + testBucket);
+    // Mock the workspace output from jobCoordinatorService to a bucket we want to use for testing
+    when(jobCoordinatorService.getWorkspace()).thenReturn("gs://" + testBucket);
 
     // Start a local grpc server
     String serverName = InProcessServerBuilder.generateName();

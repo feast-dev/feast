@@ -34,6 +34,8 @@ import feast.core.exception.RetrievalException;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureGroupInfo;
 import feast.core.model.FeatureInfo;
+import feast.core.model.FeatureStreamTopic;
+import feast.core.model.JobInfo;
 import feast.core.model.StorageInfo;
 import feast.core.storage.SchemaManager;
 import feast.specs.EntitySpecProto.EntitySpec;
@@ -41,6 +43,7 @@ import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.types.ValueProto.ValueType;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.junit.Before;
@@ -60,6 +63,10 @@ public class SpecServiceTest {
   FeatureInfoRepository featureInfoRepository;
   @Mock
   FeatureGroupInfoRepository featureGroupInfoRepository;
+  @Mock
+  FeatureStreamService featureStreamService;
+  @Mock
+  JobCoordinatorService jobCoordinatorService;
   @Mock
   SchemaManager schemaManager;
   @Mock
@@ -109,6 +116,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     List<EntityInfo> actual = specService.getEntities(ids);
@@ -129,6 +138,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     List<EntityInfo> actual = specService.getEntities(ids);
@@ -147,6 +158,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
 
@@ -166,6 +179,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
 
@@ -180,12 +195,15 @@ public class SpecServiceTest {
     FeatureInfo feature2 = newTestFeatureInfo("feature2");
 
     ArrayList<String> ids = Lists.newArrayList("entity.feature1", "entity.feature2");
-    when(featureInfoRepository.findAllById(any(Iterable.class))).thenReturn(Lists.newArrayList(feature1, feature2));
+    when(featureInfoRepository.findAllById(any(Iterable.class)))
+        .thenReturn(Lists.newArrayList(feature1, feature2));
     SpecService specService =
         new SpecService(
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     List<FeatureInfo> actual = specService.getFeatures(ids);
@@ -198,13 +216,17 @@ public class SpecServiceTest {
     FeatureInfo feature1 = newTestFeatureInfo("feature1");
     FeatureInfo feature2 = newTestFeatureInfo("feature2");
 
-    ArrayList<String> ids = Lists.newArrayList("entity.feature1", "entity.feature2", "entity.feature2");
-    when(featureInfoRepository.findAllById(any(Iterable.class))).thenReturn(Lists.newArrayList(feature1, feature2));
+    ArrayList<String> ids = Lists
+        .newArrayList("entity.feature1", "entity.feature2", "entity.feature2");
+    when(featureInfoRepository.findAllById(any(Iterable.class)))
+        .thenReturn(Lists.newArrayList(feature1, feature2));
     SpecService specService =
         new SpecService(
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     List<FeatureInfo> actual = specService.getFeatures(ids);
@@ -223,6 +245,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     exception.expect(RetrievalException.class);
@@ -241,6 +265,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     List<FeatureInfo> actual = specService.listFeatures();
@@ -261,6 +287,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     List<StorageInfo> actual = specService.getStorage(ids);
@@ -281,6 +309,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     List<StorageInfo> actual = specService.getStorage(ids);
@@ -299,6 +329,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
 
@@ -319,64 +351,13 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     List<StorageInfo> actual = specService.listStorage();
     List<StorageInfo> expected = Lists.newArrayList(redisStorage, bqStorage);
     assertThat(actual, equalTo(expected));
-  }
-
-  @Test
-  public void shouldRegisterFeatureWithGroupInheritance() {
-    FeatureGroupInfo group = new FeatureGroupInfo();
-    group.setId("testGroup");
-    when(featureGroupInfoRepository.findById("testGroup")).thenReturn(Optional.of(group));
-
-    EntityInfo entity = new EntityInfo();
-    entity.setName("entity");
-    when(entityInfoRepository.findById("entity")).thenReturn(Optional.of(entity));
-
-    FeatureSpec spec =
-        FeatureSpec.newBuilder()
-            .setId("entity.name")
-            .setName("name")
-            .setOwner("owner")
-            .setDescription("desc")
-            .setEntity("entity")
-            .setUri("uri")
-            .setGroup("testGroup")
-            .setValueType(ValueType.Enum.BYTES)
-            .build();
-
-    FeatureSpec resolvedSpec =
-        FeatureSpec.newBuilder()
-            .setId("entity.name")
-            .setName("name")
-            .setOwner("owner")
-            .setDescription("desc")
-            .setEntity("entity")
-            .setUri("uri")
-            .setGroup("testGroup")
-            .setValueType(ValueType.Enum.BYTES)
-            .build();
-
-    ArgumentCaptor<FeatureSpec> resolvedSpecCaptor = ArgumentCaptor.forClass(FeatureSpec.class);
-
-    FeatureInfo featureInfo = new FeatureInfo(spec, entity, group);
-    when(featureInfoRepository.saveAndFlush(featureInfo)).thenReturn(featureInfo);
-
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            schemaManager,
-            storageSpecs);
-    FeatureInfo actual = specService.applyFeature(spec);
-    verify(schemaManager).registerFeature(resolvedSpecCaptor.capture());
-
-    assertThat(resolvedSpecCaptor.getValue(), equalTo(resolvedSpec));
-    assertThat(actual, equalTo(featureInfo));
   }
 
   @Test
@@ -395,6 +376,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     FeatureGroupInfo actual = specService.applyFeatureGroup(spec);
@@ -416,6 +399,8 @@ public class SpecServiceTest {
             entityInfoRepository,
             featureInfoRepository,
             featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
             schemaManager,
             storageSpecs);
     EntityInfo actual = specService.applyEntity(spec);

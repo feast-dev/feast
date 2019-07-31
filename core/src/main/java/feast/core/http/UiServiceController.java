@@ -36,7 +36,7 @@ import feast.core.model.EntityInfo;
 import feast.core.model.FeatureGroupInfo;
 import feast.core.model.FeatureInfo;
 import feast.core.model.StorageInfo;
-import feast.core.service.JobManagementService;
+import feast.core.service.JobStatusService;
 import feast.core.service.SpecService;
 import java.util.Arrays;
 import java.util.List;
@@ -58,12 +58,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class UiServiceController {
 
   private final SpecService specService;
-  private final JobManagementService jobManagementService;
+  private final JobStatusService jobStatusService;
 
   @Autowired
-  public UiServiceController(SpecService specService, JobManagementService jobManagementService) {
+  public UiServiceController(SpecService specService, JobStatusService jobStatusService) {
     this.specService = specService;
-    this.jobManagementService = jobManagementService;
+    this.jobStatusService = jobStatusService;
   }
 
   /**
@@ -234,7 +234,7 @@ public class UiServiceController {
   @RequestMapping(value = "/api/ui/jobs", produces = "application/json", method = RequestMethod.GET)
   public ListJobsResponse listJobs() {
     try {
-      return ListJobsResponse.newBuilder().addAllJobs(jobManagementService.listJobs()).build();
+      return ListJobsResponse.newBuilder().addAllJobs(jobStatusService.listJobs()).build();
     } catch (Exception e) {
       log.error("Exception in listJobs: {}", e);
       throw e;
@@ -250,7 +250,7 @@ public class UiServiceController {
       method = RequestMethod.GET)
   public GetJobResponse getJob(@PathVariable("id") String id) {
     try {
-      return GetJobResponse.newBuilder().setJob(jobManagementService.getJob(id)).build();
+      return GetJobResponse.newBuilder().setJob(jobStatusService.getJob(id)).build();
     } catch (Exception e) {
       log.error("Exception in getJob {}: {}", id, e);
       throw e;
