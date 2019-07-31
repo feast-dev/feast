@@ -28,7 +28,7 @@ import feast.store.serving.FeatureServingFactory;
 @AutoService(FeatureServingFactory.class)
 public class BigTableServingStoreFactory implements FeatureServingFactory {
 
-  public static String TYPE_BIGTABLE = "bigtable";
+  public static final String TYPE_BIGTABLE = "bigtable";
 
   @Override
   public FeatureStoreWrite create(StorageSpec storageSpec, Specs specs) {

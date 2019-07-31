@@ -15,19 +15,15 @@
  *
  */
 
-package feast.ingestion.transform;
+package feast.ingestion.exceptions;
 
-import com.google.inject.Inject;
-import feast.ingestion.model.Specs;
-import feast.store.serving.FeatureServingFactory;
-import java.util.List;
-import lombok.extern.slf4j.Slf4j;
+public class UnsupportedStoreException extends RuntimeException {
 
-@Slf4j
-public class ServingStoreTransform extends BaseStoreTransform {
+  public UnsupportedStoreException(String message) {
+    super(message);
+  }
 
-  @Inject
-  public ServingStoreTransform(List<FeatureServingFactory> stores, Specs specs) {
-    super(stores, specs.getSinkStoreSpec(), specs);
+  public UnsupportedStoreException(String message, Throwable throwable) {
+    super(message, throwable);
   }
 }

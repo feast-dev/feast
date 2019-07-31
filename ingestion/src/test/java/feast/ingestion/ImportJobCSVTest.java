@@ -76,9 +76,7 @@ public class ImportJobCSVTest {
   public ImportJobSpecs getImportJobSpecs(ImportSpec importSpec, String dataFile) {
     Path workspacePath = Paths.get(Resources.getResource("specs").getPath());
     ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(workspacePath.toUri().toString()).get();
-    return importJobSpecs.toBuilder().setImportSpec(
-        importSpec.toBuilder().putSourceOptions("path", dataFile)
-    ).build();
+    return importJobSpecs.toBuilder().putSourceOptions("path", dataFile).build();
   }
 
   public ImportJobPipelineOptions initOptions() {
@@ -563,7 +561,7 @@ public class ImportJobCSVTest {
     ImportJobPipelineOptions options = initOptions();
 
     ImportJobSpecs importJobSpecs = getImportJobSpecs(importSpec, csvFile.toString()).toBuilder()
-        .setWarehouseStorageSpec(StorageSpec.newBuilder().setId("WAREHOUSE").setType("unknown"))
+        .setSinkStorageSpec(StorageSpec.newBuilder().setId("WAREHOUSE").setType("unknown"))
         .build();
 
     Injector injector =
@@ -577,66 +575,4 @@ public class ImportJobCSVTest {
     job.expand();
   }
 
-
-  @Test
-  public void testImportWithoutWarehouseStoreSetByFeature() throws IOException {
-    ImportSpec importSpec =
-        ProtoUtil.decodeProtoYaml(
-            "---\n"
-                + "type: file.csv\n"
-                + "sourceOptions:\n"
-                + "  # path: to be overwritten in tests\n"
-                + "entities:\n"
-                + "  - testEntity\n"
-                + "schema:\n"
-                + "  entityIdColumn: id\n"
-                + "  timestampValue: 2018-09-25T00:00:00.000Z\n"
-                + "  fields:\n"
-                + "    - name: id\n"
-                + "    - featureId: testEntity.testInt64\n"
-                + "    - featureId: testEntity.testString\n"
-                + "\n",
-            ImportSpec.getDefaultInstance());
-
-    File csvFile = folder.newFile("data.csv");
-
-    Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
-
-    ImportJobPipelineOptions options = initOptions();
-
-    ImportJobSpecs importJobSpecs = getImportJobSpecs(importSpec, csvFile.toString()).toBuilder()
-        .clearWarehouseStorageSpec().build();
-    Injector injector =
-        Guice.createInjector(
-            new ImportJobModule(options, importJobSpecs),
-            new TestPipelineModule(testPipeline));
-
-    ImportJob job = injector.getInstance(ImportJob.class);
-
-    injector.getInstance(ImportJob.class);
-    job.expand();
-
-    PCollection<FeatureRowExtended> writtenToServing =
-        PCollectionList
-            .of(FeatureServingFactoryService.get(MockServingFactory.class).getWrite()
-                .getInputs())
-            .apply("flatten serving input", Flatten.pCollections());
-
-    PCollection<FeatureRowExtended> writtenToWarehouse =
-        PCollectionList
-            .of(FeatureWarehouseFactoryService.get(MockWarehouseFactory.class).getWrite()
-                .getInputs())
-            .apply("flatten warehouse input", Flatten.pCollections());
-
-    PCollection<FeatureRowExtended> writtenToErrors =
-        PCollectionList
-            .of(FeatureErrorsFactoryService.get(MockFeatureErrorsFactory.class).getWrite()
-                .getInputs())
-            .apply("flatten errors input", Flatten.pCollections());
-
-    PAssert.that(writtenToErrors).satisfies(hasCount(0));
-    PAssert.that(writtenToServing).satisfies(hasCount(3));
-    PAssert.that(writtenToWarehouse).satisfies(hasCount(0));
-    testPipeline.run();
-  }
 }

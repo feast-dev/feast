@@ -27,6 +27,7 @@ import com.google.protobuf.util.JsonFormat;
 import feast.ingestion.boot.ImportJobModule;
 import feast.ingestion.boot.PipelineModule;
 import feast.ingestion.config.ImportJobSpecsSupplier;
+import feast.ingestion.exceptions.UnsupportedStoreException;
 import feast.ingestion.metrics.FeastMetrics;
 import feast.ingestion.model.Specs;
 import feast.ingestion.options.ImportJobPipelineOptions;
@@ -43,6 +44,9 @@ import feast.ingestion.transform.fn.LoggerDoFn;
 import feast.ingestion.values.PFeatureRows;
 import feast.options.OptionsParser;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
+import feast.store.serving.bigtable.BigTableServingStoreFactory;
+import feast.store.serving.redis.RedisServingFactory;
+import feast.store.warehouse.bigquery.BigQueryWarehouseFactory;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.Arrays;
@@ -64,6 +68,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.joda.time.DateTime;
@@ -144,14 +149,13 @@ public class ImportJob {
     coderRegistry.registerCoderForType(TypeDescriptor.of(TableRow.class), TableRowJsonCoder.of());
 
     JobOptions jobOptions = OptionsParser
-        .parse(importJobSpecs.getImportSpec().getJobOptionsMap(), JobOptions.class);
+        .parse(importJobSpecs.getJobOptionsMap(), JobOptions.class);
 
     try {
       log.info(JsonFormat.printer().print(importJobSpecs));
     } catch (InvalidProtocolBufferException e) {
       // pass
     }
-    specs.validate();
 
     PCollection<FeatureRow> features = pipeline.apply("Read", readFeaturesTransform);
     if (jobOptions.getSampleLimit() > 0) {
@@ -169,21 +173,11 @@ public class ImportJob {
         "A sample of size 1 of incoming rows from MAIN and ERRORS will logged every 30 seconds for visibility");
     logNRows(pFeatureRows, "Output sample", 1, Duration.standardSeconds(30));
 
-    PCollection<FeatureRowExtended> warehouseRows = pFeatureRows.getMain();
-    PCollection<FeatureRowExtended> servingRows = pFeatureRows.getMain();
+    PCollection<FeatureRowExtended> featureRows = pFeatureRows.getMain();
     PCollection<FeatureRowExtended> errorRows = pFeatureRows.getErrors();
-    if (jobOptions.isCoalesceRowsEnabled()) {
-      // Should we merge and dedupe rows before writing to the serving store?
-      servingRows = servingRows.apply("Coalesce Rows", new CoalesceFeatureRowExtended(
-          jobOptions.getCoalesceRowsDelaySeconds(),
-          jobOptions.getCoalesceRowsTimeoutSeconds()));
-    }
 
     if (!dryRun) {
-      servingRows.apply("Write to Serving Stores", servingStoreTransform);
-      if (!Strings.isNullOrEmpty(importJobSpecs.getWarehouseStorageSpec().getId())) {
-        warehouseRows.apply("Write to Warehouse  Stores", warehouseStoreTransform);
-      }
+      applySinkTransform(importJobSpecs.getType(), jobOptions, featureRows);
       errorRows.apply(errorsStoreTransform);
     }
   }
@@ -223,6 +217,26 @@ public class ImportJob {
       return ((DataflowPipelineJob) result).getJobId();
     } else {
       return this.options.getJobName();
+    }
+  }
+
+  private PDone applySinkTransform(String sinkType, JobOptions jobOptions,
+      PCollection<FeatureRowExtended> featureRows) {
+    switch (sinkType) {
+      case RedisServingFactory.TYPE_REDIS:
+      case BigTableServingStoreFactory.TYPE_BIGTABLE:
+        if (jobOptions.isCoalesceRowsEnabled()) {
+          // Should we merge and dedupe rows before writing to the serving store?
+          featureRows = featureRows.apply("Coalesce Rows", new CoalesceFeatureRowExtended(
+              jobOptions.getCoalesceRowsDelaySeconds(),
+              jobOptions.getCoalesceRowsTimeoutSeconds()));
+        }
+        return featureRows.apply("Write to Serving Store", servingStoreTransform);
+      case BigQueryWarehouseFactory.TYPE_BIGQUERY:
+        return featureRows.apply("Write to Warehouse Store", warehouseStoreTransform);
+      default:
+        throw new UnsupportedStoreException(
+            Strings.lenientFormat("Store of type %s is not supported by Feast.", sinkType));
     }
   }
 }
