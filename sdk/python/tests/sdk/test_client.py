@@ -13,18 +13,17 @@
 # limitations under the License.
 
 from datetime import datetime
-
-import grpc
-import numpy as np
-import pandas as pd
-import pytest
-from google.protobuf.timestamp_pb2 import Timestamp
-from pandas.util.testing import assert_frame_equal
+from unittest.mock import MagicMock
 
 import feast.core.CoreService_pb2_grpc as core
 import feast.core.DatasetService_pb2_grpc as training
 import feast.core.JobService_pb2_grpc as jobs
 import feast.serving.Serving_pb2 as serving_pb
+import grpc
+import grpc_testing
+import numpy as np
+import pandas as pd
+import pytest
 from feast.core.CoreService_pb2 import CoreServiceTypes
 from feast.core.DatasetService_pb2 import DatasetInfo as DatasetInfo_pb
 from feast.core.DatasetService_pb2 import DatasetServiceTypes
@@ -35,33 +34,56 @@ from feast.sdk.resources.entity import Entity
 from feast.sdk.resources.feature import Feature
 from feast.sdk.resources.feature_group import FeatureGroup
 from feast.sdk.resources.feature_set import FeatureSet, DatasetInfo, FileType
-from feast.sdk.resources.storage import Storage
 from feast.sdk.utils.bq_util import TableDownloader
-from feast.serving.Serving_pb2 import QueryFeaturesRequest, \
-    QueryFeaturesResponse, FeatureValue
+from feast.serving.Serving_pb2 import (
+    QueryFeaturesRequest,
+    QueryFeaturesResponse,
+    FeatureValue,
+)
+from feast.specs.EntitySpec_pb2 import EntitySpec
 from feast.specs.FeatureSpec_pb2 import FeatureSpec
 from feast.specs.ImportSpec_pb2 import ImportSpec
 from feast.specs.StorageSpec_pb2 import StorageSpec
 from feast.types.Value_pb2 import Value
+from google.protobuf.timestamp_pb2 import Timestamp
+from pandas.util.testing import assert_frame_equal
 
 
 class TestClient(object):
     @pytest.fixture
     def client(self, mocker):
         cli = Client(core_url="some.uri", serving_url="some.serving.uri")
-        mocker.patch.object(cli, '_connect_core')
-        mocker.patch.object(cli, '_connect_serving')
+        mocker.patch.object(cli, "_connect_core")
+        mocker.patch.object(cli, "_connect_serving")
         return cli
+
+    @pytest.fixture
+    def mock_feast_client(self):
+        mock_feast_client = Client()
+        mock_message_producer = MagicMock()
+        mock_feast_client._message_producer = mock_message_producer
+        mock_grpc_channel = grpc_testing.channel(
+            service_descriptors=[], time=datetime.now()
+        )
+        mock_core_service_stub = core.CoreServiceStub(mock_grpc_channel)
+        mock_core_service_stub.ApplyEntity = MagicMock()
+        mock_core_service_stub.ApplyFeatures = MagicMock()
+        mock_core_service_stub.GetTopic = MagicMock()
+        mock_core_service_stub.GetTopic.return_value = CoreServiceTypes.GetTopicResponse(
+            messageBrokerURI="mock.broker.local:9092", topicName="mock_topic"
+        )
+        mock_feast_client._core_service_stub = mock_core_service_stub
+        return mock_feast_client
 
     def test_apply_single_feature(self, client, mocker):
         my_feature = Feature(name="test", entity="test")
         grpc_stub = core.CoreServiceStub(grpc.insecure_channel(""))
 
         with mocker.patch.object(
-                grpc_stub,
-                'ApplyFeature',
-                return_value=CoreServiceTypes.ApplyFeatureResponse(
-                    featureId="test.test")):
+            grpc_stub,
+            "ApplyFeature",
+            return_value=CoreServiceTypes.ApplyFeatureResponse(featureId="test.test"),
+        ):
             client._core_service_stub = grpc_stub
             id = client.apply(my_feature)
             assert id == "test.test"
@@ -71,10 +93,10 @@ class TestClient(object):
         grpc_stub = core.CoreServiceStub(grpc.insecure_channel(""))
 
         with mocker.patch.object(
-                grpc_stub,
-                'ApplyEntity',
-                return_value=CoreServiceTypes.ApplyEntityResponse(
-                    entityName="test")):
+            grpc_stub,
+            "ApplyEntity",
+            return_value=CoreServiceTypes.ApplyEntityResponse(entityName="test"),
+        ):
             client._core_service_stub = grpc_stub
             name = client.apply(my_entity)
             assert name == "test"
@@ -84,10 +106,12 @@ class TestClient(object):
         grpc_stub = core.CoreServiceStub(grpc.insecure_channel(""))
 
         with mocker.patch.object(
-                grpc_stub,
-                'ApplyFeatureGroup',
-                return_value=CoreServiceTypes.ApplyFeatureGroupResponse(
-                    featureGroupId="test")):
+            grpc_stub,
+            "ApplyFeatureGroup",
+            return_value=CoreServiceTypes.ApplyFeatureGroupResponse(
+                featureGroupId="test"
+            ),
+        ):
             client._core_service_stub = grpc_stub
             name = client.apply(my_feature_group)
             assert name == "test"
@@ -95,8 +119,11 @@ class TestClient(object):
     def test_apply_unsupported_object(self, client):
         with pytest.raises(TypeError) as e_info:
             client.apply(None)
-            assert e_info.__str__() == "Apply can only be passed one of the" \
-                   + "following types: [Feature, Entity, FeatureGroup, Storage, Importer]"
+            assert (
+                e_info.__str__()
+                == "Apply can only be passed one of the"
+                + "following types: [Feature, Entity, FeatureGroup, Storage, Importer]"
+            )
 
     def test_apply_multiple(self, client, mocker):
         my_feature_group = FeatureGroup(id="test")
@@ -106,14 +133,16 @@ class TestClient(object):
 
         mocker.patch.object(
             grpc_stub,
-            'ApplyFeatureGroup',
+            "ApplyFeatureGroup",
             return_value=CoreServiceTypes.ApplyFeatureGroupResponse(
-                featureGroupId="test"))
+                featureGroupId="test"
+            ),
+        )
         mocker.patch.object(
             grpc_stub,
-            'ApplyEntity',
-            return_value=CoreServiceTypes.ApplyEntityResponse(
-                entityName="test"))
+            "ApplyEntity",
+            return_value=CoreServiceTypes.ApplyEntityResponse(entityName="test"),
+        )
 
         client._core_service_stub = grpc_stub
         ids = client.apply([my_entity, my_feature_group])
@@ -124,12 +153,11 @@ class TestClient(object):
 
         mocker.patch.object(
             grpc_stub,
-            'SubmitJob',
-            return_value=JobServiceTypes.SubmitImportJobResponse(
-                jobId="myjob12312"))
+            "SubmitJob",
+            return_value=JobServiceTypes.SubmitImportJobResponse(jobId="myjob12312"),
+        )
         client._job_service_stub = grpc_stub
-        importer = Importer({"import": ImportSpec()}, None,
-                            {"require_staging": False})
+        importer = Importer({"import": ImportSpec()}, None, {"require_staging": False})
 
         job_id = client.run(importer)
         assert job_id == "myjob12312"
@@ -142,25 +170,25 @@ class TestClient(object):
             client.create_dataset(inv_feature_set, "2018-12-01", "2018-12-02")
         # invalid start date
         with pytest.raises(
-                ValueError,
-                match="Incorrect date format, should be YYYY-MM-DD"):
+            ValueError, match="Incorrect date format, should be YYYY-MM-DD"
+        ):
             client.create_dataset(feature_set, "20181201", "2018-12-02")
         # invalid end date
         with pytest.raises(
-                ValueError,
-                match="Incorrect date format, should be YYYY-MM-DD"):
+            ValueError, match="Incorrect date format, should be YYYY-MM-DD"
+        ):
             client.create_dataset(feature_set, "2018-12-01", "20181202")
         # start date  > end date
         with pytest.raises(ValueError, match="end_date is before start_date"):
             client.create_dataset(feature_set, "2018-12-02", "2018-12-01")
         # invalid limit
-        with pytest.raises(
-                ValueError, match="limit is not a positive integer"):
+        with pytest.raises(ValueError, match="limit is not a positive integer"):
             client.create_dataset(feature_set, "2018-12-01", "2018-12-02", -1)
 
         with pytest.raises(ValueError, match="filters is not dictionary"):
-            client.create_dataset(feature_set, "2018-12-01", "2018-12-02",
-                                  10, filters="filter")
+            client.create_dataset(
+                feature_set, "2018-12-01", "2018-12-02", 10, filters="filter"
+            )
 
     def test_create_dataset(self, client, mocker):
         entity_name = "myentity"
@@ -169,15 +197,14 @@ class TestClient(object):
         start_date = "2018-01-02"
         end_date = "2018-12-31"
 
-        ds_pb = DatasetInfo_pb(
-            name="dataset_name", tableUrl="project.dataset.table")
+        ds_pb = DatasetInfo_pb(name="dataset_name", tableUrl="project.dataset.table")
 
         mock_trn_stub = training.DatasetServiceStub(grpc.insecure_channel(""))
         mocker.patch.object(
             mock_trn_stub,
             "CreateDataset",
-            return_value=DatasetServiceTypes.CreateDatasetResponse(
-                datasetInfo=ds_pb))
+            return_value=DatasetServiceTypes.CreateDatasetResponse(datasetInfo=ds_pb),
+        )
         client._dataset_service_stub = mock_trn_stub
 
         ds = client.create_dataset(fs, start_date, end_date)
@@ -190,7 +217,9 @@ class TestClient(object):
                 startDate=_timestamp_from_datetime(_parse_date(start_date)),
                 endDate=_timestamp_from_datetime(_parse_date(end_date)),
                 limit=None,
-                namePrefix=None))
+                namePrefix=None,
+            )
+        )
 
     def test_create_dataset_with_filters(self, client, mocker):
         entity_name = "myentity"
@@ -199,20 +228,18 @@ class TestClient(object):
         start_date = "2018-01-02"
         end_date = "2018-12-31"
 
-        ds_pb = DatasetInfo_pb(
-            name="dataset_name", tableUrl="project.dataset.table")
+        ds_pb = DatasetInfo_pb(name="dataset_name", tableUrl="project.dataset.table")
 
         mock_trn_stub = training.DatasetServiceStub(grpc.insecure_channel(""))
         mocker.patch.object(
             mock_trn_stub,
             "CreateDataset",
-            return_value=DatasetServiceTypes.CreateDatasetResponse(
-                datasetInfo=ds_pb))
+            return_value=DatasetServiceTypes.CreateDatasetResponse(datasetInfo=ds_pb),
+        )
         client._dataset_service_stub = mock_trn_stub
 
         job_filter = {"job_id": 12345}
-        ds = client.create_dataset(fs, start_date, end_date,
-                                   filters=job_filter)
+        ds = client.create_dataset(fs, start_date, end_date, filters=job_filter)
 
         assert "dataset_name" == ds.name
         assert "project.dataset.table" == ds.full_table_id
@@ -223,8 +250,9 @@ class TestClient(object):
                 endDate=_timestamp_from_datetime(_parse_date(end_date)),
                 limit=None,
                 namePrefix=None,
-                filters={"job_id": "12345"}))
-
+                filters={"job_id": "12345"},
+            )
+        )
 
     def test_create_dataset_with_limit(self, client, mocker):
         entity_name = "myentity"
@@ -234,15 +262,14 @@ class TestClient(object):
         end_date = "2018-12-31"
         limit = 100
 
-        ds_pb = DatasetInfo_pb(
-            name="dataset_name", tableUrl="project.dataset.table")
+        ds_pb = DatasetInfo_pb(name="dataset_name", tableUrl="project.dataset.table")
 
         mock_trn_stub = training.DatasetServiceStub(grpc.insecure_channel(""))
         mocker.patch.object(
             mock_trn_stub,
             "CreateDataset",
-            return_value=DatasetServiceTypes.CreateDatasetResponse(
-                datasetInfo=ds_pb))
+            return_value=DatasetServiceTypes.CreateDatasetResponse(datasetInfo=ds_pb),
+        )
         client._dataset_service_stub = mock_trn_stub
 
         ds = client.create_dataset(fs, start_date, end_date, limit=limit)
@@ -255,7 +282,9 @@ class TestClient(object):
                 startDate=_timestamp_from_datetime(_parse_date(start_date)),
                 endDate=_timestamp_from_datetime(_parse_date(end_date)),
                 limit=limit,
-                namePrefix=None))
+                namePrefix=None,
+            )
+        )
 
     def test_create_dataset_with_name_prefix(self, client, mocker):
         entity_name = "myentity"
@@ -266,20 +295,19 @@ class TestClient(object):
         limit = 100
         name_prefix = "feast"
 
-        ds_pb = DatasetInfo_pb(
-            name="dataset_name", tableUrl="project.dataset.table")
+        ds_pb = DatasetInfo_pb(name="dataset_name", tableUrl="project.dataset.table")
 
-        mock_dssvc_stub = training.DatasetServiceStub(
-            grpc.insecure_channel(""))
+        mock_dssvc_stub = training.DatasetServiceStub(grpc.insecure_channel(""))
         mocker.patch.object(
             mock_dssvc_stub,
             "CreateDataset",
-            return_value=DatasetServiceTypes.CreateDatasetResponse(
-                datasetInfo=ds_pb))
+            return_value=DatasetServiceTypes.CreateDatasetResponse(datasetInfo=ds_pb),
+        )
         client._dataset_service_stub = mock_dssvc_stub
 
         ds = client.create_dataset(
-            fs, start_date, end_date, limit=limit, name_prefix=name_prefix)
+            fs, start_date, end_date, limit=limit, name_prefix=name_prefix
+        )
 
         assert "dataset_name" == ds.name
         assert "project.dataset.table" == ds.full_table_id
@@ -289,7 +317,9 @@ class TestClient(object):
                 startDate=_timestamp_from_datetime(_parse_date(start_date)),
                 endDate=_timestamp_from_datetime(_parse_date(end_date)),
                 limit=limit,
-                namePrefix=name_prefix))
+                namePrefix=name_prefix,
+            )
+        )
 
     def test_build_serving_request(self, client):
         feature_set = FeatureSet("entity", ["entity.feat1", "entity.feat2"])
@@ -298,7 +328,8 @@ class TestClient(object):
         expected = QueryFeaturesRequest(
             entityName="entity",
             entityId=["1", "2", "3"],
-            featureId=feature_set.features)
+            featureId=feature_set.features,
+        )
         assert req == expected
 
     def test_serving_response_to_df(self, client):
@@ -307,143 +338,158 @@ class TestClient(object):
             entities={
                 "1": {
                     "entity.feat1": (1, Timestamp(seconds=1)),
-                    "entity.feat2": (2, Timestamp(seconds=2))
+                    "entity.feat2": (2, Timestamp(seconds=2)),
                 },
                 "2": {
                     "entity.feat1": (3, Timestamp(seconds=3)),
-                    "entity.feat2": (4, Timestamp(seconds=4))
-                }
-            })
-        expected_df = pd.DataFrame({'entity': ["1", "2"],
-                                    'entity.feat1': [1, 3],
-                                    'entity.feat2': [2, 4]}) \
-            .reset_index(drop=True)
-        df = client._response_to_df(FeatureSet("entity", ["entity.feat1",
-                                                          "entity.feat2"]),
-                                    response) \
-            .sort_values(['entity']) \
+                    "entity.feat2": (4, Timestamp(seconds=4)),
+                },
+            },
+        )
+        expected_df = pd.DataFrame(
+            {"entity": ["1", "2"], "entity.feat1": [1, 3], "entity.feat2": [2, 4]}
+        ).reset_index(drop=True)
+        df = (
+            client._response_to_df(
+                FeatureSet("entity", ["entity.feat1", "entity.feat2"]), response
+            )
+            .sort_values(["entity"])
             .reset_index(drop=True)[expected_df.columns]
+        )
         assert_frame_equal(
             df,
             expected_df,
             check_dtype=False,
             check_column_type=False,
-            check_index_type=False)
+            check_index_type=False,
+        )
 
     def test_serving_response_to_df_with_missing_value(self, client):
         response = self._create_query_features_response(
             entity_name="entity",
             entities={
-                "1": {
-                    "entity.feat1": (1, Timestamp(seconds=1))
-                },
+                "1": {"entity.feat1": (1, Timestamp(seconds=1))},
                 "2": {
                     "entity.feat1": (3, Timestamp(seconds=3)),
-                    "entity.feat2": (4, Timestamp(seconds=4))
-                }
-            })
-        expected_df = pd.DataFrame({'entity': ["1", "2"],
-                                    'entity.feat1': [1, 3],
-                                    'entity.feat2': [np.nan, 4]}) \
-            .reset_index(drop=True)
-        df = client._response_to_df(FeatureSet("entity", ["entity.feat1",
-                                                          "entity.feat2"]),
-                                    response) \
-            .sort_values(['entity']) \
+                    "entity.feat2": (4, Timestamp(seconds=4)),
+                },
+            },
+        )
+        expected_df = pd.DataFrame(
+            {"entity": ["1", "2"], "entity.feat1": [1, 3], "entity.feat2": [np.nan, 4]}
+        ).reset_index(drop=True)
+        df = (
+            client._response_to_df(
+                FeatureSet("entity", ["entity.feat1", "entity.feat2"]), response
+            )
+            .sort_values(["entity"])
             .reset_index(drop=True)[expected_df.columns]
+        )
         assert_frame_equal(
             df,
             expected_df,
             check_dtype=False,
             check_column_type=False,
-            check_index_type=False)
+            check_index_type=False,
+        )
 
     def test_serving_response_to_df_with_missing_feature(self, client):
         response = self._create_query_features_response(
             entity_name="entity",
             entities={
-                "1": {
-                    "entity.feat1": (1, Timestamp(seconds=1))
-                },
-                "2": {
-                    "entity.feat1": (3, Timestamp(seconds=3))
-                }
-            })
-        expected_df = pd.DataFrame({'entity': ["1", "2"],
-                                    'entity.feat1': [1, 3],
-                                    'entity.feat2': [np.NaN, np.NaN]}) \
-            .reset_index(drop=True)
-        df = client._response_to_df(FeatureSet("entity", ["entity.feat1",
-                                                          "entity.feat2"]),
-                                    response) \
-            .sort_values(['entity']) \
+                "1": {"entity.feat1": (1, Timestamp(seconds=1))},
+                "2": {"entity.feat1": (3, Timestamp(seconds=3))},
+            },
+        )
+        expected_df = pd.DataFrame(
+            {
+                "entity": ["1", "2"],
+                "entity.feat1": [1, 3],
+                "entity.feat2": [np.NaN, np.NaN],
+            }
+        ).reset_index(drop=True)
+        df = (
+            client._response_to_df(
+                FeatureSet("entity", ["entity.feat1", "entity.feat2"]), response
+            )
+            .sort_values(["entity"])
             .reset_index(drop=True)[expected_df.columns]
+        )
         assert_frame_equal(
             df,
             expected_df,
             check_dtype=False,
             check_column_type=False,
-            check_index_type=False)
+            check_index_type=False,
+        )
 
     def test_serving_response_to_df_no_data(self, client):
         response = QueryFeaturesResponse(entityName="entity")
-        expected_df = pd.DataFrame(
-            columns=['entity', 'entity.feat1', 'entity.feat2'])
+        expected_df = pd.DataFrame(columns=["entity", "entity.feat1", "entity.feat2"])
         df = client._response_to_df(
-            FeatureSet("entity", ["entity.feat1", "entity.feat2"]), response)
+            FeatureSet("entity", ["entity.feat1", "entity.feat2"]), response
+        )
         assert_frame_equal(
             df,
             expected_df,
             check_dtype=False,
             check_column_type=False,
-            check_index_type=False)
+            check_index_type=False,
+        )
 
     def test_serving_response_to_df_with_time_filter(self, client):
         response = self._create_query_features_response(
             entity_name="entity",
             entities={
-                "1": {
-                    "entity.feat1": (1, Timestamp(seconds=1))
-                },
-                "2": {
-                    "entity.feat1": (3, Timestamp(seconds=3))
-                }
-            })
-        expected_df = pd.DataFrame({'entity': ["1", "2"],
-                                    'entity.feat1': [np.NaN, 3],
-                                    'entity.feat2': [np.NaN, np.NaN]}) \
-            .reset_index(drop=True)
+                "1": {"entity.feat1": (1, Timestamp(seconds=1))},
+                "2": {"entity.feat1": (3, Timestamp(seconds=3))},
+            },
+        )
+        expected_df = pd.DataFrame(
+            {
+                "entity": ["1", "2"],
+                "entity.feat1": [np.NaN, 3],
+                "entity.feat2": [np.NaN, np.NaN],
+            }
+        ).reset_index(drop=True)
         start = datetime.utcfromtimestamp(2)
         end = datetime.utcfromtimestamp(5)
-        df = client._response_to_df(FeatureSet("entity", ["entity.feat1",
-                                                          "entity.feat2"]),
-                                    response, start, end) \
-            .sort_values(['entity']) \
+        df = (
+            client._response_to_df(
+                FeatureSet("entity", ["entity.feat1", "entity.feat2"]),
+                response,
+                start,
+                end,
+            )
+            .sort_values(["entity"])
             .reset_index(drop=True)[expected_df.columns]
+        )
         assert_frame_equal(
             df,
             expected_df,
             check_dtype=False,
             check_column_type=False,
-            check_index_type=False)
+            check_index_type=False,
+        )
 
     def test_serving_invalid_type(self, client):
         start = "2018-01-01T01:01:01"
         end = "2018-01-01T01:01:01"
         ts_range = [start, end]
-        with pytest.raises(
-                TypeError, match="start and end must be datetime "
-                                 "type"):
+        with pytest.raises(TypeError, match="start and end must be datetime " "type"):
             client.get_serving_data(
                 FeatureSet("entity", ["entity.feat1", "entity.feat2"]),
-                ["1234", "5678"], ts_range)
+                ["1234", "5678"],
+                ts_range,
+            )
 
     def test_download_dataset_as_file(self, client, mocker):
         destination = "/tmp/dest_file"
 
         table_dlder = TableDownloader()
         mocker.patch.object(
-            table_dlder, "download_table_as_file", return_value=destination)
+            table_dlder, "download_table_as_file", return_value=destination
+        )
 
         client._table_downloader = table_dlder
         full_table_id = "project.dataset.table"
@@ -454,11 +500,13 @@ class TestClient(object):
             dataset,
             destination,
             staging_location=staging_location,
-            file_type=FileType.CSV)
+            file_type=FileType.CSV,
+        )
 
         assert result == destination
         table_dlder.download_table_as_file.assert_called_once_with(
-            full_table_id, destination, FileType.CSV, staging_location)
+            full_table_id, destination, FileType.CSV, staging_location
+        )
 
     def _create_query_features_response(self, entity_name, entities):
         response = QueryFeaturesResponse(entityName=entity_name)
@@ -466,8 +514,8 @@ class TestClient(object):
             feature = {}
             for feature_id, feature_value in feature_map.items():
                 feature[feature_id] = FeatureValue(
-                    value=Value(int32Val=feature_value[0]),
-                    timestamp=feature_value[1])
+                    value=Value(int32Val=feature_value[0]), timestamp=feature_value[1]
+                )
             entity_pb = serving_pb.Entity(features=feature)
             response.entities[entity_id].CopyFrom(entity_pb)
 
@@ -478,9 +526,184 @@ class TestClient(object):
 
     def _create_bq_spec(self, id, project, dataset):
         return StorageSpec(
-            id=id,
-            type="bigquery",
-            options={
-                "project": project,
-                "dataset": dataset
-            })
+            id=id, type="bigquery", options={"project": project, "dataset": dataset}
+        )
+
+    @pytest.mark.parametrize(
+        "dataframe, expected",
+        [
+            (
+                pd.DataFrame({"entity_id": [1, 3, 4, 1], "feature_1": [1, 2, 5, 9]}),
+                pd.DataFrame(
+                    {
+                        "entity_id": [1, 3, 4, 1],
+                        "feature_1": [1, 2, 5, 9],
+                        "_event_timestamp": np.datetime64("now"),
+                    }
+                ),
+            )
+        ],
+    )
+    def test_ensure_valid_timestamp_in_dataframe_with_no_timestamp(
+        self, mock_feast_client, dataframe, expected
+    ):
+        timestamp_column_created = mock_feast_client._ensure_valid_timestamp_in_dataframe(
+            dataframe
+        )
+        assert dataframe.columns.values.tolist() == expected.columns.values.tolist()
+        assert timestamp_column_created == "_event_timestamp"
+        timestamp_second_difference = int(
+            (expected["_event_timestamp"] - dataframe["_event_timestamp"]).mean()
+            / np.timedelta64(1, "s")
+        )
+        assert timestamp_second_difference < 3
+
+    @pytest.mark.parametrize(
+        "dataframe, expected",
+        [
+            (
+                pd.DataFrame(
+                    {
+                        "entity_id": [1, 3, 4, 1],
+                        "feature_1": [1, 2, 5, 9],
+                        "timestamp": [1, 1, 1, 1],
+                    }
+                ),
+                pd.DataFrame(
+                    {
+                        "entity_id": [1, 3, 4, 1],
+                        "feature_1": [1, 2, 5, 9],
+                        "timestamp": [np.datetime64(1, "ns") for _ in range(4)],
+                    }
+                ),
+            ),
+            (
+                pd.DataFrame(
+                    {
+                        "entity_id": [1, 3, 4, 1],
+                        "feature_1": [1, 2, 5, 9],
+                        "timestamp": [
+                            datetime(
+                                year=2019, month=5, day=5, hour=15, minute=12, second=5
+                            )
+                            for _ in range(4)
+                        ],
+                    }
+                ),
+                pd.DataFrame(
+                    {
+                        "entity_id": [1, 3, 4, 1],
+                        "feature_1": [1, 2, 5, 9],
+                        "timestamp": [np.datetime64(1557069125, "s") for _ in range(4)],
+                    }
+                ),
+            ),
+            (
+                pd.DataFrame(
+                    {
+                        "entity_id": [1, 3, 4, 1],
+                        "feature_1": [1, 2, 5, 9],
+                        "timestamp": ["2019-05-05T14:00:00" for _ in range(4)],
+                    }
+                ),
+                pd.DataFrame(
+                    {
+                        "entity_id": [1, 3, 4, 1],
+                        "feature_1": [1, 2, 5, 9],
+                        "timestamp": [np.datetime64(1557064800, "s") for _ in range(4)],
+                    }
+                ),
+            ),
+            (
+                pd.DataFrame(
+                    {
+                        "entity_id": [1, 3, 4, 1],
+                        "feature_1": [1, 2, 5, 9],
+                        "timestamp": ["2019-05-05T14:00:00+07:00" for _ in range(4)],
+                    }
+                ),
+                pd.DataFrame(
+                    {
+                        "entity_id": [1, 3, 4, 1],
+                        "feature_1": [1, 2, 5, 9],
+                        "timestamp": [np.datetime64(1557039600, "s") for _ in range(4)],
+                    }
+                ),
+            ),
+        ],
+    )
+    def test_ensure_valid_timestamp_in_dataframe_with_existing_timestamp(
+        self, mock_feast_client, dataframe, expected
+    ):
+        mock_feast_client._ensure_valid_timestamp_in_dataframe(
+            dataframe, timestamp_column="timestamp"
+        )
+        pd.testing.assert_frame_equal(dataframe, expected, check_less_precise=0)
+
+    @pytest.mark.parametrize(
+        "dataframe",
+        [pd.DataFrame({"entity_id": [1, 3, 4, 1], "feature_1": [1, 2, 5, 9]})],
+    )
+    def test_ensure_valid_timestamp_in_dataframe_with_invalid_timestamp_column(
+        self, mock_feast_client, dataframe
+    ):
+        with pytest.raises(ValueError):
+            mock_feast_client._ensure_valid_timestamp_in_dataframe(
+                dataframe=dataframe, timestamp_column="non_existent_timestamp_column"
+            )
+
+    @pytest.mark.parametrize(
+        "dataframe",
+        [
+            pd.DataFrame(
+                {
+                    "entity_id": [1, 3, 4, 1],
+                    "feature_1": [1, 2, 5, 9],
+                    "timestamp": ["invalid value" for _ in range(4)],
+                }
+            )
+        ],
+    )
+    def test_ensure_valid_timestamp_in_dataframe_with_invalid_timestamp_value(
+        self, mock_feast_client, dataframe
+    ):
+        with pytest.raises(ValueError):
+            mock_feast_client._ensure_valid_timestamp_in_dataframe(
+                dataframe=dataframe, timestamp_column="timestamp"
+            )
+
+    @pytest.mark.parametrize(
+        "dataframe",
+        [
+            pd.DataFrame({"entity_id": [1, 3, 4, 1], "feature_1": [1, 2, 5, 9]}),
+            pd.DataFrame(
+                {
+                    "entity_id": [1, 3, 4],
+                    "feature_1": [1, 7, np.NaN],
+                    "feature_2": ["text", np.NaN, "text"],
+                }
+            ),
+        ],
+    )
+    def test_load_features_from_dataframe(self, mock_feast_client, dataframe):
+        mock_feast_client.load_features_from_dataframe(
+            dataframe=dataframe, entity_name="entity", entity_key_column="entity_id"
+        )
+        mock_feast_client._core_service_stub.ApplyEntity.assert_called_with(
+            EntitySpec(name="entity", description="", tags=[])
+        )
+        mock_feast_client._core_service_stub.ApplyFeatures.assert_called()
+
+    @pytest.mark.parametrize(
+        "dataframe",
+        [pd.DataFrame({"entity_id": [1, 3, 4, 1], "feature_1": [1, 2, 5, 9]})],
+    )
+    def test_load_features_from_dataframe_with_non_existent_entity_key_column(
+        self, mock_feast_client, dataframe
+    ):
+        with pytest.raises(ValueError):
+            mock_feast_client.load_features_from_dataframe(
+                dataframe=dataframe,
+                entity_name="entity",
+                entity_key_column="non_existent_entity_key_column",
+            )

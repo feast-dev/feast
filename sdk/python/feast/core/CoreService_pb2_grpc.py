@@ -53,6 +53,11 @@ class CoreServiceStub(object):
         request_serializer=feast_dot_specs_dot_FeatureSpec__pb2.FeatureSpec.SerializeToString,
         response_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ApplyFeatureResponse.FromString,
         )
+    self.ApplyFeatures = channel.unary_unary(
+        '/feast.core.CoreService/ApplyFeatures',
+        request_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ApplyFeaturesRequest.SerializeToString,
+        response_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ApplyFeaturesResponse.FromString,
+        )
     self.ApplyFeatureGroup = channel.unary_unary(
         '/feast.core.CoreService/ApplyFeatureGroup',
         request_serializer=feast_dot_specs_dot_FeatureGroupSpec__pb2.FeatureGroupSpec.SerializeToString,
@@ -62,6 +67,11 @@ class CoreServiceStub(object):
         '/feast.core.CoreService/ApplyEntity',
         request_serializer=feast_dot_specs_dot_EntitySpec__pb2.EntitySpec.SerializeToString,
         response_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ApplyEntityResponse.FromString,
+        )
+    self.GetTopic = channel.unary_unary(
+        '/feast.core.CoreService/GetTopic',
+        request_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetTopicRequest.SerializeToString,
+        response_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetTopicResponse.FromString,
         )
     self.GetUploadUrl = channel.unary_unary(
         '/feast.core.CoreService/GetUploadUrl',
@@ -75,8 +85,7 @@ class CoreServiceServicer(object):
   pass
 
   def GetEntities(self, request, context):
-    """
-    Get entities specified in request.
+    """Get entities specified in request.
     This process returns a list of entity specs.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -84,8 +93,7 @@ class CoreServiceServicer(object):
     raise NotImplementedError('Method not implemented!')
 
   def ListEntities(self, request, context):
-    """
-    Get all entities
+    """Get all entities
     This process returns a list of entity specs.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -93,8 +101,7 @@ class CoreServiceServicer(object):
     raise NotImplementedError('Method not implemented!')
 
   def GetStorage(self, request, context):
-    """
-    Get storage specs specified in request.
+    """Get storage specs specified in request.
     This process returns a list of storage specs.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -102,8 +109,7 @@ class CoreServiceServicer(object):
     raise NotImplementedError('Method not implemented!')
 
   def ListStorage(self, request, context):
-    """
-    Get all storage specs.
+    """Get all storage specs.
     This process returns a list of storage specs.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -111,8 +117,7 @@ class CoreServiceServicer(object):
     raise NotImplementedError('Method not implemented!')
 
   def GetFeatures(self, request, context):
-    """
-    Get features specified in request.
+    """Get features specified in request.
     This process returns a list of feature specs.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -120,8 +125,7 @@ class CoreServiceServicer(object):
     raise NotImplementedError('Method not implemented!')
 
   def ListFeatures(self, request, context):
-    """
-    Get all features.
+    """Get all features.
     This process returns a list of entity specs.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -129,24 +133,24 @@ class CoreServiceServicer(object):
     raise NotImplementedError('Method not implemented!')
 
   def ApplyFeature(self, request, context):
-    """
-    Register a new feature to the metadata store, or update an existing feature.
+    """Register a new feature to the metadata store, or update an existing feature.
     If any validation errors occur, only the first encountered error will be returned.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
-  def ApplyFeatureGroup(self, request, context):
+  def ApplyFeatures(self, request, context):
+    """ApplyFeatures creates or updates a list of features in Feast.
+    Updates only work for adding feature(s) to an existing entity.
+    Changing data type of an existing feature is not supported and will result in an error.
     """
-    Register a list of features to the metadata store, or update existing features.
-    If any validation errors occur, only the first encountered error will be returned.
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
 
-    rpc ApplyFeatures (CoreServiceTypes.ApplyFeaturesRequest) returns (CoreServiceTypes.ApplyFeaturesResponse) {
-    };
-
-
-    Register a new feature group to the metadata store, or update an existing feature group.
+  def ApplyFeatureGroup(self, request, context):
+    """Register a new feature group to the metadata store, or update an existing feature group.
     If any validation errors occur, only the first encountered error will be returned.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -154,17 +158,23 @@ class CoreServiceServicer(object):
     raise NotImplementedError('Method not implemented!')
 
   def ApplyEntity(self, request, context):
-    """
-    Register a new entity to the metadata store, or update an existing entity.
+    """Register a new entity to the metadata store, or update an existing entity.
     If any validation errors occur, only the first encountered error will be returned.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
-  def GetUploadUrl(self, request, context):
+  def GetTopic(self, request, context):
+    """Retrieve the topic and topic configuration (such as the URI of the message brokers)
+    for the client to write the feature values of an entity.
     """
-    Request a signed URL where a Feast client can upload a feature values file for an import job.
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
+  def GetUploadUrl(self, request, context):
+    """Request a signed URL where a Feast client can upload a feature values file for an import job.
     The signed URL will be valid by default for 5 minutes during which the client can start
     uploading the feature values file. As of 2019-06-28, only CSV and JSON files are supported,
     and the upload must complete in one PUT request i.e. resumable upload is not supported.
@@ -211,6 +221,11 @@ def add_CoreServiceServicer_to_server(servicer, server):
           request_deserializer=feast_dot_specs_dot_FeatureSpec__pb2.FeatureSpec.FromString,
           response_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ApplyFeatureResponse.SerializeToString,
       ),
+      'ApplyFeatures': grpc.unary_unary_rpc_method_handler(
+          servicer.ApplyFeatures,
+          request_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ApplyFeaturesRequest.FromString,
+          response_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ApplyFeaturesResponse.SerializeToString,
+      ),
       'ApplyFeatureGroup': grpc.unary_unary_rpc_method_handler(
           servicer.ApplyFeatureGroup,
           request_deserializer=feast_dot_specs_dot_FeatureGroupSpec__pb2.FeatureGroupSpec.FromString,
@@ -220,6 +235,11 @@ def add_CoreServiceServicer_to_server(servicer, server):
           servicer.ApplyEntity,
           request_deserializer=feast_dot_specs_dot_EntitySpec__pb2.EntitySpec.FromString,
           response_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ApplyEntityResponse.SerializeToString,
+      ),
+      'GetTopic': grpc.unary_unary_rpc_method_handler(
+          servicer.GetTopic,
+          request_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetTopicRequest.FromString,
+          response_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetTopicResponse.SerializeToString,
       ),
       'GetUploadUrl': grpc.unary_unary_rpc_method_handler(
           servicer.GetUploadUrl,

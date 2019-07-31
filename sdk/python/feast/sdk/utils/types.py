@@ -12,26 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from feast.sdk.resources.feature import ValueType
+from feast.types.Value_pb2 import ValueType
+from feast.sdk.resources.feature import ValueType as FeastValueType
 import numpy as np
 
-# mapping of pandas dtypes to feast value type strings
-DTYPE_TO_VALUE_TYPE_MAPPING = {
-    "float64": ValueType.DOUBLE,
-    "float32": ValueType.FLOAT,
-    "int64": ValueType.INT64,
-    "uint64": ValueType.INT64,
-    "int32": ValueType.INT32,
-    "uint32": ValueType.INT32,
-    "uint8": ValueType.INT32,
-    "int8": ValueType.INT32,
-    "bool": ValueType.BOOL,
-    "timedelta": ValueType.INT64,
-    "datetime64[ns]": ValueType.TIMESTAMP,
-    "datetime64[ns, tz]": ValueType.TIMESTAMP,
-    "category": ValueType.STRING,
-    "object": ValueType.STRING
-}
 
 # Mapping of feast value type to Pandas DataFrame dtypes
 # Integer and floating values are all 64-bit for better integration
@@ -39,13 +23,34 @@ DTYPE_TO_VALUE_TYPE_MAPPING = {
 FEAST_VALUETYPE_TO_DTYPE = {
     "bytesVal": np.byte,
     "stringVal": np.object,
-    "int32Val": "Int32", # Use pandas nullable int type
-    "int64Val": "Int64", # Use pandas nullable int type
+    "int32Val": "Int32",  # Use pandas nullable int type
+    "int64Val": "Int64",  # Use pandas nullable int type
     "doubleVal": np.float64,
     "floatVal": np.float64,
     "boolVal": np.bool,
     "timestampVal": np.datetime64,
 }
+
+
+def dtype_to_feast_value_attr(dtype):
+    # Mapping of Pandas dtype to attribute name in Feast Value
+    type_map = {
+        "float64": "doubleVal",
+        "float32": "floatVal",
+        "int64": "int64Val",
+        "uint64": "int64Val",
+        "int32": "int32Val",
+        "uint32": "int32Val",
+        "uint8": "int32Val",
+        "int8": "int32Val",
+        "bool": "boolVal",
+        "timedelta": "int64Val",
+        "datetime64[ns]": "timestampVal",
+        "datetime64[ns, tz]": "timestampVal",
+        "category": "stringVal",
+        "object": "stringVal",
+    }
+    return type_map[dtype.__str__()]
 
 
 def dtype_to_value_type(dtype):
@@ -57,4 +62,42 @@ def dtype_to_value_type(dtype):
     Returns:
         feast.types.ValueType2.ValueType: equivalent feast valuetype
     """
-    return DTYPE_TO_VALUE_TYPE_MAPPING[dtype.__str__()]
+    # mapping of pandas dtypes to feast value type strings
+    type_map = {
+        "float64": ValueType.DOUBLE,
+        "float32": ValueType.FLOAT,
+        "int64": ValueType.INT64,
+        "uint64": ValueType.INT64,
+        "int32": ValueType.INT32,
+        "uint32": ValueType.INT32,
+        "uint8": ValueType.INT32,
+        "int8": ValueType.INT32,
+        "bool": ValueType.BOOL,
+        "timedelta": ValueType.INT64,
+        "datetime64[ns]": ValueType.TIMESTAMP,
+        "datetime64[ns, tz]": ValueType.TIMESTAMP,
+        "category": ValueType.STRING,
+        "object": ValueType.STRING,
+    }
+    return type_map[dtype.__str__()]
+
+
+# TODO: to pass test_importer
+def dtype_to_feast_value_type(dtype):
+    type_map = {
+        "float64": FeastValueType.FLOAT,
+        "float32": FeastValueType.FLOAT,
+        "int64": FeastValueType.INT64,
+        "uint64": FeastValueType.INT64,
+        "int32": FeastValueType.INT32,
+        "uint32": FeastValueType.INT32,
+        "uint8": FeastValueType.INT32,
+        "int8": FeastValueType.INT32,
+        "bool": FeastValueType.BOOL,
+        "timedelta": FeastValueType.INT64,
+        "datetime64[ns]": FeastValueType.TIMESTAMP,
+        "datetime64[ns, tz]": FeastValueType.TIMESTAMP,
+        "category": FeastValueType.STRING,
+        "object": FeastValueType.STRING,
+    }
+    return type_map[dtype.__str__()]
