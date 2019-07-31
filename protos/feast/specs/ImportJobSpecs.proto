@@ -22,6 +22,7 @@ import "feast/specs/ImportSpec.proto";
 import "feast/specs/EntitySpec.proto";
 import "feast/specs/FeatureSpec.proto";
 import "feast/specs/StorageSpec.proto";
+import "feast/specs/SourceSpec.proto";
 
 option java_package = "feast.specs";
 option java_outer_classname = "ImportJobSpecsProto";
@@ -31,25 +32,21 @@ message ImportJobSpecs {
   // Job ID of the job using this import job spec.
   string jobId = 1;
 
-  // Source type
-  string type = 2;
-
-  // Feature row source options, should contain necessary information to
-  // connect to and retrieve feature rows from the feature stream.
-  map<string, string> sourceOptions = 3;
+  // Source spec containing source type and options
+  feast.specs.SourceSpec = 2;
 
   // Job specific options, to control behavior of row sampling and coalescing.
-  map<string, string> jobOptions = 4;
+  map<string, string> jobOptions = 3;
 
   // Entity spec of entity associated with this job.
-  feast.specs.EntitySpec entitySpec = 5;
+  feast.specs.EntitySpec entitySpec = 4;
 
   // List of feature specs of features that this job will populate.
-  repeated feast.specs.FeatureSpec featureSpecs = 6;
+  repeated feast.specs.FeatureSpec featureSpecs = 5;
 
   // Storage spec of the sink to write the features to.
-  StorageSpec sinkStorageSpec = 7;
+  StorageSpec sinkStorageSpec = 6;
 
   // Storage spec of errors store.
-  StorageSpec errorsStorageSpec = 8;
+  StorageSpec errorsStorageSpec = 7;
 }
