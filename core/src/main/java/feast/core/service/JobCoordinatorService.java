@@ -26,6 +26,8 @@ import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs.Builder;
+import feast.specs.ImportJobSpecsProto.SourceSpec;
+import feast.specs.ImportJobSpecsProto.SourceSpec.SourceType;
 import feast.specs.StorageSpecProto.StorageSpec;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
@@ -192,16 +194,20 @@ public class JobCoordinatorService {
 
     String jobNamePrefix = Strings.lenientFormat("%s-to-%s-", topic, sinkStoreSpec.getId())
         .toLowerCase();
+    SourceSpec sourceSpec = SourceSpec.newBuilder()
+        .setType(SourceType.valueOf(featureStream.getType().toUpperCase()))
+        .putAllOptions(featureStream.getFeatureStreamOptions())
+        .putOptions("topics", topic)
+        .build();
+
     // TODO: add job options from defaults
     Builder importJobSpecsBuilder = ImportJobSpecs.newBuilder()
         .setJobId(createJobId(jobNamePrefix))
-        .setType(featureStream.getType())
+        .setSourceSpec(sourceSpec)
         .setEntitySpec(entitySpec)
         .addAllFeatureSpecs(featureSpecs)
-        .putAllSourceOptions(featureStream.getFeatureStreamOptions())
         .setSinkStorageSpec(sinkStoreSpec)
         .setErrorsStorageSpec(errorsStoreSpec);
-    importJobSpecsBuilder.putSourceOptions("topics", topic);
 
     return importJobSpecsBuilder.build();
   }

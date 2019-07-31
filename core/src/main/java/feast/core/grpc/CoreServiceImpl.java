@@ -213,24 +213,17 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     }
   }
 
-  @Override
-  public void applyFeatures(CoreServiceProto.CoreServiceTypes.ApplyFeaturesRequest request, StreamObserver<CoreServiceProto.CoreServiceTypes.ApplyFeaturesResponse> responseObserver) {
-    ApplyFeaturesResponse applyFeaturesResponse = ApplyFeaturesResponse.newBuilder().build();
-    responseObserver.onNext(applyFeaturesResponse);
-    responseObserver.onCompleted();
-  }
-
   /**
    * Registers a list of feature specs to the registry. If validation fails, will returns a bad
    * request error. If registration fails (e.g. connection to the db is interrupted), an internal
    * error will be returned.
    */
   @Override
-  public void applyFeatures(ApplyFeaturesRequest request,
-      StreamObserver<ApplyFeaturesResponse> responseObserver) {
-    super.applyFeatures(request, responseObserver);
+  public void applyFeatures(CoreServiceProto.CoreServiceTypes.ApplyFeaturesRequest request, StreamObserver<CoreServiceProto.CoreServiceTypes.ApplyFeaturesResponse> responseObserver) {
+    ApplyFeaturesResponse applyFeaturesResponse = ApplyFeaturesResponse.newBuilder().build();
+    responseObserver.onNext(applyFeaturesResponse);
+    responseObserver.onCompleted();
   }
-
 
   /**
    * Registers a single feature group spec to the registry. If validation fails, will returns a bad

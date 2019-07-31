@@ -23,6 +23,8 @@ import feast.core.util.TypeConversion;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
+import feast.specs.ImportJobSpecsProto.SourceSpec;
+import feast.specs.ImportJobSpecsProto.SourceSpec.SourceType;
 import feast.specs.ImportSpecProto;
 import org.junit.Test;
 
@@ -33,23 +35,31 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 public class JobInfoTest {
+
   @Test
   public void shouldInitialiseGivenJobIdAndSpec() throws InvalidProtocolBufferException {
 
-    ImportJobSpecs importSpec = ImportJobSpecs.newBuilder()
-            .setType("file.csv")
-            .putSourceOptions("path", "gs://some/path")
-            .setEntitySpec(EntitySpec.newBuilder().setName("entity").build())
-            .addFeatureSpecs(FeatureSpec.newBuilder().setName("feature").build())
-            .build();
+    SourceSpec sourceSpec = SourceSpec.newBuilder()
+        .setType(SourceType.KAFKA)
+        .putOptions("bootstrapServers", "localhost:8281")
+        .build();
 
-    JobInfo actual = new JobInfo("fake-job-id", "fake-ext-id", "DataflowRunner",importSpec, JobStatus.PENDING);
+    ImportJobSpecs importSpec = ImportJobSpecs.newBuilder()
+        .setSourceSpec(sourceSpec)
+        .setEntitySpec(EntitySpec.newBuilder().setName("entity").build())
+        .addFeatureSpecs(FeatureSpec.newBuilder().setName("feature").build())
+        .build();
+
+    JobInfo actual = new JobInfo("fake-job-id", "fake-ext-id", "DataflowRunner", importSpec,
+        JobStatus.PENDING);
     JobInfo expected = new JobInfo();
     expected.setId("fake-job-id");
     expected.setExtId("fake-ext-id");
-    expected.setType("file.csv");
+    expected.setType("kafka");
     expected.setRunner("DataflowRunner");
-    expected.setSourceOptions(TypeConversion.convertMapToJsonString(importSpec.getSourceOptionsMap()));
+    expected
+        .setSourceOptions(
+            TypeConversion.convertMapToJsonString(importSpec.getSourceSpec().getOptionsMap()));
 
     List<EntityInfo> entities = new ArrayList<>();
     EntityInfo entityInfo = new EntityInfo();

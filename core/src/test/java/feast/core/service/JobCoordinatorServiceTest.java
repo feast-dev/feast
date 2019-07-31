@@ -27,6 +27,8 @@ import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs.Builder;
+import feast.specs.ImportJobSpecsProto.SourceSpec;
+import feast.specs.ImportJobSpecsProto.SourceSpec.SourceType;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.ValueProto.ValueType;
 import java.io.File;
@@ -95,13 +97,13 @@ public class JobCoordinatorServiceTest {
             Arrays.asList(feature), sinkStoreSpec, errorsStoreSpec);
     ImportJobSpecs expected = ImportJobSpecs.newBuilder()
         .setJobId(actual.getJobId())
-        .setType("kafka")
+        .setSourceSpec(SourceSpec.newBuilder().setType(SourceType.KAFKA)
+            .putAllOptions(kafkaFeatureStreamOptions).putOptions("topics", "feast-entity-features")
+            .build())
         .setEntitySpec(entitySpec)
         .addAllFeatureSpecs(Arrays.asList(feature))
         .setSinkStorageSpec(sinkStoreSpec)
         .setErrorsStorageSpec(errorsStoreSpec)
-        .putAllSourceOptions(kafkaFeatureStreamOptions)
-        .putSourceOptions("topics", "feast-entity-features")
         .build();
     assertThat(actual, equalTo(expected));
 
@@ -122,13 +124,13 @@ public class JobCoordinatorServiceTest {
 
     ImportJobSpecs importJobSpecs = ImportJobSpecs.newBuilder()
         .setJobId("job1")
-        .setType("kafka")
+        .setSourceSpec(SourceSpec.newBuilder().setType(SourceType.KAFKA)
+            .putAllOptions(kafkaFeatureStreamOptions).putOptions("topics", "feast-entity-features")
+            .build())
         .setEntitySpec(EntitySpec.newBuilder().setName("entity").build())
         .addAllFeatureSpecs(Arrays.asList(FeatureSpec.newBuilder().setId("entity.feature").build()))
         .setSinkStorageSpec(StorageSpec.newBuilder().setId("sink").build())
         .setErrorsStorageSpec(StorageSpec.newBuilder().setId("errors").build())
-        .putAllSourceOptions(kafkaFeatureStreamOptions)
-        .putSourceOptions("topics", "feast-entity-features")
         .build();
 
     JobCoordinatorService jobCoordinatorService = new JobCoordinatorService(jobInfoRepository,
@@ -164,7 +166,7 @@ public class JobCoordinatorServiceTest {
     when(jobInfoRepository.findById("job1")).thenReturn(Optional.empty());
     JobCoordinatorService jobCoordinatorService =
         new JobCoordinatorService(jobInfoRepository,
-        jobManager, featureStream, defaults);
+            jobManager, featureStream, defaults);
     exception.expect(RetrievalException.class);
     exception.expectMessage("Unable to retrieve job with id job1");
     jobCoordinatorService.abortJob("job1");
@@ -177,7 +179,7 @@ public class JobCoordinatorServiceTest {
     when(jobInfoRepository.findById("job1")).thenReturn(Optional.of(job));
     JobCoordinatorService jobCoordinatorService =
         new JobCoordinatorService(jobInfoRepository,
-        jobManager, featureStream, defaults);
+            jobManager, featureStream, defaults);
     exception.expect(IllegalStateException.class);
     exception.expectMessage("Unable to stop job already in terminal state");
     jobCoordinatorService.abortJob("job1");
@@ -191,7 +193,7 @@ public class JobCoordinatorServiceTest {
     when(jobInfoRepository.findById("job1")).thenReturn(Optional.of(job));
     JobCoordinatorService jobCoordinatorService =
         new JobCoordinatorService(jobInfoRepository,
-        jobManager, featureStream, defaults);
+            jobManager, featureStream, defaults);
     jobCoordinatorService.abortJob("job1");
     ArgumentCaptor<JobInfo> jobCapture = ArgumentCaptor.forClass(JobInfo.class);
     verify(jobInfoRepository).saveAndFlush(jobCapture.capture());
@@ -206,7 +208,7 @@ public class JobCoordinatorServiceTest {
     ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
     JobCoordinatorService jobExecutionService =
         new JobCoordinatorService(jobInfoRepository,
-        jobManager, featureStream, defaults);
+            jobManager, featureStream, defaults);
     jobExecutionService.updateJobStatus("jobid", JobStatus.PENDING);
 
     verify(jobInfoRepository, times(1)).save(jobInfoArgumentCaptor.capture());
