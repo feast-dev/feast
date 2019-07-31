@@ -16,8 +16,6 @@
 
 syntax = "proto3";
 
-import "feast/specs/FeatureSpec.proto";
-
 package feast.specs;
 
 option java_package = "feast.specs";

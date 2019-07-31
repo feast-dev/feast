@@ -1,52 +1,60 @@
-/*
- * Copyright 2019 The Feast Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+//
+// * Copyright 2019 The Feast Authors
+// *
+// * Licensed under the Apache License, Version 2.0 (the "License");
+// * you may not use this file except in compliance with the License.
+// * You may obtain a copy of the License at
+// *
+// *     https://www.apache.org/licenses/LICENSE-2.0
+// *
+// * Unless required by applicable law or agreed to in writing, software
+// * distributed under the License is distributed on an "AS IS" BASIS,
+// * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// * See the License for the specific language governing permissions and
+// * limitations under the License.
+//
 
 syntax = "proto3";
 
 package feast.specs;
 
-import "feast/specs/ImportSpec.proto";
+option go_package = "github.com/gojek/feast/protos/generated/go/feast/specs";
+option java_outer_classname = "ImportJobSpecsProto";
+option java_package = "feast.specs";
+
 import "feast/specs/EntitySpec.proto";
 import "feast/specs/FeatureSpec.proto";
 import "feast/specs/StorageSpec.proto";
-import "feast/specs/SourceSpec.proto";
-
-option java_package = "feast.specs";
-option java_outer_classname = "ImportJobSpecsProto";
-option go_package = "github.com/gojek/feast/protos/generated/go/feast/specs";
 
 message ImportJobSpecs {
   // Job ID of the job using this import job spec.
   string jobId = 1;
-
   // Source spec containing source type and options
-  feast.specs.SourceSpec = 2;
-
+  feast.specs.SourceSpec sourceSpec = 2;
   // Job specific options, to control behavior of row sampling and coalescing.
   map<string, string> jobOptions = 3;
-
   // Entity spec of entity associated with this job.
   feast.specs.EntitySpec entitySpec = 4;
-
   // List of feature specs of features that this job will populate.
   repeated feast.specs.FeatureSpec featureSpecs = 5;
-
   // Storage spec of the sink to write the features to.
   StorageSpec sinkStorageSpec = 6;
-
   // Storage spec of errors store.
   StorageSpec errorsStorageSpec = 7;
+}
+
+message SourceSpec {
+  enum SourceType {
+    KAFKA = 0;
+  }
+  // The kind of message source the import job should connect to
+  // in order to retrieve FeatureRow value
+  SourceType type = 1;
+  // Options to establish connection to the message source. The available options
+  // vary depending on the source type.
+  //
+  // For SourceType.KAFKA, the following key value options are accepted:
+  // - bootstrapServers: [comma delimited value of host[:port]]
+  // - topics: [comma delimited value of topic names]
+  map<string, string> options = 2;
 }

@@ -16,8 +16,6 @@
 
 syntax = "proto3";
 
-import "feast/specs/EntitySpec.proto";
-import "feast/specs/StorageSpec.proto";
 import "feast/types/Value.proto";
 
 package feast.specs;
