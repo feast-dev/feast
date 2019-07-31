@@ -28,7 +28,7 @@ from feast.sdk.resources.feature import Feature
 from feast.sdk.utils.bq_util import head
 from feast.sdk.utils.gs_utils import gcs_to_df, is_gs_path, df_to_gcs
 from feast.sdk.utils.print_utils import spec_to_yaml
-from feast.sdk.utils.types import dtype_to_value_type
+from feast.sdk.utils.types import dtype_to_feast_value_type
 from feast.specs.ImportSpec_pb2 import ImportSpec, Schema
 
 
@@ -507,7 +507,7 @@ def _create_feature(column, entity, owner):
         name=column.name,
         entity=entity,
         owner=owner,
-        value_type=dtype_to_value_type(column.dtype),
+        value_type=dtype_to_feast_value_type(column.dtype),
     )
     return feature
 

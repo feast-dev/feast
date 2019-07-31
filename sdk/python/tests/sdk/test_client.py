@@ -13,22 +13,17 @@
 # limitations under the License.
 
 from datetime import datetime
-from unittest import mock
 from unittest.mock import MagicMock
-
-import grpc
-import grpc_testing
-import numpy as np
-import pandas as pd
-import pytest
-from freezegun import freeze_time
-from google.protobuf.timestamp_pb2 import Timestamp
-from pandas.util.testing import assert_frame_equal
 
 import feast.core.CoreService_pb2_grpc as core
 import feast.core.DatasetService_pb2_grpc as training
 import feast.core.JobService_pb2_grpc as jobs
 import feast.serving.Serving_pb2 as serving_pb
+import grpc
+import grpc_testing
+import numpy as np
+import pandas as pd
+import pytest
 from feast.core.CoreService_pb2 import CoreServiceTypes
 from feast.core.DatasetService_pb2 import DatasetInfo as DatasetInfo_pb
 from feast.core.DatasetService_pb2 import DatasetServiceTypes
@@ -50,6 +45,8 @@ from feast.specs.FeatureSpec_pb2 import FeatureSpec
 from feast.specs.ImportSpec_pb2 import ImportSpec
 from feast.specs.StorageSpec_pb2 import StorageSpec
 from feast.types.Value_pb2 import Value
+from google.protobuf.timestamp_pb2 import Timestamp
+from pandas.util.testing import assert_frame_equal
 
 
 class TestClient(object):

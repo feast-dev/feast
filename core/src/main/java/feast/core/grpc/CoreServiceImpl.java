@@ -24,6 +24,7 @@ import com.google.protobuf.Empty;
 import com.google.protobuf.Timestamp;
 import com.timgroup.statsd.StatsDClient;
 import feast.core.CoreServiceGrpc.CoreServiceImplBase;
+import feast.core.CoreServiceProto;
 import feast.core.CoreServiceProto.CoreServiceTypes.*;
 import feast.core.CoreServiceProto.CoreServiceTypes.GetUploadUrlResponse.HttpMethod;
 import feast.core.config.StorageConfig.StorageSpecs;
@@ -212,6 +213,13 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     }
   }
 
+  @Override
+  public void applyFeatures(CoreServiceProto.CoreServiceTypes.ApplyFeaturesRequest request, StreamObserver<CoreServiceProto.CoreServiceTypes.ApplyFeaturesResponse> responseObserver) {
+    ApplyFeaturesResponse applyFeaturesResponse = ApplyFeaturesResponse.newBuilder().build();
+    responseObserver.onNext(applyFeaturesResponse);
+    responseObserver.onCompleted();
+  }
+
   /**
    * Registers a single feature group spec to the registry. If validation fails, will returns a bad
    * request error. If registration fails (e.g. connection to the db is interrupted), an internal
@@ -259,6 +267,13 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       log.error("Error in applyEntity: {}", e);
       responseObserver.onError(getBadRequestException(e));
     }
+  }
+
+  @Override
+  public void getTopic(GetTopicRequest request, StreamObserver<GetTopicResponse> responseObserver) {
+    GetTopicResponse response = GetTopicResponse.newBuilder().setMessageBrokerURI("localhost:9092").setTopicName("mytopic").build();
+    responseObserver.onNext(response);
+    responseObserver.onCompleted();
   }
 
   /**
