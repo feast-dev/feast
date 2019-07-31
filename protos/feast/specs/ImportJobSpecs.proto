@@ -50,8 +50,8 @@ message SourceSpec {
   // The kind of message source the import job should connect to
   // in order to retrieve FeatureRow value
   SourceType type = 1;
-  // Options to establish connection to the message source. The available options
-  // vary depending on the source type.
+  // Optional. Configuration to establish connection to the message source. 
+  // The available options vary depending on the source type.
   //
   // For SourceType.KAFKA, the following key value options are accepted:
   // - bootstrapServers: [comma delimited value of host[:port]]
