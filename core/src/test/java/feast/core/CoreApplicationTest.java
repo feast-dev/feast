@@ -1,28 +1,18 @@
 package feast.core;
 
-import static feast.core.config.StorageConfig.DEFAULT_ERRORS_ID;
 import static feast.core.config.StorageConfig.DEFAULT_SERVING_ID;
 import static feast.core.config.StorageConfig.DEFAULT_WAREHOUSE_ID;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-import com.google.protobuf.Timestamp;
-import feast.core.JobServiceProto.JobServiceTypes.SubmitImportJobRequest;
-import feast.core.JobServiceProto.JobServiceTypes.SubmitImportJobResponse;
 import feast.core.config.ImportJobDefaults;
 import feast.core.job.JobManager;
 import feast.core.model.StorageInfo;
-import feast.core.service.FeatureStreamService;
 import feast.core.service.SpecService;
 import feast.core.stream.FeatureStream;
-import feast.core.stream.kafka.KafkaFeatureStream;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
-import feast.specs.ImportSpecProto.Field;
-import feast.specs.ImportSpecProto.ImportSpec;
-import feast.specs.ImportSpecProto.Schema;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.ValueProto.ValueType;
 import io.grpc.ManagedChannel;
@@ -96,7 +86,6 @@ public class CoreApplicationTest {
     ManagedChannelBuilder<?> channelBuilder = ManagedChannelBuilder.forAddress("localhost", 6565);
     ManagedChannel channel = channelBuilder.usePlaintext(true).build();
     CoreServiceGrpc.CoreServiceBlockingStub coreService = CoreServiceGrpc.newBlockingStub(channel);
-    JobServiceGrpc.JobServiceBlockingStub jobService = JobServiceGrpc.newBlockingStub(channel);
 
     EntitySpec entitySpec = EntitySpec.newBuilder().setName("test").build();
     FeatureSpec featureSpec = FeatureSpec.newBuilder()
