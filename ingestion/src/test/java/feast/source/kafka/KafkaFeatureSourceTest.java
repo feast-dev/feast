@@ -2,11 +2,9 @@ package feast.source.kafka;
 
 import feast.specs.ImportJobSpecsProto.SourceSpec;
 import feast.specs.ImportJobSpecsProto.SourceSpec.SourceType;
-import feast.specs.ImportSpecProto.ImportSpec;
 import feast.types.FeatureProto.Feature;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.ValueProto.Value;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -14,7 +12,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -22,8 +19,8 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.Serializer;
-import org.joda.time.Duration;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -53,6 +50,10 @@ public class KafkaFeatureSourceTest {
   @Autowired
   private KafkaTemplate<byte[], FeatureRow> template;
 
+  @BeforeClass
+  public static void setup() {
+    System.setProperty("beamTestPipelineOptions", "[\"--sampleLimit=1\"]");
+  }
 
   public void send(FeatureRow... rows) {
     for (FeatureRow row : rows) {
@@ -67,7 +68,7 @@ public class KafkaFeatureSourceTest {
   }
 
   @Test
-  public void testFoo() throws ExecutionException, InterruptedException {
+  public void testKafkaFeatureSource() {
     String server = embeddedKafka.getEmbeddedKafka().getBrokerAddresses()[0].toString();
 
     SourceSpec sourceSpec = SourceSpec.newBuilder()
@@ -85,8 +86,10 @@ public class KafkaFeatureSourceTest {
 
     PCollection<FeatureRow> rows = pipeline
         .apply(new KafkaFeatureSource(sourceSpec, Arrays.asList("key.feature")));
-    Assert.assertEquals(IsBounded.UNBOUNDED, rows.isBounded());
+
+    Assert.assertEquals(IsBounded.BOUNDED, rows.isBounded());
     PAssert.that(rows).containsInAnyOrder(row);
+
     pipeline.run();
   }
 

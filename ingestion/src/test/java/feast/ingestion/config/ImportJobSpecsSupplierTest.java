@@ -21,30 +21,28 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.protobuf.util.JsonFormat;
 import feast.ingestion.model.Specs;
-import feast.ingestion.util.DateUtil;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.ImportJobSpecsProto.SourceSpec;
 import feast.specs.ImportJobSpecsProto.SourceSpec.SourceType;
-import feast.specs.ImportSpecProto.Field;
-import feast.specs.ImportSpecProto.ImportSpec;
-import feast.specs.ImportSpecProto.Schema;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.ValueProto.ValueType.Enum;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-// TODO: Check the commented codes. Commented so build can succeed.
-
+@Slf4j
+public class ImportJobSpecsSupplierTest {
   @Rule
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
-  String importSpecYaml =
+
+  public String importSpecYaml =
       "---\n"
           + "sinkStorageSpec:\n"
           + "  id: TEST_SERVING\n"

@@ -64,16 +64,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-// TODO: Check the commented codes. Commented so build can succeed.
-  public ImportJobSpecs getImportJobSpecs(String dataFile) {
-            new ImportJobModule(options, getImportJobSpecs(csvFile.toString())),
-            new ImportJobModule(options, getImportJobSpecs(jsonFile.toString())),
-            new ImportJobModule(options, getImportJobSpecs(csvFile.toString())),
-            new ImportJobModule(options, getImportJobSpecs(csvFile.toString())),
-            new ImportJobModule(options, getImportJobSpecs(csvFile.toString())),
-            new ImportJobModule(options, getImportJobSpecs(csvFile.toString())),
-    ImportJobSpecs importJobSpecs = getImportJobSpecs(csvFile.toString()).toBuilder()
-
 // @Slf4j
 // public class ImportJobCSVTest {
 //
