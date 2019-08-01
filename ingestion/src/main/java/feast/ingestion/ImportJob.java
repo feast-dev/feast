@@ -174,6 +174,8 @@ public class ImportJob {
 
     if (!dryRun) {
       applySinkTransform(importJobSpecs.getSinkStorageSpec().getType(), pipelineOptions, featureRows);
+      // applySinkTransform(importJobSpecs.getType(), jobOptions, featureRows);
+
       errorRows.apply(errorsStoreTransform);
     }
   }

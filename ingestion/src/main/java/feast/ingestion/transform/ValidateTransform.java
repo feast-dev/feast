@@ -34,6 +34,9 @@ public class ValidateTransform extends PTransform<PFeatureRows, PFeatureRows> {
 
   @Override
   public PFeatureRows expand(PFeatureRows input) {
+    //   }
+    // }
+
     return input.applyDoFn("Validate feature rows dofn", new ValidateFeatureRowsDoFn(specs));
   }
 }
