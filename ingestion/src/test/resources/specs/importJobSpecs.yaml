@@ -1,20 +1,16 @@
-importSpec: {}
-servingStorageSpec:
+sourceSpec: {}
+sinkStorageSpec:
   id: TEST_SERVING
   type: serving.mock
-  options: {}
-warehouseStorageSpec:
-  id: TEST_WAREHOUSE
-  type: warehouse.mock
   options: {}
 errorsStorageSpec:
   id: errors
   type: errors.mock
   options: {}
-entitySpecs:
-  - name: testEntity
-    description: This is a test entity
-    tags: []
+entitySpec:
+  name: testEntity
+  description: This is a test entity
+  tags: []
 featureSpecs:
   - id: testEntity.testInt64
     entity: testEntity

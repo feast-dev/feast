@@ -28,7 +28,10 @@ import feast.ingestion.model.Features;
 import feast.ingestion.model.Specs;
 import feast.ingestion.model.Values;
 import feast.ingestion.util.DateUtil;
+import feast.specs.EntitySpecProto.EntitySpec;
+import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
+import feast.specs.ImportJobSpecsProto.SourceSpec;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;
@@ -83,20 +86,19 @@ public class FeatureRowRedisIOWriteTest {
   Specs getSpecs() {
     Specs specs = Specs.of(
         "test job",
-        importJobSpecs.toBuilder().setImportSpec(ImportSpec.newBuilder()
-            .addEntities("testEntity")
-            .setSchema(
-                Schema.newBuilder()
-                    .addFields(Field.newBuilder().setFeatureId(featureInt32))
-                    .addFields(Field.newBuilder().setFeatureId(featureString)))
-        ).setServingStorageSpec(StorageSpec.newBuilder()
-            .setId("REDIS1").setType("redis")
-            .putOptions("port", String.valueOf(REDIS_PORT))
-            .putOptions("host", "localhost")
-            .putOptions("batchSize", "1")
-            .putOptions("timeout", "2000")
-            .build()).build());
-    specs.validate();
+        importJobSpecs.toBuilder()
+            .setSourceSpec(SourceSpec.newBuilder())
+            .setEntitySpec(EntitySpec.newBuilder().setName("testEntity"))
+            .addFeatureSpecs(FeatureSpec.newBuilder().setId(featureInt32))
+            .addFeatureSpecs(FeatureSpec.newBuilder().setId(featureString))
+            .setSinkStorageSpec(StorageSpec.newBuilder()
+              .setId("REDIS1").setType("redis")
+              .putOptions("port", String.valueOf(REDIS_PORT))
+              .putOptions("host", "localhost")
+              .putOptions("batchSize", "1")
+              .putOptions("timeout", "2000")
+              .build())
+            .build());
     return specs;
   }
 
@@ -104,8 +106,7 @@ public class FeatureRowRedisIOWriteTest {
   public void testWrite() throws IOException {
 
     Specs specs = getSpecs();
-    specs.validate();
-    new RedisServingFactory().create(specs.getServingStorageSpec(), specs);
+    new RedisServingFactory().create(specs.getSinkStorageSpec(), specs);
     FeatureRowRedisIO.Write write =
         new FeatureRowRedisIO.Write(
             RedisStoreOptions.builder().host("localhost").port(REDIS_PORT).build(), specs);
@@ -149,7 +150,7 @@ public class FeatureRowRedisIOWriteTest {
   public void testWriteFromOptions() throws IOException {
     Specs specs = getSpecs();
     FeatureStoreWrite write = new RedisServingFactory()
-        .create(specs.getServingStorageSpec(), specs);
+        .create(specs.getSinkStorageSpec(), specs);
 
     Timestamp now = DateUtil.toTimestamp(DateTime.now());
     FeatureRowExtended rowExtended =

@@ -31,16 +31,14 @@ message ImportJobSpecs {
   string jobId = 1;
   // Source spec containing source type and options
   feast.specs.SourceSpec sourceSpec = 2;
-  // Job specific options, to control behavior of row sampling and coalescing.
-  map<string, string> jobOptions = 3;
   // Entity spec of entity associated with this job.
-  feast.specs.EntitySpec entitySpec = 4;
+  feast.specs.EntitySpec entitySpec = 3;
   // List of feature specs of features that this job will populate.
-  repeated feast.specs.FeatureSpec featureSpecs = 5;
+  repeated feast.specs.FeatureSpec featureSpecs = 4;
   // Storage spec of the sink to write the features to.
-  StorageSpec sinkStorageSpec = 6;
+  StorageSpec sinkStorageSpec = 5;
   // Storage spec of errors store.
-  StorageSpec errorsStorageSpec = 7;
+  StorageSpec errorsStorageSpec = 6;
 }
 
 message SourceSpec {

@@ -1,13 +1,20 @@
 package feast.source.kafka;
 
+import feast.specs.ImportJobSpecsProto.SourceSpec;
+import feast.specs.ImportJobSpecsProto.SourceSpec.SourceType;
 import feast.specs.ImportSpecProto.ImportSpec;
+import feast.types.FeatureProto.Feature;
 import feast.types.FeatureRowProto.FeatureRow;
+import feast.types.ValueProto.Value;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -15,6 +22,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.Serializer;
+import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -61,20 +69,23 @@ public class KafkaFeatureSourceTest {
   @Test
   public void testFoo() throws ExecutionException, InterruptedException {
     String server = embeddedKafka.getEmbeddedKafka().getBrokerAddresses()[0].toString();
-    ImportSpec importSpec = ImportSpec.newBuilder().setType("kafka")
-        .addEntities("testEntity")
-        .putSourceOptions("topics", "TEST_TOPIC")
-        .putSourceOptions("server", server)
-        .putJobOptions("sample.limit", "1")
+
+    SourceSpec sourceSpec = SourceSpec.newBuilder()
+        .setType(SourceType.KAFKA)
+        .putOptions("topics", "TEST_TOPIC")
+        .putOptions("server", server)
         .build();
-    FeatureRow row = FeatureRow.newBuilder().setEntityKey("key").build();
+    FeatureRow row = FeatureRow.newBuilder().setEntityKey("key")
+        .addFeatures(Feature.newBuilder().setId("key.feature").setValue(
+            Value.newBuilder().setInt32Val(1).build()).build()).build();
     ScheduledExecutorService scheduler =
         Executors.newScheduledThreadPool(1);
     // we keep sending on loop because beam will only start consuming rows that were sent after startup.
     scheduler.scheduleAtFixedRate(() -> send(row), 0, 1, TimeUnit.SECONDS);
 
-    PCollection<FeatureRow> rows = pipeline.apply(new KafkaFeatureSource(importSpec));
-    Assert.assertEquals(IsBounded.BOUNDED, rows.isBounded());
+    PCollection<FeatureRow> rows = pipeline
+        .apply(new KafkaFeatureSource(sourceSpec, Arrays.asList("key.feature")));
+    Assert.assertEquals(IsBounded.UNBOUNDED, rows.isBounded());
     PAssert.that(rows).containsInAnyOrder(row);
     pipeline.run();
   }

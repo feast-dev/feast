@@ -31,7 +31,6 @@ import feast.ingestion.exceptions.UnsupportedStoreException;
 import feast.ingestion.metrics.FeastMetrics;
 import feast.ingestion.model.Specs;
 import feast.ingestion.options.ImportJobPipelineOptions;
-import feast.ingestion.options.JobOptions;
 import feast.ingestion.transform.CoalesceFeatureRowExtended;
 import feast.ingestion.transform.ErrorsStoreTransform;
 import feast.ingestion.transform.ReadFeaturesTransform;
@@ -42,9 +41,7 @@ import feast.ingestion.transform.WarehouseStoreTransform;
 import feast.ingestion.transform.fn.ConvertTypesDoFn;
 import feast.ingestion.transform.fn.LoggerDoFn;
 import feast.ingestion.values.PFeatureRows;
-import feast.options.OptionsParser;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
-import feast.store.serving.bigtable.BigTableServingStoreFactory;
 import feast.store.serving.redis.RedisServingFactory;
 import feast.store.warehouse.bigquery.BigQueryWarehouseFactory;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
@@ -231,7 +228,6 @@ public class ImportJob {
       String sinkType, ImportJobPipelineOptions pipelineOptions, PCollection<FeatureRowExtended> featureRows) {
     switch (sinkType) {
       case RedisServingFactory.TYPE_REDIS:
-      case BigTableServingStoreFactory.TYPE_BIGTABLE:
         if (pipelineOptions.isCoalesceRowsEnabled()) {
           // Should we merge and dedupe rows before writing to the serving store?
           featureRows =

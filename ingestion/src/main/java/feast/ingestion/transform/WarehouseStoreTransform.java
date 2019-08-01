@@ -30,6 +30,6 @@ public class WarehouseStoreTransform extends BaseStoreTransform {
 
   @Inject
   public WarehouseStoreTransform(List<FeatureWarehouseFactory> stores, Specs specs) {
-    super(stores, specs.getSinkStoreSpec(), specs);
+    super(stores, specs.getSinkStorageSpec(), specs);
   }
 }

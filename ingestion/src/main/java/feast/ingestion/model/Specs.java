@@ -29,6 +29,7 @@ import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -42,9 +43,9 @@ import lombok.extern.slf4j.Slf4j;
 public class Specs implements Serializable {
 
   SourceSpec sourceSpec;
-  Map<String, EntitySpec> entitySpecs;
+  Map<String, EntitySpec> entitySpecs = new HashMap<>();
   Map<String, FeatureSpec> featureSpecs;
-  StorageSpec sinkStoreSpec;
+  StorageSpec sinkStorageSpec;
   StorageSpec errorsStoreSpec;
 
   @Getter
@@ -55,13 +56,13 @@ public class Specs implements Serializable {
     this.sourceSpec = importJobSpecs.getSourceSpec();
     if (importJobSpecs != null) {
 
-      this.entitySpecs.put(importJobSpecs.getJobId(), importJobSpecs.getEntitySpec());
+      this.entitySpecs.put(importJobSpecs.getEntitySpec().getName(), importJobSpecs.getEntitySpec());
       this.featureSpecs = importJobSpecs.getFeatureSpecsList().stream().collect(Collectors.toMap(
           FeatureSpec::getId,
           featureSpec -> featureSpec
       ));
 
-      this.sinkStoreSpec = importJobSpecs.getSinkStorageSpec();
+      this.sinkStorageSpec = importJobSpecs.getSinkStorageSpec();
       this.errorsStoreSpec = importJobSpecs.getErrorsStorageSpec();
     }
   }

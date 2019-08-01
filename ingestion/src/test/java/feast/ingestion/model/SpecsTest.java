@@ -22,7 +22,11 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.common.io.Resources;
 import feast.ingestion.config.ImportJobSpecsSupplier;
+import feast.specs.EntitySpecProto.EntitySpec;
+import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
+import feast.specs.ImportJobSpecsProto.SourceSpec;
+import feast.specs.ImportJobSpecsProto.SourceSpec.SourceType;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;
@@ -48,16 +52,16 @@ public class SpecsTest {
   @Test
   public void testSingleFeatureAndEntity() {
     ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
-        .setImportSpec(ImportSpec.newBuilder()
-            .addEntities("testEntity")
-            .setSchema(Schema.newBuilder().addFields(newField("testEntity.testInt32")))
-        ).build();
+        .setSourceSpec(SourceSpec.newBuilder().setType(SourceType.KAFKA)
+            .putOptions("bootstrapServers", "localhost:8281"))
+        .clearFeatureSpecs()
+        .addFeatureSpecs(FeatureSpec.newBuilder().setId("testEntity.testInt32").build())
+        .build();
 
     Specs specs = Specs.of("testjob", importJobSpecs);
-    specs.validate();
 
     assertEquals("testjob", specs.getJobName());
-    assertEquals(importJobSpecs.getImportSpec(), specs.getImportSpec());
+    assertEquals(importJobSpecs.getSourceSpec(), specs.getSourceSpec());
 
     assertEquals(1, specs.getEntitySpecs().size());
     assertTrue(specs.getEntitySpecs().containsKey("testEntity"));
@@ -65,90 +69,26 @@ public class SpecsTest {
     assertEquals(1, specs.getFeatureSpecs().size());
     assertTrue(specs.getFeatureSpecs().containsKey("testEntity.testInt32"));
 
-    assertTrue(specs.getServingStorageSpec().getId().equals("TEST_SERVING"));
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testErrorOnUnknownEntity() {
-    ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
-        .setImportSpec(ImportSpec.newBuilder()
-            .addEntities("testEntity")
-            .setSchema(Schema.newBuilder().addFields(newField("testEntity.testInt32")))
-        ).build();
-
-    Specs specs = Specs.of("testjob", importJobSpecs);
-    specs.validate();
-
-    specs.getEntitySpec("unknown");
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testErrorOnUnknownFeature() {
-    ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
-        .setImportSpec(ImportSpec.newBuilder()
-            .addEntities("testEntity")
-            .setSchema(Schema.newBuilder().addFields(newField("testEntity.testInt32")))
-        ).build();
-
-    Specs specs = Specs.of("testjob", importJobSpecs);
-    specs.validate();
-
-    specs.getFeatureSpec("unknown");
+    assertTrue(specs.getSinkStorageSpec().getId().equals("TEST_SERVING"));
   }
 
   @Test
   public void testGetFeatureSpec() {
-    ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
-        .setImportSpec(ImportSpec.newBuilder()
-            .addEntities("testEntity")
-            .setSchema(Schema.newBuilder().addFields(newField("testEntity.testInt32")))
-        ).build();
-
     Specs specs = Specs.of("testjob", importJobSpecs);
-    specs.validate();
-
     assertEquals(
         "testEntity.testInt32", specs.getFeatureSpec("testEntity.testInt32").getId());
   }
 
   @Test
   public void testGetEntitySpec() {
-    ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
-        .setImportSpec(ImportSpec.newBuilder()
-            .addEntities("testEntity")
-            .setSchema(Schema.newBuilder().addFields(newField("testEntity.testInt32")))
-        ).build();
-
     Specs specs = Specs.of("testjob", importJobSpecs);
-    specs.validate();
-
     assertEquals("testEntity", specs.getEntitySpec("testEntity").getName());
   }
 
   @Test
   public void testGetStorageSpec() {
-    ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
-        .setImportSpec(ImportSpec.newBuilder()
-            .addEntities("testEntity")
-            .setSchema(Schema.newBuilder().addFields(newField("testEntity.testInt32")))
-        ).build();
-
     Specs specs = Specs.of("testjob", importJobSpecs);
-    specs.validate();
-
-    assertEquals(specs.getWarehouseStorageSpec().getId(), "TEST_WAREHOUSE");
-    assertEquals(specs.getServingStorageSpec().getId(), "TEST_SERVING");
+    assertEquals(specs.getSinkStorageSpec().getId(), "TEST_SERVING");
   }
 
-  @Test(expected = IllegalArgumentException.class)
-  public void testFeatureSpecReferencesUnknownEntity() {
-    ImportJobSpecs importJobSpecs = this.importJobSpecs.toBuilder()
-        .setImportSpec(ImportSpec.newBuilder()
-            .addEntities("totally_different_entity")
-            .setSchema(Schema.newBuilder().addFields(newField("testEntity.testInt32")))
-        ).build();
-
-    Specs specs = Specs.of("testjob", importJobSpecs);
-    specs.validate();
-  }
 }

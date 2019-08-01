@@ -25,6 +25,8 @@ import feast.ingestion.util.DateUtil;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
+import feast.specs.ImportJobSpecsProto.SourceSpec;
+import feast.specs.ImportJobSpecsProto.SourceSpec.SourceType;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;
@@ -44,13 +46,9 @@ public class ImportJobSpecsSupplierTest {
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
   String importSpecYaml =
       "---\n"
-          + "servingStorageSpec:\n"
+          + "sinkStorageSpec:\n"
           + "  id: TEST_SERVING\n"
           + "  type: serving.mock\n"
-          + "  options: {}\n"
-          + "warehouseStorageSpec:\n"
-          + "  id: TEST_WAREHOUSE\n"
-          + "  type: warehouse.mock\n"
           + "  options: {}\n"
           + "errorsStorageSpec:\n"
           + "  id: ERRORS\n"
@@ -70,20 +68,10 @@ public class ImportJobSpecsSupplierTest {
           + "    valueType: INT64\n"
           + "    tags: []\n"
           + "    options: {}\n"
-          + "importSpec:\n"
-          + "  type: file.csv\n"
-          + "  sourceOptions:\n"
-          + "    path: data.csv\n"
-          + "  entities:\n"
-          + "    - driver\n"
-          + "  schema:\n"
-          + "    entityIdColumn: driver_id\n"
-          + "    timestampValue: 2018-09-25T00:00:00.000Z\n"
-          + "    fields:\n"
-          + "      - name: timestamp\n"
-          + "      - name: driver_id\n"
-          + "      - name: trips_completed\n"
-          + "        featureId: driver.trips_completed\n"
+          + "sourceSpec:\n"
+          + "  type: KAFKA\n"
+          + "  options:\n"
+          + "    bootstrapServers: localhost:8281\n"
           + "\n";
 
   @Test
@@ -98,32 +86,15 @@ public class ImportJobSpecsSupplierTest {
     System.out.println(
         JsonFormat.printer().omittingInsignificantWhitespace().print(importJobSpecs));
     assertEquals(
-        ImportSpec.newBuilder()
-            .setType("file.csv")
-            .putSourceOptions("path", "data.csv")
-            .addEntities("driver")
-            .setSchema(
-                Schema.newBuilder()
-                    .addFields(Field.newBuilder().setName("timestamp"))
-                    .addFields(Field.newBuilder().setName("driver_id"))
-                    .addFields(
-                        Field.newBuilder()
-                            .setName("trips_completed")
-                            .setFeatureId("driver.trips_completed"))
-                    .setEntityIdColumn("driver_id")
-                    .setTimestampValue(DateUtil.toTimestamp("2018-09-25T00:00:00.000Z")))
-            .build(),
-        importJobSpecs.getImportSpec());
+        SourceSpec.newBuilder()
+        .setType(SourceType.KAFKA)
+        .putOptions("bootstrapServers", "localhost:8281"),
+        importJobSpecs.getSourceSpec());
 
     assertEquals(StorageSpec.newBuilder()
         .setId("TEST_SERVING")
         .setType("serving.mock")
-        .build(), importJobSpecs.getServingStorageSpec());
-
-    assertEquals(StorageSpec.newBuilder()
-        .setId("TEST_WAREHOUSE")
-        .setType("warehouse.mock")
-        .build(), importJobSpecs.getWarehouseStorageSpec());
+        .build(), importJobSpecs.getSinkStorageSpec());
 
     assertEquals(StorageSpec.newBuilder()
         .setId("ERRORS")
