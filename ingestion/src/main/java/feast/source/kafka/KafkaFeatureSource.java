@@ -21,12 +21,16 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import com.google.common.base.Strings;
+import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.options.JobOptions;
 import feast.ingestion.transform.fn.FilterFeatureRowDoFn;
 import feast.options.Options;
 import feast.options.OptionsParser;
 import feast.source.FeatureSource;
 import feast.source.FeatureSourceFactory;
+import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.specs.ImportJobSpecsProto.SourceSpec;
+import feast.specs.ImportJobSpecsProto.SourceSpec.SourceType;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.types.FeatureRowProto.FeatureRow;
@@ -35,6 +39,7 @@ import java.util.Arrays;
 import java.util.List;
 import javax.validation.constraints.NotEmpty;
 import lombok.AllArgsConstructor;
+import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -50,16 +55,17 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 @AllArgsConstructor
 public class KafkaFeatureSource extends FeatureSource {
 
-  public static final String KAFKA_FEATURE_SOURCE_TYPE = "kafka";
-  private ImportSpec importSpec;
+  public static final SourceType KAFKA_FEATURE_SOURCE_TYPE = SourceType.KAFKA;
+  private SourceSpec sourceSpec;
+  private List<String> featureIds;
 
   @Override
   public PCollection<FeatureRow> expand(PInput input) {
-    checkArgument(importSpec.getType().equals(KAFKA_FEATURE_SOURCE_TYPE));
-
+    checkArgument(sourceSpec.getType().equals(KAFKA_FEATURE_SOURCE_TYPE));
+    ImportJobPipelineOptions pipelineOptions = input.getPipeline().getOptions()
+        .as(ImportJobPipelineOptions.class);
     KafkaReadOptions options =
-        OptionsParser.parse(importSpec.getSourceOptionsMap(), KafkaReadOptions.class);
-    JobOptions jobOptions = OptionsParser.parse(importSpec.getJobOptionsMap(), JobOptions.class);
+        OptionsParser.parse(sourceSpec.getOptionsMap(), KafkaReadOptions.class);
 
     List<String> topicsList = new ArrayList<>(Arrays.asList(options.topics.split(",")));
 
@@ -68,8 +74,8 @@ public class KafkaFeatureSource extends FeatureSource {
         .withTopics(topicsList)
         .withKeyDeserializer(ByteArrayDeserializer.class)
         .withValueDeserializer(FeatureRowDeserializer.class);
-    if (jobOptions.getSampleLimit() > 0) {
-      read = read.withMaxNumRecords(jobOptions.getSampleLimit());
+    if (pipelineOptions.getSampleLimit() > 0) {
+      read = read.withMaxNumRecords(pipelineOptions.getSampleLimit());
     }
 
     PCollection<KafkaRecord<byte[], FeatureRow>> featureRowRecord =
@@ -86,13 +92,6 @@ public class KafkaFeatureSource extends FeatureSource {
             }));
 
     if (options.discardUnknownFeatures) {
-      List<String> featureIds = new ArrayList<>();
-      for (Field field : importSpec.getSchema().getFieldsList()) {
-        String featureId = field.getFeatureId();
-        if (!Strings.isNullOrEmpty(featureId)) {
-          featureIds.add(featureId);
-        }
-      }
       return featureRow.apply(ParDo.of(new FilterFeatureRowDoFn(featureIds)));
     }
     return featureRow;
@@ -111,14 +110,14 @@ public class KafkaFeatureSource extends FeatureSource {
   public static class Factory implements FeatureSourceFactory {
 
     @Override
-    public String getType() {
+    public SourceType getType() {
       return KAFKA_FEATURE_SOURCE_TYPE;
     }
 
     @Override
-    public FeatureSource create(ImportSpec importSpec) {
-      checkArgument(importSpec.getType().equals(getType()));
-      return new KafkaFeatureSource(importSpec);
+    public FeatureSource create(SourceSpec sourceSpec, List<String> featureIds) {
+      checkArgument(sourceSpec.getType().equals(getType()));
+      return new KafkaFeatureSource(sourceSpec, featureIds);
     }
   }
 }

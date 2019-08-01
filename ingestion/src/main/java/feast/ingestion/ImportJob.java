@@ -147,8 +147,8 @@ public class ImportJob {
         TypeDescriptor.of(FeatureRowExtended.class), ProtoCoder.of(FeatureRowExtended.class));
     coderRegistry.registerCoderForType(TypeDescriptor.of(TableRow.class), TableRowJsonCoder.of());
 
-    JobOptions jobOptions =
-        OptionsParser.parse(importJobSpecs.getJobOptionsMap(), JobOptions.class);
+    ImportJobPipelineOptions pipelineOptions = pipeline.getOptions()
+        .as(ImportJobPipelineOptions.class);
 
     try {
       log.info(JsonFormat.printer().print(importJobSpecs));
@@ -157,8 +157,8 @@ public class ImportJob {
     }
 
     PCollection<FeatureRow> features = pipeline.apply("Read", readFeaturesTransform);
-    if (jobOptions.getSampleLimit() > 0) {
-      features = features.apply(Sample.any(jobOptions.getSampleLimit()));
+    if (pipelineOptions.getSampleLimit() > 0) {
+      features = features.apply(Sample.any(pipelineOptions.getSampleLimit()));
     }
 
     PCollection<FeatureRowExtended> featuresExtended =
@@ -176,7 +176,7 @@ public class ImportJob {
     PCollection<FeatureRowExtended> errorRows = pFeatureRows.getErrors();
 
     if (!dryRun) {
-      applySinkTransform(importJobSpecs.getType(), jobOptions, featureRows);
+      applySinkTransform(importJobSpecs.getSinkStorageSpec().getType(), pipelineOptions, featureRows);
       errorRows.apply(errorsStoreTransform);
     }
   }
@@ -228,18 +228,18 @@ public class ImportJob {
 
 
   private PDone applySinkTransform(
-      String sinkType, JobOptions jobOptions, PCollection<FeatureRowExtended> featureRows) {
+      String sinkType, ImportJobPipelineOptions pipelineOptions, PCollection<FeatureRowExtended> featureRows) {
     switch (sinkType) {
       case RedisServingFactory.TYPE_REDIS:
       case BigTableServingStoreFactory.TYPE_BIGTABLE:
-        if (jobOptions.isCoalesceRowsEnabled()) {
+        if (pipelineOptions.isCoalesceRowsEnabled()) {
           // Should we merge and dedupe rows before writing to the serving store?
           featureRows =
               featureRows.apply(
                   "Coalesce Rows",
                   new CoalesceFeatureRowExtended(
-                      jobOptions.getCoalesceRowsDelaySeconds(),
-                      jobOptions.getCoalesceRowsTimeoutSeconds()));
+                      pipelineOptions.getCoalesceRowsDelaySeconds(),
+                      pipelineOptions.getCoalesceRowsTimeoutSeconds()));
         }
         return featureRows.apply("Write to Serving Store", servingStoreTransform);
       case BigQueryWarehouseFactory.TYPE_BIGQUERY:

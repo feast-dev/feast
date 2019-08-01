@@ -24,6 +24,7 @@ import com.google.common.base.Strings;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
+import feast.specs.ImportJobSpecsProto.SourceSpec;
 import feast.specs.ImportSpecProto.Field;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
@@ -40,6 +41,7 @@ import lombok.extern.slf4j.Slf4j;
 @Getter
 public class Specs implements Serializable {
 
+  SourceSpec sourceSpec;
   Map<String, EntitySpec> entitySpecs;
   Map<String, FeatureSpec> featureSpecs;
   StorageSpec sinkStoreSpec;
@@ -50,6 +52,7 @@ public class Specs implements Serializable {
 
   public Specs(String jobName, ImportJobSpecs importJobSpecs) {
     this.jobName = jobName;
+    this.sourceSpec = importJobSpecs.getSourceSpec();
     if (importJobSpecs != null) {
 
       this.entitySpecs.put(importJobSpecs.getJobId(), importJobSpecs.getEntitySpec());

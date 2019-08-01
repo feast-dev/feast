@@ -18,43 +18,50 @@
 package feast.ingestion.transform;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import feast.ingestion.model.Specs;
 import feast.source.FeatureSourceFactory;
 import feast.source.FeatureSourceFactoryService;
+import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
+import feast.specs.ImportJobSpecsProto.SourceSpec;
+import feast.specs.ImportJobSpecsProto.SourceSpec.SourceType;
 import feast.specs.ImportSpecProto.ImportSpec;
 import feast.types.FeatureRowProto.FeatureRow;
+import java.util.List;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 
 public class ReadFeaturesTransform extends PTransform<PInput, PCollection<FeatureRow>> {
 
-  private ImportSpec importSpec;
+  private SourceSpec sourceSpec;
+  private List<String> featureIds;
 
   @Inject
   public ReadFeaturesTransform(Specs specs) {
-    this.importSpec = specs.getImportSpec();
+    this.sourceSpec = specs.getSourceSpec();
+    this.featureIds = Lists.newArrayList(specs.getFeatureSpecs().keySet());
   }
 
   @Override
   public PCollection<FeatureRow> expand(PInput input) {
-    return input.getPipeline().apply("Read " + importSpec.getType(), getTransform());
+    return input.getPipeline()
+        .apply("Read " + sourceSpec.getType().toString(), getTransform());
   }
 
   public PTransform<PInput, PCollection<FeatureRow>> getTransform() {
-    String type = importSpec.getType();
-    Preconditions.checkArgument(!type.isEmpty(), "type missing in import spec");
+    SourceType sourceType = sourceSpec.getType();
 
     FeatureSourceFactory featureSourceFactory = null;
     for (FeatureSourceFactory factory : FeatureSourceFactoryService.getAll()) {
-      if (type.equals(factory.getType())) {
+      if (sourceType.equals(factory.getType())) {
         featureSourceFactory = factory;
       }
     }
     Preconditions
-        .checkNotNull(featureSourceFactory, "No FeatureSourceFactory found for type " + type);
-    return featureSourceFactory.create(importSpec);
+        .checkNotNull(featureSourceFactory, "No FeatureSourceFactory found for type " + sourceType);
+    return featureSourceFactory.create(sourceSpec, featureIds);
   }
 }
 

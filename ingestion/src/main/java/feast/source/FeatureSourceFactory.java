@@ -17,7 +17,9 @@
 
 package feast.source;
 
-import feast.specs.ImportSpecProto.ImportSpec;
+import feast.specs.ImportJobSpecsProto.SourceSpec;
+import feast.specs.ImportJobSpecsProto.SourceSpec.SourceType;
+import java.util.List;
 
 /**
  * A FeatureSourceFactory creates FeatureSource instances, which can read FeatureRow messages from a
@@ -25,7 +27,7 @@ import feast.specs.ImportSpecProto.ImportSpec;
  */
 public interface FeatureSourceFactory {
 
-  String getType();
+  SourceType getType();
 
-  FeatureSource create(ImportSpec importSpec);
+  FeatureSource create(SourceSpec sourceSpec, List<String> featureIds);
 }

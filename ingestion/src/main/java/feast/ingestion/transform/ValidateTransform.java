@@ -34,15 +34,6 @@ public class ValidateTransform extends PTransform<PFeatureRows, PFeatureRows> {
 
   @Override
   public PFeatureRows expand(PFeatureRows input) {
-    ImportSpec importSpec = specs.getImportSpec();
-    for (String entity : importSpec.getEntitiesList()) {
-      specs.getEntitySpec(entity);
-    }
-    for (Field field : importSpec.getSchema().getFieldsList()) {
-      if (!field.getFeatureId().isEmpty()) {
-        specs.getFeatureSpec(field.getFeatureId());
-      }
-    }
     return input.applyDoFn("Validate feature rows dofn", new ValidateFeatureRowsDoFn(specs));
   }
 }

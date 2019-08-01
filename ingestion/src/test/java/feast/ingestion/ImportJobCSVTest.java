@@ -73,7 +73,7 @@ public class ImportJobCSVTest {
   @Rule
   public TestPipeline testPipeline = TestPipeline.create();
 
-  public ImportJobSpecs getImportJobSpecs(ImportSpec importSpec, String dataFile) {
+  public ImportJobSpecs getImportJobSpecs(String dataFile) {
     Path workspacePath = Paths.get(Resources.getResource("specs").getPath());
     ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(workspacePath.toUri().toString()).get();
     return importJobSpecs.toBuilder().putSourceOptions("path", dataFile).build();
@@ -112,7 +112,7 @@ public class ImportJobCSVTest {
 
     Injector injector =
         Guice.createInjector(
-            new ImportJobModule(options, getImportJobSpecs(importSpec, csvFile.toString())),
+            new ImportJobModule(options, getImportJobSpecs(csvFile.toString())),
             new TestPipelineModule(testPipeline));
 
     ImportJob job = injector.getInstance(ImportJob.class);
@@ -205,7 +205,7 @@ public class ImportJobCSVTest {
 
     Injector injector =
         Guice.createInjector(
-            new ImportJobModule(options, getImportJobSpecs(importSpec, jsonFile.toString())),
+            new ImportJobModule(options, getImportJobSpecs(jsonFile.toString())),
             new TestPipelineModule(testPipeline));
 
     ImportJob job = injector.getInstance(ImportJob.class);
@@ -285,7 +285,7 @@ public class ImportJobCSVTest {
 
     Injector injector =
         Guice.createInjector(
-            new ImportJobModule(options, getImportJobSpecs(importSpec, csvFile.toString())),
+            new ImportJobModule(options, getImportJobSpecs(csvFile.toString())),
             new TestPipelineModule(testPipeline));
 
     ImportJob job = injector.getInstance(ImportJob.class);
@@ -348,7 +348,7 @@ public class ImportJobCSVTest {
 
     Injector injector =
         Guice.createInjector(
-            new ImportJobModule(options, getImportJobSpecs(importSpec, csvFile.toString())),
+            new ImportJobModule(options, getImportJobSpecs(csvFile.toString())),
             new TestPipelineModule(testPipeline));
 
     ImportJob job = injector.getInstance(ImportJob.class);
@@ -438,7 +438,7 @@ public class ImportJobCSVTest {
 
     Injector injector =
         Guice.createInjector(
-            new ImportJobModule(options, getImportJobSpecs(importSpec, csvFile.toString())),
+            new ImportJobModule(options, getImportJobSpecs(csvFile.toString())),
             new TestPipelineModule(testPipeline));
 
     ImportJob job = injector.getInstance(ImportJob.class);
@@ -494,7 +494,7 @@ public class ImportJobCSVTest {
 
     Injector injector =
         Guice.createInjector(
-            new ImportJobModule(options, getImportJobSpecs(importSpec, csvFile.toString())),
+            new ImportJobModule(options, getImportJobSpecs(csvFile.toString())),
             new TestPipelineModule(testPipeline));
 
     ImportJob job = injector.getInstance(ImportJob.class);
@@ -560,7 +560,7 @@ public class ImportJobCSVTest {
 
     ImportJobPipelineOptions options = initOptions();
 
-    ImportJobSpecs importJobSpecs = getImportJobSpecs(importSpec, csvFile.toString()).toBuilder()
+    ImportJobSpecs importJobSpecs = getImportJobSpecs(csvFile.toString()).toBuilder()
         .setSinkStorageSpec(StorageSpec.newBuilder().setId("WAREHOUSE").setType("unknown"))
         .build();
 

@@ -36,6 +36,30 @@ public interface ImportJobPipelineOptions extends PipelineOptions {
 
   void setWorkspace(String value);
 
+  @Description("Limit of rows to sample and output for debugging")
+  @Default.Integer(0)
+  int getSampleLimit();
+
+  void setSampleLimit(int value);
+
+  @Description("Enable coalesce rows, merges feature rows within a time window to output only the latest value")
+  @Default.Boolean(false)
+  boolean isCoalesceRowsEnabled();
+
+  void setCoalesceRowsEnabled(boolean value);
+
+  @Description("Delay in seconds to wait for newer values to coalesce on key before emitting")
+  @Default.Integer(10)
+  int getCoalesceRowsDelaySeconds();
+
+  void setCoalesceRowsDelaySeconds(int value);
+
+  @Description("Time in seconds to retain feature rows to merge with newer records")
+  @Default.Integer(30)
+  int getCoalesceRowsTimeoutSeconds();
+
+  void setCoalesceRowsTimeoutSeconds(int value);
+
   @Description("If dry run is set, execute up to feature row validation")
   @Default.Boolean(false)
   Boolean isDryRun();
