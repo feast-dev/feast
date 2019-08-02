@@ -35,4 +35,10 @@ public interface FeatureStream {
    * @return generated topic name
    */
   String generateTopicName(String entityName);
+
+  /**
+   * Get the broker URI for this feature stream
+   * @return broker URI for the feature stream
+   */
+  String getBrokerUri();
 }

@@ -18,9 +18,12 @@
 package feast.core.dao;
 
 import feast.core.model.FeatureStreamTopic;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 /** JPA repository supplying EntityInfo objects keyed by name. */
 @Repository
-public interface FeatureStreamTopicRepository extends JpaRepository<FeatureStreamTopic, String> {}
+public interface FeatureStreamTopicRepository extends JpaRepository<FeatureStreamTopic, String> {
+  FeatureStreamTopic findByEntityName(String entityName);
+}

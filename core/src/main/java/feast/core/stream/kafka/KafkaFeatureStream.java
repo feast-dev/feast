@@ -8,11 +8,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 
-
+@Slf4j
 @AllArgsConstructor
 public class KafkaFeatureStream implements FeatureStream {
 
@@ -58,6 +59,11 @@ public class KafkaFeatureStream implements FeatureStream {
   @Override
   public String generateTopicName(String entityName) {
     return Strings.lenientFormat("%s-%s-features", config.getTopicPrefix(), entityName);
+  }
+
+  @Override
+  public String getBrokerUri() {
+    return config.getBootstrapServers();
   }
 
 }

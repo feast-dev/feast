@@ -64,10 +64,6 @@ public class JobInfo extends AbstractTimestampEntity {
   @Column(name = "source_options")
   private String sourceOptions;
 
-  // Job options. Stored as a json string as it is specific to the runner.
-  @Column(name = "job_options")
-  private String jobOptions;
-
   // Entities populated by the job
   @ManyToMany
   @JoinTable(
@@ -111,7 +107,6 @@ public class JobInfo extends AbstractTimestampEntity {
     this.runner = runner;
     this.sourceOptions = TypeConversion
         .convertMapToJsonString(importJobSpecs.getSourceSpec().getOptionsMap());
-    this.jobOptions = TypeConversion.convertMapToJsonString(importJobSpecs.getJobOptionsMap());
     this.entities = new ArrayList<>();
 
     EntityInfo entityInfo = new EntityInfo();

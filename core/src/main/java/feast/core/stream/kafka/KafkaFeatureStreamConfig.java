@@ -8,8 +8,8 @@ import lombok.Value;
 @Value
 public class KafkaFeatureStreamConfig {
 
-  private static String NUM_PARTITIONS_DEFAULT = "10";
-  private static String REPLICATION_FACTOR_DEFAULT = "2";
+  private static String NUM_PARTITIONS_DEFAULT = "1";
+  private static String REPLICATION_FACTOR_DEFAULT = "1";
 
   /**
    * Kafka Bootstrap servers, comma separated

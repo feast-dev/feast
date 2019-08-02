@@ -20,6 +20,7 @@ package feast.core.service;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
@@ -385,7 +386,7 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void shouldRegisterEntity() {
+  public void shouldRegisterNewEntityAndProvisionTopic() {
     EntitySpec spec =
         EntitySpec.newBuilder()
             .setName("entity")
@@ -393,7 +394,8 @@ public class SpecServiceTest {
             .addTags("tag")
             .build();
     EntityInfo entityInfo = new EntityInfo(spec);
-    when(entityInfoRepository.saveAndFlush(entityInfo)).thenReturn(entityInfo);
+    when(entityInfoRepository.save(entityInfo)).thenReturn(entityInfo);
+    when(entityInfoRepository.getOne(spec.getName())).thenReturn(entityInfo);
     SpecService specService =
         new SpecService(
             entityInfoRepository,
@@ -404,6 +406,7 @@ public class SpecServiceTest {
             schemaManager,
             storageSpecs);
     EntityInfo actual = specService.applyEntity(spec);
+    verify(featureStreamService).provisionTopic(entityInfo);
     assertThat(actual, equalTo(entityInfo));
   }
 }

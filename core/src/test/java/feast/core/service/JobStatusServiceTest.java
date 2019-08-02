@@ -49,7 +49,6 @@ public class JobStatusServiceTest {
             "",
             "",
             "",
-            "",
             Collections.emptyList(),
             Collections.emptyList(),
             Collections.emptyList(),
@@ -60,7 +59,6 @@ public class JobStatusServiceTest {
     JobInfo jobInfo2 =
         new JobInfo(
             "job2",
-            "",
             "",
             "",
             "",
@@ -99,7 +97,6 @@ public class JobStatusServiceTest {
     JobInfo jobInfo1 =
         new JobInfo(
             "job1",
-            "",
             "",
             "",
             "",

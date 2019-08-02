@@ -51,6 +51,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Facilitates management of specs within the Feast registry. This includes getting existing specs
@@ -345,6 +346,7 @@ public class SpecService {
    * @return registered EntityInfo
    * @throws RegistrationException if registration fails
    */
+  @Transactional
   public EntityInfo applyEntity(EntitySpec spec) {
     EntityInfo out;
     try {
@@ -360,11 +362,17 @@ public class SpecService {
         }
       } else {
         entityInfo = new EntityInfo(spec);
-        FeatureStreamTopic topic = featureStreamService.provisionTopic(entityInfo);
-        entityInfo.setTopic(topic);
 
         action = Action.REGISTER;
-        out = entityInfoRepository.saveAndFlush(entityInfo);
+        out = entityInfoRepository.save(entityInfo);
+        if (!out.getName().equals(spec.getName())) {
+          throw new RegistrationException("failed to register or update entity");
+        }
+
+        FeatureStreamTopic topic = featureStreamService.provisionTopic(entityInfo);
+        entityInfo = entityInfoRepository.getOne(spec.getName());
+        entityInfo.setTopic(topic);
+        out = entityInfoRepository.save(entityInfo);
         if (!out.getName().equals(spec.getName())) {
           featureStreamService.deleteTopic(topic);
           throw new RegistrationException("failed to register or update entity");

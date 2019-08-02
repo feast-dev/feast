@@ -44,13 +44,15 @@ public class FeatureStreamService {
         throw new TopicExistsException(e.getMessage(), e);
       }
     }
-    FeatureStreamTopic topic = new FeatureStreamTopic(topicName);
+    FeatureStreamTopic topic = new FeatureStreamTopic(topicName, entity);
     featureStreamTopicRepository.saveAndFlush(topic);
     return topic;
   }
 
   /**
-   * Deletes a topic from the stream. If the topic was not created by feast, and exception will be thrown.
+   * Deletes a topic from the stream. If the topic was not created by feast, and exception will be
+   * thrown.
+   *
    * @param topic topic to delete
    */
   public void deleteTopic(FeatureStreamTopic topic) {
@@ -61,6 +63,30 @@ public class FeatureStreamService {
     }
     featureStream.deleteTopic(topic.getName());
     featureStreamTopicRepository.delete(topic);
+  }
+
+  /**
+   * Get the topic the given entity should write to
+   *
+   * @return FeatureStreamTopic object containing the name of the topic
+   */
+  public FeatureStreamTopic getTopicFor(EntityInfo entity) {
+    FeatureStreamTopic topic = featureStreamTopicRepository.findByEntityName(entity.getName());
+    if (topic == null) {
+      throw new IllegalArgumentException(Strings
+          .lenientFormat("Topic not created for entity %s, has the entity been registered?",
+              entity.getName()));
+    }
+    return topic;
+  }
+
+  /**
+   * Get the feature stream broker URI
+   *
+   * @return broker URI, comma separated
+   */
+  public String getBrokerUri() {
+    return featureStream.getBrokerUri();
   }
 
 }

@@ -33,6 +33,8 @@ import feast.core.exception.RetrievalException;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureGroupInfo;
 import feast.core.model.FeatureInfo;
+import feast.core.model.FeatureStreamTopic;
+import feast.core.service.FeatureStreamService;
 import feast.core.service.JobCoordinatorService;
 import feast.core.service.SpecService;
 import feast.core.validators.SpecValidator;
@@ -58,7 +60,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-/** Implementation of the feast core GRPC service. */
+/**
+ * Implementation of the feast core GRPC service.
+ */
 @Slf4j
 @GRpcService
 public class CoreServiceImpl extends CoreServiceImplBase {
@@ -67,11 +71,16 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   private static final int UPLOAD_URL_VALIDITY_IN_MINUTES = 5;
   private Storage storage = StorageOptions.getDefaultInstance().getService();
 
-  @Autowired private SpecService specService;
-  @Autowired private SpecValidator validator;
-  @Autowired private StatsDClient statsDClient;
-  @Autowired private JobCoordinatorService jobCoordinatorService;
-  @Autowired private StorageSpecs storageSpecs;
+  @Autowired
+  private SpecService specService;
+  @Autowired
+  private SpecValidator validator;
+  @Autowired
+  private StatsDClient statsDClient;
+  @Autowired
+  private JobCoordinatorService jobCoordinatorService;
+  @Autowired
+  private FeatureStreamService featureStreamService;
 
   public static long getUploadUrlValidityInMinutes() {
     return UPLOAD_URL_VALIDITY_IN_MINUTES;
@@ -110,7 +119,9 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     }
   }
 
-  /** Gets specs for all entities registered in the registry. */
+  /**
+   * Gets specs for all entities registered in the registry.
+   */
   @Override
   public void listEntities(Empty request, StreamObserver<ListEntitiesResponse> responseObserver) {
     long now = System.currentTimeMillis();
@@ -164,7 +175,9 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     }
   }
 
-  /** Gets specs for all features registered in the registry. TODO: some kind of pagination */
+  /**
+   * Gets specs for all features registered in the registry. TODO: some kind of pagination
+   */
   @Override
   public void listFeatures(Empty request, StreamObserver<ListFeaturesResponse> responseObserver) {
     long now = System.currentTimeMillis();
@@ -219,7 +232,8 @@ public class CoreServiceImpl extends CoreServiceImplBase {
    * error will be returned.
    */
   @Override
-  public void applyFeatures(CoreServiceProto.CoreServiceTypes.ApplyFeaturesRequest request, StreamObserver<CoreServiceProto.CoreServiceTypes.ApplyFeaturesResponse> responseObserver) {
+  public void applyFeatures(CoreServiceProto.CoreServiceTypes.ApplyFeaturesRequest request,
+      StreamObserver<CoreServiceProto.CoreServiceTypes.ApplyFeaturesResponse> responseObserver) {
     ApplyFeaturesResponse applyFeaturesResponse = ApplyFeaturesResponse.newBuilder().build();
     responseObserver.onNext(applyFeaturesResponse);
     responseObserver.onCompleted();
@@ -274,19 +288,30 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     }
   }
 
+  /**
+   * Retrieve the topic and topic configuration (such as the URI of the message brokers)
+   * for the client to write the feature values of an entity.
+   */
   @Override
   public void getTopic(GetTopicRequest request, StreamObserver<GetTopicResponse> responseObserver) {
-    GetTopicResponse response = GetTopicResponse.newBuilder().setMessageBrokerURI("localhost:9092").setTopicName("mytopic").build();
-    responseObserver.onNext(response);
-    responseObserver.onCompleted();
+    try {
+      String brokerUri = featureStreamService.getBrokerUri();
+      EntityInfo entity = new EntityInfo();
+      entity.setName(request.getEntityName());
+      FeatureStreamTopic topic = featureStreamService.getTopicFor(entity);
+      GetTopicResponse response = GetTopicResponse.newBuilder().setTopicName(topic.getName())
+          .setMessageBrokerURI(brokerUri).build();
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (IllegalArgumentException e) {
+      log.error("Error in getTopic: {}", e);
+      responseObserver.onError(getBadRequestException(e));
+    }
   }
 
   /**
    * Get a signed URL where a Feast client can upload a CSV or JSON file by making an HTTP PUT
    * request. The signed URL references a bucket and blob in Google Cloud Storage.
-   *
-   * @param request
-   * @param responseObserver
    */
   @Override
   public void getUploadUrl(
@@ -310,10 +335,10 @@ public class CoreServiceImpl extends CoreServiceImplBase {
 
     BlobInfo blobInfo =
         BlobInfo.newBuilder(
-                bucketName,
-                String.format(
-                    "%s/%s.%s",
-                    UPLOAD_URL_DIR, fileName, request.getFileType().toString().toLowerCase()))
+            bucketName,
+            String.format(
+                "%s/%s.%s",
+                UPLOAD_URL_DIR, fileName, request.getFileType().toString().toLowerCase()))
             .build();
 
     URL signedUrl = null;
@@ -369,7 +394,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
    * @param workspace job workspace in Feast
    * @return bucket name
    * @throws IllegalArgumentException if workspace is not a valid GCS URI e.g when workspace is set
-   *     to a local path
+   * to a local path
    */
   static String getBucketNameFromWorkspace(String workspace) throws IllegalArgumentException {
     if (StringUtils.isEmpty(workspace)) {
