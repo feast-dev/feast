@@ -413,7 +413,7 @@ class Client:
             # Feast 0.2 only supports Kafka brokers
             self._message_producer = KafkaProducer(bootstrap_servers=bootstrap_servers)
 
-        self.logger.info(f"Publishing features")
+        self.logger.info(f"Publishing features to topic: '{topic_name}' in brokers: '{bootstrap_servers}'")
         for index, row in tqdm(
             dataframe.iterrows(), unit="rows", total=dataframe.shape[0]
         ):
