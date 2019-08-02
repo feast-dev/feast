@@ -14,7 +14,8 @@
 
 import imp
 import os
-from setuptools import find_packages, setup, Command
+
+from setuptools import find_packages, setup
 
 NAME = "feast"
 DESCRIPTION = "Python sdk for Feast"
@@ -33,7 +34,9 @@ REQUIRED = [
     "pandas==0.*",
     "protobuf==3.*",
     "PyYAML==5.*",
-    "fastavro==0.*"
+    "fastavro==0.*",
+    "kafka-python==1.4.*",
+    "tqdm==4.*",
 ]
 
 setup(
@@ -47,11 +50,7 @@ setup(
     install_requires=REQUIRED,
     # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
     # Install dev requirements with: pip install -e .[dev]
-    extras_require={
-        "dev": [
-            "mypy-protobuf==1.*"
-        ]
-    },
+    extras_require={"dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"]},
     include_package_data=True,
     license="Apache",
     classifiers=[

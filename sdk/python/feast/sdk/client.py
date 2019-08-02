@@ -298,12 +298,11 @@ class Client:
             raise ValueError(
                 f'timestamp_column "{timestamp_column}" does not exist in the Dataframe'
             )
-        # Ensure timestamp value is in format that Feast accepts
+        # Ensure timestamp value is in format that Feast accepts.
         # For example the timestamp_column may be in these types:
         # - datetime64[ns, tz]
         # - object (if the value is in string)
         # pandas.to_datetime ensures that it is normalized to datetime64[ns, UTC]
-        self.logger.info("$"*50, dataframe[timestamp_column].dtype)
         if str(dataframe[timestamp_column].dtype) not in [
             "datetime64[ns]",
             "datetime64[ns, UTC]",
@@ -413,7 +412,9 @@ class Client:
             # Feast 0.2 only supports Kafka brokers
             self._message_producer = KafkaProducer(bootstrap_servers=bootstrap_servers)
 
-        self.logger.info(f"Publishing features to topic: '{topic_name}' in brokers: '{bootstrap_servers}'")
+        self.logger.info(
+            f"Publishing features to topic: '{topic_name}' in brokers: '{bootstrap_servers}'"
+        )
         for index, row in tqdm(
             dataframe.iterrows(), unit="rows", total=dataframe.shape[0]
         ):
