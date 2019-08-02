@@ -18,10 +18,14 @@ import logging
 import os
 from datetime import datetime
 
-import feast.sdk.utils.types
 import grpc
 import numpy as np
 import pandas as pd
+from google.protobuf.timestamp_pb2 import Timestamp
+from kafka import KafkaProducer
+from tqdm import tqdm
+
+import feast.sdk.utils.types
 from feast.core.CoreService_pb2 import CoreServiceTypes
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.DatasetService_pb2 import DatasetServiceTypes
@@ -44,9 +48,6 @@ from feast.specs.FeatureSpec_pb2 import FeatureSpec
 from feast.types import Feature_pb2
 from feast.types.FeatureRow_pb2 import FeatureRow
 from feast.types.Value_pb2 import Value
-from google.protobuf.timestamp_pb2 import Timestamp
-from kafka import KafkaProducer
-from tqdm import tqdm
 
 
 def _feast_core_apply_entity_stub(entity):
@@ -298,7 +299,15 @@ class Client:
                 f'timestamp_column "{timestamp_column}" does not exist in the Dataframe'
             )
         # Ensure timestamp value is in format that Feast accepts
-        if dataframe[timestamp_column].dtype == object:
+        # For example the timestamp_column may be in these types:
+        # - datetime64[ns, tz]
+        # - object (if the value is in string)
+        # pandas.to_datetime ensures that it is normalized to datetime64[ns, UTC]
+        self.logger.info("$"*50, dataframe[timestamp_column].dtype)
+        if str(dataframe[timestamp_column].dtype) not in [
+            "datetime64[ns]",
+            "datetime64[ns, UTC]",
+        ]:
             dataframe[timestamp_column] = pd.to_datetime(
                 dataframe[timestamp_column], utc=True
             )
