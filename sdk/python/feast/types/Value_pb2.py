@@ -588,81 +588,81 @@ DESCRIPTOR.message_types_by_name['BoolList'] = _BOOLLIST
 DESCRIPTOR.message_types_by_name['TimestampList'] = _TIMESTAMPLIST
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-ValueType = _reflection.GeneratedProtocolMessageType('ValueType', (_message.Message,), {
-  'DESCRIPTOR' : _VALUETYPE,
-  '__module__' : 'feast.types.Value_pb2'
+ValueType = _reflection.GeneratedProtocolMessageType('ValueType', (_message.Message,), dict(
+  DESCRIPTOR = _VALUETYPE,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.ValueType)
-  })
+  ))
 _sym_db.RegisterMessage(ValueType)
 
-Value = _reflection.GeneratedProtocolMessageType('Value', (_message.Message,), {
-  'DESCRIPTOR' : _VALUE,
-  '__module__' : 'feast.types.Value_pb2'
+Value = _reflection.GeneratedProtocolMessageType('Value', (_message.Message,), dict(
+  DESCRIPTOR = _VALUE,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.Value)
-  })
+  ))
 _sym_db.RegisterMessage(Value)
 
-ValueList = _reflection.GeneratedProtocolMessageType('ValueList', (_message.Message,), {
-  'DESCRIPTOR' : _VALUELIST,
-  '__module__' : 'feast.types.Value_pb2'
+ValueList = _reflection.GeneratedProtocolMessageType('ValueList', (_message.Message,), dict(
+  DESCRIPTOR = _VALUELIST,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.ValueList)
-  })
+  ))
 _sym_db.RegisterMessage(ValueList)
 
-BytesList = _reflection.GeneratedProtocolMessageType('BytesList', (_message.Message,), {
-  'DESCRIPTOR' : _BYTESLIST,
-  '__module__' : 'feast.types.Value_pb2'
+BytesList = _reflection.GeneratedProtocolMessageType('BytesList', (_message.Message,), dict(
+  DESCRIPTOR = _BYTESLIST,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.BytesList)
-  })
+  ))
 _sym_db.RegisterMessage(BytesList)
 
-StringList = _reflection.GeneratedProtocolMessageType('StringList', (_message.Message,), {
-  'DESCRIPTOR' : _STRINGLIST,
-  '__module__' : 'feast.types.Value_pb2'
+StringList = _reflection.GeneratedProtocolMessageType('StringList', (_message.Message,), dict(
+  DESCRIPTOR = _STRINGLIST,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.StringList)
-  })
+  ))
 _sym_db.RegisterMessage(StringList)
 
-Int32List = _reflection.GeneratedProtocolMessageType('Int32List', (_message.Message,), {
-  'DESCRIPTOR' : _INT32LIST,
-  '__module__' : 'feast.types.Value_pb2'
+Int32List = _reflection.GeneratedProtocolMessageType('Int32List', (_message.Message,), dict(
+  DESCRIPTOR = _INT32LIST,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.Int32List)
-  })
+  ))
 _sym_db.RegisterMessage(Int32List)
 
-Int64List = _reflection.GeneratedProtocolMessageType('Int64List', (_message.Message,), {
-  'DESCRIPTOR' : _INT64LIST,
-  '__module__' : 'feast.types.Value_pb2'
+Int64List = _reflection.GeneratedProtocolMessageType('Int64List', (_message.Message,), dict(
+  DESCRIPTOR = _INT64LIST,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.Int64List)
-  })
+  ))
 _sym_db.RegisterMessage(Int64List)
 
-DoubleList = _reflection.GeneratedProtocolMessageType('DoubleList', (_message.Message,), {
-  'DESCRIPTOR' : _DOUBLELIST,
-  '__module__' : 'feast.types.Value_pb2'
+DoubleList = _reflection.GeneratedProtocolMessageType('DoubleList', (_message.Message,), dict(
+  DESCRIPTOR = _DOUBLELIST,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.DoubleList)
-  })
+  ))
 _sym_db.RegisterMessage(DoubleList)
 
-FloatList = _reflection.GeneratedProtocolMessageType('FloatList', (_message.Message,), {
-  'DESCRIPTOR' : _FLOATLIST,
-  '__module__' : 'feast.types.Value_pb2'
+FloatList = _reflection.GeneratedProtocolMessageType('FloatList', (_message.Message,), dict(
+  DESCRIPTOR = _FLOATLIST,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.FloatList)
-  })
+  ))
 _sym_db.RegisterMessage(FloatList)
 
-BoolList = _reflection.GeneratedProtocolMessageType('BoolList', (_message.Message,), {
-  'DESCRIPTOR' : _BOOLLIST,
-  '__module__' : 'feast.types.Value_pb2'
+BoolList = _reflection.GeneratedProtocolMessageType('BoolList', (_message.Message,), dict(
+  DESCRIPTOR = _BOOLLIST,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.BoolList)
-  })
+  ))
 _sym_db.RegisterMessage(BoolList)
 
-TimestampList = _reflection.GeneratedProtocolMessageType('TimestampList', (_message.Message,), {
-  'DESCRIPTOR' : _TIMESTAMPLIST,
-  '__module__' : 'feast.types.Value_pb2'
+TimestampList = _reflection.GeneratedProtocolMessageType('TimestampList', (_message.Message,), dict(
+  DESCRIPTOR = _TIMESTAMPLIST,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.TimestampList)
-  })
+  ))
 _sym_db.RegisterMessage(TimestampList)
 
 

@@ -268,48 +268,48 @@ DESCRIPTOR.message_types_by_name['Entity'] = _ENTITY
 DESCRIPTOR.message_types_by_name['FeatureValue'] = _FEATUREVALUE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-QueryFeaturesRequest = _reflection.GeneratedProtocolMessageType('QueryFeaturesRequest', (_message.Message,), {
-  'DESCRIPTOR' : _QUERYFEATURESREQUEST,
-  '__module__' : 'feast.serving.Serving_pb2'
+QueryFeaturesRequest = _reflection.GeneratedProtocolMessageType('QueryFeaturesRequest', (_message.Message,), dict(
+  DESCRIPTOR = _QUERYFEATURESREQUEST,
+  __module__ = 'feast.serving.Serving_pb2'
   # @@protoc_insertion_point(class_scope:feast.serving.QueryFeaturesRequest)
-  })
+  ))
 _sym_db.RegisterMessage(QueryFeaturesRequest)
 
-QueryFeaturesResponse = _reflection.GeneratedProtocolMessageType('QueryFeaturesResponse', (_message.Message,), {
+QueryFeaturesResponse = _reflection.GeneratedProtocolMessageType('QueryFeaturesResponse', (_message.Message,), dict(
 
-  'EntitiesEntry' : _reflection.GeneratedProtocolMessageType('EntitiesEntry', (_message.Message,), {
-    'DESCRIPTOR' : _QUERYFEATURESRESPONSE_ENTITIESENTRY,
-    '__module__' : 'feast.serving.Serving_pb2'
+  EntitiesEntry = _reflection.GeneratedProtocolMessageType('EntitiesEntry', (_message.Message,), dict(
+    DESCRIPTOR = _QUERYFEATURESRESPONSE_ENTITIESENTRY,
+    __module__ = 'feast.serving.Serving_pb2'
     # @@protoc_insertion_point(class_scope:feast.serving.QueryFeaturesResponse.EntitiesEntry)
-    })
+    ))
   ,
-  'DESCRIPTOR' : _QUERYFEATURESRESPONSE,
-  '__module__' : 'feast.serving.Serving_pb2'
+  DESCRIPTOR = _QUERYFEATURESRESPONSE,
+  __module__ = 'feast.serving.Serving_pb2'
   # @@protoc_insertion_point(class_scope:feast.serving.QueryFeaturesResponse)
-  })
+  ))
 _sym_db.RegisterMessage(QueryFeaturesResponse)
 _sym_db.RegisterMessage(QueryFeaturesResponse.EntitiesEntry)
 
-Entity = _reflection.GeneratedProtocolMessageType('Entity', (_message.Message,), {
+Entity = _reflection.GeneratedProtocolMessageType('Entity', (_message.Message,), dict(
 
-  'FeaturesEntry' : _reflection.GeneratedProtocolMessageType('FeaturesEntry', (_message.Message,), {
-    'DESCRIPTOR' : _ENTITY_FEATURESENTRY,
-    '__module__' : 'feast.serving.Serving_pb2'
+  FeaturesEntry = _reflection.GeneratedProtocolMessageType('FeaturesEntry', (_message.Message,), dict(
+    DESCRIPTOR = _ENTITY_FEATURESENTRY,
+    __module__ = 'feast.serving.Serving_pb2'
     # @@protoc_insertion_point(class_scope:feast.serving.Entity.FeaturesEntry)
-    })
+    ))
   ,
-  'DESCRIPTOR' : _ENTITY,
-  '__module__' : 'feast.serving.Serving_pb2'
+  DESCRIPTOR = _ENTITY,
+  __module__ = 'feast.serving.Serving_pb2'
   # @@protoc_insertion_point(class_scope:feast.serving.Entity)
-  })
+  ))
 _sym_db.RegisterMessage(Entity)
 _sym_db.RegisterMessage(Entity.FeaturesEntry)
 
-FeatureValue = _reflection.GeneratedProtocolMessageType('FeatureValue', (_message.Message,), {
-  'DESCRIPTOR' : _FEATUREVALUE,
-  '__module__' : 'feast.serving.Serving_pb2'
+FeatureValue = _reflection.GeneratedProtocolMessageType('FeatureValue', (_message.Message,), dict(
+  DESCRIPTOR = _FEATUREVALUE,
+  __module__ = 'feast.serving.Serving_pb2'
   # @@protoc_insertion_point(class_scope:feast.serving.FeatureValue)
-  })
+  ))
 _sym_db.RegisterMessage(FeatureValue)
 
 

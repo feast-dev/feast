@@ -418,74 +418,74 @@ _JOBSERVICETYPES_JOBDETAIL.containing_type = _JOBSERVICETYPES
 DESCRIPTOR.message_types_by_name['JobServiceTypes'] = _JOBSERVICETYPES
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-JobServiceTypes = _reflection.GeneratedProtocolMessageType('JobServiceTypes', (_message.Message,), {
+JobServiceTypes = _reflection.GeneratedProtocolMessageType('JobServiceTypes', (_message.Message,), dict(
 
-  'SubmitImportJobRequest' : _reflection.GeneratedProtocolMessageType('SubmitImportJobRequest', (_message.Message,), {
-    'DESCRIPTOR' : _JOBSERVICETYPES_SUBMITIMPORTJOBREQUEST,
-    '__module__' : 'feast.core.JobService_pb2'
+  SubmitImportJobRequest = _reflection.GeneratedProtocolMessageType('SubmitImportJobRequest', (_message.Message,), dict(
+    DESCRIPTOR = _JOBSERVICETYPES_SUBMITIMPORTJOBREQUEST,
+    __module__ = 'feast.core.JobService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.JobServiceTypes.SubmitImportJobRequest)
-    })
+    ))
   ,
 
-  'SubmitImportJobResponse' : _reflection.GeneratedProtocolMessageType('SubmitImportJobResponse', (_message.Message,), {
-    'DESCRIPTOR' : _JOBSERVICETYPES_SUBMITIMPORTJOBRESPONSE,
-    '__module__' : 'feast.core.JobService_pb2'
+  SubmitImportJobResponse = _reflection.GeneratedProtocolMessageType('SubmitImportJobResponse', (_message.Message,), dict(
+    DESCRIPTOR = _JOBSERVICETYPES_SUBMITIMPORTJOBRESPONSE,
+    __module__ = 'feast.core.JobService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.JobServiceTypes.SubmitImportJobResponse)
-    })
+    ))
   ,
 
-  'ListJobsResponse' : _reflection.GeneratedProtocolMessageType('ListJobsResponse', (_message.Message,), {
-    'DESCRIPTOR' : _JOBSERVICETYPES_LISTJOBSRESPONSE,
-    '__module__' : 'feast.core.JobService_pb2'
+  ListJobsResponse = _reflection.GeneratedProtocolMessageType('ListJobsResponse', (_message.Message,), dict(
+    DESCRIPTOR = _JOBSERVICETYPES_LISTJOBSRESPONSE,
+    __module__ = 'feast.core.JobService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.JobServiceTypes.ListJobsResponse)
-    })
+    ))
   ,
 
-  'GetJobRequest' : _reflection.GeneratedProtocolMessageType('GetJobRequest', (_message.Message,), {
-    'DESCRIPTOR' : _JOBSERVICETYPES_GETJOBREQUEST,
-    '__module__' : 'feast.core.JobService_pb2'
+  GetJobRequest = _reflection.GeneratedProtocolMessageType('GetJobRequest', (_message.Message,), dict(
+    DESCRIPTOR = _JOBSERVICETYPES_GETJOBREQUEST,
+    __module__ = 'feast.core.JobService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.JobServiceTypes.GetJobRequest)
-    })
+    ))
   ,
 
-  'GetJobResponse' : _reflection.GeneratedProtocolMessageType('GetJobResponse', (_message.Message,), {
-    'DESCRIPTOR' : _JOBSERVICETYPES_GETJOBRESPONSE,
-    '__module__' : 'feast.core.JobService_pb2'
+  GetJobResponse = _reflection.GeneratedProtocolMessageType('GetJobResponse', (_message.Message,), dict(
+    DESCRIPTOR = _JOBSERVICETYPES_GETJOBRESPONSE,
+    __module__ = 'feast.core.JobService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.JobServiceTypes.GetJobResponse)
-    })
+    ))
   ,
 
-  'AbortJobRequest' : _reflection.GeneratedProtocolMessageType('AbortJobRequest', (_message.Message,), {
-    'DESCRIPTOR' : _JOBSERVICETYPES_ABORTJOBREQUEST,
-    '__module__' : 'feast.core.JobService_pb2'
+  AbortJobRequest = _reflection.GeneratedProtocolMessageType('AbortJobRequest', (_message.Message,), dict(
+    DESCRIPTOR = _JOBSERVICETYPES_ABORTJOBREQUEST,
+    __module__ = 'feast.core.JobService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.JobServiceTypes.AbortJobRequest)
-    })
+    ))
   ,
 
-  'AbortJobResponse' : _reflection.GeneratedProtocolMessageType('AbortJobResponse', (_message.Message,), {
-    'DESCRIPTOR' : _JOBSERVICETYPES_ABORTJOBRESPONSE,
-    '__module__' : 'feast.core.JobService_pb2'
+  AbortJobResponse = _reflection.GeneratedProtocolMessageType('AbortJobResponse', (_message.Message,), dict(
+    DESCRIPTOR = _JOBSERVICETYPES_ABORTJOBRESPONSE,
+    __module__ = 'feast.core.JobService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.JobServiceTypes.AbortJobResponse)
-    })
+    ))
   ,
 
-  'JobDetail' : _reflection.GeneratedProtocolMessageType('JobDetail', (_message.Message,), {
+  JobDetail = _reflection.GeneratedProtocolMessageType('JobDetail', (_message.Message,), dict(
 
-    'MetricsEntry' : _reflection.GeneratedProtocolMessageType('MetricsEntry', (_message.Message,), {
-      'DESCRIPTOR' : _JOBSERVICETYPES_JOBDETAIL_METRICSENTRY,
-      '__module__' : 'feast.core.JobService_pb2'
+    MetricsEntry = _reflection.GeneratedProtocolMessageType('MetricsEntry', (_message.Message,), dict(
+      DESCRIPTOR = _JOBSERVICETYPES_JOBDETAIL_METRICSENTRY,
+      __module__ = 'feast.core.JobService_pb2'
       # @@protoc_insertion_point(class_scope:feast.core.JobServiceTypes.JobDetail.MetricsEntry)
-      })
+      ))
     ,
-    'DESCRIPTOR' : _JOBSERVICETYPES_JOBDETAIL,
-    '__module__' : 'feast.core.JobService_pb2'
+    DESCRIPTOR = _JOBSERVICETYPES_JOBDETAIL,
+    __module__ = 'feast.core.JobService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.JobServiceTypes.JobDetail)
-    })
+    ))
   ,
-  'DESCRIPTOR' : _JOBSERVICETYPES,
-  '__module__' : 'feast.core.JobService_pb2'
+  DESCRIPTOR = _JOBSERVICETYPES,
+  __module__ = 'feast.core.JobService_pb2'
   # @@protoc_insertion_point(class_scope:feast.core.JobServiceTypes)
-  })
+  ))
 _sym_db.RegisterMessage(JobServiceTypes)
 _sym_db.RegisterMessage(JobServiceTypes.SubmitImportJobRequest)
 _sym_db.RegisterMessage(JobServiceTypes.SubmitImportJobResponse)

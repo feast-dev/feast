@@ -23,17 +23,17 @@ AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.6.0"
 VERSION = imp.load_source("feast.version", os.path.join("feast", "version.py")).VERSION
 REQUIRED = [
-    "google-api-core>=1.7.0",
-    "google-auth>=1.6.0",
-    "google-cloud-bigquery>=1.8.0",
-    "google-cloud-storage>=1.13.0",
-    "googleapis-common-protos>=1.5.5",
-    "google-cloud-bigquery-storage>=0.5.0",
-    "grpcio>=1.16.1",
-    "pandas>=0.24.0",
-    "protobuf>=3.0.0",
-    "PyYAML",
-    "fastavro>=0.21.19"
+    "google-api-core==1.*",
+    "google-auth==1.*",
+    "google-cloud-bigquery==1.*",
+    "google-cloud-storage==1.*",
+    "googleapis-common-protos==1.*",
+    "google-cloud-bigquery-storage==0.*",
+    "grpcio==1.*",
+    "pandas==0.*",
+    "protobuf==3.*",
+    "PyYAML==5.*",
+    "fastavro==0.*"
 ]
 
 setup(
@@ -45,6 +45,13 @@ setup(
     url=URL,
     packages=find_packages(exclude=("tests",)),
     install_requires=REQUIRED,
+    # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
+    # Install dev requirements with: pip install -e .[dev]
+    extras_require={
+        "dev": [
+            "mypy-protobuf==1.*"
+        ]
+    },
     include_package_data=True,
     license="Apache",
     classifiers=[

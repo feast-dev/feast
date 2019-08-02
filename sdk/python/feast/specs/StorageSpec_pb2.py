@@ -112,18 +112,18 @@ _STORAGESPEC.fields_by_name['options'].message_type = _STORAGESPEC_OPTIONSENTRY
 DESCRIPTOR.message_types_by_name['StorageSpec'] = _STORAGESPEC
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-StorageSpec = _reflection.GeneratedProtocolMessageType('StorageSpec', (_message.Message,), {
+StorageSpec = _reflection.GeneratedProtocolMessageType('StorageSpec', (_message.Message,), dict(
 
-  'OptionsEntry' : _reflection.GeneratedProtocolMessageType('OptionsEntry', (_message.Message,), {
-    'DESCRIPTOR' : _STORAGESPEC_OPTIONSENTRY,
-    '__module__' : 'feast.specs.StorageSpec_pb2'
+  OptionsEntry = _reflection.GeneratedProtocolMessageType('OptionsEntry', (_message.Message,), dict(
+    DESCRIPTOR = _STORAGESPEC_OPTIONSENTRY,
+    __module__ = 'feast.specs.StorageSpec_pb2'
     # @@protoc_insertion_point(class_scope:feast.specs.StorageSpec.OptionsEntry)
-    })
+    ))
   ,
-  'DESCRIPTOR' : _STORAGESPEC,
-  '__module__' : 'feast.specs.StorageSpec_pb2'
+  DESCRIPTOR = _STORAGESPEC,
+  __module__ = 'feast.specs.StorageSpec_pb2'
   # @@protoc_insertion_point(class_scope:feast.specs.StorageSpec)
-  })
+  ))
 _sym_db.RegisterMessage(StorageSpec)
 _sym_db.RegisterMessage(StorageSpec.OptionsEntry)
 
