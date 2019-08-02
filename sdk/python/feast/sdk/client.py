@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 from google.protobuf.timestamp_pb2 import Timestamp
 from kafka import KafkaProducer
+from pandas.core.dtypes.common import is_datetime64_any_dtype
 from tqdm import tqdm
 
 import feast.sdk.utils.types
@@ -298,12 +299,11 @@ class Client:
             raise ValueError(
                 f'timestamp_column "{timestamp_column}" does not exist in the Dataframe'
             )
-        # Ensure timestamp value is in format that Feast accepts
+        # Ensure timestamp value is in format that Feast accepts.
         # For example the timestamp_column may be in these types:
         # - datetime64[ns, tz]
         # - object (if the value is in string)
         # pandas.to_datetime ensures that it is normalized to datetime64[ns, UTC]
-        self.logger.info("$"*50, dataframe[timestamp_column].dtype)
         if str(dataframe[timestamp_column].dtype) not in [
             "datetime64[ns]",
             "datetime64[ns, UTC]",
@@ -368,9 +368,21 @@ class Client:
                 f'entity_key_column "{entity_key_column}" does not exist in the Dataframe'
             )
 
+        # Ensure there is a column representing timestamp in the DataFrame
         timestamp_column = self._ensure_valid_timestamp_in_dataframe(
             dataframe, timestamp_column=timestamp_column
         )
+
+        # Ensure that all "datetime64" columns can be mapped to Feast value type
+        # All "datetime64" columns will be converted to type "datetime64[ns]"
+        # which can be mapped to Feast value type
+        for column in dataframe.columns:
+            if column == entity_key_column or column == timestamp_column:
+                continue
+            if is_datetime64_any_dtype(dataframe[column]):
+                dataframe[column] = pd.to_datetime(dataframe[column]).astype(
+                    "datetime64[ns]"
+                )
 
         if entity_tags is None:
             entity_tags = []
@@ -413,14 +425,16 @@ class Client:
             # Feast 0.2 only supports Kafka brokers
             self._message_producer = KafkaProducer(bootstrap_servers=bootstrap_servers)
 
-        self.logger.info(f"Publishing features to topic: '{topic_name}' in brokers: '{bootstrap_servers}'")
+        self.logger.info(
+            f"Publishing features to topic: '{topic_name}' in brokers: '{bootstrap_servers}'"
+        )
         for index, row in tqdm(
             dataframe.iterrows(), unit="rows", total=dataframe.shape[0]
         ):
             event_timestamp = Timestamp()
             event_timestamp.FromNanoseconds(row[timestamp_column].value)
             feature_row = FeatureRow(
-                entityKey=entity_key_column, eventTimestamp=event_timestamp
+                entityKey=str(row[entity_key_column]), eventTimestamp=event_timestamp
             )
             for column in row.index:
                 if column == entity_key_column or column == timestamp_column:
@@ -428,15 +442,20 @@ class Client:
                 feature_name = column
                 feature_value = Value()
                 feature_value_attr = dtype_to_feast_value_attr(dataframe[column].dtype)
-                try:
-                    feature_value.__setattr__(feature_value_attr, row[column])
-                except TypeError as type_error:
-                    # Numpy treats NaN as float. So if there is NaN values in column of
-                    # "str" type, __setattr__ will raise TypeError. This handles that case.
-                    if feature_value_attr == "stringVal" and pd.isnull(row[column]):
-                        feature_value.__setattr__("stringVal", "")
-                    else:
-                        raise type_error
+                if feature_value_attr == "timestampVal":
+                    timestamp_value = Timestamp()
+                    timestamp_value.FromNanoseconds(row[column].value)
+                    feature_value.timestampVal.CopyFrom(timestamp_value)
+                else:
+                    try:
+                        feature_value.__setattr__(feature_value_attr, row[column])
+                    except TypeError as type_error:
+                        # Numpy treats NaN as float. So if there is NaN values in column of
+                        # "str" type, __setattr__ will raise TypeError. This handles that case.
+                        if feature_value_attr == "stringVal" and pd.isnull(row[column]):
+                            feature_value.__setattr__("stringVal", "")
+                        else:
+                            raise type_error
                 feature_row.features.extend(
                     [
                         Feature_pb2.Feature(

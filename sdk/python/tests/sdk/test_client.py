@@ -15,6 +15,8 @@
 from datetime import datetime
 from unittest.mock import MagicMock
 
+import pytz
+
 import feast.core.CoreService_pb2_grpc as core
 import feast.core.DatasetService_pb2_grpc as training
 import feast.core.JobService_pb2_grpc as jobs
@@ -678,9 +680,26 @@ class TestClient(object):
             pd.DataFrame({"entity_id": [1, 3, 4, 1], "feature_1": [1, 2, 5, 9]}),
             pd.DataFrame(
                 {
-                    "entity_id": [1, 3, 4],
+                    "entity_id": [17, 16, 15],
                     "feature_1": [1, 7, np.NaN],
                     "feature_2": ["text", np.NaN, "text"],
+                }
+            ),
+            pd.DataFrame(
+                {
+                    "entity_id": [1, 3, 4],
+                    "feature_1": [
+                        datetime.utcnow().replace(tzinfo=pytz.utc) for _ in range(3)
+                    ],
+                }
+            ),
+            pd.DataFrame(
+                {
+                    "entity_id": [9, 8, 7],
+                    "feature_1": [
+                        datetime.utcnow().replace(tzinfo=pytz.timezone("Asia/Jakarta"))
+                        for _ in range(3)
+                    ],
                 }
             ),
         ],
