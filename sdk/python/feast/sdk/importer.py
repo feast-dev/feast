@@ -278,14 +278,14 @@ class Importer:
             warehouse_store,
             df,
         )
-        iport_spec = _create_import(
+        import_spec = _create_import(
             src_type, source_options, job_options, entity, schema
         )
 
         props = _properties(
             "dataframe", len(df.index), require_staging, source_options["path"]
         )
-        specs = _specs(iport_spec, Entity(name=entity), features)
+        specs = _specs(import_spec, Entity(name=entity), features)
 
         return cls(specs, df, props)
 
@@ -436,6 +436,12 @@ def _detect_schema_and_feature(
     Raises:
         Exception -- [description]
     """
+
+    # Convert columns with datetime64-like data type to datetime64[ns]
+    for column in df.columns:
+        if str(df[column].dtype) == "datetime64[ns]":
+            continue
+        df[column] = pd.to_datetime(df[column], utc=True).astype("datetime64[ns]")
 
     schema = Schema()
     if id_column is not None:
