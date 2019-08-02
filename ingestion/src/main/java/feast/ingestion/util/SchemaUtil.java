@@ -13,6 +13,20 @@ import java.util.Map;
 import static feast.specs.FeatureSpecProto.FeatureSpec;
 import static feast.types.ValueProto.ValueType;
 
+/**
+ * This class is a utility to manage schemas for storage backends in Feast.
+ *
+ * <p>Examples when schemas need to be updated:
+ *
+ * <ul>
+ *   <li>when a new entity is registered, a table usually needs to be created
+ *   <li>when a new feature is registered, a column with appropriate data type usually needs to be
+ *       created
+ * </ul>
+ *
+ * <p>If the storage backend is a key-value or a schema-less database, however, there may not be a
+ * need to manage any schemas. This class will not be used in that case.
+ */
 @Slf4j
 public class SchemaUtil {
   private static final Map<ValueType.Enum, StandardSQLTypeName> VALUE_TYPE_TO_STANDARD_SQL_TYPE =
@@ -45,6 +59,20 @@ public class SchemaUtil {
     return StandardTableDefinition.of(Schema.of(fields));
   }
 
+  /**
+   * Setup BigQuery to ensure the dataset and table required to store features for the entity are
+   * created or updated.
+   *
+   * @param storageSpec <a
+   *     href="https://github.com/gojek/feast/blob/master/protos/feast/specs/StorageSpec.proto">StorageSpec</a>
+   * @param entitySpec <a
+   *     href="https://github.com/gojek/feast/blob/master/protos/feast/specs/EntitySpec.proto">EntitySpec</a>
+   * @param featureSpecs List of <a
+   *     href="https://github.com/gojek/feast/blob/master/protos/feast/specs/FeatureSpec.proto">FeatureSpecs</a>
+   * @param bigquery <a
+   *     href="https://googleapis.dev/java/google-cloud-clients/latest/com/google/cloud/bigquery/BigQuery.html">BigQuery</a>
+   *     client service
+   */
   public static void setupBigQuery(
       StorageSpec storageSpec,
       EntitySpec entitySpec,

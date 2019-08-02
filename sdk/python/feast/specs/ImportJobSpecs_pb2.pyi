@@ -8,16 +8,13 @@ from feast.specs.FeatureSpec_pb2 import (
     FeatureSpec as feast___specs___FeatureSpec_pb2___FeatureSpec,
 )
 
-from feast.specs.ImportSpec_pb2 import (
-    ImportSpec as feast___specs___ImportSpec_pb2___ImportSpec,
-)
-
 from feast.specs.StorageSpec_pb2 import (
     StorageSpec as feast___specs___StorageSpec_pb2___StorageSpec,
 )
 
 from google.protobuf.descriptor import (
     Descriptor as google___protobuf___descriptor___Descriptor,
+    EnumDescriptor as google___protobuf___descriptor___EnumDescriptor,
 )
 
 from google.protobuf.internal.containers import (
@@ -30,8 +27,13 @@ from google.protobuf.message import (
 
 from typing import (
     Iterable as typing___Iterable,
+    List as typing___List,
+    Mapping as typing___Mapping,
+    MutableMapping as typing___MutableMapping,
     Optional as typing___Optional,
     Text as typing___Text,
+    Tuple as typing___Tuple,
+    cast as typing___cast,
 )
 
 from typing_extensions import (
@@ -44,19 +46,16 @@ class ImportJobSpecs(google___protobuf___message___Message):
     jobId = ... # type: typing___Text
 
     @property
-    def importSpec(self) -> feast___specs___ImportSpec_pb2___ImportSpec: ...
+    def sourceSpec(self) -> SourceSpec: ...
 
     @property
-    def entitySpecs(self) -> google___protobuf___internal___containers___RepeatedCompositeFieldContainer[feast___specs___EntitySpec_pb2___EntitySpec]: ...
+    def entitySpec(self) -> feast___specs___EntitySpec_pb2___EntitySpec: ...
 
     @property
     def featureSpecs(self) -> google___protobuf___internal___containers___RepeatedCompositeFieldContainer[feast___specs___FeatureSpec_pb2___FeatureSpec]: ...
 
     @property
-    def servingStorageSpec(self) -> feast___specs___StorageSpec_pb2___StorageSpec: ...
-
-    @property
-    def warehouseStorageSpec(self) -> feast___specs___StorageSpec_pb2___StorageSpec: ...
+    def sinkStorageSpec(self) -> feast___specs___StorageSpec_pb2___StorageSpec: ...
 
     @property
     def errorsStorageSpec(self) -> feast___specs___StorageSpec_pb2___StorageSpec: ...
@@ -64,11 +63,10 @@ class ImportJobSpecs(google___protobuf___message___Message):
     def __init__(self,
         *,
         jobId : typing___Optional[typing___Text] = None,
-        importSpec : typing___Optional[feast___specs___ImportSpec_pb2___ImportSpec] = None,
-        entitySpecs : typing___Optional[typing___Iterable[feast___specs___EntitySpec_pb2___EntitySpec]] = None,
+        sourceSpec : typing___Optional[SourceSpec] = None,
+        entitySpec : typing___Optional[feast___specs___EntitySpec_pb2___EntitySpec] = None,
         featureSpecs : typing___Optional[typing___Iterable[feast___specs___FeatureSpec_pb2___FeatureSpec]] = None,
-        servingStorageSpec : typing___Optional[feast___specs___StorageSpec_pb2___StorageSpec] = None,
-        warehouseStorageSpec : typing___Optional[feast___specs___StorageSpec_pb2___StorageSpec] = None,
+        sinkStorageSpec : typing___Optional[feast___specs___StorageSpec_pb2___StorageSpec] = None,
         errorsStorageSpec : typing___Optional[feast___specs___StorageSpec_pb2___StorageSpec] = None,
         ) -> None: ...
     @classmethod
@@ -76,8 +74,63 @@ class ImportJobSpecs(google___protobuf___message___Message):
     def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     if sys.version_info >= (3,):
-        def HasField(self, field_name: typing_extensions___Literal[u"errorsStorageSpec",u"importSpec",u"servingStorageSpec",u"warehouseStorageSpec"]) -> bool: ...
-        def ClearField(self, field_name: typing_extensions___Literal[u"entitySpecs",u"errorsStorageSpec",u"featureSpecs",u"importSpec",u"jobId",u"servingStorageSpec",u"warehouseStorageSpec"]) -> None: ...
+        def HasField(self, field_name: typing_extensions___Literal[u"entitySpec",u"errorsStorageSpec",u"sinkStorageSpec",u"sourceSpec"]) -> bool: ...
+        def ClearField(self, field_name: typing_extensions___Literal[u"entitySpec",u"errorsStorageSpec",u"featureSpecs",u"jobId",u"sinkStorageSpec",u"sourceSpec"]) -> None: ...
     else:
-        def HasField(self, field_name: typing_extensions___Literal[u"errorsStorageSpec",b"errorsStorageSpec",u"importSpec",b"importSpec",u"servingStorageSpec",b"servingStorageSpec",u"warehouseStorageSpec",b"warehouseStorageSpec"]) -> bool: ...
-        def ClearField(self, field_name: typing_extensions___Literal[u"entitySpecs",b"entitySpecs",u"errorsStorageSpec",b"errorsStorageSpec",u"featureSpecs",b"featureSpecs",u"importSpec",b"importSpec",u"jobId",b"jobId",u"servingStorageSpec",b"servingStorageSpec",u"warehouseStorageSpec",b"warehouseStorageSpec"]) -> None: ...
+        def HasField(self, field_name: typing_extensions___Literal[u"entitySpec",b"entitySpec",u"errorsStorageSpec",b"errorsStorageSpec",u"sinkStorageSpec",b"sinkStorageSpec",u"sourceSpec",b"sourceSpec"]) -> bool: ...
+        def ClearField(self, field_name: typing_extensions___Literal[u"entitySpec",b"entitySpec",u"errorsStorageSpec",b"errorsStorageSpec",u"featureSpecs",b"featureSpecs",u"jobId",b"jobId",u"sinkStorageSpec",b"sinkStorageSpec",u"sourceSpec",b"sourceSpec"]) -> None: ...
+
+class SourceSpec(google___protobuf___message___Message):
+    DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
+    class SourceType(int):
+        DESCRIPTOR: google___protobuf___descriptor___EnumDescriptor = ...
+        @classmethod
+        def Name(cls, number: int) -> str: ...
+        @classmethod
+        def Value(cls, name: str) -> SourceSpec.SourceType: ...
+        @classmethod
+        def keys(cls) -> typing___List[str]: ...
+        @classmethod
+        def values(cls) -> typing___List[SourceSpec.SourceType]: ...
+        @classmethod
+        def items(cls) -> typing___List[typing___Tuple[str, SourceSpec.SourceType]]: ...
+        KAFKA = typing___cast(SourceSpec.SourceType, 0)
+    KAFKA = typing___cast(SourceSpec.SourceType, 0)
+
+    class OptionsEntry(google___protobuf___message___Message):
+        DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
+        key = ... # type: typing___Text
+        value = ... # type: typing___Text
+
+        def __init__(self,
+            *,
+            key : typing___Optional[typing___Text] = None,
+            value : typing___Optional[typing___Text] = None,
+            ) -> None: ...
+        @classmethod
+        def FromString(cls, s: bytes) -> SourceSpec.OptionsEntry: ...
+        def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
+        def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
+        if sys.version_info >= (3,):
+            def ClearField(self, field_name: typing_extensions___Literal[u"key",u"value"]) -> None: ...
+        else:
+            def ClearField(self, field_name: typing_extensions___Literal[u"key",b"key",u"value",b"value"]) -> None: ...
+
+    type = ... # type: SourceSpec.SourceType
+
+    @property
+    def options(self) -> typing___MutableMapping[typing___Text, typing___Text]: ...
+
+    def __init__(self,
+        *,
+        type : typing___Optional[SourceSpec.SourceType] = None,
+        options : typing___Optional[typing___Mapping[typing___Text, typing___Text]] = None,
+        ) -> None: ...
+    @classmethod
+    def FromString(cls, s: bytes) -> SourceSpec: ...
+    def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
+    def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
+    if sys.version_info >= (3,):
+        def ClearField(self, field_name: typing_extensions___Literal[u"options",u"type"]) -> None: ...
+    else:
+        def ClearField(self, field_name: typing_extensions___Literal[u"options",b"options",u"type",b"type"]) -> None: ...

@@ -73,11 +73,11 @@ _BIGTABLEROWKEY = _descriptor.Descriptor(
 DESCRIPTOR.message_types_by_name['BigTableRowKey'] = _BIGTABLEROWKEY
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-BigTableRowKey = _reflection.GeneratedProtocolMessageType('BigTableRowKey', (_message.Message,), {
-  'DESCRIPTOR' : _BIGTABLEROWKEY,
-  '__module__' : 'feast.storage.BigTable_pb2'
+BigTableRowKey = _reflection.GeneratedProtocolMessageType('BigTableRowKey', (_message.Message,), dict(
+  DESCRIPTOR = _BIGTABLEROWKEY,
+  __module__ = 'feast.storage.BigTable_pb2'
   # @@protoc_insertion_point(class_scope:feast.storage.BigTableRowKey)
-  })
+  ))
 _sym_db.RegisterMessage(BigTableRowKey)
 
 

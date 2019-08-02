@@ -69,11 +69,11 @@ _FEATURE.fields_by_name['value'].message_type = feast_dot_types_dot_Value__pb2._
 DESCRIPTOR.message_types_by_name['Feature'] = _FEATURE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-Feature = _reflection.GeneratedProtocolMessageType('Feature', (_message.Message,), {
-  'DESCRIPTOR' : _FEATURE,
-  '__module__' : 'feast.types.Feature_pb2'
+Feature = _reflection.GeneratedProtocolMessageType('Feature', (_message.Message,), dict(
+  DESCRIPTOR = _FEATURE,
+  __module__ = 'feast.types.Feature_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.Feature)
-  })
+  ))
 _sym_db.RegisterMessage(Feature)
 
 

@@ -643,123 +643,123 @@ _UISERVICETYPES_LISTSTORAGERESPONSE.containing_type = _UISERVICETYPES
 DESCRIPTOR.message_types_by_name['UIServiceTypes'] = _UISERVICETYPES
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-UIServiceTypes = _reflection.GeneratedProtocolMessageType('UIServiceTypes', (_message.Message,), {
+UIServiceTypes = _reflection.GeneratedProtocolMessageType('UIServiceTypes', (_message.Message,), dict(
 
-  'EntityDetail' : _reflection.GeneratedProtocolMessageType('EntityDetail', (_message.Message,), {
-    'DESCRIPTOR' : _UISERVICETYPES_ENTITYDETAIL,
-    '__module__' : 'feast.core.UIService_pb2'
+  EntityDetail = _reflection.GeneratedProtocolMessageType('EntityDetail', (_message.Message,), dict(
+    DESCRIPTOR = _UISERVICETYPES_ENTITYDETAIL,
+    __module__ = 'feast.core.UIService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.UIServiceTypes.EntityDetail)
-    })
+    ))
   ,
 
-  'GetEntityRequest' : _reflection.GeneratedProtocolMessageType('GetEntityRequest', (_message.Message,), {
-    'DESCRIPTOR' : _UISERVICETYPES_GETENTITYREQUEST,
-    '__module__' : 'feast.core.UIService_pb2'
+  GetEntityRequest = _reflection.GeneratedProtocolMessageType('GetEntityRequest', (_message.Message,), dict(
+    DESCRIPTOR = _UISERVICETYPES_GETENTITYREQUEST,
+    __module__ = 'feast.core.UIService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.UIServiceTypes.GetEntityRequest)
-    })
+    ))
   ,
 
-  'GetEntityResponse' : _reflection.GeneratedProtocolMessageType('GetEntityResponse', (_message.Message,), {
-    'DESCRIPTOR' : _UISERVICETYPES_GETENTITYRESPONSE,
-    '__module__' : 'feast.core.UIService_pb2'
+  GetEntityResponse = _reflection.GeneratedProtocolMessageType('GetEntityResponse', (_message.Message,), dict(
+    DESCRIPTOR = _UISERVICETYPES_GETENTITYRESPONSE,
+    __module__ = 'feast.core.UIService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.UIServiceTypes.GetEntityResponse)
-    })
+    ))
   ,
 
-  'ListEntitiesResponse' : _reflection.GeneratedProtocolMessageType('ListEntitiesResponse', (_message.Message,), {
-    'DESCRIPTOR' : _UISERVICETYPES_LISTENTITIESRESPONSE,
-    '__module__' : 'feast.core.UIService_pb2'
+  ListEntitiesResponse = _reflection.GeneratedProtocolMessageType('ListEntitiesResponse', (_message.Message,), dict(
+    DESCRIPTOR = _UISERVICETYPES_LISTENTITIESRESPONSE,
+    __module__ = 'feast.core.UIService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.UIServiceTypes.ListEntitiesResponse)
-    })
+    ))
   ,
 
-  'FeatureDetail' : _reflection.GeneratedProtocolMessageType('FeatureDetail', (_message.Message,), {
-    'DESCRIPTOR' : _UISERVICETYPES_FEATUREDETAIL,
-    '__module__' : 'feast.core.UIService_pb2'
+  FeatureDetail = _reflection.GeneratedProtocolMessageType('FeatureDetail', (_message.Message,), dict(
+    DESCRIPTOR = _UISERVICETYPES_FEATUREDETAIL,
+    __module__ = 'feast.core.UIService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.UIServiceTypes.FeatureDetail)
-    })
+    ))
   ,
 
-  'GetFeatureRequest' : _reflection.GeneratedProtocolMessageType('GetFeatureRequest', (_message.Message,), {
-    'DESCRIPTOR' : _UISERVICETYPES_GETFEATUREREQUEST,
-    '__module__' : 'feast.core.UIService_pb2'
+  GetFeatureRequest = _reflection.GeneratedProtocolMessageType('GetFeatureRequest', (_message.Message,), dict(
+    DESCRIPTOR = _UISERVICETYPES_GETFEATUREREQUEST,
+    __module__ = 'feast.core.UIService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.UIServiceTypes.GetFeatureRequest)
-    })
+    ))
   ,
 
-  'GetFeatureResponse' : _reflection.GeneratedProtocolMessageType('GetFeatureResponse', (_message.Message,), {
-    'DESCRIPTOR' : _UISERVICETYPES_GETFEATURERESPONSE,
-    '__module__' : 'feast.core.UIService_pb2'
+  GetFeatureResponse = _reflection.GeneratedProtocolMessageType('GetFeatureResponse', (_message.Message,), dict(
+    DESCRIPTOR = _UISERVICETYPES_GETFEATURERESPONSE,
+    __module__ = 'feast.core.UIService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.UIServiceTypes.GetFeatureResponse)
-    })
+    ))
   ,
 
-  'ListFeaturesResponse' : _reflection.GeneratedProtocolMessageType('ListFeaturesResponse', (_message.Message,), {
-    'DESCRIPTOR' : _UISERVICETYPES_LISTFEATURESRESPONSE,
-    '__module__' : 'feast.core.UIService_pb2'
+  ListFeaturesResponse = _reflection.GeneratedProtocolMessageType('ListFeaturesResponse', (_message.Message,), dict(
+    DESCRIPTOR = _UISERVICETYPES_LISTFEATURESRESPONSE,
+    __module__ = 'feast.core.UIService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.UIServiceTypes.ListFeaturesResponse)
-    })
+    ))
   ,
 
-  'FeatureGroupDetail' : _reflection.GeneratedProtocolMessageType('FeatureGroupDetail', (_message.Message,), {
-    'DESCRIPTOR' : _UISERVICETYPES_FEATUREGROUPDETAIL,
-    '__module__' : 'feast.core.UIService_pb2'
+  FeatureGroupDetail = _reflection.GeneratedProtocolMessageType('FeatureGroupDetail', (_message.Message,), dict(
+    DESCRIPTOR = _UISERVICETYPES_FEATUREGROUPDETAIL,
+    __module__ = 'feast.core.UIService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.UIServiceTypes.FeatureGroupDetail)
-    })
+    ))
   ,
 
-  'GetFeatureGroupRequest' : _reflection.GeneratedProtocolMessageType('GetFeatureGroupRequest', (_message.Message,), {
-    'DESCRIPTOR' : _UISERVICETYPES_GETFEATUREGROUPREQUEST,
-    '__module__' : 'feast.core.UIService_pb2'
+  GetFeatureGroupRequest = _reflection.GeneratedProtocolMessageType('GetFeatureGroupRequest', (_message.Message,), dict(
+    DESCRIPTOR = _UISERVICETYPES_GETFEATUREGROUPREQUEST,
+    __module__ = 'feast.core.UIService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.UIServiceTypes.GetFeatureGroupRequest)
-    })
+    ))
   ,
 
-  'GetFeatureGroupResponse' : _reflection.GeneratedProtocolMessageType('GetFeatureGroupResponse', (_message.Message,), {
-    'DESCRIPTOR' : _UISERVICETYPES_GETFEATUREGROUPRESPONSE,
-    '__module__' : 'feast.core.UIService_pb2'
+  GetFeatureGroupResponse = _reflection.GeneratedProtocolMessageType('GetFeatureGroupResponse', (_message.Message,), dict(
+    DESCRIPTOR = _UISERVICETYPES_GETFEATUREGROUPRESPONSE,
+    __module__ = 'feast.core.UIService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.UIServiceTypes.GetFeatureGroupResponse)
-    })
+    ))
   ,
 
-  'ListFeatureGroupsResponse' : _reflection.GeneratedProtocolMessageType('ListFeatureGroupsResponse', (_message.Message,), {
-    'DESCRIPTOR' : _UISERVICETYPES_LISTFEATUREGROUPSRESPONSE,
-    '__module__' : 'feast.core.UIService_pb2'
+  ListFeatureGroupsResponse = _reflection.GeneratedProtocolMessageType('ListFeatureGroupsResponse', (_message.Message,), dict(
+    DESCRIPTOR = _UISERVICETYPES_LISTFEATUREGROUPSRESPONSE,
+    __module__ = 'feast.core.UIService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.UIServiceTypes.ListFeatureGroupsResponse)
-    })
+    ))
   ,
 
-  'StorageDetail' : _reflection.GeneratedProtocolMessageType('StorageDetail', (_message.Message,), {
-    'DESCRIPTOR' : _UISERVICETYPES_STORAGEDETAIL,
-    '__module__' : 'feast.core.UIService_pb2'
+  StorageDetail = _reflection.GeneratedProtocolMessageType('StorageDetail', (_message.Message,), dict(
+    DESCRIPTOR = _UISERVICETYPES_STORAGEDETAIL,
+    __module__ = 'feast.core.UIService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.UIServiceTypes.StorageDetail)
-    })
+    ))
   ,
 
-  'GetStorageRequest' : _reflection.GeneratedProtocolMessageType('GetStorageRequest', (_message.Message,), {
-    'DESCRIPTOR' : _UISERVICETYPES_GETSTORAGEREQUEST,
-    '__module__' : 'feast.core.UIService_pb2'
+  GetStorageRequest = _reflection.GeneratedProtocolMessageType('GetStorageRequest', (_message.Message,), dict(
+    DESCRIPTOR = _UISERVICETYPES_GETSTORAGEREQUEST,
+    __module__ = 'feast.core.UIService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.UIServiceTypes.GetStorageRequest)
-    })
+    ))
   ,
 
-  'GetStorageResponse' : _reflection.GeneratedProtocolMessageType('GetStorageResponse', (_message.Message,), {
-    'DESCRIPTOR' : _UISERVICETYPES_GETSTORAGERESPONSE,
-    '__module__' : 'feast.core.UIService_pb2'
+  GetStorageResponse = _reflection.GeneratedProtocolMessageType('GetStorageResponse', (_message.Message,), dict(
+    DESCRIPTOR = _UISERVICETYPES_GETSTORAGERESPONSE,
+    __module__ = 'feast.core.UIService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.UIServiceTypes.GetStorageResponse)
-    })
+    ))
   ,
 
-  'ListStorageResponse' : _reflection.GeneratedProtocolMessageType('ListStorageResponse', (_message.Message,), {
-    'DESCRIPTOR' : _UISERVICETYPES_LISTSTORAGERESPONSE,
-    '__module__' : 'feast.core.UIService_pb2'
+  ListStorageResponse = _reflection.GeneratedProtocolMessageType('ListStorageResponse', (_message.Message,), dict(
+    DESCRIPTOR = _UISERVICETYPES_LISTSTORAGERESPONSE,
+    __module__ = 'feast.core.UIService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.UIServiceTypes.ListStorageResponse)
-    })
+    ))
   ,
-  'DESCRIPTOR' : _UISERVICETYPES,
-  '__module__' : 'feast.core.UIService_pb2'
+  DESCRIPTOR = _UISERVICETYPES,
+  __module__ = 'feast.core.UIService_pb2'
   # @@protoc_insertion_point(class_scope:feast.core.UIServiceTypes)
-  })
+  ))
 _sym_db.RegisterMessage(UIServiceTypes)
 _sym_db.RegisterMessage(UIServiceTypes.EntityDetail)
 _sym_db.RegisterMessage(UIServiceTypes.GetEntityRequest)

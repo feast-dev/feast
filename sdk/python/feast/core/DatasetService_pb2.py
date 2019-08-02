@@ -272,49 +272,49 @@ DESCRIPTOR.message_types_by_name['FeatureSet'] = _FEATURESET
 DESCRIPTOR.message_types_by_name['DatasetInfo'] = _DATASETINFO
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-DatasetServiceTypes = _reflection.GeneratedProtocolMessageType('DatasetServiceTypes', (_message.Message,), {
+DatasetServiceTypes = _reflection.GeneratedProtocolMessageType('DatasetServiceTypes', (_message.Message,), dict(
 
-  'CreateDatasetRequest' : _reflection.GeneratedProtocolMessageType('CreateDatasetRequest', (_message.Message,), {
+  CreateDatasetRequest = _reflection.GeneratedProtocolMessageType('CreateDatasetRequest', (_message.Message,), dict(
 
-    'FiltersEntry' : _reflection.GeneratedProtocolMessageType('FiltersEntry', (_message.Message,), {
-      'DESCRIPTOR' : _DATASETSERVICETYPES_CREATEDATASETREQUEST_FILTERSENTRY,
-      '__module__' : 'feast.core.DatasetService_pb2'
+    FiltersEntry = _reflection.GeneratedProtocolMessageType('FiltersEntry', (_message.Message,), dict(
+      DESCRIPTOR = _DATASETSERVICETYPES_CREATEDATASETREQUEST_FILTERSENTRY,
+      __module__ = 'feast.core.DatasetService_pb2'
       # @@protoc_insertion_point(class_scope:feast.core.DatasetServiceTypes.CreateDatasetRequest.FiltersEntry)
-      })
+      ))
     ,
-    'DESCRIPTOR' : _DATASETSERVICETYPES_CREATEDATASETREQUEST,
-    '__module__' : 'feast.core.DatasetService_pb2'
+    DESCRIPTOR = _DATASETSERVICETYPES_CREATEDATASETREQUEST,
+    __module__ = 'feast.core.DatasetService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.DatasetServiceTypes.CreateDatasetRequest)
-    })
+    ))
   ,
 
-  'CreateDatasetResponse' : _reflection.GeneratedProtocolMessageType('CreateDatasetResponse', (_message.Message,), {
-    'DESCRIPTOR' : _DATASETSERVICETYPES_CREATEDATASETRESPONSE,
-    '__module__' : 'feast.core.DatasetService_pb2'
+  CreateDatasetResponse = _reflection.GeneratedProtocolMessageType('CreateDatasetResponse', (_message.Message,), dict(
+    DESCRIPTOR = _DATASETSERVICETYPES_CREATEDATASETRESPONSE,
+    __module__ = 'feast.core.DatasetService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.DatasetServiceTypes.CreateDatasetResponse)
-    })
+    ))
   ,
-  'DESCRIPTOR' : _DATASETSERVICETYPES,
-  '__module__' : 'feast.core.DatasetService_pb2'
+  DESCRIPTOR = _DATASETSERVICETYPES,
+  __module__ = 'feast.core.DatasetService_pb2'
   # @@protoc_insertion_point(class_scope:feast.core.DatasetServiceTypes)
-  })
+  ))
 _sym_db.RegisterMessage(DatasetServiceTypes)
 _sym_db.RegisterMessage(DatasetServiceTypes.CreateDatasetRequest)
 _sym_db.RegisterMessage(DatasetServiceTypes.CreateDatasetRequest.FiltersEntry)
 _sym_db.RegisterMessage(DatasetServiceTypes.CreateDatasetResponse)
 
-FeatureSet = _reflection.GeneratedProtocolMessageType('FeatureSet', (_message.Message,), {
-  'DESCRIPTOR' : _FEATURESET,
-  '__module__' : 'feast.core.DatasetService_pb2'
+FeatureSet = _reflection.GeneratedProtocolMessageType('FeatureSet', (_message.Message,), dict(
+  DESCRIPTOR = _FEATURESET,
+  __module__ = 'feast.core.DatasetService_pb2'
   # @@protoc_insertion_point(class_scope:feast.core.FeatureSet)
-  })
+  ))
 _sym_db.RegisterMessage(FeatureSet)
 
-DatasetInfo = _reflection.GeneratedProtocolMessageType('DatasetInfo', (_message.Message,), {
-  'DESCRIPTOR' : _DATASETINFO,
-  '__module__' : 'feast.core.DatasetService_pb2'
+DatasetInfo = _reflection.GeneratedProtocolMessageType('DatasetInfo', (_message.Message,), dict(
+  DESCRIPTOR = _DATASETINFO,
+  __module__ = 'feast.core.DatasetService_pb2'
   # @@protoc_insertion_point(class_scope:feast.core.DatasetInfo)
-  })
+  ))
 _sym_db.RegisterMessage(DatasetInfo)
 
 

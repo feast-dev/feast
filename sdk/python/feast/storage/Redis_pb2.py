@@ -150,25 +150,25 @@ DESCRIPTOR.message_types_by_name['RedisBucketValue'] = _REDISBUCKETVALUE
 DESCRIPTOR.message_types_by_name['RedisBucketValueList'] = _REDISBUCKETVALUELIST
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-RedisBucketKey = _reflection.GeneratedProtocolMessageType('RedisBucketKey', (_message.Message,), {
-  'DESCRIPTOR' : _REDISBUCKETKEY,
-  '__module__' : 'feast.storage.Redis_pb2'
+RedisBucketKey = _reflection.GeneratedProtocolMessageType('RedisBucketKey', (_message.Message,), dict(
+  DESCRIPTOR = _REDISBUCKETKEY,
+  __module__ = 'feast.storage.Redis_pb2'
   # @@protoc_insertion_point(class_scope:feast.storage.RedisBucketKey)
-  })
+  ))
 _sym_db.RegisterMessage(RedisBucketKey)
 
-RedisBucketValue = _reflection.GeneratedProtocolMessageType('RedisBucketValue', (_message.Message,), {
-  'DESCRIPTOR' : _REDISBUCKETVALUE,
-  '__module__' : 'feast.storage.Redis_pb2'
+RedisBucketValue = _reflection.GeneratedProtocolMessageType('RedisBucketValue', (_message.Message,), dict(
+  DESCRIPTOR = _REDISBUCKETVALUE,
+  __module__ = 'feast.storage.Redis_pb2'
   # @@protoc_insertion_point(class_scope:feast.storage.RedisBucketValue)
-  })
+  ))
 _sym_db.RegisterMessage(RedisBucketValue)
 
-RedisBucketValueList = _reflection.GeneratedProtocolMessageType('RedisBucketValueList', (_message.Message,), {
-  'DESCRIPTOR' : _REDISBUCKETVALUELIST,
-  '__module__' : 'feast.storage.Redis_pb2'
+RedisBucketValueList = _reflection.GeneratedProtocolMessageType('RedisBucketValueList', (_message.Message,), dict(
+  DESCRIPTOR = _REDISBUCKETVALUELIST,
+  __module__ = 'feast.storage.Redis_pb2'
   # @@protoc_insertion_point(class_scope:feast.storage.RedisBucketValueList)
-  })
+  ))
 _sym_db.RegisterMessage(RedisBucketValueList)
 
 

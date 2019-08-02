@@ -13,8 +13,6 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-from feast.specs import EntitySpec_pb2 as feast_dot_specs_dot_EntitySpec__pb2
-from feast.specs import StorageSpec_pb2 as feast_dot_specs_dot_StorageSpec__pb2
 from feast.types import Value_pb2 as feast_dot_types_dot_Value__pb2
 
 
@@ -23,9 +21,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.specs',
   syntax='proto3',
   serialized_options=_b('\n\013feast.specsB\020FeatureSpecProtoZ6github.com/gojek/feast/protos/generated/go/feast/specs'),
-  serialized_pb=_b('\n\x1d\x66\x65\x61st/specs/FeatureSpec.proto\x12\x0b\x66\x65\x61st.specs\x1a\x1c\x66\x65\x61st/specs/EntitySpec.proto\x1a\x1d\x66\x65\x61st/specs/StorageSpec.proto\x1a\x17\x66\x65\x61st/types/Value.proto\"\x9d\x02\n\x0b\x46\x65\x61tureSpec\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\r\n\x05owner\x18\x03 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x04 \x01(\t\x12\x0b\n\x03uri\x18\x05 \x01(\t\x12.\n\tvalueType\x18\x07 \x01(\x0e\x32\x1b.feast.types.ValueType.Enum\x12\x0e\n\x06\x65ntity\x18\x08 \x01(\t\x12\r\n\x05group\x18\t \x01(\t\x12\x0c\n\x04tags\x18\n \x03(\t\x12\x36\n\x07options\x18\x0b \x03(\x0b\x32%.feast.specs.FeatureSpec.OptionsEntry\x1a.\n\x0cOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x42W\n\x0b\x66\x65\x61st.specsB\x10\x46\x65\x61tureSpecProtoZ6github.com/gojek/feast/protos/generated/go/feast/specsb\x06proto3')
+  serialized_pb=_b('\n\x1d\x66\x65\x61st/specs/FeatureSpec.proto\x12\x0b\x66\x65\x61st.specs\x1a\x17\x66\x65\x61st/types/Value.proto\"\x9d\x02\n\x0b\x46\x65\x61tureSpec\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\r\n\x05owner\x18\x03 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x04 \x01(\t\x12\x0b\n\x03uri\x18\x05 \x01(\t\x12.\n\tvalueType\x18\x07 \x01(\x0e\x32\x1b.feast.types.ValueType.Enum\x12\x0e\n\x06\x65ntity\x18\x08 \x01(\t\x12\r\n\x05group\x18\t \x01(\t\x12\x0c\n\x04tags\x18\n \x03(\t\x12\x36\n\x07options\x18\x0b \x03(\x0b\x32%.feast.specs.FeatureSpec.OptionsEntry\x1a.\n\x0cOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x42W\n\x0b\x66\x65\x61st.specsB\x10\x46\x65\x61tureSpecProtoZ6github.com/gojek/feast/protos/generated/go/feast/specsb\x06proto3')
   ,
-  dependencies=[feast_dot_specs_dot_EntitySpec__pb2.DESCRIPTOR,feast_dot_specs_dot_StorageSpec__pb2.DESCRIPTOR,feast_dot_types_dot_Value__pb2.DESCRIPTOR,])
+  dependencies=[feast_dot_types_dot_Value__pb2.DESCRIPTOR,])
 
 
 
@@ -63,8 +61,8 @@ _FEATURESPEC_OPTIONSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=372,
-  serialized_end=418,
+  serialized_start=311,
+  serialized_end=357,
 )
 
 _FEATURESPEC = _descriptor.Descriptor(
@@ -156,8 +154,8 @@ _FEATURESPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=133,
-  serialized_end=418,
+  serialized_start=72,
+  serialized_end=357,
 )
 
 _FEATURESPEC_OPTIONSENTRY.containing_type = _FEATURESPEC
@@ -166,18 +164,18 @@ _FEATURESPEC.fields_by_name['options'].message_type = _FEATURESPEC_OPTIONSENTRY
 DESCRIPTOR.message_types_by_name['FeatureSpec'] = _FEATURESPEC
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-FeatureSpec = _reflection.GeneratedProtocolMessageType('FeatureSpec', (_message.Message,), {
+FeatureSpec = _reflection.GeneratedProtocolMessageType('FeatureSpec', (_message.Message,), dict(
 
-  'OptionsEntry' : _reflection.GeneratedProtocolMessageType('OptionsEntry', (_message.Message,), {
-    'DESCRIPTOR' : _FEATURESPEC_OPTIONSENTRY,
-    '__module__' : 'feast.specs.FeatureSpec_pb2'
+  OptionsEntry = _reflection.GeneratedProtocolMessageType('OptionsEntry', (_message.Message,), dict(
+    DESCRIPTOR = _FEATURESPEC_OPTIONSENTRY,
+    __module__ = 'feast.specs.FeatureSpec_pb2'
     # @@protoc_insertion_point(class_scope:feast.specs.FeatureSpec.OptionsEntry)
-    })
+    ))
   ,
-  'DESCRIPTOR' : _FEATURESPEC,
-  '__module__' : 'feast.specs.FeatureSpec_pb2'
+  DESCRIPTOR = _FEATURESPEC,
+  __module__ = 'feast.specs.FeatureSpec_pb2'
   # @@protoc_insertion_point(class_scope:feast.specs.FeatureSpec)
-  })
+  ))
 _sym_db.RegisterMessage(FeatureSpec)
 _sym_db.RegisterMessage(FeatureSpec.OptionsEntry)
 

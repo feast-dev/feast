@@ -13,7 +13,6 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-from feast.specs import FeatureSpec_pb2 as feast_dot_specs_dot_FeatureSpec__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(
@@ -21,9 +20,8 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.specs',
   syntax='proto3',
   serialized_options=_b('\n\013feast.specsB\025FeatureGroupSpecProtoZ6github.com/gojek/feast/protos/generated/go/feast/specs'),
-  serialized_pb=_b('\n\"feast/specs/FeatureGroupSpec.proto\x12\x0b\x66\x65\x61st.specs\x1a\x1d\x66\x65\x61st/specs/FeatureSpec.proto\"\x99\x01\n\x10\x46\x65\x61tureGroupSpec\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04tags\x18\x02 \x03(\t\x12;\n\x07options\x18\x03 \x03(\x0b\x32*.feast.specs.FeatureGroupSpec.OptionsEntry\x1a.\n\x0cOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x42\\\n\x0b\x66\x65\x61st.specsB\x15\x46\x65\x61tureGroupSpecProtoZ6github.com/gojek/feast/protos/generated/go/feast/specsb\x06proto3')
-  ,
-  dependencies=[feast_dot_specs_dot_FeatureSpec__pb2.DESCRIPTOR,])
+  serialized_pb=_b('\n\"feast/specs/FeatureGroupSpec.proto\x12\x0b\x66\x65\x61st.specs\"\x99\x01\n\x10\x46\x65\x61tureGroupSpec\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04tags\x18\x02 \x03(\t\x12;\n\x07options\x18\x03 \x03(\x0b\x32*.feast.specs.FeatureGroupSpec.OptionsEntry\x1a.\n\x0cOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x42\\\n\x0b\x66\x65\x61st.specsB\x15\x46\x65\x61tureGroupSpecProtoZ6github.com/gojek/feast/protos/generated/go/feast/specsb\x06proto3')
+)
 
 
 
@@ -61,8 +59,8 @@ _FEATUREGROUPSPEC_OPTIONSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=190,
-  serialized_end=236,
+  serialized_start=159,
+  serialized_end=205,
 )
 
 _FEATUREGROUPSPEC = _descriptor.Descriptor(
@@ -105,8 +103,8 @@ _FEATUREGROUPSPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=83,
-  serialized_end=236,
+  serialized_start=52,
+  serialized_end=205,
 )
 
 _FEATUREGROUPSPEC_OPTIONSENTRY.containing_type = _FEATUREGROUPSPEC
@@ -114,18 +112,18 @@ _FEATUREGROUPSPEC.fields_by_name['options'].message_type = _FEATUREGROUPSPEC_OPT
 DESCRIPTOR.message_types_by_name['FeatureGroupSpec'] = _FEATUREGROUPSPEC
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-FeatureGroupSpec = _reflection.GeneratedProtocolMessageType('FeatureGroupSpec', (_message.Message,), {
+FeatureGroupSpec = _reflection.GeneratedProtocolMessageType('FeatureGroupSpec', (_message.Message,), dict(
 
-  'OptionsEntry' : _reflection.GeneratedProtocolMessageType('OptionsEntry', (_message.Message,), {
-    'DESCRIPTOR' : _FEATUREGROUPSPEC_OPTIONSENTRY,
-    '__module__' : 'feast.specs.FeatureGroupSpec_pb2'
+  OptionsEntry = _reflection.GeneratedProtocolMessageType('OptionsEntry', (_message.Message,), dict(
+    DESCRIPTOR = _FEATUREGROUPSPEC_OPTIONSENTRY,
+    __module__ = 'feast.specs.FeatureGroupSpec_pb2'
     # @@protoc_insertion_point(class_scope:feast.specs.FeatureGroupSpec.OptionsEntry)
-    })
+    ))
   ,
-  'DESCRIPTOR' : _FEATUREGROUPSPEC,
-  '__module__' : 'feast.specs.FeatureGroupSpec_pb2'
+  DESCRIPTOR = _FEATUREGROUPSPEC,
+  __module__ = 'feast.specs.FeatureGroupSpec_pb2'
   # @@protoc_insertion_point(class_scope:feast.specs.FeatureGroupSpec)
-  })
+  ))
 _sym_db.RegisterMessage(FeatureGroupSpec)
 _sym_db.RegisterMessage(FeatureGroupSpec.OptionsEntry)
 
