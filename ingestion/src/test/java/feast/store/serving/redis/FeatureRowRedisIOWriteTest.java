@@ -88,9 +88,6 @@ public class FeatureRowRedisIOWriteTest {
         "test job",
         importJobSpecs.toBuilder()
             .setSourceSpec(SourceSpec.newBuilder())
-            .setEntitySpec(EntitySpec.newBuilder().setName("testEntity"))
-            .addFeatureSpecs(FeatureSpec.newBuilder().setId(featureInt32))
-            .addFeatureSpecs(FeatureSpec.newBuilder().setId(featureString))
             .setSinkStorageSpec(StorageSpec.newBuilder()
               .setId("REDIS1").setType("redis")
               .putOptions("port", String.valueOf(REDIS_PORT))

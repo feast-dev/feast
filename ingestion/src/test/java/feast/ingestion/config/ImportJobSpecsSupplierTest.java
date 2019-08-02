@@ -52,10 +52,10 @@ public class ImportJobSpecsSupplierTest {
           + "  id: ERRORS\n"
           + "  type: stdout\n"
           + "  options: {}\n"
-          + "entitySpecs:\n"
-          + "  - name: testEntity\n"
-          + "    description: This is a test entity\n"
-          + "    tags: []\n"
+          + "entitySpec:\n"
+          + "  name: testEntity\n"
+          + "  description: This is a test entity\n"
+          + "  tags: []\n"
           + "featureSpecs:\n"
           + "  - id: testEntity.testInt64\n"
           + "    entity: testEntity\n"
@@ -86,7 +86,8 @@ public class ImportJobSpecsSupplierTest {
     assertEquals(
         SourceSpec.newBuilder()
         .setType(SourceType.KAFKA)
-        .putOptions("bootstrapServers", "localhost:8281"),
+        .putOptions("bootstrapServers", "localhost:8281")
+        .build(),
         importJobSpecs.getSourceSpec());
 
     assertEquals(StorageSpec.newBuilder()
