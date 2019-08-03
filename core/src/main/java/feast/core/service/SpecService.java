@@ -20,6 +20,7 @@ package feast.core.service;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.dao.EntityInfoRepository;
@@ -42,6 +43,7 @@ import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.StorageSpecProto.StorageSpec;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -249,32 +251,9 @@ public class SpecService {
   public FeatureInfo applyFeature(FeatureSpec spec) {
     try {
       FeatureInfo featureInfo = featureInfoRepository.findById(spec.getId()).orElse(null);
-      Action action;
-      if (featureInfo != null) {
-        featureInfo.update(spec);
-        action = Action.UPDATE;
-      } else {
-        EntityInfo entity = entityInfoRepository.findById(spec.getEntity()).orElse(null);
-        FeatureGroupInfo featureGroupInfo =
-            featureGroupInfoRepository.findById(spec.getGroup()).orElse(null);
-        featureInfo = new FeatureInfo(spec, entity, featureGroupInfo);
-        action = Action.REGISTER;
-      }
-      FeatureInfo out = featureInfoRepository.saveAndFlush(featureInfo);
-      if (!out.getId().equals(spec.getId())) {
-        throw new RegistrationException("failed to register or update feature");
-      }
-      AuditLogger.log(
-          Resource.FEATURE,
-          spec.getId(),
-          action,
-          "Feature applied: %s",
-          JsonFormat.printer().print(spec));
-
+      featureInfo = updateOrCreateFeature(featureInfo, spec);
       startOrUpdateJob(featureInfo.getEntity());
-
-      return out;
-
+      return featureInfo;
     } catch (Exception e) {
       throw new RegistrationException(
           Strings.lenientFormat("Failed to apply feature %s: %s", spec, e.getMessage()), e);
@@ -294,8 +273,23 @@ public class SpecService {
    * @return registered FeatureInfos
    * @throws RegistrationException if registration fails
    */
+  @Transactional
   public List<FeatureInfo> applyFeatures(List<FeatureSpec> specs) {
-    return Lists.newArrayList();
+    try {
+      List<FeatureInfo> out = new ArrayList<>();
+      for (FeatureSpec spec : specs) {
+        FeatureInfo featureInfo = featureInfoRepository.findById(spec.getId()).orElse(null);
+        featureInfo = updateOrCreateFeature(featureInfo, spec);
+        out.add(featureInfo);
+      }
+      startOrUpdateJob(out.get(0).getEntity());
+      return out;
+    } catch (Exception e) {
+      List<String> featureIds = specs.stream().map(FeatureSpec::getId).collect(Collectors.toList());
+      throw new RegistrationException(
+          Strings.lenientFormat("Failed to apply features [%s]: %s", featureIds.toString(),
+              e.getMessage()), e);
+    }
   }
 
   /**
@@ -408,5 +402,31 @@ public class SpecService {
       entityInfo.setJobs(Lists.newArrayList(job));
       entityInfoRepository.saveAndFlush(entityInfo);
     }
+  }
+
+  private FeatureInfo updateOrCreateFeature(FeatureInfo featureInfo, FeatureSpec spec)
+      throws InvalidProtocolBufferException {
+    Action action;
+    if (featureInfo != null) {
+      featureInfo.update(spec);
+      action = Action.UPDATE;
+    } else {
+      EntityInfo entity = entityInfoRepository.findById(spec.getEntity()).orElse(null);
+      FeatureGroupInfo featureGroupInfo =
+          featureGroupInfoRepository.findById(spec.getGroup()).orElse(null);
+      featureInfo = new FeatureInfo(spec, entity, featureGroupInfo);
+      action = Action.REGISTER;
+    }
+    FeatureInfo out = featureInfoRepository.save(featureInfo);
+    if (!out.getId().equals(spec.getId())) {
+      throw new RegistrationException("failed to register or update feature");
+    }
+    AuditLogger.log(
+        Resource.FEATURE,
+        spec.getId(),
+        action,
+        "Feature applied: %s",
+        JsonFormat.printer().print(spec));
+    return out;
   }
 }

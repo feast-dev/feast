@@ -44,6 +44,8 @@ import feast.specs.FeatureSpecProto.FeatureSpec;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.RandomUtils;
@@ -234,9 +236,29 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   @Override
   public void applyFeatures(CoreServiceProto.CoreServiceTypes.ApplyFeaturesRequest request,
       StreamObserver<CoreServiceProto.CoreServiceTypes.ApplyFeaturesResponse> responseObserver) {
-    ApplyFeaturesResponse applyFeaturesResponse = ApplyFeaturesResponse.newBuilder().build();
-    responseObserver.onNext(applyFeaturesResponse);
-    responseObserver.onCompleted();
+    try {
+      Set<String> entities = new HashSet<>();
+      for (FeatureSpec spec : request.getFeatureSpecsList()) {
+        validator.validateFeatureSpec(spec);
+        entities.add(spec.getEntity());
+      }
+      if (entities.size() != 1) {
+        throw new IllegalArgumentException("Features applied can only be of the same entity.");
+      }
+      List<FeatureInfo> features = specService.applyFeatures(request.getFeatureSpecsList());
+      List<String> featureIds = features.stream().map(FeatureInfo::getId)
+          .collect(Collectors.toList());
+      ApplyFeaturesResponse applyFeaturesResponse = ApplyFeaturesResponse.newBuilder()
+          .addAllFeatureIds(featureIds).build();
+      responseObserver.onNext(applyFeaturesResponse);
+      responseObserver.onCompleted();
+    } catch (RegistrationException e) {
+      log.error("Error in applyFeatures: {}", e);
+      responseObserver.onError(getRuntimeException(e));
+    } catch (IllegalArgumentException e) {
+      log.error("Error in applyFeatures: {}", e);
+      responseObserver.onError(getBadRequestException(e));
+    }
   }
 
   /**
@@ -289,8 +311,8 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   /**
-   * Retrieve the topic and topic configuration (such as the URI of the message brokers)
-   * for the client to write the feature values of an entity.
+   * Retrieve the topic and topic configuration (such as the URI of the message brokers) for the
+   * client to write the feature values of an entity.
    */
   @Override
   public void getTopic(GetTopicRequest request, StreamObserver<GetTopicResponse> responseObserver) {
