@@ -39,12 +39,14 @@ public class FeatureRowRedisIO {
 
     @Override
     public PDone expand(PCollection<FeatureRowExtended> input) {
-      PCollection<RedisMutation> mutation =
-          input.apply("Map to Redis mutations", ParDo.of(new FeatureRowToRedisMutationDoFn(specs)));
-      return mutation.apply(
-          RedisCustomIO.write(options.host, options.port)
-              .withBatchSize(options.batchSize)
-              .withTimeout(options.timeout));
+      // TODO: Remove this?
+      // PCollection<RedisMutation> mutation =
+      //     input.apply("Map to Redis mutations", ParDo.of(new FeatureRowToRedisMutationDoFn(specs)));
+      // return mutation.apply(
+      //     RedisCustomIO.write(options.host, options.port)
+      //         .withBatchSize(options.batchSize)
+      //         .withTimeout(options.timeout));
+      return PDone.in(input.getPipeline());
     }
   }
 }

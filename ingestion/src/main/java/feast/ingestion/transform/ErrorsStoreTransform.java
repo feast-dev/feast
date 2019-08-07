@@ -26,19 +26,22 @@ import feast.ingestion.util.PathUtil;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.store.errors.FeatureErrorsFactory;
 import feast.store.errors.json.JsonFileErrorsFactory;
+import lombok.extern.slf4j.Slf4j;
+import org.joda.time.Instant;
+import org.joda.time.format.ISODateTimeFormat;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
-
 
 @Slf4j
 public class ErrorsStoreTransform extends BaseStoreTransform {
 
   @Inject
   public ErrorsStoreTransform(
-      List<FeatureErrorsFactory> errorsStoreFactories, Specs specs,
+      List<FeatureErrorsFactory> errorsStoreFactories,
+      Specs specs,
       ImportJobPipelineOptions options) {
     super(errorsStoreFactories, getErrorStoreSpec(specs, options), specs);
   }
@@ -48,17 +51,22 @@ public class ErrorsStoreTransform extends BaseStoreTransform {
     StorageSpec errorsStoreSpec = specs.getErrorsStoreSpec();
     if (Strings.isNullOrEmpty(errorsStoreSpec.getType())) {
       Preconditions.checkArgument(!Strings.isNullOrEmpty(workspace), "Workspace must be provided");
-      Path workspaceErrorsPath = PathUtil.getPath(workspace).resolve("errors");
+      Path workspaceErrorsPath =
+          PathUtil.getPath(workspace)
+              .resolve(
+                  "errors-" + new Instant().toString(ISODateTimeFormat.dateHourMinuteSecondMillis()));
       try {
         Files.createDirectory(workspaceErrorsPath);
       } catch (IOException e) {
         log.error("Could not intialise workspace errors directory {}", workspaceErrorsPath);
         throw new RuntimeException(e);
       }
-      errorsStoreSpec = StorageSpec.newBuilder()
-          .setId("ERRORS")
-          .setType(JsonFileErrorsFactory.JSON_FILES_TYPE)
-          .putOptions("path", workspaceErrorsPath.toString()).build();
+      errorsStoreSpec =
+          StorageSpec.newBuilder()
+              .setId("ERRORS")
+              .setType(JsonFileErrorsFactory.JSON_FILES_TYPE)
+              .putOptions("path", workspaceErrorsPath.toString())
+              .build();
     }
     return errorsStoreSpec;
   }

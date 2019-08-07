@@ -19,18 +19,17 @@ package feast.store.warehouse.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
 import feast.ingestion.util.DateUtil;
-import feast.ingestion.model.Specs;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.types.FeatureProto.Feature;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.ValueProto.Value;
-import lombok.AllArgsConstructor;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
-@AllArgsConstructor
+import java.util.Map;
+
 public class FeatureRowToBigQueryTableRowDoFn extends DoFn<FeatureRowExtended, TableRow> {
 
   private static final String ENTITY_KEY_COLUMN = "id";
@@ -38,15 +37,21 @@ public class FeatureRowToBigQueryTableRowDoFn extends DoFn<FeatureRowExtended, T
   private static final String CREATED_TIMESTAMP_COLUMN = "created_timestamp";
   private static final String JOB_ID_COLUMN = "job_id";
 
+  private Map<String, FeatureSpec> featureSpecByFeatureId;
+  private String jobId;
 
-  private Specs specs;
+  public FeatureRowToBigQueryTableRowDoFn(
+      Map<String, FeatureSpec> featureSpecByFeatureId, String jobId) {
+    this.featureSpecByFeatureId = featureSpecByFeatureId;
+    this.jobId = jobId;
+  }
 
   @ProcessElement
   public void processElement(ProcessContext context) {
     context.output(toTableRow(context.element()));
   }
 
-  public TableRow toTableRow(FeatureRowExtended featureRowExtended) {
+  private TableRow toTableRow(FeatureRowExtended featureRowExtended) {
     FeatureRow featureRow = featureRowExtended.getRow();
     TableRow tableRow = new TableRow();
 
@@ -61,12 +66,14 @@ public class FeatureRowToBigQueryTableRowDoFn extends DoFn<FeatureRowExtended, T
         ValueBigQueryBuilder.bigQueryObjectOf(
             Value.newBuilder()
                 .setTimestampVal(DateUtil.toTimestamp(DateTime.now(DateTimeZone.UTC)))));
-    tableRow.set(JOB_ID_COLUMN, specs.getJobName());
+    tableRow.set(JOB_ID_COLUMN, jobId);
 
     for (Feature feature : featureRow.getFeaturesList()) {
       Object featureValue = ValueBigQueryBuilder.bigQueryObjectOf(feature.getValue());
-      FeatureSpec featureSpec = specs.getFeatureSpec(feature.getId());
-      tableRow.set(featureSpec.getName(), featureValue);
+      if (featureSpecByFeatureId.containsKey(feature.getId())) {
+        FeatureSpec featureSpec = featureSpecByFeatureId.get(feature.getId());
+        tableRow.set(featureSpec.getName(), featureValue);
+      }
     }
     return tableRow;
   }

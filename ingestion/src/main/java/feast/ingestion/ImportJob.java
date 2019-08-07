@@ -18,36 +18,27 @@
 package feast.ingestion;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.base.Strings;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
 import feast.ingestion.boot.ImportJobModule;
 import feast.ingestion.boot.PipelineModule;
-import feast.ingestion.config.ImportJobSpecsSupplier;
-import feast.ingestion.exceptions.UnsupportedStoreException;
 import feast.ingestion.metrics.FeastMetrics;
-import feast.ingestion.model.Specs;
 import feast.ingestion.options.ImportJobPipelineOptions;
-import feast.ingestion.transform.CoalesceFeatureRowExtended;
 import feast.ingestion.transform.ErrorsStoreTransform;
 import feast.ingestion.transform.ReadFeaturesTransform;
-import feast.ingestion.transform.ServingStoreTransform;
 import feast.ingestion.transform.ToFeatureRowExtended;
-import feast.ingestion.transform.ValidateTransform;
-import feast.ingestion.transform.WarehouseStoreTransform;
-import feast.ingestion.transform.fn.ConvertTypesDoFn;
+import feast.ingestion.transform.WriteFeaturesTransform;
 import feast.ingestion.transform.fn.LoggerDoFn;
+import feast.ingestion.util.ProtoUtil;
+import feast.ingestion.util.SchemaUtil;
 import feast.ingestion.values.PFeatureRows;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
-import feast.store.serving.redis.RedisServingFactory;
-import feast.store.warehouse.bigquery.BigQueryWarehouseFactory;
+import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
-import java.util.Arrays;
-import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -65,12 +56,16 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.slf4j.event.Level;
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.exceptions.JedisConnectionException;
+
+import java.io.IOException;
+import java.util.Random;
 
 @Slf4j
 public class ImportJob {
@@ -80,53 +75,124 @@ public class ImportJob {
   private final Pipeline pipeline;
   private final ImportJobSpecs importJobSpecs;
   private final ReadFeaturesTransform readFeaturesTransform;
-  private final ServingStoreTransform servingStoreTransform;
-  private final WarehouseStoreTransform warehouseStoreTransform;
+  private final WriteFeaturesTransform writeFeaturesTransform;
+  // private final ServingStoreTransform servingStoreTransform;
+  // private final WarehouseStoreTransform warehouseStoreTransform;
   private final ErrorsStoreTransform errorsStoreTransform;
-  private final boolean dryRun;
+  // private final boolean dryRun;
   private final ImportJobPipelineOptions options;
-  private final Specs specs;
+  // private final Specs specs;
 
   @Inject
   public ImportJob(
       Pipeline pipeline,
+      ImportJobPipelineOptions options,
       ImportJobSpecs importJobSpecs,
       ReadFeaturesTransform readFeaturesTransform,
-      ServingStoreTransform servingStoreTransform,
-      WarehouseStoreTransform warehouseStoreTransform,
-      ErrorsStoreTransform errorsStoreTransform,
-      ImportJobPipelineOptions options,
-      Specs specs) {
+      WriteFeaturesTransform writeFeaturesTransform,
+      ErrorsStoreTransform errorsStoreTransform) {
     this.pipeline = pipeline;
+    this.options = options;
     this.importJobSpecs = importJobSpecs;
     this.readFeaturesTransform = readFeaturesTransform;
-    this.servingStoreTransform = servingStoreTransform;
-    this.warehouseStoreTransform = warehouseStoreTransform;
+    this.writeFeaturesTransform = writeFeaturesTransform;
     this.errorsStoreTransform = errorsStoreTransform;
-    this.dryRun = options.isDryRun();
-    this.options = options;
-    this.specs = specs;
   }
 
-  public static void main(String[] args) {
+  // @Inject
+  // public ImportJob(
+  //     Pipeline pipeline,
+  //     ImportJobSpecs importJobSpecs,
+  //     ReadFeaturesTransform readFeaturesTransform,
+  //     ServingStoreTransform servingStoreTransform,
+  //     WarehouseStoreTransform warehouseStoreTransform,
+  //     ErrorsStoreTransform errorsStoreTransform,
+  //     ImportJobPipelineOptions options,
+  //     Specs specs) {
+  //   this.pipeline = pipeline;
+  //   this.importJobSpecs = importJobSpecs;
+  //   this.readFeaturesTransform = readFeaturesTransform;
+  //   this.servingStoreTransform = servingStoreTransform;
+  //   this.warehouseStoreTransform = warehouseStoreTransform;
+  //   this.errorsStoreTransform = errorsStoreTransform;
+  //   this.dryRun = options.isDryRun();
+  //   this.options = options;
+  //   this.specs = specs;
+  // }
+
+  public static void main(String[] args) throws IOException {
     mainWithResult(args);
   }
 
-  public static PipelineResult mainWithResult(String[] args) {
-    log.info("Arguments: " + Arrays.toString(args));
-    ImportJobPipelineOptions options =
+  private static void mainWithResult(String[] args) throws IOException {
+    ImportJobPipelineOptions pipelineOptions =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(ImportJobPipelineOptions.class);
-    if (options.getJobName().isEmpty()) {
-      options.setJobName(generateName());
+
+    if (pipelineOptions.getJobName().isEmpty()) {
+      pipelineOptions.setJobName(generateName());
     }
-    log.info("options: " + options.toString());
-    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(options.getWorkspace()).get();
+
+    ImportJobSpecs importJobSpecs =
+        (ImportJobSpecs)
+            ProtoUtil.createProtoMessageFromYaml(
+                pipelineOptions.getImportJobSpecUri(), ImportJobSpecs.newBuilder());
+
+    setupSink(importJobSpecs);
+
     Injector injector =
-        Guice.createInjector(new ImportJobModule(options, importJobSpecs), new PipelineModule());
+        Guice.createInjector(
+            new ImportJobModule(pipelineOptions, importJobSpecs), new PipelineModule());
     ImportJob job = injector.getInstance(ImportJob.class);
 
     job.expand();
-    return job.run();
+    job.run();
+  }
+
+  private static void setupSink(ImportJobSpecs importJobSpecs) {
+    StorageSpec sinkStorageSpec = importJobSpecs.getSinkStorageSpec();
+    String storageSpecType = sinkStorageSpec.getType();
+
+    switch (storageSpecType) {
+      case "BIGQUERY":
+        BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+        SchemaUtil.setupBigQuery(
+            importJobSpecs.getSinkStorageSpec(),
+            importJobSpecs.getEntitySpec(),
+            importJobSpecs.getFeatureSpecsList(),
+            bigquery);
+        break;
+      case "REDIS":
+        if (!sinkStorageSpec.getOptions().containsKey("host")) {
+          throw new IllegalArgumentException(
+              "sinkStorageSpec type 'REDIS' requires 'host' options");
+        }
+        String redisHost = sinkStorageSpec.getOptionsOrThrow("host");
+        int redisPort = Integer.parseInt(sinkStorageSpec.getOptionsOrDefault("port", "6379"));
+        boolean clusterEnabled =
+            Boolean.parseBoolean(sinkStorageSpec.getOptionsOrDefault("clusterEnabled", "false"));
+        if (clusterEnabled) {
+          throw new IllegalArgumentException(
+              "Redis cluster is not supported in Feast 0.2. Please set 'clusterEnabled: false' in sinkStorageSpec.options.");
+        }
+        JedisPool jedisPool = new JedisPool(sinkStorageSpec.getOptionsOrThrow("host"), redisPort);
+
+        // Make sure we can connect to Redis according to the sinkStorageSpec
+        try {
+          jedisPool.getResource();
+        } catch (JedisConnectionException e) {
+          throw new RuntimeException(
+              String.format(
+                  "Failed to connect to Redis at host: '%s' port: '%d'. Please check the 'options' values in sinkStorageSpec.",
+                  redisHost, redisPort));
+        }
+        jedisPool.close();
+        break;
+      default:
+        throw new IllegalArgumentException(
+            String.format(
+                "Unsupported type of sinkStorageSpec: \"%s\". Only REDIS and BIGQUERY are supported in Feast 0.2",
+                storageSpecType));
+    }
   }
 
   private static String generateName() {
@@ -144,14 +210,8 @@ public class ImportJob {
         TypeDescriptor.of(FeatureRowExtended.class), ProtoCoder.of(FeatureRowExtended.class));
     coderRegistry.registerCoderForType(TypeDescriptor.of(TableRow.class), TableRowJsonCoder.of());
 
-    ImportJobPipelineOptions pipelineOptions = pipeline.getOptions()
-        .as(ImportJobPipelineOptions.class);
-
-    try {
-      log.info(JsonFormat.printer().print(importJobSpecs));
-    } catch (InvalidProtocolBufferException e) {
-      // pass
-    }
+    ImportJobPipelineOptions pipelineOptions =
+        pipeline.getOptions().as(ImportJobPipelineOptions.class);
 
     PCollection<FeatureRow> features = pipeline.apply("Read", readFeaturesTransform);
     if (pipelineOptions.getSampleLimit() > 0) {
@@ -162,22 +222,25 @@ public class ImportJob {
         features.apply("Wrap with attempt data", new ToFeatureRowExtended());
 
     PFeatureRows pFeatureRows = PFeatureRows.of(featuresExtended);
-    pFeatureRows = pFeatureRows.applyDoFn("Convert feature types", new ConvertTypesDoFn(specs));
-    pFeatureRows = pFeatureRows.apply("Validate features", new ValidateTransform(specs));
+    // pFeatureRows = pFeatureRows.applyDoFn("Convert feature types", new ConvertTypesDoFn(specs));
+    // pFeatureRows = pFeatureRows.apply("Validate features", new ValidateTransform(specs));
 
     log.info(
         "A sample of size 1 of incoming rows from MAIN and ERRORS will logged every 30 seconds for visibility");
     logNRows(pFeatureRows, "Output sample", 1, Duration.standardSeconds(30));
 
     PCollection<FeatureRowExtended> featureRows = pFeatureRows.getMain();
+    featureRows.apply(writeFeaturesTransform);
+
     PCollection<FeatureRowExtended> errorRows = pFeatureRows.getErrors();
+    errorRows.apply(errorsStoreTransform);
 
-    if (!dryRun) {
-      applySinkTransform(importJobSpecs.getSinkStorageSpec().getType(), pipelineOptions, featureRows);
-      // applySinkTransform(importJobSpecs.getType(), jobOptions, featureRows);
-
-      errorRows.apply(errorsStoreTransform);
-    }
+    // if (!dryRun) {
+    //   applySinkTransform(
+    //       importJobSpecs.getSinkStorageSpec().getType(), pipelineOptions, featureRows);
+    //
+    //   errorRows.apply(errorsStoreTransform);
+    // }
   }
 
   public PipelineResult run() {
@@ -190,9 +253,7 @@ public class ImportJob {
     return featureRows;
   }
 
-
-
-  public void logNRows(PFeatureRows pFeatureRows, String name, long limit, Duration period) {
+  private void logNRows(PFeatureRows pFeatureRows, String name, long limit, Duration period) {
     PCollection<FeatureRowExtended> main = pFeatureRows.getMain();
     PCollection<FeatureRowExtended> errors = pFeatureRows.getErrors();
 
@@ -224,27 +285,28 @@ public class ImportJob {
     }
   }
 
-
-
-  private PDone applySinkTransform(
-      String sinkType, ImportJobPipelineOptions pipelineOptions, PCollection<FeatureRowExtended> featureRows) {
-    switch (sinkType) {
-      case RedisServingFactory.TYPE_REDIS:
-        if (pipelineOptions.isCoalesceRowsEnabled()) {
-          // Should we merge and dedupe rows before writing to the serving store?
-          featureRows =
-              featureRows.apply(
-                  "Coalesce Rows",
-                  new CoalesceFeatureRowExtended(
-                      pipelineOptions.getCoalesceRowsDelaySeconds(),
-                      pipelineOptions.getCoalesceRowsTimeoutSeconds()));
-        }
-        return featureRows.apply("Write to Serving Store", servingStoreTransform);
-      case BigQueryWarehouseFactory.TYPE_BIGQUERY:
-        return featureRows.apply("Write to Warehouse Store", warehouseStoreTransform);
-      default:
-        throw new UnsupportedStoreException(
-            Strings.lenientFormat("Store of type %s is not supported by Feast.", sinkType));
-    }
-  }
+  // private PDone applySinkTransform(
+  //     String sinkType,
+  //     ImportJobPipelineOptions pipelineOptions,
+  //     PCollection<FeatureRowExtended> featureRows) {
+  //
+  // switch (sinkType) {
+  //   case RedisServingFactory.TYPE_REDIS:
+  //     if (pipelineOptions.isCoalesceRowsEnabled()) {
+  //       // Should we merge and dedupe rows before writing to the serving store?
+  //       featureRows =
+  //           featureRows.apply(
+  //               "Coalesce Rows",
+  //               new CoalesceFeatureRowExtended(
+  //                   pipelineOptions.getCoalesceRowsDelaySeconds(),
+  //                   pipelineOptions.getCoalesceRowsTimeoutSeconds()));
+  //     }
+  //     return featureRows.apply("Write to Serving Store", servingStoreTransform);
+  //   case BigQueryWarehouseFactory.TYPE_BIGQUERY:
+  //     return featureRows.apply("Write to Warehouse Store", warehouseStoreTransform);
+  //   default:
+  //     throw new UnsupportedStoreException(
+  //         Strings.lenientFormat("Store of type %s is not supported by Feast.", sinkType));
+  // }
+  // }
 }

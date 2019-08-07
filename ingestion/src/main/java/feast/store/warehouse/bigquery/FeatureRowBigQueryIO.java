@@ -58,54 +58,54 @@ public class FeatureRowBigQueryIO {
 
     @Override
     public PDone expand(PCollection<FeatureRowExtended> input) {
-      FeatureRowToBigQueryTableRowDoFn toTableRowDoFn = new FeatureRowToBigQueryTableRowDoFn(specs);
-      BigQueryIO.Write<FeatureRowExtended> write =
-          BigQueryIO.<FeatureRowExtended>write()
-              .to(
-                  new DynamicDestinations<FeatureRowExtended, String>() {
-                    public String getDestination(ValueInSingleWindow<FeatureRowExtended> element) {
-                      FeatureRowExtended featureRowExtended = element.getValue();
-                      FeatureRow row = featureRowExtended.getRow();
-                      EntitySpec entityInfo = specs.getEntitySpec(row.getEntityName());
-
-                      String tableName = entityInfo.getName();
-                      return bigQueryOptions.project
-                          + ":"
-                          + bigQueryOptions.dataset
-                          + "."
-                          + tableName;
-                    }
-
-                    public TableDestination getTable(String tableSpec) {
-                      return new TableDestination(tableSpec, "Table " + tableSpec);
-                    }
-
-                    @Override
-                    public TableSchema getSchema(String destination) {
-                      return null;
-                    }
-                  })
-              .withFormatFunction(toTableRowDoFn::toTableRow)
-              .withCreateDisposition(CreateDisposition.CREATE_NEVER)
-              .withWriteDisposition(WriteDisposition.WRITE_APPEND)
-              .withMethod(Method.FILE_LOADS);
-      if (!Strings.isNullOrEmpty(bigQueryOptions.tempLocation)) {
-        log.info(
-            "Setting customer GCS temp location for BigQuery write to "
-                + bigQueryOptions.tempLocation);
-        write =
-            write.withCustomGcsTempLocation(StaticValueProvider.of(bigQueryOptions.tempLocation));
-      }
-
-      if (input.isBounded() == IsBounded.UNBOUNDED) {
-        write =
-            write
-                .withTriggeringFrequency(triggerFrequency)
-                // this is apparently supposed to be the default according to beam code
-                // comments.
-                .withNumFileShards(100);
-      }
-      WriteResult result = input.apply(write);
+      // FeatureRowToBigQueryTableRowDoFn toTableRowDoFn = new FeatureRowToBigQueryTableRowDoFn(specs);
+      // BigQueryIO.Write<FeatureRowExtended> write =
+      //     BigQueryIO.<FeatureRowExtended>write()
+      //         .to(http://dataiku.d.gods.golabs.io
+      //             new DynamicDestinations<FeatureRowExtended, String>() {
+      //               public String getDestination(ValueInSingleWindow<FeatureRowExtended> element) {
+      //                 FeatureRowExtended featureRowExtended = element.getValue();
+      //                 FeatureRow row = featureRowExtended.getRow();
+      //                 EntitySpec entityInfo = specs.getEntitySpec(row.getEntityName());
+      //
+      //                 String tableName = entityInfo.getName();
+      //                 return bigQueryOptions.project
+      //                     + ":"
+      //                     + bigQueryOptions.dataset
+      //                     + "."
+      //                     + tableName;
+      //               }
+      //
+      //               public TableDestination getTable(String tableSpec) {
+      //                 return new TableDestination(tableSpec, "Table " + tableSpec);
+      //               }
+      //
+      //               @Override
+      //               public TableSchema getSchema(String destination) {
+      //                 return null;
+      //               }
+      //             })
+      //         .withFormatFunction(toTableRowDoFn::toTableRow)
+      //         .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+      //         .withWriteDisposition(WriteDisposition.WRITE_APPEND)
+      //         .withMethod(Method.FILE_LOADS);
+      // if (!Strings.isNullOrEmpty(bigQueryOptions.tempLocation)) {
+      //   log.info(
+      //       "Setting customer GCS temp location for BigQuery write to "
+      //           + bigQueryOptions.tempLocation);
+      //   write =
+      //       write.withCustomGcsTempLocation(StaticValueProvider.of(bigQueryOptions.tempLocation));
+      // }
+      //
+      // if (input.isBounded() == IsBounded.UNBOUNDED) {
+      //   write =
+      //       write
+      //           .withTriggeringFrequency(triggerFrequency)
+      //           // this is apparently supposed to be the default according to beam code
+      //           // comments.
+      //           .withNumFileShards(100);
+      // }
+      // WriteResult result = input.apply(write);
       return PDone.in(input.getPipeline());
     }
   }

@@ -27,15 +27,19 @@ message StorageSpec {
   string id = 1;
 
   // type should define what sort of store it is
-  // e.g. redis, bigquery, etc
+  // e.g. REDIS, BIGQUERY, etc
   string type = 2;
 
   // options contain (but are not restricted to) options like
   // connection information.
   //
-  // For type=BigQuery, the following options are accepted,
+  // For type = BIGQUERY, the following options are accepted,
   // - datasetId: [BigQuery dataset id, required]
   // - projectId: [Google Cloud project name, optional]
   // 
+  // For type = REDIS, the following options are accepted,
+  // - host: [hostname or ip address to connect to Redis server, required]
+  // - port: [port number that Redis server is listening to, optional, defaults to 6379]
+  // - clusterEnabled: [whether Redis is setup as a cluster (true/false), optional, defaults to false]
   map<string,string> options = 3;
 }

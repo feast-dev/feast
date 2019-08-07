@@ -28,7 +28,7 @@ import feast.store.serving.FeatureServingFactory;
 @AutoService(FeatureServingFactory.class)
 public class RedisServingFactory implements FeatureServingFactory {
 
-  public static final String TYPE_REDIS = "redis";
+  public static final String TYPE_REDIS = "REDIS";
 
   @Override
   public FeatureStoreWrite create(StorageSpec storageSpec, Specs specs) {

@@ -304,13 +304,16 @@ class Client:
         # - datetime64[ns, tz]
         # - object (if the value is in string)
         # pandas.to_datetime ensures that it is normalized to datetime64[ns, UTC]
-        if str(dataframe[timestamp_column].dtype) not in [
-            "datetime64[ns]",
-            "datetime64[ns, UTC]",
-        ]:
-            dataframe[timestamp_column] = pd.to_datetime(
-                dataframe[timestamp_column], utc=True
-            )
+        #
+        # If user provides value with type "datetime64[ns]" i.e. no timezone info
+        # Feast will assume it's using the user local timezone
+        if str(dataframe[timestamp_column].dtype) == "datetime64[ns]":
+            local_timezone = datetime.now().astimezone().tzinfo
+            dataframe[timestamp_column].dt.tz_localize(tz=local_timezone)
+        dataframe[timestamp_column] = pd.to_datetime(
+            dataframe[timestamp_column], utc=True
+        )
+
         dataframe[timestamp_column] = dataframe[timestamp_column].astype(
             "datetime64[ns]"
         )
@@ -376,11 +379,18 @@ class Client:
         # Ensure that all "datetime64" columns can be mapped to Feast value type
         # All "datetime64" columns will be converted to type "datetime64[ns]"
         # which can be mapped to Feast value type
+        #
+        # If user provides value with type "datetime64[ns]" i.e. no timezone info
+        # Feast will assume it's using the user local timezone
         for column in dataframe.columns:
             if column == entity_key_column or column == timestamp_column:
                 continue
             if is_datetime64_any_dtype(dataframe[column]):
-                dataframe[column] = pd.to_datetime(dataframe[column]).astype(
+                if str(dataframe[column].dtype) == "datetime64[ns]":
+                    # Column has no timezone info so we assume it's local timezone
+                    local_timezone = datetime.now().astimezone().tzinfo
+                    dataframe[timestamp_column].dt.tz_localize(tz=local_timezone)
+                dataframe[column] = pd.to_datetime(dataframe[column], utc=True).astype(
                     "datetime64[ns]"
                 )
 

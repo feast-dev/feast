@@ -1,0 +1,33 @@
+sourceSpec:
+  type: KAFKA
+  options:
+    bootstrapServers: localhost:9092
+    topics: topic1
+
+entitySpec:
+  name: entity1
+  description: description for entity1
+
+featureSpecs:
+- id: entity1.feature1
+  name: feature1
+  valueType: INT64
+  entity: entity1
+- id: entity1.feature2
+  name: feature2
+  valueType: DOUBLE
+  entity: entity1
+- id: entity1.feature3
+  name: feature3
+  valueType: TIMESTAMP
+  entity: entity1
+- id: entity1.feature4
+  name: feature4
+  valueType: DOUBLE
+  entity: entity1
+
+sinkStorageSpec:
+  id: storage1
+  type: REDIS
+  options:
+    host: localhost
