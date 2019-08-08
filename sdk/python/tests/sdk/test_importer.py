@@ -23,6 +23,7 @@ from feast.sdk.utils.gs_utils import is_gs_path
 from datetime import datetime
 import pytz
 from unittest.mock import MagicMock
+import numpy as np
 
 
 class TestImporter(object):
@@ -161,6 +162,8 @@ class TestImporter(object):
             df, entity="test_entity", owner="test_owner", id_column="entity_key"
         )
         assert str(importer.df["timestamp"].dtype) == "datetime64[ns]"
+        np.testing.assert_array_equal(importer.df["entity_key"].values, [1, 3, 4])
+        np.testing.assert_array_equal(importer.df["feature"].values, [5, 12, 1])
         assert importer.df["timestamp"].astype("int64")[0] == 1557671400000000000
 
     def test_from_df_with_timestamp_and_timezone_non_utc(self):
@@ -169,7 +172,9 @@ class TestImporter(object):
                 "entity_key": [1, 3, 4],
                 "feature": [5, 12, 1],
                 "timestamp": [
-                    pytz.timezone("Asia/Jakarta").localize(datetime(2019, 5, 12, 14, 30, 0))
+                    pytz.timezone("Asia/Jakarta").localize(
+                        datetime(2019, 5, 12, 14, 30, 0)
+                    )
                     for _ in range(3)
                 ],
             }

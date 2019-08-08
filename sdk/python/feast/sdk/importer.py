@@ -20,6 +20,7 @@ import pandas as pd
 import requests
 from google.cloud import bigquery
 from google.protobuf.timestamp_pb2 import Timestamp
+from pandas.core.dtypes.common import is_datetime64_any_dtype
 
 import feast.sdk.client
 from feast.core.CoreService_pb2 import CoreServiceTypes
@@ -439,7 +440,10 @@ def _detect_schema_and_feature(
 
     # Convert columns with datetime64-like data type to datetime64[ns]
     for column in df.columns:
-        if str(df[column].dtype) != "datetime64[ns]":
+        if (
+            is_datetime64_any_dtype(df[column])
+            and str(df[column].dtype) != "datetime64[ns]"
+        ):
             df[column] = pd.to_datetime(df[column], utc=True).astype("datetime64[ns]")
 
     schema = Schema()
