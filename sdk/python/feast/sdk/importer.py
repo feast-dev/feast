@@ -439,9 +439,8 @@ def _detect_schema_and_feature(
 
     # Convert columns with datetime64-like data type to datetime64[ns]
     for column in df.columns:
-        if str(df[column].dtype) == "datetime64[ns]":
-            continue
-        df[column] = pd.to_datetime(df[column], utc=True).astype("datetime64[ns]")
+        if str(df[column].dtype) != "datetime64[ns]":
+            df[column] = pd.to_datetime(df[column], utc=True).astype("datetime64[ns]")
 
     schema = Schema()
     if id_column is not None:
