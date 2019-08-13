@@ -1,5 +1,9 @@
 package feast.ingestion.transform;
 
+import static feast.specs.EntitySpecProto.EntitySpec;
+import static feast.specs.FeatureSpecProto.FeatureSpec;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition.WRITE_APPEND;
+
 import com.google.inject.Inject;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.StorageSpecProto.StorageSpec;
@@ -7,6 +11,8 @@ import feast.store.serving.redis.FeatureRowToRedisMutationDoFn;
 import feast.store.serving.redis.RedisCustomIO;
 import feast.store.warehouse.bigquery.FeatureRowToBigQueryTableRowDoFn;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -14,13 +20,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-
-import java.util.HashMap;
-import java.util.Map;
-
-import static feast.specs.EntitySpecProto.EntitySpec;
-import static feast.specs.FeatureSpecProto.FeatureSpec;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition.WRITE_APPEND;
 
 @Slf4j
 public class WriteFeaturesTransform extends PTransform<PCollection<FeatureRowExtended>, PDone> {

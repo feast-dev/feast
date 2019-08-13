@@ -39,6 +39,8 @@ import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
+import java.io.IOException;
+import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -63,9 +65,6 @@ import org.joda.time.Duration;
 import org.slf4j.event.Level;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.exceptions.JedisConnectionException;
-
-import java.io.IOException;
-import java.util.Random;
 
 @Slf4j
 public class ImportJob {
@@ -225,9 +224,12 @@ public class ImportJob {
     // pFeatureRows = pFeatureRows.applyDoFn("Convert feature types", new ConvertTypesDoFn(specs));
     // pFeatureRows = pFeatureRows.apply("Validate features", new ValidateTransform(specs));
 
-    log.info(
-        "A sample of size 1 of incoming rows from MAIN and ERRORS will logged every 30 seconds for visibility");
-    logNRows(pFeatureRows, "Output sample", 1, Duration.standardSeconds(30));
+    // log.info(
+    //     "A sample of size 1 of incoming rows from MAIN and ERRORS will logged every 30 seconds
+    // for visibility");
+    // logNRows(pFeatureRows, "Output sample", 1, Duration.standardSeconds(30));
+
+    // logNRows(pFeatureRows, "Output sample", 100, Duration.standardSeconds(10));
 
     PCollection<FeatureRowExtended> featureRows = pFeatureRows.getMain();
     featureRows.apply(writeFeaturesTransform);
@@ -245,7 +247,10 @@ public class ImportJob {
 
   public PipelineResult run() {
     PipelineResult result = pipeline.run();
-    log.info(String.format("FeastImportJobId:%s", this.retrieveId(result)));
+    log.info(
+        String.format(
+            "Job with id '%s' created for running Feast Import pipeline.",
+            this.retrieveId(result)));
     return result;
   }
 
