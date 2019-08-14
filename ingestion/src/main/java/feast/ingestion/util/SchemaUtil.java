@@ -1,17 +1,31 @@
 package feast.ingestion.util;
 
-import com.google.cloud.bigquery.*;
+import static feast.specs.FeatureSpecProto.FeatureSpec;
+import static feast.types.ValueProto.ValueType;
+
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.DatasetId;
+import com.google.cloud.bigquery.DatasetInfo;
+import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.Schema;
+import com.google.cloud.bigquery.StandardSQLTypeName;
+import com.google.cloud.bigquery.StandardTableDefinition;
+import com.google.cloud.bigquery.TableDefinition;
+import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableInfo;
+import com.google.cloud.bigquery.TimePartitioning;
+import com.google.cloud.bigquery.TimePartitioning.Type;
+import com.google.common.collect.ImmutableMap;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.StorageSpecProto.StorageSpec;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 
-import static feast.specs.FeatureSpecProto.FeatureSpec;
-import static feast.types.ValueProto.ValueType;
+// TODO: Create partitioned table by default
 
 /**
  * This class is a utility to manage schemas for storage backends in Feast.
@@ -43,10 +57,18 @@ public class SchemaUtil {
     VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(ValueType.Enum.STRING, StandardSQLTypeName.STRING);
   }
 
-  private static TableDefinition createTableDefinition(Iterable<FeatureSpec> featureSpecs) {
+  private static TableDefinition createBigQueryTableDefinition(
+      EntitySpec entitySpec, Iterable<FeatureSpec> featureSpecs) {
     List<Field> fields = new ArrayList<>();
     log.debug("Table will have the following fields:");
     for (FeatureSpec featureSpec : featureSpecs) {
+      if (!entitySpec.getName().equals(featureSpec.getEntity())) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Entity specified in feature id '%s' is '%s', different from entity specified in entity spec '%s'. Please make sure they are the same and retry.",
+                featureSpec.getId(), featureSpec.getEntity(), entitySpec.getName()));
+      }
+
       Field field =
           Field.newBuilder(
                   featureSpec.getName(),
@@ -56,7 +78,44 @@ public class SchemaUtil {
       log.debug("- {}", field.toString());
       fields.add(field);
     }
-    return StandardTableDefinition.of(Schema.of(fields));
+
+    // In Feast 0.2,
+    // - "id" is a reserved field in BigQuery that indicates the entity id
+    // - "event_timestamp" is a reserved field in BigQuery that indicates the event time for a
+    // FeatureRow
+    // - "created_timestamp" is a reserved field in BigQuery that indicates the time a FeatureRow is
+    // crated in Feast
+    // - "job_id" is a reserved field in BigQuery that indicates the Feast import job id that writes
+    // the FeatureRows
+    Map<String, Pair<StandardSQLTypeName, String>>
+        reservedFieldNameToPairOfStandardSQLTypeAndDescription =
+            ImmutableMap.of(
+                "id", Pair.of(StandardSQLTypeName.STRING, "Entity ID for the FeatureRow"),
+                "event_timestamp",
+                    Pair.of(StandardSQLTypeName.TIMESTAMP, "Event time for the FeatureRow"),
+                "created_timestamp",
+                    Pair.of(
+                        StandardSQLTypeName.TIMESTAMP,
+                        "The time when the FeatureRow is created in Feast"),
+                "job_id",
+                    Pair.of(StandardSQLTypeName.STRING, "Feast import job ID for the FeatureRow"));
+    for (Map.Entry<String, Pair<StandardSQLTypeName, String>> entry :
+        reservedFieldNameToPairOfStandardSQLTypeAndDescription.entrySet()) {
+      Field field =
+          Field.newBuilder(entry.getKey(), entry.getValue().getLeft())
+              .setDescription(entry.getValue().getRight())
+              .build();
+      log.debug("- {}", field.toString());
+      fields.add(field);
+    }
+
+    TimePartitioning timePartitioning =
+        TimePartitioning.newBuilder(Type.DAY).setField("event_timestamp").build();
+
+    return StandardTableDefinition.newBuilder()
+        .setTimePartitioning(timePartitioning)
+        .setSchema(Schema.of(fields))
+        .build();
   }
 
   /**
@@ -91,7 +150,7 @@ public class SchemaUtil {
 
     // Ensure BigQuery table with correct schema exists.
     TableId tableId = TableId.of(projectId, datasetId.getDataset(), entitySpec.getName());
-    TableDefinition tableDefinition = createTableDefinition(featureSpecs);
+    TableDefinition tableDefinition = createBigQueryTableDefinition(entitySpec, featureSpecs);
     TableInfo tableInfo = TableInfo.of(tableId, tableDefinition);
     if (bigquery.getTable(tableId) == null) {
       log.info(

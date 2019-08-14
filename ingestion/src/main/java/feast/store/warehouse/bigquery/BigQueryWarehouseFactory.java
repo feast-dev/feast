@@ -27,7 +27,7 @@ import feast.store.warehouse.FeatureWarehouseFactory;
 
 @AutoService(FeatureWarehouseFactory.class)
 public class BigQueryWarehouseFactory implements FeatureWarehouseFactory {
-  public static final String TYPE_BIGQUERY = "bigquery";
+  public static final String TYPE_BIGQUERY = "BIGQUERY";
 
   @Override
   public FeatureStoreWrite create(StorageSpec storageSpec, Specs specs) {

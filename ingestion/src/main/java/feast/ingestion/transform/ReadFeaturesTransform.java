@@ -18,50 +18,61 @@
 package feast.ingestion.transform;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import com.google.inject.Inject;
-import feast.ingestion.model.Specs;
 import feast.source.FeatureSourceFactory;
 import feast.source.FeatureSourceFactoryService;
+import feast.source.kafka.KafkaFeatureSource;
+import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.ImportJobSpecsProto.SourceSpec;
 import feast.specs.ImportJobSpecsProto.SourceSpec.SourceType;
-import feast.specs.ImportSpecProto.ImportSpec;
 import feast.types.FeatureRowProto.FeatureRow;
-import java.util.List;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class ReadFeaturesTransform extends PTransform<PInput, PCollection<FeatureRow>> {
 
+  // private SourceSpec sourceSpec;
+  // private List<String> featureIds;
+
   private SourceSpec sourceSpec;
-  private List<String> featureIds;
+  private List<String> featureIds = new ArrayList<>();
 
   @Inject
-  public ReadFeaturesTransform(Specs specs) {
-    this.sourceSpec = specs.getSourceSpec();
-    this.featureIds = Lists.newArrayList(specs.getFeatureSpecs().keySet());
+  public ReadFeaturesTransform(ImportJobSpecs importJobSpecs) {
+    // this.sourceSpec = specs.getSourceSpec();
+    // this.featureIds = Lists.newArrayList(specs.getFeatureSpecs().keySet());
+
+    this.sourceSpec = importJobSpecs.getSourceSpec();
+    for (FeatureSpec featureSpec : importJobSpecs.getFeatureSpecsList()) {
+      featureIds.add(featureSpec.getId());
+    }
   }
 
   @Override
   public PCollection<FeatureRow> expand(PInput input) {
-    return input.getPipeline()
-        .apply("Read " + sourceSpec.getType().toString(), getTransform());
+    return input.getPipeline().apply("Read from " + sourceSpec.getType().name(), getTransform());
   }
 
   public PTransform<PInput, PCollection<FeatureRow>> getTransform() {
-    SourceType sourceType = sourceSpec.getType();
-
-    FeatureSourceFactory featureSourceFactory = null;
-    for (FeatureSourceFactory factory : FeatureSourceFactoryService.getAll()) {
-      if (sourceType.equals(factory.getType())) {
-        featureSourceFactory = factory;
-      }
+    if (!sourceSpec.getType().equals(SourceType.KAFKA)) {
+      throw new IllegalArgumentException("Only SourceType.KAFKA is supported as the source for FeatureRow in Feast 0.2");
     }
-    Preconditions
-        .checkNotNull(featureSourceFactory, "No FeatureSourceFactory found for type " + sourceType);
-    return featureSourceFactory.create(sourceSpec, featureIds);
+    return new KafkaFeatureSource(sourceSpec, featureIds);
+
+    //SourceType sourceType = sourceSpec.getType();
+    // FeatureSourceFactory featureSourceFactory = null;
+    // for (FeatureSourceFactory factory : FeatureSourceFactoryService.getAll()) {
+    //   if (sourceType.equals(factory.getType())) {
+    //     featureSourceFactory = factory;
+    //   }
+    // }
+    // Preconditions.checkNotNull(
+    //     featureSourceFactory, "No FeatureSourceFactory found for type " + sourceType);
+    // return featureSourceFactory.create(sourceSpec, featureIds);
   }
 }
-

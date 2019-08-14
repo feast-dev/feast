@@ -36,6 +36,13 @@ public interface ImportJobPipelineOptions extends PipelineOptions {
 
   void setWorkspace(String value);
 
+  // TODO: Make it to accept local path and GCS path
+  @Description("Path to import job spec yaml file")
+  @Required
+  String getImportJobSpecUri();
+
+  void setImportJobSpecUri(String value);
+
   @Description("Limit of rows to sample and output for debugging")
   @Default.Integer(0)
   int getSampleLimit();

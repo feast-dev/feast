@@ -25,19 +25,33 @@ import com.google.gson.Gson;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
+
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class ProtoUtil {
 
-  private ProtoUtil() {
-  }
+  private ProtoUtil() {}
 
   public static <T extends Message> T decodeProtoYamlFile(Path path, T prototype)
       throws IOException {
     String yaml = String.join("\n", Files.readAllLines(path));
     return decodeProtoYaml(yaml, prototype);
+  }
+
+  public static Message createProtoMessageFromYaml(String filePath, Message.Builder builder)
+      throws IOException {
+    String yamlString = new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8);
+    ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());
+    Object obj = yamlReader.readValue(yamlString, Object.class);
+
+    ObjectMapper jsonWriter = new ObjectMapper();
+    String jsonString = jsonWriter.writeValueAsString(obj);
+    JsonFormat.parser().merge(jsonString, builder);
+    return builder.build();
   }
 
   public static <T extends Message> T decodeProtoYaml(String yamlString, T prototype)

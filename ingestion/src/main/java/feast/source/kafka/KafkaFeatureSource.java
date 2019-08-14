@@ -17,22 +17,15 @@
 
 package feast.source.kafka;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.auto.service.AutoService;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.transform.fn.FilterFeatureRowDoFn;
 import feast.options.Options;
-import feast.options.OptionsParser;
 import feast.source.FeatureSource;
 import feast.source.FeatureSourceFactory;
 import feast.specs.ImportJobSpecsProto.SourceSpec;
 import feast.specs.ImportJobSpecsProto.SourceSpec.SourceType;
 import feast.types.FeatureRowProto.FeatureRow;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import javax.validation.constraints.NotEmpty;
 import lombok.AllArgsConstructor;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
@@ -42,6 +35,12 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 
+import javax.validation.constraints.NotEmpty;
+import java.util.Arrays;
+import java.util.List;
+
+import static com.google.common.base.Preconditions.checkArgument;
+
 /**
  * Transform for reading {@link feast.types.FeatureRowProto.FeatureRow FeatureRow} proto messages
  * from kafka one or more kafka topics.
@@ -49,54 +48,52 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 @AllArgsConstructor
 public class KafkaFeatureSource extends FeatureSource {
 
-  public static final SourceType KAFKA_FEATURE_SOURCE_TYPE = SourceType.KAFKA;
+  private static final SourceType KAFKA_FEATURE_SOURCE_TYPE = SourceType.KAFKA;
   private SourceSpec sourceSpec;
   private List<String> featureIds;
 
   @Override
   public PCollection<FeatureRow> expand(PInput input) {
     checkArgument(sourceSpec.getType().equals(KAFKA_FEATURE_SOURCE_TYPE));
-    ImportJobPipelineOptions pipelineOptions = input.getPipeline().getOptions()
-        .as(ImportJobPipelineOptions.class);
-    KafkaReadOptions options =
-        OptionsParser.parse(sourceSpec.getOptionsMap(), KafkaReadOptions.class);
+    ImportJobPipelineOptions pipelineOptions =
+        input.getPipeline().getOptions().as(ImportJobPipelineOptions.class);
 
-    List<String> topicsList = new ArrayList<>(Arrays.asList(options.topics.split(",")));
+    // KafkaReadOptions options =
+    //     OptionsParser.parse(sourceSpec.getOptionsMap(), KafkaReadOptions.class);
+    //
+    // List<String> topicsList = new ArrayList<>(Arrays.asList(options.topics.split(",")));
 
-    KafkaIO.Read<byte[], FeatureRow> read = KafkaIO.<byte[], FeatureRow>read()
-        .withBootstrapServers(options.server)
-        .withTopics(topicsList)
-        .withKeyDeserializer(ByteArrayDeserializer.class)
-        .withValueDeserializer(FeatureRowDeserializer.class);
+    KafkaIO.Read<byte[], FeatureRow> read =
+        KafkaIO.<byte[], FeatureRow>read()
+            .withBootstrapServers(sourceSpec.getOptionsOrThrow("bootstrapServers"))
+            .withTopics(Arrays.asList(sourceSpec.getOptionsOrThrow("topics").split(",")))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(FeatureRowDeserializer.class);
+
     if (pipelineOptions.getSampleLimit() > 0) {
       read = read.withMaxNumRecords(pipelineOptions.getSampleLimit());
     }
 
-    PCollection<KafkaRecord<byte[], FeatureRow>> featureRowRecord =
-        input.getPipeline().apply(read);
+    PCollection<KafkaRecord<byte[], FeatureRow>> featureRowRecord = input.getPipeline().apply(read);
 
-    PCollection<FeatureRow> featureRow = featureRowRecord.apply(
-        ParDo.of(
-            new DoFn<KafkaRecord<byte[], FeatureRow>, FeatureRow>() {
-              @ProcessElement
-              public void processElement(ProcessContext processContext) {
-                KafkaRecord<byte[], FeatureRow> record = processContext.element();
-                processContext.output(record.getKV().getValue());
-              }
-            }));
+    PCollection<FeatureRow> featureRow =
+        featureRowRecord.apply(
+            ParDo.of(
+                new DoFn<KafkaRecord<byte[], FeatureRow>, FeatureRow>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext processContext) {
+                    KafkaRecord<byte[], FeatureRow> record = processContext.element();
+                    processContext.output(record.getKV().getValue());
+                  }
+                }));
 
-    if (options.discardUnknownFeatures) {
-      return featureRow.apply(ParDo.of(new FilterFeatureRowDoFn(featureIds)));
-    }
-    return featureRow;
+    return featureRow.apply(ParDo.of(new FilterFeatureRowDoFn(featureIds)));
   }
 
   public static class KafkaReadOptions implements Options {
 
-    @NotEmpty
-    public String server;
-    @NotEmpty
-    public String topics;
+    @NotEmpty public String server;
+    @NotEmpty public String topics;
     public boolean discardUnknownFeatures = false;
   }
 

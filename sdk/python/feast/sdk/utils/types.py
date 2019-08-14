@@ -46,6 +46,7 @@ def dtype_to_feast_value_attr(dtype):
         "bool": "boolVal",
         "timedelta": "int64Val",
         "datetime64[ns]": "timestampVal",
+        "datetime64[ns, UTC]": "timestampVal",
         "category": "stringVal",
         "object": "stringVal",
     }
@@ -74,7 +75,7 @@ def dtype_to_value_type(dtype):
         "bool": ValueType.BOOL,
         "timedelta": ValueType.INT64,
         "datetime64[ns]": ValueType.TIMESTAMP,
-        "datetime64[ns, tz]": ValueType.TIMESTAMP,
+        "datetime64[ns, UTC]": ValueType.TIMESTAMP,
         "category": ValueType.STRING,
         "object": ValueType.STRING,
     }

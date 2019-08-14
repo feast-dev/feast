@@ -33,7 +33,7 @@ REQUIRED = [
     "grpcio==1.*",
     "pandas==0.*",
     "protobuf==3.*",
-    "PyYAML==5.*",
+    "PyYAML==3.*",
     "fastavro==0.*",
     "kafka-python==1.4.*",
     "tqdm==4.*",
