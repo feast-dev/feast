@@ -32,7 +32,9 @@ import feast.core.job.StatsdMetricPusher;
 import feast.core.job.dataflow.DataflowJobConfig;
 import feast.core.job.dataflow.DataflowJobManager;
 import feast.core.job.dataflow.DataflowJobMonitor;
+import feast.core.job.direct.DirectJobRegistry;
 import feast.core.job.direct.DirectRunnerJobManager;
+import feast.core.job.direct.DirectRunnerJobMonitor;
 import feast.core.job.flink.FlinkJobConfig;
 import feast.core.job.flink.FlinkJobManager;
 import feast.core.job.flink.FlinkJobMonitor;
@@ -44,6 +46,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.junit.Before;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -83,11 +87,13 @@ public class JobConfig {
    * @return JobManager
    */
   @Bean
+  @Autowired
   public JobManager getJobManager(
       @Value("${feast.jobs.runner}") String runnerType,
       DataflowJobConfig dfConfig,
       FlinkJobConfig flinkConfig,
-      ImportJobDefaults defaults)
+      ImportJobDefaults defaults,
+      DirectJobRegistry directJobRegistry)
       throws Exception {
 
     Runner runner = Runner.fromString(runnerType);
@@ -129,7 +135,7 @@ public class JobConfig {
             new FlinkRestApi(new RestTemplate(), flinkConfig.getMasterUrl());
         return new FlinkJobManager(flinkCli, flinkConfig, flinkRestApi, defaults);
       case DIRECT:
-        return new DirectRunnerJobManager(defaults);
+        return new DirectRunnerJobManager(defaults, directJobRegistry);
       default:
         throw new IllegalArgumentException("Unsupported runner: " + runnerType);
     }
@@ -146,7 +152,8 @@ public class JobConfig {
   public JobMonitor getJobMonitor(
       @Value("${feast.jobs.runner}") String runnerType,
       DataflowJobConfig dfConfig,
-      FlinkJobConfig flinkJobConfig)
+      FlinkJobConfig flinkJobConfig,
+      DirectJobRegistry directJobRegistry)
       throws Exception {
 
     Runner runner = Runner.fromString(runnerType);
@@ -182,6 +189,7 @@ public class JobConfig {
             new FlinkRestApi(new RestTemplate(), flinkJobConfig.getMasterUrl());
         return new FlinkJobMonitor(flinkRestApi);
       case DIRECT:
+        return new DirectRunnerJobMonitor(directJobRegistry);
       default:
         return new NoopJobMonitor();
     }
@@ -196,5 +204,14 @@ public class JobConfig {
   @Bean
   public StatsdMetricPusher getStatsdMetricPusher(StatsDClient statsDClient) {
     return new StatsdMetricPusher(statsDClient);
+  }
+
+  /**
+   * Get a direct job registry
+   * @return
+   */
+  @Bean
+  public DirectJobRegistry directJobRegistry() {
+    return new DirectJobRegistry();
   }
 }

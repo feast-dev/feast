@@ -17,9 +17,13 @@
 
 package feast.core.service;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,17 +46,25 @@ import feast.core.storage.SchemaManager;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
+import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
+import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.ValueProto.ValueType;
+import feast.types.ValueProto.ValueType.Enum;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatcher;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 public class SpecServiceTest {
 
@@ -409,4 +421,51 @@ public class SpecServiceTest {
     verify(featureStreamService).provisionTopic(entityInfo);
     assertThat(actual, equalTo(entityInfo));
   }
+
+  @Test
+  public void shouldRegisterMultipleValidFeaturesAndStartJob() {
+    FeatureSpec f1 = FeatureSpec.newBuilder()
+        .setId("entity.feature1")
+        .setName("feature1")
+        .setEntity("entity")
+        .setValueType(Enum.BOOL)
+        .build();
+    FeatureSpec f2 = FeatureSpec.newBuilder()
+        .setId("entity.feature2")
+        .setName("feature2")
+        .setEntity("entity")
+        .setValueType(Enum.BOOL)
+        .build();
+    FeatureStreamTopic featureStreamTopic = new FeatureStreamTopic();
+    featureStreamTopic.setName("feast-entity-features");
+    EntityInfo entityInfo = new EntityInfo("entity", "", "",featureStreamTopic, Lists.newArrayList(),true);
+    entityInfo.setName("entity");
+    entityInfo.setTopic(featureStreamTopic);
+
+    List<FeatureSpec> specs = Lists.newArrayList(f1, f2);
+    List<FeatureInfo> expected = Lists.newArrayList(new FeatureInfo(f1, entityInfo, null), new FeatureInfo(f2, entityInfo, null));
+
+    when(featureInfoRepository.findById(ArgumentMatchers.any())).thenReturn(Optional.empty());
+    when(entityInfoRepository.findById("entity")).thenReturn(Optional.of(entityInfo));
+    when(featureInfoRepository.save(any(FeatureInfo.class))).thenAnswer(i -> i.getArguments()[0]);
+    when(featureInfoRepository.findByEntityName("entity")).thenReturn(expected);
+    when(storageSpecs.getErrorsStorageSpec()).thenReturn(StorageSpec.newBuilder().setId("err").build());
+    when(storageSpecs.getServingStorageSpec()).thenReturn(StorageSpec.newBuilder().setId("serving").build());
+
+    SpecService specService =
+        new SpecService(
+            entityInfoRepository,
+            featureInfoRepository,
+            featureGroupInfoRepository,
+            featureStreamService,
+            jobCoordinatorService,
+            schemaManager,
+            storageSpecs);
+
+    List<FeatureInfo> actual = specService.applyFeatures(specs);
+
+    verify(jobCoordinatorService, times(1)).startJob(any());
+    assertEquals(expected, actual);
+  }
 }
+

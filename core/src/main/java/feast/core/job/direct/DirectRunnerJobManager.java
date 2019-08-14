@@ -21,41 +21,40 @@ import com.google.common.annotations.VisibleForTesting;
 import feast.core.config.ImportJobDefaults;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
-import feast.core.model.EntityInfo;
-import feast.core.model.FeatureInfo;
 import feast.core.model.JobInfo;
-import feast.core.model.StorageInfo;
 import feast.core.util.TypeConversion;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.exec.CommandLine;
+import org.apache.commons.exec.DefaultExecuteResultHandler;
+import org.apache.commons.exec.DefaultExecutor;
+import org.apache.commons.exec.ExecuteWatchdog;
+import org.apache.commons.exec.Executor;
 
 @Slf4j
 public class DirectRunnerJobManager implements JobManager {
 
-  private static final int SLEEP_MS = 10;
-  private static final Pattern JOB_EXT_ID_PREFIX_REGEX = Pattern.compile(".*FeastImportJobId:.*");
   protected ImportJobDefaults defaults;
+  private final DirectJobRegistry jobs;
 
-  public DirectRunnerJobManager(ImportJobDefaults importJobDefaults) {
+  public DirectRunnerJobManager(ImportJobDefaults importJobDefaults, DirectJobRegistry jobs) {
     this.defaults = importJobDefaults;
+    this.jobs = jobs;
   }
 
   @Override
   public String startJob(String name, Path workspace) {
-    ProcessBuilder pb = getProcessBuilder(name, workspace);
+    CommandLine cmdLine = getCommandLine(name, workspace);
 
-    log.info(String.format("Executing command: %s", String.join(" ", pb.command())));
-
+    log.info(String.format("Executing command: %s", String.join(" ", cmdLine.toString())));
+    Executor executor = new DefaultExecutor();
     try {
-      Process p = pb.start();
-      return runProcess(p);
+      DirectJob directJob = runProcess(name, cmdLine, executor);
+      jobs.add(directJob);
+      return name;
     } catch (Exception e) {
       log.error("Error submitting job", e);
       throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
@@ -70,7 +69,9 @@ public class DirectRunnerJobManager implements JobManager {
 
   @Override
   public void abortJob(String extId) {
-    throw new UnsupportedOperationException("Unable to abort a job running in direct runner");
+    DirectJob job = jobs.get(extId);
+    job.getWatchdog().destroyProcess();
+    jobs.remove(extId);
   }
 
   /**
@@ -79,53 +80,38 @@ public class DirectRunnerJobManager implements JobManager {
    * @return configured ProcessBuilder
    */
   @VisibleForTesting
-  public ProcessBuilder getProcessBuilder(String name, Path workspace) {
+  public CommandLine getCommandLine(String name, Path workspace) {
     Map<String, String> options =
         TypeConversion.convertJsonStringToMap(defaults.getImportJobOptions());
-    List<String> commands = new ArrayList<>();
-    commands.add("java");
-    commands.add("-jar");
-    commands.add(defaults.getExecutable());
-    commands.add(option("workspace", workspace.toUri().toString()));
-    commands.add(option("jobName", name));
-    commands.add(option("runner", defaults.getRunner()));
+    CommandLine cmdLine = new CommandLine("java");
+    cmdLine.addArgument("-jar");
+    cmdLine.addArgument(defaults.getExecutable());
+    cmdLine.addArgument(option("workspace", workspace.toUri().toString()));
+    cmdLine.addArgument(option("jobName", name));
+    cmdLine.addArgument(option("runner", defaults.getRunner()));
 
-    options.forEach((k, v) -> commands.add(option(k, v)));
-    return new ProcessBuilder(commands);
+    options.forEach((k, v) -> cmdLine.addArgument(option(k, v)));
+    return cmdLine;
   }
 
   /**
-   * Run the given process and extract the job id from the output logs
-   *
-   * @param p Process
-   * @return job id
+   * Run the given process
+   * @param jobId job id of the job to run
+   * @param cmdLine CommandLine object to execute
+   * @param exec executor
+   * @return
+   * @throws IOException
+   * @throws InterruptedException
    */
   @VisibleForTesting
-  public String runProcess(Process p) {
-    try (BufferedReader outputStream =
-        new BufferedReader(new InputStreamReader(p.getInputStream()));
-        BufferedReader errorsStream =
-            new BufferedReader(new InputStreamReader(p.getErrorStream()))) {
-      String extId = "";
-      while (p.isAlive()) {
-        while (outputStream.ready()) {
-          String l = outputStream.readLine();
-          System.out.println(l);
-          if (JOB_EXT_ID_PREFIX_REGEX.matcher(l).matches()) {
-            extId = l.split("FeastImportJobId:")[1];
-          }
-        }
-        Thread.sleep(SLEEP_MS);
-      }
-      if (p.exitValue() > 0) {
-        Optional<String> errorString = errorsStream.lines().reduce((l1, l2) -> l1 + '\n' + l2);
-        throw new RuntimeException(String.format("Could not submit job: \n%s", errorString));
-      }
-      return extId;
-    } catch (Exception e) {
-      log.error("Error running ingestion job: ", e);
-      throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
-    }
+  public DirectJob runProcess(String jobId, CommandLine cmdLine, Executor exec)
+      throws IOException {
+    DefaultExecuteResultHandler resultHandler = new DefaultExecuteResultHandler();
+    ExecuteWatchdog watchdog = new ExecuteWatchdog(ExecuteWatchdog.INFINITE_TIMEOUT);
+
+    exec.setWatchdog(watchdog);
+    exec.execute(cmdLine, resultHandler);
+    return new DirectJob(jobId, watchdog, resultHandler);
   }
 
   private String option(String key, String value) {

@@ -33,6 +33,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import org.apache.commons.exec.CommandLine;
+import org.apache.commons.exec.DefaultExecutor;
+import org.apache.commons.exec.Executor;
+import org.apache.logging.log4j.util.Strings;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -73,17 +77,17 @@ public class DataflowJobManagerTest {
   public void shouldBuildProcessBuilderWithCorrectOptions() {
     String jobName = "test";
 
-    ProcessBuilder pb = dfJobManager.getProcessBuilder(jobName, Paths.get("/tmp/foobar"));
+    CommandLine cmdLine = dfJobManager.getCommandLine(jobName, Paths.get("/tmp/foobar"));
     List<String> expected =
         Lists.newArrayList(
-            "java",
             "-jar",
             "ingestion.jar",
             "--workspace=file:///tmp/foobar",
             "--jobName=test",
             "--runner=DataflowRunner",
             "--key=value");
-    assertThat(pb.command(), equalTo(expected));
+    assertThat(cmdLine.getExecutable(), equalTo("java"));
+    assertThat(cmdLine.getArguments(), equalTo(expected.toArray()));
   }
 
   @Test
@@ -91,51 +95,24 @@ public class DataflowJobManagerTest {
 
     String jobName = "test";
 
-    ProcessBuilder pb = dfJobManager
-        .getProcessBuilder(jobName, PathUtil.getPath("gs://bucket/tmp/foobar"));
+    CommandLine cmdLine = dfJobManager.getCommandLine(jobName, PathUtil.getPath("gs://bucket/tmp/foobar"));
     List<String> expected =
         Lists.newArrayList(
-            "java",
             "-jar",
             "ingestion.jar",
             "--workspace=gs://bucket/tmp/foobar",
             "--jobName=test",
             "--runner=DataflowRunner",
             "--key=value");
-    assertThat(pb.command(), equalTo(expected));
+    assertThat(cmdLine.getExecutable(), equalTo("java"));
+    assertThat(cmdLine.getArguments(), equalTo(expected.toArray()));
   }
 
   @Test
   public void shouldRunProcessAndGetJobIdIfNoError() throws IOException {
-    Process process = Mockito.mock(Process.class);
-    String processOutput = "log1: asdds\nlog2: dasdasd\nlog3: FeastImportJobId:1231231231\n";
-    String errorOutput = "";
-    InputStream outputStream =
-        new ByteArrayInputStream(processOutput.getBytes(StandardCharsets.UTF_8));
-    InputStream errorStream =
-        new ByteArrayInputStream(errorOutput.getBytes(StandardCharsets.UTF_8));
-    when(process.getInputStream()).thenReturn(outputStream);
-    when(process.getErrorStream()).thenReturn(errorStream);
-    when(process.exitValue()).thenReturn(0);
-    when(process.isAlive()).thenReturn(true).thenReturn(false);
-    String jobId = dfJobManager.runProcess(process);
-    assertThat(jobId, equalTo("1231231231"));
-  }
-
-  @Test
-  public void shouldThrowRuntimeExceptionIfErrorOccursInProcess() {
-    Process process = Mockito.mock(Process.class);
-    String processOutput = "log1: asdds\nlog2: dasdasd\n";
-    String errorOutput = "error: stacktrace";
-    InputStream outputStream =
-        new ByteArrayInputStream(processOutput.getBytes(StandardCharsets.UTF_8));
-    InputStream errorStream =
-        new ByteArrayInputStream(errorOutput.getBytes(StandardCharsets.UTF_8));
-    when(process.getInputStream()).thenReturn(outputStream);
-    when(process.getErrorStream()).thenReturn(errorStream);
-    when(process.exitValue()).thenReturn(1);
-    when(process.isAlive()).thenReturn(true).thenReturn(false);
-    expectedException.expect(RuntimeException.class);
-    dfJobManager.runProcess(process);
+    CommandLine cmdLine = new CommandLine("echo");
+    cmdLine.addArgument("12:59:19 [main] INFO  feast.ingestion.ImportJob - FeastImportJobId:2019-08-13_05_59_17-3784906597186500755", false);
+    String jobId = dfJobManager.runProcess("myJob", cmdLine, new DefaultExecutor());
+    assertThat(jobId, equalTo("2019-08-13_05_59_17-3784906597186500755"));
   }
 }
