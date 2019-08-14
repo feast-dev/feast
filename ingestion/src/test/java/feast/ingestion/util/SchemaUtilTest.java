@@ -1,30 +1,44 @@
 package feast.ingestion.util;
 
-import com.google.cloud.bigquery.*;
-import feast.specs.EntitySpecProto.EntitySpec;
-import feast.specs.StorageSpecProto.StorageSpec;
-import feast.types.ValueProto.ValueType;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mockito;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-
 import static feast.specs.FeatureSpecProto.FeatureSpec;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.DatasetId;
+import com.google.cloud.bigquery.DatasetInfo;
+import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.Schema;
+import com.google.cloud.bigquery.StandardSQLTypeName;
+import com.google.cloud.bigquery.StandardTableDefinition;
+import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableInfo;
+import com.google.cloud.bigquery.TimePartitioning;
+import com.google.cloud.bigquery.TimePartitioning.Type;
+import feast.specs.EntitySpecProto.EntitySpec;
+import feast.specs.StorageSpecProto.StorageSpec;
+import feast.types.ValueProto.ValueType;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.Mockito;
+import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
+
 public class SchemaUtilTest {
   private StorageSpec storageSpec;
   private EntitySpec entitySpec;
   private Iterable<FeatureSpec> featureSpecs;
   private List<Field> expectedFields;
+  private TimePartitioning timePartitioning;
 
   @Before
   public void createDefaultArguments() {
@@ -66,6 +80,7 @@ public class SchemaUtilTest {
             .setDescription("test_feature_2 description")
             .build());
     expectedFields.addAll(reservedFields);
+    timePartitioning = TimePartitioning.newBuilder(Type.DAY).setField("event_timestamp").build();
   }
 
   @Test
@@ -85,7 +100,10 @@ public class SchemaUtilTest {
             eq(
                 TableInfo.of(
                     TableId.of("test_project", "test_dataset", "test_entity"),
-                    StandardTableDefinition.of(Schema.of(expectedFields)))));
+                    StandardTableDefinition.newBuilder()
+                        .setTimePartitioning(timePartitioning)
+                        .setSchema(Schema.of(expectedFields))
+                        .build())));
   }
 
   @Test
@@ -105,7 +123,10 @@ public class SchemaUtilTest {
             eq(
                 TableInfo.of(
                     TableId.of("test_project", "test_dataset", "test_entity"),
-                    StandardTableDefinition.of(Schema.of(expectedFields)))));
+                    StandardTableDefinition.newBuilder()
+                        .setTimePartitioning(timePartitioning)
+                        .setSchema(Schema.of(expectedFields))
+                        .build())));
   }
 
   @Test
@@ -126,7 +147,10 @@ public class SchemaUtilTest {
             eq(
                 TableInfo.of(
                     TableId.of("test_project", "test_dataset", "test_entity"),
-                    StandardTableDefinition.of(Schema.of(expectedFields)))));
+                    StandardTableDefinition.newBuilder()
+                        .setTimePartitioning(timePartitioning)
+                        .setSchema(Schema.of(expectedFields))
+                        .build())));
   }
 
   @Test
@@ -151,7 +175,10 @@ public class SchemaUtilTest {
             eq(
                 TableInfo.of(
                     TableId.of("project_from_storage_spec", "test_dataset", "test_entity"),
-                    StandardTableDefinition.of(Schema.of(expectedFields)))));
+                    StandardTableDefinition.newBuilder()
+                        .setTimePartitioning(timePartitioning)
+                        .setSchema(Schema.of(expectedFields))
+                        .build())));
   }
 
   @Test(expected = NullPointerException.class)

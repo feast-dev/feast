@@ -1,19 +1,29 @@
 package feast.ingestion.util;
 
-import com.google.cloud.bigquery.*;
+import static feast.specs.FeatureSpecProto.FeatureSpec;
+import static feast.types.ValueProto.ValueType;
+
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.DatasetId;
+import com.google.cloud.bigquery.DatasetInfo;
+import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.Schema;
+import com.google.cloud.bigquery.StandardSQLTypeName;
+import com.google.cloud.bigquery.StandardTableDefinition;
+import com.google.cloud.bigquery.TableDefinition;
+import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableInfo;
+import com.google.cloud.bigquery.TimePartitioning;
+import com.google.cloud.bigquery.TimePartitioning.Type;
 import com.google.common.collect.ImmutableMap;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.StorageSpecProto.StorageSpec;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.tuple.Pair;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static feast.specs.FeatureSpecProto.FeatureSpec;
-import static feast.types.ValueProto.ValueType;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 
 // TODO: Create partitioned table by default
 
@@ -88,8 +98,7 @@ public class SchemaUtil {
                         StandardSQLTypeName.TIMESTAMP,
                         "The time when the FeatureRow is created in Feast"),
                 "job_id",
-                    Pair.of(
-                        StandardSQLTypeName.STRING, "Feast import job ID for the FeatureRow"));
+                    Pair.of(StandardSQLTypeName.STRING, "Feast import job ID for the FeatureRow"));
     for (Map.Entry<String, Pair<StandardSQLTypeName, String>> entry :
         reservedFieldNameToPairOfStandardSQLTypeAndDescription.entrySet()) {
       Field field =
@@ -100,7 +109,13 @@ public class SchemaUtil {
       fields.add(field);
     }
 
-    return StandardTableDefinition.of(Schema.of(fields));
+    TimePartitioning timePartitioning =
+        TimePartitioning.newBuilder(Type.DAY).setField("event_timestamp").build();
+
+    return StandardTableDefinition.newBuilder()
+        .setTimePartitioning(timePartitioning)
+        .setSchema(Schema.of(fields))
+        .build();
   }
 
   /**

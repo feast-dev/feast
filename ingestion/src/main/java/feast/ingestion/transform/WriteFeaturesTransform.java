@@ -4,6 +4,7 @@ import static feast.specs.EntitySpecProto.EntitySpec;
 import static feast.specs.FeatureSpecProto.FeatureSpec;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition.WRITE_APPEND;
 
+import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.inject.Inject;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.StorageSpecProto.StorageSpec;
@@ -69,7 +70,9 @@ public class WriteFeaturesTransform extends PTransform<PCollection<FeatureRowExt
                 BigQueryIO.writeTableRows()
                     .to(tableSpec)
                     .withCreateDisposition(CreateDisposition.CREATE_NEVER)
-                    .withWriteDisposition(WRITE_APPEND));
+                    .withWriteDisposition(WRITE_APPEND)
+                    .withTimePartitioning(
+                        new TimePartitioning().setType("DAY").setField("event_timestamp")));
         break;
 
       default:
