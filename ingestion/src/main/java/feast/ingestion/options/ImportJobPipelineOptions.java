@@ -31,6 +31,13 @@ import org.apache.beam.sdk.options.Validation.Required;
  */
 public interface ImportJobPipelineOptions extends PipelineOptions, DirectOptions {
 
+  // TODO: Make it to accept local path and GCS path
+  @Description("Path to import job spec yaml file")
+  @Required
+  String getImportJobSpecUri();
+
+  void setImportJobSpecUri(String value);
+
   @Description("Path to a workspace directory containing importJobSpecs.yaml")
   @Required
   String getWorkspace();
