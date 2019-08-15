@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class BigQueryStorageManager implements StorageManager {
 
-  public static final String TYPE = "bigquery";
+  public static final String TYPE = "BIGQUERY";
 
   public static final String OPT_BIGQUERY_PROJECT = "project";
   public static final String OPT_BIGQUERY_DATASET = "dataset";

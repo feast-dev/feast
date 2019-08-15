@@ -29,7 +29,7 @@ import java.util.Map;
 
 public class PostgresStorageManager implements StorageManager {
 
-  public static final String TYPE = "postgres";
+  public static final String TYPE = "POSTGRES";
 
   public static final String OPT_POSTGRES_URI = "uri"; // jdbc connection URI
   public static final String OPT_POSTGRES_TABLE_PREFIX = "tablePrefix";

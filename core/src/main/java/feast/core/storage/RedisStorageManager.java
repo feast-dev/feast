@@ -20,7 +20,7 @@ package feast.core.storage;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 
 public class RedisStorageManager implements StorageManager {
-  public static final String TYPE = "redis";
+  public static final String TYPE = "REDIS";
 
   public static final String OPT_REDIS_HOST = "host";
   public static final String OPT_REDIS_PORT = "port";

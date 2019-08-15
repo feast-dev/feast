@@ -38,7 +38,7 @@ import org.apache.hadoop.hbase.client.TableDescriptorBuilder;
 @Slf4j
 public class BigTableStorageManager implements StorageManager {
 
-  public static final String TYPE = "bigtable";
+  public static final String TYPE = "BIGTABLE";
   public static final String STORE_OPT_BIGTABLE_PROJECT = "project";
   public static final String STORE_OPT_BIGTABLE_INSTANCE = "instance";
   public static final String STORE_OPT_BIGTABLE_TABLE_PREFIX = "tablePrefix";
