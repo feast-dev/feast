@@ -31,7 +31,7 @@ public class KafkaFeatureStream implements FeatureStream {
   public Map<String, String> getFeatureStreamOptions() {
     Map<String, String> options = new HashMap<>();
     options.put("discardUnknownFeatures", "true");
-    options.put("server", config.getBootstrapServers());
+    options.put("bootstrapServers", config.getBootstrapServers());
     return options;
   }
 

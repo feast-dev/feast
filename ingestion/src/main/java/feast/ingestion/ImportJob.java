@@ -40,6 +40,8 @@ import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Paths;
 import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
@@ -130,11 +132,13 @@ public class ImportJob {
     if (pipelineOptions.getJobName().isEmpty()) {
       pipelineOptions.setJobName(generateName());
     }
+    String importJobSpecsPath = Paths.get(URI.create(pipelineOptions.getWorkspace()))
+        .resolve("importJobSpecs.yaml").toAbsolutePath().toString();
 
     ImportJobSpecs importJobSpecs =
         (ImportJobSpecs)
             ProtoUtil.createProtoMessageFromYaml(
-                pipelineOptions.getImportJobSpecUri(), ImportJobSpecs.newBuilder());
+                importJobSpecsPath, ImportJobSpecs.newBuilder());
 
     setupSink(importJobSpecs);
 

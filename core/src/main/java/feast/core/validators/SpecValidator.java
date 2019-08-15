@@ -85,8 +85,8 @@ public class SpecValidator {
       checkArgument(!spec.getId().equals(""), "Id field cannot be empty");
       checkArgument(!spec.getName().equals(""), "Name field cannot be empty");
       checkLowerSnakeCase(spec.getName(), "Name");
-      checkArgument(!spec.getOwner().equals(""), "Owner field cannot be empty");
-      checkArgument(!spec.getDescription().equals(""), "Description field cannot be empty");
+//      checkArgument(!spec.getOwner().equals(""), "Owner field cannot be empty");
+//      checkArgument(!spec.getDescription().equals(""), "Description field cannot be empty");
       checkArgument(!spec.getEntity().equals(""), "Entity field cannot be empty");
 
       // check id validity
