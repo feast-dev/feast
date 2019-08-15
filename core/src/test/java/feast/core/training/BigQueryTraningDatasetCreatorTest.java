@@ -21,7 +21,6 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import feast.core.DatasetServiceProto.DatasetInfo;
 import feast.core.DatasetServiceProto.FeatureSet;
-import feast.core.storage.BigQueryStorageManager;
 import feast.core.util.UuidProvider;
 import feast.specs.StorageSpecProto.StorageSpec;
 import java.time.Instant;
@@ -66,7 +65,7 @@ public class BigQueryTraningDatasetCreatorTest {
     MockitoAnnotations.initMocks(this);
     when(templater.getStorageSpec()).thenReturn(StorageSpec.newBuilder()
         .setId("BIGQUERY1")
-        .setType(BigQueryStorageManager.TYPE)
+        .setType("BIGQUERY")
         .putOptions("project", "project")
         .putOptions("dataset", "dataset")
         .build());

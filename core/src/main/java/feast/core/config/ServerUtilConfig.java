@@ -18,14 +18,11 @@
 package feast.core.config;
 
 import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
 import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.dao.EntityInfoRepository;
 import feast.core.dao.FeatureGroupInfoRepository;
 import feast.core.dao.FeatureInfoRepository;
-import feast.core.storage.BigQueryViewTemplater;
-import feast.core.storage.SchemaManager;
 import feast.core.stream.FeatureStream;
 import feast.core.stream.kafka.KafkaFeatureStream;
 import feast.core.stream.kafka.KafkaFeatureStreamConfig;
@@ -54,31 +51,6 @@ public class ServerUtilConfig {
 
   @Autowired
   private StorageSpecs storageSpecs;
-
-  /**
-   * Get a BigQuery view templater.
-   *
-   * @return BigQueryViewTemplater
-   */
-  @Bean
-  public BigQueryViewTemplater bigQueryViewTemplater() throws IOException {
-    Resource resource = new ClassPathResource("templates/bq_view.tmpl");
-    InputStream resourceInputStream = resource.getInputStream();
-    String tmpl = CharStreams.toString(new InputStreamReader(resourceInputStream, Charsets.UTF_8));
-    return new BigQueryViewTemplater(tmpl);
-  }
-
-
-  /**
-   * Get the storage schema manager.
-   *
-   * @return SchemaManager
-   */
-  @Bean
-  public SchemaManager schemaManager(BigQueryViewTemplater bigQueryViewTemplater) {
-    return new SchemaManager(bigQueryViewTemplater, storageSpecs);
-
-  }
 
   /**
    * Get a spec validator.

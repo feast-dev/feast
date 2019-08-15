@@ -45,9 +45,9 @@ import org.springframework.test.context.junit4.SpringRunner;
 @SpringBootTest(properties = {
     "feast.jobs.workspace=${java.io.tmpdir}/${random.uuid}",
     "spring.datasource.url=jdbc:h2:mem:testdb",
-    "feast.store.warehouse.type=file.json",
+    "feast.store.warehouse.type=FILE.JSON",
     "feast.store.warehouse.options={\"path\":\"/tmp/foobar\"}",
-    "feast.store.errors.type=stderr",
+    "feast.store.errors.type=STDERR",
     "feast.stream.type=kafka",
     "feast.stream.options={\"bootstrapServers\":\"localhost:8081\"}"
 })
@@ -71,7 +71,7 @@ public class CoreApplicationWithNoServingTest {
         .getStorage(Collections.singletonList(DEFAULT_WAREHOUSE_ID));
     assertEquals(warehouseStorageInfo.size(), 1);
     assertEquals(warehouseStorageInfo.get(0).getStorageSpec(), StorageSpec.newBuilder()
-        .setId(DEFAULT_WAREHOUSE_ID).setType("file.json").putOptions("path", "/tmp/foobar")
+        .setId(DEFAULT_WAREHOUSE_ID).setType("FILE.JSON").putOptions("path", "/tmp/foobar")
         .build());
 
     ManagedChannelBuilder<?> channelBuilder = ManagedChannelBuilder.forAddress("localhost", 6565);

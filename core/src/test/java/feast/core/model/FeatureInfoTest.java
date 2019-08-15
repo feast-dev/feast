@@ -207,10 +207,10 @@ public class FeatureInfoTest {
   @Test
   public void createBigQueryLink_withBigQueryType_shouldGenerateLink() {
     String link = featureInfo.createBigqueryViewLink(StorageSpec.newBuilder()
-        .setType("bigquery").setId("BQ").putOptions("project", "project1")
-        .putOptions("dataset", "dataset1").build());
-    assertEquals(link,
-        "https://bigquery.cloud.google.com/table/project1:dataset1.entity_view");
+        .setType("BIGQUERY").setId("BQ").putOptions("projectId", "project1")
+        .putOptions("datasetId", "dataset1").build());
+    assertEquals(
+        "https://bigquery.cloud.google.com/table/project1:dataset1.entity_view", link);
   }
 
   @Test

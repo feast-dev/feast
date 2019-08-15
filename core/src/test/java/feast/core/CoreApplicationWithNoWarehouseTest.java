@@ -45,9 +45,9 @@ import org.springframework.test.context.junit4.SpringRunner;
 @SpringBootTest(properties = {
     "feast.jobs.workspace=${java.io.tmpdir}/${random.uuid}",
     "spring.datasource.url=jdbc:h2:mem:testdb",
-    "feast.store.serving.type=redis",
+    "feast.store.serving.type=REDIS",
     "feast.store.serving.options={\"host\":\"localhost\",\"port\":1234}",
-    "feast.store.errors.type=stderr",
+    "feast.store.errors.type=STDERR",
     "feast.stream.type=kafka",
     "feast.stream.options={\"bootstrapServers\":\"localhost:8081\"}"
 })
@@ -77,7 +77,7 @@ public class CoreApplicationWithNoWarehouseTest {
         .getStorage(Collections.singletonList(DEFAULT_SERVING_ID));
     assertEquals(servingStorageInfo.size(), 1);
     assertEquals(servingStorageInfo.get(0).getStorageSpec(), StorageSpec.newBuilder()
-        .setId(DEFAULT_SERVING_ID).setType("redis")
+        .setId(DEFAULT_SERVING_ID).setType("REDIS")
         .putOptions("host", "localhost")
         .putOptions("port", "1234")
         .build());

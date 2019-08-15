@@ -24,7 +24,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import feast.core.UIServiceProto.UIServiceTypes.FeatureDetail;
 import feast.core.config.StorageConfig.StorageSpecs;
-import feast.core.storage.BigQueryStorageManager;
 import feast.core.util.TypeConversion;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
@@ -42,7 +41,6 @@ import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -190,13 +188,13 @@ public class FeatureInfo extends AbstractTimestampEntity {
   }
 
   protected String createBigqueryViewLink(StorageSpec storageSpec) {
-    if (storageSpec == null || !storageSpec.getType().equals(BigQueryStorageManager.TYPE)) {
+    if (storageSpec == null || !storageSpec.getType().equals("BIGQUERY")) {
       return "N.A.";
     }
     String projectId = storageSpec
-        .getOptionsOrDefault(BigQueryStorageManager.OPT_BIGQUERY_PROJECT, null);
+        .getOptionsOrDefault("projectId", null);
     String dataset = storageSpec
-        .getOptionsOrDefault(BigQueryStorageManager.OPT_BIGQUERY_DATASET, null);
+        .getOptionsOrDefault("datasetId", null);
 
     return String.format(
         "https://bigquery.cloud.google.com/table/%s:%s.%s_view",

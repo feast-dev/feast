@@ -62,7 +62,7 @@ public class KafkaFeatureStreamTest {
   public void shouldReturnCorrectFeatureStreamOptions() {
     Map<String, String> expected = new HashMap<>();
     expected.put("discardUnknownFeatures", "true");
-    expected.put("server", "localhost:8121");
+    expected.put("bootstrapServers", "localhost:8121");
     assertThat(kafkaFeatureStream.getFeatureStreamOptions(), equalTo(expected));
   }
 }

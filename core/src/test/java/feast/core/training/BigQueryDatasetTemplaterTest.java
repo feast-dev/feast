@@ -32,7 +32,6 @@ import feast.core.DatasetServiceProto.FeatureSet;
 import feast.core.dao.FeatureInfoRepository;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureInfo;
-import feast.core.storage.BigQueryStorageManager;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
@@ -71,7 +70,7 @@ public class BigQueryDatasetTemplaterTest {
     StorageSpec storageSpec =
         StorageSpec.newBuilder()
             .setId("BIGQUERY1")
-            .setType(BigQueryStorageManager.TYPE)
+            .setType("BIGQUERY")
             .putOptions("project", "project")
             .putOptions("dataset", "dataset")
             .build();
@@ -100,7 +99,7 @@ public class BigQueryDatasetTemplaterTest {
     StorageSpec storageSpec =
         StorageSpec.newBuilder()
             .setId("BIGQUERY1")
-            .setType(BigQueryStorageManager.TYPE)
+            .setType("BIGQUERY")
             .putOptions("project", "project")
             .putOptions("dataset", "dataset")
             .build();

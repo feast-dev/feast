@@ -37,7 +37,6 @@ import feast.core.model.FeatureInfo;
 import feast.core.model.FeatureStreamTopic;
 import feast.core.model.JobInfo;
 import feast.core.model.StorageInfo;
-import feast.core.storage.SchemaManager;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
@@ -66,7 +65,6 @@ public class SpecService {
   private final EntityInfoRepository entityInfoRepository;
   private final FeatureInfoRepository featureInfoRepository;
   private final FeatureGroupInfoRepository featureGroupInfoRepository;
-  private final SchemaManager schemaManager;
   private final FeatureStreamService featureStreamService;
   private final JobCoordinatorService jobCoordinatorService;
 
@@ -80,14 +78,12 @@ public class SpecService {
       FeatureGroupInfoRepository featureGroupInfoRepository,
       FeatureStreamService featureStreamService,
       JobCoordinatorService jobCoordinatorService,
-      SchemaManager schemaManager,
       StorageSpecs storageSpecs) {
     this.entityInfoRepository = entityInfoRegistry;
     this.featureInfoRepository = featureInfoRegistry;
     this.featureGroupInfoRepository = featureGroupInfoRepository;
     this.featureStreamService = featureStreamService;
     this.jobCoordinatorService = jobCoordinatorService;
-    this.schemaManager = schemaManager;
     this.storageSpecs = storageSpecs;
   }
 

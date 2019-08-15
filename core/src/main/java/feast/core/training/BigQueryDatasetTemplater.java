@@ -21,7 +21,6 @@ import com.hubspot.jinjava.Jinjava;
 import feast.core.DatasetServiceProto.FeatureSet;
 import feast.core.dao.FeatureInfoRepository;
 import feast.core.model.FeatureInfo;
-import feast.core.storage.BigQueryStorageManager;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.ValueProto.ValueType.Enum;
 import java.time.Instant;
@@ -151,7 +150,7 @@ public class BigQueryDatasetTemplater {
   private String getBqTableId(FeatureInfo featureInfo) {
     String type = storageSpec.getType();
 
-    if (!BigQueryStorageManager.TYPE.equals(type)) {
+    if (!type.equals("BIGQUERY")) {
       throw new IllegalArgumentException(
           "One of the feature has warehouse storage other than bigquery");
     }
