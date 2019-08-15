@@ -122,10 +122,6 @@ public class ImportJob {
   // }
 
   public static void main(String[] args) throws IOException {
-    mainWithResult(args);
-  }
-
-  private static void mainWithResult(String[] args) throws IOException {
     ImportJobPipelineOptions pipelineOptions =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(ImportJobPipelineOptions.class);
 
@@ -134,6 +130,17 @@ public class ImportJob {
     }
     String importJobSpecsPath = Paths.get(URI.create(pipelineOptions.getWorkspace()))
         .resolve("importJobSpecs.yaml").toAbsolutePath().toString();
+
+    // Make sure the runner is running asynchronously when the selected runner is DirectRunner
+    if (pipelineOptions.getRunner().getSimpleName().equalsIgnoreCase("DirectRunner")) {
+      pipelineOptions.setBlockOnRun(false);
+    }
+
+    PipelineResult pipelineResult = runPipeline(pipelineOptions);
+  }
+
+  private static PipelineResult runPipeline(ImportJobPipelineOptions pipelineOptions)
+      throws IOException {
 
     ImportJobSpecs importJobSpecs =
         (ImportJobSpecs)
@@ -148,7 +155,7 @@ public class ImportJob {
     ImportJob job = injector.getInstance(ImportJob.class);
 
     job.expand();
-    job.run();
+    return job.run();
   }
 
   private static void setupSink(ImportJobSpecs importJobSpecs) {

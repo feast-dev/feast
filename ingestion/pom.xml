@@ -347,7 +347,7 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
       <version>${org.apache.beam.version}</version>
-      <scope>runtime</scope>
+      <scope>compile</scope>
     </dependency>
   </dependencies>
 </project>

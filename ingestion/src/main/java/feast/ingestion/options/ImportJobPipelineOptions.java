@@ -19,6 +19,7 @@ package feast.ingestion.options;
 
 import com.google.auto.service.AutoService;
 import java.util.Collections;
+import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -28,7 +29,7 @@ import org.apache.beam.sdk.options.Validation.Required;
 /**
  * Options passed to Beam to influence the job's execution environment
  */
-public interface ImportJobPipelineOptions extends PipelineOptions {
+public interface ImportJobPipelineOptions extends PipelineOptions, DirectOptions {
 
   @Description("Path to a workspace directory containing importJobSpecs.yaml")
   @Required
