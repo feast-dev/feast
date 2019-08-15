@@ -33,7 +33,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
-public class SchemaUtilTest {
+public class StorageUtilTest {
   private StorageSpec storageSpec;
   private EntitySpec entitySpec;
   private Iterable<FeatureSpec> featureSpecs;
@@ -91,7 +91,7 @@ public class SchemaUtilTest {
     when(mockBigqueryOptions.getProjectId()).thenReturn("test_project");
     when(mockBigquery.getOptions()).thenReturn(mockBigqueryOptions);
 
-    SchemaUtil.setupBigQuery(storageSpec, entitySpec, featureSpecs, mockBigquery);
+    StorageUtil.setupBigQuery(storageSpec, entitySpec, featureSpecs, mockBigquery);
 
     // Ensure BigQuery service is called with correct arguments
     verify(mockBigquery).create(eq(DatasetInfo.of(DatasetId.of("test_project", "test_dataset"))));
@@ -115,7 +115,7 @@ public class SchemaUtilTest {
     when(mockBigquery.getOptions()).thenReturn(mockBigqueryOptions);
     when(mockBigquery.getDataset(any(DatasetId.class))).thenReturn(Mockito.mock(Dataset.class));
 
-    SchemaUtil.setupBigQuery(storageSpec, entitySpec, featureSpecs, mockBigquery);
+    StorageUtil.setupBigQuery(storageSpec, entitySpec, featureSpecs, mockBigquery);
 
     // Ensure BigQuery service is called with correct arguments
     verify(mockBigquery)
@@ -139,7 +139,7 @@ public class SchemaUtilTest {
     when(mockBigquery.getDataset(any(DatasetId.class))).thenReturn(Mockito.mock(Dataset.class));
     when(mockBigquery.getTable(any(TableId.class))).thenReturn(Mockito.mock(Table.class));
 
-    SchemaUtil.setupBigQuery(storageSpec, entitySpec, featureSpecs, mockBigquery);
+    StorageUtil.setupBigQuery(storageSpec, entitySpec, featureSpecs, mockBigquery);
 
     // Ensure BigQuery service is called with correct arguments
     verify(mockBigquery)
@@ -165,7 +165,7 @@ public class SchemaUtilTest {
     when(mockBigqueryOptions.getProjectId()).thenReturn("test_project");
     when(mockBigquery.getOptions()).thenReturn(mockBigqueryOptions);
 
-    SchemaUtil.setupBigQuery(storageSpec, entitySpec, featureSpecs, mockBigquery);
+    StorageUtil.setupBigQuery(storageSpec, entitySpec, featureSpecs, mockBigquery);
 
     // Ensure BigQuery service is called with correct arguments
     verify(mockBigquery)
@@ -187,7 +187,7 @@ public class SchemaUtilTest {
 
     // Mock BigQuery service
     BigQuery mockBigquery = Mockito.mock(BigQuery.class);
-    SchemaUtil.setupBigQuery(storageSpec, entitySpec, featureSpecs, mockBigquery);
+    StorageUtil.setupBigQuery(storageSpec, entitySpec, featureSpecs, mockBigquery);
   }
 
   @Test(expected = BigQueryException.class)
@@ -202,7 +202,7 @@ public class SchemaUtilTest {
     when(mockBigquery.update(any(TableInfo.class)))
         .thenThrow(new BigQueryException(-1, "Test BigQueryException"));
 
-    SchemaUtil.setupBigQuery(storageSpec, entitySpec, featureSpecs, mockBigquery);
+    StorageUtil.setupBigQuery(storageSpec, entitySpec, featureSpecs, mockBigquery);
   }
 
   /**
@@ -217,6 +217,6 @@ public class SchemaUtilTest {
     when(mockBigqueryOptions.getProjectId()).thenReturn("test_project");
     when(mockBigquery.getOptions()).thenReturn(mockBigqueryOptions);
     entitySpec = entitySpec.toBuilder().setName("inconsitent_entity_name").build();
-    SchemaUtil.setupBigQuery(storageSpec, entitySpec, featureSpecs, mockBigquery);
+    StorageUtil.setupBigQuery(storageSpec, entitySpec, featureSpecs, mockBigquery);
   }
 }

@@ -19,30 +19,66 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <parent>
-    <groupId>feast</groupId>
-    <artifactId>feast-parent</artifactId>
-    <version>${revision}</version>
-  </parent>
+  <groupId>feast</groupId>
+  <version>${revision}</version>
   <artifactId>feast-ingestion</artifactId>
   <packaging>jar</packaging>
   <name>Feast Ingestion</name>
 
   <properties>
+    <revision>0.1.1</revision>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
     <org.apache.beam.version>2.9.0</org.apache.beam.version>
     <com.google.cloud.version>1.85.0</com.google.cloud.version>
     <com.google.httpclient.version>1.27.0</com.google.httpclient.version>
     <grpcVersion>1.13.1</grpcVersion>
     <guice.version>4.1.0</guice.version>
     <spring.kafka.version>2.2.2.RELEASE</spring.kafka.version>
+    <protocVersion>3.6.1</protocVersion>
+    <protobufVersion>3.6.1</protobufVersion>
   </properties>
 
   <build>
+    <extensions>
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>1.6.0</version>
+      </extension>
+    </extensions>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.7.0</version>
+        <configuration>
+          <source>1.8</source>
+          <target>1.8</target>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
+        <version>0.5.1</version>
+        <configuration>
+          <protocArtifact>
+            com.google.protobuf:protoc:${protocVersion}:exe:${os.detected.classifier}
+          </protocArtifact>
+          <pluginId>grpc-java</pluginId>
+          <pluginArtifact>
+            io.grpc:protoc-gen-grpc-java:${grpcVersion}:exe:${os.detected.classifier}
+          </pluginArtifact>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+              <goal>compile-custom</goal>
+              <goal>test-compile</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -67,6 +103,23 @@
                   <resource>reference.conf</resource>
                 </transformer>
               </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.0.1</version>
+        <executions>
+          <execution>
+            <id>attach-javadocs</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <!-- TODO: Remove doclint: none and fix javadoc error instead -->
+            <configuration>
+              <doclint>none</doclint>
             </configuration>
           </execution>
         </executions>

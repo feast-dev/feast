@@ -19,17 +19,18 @@ package feast.ingestion.options;
 
 import com.google.auto.service.AutoService;
 import java.util.Collections;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Default.Boolean;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.options.Validation.Required;
 
-/**
- * Options passed to Beam to influence the job's execution environment
- */
-public interface ImportJobPipelineOptions extends PipelineOptions, DirectOptions {
+/** Options passed to Beam to influence the job's execution environment */
+public interface ImportJobPipelineOptions
+    extends PipelineOptions, DataflowPipelineOptions, DirectOptions {
 
   // TODO: Make it to accept local path and GCS path
   @Description("Path to import job spec yaml file")
@@ -50,7 +51,8 @@ public interface ImportJobPipelineOptions extends PipelineOptions, DirectOptions
 
   void setSampleLimit(int value);
 
-  @Description("Enable coalesce rows, merges feature rows within a time window to output only the latest value")
+  @Description(
+      "Enable coalesce rows, merges feature rows within a time window to output only the latest value")
   @Default.Boolean(false)
   boolean isCoalesceRowsEnabled();
 

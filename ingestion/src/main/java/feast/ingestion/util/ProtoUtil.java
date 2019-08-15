@@ -24,8 +24,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.gson.Gson;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
+import com.google.protobuf.Message.Builder;
 import com.google.protobuf.util.JsonFormat;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -42,16 +42,21 @@ public class ProtoUtil {
     return decodeProtoYaml(yaml, prototype);
   }
 
-  public static Message createProtoMessageFromYaml(String filePath, Message.Builder builder)
-      throws IOException {
-    String yamlString = new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8);
+  public static <T extends Message> T createProtoMessageFromYamlFile(
+      String filePath, Builder builder, Class<T> type) throws IOException {
+    // Create an object from the yaml file
     ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());
-    Object obj = yamlReader.readValue(yamlString, Object.class);
+    String yamlString = new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8);
+    Object yamlObject = yamlReader.readValue(yamlString, Object.class);
 
+    // Create a JSON string representation of the object
     ObjectMapper jsonWriter = new ObjectMapper();
-    String jsonString = jsonWriter.writeValueAsString(obj);
+    String jsonString = jsonWriter.writeValueAsString(yamlObject);
+
+    // Use protobuf util to create a protobuf message with fields corresponding to the JSON string
     JsonFormat.parser().merge(jsonString, builder);
-    return builder.build();
+    Message message = builder.build();
+    return type.cast(message);
   }
 
   public static <T extends Message> T decodeProtoYaml(String yamlString, T prototype)

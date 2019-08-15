@@ -16,8 +16,8 @@ public class ProtoUtilTest {
     String testYamlFilePath =
         new File("src/test/resources/import-job-specs/valid-1.yaml").getAbsolutePath();
     Message message =
-        ProtoUtil.createProtoMessageFromYaml(testYamlFilePath, ImportJobSpecs.newBuilder());
-    assert message instanceof ImportJobSpecs;
+        ProtoUtil.createProtoMessageFromYamlFile(testYamlFilePath, ImportJobSpecs.newBuilder(), ImportJobSpecs.class);
+    assert message != null;
   }
 
   @Test
@@ -25,15 +25,15 @@ public class ProtoUtilTest {
     String testYamlFilePath =
             new File("src/test/resources/import-job-specs/valid-2.yaml").getAbsolutePath();
     Message message =
-            ProtoUtil.createProtoMessageFromYaml(testYamlFilePath, ImportJobSpecs.newBuilder());
-    assert message instanceof ImportJobSpecs;
+            ProtoUtil.createProtoMessageFromYamlFile(testYamlFilePath, ImportJobSpecs.newBuilder(), ImportJobSpecs.class);
+    assert message != null;
   }
 
   @Test(expected = MismatchedInputException.class)
   public void createProtoMessageFromYaml_invalidEmpty() throws IOException {
     String testYamlFilePath =
         new File("src/test/resources/import-job-specs/invalid-empty.yaml").getAbsolutePath();
-    ProtoUtil.createProtoMessageFromYaml(testYamlFilePath, ImportJobSpecs.newBuilder());
+    ProtoUtil.createProtoMessageFromYamlFile(testYamlFilePath, ImportJobSpecs.newBuilder(), ImportJobSpecs.class);
   }
 
   @Test(expected = InvalidProtocolBufferException.class)
@@ -41,12 +41,12 @@ public class ProtoUtilTest {
     String testYamlFilePath =
         new File("src/test/resources/import-job-specs/invalid-source-spec-1.yaml")
             .getAbsolutePath();
-    ProtoUtil.createProtoMessageFromYaml(testYamlFilePath, ImportJobSpecs.newBuilder());
+    ProtoUtil.createProtoMessageFromYamlFile(testYamlFilePath, ImportJobSpecs.newBuilder(), ImportJobSpecs.class);
   }
 
   @Test(expected = IOException.class)
   public void createProtoMessageFromYaml_invalidFilePath() throws IOException {
     String testYamlFilePath = new File("this-path-should-not-exist").getAbsolutePath();
-    ProtoUtil.createProtoMessageFromYaml(testYamlFilePath, ImportJobSpecs.newBuilder());
+    ProtoUtil.createProtoMessageFromYamlFile(testYamlFilePath, ImportJobSpecs.newBuilder(), ImportJobSpecs.class);
   }
 }

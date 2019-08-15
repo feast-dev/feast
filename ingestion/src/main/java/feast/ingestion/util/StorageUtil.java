@@ -24,11 +24,13 @@ import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.exceptions.JedisConnectionException;
 
 // TODO: Create partitioned table by default
 
 /**
- * This class is a utility to manage schemas for storage backends in Feast.
+ * This class is a utility to manage storage backends in Feast.
  *
  * <p>Examples when schemas need to be updated:
  *
@@ -42,7 +44,7 @@ import org.apache.commons.lang3.tuple.Pair;
  * need to manage any schemas. This class will not be used in that case.
  */
 @Slf4j
-public class SchemaUtil {
+public class StorageUtil {
   private static final Map<ValueType.Enum, StandardSQLTypeName> VALUE_TYPE_TO_STANDARD_SQL_TYPE =
       new HashMap<>();
 
@@ -167,5 +169,31 @@ public class SchemaUtil {
           projectId);
       bigquery.update(tableInfo);
     }
+  }
+
+  public static void checkRedisConnection(StorageSpec sinkStorageSpec) {
+    if (!sinkStorageSpec.getOptions().containsKey("host")) {
+      throw new IllegalArgumentException(
+          "sinkStorageSpec type 'REDIS' requires 'host' options");
+    }
+    String redisHost = sinkStorageSpec.getOptionsOrThrow("host");
+    int redisPort = Integer.parseInt(sinkStorageSpec.getOptionsOrDefault("port", "6379"));
+    boolean clusterEnabled =
+        Boolean.parseBoolean(sinkStorageSpec.getOptionsOrDefault("clusterEnabled", "false"));
+    if (clusterEnabled) {
+      throw new IllegalArgumentException(
+          "Redis cluster is not supported in Feast 0.2. Please set 'clusterEnabled: false' in sinkStorageSpec.options.");
+    }
+    JedisPool jedisPool = new JedisPool(sinkStorageSpec.getOptionsOrThrow("host"), redisPort);
+    try {
+      // Make sure we can connect to Redis according to the sinkStorageSpec
+      jedisPool.getResource();
+    } catch (JedisConnectionException e) {
+      throw new RuntimeException(
+          String.format(
+              "Failed to connect to Redis at host: '%s' port: '%d'. Please check the 'options' values in sinkStorageSpec.",
+              redisHost, redisPort));
+    }
+    jedisPool.close();
   }
 }
