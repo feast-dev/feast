@@ -27,7 +27,7 @@ import org.slf4j.event.Level;
 @AutoService(FeatureErrorsFactory.class)
 public class StderrFeatureErrorsFactory implements FeatureErrorsFactory {
 
-  public static final String TYPE_STDERR = "stderr";
+  public static final String TYPE_STDERR = "STDERR";
 
   @Override
   public FeatureStoreWrite create(StorageSpec storageSpec, Specs specs) {

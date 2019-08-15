@@ -32,12 +32,15 @@ import feast.store.errors.FeatureErrorsFactoryService;
 import feast.types.FeatureRowExtendedProto.Attempt;
 import feast.types.FeatureRowExtendedProto.Error;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -137,8 +140,11 @@ public class ErrorsStoreTransformTest {
     inputs.apply(transform);
     pipeline.run().waitUntilFinish();
 
+    File dir = new File(tempWorkspace);
+
+    File[] errorsDirs = dir.listFiles((d, name) -> name.startsWith("errors-"));
     int lineCount = Files.list(Paths.get(tempWorkspace)
-        .resolve("errors") // errors workspace dir
+        .resolve(errorsDirs[0].getName()) // errors workspace dir
         .resolve("test") // test entity dir
     ).flatMap(path -> {
       try {

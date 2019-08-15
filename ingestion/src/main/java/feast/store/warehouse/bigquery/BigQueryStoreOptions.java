@@ -21,7 +21,7 @@ import javax.validation.constraints.NotEmpty;
 import feast.options.Options;
 
 public class BigQueryStoreOptions implements Options {
-  @NotEmpty public String project;
-  @NotEmpty public String dataset;
+  @NotEmpty public String projectId;
+  @NotEmpty public String datasetId;
   public String tempLocation; // gcs or local.
 }

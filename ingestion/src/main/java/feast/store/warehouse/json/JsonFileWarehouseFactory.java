@@ -30,7 +30,7 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class JsonFileWarehouseFactory implements FeatureWarehouseFactory {
 
-  private static final String JSON_FILES_TYPE = "file.json";
+  private static final String JSON_FILES_TYPE = "FILE.JSON";
 
   @Override
   public FeatureStoreWrite create(StorageSpec storageSpec, Specs specs) {

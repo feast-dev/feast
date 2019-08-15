@@ -29,14 +29,14 @@ public class BigQueryStoreOptionsTest {
     BigQueryStoreOptions options =
         OptionsParser.parse(
             ImmutableMap.<String, String>builder()
-                .put("project", "project1")
-                .put("dataset", "dataset1")
+                .put("projectId", "project1")
+                .put("datasetId", "dataset1")
                 .put("tempLocation", "/tmp/foobar")
                 .build(),
             BigQueryStoreOptions.class);
 
-    Assert.assertEquals("project1", options.project);
-    Assert.assertEquals("dataset1", options.dataset);
+    Assert.assertEquals("project1", options.projectId);
+    Assert.assertEquals("dataset1", options.datasetId);
     Assert.assertEquals("/tmp/foobar", options.tempLocation);
   }
 
@@ -45,13 +45,13 @@ public class BigQueryStoreOptionsTest {
     BigQueryStoreOptions options =
         OptionsParser.parse(
             ImmutableMap.<String, String>builder()
-                .put("project", "project1")
-                .put("dataset", "dataset1")
+                .put("projectId", "project1")
+                .put("datasetId", "dataset1")
                 .build(),
             BigQueryStoreOptions.class);
 
-    Assert.assertEquals("project1", options.project);
-    Assert.assertEquals("dataset1", options.dataset);
+    Assert.assertEquals("project1", options.projectId);
+    Assert.assertEquals("dataset1", options.datasetId);
     Assert.assertNull(options.tempLocation);
   }
 }

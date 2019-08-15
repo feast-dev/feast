@@ -128,11 +128,6 @@ public class ImportJob {
     if (pipelineOptions.getJobName().isEmpty()) {
       pipelineOptions.setJobName(generateName());
     }
-    String importJobSpecsPath =
-        Paths.get(URI.create(pipelineOptions.getWorkspace()))
-            .resolve("importJobSpecs.yaml")
-            .toAbsolutePath()
-            .toString();
 
     // Make sure the runner is running asynchronously when the selected runner is DirectRunner
     if (pipelineOptions.getRunner().getSimpleName().equalsIgnoreCase("DirectRunner")) {

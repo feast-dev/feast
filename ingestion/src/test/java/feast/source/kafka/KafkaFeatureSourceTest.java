@@ -74,7 +74,7 @@ public class KafkaFeatureSourceTest {
     SourceSpec sourceSpec = SourceSpec.newBuilder()
         .setType(SourceType.KAFKA)
         .putOptions("topics", "TEST_TOPIC")
-        .putOptions("server", server)
+        .putOptions("bootstrapServers", server)
         .build();
     FeatureRow row = FeatureRow.newBuilder().setEntityKey("key")
         .addFeatures(Feature.newBuilder().setId("key.feature").setValue(

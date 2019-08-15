@@ -69,9 +69,9 @@ public class FeatureRowBigQueryIO {
       //                 EntitySpec entityInfo = specs.getEntitySpec(row.getEntityName());
       //
       //                 String tableName = entityInfo.getName();
-      //                 return bigQueryOptions.project
+      //                 return bigQueryOptions.projectId
       //                     + ":"
-      //                     + bigQueryOptions.dataset
+      //                     + bigQueryOptions.datasetId
       //                     + "."
       //                     + tableName;
       //               }
