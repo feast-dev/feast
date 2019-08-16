@@ -26,11 +26,11 @@
   <name>Feast Ingestion</name>
 
   <properties>
-    <revision>0.1.1</revision>
+    <revision>0.2.0-SNAPSHOT</revision>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
     <org.apache.beam.version>2.9.0</org.apache.beam.version>
-    <com.google.cloud.version>1.85.0</com.google.cloud.version>
+    <com.google.cloud.version>1.86.0</com.google.cloud.version>
     <com.google.httpclient.version>1.27.0</com.google.httpclient.version>
     <grpcVersion>1.13.1</grpcVersion>
     <guice.version>4.1.0</guice.version>
@@ -117,7 +117,7 @@
             <goals>
               <goal>jar</goal>
             </goals>
-            <!-- TODO: Remove doclint: none and fix javadoc error instead -->
+            <!-- TODO: Remove "doclint: none" and fix javadoc error instead -->
             <configuration>
               <doclint>none</doclint>
             </configuration>
@@ -174,12 +174,6 @@
       <artifactId>google-cloud-storage</artifactId>
       <version>${com.google.cloud.version}</version>
     </dependency>
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-core</artifactId>
-      <version>${com.google.cloud.version}</version>
-    </dependency>
-
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-bigquery</artifactId>
@@ -242,6 +236,12 @@
       <version>${protobufVersion}</version>
     </dependency>
 
+    <!-- Required by Google Cloud Storage -->
+    <dependency>
+      <groupId>io.opencensus</groupId>
+      <artifactId>opencensus-contrib-http-util</artifactId>
+      <version>0.11.0</version>
+    </dependency>
 
     <dependency>
       <groupId>junit</groupId>
@@ -400,6 +400,12 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
       <version>${org.apache.beam.version}</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-storage</artifactId>
+      <version>1.86.0</version>
       <scope>compile</scope>
     </dependency>
   </dependencies>

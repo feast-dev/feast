@@ -10,6 +10,7 @@ import feast.ingestion.util.StorageUtil;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
 import feast.specs.StorageSpecProto.StorageSpec;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -20,32 +21,38 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 public class ImportJob {
 
   /**
-   * Create and run a Beam pipeline from command line arguments
+   * Create and run a Beam pipeline from command line arguments.
+   *
+   * <p>The arguments will be passed to Beam {@code PipelineOptionsFactory} to create {@code
+   * ImportJobPipelineOptions}.
+   *
+   * <p>The returned PipelineResult object can be used to check the state of the pipeline e.g. if it
+   * is running, done or cancelled.
    *
    * @param args command line arguments, typically come from the main() method
    * @return PipelineResult
    * @throws IOException if importJobSpecsUri specified in args is not accessible
    */
-  public static PipelineResult runPipeline(String[] args) throws IOException {
+  public static PipelineResult runPipeline(String[] args) throws IOException, URISyntaxException {
     ImportJobPipelineOptions pipelineOptions =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(ImportJobPipelineOptions.class);
     return runPipeline(pipelineOptions);
   }
 
   /**
-   * Create and run a Beam pipeline from {@code ImportJobPipelineOptions}
+   * Create and run a Beam pipeline from {@code ImportJobPipelineOptions}.
    *
    * <p>The returned PipelineResult object can be used to check the state of the pipeline e.g. if it
-   * is running, done or cancelled
+   * is running, done or cancelled.
    *
    * @param pipelineOptions configuration for the pipeline
    * @return PipelineResult
    * @throws IOException if importJobSpecsUri is not accessible
    */
   public static PipelineResult runPipeline(ImportJobPipelineOptions pipelineOptions)
-      throws IOException {
+      throws IOException, URISyntaxException {
     ImportJobSpecs importJobSpecs =
-        ProtoUtil.createProtoMessageFromYamlFile(
+        ProtoUtil.createProtoMessageFromYamlFileUri(
             pipelineOptions.getImportJobSpecUri(),
             ImportJobSpecs.newBuilder(),
             ImportJobSpecs.class);
