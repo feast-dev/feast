@@ -121,9 +121,18 @@
             <id>jcenter</id>
             <url>https://jcenter.bintray.com/</url>
         </repository>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
     </repositories>
 
     <dependencies>
+        <dependency>
+            <groupId>com.github.gojek.feast</groupId>
+            <artifactId>feast-ingestion</artifactId>
+            <version>5c57cd6325</version>
+        </dependency>
         <!--compile "org.springframework.boot:spring-boot-starter-web:${springBootVersion}"-->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -415,7 +424,5 @@
             <version>1.4.198</version>
             <scope>test</scope>
         </dependency>
-
-
     </dependencies>
 </project>

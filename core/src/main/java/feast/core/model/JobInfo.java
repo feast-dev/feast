@@ -64,6 +64,10 @@ public class JobInfo extends AbstractTimestampEntity {
   @Column(name = "source_options")
   private String sourceOptions;
 
+  // Sink id
+  @Column(name = "sink_id")
+  private String sinkId;
+
   // Entities populated by the job
   @ManyToMany
   @JoinTable(
@@ -108,6 +112,7 @@ public class JobInfo extends AbstractTimestampEntity {
     this.sourceOptions = TypeConversion
         .convertMapToJsonString(importJobSpecs.getSourceSpec().getOptionsMap());
     this.entities = new ArrayList<>();
+    this.sinkId = importJobSpecs.getSinkStorageSpec().getId();
 
     EntityInfo entityInfo = new EntityInfo();
     entityInfo.setName(importJobSpecs.getEntitySpec().getName());
@@ -139,4 +144,5 @@ public class JobInfo extends AbstractTimestampEntity {
         .setCreated(TypeConversion.convertTimestamp(this.getCreated()))
         .build();
   }
+
 }

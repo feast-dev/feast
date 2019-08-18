@@ -1,6 +1,5 @@
 package feast.core.job.direct;
 
-import com.google.common.base.Strings;
 import feast.core.job.JobMonitor;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
@@ -8,38 +7,22 @@ import feast.core.model.Metrics;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.exec.DefaultExecuteResultHandler;
 
 @Slf4j
 public class DirectRunnerJobMonitor implements JobMonitor {
 
   private final DirectJobRegistry jobs;
+  private final DirectJobStateMapper jobStateMapper;
 
   public DirectRunnerJobMonitor(DirectJobRegistry jobs) {
     this.jobs = jobs;
+    jobStateMapper = new DirectJobStateMapper();
   }
 
   @Override
   public JobStatus getJobStatus(JobInfo job) {
-    String jobId = job.getExtId();
-    DirectJob directJob = jobs.get(jobId);
-    DefaultExecuteResultHandler resultHandler = directJob
-        .getResultHandler();
-    if (resultHandler.hasResult()) {
-      int exitCode = resultHandler.getExitValue();
-      if (exitCode == 0) {
-        return JobStatus.COMPLETED;
-      } else {
-        log.error(
-            Strings.lenientFormat("Direct runner job with id %s failed: %s", jobId,
-                resultHandler.getException().toString()));
-        return JobStatus.ERROR;
-      }
-    }
-    if (directJob.getWatchdog().isWatching()) {
-      return JobStatus.RUNNING;
-    }
-    return JobStatus.UNKNOWN;
+    DirectJob directJob = jobs.get(job.getId());
+    return jobStateMapper.map(directJob.getPipelineResult().getState());
   }
 
   @Override

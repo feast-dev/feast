@@ -22,6 +22,7 @@ import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
 import feast.core.stream.FeatureStream;
 import feast.core.util.PathUtil;
+import feast.ingestion.util.ProtoUtil;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
@@ -82,16 +83,9 @@ public class JobCoordinatorService {
       throw new RuntimeException(
           String.format("Could not initialise job workspace job: %s", workspace.toString()), e);
     }
-
     writeImportJobSpecs(importJobSpec, workspace);
 
-    boolean isDirectRunner = Runner.DIRECT.getName().equals(defaults.getRunner());
     try {
-      JobInfo jobInfo = new JobInfo(jobId, UNKNOWN_EXT_JOB_ID, defaults.getRunner(), importJobSpec,
-          JobStatus.PENDING);
-
-      jobInfoRepository.save(jobInfo);
-
       AuditLogger.log(
           Resource.JOB,
           jobId,
@@ -104,7 +98,6 @@ public class JobCoordinatorService {
         throw new RuntimeException(
             String.format("Could not submit job: \n%s", "unable to retrieve job external id"));
       }
-      jobInfo.setExtId(extId);
 
       AuditLogger.log(
           Resource.JOB,
@@ -113,10 +106,9 @@ public class JobCoordinatorService {
           "Job submitted to runner %s with ext id %s.",
           defaults.getRunner(),
           extId);
-
-      if (isDirectRunner) {
-        updateJobStatus(jobId, JobStatus.COMPLETED);
-      }
+      JobInfo jobInfo = new JobInfo(jobId, extId, defaults.getRunner(), importJobSpec,
+          JobStatus.RUNNING);
+      jobInfoRepository.save(jobInfo);
       return jobInfo;
     } catch (Exception e) {
       updateJobStatus(jobId, JobStatus.ERROR);
@@ -133,7 +125,29 @@ public class JobCoordinatorService {
   /**
    * Update the given job
    */
-  public void updateJob(ImportJobSpecs importJobSpec) {
+  public void updateJob(JobInfo jobInfo, ImportJobSpecs importJobSpec) {
+    ImportJobSpecs existingImportJobSpec = ImportJobSpecs.newBuilder().build();
+    try {
+      existingImportJobSpec = ProtoUtil.decodeProtoYaml(jobInfo.getRaw(), existingImportJobSpec);
+    } catch (IOException e) {
+      throw new RuntimeException(
+          String.format("Could not parse original importJobSpecs: %s", jobInfo.getRaw()), e);
+    }
+    if (existingImportJobSpec.getFeatureSpecsList().equals(importJobSpec.getFeatureSpecsList())) {
+      return;
+    }
+
+    Path workspace = PathUtil.getPath(defaults.getWorkspace()).resolve(importJobSpec.getJobId());
+    try {
+      Files.createDirectory(workspace);
+    } catch (FileAlreadyExistsException e) {
+    } catch (IOException e) {
+      throw new RuntimeException(
+          String.format("Could not initialise job workspace job: %s", workspace.toString()), e);
+    }
+
+    writeImportJobSpecs(importJobSpec, workspace);
+    jobManager.updateJob(jobInfo, workspace);
   }
 
 
@@ -200,7 +214,6 @@ public class JobCoordinatorService {
         .putOptions("topics", topic)
         .build();
 
-    // TODO: add job options from defaults
     Builder importJobSpecsBuilder = ImportJobSpecs.newBuilder()
         .setJobId(createJobId(jobNamePrefix))
         .setSourceSpec(sourceSpec)

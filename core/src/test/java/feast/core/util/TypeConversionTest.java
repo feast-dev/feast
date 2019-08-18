@@ -69,4 +69,11 @@ public class TypeConversionTest {
     input.put("key", "value");
     assertThat(TypeConversion.convertMapToJsonString(input), hasJsonPath("$.key", equalTo("value")));
   }
+
+  @Test
+  public void convertJsonStringToArgsShouldReturnCorrectListOfArgs() {
+    String input = "{\"key\": \"value\",\"key2\": \"value2\"}";
+    String[] expected = new String[]{"--key=value", "--key2=value2"};
+    assertThat(TypeConversion.convertJsonStringToArgs(input), equalTo(expected));
+  }
 }

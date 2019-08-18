@@ -18,35 +18,24 @@
 package feast.core.job.dataflow;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static java.lang.Integer.max;
 
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.Job;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import feast.core.config.ImportJobDefaults;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
-import feast.core.job.direct.DirectJob;
-import feast.core.job.direct.DirectRunnerJobManager;
-import feast.core.model.EntityInfo;
-import feast.core.model.FeatureInfo;
 import feast.core.model.JobInfo;
-import feast.core.model.StorageInfo;
 import feast.core.util.TypeConversion;
-import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
+import feast.ingestion.ImportJob;
+import feast.ingestion.options.ImportJobPipelineOptions;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.List;
-
-import java.util.Map;
-import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.exec.CommandLine;
-import org.apache.commons.exec.DefaultExecutor;
-import org.apache.commons.exec.Executor;
-import org.apache.commons.exec.PumpStreamHandler;
+import org.apache.beam.runners.dataflow.DataflowPipelineJob;
+import org.apache.beam.runners.dataflow.DataflowRunner;
+import org.apache.beam.sdk.PipelineResult.State;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
 @Slf4j
 public class DataflowJobManager implements JobManager {
@@ -55,8 +44,6 @@ public class DataflowJobManager implements JobManager {
   private final String location;
   private final Dataflow dataflow;
   private final ImportJobDefaults defaults;
-
-  private static final Pattern JOB_EXT_ID_PREFIX_REGEX = Pattern.compile(".*FeastImportJobId:.*");
 
   public DataflowJobManager(
       Dataflow dataflow, String projectId, String location, ImportJobDefaults importJobDefaults) {
@@ -68,26 +55,35 @@ public class DataflowJobManager implements JobManager {
     this.dataflow = dataflow;
   }
 
+  /**
+   * Start a new Dataflow Job.
+   *
+   * @param name job name
+   * @param workspace containing specifications for running the job
+   * @return Dataflow-specific job id
+   */
   @Override
   public String startJob(String name, Path workspace) {
-    CommandLine cmdLine = getCommandLine(name, workspace);
-
-    log.info(String.format("Executing command: %s", String.join(" ", cmdLine.toString())));
-    Executor executor = new DefaultExecutor();
-    try {
-      String jobId = runProcess(name, cmdLine, executor);
-      return jobId;
-    } catch (Exception e) {
-      log.error("Error submitting job", e);
-      throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
-    }
+    return submitDataflowJob(workspace, false);
   }
 
+  /**
+   * Update an existing Dataflow job.
+   *
+   * @param jobInfo jobInfo of target job to change
+   * @param workspace containing specifications for running the job
+   * @return Dataflow-specific job id
+   */
   @Override
   public String updateJob(JobInfo jobInfo, Path workspace) {
-    return null;
+    return submitDataflowJob(workspace, true);
   }
 
+  /**
+   * Abort an existing Dataflow job. Streaming Dataflow jobs are always drained, not cancelled.
+   *
+   * @param dataflowJobId Dataflow-specific job id (not the job name)
+   */
   @Override
   public void abortJob(String dataflowJobId) {
     try {
@@ -112,67 +108,51 @@ public class DataflowJobManager implements JobManager {
     }
   }
 
-  /**
-   * Builds the command to execute the ingestion job
-   *
-   * @return configured ProcessBuilder
-   */
-  @VisibleForTesting
-  public CommandLine getCommandLine(String name, Path workspace) {
-    Map<String, String> options =
-        TypeConversion.convertJsonStringToMap(defaults.getImportJobOptions());
-    CommandLine cmdLine = new CommandLine("java");
-    cmdLine.addArgument("-jar");
-    cmdLine.addArgument(defaults.getExecutable());
-    cmdLine.addArgument(option("workspace", workspace.toUri().toString()));
-    cmdLine.addArgument(option("jobName", name));
-    cmdLine.addArgument(option("runner", defaults.getRunner()));
+  private String submitDataflowJob(Path workspace, boolean update) {
+    String[] args = TypeConversion.convertJsonStringToArgs(defaults.getImportJobOptions());
 
-    options.forEach((k, v) -> cmdLine.addArgument(option(k, v)));
-    return cmdLine;
+    ImportJobPipelineOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args)
+        .as(ImportJobPipelineOptions.class);
+    pipelineOptions.setWorkspace(workspace.toUri().toString());
+    pipelineOptions
+        .setImportJobSpecUri(workspace.resolve("importJobSpecs.yaml").toUri().toString());
+    pipelineOptions.setRunner(DataflowRunner.class);
+    pipelineOptions.setProject(projectId);
+    pipelineOptions.setUpdate(update);
+
+    try {
+      DataflowPipelineJob pipelineResult = runPipeline(pipelineOptions);
+      String jobId = waitForJobToRun(pipelineResult);
+      return jobId;
+    } catch (Exception e) {
+      log.error("Error submitting job", e);
+      throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
+    }
   }
 
-  /**
-   * Run the given process and extract the job id from the output logs
-   *
-   * @param jobId of the job to run
-   * @param cmdLine CommandLine object to execute
-   * @param exec CommandLine executor
-   * @return job ID specific to dataflow, to use with the dataflow API
-   * @throws IOException
-   */
-  @VisibleForTesting
-  public String runProcess(String jobId, CommandLine cmdLine, Executor exec) throws IOException {
-    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    PumpStreamHandler streamHandler = new PumpStreamHandler(outputStream);
-    exec.setStreamHandler(streamHandler);
-    int exitCode = exec.execute(cmdLine);
-    String output = outputStream.toString();
-    if (exitCode != 0) {
-      log.error("Error running ingestion job {}", jobId);
-      log.error(output);
-      throw new JobExecutionException(String.format("Error running ingestion job %s", jobId));
-    }
-    String dfJobId = getJobId(output);
-    if (dfJobId.isEmpty()) {
-      log.error(output);
-      throw new JobExecutionException(
-          String.format("Error running ingestion job %s: extId not returned", jobId));
-    }
-    return dfJobId ;
+  public DataflowPipelineJob runPipeline(ImportJobPipelineOptions pipelineOptions)
+      throws IOException {
+    return (DataflowPipelineJob) ImportJob
+        .runPipeline(pipelineOptions);
   }
 
-  private String getJobId(String output) {
-    output = output.trim();
-    int lastIndex = max(0, output.lastIndexOf("\n"));
-    String lastLine = output.substring(lastIndex);
-    if (JOB_EXT_ID_PREFIX_REGEX.matcher(lastLine).matches()) {
-      return lastLine.split("FeastImportJobId:")[1];
+  private String waitForJobToRun(DataflowPipelineJob pipelineResult)
+      throws RuntimeException, InterruptedException {
+    // TODO: add timeout
+    while (true) {
+      State state = pipelineResult.getState();
+      if (state.isTerminal()) {
+        String dataflowDashboardUrl = String
+            .format("https://console.cloud.google.com/dataflow/jobsDetail/locations/%s/jobs/%s",
+                location, pipelineResult.getJobId());
+        throw new RuntimeException(
+            String.format(
+                "Failed to submit dataflow job, job state is %s. Refer to the dataflow dashboard for more information: %s",
+                state.toString(), dataflowDashboardUrl));
+      } else if (state.equals(State.RUNNING)) {
+        return pipelineResult.getJobId();
+      }
+      Thread.sleep(2000);
     }
-    return "";
-  }
-
-  private String option(String key, String value) {
-    return String.format("--%s=%s", key, value);
   }
 }

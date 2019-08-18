@@ -3,8 +3,11 @@ package feast.core.config;
 import static feast.core.util.TypeConversion.convertJsonStringToMap;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import feast.core.validators.SpecValidator;
 import feast.specs.StorageSpecProto.StorageSpec;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -75,9 +78,19 @@ public class StorageConfig {
   @Builder
   @Getter
   public static class StorageSpecs {
-
     private StorageSpec servingStorageSpec;
     private StorageSpec warehouseStorageSpec;
     private StorageSpec errorsStorageSpec;
+
+    public List<StorageSpec> getSinks() {
+      List<StorageSpec> sinks = new ArrayList<>();
+      if (!servingStorageSpec.getId().isEmpty()) {
+        sinks.add(servingStorageSpec);
+      }
+      if (!warehouseStorageSpec.getId().isEmpty()) {
+        sinks.add(warehouseStorageSpec);
+      }
+      return sinks;
+    }
   }
 }

@@ -17,11 +17,13 @@
 
 package feast.core.util;
 
+import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import java.lang.reflect.Type;
 import java.util.*;
+import java.util.Map.Entry;
 
 public class TypeConversion {
   private static Gson gson = new Gson();
@@ -75,5 +77,20 @@ public class TypeConversion {
       return "{}";
     }
     return gson.toJson(map);
+  }
+
+  /**
+   * Convert a json string of key value pairs to a array of java arguments in format --key=value
+   *
+   * @param jsonString
+   * @return array of string arguments
+   */
+  public static String[] convertJsonStringToArgs(String jsonString) {
+    Map<String, String> map = convertJsonStringToMap(jsonString);
+    List<String> args = new ArrayList<>();
+    for (Entry<String, String> arg : map.entrySet()) {
+      args.add(Strings.lenientFormat("--%s=%s", arg.getKey(), arg.getValue()));
+    }
+    return args.toArray(new String[]{});
   }
 }
