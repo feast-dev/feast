@@ -131,7 +131,13 @@
         <dependency>
             <groupId>com.github.gojek.feast</groupId>
             <artifactId>feast-ingestion</artifactId>
-            <version>5c57cd6325</version>
+            <version>d8b8cc4e11</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.opencensus</groupId>
+                    <artifactId>opencensus-contrib-http-util</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!--compile "org.springframework.boot:spring-boot-starter-web:${springBootVersion}"-->
         <dependency>
