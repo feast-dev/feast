@@ -56,6 +56,7 @@ public class ImportJob {
             pipelineOptions.getImportJobSpecUri(),
             ImportJobSpecs.newBuilder(),
             ImportJobSpecs.class);
+    pipelineOptions.setJobName(importJobSpecs.getJobId());
     setupStorage(importJobSpecs);
     Pipeline pipeline = Pipeline.create(pipelineOptions);
     pipeline
