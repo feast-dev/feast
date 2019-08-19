@@ -13,7 +13,6 @@ public class PathUtilTest {
 
   @Test
   public void testGetPath_withGcs() {
-
     assertEquals("gs://tmp/foo/bar", PathUtil.getPath("gs://tmp/foo/bar").toUri().toString());
   }
 }

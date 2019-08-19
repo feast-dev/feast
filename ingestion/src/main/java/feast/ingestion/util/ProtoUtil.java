@@ -21,9 +21,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
 import com.google.gson.Gson;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
@@ -32,10 +30,8 @@ import com.google.protobuf.util.JsonFormat;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 public class ProtoUtil {
 
@@ -47,91 +43,19 @@ public class ProtoUtil {
     return decodeProtoYaml(yaml, prototype);
   }
 
-  public static String readStringFromUri(String uriPath) throws URISyntaxException, IOException {
-    return readStringFromUri(uriPath, StorageOptions.getDefaultInstance().getService());
-  }
-
-  public static String readStringFromUri(String uriPath, Storage storage)
+  public static <T extends Message> T createProtoMessageFromYamlFileUri(
+      String fileUri, Builder builder, Class<T> type, Storage storage)
       throws URISyntaxException, IOException {
-    URI uri = new URI(uriPath);
-    String out = "";
-
-    switch (uri.getScheme()) {
-      case "file":
-        if (uri.getHost() != null) {
-          throw new IllegalArgumentException(
-              "Please provide an 'absolute' path for a local file URI, for example use 'file:///tmp/myfile.txt' and NOT 'file://tmp/myfile.txt'. Invalid URI: "
-                  + uriPath);
-        }
-        if (uri.getPath().endsWith("/")) {
-          throw new IllegalArgumentException(
-              "Please provide a URI to a local file NOT a directory. Invalid URI: " + uriPath);
-        }
-        out = new String(Files.readAllBytes(Paths.get(uri.getPath())), StandardCharsets.UTF_8);
-        break;
-      case "gs":
-        String bucketName = uri.getHost();
-        if (bucketName == null || bucketName.isEmpty()) {
-          throw new IllegalArgumentException(
-              "Missing bucket in the URI, expected URI in this pattern 'gs://<bucket>/<blob>'. Invalid URI: "
-                  + uriPath);
-        }
-        if (uri.getPath() == null || uri.getPath().isEmpty()) {
-          throw new IllegalArgumentException(
-              "Missing blob in the URI, expected URI in this pattern 'gs://<bucket>/<blob>'. Invalid URI: "
-                  + uriPath);
-        }
-        if (uri.getPath().endsWith("/")) {
-          throw new IllegalArgumentException(
-              "Invalid blob in the URI, should not end with a slash, expected URI in this pattern 'gs://<bucket>/<blob>'. Invalid URI: "
-                  + uriPath);
-        }
-        String blobName = uri.getPath().substring(1);
-        Blob blob = storage.get(bucketName, blobName);
-        if (blob == null) {
-          throw new IllegalArgumentException("File not found. Please check your URI: " + uriPath);
-        }
-        out = new String(blob.getContent(), StandardCharsets.UTF_8);
-        break;
-      default:
-        throw new IllegalArgumentException(
-            String.format(
-                "Failed to retrieve the YAML file because the file URI has an invalid scheme '%s'. File URI must start with either 'file://' or 'gs://'. Invalid URI: %s",
-                uri.getScheme(), uriPath));
-    }
-
-    if (out.isEmpty()) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Cannot read any content from '%s', please check that the uri path is valid",
-              uriPath));
-    }
-
-    return out;
+    URI uri = new URI(fileUri);
+    String yamlString = PathUtil.readStringFromUri(fileUri, storage);
+    return createProtoMessageFromYamlString(yamlString, builder, type);
   }
 
   public static <T extends Message> T createProtoMessageFromYamlFileUri(
-      String fileUri, Builder builder, Class<T> type) throws URISyntaxException {
+      String fileUri, Builder builder, Class<T> type) throws URISyntaxException, IOException {
     URI uri = new URI(fileUri);
-
-    // // Create an object from the yaml file
-    // ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());
-    // String yamlString = new String(Files.readAllBytes(Paths.get(filePath)),
-    // StandardCharsets.UTF_8);
-    // Object yamlObject = yamlReader.readValue(yamlString, Object.class);
-    //
-    // // Create a JSON string representation of the object
-    // ObjectMapper jsonWriter = new ObjectMapper();
-    // String jsonString = jsonWriter.writeValueAsString(yamlObject);
-    //
-    // // Use protobuf util to create a protobuf message with fields corresponding to the JSON
-    // string
-    // JsonFormat.parser().merge(jsonString, builder);
-    // Message message = builder.build();
-    // return type.cast(message);
-
-    // TODO
-    return null;
+    String yamlString = PathUtil.readStringFromUri(fileUri);
+    return createProtoMessageFromYamlString(yamlString, builder, type);
   }
 
   public static <T extends Message> T createProtoMessageFromYamlString(
