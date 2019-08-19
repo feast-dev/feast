@@ -37,6 +37,7 @@ import feast.core.model.FeatureInfo;
 import feast.core.model.FeatureStreamTopic;
 import feast.core.model.JobInfo;
 import feast.core.model.StorageInfo;
+import feast.ingestion.util.ProtoUtil;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
@@ -248,7 +249,7 @@ public class SpecService {
     try {
       FeatureInfo featureInfo = featureInfoRepository.findById(spec.getId()).orElse(null);
       featureInfo = updateOrCreateFeature(featureInfo, spec);
-      startOrUpdateJob(featureInfo.getEntity());
+      startOrUpdateJobs(featureInfo.getEntity());
       return featureInfo;
     } catch (Exception e) {
       throw new RegistrationException(
@@ -278,7 +279,7 @@ public class SpecService {
         featureInfo = updateOrCreateFeature(featureInfo, spec);
         out.add(featureInfo);
       }
-      startOrUpdateJob(out.get(0).getEntity());
+      startOrUpdateJobs(out.get(0).getEntity());
       return out;
     } catch (Exception e) {
       List<String> featureIds = specs.stream().map(FeatureSpec::getId).collect(Collectors.toList());
@@ -378,25 +379,29 @@ public class SpecService {
     }
   }
 
-  private void startOrUpdateJob(EntityInfo entityInfo) {
+  private void startOrUpdateJobs(EntityInfo entityInfo) {
     List<FeatureInfo> features = featureInfoRepository.findByEntityName(entityInfo.getName());
     List<FeatureSpec> featureSpecs = features.stream().map(FeatureInfo::getFeatureSpec)
         .collect(Collectors.toList());
-    ImportJobSpecs importJobSpecs = jobCoordinatorService
-        .createImportJobSpecs(entityInfo.getTopic().getName(), entityInfo.getEntitySpec(),
-            featureSpecs, storageSpecs.getServingStorageSpec(),
-            storageSpecs.getErrorsStorageSpec());
-
-    if (entityInfo.getJobs().size() != 0) {
-      // if job exists, update
-      JobInfo existingJob = entityInfo.getJobs().get(0);
-      importJobSpecs = importJobSpecs.toBuilder().setJobId(existingJob.getId()).build();
-      jobCoordinatorService.updateJob(importJobSpecs);
-    } else {
-      // if job doesn't exist, create
-      JobInfo job = jobCoordinatorService.startJob(importJobSpecs);
-      entityInfo.setJobs(Lists.newArrayList(job));
-      entityInfoRepository.saveAndFlush(entityInfo);
+    for (StorageSpec storageSpec : storageSpecs.getSinks()) {
+      ImportJobSpecs importJobSpecs = jobCoordinatorService
+          .createImportJobSpecs(entityInfo.getTopic().getName(), entityInfo.getEntitySpec(),
+              featureSpecs, storageSpec, storageSpecs.getErrorsStorageSpec());
+      boolean exists = entityInfo.getJobs().stream().map(JobInfo::getSinkId)
+          .anyMatch(id -> id.equals(storageSpec.getId()));
+      if (exists) {
+        // if job exists, update
+        JobInfo existingJob = entityInfo.getJobs().get(0);
+        importJobSpecs = importJobSpecs.toBuilder().setJobId(existingJob.getId()).build();
+        jobCoordinatorService.updateJob(existingJob, importJobSpecs);
+      } else {
+        // if job doesn't exist, create
+        JobInfo job = jobCoordinatorService.startJob(importJobSpecs);
+        List<JobInfo> existingJobs = entityInfo.getJobs();
+        existingJobs.add(job);
+        entityInfo.setJobs(existingJobs);
+        entityInfoRepository.saveAndFlush(entityInfo);
+      }
     }
   }
 
@@ -425,4 +430,5 @@ public class SpecService {
         JsonFormat.printer().print(spec));
     return out;
   }
+
 }

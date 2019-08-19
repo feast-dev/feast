@@ -1,10 +1,13 @@
 package feast.core.job.direct;
 
 import com.google.common.base.Strings;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import javax.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Singleton
 public class DirectJobRegistry {
 
@@ -51,7 +54,11 @@ public class DirectJobRegistry {
   @Override
   public void finalize() {
     for (DirectJob job : this.jobs.values()) {
-      job.getWatchdog().destroyProcess();
+      try {
+        job.getPipelineResult().cancel();
+      } catch (IOException e) {
+        log.error("Failed to stop job", e);
+      }
     }
   }
 }

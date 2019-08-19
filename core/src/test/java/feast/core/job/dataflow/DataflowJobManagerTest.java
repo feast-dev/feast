@@ -19,29 +19,30 @@ package feast.core.job.dataflow;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.api.services.dataflow.Dataflow;
-import com.google.common.collect.Lists;
 import feast.core.config.ImportJobDefaults;
-import feast.core.util.PathUtil;
-import java.io.ByteArrayInputStream;
+import feast.core.exception.JobExecutionException;
+import feast.ingestion.options.ImportJobPipelineOptions;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
-import org.apache.commons.exec.CommandLine;
-import org.apache.commons.exec.DefaultExecutor;
-import org.apache.commons.exec.Executor;
-import org.apache.logging.log4j.util.Strings;
+import org.apache.beam.runners.dataflow.DataflowPipelineJob;
+import org.apache.beam.runners.dataflow.DataflowRunner;
+import org.apache.beam.sdk.PipelineResult.State;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 
@@ -51,7 +52,8 @@ public class DataflowJobManagerTest {
   public final ExpectedException expectedException = ExpectedException.none();
 
   @Mock
-  Dataflow dataflow;
+  private Dataflow dataflow;
+
 
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -67,52 +69,56 @@ public class DataflowJobManagerTest {
     defaults =
         ImportJobDefaults.builder()
             .runner("DataflowRunner")
-            .importJobOptions("{\"key\":\"value\"}")
-            .executable("ingestion.jar")
+            .importJobOptions("{\"region\":\"region\"}")
             .workspace(workspace.toString()).build();
     dfJobManager = new DataflowJobManager(dataflow, "project", "location", defaults);
   }
 
   @Test
-  public void shouldBuildProcessBuilderWithCorrectOptions() {
-    String jobName = "test";
+  public void shouldSubmitDataflowJobAndReturnId() throws IOException {
+    dfJobManager = Mockito.spy(dfJobManager);
 
-    CommandLine cmdLine = dfJobManager.getCommandLine(jobName, Paths.get("/tmp/foobar"));
-    List<String> expected =
-        Lists.newArrayList(
-            "-jar",
-            "ingestion.jar",
-            "--workspace=file:///tmp/foobar",
-            "--jobName=test",
-            "--runner=DataflowRunner",
-            "--key=value");
-    assertThat(cmdLine.getExecutable(), equalTo("java"));
-    assertThat(cmdLine.getArguments(), equalTo(expected.toArray()));
+    ImportJobPipelineOptions expectedPipelineOptions = PipelineOptionsFactory.fromArgs("")
+        .as(ImportJobPipelineOptions.class);
+    expectedPipelineOptions.setRunner(DataflowRunner.class);
+    expectedPipelineOptions.setProject("project");
+    expectedPipelineOptions.setRegion("region");
+    expectedPipelineOptions.setUpdate(false);
+    expectedPipelineOptions.setAppName("DataflowJobManager");
+    expectedPipelineOptions.setWorkspace(workspace.toUri().toString());
+    expectedPipelineOptions
+        .setImportJobSpecUri(workspace.resolve("importJobSpecs.yaml").toUri().toString());
+
+    String expectedJobId = "feast-job-0";
+    ArgumentCaptor<ImportJobPipelineOptions> captor = ArgumentCaptor
+        .forClass(ImportJobPipelineOptions.class);
+
+    DataflowPipelineJob mockPipelineResult = Mockito.mock(DataflowPipelineJob.class);
+    when(mockPipelineResult.getState()).thenReturn(State.RUNNING);
+    when(mockPipelineResult.getJobId()).thenReturn(expectedJobId);
+
+    doReturn(mockPipelineResult).when(dfJobManager).runPipeline(any());
+    String jobId = dfJobManager.startJob("job", workspace);
+
+    verify(dfJobManager, times(1)).runPipeline(captor.capture());
+    ImportJobPipelineOptions actualPipelineOptions = captor.getValue();
+    expectedPipelineOptions.setOptionsId(actualPipelineOptions.getOptionsId()); // avoid comparing this value
+
+    assertThat(actualPipelineOptions.toString(),
+        equalTo(expectedPipelineOptions.toString()));
+    assertThat(jobId, equalTo(expectedJobId));
   }
 
   @Test
-  public void shouldBuildProcessBuilderWithGCSWorkspace() {
+  public void shouldThrowExceptionWhenJobStateTerminal() throws IOException {
+    dfJobManager = Mockito.spy(dfJobManager);
 
-    String jobName = "test";
+    DataflowPipelineJob mockPipelineResult = Mockito.mock(DataflowPipelineJob.class);
+    when(mockPipelineResult.getState()).thenReturn(State.FAILED);
 
-    CommandLine cmdLine = dfJobManager.getCommandLine(jobName, PathUtil.getPath("gs://bucket/tmp/foobar"));
-    List<String> expected =
-        Lists.newArrayList(
-            "-jar",
-            "ingestion.jar",
-            "--workspace=gs://bucket/tmp/foobar",
-            "--jobName=test",
-            "--runner=DataflowRunner",
-            "--key=value");
-    assertThat(cmdLine.getExecutable(), equalTo("java"));
-    assertThat(cmdLine.getArguments(), equalTo(expected.toArray()));
-  }
+    doReturn(mockPipelineResult).when(dfJobManager).runPipeline(any());
 
-  @Test
-  public void shouldRunProcessAndGetJobIdIfNoError() throws IOException {
-    CommandLine cmdLine = new CommandLine("echo");
-    cmdLine.addArgument("12:59:19 [main] INFO  feast.ingestion.ImportJob - FeastImportJobId:2019-08-13_05_59_17-3784906597186500755", false);
-    String jobId = dfJobManager.runProcess("myJob", cmdLine, new DefaultExecutor());
-    assertThat(jobId, equalTo("2019-08-13_05_59_17-3784906597186500755"));
+    expectedException.expect(JobExecutionException.class);
+    dfJobManager.startJob("job", workspace);
   }
 }

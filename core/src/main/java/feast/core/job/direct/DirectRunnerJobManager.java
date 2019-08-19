@@ -17,22 +17,20 @@
 
 package feast.core.job.direct;
 
-import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import feast.core.config.ImportJobDefaults;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
 import feast.core.model.JobInfo;
 import feast.core.util.TypeConversion;
+import feast.ingestion.ImportJob;
+import feast.ingestion.options.ImportJobPipelineOptions;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Map;
-import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.exec.CommandLine;
-import org.apache.commons.exec.DefaultExecuteResultHandler;
-import org.apache.commons.exec.DefaultExecutor;
-import org.apache.commons.exec.ExecuteWatchdog;
-import org.apache.commons.exec.Executor;
+import org.apache.beam.runners.direct.DirectRunner;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
 @Slf4j
 public class DirectRunnerJobManager implements JobManager {
@@ -45,14 +43,29 @@ public class DirectRunnerJobManager implements JobManager {
     this.jobs = jobs;
   }
 
+  /**
+   * Start a direct runner job, that retrieves specs configuration from the given workspace.
+   *
+   * @param name job name
+   * @param workspace containing specifications for running the job
+   */
   @Override
   public String startJob(String name, Path workspace) {
-    CommandLine cmdLine = getCommandLine(name, workspace);
+    String[] args = TypeConversion.convertJsonStringToArgs(defaults.getImportJobOptions());
 
-    log.info(String.format("Executing command: %s", String.join(" ", cmdLine.toString())));
-    Executor executor = new DefaultExecutor();
+    ImportJobPipelineOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args)
+        .as(ImportJobPipelineOptions.class);
+    pipelineOptions.setRunner(DirectRunner.class);
+    pipelineOptions.setWorkspace(workspace.toUri().toString());
+    pipelineOptions
+        .setImportJobSpecUri(workspace.resolve("importJobSpecs.yaml").toUri().toString());
+//    pipelineOptions
+//        .setImportJobSpecUri(workspace.resolve("importJobSpecs.yaml").toAbsolutePath().toString());
+    pipelineOptions.setBlockOnRun(false);
+
     try {
-      DirectJob directJob = runProcess(name, cmdLine, executor);
+      PipelineResult pipelineResult = runPipeline(pipelineOptions);
+      DirectJob directJob = new DirectJob(name, pipelineResult);
       jobs.add(directJob);
       return name;
     } catch (Exception e) {
@@ -61,60 +74,39 @@ public class DirectRunnerJobManager implements JobManager {
     }
   }
 
-  //TODO: update job when new features added to existing entity
+  /**
+   * Update a direct runner job. Sincee direct runner jobs cannot be directly updated, a new job
+   * will be created and the old one terminated. TODO: have the two jobs use the same consumer
+   * group
+   *
+   * @param jobInfo jobInfo of target job to change
+   */
   @Override
   public String updateJob(JobInfo jobInfo, Path workspace) {
-    return null;
+    String jobId = jobInfo.getExtId();
+    abortJob(jobId);
+    startJob(jobId, workspace);
+    return jobId;
   }
 
+  /**
+   * Abort the direct runner job with the given id, then remove it from the direct jobs registry.
+   *
+   * @param extId runner specific job id.
+   */
   @Override
   public void abortJob(String extId) {
     DirectJob job = jobs.get(extId);
-    job.getWatchdog().destroyProcess();
+    try {
+      job.abort();
+    } catch (IOException e) {
+      throw new RuntimeException(
+          Strings.lenientFormat("Unable to abort DirectRunner job %s", extId), e);
+    }
     jobs.remove(extId);
   }
 
-  /**
-   * Builds the command to execute the ingestion job
-   *
-   * @return configured ProcessBuilder
-   */
-  @VisibleForTesting
-  public CommandLine getCommandLine(String name, Path workspace) {
-    Map<String, String> options =
-        TypeConversion.convertJsonStringToMap(defaults.getImportJobOptions());
-    CommandLine cmdLine = new CommandLine("java");
-    cmdLine.addArgument("-jar");
-    cmdLine.addArgument(defaults.getExecutable());
-    cmdLine.addArgument(option("workspace", workspace.toUri().toString()));
-    cmdLine.addArgument(option("jobName", name));
-    cmdLine.addArgument(option("runner", defaults.getRunner()));
-
-    options.forEach((k, v) -> cmdLine.addArgument(option(k, v)));
-    return cmdLine;
-  }
-
-  /**
-   * Run the given process
-   * @param jobId job id of the job to run
-   * @param cmdLine CommandLine object to execute
-   * @param exec executor
-   * @return
-   * @throws IOException
-   * @throws InterruptedException
-   */
-  @VisibleForTesting
-  public DirectJob runProcess(String jobId, CommandLine cmdLine, Executor exec)
-      throws IOException {
-    DefaultExecuteResultHandler resultHandler = new DefaultExecuteResultHandler();
-    ExecuteWatchdog watchdog = new ExecuteWatchdog(ExecuteWatchdog.INFINITE_TIMEOUT);
-
-    exec.setWatchdog(watchdog);
-    exec.execute(cmdLine, resultHandler);
-    return new DirectJob(jobId, watchdog, resultHandler);
-  }
-
-  private String option(String key, String value) {
-    return String.format("--%s=%s", key, value);
+  public PipelineResult runPipeline(ImportJobPipelineOptions pipelineOptions) throws IOException {
+    return ImportJob.runPipeline(pipelineOptions);
   }
 }

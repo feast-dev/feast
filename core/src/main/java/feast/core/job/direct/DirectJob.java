@@ -1,7 +1,9 @@
 package feast.core.job.direct;
 
+import java.io.IOException;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.commons.exec.DefaultExecuteResultHandler;
 import org.apache.commons.exec.ExecuteWatchdog;
 
@@ -9,7 +11,18 @@ import org.apache.commons.exec.ExecuteWatchdog;
 @Getter
 @AllArgsConstructor
 public class DirectJob {
+
   private String jobId;
-  private ExecuteWatchdog watchdog;
-  private DefaultExecuteResultHandler resultHandler;
+  private PipelineResult pipelineResult;
+
+  /**
+   * Abort the job, if the state is not terminal. If the job has already concluded, this method will
+   * do nothing.
+   */
+  public void abort() throws IOException {
+    if (!pipelineResult.getState().isTerminal()) {
+      pipelineResult.cancel();
+    }
+  }
 }
+

@@ -109,8 +109,6 @@ public class CoreApplicationWithNoWarehouseTest {
     });
 
     coreService.applyFeature(featureSpec);
-
-
   }
 
   @TestConfiguration
