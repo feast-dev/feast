@@ -31,6 +31,7 @@ import feast.core.config.ImportJobDefaults;
 import feast.core.exception.JobExecutionException;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
@@ -75,7 +76,7 @@ public class DataflowJobManagerTest {
   }
 
   @Test
-  public void shouldSubmitDataflowJobAndReturnId() throws IOException {
+  public void shouldSubmitDataflowJobAndReturnId() throws IOException, URISyntaxException {
     dfJobManager = Mockito.spy(dfJobManager);
 
     ImportJobPipelineOptions expectedPipelineOptions = PipelineOptionsFactory.fromArgs("")
@@ -110,7 +111,7 @@ public class DataflowJobManagerTest {
   }
 
   @Test
-  public void shouldThrowExceptionWhenJobStateTerminal() throws IOException {
+  public void shouldThrowExceptionWhenJobStateTerminal() throws IOException, URISyntaxException {
     dfJobManager = Mockito.spy(dfJobManager);
 
     DataflowPipelineJob mockPipelineResult = Mockito.mock(DataflowPipelineJob.class);

@@ -26,6 +26,7 @@ import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.direct.DirectRunner;
@@ -106,7 +107,8 @@ public class DirectRunnerJobManager implements JobManager {
     jobs.remove(extId);
   }
 
-  public PipelineResult runPipeline(ImportJobPipelineOptions pipelineOptions) throws IOException {
+  public PipelineResult runPipeline(ImportJobPipelineOptions pipelineOptions)
+      throws IOException, URISyntaxException {
     return ImportJob.runPipeline(pipelineOptions);
   }
 }

@@ -12,6 +12,7 @@ import static org.mockito.MockitoAnnotations.initMocks;
 import feast.core.config.ImportJobDefaults;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import org.apache.beam.runners.direct.DirectRunner;
@@ -53,7 +54,7 @@ public class DirectRunnerJobManagerTest {
   }
 
   @Test
-  public void shouldStartDirectJobAndRegisterPipelineResult() throws IOException{
+  public void shouldStartDirectJobAndRegisterPipelineResult() throws IOException, URISyntaxException {
     drJobManager = Mockito.spy(drJobManager);
 
     ImportJobPipelineOptions expectedPipelineOptions = PipelineOptionsFactory.fromArgs("")

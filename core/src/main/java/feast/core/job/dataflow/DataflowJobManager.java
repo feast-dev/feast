@@ -30,6 +30,7 @@ import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
@@ -131,7 +132,7 @@ public class DataflowJobManager implements JobManager {
   }
 
   public DataflowPipelineJob runPipeline(ImportJobPipelineOptions pipelineOptions)
-      throws IOException {
+      throws IOException, URISyntaxException {
     return (DataflowPipelineJob) ImportJob
         .runPipeline(pipelineOptions);
   }
