@@ -20,6 +20,7 @@ package feast.ingestion.model;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import org.apache.commons.codec.Charsets;
 import feast.types.FeatureRowExtendedProto.Error;
 
@@ -43,7 +44,7 @@ public class Errors {
     ByteArrayOutputStream byteouts = new ByteArrayOutputStream();
     throwable.printStackTrace(new PrintStream(byteouts));
     try {
-      return byteouts.toString(Charsets.UTF_8.name());
+      return byteouts.toString(StandardCharsets.UTF_8.name());
     } catch (UnsupportedEncodingException e) {
       throw new RuntimeException(e);
     }

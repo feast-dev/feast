@@ -46,14 +46,12 @@ public class ProtoUtil {
   public static <T extends Message> T createProtoMessageFromYamlFileUri(
       String fileUri, Builder builder, Class<T> type, Storage storage)
       throws URISyntaxException, IOException {
-    URI uri = new URI(fileUri);
     String yamlString = PathUtil.readStringFromUri(fileUri, storage);
     return createProtoMessageFromYamlString(yamlString, builder, type);
   }
 
   public static <T extends Message> T createProtoMessageFromYamlFileUri(
       String fileUri, Builder builder, Class<T> type) throws URISyntaxException, IOException {
-    URI uri = new URI(fileUri);
     String yamlString = PathUtil.readStringFromUri(fileUri);
     return createProtoMessageFromYamlString(yamlString, builder, type);
   }

@@ -110,10 +110,7 @@ public class CoalesceFeatureRows
       builder.addAllFeatures(features.values());
     } else {
       List<Feature> featureList =
-          accum
-              .getFeatureMarksMap()
-              .entrySet()
-              .stream()
+          accum.getFeatureMarksMap().entrySet().stream()
               .filter((e) -> e.getValue() > counter)
               .map((e) -> features.get(e.getKey()))
               .collect(Collectors.toList());
@@ -123,10 +120,11 @@ public class CoalesceFeatureRows
   }
 
   public static FeatureRow combineFeatureRows(Iterable<FeatureRow> rows) {
-    return toFeatureRow(combineFeatureRows(CoalesceAccum.getDefaultInstance(), rows), 0);
+    return toFeatureRow(combineFeatureRowsWithSeed(CoalesceAccum.getDefaultInstance(), rows), 0);
   }
 
-  public static CoalesceAccum combineFeatureRows(CoalesceAccum seed, Iterable<FeatureRow> rows) {
+  public static CoalesceAccum combineFeatureRowsWithSeed(
+      CoalesceAccum seed, Iterable<FeatureRow> rows) {
     CoalesceAccum.Builder accum = seed.toBuilder();
     Map<String, Feature> features = new HashMap<>();
     Map<String, Long> featureMarks = new HashMap<>();
@@ -279,7 +277,7 @@ public class CoalesceFeatureRows
         lastKnownAccum = CoalesceAccum.getDefaultInstance();
       }
       // Check if we have more than one value in our list.
-      CoalesceAccum accum = combineFeatureRows(lastKnownAccum, rows);
+      CoalesceAccum accum = combineFeatureRowsWithSeed(lastKnownAccum, rows);
       FeatureRow row = toFeatureRow(accum, lastKnownAccum.getCounter());
       log.debug("Timer fired and added FeatureRow to output {}", row);
       // Clear the elements now that they have been processed

@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PipelineOptionsValidator;
 
 @SuppressWarnings("WeakerAccess")
 @Slf4j
@@ -51,6 +52,8 @@ public class ImportJob {
    */
   public static PipelineResult runPipeline(ImportJobPipelineOptions pipelineOptions)
       throws IOException, URISyntaxException {
+    pipelineOptions =
+        PipelineOptionsValidator.validate(ImportJobPipelineOptions.class, pipelineOptions);
     ImportJobSpecs importJobSpecs =
         ProtoUtil.createProtoMessageFromYamlFileUri(
             pipelineOptions.getImportJobSpecUri(),

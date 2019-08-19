@@ -21,6 +21,7 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.bigquery.TimePartitioning.Type;
+import com.google.common.collect.ImmutableMap;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.ValueProto.ValueType;
@@ -31,7 +32,6 @@ import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
 public class StorageUtilTest {
   private StorageSpec storageSpec;

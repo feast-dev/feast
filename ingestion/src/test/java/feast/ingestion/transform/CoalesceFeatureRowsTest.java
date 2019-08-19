@@ -325,7 +325,7 @@ public class CoalesceFeatureRowsTest {
         FeatureRow.getDefaultInstance(),
         FeatureRow.getDefaultInstance());
     CoalesceAccum accum = CoalesceFeatureRows
-        .combineFeatureRows(CoalesceAccum.getDefaultInstance(), rows);
+        .combineFeatureRowsWithSeed(CoalesceAccum.getDefaultInstance(), rows);
     assertEquals(3, accum.getCounter());
   }
 
@@ -341,7 +341,7 @@ public class CoalesceFeatureRowsTest {
             .setEventTimestamp(Timestamp.newBuilder().setSeconds(2))
             .build());
     CoalesceAccum accum = CoalesceFeatureRows
-        .combineFeatureRows(CoalesceAccum.getDefaultInstance(), rows);
+        .combineFeatureRowsWithSeed(CoalesceAccum.getDefaultInstance(), rows);
     assertEquals(accum.getFeaturesMap().get("f1"), Features.of("f1", Values.ofString("b")));
   }
 
@@ -357,7 +357,7 @@ public class CoalesceFeatureRowsTest {
             .setEventTimestamp(Timestamp.newBuilder().setSeconds(1))
             .build());
     CoalesceAccum accum = CoalesceFeatureRows
-        .combineFeatureRows(CoalesceAccum.getDefaultInstance(), rows);
+        .combineFeatureRowsWithSeed(CoalesceAccum.getDefaultInstance(), rows);
     assertEquals(accum.getFeaturesMap().get("f1"), Features.of("f1", Values.ofString("b")));
   }
 
@@ -374,7 +374,7 @@ public class CoalesceFeatureRowsTest {
             .build()
     );
     CoalesceAccum accum = CoalesceFeatureRows
-        .combineFeatureRows(CoalesceAccum.getDefaultInstance(), rows);
+        .combineFeatureRowsWithSeed(CoalesceAccum.getDefaultInstance(), rows);
     assertEquals(accum.getFeaturesMap().get("f1"), Features.of("f1", Values.ofString("b")));
   }
 
@@ -397,7 +397,7 @@ public class CoalesceFeatureRowsTest {
             .build());
 
     CoalesceAccum accum = CoalesceFeatureRows
-        .combineFeatureRows(CoalesceAccum.getDefaultInstance(), rows);
+        .combineFeatureRowsWithSeed(CoalesceAccum.getDefaultInstance(), rows);
     assertEquals(3, accum.getCounter());
     assertThat(toFeatureRow(accum, 0), equalTo(
         FeatureRow.newBuilder().setEntityKey("1")

@@ -17,10 +17,10 @@
 
 package feast.store.warehouse.bigquery;
 
+import com.google.common.collect.ImmutableMap;
 import org.junit.Assert;
 import org.junit.Test;
 import feast.options.OptionsParser;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
 public class BigQueryStoreOptionsTest {
 
