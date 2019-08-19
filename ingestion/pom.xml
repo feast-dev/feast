@@ -102,6 +102,20 @@
                   <resource>reference.conf</resource>
                 </transformer>
               </transformers>
+              <relocations>
+                <relocation>
+                  <pattern>org.springframework</pattern>
+                  <shadedPattern>shaded.org.springframework</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.grpc</pattern>
+                  <shadedPattern>shaded.io.grpc</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.opencensus</pattern>
+                  <shadedPattern>shaded.io.opencensus</shadedPattern>
+                </relocation>
+              </relocations>
             </configuration>
           </execution>
         </executions>
