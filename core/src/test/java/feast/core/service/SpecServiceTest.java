@@ -422,7 +422,7 @@ public class SpecServiceTest {
     when(featureInfoRepository.save(any(FeatureInfo.class))).thenAnswer(i -> i.getArguments()[0]);
     when(featureInfoRepository.findByEntityName("entity")).thenReturn(expected);
     when(storageSpecs.getErrorsStorageSpec()).thenReturn(StorageSpec.newBuilder().setId("err").build());
-    when(storageSpecs.getServingStorageSpec()).thenReturn(StorageSpec.newBuilder().setId("serving").build());
+    when(storageSpecs.getSinks()).thenReturn(Lists.newArrayList(StorageSpec.newBuilder().setId("serving").build()));
 
     SpecService specService =
         new SpecService(

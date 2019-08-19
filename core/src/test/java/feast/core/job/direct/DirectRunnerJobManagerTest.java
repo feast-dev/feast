@@ -59,7 +59,6 @@ public class DirectRunnerJobManagerTest {
     ImportJobPipelineOptions expectedPipelineOptions = PipelineOptionsFactory.fromArgs("")
         .as(ImportJobPipelineOptions.class);
     expectedPipelineOptions.setAppName("DirectRunnerJobManager");
-    expectedPipelineOptions.setOptionsId(1);
     expectedPipelineOptions.setCoalesceRowsEnabled(true);
     expectedPipelineOptions.setRunner(DirectRunner.class);
     expectedPipelineOptions.setWorkspace(workspace.toUri().toString());
@@ -81,6 +80,7 @@ public class DirectRunnerJobManagerTest {
 
     ImportJobPipelineOptions actualPipelineOptions = pipelineOptionsCaptor.getValue();
     DirectJob jobStarted = directJobCaptor.getValue();
+    expectedPipelineOptions.setOptionsId(actualPipelineOptions.getOptionsId()); // avoid comparing this value
 
     assertThat(actualPipelineOptions.toString(),
         equalTo(expectedPipelineOptions.toString()));

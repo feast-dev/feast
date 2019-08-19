@@ -83,7 +83,6 @@ public class DataflowJobManagerTest {
     expectedPipelineOptions.setRunner(DataflowRunner.class);
     expectedPipelineOptions.setProject("project");
     expectedPipelineOptions.setRegion("region");
-    expectedPipelineOptions.setOptionsId(1);
     expectedPipelineOptions.setUpdate(false);
     expectedPipelineOptions.setAppName("DataflowJobManager");
     expectedPipelineOptions.setWorkspace(workspace.toUri().toString());
@@ -99,10 +98,12 @@ public class DataflowJobManagerTest {
     when(mockPipelineResult.getJobId()).thenReturn(expectedJobId);
 
     doReturn(mockPipelineResult).when(dfJobManager).runPipeline(any());
-
     String jobId = dfJobManager.startJob("job", workspace);
+
     verify(dfJobManager, times(1)).runPipeline(captor.capture());
     ImportJobPipelineOptions actualPipelineOptions = captor.getValue();
+    expectedPipelineOptions.setOptionsId(actualPipelineOptions.getOptionsId()); // avoid comparing this value
+
     assertThat(actualPipelineOptions.toString(),
         equalTo(expectedPipelineOptions.toString()));
     assertThat(jobId, equalTo(expectedJobId));

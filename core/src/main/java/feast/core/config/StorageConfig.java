@@ -84,13 +84,20 @@ public class StorageConfig {
 
     public List<StorageSpec> getSinks() {
       List<StorageSpec> sinks = new ArrayList<>();
-      if (!servingStorageSpec.getId().isEmpty()) {
+      if (exists(servingStorageSpec)) {
         sinks.add(servingStorageSpec);
       }
-      if (!warehouseStorageSpec.getId().isEmpty()) {
+      if (exists(warehouseStorageSpec)) {
         sinks.add(warehouseStorageSpec);
       }
       return sinks;
+    }
+
+    private boolean exists(StorageSpec storageSpec) {
+      if (storageSpec == null) {
+        return false;
+      }
+      return storageSpec.getId() != "";
     }
   }
 }
