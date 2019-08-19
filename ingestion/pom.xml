@@ -102,12 +102,6 @@
                   <resource>reference.conf</resource>
                 </transformer>
               </transformers>
-              <relocations>
-                <relocation>
-                  <pattern>ch.qos.logback</pattern>
-                  <shadedPattern>shaded.ch.qos.logback</shadedPattern>
-                </relocation>
-              </relocations>
             </configuration>
           </execution>
         </executions>
