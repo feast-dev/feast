@@ -252,6 +252,7 @@ public class JobCoordinatorService {
   }
 
   private String createJobId(String namePrefix) {
+    namePrefix = namePrefix.replaceAll("_", "-"); // replace potential underscores in entity name
     String dateSuffix = String.valueOf(Instant.now().toEpochMilli());
     return namePrefix.isEmpty() ? JOB_PREFIX_DEFAULT + dateSuffix : namePrefix + dateSuffix;
   }

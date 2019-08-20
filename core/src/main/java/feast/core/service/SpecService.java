@@ -36,6 +36,7 @@ import feast.core.model.FeatureGroupInfo;
 import feast.core.model.FeatureInfo;
 import feast.core.model.FeatureStreamTopic;
 import feast.core.model.JobInfo;
+import feast.core.model.JobStatus;
 import feast.core.model.StorageInfo;
 import feast.ingestion.util.ProtoUtil;
 import feast.specs.EntitySpecProto.EntitySpec;
@@ -387,8 +388,7 @@ public class SpecService {
       ImportJobSpecs importJobSpecs = jobCoordinatorService
           .createImportJobSpecs(entityInfo.getTopic().getName(), entityInfo.getEntitySpec(),
               featureSpecs, storageSpec, storageSpecs.getErrorsStorageSpec());
-      boolean exists = entityInfo.getJobs().stream().map(JobInfo::getSinkId)
-          .anyMatch(id -> id.equals(storageSpec.getId()));
+      boolean exists = runningJobExistsForSinkId(entityInfo.getJobs(), storageSpec.getId());
       if (exists) {
         // if job exists, update
         JobInfo existingJob = entityInfo.getJobs().get(0);
@@ -403,6 +403,11 @@ public class SpecService {
         entityInfoRepository.saveAndFlush(entityInfo);
       }
     }
+  }
+
+  private boolean runningJobExistsForSinkId(List<JobInfo> jobs, String sinkId) {
+    return jobs.stream().filter(job -> job.getStatus().equals(JobStatus.RUNNING))
+        .anyMatch(job -> job.getSinkId().equals(sinkId));
   }
 
   private FeatureInfo updateOrCreateFeature(FeatureInfo featureInfo, FeatureSpec spec)
