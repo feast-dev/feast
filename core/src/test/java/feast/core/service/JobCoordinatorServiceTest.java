@@ -1,5 +1,6 @@
 package feast.core.service;
 
+import static org.hamcrest.Matchers.any;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -13,6 +14,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Strings;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.config.ImportJobDefaults;
 import feast.core.dao.JobInfoRepository;
@@ -33,6 +35,7 @@ import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.ValueProto.ValueType;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -43,6 +46,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 
 public class JobCoordinatorServiceTest {
@@ -206,16 +210,99 @@ public class JobCoordinatorServiceTest {
     when(jobInfoRepository.findById("jobid")).thenReturn(Optional.of(jobInfo));
 
     ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
-    JobCoordinatorService jobExecutionService =
+    JobCoordinatorService jobCoordinatorService =
         new JobCoordinatorService(jobInfoRepository,
             jobManager, featureStream, defaults);
-    jobExecutionService.updateJobStatus("jobid", JobStatus.PENDING);
+    jobCoordinatorService.updateJobStatus("jobid", JobStatus.PENDING);
 
     verify(jobInfoRepository, times(1)).save(jobInfoArgumentCaptor.capture());
 
     JobInfo jobInfoUpdated = new JobInfo();
     jobInfoUpdated.setStatus(JobStatus.PENDING);
     assertThat(jobInfoArgumentCaptor.getValue(), equalTo(jobInfoUpdated));
+  }
+
+  @Test
+  public void shouldNotUpdateJobIfSchemaHasNotChanged() throws InvalidProtocolBufferException {
+    Map<String, String> kafkaFeatureStreamOptions = new HashMap<>();
+    kafkaFeatureStreamOptions.put("servers", "127.0.0.1:8081");
+    kafkaFeatureStreamOptions.put("discardUnknownFeatures", "true");
+
+    ImportJobSpecs importJobSpecs = ImportJobSpecs.newBuilder()
+        .setJobId("job1")
+        .setSourceSpec(SourceSpec.newBuilder().setType(SourceType.KAFKA)
+            .putAllOptions(kafkaFeatureStreamOptions).putOptions("topics", "feast-entity-features")
+            .build())
+        .setEntitySpec(EntitySpec.newBuilder().setName("entity").build())
+        .addAllFeatureSpecs(Arrays.asList(FeatureSpec.newBuilder().setId("entity.feature").build()))
+        .setSinkStorageSpec(StorageSpec.newBuilder().setId("sink").build())
+        .setErrorsStorageSpec(StorageSpec.newBuilder().setId("errors").build())
+        .build();
+
+    JobInfo jobInfo = new JobInfo("job1", "extJob1", "DirectRunner", importJobSpecs,
+        JobStatus.RUNNING);
+
+    JobCoordinatorService jobCoordinatorService =
+        new JobCoordinatorService(jobInfoRepository,
+            jobManager, featureStream, defaults);
+    jobCoordinatorService.updateJob(jobInfo, importJobSpecs);
+    verify(jobManager, times(0)).updateJob(ArgumentMatchers.any(), ArgumentMatchers.any());
+  }
+
+  @Test
+  public void shouldUpdateJobIfSchemaHasChanged() throws IOException {
+    File tempDir = Files.createTempDir();
+    tempDir.deleteOnExit();
+    String ws = tempDir.getAbsolutePath();
+    defaults.setWorkspace(ws);
+
+    Map<String, String> kafkaFeatureStreamOptions = new HashMap<>();
+    kafkaFeatureStreamOptions.put("servers", "127.0.0.1:8081");
+    kafkaFeatureStreamOptions.put("discardUnknownFeatures", "true");
+
+    ImportJobSpecs oldImportJobSpecs = ImportJobSpecs.newBuilder()
+        .setJobId("job1")
+        .setSourceSpec(SourceSpec.newBuilder().setType(SourceType.KAFKA)
+            .putAllOptions(kafkaFeatureStreamOptions).putOptions("topics", "feast-entity-features")
+            .build())
+        .setEntitySpec(EntitySpec.newBuilder().setName("entity").build())
+        .addAllFeatureSpecs(Arrays.asList(FeatureSpec.newBuilder().setId("entity.feature").build()))
+        .setSinkStorageSpec(StorageSpec.newBuilder().setId("sink").build())
+        .setErrorsStorageSpec(StorageSpec.newBuilder().setId("errors").build())
+        .build();
+
+    ImportJobSpecs newImportJobSpecs = oldImportJobSpecs
+        .toBuilder()
+        .addFeatureSpecs(FeatureSpec
+            .newBuilder().setId("entity.feature2").build())
+        .build();
+
+    JobInfo oldJobInfo = new JobInfo("job1", "extJob1", "DirectRunner", oldImportJobSpecs,
+        JobStatus.RUNNING);
+    JobInfo newJobInfo = new JobInfo("job1", "extJob1", "DirectRunner", newImportJobSpecs,
+        JobStatus.RUNNING);
+
+    JobCoordinatorService jobCoordinatorService =
+        new JobCoordinatorService(jobInfoRepository,
+            jobManager, featureStream, defaults);
+    jobCoordinatorService.updateJob(oldJobInfo, newImportJobSpecs);
+
+    verify(jobManager, times(1)).updateJob(oldJobInfo, Paths.get(ws).resolve("job1"));
+    verify(jobInfoRepository, times(1)).save(newJobInfo);
+
+    String specsPath = Strings.lenientFormat("%s/%s/%s", ws, "job1", "importJobSpecs.yaml");
+
+    ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+
+    Map<String, Object> writtenSpecYaml = mapper
+        .readValue(Files.toByteArray(new File(specsPath)), Map.class);
+    Gson gson = new Gson();
+    String json = gson.toJson(writtenSpecYaml);
+    Builder writtenSpecBuilder = ImportJobSpecs.newBuilder();
+    JsonFormat.parser().merge(json, writtenSpecBuilder);
+    ImportJobSpecs writtenSpecs = writtenSpecBuilder.build();
+
+    assertThat(newImportJobSpecs, equalTo(writtenSpecs));
   }
 
 }

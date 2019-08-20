@@ -131,8 +131,7 @@
         <dependency>
             <groupId>com.github.gojek.feast</groupId>
             <artifactId>feast-ingestion</artifactId>
-            <!-- <version>d8b8cc4e11</version> -->
-            <version>e1ad118941</version>
+            <version>edc13231b7</version>
         </dependency>
         <!--compile "org.springframework.boot:spring-boot-starter-web:${springBootVersion}"-->
         <dependency>

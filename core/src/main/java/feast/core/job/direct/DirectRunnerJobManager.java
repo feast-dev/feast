@@ -76,18 +76,12 @@ public class DirectRunnerJobManager implements JobManager {
   }
 
   /**
-   * Update a direct runner job. Sincee direct runner jobs cannot be directly updated, a new job
-   * will be created and the old one terminated. TODO: have the two jobs use the same consumer
-   * group
-   *
-   * @param jobInfo jobInfo of target job to change
+   * Unsupported.
    */
   @Override
   public String updateJob(JobInfo jobInfo, Path workspace) {
-    String jobId = jobInfo.getExtId();
-    abortJob(jobId);
-    startJob(jobId, workspace);
-    return jobId;
+    throw new UnsupportedOperationException(
+        "DirectRunner does not support job updates. To make changes to the worker, stop the existing job and rerun ingestion.");
   }
 
   /**

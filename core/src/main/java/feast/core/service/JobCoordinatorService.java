@@ -125,7 +125,7 @@ public class JobCoordinatorService {
   /**
    * Update the given job
    */
-  public void updateJob(JobInfo jobInfo, ImportJobSpecs importJobSpec) {
+  public void updateJob(JobInfo jobInfo, ImportJobSpecs importJobSpecs) {
     ImportJobSpecs existingImportJobSpec = ImportJobSpecs.newBuilder().build();
     try {
       existingImportJobSpec = ProtoUtil.decodeProtoYaml(jobInfo.getRaw(), existingImportJobSpec);
@@ -133,11 +133,11 @@ public class JobCoordinatorService {
       throw new RuntimeException(
           String.format("Could not parse original importJobSpecs: %s", jobInfo.getRaw()), e);
     }
-    if (existingImportJobSpec.getFeatureSpecsList().equals(importJobSpec.getFeatureSpecsList())) {
+    if (existingImportJobSpec.getFeatureSpecsList().equals(importJobSpecs.getFeatureSpecsList())) {
       return;
     }
 
-    Path workspace = PathUtil.getPath(defaults.getWorkspace()).resolve(importJobSpec.getJobId());
+    Path workspace = PathUtil.getPath(defaults.getWorkspace()).resolve(importJobSpecs.getJobId());
     try {
       Files.createDirectory(workspace);
     } catch (FileAlreadyExistsException e) {
@@ -146,8 +146,15 @@ public class JobCoordinatorService {
           String.format("Could not initialise job workspace job: %s", workspace.toString()), e);
     }
 
-    writeImportJobSpecs(importJobSpec, workspace);
+    writeImportJobSpecs(importJobSpecs, workspace);
     jobManager.updateJob(jobInfo, workspace);
+    try {
+      jobInfo.setRaw(JsonFormat.printer().print(importJobSpecs));
+      jobInfoRepository.save(jobInfo);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(
+          String.format("Could not serialize importJobSpecs: %s", importJobSpecs), e);
+    }
   }
 
 
@@ -178,7 +185,7 @@ public class JobCoordinatorService {
   /**
    * Update a given job's status
    */
-  void updateJobStatus(String jobId, JobStatus status) {
+  public void updateJobStatus(String jobId, JobStatus status) {
     Optional<JobInfo> jobRecordOptional = jobInfoRepository.findById(jobId);
     if (jobRecordOptional.isPresent()) {
       JobInfo jobRecord = jobRecordOptional.get();
