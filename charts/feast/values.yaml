@@ -1,4 +1,5 @@
 --- 
+###### Core ######
 core:
   projectId: "gcp-project-id"
   image: 
@@ -33,8 +34,6 @@ core:
     # runner specifies the Beam pipeline runner, use either DirectRunner (for development) or DataflowRunner (for production)
     runner: DirectRunner
     options: "{}"
-    errorStoreType: "stdout"
-    errorStoreOptions: "{}"
     monitoring:
       period: 5000
       initialDelay: 60000
@@ -52,14 +51,23 @@ core:
 #   projectID: ${GCP_PROJECT}
 #   location: ${GCP_REGION}
 
+###### Feature stream ###### 
+stream:
+  type: kafka
+  options: '{"bootstrapServers":""}'
+
+kafka:
+  provision: false
+
+###### Stores/Sinks ######
 store:
  errors:
-   type: "stdout"
+   type: "STDOUT"
  warehouse:
-   type: "bigquery"
+   type: "BIGQUERY"
    # options: '{"project": "gcp-project-id", "dataset": "feast"}'
  serving:
-   type: "redis"
+   type: "REDIS"
    # options: '{"host": "redis-master", "port": "6379"}'
 
 postgresql: 
@@ -72,6 +80,7 @@ redis:
   cluster:
     enabled: false
 
+###### Serving ######
 serving: 
   config: 
     maxEntityPerBatch: 2000

@@ -7,3 +7,7 @@ dependencies:
   version: 6.4.4
   repository: "@stable"
   condition: redis.provision
+- name: kafka
+  version: 0.17.0
+  repository: "@stable"
+  condition: kafka.provision
