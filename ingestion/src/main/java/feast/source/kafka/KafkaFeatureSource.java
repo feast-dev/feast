@@ -37,8 +37,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
-import org.joda.time.Instant;
 
 /**
  * Transform for reading {@link feast.types.FeatureRowProto.FeatureRow FeatureRow} proto messages
@@ -57,13 +57,14 @@ public class KafkaFeatureSource extends FeatureSource {
     checkArgument(sourceSpec.getType().equals(KAFKA_FEATURE_SOURCE_TYPE));
     ImportJobPipelineOptions pipelineOptions =
         input.getPipeline().getOptions().as(ImportJobPipelineOptions.class);
+    String consumerGroupId = String.format("feast-import-job-%s", pipelineOptions.getJobName());
 
     // The following default options are used:
-    // - withReadCommitted: ensures that the consumer does not read uncommitted message so it can
+    // - withReadCommitted: ensures that the consumer does not read uncommitted messages so it can
     //   support end-to-end exactly-once semantics
-    // - commitOffsetsInFinalize: commit the offset after finished reading so if the pipeline is
-    //   updated, the reader can continue from the saved offset
-    // - consumer group is derived from job id in import job spec
+    // - commitOffsetsInFinalize: commits the offset after finished reading the messages so if the
+    //   pipeline is updated, the reader can continue from the saved offset
+    // - consumer group id is derived from job id in import job spec, with prefix 'feast-import-job'
     KafkaIO.Read<byte[], FeatureRow> readPTransform =
         KafkaIO.<byte[], FeatureRow>read()
             .withBootstrapServers(sourceSpec.getOptionsOrThrow("bootstrapServers"))
@@ -72,27 +73,31 @@ public class KafkaFeatureSource extends FeatureSource {
             .withValueDeserializer(FeatureRowDeserializer.class)
             .withReadCommitted()
             .commitOffsetsInFinalize()
-            .updateConsumerProperties(
-                ImmutableMap.of(
-                    "group.id",
-                    String.format("feast-import-job-%s", pipelineOptions.getJobName())));
+            .updateConsumerProperties(ImmutableMap.of("group.id", consumerGroupId));
 
     if (pipelineOptions.getSampleLimit() > 0) {
       readPTransform = readPTransform.withMaxNumRecords(pipelineOptions.getSampleLimit());
     }
 
     if (!pipelineOptions.isUpdate()) {
-      // If import job is not an update, there will be no existing consumer group id
-      // So we cannot depend on the consumer group commit offset to determine when to start reading
-      // Kafka messages. A reasonable approach is to start reading from the timestamp when
-      // this transform step in the pipeline is created. We do not use the timestamp when the
-      // pipeline starts running because it takes some time to provision workers and
-      // by the the time the pipeline starts running, some messages may have already been published
-      // and we may miss the messages.
-      Instant kafkaStartReadTime = new Instant();
-      readPTransform = readPTransform.withStartReadTime(kafkaStartReadTime);
+      // If import job is not an update, it is a new import job. There should be no existing Kafka
+      // consumer group id and saved offset for that consumer group. In order not to miss any
+      // messages that may have been published while the pipeline is being started, the default new
+      // offset is set to "earliest".
+      //
+      // This may, however, introduce substantial lag if the subscribed topic
+      // has a huge number of existing messages. If substantial lag occurs, and consumers cannot
+      // catchup with the lag, Feast should probably provide a
+      // configuration to set the policy for default consumer offset rather than fixing it to
+      // "earliest" offset.
       log.info(
-          "Pipeline will start reading from Kafka with offset timestamp {}", kafkaStartReadTime);
+          "Pipeline will start reading from Kafka as consumer group id '{}' with 'earliest' offset "
+              + "since this is a new import job (with no existing offset commited) and we do not "
+              + "want to miss messages published while the pipeline is starting up and not ready.",
+          consumerGroupId);
+      readPTransform =
+          readPTransform.updateConsumerProperties(
+              ImmutableMap.of(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
     }
 
     Pipeline pipeline = input.getPipeline();
