@@ -204,7 +204,7 @@ schema:
   - featureId: customer.last_login
 ```
 
-The PubSub source type expects that all messages that the ingestion job receives are binary encoded FeatureRow protobufs. See [FeatureRow.proto](protos/feast/types/FeatureRow.proto).
+The PubSub source type expects that all messages that the ingestion job receives are binary encoded FeatureRow protobufs. See [FeatureRow.proto](../protos/feast/types/FeatureRow.proto).
 
 Note that:
 1. You must be explicit about which features should be ingested using `schema.fields`.
