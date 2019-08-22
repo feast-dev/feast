@@ -34,14 +34,19 @@ message ValueType {
     DOUBLE = 5;
     FLOAT = 6;
     BOOL = 7;
-    TIMESTAMP = 8;
+    BYTES_LIST = 11;
+    STRING_LIST = 12;
+    INT32_LIST = 13;
+    INT64_LIST = 14;
+    DOUBLE_LIST = 15;
+    FLOAT_LIST = 16;
+    BOOL_LIST = 17;
   }
 }
 
 message Value {
   // ValueType is referenced by the metadata types, FeatureInfo and EntityInfo.
   // The enum values do not have to match the oneof val field ids, but they should.
-
   oneof val {
     bytes bytesVal = 1;
     string stringVal = 2;
@@ -50,20 +55,13 @@ message Value {
     double doubleVal = 5;
     float floatVal = 6;
     bool boolVal = 7;
-    google.protobuf.Timestamp timestampVal = 8;
-  }
-}
-
-message ValueList {
-  oneof valueList {
-    BytesList bytesList = 1;
-    StringList stringList = 2;
-    Int32List int32List = 3;
-    Int64List int64List = 4;
-    DoubleList doubleList = 5;
-    FloatList floatList = 6;
-    BoolList boolList = 7;
-    TimestampList timestampList = 8;
+    BytesList bytesListVal = 11;
+    StringList stringListVal = 12;
+    Int32List int32ListVal = 13;
+    Int64List int64ListVal = 14;
+    DoubleList doubleListVal = 15;
+    FloatList floatListVal = 16;
+    BoolList boolListVal = 17;
   }
 }
 
@@ -93,8 +91,4 @@ message FloatList {
 
 message BoolList {
   repeated bool val = 1;
-}
-
-message TimestampList {
-  repeated google.protobuf.Timestamp val = 1;
 }
