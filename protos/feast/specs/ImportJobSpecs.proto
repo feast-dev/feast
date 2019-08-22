@@ -27,7 +27,7 @@ import "feast/specs/FeatureSpec.proto";
 import "feast/specs/StorageSpec.proto";
 
 message ImportJobSpecs {
-  // Job ID of the job using this import job spec.
+  // Job ID of the job using this import job spec. 
   string jobId = 1;
   // Source spec containing source type and options
   feast.specs.SourceSpec sourceSpec = 2;

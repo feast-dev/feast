@@ -31,9 +31,9 @@ import org.apache.beam.sdk.options.Validation.Required;
 /** Options passed to Beam to influence the job's execution environment */
 public interface ImportJobPipelineOptions
     extends PipelineOptions, DataflowPipelineOptions, DirectOptions {
-
-  // TODO: Make it to accept local path and GCS path
-  @Description("Path to import job spec yaml file")
+  @Description(
+      "URI Path to import job spec yaml file, accepts file:// and gs:// scheme. For file scheme please use absolute path."
+          + "For example: 'file:///absolute/path/to/import/job/spec/yaml' OR 'gs://mybucket/import/job/spec/yaml'")
   @Required
   String getImportJobSpecUri();
 

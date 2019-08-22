@@ -17,16 +17,20 @@
 
 package feast.source.kafka;
 
-import com.google.auto.service.AutoService;
+import static com.google.common.base.Preconditions.checkArgument;
+
+import com.google.common.collect.ImmutableMap;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.transform.fn.FilterFeatureRowDoFn;
-import feast.options.Options;
 import feast.source.FeatureSource;
-import feast.source.FeatureSourceFactory;
 import feast.specs.ImportJobSpecsProto.SourceSpec;
 import feast.specs.ImportJobSpecsProto.SourceSpec.SourceType;
 import feast.types.FeatureRowProto.FeatureRow;
+import java.util.Arrays;
+import java.util.List;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -34,17 +38,13 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
-
-import javax.validation.constraints.NotEmpty;
-import java.util.Arrays;
-import java.util.List;
-
-import static com.google.common.base.Preconditions.checkArgument;
+import org.joda.time.Instant;
 
 /**
  * Transform for reading {@link feast.types.FeatureRowProto.FeatureRow FeatureRow} proto messages
  * from kafka one or more kafka topics.
  */
+@Slf4j
 @AllArgsConstructor
 public class KafkaFeatureSource extends FeatureSource {
 
@@ -58,57 +58,55 @@ public class KafkaFeatureSource extends FeatureSource {
     ImportJobPipelineOptions pipelineOptions =
         input.getPipeline().getOptions().as(ImportJobPipelineOptions.class);
 
-    // KafkaReadOptions options =
-    //     OptionsParser.parse(sourceSpec.getOptionsMap(), KafkaReadOptions.class);
-    //
-    // List<String> topicsList = new ArrayList<>(Arrays.asList(options.topics.split(",")));
-
-    KafkaIO.Read<byte[], FeatureRow> read =
+    // The following default options are used:
+    // - withReadCommitted: ensures that the consumer does not read uncommitted message so it can
+    //   support end-to-end exactly-once semantics
+    // - commitOffsetsInFinalize: commit the offset after finished reading so if the pipeline is
+    //   updated, the reader can continue from the saved offset
+    // - consumer group is derived from job id in import job spec
+    KafkaIO.Read<byte[], FeatureRow> readPTransform =
         KafkaIO.<byte[], FeatureRow>read()
             .withBootstrapServers(sourceSpec.getOptionsOrThrow("bootstrapServers"))
             .withTopics(Arrays.asList(sourceSpec.getOptionsOrThrow("topics").split(",")))
             .withKeyDeserializer(ByteArrayDeserializer.class)
-            .withValueDeserializer(FeatureRowDeserializer.class);
+            .withValueDeserializer(FeatureRowDeserializer.class)
+            .withReadCommitted()
+            .commitOffsetsInFinalize()
+            .updateConsumerProperties(
+                ImmutableMap.of(
+                    "group.id",
+                    String.format("feast-import-job-%s", pipelineOptions.getJobName())));
 
     if (pipelineOptions.getSampleLimit() > 0) {
-      read = read.withMaxNumRecords(pipelineOptions.getSampleLimit());
+      readPTransform = readPTransform.withMaxNumRecords(pipelineOptions.getSampleLimit());
     }
 
-    PCollection<KafkaRecord<byte[], FeatureRow>> featureRowRecord = input.getPipeline().apply(read);
+    if (!pipelineOptions.isUpdate()) {
+      // If import job is not an update, there will be no existing consumer group id
+      // So we cannot depend on the consumer group commit offset to determine when to start reading
+      // Kafka messages. A reasonable approach is to start reading from the timestamp when
+      // this transform step in the pipeline is created. We do not use the timestamp when the
+      // pipeline starts running because it takes some time to provision workers and
+      // by the the time the pipeline starts running, some messages may have already been published
+      // and we may miss the messages.
+      Instant kafkaStartReadTime = new Instant();
+      readPTransform = readPTransform.withStartReadTime(kafkaStartReadTime);
+      log.info(
+          "Pipeline will start reading from Kafka with offset timestamp {}", kafkaStartReadTime);
+    }
 
-    PCollection<FeatureRow> featureRow =
-        featureRowRecord.apply(
+    Pipeline pipeline = input.getPipeline();
+    return pipeline
+        .apply("Read with KafkaIO", readPTransform)
+        .apply(
+            "Transform KafkaRecord to FeatureRow",
             ParDo.of(
                 new DoFn<KafkaRecord<byte[], FeatureRow>, FeatureRow>() {
                   @ProcessElement
                   public void processElement(ProcessContext processContext) {
-                    KafkaRecord<byte[], FeatureRow> record = processContext.element();
-                    processContext.output(record.getKV().getValue());
+                    processContext.output(processContext.element().getKV().getValue());
                   }
-                }));
-
-    return featureRow.apply(ParDo.of(new FilterFeatureRowDoFn(featureIds)));
-  }
-
-  public static class KafkaReadOptions implements Options {
-
-    @NotEmpty public String server;
-    @NotEmpty public String topics;
-    public boolean discardUnknownFeatures = false;
-  }
-
-  @AutoService(FeatureSourceFactory.class)
-  public static class Factory implements FeatureSourceFactory {
-
-    @Override
-    public SourceType getType() {
-      return KAFKA_FEATURE_SOURCE_TYPE;
-    }
-
-    @Override
-    public FeatureSource create(SourceSpec sourceSpec, List<String> featureIds) {
-      checkArgument(sourceSpec.getType().equals(getType()));
-      return new KafkaFeatureSource(sourceSpec, featureIds);
-    }
+                }))
+        .apply("Filter FeatureRow", ParDo.of(new FilterFeatureRowDoFn(featureIds)));
   }
 }
