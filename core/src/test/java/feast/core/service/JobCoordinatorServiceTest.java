@@ -279,9 +279,10 @@ public class JobCoordinatorServiceTest {
 
     JobInfo oldJobInfo = new JobInfo("job1", "extJob1", "DirectRunner", oldImportJobSpecs,
         JobStatus.RUNNING);
-    JobInfo newJobInfo = new JobInfo("job1", "extJob1", "DirectRunner", newImportJobSpecs,
+    JobInfo newJobInfo = new JobInfo("job1", "extJob2", "DirectRunner", newImportJobSpecs,
         JobStatus.RUNNING);
 
+    when(jobManager.updateJob(oldJobInfo, PathUtil.getPath(ws).resolve("job1"))).thenReturn("extJob2");
     JobCoordinatorService jobCoordinatorService =
         new JobCoordinatorService(jobInfoRepository,
             jobManager, featureStream, defaults);
