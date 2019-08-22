@@ -147,9 +147,10 @@ public class JobCoordinatorService {
     }
 
     writeImportJobSpecs(importJobSpecs, workspace);
-    jobManager.updateJob(jobInfo, workspace);
+    String extId = jobManager.updateJob(jobInfo, workspace);
     try {
       jobInfo.setRaw(JsonFormat.printer().print(importJobSpecs));
+      jobInfo.setExtId(extId);
       jobInfoRepository.save(jobInfo);
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(
