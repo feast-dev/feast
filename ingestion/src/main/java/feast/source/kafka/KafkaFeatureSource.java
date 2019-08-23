@@ -37,7 +37,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 
 /**
@@ -60,11 +59,13 @@ public class KafkaFeatureSource extends FeatureSource {
     String consumerGroupId = String.format("feast-import-job-%s", pipelineOptions.getJobName());
 
     // The following default options are used:
-    // - withReadCommitted: ensures that the consumer does not read uncommitted messages so it can
+    // - "withReadCommitted" ensures that the consumer does not read uncommitted messages so it can
     //   support end-to-end exactly-once semantics
-    // - commitOffsetsInFinalize: commits the offset after finished reading the messages so if the
+    // - "commitOffsetsInFinalize" commits the offset after finished reading the messages so if the
     //   pipeline is updated, the reader can continue from the saved offset
     // - consumer group id is derived from job id in import job spec, with prefix 'feast-import-job'
+    // - "auto.offset.reset" is "latest" when there is no official offset in the topic (not
+    //   reflected in code below)
     KafkaIO.Read<byte[], FeatureRow> readPTransform =
         KafkaIO.<byte[], FeatureRow>read()
             .withBootstrapServers(sourceSpec.getOptionsOrThrow("bootstrapServers"))
@@ -77,27 +78,6 @@ public class KafkaFeatureSource extends FeatureSource {
 
     if (pipelineOptions.getSampleLimit() > 0) {
       readPTransform = readPTransform.withMaxNumRecords(pipelineOptions.getSampleLimit());
-    }
-
-    if (!pipelineOptions.isUpdate()) {
-      // If import job is not an update, it is a new import job. There should be no existing Kafka
-      // consumer group id and saved offset for that consumer group. In order not to miss any
-      // messages that may have been published while the pipeline is being started, the default new
-      // offset is set to "earliest".
-      //
-      // This may, however, introduce substantial lag if the subscribed topic
-      // has a huge number of existing messages. If substantial lag occurs, and consumers cannot
-      // catchup with the lag, Feast should probably provide a
-      // configuration to set the policy for default consumer offset rather than fixing it to
-      // "earliest" offset.
-      log.info(
-          "Pipeline will start reading from Kafka as consumer group id '{}' with 'earliest' offset "
-              + "since this is a new import job (with no existing offset commited) and we do not "
-              + "want to miss messages published while the pipeline is starting up and not ready.",
-          consumerGroupId);
-      readPTransform =
-          readPTransform.updateConsumerProperties(
-              ImmutableMap.of(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
     }
 
     Pipeline pipeline = input.getPipeline();
