@@ -19,7 +19,7 @@ import yaml
 from google.protobuf.json_format import Parse
 
 from feast.sdk.utils.print_utils import spec_to_yaml
-from feast.specs.FeatureSpec_pb2 import FeatureSpec, DataStores, DataStore
+from feast.specs.FeatureSpec_pb2 import FeatureSpec
 
 
 class ValueType(enum.Enum):
@@ -49,8 +49,6 @@ class Feature:
                  value_type=ValueType.DOUBLE,
                  description='',
                  uri='',
-                 warehouse_store=None,
-                 serving_store=None,
                  group='',
                  tags=[],
                  options={}):
@@ -65,29 +63,16 @@ class Feature:
             description (str): defaults to "". description of the feature
             uri (str): defaults to "". uri pointing to the source code or 
                 origin of this feature
-            warehouse_store (feast.sdk.resources.feature.Datastore):
-                warehouse store id and options
-            serving_store (feast.sdk.resources.feature.Datastore): serving
-                store id and options
             group (str, optional): feature group to inherit from
             tags (list[str], optional): tags assigned to the feature
             options (dic, optional): additional options for the feature
         """
         id = '{}.{}'.format(entity, name).lower()
-        warehouse_store_spec = None
-        serving_store_spec = None
-        if serving_store is not None:
-            serving_store_spec = serving_store.spec
-        if warehouse_store is not None:
-            warehouse_store_spec = warehouse_store.spec
-        data_stores = DataStores(
-            serving=serving_store_spec, warehouse=warehouse_store_spec)
         self.__spec = FeatureSpec(
             id=id,
             name=name,
             entity=entity,
             owner=owner,
-            dataStores=data_stores,
             description=description,
             uri=uri,
             valueType=value_type.value,
@@ -132,24 +117,6 @@ class Feature:
     @owner.setter
     def owner(self, value):
         self.__spec.owner = value
-
-    @property
-    def warehouse_store(self):
-        return self.__spec.dataStores.warehouse
-
-    @warehouse_store.setter
-    def warehouse_store(self, value):
-        """Set warehouse store from given Datastore"""
-        self.__spec.dataStores.warehouse.CopyFrom(value.spec)
-
-    @property
-    def serving_store(self):
-        return self.__spec.dataStores.serving
-
-    @serving_store.setter
-    def serving_store(self, value):
-        """Set serving store from given Datastore"""
-        self.__spec.dataStores.serving.CopyFrom(value.spec)
 
     @property
     def description(self):
@@ -239,19 +206,3 @@ class Feature:
             file.write(str(self))
         print("Saved spec to {}".format(path))
 
-
-class Datastore:
-    def __init__(self, id, options={}):
-        self.__spec = DataStore(id=id, options=options)
-
-    def __str__(self):
-        """Print the datastore in yaml format
-
-        Returns:
-            str: yaml formatted representation of the Datastore
-        """
-        return spec_to_yaml(self.__spec)
-
-    @property
-    def spec(self):
-        return self.__spec

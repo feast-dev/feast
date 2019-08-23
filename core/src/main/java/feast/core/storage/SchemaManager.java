@@ -39,9 +39,13 @@ public class SchemaManager {
     this.storageSpecs = storageSpecs;
     if (storageSpecs.getServingStorageSpec() != null) {
       registerStorage(storageSpecs.getServingStorageSpec());
+    } else {
+      log.warn("No serving storage is available from storageSpecs, SchemaManager will skip serving store registration");
     }
     if (storageSpecs.getWarehouseStorageSpec() != null) {
       registerStorage(storageSpecs.getWarehouseStorageSpec());
+    } else {
+      log.warn("No warehouse storage is available from storageSpecs, SchemaManager will skip warehouse store registration");
     }
   }
 

@@ -50,7 +50,7 @@ Run the following command to create a new cluster in GKE (Google Kubernetes Engi
 > You can skip this step if you want to install Feast in an existing Kubernetes cluster
 ```
 gcloud container --project "${GCP_PROJECT}" clusters create "${FEAST_CLUSTER_NAME}" \
-  --zone "${GCP_ZONE}" --no-enable-basic-auth --cluster-version "1.12.7-gke.10" \
+  --zone "${GCP_ZONE}" --no-enable-basic-auth --cluster-version "1.12.8-gke.10" \
   --machine-type "n1-standard-4" --image-type "COS" --disk-type "pd-standard" --disk-size "200" \
   --metadata disable-legacy-endpoints=true --scopes "https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/trace.append" \
   --num-nodes "1" --enable-cloud-logging --enable-cloud-monitoring --no-enable-ip-alias \

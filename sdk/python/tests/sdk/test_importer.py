@@ -15,8 +15,7 @@
 import pandas as pd
 import pytest
 import ntpath
-from feast.sdk.resources.feature import Feature, ValueType, \
-    Datastore
+from feast.sdk.resources.feature import Feature, ValueType
 from feast.sdk.importer import _create_feature, Importer
 from feast.sdk.utils.gs_utils import is_gs_path
 
@@ -112,22 +111,7 @@ class TestImporter(object):
             id_column=id_column,
             timestamp_column=timestamp_column)
 
-    def test_from_csv_staging_location_not_specified(self):
-        with pytest.raises(
-                ValueError,
-                match=
-                "Specify staging_location for importing local file/dataframe"):
-            feature_columns = [
-                "avg_distance_completed", "avg_customer_distance_completed"
-            ]
-            csv_path = "tests/data/driver_features.csv"
-            Importer.from_csv(
-                path=csv_path,
-                entity="driver",
-                owner="owner@feast.com",
-                feature_columns=feature_columns,
-                timestamp_column="ts")
-
+    def test_from_csv_staging_location_not_valid(self):
         with pytest.raises(
                 ValueError, match="Staging location must be in GCS") as e_info:
             feature_columns = [
@@ -200,8 +184,7 @@ class TestImporter(object):
             staging_location=staging_location,
             id_column=id_column,
             feature_columns=feature_columns)
-
-        importer.stage()
+        importer.stage(None)
 
     def _validate_csv_importer(self,
                                importer,
@@ -259,7 +242,7 @@ class TestHelpers:
             entity="test",
             owner="person",
             value_type=ValueType.INT32)
-        actual = _create_feature(col, "test", "person", None, None)
+        actual = _create_feature(col, "test", "person")
         assert actual.id == expected.id
         assert actual.value_type == expected.value_type
         assert actual.owner == expected.owner
@@ -270,14 +253,8 @@ class TestHelpers:
             name="test",
             entity="test",
             owner="person",
-            value_type=ValueType.INT32,
-            serving_store=Datastore(id="SERVING"),
-            warehouse_store=Datastore(id="WAREHOUSE"))
-        actual = _create_feature(col, "test", "person",
-                                 Datastore(id="SERVING"),
-                                 Datastore(id="WAREHOUSE"))
+            value_type=ValueType.INT32)
+        actual = _create_feature(col, "test", "person")
         assert actual.id == expected.id
         assert actual.value_type == expected.value_type
         assert actual.owner == expected.owner
-        assert actual.serving_store == expected.serving_store
-        assert actual.warehouse_store == expected.warehouse_store

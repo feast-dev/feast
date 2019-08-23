@@ -23,6 +23,7 @@ import pandas as pd
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
+from feast.core.CoreService_pb2 import CoreServiceTypes
 from feast.core.JobService_pb2 import JobServiceTypes
 from feast.core.JobService_pb2_grpc import JobServiceStub
 from feast.core.DatasetService_pb2 import DatasetServiceTypes
@@ -64,7 +65,7 @@ class Client:
 
         self.__core_channel = None
         self.__serving_channel = None
-        self._core_service_stub = None
+        self._core_service_stub: CoreServiceStub = None
         self._job_service_stub = None
         self._dataset_service_stub = None
         self._serving_service_stub = None
@@ -149,10 +150,6 @@ class Client:
         Returns:
             (str) job ID of the import job
         """
-        request = JobServiceTypes.SubmitImportJobRequest(importSpec=importer.spec)
-        if name_override is not None:
-            request.name = name_override
-
         if apply_entity:
             self._apply_entity(importer.entity)
         if apply_features:
@@ -161,7 +158,12 @@ class Client:
 
         if importer.require_staging:
             print("Staging file to remote path {}".format(importer.remote_path))
-            importer.stage()
+            importer.stage(feast_client=self)
+
+        request = JobServiceTypes.SubmitImportJobRequest(importSpec=importer.spec)
+        if name_override is not None:
+            request.name = name_override
+
         print("Submitting job with spec:\n {}".format(spec_to_yaml(importer.spec)))
         self._connect_core()
         response = self._job_service_stub.SubmitJob(request)
@@ -169,8 +171,13 @@ class Client:
         return response.jobId
 
     def create_dataset(
-        self, feature_set, start_date, end_date, limit=None,
-            name_prefix=None, filters=None
+        self,
+        feature_set,
+        start_date,
+        end_date,
+        limit=None,
+        name_prefix=None,
+        filters=None,
     ):
         """
         Create training dataset for a feature set. The training dataset
@@ -195,8 +202,9 @@ class Client:
             feast.resources.feature_set.DatasetInfo: DatasetInfo containing
             the information of training dataset.
         """
-        self._check_create_dataset_args(feature_set, start_date, end_date,
-                                        limit, filters)
+        self._check_create_dataset_args(
+            feature_set, start_date, end_date, limit, filters
+        )
 
         conv_filters = None
         if filters is not None:
@@ -210,7 +218,7 @@ class Client:
             endDate=_timestamp_from_datetime(_parse_date(end_date)),
             limit=limit,
             namePrefix=name_prefix,
-            filters=conv_filters
+            filters=conv_filters,
         )
         if self.verbose:
             print(
@@ -262,7 +270,7 @@ class Client:
         )
 
     def download_dataset(
-        self, dataset_info, dest, staging_location, file_type=FileType.CSV
+        self, dataset_info, dest, staging_location=None, file_type=FileType.CSV
     ):
         """
         Download training dataset as file
@@ -270,7 +278,7 @@ class Client:
             dataset_info (feast.sdk.resources.feature_set.DatasetInfo) :
                 dataset_info to be downloaded
             dest (str): destination's file path
-            staging_location (str): url to staging_location (currently
+            staging_location (str, optional): url to staging_location (currently
                 support a folder in GCS)
             file_type (feast.sdk.resources.feature_set.FileType): (default:
                 FileType.CSV) exported file format
@@ -278,16 +286,16 @@ class Client:
             str: path to the downloaded file
         """
         return self._table_downloader.download_table_as_file(
-            dataset_info.full_table_id, dest, staging_location, file_type
+            dataset_info.full_table_id, dest, file_type, staging_location
         )
 
-    def download_dataset_to_df(self, dataset_info, staging_location):
+    def download_dataset_to_df(self, dataset_info, staging_location=None):
         """
         Download training dataset as Pandas Dataframe
         Args:
             dataset_info (feast.sdk.resources.feature_set.DatasetInfo) :
                 dataset_info to be downloaded
-            staging_location: url to staging_location (currently
+            staging_location(str, optional): url to staging_location (currently
                 support a folder in GCS)
 
         Returns: pandas.DataFrame: dataframe of the training dataset
@@ -362,12 +370,10 @@ class Client:
             return self._apply_entity(obj)
         elif isinstance(obj, FeatureGroup):
             return self._apply_feature_group(obj)
-        elif isinstance(obj, Storage):
-            return self._apply_storage(obj)
         else:
             raise TypeError(
                 "Apply can only be passed one of the following \
-            types: [Feature, Entity, FeatureGroup, Storage, Importer]"
+            types: [Feature, Entity, FeatureGroup, Importer]"
             )
 
     def _apply_feature(self, feature):
@@ -418,23 +424,9 @@ class Client:
             )
         return response.featureGroupId
 
-    def _apply_storage(self, storage):
-        """Apply the storage to the core API
-
-        Args:
-            storage (feast.sdk.resources.storage.Storage): storage to apply
-        """
-        self._connect_core()
-        response = self._core_service_stub.ApplyStorage(storage.spec)
-        if self.verbose:
-            print(
-                "Successfully applied storage with id: "
-                + "{}\n{}".format(response.storageId, storage)
-            )
-        return response.storageId
-
-    def _check_create_dataset_args(self, feature_set, start_date, end_date,
-                                   limit, filters):
+    def _check_create_dataset_args(
+        self, feature_set, start_date, end_date, limit, filters
+    ):
         if len(feature_set.features) < 1:
             raise ValueError("feature set is empty")
 

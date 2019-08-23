@@ -63,6 +63,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -147,14 +148,25 @@ public class JobManagementService {
   }
 
   /**
-   * Lists all jobs registered to the db.
+   * Lists all jobs registered to the db, sorted by provided <code>orderBy</code>
+   *
+   * @param orderBy list order
+   * @return list of JobDetails
+   */
+  @Transactional
+  public List<JobDetail> listJobs(Sort orderBy) {
+    List<JobInfo> jobs = jobInfoRepository.findAll(orderBy);
+    return jobs.stream().map(JobInfo::getJobDetail).collect(Collectors.toList());
+  }
+
+  /**
+   * Lists all jobs registered to the db, sorted chronologically by creation time
    *
    * @return list of JobDetails
    */
   @Transactional
   public List<JobDetail> listJobs() {
-    List<JobInfo> jobs = jobInfoRepository.findAll();
-    return jobs.stream().map(JobInfo::getJobDetail).collect(Collectors.toList());
+    return listJobs(Sort.by(Sort.Direction.ASC, "created"));
   }
 
   /**
@@ -299,5 +311,9 @@ public class JobManagementService {
   private String createJobId(String namePrefix) {
     String dateSuffix = String.valueOf(Instant.now().toEpochMilli());
     return namePrefix.isEmpty() ? JOB_PREFIX_DEFAULT + dateSuffix : namePrefix + dateSuffix;
+  }
+
+  public String getWorkspace() {
+    return defaults.getWorkspace();
   }
 }

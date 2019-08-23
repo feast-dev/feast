@@ -15,7 +15,6 @@
 import yaml
 import json
 
-from feast.specs.FeatureSpec_pb2 import DataStores
 from feast.specs.FeatureGroupSpec_pb2 import FeatureGroupSpec
 from feast.sdk.utils.print_utils import spec_to_yaml
 from google.protobuf.json_format import Parse
@@ -26,28 +25,15 @@ class FeatureGroup():
     Wrapper class for feast feature group
     """
 
-    def __init__(self, id, tags=[], warehouse_store=None, serving_store=None):
+    def __init__(self, id, tags=[]):
         """Create FeatureGroup instance.
 
         Args:
             id (str): id of feature group
             tags (list): Defaults to []. tags assigned to feature group
                 as well as all children features.
-            warehouse_store (feast.sdk.resources.feature.Datastore):
-                warehouse store id and options
-            serving_store (feast.sdk.resources.feature.Datastore):
-                serving store id and options
         """
-        warehouse_store_spec = None
-        serving_store_spec = None
-        if (serving_store is not None):
-            serving_store_spec = serving_store.spec
-        if (warehouse_store is not None):
-            warehouse_store_spec = warehouse_store.spec
-        data_stores = DataStores(
-            serving=serving_store_spec, warehouse=warehouse_store_spec)
-        self.__spec = FeatureGroupSpec(
-            id=id, tags=tags, dataStores=data_stores)
+        self.__spec = FeatureGroupSpec(id=id, tags=tags)
 
     @property
     def spec(self):
@@ -60,22 +46,6 @@ class FeatureGroup():
     @id.setter
     def id(self, value):
         self.__spec.id = value
-
-    @property
-    def warehouse_store(self):
-        return self.__spec.dataStores.warehouse
-
-    @warehouse_store.setter
-    def warehouse_store(self, value):
-        self.__spec.dataStores.serving.CopyFrom(value)
-
-    @property
-    def serving_store(self):
-        return self.__spec.dataStores.serving
-
-    @serving_store.setter
-    def serving_store(self, value):
-        self.__spec.dataStores.warehouse.CopyFrom(value)
 
     @property
     def tags(self):
