@@ -65,6 +65,13 @@ If release name contains chart name it will be used as a full name.
 {{- end -}}
 
 {{/*
+Generate postgresql secret name
+*/}}
+{{- define "postgresql.secretName" -}}
+{{ default (include "postgresql.fullname" .) .Values.existingSecret }}
+{{- end -}}
+
+{{/*
 Create chart name and version as used by the chart label.
 */}}
 {{- define "feast.chart" -}}
