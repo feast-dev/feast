@@ -25,9 +25,10 @@ option java_package = "feast.serving";
 option java_outer_classname = "ServingAPIProto";
 option go_package = "github.com/gojek/feast/protos/generated/go/feast/serving";
 
-service ServingAPI {
+service ServingService {
     // Query features from Feast serving storage
-    rpc QueryFeatures (QueryFeaturesRequest) returns (QueryFeaturesResponse) {};
+    rpc QueryFeatures (QueryFeaturesRequest) returns (QueryFeaturesResponse) {
+    };
 }
 
 message QueryFeaturesRequest {

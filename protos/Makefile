@@ -1,6 +1,6 @@
 .PHONY: go
 
-dirs = core serving specs storage types
+dirs = core serving storage types
 service_dirs = core serving
 
 gen-go:

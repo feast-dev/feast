@@ -15,21 +15,23 @@
 //
 
 syntax = "proto3";
+package feast.core;
 
-package feast.specs;
+option java_package = "feast.core";
+option java_outer_classname = "SourceProto";
+option go_package = "github.com/gojek/feast/protos/generated/go/feast/core";
 
-option go_package = "github.com/gojek/feast/protos/generated/go/feast/specs";
-option java_outer_classname = "ImportJobSpecsProto";
-option java_package = "feast.specs";
 
-message SourceSpec {
+message Source {
   enum SourceType {
     KAFKA = 0;
   }
+
   // The kind of message source the import job should connect to
   // in order to retrieve FeatureRow value
   SourceType type = 1;
-  // Optional. Configuration to establish connection to the message source. 
+
+  // Optional. Configuration to establish connection to the message source.
   // The available options vary depending on the source type.
   //
   // For SourceType.KAFKA, the following key value options are accepted:
