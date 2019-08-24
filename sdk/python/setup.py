@@ -22,7 +22,9 @@ DESCRIPTION = "Python sdk for Feast"
 URL = "https://github.com/gojek/feast"
 AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.6.0"
-VERSION = imp.load_source("feast.version", os.path.join("feast", "version.py")).VERSION
+VERSION_FILE = open(os.path.join("../../", "VERSION"))
+VERSION = VERSION_FILE.read().strip()
+
 REQUIRED = [
     "google-api-core==1.*",
     "google-auth==1.*",
@@ -37,6 +39,7 @@ REQUIRED = [
     "fastavro==0.*",
     "kafka-python==1.4.*",
     "tqdm==4.*",
+    'numpy'
 ]
 
 setup(

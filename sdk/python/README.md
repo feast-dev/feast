@@ -110,7 +110,7 @@ Also, it's possible to retrieve only these features required
 for training, by specifying them in a `FeatureSet`:
 
 ```python
-from feast.sdk.resources.feature_set import FeatureSet
+from feature_set import FeatureSet
 
 training_fs = FeatureSet(entity="word", features=["word.count"])
 
