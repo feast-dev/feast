@@ -21,7 +21,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.types',
   syntax='proto3',
   serialized_options=_b('\n\013feast.typesB\nValueProtoZ6github.com/gojek/feast/protos/generated/go/feast/types'),
-  serialized_pb=_b('\n\x17\x66\x65\x61st/types/Value.proto\x12\x0b\x66\x65\x61st.types\x1a\x1fgoogle/protobuf/timestamp.proto\"}\n\tValueType\"p\n\x04\x45num\x12\x0b\n\x07UNKNOWN\x10\x00\x12\t\n\x05\x42YTES\x10\x01\x12\n\n\x06STRING\x10\x02\x12\t\n\x05INT32\x10\x03\x12\t\n\x05INT64\x10\x04\x12\n\n\x06\x44OUBLE\x10\x05\x12\t\n\x05\x46LOAT\x10\x06\x12\x08\n\x04\x42OOL\x10\x07\x12\r\n\tTIMESTAMP\x10\x08\"\xcf\x01\n\x05Value\x12\x12\n\x08\x62ytesVal\x18\x01 \x01(\x0cH\x00\x12\x13\n\tstringVal\x18\x02 \x01(\tH\x00\x12\x12\n\x08int32Val\x18\x03 \x01(\x05H\x00\x12\x12\n\x08int64Val\x18\x04 \x01(\x03H\x00\x12\x13\n\tdoubleVal\x18\x05 \x01(\x01H\x00\x12\x12\n\x08\x66loatVal\x18\x06 \x01(\x02H\x00\x12\x11\n\x07\x62oolVal\x18\x07 \x01(\x08H\x00\x12\x32\n\x0ctimestampVal\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampH\x00\x42\x05\n\x03val\"\x8a\x03\n\tValueList\x12+\n\tbytesList\x18\x01 \x01(\x0b\x32\x16.feast.types.BytesListH\x00\x12-\n\nstringList\x18\x02 \x01(\x0b\x32\x17.feast.types.StringListH\x00\x12+\n\tint32List\x18\x03 \x01(\x0b\x32\x16.feast.types.Int32ListH\x00\x12+\n\tint64List\x18\x04 \x01(\x0b\x32\x16.feast.types.Int64ListH\x00\x12-\n\ndoubleList\x18\x05 \x01(\x0b\x32\x17.feast.types.DoubleListH\x00\x12+\n\tfloatList\x18\x06 \x01(\x0b\x32\x16.feast.types.FloatListH\x00\x12)\n\x08\x62oolList\x18\x07 \x01(\x0b\x32\x15.feast.types.BoolListH\x00\x12\x33\n\rtimestampList\x18\x08 \x01(\x0b\x32\x1a.feast.types.TimestampListH\x00\x42\x0b\n\tvalueList\"\x18\n\tBytesList\x12\x0b\n\x03val\x18\x01 \x03(\x0c\"\x19\n\nStringList\x12\x0b\n\x03val\x18\x01 \x03(\t\"\x18\n\tInt32List\x12\x0b\n\x03val\x18\x01 \x03(\x05\"\x18\n\tInt64List\x12\x0b\n\x03val\x18\x01 \x03(\x03\"\x19\n\nDoubleList\x12\x0b\n\x03val\x18\x01 \x03(\x01\"\x18\n\tFloatList\x12\x0b\n\x03val\x18\x01 \x03(\x02\"\x17\n\x08\x42oolList\x12\x0b\n\x03val\x18\x01 \x03(\x08\"8\n\rTimestampList\x12\'\n\x03val\x18\x01 \x03(\x0b\x32\x1a.google.protobuf.TimestampBQ\n\x0b\x66\x65\x61st.typesB\nValueProtoZ6github.com/gojek/feast/protos/generated/go/feast/typesb\x06proto3')
+  serialized_pb=_b('\n\x17\x66\x65\x61st/types/Value.proto\x12\x0b\x66\x65\x61st.types\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe0\x01\n\tValueType\"\xd2\x01\n\x04\x45num\x12\x0b\n\x07UNKNOWN\x10\x00\x12\t\n\x05\x42YTES\x10\x01\x12\n\n\x06STRING\x10\x02\x12\t\n\x05INT32\x10\x03\x12\t\n\x05INT64\x10\x04\x12\n\n\x06\x44OUBLE\x10\x05\x12\t\n\x05\x46LOAT\x10\x06\x12\x08\n\x04\x42OOL\x10\x07\x12\x0e\n\nBYTES_LIST\x10\x0b\x12\x0f\n\x0bSTRING_LIST\x10\x0c\x12\x0e\n\nINT32_LIST\x10\r\x12\x0e\n\nINT64_LIST\x10\x0e\x12\x0f\n\x0b\x44OUBLE_LIST\x10\x0f\x12\x0e\n\nFLOAT_LIST\x10\x10\x12\r\n\tBOOL_LIST\x10\x11\"\xed\x03\n\x05Value\x12\x12\n\x08\x62ytesVal\x18\x01 \x01(\x0cH\x00\x12\x13\n\tstringVal\x18\x02 \x01(\tH\x00\x12\x12\n\x08int32Val\x18\x03 \x01(\x05H\x00\x12\x12\n\x08int64Val\x18\x04 \x01(\x03H\x00\x12\x13\n\tdoubleVal\x18\x05 \x01(\x01H\x00\x12\x12\n\x08\x66loatVal\x18\x06 \x01(\x02H\x00\x12\x11\n\x07\x62oolVal\x18\x07 \x01(\x08H\x00\x12.\n\x0c\x62ytesListVal\x18\x0b \x01(\x0b\x32\x16.feast.types.BytesListH\x00\x12\x30\n\rstringListVal\x18\x0c \x01(\x0b\x32\x17.feast.types.StringListH\x00\x12.\n\x0cint32ListVal\x18\r \x01(\x0b\x32\x16.feast.types.Int32ListH\x00\x12.\n\x0cint64ListVal\x18\x0e \x01(\x0b\x32\x16.feast.types.Int64ListH\x00\x12\x30\n\rdoubleListVal\x18\x0f \x01(\x0b\x32\x17.feast.types.DoubleListH\x00\x12.\n\x0c\x66loatListVal\x18\x10 \x01(\x0b\x32\x16.feast.types.FloatListH\x00\x12,\n\x0b\x62oolListVal\x18\x11 \x01(\x0b\x32\x15.feast.types.BoolListH\x00\x42\x05\n\x03val\"\x18\n\tBytesList\x12\x0b\n\x03val\x18\x01 \x03(\x0c\"\x19\n\nStringList\x12\x0b\n\x03val\x18\x01 \x03(\t\"\x18\n\tInt32List\x12\x0b\n\x03val\x18\x01 \x03(\x05\"\x18\n\tInt64List\x12\x0b\n\x03val\x18\x01 \x03(\x03\"\x19\n\nDoubleList\x12\x0b\n\x03val\x18\x01 \x03(\x01\"\x18\n\tFloatList\x12\x0b\n\x03val\x18\x01 \x03(\x02\"\x17\n\x08\x42oolList\x12\x0b\n\x03val\x18\x01 \x03(\x08\x42Q\n\x0b\x66\x65\x61st.typesB\nValueProtoZ6github.com/gojek/feast/protos/generated/go/feast/typesb\x06proto3')
   ,
   dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,])
 
@@ -66,14 +66,38 @@ _VALUETYPE_ENUM = _descriptor.EnumDescriptor(
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='TIMESTAMP', index=8, number=8,
+      name='BYTES_LIST', index=8, number=11,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='STRING_LIST', index=9, number=12,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='INT32_LIST', index=10, number=13,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='INT64_LIST', index=11, number=14,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='DOUBLE_LIST', index=12, number=15,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='FLOAT_LIST', index=13, number=16,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='BOOL_LIST', index=14, number=17,
       serialized_options=None,
       type=None),
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=86,
-  serialized_end=198,
+  serialized_start=88,
+  serialized_end=298,
 )
 _sym_db.RegisterEnumDescriptor(_VALUETYPE_ENUM)
 
@@ -98,8 +122,8 @@ _VALUETYPE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=73,
-  serialized_end=198,
+  serialized_start=74,
+  serialized_end=298,
 )
 
 
@@ -160,8 +184,50 @@ _VALUE = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='timestampVal', full_name='feast.types.Value.timestampVal', index=7,
-      number=8, type=11, cpp_type=10, label=1,
+      name='bytesListVal', full_name='feast.types.Value.bytesListVal', index=7,
+      number=11, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='stringListVal', full_name='feast.types.Value.stringListVal', index=8,
+      number=12, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='int32ListVal', full_name='feast.types.Value.int32ListVal', index=9,
+      number=13, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='int64ListVal', full_name='feast.types.Value.int64ListVal', index=10,
+      number=14, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='doubleListVal', full_name='feast.types.Value.doubleListVal', index=11,
+      number=15, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='floatListVal', full_name='feast.types.Value.floatListVal', index=12,
+      number=16, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='boolListVal', full_name='feast.types.Value.boolListVal', index=13,
+      number=17, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -181,91 +247,8 @@ _VALUE = _descriptor.Descriptor(
       name='val', full_name='feast.types.Value.val',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=201,
-  serialized_end=408,
-)
-
-
-_VALUELIST = _descriptor.Descriptor(
-  name='ValueList',
-  full_name='feast.types.ValueList',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='bytesList', full_name='feast.types.ValueList.bytesList', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='stringList', full_name='feast.types.ValueList.stringList', index=1,
-      number=2, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='int32List', full_name='feast.types.ValueList.int32List', index=2,
-      number=3, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='int64List', full_name='feast.types.ValueList.int64List', index=3,
-      number=4, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='doubleList', full_name='feast.types.ValueList.doubleList', index=4,
-      number=5, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='floatList', full_name='feast.types.ValueList.floatList', index=5,
-      number=6, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='boolList', full_name='feast.types.ValueList.boolList', index=6,
-      number=7, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='timestampList', full_name='feast.types.ValueList.timestampList', index=7,
-      number=8, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-    _descriptor.OneofDescriptor(
-      name='valueList', full_name='feast.types.ValueList.valueList',
-      index=0, containing_type=None, fields=[]),
-  ],
-  serialized_start=411,
-  serialized_end=805,
+  serialized_start=301,
+  serialized_end=794,
 )
 
 
@@ -295,8 +278,8 @@ _BYTESLIST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=807,
-  serialized_end=831,
+  serialized_start=796,
+  serialized_end=820,
 )
 
 
@@ -326,8 +309,8 @@ _STRINGLIST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=833,
-  serialized_end=858,
+  serialized_start=822,
+  serialized_end=847,
 )
 
 
@@ -357,8 +340,8 @@ _INT32LIST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=860,
-  serialized_end=884,
+  serialized_start=849,
+  serialized_end=873,
 )
 
 
@@ -388,8 +371,8 @@ _INT64LIST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=886,
-  serialized_end=910,
+  serialized_start=875,
+  serialized_end=899,
 )
 
 
@@ -419,8 +402,8 @@ _DOUBLELIST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=912,
-  serialized_end=937,
+  serialized_start=901,
+  serialized_end=926,
 )
 
 
@@ -450,8 +433,8 @@ _FLOATLIST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=939,
-  serialized_end=963,
+  serialized_start=928,
+  serialized_end=952,
 )
 
 
@@ -481,43 +464,18 @@ _BOOLLIST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=965,
-  serialized_end=988,
-)
-
-
-_TIMESTAMPLIST = _descriptor.Descriptor(
-  name='TimestampList',
-  full_name='feast.types.TimestampList',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='val', full_name='feast.types.TimestampList.val', index=0,
-      number=1, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=990,
-  serialized_end=1046,
+  serialized_start=954,
+  serialized_end=977,
 )
 
 _VALUETYPE_ENUM.containing_type = _VALUETYPE
-_VALUE.fields_by_name['timestampVal'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
+_VALUE.fields_by_name['bytesListVal'].message_type = _BYTESLIST
+_VALUE.fields_by_name['stringListVal'].message_type = _STRINGLIST
+_VALUE.fields_by_name['int32ListVal'].message_type = _INT32LIST
+_VALUE.fields_by_name['int64ListVal'].message_type = _INT64LIST
+_VALUE.fields_by_name['doubleListVal'].message_type = _DOUBLELIST
+_VALUE.fields_by_name['floatListVal'].message_type = _FLOATLIST
+_VALUE.fields_by_name['boolListVal'].message_type = _BOOLLIST
 _VALUE.oneofs_by_name['val'].fields.append(
   _VALUE.fields_by_name['bytesVal'])
 _VALUE.fields_by_name['bytesVal'].containing_oneof = _VALUE.oneofs_by_name['val']
@@ -540,44 +498,28 @@ _VALUE.oneofs_by_name['val'].fields.append(
   _VALUE.fields_by_name['boolVal'])
 _VALUE.fields_by_name['boolVal'].containing_oneof = _VALUE.oneofs_by_name['val']
 _VALUE.oneofs_by_name['val'].fields.append(
-  _VALUE.fields_by_name['timestampVal'])
-_VALUE.fields_by_name['timestampVal'].containing_oneof = _VALUE.oneofs_by_name['val']
-_VALUELIST.fields_by_name['bytesList'].message_type = _BYTESLIST
-_VALUELIST.fields_by_name['stringList'].message_type = _STRINGLIST
-_VALUELIST.fields_by_name['int32List'].message_type = _INT32LIST
-_VALUELIST.fields_by_name['int64List'].message_type = _INT64LIST
-_VALUELIST.fields_by_name['doubleList'].message_type = _DOUBLELIST
-_VALUELIST.fields_by_name['floatList'].message_type = _FLOATLIST
-_VALUELIST.fields_by_name['boolList'].message_type = _BOOLLIST
-_VALUELIST.fields_by_name['timestampList'].message_type = _TIMESTAMPLIST
-_VALUELIST.oneofs_by_name['valueList'].fields.append(
-  _VALUELIST.fields_by_name['bytesList'])
-_VALUELIST.fields_by_name['bytesList'].containing_oneof = _VALUELIST.oneofs_by_name['valueList']
-_VALUELIST.oneofs_by_name['valueList'].fields.append(
-  _VALUELIST.fields_by_name['stringList'])
-_VALUELIST.fields_by_name['stringList'].containing_oneof = _VALUELIST.oneofs_by_name['valueList']
-_VALUELIST.oneofs_by_name['valueList'].fields.append(
-  _VALUELIST.fields_by_name['int32List'])
-_VALUELIST.fields_by_name['int32List'].containing_oneof = _VALUELIST.oneofs_by_name['valueList']
-_VALUELIST.oneofs_by_name['valueList'].fields.append(
-  _VALUELIST.fields_by_name['int64List'])
-_VALUELIST.fields_by_name['int64List'].containing_oneof = _VALUELIST.oneofs_by_name['valueList']
-_VALUELIST.oneofs_by_name['valueList'].fields.append(
-  _VALUELIST.fields_by_name['doubleList'])
-_VALUELIST.fields_by_name['doubleList'].containing_oneof = _VALUELIST.oneofs_by_name['valueList']
-_VALUELIST.oneofs_by_name['valueList'].fields.append(
-  _VALUELIST.fields_by_name['floatList'])
-_VALUELIST.fields_by_name['floatList'].containing_oneof = _VALUELIST.oneofs_by_name['valueList']
-_VALUELIST.oneofs_by_name['valueList'].fields.append(
-  _VALUELIST.fields_by_name['boolList'])
-_VALUELIST.fields_by_name['boolList'].containing_oneof = _VALUELIST.oneofs_by_name['valueList']
-_VALUELIST.oneofs_by_name['valueList'].fields.append(
-  _VALUELIST.fields_by_name['timestampList'])
-_VALUELIST.fields_by_name['timestampList'].containing_oneof = _VALUELIST.oneofs_by_name['valueList']
-_TIMESTAMPLIST.fields_by_name['val'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
+  _VALUE.fields_by_name['bytesListVal'])
+_VALUE.fields_by_name['bytesListVal'].containing_oneof = _VALUE.oneofs_by_name['val']
+_VALUE.oneofs_by_name['val'].fields.append(
+  _VALUE.fields_by_name['stringListVal'])
+_VALUE.fields_by_name['stringListVal'].containing_oneof = _VALUE.oneofs_by_name['val']
+_VALUE.oneofs_by_name['val'].fields.append(
+  _VALUE.fields_by_name['int32ListVal'])
+_VALUE.fields_by_name['int32ListVal'].containing_oneof = _VALUE.oneofs_by_name['val']
+_VALUE.oneofs_by_name['val'].fields.append(
+  _VALUE.fields_by_name['int64ListVal'])
+_VALUE.fields_by_name['int64ListVal'].containing_oneof = _VALUE.oneofs_by_name['val']
+_VALUE.oneofs_by_name['val'].fields.append(
+  _VALUE.fields_by_name['doubleListVal'])
+_VALUE.fields_by_name['doubleListVal'].containing_oneof = _VALUE.oneofs_by_name['val']
+_VALUE.oneofs_by_name['val'].fields.append(
+  _VALUE.fields_by_name['floatListVal'])
+_VALUE.fields_by_name['floatListVal'].containing_oneof = _VALUE.oneofs_by_name['val']
+_VALUE.oneofs_by_name['val'].fields.append(
+  _VALUE.fields_by_name['boolListVal'])
+_VALUE.fields_by_name['boolListVal'].containing_oneof = _VALUE.oneofs_by_name['val']
 DESCRIPTOR.message_types_by_name['ValueType'] = _VALUETYPE
 DESCRIPTOR.message_types_by_name['Value'] = _VALUE
-DESCRIPTOR.message_types_by_name['ValueList'] = _VALUELIST
 DESCRIPTOR.message_types_by_name['BytesList'] = _BYTESLIST
 DESCRIPTOR.message_types_by_name['StringList'] = _STRINGLIST
 DESCRIPTOR.message_types_by_name['Int32List'] = _INT32LIST
@@ -585,85 +527,70 @@ DESCRIPTOR.message_types_by_name['Int64List'] = _INT64LIST
 DESCRIPTOR.message_types_by_name['DoubleList'] = _DOUBLELIST
 DESCRIPTOR.message_types_by_name['FloatList'] = _FLOATLIST
 DESCRIPTOR.message_types_by_name['BoolList'] = _BOOLLIST
-DESCRIPTOR.message_types_by_name['TimestampList'] = _TIMESTAMPLIST
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-ValueType = _reflection.GeneratedProtocolMessageType('ValueType', (_message.Message,), dict(
-  DESCRIPTOR = _VALUETYPE,
-  __module__ = 'feast.types.Value_pb2'
+ValueType = _reflection.GeneratedProtocolMessageType('ValueType', (_message.Message,), {
+  'DESCRIPTOR' : _VALUETYPE,
+  '__module__' : 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.ValueType)
-  ))
+  })
 _sym_db.RegisterMessage(ValueType)
 
-Value = _reflection.GeneratedProtocolMessageType('Value', (_message.Message,), dict(
-  DESCRIPTOR = _VALUE,
-  __module__ = 'feast.types.Value_pb2'
+Value = _reflection.GeneratedProtocolMessageType('Value', (_message.Message,), {
+  'DESCRIPTOR' : _VALUE,
+  '__module__' : 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.Value)
-  ))
+  })
 _sym_db.RegisterMessage(Value)
 
-ValueList = _reflection.GeneratedProtocolMessageType('ValueList', (_message.Message,), dict(
-  DESCRIPTOR = _VALUELIST,
-  __module__ = 'feast.types.Value_pb2'
-  # @@protoc_insertion_point(class_scope:feast.types.ValueList)
-  ))
-_sym_db.RegisterMessage(ValueList)
-
-BytesList = _reflection.GeneratedProtocolMessageType('BytesList', (_message.Message,), dict(
-  DESCRIPTOR = _BYTESLIST,
-  __module__ = 'feast.types.Value_pb2'
+BytesList = _reflection.GeneratedProtocolMessageType('BytesList', (_message.Message,), {
+  'DESCRIPTOR' : _BYTESLIST,
+  '__module__' : 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.BytesList)
-  ))
+  })
 _sym_db.RegisterMessage(BytesList)
 
-StringList = _reflection.GeneratedProtocolMessageType('StringList', (_message.Message,), dict(
-  DESCRIPTOR = _STRINGLIST,
-  __module__ = 'feast.types.Value_pb2'
+StringList = _reflection.GeneratedProtocolMessageType('StringList', (_message.Message,), {
+  'DESCRIPTOR' : _STRINGLIST,
+  '__module__' : 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.StringList)
-  ))
+  })
 _sym_db.RegisterMessage(StringList)
 
-Int32List = _reflection.GeneratedProtocolMessageType('Int32List', (_message.Message,), dict(
-  DESCRIPTOR = _INT32LIST,
-  __module__ = 'feast.types.Value_pb2'
+Int32List = _reflection.GeneratedProtocolMessageType('Int32List', (_message.Message,), {
+  'DESCRIPTOR' : _INT32LIST,
+  '__module__' : 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.Int32List)
-  ))
+  })
 _sym_db.RegisterMessage(Int32List)
 
-Int64List = _reflection.GeneratedProtocolMessageType('Int64List', (_message.Message,), dict(
-  DESCRIPTOR = _INT64LIST,
-  __module__ = 'feast.types.Value_pb2'
+Int64List = _reflection.GeneratedProtocolMessageType('Int64List', (_message.Message,), {
+  'DESCRIPTOR' : _INT64LIST,
+  '__module__' : 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.Int64List)
-  ))
+  })
 _sym_db.RegisterMessage(Int64List)
 
-DoubleList = _reflection.GeneratedProtocolMessageType('DoubleList', (_message.Message,), dict(
-  DESCRIPTOR = _DOUBLELIST,
-  __module__ = 'feast.types.Value_pb2'
+DoubleList = _reflection.GeneratedProtocolMessageType('DoubleList', (_message.Message,), {
+  'DESCRIPTOR' : _DOUBLELIST,
+  '__module__' : 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.DoubleList)
-  ))
+  })
 _sym_db.RegisterMessage(DoubleList)
 
-FloatList = _reflection.GeneratedProtocolMessageType('FloatList', (_message.Message,), dict(
-  DESCRIPTOR = _FLOATLIST,
-  __module__ = 'feast.types.Value_pb2'
+FloatList = _reflection.GeneratedProtocolMessageType('FloatList', (_message.Message,), {
+  'DESCRIPTOR' : _FLOATLIST,
+  '__module__' : 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.FloatList)
-  ))
+  })
 _sym_db.RegisterMessage(FloatList)
 
-BoolList = _reflection.GeneratedProtocolMessageType('BoolList', (_message.Message,), dict(
-  DESCRIPTOR = _BOOLLIST,
-  __module__ = 'feast.types.Value_pb2'
+BoolList = _reflection.GeneratedProtocolMessageType('BoolList', (_message.Message,), {
+  'DESCRIPTOR' : _BOOLLIST,
+  '__module__' : 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.BoolList)
-  ))
+  })
 _sym_db.RegisterMessage(BoolList)
-
-TimestampList = _reflection.GeneratedProtocolMessageType('TimestampList', (_message.Message,), dict(
-  DESCRIPTOR = _TIMESTAMPLIST,
-  __module__ = 'feast.types.Value_pb2'
-  # @@protoc_insertion_point(class_scope:feast.types.TimestampList)
-  ))
-_sym_db.RegisterMessage(TimestampList)
 
 
 DESCRIPTOR._options = None

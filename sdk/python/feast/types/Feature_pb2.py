@@ -21,7 +21,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.types',
   syntax='proto3',
   serialized_options=_b('\n\013feast.typesB\014FeatureProtoZ6github.com/gojek/feast/protos/generated/go/feast/types'),
-  serialized_pb=_b('\n\x19\x66\x65\x61st/types/Feature.proto\x12\x0b\x66\x65\x61st.types\x1a\x17\x66\x65\x61st/types/Value.proto\"8\n\x07\x46\x65\x61ture\x12\n\n\x02id\x18\x01 \x01(\t\x12!\n\x05value\x18\x02 \x01(\x0b\x32\x12.feast.types.ValueBS\n\x0b\x66\x65\x61st.typesB\x0c\x46\x65\x61tureProtoZ6github.com/gojek/feast/protos/generated/go/feast/typesb\x06proto3')
+  serialized_pb=_b('\n\x19\x66\x65\x61st/types/Feature.proto\x12\x0b\x66\x65\x61st.types\x1a\x17\x66\x65\x61st/types/Value.proto\":\n\x07\x46\x65\x61ture\x12!\n\x05value\x18\x02 \x01(\x0b\x32\x12.feast.types.Value\x12\x0c\n\x04name\x18\x03 \x01(\tBS\n\x0b\x66\x65\x61st.typesB\x0c\x46\x65\x61tureProtoZ6github.com/gojek/feast/protos/generated/go/feast/typesb\x06proto3')
   ,
   dependencies=[feast_dot_types_dot_Value__pb2.DESCRIPTOR,])
 
@@ -36,16 +36,16 @@ _FEATURE = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='id', full_name='feast.types.Feature.id', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      name='value', full_name='feast.types.Feature.value', index=0,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='value', full_name='feast.types.Feature.value', index=1,
-      number=2, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
+      name='name', full_name='feast.types.Feature.name', index=1,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -62,18 +62,18 @@ _FEATURE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=67,
-  serialized_end=123,
+  serialized_end=125,
 )
 
 _FEATURE.fields_by_name['value'].message_type = feast_dot_types_dot_Value__pb2._VALUE
 DESCRIPTOR.message_types_by_name['Feature'] = _FEATURE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-Feature = _reflection.GeneratedProtocolMessageType('Feature', (_message.Message,), dict(
-  DESCRIPTOR = _FEATURE,
-  __module__ = 'feast.types.Feature_pb2'
+Feature = _reflection.GeneratedProtocolMessageType('Feature', (_message.Message,), {
+  'DESCRIPTOR' : _FEATURE,
+  '__module__' : 'feast.types.Feature_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.Feature)
-  ))
+  })
 _sym_db.RegisterMessage(Feature)
 
 

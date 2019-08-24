@@ -6,16 +6,11 @@ from google.protobuf.descriptor import (
 )
 
 from google.protobuf.internal.containers import (
-    RepeatedCompositeFieldContainer as google___protobuf___internal___containers___RepeatedCompositeFieldContainer,
     RepeatedScalarFieldContainer as google___protobuf___internal___containers___RepeatedScalarFieldContainer,
 )
 
 from google.protobuf.message import (
     Message as google___protobuf___message___Message,
-)
-
-from google.protobuf.timestamp_pb2 import (
-    Timestamp as google___protobuf___timestamp_pb2___Timestamp,
 )
 
 from typing import (
@@ -54,7 +49,13 @@ class ValueType(google___protobuf___message___Message):
         DOUBLE = typing___cast(ValueType.Enum, 5)
         FLOAT = typing___cast(ValueType.Enum, 6)
         BOOL = typing___cast(ValueType.Enum, 7)
-        TIMESTAMP = typing___cast(ValueType.Enum, 8)
+        BYTES_LIST = typing___cast(ValueType.Enum, 11)
+        STRING_LIST = typing___cast(ValueType.Enum, 12)
+        INT32_LIST = typing___cast(ValueType.Enum, 13)
+        INT64_LIST = typing___cast(ValueType.Enum, 14)
+        DOUBLE_LIST = typing___cast(ValueType.Enum, 15)
+        FLOAT_LIST = typing___cast(ValueType.Enum, 16)
+        BOOL_LIST = typing___cast(ValueType.Enum, 17)
     UNKNOWN = typing___cast(ValueType.Enum, 0)
     BYTES = typing___cast(ValueType.Enum, 1)
     STRING = typing___cast(ValueType.Enum, 2)
@@ -63,7 +64,13 @@ class ValueType(google___protobuf___message___Message):
     DOUBLE = typing___cast(ValueType.Enum, 5)
     FLOAT = typing___cast(ValueType.Enum, 6)
     BOOL = typing___cast(ValueType.Enum, 7)
-    TIMESTAMP = typing___cast(ValueType.Enum, 8)
+    BYTES_LIST = typing___cast(ValueType.Enum, 11)
+    STRING_LIST = typing___cast(ValueType.Enum, 12)
+    INT32_LIST = typing___cast(ValueType.Enum, 13)
+    INT64_LIST = typing___cast(ValueType.Enum, 14)
+    DOUBLE_LIST = typing___cast(ValueType.Enum, 15)
+    FLOAT_LIST = typing___cast(ValueType.Enum, 16)
+    BOOL_LIST = typing___cast(ValueType.Enum, 17)
 
 
     def __init__(self,
@@ -84,7 +91,25 @@ class Value(google___protobuf___message___Message):
     boolVal = ... # type: bool
 
     @property
-    def timestampVal(self) -> google___protobuf___timestamp_pb2___Timestamp: ...
+    def bytesListVal(self) -> BytesList: ...
+
+    @property
+    def stringListVal(self) -> StringList: ...
+
+    @property
+    def int32ListVal(self) -> Int32List: ...
+
+    @property
+    def int64ListVal(self) -> Int64List: ...
+
+    @property
+    def doubleListVal(self) -> DoubleList: ...
+
+    @property
+    def floatListVal(self) -> FloatList: ...
+
+    @property
+    def boolListVal(self) -> BoolList: ...
 
     def __init__(self,
         *,
@@ -95,69 +120,25 @@ class Value(google___protobuf___message___Message):
         doubleVal : typing___Optional[float] = None,
         floatVal : typing___Optional[float] = None,
         boolVal : typing___Optional[bool] = None,
-        timestampVal : typing___Optional[google___protobuf___timestamp_pb2___Timestamp] = None,
+        bytesListVal : typing___Optional[BytesList] = None,
+        stringListVal : typing___Optional[StringList] = None,
+        int32ListVal : typing___Optional[Int32List] = None,
+        int64ListVal : typing___Optional[Int64List] = None,
+        doubleListVal : typing___Optional[DoubleList] = None,
+        floatListVal : typing___Optional[FloatList] = None,
+        boolListVal : typing___Optional[BoolList] = None,
         ) -> None: ...
     @classmethod
     def FromString(cls, s: bytes) -> Value: ...
     def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     if sys.version_info >= (3,):
-        def HasField(self, field_name: typing_extensions___Literal[u"boolVal",u"bytesVal",u"doubleVal",u"floatVal",u"int32Val",u"int64Val",u"stringVal",u"timestampVal",u"val"]) -> bool: ...
-        def ClearField(self, field_name: typing_extensions___Literal[u"boolVal",u"bytesVal",u"doubleVal",u"floatVal",u"int32Val",u"int64Val",u"stringVal",u"timestampVal",u"val"]) -> None: ...
+        def HasField(self, field_name: typing_extensions___Literal[u"boolListVal",u"boolVal",u"bytesListVal",u"bytesVal",u"doubleListVal",u"doubleVal",u"floatListVal",u"floatVal",u"int32ListVal",u"int32Val",u"int64ListVal",u"int64Val",u"stringListVal",u"stringVal",u"val"]) -> bool: ...
+        def ClearField(self, field_name: typing_extensions___Literal[u"boolListVal",u"boolVal",u"bytesListVal",u"bytesVal",u"doubleListVal",u"doubleVal",u"floatListVal",u"floatVal",u"int32ListVal",u"int32Val",u"int64ListVal",u"int64Val",u"stringListVal",u"stringVal",u"val"]) -> None: ...
     else:
-        def HasField(self, field_name: typing_extensions___Literal[u"boolVal",b"boolVal",u"bytesVal",b"bytesVal",u"doubleVal",b"doubleVal",u"floatVal",b"floatVal",u"int32Val",b"int32Val",u"int64Val",b"int64Val",u"stringVal",b"stringVal",u"timestampVal",b"timestampVal",u"val",b"val"]) -> bool: ...
-        def ClearField(self, field_name: typing_extensions___Literal[u"boolVal",b"boolVal",u"bytesVal",b"bytesVal",u"doubleVal",b"doubleVal",u"floatVal",b"floatVal",u"int32Val",b"int32Val",u"int64Val",b"int64Val",u"stringVal",b"stringVal",u"timestampVal",b"timestampVal",u"val",b"val"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions___Literal[u"val",b"val"]) -> typing_extensions___Literal["bytesVal","stringVal","int32Val","int64Val","doubleVal","floatVal","boolVal","timestampVal"]: ...
-
-class ValueList(google___protobuf___message___Message):
-    DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
-
-    @property
-    def bytesList(self) -> BytesList: ...
-
-    @property
-    def stringList(self) -> StringList: ...
-
-    @property
-    def int32List(self) -> Int32List: ...
-
-    @property
-    def int64List(self) -> Int64List: ...
-
-    @property
-    def doubleList(self) -> DoubleList: ...
-
-    @property
-    def floatList(self) -> FloatList: ...
-
-    @property
-    def boolList(self) -> BoolList: ...
-
-    @property
-    def timestampList(self) -> TimestampList: ...
-
-    def __init__(self,
-        *,
-        bytesList : typing___Optional[BytesList] = None,
-        stringList : typing___Optional[StringList] = None,
-        int32List : typing___Optional[Int32List] = None,
-        int64List : typing___Optional[Int64List] = None,
-        doubleList : typing___Optional[DoubleList] = None,
-        floatList : typing___Optional[FloatList] = None,
-        boolList : typing___Optional[BoolList] = None,
-        timestampList : typing___Optional[TimestampList] = None,
-        ) -> None: ...
-    @classmethod
-    def FromString(cls, s: bytes) -> ValueList: ...
-    def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
-    def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
-    if sys.version_info >= (3,):
-        def HasField(self, field_name: typing_extensions___Literal[u"boolList",u"bytesList",u"doubleList",u"floatList",u"int32List",u"int64List",u"stringList",u"timestampList",u"valueList"]) -> bool: ...
-        def ClearField(self, field_name: typing_extensions___Literal[u"boolList",u"bytesList",u"doubleList",u"floatList",u"int32List",u"int64List",u"stringList",u"timestampList",u"valueList"]) -> None: ...
-    else:
-        def HasField(self, field_name: typing_extensions___Literal[u"boolList",b"boolList",u"bytesList",b"bytesList",u"doubleList",b"doubleList",u"floatList",b"floatList",u"int32List",b"int32List",u"int64List",b"int64List",u"stringList",b"stringList",u"timestampList",b"timestampList",u"valueList",b"valueList"]) -> bool: ...
-        def ClearField(self, field_name: typing_extensions___Literal[u"boolList",b"boolList",u"bytesList",b"bytesList",u"doubleList",b"doubleList",u"floatList",b"floatList",u"int32List",b"int32List",u"int64List",b"int64List",u"stringList",b"stringList",u"timestampList",b"timestampList",u"valueList",b"valueList"]) -> None: ...
-    def WhichOneof(self, oneof_group: typing_extensions___Literal[u"valueList",b"valueList"]) -> typing_extensions___Literal["bytesList","stringList","int32List","int64List","doubleList","floatList","boolList","timestampList"]: ...
+        def HasField(self, field_name: typing_extensions___Literal[u"boolListVal",b"boolListVal",u"boolVal",b"boolVal",u"bytesListVal",b"bytesListVal",u"bytesVal",b"bytesVal",u"doubleListVal",b"doubleListVal",u"doubleVal",b"doubleVal",u"floatListVal",b"floatListVal",u"floatVal",b"floatVal",u"int32ListVal",b"int32ListVal",u"int32Val",b"int32Val",u"int64ListVal",b"int64ListVal",u"int64Val",b"int64Val",u"stringListVal",b"stringListVal",u"stringVal",b"stringVal",u"val",b"val"]) -> bool: ...
+        def ClearField(self, field_name: typing_extensions___Literal[u"boolListVal",b"boolListVal",u"boolVal",b"boolVal",u"bytesListVal",b"bytesListVal",u"bytesVal",b"bytesVal",u"doubleListVal",b"doubleListVal",u"doubleVal",b"doubleVal",u"floatListVal",b"floatListVal",u"floatVal",b"floatVal",u"int32ListVal",b"int32ListVal",u"int32Val",b"int32Val",u"int64ListVal",b"int64ListVal",u"int64Val",b"int64Val",u"stringListVal",b"stringListVal",u"stringVal",b"stringVal",u"val",b"val"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions___Literal[u"val",b"val"]) -> typing_extensions___Literal["bytesVal","stringVal","int32Val","int64Val","doubleVal","floatVal","boolVal","bytesListVal","stringListVal","int32ListVal","int64ListVal","doubleListVal","floatListVal","boolListVal"]: ...
 
 class BytesList(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
@@ -271,25 +252,6 @@ class BoolList(google___protobuf___message___Message):
         ) -> None: ...
     @classmethod
     def FromString(cls, s: bytes) -> BoolList: ...
-    def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
-    def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
-    if sys.version_info >= (3,):
-        def ClearField(self, field_name: typing_extensions___Literal[u"val"]) -> None: ...
-    else:
-        def ClearField(self, field_name: typing_extensions___Literal[u"val",b"val"]) -> None: ...
-
-class TimestampList(google___protobuf___message___Message):
-    DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
-
-    @property
-    def val(self) -> google___protobuf___internal___containers___RepeatedCompositeFieldContainer[google___protobuf___timestamp_pb2___Timestamp]: ...
-
-    def __init__(self,
-        *,
-        val : typing___Optional[typing___Iterable[google___protobuf___timestamp_pb2___Timestamp]] = None,
-        ) -> None: ...
-    @classmethod
-    def FromString(cls, s: bytes) -> TimestampList: ...
     def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     if sys.version_info >= (3,):
