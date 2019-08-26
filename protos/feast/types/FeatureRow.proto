@@ -26,8 +26,10 @@ option java_outer_classname = "FeatureRowProto";
 option go_package = "github.com/gojek/feast/protos/generated/go/feast/types";
 
 message FeatureRow {
-  string entityKey = 1;
-  repeated Feature features = 2;
-  google.protobuf.Timestamp eventTimestamp = 3;
-  string entityName = 4;
+    repeated Feature features = 2;
+    google.protobuf.Timestamp eventTimestamp = 3;
+    message FeatureSet {
+        string name = 5;
+        int32 version = 6;
+    }
 }

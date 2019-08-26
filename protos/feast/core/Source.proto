@@ -15,40 +15,23 @@
 //
 
 syntax = "proto3";
+package feast.core;
 
-package feast.specs;
+option java_package = "feast.core";
+option java_outer_classname = "SourceProto";
+option go_package = "github.com/gojek/feast/protos/generated/go/feast/core";
 
-option go_package = "github.com/gojek/feast/protos/generated/go/feast/specs";
-option java_outer_classname = "ImportJobSpecsProto";
-option java_package = "feast.specs";
 
-import "feast/specs/EntitySpec.proto";
-import "feast/specs/FeatureSpec.proto";
-import "feast/specs/StorageSpec.proto";
-
-message ImportJobSpecs {
-  // Job ID of the job using this import job spec.
-  string jobId = 1;
-  // Source spec containing source type and options
-  feast.specs.SourceSpec sourceSpec = 2;
-  // Entity spec of entity associated with this job.
-  feast.specs.EntitySpec entitySpec = 3;
-  // List of feature specs of features that this job will populate.
-  repeated feast.specs.FeatureSpec featureSpecs = 4;
-  // Storage spec of the sink to write the features to.
-  StorageSpec sinkStorageSpec = 5;
-  // Storage spec of errors store.
-  StorageSpec errorsStorageSpec = 6;
-}
-
-message SourceSpec {
+message Source {
   enum SourceType {
     KAFKA = 0;
   }
+
   // The kind of message source the import job should connect to
   // in order to retrieve FeatureRow value
   SourceType type = 1;
-  // Optional. Configuration to establish connection to the message source. 
+
+  // Optional. Configuration to establish connection to the message source.
   // The available options vary depending on the source type.
   //
   // For SourceType.KAFKA, the following key value options are accepted:

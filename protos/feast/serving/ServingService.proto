@@ -25,9 +25,13 @@ option java_package = "feast.serving";
 option java_outer_classname = "ServingAPIProto";
 option go_package = "github.com/gojek/feast/protos/generated/go/feast/serving";
 
-service ServingAPI {
+service ServingService {
     // Query features from Feast serving storage
-    rpc QueryFeatures (QueryFeaturesRequest) returns (QueryFeaturesResponse) {};
+    rpc QueryFeatures (QueryFeaturesRequest) returns (QueryFeaturesResponse) {
+    };
+
+    // Retrieve version information about this Feast deployment
+    rpc GetFeastServingVersion (GetFeastServingVersionRequest) returns (GetFeastServingVersionResponse);
 }
 
 message QueryFeaturesRequest {
@@ -59,4 +63,13 @@ message FeatureValue {
     feast.types.Value value = 1;
     // timestamp of the feature
     google.protobuf.Timestamp timestamp = 2;
+}
+
+
+message GetFeastServingVersionRequest {
+
+}
+
+message GetFeastServingVersionResponse {
+    string version = 1;
 }

@@ -25,6 +25,6 @@ option java_outer_classname = "FeatureProto";
 option go_package = "github.com/gojek/feast/protos/generated/go/feast/types";
 
 message Feature {
-  string id = 1;
   feast.types.Value value = 2;
+  string name = 3;
 }
