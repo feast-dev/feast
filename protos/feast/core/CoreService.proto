@@ -25,46 +25,64 @@ option java_package = "feast.core";
 import "feast/core/FeatureSet.proto";
 
 service CoreService {
+    // Retrieve version information about this Feast deployment
+    rpc GetFeastVersion (GetFeastCoreVersionRequest) returns (GetFeastCoreVersionResponse);
+
+    // Retrieve general information for about this Feast deployment
+    rpc GetFeastInfo (GetFeastInfoRequest) returns (GetFeastInfoResponse);
+
     // Retrieve feature set details for a specific feature set
-    rpc GetFeatureSet (CoreServiceTypes.GetFeatureSetRequest) returns (CoreServiceTypes.GetFeatureSetResponse);
+    rpc GetFeatureSet (GetFeatureSetRequest) returns (GetFeatureSetResponse);
 
     // Idempotent creation of feature set. Will not create a new feature set if schema does not change
-    rpc ApplyFeatureSet (CoreServiceTypes.ApplyFeatureSetRequest) returns (CoreServiceTypes.ApplyFeatureSetResponse);
+    rpc ApplyFeatureSet (ApplyFeatureSetRequest) returns (ApplyFeatureSetResponse);
 }
 
-message CoreServiceTypes {
-    // Retrieves details for all versions of a specific feature set
-    message GetFeatureSetRequest {
-        message FeatureSet {
-            string name = 1;
+// Retrieves details for all versions of a specific feature set
+message GetFeatureSetRequest {
+    message FeatureSet {
+        string name = 1;
 
-            // (Optional) Only return details for a specific version
-            int32 version = 2;
-        }
+        // (Optional) Only return details for a specific version
+        int32 version = 2;
+    }
+}
+
+message GetFeatureSetResponse {
+    repeated feast.core.FeatureSetSpec featureSets = 1;
+}
+
+message ApplyFeatureSetRequest {
+    // Feature set version and source will be ignored
+    feast.core.FeatureSetSpec featureSet = 1;
+}
+
+message ApplyFeatureSetResponse {
+    enum Status {
+        // Latest feature set version is consistent with provided feature set
+        NO_CHANGE = 0;
+
+        // New feature set or feature set version created
+        CREATED = 1;
+
+        // Error occurred while trying to apply changes
+        ERROR = 2;
     }
 
-    message GetFeatureSetResponse {
-        repeated feast.core.FeatureSet featureSets = 1;
-    }
+    // Feature set response has been enriched with version and source information
+    feast.core.FeatureSetSpec featureSet = 1;
+}
 
-    message ApplyFeatureSetRequest {
-        // Feature set version and source will be ignored
-        feast.core.FeatureSet featureSet = 1;
-    }
+message GetFeastInfoRequest {
+}
 
-    message ApplyFeatureSetResponse {
-        enum Status {
-            // Latest feature set version is consistent with provided feature set
-            NO_CHANGE = 0;
+message GetFeastInfoResponse {
+    repeated feast.core.FeatureSetSpec featureSets = 1;
+}
 
-            // New feature set or feature set version created
-            CREATED = 1;
+message GetFeastCoreVersionRequest {
+}
 
-            // Error occurred while trying to apply changes
-            ERROR = 2;
-        }
-
-        // Feature set response has been enriched with version and source information
-        feast.core.FeatureSet featureSet = 1;
-    }
+message GetFeastCoreVersionResponse {
+    string version = 1;
 }

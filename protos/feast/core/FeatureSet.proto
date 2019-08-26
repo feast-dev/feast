@@ -25,7 +25,7 @@ option go_package = "github.com/gojek/feast/protos/generated/go/feast/core";
 import "feast/types/Value.proto";
 import "feast/core/Source.proto";
 
-message FeatureSet {
+message FeatureSetSpec {
   // Name of the featureSet. Must be unique.
   string name = 1;
 
@@ -33,13 +33,13 @@ message FeatureSet {
   int32 version = 2;
 
   // Features contained within this featureSet.
-  repeated Feature features = 3;
+  repeated FeatureSpec features = 3;
 
   // Source on which feature rows can be found
   Source source = 4;
 }
 
-message Feature {
+message FeatureSpec {
   // Name of the feature.
   string name = 1;
 
