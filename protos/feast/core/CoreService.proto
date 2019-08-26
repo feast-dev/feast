@@ -32,23 +32,21 @@ service CoreService {
     rpc GetFeastInfo (GetFeastInfoRequest) returns (GetFeastInfoResponse);
 
     // Retrieve feature set details for a specific feature set
-    rpc GetFeatureSet (GetFeatureSetRequest) returns (GetFeatureSetResponse);
+    rpc GetFeatureSets (GetFeatureSetsRequest) returns (GetFeatureSetsResponse);
 
     // Idempotent creation of feature set. Will not create a new feature set if schema does not change
     rpc ApplyFeatureSet (ApplyFeatureSetRequest) returns (ApplyFeatureSetResponse);
 }
 
 // Retrieves details for all versions of a specific feature set
-message GetFeatureSetRequest {
-    message FeatureSet {
-        string name = 1;
-
-        // (Optional) Only return details for a specific version
-        int32 version = 2;
+message GetFeatureSetsRequest {
+    message Filter {
+        string featureSetName = 1;
+        int32 featureSetVersion = 2;
     }
 }
 
-message GetFeatureSetResponse {
+message GetFeatureSetsResponse {
     repeated feast.core.FeatureSetSpec featureSets = 1;
 }
 
