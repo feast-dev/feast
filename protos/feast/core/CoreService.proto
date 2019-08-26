@@ -26,7 +26,7 @@ import "feast/core/FeatureSet.proto";
 
 service CoreService {
     // Retrieve version information about this Feast deployment
-    rpc GetFeastVersion (GetFeastCoreVersionRequest) returns (GetFeastCoreVersionResponse);
+    rpc GetFeastCoreVersion (GetFeastCoreVersionRequest) returns (GetFeastCoreVersionResponse);
 
     // Retrieve general information for about this Feast deployment
     rpc GetFeastInfo (GetFeastInfoRequest) returns (GetFeastInfoResponse);

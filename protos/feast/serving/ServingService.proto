@@ -69,6 +69,7 @@ message FeatureValue {
 message GetFeastServingVersionRequest {
 
 }
+
 message GetFeastServingVersionResponse {
     string version = 1;
 }
