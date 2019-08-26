@@ -4,6 +4,6 @@ dependencies:
   repository: "@stable"
   condition: postgres.provision
 - name: redis
-  version: 6.4.4
+  version: 6.4.5
   repository: "@stable"
   condition: redis.provision
