@@ -17,16 +17,20 @@
 
 package feast.source.kafka;
 
-import com.google.auto.service.AutoService;
+import static com.google.common.base.Preconditions.checkArgument;
+
+import com.google.common.collect.ImmutableMap;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.transform.fn.FilterFeatureRowDoFn;
-import feast.options.Options;
 import feast.source.FeatureSource;
-import feast.source.FeatureSourceFactory;
 import feast.specs.ImportJobSpecsProto.SourceSpec;
 import feast.specs.ImportJobSpecsProto.SourceSpec.SourceType;
 import feast.types.FeatureRowProto.FeatureRow;
+import java.util.Arrays;
+import java.util.List;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -35,16 +39,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 
-import javax.validation.constraints.NotEmpty;
-import java.util.Arrays;
-import java.util.List;
-
-import static com.google.common.base.Preconditions.checkArgument;
-
 /**
  * Transform for reading {@link feast.types.FeatureRowProto.FeatureRow FeatureRow} proto messages
  * from kafka one or more kafka topics.
  */
+@Slf4j
 @AllArgsConstructor
 public class KafkaFeatureSource extends FeatureSource {
 
@@ -57,58 +56,42 @@ public class KafkaFeatureSource extends FeatureSource {
     checkArgument(sourceSpec.getType().equals(KAFKA_FEATURE_SOURCE_TYPE));
     ImportJobPipelineOptions pipelineOptions =
         input.getPipeline().getOptions().as(ImportJobPipelineOptions.class);
+    String consumerGroupId = String.format("feast-import-job-%s", pipelineOptions.getJobName());
 
-    // KafkaReadOptions options =
-    //     OptionsParser.parse(sourceSpec.getOptionsMap(), KafkaReadOptions.class);
-    //
-    // List<String> topicsList = new ArrayList<>(Arrays.asList(options.topics.split(",")));
-
-    KafkaIO.Read<byte[], FeatureRow> read =
+    // The following default options are used:
+    // - "withReadCommitted" ensures that the consumer does not read uncommitted messages so it can
+    //   support end-to-end exactly-once semantics
+    // - "commitOffsetsInFinalize" commits the offset after finished reading the messages so if the
+    //   pipeline is updated, the reader can continue from the saved offset
+    // - consumer group id is derived from job id in import job spec, with prefix 'feast-import-job'
+    // - "auto.offset.reset" is "latest" when there is no official offset in the topic (not
+    //   reflected in code below)
+    KafkaIO.Read<byte[], FeatureRow> readPTransform =
         KafkaIO.<byte[], FeatureRow>read()
             .withBootstrapServers(sourceSpec.getOptionsOrThrow("bootstrapServers"))
             .withTopics(Arrays.asList(sourceSpec.getOptionsOrThrow("topics").split(",")))
             .withKeyDeserializer(ByteArrayDeserializer.class)
-            .withValueDeserializer(FeatureRowDeserializer.class);
+            .withValueDeserializer(FeatureRowDeserializer.class)
+            .withReadCommitted()
+            .commitOffsetsInFinalize()
+            .updateConsumerProperties(ImmutableMap.of("group.id", consumerGroupId));
 
     if (pipelineOptions.getSampleLimit() > 0) {
-      read = read.withMaxNumRecords(pipelineOptions.getSampleLimit());
+      readPTransform = readPTransform.withMaxNumRecords(pipelineOptions.getSampleLimit());
     }
 
-    PCollection<KafkaRecord<byte[], FeatureRow>> featureRowRecord = input.getPipeline().apply(read);
-
-    PCollection<FeatureRow> featureRow =
-        featureRowRecord.apply(
+    Pipeline pipeline = input.getPipeline();
+    return pipeline
+        .apply("Read with KafkaIO", readPTransform)
+        .apply(
+            "Transform KafkaRecord to FeatureRow",
             ParDo.of(
                 new DoFn<KafkaRecord<byte[], FeatureRow>, FeatureRow>() {
                   @ProcessElement
                   public void processElement(ProcessContext processContext) {
-                    KafkaRecord<byte[], FeatureRow> record = processContext.element();
-                    processContext.output(record.getKV().getValue());
+                    processContext.output(processContext.element().getKV().getValue());
                   }
-                }));
-
-    return featureRow.apply(ParDo.of(new FilterFeatureRowDoFn(featureIds)));
-  }
-
-  public static class KafkaReadOptions implements Options {
-
-    @NotEmpty public String server;
-    @NotEmpty public String topics;
-    public boolean discardUnknownFeatures = false;
-  }
-
-  @AutoService(FeatureSourceFactory.class)
-  public static class Factory implements FeatureSourceFactory {
-
-    @Override
-    public SourceType getType() {
-      return KAFKA_FEATURE_SOURCE_TYPE;
-    }
-
-    @Override
-    public FeatureSource create(SourceSpec sourceSpec, List<String> featureIds) {
-      checkArgument(sourceSpec.getType().equals(getType()));
-      return new KafkaFeatureSource(sourceSpec, featureIds);
-    }
+                }))
+        .apply("Filter FeatureRow", ParDo.of(new FilterFeatureRowDoFn(featureIds)));
   }
 }
