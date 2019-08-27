@@ -15,14 +15,13 @@
 //
 
 syntax = "proto3";
-package feast.specs;
+package feast.core;
 
-option java_package = "feast.specs";
-option java_outer_classname = "ServingStoreProto";
-option go_package = "github.com/gojek/feast/protos/generated/go/feast/specs";
+option java_package = "feast.core";
+option java_outer_classname = "StoreProto";
+option go_package = "github.com/gojek/feast/protos/generated/go/feast/core";
 
-message ServingStore {
-
+message Store {
   message StoreType {
     enum Enum {
       UNKNOWN = 0;
@@ -36,13 +35,17 @@ message ServingStore {
   string name = 1;
 
   // Type of store.
-  ServingStore.StoreType type = 2;
+  Store.StoreType type = 2;
 
   // URI to connect to the database. Should contain all necessary information
   // to connect to and write/read to the store.
   string databaseURI = 3;
 
   // Feature sets to subscribe to. Regex strings are allowed, in the form of
-  // featureSetId:version. E.g. my-feature-set:2^
+  // featureSetId:version.
+  // Valid options for version:
+  //     latest: only subscribe to latest version of feature set
+  //     [version number]: pin to a specific version
+  //     [version number]^: subscribe to all versions larger than or equal to [version number]
   repeated string subscriptions = 4;
 }
