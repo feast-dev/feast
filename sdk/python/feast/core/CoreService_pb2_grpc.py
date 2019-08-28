@@ -29,6 +29,11 @@ class CoreServiceStub(object):
         request_serializer=feast_dot_core_dot_CoreService__pb2.GetFeatureSetsRequest.SerializeToString,
         response_deserializer=feast_dot_core_dot_CoreService__pb2.GetFeatureSetsResponse.FromString,
         )
+    self.GetStores = channel.unary_unary(
+        '/feast.core.CoreService/GetStores',
+        request_serializer=feast_dot_core_dot_CoreService__pb2.GetStoresRequest.SerializeToString,
+        response_deserializer=feast_dot_core_dot_CoreService__pb2.GetStoresResponse.FromString,
+        )
     self.ApplyFeatureSet = channel.unary_unary(
         '/feast.core.CoreService/ApplyFeatureSet',
         request_serializer=feast_dot_core_dot_CoreService__pb2.ApplyFeatureSetRequest.SerializeToString,
@@ -55,7 +60,16 @@ class CoreServiceServicer(object):
     raise NotImplementedError('Method not implemented!')
 
   def GetFeatureSets(self, request, context):
-    """Retrieve feature set details for a specific feature set
+    """Retrieve feature set details given a filter.
+    Returns all featureSets matching that filter.
+    """
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
+  def GetStores(self, request, context):
+    """Retrieve store details given a filter.
+    Returns all stores matching that filter.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
@@ -85,6 +99,11 @@ def add_CoreServiceServicer_to_server(servicer, server):
           servicer.GetFeatureSets,
           request_deserializer=feast_dot_core_dot_CoreService__pb2.GetFeatureSetsRequest.FromString,
           response_serializer=feast_dot_core_dot_CoreService__pb2.GetFeatureSetsResponse.SerializeToString,
+      ),
+      'GetStores': grpc.unary_unary_rpc_method_handler(
+          servicer.GetStores,
+          request_deserializer=feast_dot_core_dot_CoreService__pb2.GetStoresRequest.FromString,
+          response_serializer=feast_dot_core_dot_CoreService__pb2.GetStoresResponse.SerializeToString,
       ),
       'ApplyFeatureSet': grpc.unary_unary_rpc_method_handler(
           servicer.ApplyFeatureSet,

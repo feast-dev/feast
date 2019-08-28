@@ -14,6 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 from feast.core import FeatureSet_pb2 as feast_dot_core_dot_FeatureSet__pb2
+from feast.core import Store_pb2 as feast_dot_core_dot_Store__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(
@@ -21,9 +22,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.core',
   syntax='proto3',
   serialized_options=_b('\n\nfeast.coreB\020CoreServiceProtoZ5github.com/gojek/feast/protos/generated/go/feast/core'),
-  serialized_pb=_b('\n\x1c\x66\x65\x61st/core/CoreService.proto\x12\nfeast.core\x1a\x1b\x66\x65\x61st/core/FeatureSet.proto\"T\n\x15GetFeatureSetsRequest\x1a;\n\x06\x46ilter\x12\x16\n\x0e\x66\x65\x61tureSetName\x18\x01 \x01(\t\x12\x19\n\x11\x66\x65\x61tureSetVersion\x18\x02 \x01(\x05\"I\n\x16GetFeatureSetsResponse\x12/\n\x0b\x66\x65\x61tureSets\x18\x01 \x03(\x0b\x32\x1a.feast.core.FeatureSetSpec\"H\n\x16\x41pplyFeatureSetRequest\x12.\n\nfeatureSet\x18\x01 \x01(\x0b\x32\x1a.feast.core.FeatureSetSpec\"z\n\x17\x41pplyFeatureSetResponse\x12.\n\nfeatureSet\x18\x01 \x01(\x0b\x32\x1a.feast.core.FeatureSetSpec\"/\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0b\n\x07\x43REATED\x10\x01\x12\t\n\x05\x45RROR\x10\x02\"\x15\n\x13GetFeastInfoRequest\"G\n\x14GetFeastInfoResponse\x12/\n\x0b\x66\x65\x61tureSets\x18\x01 \x03(\x0b\x32\x1a.feast.core.FeatureSetSpec\"\x1c\n\x1aGetFeastCoreVersionRequest\".\n\x1bGetFeastCoreVersionResponse\x12\x0f\n\x07version\x18\x01 \x01(\t2\xfd\x02\n\x0b\x43oreService\x12\x66\n\x13GetFeastCoreVersion\x12&.feast.core.GetFeastCoreVersionRequest\x1a\'.feast.core.GetFeastCoreVersionResponse\x12Q\n\x0cGetFeastInfo\x12\x1f.feast.core.GetFeastInfoRequest\x1a .feast.core.GetFeastInfoResponse\x12W\n\x0eGetFeatureSets\x12!.feast.core.GetFeatureSetsRequest\x1a\".feast.core.GetFeatureSetsResponse\x12Z\n\x0f\x41pplyFeatureSet\x12\".feast.core.ApplyFeatureSetRequest\x1a#.feast.core.ApplyFeatureSetResponseBU\n\nfeast.coreB\x10\x43oreServiceProtoZ5github.com/gojek/feast/protos/generated/go/feast/coreb\x06proto3')
+  serialized_pb=_b('\n\x1c\x66\x65\x61st/core/CoreService.proto\x12\nfeast.core\x1a\x1b\x66\x65\x61st/core/FeatureSet.proto\x1a\x16\x66\x65\x61st/core/Store.proto\"T\n\x15GetFeatureSetsRequest\x1a;\n\x06\x46ilter\x12\x16\n\x0e\x66\x65\x61tureSetName\x18\x01 \x01(\t\x12\x19\n\x11\x66\x65\x61tureSetVersion\x18\x02 \x01(\t\"I\n\x16GetFeatureSetsResponse\x12/\n\x0b\x66\x65\x61tureSets\x18\x01 \x03(\x0b\x32\x1a.feast.core.FeatureSetSpec\"*\n\x10GetStoresRequest\x1a\x16\n\x06\x46ilter\x12\x0c\n\x04name\x18\x01 \x01(\t\"5\n\x11GetStoresResponse\x12 \n\x05store\x18\x01 \x03(\x0b\x32\x11.feast.core.Store\"H\n\x16\x41pplyFeatureSetRequest\x12.\n\nfeatureSet\x18\x01 \x01(\x0b\x32\x1a.feast.core.FeatureSetSpec\"z\n\x17\x41pplyFeatureSetResponse\x12.\n\nfeatureSet\x18\x01 \x01(\x0b\x32\x1a.feast.core.FeatureSetSpec\"/\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0b\n\x07\x43REATED\x10\x01\x12\t\n\x05\x45RROR\x10\x02\"\x15\n\x13GetFeastInfoRequest\"G\n\x14GetFeastInfoResponse\x12/\n\x0b\x66\x65\x61tureSets\x18\x01 \x03(\x0b\x32\x1a.feast.core.FeatureSetSpec\"\x1c\n\x1aGetFeastCoreVersionRequest\".\n\x1bGetFeastCoreVersionResponse\x12\x0f\n\x07version\x18\x01 \x01(\t2\xc7\x03\n\x0b\x43oreService\x12\x66\n\x13GetFeastCoreVersion\x12&.feast.core.GetFeastCoreVersionRequest\x1a\'.feast.core.GetFeastCoreVersionResponse\x12Q\n\x0cGetFeastInfo\x12\x1f.feast.core.GetFeastInfoRequest\x1a .feast.core.GetFeastInfoResponse\x12W\n\x0eGetFeatureSets\x12!.feast.core.GetFeatureSetsRequest\x1a\".feast.core.GetFeatureSetsResponse\x12H\n\tGetStores\x12\x1c.feast.core.GetStoresRequest\x1a\x1d.feast.core.GetStoresResponse\x12Z\n\x0f\x41pplyFeatureSet\x12\".feast.core.ApplyFeatureSetRequest\x1a#.feast.core.ApplyFeatureSetResponseBU\n\nfeast.coreB\x10\x43oreServiceProtoZ5github.com/gojek/feast/protos/generated/go/feast/coreb\x06proto3')
   ,
-  dependencies=[feast_dot_core_dot_FeatureSet__pb2.DESCRIPTOR,])
+  dependencies=[feast_dot_core_dot_FeatureSet__pb2.DESCRIPTOR,feast_dot_core_dot_Store__pb2.DESCRIPTOR,])
 
 
 
@@ -48,8 +49,8 @@ _APPLYFEATURESETRESPONSE_STATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=383,
-  serialized_end=430,
+  serialized_start=506,
+  serialized_end=553,
 )
 _sym_db.RegisterEnumDescriptor(_APPLYFEATURESETRESPONSE_STATUS)
 
@@ -70,8 +71,8 @@ _GETFEATURESETSREQUEST_FILTER = _descriptor.Descriptor(
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='featureSetVersion', full_name='feast.core.GetFeatureSetsRequest.Filter.featureSetVersion', index=1,
-      number=2, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -87,8 +88,8 @@ _GETFEATURESETSREQUEST_FILTER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=98,
-  serialized_end=157,
+  serialized_start=122,
+  serialized_end=181,
 )
 
 _GETFEATURESETSREQUEST = _descriptor.Descriptor(
@@ -110,8 +111,8 @@ _GETFEATURESETSREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=73,
-  serialized_end=157,
+  serialized_start=97,
+  serialized_end=181,
 )
 
 
@@ -141,8 +142,93 @@ _GETFEATURESETSRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=159,
-  serialized_end=232,
+  serialized_start=183,
+  serialized_end=256,
+)
+
+
+_GETSTORESREQUEST_FILTER = _descriptor.Descriptor(
+  name='Filter',
+  full_name='feast.core.GetStoresRequest.Filter',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='name', full_name='feast.core.GetStoresRequest.Filter.name', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=278,
+  serialized_end=300,
+)
+
+_GETSTORESREQUEST = _descriptor.Descriptor(
+  name='GetStoresRequest',
+  full_name='feast.core.GetStoresRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+  ],
+  extensions=[
+  ],
+  nested_types=[_GETSTORESREQUEST_FILTER, ],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=258,
+  serialized_end=300,
+)
+
+
+_GETSTORESRESPONSE = _descriptor.Descriptor(
+  name='GetStoresResponse',
+  full_name='feast.core.GetStoresResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='store', full_name='feast.core.GetStoresResponse.store', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=302,
+  serialized_end=355,
 )
 
 
@@ -172,8 +258,8 @@ _APPLYFEATURESETREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=234,
-  serialized_end=306,
+  serialized_start=357,
+  serialized_end=429,
 )
 
 
@@ -204,8 +290,8 @@ _APPLYFEATURESETRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=308,
-  serialized_end=430,
+  serialized_start=431,
+  serialized_end=553,
 )
 
 
@@ -228,8 +314,8 @@ _GETFEASTINFOREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=432,
-  serialized_end=453,
+  serialized_start=555,
+  serialized_end=576,
 )
 
 
@@ -259,8 +345,8 @@ _GETFEASTINFORESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=455,
-  serialized_end=526,
+  serialized_start=578,
+  serialized_end=649,
 )
 
 
@@ -283,8 +369,8 @@ _GETFEASTCOREVERSIONREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=528,
-  serialized_end=556,
+  serialized_start=651,
+  serialized_end=679,
 )
 
 
@@ -314,18 +400,22 @@ _GETFEASTCOREVERSIONRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=558,
-  serialized_end=604,
+  serialized_start=681,
+  serialized_end=727,
 )
 
 _GETFEATURESETSREQUEST_FILTER.containing_type = _GETFEATURESETSREQUEST
 _GETFEATURESETSRESPONSE.fields_by_name['featureSets'].message_type = feast_dot_core_dot_FeatureSet__pb2._FEATURESETSPEC
+_GETSTORESREQUEST_FILTER.containing_type = _GETSTORESREQUEST
+_GETSTORESRESPONSE.fields_by_name['store'].message_type = feast_dot_core_dot_Store__pb2._STORE
 _APPLYFEATURESETREQUEST.fields_by_name['featureSet'].message_type = feast_dot_core_dot_FeatureSet__pb2._FEATURESETSPEC
 _APPLYFEATURESETRESPONSE.fields_by_name['featureSet'].message_type = feast_dot_core_dot_FeatureSet__pb2._FEATURESETSPEC
 _APPLYFEATURESETRESPONSE_STATUS.containing_type = _APPLYFEATURESETRESPONSE
 _GETFEASTINFORESPONSE.fields_by_name['featureSets'].message_type = feast_dot_core_dot_FeatureSet__pb2._FEATURESETSPEC
 DESCRIPTOR.message_types_by_name['GetFeatureSetsRequest'] = _GETFEATURESETSREQUEST
 DESCRIPTOR.message_types_by_name['GetFeatureSetsResponse'] = _GETFEATURESETSRESPONSE
+DESCRIPTOR.message_types_by_name['GetStoresRequest'] = _GETSTORESREQUEST
+DESCRIPTOR.message_types_by_name['GetStoresResponse'] = _GETSTORESRESPONSE
 DESCRIPTOR.message_types_by_name['ApplyFeatureSetRequest'] = _APPLYFEATURESETREQUEST
 DESCRIPTOR.message_types_by_name['ApplyFeatureSetResponse'] = _APPLYFEATURESETRESPONSE
 DESCRIPTOR.message_types_by_name['GetFeastInfoRequest'] = _GETFEASTINFOREQUEST
@@ -355,6 +445,28 @@ GetFeatureSetsResponse = _reflection.GeneratedProtocolMessageType('GetFeatureSet
   # @@protoc_insertion_point(class_scope:feast.core.GetFeatureSetsResponse)
   })
 _sym_db.RegisterMessage(GetFeatureSetsResponse)
+
+GetStoresRequest = _reflection.GeneratedProtocolMessageType('GetStoresRequest', (_message.Message,), {
+
+  'Filter' : _reflection.GeneratedProtocolMessageType('Filter', (_message.Message,), {
+    'DESCRIPTOR' : _GETSTORESREQUEST_FILTER,
+    '__module__' : 'feast.core.CoreService_pb2'
+    # @@protoc_insertion_point(class_scope:feast.core.GetStoresRequest.Filter)
+    })
+  ,
+  'DESCRIPTOR' : _GETSTORESREQUEST,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.GetStoresRequest)
+  })
+_sym_db.RegisterMessage(GetStoresRequest)
+_sym_db.RegisterMessage(GetStoresRequest.Filter)
+
+GetStoresResponse = _reflection.GeneratedProtocolMessageType('GetStoresResponse', (_message.Message,), {
+  'DESCRIPTOR' : _GETSTORESRESPONSE,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.GetStoresResponse)
+  })
+_sym_db.RegisterMessage(GetStoresResponse)
 
 ApplyFeatureSetRequest = _reflection.GeneratedProtocolMessageType('ApplyFeatureSetRequest', (_message.Message,), {
   'DESCRIPTOR' : _APPLYFEATURESETREQUEST,
@@ -407,8 +519,8 @@ _CORESERVICE = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=607,
-  serialized_end=988,
+  serialized_start=730,
+  serialized_end=1185,
   methods=[
   _descriptor.MethodDescriptor(
     name='GetFeastCoreVersion',
@@ -438,9 +550,18 @@ _CORESERVICE = _descriptor.ServiceDescriptor(
     serialized_options=None,
   ),
   _descriptor.MethodDescriptor(
+    name='GetStores',
+    full_name='feast.core.CoreService.GetStores',
+    index=3,
+    containing_service=None,
+    input_type=_GETSTORESREQUEST,
+    output_type=_GETSTORESRESPONSE,
+    serialized_options=None,
+  ),
+  _descriptor.MethodDescriptor(
     name='ApplyFeatureSet',
     full_name='feast.core.CoreService.ApplyFeatureSet',
-    index=3,
+    index=4,
     containing_service=None,
     input_type=_APPLYFEATURESETREQUEST,
     output_type=_APPLYFEATURESETRESPONSE,

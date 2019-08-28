@@ -23,6 +23,7 @@ option java_outer_classname = "CoreServiceProto";
 option java_package = "feast.core";
 
 import "feast/core/FeatureSet.proto";
+import "feast/core/Store.proto";
 
 service CoreService {
     // Retrieve version information about this Feast deployment
@@ -31,8 +32,13 @@ service CoreService {
     // Retrieve general information for about this Feast deployment
     rpc GetFeastInfo (GetFeastInfoRequest) returns (GetFeastInfoResponse);
 
-    // Retrieve feature set details for a specific feature set
+    // Retrieve feature set details given a filter.
+    // Returns all featureSets matching that filter.
     rpc GetFeatureSets (GetFeatureSetsRequest) returns (GetFeatureSetsResponse);
+
+    // Retrieve store details given a filter.
+    // Returns all stores matching that filter.
+    rpc GetStores (GetStoresRequest) returns (GetStoresResponse);
 
     // Idempotent creation of feature set. Will not create a new feature set if schema does not change
     rpc ApplyFeatureSet (ApplyFeatureSetRequest) returns (ApplyFeatureSetResponse);
@@ -42,12 +48,22 @@ service CoreService {
 message GetFeatureSetsRequest {
     message Filter {
         string featureSetName = 1;
-        int32 featureSetVersion = 2;
+        string featureSetVersion = 2;
     }
 }
 
 message GetFeatureSetsResponse {
     repeated feast.core.FeatureSetSpec featureSets = 1;
+}
+
+message GetStoresRequest {
+    message Filter {
+        string name = 1;
+    }
+}
+
+message GetStoresResponse {
+    repeated feast.core.Store store = 1;
 }
 
 message ApplyFeatureSetRequest {
