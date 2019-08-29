@@ -26,6 +26,7 @@ VERSION_FILE = open(os.path.join("../../", "VERSION"))
 VERSION = VERSION_FILE.read().strip()
 
 REQUIRED = [
+    "click>=7.0",
     "google-api-core==1.*",
     "google-auth==1.*",
     "google-cloud-bigquery==1.*",
@@ -38,8 +39,9 @@ REQUIRED = [
     "PyYAML==3.*",
     "fastavro==0.*",
     "kafka-python==1.4.*",
+    "toml==0.10.0",
     "tqdm==4.*",
-    'numpy'
+    "numpy",
 ]
 
 setup(
@@ -64,4 +66,5 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
     ],
+    entry_points={"console_scripts": ["feast=cli:cli"]},
 )

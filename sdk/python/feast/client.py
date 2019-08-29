@@ -22,9 +22,7 @@ from feast.serving.ServingService_pb2 import GetFeastServingVersionRequest
 
 
 class Client:
-    def __init__(
-        self, core_url: str = None, serving_url: str = None, verbose: bool = False
-    ):
+    def __init__(self, core_url: str, serving_url: str, verbose: bool = False):
         self._core_url = core_url
         self._serving_url = serving_url
         self._verbose = verbose
@@ -40,16 +38,19 @@ class Client:
         pass
 
     def version(self):
+        self._connect_core()
+        self._connect_serving()
+
         try:
             core_version = self._core_service_stub.GetFeastCoreVersion(
-                GetFeastCoreVersionRequest, timeout=GRPC_CONNECTION_TIMEOUT
+                GetFeastCoreVersionRequest(), timeout=GRPC_CONNECTION_TIMEOUT
             ).version
         except grpc.FutureCancelledError:
             core_version = "not connected"
 
         try:
             serving_version = self._serving_service_stub.GetFeastServingVersion(
-                GetFeastServingVersionRequest, timeout=GRPC_CONNECTION_TIMEOUT
+                GetFeastServingVersionRequest(), timeout=GRPC_CONNECTION_TIMEOUT
             ).version
         except grpc.FutureCancelledError:
             serving_version = "not connected"

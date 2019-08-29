@@ -14,10 +14,10 @@
 
 
 import grpc
-import core.CoreService_pb2_grpc as Core
-import serving.ServingService_pb2_grpc as Serving
-from core.CoreService_pb2 import GetFeastCoreVersionResponse
-from serving.ServingService_pb2 import GetFeastServingVersionResponse
+import feast.core.CoreService_pb2_grpc as Core
+import feast.serving.ServingService_pb2_grpc as Serving
+from feast.core.CoreService_pb2 import GetFeastCoreVersionResponse
+from feast.serving.ServingService_pb2 import GetFeastServingVersionResponse
 import pytest
 from feast.client import Client
 
