@@ -16,7 +16,9 @@ import io
 import os
 import re
 import tempfile
+import shutil
 import time
+import glob
 
 import pandas as pd
 import requests
@@ -43,6 +45,23 @@ def gcs_to_df(path):
         blob.download_to_file(temp_file)
     df = pd.read_csv(temp_file_path)
     os.remove(temp_file_path)
+    return df
+
+
+def gcs_folder_to_df(folder):
+    """Reads the contents of a gs folder to pandas
+
+    Args:
+        folder (str): gs folder containing one or more files
+
+    Returns:
+        pandas.DataFrame: dataframe
+    """
+    temp_dir = tempfile.mkdtemp()
+    shards = os.path.join(temp_dir, 'shard-*.csv')
+    gcs_folder_to_file(folder, shards)
+    df = pd.concat([pd.read_csv(f) for f in glob.glob(shards)])
+    shutil.rmtree(temp_dir)
     return df
 
 
@@ -84,3 +103,36 @@ def is_gs_path(path):
         bool: is a valid gcs path
     """
     return re.match(_GCS_PATH_REGEX, path) != None
+
+
+def _list_blobs(folder):
+    bucket_name, blob_name = split_gs_path(folder)
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(bucket_name)
+    prefix = blob_name + "/"
+    blobs = list(bucket.list_blobs(prefix=prefix))
+    return blobs
+
+
+def gcs_folder_to_file(folder, dest):
+    """Download the contents of a gs folder to a file or files
+
+    Args:
+         folder (str): gs folder containing one or more files
+         dest (str): destination's file path or path pattern
+
+    Returns:
+        Returns: (str) path to the downloaded file(s)
+    """
+    blobs = _list_blobs(folder)
+    if '*' in dest:
+        for i, blob in enumerate(blobs):
+            blob.download_to_filename(dest.replace('*', str(i).zfill(12)))
+        return dest
+    if len(blobs) == 1:
+        blobs[0].download_to_filename(dest)
+        return dest
+    if len(blobs) > 1:
+        raise RuntimeError(
+            "Dataset too large to be exported to a single file. Specify a destination including a * to shard export"
+        )

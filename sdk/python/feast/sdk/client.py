@@ -277,7 +277,8 @@ class Client:
         Args:
             dataset_info (feast.sdk.resources.feature_set.DatasetInfo) :
                 dataset_info to be downloaded
-            dest (str): destination's file path
+            dest (str): destination's file path (or file path pattern including
+                a * wildcard to shard export large datasets)
             staging_location (str, optional): url to staging_location (currently
                 support a folder in GCS)
             file_type (feast.sdk.resources.feature_set.FileType): (default:

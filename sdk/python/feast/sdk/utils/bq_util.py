@@ -29,7 +29,8 @@ from google.cloud.exceptions import NotFound
 from google.cloud.storage import Client as GCSClient
 
 from feast.sdk.resources.feature_set import FileType
-from feast.sdk.utils.gs_utils import is_gs_path, split_gs_path, gcs_to_df
+from feast.sdk.utils.gs_utils import (is_gs_path, gcs_folder_to_df,
+                                      gcs_folder_to_file)
 
 
 def head(client, table, max_rows=10):
@@ -236,24 +237,9 @@ class TableDownloader:
         if not is_gs_path(staging_location):
             raise ValueError("staging_uri must be a directory in GCS")
 
-        temp_file_name = "temp_{}".format(int(round(time.time() * 1000)))
-        staging_file_path = os.path.join(staging_location, temp_file_name)
-
-        job_config = ExtractJobConfig()
-        job_config.destination_format = file_type
-        src_table = Table.from_string(full_table_id)
-        job = self.bqclient.extract_table(
-            src_table, staging_file_path, job_config=job_config
-        )
-
-        # await completion
-        job.result()
-
-        bucket_name, blob_name = split_gs_path(staging_file_path)
-        bucket = self.storageclient.get_bucket(bucket_name)
-        blob = bucket.blob(blob_name)
-        blob.download_to_filename(dest)
-        return dest
+        shard_folder = self.__extract_table_to_shard_folder(
+            full_table_id, staging_location, file_type)
+        return gcs_folder_to_file(shard_folder, dest)
 
     def download_table_as_df(self, full_table_id, staging_location=None):
         """
@@ -274,15 +260,23 @@ class TableDownloader:
         if not is_gs_path(staging_location):
             raise ValueError("staging_uri must be a directory in GCS")
 
-        temp_file_name = "temp_{}".format(int(round(time.time() * 1000)))
-        staging_file_path = os.path.join(staging_location, temp_file_name)
+        shard_folder = self.__extract_table_to_shard_folder(
+            full_table_id, staging_location, DestinationFormat.CSV)
+        return gcs_folder_to_df(shard_folder)
+
+    def __extract_table_to_shard_folder(self, full_table_id,
+                                        staging_location, file_type):
+        shard_folder = os.path.join(staging_location,
+                                    'temp_%d' % int(round(time.time() * 1000)))
+        staging_file_path = os.path.join(shard_folder, "shard_*")
 
         job_config = ExtractJobConfig()
-        job_config.destination_format = DestinationFormat.CSV
+        job_config.destination_format = file_type
         job = self.bqclient.extract_table(
-            Table.from_string(full_table_id), staging_file_path, job_config=job_config
+            Table.from_string(full_table_id),
+            staging_file_path,
+            job_config=job_config
         )
-
         # await completion
         job.result()
-        return gcs_to_df(staging_file_path)
+        return shard_folder
