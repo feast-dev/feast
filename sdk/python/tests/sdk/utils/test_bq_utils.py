@@ -78,16 +78,17 @@ def test_query_to_dataframe_for_non_existing_dataset():
 class TestTableDownloader(object):
     def test_download_table_as_df(self, mocker):
         self._stop_time(mocker)
-        mocked_gcs_to_df = mocker.patch(
-            "feast.sdk.utils.bq_util.gcs_to_df", return_value=None
+        mocked_gcs_folder_to_df = mocker.patch(
+            "feast.sdk.utils.bq_util.gcs_folder_to_df", return_value=None
         )
 
-        staging_path = "gs://temp/"
-        staging_file_name = "temp_0"
+        staging_path = "gs://temp"
+        temp_folder = "temp_0"
         full_table_id = "project_id.dataset_id.table_id"
 
         table_dldr = TableDownloader()
-        exp_staging_path = os.path.join(staging_path, staging_file_name)
+        exp_staging_folder = os.path.join(staging_path, temp_folder)
+        exp_staging_path = os.path.join(exp_staging_folder, "shard_*")
 
         table_dldr._bqclient = _Mock_BQ_Client()
         mocker.patch.object(table_dldr._bqclient, "extract_table", return_value=_Job())
@@ -99,7 +100,7 @@ class TestTableDownloader(object):
         assert args[0].full_table_id == Table.from_string(full_table_id).full_table_id
         assert args[1] == exp_staging_path
         assert kwargs["job_config"].destination_format == "CSV"
-        mocked_gcs_to_df.assert_called_once_with(exp_staging_path)
+        mocked_gcs_folder_to_df.assert_called_once_with(exp_staging_folder)
 
     def test_download_csv(self, mocker):
         self._stop_time(mocker)
@@ -129,33 +130,32 @@ class TestTableDownloader(object):
             table_dldr.download_table_as_df(full_table_id, "/local/directory")
 
     def _test_download_file(self, mocker, type):
-        staging_path = "gs://temp/"
-        staging_file_name = "temp_0"
-        dst_path = "/tmp/myfile.csv"
+        mocked_gcs_folder_to_file = mocker.patch(
+            "feast.sdk.utils.bq_util.gcs_folder_to_file", return_value=None
+        )
+
+        staging_path = "gs://temp"
+        temp_folder = "temp_0"
         full_table_id = "project_id.dataset_id.table_id"
+        dst_path = "/tmp/myfile.csv"
+
+        exp_staging_folder = os.path.join(staging_path, temp_folder)
+        exp_staging_path = os.path.join(exp_staging_folder, "shard_*")
 
         table_dldr = TableDownloader()
-        mock_blob = _Blob()
-        mocker.patch.object(mock_blob, "download_to_filename")
         table_dldr._bqclient = _Mock_BQ_Client()
         mocker.patch.object(table_dldr._bqclient, "extract_table", return_value=_Job())
-        table_dldr._storageclient = _Mock_GCS_Client()
-        mocker.patch.object(
-            table_dldr._storageclient, "get_bucket", return_value=_Bucket(mock_blob)
-        )
 
         table_dldr.download_table_as_file(
             full_table_id, dst_path, staging_location=staging_path, file_type=type
         )
 
-        exp_staging_path = os.path.join(staging_path, staging_file_name)
         assert len(table_dldr._bqclient.extract_table.call_args_list) == 1
         args, kwargs = table_dldr._bqclient.extract_table.call_args_list[0]
         assert args[0].full_table_id == Table.from_string(full_table_id).full_table_id
         assert args[1] == exp_staging_path
         assert kwargs["job_config"].destination_format == str(type)
-
-        mock_blob.download_to_filename.assert_called_once_with(dst_path)
+        mocked_gcs_folder_to_file.assert_called_once_with(exp_staging_folder, dst_path)
 
     def _stop_time(self, mocker):
         mocker.patch("time.time", return_value=0)
