@@ -19,6 +19,7 @@ syntax = "proto3";
 package feast.serving;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 import "feast/types/Value.proto";
 
 option java_package = "feast.serving";
@@ -26,48 +27,132 @@ option java_outer_classname = "ServingAPIProto";
 option go_package = "github.com/gojek/feast/protos/generated/go/feast/serving";
 
 service ServingService {
-    // Query features from Feast serving storage
-    rpc QueryFeatures (QueryFeaturesRequest) returns (QueryFeaturesResponse) {
-    };
-
     // Retrieve version information about this Feast deployment
-    rpc GetFeastServingVersion (GetFeastServingVersionRequest) returns (GetFeastServingVersionResponse);
+    rpc GetFeastServingVersion (google.protobuf.Empty) returns (GetFeastServingVersionResponse);
+
+    // Get Feast serving storage type (online or offline)
+    rpc GetFeastServingType (google.protobuf.Empty) returns (GetFeastServingTypeResponse);
+
+    // Get online features from Feast serving
+    rpc GetOnlineFeatures (GetFeaturesRequest) returns (GetOnlineFeaturesResponse);
+
+    // Get offline features from Feast serving. This is an async job.
+    rpc GetOfflineFeatures (GetFeaturesRequest) returns (GetOfflineFeaturesResponse);
+
+    // Get the current status of an offline feature request job
+    rpc GetOfflineFeaturesJobStatus (OfflineFeaturesJob.GetStatusRequest) returns (OfflineFeaturesJob.GetStatusResponse);
+
+    // Request a signed URL where a Feast client can upload user entity data
+    rpc GetOfflineFeaturesJobUploadUrl (OfflineFeaturesJob.GetUploadUrlRequest) returns (OfflineFeaturesJob.GetUploadUrlResponse);
+
+    // Set the state of the offline feature job to complete after user entity data has been uploaded
+    rpc SetOfflineFeaturesJobUploadComplete (OfflineFeaturesJob.SetUploadCompleteRequest) returns (OfflineFeaturesJob.SetUploadCompleteResponse);
 }
 
-message QueryFeaturesRequest {
-    // e.g. "driver", "customer", "city".
-    string entityName = 1;
-    // List of entity ID.
-    repeated string entityId = 2;
-    // List of feature ID.
-    // feature ID is in the form of [entity_name].[feature_name]
-    // e.g: "driver.day.total_accepted_booking"
-    // all requested feature ID shall have same entity name.
-    repeated string featureId = 3;
+message GetFeaturesRequest {
+    repeated FeatureId featureIds = 1;
+    UserEntityData userEntityData = 2;
+
+    message FeatureId {
+        string featureSetName = 1;
+        string featureSetVersion = 2;
+        string featureName = 3;
+    }
+
+    message UserEntityData {
+        repeated UserEntityColumn columns = 1;
+        repeated UserEntityRow rows = 2;
+    }
+
+    message UserEntityColumn {
+        string name = 1;
+        feast.types.ValueType valueType = 2;
+    }
+
+    message UserEntityRow {
+        repeated feast.types.Value Value = 1;
+    }
+
+    // Defines relationships to join user entity data to feature set data
+    message JoinOn {
+        // The use provided column on which to join a feature set
+        string userEntityColumn = 1;
+
+        // The feature column to use to join the feature set on
+        string featureSetName = 2;
+        string featureSetVersion = 3;
+        string featureName = 4;
+    }
 }
 
-message QueryFeaturesResponse {
-    // Entity name of the response
-    string entityName = 1;
-    // map of entity ID and its entity's properties.
-    map<string, Entity> entities = 2;
+message GetOnlineFeaturesResponse {
+    // WIP
 }
 
-message Entity {
-    // map of feature ID and its feature value.
-    map<string, FeatureValue> features = 1;
+message GetOfflineFeaturesResponse {
+    string jobUUID = 1;
 }
 
-message FeatureValue {
-    // value of feature
-    feast.types.Value value = 1;
-    // timestamp of the feature
-    google.protobuf.Timestamp timestamp = 2;
+message OfflineFeaturesJob {
+    message GetStatusRequest {
+        string jobUUID = 1;
+    }
+
+    message GetStatusResponse {
+        Status status = 1;
+        string message = 2;
+
+        enum Status {
+            UNKNOWN = 0;
+            WAITING_FOR_USER_ENTITY_DATA = 1;
+            LOADING_USER_ENTITY_DATA = 2;
+            BUILDING_FEATURE_DATASET = 3;
+            EXPORTING_FEATURE_DATASET = 4;
+            DONE = 5;
+            ERROR = 6;
+        }
+    }
+
+    message GetUploadUrlRequest {
+        string jobUUID = 1;
+        FileType fileType = 2;
+
+        enum FileType {
+            CSV = 0;
+            JSON = 1;
+        }
+    }
+
+    message GetUploadUrlResponse {
+        // url specifies the full signed URL where a client can make a request to upload file to GCS
+        string url = 1;
+
+        HttpMethod httpMethod = 2;
+        enum HttpMethod {
+            PUT = 0;
+        }
+
+        // expiration specifies the timestamp the signed URL is valid until
+        google.protobuf.Timestamp expiration = 3;
+
+        // path specifies the location in GCS where the file is saved to i.e. gs://[path]
+        string path = 4;
+    }
+
+    message SetUploadCompleteRequest {
+        string jobUUID = 1;
+    }
+
+    message SetUploadCompleteResponse {
+        bool success = 1;
+    }
 }
 
-
-message GetFeastServingVersionRequest {
-
+message GetFeastServingTypeResponse {
+    enum type {
+        ONLINE = 0;
+        OFFLINE = 1;
+    }
 }
 
 message GetFeastServingVersionResponse {
