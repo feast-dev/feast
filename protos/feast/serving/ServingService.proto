@@ -50,13 +50,21 @@ service ServingService {
 }
 
 message GetFeaturesRequest {
-    repeated FeatureId featureIds = 1;
+    repeated FeatureSet featureSets = 1;
     UserEntityData userEntityData = 2;
 
-    message FeatureId {
-        string featureSetName = 1;
-        string featureSetVersion = 2;
-        string featureName = 3;
+    message FeatureSet {
+        string name = 1;
+        string version = 2;
+        repeated Feature features = 3;
+    }
+
+    message Feature {
+        string name = 1;
+
+        // This feature is an entity key and should be used to join this
+        // feature set to the user entity table at the specified index
+        int32 join_on = 2;
     }
 
     message UserEntityData {
@@ -71,17 +79,6 @@ message GetFeaturesRequest {
 
     message UserEntityRow {
         repeated feast.types.Value Value = 1;
-    }
-
-    // Defines relationships to join user entity data to feature set data
-    message JoinOn {
-        // The use provided column on which to join a feature set
-        string userEntityColumn = 1;
-
-        // The feature column to use to join the feature set on
-        string featureSetName = 2;
-        string featureSetVersion = 3;
-        string featureName = 4;
     }
 }
 
