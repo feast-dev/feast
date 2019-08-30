@@ -23,6 +23,7 @@ import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.dao.EntityInfoRepository;
 import feast.core.dao.FeatureGroupInfoRepository;
 import feast.core.dao.FeatureInfoRepository;
+import feast.core.dao.FeatureSetRepository;
 import feast.core.stream.FeatureStream;
 import feast.core.stream.kafka.KafkaFeatureStream;
 import feast.core.stream.kafka.KafkaFeatureStreamConfig;
@@ -47,28 +48,6 @@ import org.springframework.core.io.Resource;
  */
 @Configuration
 public class ServerUtilConfig {
-
-
-  @Autowired
-  private StorageSpecs storageSpecs;
-
-  /**
-   * Get a spec validator.
-   *
-   * @return SpecValidator
-   */
-  @Bean
-  public SpecValidator specValidator(
-      EntityInfoRepository entityInfoRepository,
-      FeatureGroupInfoRepository featureGroupInfoRepository,
-      FeatureInfoRepository featureInfoRepository) {
-    SpecValidator specValidator =
-        new SpecValidator(
-            entityInfoRepository,
-            featureGroupInfoRepository,
-            featureInfoRepository);
-    return specValidator;
-  }
 
   /**
    * Get the featureStream
