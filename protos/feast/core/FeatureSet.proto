@@ -32,14 +32,14 @@ message FeatureSetSpec {
   // FeatureSet version.
   int32 version = 2;
 
-  // Entities contained within this featureSet. Describes whether a feature is also a key.
+  // Map of name:EntitySpec of entities contained within this featureSet. Describes whether a feature is also a key.
   // This allows the feature to be used during joins between feature sets.
   // If the featureSet is ingested into a store that supports keys, this value
   // will be made a key.
-  repeated EntitySpec entities = 3;
+  map<string, EntitySpec> entities = 3;
 
-  // Features contained within this featureSet.
-  repeated FeatureSpec features = 4;
+  // Map of name:FeatureSpec of features contained within this featureSet.
+  map<string, FeatureSpec> features = 4;
 
   // Source on which feature rows can be found
   Source source = 5;
