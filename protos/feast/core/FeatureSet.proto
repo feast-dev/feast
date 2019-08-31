@@ -32,11 +32,25 @@ message FeatureSetSpec {
   // FeatureSet version.
   int32 version = 2;
 
-  // Features contained within this featureSet.
-  repeated FeatureSpec features = 3;
+  // Map of name:EntitySpec of entities contained within this featureSet. Describes whether a feature is also a key.
+  // This allows the feature to be used during joins between feature sets.
+  // If the featureSet is ingested into a store that supports keys, this value
+  // will be made a key.
+  map<string, EntitySpec> entities = 3;
+
+  // Map of name:FeatureSpec of features contained within this featureSet.
+  map<string, FeatureSpec> features = 4;
 
   // Source on which feature rows can be found
-  Source source = 4;
+  Source source = 5;
+}
+
+message EntitySpec {
+  // Name of the entity.
+  string name = 1;
+
+  // Value type of the feature.
+  feast.types.ValueType.Enum valueType = 2;
 }
 
 message FeatureSpec {
@@ -45,10 +59,4 @@ message FeatureSpec {
 
   // Value type of the feature.
   feast.types.ValueType.Enum valueType = 2;
-
-  // Describes whether a feature is also a key.
-  // This allows the feature to be used during joins between feature sets.
-  // If the featureSet is ingested into a store that supports keys, this value
-  // will be made a key.
-  bool isKey = 3;
 }
