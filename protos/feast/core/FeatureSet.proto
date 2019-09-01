@@ -32,14 +32,14 @@ message FeatureSetSpec {
     // FeatureSet version.
     int32 version = 2;
 
-    // Map of name:EntitySpec of entities contained within this featureSet. Describes whether a feature is also a key.
+    // List of entities contained within this featureSet. Describes whether a feature is also a key.
     // This allows the feature to be used during joins between feature sets.
     // If the featureSet is ingested into a store that supports keys, this value
     // will be made a key.
-    map<string, EntitySpec> entities = 3;
+    repeated EntitySpec entities = 3;
 
-    // Map of name:FeatureSpec of features contained within this featureSet.
-    map<string, FeatureSpec> features = 4;
+    // List of features contained within this featureSet.
+    repeated FeatureSpec features = 4;
 
     // Features in this feature set will only be retrieved if they are found after [Time - MaxAge]
     // Missing or older feature values will be returned as nulls and indicated to end user
