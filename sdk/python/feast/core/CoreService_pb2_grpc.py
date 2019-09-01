@@ -2,6 +2,7 @@
 import grpc
 
 from feast.core import CoreService_pb2 as feast_dot_core_dot_CoreService__pb2
+from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
 
 
 class CoreServiceStub(object):
@@ -16,13 +17,8 @@ class CoreServiceStub(object):
     """
     self.GetFeastCoreVersion = channel.unary_unary(
         '/feast.core.CoreService/GetFeastCoreVersion',
-        request_serializer=feast_dot_core_dot_CoreService__pb2.GetFeastCoreVersionRequest.SerializeToString,
+        request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
         response_deserializer=feast_dot_core_dot_CoreService__pb2.GetFeastCoreVersionResponse.FromString,
-        )
-    self.GetFeastInfo = channel.unary_unary(
-        '/feast.core.CoreService/GetFeastInfo',
-        request_serializer=feast_dot_core_dot_CoreService__pb2.GetFeastInfoRequest.SerializeToString,
-        response_deserializer=feast_dot_core_dot_CoreService__pb2.GetFeastInfoResponse.FromString,
         )
     self.GetFeatureSets = channel.unary_unary(
         '/feast.core.CoreService/GetFeatureSets',
@@ -47,13 +43,6 @@ class CoreServiceServicer(object):
 
   def GetFeastCoreVersion(self, request, context):
     """Retrieve version information about this Feast deployment
-    """
-    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-    context.set_details('Method not implemented!')
-    raise NotImplementedError('Method not implemented!')
-
-  def GetFeastInfo(self, request, context):
-    """Retrieve general information for about this Feast deployment
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
@@ -87,13 +76,8 @@ def add_CoreServiceServicer_to_server(servicer, server):
   rpc_method_handlers = {
       'GetFeastCoreVersion': grpc.unary_unary_rpc_method_handler(
           servicer.GetFeastCoreVersion,
-          request_deserializer=feast_dot_core_dot_CoreService__pb2.GetFeastCoreVersionRequest.FromString,
+          request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
           response_serializer=feast_dot_core_dot_CoreService__pb2.GetFeastCoreVersionResponse.SerializeToString,
-      ),
-      'GetFeastInfo': grpc.unary_unary_rpc_method_handler(
-          servicer.GetFeastInfo,
-          request_deserializer=feast_dot_core_dot_CoreService__pb2.GetFeastInfoRequest.FromString,
-          response_serializer=feast_dot_core_dot_CoreService__pb2.GetFeastInfoResponse.SerializeToString,
       ),
       'GetFeatureSets': grpc.unary_unary_rpc_method_handler(
           servicer.GetFeatureSets,
