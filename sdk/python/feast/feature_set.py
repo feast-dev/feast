@@ -20,37 +20,15 @@ from typing import Dict
 from feast.type_map import dtype_to_value_type
 from feast.value_type import ValueType
 from pandas.api.types import is_datetime64_ns_dtype
-import enum
+from feast.entity import Entity
+from feast.feature import Feature
+from feast.core.FeatureSet_pb2 import (
+    FeatureSetSpec as FeatureSetProto,
+    FeatureSpec as FeatureProto,
+)
+from feast.core.Source_pb2 import Source
 
 DATETIME_COLUMN = "datetime"  # type: str
-
-
-class Entity:
-    def __init__(self, name: str, dtype: ValueType):
-        self._name = name
-        self._dtype = dtype
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def dtype(self):
-        return self._dtype
-
-
-class Feature:
-    def __init__(self, name: str, dtype: ValueType):
-        self._name = name
-        self._dtype = dtype
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def dtype(self):
-        return self._dtype
 
 
 class FeatureSet:
@@ -75,6 +53,7 @@ class FeatureSet:
         self._max_age = max_age
         self._version = None
         self._client = None
+        self._source = None
 
     @property
     def features(self) -> List[Feature]:
@@ -89,6 +68,22 @@ class FeatureSet:
         Returns list of entities from this feature set
         """
         return list(self._entities.values())
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def source(self):
+        return self._source
+
+    @property
+    def version(self):
+        return self._version
+
+    @property
+    def max_age(self):
+        return self._max_age
 
     def add(self, resource):
         """
@@ -157,9 +152,9 @@ class FeatureSet:
         for entity in entities:
             self.add(entity)
 
-    def update_from_source(self, df: pd.DataFrame):
+    def update_from_dataset(self, df: pd.DataFrame):
         """
-        Updates Feature Set values based on the data source. Only Pandas dataframes are supported.
+        Updates Feature Set values based on the data set. Only Pandas dataframes are supported.
         :param df: Pandas dataframe containing datetime column, entity columns, and feature columns.
         """
         features = OrderedDict()
@@ -208,3 +203,32 @@ class FeatureSet:
             )
         self._entities = entities
         self._features = features
+
+    @classmethod
+    def from_proto(cls, feature_set_proto: FeatureSetProto):
+        feature_set = cls(
+            name=feature_set_proto.name,
+            features=[
+                Feature.from_proto(feature) for feature in feature_set_proto.features
+            ],
+            entities=[
+                Entity.from_proto(entity) for entity in feature_set_proto.entities
+            ],
+        )
+        feature_set._version = feature_set_proto.version
+        feature_set._source = feature_set_proto.source
+        return feature_set
+
+    def to_proto(self) -> FeatureSetProto:
+        return FeatureSetProto(
+            name=self.name,
+            version=self.version,
+            maxAge=self.max_age,
+            source=Source(),
+            features=[
+                feature.to_proto() for featureName, feature in self._features.items()
+            ],
+            entities=[
+                entity.to_proto() for entityName, entity in self._entities.items()
+            ],
+        )

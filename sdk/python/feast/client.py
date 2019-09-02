@@ -16,13 +16,20 @@
 import grpc
 
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.core.CoreService_pb2 import GetFeatureSetsResponse
+from feast.core.CoreService_pb2 import (
+    GetFeatureSetsResponse,
+    ApplyFeatureSetRequest,
+    GetFeatureSetsRequest,
+)
+from feast.core.FeatureSet_pb2 import FeatureSetSpec, FeatureSpec, EntitySpec
+from feast.core.Source_pb2 import Source
 from feast.feature_set import FeatureSet, Entity
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-from google.protobuf import empty_pb2 as Empty
+from google.protobuf import empty_pb2 as empty
 from typing import List
 from collections import OrderedDict
 from typing import Dict
+from feast.type_map import dtype_to_value_type
 import os
 
 GRPC_CONNECTION_TIMEOUT = 5  # type: int
@@ -31,7 +38,9 @@ FEAST_CORE_URL_ENV_KEY = "FEAST_CORE_URL"  # type: str
 
 
 class Client:
-    def __init__(self, core_url: str, serving_url: str, verbose: bool = False):
+    def __init__(
+        self, core_url: str = None, serving_url: str = None, verbose: bool = False
+    ):
         self._feature_sets = []  # type: List[FeatureSet]
         self._core_url = core_url
         self._serving_url = serving_url
@@ -40,7 +49,8 @@ class Client:
         self.__serving_channel: grpc.Channel = None
         self._core_service_stub: CoreServiceStub = None
         self._serving_service_stub: ServingServiceStub = None
-        self._is_connected = False
+        self._is_serving_connected = False
+        self._is_core_connected = False
 
     @property
     def core_url(self) -> str:
@@ -66,28 +76,20 @@ class Client:
     def serving_url(self, value: str):
         self._serving_url = value
 
-    def _connect_all(self):
-        if not self.core_url and not self.serving_url:
-            raise ValueError("Please set Core and Serving URL.")
-
-        if not self._is_connected:
-            self._connect_core()
-            self._connect_serving()
-            self._is_connected = True
-
     def version(self):
-        self._connect_all()
+        self._connect_core()
+        self._connect_serving()
 
         try:
             core_version = self._core_service_stub.GetFeastCoreVersion(
-                Empty, timeout=GRPC_CONNECTION_TIMEOUT
+                empty, timeout=GRPC_CONNECTION_TIMEOUT
             ).version
         except grpc.FutureCancelledError:
             core_version = "not connected"
 
         try:
             serving_version = self._serving_service_stub.GetFeastServingVersion(
-                Empty, timeout=GRPC_CONNECTION_TIMEOUT
+                empty, timeout=GRPC_CONNECTION_TIMEOUT
             ).version
         except grpc.FutureCancelledError:
             serving_version = "not connected"
@@ -101,6 +103,8 @@ class Client:
         """
         Connect to Core API
         """
+        if not self.core_url:
+            raise ValueError("Please set Feast Core URL.")
 
         if self.__core_channel is None:
             self.__core_channel = grpc.insecure_channel(self.core_url)
@@ -116,11 +120,15 @@ class Client:
             )
         else:
             self._core_service_stub = CoreServiceStub(self.__core_channel)
+            self._is_core_connected = True
 
     def _connect_serving(self):
         """
         Connect to Serving API
         """
+
+        if not self.serving_url:
+            raise ValueError("Please set Feast Serving URL.")
 
         if self.__serving_channel is None:
             self.__serving_channel = grpc.insecure_channel(self.serving_url)
@@ -136,18 +144,32 @@ class Client:
             )
         else:
             self._serving_service_stub = ServingServiceStub(self.__serving_channel)
+            self._is_serving_connected = True
 
     def apply(self, resource):
         if isinstance(resource, FeatureSet):
             self._apply_feature_set(resource)
 
     def refresh(self):
-        self._connect_all()
-        fs = self._core_service_stub.GetFeatureSets()  # type: GetFeatureSetsResponse
-        self._feature_sets = fs.featureSets
+        """
+        Refresh list of Feature Sets from Feast Core
+        """
+        self._connect_core()
+
+        # Get latest Feature Sets from Feast Core
+        feature_set_protos = self._core_service_stub.GetFeatureSets(
+            GetFeatureSetsRequest(filter=GetFeatureSetsRequest.Filter())
+        )  # type: GetFeatureSetsResponse
+
+        # Store list of Feature Sets
+        self._feature_sets = [
+            FeatureSet.from_proto(feature_set)
+            for feature_set in feature_set_protos.featureSets
+        ]
 
     @property
     def feature_sets(self) -> List[FeatureSet]:
+        self.refresh()
         return self._feature_sets
 
     @property
@@ -158,6 +180,10 @@ class Client:
                 entities_dict[entityName] = entity
         return entities_dict
 
-    def _apply_feature_set(self, resource):
-        resource._client = self
-        # TODO: Apply Feature Set to Feast Core
+    def _apply_feature_set(self, feature_set: FeatureSet):
+        self._connect_core()
+        self._core_service_stub.ApplyFeatureSet(
+            ApplyFeatureSetRequest(featureSet=feature_set.to_proto()),
+            timeout=GRPC_CONNECTION_TIMEOUT,
+        )
+        feature_set._client = self
