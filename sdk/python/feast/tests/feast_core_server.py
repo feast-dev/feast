@@ -5,14 +5,37 @@ import logging
 import grpc
 
 import feast.core.CoreService_pb2_grpc as Core
-from feast.core.CoreService_pb2 import GetFeastCoreVersionResponse
+from feast.core.CoreService_pb2 import (
+    GetFeastCoreVersionResponse,
+    ApplyFeatureSetResponse,
+    ApplyFeatureSetRequest,
+    GetFeatureSetsResponse,
+)
+from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpec
+from typing import List
+
+from google.protobuf import empty_pb2 as empty
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
 
 class CoreServicer(Core.CoreServiceServicer):
+    def __init__(self):
+        self._feature_sets = dict()
+
     def GetFeastCoreVersion(self, request, context):
         return GetFeastCoreVersionResponse(version="0.3.0")
+
+    def GetFeatureSets(self, request: empty, context):
+        feature_set_list = list(
+            self._feature_sets.values()
+        )  # type: List[FeatureSetSpec]
+        return GetFeatureSetsResponse(featureSets=feature_set_list)
+
+    def ApplyFeatureSet(self, request: ApplyFeatureSetRequest, context):
+        feature_set = request.featureSet
+        self._feature_sets[feature_set.name] = feature_set
+        return ApplyFeatureSetResponse()
 
 
 def serve():
