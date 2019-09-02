@@ -26,37 +26,41 @@ import "feast/types/Value.proto";
 import "feast/core/Source.proto";
 
 message FeatureSetSpec {
-  // Name of the featureSet. Must be unique.
-  string name = 1;
+    // Name of the featureSet. Must be unique.
+    string name = 1;
 
-  // FeatureSet version.
-  int32 version = 2;
+    // FeatureSet version.
+    int32 version = 2;
 
-  // Map of name:EntitySpec of entities contained within this featureSet. Describes whether a feature is also a key.
-  // This allows the feature to be used during joins between feature sets.
-  // If the featureSet is ingested into a store that supports keys, this value
-  // will be made a key.
-  map<string, EntitySpec> entities = 3;
+    // List of entities contained within this featureSet. Describes whether a feature is also a key.
+    // This allows the feature to be used during joins between feature sets.
+    // If the featureSet is ingested into a store that supports keys, this value
+    // will be made a key.
+    repeated EntitySpec entities = 3;
 
-  // Map of name:FeatureSpec of features contained within this featureSet.
-  map<string, FeatureSpec> features = 4;
+    // List of features contained within this featureSet.
+    repeated FeatureSpec features = 4;
 
-  // Source on which feature rows can be found
-  Source source = 5;
+    // Features in this feature set will only be retrieved if they are found after [Time - MaxAge]
+    // Missing or older feature values will be returned as nulls and indicated to end user
+    int64 maxAge = 5;
+
+    // Source on which feature rows can be found
+    Source source = 6;
 }
 
 message EntitySpec {
-  // Name of the entity.
-  string name = 1;
+    // Name of the entity.
+    string name = 1;
 
-  // Value type of the feature.
-  feast.types.ValueType.Enum valueType = 2;
+    // Value type of the feature.
+    feast.types.ValueType.Enum valueType = 2;
 }
 
 message FeatureSpec {
-  // Name of the feature.
-  string name = 1;
+    // Name of the feature.
+    string name = 1;
 
-  // Value type of the feature.
-  feast.types.ValueType.Enum valueType = 2;
+    // Value type of the feature.
+    feast.types.ValueType.Enum valueType = 2;
 }
