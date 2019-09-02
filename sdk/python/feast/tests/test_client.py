@@ -17,6 +17,9 @@ import grpc
 import feast.core.CoreService_pb2_grpc as Core
 import feast.serving.ServingService_pb2_grpc as Serving
 from feast.core.CoreService_pb2 import GetFeastCoreVersionResponse
+from feast.core.CoreService_pb2 import GetFeatureSetsRequest
+from feast.core.CoreService_pb2 import GetFeatureSetsResponse
+from feast.core.FeatureSet_pb2 import FeatureSetSpec
 from feast.serving.ServingService_pb2 import GetFeastServingVersionResponse
 import pytest
 from feast.client import Client
@@ -34,23 +37,22 @@ class TestClient:
         return client
 
     def test_version(self, client: Client, mocker):
-        core_grpc_stub = Core.CoreServiceStub(grpc.insecure_channel(""))
-        serving_grpc_stub = Serving.ServingServiceStub(grpc.insecure_channel(""))
+        client._core_service_stub = Core.CoreServiceStub(grpc.insecure_channel(""))
+        client._serving_service_stub = Serving.ServingServiceStub(
+            grpc.insecure_channel("")
+        )
 
         mocker.patch.object(
-            core_grpc_stub,
+            client._core_service_stub,
             "GetFeastCoreVersion",
             return_value=GetFeastCoreVersionResponse(version="0.3.0"),
         )
 
         mocker.patch.object(
-            serving_grpc_stub,
+            client._serving_service_stub,
             "GetFeastServingVersion",
             return_value=GetFeastServingVersionResponse(version="0.3.0"),
         )
-
-        client._core_service_stub = core_grpc_stub
-        client._serving_service_stub = serving_grpc_stub
 
         status = client.version()
         assert (
@@ -59,3 +61,19 @@ class TestClient:
             and status["serving"]["url"] == SERVING_URL
             and status["serving"]["version"] == "0.3.0"
         )
+
+    def test_get_feature_sets(self, client: Client, mocker):
+        client._core_service_stub = Core.CoreServiceStub(grpc.insecure_channel(""))
+        feature_set_response = GetFeatureSetsResponse(
+            featureSets=[
+                FeatureSetSpec(name="my-feature-set-spec-1"),
+                FeatureSetSpec(name="my_feature_set_spec_2"),
+            ]
+        )
+        mocker.patch.object(
+            client._core_service_stub,
+            "GetFeatureSets",
+            return_value=feature_set_response,
+        )
+        client.refresh()
+        assert len(client.feature_sets) == 2
