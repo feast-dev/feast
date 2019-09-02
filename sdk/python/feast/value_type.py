@@ -1,4 +1,4 @@
-# Copyright 2018 The Feast Authors
+# Copyright 2019 The Feast Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,6 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FEAST_SERVING_URL_ENV_KEY = "FEAST_SERVING_URL"  # type: str
-FEAST_CORE_URL_ENV_KEY = "FEAST_CORE_URL"  # type: str
-GRPC_CONNECTION_TIMEOUT = 5  # type: int
+import enum
+
+
+class ValueType(enum.Enum):
+    """
+    Feature value type
+    """
+
+    UNKNOWN = 0
+    BYTES = 1
+    STRING = 2
+    INT32 = 3
+    INT64 = 4
+    DOUBLE = 5
+    FLOAT = 6
+    BOOL = 7
+    BYTES_LIST = 11
+    STRING_LIST = 12
+    INT32_LIST = 13
+    INT64_LIST = 14
+    DOUBLE_LIST = 15
+    FLOAT_LIST = 16
+    BOOL_LIST = 17

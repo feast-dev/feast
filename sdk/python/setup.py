@@ -42,6 +42,7 @@ REQUIRED = [
     "toml==0.10.0",
     "tqdm==4.*",
     "numpy",
+    "google",
 ]
 
 setup(

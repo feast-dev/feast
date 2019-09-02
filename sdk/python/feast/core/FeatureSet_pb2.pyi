@@ -12,13 +12,16 @@ from google.protobuf.descriptor import (
     Descriptor as google___protobuf___descriptor___Descriptor,
 )
 
+from google.protobuf.internal.containers import (
+    RepeatedCompositeFieldContainer as google___protobuf___internal___containers___RepeatedCompositeFieldContainer,
+)
+
 from google.protobuf.message import (
     Message as google___protobuf___message___Message,
 )
 
 from typing import (
-    Mapping as typing___Mapping,
-    MutableMapping as typing___MutableMapping,
+    Iterable as typing___Iterable,
     Optional as typing___Optional,
     Text as typing___Text,
 )
@@ -30,61 +33,15 @@ from typing_extensions import (
 
 class FeatureSetSpec(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
-    class EntitiesEntry(google___protobuf___message___Message):
-        DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
-        key = ... # type: typing___Text
-
-        @property
-        def value(self) -> EntitySpec: ...
-
-        def __init__(self,
-            *,
-            key : typing___Optional[typing___Text] = None,
-            value : typing___Optional[EntitySpec] = None,
-            ) -> None: ...
-        @classmethod
-        def FromString(cls, s: bytes) -> FeatureSetSpec.EntitiesEntry: ...
-        def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
-        def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
-        if sys.version_info >= (3,):
-            def HasField(self, field_name: typing_extensions___Literal[u"value"]) -> bool: ...
-            def ClearField(self, field_name: typing_extensions___Literal[u"key",u"value"]) -> None: ...
-        else:
-            def HasField(self, field_name: typing_extensions___Literal[u"value",b"value"]) -> bool: ...
-            def ClearField(self, field_name: typing_extensions___Literal[u"key",b"key",u"value",b"value"]) -> None: ...
-
-    class FeaturesEntry(google___protobuf___message___Message):
-        DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
-        key = ... # type: typing___Text
-
-        @property
-        def value(self) -> FeatureSpec: ...
-
-        def __init__(self,
-            *,
-            key : typing___Optional[typing___Text] = None,
-            value : typing___Optional[FeatureSpec] = None,
-            ) -> None: ...
-        @classmethod
-        def FromString(cls, s: bytes) -> FeatureSetSpec.FeaturesEntry: ...
-        def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
-        def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
-        if sys.version_info >= (3,):
-            def HasField(self, field_name: typing_extensions___Literal[u"value"]) -> bool: ...
-            def ClearField(self, field_name: typing_extensions___Literal[u"key",u"value"]) -> None: ...
-        else:
-            def HasField(self, field_name: typing_extensions___Literal[u"value",b"value"]) -> bool: ...
-            def ClearField(self, field_name: typing_extensions___Literal[u"key",b"key",u"value",b"value"]) -> None: ...
-
     name = ... # type: typing___Text
     version = ... # type: int
     maxAge = ... # type: int
 
     @property
-    def entities(self) -> typing___MutableMapping[typing___Text, EntitySpec]: ...
+    def entities(self) -> google___protobuf___internal___containers___RepeatedCompositeFieldContainer[EntitySpec]: ...
 
     @property
-    def features(self) -> typing___MutableMapping[typing___Text, FeatureSpec]: ...
+    def features(self) -> google___protobuf___internal___containers___RepeatedCompositeFieldContainer[FeatureSpec]: ...
 
     @property
     def source(self) -> feast___core___Source_pb2___Source: ...
@@ -93,8 +50,8 @@ class FeatureSetSpec(google___protobuf___message___Message):
         *,
         name : typing___Optional[typing___Text] = None,
         version : typing___Optional[int] = None,
-        entities : typing___Optional[typing___Mapping[typing___Text, EntitySpec]] = None,
-        features : typing___Optional[typing___Mapping[typing___Text, FeatureSpec]] = None,
+        entities : typing___Optional[typing___Iterable[EntitySpec]] = None,
+        features : typing___Optional[typing___Iterable[FeatureSpec]] = None,
         maxAge : typing___Optional[int] = None,
         source : typing___Optional[feast___core___Source_pb2___Source] = None,
         ) -> None: ...

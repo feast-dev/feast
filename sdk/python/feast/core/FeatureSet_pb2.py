@@ -22,86 +22,12 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.core',
   syntax='proto3',
   serialized_options=_b('\n\nfeast.coreB\017FeatureSetProtoZ5github.com/gojek/feast/protos/generated/go/feast/core'),
-  serialized_pb=_b('\n\x1b\x66\x65\x61st/core/FeatureSet.proto\x12\nfeast.core\x1a\x17\x66\x65\x61st/types/Value.proto\x1a\x17\x66\x65\x61st/core/Source.proto\"\xee\x02\n\x0e\x46\x65\x61tureSetSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\x05\x12:\n\x08\x65ntities\x18\x03 \x03(\x0b\x32(.feast.core.FeatureSetSpec.EntitiesEntry\x12:\n\x08\x66\x65\x61tures\x18\x04 \x03(\x0b\x32(.feast.core.FeatureSetSpec.FeaturesEntry\x12\x0e\n\x06maxAge\x18\x05 \x01(\x03\x12\"\n\x06source\x18\x06 \x01(\x0b\x32\x12.feast.core.Source\x1aG\n\rEntitiesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12%\n\x05value\x18\x02 \x01(\x0b\x32\x16.feast.core.EntitySpec:\x02\x38\x01\x1aH\n\rFeaturesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12&\n\x05value\x18\x02 \x01(\x0b\x32\x17.feast.core.FeatureSpec:\x02\x38\x01\"J\n\nEntitySpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12.\n\tvalueType\x18\x02 \x01(\x0e\x32\x1b.feast.types.ValueType.Enum\"K\n\x0b\x46\x65\x61tureSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12.\n\tvalueType\x18\x02 \x01(\x0e\x32\x1b.feast.types.ValueType.EnumBT\n\nfeast.coreB\x0f\x46\x65\x61tureSetProtoZ5github.com/gojek/feast/protos/generated/go/feast/coreb\x06proto3')
+  serialized_pb=_b('\n\x1b\x66\x65\x61st/core/FeatureSet.proto\x12\nfeast.core\x1a\x17\x66\x65\x61st/types/Value.proto\x1a\x17\x66\x65\x61st/core/Source.proto\"\xb8\x01\n\x0e\x46\x65\x61tureSetSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\x05\x12(\n\x08\x65ntities\x18\x03 \x03(\x0b\x32\x16.feast.core.EntitySpec\x12)\n\x08\x66\x65\x61tures\x18\x04 \x03(\x0b\x32\x17.feast.core.FeatureSpec\x12\x0e\n\x06maxAge\x18\x05 \x01(\x03\x12\"\n\x06source\x18\x06 \x01(\x0b\x32\x12.feast.core.Source\"J\n\nEntitySpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12.\n\tvalueType\x18\x02 \x01(\x0e\x32\x1b.feast.types.ValueType.Enum\"K\n\x0b\x46\x65\x61tureSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12.\n\tvalueType\x18\x02 \x01(\x0e\x32\x1b.feast.types.ValueType.EnumBT\n\nfeast.coreB\x0f\x46\x65\x61tureSetProtoZ5github.com/gojek/feast/protos/generated/go/feast/coreb\x06proto3')
   ,
   dependencies=[feast_dot_types_dot_Value__pb2.DESCRIPTOR,feast_dot_core_dot_Source__pb2.DESCRIPTOR,])
 
 
 
-
-_FEATURESETSPEC_ENTITIESENTRY = _descriptor.Descriptor(
-  name='EntitiesEntry',
-  full_name='feast.core.FeatureSetSpec.EntitiesEntry',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='key', full_name='feast.core.FeatureSetSpec.EntitiesEntry.key', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='value', full_name='feast.core.FeatureSetSpec.EntitiesEntry.value', index=1,
-      number=2, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=_b('8\001'),
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=315,
-  serialized_end=386,
-)
-
-_FEATURESETSPEC_FEATURESENTRY = _descriptor.Descriptor(
-  name='FeaturesEntry',
-  full_name='feast.core.FeatureSetSpec.FeaturesEntry',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='key', full_name='feast.core.FeatureSetSpec.FeaturesEntry.key', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='value', full_name='feast.core.FeatureSetSpec.FeaturesEntry.value', index=1,
-      number=2, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=_b('8\001'),
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=388,
-  serialized_end=460,
-)
 
 _FEATURESETSPEC = _descriptor.Descriptor(
   name='FeatureSetSpec',
@@ -155,7 +81,7 @@ _FEATURESETSPEC = _descriptor.Descriptor(
   ],
   extensions=[
   ],
-  nested_types=[_FEATURESETSPEC_ENTITIESENTRY, _FEATURESETSPEC_FEATURESENTRY, ],
+  nested_types=[],
   enum_types=[
   ],
   serialized_options=None,
@@ -165,7 +91,7 @@ _FEATURESETSPEC = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=94,
-  serialized_end=460,
+  serialized_end=278,
 )
 
 
@@ -202,8 +128,8 @@ _ENTITYSPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=462,
-  serialized_end=536,
+  serialized_start=280,
+  serialized_end=354,
 )
 
 
@@ -240,16 +166,12 @@ _FEATURESPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=538,
-  serialized_end=613,
+  serialized_start=356,
+  serialized_end=431,
 )
 
-_FEATURESETSPEC_ENTITIESENTRY.fields_by_name['value'].message_type = _ENTITYSPEC
-_FEATURESETSPEC_ENTITIESENTRY.containing_type = _FEATURESETSPEC
-_FEATURESETSPEC_FEATURESENTRY.fields_by_name['value'].message_type = _FEATURESPEC
-_FEATURESETSPEC_FEATURESENTRY.containing_type = _FEATURESETSPEC
-_FEATURESETSPEC.fields_by_name['entities'].message_type = _FEATURESETSPEC_ENTITIESENTRY
-_FEATURESETSPEC.fields_by_name['features'].message_type = _FEATURESETSPEC_FEATURESENTRY
+_FEATURESETSPEC.fields_by_name['entities'].message_type = _ENTITYSPEC
+_FEATURESETSPEC.fields_by_name['features'].message_type = _FEATURESPEC
 _FEATURESETSPEC.fields_by_name['source'].message_type = feast_dot_core_dot_Source__pb2._SOURCE
 _ENTITYSPEC.fields_by_name['valueType'].enum_type = feast_dot_types_dot_Value__pb2._VALUETYPE_ENUM
 _FEATURESPEC.fields_by_name['valueType'].enum_type = feast_dot_types_dot_Value__pb2._VALUETYPE_ENUM
@@ -259,27 +181,11 @@ DESCRIPTOR.message_types_by_name['FeatureSpec'] = _FEATURESPEC
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 FeatureSetSpec = _reflection.GeneratedProtocolMessageType('FeatureSetSpec', (_message.Message,), {
-
-  'EntitiesEntry' : _reflection.GeneratedProtocolMessageType('EntitiesEntry', (_message.Message,), {
-    'DESCRIPTOR' : _FEATURESETSPEC_ENTITIESENTRY,
-    '__module__' : 'feast.core.FeatureSet_pb2'
-    # @@protoc_insertion_point(class_scope:feast.core.FeatureSetSpec.EntitiesEntry)
-    })
-  ,
-
-  'FeaturesEntry' : _reflection.GeneratedProtocolMessageType('FeaturesEntry', (_message.Message,), {
-    'DESCRIPTOR' : _FEATURESETSPEC_FEATURESENTRY,
-    '__module__' : 'feast.core.FeatureSet_pb2'
-    # @@protoc_insertion_point(class_scope:feast.core.FeatureSetSpec.FeaturesEntry)
-    })
-  ,
   'DESCRIPTOR' : _FEATURESETSPEC,
   '__module__' : 'feast.core.FeatureSet_pb2'
   # @@protoc_insertion_point(class_scope:feast.core.FeatureSetSpec)
   })
 _sym_db.RegisterMessage(FeatureSetSpec)
-_sym_db.RegisterMessage(FeatureSetSpec.EntitiesEntry)
-_sym_db.RegisterMessage(FeatureSetSpec.FeaturesEntry)
 
 EntitySpec = _reflection.GeneratedProtocolMessageType('EntitySpec', (_message.Message,), {
   'DESCRIPTOR' : _ENTITYSPEC,
@@ -297,6 +203,4 @@ _sym_db.RegisterMessage(FeatureSpec)
 
 
 DESCRIPTOR._options = None
-_FEATURESETSPEC_ENTITIESENTRY._options = None
-_FEATURESETSPEC_FEATURESENTRY._options = None
 # @@protoc_insertion_point(module_scope)
