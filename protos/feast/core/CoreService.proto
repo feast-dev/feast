@@ -44,6 +44,7 @@ service CoreService {
 
 // Retrieves details for all versions of a specific feature set
 message GetFeatureSetsRequest {
+    Filter filter = 1;
     message Filter {
         string featureSetName = 1;
         string featureSetVersion = 2;
