@@ -28,6 +28,7 @@ option go_package = "github.com/gojek/feast/protos/generated/go/feast/types";
 message FeatureRow {
     repeated Feature features = 2;
     google.protobuf.Timestamp eventTimestamp = 3;
+    FeatureSet featureSet = 4;
     message FeatureSet {
         string name = 5;
         int32 version = 6;
