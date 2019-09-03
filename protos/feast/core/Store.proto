@@ -22,20 +22,19 @@ option java_outer_classname = "StoreProto";
 option go_package = "github.com/gojek/feast/protos/generated/go/feast/core";
 
 message Store {
-  message StoreType {
-    enum Enum {
-      UNKNOWN = 0;
-      REDIS = 1;
-      BIGQUERY = 2;
-      CASSANDRA = 3;
-    }
+
+  enum StoreType {
+    UNKNOWN = 0;
+    REDIS = 1;
+    BIGQUERY = 2;
+    CASSANDRA = 3;
   }
 
   // Name of the store.
   string name = 1;
 
   // Type of store.
-  Store.StoreType type = 2;
+  StoreType type = 2;
 
   // URI to connect to the database. Should contain all necessary information
   // to connect to and write/read to the store.
