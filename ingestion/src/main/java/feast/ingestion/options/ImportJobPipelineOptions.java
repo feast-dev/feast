@@ -19,6 +19,7 @@ package feast.ingestion.options;
 
 import com.google.auto.service.AutoService;
 import java.util.Collections;
+import java.util.List;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.options.Default;
@@ -26,24 +27,19 @@ import org.apache.beam.sdk.options.Default.Boolean;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
-import org.apache.beam.sdk.options.Validation.Required;
 
 /** Options passed to Beam to influence the job's execution environment */
 public interface ImportJobPipelineOptions
     extends PipelineOptions, DataflowPipelineOptions, DirectOptions {
   @Description(
-      "URI Path to import job spec yaml file, accepts file:// and gs:// scheme. For file scheme please use absolute path."
-          + "For example: 'file:///absolute/path/to/import/job/spec/yaml' OR 'gs://mybucket/import/job/spec/yaml'")
-  @Required
-  String getImportJobSpecUri();
+      "JSON string representation of the FeatureSetSpec that the import job will process."
+          + "FeatureSetSpec follows the format in feast.core.FeatureSet proto."
+          + "Mutliple FeatureSetSpec can be passed by specifying '--featureSetSpec={...}' multiple times"
+          + "The conversion of Proto message to JSON should follow this mapping:"
+          + "https://developers.google.com/protocol-buffers/docs/proto3#json")
+  List<String> getFeatureSetSpecJson();
 
-  void setImportJobSpecUri(String value);
-
-  @Description("Path to a workspace directory containing importJobSpecs.yaml")
-  @Required
-  String getWorkspace();
-
-  void setWorkspace(String value);
+  void setFeatureSetSpecJson(String jsonString);
 
   @Description("Limit of rows to sample and output for debugging")
   @Default.Integer(0)
