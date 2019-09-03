@@ -53,12 +53,12 @@ public class DirectJobRegistry {
    */
   @Override
   public void finalize() {
-    for (DirectJob job : this.jobs.values()) {
-      try {
-        job.getPipelineResult().cancel();
-      } catch (IOException e) {
-        log.error("Failed to stop job", e);
-      }
-    }
+//    for (DirectJob job : this.jobs.values()) {
+//      try {
+//        job.getPipelineResult().cancel();
+//      } catch (IOException e) {
+//        log.error("Failed to stop job", e);
+//      }
+//    }
   }
 }

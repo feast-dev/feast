@@ -17,21 +17,22 @@
 
 package feast.core.model;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
-import feast.core.JobServiceProto.JobServiceTypes.JobDetail;
-import feast.core.util.TypeConversion;
-import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
-import feast.specs.ImportSpecProto;
+import java.util.List;
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-
-import javax.persistence.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Contains information about a run job.
@@ -65,22 +66,16 @@ public class JobInfo extends AbstractTimestampEntity {
   private String sourceOptions;
 
   // Sink id
-  @Column(name = "sink_id")
-  private String sinkId;
+  @ManyToOne
+  @JoinColumn(name = "store_name")
+  private Store store;
 
-  // Entities populated by the job
-  @ManyToMany
-  @JoinTable(
-      joinColumns = {@JoinColumn(name = "job_id")},
-      inverseJoinColumns = {@JoinColumn(name = "entity_id")})
-  private List<EntityInfo> entities;
-
-  // Features populated by the job
+  // FeatureSets populated by the job
   @ManyToMany
   @JoinTable(
       joinColumns = {@JoinColumn(name = "job_id")},
       inverseJoinColumns = {@JoinColumn(name = "feature_id")})
-  private List<FeatureInfo> features;
+  private List<FeatureSet> featureSets;
 
   // Job Metrics
   @OneToMany(mappedBy = "jobInfo", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -96,53 +91,6 @@ public class JobInfo extends AbstractTimestampEntity {
 
   public JobInfo() {
     super();
-  }
-
-  public JobInfo(
-      String jobId,
-      String extId,
-      String runner,
-      ImportJobSpecs importJobSpecs,
-      JobStatus status)
-      throws InvalidProtocolBufferException {
-    this.id = jobId;
-    this.extId = extId;
-    this.type = importJobSpecs.getSourceSpec().getType().toString().toLowerCase();
-    this.runner = runner;
-    this.sourceOptions = TypeConversion
-        .convertMapToJsonString(importJobSpecs.getSourceSpec().getOptionsMap());
-    this.entities = new ArrayList<>();
-    this.sinkId = importJobSpecs.getSinkStorageSpec().getId();
-
-    EntityInfo entityInfo = new EntityInfo();
-    entityInfo.setName(importJobSpecs.getEntitySpec().getName());
-    this.entities.add(entityInfo);
-
-    this.features = new ArrayList<>();
-    for (FeatureSpec featureSpec : importJobSpecs.getFeatureSpecsList()) {
-      FeatureInfo featureInfo = new FeatureInfo();
-      featureInfo.setId(featureSpec.getId());
-      this.features.add(featureInfo);
-    }
-
-    this.raw = JsonFormat.printer().print(importJobSpecs);
-    this.status = status;
-  }
-
-  public JobDetail getJobDetail() {
-    return JobDetail.newBuilder()
-        .setId(this.id)
-        .setExtId(this.extId)
-        .setType(this.type)
-        .setRunner(this.runner)
-        .setStatus(this.status.toString())
-        .addAllEntities(
-            this.entities.stream().map(EntityInfo::getName).collect(Collectors.toList()))
-        .addAllFeatures(
-            this.features.stream().map(FeatureInfo::getId).collect(Collectors.toList()))
-        .setLastUpdated(TypeConversion.convertTimestamp(this.getLastUpdated()))
-        .setCreated(TypeConversion.convertTimestamp(this.getCreated()))
-        .build();
   }
 
 }

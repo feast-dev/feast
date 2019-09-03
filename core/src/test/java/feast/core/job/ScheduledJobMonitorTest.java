@@ -29,6 +29,7 @@ import feast.core.dao.MetricsRepository;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
 import feast.core.model.Metrics;
+import feast.core.model.Store;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -66,8 +67,7 @@ public class ScheduledJobMonitorTest {
             "Streaming",
             "DataflowRunner",
             "",
-            "",
-            Collections.emptyList(),
+            new Store(),
             Collections.emptyList(),
             Collections.emptyList(),
             JobStatus.RUNNING,
@@ -105,8 +105,7 @@ public class ScheduledJobMonitorTest {
             "Streaming",
             "DataflowRunner",
             "",
-            "",
-            Collections.emptyList(),
+            new Store(),
             Collections.emptyList(),
             Collections.emptyList(),
             JobStatus.RUNNING,

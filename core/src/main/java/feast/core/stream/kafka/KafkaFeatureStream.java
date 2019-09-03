@@ -57,8 +57,8 @@ public class KafkaFeatureStream implements FeatureStream {
   }
 
   @Override
-  public String generateTopicName(String entityName) {
-    return Strings.lenientFormat("%s-%s-features", config.getTopicPrefix(), entityName);
+  public String generateTopicName(String featureSetName) {
+    return Strings.lenientFormat("%s-%s-features", config.getTopicPrefix(), featureSetName);
   }
 
   @Override

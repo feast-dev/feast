@@ -22,8 +22,8 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-/** JPA repository supplying EntityInfo objects keyed by name. */
+/** JPA repository supplying FeatureStreamTopic objects keyed by id. */
 @Repository
 public interface FeatureStreamTopicRepository extends JpaRepository<FeatureStreamTopic, String> {
-  FeatureStreamTopic findByEntityName(String entityName);
+  FeatureStreamTopic findByFeatureSetName(String featureSetName);
 }

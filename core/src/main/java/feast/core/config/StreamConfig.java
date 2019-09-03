@@ -17,37 +17,23 @@
 
 package feast.core.config;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.CharStreams;
-import feast.core.config.StorageConfig.StorageSpecs;
-import feast.core.dao.EntityInfoRepository;
-import feast.core.dao.FeatureGroupInfoRepository;
-import feast.core.dao.FeatureInfoRepository;
-import feast.core.dao.FeatureSetRepository;
 import feast.core.stream.FeatureStream;
 import feast.core.stream.kafka.KafkaFeatureStream;
 import feast.core.stream.kafka.KafkaFeatureStreamConfig;
-import feast.core.validators.SpecValidator;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
 import javax.naming.ConfigurationException;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
 
 /**
  * Configuration providing utility objects for the core application.
  */
 @Configuration
-public class ServerUtilConfig {
+public class StreamConfig {
 
   /**
    * Get the featureStream

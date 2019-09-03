@@ -6,8 +6,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import feast.core.config.ImportJobDefaults;
-import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
-import feast.specs.ImportSpecProto.ImportSpec;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;

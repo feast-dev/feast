@@ -31,10 +31,10 @@ public interface FeatureStream {
   /**
    * Generates a topic name given the entity name
    *
-   * @param entityName name of entity whose features will be written to this topic
+   * @param featureSetName name of entity whose features will be written to this topic
    * @return generated topic name
    */
-  String generateTopicName(String entityName);
+  String generateTopicName(String featureSetName);
 
   /**
    * Get the broker URI for this feature stream

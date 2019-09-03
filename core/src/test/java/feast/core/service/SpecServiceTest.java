@@ -17,426 +17,188 @@
 
 package feast.core.service;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsEqual.equalTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import feast.core.config.StorageConfig.StorageSpecs;
-import feast.core.dao.EntityInfoRepository;
-import feast.core.dao.FeatureGroupInfoRepository;
-import feast.core.dao.FeatureInfoRepository;
+import com.google.api.client.util.Lists;
+import com.google.common.collect.Maps;
+import feast.core.CoreServiceProto.GetFeatureSetsRequest.Filter;
+import feast.core.CoreServiceProto.GetStoresRequest;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.SourceProto.Source.SourceType;
+import feast.core.dao.FeatureSetRepository;
+import feast.core.dao.StoreRepository;
 import feast.core.exception.RetrievalException;
-import feast.core.model.EntityInfo;
-import feast.core.model.FeatureGroupInfo;
-import feast.core.model.FeatureInfo;
-import feast.core.model.FeatureStreamTopic;
-import feast.core.model.StorageInfo;
-import feast.specs.EntitySpecProto.EntitySpec;
-import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
-import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.specs.StorageSpecProto.StorageSpec;
-import feast.types.ValueProto.ValueType;
-import feast.types.ValueProto.ValueType.Enum;
-import java.util.ArrayList;
+import feast.core.model.FeatureSet;
+import feast.core.model.Source;
+import feast.core.model.Store;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
+import org.springframework.transaction.annotation.Transactional;
 
 public class SpecServiceTest {
 
+  @Mock
+  private FeatureSetRepository featureSetRepository;
+
+  @Mock
+  private StoreRepository storeRepository;
+
   @Rule
-  public final ExpectedException exception = ExpectedException.none();
-  @Mock
-  EntityInfoRepository entityInfoRepository;
-  @Mock
-  FeatureInfoRepository featureInfoRepository;
-  @Mock
-  FeatureGroupInfoRepository featureGroupInfoRepository;
-  @Mock
-  FeatureStreamService featureStreamService;
-  @Mock
-  JobCoordinatorService jobCoordinatorService;
-  @Mock
-  StorageSpecs storageSpecs;
+  public final ExpectedException expectedException = ExpectedException.none();
+
+  private List<FeatureSet> featureSets;
+  private List<Store> stores;
 
   @Before
   public void setUp() {
     initMocks(this);
-  }
+    FeatureSet featureSet1v1 = newDummyFeatureSet("f1", 1);
+    FeatureSet featureSet1v2 = newDummyFeatureSet("f1", 2);
+    FeatureSet featureSet1v3 = newDummyFeatureSet("f1", 3);
+    FeatureSet featureSet2v1 = newDummyFeatureSet("f2", 1);
+    featureSets = Arrays.asList(featureSet1v1, featureSet1v2, featureSet1v3, featureSet2v1);
+    when(featureSetRepository.findAll())
+        .thenReturn(featureSets);
+    when(featureSetRepository.findByName("f1"))
+        .thenReturn(featureSets.subList(0, 3));
+    when(featureSetRepository.findByName("asd"))
+        .thenReturn(Lists.newArrayList());
 
-  private EntityInfo newTestEntityInfo(String name) {
-    EntityInfo entity = new EntityInfo();
-    entity.setName(name);
-    entity.setDescription("testing");
-    return entity;
-  }
-
-  private StorageInfo newTestStorageInfo(String id, String type) {
-    StorageInfo storage = new StorageInfo();
-    storage.setId(id);
-    storage.setType(type);
-    return storage;
-  }
-
-  private FeatureInfo newTestFeatureInfo(String name) {
-    FeatureInfo feature = new FeatureInfo();
-    feature.setId(Strings.lenientFormat("entity.%s", name));
-    feature.setName(name);
-    feature.setEntity(newTestEntityInfo("entity"));
-    feature.setDescription("");
-    feature.setOwner("@test");
-    feature.setValueType(ValueType.Enum.BOOL);
-    feature.setUri("");
-    return feature;
+    Store store1 = newDummyStore("SERVING");
+    Store store2 = newDummyStore("WAREHOUSE");
+    stores = Arrays.asList(store1, store2);
+    when(storeRepository.findAll()).thenReturn(stores);
+    when(storeRepository.findById("SERVING")).thenReturn(Optional.of(store1));
+    when(storeRepository.findById("NOTFOUND")).thenReturn(Optional.empty());
   }
 
   @Test
-  public void shouldGetEntitiesMatchingIds() {
-    EntityInfo entity1 = newTestEntityInfo("entity1");
-    EntityInfo entity2 = newTestEntityInfo("entity2");
+  public void shouldGetAllFeatureSetsIfNoFilterProvided() {
+    SpecService specService = new SpecService(featureSetRepository, storeRepository);
+    List<FeatureSet> actual = specService
+        .getFeatureSets(Filter.newBuilder().setFeatureSetName("").build());
+    assertThat(actual, equalTo(featureSets));
+  }
 
-    ArrayList<String> ids = Lists.newArrayList("entity1", "entity2");
-    when(entityInfoRepository.findAllById(any(Iterable.class)))
-        .thenReturn(Lists.newArrayList(entity1, entity2));
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            featureStreamService,
-            jobCoordinatorService,
-            storageSpecs);
-    List<EntityInfo> actual = specService.getEntities(ids);
-    List<EntityInfo> expected = Lists.newArrayList(entity1, entity2);
+  @Test
+  public void shouldGetAllFeatureSetsMatchingNameIfNoVersionProvided() {
+    SpecService specService = new SpecService(featureSetRepository, storeRepository);
+    List<FeatureSet> actual = specService
+        .getFeatureSets(Filter.newBuilder().setFeatureSetName("f1").build());
+    List<FeatureSet> expected = featureSets.stream().filter(fs -> fs.getName().equals("f1"))
+        .collect(Collectors.toList());
     assertThat(actual, equalTo(expected));
   }
 
   @Test
-  public void shouldDeduplicateGetEntities() {
-    EntityInfo entity1 = newTestEntityInfo("entity1");
-    EntityInfo entity2 = newTestEntityInfo("entity2");
+  public void shouldThrowErrorWhenNoFeatureSetsWithNameFound() {
+    SpecService specService = new SpecService(featureSetRepository, storeRepository);
+    Filter filter = Filter.newBuilder().setFeatureSetName("asd").build();
+    expectedException.expect(RetrievalException.class);
+    expectedException.expectMessage(
+        String.format("Unable to find any featureSets matching the filter '%s'", filter));
+    specService.getFeatureSets(filter);
+  }
 
-    ArrayList<String> ids = Lists.newArrayList("entity1", "entity2", "entity2");
-    when(entityInfoRepository.findAllById(any(Iterable.class)))
-        .thenReturn(Lists.newArrayList(entity1, entity2));
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            featureStreamService,
-            jobCoordinatorService,
-            storageSpecs);
-    List<EntityInfo> actual = specService.getEntities(ids);
-    List<EntityInfo> expected = Lists.newArrayList(entity1, entity2);
+  @Test
+  public void shouldGetAllFeatureSetsMatchingVersionIfNoComparator() {
+    SpecService specService = new SpecService(featureSetRepository, storeRepository);
+    List<FeatureSet> actual = specService
+        .getFeatureSets(
+            Filter.newBuilder().setFeatureSetName("f1").setFeatureSetVersion("1").build());
+    List<FeatureSet> expected = featureSets.stream()
+        .filter(fs -> fs.getName().equals("f1"))
+        .filter(fs -> fs.getVersion() == 1)
+        .collect(Collectors.toList());
     assertThat(actual, equalTo(expected));
   }
 
   @Test
-  public void shouldThrowRetrievalExceptionIfAnyEntityNotFound() {
-    EntityInfo entity1 = newTestEntityInfo("entity1");
-
-    ArrayList<String> ids = Lists.newArrayList("entity1", "entity2");
-    when(entityInfoRepository.findAllById(ids)).thenReturn(Lists.newArrayList(entity1));
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            featureStreamService,
-            jobCoordinatorService,
-            storageSpecs);
-
-    exception.expect(RetrievalException.class);
-    exception.expectMessage("unable to retrieve all entities requested");
-    specService.getEntities(ids);
-  }
-
-  @Test
-  public void shouldListAllEntitiesRegistered() {
-    EntityInfo entity1 = newTestEntityInfo("entity1");
-    EntityInfo entity2 = newTestEntityInfo("entity2");
-
-    when(entityInfoRepository.findAll()).thenReturn(Lists.newArrayList(entity1, entity2));
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            featureStreamService,
-            jobCoordinatorService,
-            storageSpecs);
-
-    List<EntityInfo> actual = specService.listEntities();
-    List<EntityInfo> expected = Lists.newArrayList(entity1, entity2);
+  public void shouldGetAllFeatureSetsGivenVersionWithComparator() {
+    SpecService specService = new SpecService(featureSetRepository, storeRepository);
+    List<FeatureSet> actual = specService
+        .getFeatureSets(
+            Filter.newBuilder().setFeatureSetName("f1").setFeatureSetVersion(">1").build());
+    List<FeatureSet> expected = featureSets.stream()
+        .filter(fs -> fs.getName().equals("f1"))
+        .filter(fs -> fs.getVersion() > 1)
+        .collect(Collectors.toList());
     assertThat(actual, equalTo(expected));
   }
 
   @Test
-  public void shouldGetFeaturesMatchingIds() {
-    FeatureInfo feature1 = newTestFeatureInfo("feature1");
-    FeatureInfo feature2 = newTestFeatureInfo("feature2");
+  public void shouldThrowRetrievalExceptionGivenInvalidFeatureSetVersionComparator() {
+    SpecService specService = new SpecService(featureSetRepository, storeRepository);
+    expectedException.expect(RetrievalException.class);
+    expectedException.expectMessage("Invalid comparator '=<' provided.");
+    specService.getFeatureSets(
+        Filter.newBuilder().setFeatureSetName("f1").setFeatureSetVersion("=<1").build());
+  }
 
-    ArrayList<String> ids = Lists.newArrayList("entity.feature1", "entity.feature2");
-    when(featureInfoRepository.findAllById(any(Iterable.class)))
-        .thenReturn(Lists.newArrayList(feature1, feature2));
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            featureStreamService,
-            jobCoordinatorService,
-            storageSpecs);
-    List<FeatureInfo> actual = specService.getFeatures(ids);
-    List<FeatureInfo> expected = Lists.newArrayList(feature1, feature2);
+  @Test
+  public void shouldReturnAllStoresIfNoNameProvided() {
+    SpecService specService = new SpecService(featureSetRepository, storeRepository);
+    List<Store> actual = specService.getStores(GetStoresRequest.Filter.newBuilder().build());
+    assertThat(actual, equalTo(stores));
+  }
+
+  @Test
+  public void shouldReturnStoreWithName() {
+    SpecService specService = new SpecService(featureSetRepository, storeRepository);
+    List<Store> actual = specService
+        .getStores(GetStoresRequest.Filter.newBuilder().setName("SERVING").build());
+    List<Store> expected = stores.stream().filter(s -> s.getName().equals("SERVING"))
+        .collect(Collectors.toList());
     assertThat(actual, equalTo(expected));
   }
 
   @Test
-  public void shouldDeduplicateGetFeature() {
-    FeatureInfo feature1 = newTestFeatureInfo("feature1");
-    FeatureInfo feature2 = newTestFeatureInfo("feature2");
-
-    ArrayList<String> ids = Lists
-        .newArrayList("entity.feature1", "entity.feature2", "entity.feature2");
-    when(featureInfoRepository.findAllById(any(Iterable.class)))
-        .thenReturn(Lists.newArrayList(feature1, feature2));
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            featureStreamService,
-            jobCoordinatorService,
-            storageSpecs);
-    List<FeatureInfo> actual = specService.getFeatures(ids);
-    List<FeatureInfo> expected = Lists.newArrayList(feature1, feature2);
-    assertThat(actual, equalTo(expected));
+  public void shouldThrowRetrievalExceptionIfNoStoresFoundWithName() {
+    SpecService specService = new SpecService(featureSetRepository, storeRepository);
+    expectedException.expect(RetrievalException.class);
+    expectedException.expectMessage("Store with name 'NOTFOUND' not found");
+    specService
+        .getStores(GetStoresRequest.Filter.newBuilder().setName("NOTFOUND").build());
   }
 
   @Test
-  public void shouldThrowRetrievalExceptionIfAnyFeatureNotFound() {
-    FeatureInfo feature2 = newTestFeatureInfo("feature2");
-
-    ArrayList<String> ids = Lists.newArrayList("entity.feature1", "entity.feature2");
-    when(featureInfoRepository.findAllById(ids)).thenReturn(Lists.newArrayList(feature2));
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            featureStreamService,
-            jobCoordinatorService,
-            storageSpecs);
-    exception.expect(RetrievalException.class);
-    exception.expectMessage("unable to retrieve all features requested: " + ids);
-    specService.getFeatures(ids);
+  public void applyFeatureSetShouldDoNothingIfFeatureSetHasNotChanged() {
+    SpecService specService = new SpecService(featureSetRepository, storeRepository);
+    FeatureSetSpec incomingFeatureSet = featureSets.get(2).toProto();
+    incomingFeatureSet = incomingFeatureSet.toBuilder().setVersion(0).build();
+    specService.applyFeatureSet(incomingFeatureSet);
+    verify(featureSetRepository, times(0)).save(any(FeatureSet.class));
   }
 
-  @Test
-  public void shouldListAllFeaturesRegistered() {
-    FeatureInfo feature1 = newTestFeatureInfo("feature1");
-    FeatureInfo feature2 = newTestFeatureInfo("feature2");
-
-    when(featureInfoRepository.findAll()).thenReturn(Lists.newArrayList(feature1, feature2));
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            featureStreamService,
-            jobCoordinatorService,
-            storageSpecs);
-    List<FeatureInfo> actual = specService.listFeatures();
-    List<FeatureInfo> expected = Lists.newArrayList(feature1, feature2);
-    assertThat(actual, equalTo(expected));
+  private FeatureSet newDummyFeatureSet(String name, int version) {
+    Map<String, String> kafkaFeatureSourceOptions = Maps.newHashMap();
+    kafkaFeatureSourceOptions.put("bootstrapServers", "kafka:9092");
+    kafkaFeatureSourceOptions.put("topics", "my-featureset-topic");
+    return new FeatureSet(name, version, Lists.newArrayList(), Lists.newArrayList(),
+        new Source(
+            SourceType.KAFKA, kafkaFeatureSourceOptions));
   }
 
-  @Test
-  public void shouldGetStorageMatchingIds() {
-    StorageInfo redisStorage = newTestStorageInfo("REDIS1", "REDIS");
-    StorageInfo bqStorage = newTestStorageInfo("BIGQUERY1", "BIGQUERY");
-    when(storageSpecs.getServingStorageSpec()).thenReturn(redisStorage.getStorageSpec());
-    when(storageSpecs.getWarehouseStorageSpec()).thenReturn(bqStorage.getStorageSpec());
-
-    ArrayList<String> ids = Lists.newArrayList("REDIS1", "BIGQUERY1");
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            featureStreamService,
-            jobCoordinatorService,
-            storageSpecs);
-    List<StorageInfo> actual = specService.getStorage(ids);
-    List<StorageInfo> expected = Lists.newArrayList(redisStorage, bqStorage);
-    assertThat(actual, equalTo(expected));
-  }
-
-  @Test
-  public void shouldDeduplicateGetStorage() {
-    StorageInfo redisStorage = newTestStorageInfo("REDIS1", "REDIS");
-    StorageInfo bqStorage = newTestStorageInfo("BIGQUERY1", "BIGQUERY");
-    when(storageSpecs.getServingStorageSpec()).thenReturn(redisStorage.getStorageSpec());
-    when(storageSpecs.getWarehouseStorageSpec()).thenReturn(bqStorage.getStorageSpec());
-    ArrayList<String> ids = Lists.newArrayList("REDIS1", "BIGQUERY1", "BIGQUERY1");
-
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            featureStreamService,
-            jobCoordinatorService,
-            storageSpecs);
-    List<StorageInfo> actual = specService.getStorage(ids);
-    List<StorageInfo> expected = Lists.newArrayList(redisStorage, bqStorage);
-    assertThat(actual, equalTo(expected));
-  }
-
-  @Test
-  public void shouldThrowRetrievalExceptionIfAnyStorageNotFound() {
-    StorageInfo redisStorage = newTestStorageInfo("REDIS1", "REDIS");
-    when(storageSpecs.getServingStorageSpec()).thenReturn(redisStorage.getStorageSpec());
-
-    ArrayList<String> ids = Lists.newArrayList("REDIS1", "BIGQUERY1");
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            featureStreamService,
-            jobCoordinatorService,
-            storageSpecs);
-
-    exception.expect(RetrievalException.class);
-    exception.expectMessage("unable to retrieve all storage requested: " + ids);
-    specService.getStorage(ids);
-  }
-
-  @Test
-  public void shouldListAllStorageRegistered() {
-    StorageInfo redisStorage = newTestStorageInfo("REDIS1", "REDIS");
-    StorageInfo bqStorage = newTestStorageInfo("BIGQUERY1", "BIGQUERY");
-    when(storageSpecs.getServingStorageSpec()).thenReturn(redisStorage.getStorageSpec());
-    when(storageSpecs.getWarehouseStorageSpec()).thenReturn(bqStorage.getStorageSpec());
-
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            featureStreamService,
-            jobCoordinatorService,
-            storageSpecs);
-    List<StorageInfo> actual = specService.listStorage();
-    List<StorageInfo> expected = Lists.newArrayList(redisStorage, bqStorage);
-    assertThat(actual, equalTo(expected));
-  }
-
-  @Test
-  public void shouldRegisterFeatureGroup() {
-    FeatureGroupSpec spec =
-        FeatureGroupSpec.newBuilder()
-            .setId("group")
-            .addTags("tag")
-            .build();
-    FeatureGroupInfo expectedFeatureGroupInfo = new FeatureGroupInfo(spec);
-
-    when(featureGroupInfoRepository.saveAndFlush(expectedFeatureGroupInfo))
-        .thenReturn(expectedFeatureGroupInfo);
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            featureStreamService,
-            jobCoordinatorService,
-            storageSpecs);
-    FeatureGroupInfo actual = specService.applyFeatureGroup(spec);
-    assertThat(actual, equalTo(expectedFeatureGroupInfo));
-  }
-
-  @Test
-  public void shouldRegisterNewEntityAndProvisionTopic() {
-    EntitySpec spec =
-        EntitySpec.newBuilder()
-            .setName("entity")
-            .setDescription("description")
-            .addTags("tag")
-            .build();
-    EntityInfo entityInfo = new EntityInfo(spec);
-    when(entityInfoRepository.save(entityInfo)).thenReturn(entityInfo);
-    when(entityInfoRepository.getOne(spec.getName())).thenReturn(entityInfo);
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            featureStreamService,
-            jobCoordinatorService,
-            storageSpecs);
-    EntityInfo actual = specService.applyEntity(spec);
-    verify(featureStreamService).provisionTopic(entityInfo);
-    assertThat(actual, equalTo(entityInfo));
-  }
-
-  @Test
-  public void shouldRegisterMultipleValidFeaturesAndStartJob() {
-    FeatureSpec f1 = FeatureSpec.newBuilder()
-        .setId("entity.feature1")
-        .setName("feature1")
-        .setEntity("entity")
-        .setValueType(Enum.BOOL)
-        .build();
-    FeatureSpec f2 = FeatureSpec.newBuilder()
-        .setId("entity.feature2")
-        .setName("feature2")
-        .setEntity("entity")
-        .setValueType(Enum.BOOL)
-        .build();
-    FeatureStreamTopic featureStreamTopic = new FeatureStreamTopic();
-    featureStreamTopic.setName("feast-entity-features");
-    EntityInfo entityInfo = new EntityInfo("entity", "", "",featureStreamTopic, Lists.newArrayList(),true);
-    entityInfo.setName("entity");
-    entityInfo.setTopic(featureStreamTopic);
-
-    List<FeatureSpec> specs = Lists.newArrayList(f1, f2);
-    List<FeatureInfo> expected = Lists.newArrayList(new FeatureInfo(f1, entityInfo, null), new FeatureInfo(f2, entityInfo, null));
-
-    when(featureInfoRepository.findById(ArgumentMatchers.any())).thenReturn(Optional.empty());
-    when(entityInfoRepository.findById("entity")).thenReturn(Optional.of(entityInfo));
-    when(featureInfoRepository.save(any(FeatureInfo.class))).thenAnswer(i -> i.getArguments()[0]);
-    when(featureInfoRepository.findByEntityName("entity")).thenReturn(expected);
-    when(storageSpecs.getErrorsStorageSpec()).thenReturn(StorageSpec.newBuilder().setId("err").build());
-    when(storageSpecs.getSinks()).thenReturn(Lists.newArrayList(StorageSpec.newBuilder().setId("serving").build()));
-
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            featureStreamService,
-            jobCoordinatorService,
-            storageSpecs);
-
-    List<FeatureInfo> actual = specService.applyFeatures(specs);
-
-    verify(jobCoordinatorService, times(1)).startJob(any());
-    assertEquals(expected, actual);
+  private Store newDummyStore(String name) {
+    // Add type to this method when we enable filtering by type
+    Store store = new Store();
+    store.setName(name);
+    return store;
   }
 }
 

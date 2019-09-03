@@ -1,11 +1,13 @@
 package feast.core.service;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import feast.core.dao.FeatureStreamTopicRepository;
 import feast.core.exception.TopicExistsException;
-import feast.core.model.EntityInfo;
+import feast.core.model.FeatureSet;
 import feast.core.model.FeatureStreamTopic;
 import feast.core.stream.FeatureStream;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,23 +30,27 @@ public class FeatureStreamService {
   }
 
   /**
-   * Provisions a topic given the entity. If the topic already exists, and was not created by feast,
+   * Provisions a topic given the featureSet. If the topic already exists, and was not created by feast,
    * an error will be thrown.
    *
-   * @param entity entity to create the topic for
+   * @param featureSet featureSet to create the topic for
    * @return created topic
    */
-  public FeatureStreamTopic provisionTopic(EntityInfo entity) {
-    String topicName = featureStream.generateTopicName(entity.getName());
+  public FeatureStreamTopic provisionTopic(FeatureSet featureSet) {
+    String topicName = featureStream.generateTopicName(featureSet.getName());
+    FeatureStreamTopic topic;
     try {
       featureStream.provisionTopic(topicName);
+      topic = new FeatureStreamTopic(topicName, Lists.newArrayList(featureSet));
     } catch (TopicExistsException e) {
-      if (!featureStreamTopicRepository.existsById(topicName)) {
+      Optional<FeatureStreamTopic> existingTopic = featureStreamTopicRepository.findById(topicName);
+      if (!existingTopic.isPresent()) {
         // topic exists, and we didn't create it, throw error
         throw new TopicExistsException(e.getMessage(), e);
       }
+      topic = existingTopic.get();
+      topic.addFeatureSet(featureSet);
     }
-    FeatureStreamTopic topic = new FeatureStreamTopic(topicName, entity);
     featureStreamTopicRepository.saveAndFlush(topic);
     return topic;
   }
@@ -70,12 +76,12 @@ public class FeatureStreamService {
    *
    * @return FeatureStreamTopic object containing the name of the topic
    */
-  public FeatureStreamTopic getTopicFor(EntityInfo entity) {
-    FeatureStreamTopic topic = featureStreamTopicRepository.findByEntityName(entity.getName());
+  public FeatureStreamTopic getTopicFor(FeatureSet featureSet) {
+    FeatureStreamTopic topic = featureStreamTopicRepository.findByFeatureSetName(featureSet.getName());
     if (topic == null) {
       throw new IllegalArgumentException(Strings
-          .lenientFormat("Topic not created for entity %s, has the entity been registered?",
-              entity.getName()));
+          .lenientFormat("Topic not created for featureSet %s, has the featureSet been registered?",
+              featureSet.getName()));
     }
     return topic;
   }
