@@ -44,11 +44,12 @@ service CoreService {
 
 // Retrieves details for all versions of a specific feature set
 message GetFeatureSetsRequest {
-    Filter filter = 1;
     message Filter {
         string featureSetName = 1;
         string featureSetVersion = 2;
     }
+
+    Filter filter = 1;
 }
 
 message GetFeatureSetsResponse {
@@ -59,6 +60,8 @@ message GetStoresRequest {
     message Filter {
         string name = 1;
     }
+
+    Filter filter = 1;
 }
 
 message GetStoresResponse {
@@ -84,6 +87,7 @@ message ApplyFeatureSetResponse {
 
     // Feature set response has been enriched with version and source information
     feast.core.FeatureSetSpec featureSet = 1;
+    Status status = 2;
 }
 
 message GetFeastCoreVersionResponse {
