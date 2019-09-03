@@ -30,7 +30,6 @@ public class WriteFeaturesTransform extends PTransform<PCollection<FeatureRowExt
   private EntitySpec entitySpec;
   private Map<String, FeatureSpec> featureSpecByFeatureId = new HashMap<>();
 
-  @Inject
   public WriteFeaturesTransform(ImportJobSpecs importJobSpecs) {
     this.importJobSpecs = importJobSpecs;
     this.sinkStorageSpec = importJobSpecs.getSinkStorageSpec();

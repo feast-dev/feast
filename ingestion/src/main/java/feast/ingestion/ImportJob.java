@@ -3,21 +3,21 @@ package feast.ingestion;
 import static feast.specs.ImportJobSpecsProto.SourceSpec.SourceType.KAFKA;
 
 import com.google.cloud.bigquery.BigQueryOptions;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
+import com.google.protobuf.util.JsonFormat;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.FeatureSetProto.FeatureSetSpec.Builder;
 import feast.ingestion.options.ImportJobPipelineOptions;
-import feast.ingestion.transform.ReadFeaturesTransform;
+import feast.ingestion.transform.ReadFeatureRow;
 import feast.ingestion.transform.ToFeatureRowExtended;
 import feast.ingestion.transform.WriteFeaturesTransform;
-import feast.ingestion.util.ProtoUtil;
 import feast.ingestion.util.StorageUtil;
 import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
-import feast.specs.ImportJobSpecsProto.SourceSpec;
 import feast.specs.ImportJobSpecsProto.SourceSpec.SourceType;
 import feast.specs.StorageSpecProto.StorageSpec;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,7 +25,6 @@ import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -37,14 +36,15 @@ import org.apache.kafka.common.TopicPartition;
 @Slf4j
 public class ImportJob {
 
+
   /**
    * Create and run a Beam pipeline from command line arguments.
    *
    * <p>The arguments will be passed to Beam {@code PipelineOptionsFactory} to create {@code
    * ImportJobPipelineOptions}.
    *
-   * <p>The returned PipelineResult object can be used to check the state of the pipeline e.g. if
-   * it is running, done or cancelled.
+   * <p>The returned PipelineResult object can be used to check the state of the pipeline e.g. if it
+   * is running, done or cancelled.
    *
    * @param args command line arguments, typically come from the main() method
    * @return PipelineResult
@@ -59,8 +59,8 @@ public class ImportJob {
   /**
    * Create and run a Beam pipeline from {@code ImportJobPipelineOptions}.
    *
-   * <p>The returned PipelineResult object can be used to check the state of the pipeline e.g. if
-   * it is running, done or cancelled.
+   * <p>The returned PipelineResult object can be used to check the state of the pipeline e.g. if it
+   * is running, done or cancelled.
    *
    * @param pipelineOptions configuration for the pipeline
    * @return PipelineResult
@@ -70,19 +70,21 @@ public class ImportJob {
       throws IOException, URISyntaxException {
     pipelineOptions =
         PipelineOptionsValidator.validate(ImportJobPipelineOptions.class, pipelineOptions);
-    ImportJobSpecs importJobSpecs =
-        ProtoUtil.createProtoMessageFromYamlFileUri(
-            pipelineOptions.getImportJobSpecUri(),
-            ImportJobSpecs.newBuilder(),
-            ImportJobSpecs.class);
-    pipelineOptions.setJobName(importJobSpecs.getJobId());
-    setupStorage(importJobSpecs);
-    setupConsumerGroupOffset(importJobSpecs);
     Pipeline pipeline = Pipeline.create(pipelineOptions);
-    pipeline
-        .apply("Read FeatureRow", new ReadFeaturesTransform(importJobSpecs))
-        .apply("Create FeatureRowExtended from FeatureRow", new ToFeatureRowExtended())
-        .apply("Write FeatureRowExtended", new WriteFeaturesTransform(importJobSpecs));
+
+    for (String featureSetSpecJson : pipelineOptions.getFeatureSetSpecJson()) {
+      Builder builder = FeatureSetSpec.newBuilder();
+      JsonFormat.parser().merge(featureSetSpecJson, builder);
+      FeatureSetSpec featureSetSpec = builder.build();
+
+      // TODO: Setup storage, set Kafka consumer group to latest offset during pipeline setup
+
+      pipeline
+          .apply("Read FeatureRow", new ReadFeatureRow(featureSetSpec))
+          .apply("Create FeatureRowExtended from FeatureRow", new ToFeatureRowExtended());
+          //.apply("Write FeatureRowExtended", new WriteFeaturesTransform(featureSetSpec));
+    }
+
     return pipeline.run();
   }
 
@@ -125,9 +127,8 @@ public class ImportJob {
    * Manually sets the consumer group offset for this job's consumer group to the offset at the time
    * at which we provision the ingestion job.
    *
-   * <p>This is necessary because the setup time for certain
-   * runners (e.g. Dataflow) might cause the worker to miss the messages that were emitted into the
-   * stream prior to the workers being ready.
+   * <p>This is necessary because the setup time for certain runners (e.g. Dataflow) might cause the
+   * worker to miss the messages that were emitted into the stream prior to the workers being ready.
    *
    * @param importJobSpecs import job specification, refer to {@code ImportJobSpecs.proto}
    */
@@ -138,7 +139,8 @@ public class ImportJob {
         String consumerGroupId = String.format("feast-import-job-%s", importJobSpecs.getJobId());
         Properties consumerProperties = new Properties();
         consumerProperties.setProperty("group.id", consumerGroupId);
-        consumerProperties.setProperty("bootstrap.servers",
+        consumerProperties.setProperty(
+            "bootstrap.servers",
             importJobSpecs.getSourceSpec().getOptionsOrThrow("bootstrapServers"));
         consumerProperties.setProperty(
             "key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
@@ -156,20 +158,21 @@ public class ImportJob {
             timestampsToSearch.put(topicPartition, timestamp);
           }
         }
-        Map<TopicPartition, OffsetAndTimestamp> offsets = kafkaConsumer
-            .offsetsForTimes(timestampsToSearch);
+        Map<TopicPartition, OffsetAndTimestamp> offsets =
+            kafkaConsumer.offsetsForTimes(timestampsToSearch);
 
         kafkaConsumer.assign(offsets.keySet());
         kafkaConsumer.poll(1000);
         kafkaConsumer.commitSync();
 
-        offsets.forEach((topicPartition, offset) -> {
-          if (offset != null) {
-            kafkaConsumer.seek(topicPartition, offset.offset());
-          } else {
-            kafkaConsumer.seekToBeginning(Sets.newHashSet(topicPartition));
-          }
-        });
+        offsets.forEach(
+            (topicPartition, offset) -> {
+              if (offset != null) {
+                kafkaConsumer.seek(topicPartition, offset.offset());
+              } else {
+                kafkaConsumer.seekToBeginning(Sets.newHashSet(topicPartition));
+              }
+            });
         return;
       default:
         throw new IllegalArgumentException(
@@ -177,6 +180,5 @@ public class ImportJob {
                 "Unsupported type of sourceSpec: \"%s\". Only KAFKA is supported in Feast 0.2",
                 sourceType));
     }
-
   }
 }

@@ -27,19 +27,36 @@ import org.apache.beam.sdk.options.Default.Boolean;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
+import org.apache.beam.sdk.options.Validation.Required;
 
 /** Options passed to Beam to influence the job's execution environment */
 public interface ImportJobPipelineOptions
     extends PipelineOptions, DataflowPipelineOptions, DirectOptions {
+  @Required
   @Description(
       "JSON string representation of the FeatureSetSpec that the import job will process."
           + "FeatureSetSpec follows the format in feast.core.FeatureSet proto."
           + "Mutliple FeatureSetSpec can be passed by specifying '--featureSetSpec={...}' multiple times"
           + "The conversion of Proto message to JSON should follow this mapping:"
-          + "https://developers.google.com/protocol-buffers/docs/proto3#json")
+          + "https://developers.google.com/protocol-buffers/docs/proto3#json"
+          + "Please minify and remove all insignificant whitespace such as newline in the JSON string"
+          + "to prevent error when parsing the options")
   List<String> getFeatureSetSpecJson();
 
   void setFeatureSetSpecJson(List<String> featureSetSpecJson);
+
+  @Required
+  @Description(
+      "JSON string representation of the Store that import job will write FeatureRow to."
+          + "Store follows the format in feast.core.Source proto."
+          + "Multiple Store can be passed by specifying '--store={...}' multiple times"
+          + "The conversion of Proto message to JSON should follow this mapping:"
+          + "https://developers.google.com/protocol-buffers/docs/proto3#json"
+          + "Please minify and remove all insignificant whitespace such as newline in the JSON string"
+          + "to prevent error when parsing the options")
+  List<String> getStoreJson();
+
+  void setStoreJson(List<String> storeJson);
 
   @Description("Limit of rows to sample and output for debugging")
   @Default.Integer(0)
