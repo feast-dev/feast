@@ -39,7 +39,7 @@ public interface ImportJobPipelineOptions
           + "https://developers.google.com/protocol-buffers/docs/proto3#json")
   List<String> getFeatureSetSpecJson();
 
-  void setFeatureSetSpecJson(String jsonString);
+  void setFeatureSetSpecJson(List<String> featureSetSpecJson);
 
   @Description("Limit of rows to sample and output for debugging")
   @Default.Integer(0)
