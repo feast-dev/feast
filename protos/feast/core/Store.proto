@@ -24,7 +24,7 @@ option go_package = "github.com/gojek/feast/protos/generated/go/feast/core";
 message Store {
 
   enum StoreType {
-    UNKNOWN = 0;
+    INVALID = 0;
     REDIS = 1;
     BIGQUERY = 2;
     CASSANDRA = 3;
@@ -68,8 +68,8 @@ message Store {
 
   // Configuration to connect to the store. Required.
   oneof config {
-    RedisConfig RedisConfig = 11;
-    BigQueryConfig BigQueryConfig = 12;
-    CassandraConfig CassandraConfig = 13;
+    RedisConfig redisConfig = 11;
+    BigQueryConfig bigqueryConfig = 12;
+    CassandraConfig cassandraConfig = 13;
   }
 }

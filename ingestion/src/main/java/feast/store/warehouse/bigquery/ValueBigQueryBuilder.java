@@ -71,8 +71,8 @@ public class ValueBigQueryBuilder {
           return ValueType.Enum.STRING;
         case DATE: // DATE = org.apache.avro.util.Utf8 (yyyy-MM-dd)
         case DATETIME: // DATETIME = org.apache.avro.util.Utf8 (yyyy-MM-ddTHH:mm:ss)
-        case TIMESTAMP: // TIMESTAMP = java.lang.Long (in microseconds)
-          return ValueType.Enum.TIMESTAMP;
+        // case TIMESTAMP: // TIMESTAMP = java.lang.Long (in microseconds)
+        //   return ValueType.Enum.TIMESTAMP;
         case TIME: // TIME = org.apache.avro.util.Utf8 (HH:mm:ss)
         case NUMERIC: // NUMERIC = java.nio.HeapByteBuffer
         default:
@@ -125,8 +125,8 @@ public class ValueBigQueryBuilder {
       Value.Builder builder = Value.newBuilder();
       try {
         switch (getValueType()) {
-          case TIMESTAMP:
-            return builder.setTimestampVal((Timestamp) feastObject).build();
+          // case TIMESTAMP:
+          //   return builder.setTimestampVal((Timestamp) feastObject).build();
           case STRING:
             return builder.setStringVal((String) feastObject).build();
           case INT64:
@@ -168,9 +168,9 @@ public class ValueBigQueryBuilder {
           return feastValue.getDoubleVal();
         case STRINGVAL:
           return feastValue.getStringVal();
-        case TIMESTAMPVAL:
-          return DateUtil.toDateTime(feastValue.getTimestampVal())
-              .toString(ISODateTimeFormat.dateTime());
+        // case TIMESTAMPVAL:
+        //   return DateUtil.toDateTime(feastValue.getTimestampVal())
+        //       .toString(ISODateTimeFormat.dateTime());
         case BYTESVAL:
           return feastValue.getBytesVal().toByteArray();
         case VAL_NOT_SET:

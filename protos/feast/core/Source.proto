@@ -24,7 +24,8 @@ option go_package = "github.com/gojek/feast/protos/generated/go/feast/core";
 
 message Source {
   enum SourceType {
-    KAFKA = 0;
+    INVALID = 0;
+    KAFKA = 1;
   }
 
   // The kind of message source the import job should connect to
@@ -37,5 +38,6 @@ message Source {
   // For SourceType.KAFKA, the following key value options are accepted:
   // - bootstrapServers: [comma delimited value of host[:port]]
   // - topics: [comma delimited value of topic names. This value is provisioned by core and should not be set by the user.]
+  // - consumerGroupId: [optional, consumer group id for the Kafka consumer in the import job. For import job to support propert checkpointing and resuming from a failed job, this value should be provided.]
   map<string, string> options = 2;
 }

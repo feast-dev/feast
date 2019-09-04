@@ -1,23 +1,19 @@
 package feast.ingestion;
 
-import static feast.specs.ImportJobSpecsProto.SourceSpec.SourceType.KAFKA;
-
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.common.collect.Sets;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.FeatureSetProto.FeatureSetSpec.Builder;
+import feast.core.SourceProto.Source;
+import feast.core.SourceProto.Source.SourceType;
+import feast.core.StoreProto.Store;
+import feast.core.StoreProto.Store.Subscription;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.transform.ReadFeatureRow;
 import feast.ingestion.transform.ToFeatureRowExtended;
-import feast.ingestion.transform.WriteFeaturesTransform;
 import feast.ingestion.util.StorageUtil;
-import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
-import feast.specs.ImportJobSpecsProto.SourceSpec.SourceType;
-import feast.specs.StorageSpecProto.StorageSpec;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,13 +28,10 @@ import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 
-@SuppressWarnings("WeakerAccess")
 @Slf4j
 public class ImportJob {
-
-
   /**
-   * Create and run a Beam pipeline from command line arguments.
+   * Create and run a Beam pipeline with PipelineOptions passed as a list of string arguments.
    *
    * <p>The arguments will be passed to Beam {@code PipelineOptionsFactory} to create {@code
    * ImportJobPipelineOptions}.
@@ -67,22 +60,38 @@ public class ImportJob {
    * @throws IOException if importJobSpecsUri is not accessible
    */
   public static PipelineResult runPipeline(ImportJobPipelineOptions pipelineOptions)
-      throws IOException, URISyntaxException {
+      throws IOException {
     pipelineOptions =
         PipelineOptionsValidator.validate(ImportJobPipelineOptions.class, pipelineOptions);
     Pipeline pipeline = Pipeline.create(pipelineOptions);
 
-    for (String featureSetSpecJson : pipelineOptions.getFeatureSetSpecJson()) {
-      Builder builder = FeatureSetSpec.newBuilder();
-      JsonFormat.parser().merge(featureSetSpecJson, builder);
-      FeatureSetSpec featureSetSpec = builder.build();
+    for (String storeJson : pipelineOptions.getStoreJson()) {
+      Store.Builder storeBuilder = Store.newBuilder();
+      JsonFormat.parser().merge(storeJson, storeBuilder);
+      Store store = storeBuilder.build();
 
-      // TODO: Setup storage, set Kafka consumer group to latest offset during pipeline setup
+      for (Subscription subscription : store.getSubscriptionsList()) {
+        // TODO: handle version ranges and keyword (e.g. latest) in subscription
 
-      pipeline
-          .apply("Read FeatureRow", new ReadFeatureRow(featureSetSpec))
-          .apply("Create FeatureRowExtended from FeatureRow", new ToFeatureRowExtended());
-          //.apply("Write FeatureRowExtended", new WriteFeaturesTransform(featureSetSpec));
+        for (String featureSetSpecJson : pipelineOptions.getFeatureSetSpecJson()) {
+          FeatureSetSpec.Builder featureSetSpecBuilder = FeatureSetSpec.newBuilder();
+          JsonFormat.parser().merge(featureSetSpecJson, featureSetSpecBuilder);
+          FeatureSetSpec featureSetSpec = featureSetSpecBuilder.build();
+
+          if (subscription.getName().equalsIgnoreCase(featureSetSpec.getName())
+              && subscription
+                  .getVersion()
+                  .equalsIgnoreCase(String.valueOf(featureSetSpec.getVersion()))) {
+            setupSource(featureSetSpec.getSource());
+            setupStore(store, featureSetSpec);
+          }
+
+          pipeline
+              .apply("Read FeatureRow", new ReadFeatureRow(featureSetSpec))
+              .apply("Create FeatureRowExtended from FeatureRow", new ToFeatureRowExtended());
+          // .apply("Write FeatureRowExtended", new WriteFeaturesTransform(featureSetSpec));
+        }
+      }
     }
 
     return pipeline.run();
@@ -98,87 +107,81 @@ public class ImportJob {
    * <p>For example, when using BigQuery as the storage backend, this method ensures that, given a
    * list of features, the corresponding BigQuery dataset and table are created.
    *
-   * @param importJobSpecs import job specification, refer to {@code ImportJobSpecs.proto}
+   * @param store Store specification, refer to {@code feast.core.Store.proto}
    */
-  private static void setupStorage(ImportJobSpecs importJobSpecs) {
-    StorageSpec sinkStorageSpec = importJobSpecs.getSinkStorageSpec();
-    String storageSpecType = sinkStorageSpec.getType();
-
-    switch (storageSpecType) {
-      case "BIGQUERY":
+  private static void setupStore(Store store, FeatureSetSpec featureSetSpec) {
+    switch (store.getType()) {
+      case REDIS:
+        StorageUtil.checkRedisConnection(store.getRedisConfig());
+        break;
+      case BIGQUERY:
         StorageUtil.setupBigQuery(
-            importJobSpecs.getSinkStorageSpec(),
-            importJobSpecs.getEntitySpec(),
-            importJobSpecs.getFeatureSpecsList(),
+            featureSetSpec,
+            store.getBigqueryConfig().getProjectId(),
+            store.getBigqueryConfig().getDatasetId(),
             BigQueryOptions.getDefaultInstance().getService());
         break;
-      case "REDIS":
-        StorageUtil.checkRedisConnection(sinkStorageSpec);
-        break;
       default:
-        throw new IllegalArgumentException(
-            String.format(
-                "Unsupported type of sinkStorageSpec: \"%s\". Only REDIS and BIGQUERY are supported in Feast 0.2",
-                storageSpecType));
+        throw new UnsupportedOperationException(
+            String.format("Store type: %s not implemented yet", store.getType()));
     }
   }
 
   /**
-   * Manually sets the consumer group offset for this job's consumer group to the offset at the time
-   * at which we provision the ingestion job.
+   * TODO: Update documentation
+   *
+   * <p>Manually sets the consumer group offset for this job's consumer group to the offset at the
+   * time at which we provision the ingestion job.
    *
    * <p>This is necessary because the setup time for certain runners (e.g. Dataflow) might cause the
    * worker to miss the messages that were emitted into the stream prior to the workers being ready.
-   *
-   * @param importJobSpecs import job specification, refer to {@code ImportJobSpecs.proto}
    */
-  private static void setupConsumerGroupOffset(ImportJobSpecs importJobSpecs) {
-    SourceType sourceType = importJobSpecs.getSourceSpec().getType();
-    switch (sourceType) {
-      case KAFKA:
-        String consumerGroupId = String.format("feast-import-job-%s", importJobSpecs.getJobId());
-        Properties consumerProperties = new Properties();
-        consumerProperties.setProperty("group.id", consumerGroupId);
-        consumerProperties.setProperty(
-            "bootstrap.servers",
-            importJobSpecs.getSourceSpec().getOptionsOrThrow("bootstrapServers"));
-        consumerProperties.setProperty(
-            "key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-        consumerProperties.setProperty(
-            "value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-        KafkaConsumer kafkaConsumer = new KafkaConsumer(consumerProperties);
-
-        String[] topics = importJobSpecs.getSourceSpec().getOptionsOrThrow("topics").split(",");
-        long timestamp = System.currentTimeMillis();
-        Map<TopicPartition, Long> timestampsToSearch = new HashMap<>();
-        for (String topic : topics) {
-          List<PartitionInfo> partitionInfos = kafkaConsumer.partitionsFor(topic);
-          for (PartitionInfo partitionInfo : partitionInfos) {
-            TopicPartition topicPartition = new TopicPartition(topic, partitionInfo.partition());
-            timestampsToSearch.put(topicPartition, timestamp);
-          }
-        }
-        Map<TopicPartition, OffsetAndTimestamp> offsets =
-            kafkaConsumer.offsetsForTimes(timestampsToSearch);
-
-        kafkaConsumer.assign(offsets.keySet());
-        kafkaConsumer.poll(1000);
-        kafkaConsumer.commitSync();
-
-        offsets.forEach(
-            (topicPartition, offset) -> {
-              if (offset != null) {
-                kafkaConsumer.seek(topicPartition, offset.offset());
-              } else {
-                kafkaConsumer.seekToBeginning(Sets.newHashSet(topicPartition));
-              }
-            });
-        return;
-      default:
-        throw new IllegalArgumentException(
-            String.format(
-                "Unsupported type of sourceSpec: \"%s\". Only KAFKA is supported in Feast 0.2",
-                sourceType));
+  private static void setupSource(Source source) {
+    if (!source.getType().equals(SourceType.KAFKA)) {
+      throw new UnsupportedOperationException(
+          String.format("Source type: %s not implemented yet", source.getType()));
     }
+
+    if (!source.getOptions().containsKey("consumerGroupId")) {
+      log.warn(
+          "consumerGroupId is not provided in the source options. Import job will not be able to resume correctly from existing checkpoint.");
+      return;
+    }
+
+    Properties consumerProperties = new Properties();
+    consumerProperties.setProperty("group.id", source.getOptionsOrThrow("consumerGroupId"));
+    consumerProperties.setProperty(
+        "bootstrap.servers", source.getOptionsOrThrow("bootstrapServers"));
+    consumerProperties.setProperty(
+        "key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+    consumerProperties.setProperty(
+        "value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+    KafkaConsumer kafkaConsumer = new KafkaConsumer(consumerProperties);
+
+    String[] topics = source.getOptionsOrThrow("topics").split(",");
+    long timestamp = System.currentTimeMillis();
+    Map<TopicPartition, Long> timestampsToSearch = new HashMap<>();
+    for (String topic : topics) {
+      List<PartitionInfo> partitionInfos = kafkaConsumer.partitionsFor(topic);
+      for (PartitionInfo partitionInfo : partitionInfos) {
+        TopicPartition topicPartition = new TopicPartition(topic, partitionInfo.partition());
+        timestampsToSearch.put(topicPartition, timestamp);
+      }
+    }
+    Map<TopicPartition, OffsetAndTimestamp> offsets =
+        kafkaConsumer.offsetsForTimes(timestampsToSearch);
+
+    kafkaConsumer.assign(offsets.keySet());
+    kafkaConsumer.poll(1000);
+    kafkaConsumer.commitSync();
+
+    offsets.forEach(
+        (topicPartition, offset) -> {
+          if (offset != null) {
+            kafkaConsumer.seek(topicPartition, offset.offset());
+          } else {
+            kafkaConsumer.seekToBeginning(Sets.newHashSet(topicPartition));
+          }
+        });
   }
 }

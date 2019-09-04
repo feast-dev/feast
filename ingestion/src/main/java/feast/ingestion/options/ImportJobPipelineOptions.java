@@ -48,7 +48,7 @@ public interface ImportJobPipelineOptions
   @Required
   @Description(
       "JSON string representation of the Store that import job will write FeatureRow to."
-          + "Store follows the format in feast.core.Source proto."
+          + "Store follows the format in feast.core.Store proto."
           + "Multiple Store can be passed by specifying '--store={...}' multiple times"
           + "The conversion of Proto message to JSON should follow this mapping:"
           + "https://developers.google.com/protocol-buffers/docs/proto3#json"

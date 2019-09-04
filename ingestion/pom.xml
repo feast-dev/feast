@@ -105,15 +105,25 @@
               <relocations>
                 <relocation>
                   <pattern>org.springframework</pattern>
-                  <shadedPattern>shaded.org.springframework</shadedPattern>
+                  <shadedPattern>org.springframework.vendor</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>io.grpc</pattern>
-                  <shadedPattern>shaded.io.grpc</shadedPattern>
+                  <shadedPattern>io.grpc.vendor</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>io.opencensus</pattern>
-                  <shadedPattern>shaded.io.opencensus</shadedPattern>
+                  <shadedPattern>io.opencensus.vendor</shadedPattern>
+                </relocation>
+                <!-- Relocate feast.core and feast.types so if Feast ingestion is imported as a
+                library, the client can use their own versions of feast.core and feast.types -->
+                <relocation>
+                  <pattern>feast.core</pattern>
+                  <shadedPattern>feast.core.vendor</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>feast.types</pattern>
+                  <shadedPattern>feast.types.vendor</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>

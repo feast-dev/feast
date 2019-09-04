@@ -30,6 +30,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 
 public class ReadFeatureRow extends PTransform<PInput, PCollection<FeatureRow>> {
   private FeatureSetSpec featureSetSpec;
@@ -60,6 +61,7 @@ public class ReadFeatureRow extends PTransform<PInput, PCollection<FeatureRow>> 
                 .withTopics(
                     Arrays.asList(
                         featureSetSpec.getSource().getOptionsOrThrow("topics").split(",")))
+                .withKeyDeserializer(ByteArrayDeserializer.class)
                 .withValueDeserializer(FeatureRowDeserializer.class)
                 .withReadCommitted()
                 .commitOffsetsInFinalize()

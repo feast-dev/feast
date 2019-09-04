@@ -1,22 +1,18 @@
 package feast.ingestion;
 
-import org.junit.Test;
-import redis.embedded.RedisServer;
-
+import feast.ingestion.options.ImportJobPipelineOptions;
 import java.io.IOException;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.junit.Test;
 
 public class ImportJobIntegrationTest {
   @Test
-  public void importJobWithRedisStorage() throws IOException {
-    RedisServer redisServer = null;
+  public void run() throws IOException {
 
-    try {
-      redisServer = new RedisServer(6379);
-      redisServer.start();
-    } finally {
-      if (redisServer != null) {
-        redisServer.stop();
-      }
-    }
+    ImportJobPipelineOptions pipelineOptions =
+        PipelineOptionsFactory.create().as(ImportJobPipelineOptions.class);
+
+
+    ImportJob.runPipeline(pipelineOptions);
   }
 }

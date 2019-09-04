@@ -52,7 +52,7 @@ public class Values {
             new Wrapper(Enum.DOUBLE, ValCase.DOUBLEVAL, Value::getDoubleVal),
             new Wrapper(Enum.FLOAT, ValCase.FLOATVAL, Value::getFloatVal),
             new Wrapper(Enum.BOOL, ValCase.BOOLVAL, Value::getBoolVal),
-            new Wrapper(Enum.TIMESTAMP, ValCase.TIMESTAMPVAL, Value::getTimestampVal)
+            // new Wrapper(Enum.TIMESTAMP, ValCase.TIMESTAMPVAL, Value::getTimestampVal)
         };
     for (Wrapper wrapper : wrappers) {
       valueTypeToValCaseMap.put(wrapper.valueType, wrapper.valCase);
@@ -86,13 +86,13 @@ public class Values {
     return (val) ? TRUE_BOOL_VAL : FALSE_BOOL_VAL;
   }
 
-  public static Value ofTimestamp(Timestamp val) {
-    return Value.newBuilder().setTimestampVal(val).build();
-  }
+  // public static Value ofTimestamp(Timestamp val) {
+  //   return Value.newBuilder().setTimestampVal(val).build();
+  // }
 
-  public static Value ofTimestamp(DateTime val) {
-    return ofTimestamp(DateUtil.toTimestamp(val));
-  }
+  // public static Value ofTimestamp(DateTime val) {
+  //   return ofTimestamp(DateUtil.toTimestamp(val));
+  // }
 
   public static Value ofBytes(ByteString val) {
     return Value.newBuilder().setBytesVal(val).build();
@@ -138,8 +138,8 @@ public class Values {
           return asFloat(value);
         case BOOLVAL:
           return asBool(value);
-        case TIMESTAMPVAL:
-          return asTimestamp(value);
+        // case TIMESTAMPVAL:
+        //   return asTimestamp(value);
       }
       throw new TypeConversionException();
     } catch (UnsupportedOperationException e) {
@@ -161,8 +161,8 @@ public class Values {
     switch (value.getValCase()) {
       case STRINGVAL:
         return value;
-      case TIMESTAMPVAL:
-        return ofString(DateUtil.toString(value.getTimestampVal()));
+      // case TIMESTAMPVAL:
+      //   return ofString(DateUtil.toString(value.getTimestampVal()));
       case BYTESVAL:
         return ofString(Base64.getEncoder().encodeToString(value.getBytesVal().toByteArray()));
       default:
@@ -172,10 +172,10 @@ public class Values {
 
   public static Value asTimestamp(Value value) {
     switch (value.getValCase()) {
-      case TIMESTAMPVAL:
-        return value;
-      case STRINGVAL:
-        return ofTimestamp(DateUtil.toTimestamp(value.getStringVal()));
+      // case TIMESTAMPVAL:
+      //   return value;
+      // case STRINGVAL:
+      //   return ofTimestamp(DateUtil.toTimestamp(value.getStringVal()));
       default:
         throw new UnsupportedOperationException();
     }
