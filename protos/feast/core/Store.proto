@@ -30,21 +30,46 @@ message Store {
     CASSANDRA = 3;
   }
 
+  message RedisConfig {
+    string host = 1;
+    int32 port = 2;
+  }
+
+  message BigQueryConfig {
+    string projectId = 1;
+    string datasetId = 2;
+  }
+
+  message CassandraConfig {
+    string host = 1;
+    int32 port = 2;
+  }
+
+  message Subscription {
+    // Name of featureSet to subscribe to.
+    string name = 1;
+
+    // Versions of the given featureSet that will be ingested into this store.
+    // Valid options for version:
+    //     latest: only subscribe to latest version of feature set
+    //     [version number]: pin to a specific version
+    //     >[version number]: subscribe to all versions larger than or equal to [version number]
+    string version = 2;
+  }
+
   // Name of the store.
   string name = 1;
 
   // Type of store.
   StoreType type = 2;
 
-  // URI to connect to the database. Should contain all necessary information
-  // to connect to and write/read to the store.
-  string databaseURI = 3;
+  // Feature sets to subscribe to.
+  repeated Subscription subscriptions = 4;
 
-  // Feature sets to subscribe to. Regex strings are allowed, in the form of
-  // featureSetId:version.
-  // Valid options for version:
-  //     latest: only subscribe to latest version of feature set
-  //     [version number]: pin to a specific version
-  //     [version number]^: subscribe to all versions larger than or equal to [version number]
-  repeated string subscriptions = 4;
+  // Configuration to connect to the store. Required.
+  oneof config {
+    RedisConfig RedisConfig = 11;
+    BigQueryConfig BigQueryConfig = 12;
+    CassandraConfig CassandraConfig = 13;
+  }
 }

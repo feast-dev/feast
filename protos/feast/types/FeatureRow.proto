@@ -26,7 +26,17 @@ option java_outer_classname = "FeatureRowProto";
 option go_package = "github.com/gojek/feast/protos/generated/go/feast/types";
 
 message FeatureRow {
+
+    // Features in the feature row.
     repeated Feature features = 2;
+
+    // Timestamp of the feature row. While the actual definition of this timestamp may vary
+    // depending on the upstream feature creation pipelines, this is the timestamp that Feast
+    // will use to perform joins, determine latest values, and coalesce rows.
     google.protobuf.Timestamp eventTimestamp = 3;
+
+    // Complete reference to the featureSet this featureRow belongs to, in the form of
+    // featureSetName:version. This value will be used by the feast ingestion job to filter
+    // rows, and write the values to the correct tables.
     string featureSet = 6;
 }

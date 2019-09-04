@@ -36,6 +36,6 @@ message Source {
   //
   // For SourceType.KAFKA, the following key value options are accepted:
   // - bootstrapServers: [comma delimited value of host[:port]]
-  // - topics: [comma delimited value of topic names]
+  // - topics: [comma delimited value of topic names. This value is provisioned by core and should not be set by the user.]
   map<string, string> options = 2;
 }
