@@ -28,7 +28,7 @@ _logger = logging.getLogger(__name__)
 
 feast_configuration_properties = {"core_url": "URL", "serving_url": "URL"}
 
-CONFIGURATION_FILE_DIR = ".feast"
+CONFIGURATION_FILE_DIR = os.environ.get("FEAST_CONFIG", ".feast")
 CONFIGURATION_FILE_NAME = "config.toml"
 
 
