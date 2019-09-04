@@ -20,14 +20,14 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.core',
   syntax='proto3',
   serialized_options=_b('\n\nfeast.coreB\nStoreProtoZ5github.com/gojek/feast/protos/generated/go/feast/core'),
-  serialized_pb=_b('\n\x16\x66\x65\x61st/core/Store.proto\x12\nfeast.core\"\xb6\x01\n\x05Store\x12\x0c\n\x04name\x18\x01 \x01(\t\x12)\n\x04type\x18\x02 \x01(\x0b\x32\x1b.feast.core.Store.StoreType\x12\x13\n\x0b\x64\x61tabaseURI\x18\x03 \x01(\t\x12\x15\n\rsubscriptions\x18\x04 \x03(\t\x1aH\n\tStoreType\";\n\x04\x45num\x12\x0b\n\x07UNKNOWN\x10\x00\x12\t\n\x05REDIS\x10\x01\x12\x0c\n\x08\x42IGQUERY\x10\x02\x12\r\n\tCASSANDRA\x10\x03\x42O\n\nfeast.coreB\nStoreProtoZ5github.com/gojek/feast/protos/generated/go/feast/coreb\x06proto3')
+  serialized_pb=_b('\n\x16\x66\x65\x61st/core/Store.proto\x12\nfeast.core\"\xae\x01\n\x05Store\x12\x0c\n\x04name\x18\x01 \x01(\t\x12)\n\x04type\x18\x02 \x01(\x0e\x32\x1b.feast.core.Store.StoreType\x12\x13\n\x0b\x64\x61tabaseURI\x18\x03 \x01(\t\x12\x15\n\rsubscriptions\x18\x04 \x03(\t\"@\n\tStoreType\x12\x0b\n\x07UNKNOWN\x10\x00\x12\t\n\x05REDIS\x10\x01\x12\x0c\n\x08\x42IGQUERY\x10\x02\x12\r\n\tCASSANDRA\x10\x03\x42O\n\nfeast.coreB\nStoreProtoZ5github.com/gojek/feast/protos/generated/go/feast/coreb\x06proto3')
 )
 
 
 
-_STORE_STORETYPE_ENUM = _descriptor.EnumDescriptor(
-  name='Enum',
-  full_name='feast.core.Store.StoreType.Enum',
+_STORE_STORETYPE = _descriptor.EnumDescriptor(
+  name='StoreType',
+  full_name='feast.core.Store.StoreType',
   filename=None,
   file=DESCRIPTOR,
   values=[
@@ -50,35 +50,11 @@ _STORE_STORETYPE_ENUM = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=162,
-  serialized_end=221,
-)
-_sym_db.RegisterEnumDescriptor(_STORE_STORETYPE_ENUM)
-
-
-_STORE_STORETYPE = _descriptor.Descriptor(
-  name='StoreType',
-  full_name='feast.core.Store.StoreType',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-    _STORE_STORETYPE_ENUM,
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
   serialized_start=149,
-  serialized_end=221,
+  serialized_end=213,
 )
+_sym_db.RegisterEnumDescriptor(_STORE_STORETYPE)
+
 
 _STORE = _descriptor.Descriptor(
   name='Store',
@@ -96,8 +72,8 @@ _STORE = _descriptor.Descriptor(
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='type', full_name='feast.core.Store.type', index=1,
-      number=2, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
+      number=2, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -118,8 +94,9 @@ _STORE = _descriptor.Descriptor(
   ],
   extensions=[
   ],
-  nested_types=[_STORE_STORETYPE, ],
+  nested_types=[],
   enum_types=[
+    _STORE_STORETYPE,
   ],
   serialized_options=None,
   is_extendable=False,
@@ -128,29 +105,20 @@ _STORE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=39,
-  serialized_end=221,
+  serialized_end=213,
 )
 
+_STORE.fields_by_name['type'].enum_type = _STORE_STORETYPE
 _STORE_STORETYPE.containing_type = _STORE
-_STORE_STORETYPE_ENUM.containing_type = _STORE_STORETYPE
-_STORE.fields_by_name['type'].message_type = _STORE_STORETYPE
 DESCRIPTOR.message_types_by_name['Store'] = _STORE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 Store = _reflection.GeneratedProtocolMessageType('Store', (_message.Message,), {
-
-  'StoreType' : _reflection.GeneratedProtocolMessageType('StoreType', (_message.Message,), {
-    'DESCRIPTOR' : _STORE_STORETYPE,
-    '__module__' : 'feast.core.Store_pb2'
-    # @@protoc_insertion_point(class_scope:feast.core.Store.StoreType)
-    })
-  ,
   'DESCRIPTOR' : _STORE,
   '__module__' : 'feast.core.Store_pb2'
   # @@protoc_insertion_point(class_scope:feast.core.Store)
   })
 _sym_db.RegisterMessage(Store)
-_sym_db.RegisterMessage(Store.StoreType)
 
 
 DESCRIPTOR._options = None

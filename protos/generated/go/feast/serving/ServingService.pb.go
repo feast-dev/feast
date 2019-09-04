@@ -8,6 +8,7 @@ import (
 	fmt "fmt"
 	types "github.com/gojek/feast/protos/generated/go/feast/types"
 	proto "github.com/golang/protobuf/proto"
+	empty "github.com/golang/protobuf/ptypes/empty"
 	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
@@ -26,235 +27,827 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-type QueryFeaturesRequest struct {
-	// e.g. "driver", "customer", "city".
-	EntityName string `protobuf:"bytes,1,opt,name=entityName,proto3" json:"entityName,omitempty"`
-	// List of entity ID.
-	EntityId []string `protobuf:"bytes,2,rep,name=entityId,proto3" json:"entityId,omitempty"`
-	// List of feature ID.
-	// feature ID is in the form of [entity_name].[feature_name]
-	// e.g: "driver.day.total_accepted_booking"
-	// all requested feature ID shall have same entity name.
-	FeatureId            []string `protobuf:"bytes,3,rep,name=featureId,proto3" json:"featureId,omitempty"`
+type BatchFeaturesJob_GetStatusResponse_Status int32
+
+const (
+	// Status has not been set. This message should never occur.
+	BatchFeaturesJob_GetStatusResponse_UNKNOWN BatchFeaturesJob_GetStatusResponse_Status = 0
+	// Waiting for an entity dataset to be uploaded to a staging location. Typically this is
+	// done by the Feast SDK.
+	BatchFeaturesJob_GetStatusResponse_WAITING_FOR_ENTITY_DATASET BatchFeaturesJob_GetStatusResponse_Status = 1
+	// Feast serving is busy loading entity dataset into backing store
+	BatchFeaturesJob_GetStatusResponse_LOADING_ENTITY_DATASET BatchFeaturesJob_GetStatusResponse_Status = 2
+	// Feast serving is orchestrating the creation of a feature data set using
+	// the entity data set
+	BatchFeaturesJob_GetStatusResponse_BUILDING_FEATURE_DATASET BatchFeaturesJob_GetStatusResponse_Status = 3
+	// Feast serving is orchestrating the export of the feature data set from
+	// the backing store
+	BatchFeaturesJob_GetStatusResponse_EXPORTING_FEATURE_DATASET BatchFeaturesJob_GetStatusResponse_Status = 4
+	// Job has been completed
+	BatchFeaturesJob_GetStatusResponse_DONE BatchFeaturesJob_GetStatusResponse_Status = 5
+	// An error occurred during the execution of this job
+	BatchFeaturesJob_GetStatusResponse_ERROR BatchFeaturesJob_GetStatusResponse_Status = 6
+)
+
+var BatchFeaturesJob_GetStatusResponse_Status_name = map[int32]string{
+	0: "UNKNOWN",
+	1: "WAITING_FOR_ENTITY_DATASET",
+	2: "LOADING_ENTITY_DATASET",
+	3: "BUILDING_FEATURE_DATASET",
+	4: "EXPORTING_FEATURE_DATASET",
+	5: "DONE",
+	6: "ERROR",
+}
+
+var BatchFeaturesJob_GetStatusResponse_Status_value = map[string]int32{
+	"UNKNOWN":                    0,
+	"WAITING_FOR_ENTITY_DATASET": 1,
+	"LOADING_ENTITY_DATASET":     2,
+	"BUILDING_FEATURE_DATASET":   3,
+	"EXPORTING_FEATURE_DATASET":  4,
+	"DONE":                       5,
+	"ERROR":                      6,
+}
+
+func (x BatchFeaturesJob_GetStatusResponse_Status) String() string {
+	return proto.EnumName(BatchFeaturesJob_GetStatusResponse_Status_name, int32(x))
+}
+
+func (BatchFeaturesJob_GetStatusResponse_Status) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_0c1ba93cf29a8d9d, []int{3, 1, 0}
+}
+
+type BatchFeaturesJob_GetUploadUrlRequest_FileType int32
+
+const (
+	BatchFeaturesJob_GetUploadUrlRequest_CSV     BatchFeaturesJob_GetUploadUrlRequest_FileType = 0
+	BatchFeaturesJob_GetUploadUrlRequest_PARQUET BatchFeaturesJob_GetUploadUrlRequest_FileType = 1
+)
+
+var BatchFeaturesJob_GetUploadUrlRequest_FileType_name = map[int32]string{
+	0: "CSV",
+	1: "PARQUET",
+}
+
+var BatchFeaturesJob_GetUploadUrlRequest_FileType_value = map[string]int32{
+	"CSV":     0,
+	"PARQUET": 1,
+}
+
+func (x BatchFeaturesJob_GetUploadUrlRequest_FileType) String() string {
+	return proto.EnumName(BatchFeaturesJob_GetUploadUrlRequest_FileType_name, int32(x))
+}
+
+func (BatchFeaturesJob_GetUploadUrlRequest_FileType) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_0c1ba93cf29a8d9d, []int{3, 2, 0}
+}
+
+type BatchFeaturesJob_GetUploadUrlResponse_HttpMethod int32
+
+const (
+	BatchFeaturesJob_GetUploadUrlResponse_PUT BatchFeaturesJob_GetUploadUrlResponse_HttpMethod = 0
+)
+
+var BatchFeaturesJob_GetUploadUrlResponse_HttpMethod_name = map[int32]string{
+	0: "PUT",
+}
+
+var BatchFeaturesJob_GetUploadUrlResponse_HttpMethod_value = map[string]int32{
+	"PUT": 0,
+}
+
+func (x BatchFeaturesJob_GetUploadUrlResponse_HttpMethod) String() string {
+	return proto.EnumName(BatchFeaturesJob_GetUploadUrlResponse_HttpMethod_name, int32(x))
+}
+
+func (BatchFeaturesJob_GetUploadUrlResponse_HttpMethod) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_0c1ba93cf29a8d9d, []int{3, 3, 0}
+}
+
+// Enumeration of Feast Serving types
+type GetFeastServingTypeResponseType int32
+
+const (
+	// Online Serving receives entity data directly and synchronously and will respond immediately
+	GetFeastServingTypeResponse_ONLINE GetFeastServingTypeResponseType = 0
+	// Batch Serving receives entity data asynchronously and orchestrates the retrieval through a
+	// staging location
+	GetFeastServingTypeResponse_OFFLINE GetFeastServingTypeResponseType = 1
+)
+
+var GetFeastServingTypeResponseType_name = map[int32]string{
+	0: "ONLINE",
+	1: "OFFLINE",
+}
+
+var GetFeastServingTypeResponseType_value = map[string]int32{
+	"ONLINE":  0,
+	"OFFLINE": 1,
+}
+
+func (x GetFeastServingTypeResponseType) String() string {
+	return proto.EnumName(GetFeastServingTypeResponseType_name, int32(x))
+}
+
+func (GetFeastServingTypeResponseType) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_0c1ba93cf29a8d9d, []int{4, 0}
+}
+
+type GetFeaturesRequest struct {
+	// List of feature sets and their features that are being retrieved
+	FeatureSets []*GetFeaturesRequest_FeatureSet `protobuf:"bytes,1,rep,name=featureSets,proto3" json:"featureSets,omitempty"`
+	// Dataset containing timestamp and entity id data. Used during retrieval of feature rows
+	// and for joining feature rows into a final dataset
+	EntityDataSet        *GetFeaturesRequest_EntityDataSet `protobuf:"bytes,2,opt,name=entityDataSet,proto3" json:"entityDataSet,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                          `json:"-"`
+	XXX_unrecognized     []byte                            `json:"-"`
+	XXX_sizecache        int32                             `json:"-"`
+}
+
+func (m *GetFeaturesRequest) Reset()         { *m = GetFeaturesRequest{} }
+func (m *GetFeaturesRequest) String() string { return proto.CompactTextString(m) }
+func (*GetFeaturesRequest) ProtoMessage()    {}
+func (*GetFeaturesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c1ba93cf29a8d9d, []int{0}
+}
+
+func (m *GetFeaturesRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetFeaturesRequest.Unmarshal(m, b)
+}
+func (m *GetFeaturesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetFeaturesRequest.Marshal(b, m, deterministic)
+}
+func (m *GetFeaturesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetFeaturesRequest.Merge(m, src)
+}
+func (m *GetFeaturesRequest) XXX_Size() int {
+	return xxx_messageInfo_GetFeaturesRequest.Size(m)
+}
+func (m *GetFeaturesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetFeaturesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetFeaturesRequest proto.InternalMessageInfo
+
+func (m *GetFeaturesRequest) GetFeatureSets() []*GetFeaturesRequest_FeatureSet {
+	if m != nil {
+		return m.FeatureSets
+	}
+	return nil
+}
+
+func (m *GetFeaturesRequest) GetEntityDataSet() *GetFeaturesRequest_EntityDataSet {
+	if m != nil {
+		return m.EntityDataSet
+	}
+	return nil
+}
+
+type GetFeaturesRequest_FeatureSet struct {
+	// Feature set name
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Feature set version
+	Version string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	// Features that should be retrieved from this feature set
+	FeatureNames         []string `protobuf:"bytes,3,rep,name=featureNames,proto3" json:"featureNames,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *QueryFeaturesRequest) Reset()         { *m = QueryFeaturesRequest{} }
-func (m *QueryFeaturesRequest) String() string { return proto.CompactTextString(m) }
-func (*QueryFeaturesRequest) ProtoMessage()    {}
-func (*QueryFeaturesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0c1ba93cf29a8d9d, []int{0}
+func (m *GetFeaturesRequest_FeatureSet) Reset()         { *m = GetFeaturesRequest_FeatureSet{} }
+func (m *GetFeaturesRequest_FeatureSet) String() string { return proto.CompactTextString(m) }
+func (*GetFeaturesRequest_FeatureSet) ProtoMessage()    {}
+func (*GetFeaturesRequest_FeatureSet) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c1ba93cf29a8d9d, []int{0, 0}
 }
 
-func (m *QueryFeaturesRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_QueryFeaturesRequest.Unmarshal(m, b)
+func (m *GetFeaturesRequest_FeatureSet) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetFeaturesRequest_FeatureSet.Unmarshal(m, b)
 }
-func (m *QueryFeaturesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_QueryFeaturesRequest.Marshal(b, m, deterministic)
+func (m *GetFeaturesRequest_FeatureSet) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetFeaturesRequest_FeatureSet.Marshal(b, m, deterministic)
 }
-func (m *QueryFeaturesRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryFeaturesRequest.Merge(m, src)
+func (m *GetFeaturesRequest_FeatureSet) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetFeaturesRequest_FeatureSet.Merge(m, src)
 }
-func (m *QueryFeaturesRequest) XXX_Size() int {
-	return xxx_messageInfo_QueryFeaturesRequest.Size(m)
+func (m *GetFeaturesRequest_FeatureSet) XXX_Size() int {
+	return xxx_messageInfo_GetFeaturesRequest_FeatureSet.Size(m)
 }
-func (m *QueryFeaturesRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryFeaturesRequest.DiscardUnknown(m)
+func (m *GetFeaturesRequest_FeatureSet) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetFeaturesRequest_FeatureSet.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_QueryFeaturesRequest proto.InternalMessageInfo
+var xxx_messageInfo_GetFeaturesRequest_FeatureSet proto.InternalMessageInfo
 
-func (m *QueryFeaturesRequest) GetEntityName() string {
+func (m *GetFeaturesRequest_FeatureSet) GetName() string {
 	if m != nil {
-		return m.EntityName
+		return m.Name
 	}
 	return ""
 }
 
-func (m *QueryFeaturesRequest) GetEntityId() []string {
+func (m *GetFeaturesRequest_FeatureSet) GetVersion() string {
 	if m != nil {
-		return m.EntityId
-	}
-	return nil
-}
-
-func (m *QueryFeaturesRequest) GetFeatureId() []string {
-	if m != nil {
-		return m.FeatureId
-	}
-	return nil
-}
-
-type QueryFeaturesResponse struct {
-	// Entity name of the response
-	EntityName string `protobuf:"bytes,1,opt,name=entityName,proto3" json:"entityName,omitempty"`
-	// map of entity ID and its entity's properties.
-	Entities             map[string]*Entity `protobuf:"bytes,2,rep,name=entities,proto3" json:"entities,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
-	XXX_unrecognized     []byte             `json:"-"`
-	XXX_sizecache        int32              `json:"-"`
-}
-
-func (m *QueryFeaturesResponse) Reset()         { *m = QueryFeaturesResponse{} }
-func (m *QueryFeaturesResponse) String() string { return proto.CompactTextString(m) }
-func (*QueryFeaturesResponse) ProtoMessage()    {}
-func (*QueryFeaturesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0c1ba93cf29a8d9d, []int{1}
-}
-
-func (m *QueryFeaturesResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_QueryFeaturesResponse.Unmarshal(m, b)
-}
-func (m *QueryFeaturesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_QueryFeaturesResponse.Marshal(b, m, deterministic)
-}
-func (m *QueryFeaturesResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryFeaturesResponse.Merge(m, src)
-}
-func (m *QueryFeaturesResponse) XXX_Size() int {
-	return xxx_messageInfo_QueryFeaturesResponse.Size(m)
-}
-func (m *QueryFeaturesResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryFeaturesResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryFeaturesResponse proto.InternalMessageInfo
-
-func (m *QueryFeaturesResponse) GetEntityName() string {
-	if m != nil {
-		return m.EntityName
+		return m.Version
 	}
 	return ""
 }
 
-func (m *QueryFeaturesResponse) GetEntities() map[string]*Entity {
+func (m *GetFeaturesRequest_FeatureSet) GetFeatureNames() []string {
 	if m != nil {
-		return m.Entities
+		return m.FeatureNames
 	}
 	return nil
 }
 
-type Entity struct {
-	// map of feature ID and its feature value.
-	Features             map[string]*FeatureValue `protobuf:"bytes,1,rep,name=features,proto3" json:"features,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
-	XXX_unrecognized     []byte                   `json:"-"`
-	XXX_sizecache        int32                    `json:"-"`
+type GetFeaturesRequest_EntityDataSet struct {
+	// List of entity names contained within this incoming request. Each entity name is globally
+	// unique within Feast. The user is assumed to have used the exact column name in their
+	// EntityDataset if they are providing this dataset through a batch process.
+	EntityNames []string `protobuf:"bytes,1,rep,name=entityNames,proto3" json:"entityNames,omitempty"`
+	// List of timestamp and entity id values
+	EntityDataSetRows    []*GetFeaturesRequest_EntityDataSetRow `protobuf:"bytes,2,rep,name=entityDataSetRows,proto3" json:"entityDataSetRows,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                               `json:"-"`
+	XXX_unrecognized     []byte                                 `json:"-"`
+	XXX_sizecache        int32                                  `json:"-"`
 }
 
-func (m *Entity) Reset()         { *m = Entity{} }
-func (m *Entity) String() string { return proto.CompactTextString(m) }
-func (*Entity) ProtoMessage()    {}
-func (*Entity) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0c1ba93cf29a8d9d, []int{2}
+func (m *GetFeaturesRequest_EntityDataSet) Reset()         { *m = GetFeaturesRequest_EntityDataSet{} }
+func (m *GetFeaturesRequest_EntityDataSet) String() string { return proto.CompactTextString(m) }
+func (*GetFeaturesRequest_EntityDataSet) ProtoMessage()    {}
+func (*GetFeaturesRequest_EntityDataSet) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c1ba93cf29a8d9d, []int{0, 1}
 }
 
-func (m *Entity) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Entity.Unmarshal(m, b)
+func (m *GetFeaturesRequest_EntityDataSet) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetFeaturesRequest_EntityDataSet.Unmarshal(m, b)
 }
-func (m *Entity) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Entity.Marshal(b, m, deterministic)
+func (m *GetFeaturesRequest_EntityDataSet) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetFeaturesRequest_EntityDataSet.Marshal(b, m, deterministic)
 }
-func (m *Entity) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Entity.Merge(m, src)
+func (m *GetFeaturesRequest_EntityDataSet) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetFeaturesRequest_EntityDataSet.Merge(m, src)
 }
-func (m *Entity) XXX_Size() int {
-	return xxx_messageInfo_Entity.Size(m)
+func (m *GetFeaturesRequest_EntityDataSet) XXX_Size() int {
+	return xxx_messageInfo_GetFeaturesRequest_EntityDataSet.Size(m)
 }
-func (m *Entity) XXX_DiscardUnknown() {
-	xxx_messageInfo_Entity.DiscardUnknown(m)
+func (m *GetFeaturesRequest_EntityDataSet) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetFeaturesRequest_EntityDataSet.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Entity proto.InternalMessageInfo
+var xxx_messageInfo_GetFeaturesRequest_EntityDataSet proto.InternalMessageInfo
 
-func (m *Entity) GetFeatures() map[string]*FeatureValue {
+func (m *GetFeaturesRequest_EntityDataSet) GetEntityNames() []string {
 	if m != nil {
-		return m.Features
+		return m.EntityNames
 	}
 	return nil
 }
 
-type FeatureValue struct {
-	// value of feature
-	Value *types.Value `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
-	// timestamp of the feature
-	Timestamp            *timestamp.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
-	XXX_unrecognized     []byte               `json:"-"`
-	XXX_sizecache        int32                `json:"-"`
+func (m *GetFeaturesRequest_EntityDataSet) GetEntityDataSetRows() []*GetFeaturesRequest_EntityDataSetRow {
+	if m != nil {
+		return m.EntityDataSetRows
+	}
+	return nil
 }
 
-func (m *FeatureValue) Reset()         { *m = FeatureValue{} }
-func (m *FeatureValue) String() string { return proto.CompactTextString(m) }
-func (*FeatureValue) ProtoMessage()    {}
-func (*FeatureValue) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0c1ba93cf29a8d9d, []int{3}
+type GetFeaturesRequest_EntityDataSetRow struct {
+	// List of timestamp and entity id values. The first value is always a Unix timestamp at
+	// UTC+0. All subsequent values are entity ids in order of the entityNames list in the
+	// wrapping message
+	Value                []*types.Value `protobuf:"bytes,1,rep,name=Value,proto3" json:"Value,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
 }
 
-func (m *FeatureValue) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_FeatureValue.Unmarshal(m, b)
-}
-func (m *FeatureValue) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_FeatureValue.Marshal(b, m, deterministic)
-}
-func (m *FeatureValue) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_FeatureValue.Merge(m, src)
-}
-func (m *FeatureValue) XXX_Size() int {
-	return xxx_messageInfo_FeatureValue.Size(m)
-}
-func (m *FeatureValue) XXX_DiscardUnknown() {
-	xxx_messageInfo_FeatureValue.DiscardUnknown(m)
+func (m *GetFeaturesRequest_EntityDataSetRow) Reset()         { *m = GetFeaturesRequest_EntityDataSetRow{} }
+func (m *GetFeaturesRequest_EntityDataSetRow) String() string { return proto.CompactTextString(m) }
+func (*GetFeaturesRequest_EntityDataSetRow) ProtoMessage()    {}
+func (*GetFeaturesRequest_EntityDataSetRow) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c1ba93cf29a8d9d, []int{0, 2}
 }
 
-var xxx_messageInfo_FeatureValue proto.InternalMessageInfo
+func (m *GetFeaturesRequest_EntityDataSetRow) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetFeaturesRequest_EntityDataSetRow.Unmarshal(m, b)
+}
+func (m *GetFeaturesRequest_EntityDataSetRow) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetFeaturesRequest_EntityDataSetRow.Marshal(b, m, deterministic)
+}
+func (m *GetFeaturesRequest_EntityDataSetRow) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetFeaturesRequest_EntityDataSetRow.Merge(m, src)
+}
+func (m *GetFeaturesRequest_EntityDataSetRow) XXX_Size() int {
+	return xxx_messageInfo_GetFeaturesRequest_EntityDataSetRow.Size(m)
+}
+func (m *GetFeaturesRequest_EntityDataSetRow) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetFeaturesRequest_EntityDataSetRow.DiscardUnknown(m)
+}
 
-func (m *FeatureValue) GetValue() *types.Value {
+var xxx_messageInfo_GetFeaturesRequest_EntityDataSetRow proto.InternalMessageInfo
+
+func (m *GetFeaturesRequest_EntityDataSetRow) GetValue() []*types.Value {
 	if m != nil {
 		return m.Value
 	}
 	return nil
 }
 
-func (m *FeatureValue) GetTimestamp() *timestamp.Timestamp {
+type GetOnlineFeaturesResponse struct {
+	// A FeatureDataSet is returned for each feature set in the incoming request
+	FeatureDataSets      []*GetOnlineFeaturesResponse_FeatureDataSet `protobuf:"bytes,2,rep,name=featureDataSets,proto3" json:"featureDataSets,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                                    `json:"-"`
+	XXX_unrecognized     []byte                                      `json:"-"`
+	XXX_sizecache        int32                                       `json:"-"`
+}
+
+func (m *GetOnlineFeaturesResponse) Reset()         { *m = GetOnlineFeaturesResponse{} }
+func (m *GetOnlineFeaturesResponse) String() string { return proto.CompactTextString(m) }
+func (*GetOnlineFeaturesResponse) ProtoMessage()    {}
+func (*GetOnlineFeaturesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c1ba93cf29a8d9d, []int{1}
+}
+
+func (m *GetOnlineFeaturesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetOnlineFeaturesResponse.Unmarshal(m, b)
+}
+func (m *GetOnlineFeaturesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetOnlineFeaturesResponse.Marshal(b, m, deterministic)
+}
+func (m *GetOnlineFeaturesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetOnlineFeaturesResponse.Merge(m, src)
+}
+func (m *GetOnlineFeaturesResponse) XXX_Size() int {
+	return xxx_messageInfo_GetOnlineFeaturesResponse.Size(m)
+}
+func (m *GetOnlineFeaturesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetOnlineFeaturesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetOnlineFeaturesResponse proto.InternalMessageInfo
+
+func (m *GetOnlineFeaturesResponse) GetFeatureDataSets() []*GetOnlineFeaturesResponse_FeatureDataSet {
 	if m != nil {
-		return m.Timestamp
+		return m.FeatureDataSets
 	}
 	return nil
 }
 
-type GetFeastServingVersionRequest struct {
+// The FeatureDataSet contains information about the Feature Set in the incoming request,
+// as well as feature data that can be joined to the incoming EntityDataSet. The row count
+// for the returning FeatureDataSet will match that of the row count for the incoming
+// EntityDataSet.
+type GetOnlineFeaturesResponse_FeatureDataSet struct {
+	// Feature set name
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Feature set version
+	Version string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	// Each feature data set contains a list of feature rows. The timestamps within the row
+	// are the original event timestamps from when that row was written to the backing store.
+	// When these FeatureRows are joined to the EntityDataSetRows, the FeatureRow timestamps
+	// will be dropped in favour of the EntityDataSetRow timestamp.
+	FeatureRow           []*types.FeatureRow `protobuf:"bytes,3,rep,name=featureRow,proto3" json:"featureRow,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
+	XXX_unrecognized     []byte              `json:"-"`
+	XXX_sizecache        int32               `json:"-"`
+}
+
+func (m *GetOnlineFeaturesResponse_FeatureDataSet) Reset() {
+	*m = GetOnlineFeaturesResponse_FeatureDataSet{}
+}
+func (m *GetOnlineFeaturesResponse_FeatureDataSet) String() string { return proto.CompactTextString(m) }
+func (*GetOnlineFeaturesResponse_FeatureDataSet) ProtoMessage()    {}
+func (*GetOnlineFeaturesResponse_FeatureDataSet) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c1ba93cf29a8d9d, []int{1, 0}
+}
+
+func (m *GetOnlineFeaturesResponse_FeatureDataSet) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetOnlineFeaturesResponse_FeatureDataSet.Unmarshal(m, b)
+}
+func (m *GetOnlineFeaturesResponse_FeatureDataSet) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetOnlineFeaturesResponse_FeatureDataSet.Marshal(b, m, deterministic)
+}
+func (m *GetOnlineFeaturesResponse_FeatureDataSet) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetOnlineFeaturesResponse_FeatureDataSet.Merge(m, src)
+}
+func (m *GetOnlineFeaturesResponse_FeatureDataSet) XXX_Size() int {
+	return xxx_messageInfo_GetOnlineFeaturesResponse_FeatureDataSet.Size(m)
+}
+func (m *GetOnlineFeaturesResponse_FeatureDataSet) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetOnlineFeaturesResponse_FeatureDataSet.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetOnlineFeaturesResponse_FeatureDataSet proto.InternalMessageInfo
+
+func (m *GetOnlineFeaturesResponse_FeatureDataSet) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *GetOnlineFeaturesResponse_FeatureDataSet) GetVersion() string {
+	if m != nil {
+		return m.Version
+	}
+	return ""
+}
+
+func (m *GetOnlineFeaturesResponse_FeatureDataSet) GetFeatureRow() []*types.FeatureRow {
+	if m != nil {
+		return m.FeatureRow
+	}
+	return nil
+}
+
+type GetBatchFeaturesResponse struct {
+	// Batch feature retrieval returns a job Id that can be used to monitor the state of the
+	// retrieval process
+	JobUUID              string   `protobuf:"bytes,1,opt,name=jobUUID,proto3" json:"jobUUID,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GetFeastServingVersionRequest) Reset()         { *m = GetFeastServingVersionRequest{} }
-func (m *GetFeastServingVersionRequest) String() string { return proto.CompactTextString(m) }
-func (*GetFeastServingVersionRequest) ProtoMessage()    {}
-func (*GetFeastServingVersionRequest) Descriptor() ([]byte, []int) {
+func (m *GetBatchFeaturesResponse) Reset()         { *m = GetBatchFeaturesResponse{} }
+func (m *GetBatchFeaturesResponse) String() string { return proto.CompactTextString(m) }
+func (*GetBatchFeaturesResponse) ProtoMessage()    {}
+func (*GetBatchFeaturesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c1ba93cf29a8d9d, []int{2}
+}
+
+func (m *GetBatchFeaturesResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetBatchFeaturesResponse.Unmarshal(m, b)
+}
+func (m *GetBatchFeaturesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetBatchFeaturesResponse.Marshal(b, m, deterministic)
+}
+func (m *GetBatchFeaturesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetBatchFeaturesResponse.Merge(m, src)
+}
+func (m *GetBatchFeaturesResponse) XXX_Size() int {
+	return xxx_messageInfo_GetBatchFeaturesResponse.Size(m)
+}
+func (m *GetBatchFeaturesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetBatchFeaturesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetBatchFeaturesResponse proto.InternalMessageInfo
+
+func (m *GetBatchFeaturesResponse) GetJobUUID() string {
+	if m != nil {
+		return m.JobUUID
+	}
+	return ""
+}
+
+type BatchFeaturesJob struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *BatchFeaturesJob) Reset()         { *m = BatchFeaturesJob{} }
+func (m *BatchFeaturesJob) String() string { return proto.CompactTextString(m) }
+func (*BatchFeaturesJob) ProtoMessage()    {}
+func (*BatchFeaturesJob) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c1ba93cf29a8d9d, []int{3}
+}
+
+func (m *BatchFeaturesJob) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BatchFeaturesJob.Unmarshal(m, b)
+}
+func (m *BatchFeaturesJob) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BatchFeaturesJob.Marshal(b, m, deterministic)
+}
+func (m *BatchFeaturesJob) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BatchFeaturesJob.Merge(m, src)
+}
+func (m *BatchFeaturesJob) XXX_Size() int {
+	return xxx_messageInfo_BatchFeaturesJob.Size(m)
+}
+func (m *BatchFeaturesJob) XXX_DiscardUnknown() {
+	xxx_messageInfo_BatchFeaturesJob.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BatchFeaturesJob proto.InternalMessageInfo
+
+// Message used to query the status of a batch feature retrieval job
+type BatchFeaturesJob_GetStatusRequest struct {
+	JobUUID              string   `protobuf:"bytes,1,opt,name=jobUUID,proto3" json:"jobUUID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *BatchFeaturesJob_GetStatusRequest) Reset()         { *m = BatchFeaturesJob_GetStatusRequest{} }
+func (m *BatchFeaturesJob_GetStatusRequest) String() string { return proto.CompactTextString(m) }
+func (*BatchFeaturesJob_GetStatusRequest) ProtoMessage()    {}
+func (*BatchFeaturesJob_GetStatusRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c1ba93cf29a8d9d, []int{3, 0}
+}
+
+func (m *BatchFeaturesJob_GetStatusRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BatchFeaturesJob_GetStatusRequest.Unmarshal(m, b)
+}
+func (m *BatchFeaturesJob_GetStatusRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BatchFeaturesJob_GetStatusRequest.Marshal(b, m, deterministic)
+}
+func (m *BatchFeaturesJob_GetStatusRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BatchFeaturesJob_GetStatusRequest.Merge(m, src)
+}
+func (m *BatchFeaturesJob_GetStatusRequest) XXX_Size() int {
+	return xxx_messageInfo_BatchFeaturesJob_GetStatusRequest.Size(m)
+}
+func (m *BatchFeaturesJob_GetStatusRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_BatchFeaturesJob_GetStatusRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BatchFeaturesJob_GetStatusRequest proto.InternalMessageInfo
+
+func (m *BatchFeaturesJob_GetStatusRequest) GetJobUUID() string {
+	if m != nil {
+		return m.JobUUID
+	}
+	return ""
+}
+
+// Message response indicating the status of a batch feature retrieval job
+type BatchFeaturesJob_GetStatusResponse struct {
+	Status BatchFeaturesJob_GetStatusResponse_Status `protobuf:"varint,1,opt,name=status,proto3,enum=feast.serving.BatchFeaturesJob_GetStatusResponse_Status" json:"status,omitempty"`
+	// Message which accompanies the relevant status code. This should be displayed
+	// to the end user in order to facilitate debugging.
+	Message              string   `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *BatchFeaturesJob_GetStatusResponse) Reset()         { *m = BatchFeaturesJob_GetStatusResponse{} }
+func (m *BatchFeaturesJob_GetStatusResponse) String() string { return proto.CompactTextString(m) }
+func (*BatchFeaturesJob_GetStatusResponse) ProtoMessage()    {}
+func (*BatchFeaturesJob_GetStatusResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c1ba93cf29a8d9d, []int{3, 1}
+}
+
+func (m *BatchFeaturesJob_GetStatusResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BatchFeaturesJob_GetStatusResponse.Unmarshal(m, b)
+}
+func (m *BatchFeaturesJob_GetStatusResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BatchFeaturesJob_GetStatusResponse.Marshal(b, m, deterministic)
+}
+func (m *BatchFeaturesJob_GetStatusResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BatchFeaturesJob_GetStatusResponse.Merge(m, src)
+}
+func (m *BatchFeaturesJob_GetStatusResponse) XXX_Size() int {
+	return xxx_messageInfo_BatchFeaturesJob_GetStatusResponse.Size(m)
+}
+func (m *BatchFeaturesJob_GetStatusResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_BatchFeaturesJob_GetStatusResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BatchFeaturesJob_GetStatusResponse proto.InternalMessageInfo
+
+func (m *BatchFeaturesJob_GetStatusResponse) GetStatus() BatchFeaturesJob_GetStatusResponse_Status {
+	if m != nil {
+		return m.Status
+	}
+	return BatchFeaturesJob_GetStatusResponse_UNKNOWN
+}
+
+func (m *BatchFeaturesJob_GetStatusResponse) GetMessage() string {
+	if m != nil {
+		return m.Message
+	}
+	return ""
+}
+
+// This message allows for a staging location to be requested in order to upload an entity data set
+type BatchFeaturesJob_GetUploadUrlRequest struct {
+	// Job Id associated to this request
+	JobUUID string `protobuf:"bytes,1,opt,name=jobUUID,proto3" json:"jobUUID,omitempty"`
+	// Type of file that will be uploaded. Feast Serving needs to maintain this type in order to
+	// interpret the entity dataset when loading it into the backing store
+	FileType             BatchFeaturesJob_GetUploadUrlRequest_FileType `protobuf:"varint,2,opt,name=fileType,proto3,enum=feast.serving.BatchFeaturesJob_GetUploadUrlRequest_FileType" json:"fileType,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                                      `json:"-"`
+	XXX_unrecognized     []byte                                        `json:"-"`
+	XXX_sizecache        int32                                         `json:"-"`
+}
+
+func (m *BatchFeaturesJob_GetUploadUrlRequest) Reset()         { *m = BatchFeaturesJob_GetUploadUrlRequest{} }
+func (m *BatchFeaturesJob_GetUploadUrlRequest) String() string { return proto.CompactTextString(m) }
+func (*BatchFeaturesJob_GetUploadUrlRequest) ProtoMessage()    {}
+func (*BatchFeaturesJob_GetUploadUrlRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c1ba93cf29a8d9d, []int{3, 2}
+}
+
+func (m *BatchFeaturesJob_GetUploadUrlRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BatchFeaturesJob_GetUploadUrlRequest.Unmarshal(m, b)
+}
+func (m *BatchFeaturesJob_GetUploadUrlRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BatchFeaturesJob_GetUploadUrlRequest.Marshal(b, m, deterministic)
+}
+func (m *BatchFeaturesJob_GetUploadUrlRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BatchFeaturesJob_GetUploadUrlRequest.Merge(m, src)
+}
+func (m *BatchFeaturesJob_GetUploadUrlRequest) XXX_Size() int {
+	return xxx_messageInfo_BatchFeaturesJob_GetUploadUrlRequest.Size(m)
+}
+func (m *BatchFeaturesJob_GetUploadUrlRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_BatchFeaturesJob_GetUploadUrlRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BatchFeaturesJob_GetUploadUrlRequest proto.InternalMessageInfo
+
+func (m *BatchFeaturesJob_GetUploadUrlRequest) GetJobUUID() string {
+	if m != nil {
+		return m.JobUUID
+	}
+	return ""
+}
+
+func (m *BatchFeaturesJob_GetUploadUrlRequest) GetFileType() BatchFeaturesJob_GetUploadUrlRequest_FileType {
+	if m != nil {
+		return m.FileType
+	}
+	return BatchFeaturesJob_GetUploadUrlRequest_CSV
+}
+
+// This message response provides a URL to the caller to upload and stage an entity data set
+type BatchFeaturesJob_GetUploadUrlResponse struct {
+	// Url specifies the full signed URL where a client can make a request to upload file to GCS
+	Url        string                                           `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	HttpMethod BatchFeaturesJob_GetUploadUrlResponse_HttpMethod `protobuf:"varint,2,opt,name=httpMethod,proto3,enum=feast.serving.BatchFeaturesJob_GetUploadUrlResponse_HttpMethod" json:"httpMethod,omitempty"`
+	// Expiration specifies the timestamp the signed URL is valid until
+	Expiration           *timestamp.Timestamp `protobuf:"bytes,3,opt,name=expiration,proto3" json:"expiration,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
+}
+
+func (m *BatchFeaturesJob_GetUploadUrlResponse) Reset()         { *m = BatchFeaturesJob_GetUploadUrlResponse{} }
+func (m *BatchFeaturesJob_GetUploadUrlResponse) String() string { return proto.CompactTextString(m) }
+func (*BatchFeaturesJob_GetUploadUrlResponse) ProtoMessage()    {}
+func (*BatchFeaturesJob_GetUploadUrlResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c1ba93cf29a8d9d, []int{3, 3}
+}
+
+func (m *BatchFeaturesJob_GetUploadUrlResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BatchFeaturesJob_GetUploadUrlResponse.Unmarshal(m, b)
+}
+func (m *BatchFeaturesJob_GetUploadUrlResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BatchFeaturesJob_GetUploadUrlResponse.Marshal(b, m, deterministic)
+}
+func (m *BatchFeaturesJob_GetUploadUrlResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BatchFeaturesJob_GetUploadUrlResponse.Merge(m, src)
+}
+func (m *BatchFeaturesJob_GetUploadUrlResponse) XXX_Size() int {
+	return xxx_messageInfo_BatchFeaturesJob_GetUploadUrlResponse.Size(m)
+}
+func (m *BatchFeaturesJob_GetUploadUrlResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_BatchFeaturesJob_GetUploadUrlResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BatchFeaturesJob_GetUploadUrlResponse proto.InternalMessageInfo
+
+func (m *BatchFeaturesJob_GetUploadUrlResponse) GetUrl() string {
+	if m != nil {
+		return m.Url
+	}
+	return ""
+}
+
+func (m *BatchFeaturesJob_GetUploadUrlResponse) GetHttpMethod() BatchFeaturesJob_GetUploadUrlResponse_HttpMethod {
+	if m != nil {
+		return m.HttpMethod
+	}
+	return BatchFeaturesJob_GetUploadUrlResponse_PUT
+}
+
+func (m *BatchFeaturesJob_GetUploadUrlResponse) GetExpiration() *timestamp.Timestamp {
+	if m != nil {
+		return m.Expiration
+	}
+	return nil
+}
+
+// Notifies Feast Serving that the specific upload request has been completed for a job Id
+type BatchFeaturesJob_SetUploadCompleteRequest struct {
+	JobUUID              string   `protobuf:"bytes,1,opt,name=jobUUID,proto3" json:"jobUUID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *BatchFeaturesJob_SetUploadCompleteRequest) Reset() {
+	*m = BatchFeaturesJob_SetUploadCompleteRequest{}
+}
+func (m *BatchFeaturesJob_SetUploadCompleteRequest) String() string { return proto.CompactTextString(m) }
+func (*BatchFeaturesJob_SetUploadCompleteRequest) ProtoMessage()    {}
+func (*BatchFeaturesJob_SetUploadCompleteRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c1ba93cf29a8d9d, []int{3, 4}
+}
+
+func (m *BatchFeaturesJob_SetUploadCompleteRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BatchFeaturesJob_SetUploadCompleteRequest.Unmarshal(m, b)
+}
+func (m *BatchFeaturesJob_SetUploadCompleteRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BatchFeaturesJob_SetUploadCompleteRequest.Marshal(b, m, deterministic)
+}
+func (m *BatchFeaturesJob_SetUploadCompleteRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BatchFeaturesJob_SetUploadCompleteRequest.Merge(m, src)
+}
+func (m *BatchFeaturesJob_SetUploadCompleteRequest) XXX_Size() int {
+	return xxx_messageInfo_BatchFeaturesJob_SetUploadCompleteRequest.Size(m)
+}
+func (m *BatchFeaturesJob_SetUploadCompleteRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_BatchFeaturesJob_SetUploadCompleteRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BatchFeaturesJob_SetUploadCompleteRequest proto.InternalMessageInfo
+
+func (m *BatchFeaturesJob_SetUploadCompleteRequest) GetJobUUID() string {
+	if m != nil {
+		return m.JobUUID
+	}
+	return ""
+}
+
+// Notifies caller that the staged file has been found and will be ingested into the backing store
+type BatchFeaturesJob_SetUploadCompleteResponse struct {
+	Success              bool     `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *BatchFeaturesJob_SetUploadCompleteResponse) Reset() {
+	*m = BatchFeaturesJob_SetUploadCompleteResponse{}
+}
+func (m *BatchFeaturesJob_SetUploadCompleteResponse) String() string {
+	return proto.CompactTextString(m)
+}
+func (*BatchFeaturesJob_SetUploadCompleteResponse) ProtoMessage() {}
+func (*BatchFeaturesJob_SetUploadCompleteResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c1ba93cf29a8d9d, []int{3, 5}
+}
+
+func (m *BatchFeaturesJob_SetUploadCompleteResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BatchFeaturesJob_SetUploadCompleteResponse.Unmarshal(m, b)
+}
+func (m *BatchFeaturesJob_SetUploadCompleteResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BatchFeaturesJob_SetUploadCompleteResponse.Marshal(b, m, deterministic)
+}
+func (m *BatchFeaturesJob_SetUploadCompleteResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BatchFeaturesJob_SetUploadCompleteResponse.Merge(m, src)
+}
+func (m *BatchFeaturesJob_SetUploadCompleteResponse) XXX_Size() int {
+	return xxx_messageInfo_BatchFeaturesJob_SetUploadCompleteResponse.Size(m)
+}
+func (m *BatchFeaturesJob_SetUploadCompleteResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_BatchFeaturesJob_SetUploadCompleteResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BatchFeaturesJob_SetUploadCompleteResponse proto.InternalMessageInfo
+
+func (m *BatchFeaturesJob_SetUploadCompleteResponse) GetSuccess() bool {
+	if m != nil {
+		return m.Success
+	}
+	return false
+}
+
+type GetFeastServingTypeResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *GetFeastServingTypeResponse) Reset()         { *m = GetFeastServingTypeResponse{} }
+func (m *GetFeastServingTypeResponse) String() string { return proto.CompactTextString(m) }
+func (*GetFeastServingTypeResponse) ProtoMessage()    {}
+func (*GetFeastServingTypeResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_0c1ba93cf29a8d9d, []int{4}
 }
 
-func (m *GetFeastServingVersionRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetFeastServingVersionRequest.Unmarshal(m, b)
+func (m *GetFeastServingTypeResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetFeastServingTypeResponse.Unmarshal(m, b)
 }
-func (m *GetFeastServingVersionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetFeastServingVersionRequest.Marshal(b, m, deterministic)
+func (m *GetFeastServingTypeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetFeastServingTypeResponse.Marshal(b, m, deterministic)
 }
-func (m *GetFeastServingVersionRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetFeastServingVersionRequest.Merge(m, src)
+func (m *GetFeastServingTypeResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetFeastServingTypeResponse.Merge(m, src)
 }
-func (m *GetFeastServingVersionRequest) XXX_Size() int {
-	return xxx_messageInfo_GetFeastServingVersionRequest.Size(m)
+func (m *GetFeastServingTypeResponse) XXX_Size() int {
+	return xxx_messageInfo_GetFeastServingTypeResponse.Size(m)
 }
-func (m *GetFeastServingVersionRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetFeastServingVersionRequest.DiscardUnknown(m)
+func (m *GetFeastServingTypeResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetFeastServingTypeResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_GetFeastServingVersionRequest proto.InternalMessageInfo
+var xxx_messageInfo_GetFeastServingTypeResponse proto.InternalMessageInfo
 
 type GetFeastServingVersionResponse struct {
 	Version              string   `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
@@ -296,51 +889,96 @@ func (m *GetFeastServingVersionResponse) GetVersion() string {
 }
 
 func init() {
-	proto.RegisterType((*QueryFeaturesRequest)(nil), "feast.serving.QueryFeaturesRequest")
-	proto.RegisterType((*QueryFeaturesResponse)(nil), "feast.serving.QueryFeaturesResponse")
-	proto.RegisterMapType((map[string]*Entity)(nil), "feast.serving.QueryFeaturesResponse.EntitiesEntry")
-	proto.RegisterType((*Entity)(nil), "feast.serving.Entity")
-	proto.RegisterMapType((map[string]*FeatureValue)(nil), "feast.serving.Entity.FeaturesEntry")
-	proto.RegisterType((*FeatureValue)(nil), "feast.serving.FeatureValue")
-	proto.RegisterType((*GetFeastServingVersionRequest)(nil), "feast.serving.GetFeastServingVersionRequest")
+	proto.RegisterEnum("feast.serving.BatchFeaturesJob_GetStatusResponse_Status", BatchFeaturesJob_GetStatusResponse_Status_name, BatchFeaturesJob_GetStatusResponse_Status_value)
+	proto.RegisterEnum("feast.serving.BatchFeaturesJob_GetUploadUrlRequest_FileType", BatchFeaturesJob_GetUploadUrlRequest_FileType_name, BatchFeaturesJob_GetUploadUrlRequest_FileType_value)
+	proto.RegisterEnum("feast.serving.BatchFeaturesJob_GetUploadUrlResponse_HttpMethod", BatchFeaturesJob_GetUploadUrlResponse_HttpMethod_name, BatchFeaturesJob_GetUploadUrlResponse_HttpMethod_value)
+	proto.RegisterEnum("feast.serving.GetFeastServingTypeResponseType", GetFeastServingTypeResponseType_name, GetFeastServingTypeResponseType_value)
+	proto.RegisterType((*GetFeaturesRequest)(nil), "feast.serving.GetFeaturesRequest")
+	proto.RegisterType((*GetFeaturesRequest_FeatureSet)(nil), "feast.serving.GetFeaturesRequest.FeatureSet")
+	proto.RegisterType((*GetFeaturesRequest_EntityDataSet)(nil), "feast.serving.GetFeaturesRequest.EntityDataSet")
+	proto.RegisterType((*GetFeaturesRequest_EntityDataSetRow)(nil), "feast.serving.GetFeaturesRequest.EntityDataSetRow")
+	proto.RegisterType((*GetOnlineFeaturesResponse)(nil), "feast.serving.GetOnlineFeaturesResponse")
+	proto.RegisterType((*GetOnlineFeaturesResponse_FeatureDataSet)(nil), "feast.serving.GetOnlineFeaturesResponse.FeatureDataSet")
+	proto.RegisterType((*GetBatchFeaturesResponse)(nil), "feast.serving.GetBatchFeaturesResponse")
+	proto.RegisterType((*BatchFeaturesJob)(nil), "feast.serving.BatchFeaturesJob")
+	proto.RegisterType((*BatchFeaturesJob_GetStatusRequest)(nil), "feast.serving.BatchFeaturesJob.GetStatusRequest")
+	proto.RegisterType((*BatchFeaturesJob_GetStatusResponse)(nil), "feast.serving.BatchFeaturesJob.GetStatusResponse")
+	proto.RegisterType((*BatchFeaturesJob_GetUploadUrlRequest)(nil), "feast.serving.BatchFeaturesJob.GetUploadUrlRequest")
+	proto.RegisterType((*BatchFeaturesJob_GetUploadUrlResponse)(nil), "feast.serving.BatchFeaturesJob.GetUploadUrlResponse")
+	proto.RegisterType((*BatchFeaturesJob_SetUploadCompleteRequest)(nil), "feast.serving.BatchFeaturesJob.SetUploadCompleteRequest")
+	proto.RegisterType((*BatchFeaturesJob_SetUploadCompleteResponse)(nil), "feast.serving.BatchFeaturesJob.SetUploadCompleteResponse")
+	proto.RegisterType((*GetFeastServingTypeResponse)(nil), "feast.serving.GetFeastServingTypeResponse")
 	proto.RegisterType((*GetFeastServingVersionResponse)(nil), "feast.serving.GetFeastServingVersionResponse")
 }
 
 func init() { proto.RegisterFile("feast/serving/ServingService.proto", fileDescriptor_0c1ba93cf29a8d9d) }
 
 var fileDescriptor_0c1ba93cf29a8d9d = []byte{
-	// 488 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x54, 0xd1, 0x6e, 0xd3, 0x30,
-	0x14, 0xc5, 0xad, 0x18, 0xeb, 0x1d, 0x05, 0x64, 0x31, 0x88, 0x02, 0x6c, 0x55, 0xc6, 0x43, 0x25,
-	0xc0, 0x16, 0xe5, 0xa5, 0xda, 0x0b, 0x62, 0xd2, 0x86, 0xfa, 0x32, 0x8d, 0x80, 0x26, 0x34, 0xf1,
-	0x92, 0xae, 0xb7, 0x21, 0x6c, 0x8d, 0x83, 0xed, 0x54, 0xca, 0xf7, 0xf0, 0x59, 0x3c, 0xf3, 0x1f,
-	0xa8, 0xb6, 0xd3, 0xd5, 0x55, 0x18, 0x7d, 0x4a, 0x7d, 0xef, 0xb9, 0xe7, 0x9c, 0xdc, 0x1c, 0x17,
-	0xa2, 0x29, 0x26, 0x4a, 0x73, 0x85, 0x72, 0x9e, 0xe5, 0x29, 0xff, 0x6c, 0x9f, 0xe6, 0x71, 0x89,
-	0xac, 0x90, 0x42, 0x0b, 0xda, 0x35, 0x18, 0xe6, 0x30, 0xe1, 0x7e, 0x2a, 0x44, 0x7a, 0x8d, 0xdc,
-	0x34, 0xc7, 0xe5, 0x94, 0xeb, 0x6c, 0x86, 0x4a, 0x27, 0xb3, 0xc2, 0xe2, 0xc3, 0xa7, 0x96, 0x53,
-	0x57, 0x05, 0x2a, 0x7e, 0x9e, 0x5c, 0x97, 0x8e, 0x28, 0x2a, 0xe0, 0xf1, 0xa7, 0x12, 0x65, 0x75,
-	0x82, 0x89, 0x2e, 0x25, 0xaa, 0x18, 0x7f, 0x96, 0xa8, 0x34, 0xdd, 0x03, 0xc0, 0x5c, 0x67, 0xba,
-	0x3a, 0x4d, 0x66, 0x18, 0x90, 0x1e, 0xe9, 0x77, 0xe2, 0x95, 0x0a, 0x0d, 0x61, 0xdb, 0x9e, 0x46,
-	0x93, 0xa0, 0xd5, 0x6b, 0xf7, 0x3b, 0xf1, 0xf2, 0x4c, 0x9f, 0x43, 0x67, 0x6a, 0xe9, 0x46, 0x93,
-	0xa0, 0x6d, 0x9a, 0x37, 0x85, 0xe8, 0x37, 0x81, 0xdd, 0x35, 0x49, 0x55, 0x88, 0x5c, 0xe1, 0x7f,
-	0x35, 0x4f, 0x9d, 0x66, 0x86, 0xca, 0x68, 0xee, 0x0c, 0x06, 0xcc, 0xdb, 0x03, 0x6b, 0xe4, 0x65,
-	0xc7, 0x6e, 0xe8, 0x38, 0xd7, 0xb2, 0x8a, 0x97, 0x1c, 0x61, 0x0c, 0x5d, 0xaf, 0x45, 0x1f, 0x41,
-	0xfb, 0x0a, 0x2b, 0xa7, 0xbc, 0xf8, 0x49, 0x5f, 0xc1, 0xdd, 0xf9, 0x62, 0x5b, 0x41, 0xab, 0x47,
-	0xfa, 0x3b, 0x83, 0xdd, 0x35, 0x3d, 0x33, 0x5e, 0xc5, 0x16, 0x73, 0xd8, 0x1a, 0x92, 0xe8, 0x17,
-	0x81, 0x2d, 0x5b, 0xa5, 0xef, 0x61, 0xdb, 0xbd, 0xb5, 0x0a, 0x88, 0xb1, 0x7b, 0xd0, 0x38, 0xce,
-	0x6a, 0xc3, 0xce, 0x5f, 0x3d, 0x14, 0x7e, 0x85, 0xae, 0xd7, 0x6a, 0xf0, 0xf7, 0xd6, 0xf7, 0xf7,
-	0x6c, 0x4d, 0xc0, 0x8d, 0x9b, 0x0f, 0xbe, 0xea, 0x52, 0xc2, 0xfd, 0xd5, 0x16, 0xed, 0xd7, 0x34,
-	0xc4, 0xd0, 0x50, 0x47, 0x63, 0xe2, 0xc2, 0x56, 0xa7, 0xe9, 0x10, 0x3a, 0xcb, 0x6c, 0x39, 0xd1,
-	0x90, 0xd9, 0xf4, 0xb1, 0x3a, 0x7d, 0xec, 0x4b, 0x8d, 0x88, 0x6f, 0xc0, 0xd1, 0x3e, 0xbc, 0xf8,
-	0x88, 0xfa, 0x64, 0x41, 0xec, 0x22, 0x7d, 0x8e, 0x52, 0x65, 0x22, 0x77, 0x91, 0x8b, 0x0e, 0x61,
-	0xef, 0x5f, 0x00, 0x17, 0x90, 0x00, 0xee, 0xcd, 0x6d, 0xc9, 0xed, 0xa0, 0x3e, 0x0e, 0xfe, 0x10,
-	0x78, 0xe0, 0x5f, 0x14, 0xfa, 0x0d, 0xba, 0x5e, 0x1c, 0xe8, 0xc1, 0xed, 0x61, 0x31, 0x26, 0xc2,
-	0x97, 0x9b, 0x24, 0x2a, 0xba, 0x43, 0x4b, 0x78, 0xd2, 0x6c, 0x96, 0xbe, 0x5e, 0x63, 0xb8, 0xf5,
-	0xa5, 0xc3, 0x37, 0x1b, 0xa2, 0xad, 0xf0, 0xd1, 0x05, 0xf8, 0x37, 0xff, 0xe8, 0xa1, 0x03, 0x7e,
-	0x38, 0x1b, 0x9d, 0x2d, 0xd6, 0x7f, 0x31, 0x4c, 0x33, 0xfd, 0xbd, 0x1c, 0xb3, 0x4b, 0x31, 0xe3,
-	0xa9, 0xf8, 0x81, 0x57, 0xdc, 0x5e, 0x7d, 0xf3, 0x71, 0x14, 0x4f, 0x31, 0x47, 0x99, 0x68, 0x9c,
-	0xf0, 0x54, 0x70, 0xef, 0x8f, 0x66, 0xbc, 0x65, 0x20, 0xef, 0xfe, 0x06, 0x00, 0x00, 0xff, 0xff,
-	0xae, 0xb8, 0x5b, 0x20, 0x80, 0x04, 0x00, 0x00,
+	// 1017 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x56, 0x4f, 0x73, 0xdb, 0x44,
+	0x14, 0x8f, 0xe2, 0xc4, 0x49, 0x9e, 0x49, 0xaa, 0x2e, 0x90, 0x2a, 0x6a, 0x68, 0x5d, 0x5d, 0xf0,
+	0x30, 0x45, 0x02, 0x37, 0x4c, 0x4b, 0xa7, 0x03, 0xe3, 0x34, 0xb2, 0x31, 0x04, 0xd9, 0xac, 0xa5,
+	0xf4, 0xcf, 0xa1, 0x41, 0x76, 0xd6, 0x8e, 0x8b, 0x6d, 0x09, 0x6b, 0xdd, 0x90, 0x1b, 0x57, 0xce,
+	0x5c, 0xb8, 0x33, 0x9c, 0xf8, 0x02, 0x7c, 0x18, 0x4e, 0x7c, 0x01, 0x8e, 0x5c, 0x19, 0xed, 0xae,
+	0x6c, 0x49, 0xb6, 0xeb, 0x38, 0x27, 0x7b, 0xf7, 0xbd, 0xf7, 0x7b, 0xbf, 0x7d, 0x7f, 0x05, 0x5a,
+	0x9b, 0xb8, 0x01, 0x35, 0x02, 0x32, 0x7c, 0xd3, 0x1d, 0x74, 0x8c, 0x06, 0xff, 0x65, 0x3f, 0x2d,
+	0xa2, 0xfb, 0x43, 0x8f, 0x7a, 0x68, 0x9b, 0xe9, 0xe8, 0x42, 0x47, 0xbd, 0xdb, 0xf1, 0xbc, 0x4e,
+	0x8f, 0x18, 0x4c, 0xd8, 0x1c, 0xb5, 0x0d, 0xda, 0xed, 0x93, 0x80, 0xba, 0x7d, 0x9f, 0xeb, 0xab,
+	0xb7, 0xd3, 0x0a, 0xa4, 0xef, 0xd3, 0x4b, 0x21, 0xbc, 0xc5, 0x1d, 0xd2, 0x4b, 0x9f, 0x04, 0xc6,
+	0x89, 0xdb, 0x1b, 0x09, 0x2f, 0xea, 0x7e, 0x5c, 0x50, 0x26, 0x2e, 0x1d, 0x0d, 0x09, 0xf6, 0x2e,
+	0xb8, 0x54, 0xfb, 0x37, 0x03, 0xa8, 0x42, 0xa8, 0xb8, 0x0f, 0x30, 0xf9, 0x71, 0x44, 0x02, 0x8a,
+	0x2c, 0xc8, 0xb5, 0xf9, 0x55, 0x83, 0xd0, 0x40, 0x91, 0xf2, 0x99, 0x42, 0xae, 0x78, 0x5f, 0x4f,
+	0x10, 0xd6, 0xa7, 0xed, 0xf4, 0xf2, 0xd8, 0x08, 0xc7, 0x01, 0x90, 0x03, 0xdb, 0x64, 0x40, 0xbb,
+	0xf4, 0xf2, 0xc8, 0xa5, 0x6e, 0x83, 0x50, 0x65, 0x35, 0x2f, 0x15, 0x72, 0x45, 0x63, 0x31, 0xa2,
+	0x19, 0x37, 0xc3, 0x49, 0x14, 0xf5, 0x15, 0xc0, 0xc4, 0x23, 0x42, 0xb0, 0x36, 0x70, 0xfb, 0x44,
+	0x91, 0xf2, 0x52, 0x61, 0x0b, 0xb3, 0xff, 0x48, 0x81, 0x8d, 0x37, 0x64, 0x18, 0x74, 0xbd, 0x01,
+	0x73, 0xb9, 0x85, 0xa3, 0x23, 0xd2, 0xe0, 0x1d, 0xc1, 0xd0, 0x72, 0xfb, 0x24, 0x50, 0x32, 0xf9,
+	0x4c, 0x61, 0x0b, 0x27, 0xee, 0xd4, 0x5f, 0x25, 0xd8, 0x4e, 0x10, 0x40, 0x79, 0xc8, 0x71, 0x0a,
+	0xdc, 0x48, 0x62, 0x46, 0xf1, 0x2b, 0xf4, 0x3d, 0xdc, 0x4c, 0x90, 0xc4, 0xde, 0x45, 0xa0, 0xac,
+	0xb2, 0x00, 0x16, 0x97, 0x7d, 0xae, 0x77, 0x81, 0xa7, 0xc1, 0xd4, 0x27, 0x20, 0xa7, 0xd5, 0x50,
+	0x01, 0xd6, 0x59, 0xd2, 0x45, 0xaa, 0x90, 0xf0, 0xc4, 0xb2, 0xae, 0x33, 0x09, 0xe6, 0x0a, 0xda,
+	0x7f, 0x12, 0xec, 0x55, 0x08, 0xad, 0x0d, 0x7a, 0xdd, 0x01, 0x99, 0xb8, 0x0f, 0x7c, 0x6f, 0x10,
+	0x10, 0xe4, 0xc2, 0x0d, 0x11, 0x01, 0x01, 0x1e, 0x71, 0x7f, 0x38, 0xcd, 0x7d, 0x36, 0x44, 0x54,
+	0x03, 0x11, 0xb9, 0x34, 0x9e, 0x7a, 0x01, 0x3b, 0x49, 0x95, 0x25, 0x13, 0xf7, 0x10, 0xa0, 0x3d,
+	0x2e, 0x63, 0x96, 0xb6, 0x5c, 0xf1, 0x56, 0xe2, 0xbd, 0x93, 0x2a, 0xc7, 0x31, 0x55, 0xed, 0x00,
+	0x94, 0x0a, 0xa1, 0x87, 0x2e, 0x6d, 0x9d, 0x4f, 0xbd, 0x5b, 0x81, 0x8d, 0xd7, 0x5e, 0xd3, 0x71,
+	0xaa, 0x47, 0x82, 0x45, 0x74, 0xd4, 0xfe, 0xc9, 0x82, 0x9c, 0xb0, 0xf9, 0xda, 0x6b, 0xaa, 0xf7,
+	0x41, 0xae, 0x10, 0xda, 0xa0, 0x2e, 0x1d, 0x8d, 0x7b, 0x66, 0x2e, 0x84, 0xfa, 0xc7, 0x2a, 0xdc,
+	0x8c, 0xa9, 0x0b, 0x97, 0x75, 0xc8, 0x06, 0xec, 0x86, 0xa9, 0xef, 0x14, 0x1f, 0xa5, 0x22, 0x9c,
+	0x76, 0xaa, 0x4f, 0x41, 0xe8, 0xe2, 0x28, 0x70, 0x42, 0x06, 0x7d, 0x12, 0x04, 0x6e, 0x87, 0x44,
+	0x31, 0x13, 0x47, 0xed, 0x77, 0x09, 0xb2, 0x5c, 0x19, 0xe5, 0x60, 0xc3, 0xb1, 0xbe, 0xb1, 0x6a,
+	0xcf, 0x2c, 0x79, 0x05, 0xdd, 0x01, 0xf5, 0x59, 0xa9, 0x6a, 0x57, 0xad, 0xca, 0x69, 0xb9, 0x86,
+	0x4f, 0x4d, 0xcb, 0xae, 0xda, 0x2f, 0x4e, 0x8f, 0x4a, 0x76, 0xa9, 0x61, 0xda, 0xb2, 0x84, 0x54,
+	0xd8, 0x3d, 0xae, 0x95, 0x8e, 0x42, 0x79, 0x4a, 0xb6, 0x8a, 0xf6, 0x41, 0x39, 0x74, 0xaa, 0xc7,
+	0x4c, 0x58, 0x36, 0x4b, 0xb6, 0x83, 0xcd, 0xb1, 0x34, 0x83, 0x3e, 0x80, 0x3d, 0xf3, 0x79, 0xbd,
+	0x86, 0xed, 0x59, 0xe2, 0x35, 0xb4, 0x09, 0x6b, 0x47, 0x35, 0xcb, 0x94, 0xd7, 0xd1, 0x16, 0xac,
+	0x9b, 0x18, 0xd7, 0xb0, 0x9c, 0x55, 0xff, 0x94, 0xe0, 0xdd, 0x0a, 0xa1, 0x8e, 0xdf, 0xf3, 0xdc,
+	0x33, 0x67, 0xd8, 0x5b, 0x18, 0x59, 0xf4, 0x1c, 0x36, 0xdb, 0xdd, 0x1e, 0xb1, 0x2f, 0x7d, 0xfe,
+	0xe4, 0x9d, 0xe2, 0x93, 0x2b, 0x44, 0x31, 0xed, 0x40, 0x2f, 0x0b, 0x0c, 0x3c, 0x46, 0xd3, 0xf2,
+	0xb0, 0x19, 0xdd, 0xa2, 0x0d, 0xc8, 0x3c, 0x6d, 0x9c, 0xc8, 0x2b, 0x61, 0xec, 0xea, 0x25, 0xfc,
+	0x9d, 0x13, 0xc6, 0x46, 0xfd, 0x5b, 0x82, 0xf7, 0x92, 0x60, 0x22, 0xb1, 0x32, 0x64, 0x46, 0xc3,
+	0x9e, 0xa0, 0x1a, 0xfe, 0x45, 0xa7, 0x00, 0xe7, 0x94, 0xfa, 0xdf, 0x12, 0x7a, 0xee, 0x9d, 0x09,
+	0xa2, 0x5f, 0x2e, 0x47, 0x54, 0x64, 0xfc, 0xab, 0x31, 0x0c, 0x8e, 0x41, 0xa2, 0xc7, 0x00, 0xe4,
+	0x27, 0xbf, 0x3b, 0x74, 0x69, 0xd8, 0x30, 0x19, 0x36, 0x5c, 0x55, 0x9d, 0xef, 0x0b, 0x3d, 0xda,
+	0x17, 0xba, 0x1d, 0x2d, 0x14, 0x1c, 0xd3, 0xd6, 0xde, 0x07, 0x98, 0xa0, 0x86, 0x6f, 0xad, 0x3b,
+	0xb6, 0xbc, 0xa2, 0x1e, 0x80, 0xd2, 0x88, 0x18, 0x3c, 0xf5, 0xfa, 0x7e, 0x8f, 0x50, 0xb2, 0xb8,
+	0xd4, 0x3f, 0x83, 0xbd, 0x19, 0x56, 0x93, 0x26, 0x0b, 0x46, 0xad, 0x16, 0x09, 0x78, 0xc9, 0x6f,
+	0xe2, 0xe8, 0xa8, 0x7d, 0x01, 0xb7, 0xf9, 0x30, 0x0c, 0xa8, 0x58, 0x95, 0x2c, 0x1d, 0xc2, 0x50,
+	0xbb, 0x0b, 0x6b, 0x61, 0x67, 0x23, 0x80, 0x6c, 0xcd, 0x3a, 0xae, 0x5a, 0x26, 0xcf, 0x45, 0xad,
+	0x5c, 0x66, 0x07, 0x49, 0x7b, 0x0c, 0x77, 0x52, 0xf6, 0x27, 0x7c, 0x5a, 0xc4, 0x7d, 0x47, 0xf3,
+	0x44, 0x4a, 0xcc, 0x93, 0xe2, 0x5f, 0x59, 0xd8, 0x49, 0xee, 0x67, 0x74, 0x0a, 0xbb, 0xb3, 0xe1,
+	0xd0, 0xee, 0x54, 0x50, 0xcd, 0x70, 0x09, 0xab, 0x1f, 0xcf, 0x1c, 0xed, 0x73, 0xd9, 0xbc, 0x60,
+	0x85, 0x9e, 0x7e, 0xef, 0x5c, 0xf4, 0x8f, 0xde, 0x8e, 0x1e, 0x8f, 0x55, 0xb8, 0x7f, 0xa6, 0x66,
+	0x33, 0xba, 0xb7, 0x70, 0xf3, 0xa8, 0x85, 0xab, 0x0e, 0x78, 0xf4, 0x8a, 0x0d, 0xbf, 0x44, 0xbd,
+	0x5e, 0xc5, 0xc1, 0x87, 0xd3, 0x2a, 0xb3, 0x67, 0xf1, 0xcf, 0x7c, 0x43, 0xa5, 0x1b, 0x42, 0xcc,
+	0xaf, 0x4f, 0x96, 0x18, 0x93, 0xdc, 0xf1, 0xa7, 0x4b, 0x0f, 0x56, 0xf4, 0x8b, 0x04, 0xfb, 0x33,
+	0x28, 0x8c, 0xfb, 0x11, 0x3d, 0xb8, 0xc6, 0x98, 0x51, 0x0f, 0xae, 0xd3, 0xf2, 0xe8, 0x37, 0x09,
+	0xee, 0x35, 0xe6, 0x71, 0x89, 0x7a, 0x0c, 0x2d, 0xdc, 0x1e, 0xf3, 0x9a, 0x59, 0xfd, 0xfc, 0x1a,
+	0x96, 0x9c, 0xda, 0xe1, 0x4b, 0x48, 0x7e, 0xc3, 0x1e, 0xde, 0x10, 0x15, 0x59, 0xaa, 0x57, 0xeb,
+	0x61, 0x09, 0xbf, 0x7c, 0xd4, 0xe9, 0xd2, 0xf3, 0x51, 0x53, 0x6f, 0x79, 0x7d, 0xa3, 0xe3, 0xbd,
+	0x26, 0x3f, 0x18, 0xfc, 0x73, 0x94, 0x15, 0x78, 0x60, 0x74, 0xc8, 0x80, 0x0c, 0x5d, 0x4a, 0xce,
+	0x8c, 0x8e, 0x67, 0x24, 0x3e, 0x99, 0x9b, 0x59, 0xa6, 0xf2, 0xe0, 0xff, 0x00, 0x00, 0x00, 0xff,
+	0xff, 0xf3, 0x8b, 0x58, 0x6f, 0x4a, 0x0b, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -355,10 +993,20 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ServingServiceClient interface {
-	// Query features from Feast serving storage
-	QueryFeatures(ctx context.Context, in *QueryFeaturesRequest, opts ...grpc.CallOption) (*QueryFeaturesResponse, error)
 	// Retrieve version information about this Feast deployment
-	GetFeastServingVersion(ctx context.Context, in *GetFeastServingVersionRequest, opts ...grpc.CallOption) (*GetFeastServingVersionResponse, error)
+	GetFeastServingVersion(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GetFeastServingVersionResponse, error)
+	// Get Feast serving storage type (online or batch)
+	GetFeastServingType(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GetFeastServingTypeResponse, error)
+	// Get online features from Feast serving. This is a synchronous response.
+	GetOnlineFeatures(ctx context.Context, in *GetFeaturesRequest, opts ...grpc.CallOption) (*GetOnlineFeaturesResponse, error)
+	// Get batch features from Feast serving. This is an async job.
+	GetBatchFeatures(ctx context.Context, in *GetFeaturesRequest, opts ...grpc.CallOption) (*GetBatchFeaturesResponse, error)
+	// Get the current status of a batch feature request job
+	GetBatchFeaturesJobStatus(ctx context.Context, in *BatchFeaturesJob_GetStatusRequest, opts ...grpc.CallOption) (*BatchFeaturesJob_GetStatusResponse, error)
+	// Request a signed URL where a Feast client can upload user entity data
+	GetBatchFeaturesJobUploadUrl(ctx context.Context, in *BatchFeaturesJob_GetUploadUrlRequest, opts ...grpc.CallOption) (*BatchFeaturesJob_GetUploadUrlResponse, error)
+	// Set the state of the batch feature job to complete after user entity data has been uploaded
+	SetBatchFeaturesJobUploadComplete(ctx context.Context, in *BatchFeaturesJob_SetUploadCompleteRequest, opts ...grpc.CallOption) (*BatchFeaturesJob_SetUploadCompleteResponse, error)
 }
 
 type servingServiceClient struct {
@@ -369,16 +1017,7 @@ func NewServingServiceClient(cc *grpc.ClientConn) ServingServiceClient {
 	return &servingServiceClient{cc}
 }
 
-func (c *servingServiceClient) QueryFeatures(ctx context.Context, in *QueryFeaturesRequest, opts ...grpc.CallOption) (*QueryFeaturesResponse, error) {
-	out := new(QueryFeaturesResponse)
-	err := c.cc.Invoke(ctx, "/feast.serving.ServingService/QueryFeatures", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *servingServiceClient) GetFeastServingVersion(ctx context.Context, in *GetFeastServingVersionRequest, opts ...grpc.CallOption) (*GetFeastServingVersionResponse, error) {
+func (c *servingServiceClient) GetFeastServingVersion(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GetFeastServingVersionResponse, error) {
 	out := new(GetFeastServingVersionResponse)
 	err := c.cc.Invoke(ctx, "/feast.serving.ServingService/GetFeastServingVersion", in, out, opts...)
 	if err != nil {
@@ -387,49 +1026,110 @@ func (c *servingServiceClient) GetFeastServingVersion(ctx context.Context, in *G
 	return out, nil
 }
 
+func (c *servingServiceClient) GetFeastServingType(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GetFeastServingTypeResponse, error) {
+	out := new(GetFeastServingTypeResponse)
+	err := c.cc.Invoke(ctx, "/feast.serving.ServingService/GetFeastServingType", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *servingServiceClient) GetOnlineFeatures(ctx context.Context, in *GetFeaturesRequest, opts ...grpc.CallOption) (*GetOnlineFeaturesResponse, error) {
+	out := new(GetOnlineFeaturesResponse)
+	err := c.cc.Invoke(ctx, "/feast.serving.ServingService/GetOnlineFeatures", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *servingServiceClient) GetBatchFeatures(ctx context.Context, in *GetFeaturesRequest, opts ...grpc.CallOption) (*GetBatchFeaturesResponse, error) {
+	out := new(GetBatchFeaturesResponse)
+	err := c.cc.Invoke(ctx, "/feast.serving.ServingService/GetBatchFeatures", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *servingServiceClient) GetBatchFeaturesJobStatus(ctx context.Context, in *BatchFeaturesJob_GetStatusRequest, opts ...grpc.CallOption) (*BatchFeaturesJob_GetStatusResponse, error) {
+	out := new(BatchFeaturesJob_GetStatusResponse)
+	err := c.cc.Invoke(ctx, "/feast.serving.ServingService/GetBatchFeaturesJobStatus", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *servingServiceClient) GetBatchFeaturesJobUploadUrl(ctx context.Context, in *BatchFeaturesJob_GetUploadUrlRequest, opts ...grpc.CallOption) (*BatchFeaturesJob_GetUploadUrlResponse, error) {
+	out := new(BatchFeaturesJob_GetUploadUrlResponse)
+	err := c.cc.Invoke(ctx, "/feast.serving.ServingService/GetBatchFeaturesJobUploadUrl", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *servingServiceClient) SetBatchFeaturesJobUploadComplete(ctx context.Context, in *BatchFeaturesJob_SetUploadCompleteRequest, opts ...grpc.CallOption) (*BatchFeaturesJob_SetUploadCompleteResponse, error) {
+	out := new(BatchFeaturesJob_SetUploadCompleteResponse)
+	err := c.cc.Invoke(ctx, "/feast.serving.ServingService/SetBatchFeaturesJobUploadComplete", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ServingServiceServer is the server API for ServingService service.
 type ServingServiceServer interface {
-	// Query features from Feast serving storage
-	QueryFeatures(context.Context, *QueryFeaturesRequest) (*QueryFeaturesResponse, error)
 	// Retrieve version information about this Feast deployment
-	GetFeastServingVersion(context.Context, *GetFeastServingVersionRequest) (*GetFeastServingVersionResponse, error)
+	GetFeastServingVersion(context.Context, *empty.Empty) (*GetFeastServingVersionResponse, error)
+	// Get Feast serving storage type (online or batch)
+	GetFeastServingType(context.Context, *empty.Empty) (*GetFeastServingTypeResponse, error)
+	// Get online features from Feast serving. This is a synchronous response.
+	GetOnlineFeatures(context.Context, *GetFeaturesRequest) (*GetOnlineFeaturesResponse, error)
+	// Get batch features from Feast serving. This is an async job.
+	GetBatchFeatures(context.Context, *GetFeaturesRequest) (*GetBatchFeaturesResponse, error)
+	// Get the current status of a batch feature request job
+	GetBatchFeaturesJobStatus(context.Context, *BatchFeaturesJob_GetStatusRequest) (*BatchFeaturesJob_GetStatusResponse, error)
+	// Request a signed URL where a Feast client can upload user entity data
+	GetBatchFeaturesJobUploadUrl(context.Context, *BatchFeaturesJob_GetUploadUrlRequest) (*BatchFeaturesJob_GetUploadUrlResponse, error)
+	// Set the state of the batch feature job to complete after user entity data has been uploaded
+	SetBatchFeaturesJobUploadComplete(context.Context, *BatchFeaturesJob_SetUploadCompleteRequest) (*BatchFeaturesJob_SetUploadCompleteResponse, error)
 }
 
 // UnimplementedServingServiceServer can be embedded to have forward compatible implementations.
 type UnimplementedServingServiceServer struct {
 }
 
-func (*UnimplementedServingServiceServer) QueryFeatures(ctx context.Context, req *QueryFeaturesRequest) (*QueryFeaturesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method QueryFeatures not implemented")
-}
-func (*UnimplementedServingServiceServer) GetFeastServingVersion(ctx context.Context, req *GetFeastServingVersionRequest) (*GetFeastServingVersionResponse, error) {
+func (*UnimplementedServingServiceServer) GetFeastServingVersion(ctx context.Context, req *empty.Empty) (*GetFeastServingVersionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFeastServingVersion not implemented")
+}
+func (*UnimplementedServingServiceServer) GetFeastServingType(ctx context.Context, req *empty.Empty) (*GetFeastServingTypeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetFeastServingType not implemented")
+}
+func (*UnimplementedServingServiceServer) GetOnlineFeatures(ctx context.Context, req *GetFeaturesRequest) (*GetOnlineFeaturesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOnlineFeatures not implemented")
+}
+func (*UnimplementedServingServiceServer) GetBatchFeatures(ctx context.Context, req *GetFeaturesRequest) (*GetBatchFeaturesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetBatchFeatures not implemented")
+}
+func (*UnimplementedServingServiceServer) GetBatchFeaturesJobStatus(ctx context.Context, req *BatchFeaturesJob_GetStatusRequest) (*BatchFeaturesJob_GetStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetBatchFeaturesJobStatus not implemented")
+}
+func (*UnimplementedServingServiceServer) GetBatchFeaturesJobUploadUrl(ctx context.Context, req *BatchFeaturesJob_GetUploadUrlRequest) (*BatchFeaturesJob_GetUploadUrlResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetBatchFeaturesJobUploadUrl not implemented")
+}
+func (*UnimplementedServingServiceServer) SetBatchFeaturesJobUploadComplete(ctx context.Context, req *BatchFeaturesJob_SetUploadCompleteRequest) (*BatchFeaturesJob_SetUploadCompleteResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetBatchFeaturesJobUploadComplete not implemented")
 }
 
 func RegisterServingServiceServer(s *grpc.Server, srv ServingServiceServer) {
 	s.RegisterService(&_ServingService_serviceDesc, srv)
 }
 
-func _ServingService_QueryFeatures_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryFeaturesRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServingServiceServer).QueryFeatures(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/feast.serving.ServingService/QueryFeatures",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServingServiceServer).QueryFeatures(ctx, req.(*QueryFeaturesRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _ServingService_GetFeastServingVersion_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetFeastServingVersionRequest)
+	in := new(empty.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -441,7 +1141,115 @@ func _ServingService_GetFeastServingVersion_Handler(srv interface{}, ctx context
 		FullMethod: "/feast.serving.ServingService/GetFeastServingVersion",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServingServiceServer).GetFeastServingVersion(ctx, req.(*GetFeastServingVersionRequest))
+		return srv.(ServingServiceServer).GetFeastServingVersion(ctx, req.(*empty.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ServingService_GetFeastServingType_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(empty.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServingServiceServer).GetFeastServingType(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/feast.serving.ServingService/GetFeastServingType",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServingServiceServer).GetFeastServingType(ctx, req.(*empty.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ServingService_GetOnlineFeatures_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetFeaturesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServingServiceServer).GetOnlineFeatures(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/feast.serving.ServingService/GetOnlineFeatures",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServingServiceServer).GetOnlineFeatures(ctx, req.(*GetFeaturesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ServingService_GetBatchFeatures_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetFeaturesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServingServiceServer).GetBatchFeatures(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/feast.serving.ServingService/GetBatchFeatures",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServingServiceServer).GetBatchFeatures(ctx, req.(*GetFeaturesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ServingService_GetBatchFeaturesJobStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BatchFeaturesJob_GetStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServingServiceServer).GetBatchFeaturesJobStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/feast.serving.ServingService/GetBatchFeaturesJobStatus",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServingServiceServer).GetBatchFeaturesJobStatus(ctx, req.(*BatchFeaturesJob_GetStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ServingService_GetBatchFeaturesJobUploadUrl_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BatchFeaturesJob_GetUploadUrlRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServingServiceServer).GetBatchFeaturesJobUploadUrl(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/feast.serving.ServingService/GetBatchFeaturesJobUploadUrl",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServingServiceServer).GetBatchFeaturesJobUploadUrl(ctx, req.(*BatchFeaturesJob_GetUploadUrlRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ServingService_SetBatchFeaturesJobUploadComplete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BatchFeaturesJob_SetUploadCompleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServingServiceServer).SetBatchFeaturesJobUploadComplete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/feast.serving.ServingService/SetBatchFeaturesJobUploadComplete",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServingServiceServer).SetBatchFeaturesJobUploadComplete(ctx, req.(*BatchFeaturesJob_SetUploadCompleteRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -451,12 +1259,32 @@ var _ServingService_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*ServingServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "QueryFeatures",
-			Handler:    _ServingService_QueryFeatures_Handler,
-		},
-		{
 			MethodName: "GetFeastServingVersion",
 			Handler:    _ServingService_GetFeastServingVersion_Handler,
+		},
+		{
+			MethodName: "GetFeastServingType",
+			Handler:    _ServingService_GetFeastServingType_Handler,
+		},
+		{
+			MethodName: "GetOnlineFeatures",
+			Handler:    _ServingService_GetOnlineFeatures_Handler,
+		},
+		{
+			MethodName: "GetBatchFeatures",
+			Handler:    _ServingService_GetBatchFeatures_Handler,
+		},
+		{
+			MethodName: "GetBatchFeaturesJobStatus",
+			Handler:    _ServingService_GetBatchFeaturesJobStatus_Handler,
+		},
+		{
+			MethodName: "GetBatchFeaturesJobUploadUrl",
+			Handler:    _ServingService_GetBatchFeaturesJobUploadUrl_Handler,
+		},
+		{
+			MethodName: "SetBatchFeaturesJobUploadComplete",
+			Handler:    _ServingService_SetBatchFeaturesJobUploadComplete_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

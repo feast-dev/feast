@@ -7,6 +7,7 @@ import (
 	context "context"
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
+	empty "github.com/golang/protobuf/ptypes/empty"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -57,9 +58,10 @@ func (ApplyFeatureSetResponse_Status) EnumDescriptor() ([]byte, []int) {
 
 // Retrieves details for all versions of a specific feature set
 type GetFeatureSetsRequest struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Filter               *GetFeatureSetsRequest_Filter `protobuf:"bytes,1,opt,name=filter,proto3" json:"filter,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                      `json:"-"`
+	XXX_unrecognized     []byte                        `json:"-"`
+	XXX_sizecache        int32                         `json:"-"`
 }
 
 func (m *GetFeatureSetsRequest) Reset()         { *m = GetFeatureSetsRequest{} }
@@ -86,6 +88,13 @@ func (m *GetFeatureSetsRequest) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_GetFeatureSetsRequest proto.InternalMessageInfo
+
+func (m *GetFeatureSetsRequest) GetFilter() *GetFeatureSetsRequest_Filter {
+	if m != nil {
+		return m.Filter
+	}
+	return nil
+}
 
 type GetFeatureSetsRequest_Filter struct {
 	FeatureSetName       string   `protobuf:"bytes,1,opt,name=featureSetName,proto3" json:"featureSetName,omitempty"`
@@ -174,9 +183,10 @@ func (m *GetFeatureSetsResponse) GetFeatureSets() []*FeatureSetSpec {
 }
 
 type GetStoresRequest struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Filter               *GetStoresRequest_Filter `protobuf:"bytes,1,opt,name=filter,proto3" json:"filter,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
+	XXX_unrecognized     []byte                   `json:"-"`
+	XXX_sizecache        int32                    `json:"-"`
 }
 
 func (m *GetStoresRequest) Reset()         { *m = GetStoresRequest{} }
@@ -203,6 +213,13 @@ func (m *GetStoresRequest) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_GetStoresRequest proto.InternalMessageInfo
+
+func (m *GetStoresRequest) GetFilter() *GetStoresRequest_Filter {
+	if m != nil {
+		return m.Filter
+	}
+	return nil
+}
 
 type GetStoresRequest_Filter struct {
 	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -324,10 +341,11 @@ func (m *ApplyFeatureSetRequest) GetFeatureSet() *FeatureSetSpec {
 
 type ApplyFeatureSetResponse struct {
 	// Feature set response has been enriched with version and source information
-	FeatureSet           *FeatureSetSpec `protobuf:"bytes,1,opt,name=featureSet,proto3" json:"featureSet,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
-	XXX_unrecognized     []byte          `json:"-"`
-	XXX_sizecache        int32           `json:"-"`
+	FeatureSet           *FeatureSetSpec                `protobuf:"bytes,1,opt,name=featureSet,proto3" json:"featureSet,omitempty"`
+	Status               ApplyFeatureSetResponse_Status `protobuf:"varint,2,opt,name=status,proto3,enum=feast.core.ApplyFeatureSetResponse_Status" json:"status,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                       `json:"-"`
+	XXX_unrecognized     []byte                         `json:"-"`
+	XXX_sizecache        int32                          `json:"-"`
 }
 
 func (m *ApplyFeatureSetResponse) Reset()         { *m = ApplyFeatureSetResponse{} }
@@ -362,106 +380,12 @@ func (m *ApplyFeatureSetResponse) GetFeatureSet() *FeatureSetSpec {
 	return nil
 }
 
-type GetFeastInfoRequest struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *GetFeastInfoRequest) Reset()         { *m = GetFeastInfoRequest{} }
-func (m *GetFeastInfoRequest) String() string { return proto.CompactTextString(m) }
-func (*GetFeastInfoRequest) ProtoMessage()    {}
-func (*GetFeastInfoRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d9be266444105411, []int{6}
-}
-
-func (m *GetFeastInfoRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetFeastInfoRequest.Unmarshal(m, b)
-}
-func (m *GetFeastInfoRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetFeastInfoRequest.Marshal(b, m, deterministic)
-}
-func (m *GetFeastInfoRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetFeastInfoRequest.Merge(m, src)
-}
-func (m *GetFeastInfoRequest) XXX_Size() int {
-	return xxx_messageInfo_GetFeastInfoRequest.Size(m)
-}
-func (m *GetFeastInfoRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetFeastInfoRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_GetFeastInfoRequest proto.InternalMessageInfo
-
-type GetFeastInfoResponse struct {
-	FeatureSets          []*FeatureSetSpec `protobuf:"bytes,1,rep,name=featureSets,proto3" json:"featureSets,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
-	XXX_unrecognized     []byte            `json:"-"`
-	XXX_sizecache        int32             `json:"-"`
-}
-
-func (m *GetFeastInfoResponse) Reset()         { *m = GetFeastInfoResponse{} }
-func (m *GetFeastInfoResponse) String() string { return proto.CompactTextString(m) }
-func (*GetFeastInfoResponse) ProtoMessage()    {}
-func (*GetFeastInfoResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d9be266444105411, []int{7}
-}
-
-func (m *GetFeastInfoResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetFeastInfoResponse.Unmarshal(m, b)
-}
-func (m *GetFeastInfoResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetFeastInfoResponse.Marshal(b, m, deterministic)
-}
-func (m *GetFeastInfoResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetFeastInfoResponse.Merge(m, src)
-}
-func (m *GetFeastInfoResponse) XXX_Size() int {
-	return xxx_messageInfo_GetFeastInfoResponse.Size(m)
-}
-func (m *GetFeastInfoResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetFeastInfoResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_GetFeastInfoResponse proto.InternalMessageInfo
-
-func (m *GetFeastInfoResponse) GetFeatureSets() []*FeatureSetSpec {
+func (m *ApplyFeatureSetResponse) GetStatus() ApplyFeatureSetResponse_Status {
 	if m != nil {
-		return m.FeatureSets
+		return m.Status
 	}
-	return nil
+	return ApplyFeatureSetResponse_NO_CHANGE
 }
-
-type GetFeastCoreVersionRequest struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *GetFeastCoreVersionRequest) Reset()         { *m = GetFeastCoreVersionRequest{} }
-func (m *GetFeastCoreVersionRequest) String() string { return proto.CompactTextString(m) }
-func (*GetFeastCoreVersionRequest) ProtoMessage()    {}
-func (*GetFeastCoreVersionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d9be266444105411, []int{8}
-}
-
-func (m *GetFeastCoreVersionRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetFeastCoreVersionRequest.Unmarshal(m, b)
-}
-func (m *GetFeastCoreVersionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetFeastCoreVersionRequest.Marshal(b, m, deterministic)
-}
-func (m *GetFeastCoreVersionRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetFeastCoreVersionRequest.Merge(m, src)
-}
-func (m *GetFeastCoreVersionRequest) XXX_Size() int {
-	return xxx_messageInfo_GetFeastCoreVersionRequest.Size(m)
-}
-func (m *GetFeastCoreVersionRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetFeastCoreVersionRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_GetFeastCoreVersionRequest proto.InternalMessageInfo
 
 type GetFeastCoreVersionResponse struct {
 	Version              string   `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
@@ -474,7 +398,7 @@ func (m *GetFeastCoreVersionResponse) Reset()         { *m = GetFeastCoreVersion
 func (m *GetFeastCoreVersionResponse) String() string { return proto.CompactTextString(m) }
 func (*GetFeastCoreVersionResponse) ProtoMessage()    {}
 func (*GetFeastCoreVersionResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d9be266444105411, []int{9}
+	return fileDescriptor_d9be266444105411, []int{6}
 }
 
 func (m *GetFeastCoreVersionResponse) XXX_Unmarshal(b []byte) error {
@@ -512,49 +436,47 @@ func init() {
 	proto.RegisterType((*GetStoresResponse)(nil), "feast.core.GetStoresResponse")
 	proto.RegisterType((*ApplyFeatureSetRequest)(nil), "feast.core.ApplyFeatureSetRequest")
 	proto.RegisterType((*ApplyFeatureSetResponse)(nil), "feast.core.ApplyFeatureSetResponse")
-	proto.RegisterType((*GetFeastInfoRequest)(nil), "feast.core.GetFeastInfoRequest")
-	proto.RegisterType((*GetFeastInfoResponse)(nil), "feast.core.GetFeastInfoResponse")
-	proto.RegisterType((*GetFeastCoreVersionRequest)(nil), "feast.core.GetFeastCoreVersionRequest")
 	proto.RegisterType((*GetFeastCoreVersionResponse)(nil), "feast.core.GetFeastCoreVersionResponse")
 }
 
 func init() { proto.RegisterFile("feast/core/CoreService.proto", fileDescriptor_d9be266444105411) }
 
 var fileDescriptor_d9be266444105411 = []byte{
-	// 514 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x54, 0x5d, 0x6f, 0x12, 0x41,
-	0x14, 0x75, 0x5b, 0x4b, 0xc3, 0x45, 0xeb, 0x32, 0x5a, 0x24, 0x5b, 0x8c, 0x38, 0x26, 0x6d, 0x1f,
-	0xcc, 0xae, 0xa9, 0x31, 0x26, 0xa6, 0x2f, 0x14, 0x29, 0xf5, 0x85, 0xea, 0x82, 0x35, 0xe9, 0x83,
-	0x66, 0x8b, 0x17, 0x44, 0xdb, 0x9d, 0x75, 0x66, 0xa8, 0xf1, 0x0f, 0xf8, 0xd7, 0xfc, 0x5b, 0x66,
-	0x67, 0x07, 0x66, 0x58, 0x3e, 0x7c, 0xb0, 0x6f, 0x30, 0xe7, 0xdc, 0x73, 0xcf, 0xd9, 0x99, 0x7b,
-	0xa1, 0x36, 0xc0, 0x48, 0xc8, 0xa0, 0xcf, 0x38, 0x06, 0x4d, 0xc6, 0xb1, 0x8b, 0xfc, 0x7a, 0xd4,
-	0x47, 0x3f, 0xe1, 0x4c, 0x32, 0x02, 0x0a, 0xf5, 0x53, 0xd4, 0xdb, 0xb1, 0x98, 0xc7, 0x18, 0xc9,
-	0x71, 0x4a, 0x96, 0x19, 0xd1, 0xab, 0x58, 0x60, 0x57, 0x32, 0xae, 0x05, 0xe8, 0x4f, 0xd8, 0x6e,
-	0xa3, 0x34, 0x74, 0x11, 0xe2, 0x8f, 0x31, 0x0a, 0xe9, 0x7d, 0x82, 0xc2, 0xf1, 0xe8, 0x52, 0x22,
-	0x27, 0xbb, 0xb0, 0x35, 0x98, 0xe2, 0x9d, 0xe8, 0x0a, 0xab, 0x4e, 0xdd, 0xd9, 0x2f, 0x86, 0xb9,
-	0x53, 0xf2, 0x0c, 0xca, 0xe6, 0xe4, 0x0c, 0xb9, 0x18, 0xb1, 0xb8, 0xba, 0xa6, 0xa8, 0xf3, 0x00,
-	0x3d, 0x83, 0x4a, 0xbe, 0xb1, 0x48, 0x58, 0x2c, 0x90, 0x1c, 0x42, 0xc9, 0xd0, 0x45, 0xd5, 0xa9,
-	0xaf, 0xef, 0x97, 0x0e, 0x3c, 0xdf, 0x24, 0xf5, 0x4d, 0x55, 0x37, 0xc1, 0x7e, 0x68, 0xd3, 0xe9,
-	0x73, 0x70, 0xdb, 0x28, 0x55, 0xc4, 0x69, 0x96, 0xda, 0x34, 0x0b, 0x81, 0xdb, 0xb1, 0x49, 0xa0,
-	0x7e, 0xd3, 0x43, 0x28, 0x5b, 0x15, 0xda, 0xc4, 0x1e, 0x6c, 0x88, 0xf4, 0x44, 0xb7, 0x2f, 0xdb,
-	0xed, 0x15, 0x35, 0xcc, 0x70, 0xda, 0x83, 0x4a, 0x23, 0x49, 0x2e, 0x7f, 0x19, 0x4f, 0xba, 0x2b,
-	0x79, 0x0d, 0x60, 0x8c, 0xa9, 0x8e, 0xab, 0x63, 0x58, 0x6c, 0xfa, 0xdb, 0x81, 0x87, 0x73, 0xb2,
-	0xda, 0xda, 0xff, 0xe8, 0x06, 0x50, 0xe8, 0xca, 0x48, 0x8e, 0x05, 0xb9, 0x0b, 0xc5, 0xce, 0xe9,
-	0xe7, 0xe6, 0x49, 0xa3, 0xd3, 0x6e, 0xb9, 0xb7, 0x48, 0x09, 0x36, 0x9b, 0x61, 0xab, 0xd1, 0x6b,
-	0xbd, 0x71, 0x1d, 0x52, 0x84, 0x8d, 0x56, 0x18, 0x9e, 0x86, 0xee, 0x1a, 0xdd, 0x86, 0xfb, 0xd9,
-	0x35, 0x09, 0xf9, 0x36, 0x1e, 0x30, 0x9d, 0x8d, 0xf6, 0xe0, 0xc1, 0xec, 0xf1, 0x8d, 0xdc, 0x5d,
-	0x0d, 0xbc, 0x89, 0x6a, 0xfa, 0xd4, 0xf5, 0x53, 0x99, 0xf4, 0x7c, 0x05, 0x3b, 0x0b, 0x51, 0xdd,
-	0xba, 0x0a, 0x9b, 0xd7, 0xfa, 0xd1, 0x65, 0xb7, 0x3b, 0xf9, 0x7b, 0xf0, 0x67, 0x1d, 0x4a, 0xd6,
-	0xe8, 0x90, 0x81, 0xc9, 0x64, 0x09, 0x91, 0x5d, 0xdb, 0xe6, 0x72, 0x1f, 0xde, 0xde, 0x3f, 0x79,
-	0xda, 0xd1, 0x7b, 0xb8, 0x63, 0x7f, 0x24, 0xf2, 0x78, 0x51, 0xa1, 0xf5, 0x55, 0xbd, 0xfa, 0x72,
-	0x82, 0x96, 0xfc, 0x08, 0x5b, 0xb3, 0x53, 0x43, 0x9e, 0xcc, 0xd7, 0xe4, 0x47, 0x99, 0xae, 0xa2,
-	0x68, 0xe1, 0x13, 0x28, 0x4e, 0x87, 0x80, 0xd4, 0x72, 0x05, 0xb3, 0xd3, 0xf4, 0x68, 0x09, 0xaa,
-	0x95, 0xce, 0xe1, 0x5e, 0xee, 0xe5, 0x92, 0x19, 0x03, 0x8b, 0xa7, 0xc5, 0x7b, 0xba, 0x92, 0x93,
-	0x69, 0x1f, 0x7d, 0x00, 0x6b, 0xe1, 0x1d, 0xb9, 0xd6, 0xa5, 0xbe, 0x4b, 0xb7, 0xd9, 0xf9, 0xcb,
-	0xe1, 0x48, 0x7e, 0x1d, 0x5f, 0xf8, 0x7d, 0x76, 0x15, 0x0c, 0xd9, 0x37, 0xfc, 0x1e, 0x64, 0x6b,
-	0x4f, 0xed, 0x3a, 0x11, 0x0c, 0x31, 0x46, 0x1e, 0x49, 0xfc, 0x12, 0x0c, 0x59, 0x60, 0x16, 0xe2,
-	0x45, 0x41, 0xe1, 0x2f, 0xfe, 0x06, 0x00, 0x00, 0xff, 0xff, 0x24, 0x5c, 0x0c, 0xf1, 0x6c, 0x05,
-	0x00, 0x00,
+	// 543 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x54, 0xe1, 0x6e, 0x12, 0x41,
+	0x10, 0xf6, 0xd0, 0xd2, 0x30, 0x44, 0x84, 0x35, 0x22, 0x39, 0x30, 0xa9, 0xd7, 0xc4, 0x12, 0x63,
+	0x6e, 0x13, 0x8c, 0x31, 0xd1, 0xfe, 0x10, 0x90, 0xd2, 0x5f, 0xd4, 0x2c, 0x15, 0x93, 0xfe, 0xd0,
+	0x00, 0x0e, 0x27, 0x0a, 0xec, 0x79, 0xbb, 0x34, 0xe9, 0xa3, 0xf9, 0x0a, 0x3e, 0x87, 0x0f, 0x62,
+	0x6e, 0x77, 0xe1, 0xb6, 0x07, 0x45, 0x93, 0xfe, 0x83, 0xf9, 0xbe, 0xf9, 0x6e, 0xe6, 0x9b, 0x99,
+	0x85, 0xda, 0x04, 0x87, 0x42, 0xd2, 0x31, 0x8f, 0x90, 0xb6, 0x79, 0x84, 0x7d, 0x8c, 0x2e, 0xa7,
+	0x63, 0xf4, 0xc3, 0x88, 0x4b, 0x4e, 0x40, 0xa1, 0x7e, 0x8c, 0xba, 0x55, 0x8b, 0x79, 0x82, 0x43,
+	0xb9, 0x8c, 0xc9, 0x52, 0x13, 0xdd, 0xb2, 0x05, 0xf6, 0x25, 0x8f, 0x8c, 0x80, 0x5b, 0x0d, 0x38,
+	0x0f, 0x66, 0x48, 0xd5, 0xbf, 0xd1, 0x72, 0x42, 0x71, 0x1e, 0xca, 0x2b, 0x0d, 0x7a, 0xbf, 0x1c,
+	0x78, 0xd4, 0x45, 0x99, 0x88, 0x09, 0x86, 0x3f, 0x97, 0x28, 0x24, 0x79, 0x07, 0xd9, 0xc9, 0x74,
+	0x26, 0x31, 0xaa, 0x38, 0x07, 0x4e, 0x3d, 0xdf, 0xa8, 0xfb, 0x49, 0x21, 0xfe, 0xd6, 0x14, 0xff,
+	0x44, 0xf1, 0x99, 0xc9, 0x73, 0x3f, 0x43, 0x56, 0x47, 0xc8, 0x33, 0x28, 0x4c, 0xd6, 0xf4, 0xde,
+	0x70, 0x8e, 0x4a, 0x33, 0xc7, 0x52, 0x51, 0xf2, 0x02, 0x4a, 0x49, 0x64, 0x80, 0x91, 0x98, 0xf2,
+	0x45, 0x25, 0xa3, 0xa8, 0x9b, 0x80, 0x37, 0x80, 0x72, 0xba, 0x0e, 0x11, 0xf2, 0x85, 0x40, 0x72,
+	0x0c, 0xf9, 0x84, 0x2e, 0x2a, 0xce, 0xc1, 0xdd, 0x7a, 0xbe, 0xe1, 0xda, 0x0d, 0x24, 0x59, 0xfd,
+	0x10, 0xc7, 0xcc, 0xa6, 0x7b, 0x73, 0x28, 0x76, 0x51, 0x2a, 0x0b, 0xd7, 0x6e, 0xbc, 0x4d, 0xb9,
+	0x71, 0x98, 0x72, 0xe3, 0x1a, 0x3b, 0x6d, 0x44, 0x6d, 0x6d, 0x04, 0x81, 0x7b, 0x8b, 0xa4, 0x7d,
+	0xf5, 0xdb, 0x3b, 0x86, 0x92, 0x25, 0x60, 0x3a, 0x38, 0x82, 0x3d, 0x11, 0x47, 0x4c, 0xed, 0x25,
+	0xfb, 0x73, 0x8a, 0xca, 0x34, 0xee, 0x9d, 0x43, 0xb9, 0x19, 0x86, 0xb3, 0xab, 0xa4, 0xa1, 0x55,
+	0xc9, 0x6f, 0x00, 0x92, 0xae, 0x4c, 0xd9, 0xbb, 0x3c, 0xb0, 0xd8, 0xde, 0x6f, 0x07, 0x1e, 0x6f,
+	0xc8, 0x9a, 0xd2, 0x6e, 0xa1, 0x4b, 0x5a, 0x90, 0x15, 0x72, 0x28, 0x97, 0x42, 0x4d, 0xb5, 0xd0,
+	0x78, 0x6e, 0xe7, 0xdd, 0xf0, 0x41, 0xbf, 0xaf, 0x32, 0x98, 0xc9, 0xf4, 0x28, 0x64, 0x75, 0x84,
+	0xdc, 0x87, 0x5c, 0xef, 0xec, 0x4b, 0xfb, 0xb4, 0xd9, 0xeb, 0x76, 0x8a, 0x77, 0x48, 0x1e, 0xf6,
+	0xdb, 0xac, 0xd3, 0x3c, 0xef, 0xbc, 0x2f, 0x3a, 0x24, 0x07, 0x7b, 0x1d, 0xc6, 0xce, 0x58, 0x31,
+	0xe3, 0xbd, 0x86, 0xaa, 0xde, 0x13, 0x21, 0xe3, 0xf3, 0x32, 0xeb, 0xb3, 0xee, 0xa7, 0x02, 0xfb,
+	0x97, 0x66, 0xd5, 0xf4, 0x58, 0x56, 0x7f, 0x1b, 0x7f, 0x32, 0x90, 0xb7, 0x0e, 0x92, 0x0c, 0xe0,
+	0xe1, 0x16, 0x21, 0x52, 0xf6, 0xf5, 0x85, 0xf9, 0xab, 0x0b, 0xf3, 0x3b, 0xf1, 0x85, 0xb9, 0x47,
+	0x9b, 0x17, 0xb3, 0xbd, 0x82, 0x4f, 0x50, 0xb8, 0xbe, 0xc8, 0xe4, 0xe9, 0x3f, 0x8f, 0xcd, 0xf5,
+	0x76, 0x51, 0x8c, 0xf0, 0x29, 0xe4, 0xd6, 0xab, 0x45, 0x6a, 0xbb, 0x56, 0xd6, 0x7d, 0x72, 0x03,
+	0x6a, 0x94, 0x2e, 0xe0, 0x41, 0x6a, 0x3c, 0xc4, 0xdb, 0x39, 0x3b, 0xad, 0x7a, 0xf8, 0x1f, 0xf3,
+	0x6d, 0x7d, 0x04, 0xeb, 0x8d, 0x6b, 0x15, 0x2d, 0xc7, 0x3f, 0xc4, 0x86, 0x5e, 0xbc, 0x0a, 0xa6,
+	0xf2, 0xdb, 0x72, 0xe4, 0x8f, 0xf9, 0x9c, 0x06, 0xfc, 0x3b, 0xfe, 0xa0, 0xfa, 0xa5, 0x53, 0x76,
+	0x0b, 0x1a, 0xe0, 0x02, 0xa3, 0xa1, 0xc4, 0xaf, 0x34, 0xe0, 0x34, 0x79, 0x03, 0x47, 0x59, 0x85,
+	0xbf, 0xfc, 0x1b, 0x00, 0x00, 0xff, 0xff, 0xb6, 0x3f, 0x4e, 0x5b, 0x5f, 0x05, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -570,9 +492,7 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type CoreServiceClient interface {
 	// Retrieve version information about this Feast deployment
-	GetFeastCoreVersion(ctx context.Context, in *GetFeastCoreVersionRequest, opts ...grpc.CallOption) (*GetFeastCoreVersionResponse, error)
-	// Retrieve general information for about this Feast deployment
-	GetFeastInfo(ctx context.Context, in *GetFeastInfoRequest, opts ...grpc.CallOption) (*GetFeastInfoResponse, error)
+	GetFeastCoreVersion(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GetFeastCoreVersionResponse, error)
 	// Retrieve feature set details given a filter.
 	// Returns all featureSets matching that filter.
 	GetFeatureSets(ctx context.Context, in *GetFeatureSetsRequest, opts ...grpc.CallOption) (*GetFeatureSetsResponse, error)
@@ -591,18 +511,9 @@ func NewCoreServiceClient(cc *grpc.ClientConn) CoreServiceClient {
 	return &coreServiceClient{cc}
 }
 
-func (c *coreServiceClient) GetFeastCoreVersion(ctx context.Context, in *GetFeastCoreVersionRequest, opts ...grpc.CallOption) (*GetFeastCoreVersionResponse, error) {
+func (c *coreServiceClient) GetFeastCoreVersion(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GetFeastCoreVersionResponse, error) {
 	out := new(GetFeastCoreVersionResponse)
 	err := c.cc.Invoke(ctx, "/feast.core.CoreService/GetFeastCoreVersion", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *coreServiceClient) GetFeastInfo(ctx context.Context, in *GetFeastInfoRequest, opts ...grpc.CallOption) (*GetFeastInfoResponse, error) {
-	out := new(GetFeastInfoResponse)
-	err := c.cc.Invoke(ctx, "/feast.core.CoreService/GetFeastInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -639,9 +550,7 @@ func (c *coreServiceClient) ApplyFeatureSet(ctx context.Context, in *ApplyFeatur
 // CoreServiceServer is the server API for CoreService service.
 type CoreServiceServer interface {
 	// Retrieve version information about this Feast deployment
-	GetFeastCoreVersion(context.Context, *GetFeastCoreVersionRequest) (*GetFeastCoreVersionResponse, error)
-	// Retrieve general information for about this Feast deployment
-	GetFeastInfo(context.Context, *GetFeastInfoRequest) (*GetFeastInfoResponse, error)
+	GetFeastCoreVersion(context.Context, *empty.Empty) (*GetFeastCoreVersionResponse, error)
 	// Retrieve feature set details given a filter.
 	// Returns all featureSets matching that filter.
 	GetFeatureSets(context.Context, *GetFeatureSetsRequest) (*GetFeatureSetsResponse, error)
@@ -656,11 +565,8 @@ type CoreServiceServer interface {
 type UnimplementedCoreServiceServer struct {
 }
 
-func (*UnimplementedCoreServiceServer) GetFeastCoreVersion(ctx context.Context, req *GetFeastCoreVersionRequest) (*GetFeastCoreVersionResponse, error) {
+func (*UnimplementedCoreServiceServer) GetFeastCoreVersion(ctx context.Context, req *empty.Empty) (*GetFeastCoreVersionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFeastCoreVersion not implemented")
-}
-func (*UnimplementedCoreServiceServer) GetFeastInfo(ctx context.Context, req *GetFeastInfoRequest) (*GetFeastInfoResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetFeastInfo not implemented")
 }
 func (*UnimplementedCoreServiceServer) GetFeatureSets(ctx context.Context, req *GetFeatureSetsRequest) (*GetFeatureSetsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFeatureSets not implemented")
@@ -677,7 +583,7 @@ func RegisterCoreServiceServer(s *grpc.Server, srv CoreServiceServer) {
 }
 
 func _CoreService_GetFeastCoreVersion_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetFeastCoreVersionRequest)
+	in := new(empty.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -689,25 +595,7 @@ func _CoreService_GetFeastCoreVersion_Handler(srv interface{}, ctx context.Conte
 		FullMethod: "/feast.core.CoreService/GetFeastCoreVersion",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CoreServiceServer).GetFeastCoreVersion(ctx, req.(*GetFeastCoreVersionRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _CoreService_GetFeastInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetFeastInfoRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(CoreServiceServer).GetFeastInfo(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/feast.core.CoreService/GetFeastInfo",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CoreServiceServer).GetFeastInfo(ctx, req.(*GetFeastInfoRequest))
+		return srv.(CoreServiceServer).GetFeastCoreVersion(ctx, req.(*empty.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -773,10 +661,6 @@ var _CoreService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetFeastCoreVersion",
 			Handler:    _CoreService_GetFeastCoreVersion_Handler,
-		},
-		{
-			MethodName: "GetFeastInfo",
-			Handler:    _CoreService_GetFeastInfo_Handler,
 		},
 		{
 			MethodName: "GetFeatureSets",
