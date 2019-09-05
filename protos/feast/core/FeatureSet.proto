@@ -42,7 +42,7 @@ message FeatureSetSpec {
     // List of features contained within this featureSet.
     repeated FeatureSpec features = 4;
 
-    // Features in this feature set will only be retrieved if they are found after [retrievalTime - maxAge]
+    // Features in this feature set will only be retrieved if they are found after [time - maxAge]
     // Missing or older feature values will be returned as nulls and indicated to end user
     google.protobuf.Duration maxAge = 5;
 
