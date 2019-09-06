@@ -14,12 +14,14 @@
 
 from feast.value_type import ValueType
 from feast.core.FeatureSet_pb2 import FeatureSpec as FeatureProto
-from feast.types import Value_pb2 as ValueProto
+from feast.types import Value_pb2 as ValueTypeProto
 
 
 class Feature:
     def __init__(self, name: str, dtype: ValueType):
         self._name = name
+        if not isinstance(dtype, ValueType):
+            raise ValueError("dtype is not a valid ValueType")
         self._dtype = dtype
 
     @property
@@ -31,9 +33,8 @@ class Feature:
         return self._dtype
 
     def to_proto(self) -> FeatureProto:
-        return FeatureProto(
-            name=self.name, valueType=ValueProto.ValueType.Enum.Value(self._dtype.name)
-        )
+        value_type = ValueTypeProto.ValueType.Enum.Value(self.dtype.name)
+        return FeatureProto(name=self.name, valueType=value_type)
 
     @classmethod
     def from_proto(cls, feature_proto: FeatureProto):

@@ -14,6 +14,7 @@
 
 from feast.value_type import ValueType
 from feast.core.FeatureSet_pb2 import EntitySpec as EntityProto
+from feast.types import Value_pb2 as ValueTypeProto
 
 
 class Entity:
@@ -29,8 +30,9 @@ class Entity:
     def dtype(self):
         return self._dtype
 
-    def to_proto(self):
-        pass
+    def to_proto(self) -> EntityProto:
+        value_type = ValueTypeProto.ValueType.Enum.Value(self.dtype.name)
+        return EntityProto(name=self.name, valueType=value_type)
 
     @classmethod
     def from_proto(cls, entity_proto: EntityProto):

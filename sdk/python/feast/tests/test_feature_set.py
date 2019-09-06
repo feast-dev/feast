@@ -11,24 +11,41 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from datetime import datetime
 
-
+import pytz
+from unittest.mock import MagicMock
 from feast.feature_set import FeatureSet, Feature
 from feast.value_type import ValueType
 from feast.client import Client
 import pandas as pd
 import pytest
 from concurrent import futures
-import time
 import grpc
 from feast.tests.feast_core_server import CoreServicer
 import feast.core.CoreService_pb2_grpc as Core
+from feast.entity import Entity
+from feast.source import KafkaSource
+from feast.tests import dataframes
 
 CORE_URL = "core.feast.ai"
 SERVING_URL = "serving.feast.ai"
 
 
 class TestFeatureSet:
+    @pytest.fixture(scope="module")
+    def server(self):
+        server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
+        server.add_insecure_port("[::]:50051")
+        server.start()
+        yield server
+        server.stop(0)
+
+    @pytest.fixture
+    def client(self, server):
+        return Client(core_url="localhost:50051")
+
     def test_add_remove_features_success(self):
         fs = FeatureSet("my-feature-set")
         fs.add(Feature(name="my-feature-1", dtype=ValueType.INT64))
@@ -41,12 +58,29 @@ class TestFeatureSet:
             fs = FeatureSet("my-feature-set")
             fs.drop(name="my-feature-1")
 
-    def test_update_from_source_success(self):
-        df = pd.read_csv("tests/data/driver_features.csv", index_col=None)
-        df["datetime"] = pd.to_datetime(df["datetime"], unit="s")
+    @pytest.mark.parametrize(
+        "dataframe",
+        [
+            pd.DataFrame(
+                {
+                    "datetime": [
+                        datetime.utcnow().replace(tzinfo=pytz.utc) for _ in range(3)
+                    ],
+                    "entity_id": [1001, 1002, 1004],
+                    "feature_1": [0.2, 0.4, 0.5],
+                    "feature_2": [0.3, 0.3, 0.34],
+                    "feature_3": [1, 2, 5],
+                }
+            )
+        ],
+    )
+    def test_update_from_source_success(self, dataframe):
         fs = FeatureSet("driver-feature-set")
-        fs.update_from_dataset(df)
-        assert len(fs.features) == 5 and fs.features[1].name == "completed"
+        fs.update_from_dataset(
+            dataframe,
+            column_mapping={"entity_id": Entity(name="entity", dtype=ValueType.INT64)},
+        )
+        assert len(fs.features) == 3 and fs.features[1].name == "feature_2"
 
     def test_update_from_source_failure(self):
         with pytest.raises(Exception):
@@ -54,15 +88,7 @@ class TestFeatureSet:
             fs = FeatureSet("driver-feature-set")
             fs.update_from_dataset(df)
 
-    def test_apply_feature_set(self):
-        # Start Feast Core
-        server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
-        server.add_insecure_port("[::]:50051")
-        server.start()
-
-        # Connect to Feast Core
-        client = Client(core_url="localhost:50051")
+    def test_apply_feature_set(self, client):
 
         # Create Feature Sets
         fs1 = FeatureSet("my-feature-set-1")
@@ -86,5 +112,62 @@ class TestFeatureSet:
             and client.feature_sets[1].features[1].dtype == ValueType.BYTES_LIST
         )
 
-        # Stop server
-        server.stop(0)
+    @pytest.mark.parametrize("dataframe", [dataframes.GOOD])
+    def test_feature_set_ingest_success(self, dataframe, client):
+
+        # Create feature set and update based on dataframe
+        driver_fs = FeatureSet("driver-feature-set")
+        driver_fs.update_from_dataset(
+            dataframe,
+            column_mapping={"entity_id": Entity(name="entity", dtype=ValueType.INT64)},
+        )
+        driver_fs.source = KafkaSource(
+            topics="feature-topic", brokers="fake.broker.com"
+        )
+        driver_fs._message_producer = MagicMock()
+        driver_fs._message_producer.send = MagicMock()
+
+        # Register with Feast core
+        client.apply(driver_fs)
+
+        # Ingest data into Feast
+        driver_fs.ingest(dataframe=dataframe)
+
+        # Make sure message producer is called
+        driver_fs._message_producer.send.assert_called()
+
+    @pytest.mark.parametrize(
+        "dataframe,exception",
+        [
+            (dataframes.BAD_NO_DATETIME, Exception),
+            (dataframes.BAD_INCORRECT_DATETIME_TYPE, Exception),
+            (dataframes.BAD_NO_ENTITY, Exception),
+            (dataframes.BAD_NO_FEATURES, Exception),
+        ],
+    )
+    def test_feature_set_ingest_failure(self, client, dataframe, exception):
+        with pytest.raises(exception):
+            # Create feature set
+            driver_fs = FeatureSet("driver-feature-set")
+            driver_fs.source = KafkaSource(
+                topics="feature-topic", brokers="fake.broker.com"
+            )
+            driver_fs._message_producer = MagicMock()
+            driver_fs._message_producer.send = MagicMock()
+
+            # Update based on dataset
+            driver_fs.update_from_dataset(
+                dataframe,
+                column_mapping={
+                    "entity_id": Entity(name="entity", dtype=ValueType.INT64)
+                },
+            )
+
+            # Register with Feast core
+            client.apply(driver_fs)
+
+            # Ingest data into Feast
+            driver_fs.ingest(dataframe=dataframe)
+
+            # Make sure message producer is called
+            driver_fs._message_producer.send.assert_called()

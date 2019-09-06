@@ -13,6 +13,8 @@
 # limitations under the License.
 
 import numpy as np
+import pandas as pd
+
 from feast.value_type import ValueType
 from feast.types.Value_pb2 import ValueType as ProtoValueType
 
@@ -79,7 +81,7 @@ def dtype_to_value_type(dtype):
 
 
 # TODO: to pass test_importer
-def dtype_to_feast_value_type(dtype):
+def dtype_to_feast_value_type(dtype: pd.DataFrame.dtypes) -> ValueType:
     type_map = {
         "float64": ValueType.FLOAT,
         "float32": ValueType.FLOAT,
