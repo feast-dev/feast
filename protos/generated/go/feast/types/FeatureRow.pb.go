@@ -22,7 +22,7 @@ var _ = math.Inf
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type FeatureRow struct {
-	// Features in the feature row.
+	// Fields in the feature row.
 	Fields []*Field `protobuf:"bytes,2,rep,name=fields,proto3" json:"fields,omitempty"`
 	// Timestamp of the feature row. While the actual definition of this timestamp may vary
 	// depending on the upstream feature creation pipelines, this is the timestamp that Feast

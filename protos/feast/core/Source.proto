@@ -29,7 +29,7 @@ message Source {
 
     // Source specific configuration
     oneof source_config {
-        KafkaSource = 2;
+        KafkaSource kafka_source = 2;
     }
 }
 

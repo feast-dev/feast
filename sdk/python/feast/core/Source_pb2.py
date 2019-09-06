@@ -4,6 +4,7 @@
 
 import sys
 _b=sys.version_info[0]<3 and (lambda x:x) or (lambda x:x.encode('latin1'))
+from google.protobuf.internal import enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
@@ -20,14 +21,12 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.core',
   syntax='proto3',
   serialized_options=_b('\n\nfeast.coreB\013SourceProtoZ5github.com/gojek/feast/protos/generated/go/feast/core'),
-  serialized_pb=_b('\n\x17\x66\x65\x61st/core/Source.proto\x12\nfeast.core\"\xbd\x01\n\x06Source\x12+\n\x04type\x18\x01 \x01(\x0e\x32\x1d.feast.core.Source.SourceType\x12\x30\n\x07options\x18\x02 \x03(\x0b\x32\x1f.feast.core.Source.OptionsEntry\x1a.\n\x0cOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"$\n\nSourceType\x12\x0b\n\x07INVALID\x10\x00\x12\t\n\x05KAFKA\x10\x01\x42P\n\nfeast.coreB\x0bSourceProtoZ5github.com/gojek/feast/protos/generated/go/feast/coreb\x06proto3')
+  serialized_pb=_b('\n\x17\x66\x65\x61st/core/Source.proto\x12\nfeast.core\"p\n\x06Source\x12$\n\x04type\x18\x01 \x01(\x0e\x32\x16.feast.core.SourceType\x12/\n\x0ckafka_source\x18\x02 \x01(\x0b\x32\x17.feast.core.KafkaSourceH\x00\x42\x0f\n\rsource_config\"8\n\x0bKafkaSource\x12\x19\n\x11\x62ootstrap_servers\x18\x01 \x01(\t\x12\x0e\n\x06topics\x18\x02 \x01(\t*$\n\nSourceType\x12\x0b\n\x07INVALID\x10\x00\x12\t\n\x05KAFKA\x10\x01\x42P\n\nfeast.coreB\x0bSourceProtoZ5github.com/gojek/feast/protos/generated/go/feast/coreb\x06proto3')
 )
 
-
-
-_SOURCE_SOURCETYPE = _descriptor.EnumDescriptor(
+_SOURCETYPE = _descriptor.EnumDescriptor(
   name='SourceType',
-  full_name='feast.core.Source.SourceType',
+  full_name='feast.core.SourceType',
   filename=None,
   file=DESCRIPTOR,
   values=[
@@ -42,48 +41,16 @@ _SOURCE_SOURCETYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=193,
-  serialized_end=229,
+  serialized_start=211,
+  serialized_end=247,
 )
-_sym_db.RegisterEnumDescriptor(_SOURCE_SOURCETYPE)
+_sym_db.RegisterEnumDescriptor(_SOURCETYPE)
+
+SourceType = enum_type_wrapper.EnumTypeWrapper(_SOURCETYPE)
+INVALID = 0
+KAFKA = 1
 
 
-_SOURCE_OPTIONSENTRY = _descriptor.Descriptor(
-  name='OptionsEntry',
-  full_name='feast.core.Source.OptionsEntry',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='key', full_name='feast.core.Source.OptionsEntry.key', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='value', full_name='feast.core.Source.OptionsEntry.value', index=1,
-      number=2, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=_b('8\001'),
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=145,
-  serialized_end=191,
-)
 
 _SOURCE = _descriptor.Descriptor(
   name='Source',
@@ -100,18 +67,58 @@ _SOURCE = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='options', full_name='feast.core.Source.options', index=1,
-      number=2, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
+      name='kafka_source', full_name='feast.core.Source.kafka_source', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
-  nested_types=[_SOURCE_OPTIONSENTRY, ],
+  nested_types=[],
   enum_types=[
-    _SOURCE_SOURCETYPE,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+    _descriptor.OneofDescriptor(
+      name='source_config', full_name='feast.core.Source.source_config',
+      index=0, containing_type=None, fields=[]),
+  ],
+  serialized_start=39,
+  serialized_end=151,
+)
+
+
+_KAFKASOURCE = _descriptor.Descriptor(
+  name='KafkaSource',
+  full_name='feast.core.KafkaSource',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='bootstrap_servers', full_name='feast.core.KafkaSource.bootstrap_servers', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='topics', full_name='feast.core.KafkaSource.topics', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
   ],
   serialized_options=None,
   is_extendable=False,
@@ -119,33 +126,34 @@ _SOURCE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=40,
-  serialized_end=229,
+  serialized_start=153,
+  serialized_end=209,
 )
 
-_SOURCE_OPTIONSENTRY.containing_type = _SOURCE
-_SOURCE.fields_by_name['type'].enum_type = _SOURCE_SOURCETYPE
-_SOURCE.fields_by_name['options'].message_type = _SOURCE_OPTIONSENTRY
-_SOURCE_SOURCETYPE.containing_type = _SOURCE
+_SOURCE.fields_by_name['type'].enum_type = _SOURCETYPE
+_SOURCE.fields_by_name['kafka_source'].message_type = _KAFKASOURCE
+_SOURCE.oneofs_by_name['source_config'].fields.append(
+  _SOURCE.fields_by_name['kafka_source'])
+_SOURCE.fields_by_name['kafka_source'].containing_oneof = _SOURCE.oneofs_by_name['source_config']
 DESCRIPTOR.message_types_by_name['Source'] = _SOURCE
+DESCRIPTOR.message_types_by_name['KafkaSource'] = _KAFKASOURCE
+DESCRIPTOR.enum_types_by_name['SourceType'] = _SOURCETYPE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 Source = _reflection.GeneratedProtocolMessageType('Source', (_message.Message,), {
-
-  'OptionsEntry' : _reflection.GeneratedProtocolMessageType('OptionsEntry', (_message.Message,), {
-    'DESCRIPTOR' : _SOURCE_OPTIONSENTRY,
-    '__module__' : 'feast.core.Source_pb2'
-    # @@protoc_insertion_point(class_scope:feast.core.Source.OptionsEntry)
-    })
-  ,
   'DESCRIPTOR' : _SOURCE,
   '__module__' : 'feast.core.Source_pb2'
   # @@protoc_insertion_point(class_scope:feast.core.Source)
   })
 _sym_db.RegisterMessage(Source)
-_sym_db.RegisterMessage(Source.OptionsEntry)
+
+KafkaSource = _reflection.GeneratedProtocolMessageType('KafkaSource', (_message.Message,), {
+  'DESCRIPTOR' : _KAFKASOURCE,
+  '__module__' : 'feast.core.Source_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.KafkaSource)
+  })
+_sym_db.RegisterMessage(KafkaSource)
 
 
 DESCRIPTOR._options = None
-_SOURCE_OPTIONSENTRY._options = None
 # @@protoc_insertion_point(module_scope)
