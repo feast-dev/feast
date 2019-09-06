@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.core',
   syntax='proto3',
   serialized_options=_b('\n\nfeast.coreB\013SourceProtoZ5github.com/gojek/feast/protos/generated/go/feast/core'),
-  serialized_pb=_b('\n\x17\x66\x65\x61st/core/Source.proto\x12\nfeast.core\"\xb0\x01\n\x06Source\x12+\n\x04type\x18\x01 \x01(\x0e\x32\x1d.feast.core.Source.SourceType\x12\x30\n\x07options\x18\x02 \x03(\x0b\x32\x1f.feast.core.Source.OptionsEntry\x1a.\n\x0cOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"\x17\n\nSourceType\x12\t\n\x05KAFKA\x10\x00\x42P\n\nfeast.coreB\x0bSourceProtoZ5github.com/gojek/feast/protos/generated/go/feast/coreb\x06proto3')
+  serialized_pb=_b('\n\x17\x66\x65\x61st/core/Source.proto\x12\nfeast.core\"\xbd\x01\n\x06Source\x12+\n\x04type\x18\x01 \x01(\x0e\x32\x1d.feast.core.Source.SourceType\x12\x30\n\x07options\x18\x02 \x03(\x0b\x32\x1f.feast.core.Source.OptionsEntry\x1a.\n\x0cOptionsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\"$\n\nSourceType\x12\x0b\n\x07INVALID\x10\x00\x12\t\n\x05KAFKA\x10\x01\x42P\n\nfeast.coreB\x0bSourceProtoZ5github.com/gojek/feast/protos/generated/go/feast/coreb\x06proto3')
 )
 
 
@@ -32,14 +32,18 @@ _SOURCE_SOURCETYPE = _descriptor.EnumDescriptor(
   file=DESCRIPTOR,
   values=[
     _descriptor.EnumValueDescriptor(
-      name='KAFKA', index=0, number=0,
+      name='INVALID', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='KAFKA', index=1, number=1,
       serialized_options=None,
       type=None),
   ],
   containing_type=None,
   serialized_options=None,
   serialized_start=193,
-  serialized_end=216,
+  serialized_end=229,
 )
 _sym_db.RegisterEnumDescriptor(_SOURCE_SOURCETYPE)
 
@@ -116,7 +120,7 @@ _SOURCE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=40,
-  serialized_end=216,
+  serialized_end=229,
 )
 
 _SOURCE_OPTIONSENTRY.containing_type = _SOURCE

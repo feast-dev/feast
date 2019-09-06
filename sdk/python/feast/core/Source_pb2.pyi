@@ -38,8 +38,10 @@ class Source(google___protobuf___message___Message):
         def values(cls) -> typing___List[Source.SourceType]: ...
         @classmethod
         def items(cls) -> typing___List[typing___Tuple[str, Source.SourceType]]: ...
-        KAFKA = typing___cast(Source.SourceType, 0)
-    KAFKA = typing___cast(Source.SourceType, 0)
+        INVALID = typing___cast(Source.SourceType, 0)
+        KAFKA = typing___cast(Source.SourceType, 1)
+    INVALID = typing___cast(Source.SourceType, 0)
+    KAFKA = typing___cast(Source.SourceType, 1)
 
     class OptionsEntry(google___protobuf___message___Message):
         DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...

@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
-from feast.types import Feature_pb2 as feast_dot_types_dot_Feature__pb2
+from feast.types import Field_pb2 as feast_dot_types_dot_Field__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(
@@ -22,31 +22,38 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.types',
   syntax='proto3',
   serialized_options=_b('\n\013feast.typesB\017FeatureRowProtoZ6github.com/gojek/feast/protos/generated/go/feast/types'),
-  serialized_pb=_b('\n\x1c\x66\x65\x61st/types/FeatureRow.proto\x12\x0b\x66\x65\x61st.types\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19\x66\x65\x61st/types/Feature.proto\"\xcd\x01\n\nFeatureRow\x12&\n\x08\x66\x65\x61tures\x18\x02 \x03(\x0b\x32\x14.feast.types.Feature\x12\x32\n\x0e\x65ventTimestamp\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x36\n\nfeatureSet\x18\x04 \x01(\x0b\x32\".feast.types.FeatureRow.FeatureSet\x1a+\n\nFeatureSet\x12\x0c\n\x04name\x18\x05 \x01(\t\x12\x0f\n\x07version\x18\x06 \x01(\x05\x42V\n\x0b\x66\x65\x61st.typesB\x0f\x46\x65\x61tureRowProtoZ6github.com/gojek/feast/protos/generated/go/feast/typesb\x06proto3')
+  serialized_pb=_b('\n\x1c\x66\x65\x61st/types/FeatureRow.proto\x12\x0b\x66\x65\x61st.types\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17\x66\x65\x61st/types/Field.proto\"x\n\nFeatureRow\x12\"\n\x06\x66ields\x18\x02 \x03(\x0b\x32\x12.feast.types.Field\x12\x32\n\x0e\x65ventTimestamp\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x12\n\nfeatureSet\x18\x06 \x01(\tBV\n\x0b\x66\x65\x61st.typesB\x0f\x46\x65\x61tureRowProtoZ6github.com/gojek/feast/protos/generated/go/feast/typesb\x06proto3')
   ,
-  dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,feast_dot_types_dot_Feature__pb2.DESCRIPTOR,])
+  dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,feast_dot_types_dot_Field__pb2.DESCRIPTOR,])
 
 
 
 
-_FEATUREROW_FEATURESET = _descriptor.Descriptor(
-  name='FeatureSet',
-  full_name='feast.types.FeatureRow.FeatureSet',
+_FEATUREROW = _descriptor.Descriptor(
+  name='FeatureRow',
+  full_name='feast.types.FeatureRow',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='name', full_name='feast.types.FeatureRow.FeatureSet.name', index=0,
-      number=5, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      name='fields', full_name='feast.types.FeatureRow.fields', index=0,
+      number=2, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='version', full_name='feast.types.FeatureRow.FeatureSet.version', index=1,
-      number=6, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
+      name='eventTimestamp', full_name='feast.types.FeatureRow.eventTimestamp', index=1,
+      number=3, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='featureSet', full_name='feast.types.FeatureRow.featureSet', index=2,
+      number=6, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -62,75 +69,21 @@ _FEATUREROW_FEATURESET = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=268,
-  serialized_end=311,
+  serialized_start=103,
+  serialized_end=223,
 )
 
-_FEATUREROW = _descriptor.Descriptor(
-  name='FeatureRow',
-  full_name='feast.types.FeatureRow',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='features', full_name='feast.types.FeatureRow.features', index=0,
-      number=2, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='eventTimestamp', full_name='feast.types.FeatureRow.eventTimestamp', index=1,
-      number=3, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='featureSet', full_name='feast.types.FeatureRow.featureSet', index=2,
-      number=4, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[_FEATUREROW_FEATURESET, ],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=106,
-  serialized_end=311,
-)
-
-_FEATUREROW_FEATURESET.containing_type = _FEATUREROW
-_FEATUREROW.fields_by_name['features'].message_type = feast_dot_types_dot_Feature__pb2._FEATURE
+_FEATUREROW.fields_by_name['fields'].message_type = feast_dot_types_dot_Field__pb2._FIELD
 _FEATUREROW.fields_by_name['eventTimestamp'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
-_FEATUREROW.fields_by_name['featureSet'].message_type = _FEATUREROW_FEATURESET
 DESCRIPTOR.message_types_by_name['FeatureRow'] = _FEATUREROW
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 FeatureRow = _reflection.GeneratedProtocolMessageType('FeatureRow', (_message.Message,), {
-
-  'FeatureSet' : _reflection.GeneratedProtocolMessageType('FeatureSet', (_message.Message,), {
-    'DESCRIPTOR' : _FEATUREROW_FEATURESET,
-    '__module__' : 'feast.types.FeatureRow_pb2'
-    # @@protoc_insertion_point(class_scope:feast.types.FeatureRow.FeatureSet)
-    })
-  ,
   'DESCRIPTOR' : _FEATUREROW,
   '__module__' : 'feast.types.FeatureRow_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.FeatureRow)
   })
 _sym_db.RegisterMessage(FeatureRow)
-_sym_db.RegisterMessage(FeatureRow.FeatureSet)
 
 
 DESCRIPTOR._options = None

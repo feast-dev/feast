@@ -17,7 +17,7 @@
 syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
-import "feast/types/Feature.proto";
+import "feast/types/Field.proto";
 
 package feast.types;
 
@@ -27,8 +27,8 @@ option go_package = "github.com/gojek/feast/protos/generated/go/feast/types";
 
 message FeatureRow {
 
-    // Features in the feature row.
-    repeated Feature features = 2;
+    // Fields in the feature row.
+    repeated Field fields = 2;
 
     // Timestamp of the feature row. While the actual definition of this timestamp may vary
     // depending on the upstream feature creation pipelines, this is the timestamp that Feast
