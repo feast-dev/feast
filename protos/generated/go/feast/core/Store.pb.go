@@ -23,21 +23,21 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 type Store_StoreType int32
 
 const (
-	Store_UNKNOWN   Store_StoreType = 0
+	Store_INVALID   Store_StoreType = 0
 	Store_REDIS     Store_StoreType = 1
 	Store_BIGQUERY  Store_StoreType = 2
 	Store_CASSANDRA Store_StoreType = 3
 )
 
 var Store_StoreType_name = map[int32]string{
-	0: "UNKNOWN",
+	0: "INVALID",
 	1: "REDIS",
 	2: "BIGQUERY",
 	3: "CASSANDRA",
 }
 
 var Store_StoreType_value = map[string]int32{
-	"UNKNOWN":   0,
+	"INVALID":   0,
 	"REDIS":     1,
 	"BIGQUERY":  2,
 	"CASSANDRA": 3,
@@ -56,19 +56,18 @@ type Store struct {
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Type of store.
 	Type Store_StoreType `protobuf:"varint,2,opt,name=type,proto3,enum=feast.core.Store_StoreType" json:"type,omitempty"`
-	// URI to connect to the database. Should contain all necessary information
-	// to connect to and write/read to the store.
-	DatabaseURI string `protobuf:"bytes,3,opt,name=databaseURI,proto3" json:"databaseURI,omitempty"`
-	// Feature sets to subscribe to. Regex strings are allowed, in the form of
-	// featureSetId:version.
-	// Valid options for version:
-	//     latest: only subscribe to latest version of feature set
-	//     [version number]: pin to a specific version
-	//     [version number]^: subscribe to all versions larger than or equal to [version number]
-	Subscriptions        []string `protobuf:"bytes,4,rep,name=subscriptions,proto3" json:"subscriptions,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	// Feature sets to subscribe to.
+	Subscriptions []*Store_Subscription `protobuf:"bytes,4,rep,name=subscriptions,proto3" json:"subscriptions,omitempty"`
+	// Configuration to connect to the store. Required.
+	//
+	// Types that are valid to be assigned to Config:
+	//	*Store_RedisConfig_
+	//	*Store_BigqueryConfig
+	//	*Store_CassandraConfig_
+	Config               isStore_Config `protobuf_oneof:"config"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
 }
 
 func (m *Store) Reset()         { *m = Store{} }
@@ -107,47 +106,308 @@ func (m *Store) GetType() Store_StoreType {
 	if m != nil {
 		return m.Type
 	}
-	return Store_UNKNOWN
+	return Store_INVALID
 }
 
-func (m *Store) GetDatabaseURI() string {
-	if m != nil {
-		return m.DatabaseURI
-	}
-	return ""
-}
-
-func (m *Store) GetSubscriptions() []string {
+func (m *Store) GetSubscriptions() []*Store_Subscription {
 	if m != nil {
 		return m.Subscriptions
 	}
 	return nil
 }
 
+type isStore_Config interface {
+	isStore_Config()
+}
+
+type Store_RedisConfig_ struct {
+	RedisConfig *Store_RedisConfig `protobuf:"bytes,11,opt,name=redisConfig,proto3,oneof"`
+}
+
+type Store_BigqueryConfig struct {
+	BigqueryConfig *Store_BigQueryConfig `protobuf:"bytes,12,opt,name=bigqueryConfig,proto3,oneof"`
+}
+
+type Store_CassandraConfig_ struct {
+	CassandraConfig *Store_CassandraConfig `protobuf:"bytes,13,opt,name=cassandraConfig,proto3,oneof"`
+}
+
+func (*Store_RedisConfig_) isStore_Config() {}
+
+func (*Store_BigqueryConfig) isStore_Config() {}
+
+func (*Store_CassandraConfig_) isStore_Config() {}
+
+func (m *Store) GetConfig() isStore_Config {
+	if m != nil {
+		return m.Config
+	}
+	return nil
+}
+
+func (m *Store) GetRedisConfig() *Store_RedisConfig {
+	if x, ok := m.GetConfig().(*Store_RedisConfig_); ok {
+		return x.RedisConfig
+	}
+	return nil
+}
+
+func (m *Store) GetBigqueryConfig() *Store_BigQueryConfig {
+	if x, ok := m.GetConfig().(*Store_BigqueryConfig); ok {
+		return x.BigqueryConfig
+	}
+	return nil
+}
+
+func (m *Store) GetCassandraConfig() *Store_CassandraConfig {
+	if x, ok := m.GetConfig().(*Store_CassandraConfig_); ok {
+		return x.CassandraConfig
+	}
+	return nil
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*Store) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*Store_RedisConfig_)(nil),
+		(*Store_BigqueryConfig)(nil),
+		(*Store_CassandraConfig_)(nil),
+	}
+}
+
+type Store_RedisConfig struct {
+	Host                 string   `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
+	Port                 int32    `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Store_RedisConfig) Reset()         { *m = Store_RedisConfig{} }
+func (m *Store_RedisConfig) String() string { return proto.CompactTextString(m) }
+func (*Store_RedisConfig) ProtoMessage()    {}
+func (*Store_RedisConfig) Descriptor() ([]byte, []int) {
+	return fileDescriptor_4b177bc9ccf64875, []int{0, 0}
+}
+
+func (m *Store_RedisConfig) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Store_RedisConfig.Unmarshal(m, b)
+}
+func (m *Store_RedisConfig) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Store_RedisConfig.Marshal(b, m, deterministic)
+}
+func (m *Store_RedisConfig) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Store_RedisConfig.Merge(m, src)
+}
+func (m *Store_RedisConfig) XXX_Size() int {
+	return xxx_messageInfo_Store_RedisConfig.Size(m)
+}
+func (m *Store_RedisConfig) XXX_DiscardUnknown() {
+	xxx_messageInfo_Store_RedisConfig.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Store_RedisConfig proto.InternalMessageInfo
+
+func (m *Store_RedisConfig) GetHost() string {
+	if m != nil {
+		return m.Host
+	}
+	return ""
+}
+
+func (m *Store_RedisConfig) GetPort() int32 {
+	if m != nil {
+		return m.Port
+	}
+	return 0
+}
+
+type Store_BigQueryConfig struct {
+	ProjectId            string   `protobuf:"bytes,1,opt,name=projectId,proto3" json:"projectId,omitempty"`
+	DatasetId            string   `protobuf:"bytes,2,opt,name=datasetId,proto3" json:"datasetId,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Store_BigQueryConfig) Reset()         { *m = Store_BigQueryConfig{} }
+func (m *Store_BigQueryConfig) String() string { return proto.CompactTextString(m) }
+func (*Store_BigQueryConfig) ProtoMessage()    {}
+func (*Store_BigQueryConfig) Descriptor() ([]byte, []int) {
+	return fileDescriptor_4b177bc9ccf64875, []int{0, 1}
+}
+
+func (m *Store_BigQueryConfig) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Store_BigQueryConfig.Unmarshal(m, b)
+}
+func (m *Store_BigQueryConfig) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Store_BigQueryConfig.Marshal(b, m, deterministic)
+}
+func (m *Store_BigQueryConfig) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Store_BigQueryConfig.Merge(m, src)
+}
+func (m *Store_BigQueryConfig) XXX_Size() int {
+	return xxx_messageInfo_Store_BigQueryConfig.Size(m)
+}
+func (m *Store_BigQueryConfig) XXX_DiscardUnknown() {
+	xxx_messageInfo_Store_BigQueryConfig.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Store_BigQueryConfig proto.InternalMessageInfo
+
+func (m *Store_BigQueryConfig) GetProjectId() string {
+	if m != nil {
+		return m.ProjectId
+	}
+	return ""
+}
+
+func (m *Store_BigQueryConfig) GetDatasetId() string {
+	if m != nil {
+		return m.DatasetId
+	}
+	return ""
+}
+
+type Store_CassandraConfig struct {
+	Host                 string   `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
+	Port                 int32    `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Store_CassandraConfig) Reset()         { *m = Store_CassandraConfig{} }
+func (m *Store_CassandraConfig) String() string { return proto.CompactTextString(m) }
+func (*Store_CassandraConfig) ProtoMessage()    {}
+func (*Store_CassandraConfig) Descriptor() ([]byte, []int) {
+	return fileDescriptor_4b177bc9ccf64875, []int{0, 2}
+}
+
+func (m *Store_CassandraConfig) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Store_CassandraConfig.Unmarshal(m, b)
+}
+func (m *Store_CassandraConfig) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Store_CassandraConfig.Marshal(b, m, deterministic)
+}
+func (m *Store_CassandraConfig) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Store_CassandraConfig.Merge(m, src)
+}
+func (m *Store_CassandraConfig) XXX_Size() int {
+	return xxx_messageInfo_Store_CassandraConfig.Size(m)
+}
+func (m *Store_CassandraConfig) XXX_DiscardUnknown() {
+	xxx_messageInfo_Store_CassandraConfig.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Store_CassandraConfig proto.InternalMessageInfo
+
+func (m *Store_CassandraConfig) GetHost() string {
+	if m != nil {
+		return m.Host
+	}
+	return ""
+}
+
+func (m *Store_CassandraConfig) GetPort() int32 {
+	if m != nil {
+		return m.Port
+	}
+	return 0
+}
+
+type Store_Subscription struct {
+	// Name of featureSet to subscribe to.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Versions of the given featureSet that will be ingested into this store.
+	// Valid options for version:
+	//     latest: only subscribe to latest version of feature set
+	//     [version number]: pin to a specific version
+	//     >[version number]: subscribe to all versions larger than or equal to [version number]
+	Version              string   `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Store_Subscription) Reset()         { *m = Store_Subscription{} }
+func (m *Store_Subscription) String() string { return proto.CompactTextString(m) }
+func (*Store_Subscription) ProtoMessage()    {}
+func (*Store_Subscription) Descriptor() ([]byte, []int) {
+	return fileDescriptor_4b177bc9ccf64875, []int{0, 3}
+}
+
+func (m *Store_Subscription) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Store_Subscription.Unmarshal(m, b)
+}
+func (m *Store_Subscription) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Store_Subscription.Marshal(b, m, deterministic)
+}
+func (m *Store_Subscription) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Store_Subscription.Merge(m, src)
+}
+func (m *Store_Subscription) XXX_Size() int {
+	return xxx_messageInfo_Store_Subscription.Size(m)
+}
+func (m *Store_Subscription) XXX_DiscardUnknown() {
+	xxx_messageInfo_Store_Subscription.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Store_Subscription proto.InternalMessageInfo
+
+func (m *Store_Subscription) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *Store_Subscription) GetVersion() string {
+	if m != nil {
+		return m.Version
+	}
+	return ""
+}
+
 func init() {
 	proto.RegisterEnum("feast.core.Store_StoreType", Store_StoreType_name, Store_StoreType_value)
 	proto.RegisterType((*Store)(nil), "feast.core.Store")
+	proto.RegisterType((*Store_RedisConfig)(nil), "feast.core.Store.RedisConfig")
+	proto.RegisterType((*Store_BigQueryConfig)(nil), "feast.core.Store.BigQueryConfig")
+	proto.RegisterType((*Store_CassandraConfig)(nil), "feast.core.Store.CassandraConfig")
+	proto.RegisterType((*Store_Subscription)(nil), "feast.core.Store.Subscription")
 }
 
 func init() { proto.RegisterFile("feast/core/Store.proto", fileDescriptor_4b177bc9ccf64875) }
 
 var fileDescriptor_4b177bc9ccf64875 = []byte{
-	// 267 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x54, 0x90, 0x41, 0x4b, 0xc3, 0x30,
-	0x18, 0x86, 0xed, 0xd6, 0xa9, 0xfd, 0xe6, 0xa4, 0x7c, 0x07, 0x29, 0x78, 0x29, 0xc3, 0x43, 0x4f,
-	0x0d, 0x28, 0xde, 0x6d, 0xdd, 0x90, 0x22, 0x74, 0x9a, 0x5a, 0x44, 0x6f, 0x69, 0xf7, 0x59, 0xab,
-	0xac, 0x29, 0x49, 0x76, 0xd8, 0x1f, 0xf5, 0xf7, 0xc8, 0x32, 0x70, 0xf3, 0x12, 0xc2, 0xf3, 0x26,
-	0x0f, 0xbc, 0x2f, 0x5c, 0x7c, 0x90, 0xd0, 0x86, 0xd5, 0x52, 0x11, 0x2b, 0x8c, 0x54, 0x14, 0xf7,
-	0x4a, 0x1a, 0x89, 0x60, 0x79, 0xbc, 0xe5, 0xd3, 0x1f, 0x07, 0x46, 0x36, 0x43, 0x04, 0xb7, 0x13,
-	0x2b, 0x0a, 0x9c, 0xd0, 0x89, 0x3c, 0x6e, 0xef, 0xc8, 0xc0, 0x35, 0x9b, 0x9e, 0x82, 0x41, 0xe8,
-	0x44, 0xe7, 0xd7, 0x97, 0xf1, 0xfe, 0x63, 0xbc, 0x13, 0xda, 0xf3, 0x65, 0xd3, 0x13, 0xb7, 0x0f,
-	0x31, 0x84, 0xf1, 0x52, 0x18, 0x51, 0x09, 0x4d, 0x25, 0xcf, 0x82, 0xa1, 0x75, 0x1d, 0x22, 0xbc,
-	0x82, 0x89, 0x5e, 0x57, 0xba, 0x56, 0x6d, 0x6f, 0x5a, 0xd9, 0xe9, 0xc0, 0x0d, 0x87, 0x91, 0xc7,
-	0xff, 0xc3, 0xe9, 0x1d, 0x78, 0x7f, 0x6a, 0x1c, 0xc3, 0x49, 0x99, 0x3f, 0xe6, 0x8b, 0xd7, 0xdc,
-	0x3f, 0x42, 0x0f, 0x46, 0x7c, 0x3e, 0xcb, 0x0a, 0xdf, 0xc1, 0x33, 0x38, 0x4d, 0xb3, 0x87, 0xe7,
-	0x72, 0xce, 0xdf, 0xfc, 0x01, 0x4e, 0xc0, 0xbb, 0x4f, 0x8a, 0x22, 0xc9, 0x67, 0x3c, 0xf1, 0x87,
-	0xe9, 0x02, 0x0e, 0x6a, 0xa6, 0x60, 0x6d, 0x4f, 0xdb, 0xfa, 0xef, 0xb7, 0x4d, 0x6b, 0x3e, 0xd7,
-	0x55, 0x5c, 0xcb, 0x15, 0x6b, 0xe4, 0x17, 0x7d, 0xb3, 0xdd, 0x4e, 0x76, 0x1c, 0xcd, 0x1a, 0xea,
-	0x48, 0x09, 0x43, 0x4b, 0xd6, 0x48, 0xb6, 0x5f, 0xb0, 0x3a, 0xb6, 0xf9, 0xcd, 0x6f, 0x00, 0x00,
-	0x00, 0xff, 0xff, 0xfc, 0x93, 0xc6, 0xdd, 0x56, 0x01, 0x00, 0x00,
+	// 434 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x53, 0x4b, 0x6f, 0x9b, 0x40,
+	0x10, 0x36, 0x8e, 0x9d, 0x84, 0xc1, 0x76, 0xac, 0x3d, 0x54, 0xc8, 0x7d, 0x88, 0xe6, 0xe4, 0x13,
+	0x2b, 0xb9, 0xca, 0xa1, 0x52, 0x0f, 0x05, 0x3b, 0xaa, 0xa9, 0xd2, 0xb4, 0x59, 0xda, 0x4a, 0xed,
+	0x6d, 0x81, 0x0d, 0xd9, 0x54, 0x61, 0xe9, 0xee, 0xba, 0x92, 0xff, 0x5a, 0x7f, 0x5d, 0xc5, 0x9a,
+	0x04, 0xfc, 0x38, 0xf4, 0x82, 0x86, 0xf9, 0x1e, 0x7c, 0x1a, 0x66, 0xe0, 0xd9, 0x2d, 0xa3, 0x4a,
+	0xe3, 0x54, 0x48, 0x86, 0x63, 0x2d, 0x24, 0xf3, 0x4b, 0x29, 0xb4, 0x40, 0x60, 0xfa, 0x7e, 0xd5,
+	0x3f, 0xff, 0xdb, 0x87, 0xbe, 0xc1, 0x10, 0x82, 0x5e, 0x41, 0x1f, 0x98, 0x6b, 0x79, 0xd6, 0xd4,
+	0x26, 0xa6, 0x46, 0x18, 0x7a, 0x7a, 0x5d, 0x32, 0xb7, 0xeb, 0x59, 0xd3, 0xd1, 0xec, 0xb9, 0xdf,
+	0x08, 0xfd, 0x8d, 0xa1, 0x79, 0x7e, 0x5d, 0x97, 0x8c, 0x18, 0x22, 0x5a, 0xc0, 0x50, 0xad, 0x12,
+	0x95, 0x4a, 0x5e, 0x6a, 0x2e, 0x0a, 0xe5, 0xf6, 0xbc, 0xa3, 0xa9, 0x33, 0x7b, 0x75, 0x40, 0xd9,
+	0xa2, 0x91, 0x6d, 0x11, 0x0a, 0xc0, 0x91, 0x2c, 0xe3, 0x6a, 0x2e, 0x8a, 0x5b, 0x9e, 0xbb, 0x8e,
+	0x67, 0x4d, 0x9d, 0xd9, 0xcb, 0x7d, 0x0f, 0xd2, 0x90, 0x96, 0x1d, 0xd2, 0xd6, 0xa0, 0x8f, 0x30,
+	0x4a, 0x78, 0xfe, 0x7b, 0xc5, 0xe4, 0xba, 0x76, 0x19, 0x18, 0x17, 0x6f, 0xdf, 0x25, 0xe4, 0xf9,
+	0x4d, 0xc3, 0x5b, 0x76, 0xc8, 0x8e, 0x12, 0x7d, 0x82, 0xb3, 0x94, 0x2a, 0x45, 0x8b, 0x4c, 0xd2,
+	0xda, 0x6c, 0x68, 0xcc, 0x5e, 0xef, 0x9b, 0xcd, 0xb7, 0x89, 0xcb, 0x0e, 0xd9, 0xd5, 0x4e, 0x2e,
+	0xc0, 0x69, 0x05, 0xaf, 0xe6, 0x7e, 0x27, 0x94, 0x7e, 0x9c, 0x7b, 0x55, 0x57, 0xbd, 0x52, 0x48,
+	0x6d, 0xe6, 0xde, 0x27, 0xa6, 0x9e, 0x5c, 0xc1, 0x68, 0x3b, 0x29, 0x7a, 0x01, 0x76, 0x29, 0xc5,
+	0x3d, 0x4b, 0x75, 0x94, 0xd5, 0xf2, 0xa6, 0x51, 0xa1, 0x19, 0xd5, 0x54, 0xb1, 0x0a, 0xed, 0x6e,
+	0xd0, 0xa7, 0xc6, 0xe4, 0x2d, 0x9c, 0xed, 0x44, 0xfd, 0xef, 0x20, 0xef, 0x60, 0xd0, 0xfe, 0x79,
+	0x07, 0x17, 0xc7, 0x85, 0x93, 0x3f, 0x4c, 0x2a, 0x2e, 0x8a, 0xfa, 0xd3, 0x8f, 0xaf, 0xe7, 0xef,
+	0xc1, 0x7e, 0x5a, 0x1a, 0xe4, 0xc0, 0x49, 0x74, 0xfd, 0x3d, 0xb8, 0x8a, 0x16, 0xe3, 0x0e, 0xb2,
+	0xa1, 0x4f, 0x2e, 0x17, 0x51, 0x3c, 0xb6, 0xd0, 0x00, 0x4e, 0xc3, 0xe8, 0xc3, 0xcd, 0xb7, 0x4b,
+	0xf2, 0x63, 0xdc, 0x45, 0x43, 0xb0, 0xe7, 0x41, 0x1c, 0x07, 0xd7, 0x0b, 0x12, 0x8c, 0x8f, 0xc2,
+	0x53, 0x38, 0x4e, 0x4d, 0xe2, 0xf0, 0x33, 0xb4, 0x56, 0x39, 0x04, 0xe3, 0xfb, 0xa5, 0x5a, 0xf1,
+	0x9f, 0x17, 0x39, 0xd7, 0x77, 0xab, 0xc4, 0x4f, 0xc5, 0x03, 0xce, 0xc5, 0x3d, 0xfb, 0x85, 0x37,
+	0xb7, 0x60, 0x0e, 0x40, 0xe1, 0x9c, 0x15, 0x4c, 0x52, 0xcd, 0x32, 0x9c, 0x0b, 0xdc, 0x5c, 0x49,
+	0x72, 0x6c, 0xf0, 0x37, 0xff, 0x02, 0x00, 0x00, 0xff, 0xff, 0x97, 0x9a, 0xfb, 0xc1, 0x3a, 0x03,
+	0x00, 0x00,
 }
