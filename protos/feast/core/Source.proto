@@ -23,21 +23,25 @@ option go_package = "github.com/gojek/feast/protos/generated/go/feast/core";
 
 
 message Source {
-  enum SourceType {
+
+    // The kind of data source Feast should connect to in order to retrieve FeatureRow value
+    SourceType type = 1;
+
+    // Source specific configuration
+    oneof source_config {
+        KafkaSource = 2;
+    }
+}
+
+enum SourceType {
     INVALID = 0;
     KAFKA = 1;
-  }
+}
 
-  // The kind of message source the import job should connect to
-  // in order to retrieve FeatureRow value
-  SourceType type = 1;
+message KafkaSource {
+    // - bootstrapServers: [comma delimited value of host[:port]]
+    string bootstrap_servers = 1;
 
-  // Optional. Configuration to establish connection to the message source.
-  // The available options vary depending on the source type.
-  //
-  // For SourceType.KAFKA, the following key value options are accepted:
-  // - bootstrapServers: [comma delimited value of host[:port]]
-  // - topics: [comma delimited value of topic names. This value is provisioned by core and should not be set by the user.]
-  // - consumerGroupId: [optional, consumer group id for the Kafka consumer in the import job. For import job to support propert checkpointing and resuming from a failed job, this value should be provided.]
-  map<string, string> options = 2;
+    // - topics: [comma delimited value of topic names. This value is provisioned by core and should not be set by the user.]
+    string topics = 2;
 }
