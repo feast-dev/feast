@@ -43,6 +43,7 @@ REQUIRED = [
     "tqdm==4.*",
     "numpy",
     "google",
+    "kafka-python",
 ]
 
 setup(

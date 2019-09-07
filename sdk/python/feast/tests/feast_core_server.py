@@ -34,8 +34,12 @@ class CoreServicer(Core.CoreServiceServicer):
 
     def ApplyFeatureSet(self, request: ApplyFeatureSetRequest, context):
         feature_set = request.featureSet
+        if feature_set.version is None:
+            feature_set.version = 1
+        else:
+            feature_set.version = feature_set.version + 1
         self._feature_sets[feature_set.name] = feature_set
-        return ApplyFeatureSetResponse()
+        return ApplyFeatureSetResponse(featureSet=feature_set)
 
 
 def serve():

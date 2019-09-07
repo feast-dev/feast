@@ -58,22 +58,7 @@ class TestFeatureSet:
             fs = FeatureSet("my-feature-set")
             fs.drop(name="my-feature-1")
 
-    @pytest.mark.parametrize(
-        "dataframe",
-        [
-            pd.DataFrame(
-                {
-                    "datetime": [
-                        datetime.utcnow().replace(tzinfo=pytz.utc) for _ in range(3)
-                    ],
-                    "entity_id": [1001, 1002, 1004],
-                    "feature_1": [0.2, 0.4, 0.5],
-                    "feature_2": [0.3, 0.3, 0.34],
-                    "feature_3": [1, 2, 5],
-                }
-            )
-        ],
-    )
+    @pytest.mark.parametrize("dataframe", [dataframes.GOOD])
     def test_update_from_source_success(self, dataframe):
         fs = FeatureSet("driver-feature-set")
         fs.update_from_dataset(
@@ -168,6 +153,3 @@ class TestFeatureSet:
 
             # Ingest data into Feast
             driver_fs.ingest(dataframe=dataframe)
-
-            # Make sure message producer is called
-            driver_fs._message_producer.send.assert_called()

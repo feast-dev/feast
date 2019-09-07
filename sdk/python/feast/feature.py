@@ -15,23 +15,10 @@
 from feast.value_type import ValueType
 from feast.core.FeatureSet_pb2 import FeatureSpec as FeatureProto
 from feast.types import Value_pb2 as ValueTypeProto
+from feast.field import Field
 
 
-class Feature:
-    def __init__(self, name: str, dtype: ValueType):
-        self._name = name
-        if not isinstance(dtype, ValueType):
-            raise ValueError("dtype is not a valid ValueType")
-        self._dtype = dtype
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def dtype(self) -> ValueType:
-        return self._dtype
-
+class Feature(Field):
     def to_proto(self) -> FeatureProto:
         value_type = ValueTypeProto.ValueType.Enum.Value(self.dtype.name)
         return FeatureProto(name=self.name, valueType=value_type)

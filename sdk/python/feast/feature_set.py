@@ -19,33 +19,26 @@ import pandas as pd
 from typing import List
 from collections import OrderedDict
 from typing import Dict
-from feast.source import Source, KafkaSource
+from feast.source import Source
 from feast.type_map import dtype_to_value_type
-from feast.value_type import ValueType
 from pandas.api.types import is_datetime64_ns_dtype
 from feast.entity import Entity
-from feast.feature import Feature
-from feast.core.FeatureSet_pb2 import (
-    FeatureSetSpec as FeatureSetSpecProto,
-    FeatureSpec as FeatureSpecProto,
-)
+from feast.feature import Feature, Field
+from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
 from feast.core.Source_pb2 import Source as SourceProto
 from feast.types import FeatureRow_pb2 as FeatureRow
 from google.protobuf.timestamp_pb2 import Timestamp
 from kafka import KafkaProducer
-from pandas.core.dtypes.common import is_datetime64_any_dtype
 from tqdm import tqdm
 from type_map import dtype_to_feast_value_type
 from feast.types import (
     Value_pb2 as ValueProto,
     FeatureRow_pb2 as FeatureRowProto,
-    Feature_pb2 as FeatureProto,
     Field_pb2 as FieldProto,
 )
 from feast.type_map import dtype_to_feast_value_attr
 
 _logger = logging.getLogger(__name__)
-
 DATETIME_COLUMN = "datetime"  # type: str
 
 
@@ -63,32 +56,38 @@ class FeatureSet:
         max_age: int = -1,
     ):
         self._name = name
-        self._features = OrderedDict()  # type: Dict[str, Feature]
-        self._entities = OrderedDict()  # type: Dict[str, Entity]
+        self._fields = OrderedDict()  # type: Dict[str, Field]
         if features is not None:
-            self._add_features(features)
+            self._add_fields(features)
         if entities is not None:
-            self._add_entities(entities)
+            self._add_fields(entities)
         self._max_age = max_age
         self._version = None
         self._client = None
         self._source = source
         self._message_producer = None
         self._busy_ingesting = False
+        self._is_dirty = True
+
+    def __eq__(self, other):
+        if not isinstance(other, FeatureSet):
+            return NotImplemented
+
+        return self.name == other.name and self.version == other.version
 
     @property
     def features(self) -> List[Feature]:
         """
         Returns a list of features from this feature set
         """
-        return list(self._features.values())
+        return [field for field in self._fields.values() if isinstance(field, Feature)]
 
     @property
     def entities(self) -> List[Entity]:
         """
         Returns list of entities from this feature set
         """
-        return list(self._entities.values())
+        return [field for field in self._fields.values() if isinstance(field, Entity)]
 
     @property
     def name(self):
@@ -121,10 +120,7 @@ class FeatureSet:
         :param resource: A resource can be either a Feature or an Entity object
         :return:
         """
-        if (
-            resource.name in self._features.keys()
-            or resource.name in self._entities.keys()
-        ):
+        if resource.name in self._fields.keys():
             raise ValueError(
                 'could not add field "'
                 + resource.name
@@ -133,20 +129,13 @@ class FeatureSet:
                 + '"'
             )
 
-        if isinstance(resource, Feature):
-            return self._add_feature(resource)
-
-        if isinstance(resource, Entity):
-            return self._add_entity(resource)
+        if issubclass(type(resource), Field):
+            return self._add_field(resource)
 
         raise ValueError("Could not identify the resource being added")
 
-    def _add_entity(self, entity: Entity):
-        self._entities[entity.name] = entity
-        return
-
-    def _add_feature(self, feature: Feature):
-        self._features[feature.name] = feature
+    def _add_field(self, field: Field):
+        self._fields[field.name] = field
         return
 
     def drop(self, name: str):
@@ -154,32 +143,19 @@ class FeatureSet:
         Removes a Feature or Entity from a Feature Set
         :param name: Name of Feature or Entity to be removed
         """
-        if name not in self._features and name not in self._entities:
+        if name not in self._fields:
             raise ValueError("Could not find field " + name + ", no action taken")
-        if name in self._features and name in self._entities:
-            raise ValueError("Duplicate field found for " + name + "!")
-        if name in self._features:
-            del self._features[name]
-            return
-        if name in self._entities:
-            del self._entities[name]
+        if name in self._fields:
+            del self._fields[name]
             return
 
-    def _add_features(self, features: List[Feature]):
+    def _add_fields(self, fields: List[Field]):
         """
-        Adds multiple Features to a Feature Set
-        :param features: List of Feature Objects
+        Adds multiple Fields to a Feature Set
+        :param fields: List of Feature or Entity Objects
         """
-        for feature in features:
-            self.add(feature)
-
-    def _add_entities(self, entities: List[Entity]):
-        """
-        Adds multiple Entities to a Feature Set
-        :param entities: List of Entity Objects
-        """
-        for entity in entities:
-            self.add(entity)
+        for field in fields:
+            self.add(field)
 
     def update_from_dataset(self, df: pd.DataFrame, column_mapping=None):
         """
@@ -189,11 +165,8 @@ class FeatureSet:
         :param df: Pandas dataframe containing datetime column, entity columns, and feature columns.
         """
 
-        features = OrderedDict()
-        entities = OrderedDict()
-        existing_entities = None
-        if self._client:
-            existing_entities = self._client.entities
+        fields = OrderedDict()
+        existing_entities = self._client.entities if self._client is not None else None
 
         # Validate whether the datetime column exists with the right name
         if DATETIME_COLUMN not in df:
@@ -209,54 +182,47 @@ class FeatureSet:
         for column in df.columns:
             column = column.strip()
 
-            # Validate whether the datetime column exists with the right name
+            # Skip datetime column
             if DATETIME_COLUMN in column:
                 continue
 
-            # Use entity or feature value if provided
+            # Use entity or feature value if provided by the column mapping
             if column_mapping and column in column_mapping:
-                resource = column_mapping[column]
-                if isinstance(resource, Entity):
-                    entities[column] = resource
-                    continue
-                if isinstance(resource, Feature):
-                    features[column] = resource
+                if issubclass(type(column_mapping[column]), Field):
+                    fields[column] = column_mapping[column]
                     continue
                 raise ValueError(
                     "Invalid resource type specified at column name " + column
                 )
 
-            # Test whether this column is an existing entity. If it is named exactly the same
-            # as an existing entity then it will be detected as such
+            # Test whether this column is an existing entity (globally).
             if existing_entities and column in existing_entities:
                 entity = existing_entities[column]
 
                 # test whether registered entity type matches user provided type
                 if entity.dtype == dtype_to_value_type(df[column].dtype):
                     # Store this field as an entity
-                    entities[column] = entity
+                    fields[column] = entity
                     continue
 
-            for feature in self.features:
-                # Ignore features that already exist
-                if feature.name == column:
-                    continue
+            # Ignore fields that already exist
+            if column in self._fields:
+                continue
 
             # Store this field as a feature
-            features[column] = Feature(
+            fields[column] = Feature(
                 name=column, dtype=dtype_to_feast_value_type(df[column].dtype)
             )
 
-        if len(entities) == 0:
+        if len([field for field in fields.values() if type(field) == Entity]) == 0:
             raise Exception(
                 "Could not detect entity column(s). Please provide entity column(s)."
             )
-        if len(features) == 0:
+        if len([field for field in fields.values() if type(field) == Feature]) == 0:
             raise Exception(
-                "Could not detect feature columns. Please provide feature column(s)."
+                "Could not detect feature column(s). Please provide feature column(s)."
             )
-        self._entities = entities
-        self._features = features
+        self._add_fields(list(fields.values()))
 
     def ingest(
         self, dataframe: pd.DataFrame, force_update: bool = False, timeout: int = 5
@@ -268,9 +234,6 @@ class FeatureSet:
 
         # Validate feature set version with Feast Core
         self._validate_feature_set()
-
-        # Validate data schema w.r.t this feature set
-        self._validate_dataframe_schema(dataframe)
 
         # Create Kafka FeatureRow producer
         if self._message_producer is None:
@@ -298,7 +261,7 @@ class FeatureSet:
     def _pandas_row_to_feature_row(
         self, dataframe: pd.DataFrame, row
     ) -> FeatureRow.FeatureRow:
-        if len(self.features) + len(self.entities) + 1 != len(dataframe.columns):
+        if len(self._fields) != len(dataframe.columns) - 1:
             raise Exception(
                 "Amount of entities and features in feature set do not match dataset columns"
             )
@@ -351,12 +314,38 @@ class FeatureSet:
             version=self.version,
             maxAge=self.max_age,
             source=SourceProto(),
-            features=[feature.to_proto() for feature in self._features.values()],
-            entities=[entity.to_proto() for entity in self._entities.values()],
+            features=[
+                field.to_proto()
+                for field in self._fields.values()
+                if type(field) == Feature
+            ],
+            entities=[
+                field.to_proto()
+                for field in self._fields.values()
+                if type(field) == Entity
+            ],
         )
 
     def _validate_feature_set(self):
-        pass
+
+        # Validate whether the feature set has been modified and needs to be saved
+        if self._is_dirty:
+            raise Exception("Feature set has been modified and must be saved first")
+
+        refreshed_feature_set = [
+            fs
+            for fs in self._client.feature_sets
+            if fs.name == self.name and fs.version == self.version
+        ]
+
+        if not (len(refreshed_feature_set) == 1 and refreshed_feature_set[0] == self):
+            raise Exception(
+                "Feature set (name:"
+                + self.name
+                + ", version:"
+                + str(self.version)
+                + ") is inconsistent with Feast core"
+            )
 
     def _get_kafka_source_brokers(self) -> str:
         if self.source and self.source.source_type is "Kafka":
@@ -367,6 +356,3 @@ class FeatureSet:
         if self.source and self.source.source_type == "Kafka":
             return self.source.topics
         raise Exception("Source type could not be identified")
-
-    def _validate_dataframe_schema(self, dataframe: pd.DataFrame) -> bool:
-        return True

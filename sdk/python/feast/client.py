@@ -20,6 +20,7 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetsResponse,
     ApplyFeatureSetRequest,
     GetFeatureSetsRequest,
+    ApplyFeatureSetResponse,
 )
 from feast.core.FeatureSet_pb2 import FeatureSetSpec, FeatureSpec, EntitySpec
 from feast.core.Source_pb2 import Source
@@ -182,8 +183,11 @@ class Client:
 
     def _apply_feature_set(self, feature_set: FeatureSet):
         self._connect_core()
-        self._core_service_stub.ApplyFeatureSet(
+        apply_feature_set_response = self._core_service_stub.ApplyFeatureSet(
             ApplyFeatureSetRequest(featureSet=feature_set.to_proto()),
             timeout=GRPC_CONNECTION_TIMEOUT,
-        )
+        )  # type: ApplyFeatureSetResponse
+
+        feature_set._version = apply_feature_set_response.featureSet.version
+        feature_set._is_dirty = False
         feature_set._client = self

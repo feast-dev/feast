@@ -13,16 +13,24 @@
 # limitations under the License.
 
 from feast.value_type import ValueType
-from feast.core.FeatureSet_pb2 import EntitySpec as EntityProto
+from feast.core.FeatureSet_pb2 import FeatureSpec as FeatureProto
 from feast.types import Value_pb2 as ValueTypeProto
-from feast.field import Field
 
 
-class Entity(Field):
-    def to_proto(self) -> EntityProto:
-        value_type = ValueTypeProto.ValueType.Enum.Value(self.dtype.name)
-        return EntityProto(name=self.name, valueType=value_type)
+class Field:
+    def __init__(self, name: str, dtype: ValueType):
+        self._name = name
+        if not isinstance(dtype, ValueType):
+            raise ValueError("dtype is not a valid ValueType")
+        self._dtype = dtype
 
-    @classmethod
-    def from_proto(cls, entity_proto: EntityProto):
-        return cls(name=entity_proto.name, dtype=ValueType(entity_proto.valueType))
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def dtype(self) -> ValueType:
+        return self._dtype
+
+    def to_proto(self):
+        pass
