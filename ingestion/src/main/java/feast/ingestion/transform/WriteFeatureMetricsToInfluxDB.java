@@ -66,6 +66,7 @@ public class WriteFeatureMetricsToInfluxDB
                           .addField("lag_in_seconds", lagInSeconds)
                           .addField("value", value)
                           .tag("feature_id", featureId)
+                          .tag("entity_name", featureRow.getEntityName())
                           .build());
                 }
               }

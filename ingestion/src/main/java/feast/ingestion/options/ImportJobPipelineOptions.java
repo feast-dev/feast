@@ -34,28 +34,6 @@ public interface ImportJobPipelineOptions extends PipelineOptions {
 
   void setWorkspace(String value);
 
-  @Description(
-      "If set, Feast will write feature metrics (such as lag and value summaries) "
-          + "into Influx DB. If this options is set, influxDbURL, influxDbDatabase "
-          + "and influxDbMeasurement should be set as well.")
-  @Default.Boolean(false)
-  boolean isWriteFeatureMetricsToInfluxDb();
-
-  void setWriteFeatureMetricsToInfluxDb(boolean shouldWrite);
-
-  @Description("e.g. http://localhost:8086")
-  String getInfluxDbUrl();
-
-  void setInfluxDbUrl(String influxDbUrl);
-
-  String getInfluxDbDatabase();
-
-  void setInfluxDbDatabase(String influxDbDatabase);
-
-  String getInfluxDbMeasurement();
-
-  void setInfluxDbMeasurement(String influxDbMeasurement);
-
   @Description("If dry run is set, execute up to feature row validation")
   @Default.Boolean(false)
   boolean isDryRun();

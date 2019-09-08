@@ -126,21 +126,21 @@ public class ImportJob {
     ImportJob job = injector.getInstance(ImportJob.class);
 
     // Validate Influx DB configuration if options to write feature metrics to Influx DB is enabled
-    if (options.isWriteFeatureMetricsToInfluxDb()) {
-      if (options.getInfluxDbUrl() == null) {
+    if (importJobSpecs.getWriteFeatureMetricsToInfluxDb()) {
+      if (importJobSpecs.getInfluxDbUrl().isEmpty()) {
         throw new IllegalArgumentException(
             "Influx DB url is required to write feature metrics to "
-                + "Influx DB. Please set this value like so '--influxDbUrl=http://localhost:8086'");
+                + "Influx DB. Please set this value in the import job.");
       }
-      if (options.getInfluxDbDatabase() == null) {
+      if (importJobSpecs.getInfluxDbDatabase().isEmpty()) {
         throw new IllegalArgumentException(
             "Influx DB database is required to write feature metrics to "
-                + "Influx DB. Please set this value like so '--influxDbDatabase=myinfluxdatabase'");
+                + "Influx DB. Please set this value in the import job.");
       }
-      if (options.getInfluxDbMeasurement() == null) {
+      if (importJobSpecs.getInfluxDbMeasurement().isEmpty()) {
         throw new IllegalArgumentException(
             "Influx DB measurement name is required to write feature metrics to "
-                + "Influx DB. Please set this value like so '--influxDbMeasurement=mymeasurement'");
+                + "Influx DB.Please set this value in the import job.");
       }
     }
 
@@ -205,9 +205,9 @@ public class ImportJob {
     if (!dryRun) {
       servingRows.apply(
           new WriteFeatureMetricsToInfluxDB(
-              options.getInfluxDbUrl(),
-              options.getInfluxDbDatabase(),
-              options.getInfluxDbMeasurement()));
+              importJobSpecs.getInfluxDbUrl(),
+              importJobSpecs.getInfluxDbDatabase(),
+              importJobSpecs.getInfluxDbMeasurement()));
 
       servingRows.apply("Write to Serving Stores", servingStoreTransform);
       if (!Strings.isNullOrEmpty(importJobSpecs.getWarehouseStorageSpec().getId())) {
