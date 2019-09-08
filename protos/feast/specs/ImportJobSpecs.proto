@@ -35,4 +35,19 @@ message ImportJobSpecs {
   StorageSpec servingStorageSpec = 5;
   StorageSpec warehouseStorageSpec = 6;
   StorageSpec errorsStorageSpec = 7;
+
+  // The following options below are only valid in Feast 0.1.x
+  // ============================================================
+
+  // write_feature_metrics_to_influx_db determines if Feast should write feature metrics
+  // (such as lag and value summaries) to Influx DB. If this field is true, the next three fields:
+  // influx_db_url, influx_db_database, influx_db_measurement should be set as well.
+  bool write_feature_metrics_to_influx_db = 8;
+  // influx_db_url is the url for Feast to connect to Influx DB. Example: http://localhost:8086
+  string influx_db_url = 9;
+  // influx_db_database is the name of the Influx DB database for the metrics.
+  string influx_db_database = 10;
+  // influx_db_measurement is the name of measurement that will contain the metrics data.
+  // Ref: https://docs.influxdata.com/influxdb/v1.7/concepts/key_concepts/#measurement
+  string influx_db_measurement = 11;
 }
