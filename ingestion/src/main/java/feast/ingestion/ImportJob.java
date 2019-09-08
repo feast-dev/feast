@@ -38,6 +38,7 @@ import feast.ingestion.transform.ServingStoreTransform;
 import feast.ingestion.transform.ToFeatureRowExtended;
 import feast.ingestion.transform.ValidateTransform;
 import feast.ingestion.transform.WarehouseStoreTransform;
+import feast.ingestion.transform.WriteFeatureMetricsToInfluxDB;
 import feast.ingestion.transform.fn.ConvertTypesDoFn;
 import feast.ingestion.transform.fn.LoggerDoFn;
 import feast.ingestion.values.PFeatureRows;
@@ -110,6 +111,7 @@ public class ImportJob {
     mainWithResult(args);
   }
 
+  @SuppressWarnings({"UnusedReturnValue", "WeakerAccess"})
   public static PipelineResult mainWithResult(String[] args) {
     log.info("Arguments: " + Arrays.toString(args));
     ImportJobPipelineOptions options =
@@ -118,11 +120,29 @@ public class ImportJob {
       options.setJobName(generateName());
     }
     log.info("options: " + options.toString());
-    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(options.getWorkspace())
-        .get();
+    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(options.getWorkspace()).get();
     Injector injector =
         Guice.createInjector(new ImportJobModule(options, importJobSpecs), new PipelineModule());
     ImportJob job = injector.getInstance(ImportJob.class);
+
+    // Validate Influx DB configuration if options to write feature metrics to Influx DB is enabled
+    if (options.isWriteFeatureMetricsToInfluxDb()) {
+      if (options.getInfluxDbUrl() == null) {
+        throw new IllegalArgumentException(
+            "Influx DB url is required to write feature metrics to "
+                + "Influx DB. Please set this value like so '--influxDbUrl=http://localhost:8086'");
+      }
+      if (options.getInfluxDbDatabase() == null) {
+        throw new IllegalArgumentException(
+            "Influx DB database is required to write feature metrics to "
+                + "Influx DB. Please set this value like so '--influxDbDatabase=myinfluxdatabase'");
+      }
+      if (options.getInfluxDbMeasurement() == null) {
+        throw new IllegalArgumentException(
+            "Influx DB measurement name is required to write feature metrics to "
+                + "Influx DB. Please set this value like so '--influxDbMeasurement=mymeasurement'");
+      }
+    }
 
     job.expand();
     return job.run();
@@ -143,8 +163,8 @@ public class ImportJob {
         TypeDescriptor.of(FeatureRowExtended.class), ProtoCoder.of(FeatureRowExtended.class));
     coderRegistry.registerCoderForType(TypeDescriptor.of(TableRow.class), TableRowJsonCoder.of());
 
-    JobOptions jobOptions = OptionsParser
-        .parse(importJobSpecs.getImportSpec().getJobOptionsMap(), JobOptions.class);
+    JobOptions jobOptions =
+        OptionsParser.parse(importJobSpecs.getImportSpec().getJobOptionsMap(), JobOptions.class);
 
     try {
       log.info(JsonFormat.printer().print(importJobSpecs));
@@ -174,12 +194,21 @@ public class ImportJob {
     PCollection<FeatureRowExtended> errorRows = pFeatureRows.getErrors();
     if (jobOptions.isCoalesceRowsEnabled()) {
       // Should we merge and dedupe rows before writing to the serving store?
-      servingRows = servingRows.apply("Coalesce Rows", new CoalesceFeatureRowExtended(
-          jobOptions.getCoalesceRowsDelaySeconds(),
-          jobOptions.getCoalesceRowsTimeoutSeconds()));
+      servingRows =
+          servingRows.apply(
+              "Coalesce Rows",
+              new CoalesceFeatureRowExtended(
+                  jobOptions.getCoalesceRowsDelaySeconds(),
+                  jobOptions.getCoalesceRowsTimeoutSeconds()));
     }
 
     if (!dryRun) {
+      servingRows.apply(
+          new WriteFeatureMetricsToInfluxDB(
+              options.getInfluxDbUrl(),
+              options.getInfluxDbDatabase(),
+              options.getInfluxDbMeasurement()));
+
       servingRows.apply("Write to Serving Stores", servingStoreTransform);
       if (!Strings.isNullOrEmpty(importJobSpecs.getWarehouseStorageSpec().getId())) {
         warehouseRows.apply("Write to Warehouse  Stores", warehouseStoreTransform);
@@ -194,7 +223,8 @@ public class ImportJob {
     return result;
   }
 
-  public void logNRows(PFeatureRows pFeatureRows, String name, long limit, Duration period) {
+  @SuppressWarnings("SameParameterValue")
+  private void logNRows(PFeatureRows pFeatureRows, String name, long limit, Duration period) {
     PCollection<FeatureRowExtended> main = pFeatureRows.getMain();
     PCollection<FeatureRowExtended> errors = pFeatureRows.getErrors();
 

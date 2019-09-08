@@ -25,9 +25,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.options.Validation.Required;
 
-/**
- * Options passed to Beam to influence the job's execution environment
- */
+/** Options passed to Beam to influence the job's execution environment */
 public interface ImportJobPipelineOptions extends PipelineOptions {
 
   @Description("Path to a workspace directory containing importJobSpecs.yaml")
@@ -36,11 +34,33 @@ public interface ImportJobPipelineOptions extends PipelineOptions {
 
   void setWorkspace(String value);
 
+  @Description(
+      "If set, Feast will write feature metrics (such as lag and value summaries) "
+          + "into Influx DB. If this options is set, influxDbURL, influxDbDatabase "
+          + "and influxDbMeasurement should be set as well.")
+  @Default.Boolean(false)
+  boolean isWriteFeatureMetricsToInfluxDb();
+
+  void setWriteFeatureMetricsToInfluxDb(boolean shouldWrite);
+
+  @Description("e.g. http://localhost:8086")
+  String getInfluxDbUrl();
+
+  void setInfluxDbUrl(String influxDbUrl);
+
+  String getInfluxDbDatabase();
+
+  void setInfluxDbDatabase(String influxDbDatabase);
+
+  String getInfluxDbMeasurement();
+
+  void setInfluxDbMeasurement(String influxDbMeasurement);
+
   @Description("If dry run is set, execute up to feature row validation")
   @Default.Boolean(false)
-  Boolean isDryRun();
+  boolean isDryRun();
 
-  void setDryRun(Boolean value);
+  void setDryRun(boolean value);
 
   @AutoService(PipelineOptionsRegistrar.class)
   class ImportJobPipelineOptionsRegistrar implements PipelineOptionsRegistrar {

@@ -24,4 +24,7 @@
   <root level="INFO">
     <appender-ref ref="STDOUT"/>
   </root>
+  <logger name="org.apache.kafka" level="WARN">
+    <appender-ref ref="STDOUT"/>
+  </logger>
 </configuration>
