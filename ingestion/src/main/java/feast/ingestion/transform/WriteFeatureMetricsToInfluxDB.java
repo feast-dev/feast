@@ -15,6 +15,7 @@ import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
 import org.influxdb.dto.Point;
 
+@SuppressWarnings("CatchMayIgnoreException")
 public class WriteFeatureMetricsToInfluxDB
     extends PTransform<PCollection<FeatureRowExtended>, PDone> {
 
@@ -38,9 +39,14 @@ public class WriteFeatureMetricsToInfluxDB
 
               @Setup
               public void setup() {
-                influxDB = InfluxDBFactory.connect(influxDbUrl);
-                influxDB.setDatabase(influxDbDatabase);
-                influxDB.enableBatch(BatchOptions.DEFAULTS);
+                try {
+                  influxDB = InfluxDBFactory.connect(influxDbUrl);
+                  influxDB.setDatabase(influxDbDatabase);
+                  influxDB.enableBatch(BatchOptions.DEFAULTS);
+                } catch (Exception e) {
+                  // Ignored because writing metrics is not a critical component of Feaast
+                  // and we do not want to get overwhelmed with failed connection logs
+                }
               }
 
               @FinishBundle
@@ -60,14 +66,19 @@ public class WriteFeatureMetricsToInfluxDB
                       System.currentTimeMillis() / 1000L
                           - featureRow.getEventTimestamp().getSeconds();
                   double value = getValue(feature);
-                  influxDB.write(
-                      Point.measurement(influxDbMeasurement)
-                          .time(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
-                          .addField("lag_in_seconds", lagInSeconds)
-                          .addField("value", value)
-                          .tag("feature_id", featureId)
-                          .tag("entity_name", featureRow.getEntityName())
-                          .build());
+                  try {
+                    influxDB.write(
+                        Point.measurement(influxDbMeasurement)
+                            .time(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
+                            .addField("lag_in_seconds", lagInSeconds)
+                            .addField("value", value)
+                            .tag("feature_id", featureId)
+                            .tag("entity_name", featureRow.getEntityName())
+                            .build());
+                  } catch (Exception e) {
+                    // Ignored because writing metrics is not a critical component of Feaast
+                    // and we do not want to get overwhelmed with failed connection logs
+                  }
                 }
               }
             }));
