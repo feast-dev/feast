@@ -4,8 +4,13 @@ This chart adds all the components required to run feast, sans the stores to whi
 ## Installing the chart
 
 ```
-helm dep update
-helm install --name feast .
+# Add feast-charts repository
+helm repo add feast-charts https://feast-charts.storage.googleapis.com
+helm repo update
+
+# Install Feast chart with release name "feast-release" and optional custom 
+# values "value-feast.yaml"
+helm install --name feast-release feast-charts/feast [-f value-feast.yaml]
 ```
 
 ## Requirements
