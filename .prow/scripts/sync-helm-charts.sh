@@ -18,6 +18,8 @@ repo_url=https://feast-charts.storage.googleapis.com/
 sync_dir=/tmp/syncdir
 index_dir=/tmp/indexdir 
 
+rm -rf $sync_dir $index_dir
+
 echo "Syncing repo '$repo_dir'..."
 
 mkdir -p "$sync_dir"
