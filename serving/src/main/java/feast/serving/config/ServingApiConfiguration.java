@@ -18,8 +18,6 @@
 package feast.serving.config;
 
 import com.google.common.base.Strings;
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import feast.serving.service.CachedSpecStorage;
@@ -28,7 +26,6 @@ import feast.serving.service.FeatureStorageRegistry;
 import feast.serving.service.SpecStorage;
 import feast.specs.StorageSpecProto.StorageSpec;
 import io.opentracing.Tracer;
-import io.opentracing.contrib.concurrent.TracedExecutorService;
 import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.List;
@@ -72,10 +69,8 @@ public class ServingApiConfiguration implements WebMvcConfigurer {
   public AppConfig getAppConfig(
       @Value("${feast.redispool.maxsize}") int redisPoolMaxSize,
       @Value("${feast.redispool.maxidle}") int redisPoolMaxIdle,
-      @Value("${feast.maxentity}") int maxEntityPerBatch,
       @Value("${feast.timeout}") int timeout) {
     return AppConfig.builder()
-        .maxEntityPerBatch(maxEntityPerBatch)
         .redisMaxPoolSize(redisPoolMaxSize)
         .redisMaxIdleSize(redisPoolMaxIdle)
         .timeout(timeout)
@@ -112,10 +107,10 @@ public class ServingApiConfiguration implements WebMvcConfigurer {
     Map<String, String> optionsMap = convertJsonStringToMap(storageOptions);
 
     StorageSpec storageSpec = StorageSpec.newBuilder()
-            .setId("SERVING")
-            .setType(storageType)
-            .putAllOptions(optionsMap)
-            .build();
+        .setId("SERVING")
+        .setType(storageType)
+        .putAllOptions(optionsMap)
+        .build();
 
     FeatureStorageRegistry registry = new FeatureStorageRegistry(appConfig, tracer);
     try {
@@ -129,11 +124,8 @@ public class ServingApiConfiguration implements WebMvcConfigurer {
   }
 
   @Bean
-  public ListeningExecutorService getExecutorService(
-      Tracer tracer, @Value("${feast.threadpool.max}") int maxPoolSize) {
-
-    ExecutorService executor = Executors.newFixedThreadPool(maxPoolSize);
-    return MoreExecutors.listeningDecorator(new TracedExecutorService(executor, tracer));
+  public ExecutorService getExecutorService(@Value("${feast.threadpool.max}") int maxPoolSize) {
+    return Executors.newFixedThreadPool(maxPoolSize);
   }
 
   @Bean

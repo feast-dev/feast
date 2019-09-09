@@ -67,18 +67,21 @@ public class RedisFeatureStorage implements FeatureStorage {
   @Override
   public List<FeatureValue> getFeature(
       String entityName, Collection<String> entityIds, Collection<FeatureSpec> featureSpecs) {
-    try (Scope scope = tracer.buildSpan("Redis-getFeature").startActive(true)) {
+    Span span = tracer.buildSpan("Redis.getFeature").start();
+    try (Scope scope  = tracer.scopeManager().activate(span)) {
       List<GetRequest> getRequests = new ArrayList<>(entityIds.size() * featureSpecs.size());
       for (FeatureSpec featureSpec : featureSpecs) {
         String featureId = featureSpec.getId();
         String featureIdSha1Prefix = makeFeatureIdSha1Prefix(featureId);
         for (String entityId : entityIds) {
           RedisBucketKey key = makeBucketKey(entityId, featureIdSha1Prefix, BUCKET_ID_ZERO);
-            getRequests.add(new GetRequest(entityId, featureId, key));
+          getRequests.add(new GetRequest(entityId, featureId, key));
         }
       }
-      scope.span().log("completed request creation");
+      span.log("completed request creation");
       return sendAndProcessMultiGet(getRequests);
+    } finally {
+      span.finish();
     }
   }
 
@@ -89,9 +92,8 @@ public class RedisFeatureStorage implements FeatureStorage {
    * @return list of feature value.
    */
   private List<FeatureValue> sendAndProcessMultiGet(List<GetRequest> getRequests) {
-    try (Scope scope = tracer.buildSpan("Redis-sendAndProcessMultiGet").startActive(true)) {
-      Span span = scope.span();
-
+    Span span = tracer.buildSpan("Redis.sendAndProcessMultiGet").start();
+    try (Scope scope = tracer.scopeManager().activate(span)) {
       if (getRequests.isEmpty()) {
         return Collections.emptyList();
       }
@@ -106,13 +108,17 @@ public class RedisFeatureStorage implements FeatureStorage {
       span.log("completed creating mget request");
 
       List<byte[]> binaryValues;
-      try (Jedis jedis = jedisPool.getResource()) {
+      Span mgetSpan = tracer.buildSpan("Redis.mget").start();
+      try (Jedis jedis = jedisPool.getResource();
+        Scope mgetScope = tracer.scopeManager().activate(mgetSpan)) {
         span.log("sending mget");
         binaryValues = jedis.mget(binaryKeys);
         span.log("completed mget");
       } catch (Exception e) {
         log.error("Exception while retrieving feature from Redis", e);
         throw new FeatureRetrievalException("Unable to retrieve feature from Redis", e);
+      } finally {
+        mgetSpan.finish();
       }
 
       try {
@@ -121,6 +127,8 @@ public class RedisFeatureStorage implements FeatureStorage {
         log.error("Unable to parse protobuf", e);
         throw new FeatureRetrievalException("Unable to parse protobuf while retrieving feature", e);
       }
+    } finally {
+      span.finish();
     }
   }
 
@@ -134,7 +142,8 @@ public class RedisFeatureStorage implements FeatureStorage {
    */
   private List<FeatureValue> processMGet(List<GetRequest> requests, List<byte[]> results)
       throws InvalidProtocolBufferException {
-    try (Scope scope = tracer.buildSpan("Redis-processMGet").startActive(true)) {
+    Span span = tracer.buildSpan("Redis.processMGet").start();
+    try (Scope scope = tracer.scopeManager().activate(span)) {
 
       int keySize = requests.size();
       List<FeatureValue> featureValues = new ArrayList<>(keySize);
@@ -154,6 +163,8 @@ public class RedisFeatureStorage implements FeatureStorage {
         featureValues.add(featureValue);
       }
       return featureValues;
+    } finally {
+      span.finish();
     }
   }
 

@@ -17,12 +17,12 @@
 
 package feast.serving.service;
 
-import com.google.common.collect.Lists;
 import feast.serving.ServingAPIProto.Entity;
 import feast.serving.model.FeatureValue;
 import feast.serving.util.EntityMapBuilder;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import io.opentracing.Scope;
+import io.opentracing.Span;
 import io.opentracing.Tracer;
 import java.util.Collection;
 import java.util.List;
@@ -52,31 +52,15 @@ public class FeatureRetrievalDispatcher {
    * <p>If request is small enough (only one request type and one source storage) it will be
    * executed in the current thread. Otherwise, the execution takes place in separate thread.
    *
-   * @param entityName entity name of the feature.
-   * @param entityIds list of entity ids.
+   * @param entityName   entity name of the feature.
+   * @param entityIds    list of entity ids.
    * @param featureSpecs list of request.
    * @return map of entityID and Entity instance.
    */
   public Map<String, Entity> dispatchFeatureRetrieval(
       String entityName, Collection<String> entityIds, Collection<FeatureSpec> featureSpecs) {
-
-    return runInCurrentThread(entityName, entityIds, Lists.newArrayList(featureSpecs));
-  }
-
-  /**
-   * Execute request in current thread.
-   *
-   * @param entityName entity name of of the feature.
-   * @param entityIds list of entity ID of the feature to be retrieved.
-   * @param featureSpecs list of feature specs
-   * @return entity map containing the result of feature retrieval.
-   */
-  private Map<String, Entity> runInCurrentThread(
-      String entityName,
-      Collection<String> entityIds,
-      List<FeatureSpec> featureSpecs) {
-    try (Scope scope =
-        tracer.buildSpan("FeatureRetrievalDispatcher-runInCurrentThread").startActive(true)) {
+    Span span = tracer.buildSpan("FeatureRetrievalDispatcher.runInCurrentThread").start();
+    try (Scope scope = tracer.scopeManager().activate(span)) {
 
       String storageId = FeastServing.SERVING_STORAGE_ID;
       FeatureStorage featureStorage = featureStorageRegistry.get(storageId);
@@ -87,6 +71,8 @@ public class FeatureRetrievalDispatcher {
       EntityMapBuilder builder = new EntityMapBuilder();
       builder.addFeatureValueList(featureValues);
       return builder.toEntityMap();
+    } finally {
+      span.finish();
     }
   }
 }

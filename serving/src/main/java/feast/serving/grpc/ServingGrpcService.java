@@ -33,13 +33,15 @@ import io.grpc.stub.StreamObserver;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
+import io.opentracing.contrib.grpc.OpenTracingContextKey;
+import io.opentracing.contrib.grpc.ServerTracingInterceptor;
 import lombok.extern.slf4j.Slf4j;
 import org.lognet.springboot.grpc.GRpcService;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /** Grpc service implementation for Serving API. */
 @Slf4j
-@GRpcService
+@GRpcService(interceptors = {ServerTracingInterceptor.class})
 public class ServingGrpcService extends ServingAPIImplBase {
 
   private final FeastServing feast;
@@ -57,21 +59,20 @@ public class ServingGrpcService extends ServingAPIImplBase {
   @Override
   public void queryFeatures(QueryFeaturesRequest request, StreamObserver<QueryFeaturesResponse> responseObserver) {
     long currentMicro = TimeUtil.microTime();
-    Span span = tracer.buildSpan("ServingGrpcService-queryFeatures").start();
+    Span span =tracer
+        .buildSpan("ServingGrpcService.queryFeatures")
+        .asChildOf(OpenTracingContextKey.activeSpan())
+        .start();
     String[] tags = makeStatsdTags(request);
     statsDClient.increment("query_features_count", tags);
     statsDClient.gauge("query_features_entity_count", request.getEntityIdCount(), tags);
     statsDClient.gauge("query_features_feature_count", request.getFeatureIdCount(), tags);
-    try (Scope scope = tracer.scopeManager().activate(span, false)) {
-      Span innerSpan = scope.span();
+    try (Scope scope = tracer.scopeManager().activate(span)) {
       validateRequest(request);
       QueryFeaturesResponse response = feast.queryFeatures(request);
 
-      innerSpan.log("calling onNext");
       responseObserver.onNext(response);
-      innerSpan.log("calling onCompleted");
       responseObserver.onCompleted();
-      innerSpan.log("all done");
       statsDClient.increment("query_feature_success", tags);
     } catch (Exception e) {
       statsDClient.increment("query_feature_failed", tags);
@@ -79,6 +80,7 @@ public class ServingGrpcService extends ServingAPIImplBase {
       responseObserver.onError(
           new StatusRuntimeException(
               Status.fromCode(INTERNAL).withDescription(e.getMessage()).withCause(e)));
+      span.log("error");
     } finally {
       statsDClient.gauge("query_features_latency_us", TimeUtil.microTime() - currentMicro, tags);
       span.finish();

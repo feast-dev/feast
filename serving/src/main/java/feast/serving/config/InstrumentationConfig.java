@@ -21,6 +21,7 @@ import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.opentracing.Tracer;
+import io.opentracing.util.GlobalTracer;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,7 +43,9 @@ public class InstrumentationConfig {
   public Tracer getTracer() {
     io.jaegertracing.Configuration tracingConfig =
         io.jaegertracing.Configuration.fromEnv(APP_NAME);
-    return tracingConfig.getTracer();
+    Tracer tracer = tracingConfig.getTracer();
+    GlobalTracer.registerIfAbsent(tracer);
+    return tracer;
   }
 
   @Bean
