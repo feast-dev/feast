@@ -24,7 +24,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.specs',
   syntax='proto3',
   serialized_options=_b('\n\013feast.specsB\023ImportJobSpecsProtoZ6github.com/gojek/feast/protos/generated/go/feast/specs'),
-  serialized_pb=_b('\n feast/specs/ImportJobSpecs.proto\x12\x0b\x66\x65\x61st.specs\x1a\x1c\x66\x65\x61st/specs/ImportSpec.proto\x1a\x1c\x66\x65\x61st/specs/EntitySpec.proto\x1a\x1d\x66\x65\x61st/specs/FeatureSpec.proto\x1a\x1d\x66\x65\x61st/specs/StorageSpec.proto\"\xcd\x02\n\x0eImportJobSpecs\x12\r\n\x05jobId\x18\x01 \x01(\t\x12+\n\nimportSpec\x18\x02 \x01(\x0b\x32\x17.feast.specs.ImportSpec\x12,\n\x0b\x65ntitySpecs\x18\x03 \x03(\x0b\x32\x17.feast.specs.EntitySpec\x12.\n\x0c\x66\x65\x61tureSpecs\x18\x04 \x03(\x0b\x32\x18.feast.specs.FeatureSpec\x12\x34\n\x12servingStorageSpec\x18\x05 \x01(\x0b\x32\x18.feast.specs.StorageSpec\x12\x36\n\x14warehouseStorageSpec\x18\x06 \x01(\x0b\x32\x18.feast.specs.StorageSpec\x12\x33\n\x11\x65rrorsStorageSpec\x18\x07 \x01(\x0b\x32\x18.feast.specs.StorageSpecBZ\n\x0b\x66\x65\x61st.specsB\x13ImportJobSpecsProtoZ6github.com/gojek/feast/protos/generated/go/feast/specsb\x06proto3')
+  serialized_pb=_b('\n feast/specs/ImportJobSpecs.proto\x12\x0b\x66\x65\x61st.specs\x1a\x1c\x66\x65\x61st/specs/ImportSpec.proto\x1a\x1c\x66\x65\x61st/specs/EntitySpec.proto\x1a\x1d\x66\x65\x61st/specs/FeatureSpec.proto\x1a\x1d\x66\x65\x61st/specs/StorageSpec.proto\"\xcb\x03\n\x0eImportJobSpecs\x12\r\n\x05jobId\x18\x01 \x01(\t\x12+\n\nimportSpec\x18\x02 \x01(\x0b\x32\x17.feast.specs.ImportSpec\x12,\n\x0b\x65ntitySpecs\x18\x03 \x03(\x0b\x32\x17.feast.specs.EntitySpec\x12.\n\x0c\x66\x65\x61tureSpecs\x18\x04 \x03(\x0b\x32\x18.feast.specs.FeatureSpec\x12\x34\n\x12servingStorageSpec\x18\x05 \x01(\x0b\x32\x18.feast.specs.StorageSpec\x12\x36\n\x14warehouseStorageSpec\x18\x06 \x01(\x0b\x32\x18.feast.specs.StorageSpec\x12\x33\n\x11\x65rrorsStorageSpec\x18\x07 \x01(\x0b\x32\x18.feast.specs.StorageSpec\x12*\n\"write_feature_metrics_to_influx_db\x18\x08 \x01(\x08\x12\x15\n\rinflux_db_url\x18\t \x01(\t\x12\x1a\n\x12influx_db_database\x18\n \x01(\t\x12\x1d\n\x15influx_db_measurement\x18\x0b \x01(\tBZ\n\x0b\x66\x65\x61st.specsB\x13ImportJobSpecsProtoZ6github.com/gojek/feast/protos/generated/go/feast/specsb\x06proto3')
   ,
   dependencies=[feast_dot_specs_dot_ImportSpec__pb2.DESCRIPTOR,feast_dot_specs_dot_EntitySpec__pb2.DESCRIPTOR,feast_dot_specs_dot_FeatureSpec__pb2.DESCRIPTOR,feast_dot_specs_dot_StorageSpec__pb2.DESCRIPTOR,])
 
@@ -87,6 +87,34 @@ _IMPORTJOBSPECS = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='write_feature_metrics_to_influx_db', full_name='feast.specs.ImportJobSpecs.write_feature_metrics_to_influx_db', index=7,
+      number=8, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='influx_db_url', full_name='feast.specs.ImportJobSpecs.influx_db_url', index=8,
+      number=9, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='influx_db_database', full_name='feast.specs.ImportJobSpecs.influx_db_database', index=9,
+      number=10, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='influx_db_measurement', full_name='feast.specs.ImportJobSpecs.influx_db_measurement', index=10,
+      number=11, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -100,7 +128,7 @@ _IMPORTJOBSPECS = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=172,
-  serialized_end=505,
+  serialized_end=631,
 )
 
 _IMPORTJOBSPECS.fields_by_name['importSpec'].message_type = feast_dot_specs_dot_ImportSpec__pb2._IMPORTSPEC

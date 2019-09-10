@@ -39,7 +39,7 @@ from feast.sdk.resources.storage import Storage
 from feast.sdk.utils.bq_util import TableDownloader
 from feast.serving.Serving_pb2 import QueryFeaturesRequest, \
     QueryFeaturesResponse, FeatureValue
-from feast.specs.FeatureSpec_pb2 import FeatureSpec, DataStores, DataStore
+from feast.specs.FeatureSpec_pb2 import FeatureSpec
 from feast.specs.ImportSpec_pb2 import ImportSpec
 from feast.specs.StorageSpec_pb2 import StorageSpec
 from feast.types.Value_pb2 import Value
@@ -92,19 +92,6 @@ class TestClient(object):
             name = client.apply(my_feature_group)
             assert name == "test"
 
-    def test_apply_single_storage(self, client, mocker):
-        my_storage = Storage(id="TEST", type="redis")
-        grpc_stub = core.CoreServiceStub(grpc.insecure_channel(""))
-
-        with mocker.patch.object(
-                grpc_stub,
-                'ApplyStorage',
-                return_value=CoreServiceTypes.ApplyStorageResponse(
-                    storageId="TEST")):
-            client._core_service_stub = grpc_stub
-            name = client.apply(my_storage)
-            assert name == "TEST"
-
     def test_apply_unsupported_object(self, client):
         with pytest.raises(TypeError) as e_info:
             client.apply(None)
@@ -112,17 +99,11 @@ class TestClient(object):
                    + "following types: [Feature, Entity, FeatureGroup, Storage, Importer]"
 
     def test_apply_multiple(self, client, mocker):
-        my_storage = Storage(id="TEST", type="redis")
         my_feature_group = FeatureGroup(id="test")
         my_entity = Entity(name="test")
 
         grpc_stub = core.CoreServiceStub(grpc.insecure_channel(""))
 
-        mocker.patch.object(
-            grpc_stub,
-            'ApplyStorage',
-            return_value=CoreServiceTypes.ApplyStorageResponse(
-                storageId="TEST"))
         mocker.patch.object(
             grpc_stub,
             'ApplyFeatureGroup',
@@ -135,8 +116,8 @@ class TestClient(object):
                 entityName="test"))
 
         client._core_service_stub = grpc_stub
-        ids = client.apply([my_storage, my_entity, my_feature_group])
-        assert ids == ["TEST", "test", "test"]
+        ids = client.apply([my_entity, my_feature_group])
+        assert ids == ["test", "test"]
 
     def test_run_job_no_staging(self, client, mocker):
         grpc_stub = jobs.JobServiceStub(grpc.insecure_channel(""))
@@ -493,9 +474,7 @@ class TestClient(object):
         return response
 
     def _create_feature_spec(self, feature_id, wh_id):
-        wh_store = DataStore(id=wh_id)
-        datastores = DataStores(warehouse=wh_store)
-        return FeatureSpec(id=feature_id, dataStores=datastores)
+        return FeatureSpec(id=feature_id)
 
     def _create_bq_spec(self, id, project, dataset):
         return StorageSpec(
