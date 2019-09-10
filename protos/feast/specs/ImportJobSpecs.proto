@@ -40,14 +40,18 @@ message ImportJobSpecs {
   // and will be backward incompatible for versions greater than 0.1.x
   // ============================================================
   //
+  // (optional, default: false)
   // write_feature_metrics_to_influx_db specifies if Feast should write feature metrics
-  // (such as lag and value summaries) to Influx DB. If this field is true, the next three fields:
-  // influx_db_url, influx_db_database, influx_db_measurement should be set as well.
-  //
-  // When retrieving the data in Influx DB:
-  // The field name for feature lag value in seconds unit is "lag_in_seconds"
-  // The field name for value is "value"
-  // Points will be tagged with "feature_id" and "entity_name"
+  // (such as lag and value summaries) to an existing Influx DB database. 
+  // If set to true, the next three fields must all be set:
+  // - influx_db_url
+  // - influx_db_database
+  // - influx_db_measurement 
+  // NOTE:
+  // When retrieving the data from Influx DB,
+  // - The field name for feature lag value in seconds unit is "lag_in_seconds"
+  // - The field name for value is "value"
+  // - Points will be tagged with "feature_id" and "entity_name"
   bool write_feature_metrics_to_influx_db = 8;
   // influx_db_url is the url for Feast to connect to Influx DB. Example: http://localhost:8086
   string influx_db_url = 9;
