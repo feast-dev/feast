@@ -46,7 +46,6 @@ Components that Feast supports, but this installation will not include are:
   - Note that if you do not provision a metrics store, feast will only retain the latest metrics from your jobs.
 - [Jaeger tracing](www.jaegertracing.io) for serving performance. 
   - Set `serving.jaeger.enabled` to `true`, and configure the following parameters:
-    - `serving.jaeger.host`
     - `serving.jaeger.port`
     - `serving.jaeger.options.samplerType`
     - `serving.jaeger.options.samplerParam`
@@ -72,6 +71,10 @@ The following table lists the configurable parameters of the Feast chart and the
 | `core.jobs.options` | additional options to be provided to the beam job. Should be a char escaped json k-v object | {} | 
 | `core.jobs.runner` | beam job runner - one of `DirectRunner`, `FlinkRunner` or `DataflowRunner` | DirectRunner | 
 | `core.jobs.workspace` | workspace path for ingestion jobs, used for separate job workspaces to share importJobSpecs.yaml with ingestion and for writing errors to if no default errors store is configured | nil |
+| `core.jobs.writeFeatureMetricsToInfluxDb` | specifies whether Feast import job will write feature metrics (such as feature lag and values summaries) to Influx DB for monitoring and alert purpose | false |
+| `core.jobs.influxDbUrl` | Influx DB url e.g. http://localhost:8086 (required if `core.jobs.writeFeatureMetricsToInfluxDb = true`) |  |
+| `core.jobs.influxDbDatabase` | Influx DB database name (required if `core.jobs.writeFeatureMetricsToInfluxDb = true`) | |
+| `core.jobs.influxDbMeasurement` | Influx DB [measurement name](https://docs.influxdata.com/influxdb/v1.7/concepts/key_concepts/#measurement) (required if `core.jobs.writeFeatureMetricsToInfluxDb = true`) | |
 | `core.replicaCount` | core deployment replica count | 3 |
 | `core.resources.limits.cpu` | core cpu limits | 1 |
 | `core.resources.limits.memory` | core memory limits | 2G |

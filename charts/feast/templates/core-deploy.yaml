@@ -98,6 +98,18 @@ spec:
             value: "{{ .Values.core.jobs.monitoring.period }}"
           - name: JOB_MONITOR_INITIAL_DELAY_MS
             value: "{{ .Values.core.jobs.monitoring.initialDelay }}"
+
+          {{- if .Values.core.jobs.writeFeatureMetricsToInfluxDb }}
+          - name: INGESTION_METRICS_ENABLED
+            value: true 
+          - name: INGESTION_METRICS_INFLUX_URL
+            value: {{ .Values.core.jobs.influxDbUrl }}
+          - name: INGESTION_METRICS_INFLUX_DB_NAME
+            value: {{ .Values.core.jobs.influxDbDatabase }}
+          - name: INGESTION_METRICS_INFLUX_DB_MEASUREMENT
+            value: {{ .Values.core.jobs.influxDbMeasurement }}
+          {{- end }}
+
           {{- if .Values.store }}
           {{- if .Values.store.serving }}
           - name: STORE_SERVING_TYPE
