@@ -101,7 +101,7 @@ spec:
 
           {{- if .Values.core.jobs.writeFeatureMetricsToInfluxDb }}
           - name: INGESTION_METRICS_ENABLED
-            value: true 
+            value: "true"
           - name: INGESTION_METRICS_INFLUX_URL
             value: {{ .Values.core.jobs.influxDbUrl }}
           - name: INGESTION_METRICS_INFLUX_DB_NAME

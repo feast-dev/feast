@@ -14,6 +14,7 @@ import java.io.InputStreamReader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
@@ -23,7 +24,7 @@ public class TrainingConfig {
 
   @Bean
   public BigQueryDatasetTemplater getBigQueryTrainingDatasetTemplater(
-      StorageSpecs storageSpecs, FeatureInfoRepository featureInfoRepository) throws IOException {
+      @Lazy StorageSpecs storageSpecs, FeatureInfoRepository featureInfoRepository) throws IOException {
     Resource resource = new ClassPathResource("templates/bq_training.tmpl");
     InputStream resourceInputStream = resource.getInputStream();
     String tmpl = CharStreams.toString(new InputStreamReader(resourceInputStream, Charsets.UTF_8));
