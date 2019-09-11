@@ -19,7 +19,6 @@ syntax = "proto3";
 package feast.serving;
 
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/empty.proto";
 import "feast/types/Value.proto";
 import "feast/types/FeatureRow.proto";
 

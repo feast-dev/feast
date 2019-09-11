@@ -42,6 +42,6 @@ message KafkaSourceConfig {
     // - bootstrapServers: [comma delimited value of host[:port]]
     string bootstrap_servers = 1;
 
-    // - topics: [comma delimited value of topic names. This value is provisioned by core and should not be set by the user.]
-    string topics = 2;
+    // - topics: [Kafka topic name. This value is provisioned by core and should not be set by the user.]
+    string topic = 2;
 }
