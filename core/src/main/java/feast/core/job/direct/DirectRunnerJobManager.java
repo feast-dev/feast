@@ -18,12 +18,29 @@
 package feast.core.job.direct;
 
 import com.google.common.base.Strings;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
+import com.google.protobuf.util.JsonFormat.Printer;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.StoreProto;
 import feast.core.config.ImportJobDefaults;
+import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
+import feast.core.model.FeatureSet;
 import feast.core.model.JobInfo;
+import feast.core.model.Store;
+import feast.core.util.TypeConversion;
+import feast.ingestion.ImportJob;
+import feast.ingestion.options.ImportJobPipelineOptions;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.beam.runners.direct.DirectRunner;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
 @Slf4j
 public class DirectRunnerJobManager implements JobManager {
@@ -37,42 +54,49 @@ public class DirectRunnerJobManager implements JobManager {
   }
 
   /**
-   * Start a direct runner job, that retrieves specs configuration from the given workspace.
+   * Start a direct runner job.
    *
-   * @param name job name
-   * @param workspace containing specifications for running the job
+   * @param name of job to run
+   * @param featureSetSpecs list of specs for featureSets to be populated by the job
+   * @param sinkSpec Store to sink features to
    */
   @Override
-  public String startJob(String name, Path workspace) {
-    return "";
-//    String[] args = TypeConversion.convertJsonStringToArgs(defaults.getImportJobOptions());
-//
-//    ImportJobPipelineOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args)
-//        .as(ImportJobPipelineOptions.class);
-//    pipelineOptions.setRunner(DirectRunner.class);
-//    pipelineOptions.setWorkspace(workspace.toUri().toString());
-//    pipelineOptions
-//        .setImportJobSpecUri(workspace.resolve("importJobSpecs.yaml").toUri().toString());
-////    pipelineOptions
-////        .setImportJobSpecUri(workspace.resolve("importJobSpecs.yaml").toAbsolutePath().toString());
-//    pipelineOptions.setBlockOnRun(false);
-//
-//    try {
-//      PipelineResult pipelineResult = runPipeline(pipelineOptions);
-//      DirectJob directJob = new DirectJob(name, pipelineResult);
-//      jobs.add(directJob);
-//      return name;
-//    } catch (Exception e) {
-//      log.error("Error submitting job", e);
-//      throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
-//    }
+  public String startJob(String name, List<FeatureSetSpec> featureSetSpecs, StoreProto.Store sinkSpec) {
+    try {
+      ImportJobPipelineOptions pipelineOptions = getPipelineOptions(featureSetSpecs, sinkSpec);
+      PipelineResult pipelineResult = runPipeline(pipelineOptions);
+      DirectJob directJob = new DirectJob(name, pipelineResult);
+      jobs.add(directJob);
+      return name;
+    } catch (Exception e) {
+      log.error("Error submitting job", e);
+      throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
+    }
+  }
+
+  private ImportJobPipelineOptions getPipelineOptions(List<FeatureSetSpec> featureSetSpecs,
+      StoreProto.Store sink)
+      throws InvalidProtocolBufferException {
+    String[] args = TypeConversion.convertJsonStringToArgs(defaults.getImportJobOptions());
+    ImportJobPipelineOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args)
+        .as(ImportJobPipelineOptions.class);
+    Printer printer = JsonFormat.printer();
+    List<String> featureSetsJson = new ArrayList<>();
+    for (FeatureSetSpec featureSetSpec : featureSetSpecs) {
+      featureSetsJson.add(printer.print(featureSetSpec));
+    }
+    pipelineOptions.setFeatureSetSpecJson(featureSetsJson);
+    pipelineOptions.setStoreJson(Collections.singletonList(printer.print(sink)));
+    pipelineOptions.setRunner(DirectRunner.class);
+    pipelineOptions.setBlockOnRun(false);
+    return pipelineOptions;
   }
 
   /**
    * Unsupported.
    */
   @Override
-  public String updateJob(JobInfo jobInfo, Path workspace) {
+  public String updateJob(JobInfo jobInfo) {
     throw new UnsupportedOperationException(
         "DirectRunner does not support job updates. To make changes to the worker, stop the existing job and rerun ingestion.");
   }
@@ -94,8 +118,8 @@ public class DirectRunnerJobManager implements JobManager {
     jobs.remove(extId);
   }
 
-//  public PipelineResult runPipeline(ImportJobPipelineOptions pipelineOptions)
-//      throws IOException, URISyntaxException {
-//    return ImportJob.runPipeline(pipelineOptions);
-//  }
+  public PipelineResult runPipeline(ImportJobPipelineOptions pipelineOptions)
+      throws IOException {
+    return ImportJob.runPipeline(pipelineOptions);
+  }
 }

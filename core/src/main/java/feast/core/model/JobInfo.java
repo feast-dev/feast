@@ -17,6 +17,7 @@
 
 package feast.core.model;
 
+import feast.core.SourceProto.SourceType;
 import java.util.List;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -61,10 +62,6 @@ public class JobInfo extends AbstractTimestampEntity {
   @Column(name = "runner")
   private String runner;
 
-  // Job options. Stored as a json string as it is specific to the runner.
-  @Column(name = "source_options")
-  private String sourceOptions;
-
   // Sink id
   @ManyToOne
   @JoinColumn(name = "store_name")
@@ -85,12 +82,22 @@ public class JobInfo extends AbstractTimestampEntity {
   @Column(name = "status", length = 16)
   private JobStatus status;
 
-  // Raw import job spec, stored as a json string.
-  @Column(name = "raw", length = 40960)
-  private String raw;
-
   public JobInfo() {
     super();
   }
 
+  public JobInfo(String id, String extId, SourceType type, String runner, Store sink,
+      List<FeatureSet> featureSets, JobStatus jobStatus) {
+    this.id = id;
+    this.extId = extId;
+    this.type = type.toString();
+    this.runner = runner;
+    this.store = sink;
+    this.featureSets = featureSets;
+    this.status = jobStatus;
+  }
+
+  public String getSinkName() {
+    return store.getName();
+  }
 }

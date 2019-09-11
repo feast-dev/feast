@@ -22,8 +22,7 @@ public class DirectRunnerJobMonitor implements JobMonitor {
   @Override
   public JobStatus getJobStatus(JobInfo job) {
     DirectJob directJob = jobs.get(job.getId());
-    return JobStatus.COMPLETED;
-//    return jobStateMapper.map(directJob.getPipelineResult().getState());
+    return jobStateMapper.map(directJob.getPipelineResult().getState());
   }
 
   @Override

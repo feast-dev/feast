@@ -66,12 +66,10 @@ public class ScheduledJobMonitorTest {
             "extId1",
             "Streaming",
             "DataflowRunner",
-            "",
             new Store(),
             Collections.emptyList(),
             Collections.emptyList(),
-            JobStatus.RUNNING,
-            "");
+            JobStatus.RUNNING);
 
     when(jobInfoRepository.findByStatusNotIn((Collection<JobStatus>) any(Collection.class)))
         .thenReturn(Collections.singletonList(job));
@@ -104,12 +102,10 @@ public class ScheduledJobMonitorTest {
             "extId1",
             "Streaming",
             "DataflowRunner",
-            "",
             new Store(),
             Collections.emptyList(),
             Collections.emptyList(),
-            JobStatus.RUNNING,
-            "");
+            JobStatus.RUNNING);
 
     Metrics metric1 = new Metrics(job, "metric1", 1);
     Metrics metric2 = new Metrics(job, "metric2", 2);

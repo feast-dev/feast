@@ -19,24 +19,24 @@ package feast;
 
 import com.google.common.collect.Lists;
 import com.google.common.primitives.UnsignedBytes;
+import feast.types.FeatureProto.Field;
+import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
+import feast.types.FeatureRowProto.FeatureRow;
 import java.util.List;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import feast.types.FeatureProto.Feature;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
-import feast.types.FeatureRowProto.FeatureRow;
 
 public class ToOrderedFeatureRows
     extends PTransform<PCollection<FeatureRowExtended>, PCollection<FeatureRow>> {
 
   public static FeatureRow orderedFeatureRow(FeatureRow row) {
-    List<Feature> features = Lists.newArrayList(row.getFeaturesList());
+    List<Field> features = Lists.newArrayList(row.getFieldsList());
     features.sort(
         (f1, f2) ->
             UnsignedBytes.lexicographicalComparator().compare(f1.toByteArray(), f2.toByteArray()));
-    return row.toBuilder().clearFeatures().addAllFeatures(features).build();
+    return row.toBuilder().clearFields().addAllFields(features).build();
   }
 
   @Override

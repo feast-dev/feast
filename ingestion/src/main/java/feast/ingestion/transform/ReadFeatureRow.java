@@ -19,7 +19,8 @@ package feast.ingestion.transform;
 
 import com.google.common.collect.ImmutableMap;
 import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.SourceProto.Source.SourceType;
+import feast.core.SourceProto.KafkaSourceConfig;
+import feast.core.SourceProto.SourceType;
 import feast.source.kafka.FeatureRowDeserializer;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.Arrays;
@@ -51,16 +52,17 @@ public class ReadFeatureRow extends PTransform<PInput, PCollection<FeatureRow>> 
     String kafkaConsumerGroupId =
         String.format("feast-import-job-%s", input.getPipeline().getOptions().getJobName());
 
+    KafkaSourceConfig kafkaSourceConfig = featureSetSpec.getSource().getKafkaSourceConfig();
     return input
         .getPipeline()
         .apply(
             "Read from Kafka",
             KafkaIO.<byte[], FeatureRow>read()
                 .withBootstrapServers(
-                    featureSetSpec.getSource().getOptionsOrThrow("bootstrapServers"))
+                    kafkaSourceConfig.getBootstrapServers())
                 .withTopics(
                     Arrays.asList(
-                        featureSetSpec.getSource().getOptionsOrThrow("topics").split(",")))
+                        kafkaSourceConfig.getTopics().split(",")))
                 .withKeyDeserializer(ByteArrayDeserializer.class)
                 .withValueDeserializer(FeatureRowDeserializer.class)
                 .withReadCommitted()

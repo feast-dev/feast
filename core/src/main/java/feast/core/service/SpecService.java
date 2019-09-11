@@ -17,14 +17,21 @@
 
 package feast.core.service;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
+import com.google.protobuf.InvalidProtocolBufferException;
+import feast.core.CoreServiceProto.ApplyFeatureSetResponse;
+import feast.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
 import feast.core.CoreServiceProto.GetFeatureSetsRequest;
+import feast.core.CoreServiceProto.GetFeatureSetsResponse;
 import feast.core.CoreServiceProto.GetStoresRequest;
+import feast.core.CoreServiceProto.GetStoresResponse;
+import feast.core.CoreServiceProto.GetStoresResponse.Builder;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.StoreRepository;
 import feast.core.exception.RetrievalException;
 import feast.core.model.FeatureSet;
+import feast.core.model.Source;
 import feast.core.model.Store;
 import feast.core.validators.FeatureSetValidator;
 import java.util.Collections;
@@ -47,6 +54,8 @@ public class SpecService {
 
   private final FeatureSetRepository featureSetRepository;
   private final StoreRepository storeRepository;
+  private final FeatureStreamService featureStreamService;
+  private final JobCoordinatorService jobCoordinatorService;
 
   private final Pattern versionPattern = Pattern
       .compile("^(?<comparator>[\\>\\<\\=]{0,2})(?<version>\\d*)$");
@@ -54,36 +63,55 @@ public class SpecService {
   @Autowired
   public SpecService(
       FeatureSetRepository featureSetRepository,
-      StoreRepository storeRepository) {
+      StoreRepository storeRepository,
+      FeatureStreamService featureStreamService,
+      JobCoordinatorService jobCoordinatorService) {
     this.featureSetRepository = featureSetRepository;
     this.storeRepository = storeRepository;
-
+    this.featureStreamService = featureStreamService;
+    this.jobCoordinatorService = jobCoordinatorService;
   }
 
   /**
    * Get featureSets matching the feature name and version provided in the filter. If the feature
    * name is not provided, the method will return all featureSets currently registered to Feast.
    *
+   * The feature set name in the filter accepts any valid regex string. All matching featureSets
+   * will be returned.
+   *
    * The version filter is optional; If not provided, this method will return all featureSet
    * versions of the featureSet name provided. Valid version filters should optionally contain a
    * comparator (<, <=, >, etc) and a version number, e.g. 10, <10, >=1
    *
    * @param filter filter containing the desired featureSet name and version filter
-   * @return List of featureSets found matching the filter
+   * @return GetFeatureSetsResponse with list of featureSets found matching the filter
    */
-  public List<FeatureSet> getFeatureSets(GetFeatureSetsRequest.Filter filter) {
+  public GetFeatureSetsResponse getFeatureSets(GetFeatureSetsRequest.Filter filter)
+      throws InvalidProtocolBufferException {
     String name = filter.getFeatureSetName();
+    List<FeatureSet> featureSets;
     if (name.equals("")) {
-      return featureSetRepository.findAll();
+      featureSets = featureSetRepository.findAll();
+    } else {
+      featureSets = featureSetRepository.findByNameRegex(name);
+      if (filter.getFeatureSetVersion().equals("latest")) {
+        featureSets = Ordering.natural().reverse()
+            .sortedCopy(featureSets)
+            .subList(0, 1);
+      } else {
+        featureSets = featureSets.stream().filter(getVersionFilter(filter.getFeatureSetVersion()))
+            .collect(Collectors.toList());
+      }
+      if (featureSets.size() == 0) {
+        throw new RetrievalException(
+            String.format("Unable to find any featureSets matching the filter '%s'", filter));
+      }
     }
-    List<FeatureSet> featureSets = featureSetRepository.findByName(name);
-    featureSets = featureSets.stream().filter(getVersionFilter(filter.getFeatureSetVersion()))
-        .collect(Collectors.toList());
-    if (featureSets.size() == 0) {
-      throw new RetrievalException(
-          String.format("Unable to find any featureSets matching the filter '%s'", filter));
+    GetFeatureSetsResponse.Builder response = GetFeatureSetsResponse.newBuilder();
+    for (FeatureSet featureSet : featureSets) {
+      response.addFeatureSets(featureSet.toProto());
     }
-    return featureSets;
+    return response.build();
   }
 
   /**
@@ -91,50 +119,77 @@ public class SpecService {
    * the method will return all stores currently registered to Feast.
    *
    * @param filter filter containing the desired store name
-   * @return List of stores found matching the filter
+   * @return GetStoresResponse containing list of stores found matching the filter
    */
-  public List<Store> getStores(GetStoresRequest.Filter filter) {
-    String name = filter.getName();
-    if (name.equals("")) {
-      return storeRepository.findAll();
+  public GetStoresResponse getStores(GetStoresRequest.Filter filter) {
+    try {
+      String name = filter.getName();
+      if (name.equals("")) {
+        Builder responseBuilder = GetStoresResponse.newBuilder();
+        for (Store store : storeRepository.findAll()) {
+          responseBuilder.addStore(store.toProto());
+        }
+        return responseBuilder.build();
+      }
+      Store store = storeRepository.findById(name)
+          .orElseThrow(() -> new RetrievalException(String.format("Store with name '%s' not found",
+              name)));
+      return GetStoresResponse.newBuilder()
+          .addStore(store.toProto())
+          .build();
+    } catch (InvalidProtocolBufferException e) {
+      throw new RetrievalException("Unable to retrieve stores", e);
     }
-    Store store = storeRepository.findById(name)
-        .orElseThrow(() -> new RetrievalException(String.format("Store with name '%s' not found",
-            name)));
-    return Lists.newArrayList(store);
   }
 
   /**
-   * Adds the featureSet to the repository. This function is idempotent. If no changes are detected in the incoming featureset, this method will do nothing.
+   * Adds the featureSet to the repository, and prepares the sink for the feature creator to write
+   * to. If there is a change in the featureSet's schema or source, the featureSet version will be
+   * incremented.
+   *
+   * This function is idempotent. If no changes are detected in the incoming featureSet's schema,
+   * this method will update the incoming featureSet spec with the latest version stored in the
+   * repository, and return that.
    *
    * @param newFeatureSetSpec featureSet to add.
    */
-  public void applyFeatureSet(FeatureSetSpec newFeatureSetSpec) {
+  public ApplyFeatureSetResponse applyFeatureSet(FeatureSetSpec newFeatureSetSpec)
+      throws InvalidProtocolBufferException {
     FeatureSetValidator.validateSpec(newFeatureSetSpec);
     List<FeatureSet> existingFeatureSets = featureSetRepository
         .findByName(newFeatureSetSpec.getName());
     if (existingFeatureSets.size() == 0) {
       newFeatureSetSpec = newFeatureSetSpec.toBuilder().setVersion(1).build();
-    } else {
-      Collections.sort(existingFeatureSets, Collections.reverseOrder());
-      FeatureSet latest = existingFeatureSets.get(0);
 
-      // If the featureset remains unchanged, we do nothing.
-      if (featureSetUnchanged(latest.toProto(), newFeatureSetSpec)) {
-        return;
+    } else {
+      existingFeatureSets = Ordering.natural().reverse().sortedCopy(existingFeatureSets);
+      FeatureSet latest = existingFeatureSets.get(0);
+      FeatureSet featureSet = FeatureSet.fromProto(newFeatureSetSpec);
+
+      // If the featureSet remains unchanged, we do nothing.
+      if (featureSet.equalTo(latest)) {
+        newFeatureSetSpec = newFeatureSetSpec.toBuilder()
+            .setVersion(latest.getVersion())
+            .build();
+        return ApplyFeatureSetResponse.newBuilder()
+            .setFeatureSet(newFeatureSetSpec)
+            .setStatus(Status.NO_CHANGE)
+            .build();
       }
       newFeatureSetSpec = newFeatureSetSpec.toBuilder()
           .setVersion(latest.getVersion() + 1)
           .build();
     }
     FeatureSet featureSet = FeatureSet.fromProto(newFeatureSetSpec);
-    featureSetRepository.save(featureSet);
-  }
+    Source updatedSource = featureStreamService.setUpSource(featureSet);
+    featureSet.setSource(updatedSource);
 
-  private boolean featureSetUnchanged(FeatureSetSpec latest, FeatureSetSpec inc) {
-    FeatureSetSpec featureSetSpecWithVersion = inc.toBuilder()
-        .setVersion(latest.getVersion()).build();
-    return latest.equals(featureSetSpecWithVersion);
+    featureSetRepository.saveAndFlush(featureSet);
+
+    return ApplyFeatureSetResponse.newBuilder()
+        .setFeatureSet(featureSet.toProto())
+        .setStatus(Status.CREATED)
+        .build();
   }
 
   private Predicate<? super FeatureSet> getVersionFilter(String versionFilter) {
@@ -173,62 +228,5 @@ public class SpecService {
                 comparator));
     }
   }
+
 }
-
-//
-//  private void startOrUpdateJobs(EntityInfo entityInfo) {
-//    List<FeatureInfo> features = featureInfoRepository.findByEntityName(entityInfo.getName());
-//    List<FeatureSpec> featureSpecs = features.stream().map(FeatureInfo::getFeatureSpec)
-//        .collect(Collectors.toList());
-//    for (StorageSpec storageSpec : storageSpecs.getSinks()) {
-//      ImportJobSpecs importJobSpecs = jobCoordinatorService
-//          .createImportJobSpecs(entityInfo.getTopic().getName(), entityInfo.getEntitySpec(),
-//              featureSpecs, storageSpec, storageSpecs.getErrorsStorageSpec());
-//      boolean exists = runningJobExistsForSinkId(entityInfo.getJobs(), storageSpec.getId());
-//      if (exists) {
-//        // if job exists, update
-//        JobInfo existingJob = entityInfo.getJobs().get(0);
-//        importJobSpecs = importJobSpecs.toBuilder().setJobId(existingJob.getId()).build();
-//        jobCoordinatorService.updateJob(existingJob, importJobSpecs);
-//      } else {
-//        // if job doesn't exist, create
-//        JobInfo job = jobCoordinatorService.startJob(importJobSpecs);
-//        List<JobInfo> existingJobs = entityInfo.getJobs();
-//        existingJobs.add(job);
-//        entityInfo.setJobs(existingJobs);
-//        entityInfoRepository.saveAndFlush(entityInfo);
-//      }
-//    }
-//  }
-//
-//  private boolean runningJobExistsForSinkId(List<JobInfo> jobs, String sinkId) {
-//    return jobs.stream().filter(job -> job.getStatus().equals(JobStatus.RUNNING))
-//        .anyMatch(job -> job.getSinkId().equals(sinkId));
-//  }
-//
-//  private FeatureInfo updateOrCreateFeature(FeatureInfo featureInfo, FeatureSpec spec)
-//      throws InvalidProtocolBufferException {
-//    Action action;
-//    if (featureInfo != null) {
-//      featureInfo.update(spec);
-//      action = Action.UPDATE;
-//    } else {
-//      EntityInfo entity = entityInfoRepository.findById(spec.getEntity()).orElse(null);
-//      FeatureGroupInfo featureGroupInfo =
-//          featureGroupInfoRepository.findById(spec.getGroup()).orElse(null);
-//      featureInfo = new FeatureInfo(spec, entity, featureGroupInfo);
-//      action = Action.REGISTER;
-//    }
-//    FeatureInfo out = featureInfoRepository.save(featureInfo);
-//    if (!out.getId().equals(spec.getId())) {
-//      throw new RegistrationException("failed to register or update feature");
-//    }
-//    AuditLogger.log(
-//        Resource.FEATURE,
-//        spec.getId(),
-//        action,
-//        "Feature applied: %s",
-//        JsonFormat.printer().print(spec));
-//    return out;
-//  }
-

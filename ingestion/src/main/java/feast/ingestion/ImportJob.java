@@ -4,8 +4,9 @@ import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.common.collect.Sets;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.SourceProto.KafkaSourceConfig;
 import feast.core.SourceProto.Source;
-import feast.core.SourceProto.Source.SourceType;
+import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Subscription;
 import feast.ingestion.options.ImportJobPipelineOptions;
@@ -82,7 +83,7 @@ public class ImportJob {
               && subscription
                   .getVersion()
                   .equalsIgnoreCase(String.valueOf(featureSetSpec.getVersion()))) {
-            setupSource(featureSetSpec.getSource());
+            setupSource(pipelineOptions.getJobName(), featureSetSpec.getSource());
             setupStore(store, featureSetSpec);
           }
 
@@ -136,29 +137,25 @@ public class ImportJob {
    * <p>This is necessary because the setup time for certain runners (e.g. Dataflow) might cause the
    * worker to miss the messages that were emitted into the stream prior to the workers being ready.
    */
-  private static void setupSource(Source source) {
+  private static void setupSource(String jobName, Source source) {
     if (!source.getType().equals(SourceType.KAFKA)) {
       throw new UnsupportedOperationException(
           String.format("Source type: %s not implemented yet", source.getType()));
     }
 
-    if (!source.getOptions().containsKey("consumerGroupId")) {
-      log.warn(
-          "consumerGroupId is not provided in the source options. Import job will not be able to resume correctly from existing checkpoint.");
-      return;
-    }
+    KafkaSourceConfig kafkaSourceConfig = source.getKafkaSourceConfig();
 
     Properties consumerProperties = new Properties();
-    consumerProperties.setProperty("group.id", source.getOptionsOrThrow("consumerGroupId"));
+    consumerProperties.setProperty("group.id", jobName);
     consumerProperties.setProperty(
-        "bootstrap.servers", source.getOptionsOrThrow("bootstrapServers"));
+        "bootstrap.servers", kafkaSourceConfig.getBootstrapServers());
     consumerProperties.setProperty(
         "key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
     consumerProperties.setProperty(
         "value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
     KafkaConsumer kafkaConsumer = new KafkaConsumer(consumerProperties);
 
-    String[] topics = source.getOptionsOrThrow("topics").split(",");
+    String[] topics = kafkaSourceConfig.getTopics().split(",");
     long timestamp = System.currentTimeMillis();
     Map<TopicPartition, Long> timestampsToSearch = new HashMap<>();
     for (String topic : topics) {

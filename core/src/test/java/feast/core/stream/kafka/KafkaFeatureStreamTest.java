@@ -23,47 +23,39 @@ import org.mockito.MockitoAnnotations;
 
 public class KafkaFeatureStreamTest {
 
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
-
-  @Mock
-  private AdminClient kafkaAdminClient;
-  @Mock
-  private CreateTopicsResult createTopicsResult;
-
-  private KafkaFeatureStream kafkaFeatureStream;
-
-  @Before
-  public void setUp() {
-    MockitoAnnotations.initMocks(this);
-    KafkaFeatureStreamConfig config = new KafkaFeatureStreamConfig("localhost:8121", "feast", 1,
-        (short) 2);
-    kafkaFeatureStream = new KafkaFeatureStream(kafkaAdminClient, config);
-  }
-
-  @Test
-  public void shouldThrowTopicExistsExceptionIfTopicExists()
-      throws ExecutionException, InterruptedException {
-
-    KafkaFuture<Void> result = mock(KafkaFuture.class);
-
-    when(result.get()).thenThrow(new org.apache.kafka.common.errors.TopicExistsException(""));
-    Map<String, KafkaFuture<Void>> resultMap = new HashMap<>();
-    resultMap.put("my-topic", result);
-    when(createTopicsResult.values()).thenReturn(resultMap);
-    doReturn(createTopicsResult).when(kafkaAdminClient)
-        .createTopics(ArgumentMatchers.anyCollection());
-
-    expectedException.expect(TopicExistsException.class);
-    kafkaFeatureStream.provisionTopic("my-topic");
-  }
-
-  @Test
-  public void shouldReturnCorrectFeatureStreamOptions() {
-    Map<String, String> expected = new HashMap<>();
-    expected.put("discardUnknownFeatures", "true");
-    expected.put("bootstrapServers", "localhost:8121");
-    assertThat(kafkaFeatureStream.getFeatureStreamOptions(), equalTo(expected));
-  }
+//  @Rule
+//  public ExpectedException expectedException = ExpectedException.none();
+//
+//  @Mock
+//  private AdminClient kafkaAdminClient;
+//  @Mock
+//  private CreateTopicsResult createTopicsResult;
+//
+//  private KafkaFeatureStream kafkaFeatureStream;
+//
+//  @Before
+//  public void setUp() {
+//    MockitoAnnotations.initMocks(this);
+//    KafkaFeatureStreamConfig config = new KafkaFeatureStreamConfig("localhost:8121", "feast", 1,
+//        (short) 2);
+//    kafkaFeatureStream = new KafkaFeatureStream(kafkaAdminClient, config);
+//  }
+//
+//  @Test
+//  public void shouldThrowTopicExistsExceptionIfTopicExists()
+//      throws ExecutionException, InterruptedException {
+//
+//    KafkaFuture<Void> result = mock(KafkaFuture.class);
+//
+//    when(result.get()).thenThrow(new org.apache.kafka.common.errors.TopicExistsException(""));
+//    Map<String, KafkaFuture<Void>> resultMap = new HashMap<>();
+//    resultMap.put("my-topic", result);
+//    when(createTopicsResult.values()).thenReturn(resultMap);
+//    doReturn(createTopicsResult).when(kafkaAdminClient)
+//        .createTopics(ArgumentMatchers.anyCollection());
+//
+//    expectedException.expect(TopicExistsException.class);
+//    kafkaFeatureStream.provisionTopic("my-topic");
+//  }
 }
 

@@ -1,6 +1,7 @@
 package feast.core.model;
 
 import feast.types.ValueProto.ValueType;
+import java.util.Objects;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
@@ -15,7 +16,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "fields")
-public class Field extends AbstractTimestampEntity {
+public class Field {
 
   // Id of the field, defined as featureSetId.name
   @Id
@@ -46,5 +47,23 @@ public class Field extends AbstractTimestampEntity {
     this.id = String.format("%s.%s", featureSetId, name);
     this.name = name;
     this.type = type.toString();
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Field field = (Field) o;
+    return name.equals(field.getName()) &&
+        type.equals(field.getType());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(super.hashCode(), id, featureSet, name, type);
   }
 }

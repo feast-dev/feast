@@ -29,7 +29,7 @@ message Source {
 
     // Source specific configuration
     oneof source_config {
-        KafkaSource kafka_source = 2;
+        KafkaSourceConfig kafka_source_config = 2;
     }
 }
 
@@ -38,7 +38,7 @@ enum SourceType {
     KAFKA = 1;
 }
 
-message KafkaSource {
+message KafkaSourceConfig {
     // - bootstrapServers: [comma delimited value of host[:port]]
     string bootstrap_servers = 1;
 

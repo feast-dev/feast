@@ -35,23 +35,13 @@ import feast.core.job.dataflow.DataflowJobMonitor;
 import feast.core.job.direct.DirectJobRegistry;
 import feast.core.job.direct.DirectRunnerJobManager;
 import feast.core.job.direct.DirectRunnerJobMonitor;
-import feast.core.job.flink.FlinkJobConfig;
-import feast.core.job.flink.FlinkJobManager;
-import feast.core.job.flink.FlinkJobMonitor;
-import feast.core.job.flink.FlinkRestApi;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.flink.client.cli.CliFrontend;
-import org.apache.flink.client.cli.CustomCommandLine;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.junit.Before;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.client.RestTemplate;
 
 /** Beans for job management */
 @Slf4j
@@ -72,13 +62,6 @@ public class JobConfig {
     return new DataflowJobConfig(projectId, location);
   }
 
-  @Bean
-  public FlinkJobConfig getFlinkJobConfig(
-      @Value("${feast.jobs.flink.configDir}") String flinkConfigDir,
-      @Value("${feast.jobs.flink.masterUrl}") String flinkMasterUrl) {
-    return new FlinkJobConfig(flinkMasterUrl, flinkConfigDir);
-  }
-
   /**
    * Get a JobManager according to the runner type and dataflow configuration.
    *
@@ -91,7 +74,6 @@ public class JobConfig {
   public JobManager getJobManager(
       @Value("${feast.jobs.runner}") String runnerType,
       DataflowJobConfig dfConfig,
-      FlinkJobConfig flinkConfig,
       ImportJobDefaults defaults,
       DirectJobRegistry directJobRegistry)
       throws Exception {
@@ -125,15 +107,6 @@ public class JobConfig {
         } catch (Exception e) {
           throw new IllegalStateException("Unable to initialize DataflowJobManager", e);
         }
-      case FLINK:
-        org.apache.flink.configuration.Configuration configuration =
-            GlobalConfiguration.loadConfiguration(flinkConfig.getConfigDir());
-        List<CustomCommandLine<?>> customCommandLines =
-            CliFrontend.loadCustomCommandLines(configuration, flinkConfig.getConfigDir());
-        CliFrontend flinkCli = new CliFrontend(configuration, customCommandLines);
-        FlinkRestApi flinkRestApi =
-            new FlinkRestApi(new RestTemplate(), flinkConfig.getMasterUrl());
-        return new FlinkJobManager(flinkCli, flinkConfig, flinkRestApi, defaults);
       case DIRECT:
         return new DirectRunnerJobManager(defaults, directJobRegistry);
       default:
@@ -152,7 +125,6 @@ public class JobConfig {
   public JobMonitor getJobMonitor(
       @Value("${feast.jobs.runner}") String runnerType,
       DataflowJobConfig dfConfig,
-      FlinkJobConfig flinkJobConfig,
       DirectJobRegistry directJobRegistry)
       throws Exception {
 
@@ -184,10 +156,6 @@ public class JobConfig {
         } catch (Exception e) {
           log.error("Unable to initialize DataflowJobMonitor", e);
         }
-      case FLINK:
-        FlinkRestApi flinkRestApi =
-            new FlinkRestApi(new RestTemplate(), flinkJobConfig.getMasterUrl());
-        return new FlinkJobMonitor(flinkRestApi);
       case DIRECT:
         return new DirectRunnerJobMonitor(directJobRegistry);
       default:

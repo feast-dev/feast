@@ -1,260 +1,145 @@
 package feast.core.service;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.MockitoAnnotations.initMocks;
+
+import com.google.common.collect.Lists;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.SourceProto.Source;
+import feast.core.SourceProto.SourceType;
+import feast.core.StoreProto;
+import feast.core.StoreProto.Store.RedisConfig;
+import feast.core.StoreProto.Store.StoreType;
+import feast.core.config.ImportJobDefaults;
+import feast.core.dao.JobInfoRepository;
+import feast.core.job.JobManager;
+import feast.core.model.FeatureSet;
+import feast.core.model.JobInfo;
+import feast.core.model.JobStatus;
+import feast.core.model.Store;
+import feast.core.stream.FeatureStream;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.mockito.Mock;
+
 public class JobCoordinatorServiceTest {
 
-//  @Rule
-//  public final ExpectedException exception = ExpectedException.none();
-//
-//  @Mock
-//  JobInfoRepository jobInfoRepository;
-//  @Mock
-//  JobManager jobManager;
-//  @Mock
-//  FeatureStream featureStream;
-//  private ImportJobDefaults defaults;
-//
-//  @Before
-//  public void setUp() {
-//    initMocks(this);
-//    defaults = ImportJobDefaults.builder().build();
-//  }
-//
-//  @Test
-//  public void shouldCorrectlyCreateImportJobSpecGivenTopicAndSpecs() {
-//    JobCoordinatorService jobCoordinatorService = new JobCoordinatorService(jobInfoRepository,
-//        jobManager, featureStream, defaults);
-//    when(featureStream.getType()).thenReturn("kafka");
-//    Map<String, String> kafkaFeatureStreamOptions = new HashMap<>();
-//    kafkaFeatureStreamOptions.put("servers", "127.0.0.1:8081");
-//    kafkaFeatureStreamOptions.put("discardUnknownFeatures", "true");
-//    when(featureStream.getFeatureStreamOptions()).thenReturn(kafkaFeatureStreamOptions);
-//    EntitySpec entitySpec = EntitySpec.newBuilder().setName("entity").build();
-//    FeatureSpec feature =
-//        FeatureSpec.newBuilder()
-//            .setId("entity.name")
-//            .setName("name")
-//            .setOwner("owner")
-//            .setDescription("desc")
-//            .setEntity("entity")
-//            .setUri("uri")
-//            .setGroup("testGroup")
-//            .setValueType(ValueType.Enum.BYTES)
-//            .build();
-//    StorageSpec sinkStoreSpec = StorageSpec.newBuilder().setId("SERVING").setType("redis")
-//        .putOptions("host", "localhost")
-//        .putOptions("port", "1234")
-//        .build();
-//    StorageSpec errorsStoreSpec = StorageSpec.newBuilder().setId("SERVING").setType("file.json")
-//        .putOptions("path", "gs://lalalala")
-//        .build();
-//    ImportJobSpecs actual = jobCoordinatorService
-//        .createImportJobSpecs("feast-entity-features", entitySpec,
-//            Arrays.asList(feature), sinkStoreSpec, errorsStoreSpec);
-//    ImportJobSpecs expected = ImportJobSpecs.newBuilder()
-//        .setJobId(actual.getJobId())
-//        .setSourceSpec(SourceSpec.newBuilder().setType(SourceType.KAFKA)
-//            .putAllOptions(kafkaFeatureStreamOptions).putOptions("topics", "feast-entity-features")
-//            .build())
-//        .setEntitySpec(entitySpec)
-//        .addAllFeatureSpecs(Arrays.asList(feature))
-//        .setSinkStorageSpec(sinkStoreSpec)
-//        .setErrorsStorageSpec(errorsStoreSpec)
-//        .build();
-//    assertThat(actual, equalTo(expected));
-//
-//    // test the jobId separately
-//    assertThat(actual.getJobId(), StringStartsWith.startsWith("feast-entity-features-to-serving-"));
-//  }
-//
-//  @Test
-//  public void shouldWriteImportJobSpecsToWorkspaceAndStartJob()
-//      throws IOException {
-//    File tempDir = Files.createTempDir();
-//    tempDir.deleteOnExit();
-//    String ws = tempDir.getAbsolutePath();
-//
-//    Map<String, String> kafkaFeatureStreamOptions = new HashMap<>();
-//    kafkaFeatureStreamOptions.put("servers", "127.0.0.1:8081");
-//    kafkaFeatureStreamOptions.put("discardUnknownFeatures", "true");
-//
-//    ImportJobSpecs importJobSpecs = ImportJobSpecs.newBuilder()
-//        .setJobId("job1")
-//        .setSourceSpec(SourceSpec.newBuilder().setType(SourceType.KAFKA)
-//            .putAllOptions(kafkaFeatureStreamOptions).putOptions("topics", "feast-entity-features")
-//            .build())
-//        .setEntitySpec(EntitySpec.newBuilder().setName("entity").build())
-//        .addAllFeatureSpecs(Arrays.asList(FeatureSpec.newBuilder().setId("entity.feature").build()))
-//        .setSinkStorageSpec(StorageSpec.newBuilder().setId("sink").build())
-//        .setErrorsStorageSpec(StorageSpec.newBuilder().setId("errors").build())
-//        .build();
-//
-//    JobCoordinatorService jobCoordinatorService = new JobCoordinatorService(jobInfoRepository,
-//        jobManager, featureStream, defaults);
-//
-//    defaults.setWorkspace(ws);
-//    defaults.setRunner(Runner.DIRECT.getName());
-//
-//    when(jobManager.startJob("job1", PathUtil.getPath(ws).resolve("job1"))).thenReturn("job1extId");
-//
-//    JobInfo jobInfo = jobCoordinatorService.startJob(importJobSpecs);
-//    JobInfo expected = new JobInfo("job1", "job1extID", Runner.DIRECT.getName(), importJobSpecs,
-//        JobStatus.COMPLETED);
-//
-//    String specsPath = Strings.lenientFormat("%s/%s/%s", ws, "job1", "importJobSpecs.yaml");
-//
-//    ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-//
-//    Map<String, Object> writtenSpecYaml = mapper
-//        .readValue(Files.toByteArray(new File(specsPath)), Map.class);
-//    Gson gson = new Gson();
-//    String json = gson.toJson(writtenSpecYaml);
-//    Builder writtenSpecBuilder = ImportJobSpecs.newBuilder();
-//    JsonFormat.parser().merge(json, writtenSpecBuilder);
-//    ImportJobSpecs writtenSpecs = writtenSpecBuilder.build();
-//
-//    assertEquals(importJobSpecs, writtenSpecs);
-//    assertThat(jobInfo, equalTo(expected));
-//  }
-//
-//  @Test
-//  public void shouldThrowErrorIfJobIdNotFoundWhenAbortingJob() {
-//    when(jobInfoRepository.findById("job1")).thenReturn(Optional.empty());
-//    JobCoordinatorService jobCoordinatorService =
-//        new JobCoordinatorService(jobInfoRepository,
-//            jobManager, featureStream, defaults);
-//    exception.expect(RetrievalException.class);
-//    exception.expectMessage("Unable to retrieve job with id job1");
-//    jobCoordinatorService.abortJob("job1");
-//  }
-//
-//  @Test
-//  public void shouldThrowErrorIfJobInTerminalStateWhenAbortingJob() {
-//    JobInfo job = new JobInfo();
-//    job.setStatus(JobStatus.COMPLETED);
-//    when(jobInfoRepository.findById("job1")).thenReturn(Optional.of(job));
-//    JobCoordinatorService jobCoordinatorService =
-//        new JobCoordinatorService(jobInfoRepository,
-//            jobManager, featureStream, defaults);
-//    exception.expect(IllegalStateException.class);
-//    exception.expectMessage("Unable to stop job already in terminal state");
-//    jobCoordinatorService.abortJob("job1");
-//  }
-//
-//  @Test
-//  public void shouldUpdateJobAfterAborting() {
-//    JobInfo job = new JobInfo();
-//    job.setStatus(JobStatus.RUNNING);
-//    job.setExtId("extId1");
-//    when(jobInfoRepository.findById("job1")).thenReturn(Optional.of(job));
-//    JobCoordinatorService jobCoordinatorService =
-//        new JobCoordinatorService(jobInfoRepository,
-//            jobManager, featureStream, defaults);
-//    jobCoordinatorService.abortJob("job1");
-//    ArgumentCaptor<JobInfo> jobCapture = ArgumentCaptor.forClass(JobInfo.class);
-//    verify(jobInfoRepository).saveAndFlush(jobCapture.capture());
-//    assertThat(jobCapture.getValue().getStatus(), equalTo(JobStatus.ABORTING));
-//  }
-//
-//  @Test
-//  public void shouldUpdateJobStatusIfExists() {
-//    JobInfo jobInfo = new JobInfo();
-//    when(jobInfoRepository.findById("jobid")).thenReturn(Optional.of(jobInfo));
-//
-//    ArgumentCaptor<JobInfo> jobInfoArgumentCaptor = ArgumentCaptor.forClass(JobInfo.class);
-//    JobCoordinatorService jobCoordinatorService =
-//        new JobCoordinatorService(jobInfoRepository,
-//            jobManager, featureStream, defaults);
-//    jobCoordinatorService.updateJobStatus("jobid", JobStatus.PENDING);
-//
-//    verify(jobInfoRepository, times(1)).save(jobInfoArgumentCaptor.capture());
-//
-//    JobInfo jobInfoUpdated = new JobInfo();
-//    jobInfoUpdated.setStatus(JobStatus.PENDING);
-//    assertThat(jobInfoArgumentCaptor.getValue(), equalTo(jobInfoUpdated));
-//  }
-//
-//  @Test
-//  public void shouldNotUpdateJobIfSchemaHasNotChanged() throws InvalidProtocolBufferException {
-//    Map<String, String> kafkaFeatureStreamOptions = new HashMap<>();
-//    kafkaFeatureStreamOptions.put("servers", "127.0.0.1:8081");
-//    kafkaFeatureStreamOptions.put("discardUnknownFeatures", "true");
-//
-//    ImportJobSpecs importJobSpecs = ImportJobSpecs.newBuilder()
-//        .setJobId("job1")
-//        .setSourceSpec(SourceSpec.newBuilder().setType(SourceType.KAFKA)
-//            .putAllOptions(kafkaFeatureStreamOptions).putOptions("topics", "feast-entity-features")
-//            .build())
-//        .setEntitySpec(EntitySpec.newBuilder().setName("entity").build())
-//        .addAllFeatureSpecs(Arrays.asList(FeatureSpec.newBuilder().setId("entity.feature").build()))
-//        .setSinkStorageSpec(StorageSpec.newBuilder().setId("sink").build())
-//        .setErrorsStorageSpec(StorageSpec.newBuilder().setId("errors").build())
-//        .build();
-//
-//    JobInfo jobInfo = new JobInfo("job1", "extJob1", "DirectRunner", importJobSpecs,
-//        JobStatus.RUNNING);
-//
-//    JobCoordinatorService jobCoordinatorService =
-//        new JobCoordinatorService(jobInfoRepository,
-//            jobManager, featureStream, defaults);
-//    jobCoordinatorService.updateJob(jobInfo, importJobSpecs);
-//    verify(jobManager, times(0)).updateJob(ArgumentMatchers.any(), ArgumentMatchers.any());
-//  }
-//
-//  @Test
-//  public void shouldUpdateJobIfSchemaHasChanged() throws IOException {
-//    File tempDir = Files.createTempDir();
-//    tempDir.deleteOnExit();
-//    String ws = tempDir.getAbsolutePath();
-//    defaults.setWorkspace(ws);
-//
-//    Map<String, String> kafkaFeatureStreamOptions = new HashMap<>();
-//    kafkaFeatureStreamOptions.put("servers", "127.0.0.1:8081");
-//    kafkaFeatureStreamOptions.put("discardUnknownFeatures", "true");
-//
-//    ImportJobSpecs oldImportJobSpecs = ImportJobSpecs.newBuilder()
-//        .setJobId("job1")
-//        .setSourceSpec(SourceSpec.newBuilder().setType(SourceType.KAFKA)
-//            .putAllOptions(kafkaFeatureStreamOptions).putOptions("topics", "feast-entity-features")
-//            .build())
-//        .setEntitySpec(EntitySpec.newBuilder().setName("entity").build())
-//        .addAllFeatureSpecs(Arrays.asList(FeatureSpec.newBuilder().setId("entity.feature").build()))
-//        .setSinkStorageSpec(StorageSpec.newBuilder().setId("sink").build())
-//        .setErrorsStorageSpec(StorageSpec.newBuilder().setId("errors").build())
-//        .build();
-//
-//    ImportJobSpecs newImportJobSpecs = oldImportJobSpecs
-//        .toBuilder()
-//        .addFeatureSpecs(FeatureSpec
-//            .newBuilder().setId("entity.feature2").build())
-//        .build();
-//
-//    JobInfo oldJobInfo = new JobInfo("job1", "extJob1", "DirectRunner", oldImportJobSpecs,
-//        JobStatus.RUNNING);
-//    JobInfo newJobInfo = new JobInfo("job1", "extJob2", "DirectRunner", newImportJobSpecs,
-//        JobStatus.RUNNING);
-//
-//    when(jobManager.updateJob(oldJobInfo, PathUtil.getPath(ws).resolve("job1"))).thenReturn("extJob2");
-//    JobCoordinatorService jobCoordinatorService =
-//        new JobCoordinatorService(jobInfoRepository,
-//            jobManager, featureStream, defaults);
-//    jobCoordinatorService.updateJob(oldJobInfo, newImportJobSpecs);
-//
-//    verify(jobManager, times(1)).updateJob(oldJobInfo, Paths.get(ws).resolve("job1"));
-//    verify(jobInfoRepository, times(1)).save(newJobInfo);
-//
-//    String specsPath = Strings.lenientFormat("%s/%s/%s", ws, "job1", "importJobSpecs.yaml");
-//
-//    ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-//
-//    Map<String, Object> writtenSpecYaml = mapper
-//        .readValue(Files.toByteArray(new File(specsPath)), Map.class);
-//    Gson gson = new Gson();
-//    String json = gson.toJson(writtenSpecYaml);
-//    Builder writtenSpecBuilder = ImportJobSpecs.newBuilder();
-//    JsonFormat.parser().merge(json, writtenSpecBuilder);
-//    ImportJobSpecs writtenSpecs = writtenSpecBuilder.build();
-//
-//    assertThat(newImportJobSpecs, equalTo(writtenSpecs));
-//  }
+  @Rule
+  public final ExpectedException exception = ExpectedException.none();
+  @Mock
+  JobInfoRepository jobInfoRepository;
+  @Mock
+  JobManager jobManager;
+
+  private ImportJobDefaults defaults;
+  private JobCoordinatorService jobCoordinatorService;
+  private JobInfo existingJob;
+
+  @Before
+  public void setUp() {
+    initMocks(this);
+
+    Store store = Store.fromProto(StoreProto.Store.newBuilder()
+        .setName("SERVING")
+        .setType(StoreType.REDIS)
+        .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379))
+        .build());
+    FeatureSet featureSet1 = new FeatureSet();
+    featureSet1.setId("featureSet1:1");
+    FeatureSet featureSet2 = new FeatureSet();
+    featureSet2.setId("featureSet2:1");
+    existingJob = new JobInfo("extid", "name", "KAFKA", "DirectRunner", store,
+        Lists.newArrayList(featureSet1, featureSet2), Lists.newArrayList(),
+        JobStatus.RUNNING);
+    when(jobInfoRepository.findByFeatureSetsNameAndStoreName("featureSet1", "SERVING"))
+        .thenReturn(Lists.newArrayList(existingJob));
+
+    defaults = ImportJobDefaults.builder()
+        .runner("DirectRunner")
+        .build();
+
+    jobCoordinatorService = new JobCoordinatorService(jobInfoRepository, jobManager, defaults);
+    jobCoordinatorService = spy(jobCoordinatorService);
+  }
+
+  @Test
+  public void shouldNotStartOrUpdateJobIfNoChanges() {
+    FeatureSetSpec featureSet1 = FeatureSetSpec.newBuilder()
+        .setName("featureSet1")
+        .setVersion(1)
+        .build();
+    FeatureSetSpec featureSet2 = FeatureSetSpec.newBuilder()
+        .setName("featureSet2")
+        .setVersion(1)
+        .build();
+    StoreProto.Store store = StoreProto.Store.newBuilder()
+        .setName("SERVING")
+        .setType(StoreType.REDIS)
+        .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379))
+        .build();
+    JobInfo jobInfo = jobCoordinatorService
+        .startOrUpdateJob(Lists.newArrayList(featureSet1, featureSet2), store);
+    assertThat(jobInfo, equalTo(existingJob));
+  }
+
+  @Test
+  public void shouldStartJobIfNotExists() {
+    FeatureSetSpec featureSet = FeatureSetSpec.newBuilder()
+        .setName("featureSet")
+        .setVersion(1)
+        .setSource(Source.newBuilder().setType(SourceType.KAFKA))
+        .build();
+    StoreProto.Store store = StoreProto.Store.newBuilder()
+        .setName("SERVING")
+        .setType(StoreType.REDIS)
+        .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379))
+        .build();
+    String jobId = "featureSet-to-SERVING";
+    String extJobId = "extId123";
+    when(jobCoordinatorService.createJobId("featureSet", "SERVING"))
+        .thenReturn(jobId);
+    when(jobManager.startJob(jobId, Lists.newArrayList(featureSet), store))
+        .thenReturn(extJobId);
+    FeatureSet expectedFeatureSet = new FeatureSet();
+    expectedFeatureSet.setId("featureSet:1");
+    JobInfo expectedJobInfo = new JobInfo(jobId, extJobId, SourceType.KAFKA, "DirectRunner",
+        Store.fromProto(store), Lists.newArrayList(expectedFeatureSet), JobStatus.RUNNING);
+    when(jobInfoRepository.save(expectedJobInfo)).thenReturn(expectedJobInfo);
+    JobInfo jobInfo = jobCoordinatorService
+        .startOrUpdateJob(Lists.newArrayList(featureSet), store);
+    assertThat(jobInfo, equalTo(expectedJobInfo));
+  }
+
+  @Test
+  public void shouldUpdateJobIfAlreadyExistsButThereIsAChange() {
+    FeatureSetSpec featureSet = FeatureSetSpec.newBuilder()
+        .setName("featureSet1")
+        .setVersion(1)
+        .setSource(Source.newBuilder().setType(SourceType.KAFKA))
+        .build();
+    StoreProto.Store store = StoreProto.Store.newBuilder()
+        .setName("SERVING")
+        .setType(StoreType.REDIS)
+        .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379))
+        .build();
+    String extId = "extId123";
+    JobInfo modifiedJob = new JobInfo(existingJob.getId(), existingJob.getExtId(),
+        SourceType.valueOf(existingJob.getType()), existingJob.getRunner(), Store.fromProto(store),
+        Lists.newArrayList(FeatureSet.fromProto(featureSet)), JobStatus.RUNNING);
+    when(jobManager.updateJob(modifiedJob)).thenReturn(extId);
+    JobInfo expectedJobInfo = modifiedJob;
+    expectedJobInfo.setExtId(extId);
+    when(jobInfoRepository.save(expectedJobInfo)).thenReturn(expectedJobInfo);
+    JobInfo jobInfo = jobCoordinatorService
+        .startOrUpdateJob(Lists.newArrayList(featureSet), store);
+    assertThat(jobInfo, equalTo(expectedJobInfo));
+  }
 
 }

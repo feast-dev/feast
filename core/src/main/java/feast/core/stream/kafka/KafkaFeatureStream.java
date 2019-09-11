@@ -1,7 +1,11 @@
 package feast.core.stream.kafka;
 
 import com.google.common.base.Strings;
-import feast.core.exception.TopicExistsException;
+import com.google.protobuf.InvalidProtocolBufferException;
+import feast.core.SourceProto.KafkaSourceConfig;
+import feast.core.SourceProto.SourceType;
+import feast.core.model.FeatureSet;
+import feast.core.model.Source;
 import feast.core.stream.FeatureStream;
 import java.util.Collections;
 import java.util.HashMap;
@@ -12,42 +16,48 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.errors.TopicExistsException;
 
 @Slf4j
 @AllArgsConstructor
 public class KafkaFeatureStream implements FeatureStream {
 
-  private static String FEATURE_STREAM_TYPE = "kafka";
+  private static SourceType FEATURE_STREAM_TYPE = SourceType.KAFKA;
 
   private AdminClient client;
-  private KafkaFeatureStreamConfig config;
+  private KafkaFeatureStreamConfig defaultConfig;
 
   @Override
-  public String getType() {
+  public SourceType getType() {
     return FEATURE_STREAM_TYPE;
   }
 
   @Override
-  public Map<String, String> getFeatureStreamOptions() {
-    Map<String, String> options = new HashMap<>();
-    options.put("discardUnknownFeatures", "true");
-    options.put("bootstrapServers", config.getBootstrapServers());
-    return options;
-  }
-
-  @Override
-  public void provisionTopic(String topicName) throws RuntimeException {
-    NewTopic newTopic = new NewTopic(topicName, config.getTopicNumPartitions(),
-        config.getTopicReplicationFactor());
+  public Source provision(FeatureSet featureSet) throws RuntimeException {
+    String topicName = generateTopicName(featureSet.getName());
+    NewTopic newTopic = new NewTopic(topicName,
+        defaultConfig.getTopicNumPartitions(),
+        defaultConfig.getTopicReplicationFactor());
     CreateTopicsResult createTopicsResult = client.createTopics(Collections.singleton(newTopic));
     try {
       createTopicsResult.values().get(topicName).get();
     } catch (InterruptedException | ExecutionException e) {
+      if (e.getCause().getClass().equals(TopicExistsException.class)) {
+        log.warn(Strings
+            .lenientFormat(
+                "Unable to create topic %s in the feature stream, topic already exists, using existing topic.",
+                topicName));
+      } else {
+        throw new RuntimeException(e.getMessage(), e);
+      }
+    }
+    try {
+      Source source = featureSet.getSource();
+      KafkaSourceConfig config = (KafkaSourceConfig) source.getOptions();
+      source.setOptions(config.toBuilder().setTopics(topicName).build().toByteArray());
+      return source;
+    } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(e.getMessage(), e);
-    } catch (org.apache.kafka.common.errors.TopicExistsException e) {
-      throw new TopicExistsException(Strings
-          .lenientFormat("Unable to create topic %s in the feature stream, topic already exists.",
-              topicName));
     }
   }
 
@@ -56,14 +66,7 @@ public class KafkaFeatureStream implements FeatureStream {
     client.deleteTopics(Collections.singleton(topicName));
   }
 
-  @Override
   public String generateTopicName(String featureSetName) {
-    return Strings.lenientFormat("%s-%s-features", config.getTopicPrefix(), featureSetName);
+    return Strings.lenientFormat("%s-%s-features", defaultConfig.getTopicPrefix(), featureSetName);
   }
-
-  @Override
-  public String getBrokerUri() {
-    return config.getBootstrapServers();
-  }
-
 }

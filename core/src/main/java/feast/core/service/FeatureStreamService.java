@@ -1,15 +1,19 @@
 package feast.core.service;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import feast.core.dao.FeatureStreamTopicRepository;
-import feast.core.exception.TopicExistsException;
+import com.google.protobuf.InvalidProtocolBufferException;
+import feast.core.SourceProto.KafkaSourceConfig;
 import feast.core.model.FeatureSet;
-import feast.core.model.FeatureStreamTopic;
+import feast.core.model.Source;
 import feast.core.stream.FeatureStream;
-import java.util.Optional;
+import feast.core.stream.kafka.KafkaFeatureStream;
+import feast.core.stream.kafka.KafkaFeatureStreamConfig;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -18,81 +22,42 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 public class FeatureStreamService {
-
-  private final FeatureStreamTopicRepository featureStreamTopicRepository;
-  private final FeatureStream featureStream;
+  private final String defaultOptions;
 
   @Autowired
-  public FeatureStreamService(FeatureStreamTopicRepository featureStreamTopicRepository,
-      FeatureStream featureStream) {
-    this.featureStreamTopicRepository = featureStreamTopicRepository;
-    this.featureStream = featureStream;
+  public FeatureStreamService(@Value("${feast.stream.options}") String defaultOptions) {
+    this.defaultOptions = defaultOptions;
   }
 
   /**
-   * Provisions a topic given the featureSet. If the topic already exists, and was not created by feast,
-   * an error will be thrown.
+   * Provisions a topic given the featureSet. If the topic already exists, and was not created by
+   * feast, an error will be thrown.
    *
    * @param featureSet featureSet to create the topic for
-   * @return created topic
+   * @return Source updated with provisioned feature source
    */
-  public FeatureStreamTopic provisionTopic(FeatureSet featureSet) {
-    String topicName = featureStream.generateTopicName(featureSet.getName());
-    FeatureStreamTopic topic;
+  public Source setUpSource(FeatureSet featureSet) {
     try {
-      featureStream.provisionTopic(topicName);
-      topic = new FeatureStreamTopic(topicName, Lists.newArrayList(featureSet));
-    } catch (TopicExistsException e) {
-      Optional<FeatureStreamTopic> existingTopic = featureStreamTopicRepository.findById(topicName);
-      if (!existingTopic.isPresent()) {
-        // topic exists, and we didn't create it, throw error
-        throw new TopicExistsException(e.getMessage(), e);
+      switch (featureSet.getSource().getType()) {
+        case KAFKA:
+          KafkaSourceConfig options = (KafkaSourceConfig) featureSet.getSource().getOptions();
+          Map<String, Object> map = new HashMap<>();
+          map.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, options.getBootstrapServers());
+          map.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "1000");
+          AdminClient client = AdminClient.create(map);
+          FeatureStream featureStream = new KafkaFeatureStream(client,
+              KafkaFeatureStreamConfig.fromJSON(defaultOptions));
+          return featureStream.provision(featureSet);
+        case UNRECOGNIZED:
+        default:
+          throw new IllegalArgumentException(
+              String.format("Invalid source %s provided, only source of type [KAFKA] allowed",
+                  featureSet.getSource().getType()));
       }
-      topic = existingTopic.get();
-      topic.addFeatureSet(featureSet);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(
+          String.format("Unable to set up source for featureSet %s", featureSet.getName()), e);
     }
-    featureStreamTopicRepository.saveAndFlush(topic);
-    return topic;
-  }
-
-  /**
-   * Deletes a topic from the stream. If the topic was not created by feast, and exception will be
-   * thrown.
-   *
-   * @param topic topic to delete
-   */
-  public void deleteTopic(FeatureStreamTopic topic) {
-    if (!featureStreamTopicRepository.existsById(topic.getName())) {
-      throw new IllegalArgumentException(Strings
-          .lenientFormat("Could not delete %s: Unable to delete topic not created by feast",
-              topic.getName()));
-    }
-    featureStream.deleteTopic(topic.getName());
-    featureStreamTopicRepository.delete(topic);
-  }
-
-  /**
-   * Get the topic the given entity should write to
-   *
-   * @return FeatureStreamTopic object containing the name of the topic
-   */
-  public FeatureStreamTopic getTopicFor(FeatureSet featureSet) {
-    FeatureStreamTopic topic = featureStreamTopicRepository.findByFeatureSetName(featureSet.getName());
-    if (topic == null) {
-      throw new IllegalArgumentException(Strings
-          .lenientFormat("Topic not created for featureSet %s, has the featureSet been registered?",
-              featureSet.getName()));
-    }
-    return topic;
-  }
-
-  /**
-   * Get the feature stream broker URI
-   *
-   * @return broker URI, comma separated
-   */
-  public String getBrokerUri() {
-    return featureStream.getBrokerUri();
   }
 
 }

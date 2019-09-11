@@ -1,16 +1,19 @@
 package feast.core.model;
 
 import com.google.common.collect.Sets;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
 import feast.core.SourceProto;
-import feast.core.SourceProto.Source.SourceType;
-import feast.core.util.TypeConversion;
-import java.util.Map;
+import feast.core.SourceProto.KafkaSourceConfig;
+import feast.core.SourceProto.Source.Builder;
+import feast.core.SourceProto.SourceType;
 import java.util.Set;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.Lob;
 import javax.persistence.Table;
 import lombok.Setter;
 
@@ -19,7 +22,7 @@ import lombok.Setter;
 @Table(name = "sources")
 public class Source {
 
-  private static final Set<String> KAFKA_OPTIONS = Sets.newHashSet("bootstrapServers", "topics");
+  private static final Set<String> KAFKA_OPTIONS = Sets.newHashSet("bootstrapServers");
 
   @Id
   @GeneratedValue(strategy = GenerationType.AUTO)
@@ -32,48 +35,97 @@ public class Source {
 
   // Options for this source
   @Column(name = "options")
-  private String options;
+  @Lob
+  private byte[] options;
 
   public Source() {
     super();
   }
 
-  public Source(SourceType type, Map<String, String> options) {
+  public Source(SourceType type, byte[] options) {
     this.type = type.toString();
-    this.options = TypeConversion.convertMapToJsonString(options);
+    this.options = options;
   }
 
-  public static Source fromProto(SourceProto.Source sourceProto) throws IllegalArgumentException {
+  public static Source fromProto(SourceProto.Source sourceProto) {
+    byte[] options;
     switch (sourceProto.getType()) {
       case KAFKA:
-        if (!sourceProto.getOptionsMap().keySet().containsAll(KAFKA_OPTIONS)) {
-          throw new IllegalArgumentException(
-              "Invalid source options. For SourceType.KAFKA, the following key value options are accepted:\n"
-                  + "  // - bootstrapServers: [comma delimited value of host[:port]]\n"
-                  + "  // - topics: [comma delimited value of topic names]");
-        }
+        options = sourceProto.getKafkaSourceConfig().toByteArray();
         break;
       case UNRECOGNIZED:
       default:
         throw new IllegalArgumentException("Unsupported source type. Only [KAFKA] is supported.");
     }
-    return new Source(sourceProto.getType(), sourceProto.getOptionsMap());
+    return new Source(sourceProto.getType(), options);
   }
 
-  public SourceProto.Source toProto() {
-    return SourceProto.Source.newBuilder()
-        .setType(SourceType.valueOf(type))
-        .putAllOptions(getOptions())
-        .build();
+  public SourceProto.Source toProto() throws InvalidProtocolBufferException {
+    Builder builder = SourceProto.Source.newBuilder()
+        .setType(SourceType.valueOf(type));
+    switch (SourceType.valueOf(type)) {
+      case KAFKA:
+        KafkaSourceConfig config = KafkaSourceConfig.parseFrom(options);
+        return builder.setKafkaSourceConfig(config).build();
+      case UNRECOGNIZED:
+      default:
+        throw new RuntimeException("Unable to convert source to proto");
+    }
   }
 
   /**
-   * Get the options for this feature source as a map
+   * Get the options for this feature source
    *
-   * @return map of feature source options
+   * @return feature source options
    */
-  public Map<String, String> getOptions() {
-    return TypeConversion.convertJsonStringToMap(this.options);
+  public Message getOptions()
+      throws InvalidProtocolBufferException {
+    switch (SourceType.valueOf(type)) {
+      case KAFKA:
+        KafkaSourceConfig config = KafkaSourceConfig.parseFrom(options);
+        return config;
+      case UNRECOGNIZED:
+      default:
+        throw new RuntimeException("Unable to convert source to proto");
+    }
+  }
+
+  /**
+   * Get the type of source.
+   *
+   * @return SourceType of this feature source
+   */
+  public SourceType getType() {
+    return SourceType.valueOf(type);
+  }
+
+  /**
+   * Set the topic to the source stream.
+   */
+  public void setTopic(String topic) throws InvalidProtocolBufferException {
+    switch (SourceType.valueOf(type)) {
+      case KAFKA:
+        KafkaSourceConfig kafkacfg = KafkaSourceConfig.parseFrom(options);
+        this.options = kafkacfg.toBuilder().setTopics(topic).build().toByteArray();
+      case UNRECOGNIZED:
+      default:
+        throw new RuntimeException("Unable to convert source to proto");
+    }
+  }
+
+  public boolean equalTo(Source other) throws InvalidProtocolBufferException {
+    if (!type.equals(other.type)) {
+      return false;
+    }
+    switch (SourceType.valueOf(type)) {
+      case KAFKA:
+        KafkaSourceConfig kafkaCfg = KafkaSourceConfig.parseFrom(options);
+        KafkaSourceConfig otherKafkaCfg = KafkaSourceConfig.parseFrom(other.options);
+        return kafkaCfg.getBootstrapServers().equals(otherKafkaCfg.getBootstrapServers());
+      case UNRECOGNIZED:
+      default:
+        return false;
+    }
   }
 }
 
