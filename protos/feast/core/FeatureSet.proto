@@ -32,7 +32,7 @@ message FeatureSetSpec {
     // FeatureSet version.
     int32 version = 2;
 
-    // List of entities contained within this featureSet. Describes whether a feature is also a key.
+    // List of entities contained within this featureSet.
     // This allows the feature to be used during joins between feature sets.
     // If the featureSet is ingested into a store that supports keys, this value
     // will be made a key.
