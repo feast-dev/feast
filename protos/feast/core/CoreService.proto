@@ -24,11 +24,10 @@ option java_package = "feast.core";
 
 import "feast/core/FeatureSet.proto";
 import "feast/core/Store.proto";
-import "google/protobuf/empty.proto";
 
 service CoreService {
     // Retrieve version information about this Feast deployment
-    rpc GetFeastCoreVersion (google.protobuf.Empty) returns (GetFeastCoreVersionResponse);
+    rpc GetFeastCoreVersion (GetFeastCoreVersionRequest) returns (GetFeastCoreVersionResponse);
 
     // Retrieve feature set details given a filter.
     // Returns all featureSets matching that filter.
@@ -89,6 +88,8 @@ message ApplyFeatureSetResponse {
     feast.core.FeatureSetSpec featureSet = 1;
     Status status = 2;
 }
+
+message GetFeastCoreVersionRequest {}
 
 message GetFeastCoreVersionResponse {
     string version = 1;
