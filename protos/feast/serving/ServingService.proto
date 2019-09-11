@@ -29,10 +29,10 @@ option go_package = "github.com/gojek/feast/protos/generated/go/feast/serving";
 
 service ServingService {
     // Retrieve version information about this Feast deployment
-    rpc GetFeastServingVersion (google.protobuf.Empty) returns (GetFeastServingVersionResponse);
+    rpc GetFeastServingVersion (GetFeastServingVersionRequest) returns (GetFeastServingVersionResponse);
 
     // Get Feast serving storage type (online or batch)
-    rpc GetFeastServingType (google.protobuf.Empty) returns (GetFeastServingTypeResponse);
+    rpc GetFeastServingType (GetFeastServingTypeRequest) returns (GetFeastServingTypeResponse);
 
     // Get online features from Feast serving. This is a synchronous response.
     rpc GetOnlineFeatures (GetFeaturesRequest) returns (GetOnlineFeaturesResponse);
@@ -73,7 +73,7 @@ message GetFeaturesRequest {
         // List of entity names contained within this incoming request. Each entity name is globally
         // unique within Feast. The user is assumed to have used the exact column name in their
         // EntityDataset if they are providing this dataset through a batch process.
-        repeated string entityNames = 1;
+        repeated string fieldNames = 1;
 
         // List of timestamp and entity id values
         repeated EntityDataSetRow entityDataSetRows = 2;
@@ -106,7 +106,7 @@ message GetOnlineFeaturesResponse {
         // are the original event timestamps from when that row was written to the backing store.
         // When these FeatureRows are joined to the EntityDataSetRows, the FeatureRow timestamps
         // will be dropped in favour of the EntityDataSetRow timestamp.
-        repeated feast.types.FeatureRow featureRow = 3;
+        repeated feast.types.FeatureRow featureRows = 3;
     }
 }
 
@@ -199,6 +199,8 @@ message BatchFeaturesJob {
     }
 }
 
+message GetFeastServingTypeRequest {}
+
 message GetFeastServingTypeResponse {
 
     // Enumeration of Feast Serving types
@@ -211,6 +213,8 @@ message GetFeastServingTypeResponse {
         OFFLINE = 1;
     }
 }
+
+message GetFeastServingVersionRequest {}
 
 message GetFeastServingVersionResponse {
     string version = 1;
