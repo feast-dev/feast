@@ -106,7 +106,7 @@ public class Source {
     switch (SourceType.valueOf(type)) {
       case KAFKA:
         KafkaSourceConfig kafkacfg = KafkaSourceConfig.parseFrom(options);
-        this.options = kafkacfg.toBuilder().setTopics(topic).build().toByteArray();
+        this.options = kafkacfg.toBuilder().setTopic(topic).build().toByteArray();
       case UNRECOGNIZED:
       default:
         throw new RuntimeException("Unable to convert source to proto");

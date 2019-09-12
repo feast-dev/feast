@@ -1,7 +1,6 @@
 package feast.core.service;
 
 import com.google.common.base.Strings;
-import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto;

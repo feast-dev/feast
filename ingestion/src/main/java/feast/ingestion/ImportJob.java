@@ -10,11 +10,14 @@ import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Subscription;
 import feast.ingestion.options.ImportJobPipelineOptions;
+import feast.ingestion.transform.FilterFeatureRow;
 import feast.ingestion.transform.ReadFeatureRow;
 import feast.ingestion.transform.ToFeatureRowExtended;
+import feast.ingestion.transform.WriteFeaturesTransform;
 import feast.ingestion.util.StorageUtil;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,14 +34,15 @@ import org.apache.kafka.common.TopicPartition;
 
 @Slf4j
 public class ImportJob {
+
   /**
    * Create and run a Beam pipeline with PipelineOptions passed as a list of string arguments.
    *
    * <p>The arguments will be passed to Beam {@code PipelineOptionsFactory} to create {@code
    * ImportJobPipelineOptions}.
    *
-   * <p>The returned PipelineResult object can be used to check the state of the pipeline e.g. if it
-   * is running, done or cancelled.
+   * <p>The returned PipelineResult object can be used to check the state of the pipeline e.g. if
+   * it is running, done or cancelled.
    *
    * @param args command line arguments, typically come from the main() method
    * @return PipelineResult
@@ -53,8 +57,8 @@ public class ImportJob {
   /**
    * Create and run a Beam pipeline from {@code ImportJobPipelineOptions}.
    *
-   * <p>The returned PipelineResult object can be used to check the state of the pipeline e.g. if it
-   * is running, done or cancelled.
+   * <p>The returned PipelineResult object can be used to check the state of the pipeline e.g. if
+   * it is running, done or cancelled.
    *
    * @param pipelineOptions configuration for the pipeline
    * @return PipelineResult
@@ -71,28 +75,21 @@ public class ImportJob {
       JsonFormat.parser().merge(storeJson, storeBuilder);
       Store store = storeBuilder.build();
 
-      for (Subscription subscription : store.getSubscriptionsList()) {
-        // TODO: handle version ranges and keyword (e.g. latest) in subscription
+      for (String featureSetSpecJson : pipelineOptions.getFeatureSetSpecJson()) {
+        FeatureSetSpec.Builder featureSetSpecBuilder = FeatureSetSpec.newBuilder();
+        JsonFormat.parser().merge(featureSetSpecJson, featureSetSpecBuilder);
+        FeatureSetSpec featureSetSpec = featureSetSpecBuilder.build();
 
-        for (String featureSetSpecJson : pipelineOptions.getFeatureSetSpecJson()) {
-          FeatureSetSpec.Builder featureSetSpecBuilder = FeatureSetSpec.newBuilder();
-          JsonFormat.parser().merge(featureSetSpecJson, featureSetSpecBuilder);
-          FeatureSetSpec featureSetSpec = featureSetSpecBuilder.build();
+        setupSource(pipelineOptions.getJobName(), featureSetSpec.getSource());
+        setupStore(store, featureSetSpec);
 
-          if (subscription.getName().equalsIgnoreCase(featureSetSpec.getName())
-              && subscription
-                  .getVersion()
-                  .equalsIgnoreCase(String.valueOf(featureSetSpec.getVersion()))) {
-            setupSource(pipelineOptions.getJobName(), featureSetSpec.getSource());
-            setupStore(store, featureSetSpec);
-          }
-
-          pipeline
-              .apply("Read FeatureRow", new ReadFeatureRow(featureSetSpec))
-              .apply("Create FeatureRowExtended from FeatureRow", new ToFeatureRowExtended());
-          // .apply("Write FeatureRowExtended", new WriteFeaturesTransform(featureSetSpec));
-        }
+        pipeline
+            .apply("Read FeatureRow", new ReadFeatureRow(featureSetSpec))
+            .apply("Filter FeatureRow", new FilterFeatureRow(featureSetSpec))
+            .apply("Create FeatureRowExtended from FeatureRow", new ToFeatureRowExtended())
+            .apply("Write FeatureRowExtended", new WriteFeaturesTransform(store, featureSetSpec));
       }
+
     }
 
     return pipeline.run();
@@ -134,8 +131,9 @@ public class ImportJob {
    * <p>Manually sets the consumer group offset for this job's consumer group to the offset at the
    * time at which we provision the ingestion job.
    *
-   * <p>This is necessary because the setup time for certain runners (e.g. Dataflow) might cause the
-   * worker to miss the messages that were emitted into the stream prior to the workers being ready.
+   * <p>This is necessary because the setup time for certain runners (e.g. Dataflow) might cause
+   * the worker to miss the messages that were emitted into the stream prior to the workers being
+   * ready.
    */
   private static void setupSource(String jobName, Source source) {
     if (!source.getType().equals(SourceType.KAFKA)) {
@@ -155,7 +153,7 @@ public class ImportJob {
         "value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
     KafkaConsumer kafkaConsumer = new KafkaConsumer(consumerProperties);
 
-    String[] topics = kafkaSourceConfig.getTopics().split(",");
+    String[] topics = {kafkaSourceConfig.getTopic()};
     long timestamp = System.currentTimeMillis();
     Map<TopicPartition, Long> timestampsToSearch = new HashMap<>();
     for (String topic : topics) {

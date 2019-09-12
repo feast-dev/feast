@@ -23,6 +23,7 @@ import com.timgroup.statsd.StatsDClient;
 import feast.core.CoreServiceGrpc.CoreServiceImplBase;
 import feast.core.CoreServiceProto.ApplyFeatureSetRequest;
 import feast.core.CoreServiceProto.ApplyFeatureSetResponse;
+import feast.core.CoreServiceProto.GetFeastCoreVersionRequest;
 import feast.core.CoreServiceProto.GetFeastCoreVersionResponse;
 import feast.core.CoreServiceProto.GetFeatureSetsRequest;
 import feast.core.CoreServiceProto.GetFeatureSetsResponse;
@@ -61,9 +62,8 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   @Autowired
   private JobCoordinatorService jobCoordinatorService;
 
-
   @Override
-  public void getFeastCoreVersion(Empty request,
+  public void getFeastCoreVersion(GetFeastCoreVersionRequest request,
       StreamObserver<GetFeastCoreVersionResponse> responseObserver) {
     super.getFeastCoreVersion(request, responseObserver);
   }

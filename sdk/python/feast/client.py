@@ -227,18 +227,18 @@ class Client:
         if "datetime" != entity_data.columns[0]:
             raise ValueError("The first column in entity_data should be 'datetime'")
 
-        entity_data_field_names = ["datetime"]
+        entity_data_field_names = []
         for column in entity_data.columns[1:]:
             if column not in self.entities.keys():
                 raise Exception("Entity " + column + " could not be found")
             entity_data_field_names.append(column)
 
         entity_dataset_rows = []
-        for row in entity_data.iterrows():
+        for _, row in entity_data.iterrows():
             entity_dataset_row = GetFeaturesRequest.EntityDataSetRow()
             for i in range(len(entity_data.columns[1:])):
                 proto_value = pandas_value_to_proto_value(
-                    entity_data[entity_data.columns[i]].dtype, row[i]
+                    entity_data[entity_data.columns[i]].dtype, row[i+1]
                 )
                 entity_dataset_row.value.append(proto_value)
             entity_dataset_rows.append(entity_dataset_row)
@@ -332,8 +332,10 @@ def create_feature_set_request_from_feature_strings(
     for feature_id in feature_ids:
         feature_set, feature = feature_id.split(".")
         if feature_set not in feature_set_request:
+            feature_set_name, feature_set_version = feature_set.split(":")
             feature_set_request[feature_set] = GetFeaturesRequest.FeatureSet(
-                name=feature_set
+                name=feature_set_name,
+                version=feature_set_version
             )
         feature_set_request[feature_set].feature_names.append(feature)
     return list(feature_set_request.values())

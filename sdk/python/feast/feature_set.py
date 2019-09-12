@@ -30,7 +30,7 @@ from feast.types import FeatureRow_pb2 as FeatureRow
 from google.protobuf.timestamp_pb2 import Timestamp
 from kafka import KafkaProducer
 from tqdm import tqdm
-from type_map import pandas_dtype_to_feast_value_type
+from feast.type_map import pandas_dtype_to_feast_value_type
 from feast.types import (
     Value_pb2 as ValueProto,
     FeatureRow_pb2 as FeatureRowProto,
@@ -302,7 +302,7 @@ class FeatureSet:
                 pandas_dtype=dataframe[column].dtype, pandas_value=row[column]
             )
             feature_row.fields.extend(
-                [FieldProto.Field(name=f"column", value=proto_value)]
+                [FieldProto.Field(name=column, value=proto_value)]
             )
         return feature_row
 

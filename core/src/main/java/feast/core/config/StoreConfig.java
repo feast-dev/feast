@@ -1,6 +1,5 @@
 package feast.core.config;
 
-import com.google.common.collect.Lists;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.BigQueryConfig;
 import feast.core.StoreProto.Store.Builder;
@@ -32,12 +31,16 @@ public class StoreConfig {
       @Value("${feast.store.serving.options}") String servingOptions,
       @Value("${feast.store.warehouse.type}") String warehouseType,
       @Value("${feast.store.warehouse.options}") String warehouseOptions) {
-    Store servingStore = Store.fromProto(getStore("SERVING", servingType, servingOptions));
-    Store warehouseStore = Store.fromProto(getStore("WAREHOUSE", warehouseType, warehouseOptions));
-    storeRepository.saveAll(Lists.newArrayList(servingStore, warehouseStore));
+    initStore(storeRepository, "SERVING", servingType, servingOptions);
+    initStore(storeRepository, "WAREHOUSE", warehouseType, warehouseOptions);
   }
 
-  private StoreProto.Store getStore(String name, String type, String options) {
+  private void initStore(StoreRepository storeRepository, String name, String type,
+      String options) {
+    if (type.equals("")) {
+      return;
+    }
+
     Map<String, String> optionsMap = TypeConversion
         .convertJsonStringToMap(options);
 
@@ -59,22 +62,26 @@ public class StoreConfig {
             .setHost(optionsMap.get("host"))
             .setPort(Integer.parseInt(optionsMap.get("port")))
             .build();
-        return servingStoreBuilder.setRedisConfig(redisConfig).build();
+        servingStoreBuilder.setRedisConfig(redisConfig);
+        break;
       case BIGQUERY:
         BigQueryConfig bigQueryConfig = BigQueryConfig.newBuilder()
             .setProjectId(optionsMap.get("projectId"))
             .setDatasetId(optionsMap.get("datasetId"))
             .build();
-        return servingStoreBuilder.setBigqueryConfig(bigQueryConfig).build();
+        servingStoreBuilder.setBigqueryConfig(bigQueryConfig);
+        break;
       case CASSANDRA:
         CassandraConfig cassandraConfig = CassandraConfig.newBuilder()
             .setHost(optionsMap.get("host"))
             .setPort(Integer.parseInt(optionsMap.get("port")))
             .build();
-        return servingStoreBuilder.setCassandraConfig(cassandraConfig).build();
+        servingStoreBuilder.setCassandraConfig(cassandraConfig);
+        break;
       default:
         throw new IllegalArgumentException(
             String.format("Unsupported store type %s provided", type));
     }
+    storeRepository.save(Store.fromProto(servingStoreBuilder.build()));
   }
 }

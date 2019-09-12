@@ -121,10 +121,6 @@
                   <pattern>feast.core</pattern>
                   <shadedPattern>feast.core.vendor</shadedPattern>
                 </relocation>
-                <relocation>
-                  <pattern>feast.types</pattern>
-                  <shadedPattern>feast.types.vendor</shadedPattern>
-                </relocation>
               </relocations>
             </configuration>
           </execution>

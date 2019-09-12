@@ -55,25 +55,11 @@ import redis.clients.jedis.JedisPoolConfig;
 @Configuration
 public class ServingApiConfiguration implements WebMvcConfigurer {
 
-  private final ProtobufJsonFormatHttpMessageConverter protobufConverter;
+  @Autowired
+  private ProtobufJsonFormatHttpMessageConverter protobufConverter;
 
   private ScheduledExecutorService scheduledExecutorService =
       Executors.newSingleThreadScheduledExecutor();
-
-  public ServingApiConfiguration(
-      ProtobufJsonFormatHttpMessageConverter protobufConverter) {
-    this.protobufConverter = protobufConverter;
-  }
-
-  private static Map<String, String> convertJsonStringToMap(String jsonString) {
-    if (jsonString == null || jsonString.equals("") || jsonString.equals("{}")) {
-      return Collections.emptyMap();
-    }
-    Type stringMapType = new TypeToken<Map<String, String>>() {
-    }.getType();
-    return new Gson().fromJson(jsonString, stringMapType);
-  }
-
 
   @Bean
   public AppConfig getAppConfig(
@@ -113,9 +99,11 @@ public class ServingApiConfiguration implements WebMvcConfigurer {
   }
 
   @Bean
-  public FeastServing getFeastServing(@Value("${feast.store.id}") String storeId,
+  public FeastServing getFeastServing(
+      @Value("${feast.store.id}") String storeId,
       @Value("${feast.core.host}") String coreServiceHost,
-      @Value("${feast.core.grpc.port}") String coreServicePort, AppConfig appConfig,
+      @Value("${feast.core.grpc.port}") String coreServicePort,
+      AppConfig appConfig,
       Tracer tracer) {
     CoreService coreService = new CoreService(coreServiceHost, Integer.parseInt(coreServicePort));
     Store store = coreService.getStoreDetails(storeId);

@@ -54,7 +54,7 @@ public class KafkaFeatureStream implements FeatureStream {
     try {
       Source source = featureSet.getSource();
       KafkaSourceConfig config = (KafkaSourceConfig) source.getOptions();
-      source.setOptions(config.toBuilder().setTopics(topicName).build().toByteArray());
+      source.setOptions(config.toBuilder().setTopic(topicName).build().toByteArray());
       return source;
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(e.getMessage(), e);

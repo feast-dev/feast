@@ -35,7 +35,7 @@ public class RequestHelper {
     // First entity value will always be timestamp in EntityDataSetRow
     int fieldNameCount = request.getEntityDataSet().getFieldNamesCount();
     for (EntityDataSetRow edsr : request.getEntityDataSet().getEntityDataSetRowsList()) {
-      if (edsr.getValueCount() != fieldNameCount + 1) {
+      if (edsr.getValueCount() != fieldNameCount) {
         throw new IllegalArgumentException("Size mismatch between fieldNames and its values");
       }
     }

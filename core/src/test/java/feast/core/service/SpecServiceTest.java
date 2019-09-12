@@ -286,7 +286,7 @@ public class SpecServiceTest {
     when(featureSetRepository.findByName("f2")).thenReturn(Lists.newArrayList());
     Source updatedSource = new Source(SourceType.KAFKA,
         KafkaSourceConfig.newBuilder().setBootstrapServers("kafka:9092")
-            .setTopics("feast-f2-features").build().toByteArray());
+            .setTopic("feast-f2-features").build().toByteArray());
     when(featureStreamService.setUpSource(ArgumentMatchers.any(FeatureSet.class)))
         .thenReturn(updatedSource);
     FeatureSetSpec incomingFeatureSet = newDummyFeatureSet("f2", 1)
@@ -310,7 +310,7 @@ public class SpecServiceTest {
       throws InvalidProtocolBufferException {
     Source updatedSource = new Source(SourceType.KAFKA,
         KafkaSourceConfig.newBuilder().setBootstrapServers("kafka:9092")
-            .setTopics("feast-f1-features").build().toByteArray());
+            .setTopic("feast-f1-features").build().toByteArray());
     when(featureStreamService.setUpSource(ArgumentMatchers.any(FeatureSet.class)))
         .thenReturn(updatedSource);
     FeatureSetSpec incomingFeatureSet = featureSets.get(2).toProto().toBuilder()

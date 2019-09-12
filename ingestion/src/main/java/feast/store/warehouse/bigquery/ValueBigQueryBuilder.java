@@ -156,22 +156,22 @@ public class ValueBigQueryBuilder {
 
     public Object build() {
       switch (feastValue.getValCase()) {
-        case BOOLVAL:
+        case BOOL_VAL:
           return feastValue.getBoolVal();
-        case FLOATVAL:
+        case FLOAT_VAL:
           return (double) feastValue.getFloatVal(); // all floats are 64 bit in BQ.
-        case INT32VAL:
+        case INT32_VAL:
           return (long) feastValue.getInt32Val(); // all integers are 64 bit in BQ
-        case INT64VAL:
+        case INT64_VAL:
           return feastValue.getInt64Val();
-        case DOUBLEVAL:
+        case DOUBLE_VAL:
           return feastValue.getDoubleVal();
-        case STRINGVAL:
+        case STRING_VAL:
           return feastValue.getStringVal();
-        // case TIMESTAMPVAL:
+        // case TIMESTAMP_VAL:
         //   return DateUtil.toDateTime(feastValue.getTimestampVal())
         //       .toString(ISODateTimeFormat.dateTime());
-        case BYTESVAL:
+        case BYTES_VAL:
           return feastValue.getBytesVal().toByteArray();
         case VAL_NOT_SET:
         default:

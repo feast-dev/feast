@@ -62,7 +62,7 @@ public class ReadFeatureRow extends PTransform<PInput, PCollection<FeatureRow>> 
                     kafkaSourceConfig.getBootstrapServers())
                 .withTopics(
                     Arrays.asList(
-                        kafkaSourceConfig.getTopics().split(",")))
+                        kafkaSourceConfig.getTopic()))
                 .withKeyDeserializer(ByteArrayDeserializer.class)
                 .withValueDeserializer(FeatureRowDeserializer.class)
                 .withReadCommitted()

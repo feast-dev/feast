@@ -28,9 +28,14 @@ import com.google.api.services.dataflow.Dataflow.Projects.Locations;
 import com.google.api.services.dataflow.Dataflow.Projects.Locations.Jobs;
 import com.google.api.services.dataflow.Dataflow.Projects.Locations.Jobs.Get;
 import com.google.api.services.dataflow.model.Job;
+import com.google.common.collect.Lists;
 import feast.core.job.Runner;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
+import feast.types.FeatureProto.Field;
+import feast.types.ValueProto.BoolList;
+import feast.types.ValueProto.Value;
+import feast.types.ValueProto.ValueType;
 import java.io.IOException;
 import org.junit.Before;
 import org.junit.Test;
@@ -100,5 +105,15 @@ public class DataflowJobMonitorTest {
     when(jobInfo.getExtId()).thenReturn(jobId);
     when(jobInfo.getRunner()).thenReturn(Runner.DATAFLOW.getName());
     assertThat(monitor.getJobStatus(jobInfo), equalTo(JobStatus.UNKNOWN));
+  }
+
+  @Test
+  public void test() {
+    Field field = Field.newBuilder()
+        .setName("Hello")
+        .setValue(Value.newBuilder().setBoolListVal(BoolList.newBuilder().addAllVal(
+            Lists.newArrayList(true,false,true,true)).build()))
+        .build();
+    field.getName();
   }
 }

@@ -45,13 +45,13 @@ public class Values {
   static {
     Wrapper[] wrappers =
         new Wrapper[]{
-            new Wrapper(Enum.BYTES, ValCase.BYTESVAL, Value::getBytesVal),
-            new Wrapper(Enum.STRING, ValCase.STRINGVAL, Value::getStringVal),
-            new Wrapper(Enum.INT32, ValCase.INT32VAL, Value::getInt32Val),
-            new Wrapper(Enum.INT64, ValCase.INT64VAL, Value::getInt64Val),
-            new Wrapper(Enum.DOUBLE, ValCase.DOUBLEVAL, Value::getDoubleVal),
-            new Wrapper(Enum.FLOAT, ValCase.FLOATVAL, Value::getFloatVal),
-            new Wrapper(Enum.BOOL, ValCase.BOOLVAL, Value::getBoolVal),
+            new Wrapper(Enum.BYTES, ValCase.BYTES_VAL, Value::getBytesVal),
+            new Wrapper(Enum.STRING, ValCase.STRING_VAL, Value::getStringVal),
+            new Wrapper(Enum.INT32, ValCase.INT32_VAL, Value::getInt32Val),
+            new Wrapper(Enum.INT64, ValCase.INT64_VAL, Value::getInt64Val),
+            new Wrapper(Enum.DOUBLE, ValCase.DOUBLE_VAL, Value::getDoubleVal),
+            new Wrapper(Enum.FLOAT, ValCase.FLOAT_VAL, Value::getFloatVal),
+            new Wrapper(Enum.BOOL, ValCase.BOOL_VAL, Value::getBoolVal),
             // new Wrapper(Enum.TIMESTAMP, ValCase.TIMESTAMPVAL, Value::getTimestampVal)
         };
     for (Wrapper wrapper : wrappers) {
@@ -124,19 +124,19 @@ public class Values {
     }
     try {
       switch (valCase) {
-        case BYTESVAL:
+        case BYTES_VAL:
           return asBytes(value);
-        case STRINGVAL:
+        case STRING_VAL:
           return asString(value);
-        case INT32VAL:
+        case INT32_VAL:
           return asInt32(value);
-        case INT64VAL:
+        case INT64_VAL:
           return asInt64(value);
-        case DOUBLEVAL:
+        case DOUBLE_VAL:
           return asDouble(value);
-        case FLOATVAL:
+        case FLOAT_VAL:
           return asFloat(value);
-        case BOOLVAL:
+        case BOOL_VAL:
           return asBool(value);
         // case TIMESTAMPVAL:
         //   return asTimestamp(value);
@@ -159,11 +159,11 @@ public class Values {
 
   public static Value asString(Value value) {
     switch (value.getValCase()) {
-      case STRINGVAL:
+      case STRING_VAL:
         return value;
-      // case TIMESTAMPVAL:
+      // case TIMESTAMP_VAL:
       //   return ofString(DateUtil.toString(value.getTimestampVal()));
-      case BYTESVAL:
+      case BYTES_VAL:
         return ofString(Base64.getEncoder().encodeToString(value.getBytesVal().toByteArray()));
       default:
         return ofString(toObject(value).toString());
@@ -183,11 +183,11 @@ public class Values {
 
   public static Value asInt64(Value value) {
     switch (value.getValCase()) {
-      case INT64VAL:
+      case INT64_VAL:
         return value;
-      case INT32VAL:
+      case INT32_VAL:
         return ofInt64(value.getInt32Val());
-      case STRINGVAL:
+      case STRING_VAL:
         return ofInt64(Long.valueOf(value.getStringVal()));
       default:
         throw new UnsupportedOperationException();
@@ -196,13 +196,13 @@ public class Values {
 
   public static Value asFloat(Value value) {
     switch (value.getValCase()) {
-      case FLOATVAL:
+      case FLOAT_VAL:
         return value;
-      case STRINGVAL:
+      case STRING_VAL:
         return ofFloat(Float.valueOf(value.getStringVal()));
-      case INT32VAL:
+      case INT32_VAL:
         return ofFloat((float) value.getInt32Val());
-      case DOUBLEVAL:
+      case DOUBLE_VAL:
         return ofFloat((float) value.getDoubleVal());
       default:
         throw new UnsupportedOperationException();
@@ -211,11 +211,11 @@ public class Values {
 
   public static Value asBool(Value value) {
     switch (value.getValCase()) {
-      case BOOLVAL:
+      case BOOL_VAL:
         return value;
-      case STRINGVAL:
+      case STRING_VAL:
         return ofBool(Boolean.valueOf(value.getStringVal()));
-      case INT32VAL:
+      case INT32_VAL:
         int int32Val = value.getInt32Val();
         boolean isInt32One = int32Val == 1;
         boolean isInt32Zero = int32Val == 0;
@@ -224,7 +224,7 @@ public class Values {
               "Only int32 value of 0 or 1 can be converted to boolean, got: " + int32Val);
         }
         return ofBool(isInt32One);
-      case INT64VAL:
+      case INT64_VAL:
         long int64Val = value.getInt64Val();
         boolean isInt64One = int64Val == 1;
         boolean isInt64Zero = int64Val == 0;
@@ -233,7 +233,7 @@ public class Values {
               "Only int64 value of 0 or 1 can be converted to boolean, got: " + int64Val);
         }
         return ofBool(isInt64One);
-      case FLOATVAL:
+      case FLOAT_VAL:
         float floatVal = value.getFloatVal();
         boolean isFloatOne = Float.compare(floatVal, 1) == 0;
         boolean isFloatZero = Float.compare(floatVal, 0) == 0;
@@ -242,7 +242,7 @@ public class Values {
               "Only float value of 0.0 or 1.0 can be converted to boolean, got: " + floatVal);
         }
         return ofBool(isFloatOne);
-      case DOUBLEVAL:
+      case DOUBLE_VAL:
         double doubleVal = value.getDoubleVal();
         boolean isDoubleOne = Double.compare(doubleVal, 1) == 0;
         boolean isDoubleZero = Double.compare(doubleVal, 0) == 0;
@@ -258,11 +258,11 @@ public class Values {
 
   public static Value asInt32(Value value) {
     switch (value.getValCase()) {
-      case INT32VAL:
+      case INT32_VAL:
         return value;
-      case STRINGVAL:
+      case STRING_VAL:
         return ofInt32(Integer.valueOf(value.getStringVal()));
-      case INT64VAL:
+      case INT64_VAL:
         long longValue = value.getInt64Val();
         if (longValue > Integer.MAX_VALUE || longValue < Integer.MIN_VALUE) {
           throw new IllegalArgumentException(
@@ -276,15 +276,15 @@ public class Values {
 
   public static Value asDouble(Value value) {
     switch (value.getValCase()) {
-      case DOUBLEVAL:
+      case DOUBLE_VAL:
         return value;
-      case FLOATVAL:
+      case FLOAT_VAL:
         return ofDouble(value.getFloatVal());
-      case INT32VAL:
+      case INT32_VAL:
         return ofDouble(value.getInt32Val());
-      case INT64VAL:
+      case INT64_VAL:
         return ofDouble(value.getInt64Val());
-      case STRINGVAL:
+      case STRING_VAL:
         return ofDouble(Double.valueOf(value.getStringVal()));
       default:
         throw new UnsupportedOperationException();
@@ -293,7 +293,7 @@ public class Values {
 
   public static Value asBytes(Value value) {
     switch (value.getValCase()) {
-      case BYTESVAL:
+      case BYTES_VAL:
         return value;
       default:
         throw new UnsupportedOperationException();
