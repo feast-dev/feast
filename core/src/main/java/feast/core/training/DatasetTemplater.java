@@ -36,7 +36,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class BigQueryDatasetTemplater {
+public class DatasetTemplater {
 
   private final FeatureInfoRepository featureInfoRepository;
   private final Jinjava jinjava;
@@ -44,7 +44,7 @@ public class BigQueryDatasetTemplater {
   private final StorageSpec storageSpec;
   private final DateTimeFormatter formatter;
 
-  public BigQueryDatasetTemplater(
+  public DatasetTemplater(
       Jinjava jinjava,
       String templateString,
       StorageSpec storageSpec,
@@ -70,7 +70,7 @@ public class BigQueryDatasetTemplater {
    * @param filters additional WHERE clause
    * @return SQL query for creating training table.
    */
-  String createQuery(
+  public String createQuery(
       FeatureSet featureSet,
       Timestamp startDate,
       Timestamp endDate,
@@ -105,7 +105,7 @@ public class BigQueryDatasetTemplater {
     }
 
     List<String> featureNames = getFeatureNames(featureInfos);
-    String tableId = getBqTableId(featureInfos.get(0));
+    String tableId = getTableId(featureInfos.get(0));
     String startDateStr = formatDateString(startDate);
     String endDateStr = formatDateString(endDate);
     String limitStr = (limit != 0) ? String.valueOf(limit) : null;
@@ -148,20 +148,21 @@ public class BigQueryDatasetTemplater {
     return jinjava.render(template, context);
   }
 
-  private String getBqTableId(FeatureInfo featureInfo) {
+  private String getTableId(FeatureInfo featureInfo) {
     String type = storageSpec.getType();
-
-    if (!BigQueryStorageManager.TYPE.equals(type)) {
-      throw new IllegalArgumentException(
-          "One of the feature has warehouse storage other than bigquery");
-    }
-
     StorageSpec storageSpec = getStorageSpec();
     Map<String, String> options = storageSpec.getOptionsMap();
-    String projectId = options.get("project");
-    String dataset = options.get("dataset");
     String entityName = featureInfo.getFeatureSpec().getEntity().toLowerCase();
-    return String.format("%s.%s.%s", projectId, dataset, entityName);
+
+    switch (type) {
+      case BigQueryStorageManager.TYPE:
+        String projectId = options.get("project");
+        String dataset = options.get("dataset");
+        return String.format("%s.%s.%s", projectId, dataset, entityName);
+      default:
+        throw new IllegalArgumentException(
+          "One of the feature has warehouse storage other than the supported warehouses");
+    }
   }
 
   private String formatDateString(Timestamp timestamp) {

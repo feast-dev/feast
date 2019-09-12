@@ -38,17 +38,17 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class BigQueryTraningDatasetCreator {
+public class BigQueryTrainingDatasetCreator implements TrainingDatasetCreator {
 
-  private final BigQueryDatasetTemplater templater;
+  private final DatasetTemplater templater;
   private final DateTimeFormatter formatter;
   private final String projectId;
   private final String datasetPrefix;
   private final UuidProvider uuidProvider;
   private transient BigQuery bigQuery;
 
-  public BigQueryTraningDatasetCreator(
-      BigQueryDatasetTemplater templater,
+  public BigQueryTrainingDatasetCreator(
+      DatasetTemplater templater,
       String projectId,
       String datasetPrefix,
       UuidProvider uuidProvider) {
@@ -60,8 +60,8 @@ public class BigQueryTraningDatasetCreator {
         BigQueryOptions.newBuilder().setProjectId(projectId).build().getService());
   }
 
-  public BigQueryTraningDatasetCreator(
-      BigQueryDatasetTemplater templater,
+  public BigQueryTrainingDatasetCreator(
+      DatasetTemplater templater,
       String projectId,
       String datasetPrefix,
       UuidProvider uuidProvider,
@@ -74,18 +74,7 @@ public class BigQueryTraningDatasetCreator {
     this.uuidProvider = uuidProvider;
   }
 
-  /**
-   * Create a training dataset for a feature set for features created between startDate (inclusive)
-   * and endDate (inclusive)
-   *
-   * @param featureSet feature set for which the training dataset should be created
-   * @param startDate starting date of the training dataset (inclusive)
-   * @param endDate end date of the training dataset (inclusive)
-   * @param limit maximum number of row should be created.
-   * @param namePrefix prefix for dataset name
-   * @param filters additional where clause
-   * @return dataset info associated with the created training dataset
-   */
+  @Override
   public DatasetInfo createDataset(
       FeatureSet featureSet,
       Timestamp startDate,

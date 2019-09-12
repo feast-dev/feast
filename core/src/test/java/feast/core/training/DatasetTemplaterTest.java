@@ -57,9 +57,9 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
-public class BigQueryDatasetTemplaterTest {
+public class DatasetTemplaterTest {
 
-  private BigQueryDatasetTemplater templater;
+  private DatasetTemplater templater;
   private BasicFormatterImpl formatter = new BasicFormatterImpl();
 
   @Mock private FeatureInfoRepository featureInfoRespository;
@@ -81,7 +81,7 @@ public class BigQueryDatasetTemplaterTest {
     InputStream resourceInputStream = resource.getInputStream();
     sqlTemplate = CharStreams.toString(new InputStreamReader(resourceInputStream, Charsets.UTF_8));
     templater =
-        new BigQueryDatasetTemplater(jinjava, sqlTemplate, storageSpec, featureInfoRespository);
+        new DatasetTemplater(jinjava, sqlTemplate, storageSpec, featureInfoRespository);
   }
 
   @Test(expected = NoSuchElementException.class)
@@ -107,7 +107,7 @@ public class BigQueryDatasetTemplaterTest {
 
     Jinjava jinjava = mock(Jinjava.class);
     templater =
-        new BigQueryDatasetTemplater(jinjava, sqlTemplate, storageSpec, featureInfoRespository);
+        new DatasetTemplater(jinjava, sqlTemplate, storageSpec, featureInfoRespository);
 
     Timestamp startDate =
         Timestamps.fromSeconds(Instant.parse("2018-01-01T00:00:00.00Z").getEpochSecond());

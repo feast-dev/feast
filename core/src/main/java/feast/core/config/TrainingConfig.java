@@ -5,8 +5,10 @@ import com.google.common.io.CharStreams;
 import com.hubspot.jinjava.Jinjava;
 import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.dao.FeatureInfoRepository;
-import feast.core.training.BigQueryDatasetTemplater;
-import feast.core.training.BigQueryTraningDatasetCreator;
+import feast.core.storage.BigQueryStorageManager;
+import feast.core.training.DatasetTemplater;
+import feast.core.training.BigQueryTrainingDatasetCreator;
+import feast.core.training.TrainingDatasetCreator;
 import feast.core.util.RandomUuidProvider;
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,21 +24,23 @@ import org.springframework.core.io.Resource;
 public class TrainingConfig {
 
   @Bean
-  public BigQueryDatasetTemplater getBigQueryTrainingDatasetTemplater(
-      StorageSpecs storageSpecs, FeatureInfoRepository featureInfoRepository) throws IOException {
-    Resource resource = new ClassPathResource("templates/bq_training.tmpl");
-    InputStream resourceInputStream = resource.getInputStream();
-    String tmpl = CharStreams.toString(new InputStreamReader(resourceInputStream, Charsets.UTF_8));
-    return new BigQueryDatasetTemplater(
-        new Jinjava(), tmpl, storageSpecs.getWarehouseStorageSpec(), featureInfoRepository);
-  }
-
-  @Bean
-  public BigQueryTraningDatasetCreator getBigQueryTrainingDatasetCreator(
-      BigQueryDatasetTemplater templater,
+  public TrainingDatasetCreator getTrainingDatasetCreator(
+      StorageSpecs storageSpecs,
+      FeatureInfoRepository featureInfoRepository,
       @Value("${feast.core.projectId}") String projectId,
-      @Value("${feast.core.datasetPrefix}") String datasetPrefix) {
-    return new BigQueryTraningDatasetCreator(
-        templater, projectId, datasetPrefix, new RandomUuidProvider());
+      @Value("${feast.core.datasetPrefix}") String datasetPrefix,
+      @Value("${feast.store.warehouse.type}") String warehouseType) throws IOException {
+    switch (warehouseType) {
+      case BigQueryStorageManager.TYPE:
+        Resource resource = new ClassPathResource("templates/bq_training.tmpl");
+        InputStream resourceInputStream = resource.getInputStream();
+        String tmpl = CharStreams.toString(new InputStreamReader(resourceInputStream, Charsets.UTF_8));
+        return new BigQueryTrainingDatasetCreator(
+          new DatasetTemplater(
+            new Jinjava(), tmpl, storageSpecs.getWarehouseStorageSpec(), featureInfoRepository),
+          projectId, datasetPrefix, new RandomUuidProvider());
+      default:
+        throw new UnsupportedOperationException(String.format("Unknown warehouse type: %s", warehouseType));
+    }
   }
 }

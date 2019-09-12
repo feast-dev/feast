@@ -206,7 +206,7 @@ public class FeatureInfoTest {
 
   @Test
   public void createBigQueryLink_withBigQueryType_shouldGenerateLink() {
-    String link = featureInfo.createBigqueryViewLink(StorageSpec.newBuilder()
+    String link = featureInfo.createWarehouseLink(StorageSpec.newBuilder()
         .setType("bigquery").setId("BQ").putOptions("project", "project1")
         .putOptions("dataset", "dataset1").build());
     assertEquals(link,
@@ -215,14 +215,14 @@ public class FeatureInfoTest {
 
   @Test
   public void createBigQueryLink_withOtherType_shouldNotGenerateLink() {
-    String link = featureInfo.createBigqueryViewLink(StorageSpec.newBuilder()
+    String link = featureInfo.createWarehouseLink(StorageSpec.newBuilder()
         .setType("another_type").build());
     assertEquals(link, "N.A.");
   }
 
   @Test
   public void createBigQueryLink_withNullSpec_shouldNotGenerateLink() {
-    String link = featureInfo.createBigqueryViewLink(null);
+    String link = featureInfo.createWarehouseLink(null);
     assertEquals(link, "N.A.");
   }
 }

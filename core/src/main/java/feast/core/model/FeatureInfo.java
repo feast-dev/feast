@@ -42,7 +42,6 @@ import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -89,8 +88,8 @@ public class FeatureInfo extends AbstractTimestampEntity {
   @Column(name = "options")
   private String options;
 
-  @Column(name = "big_query_view")
-  private String bigQueryView;
+  @Column(name = "warehouse_view")
+  private String warehouseView;
 
   @ManyToMany(mappedBy = "features")
   private List<JobInfo> jobs;
@@ -114,7 +113,7 @@ public class FeatureInfo extends AbstractTimestampEntity {
     this.valueType = spec.getValueType();
     this.entity = entityInfo;
     this.featureGroup = featureGroupInfo;
-    this.bigQueryView = "";
+    this.warehouseView = "";
     this.tags = String.join(",", spec.getTagsList());
     this.options = TypeConversion.convertMapToJsonString(spec.getOptionsMap());
   }
@@ -130,7 +129,7 @@ public class FeatureInfo extends AbstractTimestampEntity {
     this.featureGroup = other.featureGroup;
     this.tags = other.tags;
     this.options = other.options;
-    this.bigQueryView = other.bigQueryView;
+    this.warehouseView = other.warehouseView;
     this.enabled = other.enabled;
     this.setLastUpdated(other.getLastUpdated());
     this.setCreated(other.getCreated());
@@ -181,26 +180,32 @@ public class FeatureInfo extends AbstractTimestampEntity {
   public FeatureDetail getFeatureDetail(StorageSpecs storageSpecs) {
     return FeatureDetail.newBuilder()
         .setSpec(this.getFeatureSpec())
-        .setBigqueryView(!Strings.isNullOrEmpty(bigQueryView) ? bigQueryView
-            : createBigqueryViewLink(storageSpecs.getWarehouseStorageSpec()))
+        .setBigqueryView(!Strings.isNullOrEmpty(warehouseView) ? warehouseView
+            : createWarehouseLink(storageSpecs.getWarehouseStorageSpec()))
         .setEnabled(this.enabled)
         .setLastUpdated(TypeConversion.convertTimestamp(this.getLastUpdated()))
         .setCreated(TypeConversion.convertTimestamp(this.getCreated()))
         .build();
   }
 
-  protected String createBigqueryViewLink(StorageSpec storageSpec) {
+  protected String createWarehouseLink(StorageSpec storageSpec) {
     if (storageSpec == null || !storageSpec.getType().equals(BigQueryStorageManager.TYPE)) {
       return "N.A.";
     }
-    String projectId = storageSpec
-        .getOptionsOrDefault(BigQueryStorageManager.OPT_BIGQUERY_PROJECT, null);
-    String dataset = storageSpec
-        .getOptionsOrDefault(BigQueryStorageManager.OPT_BIGQUERY_DATASET, null);
 
-    return String.format(
-        "https://bigquery.cloud.google.com/table/%s:%s.%s_view",
-        projectId, dataset, entity.getName());
+    switch (storageSpec.getType()){
+      case BigQueryStorageManager.TYPE:
+        String projectId = storageSpec
+          .getOptionsOrDefault(BigQueryStorageManager.OPT_BIGQUERY_PROJECT, null);
+        String dataset = storageSpec
+          .getOptionsOrDefault(BigQueryStorageManager.OPT_BIGQUERY_DATASET, null);
+
+        return String.format(
+          "https://bigquery.cloud.google.com/table/%s:%s.%s_view",
+          projectId, dataset, entity.getName());
+      default:
+        return "N.A";
+    }
   }
 
   /**
