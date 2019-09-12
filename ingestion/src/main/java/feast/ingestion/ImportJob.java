@@ -204,16 +204,31 @@ public class ImportJob {
     }
 
     if (!dryRun) {
-
-      if (options.isStreaming()) {
-        // Write feature metrics only if it is a streaming job
+      // Write feature metrics only if the source is unbounded.
+      // Feature metrics such as lag is usually relevant when we are consuming real-time
+      // data from unbounded sources, because we want to check how responsive or how fresh
+      // our processed data are in the streaming pipelines.
+      //
+      // When the source of the data is bounded, it is normal for users to provide
+      // data with event timestamp way behind the current timestamp. For example, when
+      // users are doing tests or performing a backfill.
+      //
+      // Combining feature metrics from these 2 different sources may confuse the interpretation
+      // of the metrics. For example, we may think our processing pipelines are lagging,
+      // when in fact someone is running a backfill of data in the past.
+      //
+      // TODO: Consider tagging the data point with data source name (e.g. Kafka, Pub/Sub) or
+      //       data source type (bounded vs unbounded) in order to differentiate metrics coming
+      //       from different sources.
+      //
+      // Kafka and Pub/Sub are the unbounded sources supported in Feast 0.1.x.
+      if (importJobSpecs.getImportSpec().getType().matches("(?i)kafka|pubsub")) {
         servingRows.apply("Write feature metrics to Influx DB",
             new WriteFeatureMetricsToInfluxDB(
                 importJobSpecs.getInfluxDbUrl(),
                 importJobSpecs.getInfluxDbDatabase(),
                 importJobSpecs.getInfluxDbMeasurement()));
       }
-
 
       servingRows.apply("Write to Serving Stores", servingStoreTransform);
       if (!Strings.isNullOrEmpty(importJobSpecs.getWarehouseStorageSpec().getId())) {

@@ -27,7 +27,7 @@ import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation.Required;
 
 /** Options passed to Beam to influence the job's execution environment */
-public interface ImportJobPipelineOptions extends PipelineOptions, StreamingOptions {
+public interface ImportJobPipelineOptions extends PipelineOptions {
 
   @Description("Path to a workspace directory containing importJobSpecs.yaml")
   @Required
