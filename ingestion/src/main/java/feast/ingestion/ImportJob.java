@@ -207,7 +207,7 @@ public class ImportJob {
 
       if (options.isStreaming()) {
         // Write feature metrics only if it is a streaming job
-        servingRows.apply(
+        servingRows.apply("Write feature metrics to Influx DB",
             new WriteFeatureMetricsToInfluxDB(
                 importJobSpecs.getInfluxDbUrl(),
                 importJobSpecs.getInfluxDbDatabase(),
