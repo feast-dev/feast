@@ -2,7 +2,6 @@
 import grpc
 
 from feast.serving import ServingService_pb2 as feast_dot_serving_dot_ServingService__pb2
-from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
 
 
 class ServingServiceStub(object):
@@ -17,12 +16,12 @@ class ServingServiceStub(object):
     """
     self.GetFeastServingVersion = channel.unary_unary(
         '/feast.serving.ServingService/GetFeastServingVersion',
-        request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+        request_serializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingVersionRequest.SerializeToString,
         response_deserializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingVersionResponse.FromString,
         )
     self.GetFeastServingType = channel.unary_unary(
         '/feast.serving.ServingService/GetFeastServingType',
-        request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+        request_serializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingTypeRequest.SerializeToString,
         response_deserializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingTypeResponse.FromString,
         )
     self.GetOnlineFeatures = channel.unary_unary(
@@ -110,12 +109,12 @@ def add_ServingServiceServicer_to_server(servicer, server):
   rpc_method_handlers = {
       'GetFeastServingVersion': grpc.unary_unary_rpc_method_handler(
           servicer.GetFeastServingVersion,
-          request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+          request_deserializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingVersionRequest.FromString,
           response_serializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingVersionResponse.SerializeToString,
       ),
       'GetFeastServingType': grpc.unary_unary_rpc_method_handler(
           servicer.GetFeastServingType,
-          request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+          request_deserializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingTypeRequest.FromString,
           response_serializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingTypeResponse.SerializeToString,
       ),
       'GetOnlineFeatures': grpc.unary_unary_rpc_method_handler(

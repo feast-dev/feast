@@ -2,7 +2,6 @@
 import grpc
 
 from feast.core import CoreService_pb2 as feast_dot_core_dot_CoreService__pb2
-from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
 
 
 class CoreServiceStub(object):
@@ -17,7 +16,7 @@ class CoreServiceStub(object):
     """
     self.GetFeastCoreVersion = channel.unary_unary(
         '/feast.core.CoreService/GetFeastCoreVersion',
-        request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+        request_serializer=feast_dot_core_dot_CoreService__pb2.GetFeastCoreVersionRequest.SerializeToString,
         response_deserializer=feast_dot_core_dot_CoreService__pb2.GetFeastCoreVersionResponse.FromString,
         )
     self.GetFeatureSets = channel.unary_unary(
@@ -76,7 +75,7 @@ def add_CoreServiceServicer_to_server(servicer, server):
   rpc_method_handlers = {
       'GetFeastCoreVersion': grpc.unary_unary_rpc_method_handler(
           servicer.GetFeastCoreVersion,
-          request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+          request_deserializer=feast_dot_core_dot_CoreService__pb2.GetFeastCoreVersionRequest.FromString,
           response_serializer=feast_dot_core_dot_CoreService__pb2.GetFeastCoreVersionResponse.SerializeToString,
       ),
       'GetFeatureSets': grpc.unary_unary_rpc_method_handler(

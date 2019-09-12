@@ -22,7 +22,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.core',
   syntax='proto3',
   serialized_options=_b('\n\nfeast.coreB\017FeatureSetProtoZ5github.com/gojek/feast/protos/generated/go/feast/core'),
-  serialized_pb=_b('\n\x1b\x66\x65\x61st/core/FeatureSet.proto\x12\nfeast.core\x1a\x17\x66\x65\x61st/types/Value.proto\x1a\x17\x66\x65\x61st/core/Source.proto\"\xb8\x01\n\x0e\x46\x65\x61tureSetSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\x05\x12(\n\x08\x65ntities\x18\x03 \x03(\x0b\x32\x16.feast.core.EntitySpec\x12)\n\x08\x66\x65\x61tures\x18\x04 \x03(\x0b\x32\x17.feast.core.FeatureSpec\x12\x0e\n\x06maxAge\x18\x05 \x01(\x03\x12\"\n\x06source\x18\x06 \x01(\x0b\x32\x12.feast.core.Source\"J\n\nEntitySpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12.\n\tvalueType\x18\x02 \x01(\x0e\x32\x1b.feast.types.ValueType.Enum\"K\n\x0b\x46\x65\x61tureSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12.\n\tvalueType\x18\x02 \x01(\x0e\x32\x1b.feast.types.ValueType.EnumBT\n\nfeast.coreB\x0f\x46\x65\x61tureSetProtoZ5github.com/gojek/feast/protos/generated/go/feast/coreb\x06proto3')
+  serialized_pb=_b('\n\x1b\x66\x65\x61st/core/FeatureSet.proto\x12\nfeast.core\x1a\x17\x66\x65\x61st/types/Value.proto\x1a\x17\x66\x65\x61st/core/Source.proto\"\xb8\x01\n\x0e\x46\x65\x61tureSetSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\x05\x12(\n\x08\x65ntities\x18\x03 \x03(\x0b\x32\x16.feast.core.EntitySpec\x12)\n\x08\x66\x65\x61tures\x18\x04 \x03(\x0b\x32\x17.feast.core.FeatureSpec\x12\x0e\n\x06maxAge\x18\x05 \x01(\x03\x12\"\n\x06source\x18\x06 \x01(\x0b\x32\x12.feast.core.Source\"K\n\nEntitySpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12/\n\nvalue_type\x18\x02 \x01(\x0e\x32\x1b.feast.types.ValueType.Enum\"L\n\x0b\x46\x65\x61tureSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12/\n\nvalue_type\x18\x02 \x01(\x0e\x32\x1b.feast.types.ValueType.EnumBT\n\nfeast.coreB\x0f\x46\x65\x61tureSetProtoZ5github.com/gojek/feast/protos/generated/go/feast/coreb\x06proto3')
   ,
   dependencies=[feast_dot_types_dot_Value__pb2.DESCRIPTOR,feast_dot_core_dot_Source__pb2.DESCRIPTOR,])
 
@@ -110,7 +110,7 @@ _ENTITYSPEC = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='valueType', full_name='feast.core.EntitySpec.valueType', index=1,
+      name='value_type', full_name='feast.core.EntitySpec.value_type', index=1,
       number=2, type=14, cpp_type=8, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -129,7 +129,7 @@ _ENTITYSPEC = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=280,
-  serialized_end=354,
+  serialized_end=355,
 )
 
 
@@ -148,7 +148,7 @@ _FEATURESPEC = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='valueType', full_name='feast.core.FeatureSpec.valueType', index=1,
+      name='value_type', full_name='feast.core.FeatureSpec.value_type', index=1,
       number=2, type=14, cpp_type=8, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -166,15 +166,15 @@ _FEATURESPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=356,
-  serialized_end=431,
+  serialized_start=357,
+  serialized_end=433,
 )
 
 _FEATURESETSPEC.fields_by_name['entities'].message_type = _ENTITYSPEC
 _FEATURESETSPEC.fields_by_name['features'].message_type = _FEATURESPEC
 _FEATURESETSPEC.fields_by_name['source'].message_type = feast_dot_core_dot_Source__pb2._SOURCE
-_ENTITYSPEC.fields_by_name['valueType'].enum_type = feast_dot_types_dot_Value__pb2._VALUETYPE_ENUM
-_FEATURESPEC.fields_by_name['valueType'].enum_type = feast_dot_types_dot_Value__pb2._VALUETYPE_ENUM
+_ENTITYSPEC.fields_by_name['value_type'].enum_type = feast_dot_types_dot_Value__pb2._VALUETYPE_ENUM
+_FEATURESPEC.fields_by_name['value_type'].enum_type = feast_dot_types_dot_Value__pb2._VALUETYPE_ENUM
 DESCRIPTOR.message_types_by_name['FeatureSetSpec'] = _FEATURESETSPEC
 DESCRIPTOR.message_types_by_name['EntitySpec'] = _ENTITYSPEC
 DESCRIPTOR.message_types_by_name['FeatureSpec'] = _FEATURESPEC
