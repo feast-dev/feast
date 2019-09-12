@@ -33,7 +33,7 @@ SERVING_URL = "serving.feast.ai"
 
 
 class TestFeatureSet:
-    @pytest.fixture(scope="module")
+    @pytest.fixture(scope="function")
     def server(self):
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
@@ -106,9 +106,7 @@ class TestFeatureSet:
             dataframe,
             column_mapping={"entity_id": Entity(name="entity", dtype=ValueType.INT64)},
         )
-        driver_fs.source = KafkaSource(
-            topics="feature-topic", brokers="fake.broker.com"
-        )
+        driver_fs.source = KafkaSource(topic="feature-topic", brokers="fake.broker.com")
         driver_fs._message_producer = MagicMock()
         driver_fs._message_producer.send = MagicMock()
 
@@ -135,7 +133,7 @@ class TestFeatureSet:
             # Create feature set
             driver_fs = FeatureSet("driver-feature-set")
             driver_fs.source = KafkaSource(
-                topics="feature-topic", brokers="fake.broker.com"
+                topic="feature-topic", brokers="fake.broker.com"
             )
             driver_fs._message_producer = MagicMock()
             driver_fs._message_producer.send = MagicMock()
