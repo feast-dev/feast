@@ -32,7 +32,7 @@ func TestPrintFeature(t *testing.T) {
 					ValueType:   types.ValueType_INT64,
 					Entity:      "test",
 				},
-				BigqueryView: "bqurl",
+				WarehouseView: "bqurl",
 				Jobs:         []string{"job1", "job2"},
 				LastUpdated:  &timestamp.Timestamp{Seconds: 1},
 				Created:      &timestamp.Timestamp{Seconds: 1},

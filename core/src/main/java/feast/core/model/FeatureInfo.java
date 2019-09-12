@@ -180,7 +180,7 @@ public class FeatureInfo extends AbstractTimestampEntity {
   public FeatureDetail getFeatureDetail(StorageSpecs storageSpecs) {
     return FeatureDetail.newBuilder()
         .setSpec(this.getFeatureSpec())
-        .setBigqueryView(!Strings.isNullOrEmpty(warehouseView) ? warehouseView
+        .setWarehouseView(!Strings.isNullOrEmpty(warehouseView) ? warehouseView
             : createWarehouseLink(storageSpecs.getWarehouseStorageSpec()))
         .setEnabled(this.enabled)
         .setLastUpdated(TypeConversion.convertTimestamp(this.getLastUpdated()))

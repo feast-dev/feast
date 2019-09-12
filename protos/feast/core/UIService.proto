@@ -100,7 +100,7 @@ message UIServiceTypes {
     // Expanded feature spec
     message FeatureDetail {
         feast.specs.FeatureSpec spec = 1;
-        string bigqueryView = 2;
+        string warehouseView = 2;
         bool enabled = 3;
         repeated string jobs = 4;
         google.protobuf.Timestamp lastUpdated = 5;

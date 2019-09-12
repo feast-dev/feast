@@ -96,12 +96,12 @@ public class FeatureInfoTest {
   public void shouldBuildAndReturnCorrespondingDetail() {
     featureInfo.setLastUpdated(new Date(1000));
     featureInfo.setCreated(new Date(1000));
-    featureInfo.setBigQueryView("bqviewurl");
+    featureInfo.setWarehouseView("bqviewurl");
     Timestamp ts = Timestamp.newBuilder().setSeconds(1).build();
     FeatureDetail expected =
         FeatureDetail.newBuilder()
             .setSpec(featureSpec)
-            .setBigqueryView("bqviewurl")
+            .setWarehouseView("bqviewurl")
             .setEnabled(true)
             .setLastUpdated(ts)
             .setCreated(ts)

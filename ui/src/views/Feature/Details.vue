@@ -174,7 +174,7 @@
             },
           },
           rawSpec: {},
-          bigqueryView: "",
+          warehouseView: "",
           enabled: true,
           lastUpdated: ""
         },
