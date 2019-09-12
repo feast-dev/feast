@@ -24,13 +24,13 @@ import java.util.Arrays;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-public class BigQueryViewTemplaterTest {
+public class ViewTemplaterTest {
   @Test
   public void shouldExecuteTemplateGivenTemplateValues() {
     String testTemplate =
-            "{{project}}.{{dataset}}.{{tableName}}{{#features}}.{{name}}{{/features}}";
-    BigQueryViewTemplater templater = new BigQueryViewTemplater(testTemplate);
-    String out = templater.getViewQuery("p", "ds", "tn", Arrays.asList("f1", "f2"));
-    assertThat(out, equalTo("p.ds.tn.f1.f2"));
+            "{{tableId}}.{{tableName}}{{#features}}.{{name}}{{/features}}";
+    ViewTemplater templater = new ViewTemplater(testTemplate, "testView");
+    String out = templater.getViewQuery("p.ds.tn", Arrays.asList("f1", "f2"));
+    assertThat(out, equalTo("p.ds.tn.tn.f1.f2"));
   }
 }

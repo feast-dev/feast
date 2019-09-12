@@ -58,15 +58,15 @@ public class BigQueryStorageManagerTest {
   private BigQuery bigQuery;
   private String datasetName;
   private String projectId;
-  private BigQueryViewTemplater templater;
+  private ViewTemplater templater;
 
   @Before
   public void setUp() throws Exception {
     datasetName = "dummyDataset";
 
     MockitoAnnotations.initMocks(this);
-    BigQueryViewTemplater templater =
-        new BigQueryViewTemplater("{{tableName}}{{#features}}.{{name}}{{/features}}");
+    ViewTemplater templater =
+        new ViewTemplater("{{tableName}}{{#features}}.{{name}}{{/features}}", "testView");
     bqManager = new BigQueryStorageManager("BIGQUERY1", bigQuery, projectId, datasetName, templater);
   }
 

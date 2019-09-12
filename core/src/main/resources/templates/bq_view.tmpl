@@ -8,7 +8,7 @@ WITH {{tableName}} AS (
    ,FIRST_VALUE({{name}} IGNORE NULLS) OVER w as {{name}}
    {{/features}}
  FROM
-   `{{project}}.{{dataset}}.{{tableName}}`
+   {{tableId}}
  WINDOW w AS (
      PARTITION BY id, event_timestamp ORDER BY event_timestamp DESC
  )

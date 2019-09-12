@@ -31,10 +31,10 @@ import lombok.extern.slf4j.Slf4j;
 public class SchemaManager {
 
   private final Map<String, StorageManager> storageRegistry = new ConcurrentHashMap<>();
-  private final BigQueryViewTemplater viewTemplater;
+  private final ViewTemplater viewTemplater;
   private final StorageSpecs storageSpecs;
 
-  public SchemaManager(BigQueryViewTemplater viewTemplater, StorageSpecs storageSpecs) {
+  public SchemaManager(ViewTemplater viewTemplater, StorageSpecs storageSpecs) {
     this.viewTemplater = viewTemplater;
     this.storageSpecs = storageSpecs;
     if (storageSpecs.getServingStorageSpec() != null) {

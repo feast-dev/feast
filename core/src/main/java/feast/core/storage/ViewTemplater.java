@@ -27,26 +27,24 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Generates the query for creation or update of a bigquery view
+ * Generates the query for creation or update of a warehouse view
  */
-public class BigQueryViewTemplater {
+public class ViewTemplater {
   private final Mustache template;
 
-  public BigQueryViewTemplater(String templateString) {
+  public ViewTemplater(String templateString, String templateName) {
     MustacheFactory mf = new DefaultMustacheFactory();
-    this.template = mf.compile(new StringReader(templateString), "bqViewTemplate");
+    this.template = mf.compile(new StringReader(templateString), templateName);
   }
 
   static class TemplateValues {
-    String project;
-    String dataset;
     String tableName;
+    String tableId;
     List<Feature> features;
 
-    TemplateValues(String projectId, String dataset, String tableName, List<String> features) {
-      this.project = projectId;
-      this.dataset = dataset;
-      this.tableName = tableName;
+    TemplateValues(String tableId, List<String> features) {
+      this.tableId = tableId;
+      this.tableName = tableId.substring(tableId.lastIndexOf(".") + 1);
       this.features = features.stream().map(Feature::new).collect(Collectors.toList());
     }
   }
@@ -60,16 +58,13 @@ public class BigQueryViewTemplater {
   }
 
   /**
-   * Get a query for building or updating the Bigquery view given a set of parameters
-   * @param projectId BQ google project id
-   * @param dataset Desired BQ dataset
-   * @param tableName Name of table to update
+   * Get a query for building or updating the warehouse view given a set of parameters
+   * @param tableId Table ID to update, including table name, dataset name, and project id (for BigQuery)
    * @param features List of features to include in view
-   * @return BQ view creation query string
+   * @return Warehouse view creation query string
    */
-  public String getViewQuery(
-          String projectId, String dataset, String tableName, List<String> features) {
-    TemplateValues values = new TemplateValues(projectId, dataset, tableName, features);
+  public String getViewQuery(String tableId, List<String> features) {
+    TemplateValues values = new TemplateValues(tableId, features);
     StringWriter writer = new StringWriter();
     template.execute(writer, values);
     return writer.toString();

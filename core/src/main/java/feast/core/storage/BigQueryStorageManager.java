@@ -20,7 +20,6 @@ package feast.core.storage;
 import com.google.cloud.bigquery.*;
 import com.google.cloud.bigquery.TimePartitioning.Type;
 import com.google.common.base.Strings;
-import com.google.protobuf.util.JsonFormat;
 import feast.core.log.Action;
 import feast.core.log.AuditLogger;
 import feast.core.log.Resource;
@@ -50,7 +49,7 @@ public class BigQueryStorageManager implements StorageManager {
   private final BigQuery bigQuery;
   private final String datasetName;
   private final String project;
-  private final BigQueryViewTemplater viewTemplater;
+  private final ViewTemplater viewTemplater;
 
   /**
    * Mapping of Bigquery types to feast supported types
@@ -74,7 +73,7 @@ public class BigQueryStorageManager implements StorageManager {
       BigQuery bigQuery,
       String project,
       String datasetName,
-      BigQueryViewTemplater viewTemplater) {
+      ViewTemplater viewTemplater) {
     this.id = id;
     this.bigQuery = bigQuery;
     this.datasetName = datasetName;
@@ -195,13 +194,17 @@ public class BigQueryStorageManager implements StorageManager {
   }
 
   private void createOrUpdateView(String tableName, List<String> features) {
-    String query = viewTemplater.getViewQuery(project, datasetName, tableName, features);
+    String query = viewTemplater.getViewQuery(getTableId(project, datasetName, tableName), features);
     String viewName = String.join("_", tableName, "view");
     if (isViewExists(datasetName, viewName)) {
       bigQuery.update(TableInfo.of(TableId.of(datasetName, viewName), ViewDefinition.of(query)));
       return;
     }
     bigQuery.create(TableInfo.of(TableId.of(datasetName, viewName), ViewDefinition.of(query)));
+  }
+
+  private String getTableId(String projectId, String datasetName, String tableName) {
+    return String.format("%s.%s.%s", projectId, datasetName, tableName);
   }
 
   private boolean isViewExists(String datasetName, String viewName) {
