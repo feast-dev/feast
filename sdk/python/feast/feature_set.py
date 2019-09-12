@@ -19,7 +19,7 @@ import pandas as pd
 from typing import List
 from collections import OrderedDict
 from typing import Dict
-from feast.source import Source
+from feast.source import Source, KafkaSource
 from feast.type_map import dtype_to_value_type
 from pandas.api.types import is_datetime64_ns_dtype
 from feast.entity import Entity
@@ -30,13 +30,13 @@ from feast.types import FeatureRow_pb2 as FeatureRow
 from google.protobuf.timestamp_pb2 import Timestamp
 from kafka import KafkaProducer
 from tqdm import tqdm
-from type_map import dtype_to_feast_value_type
+from type_map import pandas_dtype_to_feast_value_type
 from feast.types import (
     Value_pb2 as ValueProto,
     FeatureRow_pb2 as FeatureRowProto,
     Field_pb2 as FieldProto,
 )
-from feast.type_map import dtype_to_feast_value_attr
+from feast.type_map import pandas_value_to_proto_value
 
 _logger = logging.getLogger(__name__)
 DATETIME_COLUMN = "datetime"  # type: str
@@ -61,10 +61,11 @@ class FeatureSet:
             self._add_fields(features)
         if entities is not None:
             self._add_fields(entities)
+        if source is None:
+            self._source = Source()
         self._max_age = max_age
         self._version = None
         self._client = None
-        self._source = source
         self._message_producer = None
         self._busy_ingesting = False
         self._is_dirty = True
@@ -73,7 +74,24 @@ class FeatureSet:
         if not isinstance(other, FeatureSet):
             return NotImplemented
 
-        return self.name == other.name and self.version == other.version
+        for self_feature in self.features:
+            for other_feature in other.features:
+                if self_feature != other_feature:
+                    return False
+
+        for self_entity in self.entities:
+            for other_entity in other.entities:
+                if self_entity != other_entity:
+                    return False
+
+        if (
+            self.name != other.name
+            or self.version != other.version
+            or self.max_age != other.max_age
+            or self.source != other.source
+        ):
+            return False
+        return True
 
     @property
     def features(self) -> List[Feature]:
@@ -112,6 +130,10 @@ class FeatureSet:
     @property
     def max_age(self):
         return self._max_age
+
+    @property
+    def is_dirty(self):
+        return self._is_dirty
 
     def add(self, resource):
         """
@@ -211,7 +233,7 @@ class FeatureSet:
 
             # Store this field as a feature
             fields[column] = Feature(
-                name=column, dtype=dtype_to_feast_value_type(df[column].dtype)
+                name=column, dtype=pandas_dtype_to_feast_value_type(df[column].dtype)
             )
 
         if len([field for field in fields.values() if type(field) == Entity]) == 0:
@@ -269,27 +291,18 @@ class FeatureSet:
         event_timestamp = Timestamp()
         event_timestamp.FromNanoseconds(row[DATETIME_COLUMN].value)
         feature_row = FeatureRowProto.FeatureRow(
-            eventTimestamp=event_timestamp,
-            featureSet=self.name + ":" + str(self.version),
+            event_timestamp=event_timestamp,
+            feature_set=self.name + ":" + str(self.version),
         )
 
         for column in dataframe.columns:
             if column == DATETIME_COLUMN:
                 continue
-
-            feature_value = ValueProto.Value()
-            feature_value_attr = dtype_to_feast_value_attr(dataframe[column].dtype)
-            try:
-                feature_value.__setattr__(feature_value_attr, row[column])
-            except TypeError as type_error:
-                # Numpy treats NaN as float. So if there is NaN values in column of
-                # "str" type, __setattr__ will raise TypeError. This handles that case.
-                if feature_value_attr == "stringVal" and pd.isnull(row[column]):
-                    feature_value.__setattr__("stringVal", "")
-                else:
-                    raise type_error
+            proto_value = pandas_value_to_proto_value(
+                pandas_dtype=dataframe[column].dtype, pandas_value=row[column]
+            )
             feature_row.fields.extend(
-                [FieldProto.Field(name=f"column", value=feature_value)]
+                [FieldProto.Field(name=f"column", value=proto_value)]
             )
         return feature_row
 
@@ -305,7 +318,7 @@ class FeatureSet:
             ],
         )
         feature_set._version = feature_set_proto.version
-        feature_set._source = feature_set_proto.source
+        feature_set._source = Source.from_proto(feature_set_proto.source)
         return feature_set
 
     def to_proto(self) -> FeatureSetSpecProto:
@@ -313,7 +326,7 @@ class FeatureSet:
             name=self.name,
             version=self.version,
             maxAge=self.max_age,
-            source=SourceProto(),
+            source=self.source.to_proto(),
             features=[
                 field.to_proto()
                 for field in self._fields.values()
@@ -327,25 +340,9 @@ class FeatureSet:
         )
 
     def _validate_feature_set(self):
-
         # Validate whether the feature set has been modified and needs to be saved
         if self._is_dirty:
             raise Exception("Feature set has been modified and must be saved first")
-
-        refreshed_feature_set = [
-            fs
-            for fs in self._client.feature_sets
-            if fs.name == self.name and fs.version == self.version
-        ]
-
-        if not (len(refreshed_feature_set) == 1 and refreshed_feature_set[0] == self):
-            raise Exception(
-                "Feature set (name:"
-                + self.name
-                + ", version:"
-                + str(self.version)
-                + ") is inconsistent with Feast core"
-            )
 
     def _get_kafka_source_brokers(self) -> str:
         if self.source and self.source.source_type is "Kafka":
@@ -354,5 +351,5 @@ class FeatureSet:
 
     def _get_kafka_source_topic(self) -> str:
         if self.source and self.source.source_type == "Kafka":
-            return self.source.topics
+            return self.source.topic
         raise Exception("Source type could not be identified")

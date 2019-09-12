@@ -16,39 +16,39 @@ import numpy as np
 import pandas as pd
 
 from feast.value_type import ValueType
-from feast.types.Value_pb2 import ValueType as ProtoValueType
+from feast.types.Value_pb2 import Value as ProtoValue, ValueType as ProtoValueType
 
 # Mapping of feast value type to Pandas DataFrame dtypes
 # Integer and floating values are all 64-bit for better integration
 # with BigQuery data types
 FEAST_VALUETYPE_TO_DTYPE = {
-    "bytesVal": np.byte,
-    "stringVal": np.object,
-    "int32Val": "Int32",  # Use pandas nullable int type
-    "int64Val": "Int64",  # Use pandas nullable int type
-    "doubleVal": np.float64,
-    "floatVal": np.float64,
-    "boolVal": np.bool,
+    "bytes_val": np.byte,
+    "string_val": np.object,
+    "int32_val": "Int32",  # Use pandas nullable int type
+    "int64_val": "Int64",  # Use pandas nullable int type
+    "double_val": np.float64,
+    "float_val": np.float64,
+    "bool_val": np.bool,
 }
 
 
 def dtype_to_feast_value_attr(dtype):
     # Mapping of Pandas dtype to attribute name in Feast Value
     type_map = {
-        "float64": "doubleVal",
-        "float32": "floatVal",
-        "int64": "int64Val",
-        "uint64": "int64Val",
-        "int32": "int32Val",
-        "uint32": "int32Val",
-        "uint8": "int32Val",
-        "int8": "int32Val",
-        "bool": "boolVal",
-        "timedelta": "int64Val",
-        "datetime64[ns]": "int64Val",
-        "datetime64[ns, UTC]": "int64Val",
-        "category": "stringVal",
-        "object": "stringVal",
+        "float64": "double_val",
+        "float32": "float_val",
+        "int64": "int64_val",
+        "uint64": "int64_val",
+        "int32": "int32_val",
+        "uint32": "int32_val",
+        "uint8": "int32_val",
+        "int8": "int32_val",
+        "bool": "bool_val",
+        "timedelta": "int64_val",
+        "datetime64[ns]": "int64_val",
+        "datetime64[ns, UTC]": "int64_val",
+        "category": "string_val",
+        "object": "string_val",
     }
     return type_map[dtype.__str__()]
 
@@ -81,7 +81,7 @@ def dtype_to_value_type(dtype):
 
 
 # TODO: to pass test_importer
-def dtype_to_feast_value_type(dtype: pd.DataFrame.dtypes) -> ValueType:
+def pandas_dtype_to_feast_value_type(dtype: pd.DataFrame.dtypes) -> ValueType:
     type_map = {
         "float64": ValueType.FLOAT,
         "float32": ValueType.FLOAT,
@@ -99,3 +99,19 @@ def dtype_to_feast_value_type(dtype: pd.DataFrame.dtypes) -> ValueType:
         "object": ValueType.STRING,
     }
     return type_map[dtype.__str__()]
+
+
+def pandas_value_to_proto_value(pandas_dtype, pandas_value) -> ProtoValue:
+    value = ProtoValue()
+    value_attr = dtype_to_feast_value_attr(pandas_dtype)
+    try:
+        value.__setattr__(value_attr, pandas_value)
+    except TypeError as type_error:
+        # Numpy treats NaN as float. So if there is NaN values in column of
+        # "str" type, __setattr__ will raise TypeError. This handles that case.
+        if value_attr == "stringVal" and pd.isnull(pandas_value):
+            value.__setattr__("stringVal", "")
+        else:
+            raise type_error
+
+    return value

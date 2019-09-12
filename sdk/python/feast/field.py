@@ -13,8 +13,6 @@
 # limitations under the License.
 
 from feast.value_type import ValueType
-from feast.core.FeatureSet_pb2 import FeatureSpec as FeatureProto
-from feast.types import Value_pb2 as ValueTypeProto
 
 
 class Field:
@@ -23,6 +21,11 @@ class Field:
         if not isinstance(dtype, ValueType):
             raise ValueError("dtype is not a valid ValueType")
         self._dtype = dtype
+
+    def __eq__(self, other):
+        if self.name != other.name or self.dtype != other.dtype:
+            return False
+        return True
 
     @property
     def name(self):
@@ -33,4 +36,7 @@ class Field:
         return self._dtype
 
     def to_proto(self):
+        pass
+
+    def from_proto(self, proto):
         pass

@@ -21,8 +21,8 @@ from feast.field import Field
 class Entity(Field):
     def to_proto(self) -> EntityProto:
         value_type = ValueTypeProto.ValueType.Enum.Value(self.dtype.name)
-        return EntityProto(name=self.name, valueType=value_type)
+        return EntityProto(name=self.name, value_type=value_type)
 
     @classmethod
     def from_proto(cls, entity_proto: EntityProto):
-        return cls(name=entity_proto.name, dtype=ValueType(entity_proto.valueType))
+        return cls(name=entity_proto.name, dtype=ValueType(entity_proto.value_type))

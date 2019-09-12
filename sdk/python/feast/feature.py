@@ -21,8 +21,8 @@ from feast.field import Field
 class Feature(Field):
     def to_proto(self) -> FeatureProto:
         value_type = ValueTypeProto.ValueType.Enum.Value(self.dtype.name)
-        return FeatureProto(name=self.name, valueType=value_type)
+        return FeatureProto(name=self.name, value_type=value_type)
 
     @classmethod
     def from_proto(cls, feature_proto: FeatureProto):
-        return cls(name=feature_proto.name, dtype=ValueType(feature_proto.valueType))
+        return cls(name=feature_proto.name, dtype=ValueType(feature_proto.value_type))
