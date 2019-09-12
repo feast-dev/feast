@@ -21,9 +21,6 @@ core:
     tag: "0.1.6"
   replicaCount: 1
   resources: 
-    limits: 
-      cpu: 4
-      memory: 6G
     requests: 
       cpu: 1
       memory: 2G
@@ -108,9 +105,6 @@ serving:
     tag: "0.1.6"
   replicaCount: 1
   resources: 
-    limits: 
-      cpu: 2
-      memory: 4G
     requests: 
       cpu: 1
       memory: 1G
