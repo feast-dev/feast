@@ -23,10 +23,11 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation.Required;
 
 /** Options passed to Beam to influence the job's execution environment */
-public interface ImportJobPipelineOptions extends PipelineOptions {
+public interface ImportJobPipelineOptions extends PipelineOptions, StreamingOptions {
 
   @Description("Path to a workspace directory containing importJobSpecs.yaml")
   @Required

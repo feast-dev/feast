@@ -57,6 +57,7 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sample;
@@ -203,11 +204,16 @@ public class ImportJob {
     }
 
     if (!dryRun) {
-      servingRows.apply(
-          new WriteFeatureMetricsToInfluxDB(
-              importJobSpecs.getInfluxDbUrl(),
-              importJobSpecs.getInfluxDbDatabase(),
-              importJobSpecs.getInfluxDbMeasurement()));
+
+      if (options.isStreaming()) {
+        // Write feature metrics only if it is a streaming job
+        servingRows.apply(
+            new WriteFeatureMetricsToInfluxDB(
+                importJobSpecs.getInfluxDbUrl(),
+                importJobSpecs.getInfluxDbDatabase(),
+                importJobSpecs.getInfluxDbMeasurement()));
+      }
+
 
       servingRows.apply("Write to Serving Stores", servingStoreTransform);
       if (!Strings.isNullOrEmpty(importJobSpecs.getWarehouseStorageSpec().getId())) {
