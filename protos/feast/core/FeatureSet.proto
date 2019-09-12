@@ -54,7 +54,7 @@ message EntitySpec {
     string name = 1;
 
     // Value type of the feature.
-    feast.types.ValueType.Enum valueType = 2;
+    feast.types.ValueType.Enum value_type = 2;
 }
 
 message FeatureSpec {
@@ -62,5 +62,5 @@ message FeatureSpec {
     string name = 1;
 
     // Value type of the feature.
-    feast.types.ValueType.Enum valueType = 2;
+    feast.types.ValueType.Enum value_type = 2;
 }

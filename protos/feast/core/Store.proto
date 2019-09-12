@@ -36,8 +36,8 @@ message Store {
   }
 
   message BigQueryConfig {
-    string projectId = 1;
-    string datasetId = 2;
+    string project_id = 1;
+    string dataset_id = 2;
   }
 
   message CassandraConfig {
@@ -68,8 +68,8 @@ message Store {
 
   // Configuration to connect to the store. Required.
   oneof config {
-    RedisConfig redisConfig = 11;
-    BigQueryConfig bigqueryConfig = 12;
-    CassandraConfig cassandraConfig = 13;
+    RedisConfig redis_config = 11;
+    BigQueryConfig bigquery_config = 12;
+    CassandraConfig cassandra_config = 13;
   }
 }

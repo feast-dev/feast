@@ -65,7 +65,7 @@ message GetFeaturesRequest {
         string version = 2;
 
         // Features that should be retrieved from this feature set
-        repeated string featureNames = 3;
+        repeated string feature_names = 3;
     }
 
     message EntityDataSet {
@@ -75,20 +75,20 @@ message GetFeaturesRequest {
         repeated string fieldNames = 1;
 
         // List of timestamp and entity id values
-        repeated EntityDataSetRow entityDataSetRows = 2;
+        repeated EntityDataSetRow entity_data_set_rows = 2;
     }
 
     message EntityDataSetRow {
         // List of timestamp and entity id values. The first value is always a Unix timestamp at
         // UTC+0. All subsequent values are entity ids in order of the entityNames list in the
         // wrapping message
-        repeated feast.types.Value Value = 1;
+        repeated feast.types.Value value = 1;
     }
 }
 
 message GetOnlineFeaturesResponse {
     // A FeatureDataSet is returned for each feature set in the incoming request
-    repeated FeatureDataSet featureDataSets = 2;
+    repeated FeatureDataSet feature_data_sets = 2;
 
     // The FeatureDataSet contains information about the Feature Set in the incoming request,
     // as well as feature data that can be joined to the incoming EntityDataSet. The row count
@@ -105,7 +105,7 @@ message GetOnlineFeaturesResponse {
         // are the original event timestamps from when that row was written to the backing store.
         // When these FeatureRows are joined to the EntityDataSetRows, the FeatureRow timestamps
         // will be dropped in favour of the EntityDataSetRow timestamp.
-        repeated feast.types.FeatureRow featureRows = 3;
+        repeated feast.types.FeatureRow feature_rows = 3;
     }
 }
 
@@ -161,11 +161,11 @@ message BatchFeaturesJob {
     message GetUploadUrlRequest {
 
         // Job Id associated to this request
-        string jobUUID = 1;
+        string job_UUID = 1;
 
         // Type of file that will be uploaded. Feast Serving needs to maintain this type in order to
         // interpret the entity dataset when loading it into the backing store
-        FileType fileType = 2;
+        FileType file_type = 2;
 
         enum FileType {
             CSV = 0;
@@ -178,7 +178,7 @@ message BatchFeaturesJob {
         // Url specifies the full signed URL where a client can make a request to upload file to GCS
         string url = 1;
 
-        HttpMethod httpMethod = 2;
+        HttpMethod http_method = 2;
         enum HttpMethod {
             PUT = 0;
         }
@@ -189,7 +189,7 @@ message BatchFeaturesJob {
 
     // Notifies Feast Serving that the specific upload request has been completed for a job Id
     message SetUploadCompleteRequest {
-        string jobUUID = 1;
+        string job_UUID = 1;
     }
 
     // Notifies caller that the staged file has been found and will be ingested into the backing store

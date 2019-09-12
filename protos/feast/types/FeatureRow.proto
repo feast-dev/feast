@@ -33,10 +33,10 @@ message FeatureRow {
     // Timestamp of the feature row. While the actual definition of this timestamp may vary
     // depending on the upstream feature creation pipelines, this is the timestamp that Feast
     // will use to perform joins, determine latest values, and coalesce rows.
-    google.protobuf.Timestamp eventTimestamp = 3;
+    google.protobuf.Timestamp event_timestamp = 3;
 
     // Complete reference to the featureSet this featureRow belongs to, in the form of
     // featureSetName:version. This value will be used by the feast ingestion job to filter
     // rows, and write the values to the correct tables.
-    string featureSet = 6;
+    string feature_set = 6;
 }

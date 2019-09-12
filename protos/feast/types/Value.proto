@@ -48,20 +48,20 @@ message Value {
   // ValueType is referenced by the metadata types, FeatureInfo and EntityInfo.
   // The enum values do not have to match the oneof val field ids, but they should.
   oneof val {
-    bytes bytesVal = 1;
-    string stringVal = 2;
-    int32 int32Val = 3;
-    int64 int64Val = 4;
-    double doubleVal = 5;
-    float floatVal = 6;
-    bool boolVal = 7;
-    BytesList bytesListVal = 11;
-    StringList stringListVal = 12;
-    Int32List int32ListVal = 13;
-    Int64List int64ListVal = 14;
-    DoubleList doubleListVal = 15;
-    FloatList floatListVal = 16;
-    BoolList boolListVal = 17;
+    bytes bytes_val = 1;
+    string string_val = 2;
+    int32 int32_val = 3;
+    int64 int64_val = 4;
+    double double_val = 5;
+    float float_val = 6;
+    bool bool_val = 7;
+    BytesList bytes_list_val = 11;
+    StringList string_list_val = 12;
+    Int32List int32_list_val = 13;
+    Int64List int64_list_val = 14;
+    DoubleList double_list_val = 15;
+    FloatList float_list_val = 16;
+    BoolList bool_list_val = 17;
   }
 }
 

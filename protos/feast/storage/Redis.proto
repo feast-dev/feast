@@ -30,7 +30,7 @@ message RedisKey {
   // (for when redis is clustered).
 
   // FeatureSet this row belongs to, this is defined as featureSetName:version.
-  string featureSet = 2;
+  string feature_set = 2;
 
   // List of fields containing entity names and their respective values
   // contained within this feature row.
