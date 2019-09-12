@@ -4,21 +4,31 @@ import feast.types.FeatureProto.Feature;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.ValueProto.Value;
+import java.util.DoubleSummaryStatistics;
+import java.util.LongSummaryStatistics;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.influxdb.BatchOptions;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
 import org.influxdb.dto.Point;
+import org.joda.time.Duration;
 
-@SuppressWarnings("CatchMayIgnoreException")
 public class WriteFeatureMetricsToInfluxDB
     extends PTransform<PCollection<FeatureRowExtended>, PDone> {
 
+  private static final int DEFAULT_WINDOW_DURATION_IN_SEC = 30;
+  private static final int DEFAULT_INFLUX_DB_JITTER_DURATION_IN_MS = 100;
   private String influxDbUrl;
   private String influxDbDatabase;
   private String influxDbMeasurement;
@@ -30,58 +40,124 @@ public class WriteFeatureMetricsToInfluxDB
     this.influxDbMeasurement = influxDbMeasurement;
   }
 
+  @DefaultCoder(AvroCoder.class)
+  static class FeatureMetric {
+    // value is the numeric value of the feature, FeatureMetric only supports double type
+    // if the value is a timestamp type, value corresponds to epoch seconds
+    // if the value is a boolean type, value of 1 corresponds to "true" and 0 otherwise
+    // if the value type is other non number format, value will be set to 0
+    double value;
+    // lagInSeconds is the delta between processing time in the Dataflow job
+    // and the event time of the FeatureRow containing this feature
+    long lagInSeconds;
+    String entityName;
+
+    public FeatureMetric() {}
+
+    FeatureMetric(double value, long lagInSeconds, String entityName) {
+      this.value = value;
+      this.lagInSeconds = lagInSeconds;
+      this.entityName = entityName;
+    }
+  }
+
   @Override
   public PDone expand(PCollection<FeatureRowExtended> input) {
-    input.apply(
-        ParDo.of(
-            new DoFn<FeatureRowExtended, Void>() {
-              InfluxDB influxDB;
-
-              @Setup
-              public void setup() {
-                try {
-                  influxDB = InfluxDBFactory.connect(influxDbUrl);
-                  influxDB.setDatabase(influxDbDatabase);
-                  influxDB.enableBatch(BatchOptions.DEFAULTS);
-                } catch (Exception e) {
-                  // Ignored because writing metrics is not a critical component of Feaast
-                  // and we do not want to get overwhelmed with failed connection logs
-                }
-              }
-
-              @FinishBundle
-              public void finishBundle() {
-                if (influxDB != null) {
-                  influxDB.close();
-                }
-              }
-
-              @ProcessElement
-              public void processElement(
-                  ProcessContext c, @Element FeatureRowExtended featureRowExtended) {
-                FeatureRow featureRow = featureRowExtended.getRow();
-                for (Feature feature : featureRow.getFeaturesList()) {
-                  String featureId = feature.getId();
-                  long lagInSeconds =
-                      System.currentTimeMillis() / 1000L
-                          - featureRow.getEventTimestamp().getSeconds();
-                  double value = getValue(feature);
-                  try {
-                    influxDB.write(
-                        Point.measurement(influxDbMeasurement)
-                            .time(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
-                            .addField("lag_in_seconds", lagInSeconds)
-                            .addField("value", value)
-                            .tag("feature_id", featureId)
-                            .tag("entity_name", featureRow.getEntityName())
-                            .build());
-                  } catch (Exception e) {
-                    // Ignored because writing metrics is not a critical component of Feaast
-                    // and we do not want to get overwhelmed with failed connection logs
+    input
+        .apply(
+            Window.into(FixedWindows.of(Duration.standardSeconds(DEFAULT_WINDOW_DURATION_IN_SEC))))
+        .apply(
+            "Create feature metric keyed by feature id",
+            ParDo.of(
+                new DoFn<FeatureRowExtended, KV<String, FeatureMetric>>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    FeatureRow featureRow = c.element().getRow();
+                    long lagInSeconds =
+                        System.currentTimeMillis() / 1000L
+                            - featureRow.getEventTimestamp().getSeconds();
+                    for (Feature feature : featureRow.getFeaturesList()) {
+                      c.output(
+                          KV.of(
+                              feature.getId(),
+                              new FeatureMetric(
+                                  getValue(feature), lagInSeconds, featureRow.getEntityName())));
+                    }
                   }
-                }
-              }
-            }));
+                }))
+        .apply(GroupByKey.create())
+        .apply(
+            ParDo.of(
+                new DoFn<KV<String, Iterable<FeatureMetric>>, Void>() {
+                  InfluxDB influxDB;
+
+                  @Setup
+                  public void setup() {
+                    try {
+                      influxDB = InfluxDBFactory.connect(influxDbUrl);
+                      influxDB.setDatabase(influxDbDatabase);
+                      influxDB.enableBatch(
+                          BatchOptions.DEFAULTS.jitterDuration(
+                              DEFAULT_INFLUX_DB_JITTER_DURATION_IN_MS));
+                    } catch (Exception e) {
+                      // Ignored because writing metrics is not a critical component of Feaast
+                      // and we do not want to get overwhelmed with connection error logs
+                      // due to timeouts and downtime in upstream Influx DB server
+                    }
+                  }
+
+                  @Teardown
+                  public void tearDown() {
+                    if (influxDB != null) {
+                      influxDB.close();
+                    }
+                  }
+
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    if (influxDB == null) {
+                      // Influx DB client is not setup properly, skip writing metrics
+                      return;
+                    }
+
+                    DoubleSummaryStatistics statsForValue = new DoubleSummaryStatistics();
+                    LongSummaryStatistics statsForLagInSeconds = new LongSummaryStatistics();
+
+                    String entityName = null;
+                    String featureId = c.element().getKey();
+
+                    for (FeatureMetric featureMetric : c.element().getValue()) {
+                      statsForValue.accept(featureMetric.value);
+                      statsForLagInSeconds.accept(featureMetric.lagInSeconds);
+                      if (entityName == null) {
+                        entityName = featureMetric.entityName;
+                      }
+                    }
+
+                    if (featureId == null || entityName == null) {
+                      return;
+                    }
+
+                    try {
+                      influxDB.write(
+                          Point.measurement(influxDbMeasurement)
+                              .time(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
+                              .addField("lag_in_seconds_mean", statsForLagInSeconds.getAverage())
+                              .addField("lag_in_seconds_min", statsForLagInSeconds.getMin())
+                              .addField("lag_in_seconds_max", statsForLagInSeconds.getMax())
+                              .addField("value_mean", statsForValue.getAverage())
+                              .addField("value_min", statsForValue.getMin())
+                              .addField("value_max", statsForValue.getMax())
+                              .tag("feature_id", featureId)
+                              .tag("entity_name", entityName)
+                              .build());
+                    } catch (Exception e) {
+                      // Ignored because writing metrics is not a critical component of Feaast
+                      // and we do not want to get overwhelmed with failed metric write logs
+                      // due to timeouts and downtime in upstream Influx DB server
+                    }
+                  }
+                }));
 
     return PDone.in(input.getPipeline());
   }
