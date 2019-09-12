@@ -17,32 +17,33 @@
 
 package feast.serving.http;
 
-import static feast.serving.util.RequestHelper.validateRequest;
+//import static feast.serving.util.RequestHelper.validateRequest;
 
-import feast.serving.ServingAPIProto.QueryFeaturesRequest;
-import feast.serving.ServingAPIProto.QueryFeaturesResponse;
-import feast.serving.service.FeastServing;
+//import feast.serving.ServingAPIProto.QueryFeaturesRequest;
+//import feast.serving.ServingAPIProto.QueryFeaturesResponse;
+
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** HTTP endpoint for Serving API. */
+/**
+ * HTTP endpoint for Serving API.
+ */
 @RestController
 public class ServingHttpService {
-  private final FeastServing feastServing;
-
-  @Autowired
-  public ServingHttpService(FeastServing feastServing) {
-    this.feastServing = feastServing;
-  }
-
-  @RequestMapping(
-      value = "/api/v1/features/request",
-      produces = "application/json",
-      consumes = "application/json")
-  public QueryFeaturesResponse queryFeature(@RequestBody QueryFeaturesRequest request) {
-    validateRequest(request);
-    return feastServing.queryFeatures(request);
-  }
+//
+//  private final FeastServing feastServing;
+//
+//  @Autowired
+//  public ServingHttpService(FeastServing feastServing) {
+//    this.feastServing = feastServing;
+//  }
+//
+//  @RequestMapping(
+//      value = "/api/v1/features/request",
+//      produces = "application/json",
+//      consumes = "application/json")
+//  public GetOnlineFeaturesResponse queryFeature(@RequestBody GetFeaturesRequest request) {
+//    validateRequest(request);
+//    return redisFeastServing.getOnlineFeatures(request);
+//  }
 }

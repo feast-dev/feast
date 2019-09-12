@@ -17,96 +17,155 @@
 
 package feast.serving.grpc;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-
 import com.timgroup.statsd.StatsDClient;
-import feast.serving.ServingAPIProto.QueryFeaturesRequest;
-import feast.serving.ServingAPIProto.QueryFeaturesResponse;
+import feast.serving.ServingAPIProto.GetFeaturesRequest;
+import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDataSet;
+import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDataSetRow;
+import feast.serving.ServingAPIProto.GetFeaturesRequest.FeatureSet;
+import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.service.FeastServing;
+import feast.types.ValueProto.Value;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.jaegertracing.Configuration;
 import io.opentracing.Tracer;
-import java.util.Arrays;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 public class ServingGrpcServiceTest {
 
-  @Mock private FeastServing mockFeast;
+  private static final String FEATURE_SET_NAME = "feature_set_1";
+  private static final String FEATURE_SET_VER = "1";
+  private static final String FN_TIMESTAMP = "timestamp";
+  private static final String FN_REGION = "region";
+  private static final String FN_DRIVER_ID = "driver_id";
+  private static final String FN_FEATURE_1 = "feature_1";
 
-  @Mock private StreamObserver<QueryFeaturesResponse> mockStreamObserver;
+  private static final long FN_TIMESTAMP_VAL = System.currentTimeMillis();
+  private static final String FN_REGION_VAL = "id";
+  private static final String FN_DRIVER_ID_VAL = "100";
+  private static final int FN_FEATURE_1_VAL = 10;
 
-  @Mock private StatsDClient statsDClient;
+  @Mock
+  private FeastServing mockFeastServing;
 
-  private QueryFeaturesRequest validRequest;
+  @Mock
+  private StreamObserver<GetOnlineFeaturesResponse> mockStreamObserver;
+
+  @Mock
+  private StatsDClient statsDClient;
+
+  private GetFeaturesRequest validRequest;
 
   private ServingGrpcService service;
 
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
     MockitoAnnotations.initMocks(this);
 
-    validRequest =
-        QueryFeaturesRequest.newBuilder()
-            .setEntityName("driver")
-            .addAllEntityId(Arrays.asList("driver1", "driver2", "driver3"))
-            .addAllFeatureId(
-                Arrays.asList("driver.completed_booking", "driver.last_opportunity"))
-            .build();
+    EntityDataSet entityDataSet = getEntityDataSetBuilder(getEntityDataSetRowBuilder()).build();
+    validRequest = GetFeaturesRequest.newBuilder().addFeatureSets(getFeatureSet())
+        .setEntityDataSet(entityDataSet).build();
 
     Tracer tracer = Configuration.fromEnv("dummy").getTracer();
-    service = new ServingGrpcService(mockFeast, tracer, statsDClient);
+    service = new ServingGrpcService(mockFeastServing, tracer, statsDClient);
   }
 
   @Test
   public void shouldPassValidRequestAsIs() {
-    service.queryFeatures(validRequest, mockStreamObserver);
-    verify(mockFeast).queryFeatures(validRequest);
+    service.getOnlineFeatures(validRequest, mockStreamObserver);
+    Mockito.verify(mockFeastServing).getOnlineFeatures(validRequest);
   }
 
   @Test
-  public void shouldCallOnErrorIfEntityNameIsNotSet() {
-    QueryFeaturesRequest missingEntityName =
-        QueryFeaturesRequest.newBuilder(validRequest).clearEntityName().build();
-
-    service.queryFeatures(missingEntityName, mockStreamObserver);
-
-    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
+  public void shouldCallOnErrorIfEntityDataSetIsNotSet() {
+    GetFeaturesRequest missingEntityName =
+        GetFeaturesRequest.newBuilder(validRequest).clearEntityDataSet().build();
+    service.getOnlineFeatures(missingEntityName, mockStreamObserver);
+    Mockito.verify(mockStreamObserver).onError(Mockito.any(StatusRuntimeException.class));
   }
 
   @Test
-  public void shouldCallOnErrorIfEntityIdsIsNotSet() {
-    QueryFeaturesRequest missingEntityIds =
-        QueryFeaturesRequest.newBuilder(validRequest).clearEntityId().build();
-
-    service.queryFeatures(missingEntityIds, mockStreamObserver);
-
-    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
+  public void shouldCallOnErrorIfEntityDataSetRowAndFieldNameSizeMismatch() {
+    // Adding an additional feature value
+    EntityDataSet sizeMismatchEntityDataSet = EntityDataSet
+        .newBuilder(validRequest.getEntityDataSet()).addFieldNames("some_random_field_name")
+        .build();
+    GetFeaturesRequest sizeMismatch = GetFeaturesRequest.newBuilder(validRequest)
+        .setEntityDataSet(sizeMismatchEntityDataSet).build();
+    service.getOnlineFeatures(sizeMismatch, mockStreamObserver);
+    Mockito.verify(mockStreamObserver).onError(Mockito.any(StatusRuntimeException.class));
   }
 
-  @Test
-  public void shouldCallOnErrorIfFeatureIdsIsNotSet() {
-    QueryFeaturesRequest missingRequestDetails =
-        QueryFeaturesRequest.newBuilder(validRequest).clearFeatureId().build();
+//  @Test
+//  public void shouldPassValidRequestAsIs() {
+//    service.queryFeatures(validRequest, mockStreamObserver);
+//    verify(mockFeast).queryFeatures(validRequest);
+//  }
+//
+//  @Test
+//  public void shouldCallOnErrorIfEntityNameIsNotSet() {
+//    QueryFeaturesRequest missingEntityName =
+//        QueryFeaturesRequest.newBuilder(validRequest).clearEntityName().build();
+//
+//    service.queryFeatures(missingEntityName, mockStreamObserver);
+//
+//    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
+//  }
+//
+//  @Test
+//  public void shouldCallOnErrorIfEntityIdsIsNotSet() {
+//    QueryFeaturesRequest missingEntityIds =
+//        QueryFeaturesRequest.newBuilder(validRequest).clearEntityId().build();
+//
+//    service.queryFeatures(missingEntityIds, mockStreamObserver);
+//
+//    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
+//  }
+//
+//  @Test
+//  public void shouldCallOnErrorIfFeatureIdsIsNotSet() {
+//    QueryFeaturesRequest missingRequestDetails =
+//        QueryFeaturesRequest.newBuilder(validRequest).clearFeatureId().build();
+//
+//    service.queryFeatures(missingRequestDetails, mockStreamObserver);
+//
+//    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
+//  }
+//
+//  @Test
+//  public void shouldCallOnErrorIfFeatureIdsContainsDifferentEntity() {
+//    QueryFeaturesRequest differentEntityReq =
+//        QueryFeaturesRequest.newBuilder(validRequest)
+//            .addFeatureId("customer.order_made")
+//            .build();
+//
+//    service.queryFeatures(differentEntityReq, mockStreamObserver);
+//
+//    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
+//  }
 
-    service.queryFeatures(missingRequestDetails, mockStreamObserver);
-
-    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
+  private FeatureSet getFeatureSet() {
+    return FeatureSet.newBuilder().setName(FEATURE_SET_NAME)
+        .setVersion(FEATURE_SET_VER).addFeatureNames(FN_FEATURE_1).build();
   }
 
-  @Test
-  public void shouldCallOnErrorIfFeatureIdsContainsDifferentEntity() {
-    QueryFeaturesRequest differentEntityReq =
-        QueryFeaturesRequest.newBuilder(validRequest)
-            .addFeatureId("customer.order_made")
-            .build();
-
-    service.queryFeatures(differentEntityReq, mockStreamObserver);
-
-    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
+  private EntityDataSet.Builder getEntityDataSetBuilder(
+      EntityDataSetRow.Builder entityDataSetRowBuilder) {
+    return EntityDataSet.newBuilder()
+        .addFieldNames(FN_REGION)
+        .addFieldNames(FN_DRIVER_ID)
+        .addEntityDataSetRows(entityDataSetRowBuilder);
   }
+
+  private EntityDataSetRow.Builder getEntityDataSetRowBuilder() {
+    return EntityDataSetRow.newBuilder()
+        .addValue(Value.newBuilder().setInt64Val(System.currentTimeMillis()))
+        .addValue(Value.newBuilder().setStringVal(FN_REGION_VAL))
+        .addValue(Value.newBuilder().setStringVal(FN_DRIVER_ID_VAL));
+  }
+
 }

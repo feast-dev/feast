@@ -17,47 +17,18 @@
 
 package feast.serving.service;
 
-import feast.serving.exception.SpecRetrievalException;
-import feast.specs.EntitySpecProto.EntitySpec;
-import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.specs.StorageSpecProto.StorageSpec;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.StoreProto.Store;
+import feast.core.StoreProto.Store.Subscription;
+import java.util.List;
 import java.util.Map;
 
-/**
- * Abstraction of service which provides {@link EntitySpec}, {@link FeatureSpec}, and {@link
- * StorageSpec}.
- */
 public interface SpecStorage {
 
-  /**
-   * Get a map of {@link EntitySpec} from Core API, given a collection of entityId.
-   *
-   * @param entityIds collection of entityId to retrieve.
-   * @return map of {@link EntitySpec}, where the key is entity name.
-   * @throws SpecRetrievalException if any error happens during retrieval
-   */
-  Map<String, EntitySpec> getEntitySpecs(Iterable<String> entityIds);
+  Store getStoreDetails(String id);
 
-  /**
-   * Get all {@link EntitySpec} from Core API.
-   *
-   * @return map of {@link EntitySpec}, where the key is the entity name.
-   */
-  Map<String, EntitySpec> getAllEntitySpecs();
+  Map<String, FeatureSetSpec> getFeatureSetSpecs(List<Subscription> subscriptions);
 
-  /**
-   * Get a map of {@link FeatureSpec} from Core API, given a collection of featureId.
-   *
-   * @param featureIds collection of entityId to retrieve.
-   * @return map of {@link FeatureSpec}, where the key is feature id.
-   * @throws SpecRetrievalException if any error happens during retrieval
-   */
-  Map<String, FeatureSpec> getFeatureSpecs(Iterable<String> featureIds);
-
-  /**
-   * Check whether connection to spec storage is ready.
-   *
-   * @return return true if it is ready. Otherwise, return false.
-   */
   boolean isConnected();
+
 }

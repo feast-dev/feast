@@ -17,17 +17,25 @@
 
 package feast.serving.grpc;
 
-import static feast.serving.util.RequestHelper.validateRequest;
-import static feast.serving.util.StatsUtil.makeStatsdTags;
-import static io.grpc.Status.Code.INTERNAL;
-
 import com.timgroup.statsd.StatsDClient;
-import feast.serving.ServingAPIGrpc.ServingAPIImplBase;
-import feast.serving.ServingAPIProto.QueryFeaturesRequest;
-import feast.serving.ServingAPIProto.QueryFeaturesResponse;
+import feast.serving.ServingAPIProto.BatchFeaturesJob.GetStatusRequest;
+import feast.serving.ServingAPIProto.BatchFeaturesJob.GetStatusResponse;
+import feast.serving.ServingAPIProto.BatchFeaturesJob.GetUploadUrlRequest;
+import feast.serving.ServingAPIProto.BatchFeaturesJob.GetUploadUrlResponse;
+import feast.serving.ServingAPIProto.BatchFeaturesJob.SetUploadCompleteRequest;
+import feast.serving.ServingAPIProto.BatchFeaturesJob.SetUploadCompleteResponse;
+import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
+import feast.serving.ServingAPIProto.GetFeastServingTypeRequest;
+import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
+import feast.serving.ServingAPIProto.GetFeastServingVersionRequest;
+import feast.serving.ServingAPIProto.GetFeastServingVersionResponse;
+import feast.serving.ServingAPIProto.GetFeaturesRequest;
+import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
+import feast.serving.ServingServiceGrpc;
 import feast.serving.service.FeastServing;
-import feast.serving.util.TimeUtil;
+import feast.serving.util.RequestHelper;
 import io.grpc.Status;
+import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.opentracing.Scope;
@@ -37,51 +45,127 @@ import lombok.extern.slf4j.Slf4j;
 import org.lognet.springboot.grpc.GRpcService;
 import org.springframework.beans.factory.annotation.Autowired;
 
-/** Grpc service implementation for Serving API. */
+/**
+ * Grpc service implementation for Serving API.
+ */
 @Slf4j
 @GRpcService
-public class ServingGrpcService extends ServingAPIImplBase {
+public class ServingGrpcService extends ServingServiceGrpc.ServingServiceImplBase {
 
-  private final FeastServing feast;
+  private final FeastServing feastServing;
   private final Tracer tracer;
   private final StatsDClient statsDClient;
 
   @Autowired
-  public ServingGrpcService(FeastServing feast, Tracer tracer, StatsDClient statsDClient) {
-    this.feast = feast;
+  public ServingGrpcService(FeastServing feastServing, Tracer tracer, StatsDClient statsDClient) {
+    this.feastServing = feastServing;
     this.tracer = tracer;
     this.statsDClient = statsDClient;
   }
 
-  /** Query feature values from Feast storage. */
   @Override
-  public void queryFeatures(QueryFeaturesRequest request, StreamObserver<QueryFeaturesResponse> responseObserver) {
-    long currentMicro = TimeUtil.microTime();
-    Span span = tracer.buildSpan("ServingGrpcService-queryFeatures").start();
-    String[] tags = makeStatsdTags(request);
-    statsDClient.increment("query_features_count", tags);
-    statsDClient.gauge("query_features_entity_count", request.getEntityIdCount(), tags);
-    statsDClient.gauge("query_features_feature_count", request.getFeatureIdCount(), tags);
+  public void getFeastServingVersion(GetFeastServingVersionRequest request,
+      StreamObserver<GetFeastServingVersionResponse> responseObserver) {
+//    long currentMicro = TimeUtil.microTime();
+    Span span = tracer.buildSpan("ServingGrpcService-getServingVersion").start();
+
     try (Scope scope = tracer.scopeManager().activate(span, false)) {
       Span innerSpan = scope.span();
-      validateRequest(request);
-      QueryFeaturesResponse response = feast.queryFeatures(request);
-
+      GetFeastServingVersionResponse response = feastServing.getFeastServingVersion();
       innerSpan.log("calling onNext");
       responseObserver.onNext(response);
       innerSpan.log("calling onCompleted");
       responseObserver.onCompleted();
       innerSpan.log("all done");
-      statsDClient.increment("query_feature_success", tags);
     } catch (Exception e) {
-      statsDClient.increment("query_feature_failed", tags);
       log.error("Error: {}", e.getMessage());
-      responseObserver.onError(
-          new StatusRuntimeException(
-              Status.fromCode(INTERNAL).withDescription(e.getMessage()).withCause(e)));
+      responseObserver.onError(new StatusRuntimeException(
+          Status.fromCode(Code.INTERNAL).withDescription(e.getMessage()).withCause(e)));
     } finally {
-      statsDClient.gauge("query_features_latency_us", TimeUtil.microTime() - currentMicro, tags);
       span.finish();
     }
   }
+
+  @Override
+  public void getFeastServingType(GetFeastServingTypeRequest request,
+      StreamObserver<GetFeastServingTypeResponse> responseObserver) {
+    super.getFeastServingType(request, responseObserver);
+  }
+
+  @Override
+  public void getOnlineFeatures(GetFeaturesRequest request,
+      StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
+    Span span = tracer.buildSpan("ServingGrpcService-getOnlineFeatures").start();
+
+    try (Scope scope = tracer.scopeManager().activate(span, false)) {
+      Span innerSpan = scope.span();
+      RequestHelper.validateRequest(request);
+      GetOnlineFeaturesResponse response = feastServing.getOnlineFeatures(request);
+      innerSpan.log("calling onNext");
+      responseObserver.onNext(response);
+      innerSpan.log("calling onCompleted");
+      responseObserver.onCompleted();
+      innerSpan.log("all done");
+    } catch (Exception e) {
+      log.error("Error: {}", e.getMessage());
+      responseObserver.onError(new StatusRuntimeException(
+          Status.fromCode(Code.INTERNAL).withDescription(e.getMessage()).withCause(e)));
+    }
+  }
+
+  @Override
+  public void getBatchFeatures(GetFeaturesRequest request,
+      StreamObserver<GetBatchFeaturesResponse> responseObserver) {
+    super.getBatchFeatures(request, responseObserver);
+  }
+
+  @Override
+  public void getBatchFeaturesJobStatus(GetStatusRequest request,
+      StreamObserver<GetStatusResponse> responseObserver) {
+    super.getBatchFeaturesJobStatus(request, responseObserver);
+  }
+
+  @Override
+  public void getBatchFeaturesJobUploadUrl(GetUploadUrlRequest request,
+      StreamObserver<GetUploadUrlResponse> responseObserver) {
+    super.getBatchFeaturesJobUploadUrl(request, responseObserver);
+  }
+
+  @Override
+  public void setBatchFeaturesJobUploadComplete(SetUploadCompleteRequest request,
+      StreamObserver<SetUploadCompleteResponse> responseObserver) {
+    super.setBatchFeaturesJobUploadComplete(request, responseObserver);
+  }
+
+  //  /** Query feature values from Feast storage. */
+//  @Override
+//  public void queryFeatures(QueryFeaturesRequest request, StreamObserver<QueryFeaturesResponse> responseObserver) {
+//    long currentMicro = TimeUtil.microTime();
+//    Span span = tracer.buildSpan("ServingGrpcService-queryFeatures").start();
+//    String[] tags = makeStatsdTags(request);
+//    statsDClient.increment("query_features_count", tags);
+//    statsDClient.gauge("query_features_entity_count", request.getEntityIdCount(), tags);
+//    statsDClient.gauge("query_features_feature_count", request.getFeatureIdCount(), tags);
+//    try (Scope scope = tracer.scopeManager().activate(span, false)) {
+//      Span innerSpan = scope.span();
+//      validateRequest(request);
+//      QueryFeaturesResponse response = feast.queryFeatures(request);
+//
+//      innerSpan.log("calling onNext");
+//      responseObserver.onNext(response);
+//      innerSpan.log("calling onCompleted");
+//      responseObserver.onCompleted();
+//      innerSpan.log("all done");
+//      statsDClient.increment("query_feature_success", tags);
+//    } catch (Exception e) {
+//      statsDClient.increment("query_feature_failed", tags);
+//      log.error("Error: {}", e.getMessage());
+//      responseObserver.onError(
+//          new StatusRuntimeException(
+//              Status.fromCode(INTERNAL).withDescription(e.getMessage()).withCause(e)));
+//    } finally {
+//      statsDClient.gauge("query_features_latency_us", TimeUtil.microTime() - currentMicro, tags);
+//      span.finish();
+//    }
+//  }
 }

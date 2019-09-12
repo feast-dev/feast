@@ -18,52 +18,52 @@
 package feast.serving.util;
 
 import feast.serving.ServingAPIProto;
-import feast.serving.ServingAPIProto.Entity;
+//import feast.serving.ServingAPIProto.Entity;
 import feast.serving.model.FeatureValue;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Utility class for converting response from Feature Storage into {@link Map<String,Entity>}. */
+///** Utility class for converting response from Feature Storage into {@link Map<String,Entity>}. */
 public class EntityMapBuilder {
 
-  private final Map<String, Map<String, FeatureValue>> backingMap = new ConcurrentHashMap<>();
+//  private final Map<String, Map<String, FeatureValue>> backingMap = new ConcurrentHashMap<>();
 
-  public void addFeatureValueList(List<FeatureValue> features) {
-    for (FeatureValue feature : features) {
-      String entityId = feature.getEntityId();
-      String featureId = feature.getFeatureId();
+//  public void addFeatureValueList(List<FeatureValue> features) {
+//    for (FeatureValue feature : features) {
+//      String entityId = feature.getEntityId();
+//      String featureId = feature.getFeatureId();
+//
+//      Map<String, FeatureValue> featureIdToFeatureValueMap =
+//          backingMap.computeIfAbsent(entityId, k -> new ConcurrentHashMap<>());
+//
+//      featureIdToFeatureValueMap.put(featureId, feature);
+//    }
+//  }
 
-      Map<String, FeatureValue> featureIdToFeatureValueMap =
-          backingMap.computeIfAbsent(entityId, k -> new ConcurrentHashMap<>());
-
-      featureIdToFeatureValueMap.put(featureId, feature);
-    }
-  }
-
-  /**
-   * Build an entity map out of {@code this}.
-   *
-   * @return Entity Map
-   */
-  public Map<String, Entity> toEntityMap() {
-    Map<String, Entity> resultMap = new HashMap<>();
-    for (Map.Entry<String, Map<String, FeatureValue>> entity : backingMap.entrySet()) {
-      String entityId = entity.getKey();
-      Entity.Builder entityBuilder = Entity.newBuilder();
-      for (Map.Entry<String, FeatureValue> feature : entity.getValue().entrySet()) {
-        String featureId = feature.getKey();
-        FeatureValue featureValue = feature.getValue();
-        ServingAPIProto.FeatureValue featureValueProto = ServingAPIProto.FeatureValue.newBuilder()
-            .setTimestamp(featureValue.getTimestamp())
-            .setValue(featureValue.getValue())
-            .build();
-
-        entityBuilder.putFeatures(featureId, featureValueProto);
-      }
-      resultMap.put(entityId, entityBuilder.build());
-    }
-    return resultMap;
-  }
+//  /**
+//   * Build an entity map out of {@code this}.
+//   *
+//   * @return Entity Map
+//   */
+//  public Map<String, Entity> toEntityMap() {
+//    Map<String, Entity> resultMap = new HashMap<>();
+//    for (Map.Entry<String, Map<String, FeatureValue>> entity : backingMap.entrySet()) {
+//      String entityId = entity.getKey();
+//      Entity.Builder entityBuilder = Entity.newBuilder();
+//      for (Map.Entry<String, FeatureValue> feature : entity.getValue().entrySet()) {
+//        String featureId = feature.getKey();
+//        FeatureValue featureValue = feature.getValue();
+//        ServingAPIProto.FeatureValue featureValueProto = ServingAPIProto.FeatureValue.newBuilder()
+//            .setTimestamp(featureValue.getTimestamp())
+//            .setValue(featureValue.getValue())
+//            .build();
+//
+//        entityBuilder.putFeatures(featureId, featureValueProto);
+//      }
+//      resultMap.put(entityId, entityBuilder.build());
+//    }
+//    return resultMap;
+//  }
 }

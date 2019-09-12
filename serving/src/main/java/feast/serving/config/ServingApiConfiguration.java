@@ -17,16 +17,16 @@
 
 package feast.serving.config;
 
-import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import feast.core.StoreProto.Store;
 import feast.serving.service.CachedSpecStorage;
 import feast.serving.service.CoreService;
-import feast.serving.service.FeatureStorageRegistry;
+import feast.serving.service.FeastServing;
+import feast.serving.service.RedisFeastServing;
 import feast.serving.service.SpecStorage;
-import feast.specs.StorageSpecProto.StorageSpec;
 import io.opentracing.Tracer;
 import io.opentracing.contrib.concurrent.TracedExecutorService;
 import java.lang.reflect.Type;
@@ -45,6 +45,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.protobuf.ProtobufJsonFormatHttpMessageConverter;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisPoolConfig;
 
 /**
  * Global bean configuration.
@@ -53,10 +55,15 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class ServingApiConfiguration implements WebMvcConfigurer {
 
-  @Autowired
-  private ProtobufJsonFormatHttpMessageConverter protobufConverter;
+  private final ProtobufJsonFormatHttpMessageConverter protobufConverter;
+
   private ScheduledExecutorService scheduledExecutorService =
       Executors.newSingleThreadScheduledExecutor();
+
+  public ServingApiConfiguration(
+      ProtobufJsonFormatHttpMessageConverter protobufConverter) {
+    this.protobufConverter = protobufConverter;
+  }
 
   private static Map<String, String> convertJsonStringToMap(String jsonString) {
     if (jsonString == null || jsonString.equals("") || jsonString.equals("{}")) {
@@ -84,11 +91,13 @@ public class ServingApiConfiguration implements WebMvcConfigurer {
 
   @Bean
   public SpecStorage getCoreServiceSpecStorage(
+      @Value("${feast.store.id}") String storeId,
       @Value("${feast.core.host}") String coreServiceHost,
       @Value("${feast.core.grpc.port}") String coreServicePort,
       @Value("${feast.cacheDurationMinute}") int cacheDurationMinute) {
     final CachedSpecStorage cachedSpecStorage =
-        new CachedSpecStorage(new CoreService(coreServiceHost, Integer.parseInt(coreServicePort)));
+        new CachedSpecStorage(new CoreService(coreServiceHost, Integer.parseInt(coreServicePort)),
+            storeId);
 
     // reload all specs including new ones periodically
     scheduledExecutorService.schedule(
@@ -104,28 +113,27 @@ public class ServingApiConfiguration implements WebMvcConfigurer {
   }
 
   @Bean
-  public FeatureStorageRegistry getFeatureStorageRegistry(
-      @Value("${feast.store.serving.type}") String storageType,
-      @Value("${feast.store.serving.options}") String storageOptions,
-      AppConfig appConfig, Tracer tracer) {
-    storageOptions = Strings.isNullOrEmpty(storageOptions) ? "{}" : storageOptions;
-    Map<String, String> optionsMap = convertJsonStringToMap(storageOptions);
+  public FeastServing getFeastServing(@Value("${feast.store.id}") String storeId,
+      @Value("${feast.core.host}") String coreServiceHost,
+      @Value("${feast.core.grpc.port}") String coreServicePort, AppConfig appConfig,
+      Tracer tracer) {
+    CoreService coreService = new CoreService(coreServiceHost, Integer.parseInt(coreServicePort));
+    Store store = coreService.getStoreDetails(storeId);
 
-    StorageSpec storageSpec = StorageSpec.newBuilder()
-            .setId("SERVING")
-            .setType(storageType)
-            .putAllOptions(optionsMap)
-            .build();
-
-    FeatureStorageRegistry registry = new FeatureStorageRegistry(appConfig, tracer);
-    try {
-      registry.connect(storageSpec);
-    } catch (Exception e) {
-      log.error(
-          "Unable to create a pre-populated storage registry, connection will be made in ad-hoc basis",
-          e);
+    switch (store.getType()) {
+      case REDIS:
+        JedisPoolConfig poolConfig = new JedisPoolConfig();
+        poolConfig.setMaxTotal(appConfig.getRedisMaxPoolSize());
+        poolConfig.setMaxIdle(appConfig.getRedisMaxIdleSize());
+        JedisPool jedisPool = new JedisPool(poolConfig, store.getRedisConfig().getHost(),
+            store.getRedisConfig().getPort());
+        return new RedisFeastServing(jedisPool, tracer);
+      case BIGQUERY:
+        // TODO: Implement connection to Bigquery
+        return null;
+      default:
+        return null;
     }
-    return registry;
   }
 
   @Bean

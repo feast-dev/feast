@@ -17,25 +17,23 @@
 
 package feast.serving.service;
 
-import com.google.protobuf.Empty;
 import feast.core.CoreServiceGrpc;
-import feast.core.CoreServiceProto.CoreServiceTypes.GetEntitiesRequest;
-import feast.core.CoreServiceProto.CoreServiceTypes.GetEntitiesResponse;
-import feast.core.CoreServiceProto.CoreServiceTypes.GetFeaturesRequest;
-import feast.core.CoreServiceProto.CoreServiceTypes.GetFeaturesResponse;
-import feast.core.CoreServiceProto.CoreServiceTypes.ListEntitiesResponse;
-import feast.core.CoreServiceProto.CoreServiceTypes.ListFeaturesResponse;
+import feast.core.CoreServiceProto.GetFeatureSetsRequest;
+import feast.core.CoreServiceProto.GetFeatureSetsResponse;
+import feast.core.CoreServiceProto.GetStoresRequest;
+import feast.core.CoreServiceProto.GetStoresRequest.Filter;
+import feast.core.CoreServiceProto.GetStoresResponse;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.StoreProto.Store;
+import feast.core.StoreProto.Store.Subscription;
 import feast.serving.exception.SpecRetrievalException;
-import feast.specs.EntitySpecProto.EntitySpec;
-import feast.specs.FeatureSpecProto.FeatureSpec;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import io.grpc.StatusRuntimeException;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -56,83 +54,43 @@ public class CoreService implements SpecStorage {
     blockingStub = CoreServiceGrpc.newBlockingStub(channel);
   }
 
-  /**
-   * Get map of entity ID and {@link EntitySpec} from Core API, given a collection of entityId.
-   *
-   * @param entityIds collection of entityId to retrieve.
-   * @return map of entity ID as key and {@link EntitySpec} value.
-   * @throws SpecRetrievalException if any error happens during retrieval
-   */
-  public Map<String, EntitySpec> getEntitySpecs(Iterable<String> entityIds) {
-    GetEntitiesRequest request = GetEntitiesRequest.newBuilder().addAllIds(entityIds).build();
+  @Override
+  public Store getStoreDetails(String id) {
+    GetStoresRequest request = GetStoresRequest.newBuilder()
+        .setFilter(Filter.newBuilder().setName(id)).build();
+    GetStoresResponse response = blockingStub.getStores(request);
 
-    try {
-      GetEntitiesResponse response = blockingStub.getEntities(request);
-      return response
-          .getEntitiesList()
-          .stream()
-          .collect(Collectors.toMap(EntitySpec::getName, Function.identity()));
-    } catch (StatusRuntimeException e) {
-      log.error("GRPC error in getEntitySpecs: {}", e.getStatus());
-      throw new SpecRetrievalException("Unable to retrieve entity spec", e);
+    for (Store store : response.getStoreList()) {
+      if (store.getName().equals(id)) {
+        return store;
+      }
     }
+
+    throw new SpecRetrievalException(String.format("Unable to find store with name: %s", id));
   }
 
-  /**
-   * Get all {@link EntitySpec} from Core API.
-   *
-   * @return map of entity id as key and {@link EntitySpec} as value.
-   */
-  public Map<String, EntitySpec> getAllEntitySpecs() {
-    try {
-      ListEntitiesResponse response = blockingStub.listEntities(Empty.getDefaultInstance());
-      return response
-          .getEntitiesList()
-          .stream()
-          .collect(Collectors.toMap(EntitySpec::getName, Function.identity()));
-    } catch (StatusRuntimeException e) {
-      log.error("GRPC error in getAllEntitySpecs: {}", e.getStatus());
-      throw new SpecRetrievalException("Unable to retrieve entity spec", e);
-    }
-  }
+  @Override
+  public Map<String, FeatureSetSpec> getFeatureSetSpecs(List<Subscription> subscriptions) {
+    Map<String, FeatureSetSpec> featureSetSpecMap = new HashMap<>();
+    for (Subscription subscription : subscriptions) {
+      // Initialise Filter object
+      GetFeatureSetsRequest.Filter filter = GetFeatureSetsRequest.Filter.newBuilder()
+          .setFeatureSetName(subscription.getName())
+          .setFeatureSetVersion(subscription.getVersion()).build();
 
-  /**
-   * Get map of {@link FeatureSpec} from Core API, given a collection of featureId.
-   *
-   * @param featureIds collection of entityId to retrieve.
-   * @return collection of {@link FeatureSpec}
-   * @throws SpecRetrievalException if any error happens during retrieval
-   */
-  public Map<String, FeatureSpec> getFeatureSpecs(Iterable<String> featureIds) {
-    try {
-      GetFeaturesRequest request = GetFeaturesRequest.newBuilder().addAllIds(featureIds).build();
-      GetFeaturesResponse response = blockingStub.getFeatures(request);
-      return response
-          .getFeaturesList()
-          .stream()
-          .collect(Collectors.toMap(FeatureSpec::getId, Function.identity()));
-    } catch (StatusRuntimeException e) {
-      log.error("GRPC error in getFeatureSpecs: {}", e.getStatus());
-      throw new SpecRetrievalException("Unable to retrieve feature specs", e);
-    }
-  }
+      // Initialise request
+      GetFeatureSetsRequest request = GetFeatureSetsRequest.newBuilder().setFilter(filter).build();
 
-  /**
-   * Get all {@link FeatureSpec} available in Core API.
-   *
-   * @return map of feature id as key and {@link FeatureSpec} as value.
-   */
-  public Map<String, FeatureSpec> getAllFeatureSpecs() {
-    try {
-      ListFeaturesResponse response = blockingStub.listFeatures(Empty.getDefaultInstance());
-      return response
-          .getFeaturesList()
-          .stream()
-          .collect(Collectors.toMap(FeatureSpec::getId, Function.identity()));
-    } catch (StatusRuntimeException e) {
-      log.error("GRPC error in getAllFeatureSpecs, {}", e.getStatus());
-      throw new SpecRetrievalException("Unable to retrieve feature specs", e);
+      // Send request
+      GetFeatureSetsResponse response = blockingStub.getFeatureSets(request);
+
+      for (FeatureSetSpec featureSetSpec : response.getFeatureSetsList()) {
+        featureSetSpecMap
+            .put(String.format("%s:%s", featureSetSpec.getName(), featureSetSpec.getVersion()),
+                featureSetSpec);
+      }
     }
+    return featureSetSpecMap;
   }
 
   /**

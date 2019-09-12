@@ -17,35 +17,53 @@
 
 package feast.serving.util;
 
-import com.google.common.base.Strings;
-import feast.serving.ServingAPIProto.QueryFeaturesRequest;
+import feast.serving.ServingAPIProto.GetFeaturesRequest;
+import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDataSetRow;
 
 public class RequestHelper {
-  private RequestHelper() {}
 
-  public static void validateRequest(QueryFeaturesRequest request) {
-    // entity name shall present
-    if (Strings.isNullOrEmpty(request.getEntityName())) {
-      throw new IllegalArgumentException("entity name must be set");
+  private RequestHelper() {
+  }
+
+  public static void validateRequest(GetFeaturesRequest request) {
+    // EntityDataSetRow shall not be empty
+    if (request.getEntityDataSet().getEntityDataSetRowsCount() <= 0) {
+      throw new IllegalArgumentException("Entity value must be provided");
     }
 
-    // entity id list shall not be empty
-    if (request.getEntityIdList().size() <= 0) {
-      throw new IllegalArgumentException("entity ID must be provided");
-    }
-
-    // feature IDs shall not be empty
-    if (request.getFeatureIdCount() <= 0) {
-      throw new IllegalArgumentException("feature id must be provided");
-    }
-
-    // feature id in each request detail shall have same entity name
-    String entityName = request.getEntityName();
-    for (String featureId : request.getFeatureIdList()) {
-      if (!featureId.substring(0, featureId.indexOf(".")).equals(entityName)) {
-        throw new IllegalArgumentException(
-            "entity name of all feature ID in request details must be: " + entityName);
+    // Value list size in EntityDataSetRow shall be the same as the size of fieldNames + 1
+    // First entity value will always be timestamp in EntityDataSetRow
+    int fieldNameCount = request.getEntityDataSet().getFieldNamesCount();
+    for (EntityDataSetRow edsr : request.getEntityDataSet().getEntityDataSetRowsList()) {
+      if (edsr.getValueCount() != fieldNameCount + 1) {
+        throw new IllegalArgumentException("Size mismatch between fieldNames and its values");
       }
     }
   }
+
+//  public static void validateRequest(QueryFeaturesRequest request) {
+//    // entity name shall present
+//    if (Strings.isNullOrEmpty(request.getEntityName())) {
+//      throw new IllegalArgumentException("entity name must be set");
+//    }
+//
+//    // entity id list shall not be empty
+//    if (request.getEntityIdList().size() <= 0) {
+//      throw new IllegalArgumentException("entity ID must be provided");
+//    }
+//
+//    // feature IDs shall not be empty
+//    if (request.getFeatureIdCount() <= 0) {
+//      throw new IllegalArgumentException("feature id must be provided");
+//    }
+//
+//    // feature id in each request detail shall have same entity name
+//    String entityName = request.getEntityName();
+//    for (String featureId : request.getFeatureIdList()) {
+//      if (!featureId.substring(0, featureId.indexOf(".")).equals(entityName)) {
+//        throw new IllegalArgumentException(
+//            "entity name of all feature ID in request details must be: " + entityName);
+//      }
+//    }
+//  }
 }

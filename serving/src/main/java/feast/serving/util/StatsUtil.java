@@ -17,7 +17,9 @@
 package feast.serving.util;
 
 import com.google.common.base.Strings;
-import feast.serving.ServingAPIProto.QueryFeaturesRequest;
+//import feast.serving.ServingAPIProto.QueryFeaturesRequest;
+import feast.serving.ServingAPIProto.GetFeaturesRequest;
+import feast.serving.ServingAPIProto.GetFeaturesRequest.FeatureSet;
 import io.grpc.Context;
 import io.grpc.Context.Key;
 import java.net.SocketAddress;
@@ -39,7 +41,7 @@ public class StatsUtil {
    * <p>The tags contain information about feature's ids of the request and the client requesting
    * it.
    */
-  public static String[] makeStatsdTags(QueryFeaturesRequest request) {
+  public static String[] makeStatsdTags(GetFeaturesRequest request) {
     List<String> featureTags = makeFeatureTags(request);
     String remoteAddrTag = makeRemoteAddressTag();
     String[] tags = featureTags.toArray(new String[featureTags.size() + 1]);
@@ -47,13 +49,13 @@ public class StatsUtil {
     return tags;
   }
 
-  private static List<String> makeFeatureTags(QueryFeaturesRequest request) {
-    List<String> tags = new ArrayList<>(request.getFeatureIdCount());
-    for (String featureId : request.getFeatureIdList()) {
-      if (Strings.isNullOrEmpty(featureId)) {
+  private static List<String> makeFeatureTags(GetFeaturesRequest request) {
+    List<String> tags = new ArrayList<>(request.getFeatureSetsCount());
+    for (FeatureSet featureSet : request.getFeatureSetsList()) {
+      if (!featureSet.isInitialized()) {
         continue;
       }
-      String featureTag = makeFeatureTag(featureId);
+      String featureTag = makeFeatureTag(featureSet.getName());
       tags.add(featureTag);
     }
     return tags;

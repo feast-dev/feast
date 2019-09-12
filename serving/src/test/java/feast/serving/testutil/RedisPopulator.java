@@ -18,14 +18,17 @@
 package feast.serving.testutil;
 
 import com.google.protobuf.Timestamp;
-import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.storage.RedisProto.RedisBucketKey;
-import feast.storage.RedisProto.RedisBucketValue;
-import java.util.Collection;
-import org.apache.commons.codec.digest.DigestUtils;
+import feast.core.FeatureSetProto.EntitySpec;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.storage.RedisProto.RedisKey;
+import feast.types.FeatureProto.Field;
+import feast.types.FeatureRowProto.FeatureRow;
+import java.util.ArrayList;
+import java.util.List;
 import redis.clients.jedis.Jedis;
 
 public class RedisPopulator extends FeatureStoragePopulator {
+
   private final Jedis jedis;
 
   public RedisPopulator(String redisHost, int redisPort) {
@@ -33,61 +36,30 @@ public class RedisPopulator extends FeatureStoragePopulator {
   }
 
   @Override
-  public void populate(
-      String entityName,
-      Collection<String> entityIds,
-      Collection<FeatureSpec> featureSpecs,
-      Timestamp timestamp) {
-    for (FeatureSpec fs : featureSpecs) {
-      for (String entityId : entityIds) {
-        addData(entityId, fs, timestamp);
+  public void populate(List<Field> fields, FeatureSetSpec featureSetSpec, String featureSet) {
+    // Build a FeatureRow
+    FeatureRow featureRow = FeatureRow.newBuilder().addAllFields(fields)
+        .setEventTimestamp(Timestamp.newBuilder().setSeconds(System.currentTimeMillis() / 1000))
+        .setFeatureSet(featureSet).build();
+
+    // Get a list of entity names
+    List<String> entityNames = new ArrayList<>();
+    for (EntitySpec entitySpec : featureSetSpec.getEntitiesList()) {
+      entityNames.add(entitySpec.getName());
+    }
+
+    // Construct key
+    RedisKey.Builder redisKeyBuilder = RedisKey.newBuilder().setFeatureSet(featureSet);
+
+    for (Field field : fields) {
+      // Check if name is in EntitySpec
+      if (entityNames.stream().anyMatch(entityName -> entityName.trim().equals(field.getName()))) {
+        redisKeyBuilder.addEntities(field);
       }
     }
+
+    jedis.set(redisKeyBuilder.build().toByteArray(), featureRow.toByteArray());
   }
 
-  /**
-   * Add feature value.
-   *
-   * @param entityId entityId of data to be added.
-   * @param fs feature spec of the feature to be added.
-   * @param timestamp timestamp of data
-   */
-  private void addData(String entityId, FeatureSpec fs, Timestamp timestamp) {
-    RedisBucketKey bucketKey = createBucketKey(entityId, getFeatureIdSha1Prefix(fs.getId()), 0);
-    RedisBucketValue bucketValue =
-        RedisBucketValue.newBuilder()
-            .setValue(createValue(entityId, fs.getId(), timestamp, fs.getValueType()))
-            .setEventTimestamp(timestamp)
-            .build();
-    byte[] key = bucketKey.toByteArray();
-    byte[] value = bucketValue.toByteArray();
-    jedis.set(key, value);
-  }
-
-  /**
-   * Create {@link RedisBucketKey}.
-   *
-   * @param entityId
-   * @param featureIdSha1Prefix
-   * @param bucketId
-   * @return
-   */
-  private RedisBucketKey createBucketKey(
-      String entityId, String featureIdSha1Prefix, long bucketId) {
-    return RedisBucketKey.newBuilder()
-        .setEntityKey(entityId)
-        .setFeatureIdSha1Prefix(featureIdSha1Prefix)
-        .setBucketId(bucketId)
-        .build();
-  }
-
-  /**
-   * Convenient function to calculate feature id's sha1 prefix.
-   *
-   * @param featureId feature ID
-   * @return first 7 characters of SHA1(featureID)
-   */
-  private String getFeatureIdSha1Prefix(String featureId) {
-    return DigestUtils.sha1Hex(featureId.getBytes()).substring(0, 7);
-  }
 }
+

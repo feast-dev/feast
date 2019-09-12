@@ -20,11 +20,10 @@ package feast.serving.service;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import feast.serving.exception.SpecRetrievalException;
-import feast.specs.EntitySpecProto.EntitySpec;
-import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.specs.StorageSpecProto.StorageSpec;
-import java.util.Collections;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.StoreProto.Store;
+import feast.core.StoreProto.Store.Subscription;
+import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
@@ -37,56 +36,32 @@ public class CachedSpecStorage implements SpecStorage {
   private static final int MAX_SPEC_COUNT = 1000;
 
   private final CoreService coreService;
-  private final LoadingCache<String, EntitySpec> entitySpecCache;
-  private final CacheLoader<String, EntitySpec> entitySpecLoader;
-  private final LoadingCache<String, FeatureSpec> featureSpecCache;
-  private final CacheLoader<String, FeatureSpec> featureSpecLoader;
-  private StorageSpec storageSpec;
+  private final String storeId;
 
-  public CachedSpecStorage(CoreService coreService) {
+  private final CacheLoader<String, FeatureSetSpec> featureSetSpecCacheLoader;
+  private final LoadingCache<String, FeatureSetSpec> featureSetSpecCache;
+  private Store store;
+
+  public CachedSpecStorage(CoreService coreService, String storeId) {
+    this.storeId = storeId;
     this.coreService = coreService;
-    entitySpecLoader =
+    this.store = coreService.getStoreDetails(storeId);
+
+    featureSetSpecCacheLoader =
         CacheLoader.from(
-            (String key) -> coreService.getEntitySpecs(Collections.singletonList(key)).get(key));
-    entitySpecCache = CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(entitySpecLoader);
-
-    featureSpecLoader =
-        CacheLoader.from(
-            (String key) -> coreService.getFeatureSpecs(Collections.singletonList(key)).get(key));
-    featureSpecCache =
-        CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(featureSpecLoader);
+            (String key) -> coreService.getFeatureSetSpecs(store.getSubscriptionsList()).get(key));
+    featureSetSpecCache =
+        CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(featureSetSpecCacheLoader);
   }
 
   @Override
-  public Map<String, EntitySpec> getEntitySpecs(Iterable<String> entityIds) {
-    try {
-      return entitySpecCache.getAll(entityIds);
-    } catch (Exception e) {
-      log.error("Error while retrieving entity spec: {}", e);
-      throw new SpecRetrievalException("Error while retrieving entity spec", e);
-    }
+  public Store getStoreDetails(String id) {
+    return store;
   }
 
   @Override
-  public Map<String, EntitySpec> getAllEntitySpecs() {
-    try {
-      Map<String, EntitySpec> result = coreService.getAllEntitySpecs();
-      entitySpecCache.putAll(result);
-      return result;
-    } catch (Exception e) {
-      log.error("Error while retrieving entity spec: {}", e);
-      throw new SpecRetrievalException("Error while retrieving entity spec", e);
-    }
-  }
-
-  @Override
-  public Map<String, FeatureSpec> getFeatureSpecs(Iterable<String> featureIds) {
-    try {
-      return featureSpecCache.getAll(featureIds);
-    } catch (Exception e) {
-      log.error("Error while retrieving feature spec: {}", e);
-      throw new SpecRetrievalException("Error while retrieving feature spec", e);
-    }
+  public Map<String, FeatureSetSpec> getFeatureSetSpecs(List<Subscription> subscriptions) {
+    return featureSetSpecCache.asMap();
   }
 
   @Override
@@ -98,10 +73,10 @@ public class CachedSpecStorage implements SpecStorage {
    * Preload all spec into cache.
    */
   public void populateCache() {
-    Map<String, FeatureSpec> featureSpecMap = coreService.getAllFeatureSpecs();
-    featureSpecCache.putAll(featureSpecMap);
+    this.store = coreService.getStoreDetails(storeId);
 
-    Map<String, EntitySpec> entitySpecMap = coreService.getAllEntitySpecs();
-    entitySpecCache.putAll(entitySpecMap);
+    Map<String, FeatureSetSpec> featureSetSpecMap = coreService
+        .getFeatureSetSpecs(store.getSubscriptionsList());
+    featureSetSpecCache.putAll(featureSetSpecMap);
   }
 }

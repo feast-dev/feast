@@ -17,101 +17,61 @@
 
 package feast.serving.testutil;
 
-import static java.util.stream.Collectors.groupingBy;
-import static org.apache.hadoop.hbase.shaded.org.junit.Assert.assertNotNull;
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
-
-import com.google.protobuf.Timestamp;
-import feast.serving.model.FeatureValue;
-import feast.specs.FeatureSpecProto.FeatureSpec;
+import com.google.protobuf.ByteString;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.types.FeatureProto.Field;
+import feast.types.ValueProto.BoolList;
+import feast.types.ValueProto.BytesList;
+import feast.types.ValueProto.DoubleList;
+import feast.types.ValueProto.FloatList;
+import feast.types.ValueProto.Int32List;
+import feast.types.ValueProto.Int64List;
+import feast.types.ValueProto.StringList;
 import feast.types.ValueProto.Value;
 import feast.types.ValueProto.ValueType;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public abstract class FeatureStoragePopulator {
 
   /**
    * Populate feature storage with fake data.
-   *
-   * @param entityName entity name.
-   * @param entityIds collection of entity ID to be added.
-   * @param featureSpecs collection of feature's spec for which the data should be added.
-   * @param timestamp event timestamp of data
    */
-  public abstract void populate(
-      String entityName,
-      Collection<String> entityIds,
-      Collection<FeatureSpec> featureSpecs,
-      Timestamp timestamp);
+  public abstract void populate(List<Field> fields, FeatureSetSpec featureSetSpec,
+      String featureSet);
 
-  /**
-   * Create a historical feature value based on parameters.
-   *
-   * @param entityId
-   * @param featureId
-   * @param ts
-   * @param valType
-   * @return
-   */
-  protected Value createValue(
-      String entityId, String featureId, Timestamp ts, ValueType.Enum valType) {
+  protected Value createValue(ValueType.Enum valType, Object value) {
     switch (valType) {
-      case INT64:
-        return Value.newBuilder().setInt64Val(ts.getSeconds()).build();
+      case BYTES:
+        return Value.newBuilder().setBytesVal((ByteString) value).build();
       case STRING:
-        String value = String.format("%s_%s_%s", entityId, featureId, ts.getSeconds());
-        return Value.newBuilder().setStringVal(value).build();
+        return Value.newBuilder().setStringVal((String) value).build();
+      case INT32:
+        return Value.newBuilder().setInt32Val((Integer) value).build();
+      case INT64:
+        return Value.newBuilder().setInt64Val((Long) value).build();
+      case DOUBLE:
+        return Value.newBuilder().setDoubleVal((Double) value).build();
+      case FLOAT:
+        return Value.newBuilder().setFloatVal((Float) value).build();
+      case BOOL:
+        return Value.newBuilder().setBoolVal((Boolean) value).build();
+      case BYTES_LIST:
+        return Value.newBuilder().setBytesListVal((BytesList) value).build();
+      case STRING_LIST:
+        return Value.newBuilder().setStringListVal((StringList) value).build();
+      case INT32_LIST:
+        return Value.newBuilder().setInt32ListVal((Int32List) value).build();
+      case INT64_LIST:
+        return Value.newBuilder().setInt64ListVal((Int64List) value).build();
+      case DOUBLE_LIST:
+        return Value.newBuilder().setDoubleListVal((DoubleList) value).build();
+      case FLOAT_LIST:
+        return Value.newBuilder().setFloatListVal((FloatList) value).build();
+      case BOOL_LIST:
+        return Value.newBuilder().setBoolListVal((BoolList) value).build();
       default:
         throw new IllegalArgumentException("not yet supported");
     }
   }
 
-  public void validate(
-      List<FeatureValue> result, List<String> entityIds, List<FeatureSpec> featureSpecs) {
-    Map<String, Map<String, List<FeatureValue>>> entityMap = toEntityMap(result);
-
-    assertNotNull(entityMap);
-    assertThat(entityMap.size(), equalTo(entityIds.size()));
-
-    for (String entityId : entityIds) {
-      Map<String, List<FeatureValue>> featureMap = entityMap.get(entityId);
-      assertNotNull(featureMap);
-      assertThat(featureMap.size(), equalTo(featureSpecs.size()));
-      for (FeatureSpec featureSpec : featureSpecs) {
-        List<FeatureValue> featureValueList = featureMap.get(featureSpec.getId());
-        assertNotNull(featureValueList);
-        assertThat(featureValueList.size(), equalTo(1));
-
-        FeatureValue featureValue = featureValueList.get(0);
-        Timestamp timestamp = featureValue.getTimestamp();
-        validateValue(featureValue, entityId, featureSpec, timestamp);
-      }
-    }
-  }
-
-  private void validateValue(
-      FeatureValue featureValue, String entityId, FeatureSpec featureSpec, Timestamp timestamp) {
-    Value actualValue = featureValue.getValue();
-    Value expectedValue =
-        createValue(entityId, featureSpec.getId(), timestamp, featureSpec.getValueType());
-    assertThat(actualValue, equalTo(expectedValue));
-  }
-
-  private Map<String, Map<String, List<FeatureValue>>> toEntityMap(
-      List<FeatureValue> featureValues) {
-    Map<String, List<FeatureValue>> temp =
-        featureValues.stream().collect(groupingBy(FeatureValue::getEntityId));
-
-    Map<String, Map<String, List<FeatureValue>>> entityMap = new HashMap<>();
-    for (Map.Entry<String, List<FeatureValue>> entry : temp.entrySet()) {
-      entityMap.put(
-          entry.getKey(),
-          entry.getValue().stream().collect(groupingBy(FeatureValue::getFeatureId)));
-    }
-    return entityMap;
-  }
 }
