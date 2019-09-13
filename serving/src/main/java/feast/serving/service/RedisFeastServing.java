@@ -29,12 +29,10 @@ import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
 import feast.serving.ServingAPIProto.GetFeastServingVersionResponse;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
-import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDataSet;
 import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDataSetRow;
 import feast.serving.ServingAPIProto.GetFeaturesRequest.FeatureSet;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FeatureDataSet;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FeatureDataSet.Builder;
 import feast.serving.exception.FeatureRetrievalException;
 import feast.storage.RedisProto.RedisKey;
 import feast.types.FeatureProto.Field;
@@ -44,7 +42,6 @@ import io.opentracing.Scope;
 import io.opentracing.Tracer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import redis.clients.jedis.Jedis;
@@ -79,7 +76,6 @@ public class RedisFeastServing implements FeastServing {
       List<String> entityNames = request.getEntityDataSet().getFieldNamesList();
       List<EntityDataSetRow> entityDataSetRows = request.getEntityDataSet()
           .getEntityDataSetRowsList();
-
       GetOnlineFeaturesResponse.Builder getOnlineFeatureResponseBuilder = GetOnlineFeaturesResponse
           .newBuilder();
 
@@ -92,9 +88,7 @@ public class RedisFeastServing implements FeastServing {
           redisKeys.add(makeRedisKey(featureSetId, entityNames, entityDataSetRow));
         }
 
-        // Fetch values
-        List<byte[]> jedisResps = sendMultiGet(redisKeys);
-
+        // Convert ProtocolStringList to list of Strings
         List<String> requestedColumns = featureSet.getFeatureNamesList()
             .asByteStringList().stream()
             .map(ByteString::toStringUtf8)
@@ -102,28 +96,20 @@ public class RedisFeastServing implements FeastServing {
         requestedColumns.addAll(entityNames);
         requestedColumns.add("datetime");
 
-        Builder featureDataSetBuilder = FeatureDataSet.newBuilder();
+        List<FeatureRow> featureRows = new ArrayList<>();
         try {
-          for (byte[] jedisResp : jedisResps) {
-            FeatureRow.Builder featureRowBuilder = FeatureRow.parseFrom(jedisResp).toBuilder();
-            for (int i = 0; i < featureRowBuilder.getFieldsCount(); i++) {
-              if (!requestedColumns.contains(featureRowBuilder.getFields(i).getName())) {
-                featureRowBuilder.removeFields(i);
-              }
-            }
-            featureDataSetBuilder.addFeatureRows(featureRowBuilder.build());
-          }
+          featureRows = sendAndProcessMultiGet(redisKeys, requestedColumns, featureSet);
         } catch (NullPointerException e) {
           log.error("No keys matching {} found in store", redisKeys);
         } catch (InvalidProtocolBufferException e) {
           log.error("Unable to parse protobuf", e);
           throw new FeatureRetrievalException("Unable to parse protobuf while retrieving feature",
               e);
+        } finally {
+          FeatureDataSet featureDataSet = FeatureDataSet.newBuilder().setName(featureSet.getName())
+              .setVersion(featureSet.getVersion()).addAllFeatureRows(featureRows).build();
+          getOnlineFeatureResponseBuilder.addFeatureDataSets(featureDataSet);
         }
-        featureDataSetBuilder.setName(featureSet.getName());
-        featureDataSetBuilder.setVersion(featureSet.getVersion());
-
-        getOnlineFeatureResponseBuilder.addFeatureDataSets(featureDataSetBuilder.build());
       }
 
       return getOnlineFeatureResponseBuilder.build();
@@ -153,6 +139,23 @@ public class RedisFeastServing implements FeastServing {
       SetUploadCompleteRequest request) {
     // Not implemented
     return null;
+  }
+
+  private List<FeatureRow> sendAndProcessMultiGet(List<RedisKey> redisKeys,
+      List<String> requestedColumns, FeatureSet featureSet) throws InvalidProtocolBufferException {
+    List<byte[]> jedisResps = sendMultiGet(redisKeys);
+
+    List<FeatureRow> featureRows = new ArrayList<>();
+    for (byte[] jedisResp : jedisResps) {
+      FeatureRow featureRow = FeatureRow.parseFrom(jedisResp);
+      List<Field> fields = featureRow.getFieldsList().stream()
+          .filter(f -> requestedColumns.contains(f.getName())).collect(Collectors.toList());
+      featureRows.add(FeatureRow.newBuilder().addAllFields(fields)
+          .setEventTimestamp(featureRow.getEventTimestamp())
+          .setFeatureSet(String.format("%s:%s", featureSet.getName(), featureSet.getVersion()))
+          .build());
+    }
+    return featureRows;
   }
 
   /**

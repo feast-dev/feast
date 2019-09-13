@@ -31,7 +31,7 @@ public class RequestHelper {
       throw new IllegalArgumentException("Entity value must be provided");
     }
 
-    // Value list size in EntityDataSetRow shall be the same as the size of fieldNames + 1
+    // Value list size in EntityDataSetRow shall be the same as the size of fieldNames
     // First entity value will always be timestamp in EntityDataSetRow
     int fieldNameCount = request.getEntityDataSet().getFieldNamesCount();
     for (EntityDataSetRow edsr : request.getEntityDataSet().getEntityDataSetRowsList()) {

@@ -39,15 +39,12 @@ public class ServingGrpcServiceTest {
 
   private static final String FEATURE_SET_NAME = "feature_set_1";
   private static final String FEATURE_SET_VER = "1";
-  private static final String FN_TIMESTAMP = "timestamp";
   private static final String FN_REGION = "region";
   private static final String FN_DRIVER_ID = "driver_id";
   private static final String FN_FEATURE_1 = "feature_1";
 
-  private static final long FN_TIMESTAMP_VAL = System.currentTimeMillis();
   private static final String FN_REGION_VAL = "id";
   private static final String FN_DRIVER_ID_VAL = "100";
-  private static final int FN_FEATURE_1_VAL = 10;
 
   @Mock
   private FeastServing mockFeastServing;
@@ -100,54 +97,6 @@ public class ServingGrpcServiceTest {
     Mockito.verify(mockStreamObserver).onError(Mockito.any(StatusRuntimeException.class));
   }
 
-//  @Test
-//  public void shouldPassValidRequestAsIs() {
-//    service.queryFeatures(validRequest, mockStreamObserver);
-//    verify(mockFeast).queryFeatures(validRequest);
-//  }
-//
-//  @Test
-//  public void shouldCallOnErrorIfEntityNameIsNotSet() {
-//    QueryFeaturesRequest missingEntityName =
-//        QueryFeaturesRequest.newBuilder(validRequest).clearEntityName().build();
-//
-//    service.queryFeatures(missingEntityName, mockStreamObserver);
-//
-//    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
-//  }
-//
-//  @Test
-//  public void shouldCallOnErrorIfEntityIdsIsNotSet() {
-//    QueryFeaturesRequest missingEntityIds =
-//        QueryFeaturesRequest.newBuilder(validRequest).clearEntityId().build();
-//
-//    service.queryFeatures(missingEntityIds, mockStreamObserver);
-//
-//    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
-//  }
-//
-//  @Test
-//  public void shouldCallOnErrorIfFeatureIdsIsNotSet() {
-//    QueryFeaturesRequest missingRequestDetails =
-//        QueryFeaturesRequest.newBuilder(validRequest).clearFeatureId().build();
-//
-//    service.queryFeatures(missingRequestDetails, mockStreamObserver);
-//
-//    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
-//  }
-//
-//  @Test
-//  public void shouldCallOnErrorIfFeatureIdsContainsDifferentEntity() {
-//    QueryFeaturesRequest differentEntityReq =
-//        QueryFeaturesRequest.newBuilder(validRequest)
-//            .addFeatureId("customer.order_made")
-//            .build();
-//
-//    service.queryFeatures(differentEntityReq, mockStreamObserver);
-//
-//    verify(mockStreamObserver).onError(any(StatusRuntimeException.class));
-//  }
-
   private FeatureSet getFeatureSet() {
     return FeatureSet.newBuilder().setName(FEATURE_SET_NAME)
         .setVersion(FEATURE_SET_VER).addFeatureNames(FN_FEATURE_1).build();
@@ -163,7 +112,6 @@ public class ServingGrpcServiceTest {
 
   private EntityDataSetRow.Builder getEntityDataSetRowBuilder() {
     return EntityDataSetRow.newBuilder()
-        .addValue(Value.newBuilder().setInt64Val(System.currentTimeMillis()))
         .addValue(Value.newBuilder().setStringVal(FN_REGION_VAL))
         .addValue(Value.newBuilder().setStringVal(FN_DRIVER_ID_VAL));
   }

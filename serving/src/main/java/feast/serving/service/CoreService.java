@@ -59,14 +59,11 @@ public class CoreService implements SpecStorage {
     GetStoresRequest request = GetStoresRequest.newBuilder()
         .setFilter(Filter.newBuilder().setName(id)).build();
     GetStoresResponse response = blockingStub.getStores(request);
-
-    for (Store store : response.getStoreList()) {
-      if (store.getName().equals(id)) {
-        return store;
-      }
-    }
-
-    throw new SpecRetrievalException(String.format("Unable to find store with name: %s", id));
+    return response.getStoreList()
+        .stream()
+        .filter(s -> s.getName().equals(id)).findFirst()
+        .orElseThrow(() -> new SpecRetrievalException(
+            String.format("Unable to find store with name: %s", id)));
   }
 
   @Override

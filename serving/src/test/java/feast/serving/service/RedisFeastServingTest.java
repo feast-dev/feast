@@ -30,7 +30,7 @@ import redis.embedded.RedisServer;
 public class RedisFeastServingTest {
 
   @Mock
-  private SpecStorage coreService;
+  SpecStorage coreService;
 
   // Embedded redis
   RedisServer redisServer;
@@ -43,15 +43,14 @@ public class RedisFeastServingTest {
 
   private static final String FEATURE_SET_NAME = "feature_set_1";
   private static final String FEATURE_SET_VER = "1";
-  private static final String FN_TIMESTAMP = "timestamp";
   private static final String FN_REGION = "region";
   private static final String FN_DRIVER_ID = "driver_id";
   private static final String FN_FEATURE_1 = "feature_1";
 
-  private static final long FN_TIMESTAMP_VAL = System.currentTimeMillis();
   private static final String FN_REGION_VAL = "id";
   private static final String FN_DRIVER_ID_VAL = "100";
   private static final int FN_FEATURE_1_VAL = 10;
+
 
   private JedisPool jedispool;
   private List<Field> fields;
@@ -89,23 +88,19 @@ public class RedisFeastServingTest {
             .setName(FN_FEATURE_1)).build();
 
     // Populate redis with testing data
-    Field field1 = Field.newBuilder().setName(FN_TIMESTAMP)
-        .setValue(Value.newBuilder().setInt64Val(FN_TIMESTAMP_VAL).build()).build();
-    Field field2 = Field.newBuilder().setName(FN_REGION)
-        .setValue(Value.newBuilder().setStringVal(FN_REGION_VAL).build()).build();
-    Field field3 = Field.newBuilder().setName(FN_DRIVER_ID)
+    Field field1 = Field.newBuilder().setName(FN_REGION)
+        .setValue(Value.newBuilder().setStringVal(FN_REGION_VAL)).build();
+    Field field2 = Field.newBuilder().setName(FN_DRIVER_ID)
         .setValue(Value.newBuilder().setStringVal(FN_DRIVER_ID_VAL)).build();
-    Field field4 = Field.newBuilder().setName(FN_FEATURE_1)
+    Field field3 = Field.newBuilder().setName(FN_FEATURE_1)
         .setValue(Value.newBuilder().setInt32Val(FN_FEATURE_1_VAL)).build();
 
     fields = new ArrayList<>();
     fields.add(field1);
     fields.add(field2);
     fields.add(field3);
-    fields.add(field4);
 
-    redisPopulator.populate(fields, featureSetSpec,
-        String.format("%s:%s", FEATURE_SET_NAME, FEATURE_SET_VER));
+    redisPopulator.populate(fields, featureSetSpec, getFeatureRow());
   }
 
   @After
@@ -114,7 +109,7 @@ public class RedisFeastServingTest {
   }
 
   @Test
-  public void getOnlineFeatures_shouldPassFeatureRowsEqual() {
+  public void getOnlineFeatures_shouldPassIfKeyFound() {
     FeatureSet featureSet = getFeatureSet();
     EntityDataSet entityDataSet = getEntityDataSet();
     FeatureRow featureRow = getFeatureRow();
@@ -128,7 +123,7 @@ public class RedisFeastServingTest {
   }
 
   @Test
-  public void getOnlineFeatures_shouldPassNoResult() {
+  public void getOnlineFeatures_shouldPassIfKeyNotFound() {
     // Construct GetFeatureRequest object
     FeatureSet featureSet = getFeatureSet();
 
@@ -155,7 +150,6 @@ public class RedisFeastServingTest {
 
   private EntityDataSetRow getEntityDataSetRow() {
     return EntityDataSetRow.newBuilder()
-        .addValue(Value.newBuilder().setInt64Val(System.currentTimeMillis()))
         .addValue(Value.newBuilder().setStringVal(FN_REGION_VAL))
         .addValue(Value.newBuilder().setStringVal(FN_DRIVER_ID_VAL)).build();
   }

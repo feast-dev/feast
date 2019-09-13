@@ -19,8 +19,6 @@ package feast.serving.config;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import feast.core.StoreProto.Store;
 import feast.serving.service.CachedSpecStorage;
 import feast.serving.service.CoreService;
@@ -29,10 +27,7 @@ import feast.serving.service.RedisFeastServing;
 import feast.serving.service.SpecStorage;
 import io.opentracing.Tracer;
 import io.opentracing.contrib.concurrent.TracedExecutorService;
-import java.lang.reflect.Type;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -117,7 +112,7 @@ public class ServingApiConfiguration implements WebMvcConfigurer {
             store.getRedisConfig().getPort());
         return new RedisFeastServing(jedisPool, tracer);
       case BIGQUERY:
-        // TODO: Implement connection to Bigquery
+        // TODO: Implement connection to BigQuery
         return null;
       default:
         return null;

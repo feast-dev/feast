@@ -25,10 +25,27 @@ import java.util.Map;
 
 public interface SpecStorage {
 
+  /**
+   * Get backing store information
+   *
+   * @param id storeId, name of the store
+   * @return {@link Store}
+   */
   Store getStoreDetails(String id);
 
+  /**
+   * Get a map of {@link FeatureSetSpec} of a list of subscription, where the featureSetId
+   * (e.g. feature_set_name:1) is the key
+   *
+   * @return Map of featureSetId and FeatureSetSpec as a key:value pair
+   */
   Map<String, FeatureSetSpec> getFeatureSetSpecs(List<Subscription> subscriptions);
 
+  /**
+   * Check whether connection to core service is ready
+   *
+   * @return return true if it is ready. Otherwise, return false
+   */
   boolean isConnected();
 
 }
