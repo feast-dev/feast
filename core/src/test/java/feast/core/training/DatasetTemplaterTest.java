@@ -29,6 +29,9 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import com.hubspot.jinjava.Jinjava;
 import feast.core.DatasetServiceProto.FeatureSet;
+import feast.core.config.StorageConfig;
+import feast.core.config.WarehouseConfig;
+import feast.core.config.WarehouseConfig.WarehouseSpec;
 import feast.core.dao.FeatureInfoRepository;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureInfo;
@@ -61,6 +64,8 @@ public class DatasetTemplaterTest {
 
   private DatasetTemplater templater;
   private BasicFormatterImpl formatter = new BasicFormatterImpl();
+  private StorageSpec storageSpec;
+  private WarehouseSpec warehouseSpec;
 
   @Mock private FeatureInfoRepository featureInfoRespository;
   private String sqlTemplate;
@@ -68,20 +73,23 @@ public class DatasetTemplaterTest {
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
-    StorageSpec storageSpec =
+    storageSpec =
         StorageSpec.newBuilder()
             .setId("BIGQUERY1")
             .setType(BigQueryStorageManager.TYPE)
             .putOptions("project", "project")
             .putOptions("dataset", "dataset")
             .build();
+    warehouseSpec = new WarehouseConfig().getBigQueryWarehouseSpec(
+      StorageConfig.StorageSpecs.builder().warehouseStorageSpec(storageSpec).build()
+    );
 
     Jinjava jinjava = new Jinjava();
     Resource resource = new ClassPathResource("templates/bq_training.tmpl");
     InputStream resourceInputStream = resource.getInputStream();
     sqlTemplate = CharStreams.toString(new InputStreamReader(resourceInputStream, Charsets.UTF_8));
     templater =
-        new DatasetTemplater(jinjava, sqlTemplate, storageSpec, featureInfoRespository);
+        new DatasetTemplater(jinjava, sqlTemplate, storageSpec, warehouseSpec, featureInfoRespository);
   }
 
   @Test(expected = NoSuchElementException.class)
@@ -97,17 +105,9 @@ public class DatasetTemplaterTest {
 
   @Test
   public void shouldPassCorrectArgumentToTemplateEngine() {
-    StorageSpec storageSpec =
-        StorageSpec.newBuilder()
-            .setId("BIGQUERY1")
-            .setType(BigQueryStorageManager.TYPE)
-            .putOptions("project", "project")
-            .putOptions("dataset", "dataset")
-            .build();
-
     Jinjava jinjava = mock(Jinjava.class);
     templater =
-        new DatasetTemplater(jinjava, sqlTemplate, storageSpec, featureInfoRespository);
+        new DatasetTemplater(jinjava, sqlTemplate, storageSpec, warehouseSpec, featureInfoRespository);
 
     Timestamp startDate =
         Timestamps.fromSeconds(Instant.parse("2018-01-01T00:00:00.00Z").getEpochSecond());

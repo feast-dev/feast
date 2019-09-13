@@ -24,6 +24,8 @@ import static org.junit.Assert.assertThat;
 import com.google.protobuf.Timestamp;
 import feast.core.UIServiceProto.UIServiceTypes.FeatureDetail;
 import feast.core.config.StorageConfig.StorageSpecs;
+import feast.core.config.WarehouseConfig;
+import feast.core.config.WarehouseConfig.WarehouseSpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.ValueProto.ValueType;
@@ -106,7 +108,7 @@ public class FeatureInfoTest {
             .setLastUpdated(ts)
             .setCreated(ts)
             .build();
-    assertThat(featureInfo.getFeatureDetail(StorageSpecs.builder().build()), equalTo(expected));
+    assertThat(featureInfo.getFeatureDetail(WarehouseSpec.builder().build()), equalTo(expected));
   }
 
   @Test
@@ -205,23 +207,21 @@ public class FeatureInfoTest {
   }
 
   @Test
-  public void createBigQueryLink_withBigQueryType_shouldGenerateLink() {
-    String link = featureInfo.createWarehouseLink(StorageSpec.newBuilder()
+  public void createWarehouseLink_withBigQueryType_shouldGenerateLink() {
+    StorageSpecs storageSpecs = StorageSpecs.builder().warehouseStorageSpec(
+      StorageSpec.newBuilder()
         .setType("bigquery").setId("BQ").putOptions("project", "project1")
-        .putOptions("dataset", "dataset1").build());
+        .putOptions("dataset", "dataset1")
+        .build())
+      .build();
+    String link = featureInfo.createWarehouseLink(new WarehouseConfig().getBigQueryWarehouseSpec(storageSpecs));
+
     assertEquals(link,
         "https://bigquery.cloud.google.com/table/project1:dataset1.entity_view");
   }
 
   @Test
-  public void createBigQueryLink_withOtherType_shouldNotGenerateLink() {
-    String link = featureInfo.createWarehouseLink(StorageSpec.newBuilder()
-        .setType("another_type").build());
-    assertEquals(link, "N.A.");
-  }
-
-  @Test
-  public void createBigQueryLink_withNullSpec_shouldNotGenerateLink() {
+  public void createWarehouseLink_withNullSpec_shouldNotGenerateLink() {
     String link = featureInfo.createWarehouseLink(null);
     assertEquals(link, "N.A.");
   }

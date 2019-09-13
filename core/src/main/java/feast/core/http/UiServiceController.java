@@ -80,7 +80,7 @@ public class UiServiceController {
               .listFeatures()
               .stream()
               .map((fi) -> fi
-                  .getFeatureDetail(specService.getStorageSpecs()))
+                  .getFeatureDetail(specService.getWarehouseSpec()))
               .collect(Collectors.toList());
       return ListFeaturesResponse.newBuilder().addAllFeatures(features).build();
     } catch (Exception e) {
@@ -100,8 +100,7 @@ public class UiServiceController {
     try {
       FeatureInfo featureInfo = specService.getFeatures(Arrays.asList(id)).get(0);
       FeatureInfo resolved = featureInfo.resolve();
-      StorageSpecs storageSpecs = specService.getStorageSpecs();
-      FeatureDetail featureDetail = resolved.getFeatureDetail(storageSpecs);
+      FeatureDetail featureDetail = resolved.getFeatureDetail(specService.getWarehouseSpec());
       return GetFeatureResponse.newBuilder()
           .setFeature(featureDetail)
           .setRawSpec(featureInfo.getFeatureSpec())

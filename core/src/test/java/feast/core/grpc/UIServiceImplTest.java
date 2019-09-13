@@ -25,6 +25,8 @@ import feast.core.UIServiceProto.UIServiceTypes.ListFeaturesResponse;
 import feast.core.UIServiceProto.UIServiceTypes.ListStorageResponse;
 import feast.core.UIServiceProto.UIServiceTypes.StorageDetail;
 import feast.core.config.StorageConfig.StorageSpecs;
+import feast.core.config.WarehouseConfig;
+import feast.core.config.WarehouseConfig.WarehouseSpec;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureGroupInfo;
 import feast.core.model.FeatureInfo;
@@ -59,11 +61,13 @@ public class UIServiceImplTest {
   private UIServiceGrpc.UIServiceBlockingStub client;
 
   private StorageSpecs storageSpecs;
+  private WarehouseSpec warehouseSpec;
 
   @Before
   public void setUp() throws Exception {
     specService = mock(SpecService.class);
-    storageSpecs = StorageSpecs.builder().build();
+    storageSpecs = StorageSpecs.builder().warehouseStorageSpec(StorageSpec.newBuilder().build()).build();
+    warehouseSpec = new WarehouseConfig().getBigQueryWarehouseSpec(storageSpecs);
 
     UIServiceImpl service = new UIServiceImpl(specService);
 
@@ -76,6 +80,7 @@ public class UIServiceImplTest {
             .start());
 
     when(specService.getStorageSpecs()).thenReturn(storageSpecs);
+    when(specService.getWarehouseSpec()).thenReturn(warehouseSpec);
 
     client =
         UIServiceGrpc.newBlockingStub(
@@ -189,7 +194,7 @@ public class UIServiceImplTest {
     GetFeatureRequest req = GetFeatureRequest.newBuilder().setId(featureId).build();
     GetFeatureResponse resp = client.getFeature(req);
 
-    FeatureDetail expected = featureInfo.getFeatureDetail(storageSpecs);
+    FeatureDetail expected = featureInfo.getFeatureDetail(warehouseSpec);
     FeatureDetail actual = resp.getFeature();
 
     assertThat(actual, equalTo(expected));
@@ -243,7 +248,7 @@ public class UIServiceImplTest {
     assertThat(
         actual,
         containsInAnyOrder(
-            featureInfos.stream().map((fi) -> fi.getFeatureDetail(storageSpecs)).toArray()));
+            featureInfos.stream().map((fi) -> fi.getFeatureDetail(warehouseSpec)).toArray()));
   }
 
   @Test

@@ -20,10 +20,10 @@ package feast.core.config;
 import com.google.common.base.Charsets;
 import com.google.common.io.CharStreams;
 import feast.core.config.StorageConfig.StorageSpecs;
+import feast.core.config.WarehouseConfig.WarehouseSpec;
 import feast.core.dao.EntityInfoRepository;
 import feast.core.dao.FeatureGroupInfoRepository;
 import feast.core.dao.FeatureInfoRepository;
-import feast.core.storage.BigQueryStorageManager;
 import feast.core.storage.SchemaManager;
 import feast.core.storage.ViewTemplater;
 import feast.core.validators.SpecValidator;
@@ -31,7 +31,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
@@ -43,34 +42,23 @@ import org.springframework.core.io.Resource;
 @Configuration
 public class ServerUtilConfig {
 
-
   @Autowired
   private StorageSpecs storageSpecs;
+  @Autowired
+  private WarehouseSpec warehouseSpec;
 
   /**
-   * Get a warehouse view templater.
+   * Get a BigQuery view templater.
    *
    * @return ViewTemplater
    */
   @Bean
-  public ViewTemplater viewTemplater(
-    @Value("${feast.store.warehouse.type}") String warehouseType) throws IOException {
-    String templateSource;
-    String templateName;
-    switch (warehouseType) {
-      case BigQueryStorageManager.TYPE:
-        templateSource = "templates/bq_view.tmpl";
-        templateName = "bqViewTemplate";
-        break;
-      default:
-        throw new IllegalArgumentException(String.format("Unknown warehouse type: %s", warehouseType));
-    }
-    Resource resource = new ClassPathResource(templateSource);
+  public ViewTemplater getBqViewTemplater() throws IOException {
+    Resource resource = new ClassPathResource(warehouseSpec.getViewTemplateResource());
     InputStream resourceInputStream = resource.getInputStream();
     String tmpl = CharStreams.toString(new InputStreamReader(resourceInputStream, Charsets.UTF_8));
-    return new ViewTemplater(tmpl, templateName);
+    return new ViewTemplater(tmpl, "bqViewTemplate");
   }
-
 
   /**
    * Get the storage schema manager.
@@ -80,7 +68,6 @@ public class ServerUtilConfig {
   @Bean
   public SchemaManager schemaManager(ViewTemplater viewTemplater) {
     return new SchemaManager(viewTemplater, storageSpecs);
-
   }
 
   /**

@@ -105,7 +105,7 @@ public class UIServiceImpl extends UIServiceImplBase {
       List<FeatureInfo> featureInfos = specService
           .getFeatures(Collections.singletonList(featureId));
       FeatureDetail featureDetail = featureInfos.get(0)
-          .getFeatureDetail(specService.getStorageSpecs());
+          .getFeatureDetail(specService.getWarehouseSpec());
 
       GetFeatureResponse resp = GetFeatureResponse.newBuilder()
           .setFeature(featureDetail)
@@ -128,7 +128,7 @@ public class UIServiceImpl extends UIServiceImplBase {
     try {
       List<FeatureDetail> featureDetails = specService.listFeatures()
           .stream()
-          .map((fi) -> fi.getFeatureDetail(specService.getStorageSpecs()))
+          .map((fi) -> fi.getFeatureDetail(specService.getWarehouseSpec()))
           .collect(Collectors.toList());
 
       ListFeaturesResponse resp = ListFeaturesResponse.newBuilder()

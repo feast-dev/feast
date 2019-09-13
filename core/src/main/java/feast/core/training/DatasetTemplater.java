@@ -19,9 +19,9 @@ package feast.core.training;
 import com.google.protobuf.Timestamp;
 import com.hubspot.jinjava.Jinjava;
 import feast.core.DatasetServiceProto.FeatureSet;
+import feast.core.config.WarehouseConfig.WarehouseSpec;
 import feast.core.dao.FeatureInfoRepository;
 import feast.core.model.FeatureInfo;
-import feast.core.storage.BigQueryStorageManager;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.ValueProto.ValueType.Enum;
 import java.time.Instant;
@@ -42,14 +42,17 @@ public class DatasetTemplater {
   private final Jinjava jinjava;
   private final String template;
   private final StorageSpec storageSpec;
+  private final WarehouseSpec warehouseSpec;
   private final DateTimeFormatter formatter;
 
   public DatasetTemplater(
       Jinjava jinjava,
       String templateString,
       StorageSpec storageSpec,
+      WarehouseSpec warehouseSpec,
       FeatureInfoRepository featureInfoRepository) {
     this.storageSpec = storageSpec;
+    this.warehouseSpec = warehouseSpec;
     this.featureInfoRepository = featureInfoRepository;
     this.jinjava = jinjava;
     this.template = templateString;
@@ -149,20 +152,8 @@ public class DatasetTemplater {
   }
 
   private String getTableId(FeatureInfo featureInfo) {
-    String type = storageSpec.getType();
-    StorageSpec storageSpec = getStorageSpec();
-    Map<String, String> options = storageSpec.getOptionsMap();
     String entityName = featureInfo.getFeatureSpec().getEntity().toLowerCase();
-
-    switch (type) {
-      case BigQueryStorageManager.TYPE:
-        String projectId = options.get("project");
-        String dataset = options.get("dataset");
-        return String.format("%s.%s.%s", projectId, dataset, entityName);
-      default:
-        throw new IllegalArgumentException(
-          "One of the feature has warehouse storage other than the supported warehouses");
-    }
+    return warehouseSpec.createTableId(entityName);
   }
 
   private String formatDateString(Timestamp timestamp) {

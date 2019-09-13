@@ -23,7 +23,7 @@ import static feast.core.util.TypeConversion.convertTagStringToList;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import feast.core.UIServiceProto.UIServiceTypes.FeatureDetail;
-import feast.core.config.StorageConfig.StorageSpecs;
+import feast.core.config.WarehouseConfig.WarehouseSpec;
 import feast.core.storage.BigQueryStorageManager;
 import feast.core.util.TypeConversion;
 import feast.specs.FeatureSpecProto.FeatureSpec;
@@ -177,35 +177,22 @@ public class FeatureInfo extends AbstractTimestampEntity {
   /**
    * Get the feature detail containing both spec and metadata, associated with this record.
    */
-  public FeatureDetail getFeatureDetail(StorageSpecs storageSpecs) {
+  public FeatureDetail getFeatureDetail(WarehouseSpec warehouseSpec) {
     return FeatureDetail.newBuilder()
         .setSpec(this.getFeatureSpec())
         .setWarehouseView(!Strings.isNullOrEmpty(warehouseView) ? warehouseView
-            : createWarehouseLink(storageSpecs.getWarehouseStorageSpec()))
+            : createWarehouseLink(warehouseSpec))
         .setEnabled(this.enabled)
         .setLastUpdated(TypeConversion.convertTimestamp(this.getLastUpdated()))
         .setCreated(TypeConversion.convertTimestamp(this.getCreated()))
         .build();
   }
 
-  protected String createWarehouseLink(StorageSpec storageSpec) {
-    if (storageSpec == null || !storageSpec.getType().equals(BigQueryStorageManager.TYPE)) {
+  protected String createWarehouseLink(WarehouseSpec warehouseSpec) {
+    if (warehouseSpec == null) {
       return "N.A.";
     }
-
-    switch (storageSpec.getType()){
-      case BigQueryStorageManager.TYPE:
-        String projectId = storageSpec
-          .getOptionsOrDefault(BigQueryStorageManager.OPT_BIGQUERY_PROJECT, null);
-        String dataset = storageSpec
-          .getOptionsOrDefault(BigQueryStorageManager.OPT_BIGQUERY_DATASET, null);
-
-        return String.format(
-          "https://bigquery.cloud.google.com/table/%s:%s.%s_view",
-          projectId, dataset, entity.getName());
-      default:
-        return "N.A";
-    }
+    return warehouseSpec.createLinkUrl(entity.getName());
   }
 
   /**

@@ -22,6 +22,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.config.StorageConfig.StorageSpecs;
+import feast.core.config.WarehouseConfig.WarehouseSpec;
 import feast.core.dao.EntityInfoRepository;
 import feast.core.dao.FeatureGroupInfoRepository;
 import feast.core.dao.FeatureInfoRepository;
@@ -62,6 +63,8 @@ public class SpecService {
   private final SchemaManager schemaManager;
   @Getter
   private final StorageSpecs storageSpecs;
+  @Getter
+  private final WarehouseSpec warehouseSpec;
 
   @Autowired
   public SpecService(
@@ -69,12 +72,14 @@ public class SpecService {
       FeatureInfoRepository featureInfoRegistry,
       FeatureGroupInfoRepository featureGroupInfoRepository,
       SchemaManager schemaManager,
-      StorageSpecs storageSpecs) {
+      StorageSpecs storageSpecs,
+      WarehouseSpec warehouseSpec) {
     this.entityInfoRepository = entityInfoRegistry;
     this.featureInfoRepository = featureInfoRegistry;
     this.featureGroupInfoRepository = featureGroupInfoRepository;
     this.schemaManager = schemaManager;
     this.storageSpecs = storageSpecs;
+    this.warehouseSpec = warehouseSpec;
   }
 
   /**

@@ -10,13 +10,17 @@ import feast.core.UIServiceProto.UIServiceTypes.FeatureDetail;
 import feast.core.UIServiceProto.UIServiceTypes.FeatureGroupDetail;
 import feast.core.UIServiceProto.UIServiceTypes.StorageDetail;
 import feast.core.config.StorageConfig.StorageSpecs;
+import feast.core.config.WarehouseConfig;
+import feast.core.config.WarehouseConfig.WarehouseSpec;
 import feast.core.model.EntityInfo;
 import feast.core.model.FeatureGroupInfo;
 import feast.core.model.FeatureInfo;
 import feast.core.model.StorageInfo;
 import feast.core.service.JobManagementService;
 import feast.core.service.SpecService;
+import feast.specs.StorageSpecProto.StorageSpec;
 import java.util.Collections;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -27,10 +31,13 @@ public class UiServiceControllerTest {
 
   @Before
   public void setUp() throws Exception {
-    StorageSpecs storageSpecs = StorageSpecs.builder().build();
+    StorageSpecs storageSpecs = StorageSpecs.builder()
+      .warehouseStorageSpec(StorageSpec.newBuilder().build())
+      .build();
+    WarehouseSpec warehouseSpec = new WarehouseConfig().getBigQueryWarehouseSpec(storageSpecs);
 
     FeatureInfo mockFeatureInfo = mock(FeatureInfo.class);
-    when(mockFeatureInfo.getFeatureDetail(storageSpecs))
+    when(mockFeatureInfo.getFeatureDetail(warehouseSpec))
         .thenReturn(FeatureDetail.getDefaultInstance());
     when(mockFeatureInfo.getFeatureSpec()).thenReturn(FeatureSpec.getDefaultInstance());
     when(mockFeatureInfo.resolve()).thenReturn(mockFeatureInfo);
@@ -47,6 +54,7 @@ public class UiServiceControllerTest {
 
     SpecService goodMockSpecService = mock(SpecService.class);
     when(goodMockSpecService.getStorageSpecs()).thenReturn(storageSpecs);
+    when(goodMockSpecService.getWarehouseSpec()).thenReturn(warehouseSpec);
     when(goodMockSpecService.listFeatures()).thenReturn(Collections.singletonList(mockFeatureInfo));
     when(goodMockSpecService.getFeatures(Collections.singletonList("1")))
         .thenReturn(Collections.singletonList(mockFeatureInfo));

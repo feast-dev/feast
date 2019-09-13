@@ -27,6 +27,7 @@ import static org.mockito.MockitoAnnotations.initMocks;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import feast.core.config.StorageConfig.StorageSpecs;
+import feast.core.config.WarehouseConfig.WarehouseSpec;
 import feast.core.dao.EntityInfoRepository;
 import feast.core.dao.FeatureGroupInfoRepository;
 import feast.core.dao.FeatureInfoRepository;
@@ -64,6 +65,8 @@ public class SpecServiceTest {
   SchemaManager schemaManager;
   @Mock
   StorageSpecs storageSpecs;
+  @Mock
+  WarehouseSpec warehouseSpec;
 
   @Before
   public void setUp() {
@@ -110,7 +113,8 @@ public class SpecServiceTest {
             featureInfoRepository,
             featureGroupInfoRepository,
             schemaManager,
-            storageSpecs);
+            storageSpecs,
+            warehouseSpec);
     List<EntityInfo> actual = specService.getEntities(ids);
     List<EntityInfo> expected = Lists.newArrayList(entity1, entity2);
     assertThat(actual, equalTo(expected));
@@ -130,7 +134,8 @@ public class SpecServiceTest {
             featureInfoRepository,
             featureGroupInfoRepository,
             schemaManager,
-            storageSpecs);
+            storageSpecs,
+            warehouseSpec);
     List<EntityInfo> actual = specService.getEntities(ids);
     List<EntityInfo> expected = Lists.newArrayList(entity1, entity2);
     assertThat(actual, equalTo(expected));
@@ -148,7 +153,8 @@ public class SpecServiceTest {
             featureInfoRepository,
             featureGroupInfoRepository,
             schemaManager,
-            storageSpecs);
+            storageSpecs,
+            warehouseSpec);
 
     exception.expect(RetrievalException.class);
     exception.expectMessage("unable to retrieve all entities requested");
@@ -167,7 +173,8 @@ public class SpecServiceTest {
             featureInfoRepository,
             featureGroupInfoRepository,
             schemaManager,
-            storageSpecs);
+            storageSpecs,
+            warehouseSpec);
 
     List<EntityInfo> actual = specService.listEntities();
     List<EntityInfo> expected = Lists.newArrayList(entity1, entity2);
@@ -187,7 +194,8 @@ public class SpecServiceTest {
             featureInfoRepository,
             featureGroupInfoRepository,
             schemaManager,
-            storageSpecs);
+            storageSpecs,
+            warehouseSpec);
     List<FeatureInfo> actual = specService.getFeatures(ids);
     List<FeatureInfo> expected = Lists.newArrayList(feature1, feature2);
     assertThat(actual, equalTo(expected));
@@ -206,7 +214,8 @@ public class SpecServiceTest {
             featureInfoRepository,
             featureGroupInfoRepository,
             schemaManager,
-            storageSpecs);
+            storageSpecs,
+            warehouseSpec);
     List<FeatureInfo> actual = specService.getFeatures(ids);
     List<FeatureInfo> expected = Lists.newArrayList(feature1, feature2);
     assertThat(actual, equalTo(expected));
@@ -224,7 +233,8 @@ public class SpecServiceTest {
             featureInfoRepository,
             featureGroupInfoRepository,
             schemaManager,
-            storageSpecs);
+            storageSpecs,
+            warehouseSpec);
     exception.expect(RetrievalException.class);
     exception.expectMessage("unable to retrieve all features requested: " + ids);
     specService.getFeatures(ids);
@@ -242,7 +252,8 @@ public class SpecServiceTest {
             featureInfoRepository,
             featureGroupInfoRepository,
             schemaManager,
-            storageSpecs);
+            storageSpecs,
+            warehouseSpec);
     List<FeatureInfo> actual = specService.listFeatures();
     List<FeatureInfo> expected = Lists.newArrayList(feature1, feature2);
     assertThat(actual, equalTo(expected));
@@ -262,7 +273,8 @@ public class SpecServiceTest {
             featureInfoRepository,
             featureGroupInfoRepository,
             schemaManager,
-            storageSpecs);
+            storageSpecs,
+            warehouseSpec);
     List<StorageInfo> actual = specService.getStorage(ids);
     List<StorageInfo> expected = Lists.newArrayList(redisStorage, bqStorage);
     assertThat(actual, equalTo(expected));
@@ -282,7 +294,8 @@ public class SpecServiceTest {
             featureInfoRepository,
             featureGroupInfoRepository,
             schemaManager,
-            storageSpecs);
+            storageSpecs,
+            warehouseSpec);
     List<StorageInfo> actual = specService.getStorage(ids);
     List<StorageInfo> expected = Lists.newArrayList(redisStorage, bqStorage);
     assertThat(actual, equalTo(expected));
@@ -300,7 +313,8 @@ public class SpecServiceTest {
             featureInfoRepository,
             featureGroupInfoRepository,
             schemaManager,
-            storageSpecs);
+            storageSpecs,
+            warehouseSpec);
 
     exception.expect(RetrievalException.class);
     exception.expectMessage("unable to retrieve all storage requested: " + ids);
@@ -320,7 +334,8 @@ public class SpecServiceTest {
             featureInfoRepository,
             featureGroupInfoRepository,
             schemaManager,
-            storageSpecs);
+            storageSpecs,
+            warehouseSpec);
     List<StorageInfo> actual = specService.listStorage();
     List<StorageInfo> expected = Lists.newArrayList(redisStorage, bqStorage);
     assertThat(actual, equalTo(expected));
@@ -371,7 +386,8 @@ public class SpecServiceTest {
             featureInfoRepository,
             featureGroupInfoRepository,
             schemaManager,
-            storageSpecs);
+            storageSpecs,
+            warehouseSpec);
     FeatureInfo actual = specService.applyFeature(spec);
     verify(schemaManager).registerFeature(resolvedSpecCaptor.capture());
 
@@ -396,7 +412,8 @@ public class SpecServiceTest {
             featureInfoRepository,
             featureGroupInfoRepository,
             schemaManager,
-            storageSpecs);
+            storageSpecs,
+            warehouseSpec);
     FeatureGroupInfo actual = specService.applyFeatureGroup(spec);
     assertThat(actual, equalTo(expectedFeatureGroupInfo));
   }
@@ -417,7 +434,8 @@ public class SpecServiceTest {
             featureInfoRepository,
             featureGroupInfoRepository,
             schemaManager,
-            storageSpecs);
+            storageSpecs,
+            warehouseSpec);
     EntityInfo actual = specService.applyEntity(spec);
     assertThat(actual, equalTo(entityInfo));
   }
