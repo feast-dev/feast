@@ -89,6 +89,8 @@ public class DataflowJobManagerTest {
         .build();
 
     Printer printer = JsonFormat.printer();
+    String expectedExtJobId = "feast-job-0";
+    String jobName = "job";
 
     ImportJobPipelineOptions expectedPipelineOptions = PipelineOptionsFactory.fromArgs("")
         .as(ImportJobPipelineOptions.class);
@@ -97,20 +99,20 @@ public class DataflowJobManagerTest {
     expectedPipelineOptions.setRegion("region");
     expectedPipelineOptions.setUpdate(false);
     expectedPipelineOptions.setAppName("DataflowJobManager");
+    expectedPipelineOptions.setJobName(jobName);
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
     expectedPipelineOptions
         .setFeatureSetSpecJson(Lists.newArrayList(printer.print(featureSetSpec)));
 
-    String expectedJobId = "feast-job-0";
     ArgumentCaptor<ImportJobPipelineOptions> captor = ArgumentCaptor
         .forClass(ImportJobPipelineOptions.class);
 
     DataflowPipelineJob mockPipelineResult = Mockito.mock(DataflowPipelineJob.class);
     when(mockPipelineResult.getState()).thenReturn(State.RUNNING);
-    when(mockPipelineResult.getJobId()).thenReturn(expectedJobId);
+    when(mockPipelineResult.getJobId()).thenReturn(expectedExtJobId);
 
     doReturn(mockPipelineResult).when(dfJobManager).runPipeline(any());
-    String jobId = dfJobManager.startJob("job", Lists.newArrayList(featureSetSpec), store);
+    String jobId = dfJobManager.startJob(jobName, Lists.newArrayList(featureSetSpec), store);
 
     verify(dfJobManager, times(1)).runPipeline(captor.capture());
     ImportJobPipelineOptions actualPipelineOptions = captor.getValue();
@@ -119,7 +121,7 @@ public class DataflowJobManagerTest {
 
     assertThat(actualPipelineOptions.toString(),
         equalTo(expectedPipelineOptions.toString()));
-    assertThat(jobId, equalTo(expectedJobId));
+    assertThat(jobId, equalTo(expectedExtJobId));
   }
 
 

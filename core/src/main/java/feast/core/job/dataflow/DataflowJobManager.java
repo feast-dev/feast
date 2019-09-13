@@ -67,7 +67,7 @@ public class DataflowJobManager implements JobManager {
 
   @Override
   public String startJob(String name, List<FeatureSetSpec> featureSets, Store sink) {
-    return submitDataflowJob(featureSets, sink, false);
+    return submitDataflowJob(name, featureSets, sink, false);
   }
 
   /**
@@ -83,7 +83,7 @@ public class DataflowJobManager implements JobManager {
       for (FeatureSet featureSet : jobInfo.getFeatureSets()) {
         featureSetSpecs.add(featureSet.toProto());
       }
-      return submitDataflowJob(featureSetSpecs, jobInfo.getStore().toProto(), true);
+      return submitDataflowJob(jobInfo.getId(), featureSetSpecs, jobInfo.getStore().toProto(), true);
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(String.format("Unable to update job %s", jobInfo.getId()), e);
     }
@@ -118,9 +118,9 @@ public class DataflowJobManager implements JobManager {
     }
   }
 
-  private String submitDataflowJob(List<FeatureSetSpec> featureSets, Store sink, boolean update) {
+  private String submitDataflowJob(String jobName, List<FeatureSetSpec> featureSets, Store sink, boolean update) {
     try {
-      ImportJobPipelineOptions pipelineOptions = getPipelineOptions(featureSets, sink, update);
+      ImportJobPipelineOptions pipelineOptions = getPipelineOptions(jobName, featureSets, sink, update);
       DataflowPipelineJob pipelineResult = runPipeline(pipelineOptions);
       String jobId = waitForJobToRun(pipelineResult);
       return jobId;
@@ -130,7 +130,7 @@ public class DataflowJobManager implements JobManager {
     }
   }
 
-  private ImportJobPipelineOptions getPipelineOptions(List<FeatureSetSpec> featureSets, Store sink,
+  private ImportJobPipelineOptions getPipelineOptions(String jobName, List<FeatureSetSpec> featureSets, Store sink,
       boolean update) throws InvalidProtocolBufferException {
     String[] args = TypeConversion.convertJsonStringToArgs(defaults.getImportJobOptions());
     ImportJobPipelineOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args)
@@ -145,6 +145,7 @@ public class DataflowJobManager implements JobManager {
     pipelineOptions.setProject(projectId);
     pipelineOptions.setUpdate(update);
     pipelineOptions.setRunner(DataflowRunner.class);
+    pipelineOptions.setJobName(jobName);
     return pipelineOptions;
   }
 
