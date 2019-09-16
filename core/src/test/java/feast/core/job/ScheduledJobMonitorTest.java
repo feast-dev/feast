@@ -75,7 +75,7 @@ public class ScheduledJobMonitorTest {
         .thenReturn(Collections.singletonList(job));
     when(jobMonitor.getJobStatus(job)).thenReturn(JobStatus.COMPLETED);
 
-    scheduledJobMonitor.getJobStatus();
+    scheduledJobMonitor.updateJobStatus();
 
     ArgumentCaptor<JobInfo> argCaptor = ArgumentCaptor.forClass(JobInfo.class);
     verify(jobInfoRepository).save(argCaptor.capture());
@@ -89,7 +89,7 @@ public class ScheduledJobMonitorTest {
     when(jobInfoRepository.findByStatusNotIn((Collection<JobStatus>) any(Collection.class)))
         .thenReturn(Collections.emptyList());
 
-    scheduledJobMonitor.getJobStatus();
+    scheduledJobMonitor.updateJobStatus();
 
     verify(jobInfoRepository, never()).save(any(JobInfo.class));
   }

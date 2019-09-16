@@ -17,6 +17,7 @@
 
 package feast.core.model;
 
+import com.google.api.Metric;
 import feast.core.SourceProto.SourceType;
 import java.util.List;
 import javax.persistence.CascadeType;
@@ -75,7 +76,7 @@ public class JobInfo extends AbstractTimestampEntity {
   private List<FeatureSet> featureSets;
 
   // Job Metrics
-  @OneToMany(mappedBy = "jobInfo", cascade = CascadeType.ALL, orphanRemoval = true)
+  @OneToMany(mappedBy = "jobInfo", cascade = CascadeType.ALL)
   private List<Metrics> metrics;
 
   @Enumerated(EnumType.STRING)
@@ -95,6 +96,11 @@ public class JobInfo extends AbstractTimestampEntity {
     this.store = sink;
     this.featureSets = featureSets;
     this.status = jobStatus;
+  }
+
+  public void updateMetrics(List<Metrics> newMetrics) {
+    metrics.clear();
+    metrics.addAll(newMetrics);
   }
 
   public String getSinkName() {
