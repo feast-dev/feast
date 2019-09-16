@@ -41,7 +41,7 @@ from feast.type_map import (
     FEAST_VALUETYPE_TO_DTYPE,
 )
 
-GRPC_CONNECTION_TIMEOUT = 5  # type: int
+GRPC_CONNECTION_TIMEOUT = 600  # type: int
 FEAST_SERVING_URL_ENV_KEY = "FEAST_SERVING_URL"  # type: str
 FEAST_CORE_URL_ENV_KEY = "FEAST_CORE_URL"  # type: str
 
