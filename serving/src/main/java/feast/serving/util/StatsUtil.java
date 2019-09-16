@@ -16,8 +16,6 @@
  */
 package feast.serving.util;
 
-import com.google.common.base.Strings;
-//import feast.serving.ServingAPIProto.QueryFeaturesRequest;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
 import feast.serving.ServingAPIProto.GetFeaturesRequest.FeatureSet;
 import io.grpc.Context;
@@ -25,6 +23,8 @@ import io.grpc.Context.Key;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+
+//import feast.serving.ServingAPIProto.QueryFeaturesRequest;
 
 /**
  * Utility class for statistics.

@@ -20,6 +20,7 @@ package feast.serving.testutil;
 import com.google.protobuf.ByteString;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.types.FeatureProto.Field;
+import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.ValueProto.BoolList;
 import feast.types.ValueProto.BytesList;
 import feast.types.ValueProto.DoubleList;
@@ -37,7 +38,7 @@ public abstract class FeatureStoragePopulator {
    * Populate feature storage with fake data.
    */
   public abstract void populate(List<Field> fields, FeatureSetSpec featureSetSpec,
-      String featureSet);
+      FeatureRow featureRow);
 
   protected Value createValue(ValueType.Enum valType, Object value) {
     switch (valType) {

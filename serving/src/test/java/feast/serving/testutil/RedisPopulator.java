@@ -17,7 +17,6 @@
 
 package feast.serving.testutil;
 
-import com.google.protobuf.Timestamp;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.storage.RedisProto.RedisKey;
@@ -36,12 +35,7 @@ public class RedisPopulator extends FeatureStoragePopulator {
   }
 
   @Override
-  public void populate(List<Field> fields, FeatureSetSpec featureSetSpec, String featureSet) {
-    // Build a FeatureRow
-    FeatureRow featureRow = FeatureRow.newBuilder().addAllFields(fields)
-        .setEventTimestamp(Timestamp.newBuilder().setSeconds(System.currentTimeMillis() / 1000))
-        .setFeatureSet(featureSet).build();
-
+  public void populate(List<Field> fields, FeatureSetSpec featureSetSpec, FeatureRow featureRow) {
     // Get a list of entity names
     List<String> entityNames = new ArrayList<>();
     for (EntitySpec entitySpec : featureSetSpec.getEntitiesList()) {
@@ -49,7 +43,8 @@ public class RedisPopulator extends FeatureStoragePopulator {
     }
 
     // Construct key
-    RedisKey.Builder redisKeyBuilder = RedisKey.newBuilder().setFeatureSet(featureSet);
+    RedisKey.Builder redisKeyBuilder = RedisKey.newBuilder()
+        .setFeatureSet(featureRow.getFeatureSet());
 
     for (Field field : fields) {
       // Check if name is in EntitySpec

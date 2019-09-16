@@ -35,14 +35,14 @@ public class CachedSpecStorage implements SpecStorage {
 
   private static final int MAX_SPEC_COUNT = 1000;
 
-  private final CoreService coreService;
+  private final SpecStorage coreService;
   private final String storeId;
 
   private final CacheLoader<String, FeatureSetSpec> featureSetSpecCacheLoader;
   private final LoadingCache<String, FeatureSetSpec> featureSetSpecCache;
   private Store store;
 
-  public CachedSpecStorage(CoreService coreService, String storeId) {
+  public CachedSpecStorage(SpecStorage coreService, String storeId) {
     this.storeId = storeId;
     this.coreService = coreService;
     this.store = coreService.getStoreDetails(storeId);
@@ -54,16 +54,25 @@ public class CachedSpecStorage implements SpecStorage {
         CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(featureSetSpecCacheLoader);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Store getStoreDetails(String id) {
     return store;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Map<String, FeatureSetSpec> getFeatureSetSpecs(List<Subscription> subscriptions) {
     return featureSetSpecCache.asMap();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean isConnected() {
     return coreService.isConnected();
