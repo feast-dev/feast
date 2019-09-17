@@ -20,6 +20,7 @@ package feast.source.kafka;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
 
@@ -28,20 +29,25 @@ import org.apache.kafka.common.serialization.Deserializer;
  *
  * @param <FeatureRow> Protobuf message type
  */
+@Slf4j
 public class FeatureRowDeserializer implements Deserializer<FeatureRow> {
 
   @Override
-  public void configure(Map configs, boolean isKey) {}
+  public void configure(Map configs, boolean isKey) {
+  }
 
   @Override
   public FeatureRow deserialize(String topic, byte[] data) {
     try {
       return FeatureRow.parseFrom(data);
     } catch (InvalidProtocolBufferException e) {
-      throw new SerializationException("Error deserializing FeatureRow from Protobuf message", e);
+      log.warn(
+          String.format("Error deserializing FeatureRow from Protobuf message: %s", e.toString()));
     }
+    return FeatureRow.newBuilder().build();
   }
 
   @Override
-  public void close() {}
+  public void close() {
+  }
 }
