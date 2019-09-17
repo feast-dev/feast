@@ -26,7 +26,7 @@ option go_package = "github.com/gojek/feast/protos/generated/go/feast/types";
 
 message ValueType {
   enum Enum {
-    UNKNOWN = 0;
+    INVALID = 0;
     BYTES = 1;
     STRING = 2;
     INT32 = 3;
