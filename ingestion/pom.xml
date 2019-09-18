@@ -30,7 +30,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
     <org.apache.beam.version>2.13.0</org.apache.beam.version>
-    <com.google.cloud.version>1.79.0</com.google.cloud.version>
+    <com.google.cloud.version>1.91.0</com.google.cloud.version>
     <grpcVersion>1.21.1</grpcVersion>
     <guice.version>4.1.0</guice.version>
     <spring.kafka.version>2.2.2.RELEASE</spring.kafka.version>
@@ -102,6 +102,8 @@
                   <resource>reference.conf</resource>
                 </transformer>
               </transformers>
+              <!-- Relocate packages so if Feast ingestion is imported as a library, the client
+              can use different version of the same library e.g. because of backward compatiblity issues -->
               <relocations>
                 <relocation>
                   <pattern>org.springframework</pattern>
@@ -115,11 +117,13 @@
                   <pattern>io.opencensus</pattern>
                   <shadedPattern>io.opencensus.vendor</shadedPattern>
                 </relocation>
-                <!-- Relocate feast.core and feast.types so if Feast ingestion is imported as a
-                library, the client can use their own versions of feast.core and feast.types -->
                 <relocation>
                   <pattern>feast.core</pattern>
                   <shadedPattern>feast.core.vendor</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.google.cloud.bigquery</pattern>
+                  <shadedPattern>com.google.cloud.bigquery.vendor</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>
