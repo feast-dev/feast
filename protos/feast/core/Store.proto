@@ -22,7 +22,7 @@ option java_outer_classname = "StoreProto";
 option go_package = "github.com/gojek/feast/protos/generated/go/feast/core";
 
 // Store provides a location to which Feast writes feature values.
-// Feature values will be written to the Store in the form of FeatureRow.
+// Feature values will be written to the Store in the form of FeatureRow elements.
 // The way FeatureRow is encoded and decoded when it is written to and read from
 // the store depends on the type of the Store. 
 //
@@ -56,7 +56,7 @@ message Store {
     // fields in the BigQuery table (these make up the BigQuery schema). 
     // The name of the entity spec and feature spec corresponds to the column 
     // names, and the value_type of entity spec and feature spec corresponds 
-    // to the data type of the column.
+    // to BigQuery standard SQL data type of the column.
     //
     // Since newer version of feature set can introduce breaking, non backward-
     // compatible BigQuery schema updates, incrementing the version of a 
