@@ -82,6 +82,7 @@ message Store {
     // The following table shows how ValueType in Feast is mapped to 
     // BigQuery Standard SQL data types 
     // (https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types):
+    //
     // BYTES       : BYTES 
     // STRING      : STRING 
     // INT32       : INT64
