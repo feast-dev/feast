@@ -48,15 +48,31 @@ message Store {
 
     // BigQuery stores a FeatureRow element as a row in a BigQuery table.
     // 
-    // Table name is derived from the feature set name and version. For example
-    // a feature row for feature set "driver" and version "1" will be written
-    // to table "driver_1".
+    // Table name is derived from the feature set name and version as:
+    // [feature_set_name]_v[feature_set_version] 
+    // 
+    // For example:
+    // A feature row for feature set "driver" and version "1" will be written
+    // to table "driver_v1".
     // 
     // The entities and features in a FeatureSetSpec corresponds to the 
     // fields in the BigQuery table (these make up the BigQuery schema). 
     // The name of the entity spec and feature spec corresponds to the column 
     // names, and the value_type of entity spec and feature spec corresponds 
-    // to BigQuery standard SQL data type of the column.
+    // to BigQuery standard SQL data type of the column. 
+    // 
+    // The following BigQuery fields are reserved for Feast internal use. 
+    // Ingestion of entity or feature spec with names identical 
+    // to the following field names will raise an exception during ingestion.
+    //
+    //   column_name       | column_data_type | description
+    // ====================|==================|================================
+    // - event_timestamp   | TIMESTAMP        | event time of the FeatureRow
+    // - created_timestamp | TIMESTAMP        | processing time of the ingestion of the FeatureRow
+    // - job_id            | STRING           | identifier for the job that writes the FeatureRow to the corresponding BigQuery table
+    //
+    // BigQuery table created will be partitioned by the event_timestamp field 
+    // of the FeatureRow (https://cloud.google.com/bigquery/docs/partitioned-tables).
     //
     // Since newer version of feature set can introduce breaking, non backward-
     // compatible BigQuery schema updates, incrementing the version of a 
