@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
@@ -69,6 +70,7 @@ public class WriteFeaturesTransform extends PTransform<PCollection<FeatureRowExt
                     .to(tableSpec)
                     .withCreateDisposition(CreateDisposition.CREATE_NEVER)
                     .withWriteDisposition(WriteDisposition.WRITE_APPEND)
+                    .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
                     .withTimePartitioning(timePartitioning));
         break;
 

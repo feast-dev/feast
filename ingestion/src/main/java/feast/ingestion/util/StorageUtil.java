@@ -17,7 +17,6 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.bigquery.TimePartitioning.Type;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
@@ -90,7 +89,8 @@ public class StorageUtil {
     for (FeatureSpec featureSpec : featureSetSpec.getFeaturesList()) {
       Builder builder =
           Field.newBuilder(
-              featureSpec.getName(), VALUE_TYPE_TO_STANDARD_SQL_TYPE.get(featureSpec.getValueType()));
+              featureSpec.getName(),
+              VALUE_TYPE_TO_STANDARD_SQL_TYPE.get(featureSpec.getValueType()));
       if (featureSpec.getValueTypeValue() >= 7 && featureSpec.getValueTypeValue() <= 17) {
         builder.setMode(Mode.REPEATED);
       }
@@ -161,10 +161,15 @@ public class StorageUtil {
     TableId tableId = TableId.of(bigqueryProjectId, datasetId.getDataset(), tableName);
 
     // Return if there is an existing table
-    // Table table = bigquery.getTable(tableId);
-    // if (table == null || table.exists()) {
-    //   return;
-    // }
+    Table table = bigquery.getTable(tableId);
+    if (table == null || table.exists()) {
+      log.info(
+          "Writing to existing BigQuery table '{}:{}.{}'",
+          bigqueryProjectId,
+          datasetId.getDataset(),
+          tableName);
+      return;
+    }
 
     log.info(
         "Creating table '{}' in dataset '{}' in project '{}'",

@@ -10,6 +10,9 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.joda.time.Instant;
 
+// TODO: Validate FeatureRow against FeatureSetSpec
+//       i.e. that the value types in FeatureRow matches against those in FeatureSetSpec
+
 public class FeatureRowExtendedToTableRowDoFn extends DoFn<FeatureRowExtended, TableRow> {
   private static final String EVENT_TIMESTAMP_COLUMN = "event_timestamp";
   private static final String CREATED_TIMESTAMP_COLUMN = "created_timestamp";
