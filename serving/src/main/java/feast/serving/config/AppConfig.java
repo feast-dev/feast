@@ -29,9 +29,6 @@ public class AppConfig {
   // number of connection allowed to be idle
   int redisMaxIdleSize;
 
-  // max number of entity per thread.
-  int maxEntityPerBatch;
-
   // timeout for feature retrieval
   int timeout;
 }

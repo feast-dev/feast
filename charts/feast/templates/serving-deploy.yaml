@@ -59,12 +59,7 @@ spec:
           timeoutSeconds: 3
           failureThreshold: {{ .Values.serving.readinessProbe.failureThreshold }}
         resources:
-          requests:
-            cpu: "{{ .Values.serving.resources.requests.cpu }}"
-            memory: "{{ .Values.serving.resources.requests.memory }}"
-          limits:
-            cpu: "{{ .Values.serving.resources.limits.cpu }}"
-            memory: "{{ .Values.serving.resources.limits.memory }}"
+{{ toYaml .Values.serving.resources | indent 10 }}
         env:
           - name: FEAST_SERVING_HTTP_PORT
             value: "{{ .Values.serving.service.http.targetPort }}"
@@ -96,7 +91,9 @@ spec:
           - name: JAEGER_ENABLED
             value: "{{ .Values.serving.jaeger.enabled }}"
           - name: JAEGER_AGENT_HOST
-            value: "{{ .Values.serving.jaeger.host }}"
+            valueFrom:
+              fieldRef:
+                fieldPath: status.hostIP
           - name: JAEGER_AGENT_PORT
             value: "{{ .Values.serving.jaeger.port }}"
           - name: JAEGER_SAMPLER_TYPE

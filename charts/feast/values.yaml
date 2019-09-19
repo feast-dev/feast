@@ -1,16 +1,26 @@
---- 
+# [required]
+# global.postgresql.secretName is an existing Kubernetes secret name containing Postgresql password
+# The secret needs to have this key: postgresql-password
+#
+# Example of how to generate this secret:
+# kubectl create secret generic <feast_helm_release_name>-postgresql \
+#   --from-literal=postgresql-password=<postgresql_password>
+#
+# With the example above the secretName will be <feast_helm_release_name>-postgresql
+# 
+# global:
+#  postgresql:
+#    secretName: <existing_kubernetes_secret_name_containing_postgresql_credentials>
+
 core:
   projectId: "gcp-project-id"
   image: 
     pullPolicy: IfNotPresent
     registry: gcr.io/kf-feast
     repository: feast-core
-    tag: "0.1.4"
+    tag: "0.1.7"
   replicaCount: 1
   resources: 
-    limits: 
-      cpu: 4
-      memory: 6G
     requests: 
       cpu: 1
       memory: 2G
@@ -38,6 +48,14 @@ core:
     monitoring:
       period: 5000
       initialDelay: 60000
+    # writeFeatureMetricsToInfluxDb specifies whether Feast import job will write feature metrics (such as feature lag and values summaries) to Influx DB for monitoring and alert purpose
+    writeFeatureMetricsToInfluxDb: false 
+    # influxDbUrl, influxDbDatabase and influxDbMeasurement sets the Influx DB configuration where Feast import job will write the feature metrics
+    # Uncomment the following 3 fields if writeFeatureMetricsToInfluxDb = true
+    #
+    # influxDbUrl: http://localhost:8086
+    # influxDbDatabase: influx_db_database
+    # influxDbMeasurement: influx_db_measurement
   trainingDatasetPrefix: "fs"
   # logType: JSON
   livenessProbe:
@@ -84,12 +102,9 @@ serving:
     pullPolicy: IfNotPresent
     registry: gcr.io/kf-feast
     repository: feast-serving
-    tag: "0.1.4"
+    tag: "0.1.7"
   replicaCount: 1
   resources: 
-    limits: 
-      cpu: 2
-      memory: 4G
     requests: 
       cpu: 1
       memory: 1G
@@ -109,6 +124,9 @@ serving:
     # loadBalancerSourceRanges: ["10.0.0.0/8"]
   jaeger:
     enabled: false
+    # options:
+    #   samplerType: constants
+    #   samplerParam: 1
   livenessProbe:
     initialDelaySeconds: 120
     failureThreshold: 3

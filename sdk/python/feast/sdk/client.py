@@ -362,8 +362,6 @@ class Client:
             return self._apply_entity(obj)
         elif isinstance(obj, FeatureGroup):
             return self._apply_feature_group(obj)
-        elif isinstance(obj, Storage):
-            return self._apply_storage(obj)
         else:
             raise TypeError(
                 "Apply can only be passed one of the following \

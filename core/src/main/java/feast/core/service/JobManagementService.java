@@ -30,6 +30,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.JobServiceProto.JobServiceTypes.JobDetail;
 import feast.core.config.ImportJobDefaults;
+import feast.core.config.ImportJobMetricsConfig;
 import feast.core.config.StorageConfig.StorageSpecs;
 import feast.core.dao.JobInfoRepository;
 import feast.core.dao.MetricsRepository;
@@ -73,6 +74,7 @@ public class JobManagementService {
   private static final String JOB_PREFIX_DEFAULT = "feastimport";
   private static final String UNKNOWN_EXT_JOB_ID = "";
   private static final String IMPORT_JOB_SPECS_FILENAME = "importJobSpecs.yaml";
+  private ImportJobMetricsConfig metricsConfig;
 
   private JobInfoRepository jobInfoRepository;
   private MetricsRepository metricsRepository;
@@ -88,13 +90,15 @@ public class JobManagementService {
       JobManager jobManager,
       ImportJobDefaults defaults,
       SpecService specService,
-      StorageSpecs storageSpecs) {
+      StorageSpecs storageSpecs,
+      ImportJobMetricsConfig metricsConfig) {
     this.jobInfoRepository = jobInfoRepository;
     this.metricsRepository = metricsRepository;
     this.jobManager = jobManager;
     this.defaults = defaults;
     this.specService = specService;
     this.storageSpecs = storageSpecs;
+    this.metricsConfig = metricsConfig;
   }
 
   public void writeImportJobSpecs(ImportJobSpecs importJobSpecs, Path workspace) {
@@ -132,7 +136,11 @@ public class JobManagementService {
         .setJobId(jobId)
         .setImportSpec(importSpec)
         .addAllEntitySpecs(entitySpecs)
-        .addAllFeatureSpecs(featureSpecs);
+        .addAllFeatureSpecs(featureSpecs)
+        .setWriteFeatureMetricsToInfluxDb(metricsConfig.isIngestionMetricsEnabled())
+        .setInfluxDbUrl(metricsConfig.getInfluxDbUrl())
+        .setInfluxDbDatabase(metricsConfig.getInfluxDbName())
+        .setInfluxDbMeasurement(metricsConfig.getInfluxDbMeasurementName());
     if (storageSpecs.getServingStorageSpec() != null) {
       importJobSpecsBuilder.setServingStorageSpec(storageSpecs.getServingStorageSpec());
     }

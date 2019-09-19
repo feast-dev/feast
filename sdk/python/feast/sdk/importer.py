@@ -124,14 +124,14 @@ class Importer:
         schema, features = \
             _detect_schema_and_feature(entity,  owner, id_column,
                                        feature_columns, timestamp_column,
-                                       timestamp_value, serving_store,
-                                       warehouse_store, df)
+                                       timestamp_value,df)
         iport_spec = _create_import(src_type, source_options, job_options,
                                     entity, schema)
 
         props = (_properties(src_type, len(df.index), require_staging,
                              source_options["path"]))
         specs = _specs(iport_spec, Entity(name=entity), features)
+
 
         return cls(specs, df, props)
 
@@ -191,8 +191,7 @@ class Importer:
         schema, features = \
             _detect_schema_and_feature(entity,  owner, id_column,
                                        feature_columns, timestamp_column,
-                                       timestamp_value, serving_store,
-                                       warehouse_store, df)
+                                       timestamp_value, df)
         iport_spec = _create_import("bigquery", source_options, job_options,
                                     entity, schema)
 
@@ -250,8 +249,7 @@ class Importer:
         schema, features = \
             _detect_schema_and_feature(entity,  owner, id_column,
                                        feature_columns, timestamp_column,
-                                       timestamp_value, serving_store,
-                                       warehouse_store, df)
+                                       timestamp_value, df)
         iport_spec = _create_import(src_type, source_options, job_options,
                                     entity, schema)
 
@@ -349,8 +347,7 @@ def _get_remote_location(path, staging_location):
 
 
 def _detect_schema_and_feature(entity, owner, id_column, feature_columns,
-                               timestamp_column, timestamp_value,
-                               serving_store, warehouse_store, df):
+                               timestamp_column, timestamp_value,df):
     """Create schema object for import spec.
     
     Args:
@@ -361,10 +358,6 @@ def _detect_schema_and_feature(entity, owner, id_column, feature_columns,
             rows in dataset
         feature_columns (str): list of column to be extracted
         df (pandas.Dataframe): pandas dataframe of the data
-        serving_store (feast.sdk.resources.feature.DataStore): Defaults to None.
-            Serving store to write the features in this instance to.
-        warehouse_store (feast.sdk.resources.feature.DataStore): Defaults to None.
-            Warehouse store to write the features in this instance to.
 
     Returns:
         feast.specs.ImportSpec_pb2.Schema: schema of the data
@@ -401,16 +394,14 @@ def _detect_schema_and_feature(entity, owner, id_column, feature_columns,
             if column not in df.columns:
                 raise ValueError(
                     "Column with name {} is not found".format(column))
-            features[column] = _create_feature(df[column], entity, owner,
-                                               serving_store, warehouse_store)
+            features[column] = _create_feature(df[column], entity, owner)
     else:
         # get all column except entity id and timestampColumn
         feature_columns = list(df.columns.values)
         _remove_safely(feature_columns, schema.entityIdColumn)
         _remove_safely(feature_columns, schema.timestampColumn)
         for column in feature_columns:
-            features[column] = _create_feature(df[column], entity, owner,
-                                               serving_store, warehouse_store)
+            features[column] = _create_feature(df[column], entity, owner)
 
     for col in df.columns:
         field = schema.fields.add()
@@ -425,7 +416,7 @@ def _detect_schema_and_feature(entity, owner, id_column, feature_columns,
     return schema, features_dict
 
 
-def _create_feature(column, entity, owner, serving_store, warehouse_store):
+def _create_feature(column, entity, owner):
     """Create Feature object. 
     
     Args:
@@ -446,10 +437,6 @@ def _create_feature(column, entity, owner, serving_store, warehouse_store):
         entity=entity,
         owner=owner,
         value_type=dtype_to_value_type(column.dtype))
-    if serving_store is not None:
-        feature.serving_store = serving_store
-    if warehouse_store is not None:
-        feature.warehouse_store = warehouse_store
     return feature
 
 

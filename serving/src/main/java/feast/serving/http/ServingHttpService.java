@@ -22,6 +22,10 @@ import static feast.serving.util.RequestHelper.validateRequest;
 import feast.serving.ServingAPIProto.QueryFeaturesRequest;
 import feast.serving.ServingAPIProto.QueryFeaturesResponse;
 import feast.serving.service.FeastServing;
+import io.opentracing.Scope;
+import io.opentracing.Span;
+import io.opentracing.Tracer;
+import io.opentracing.contrib.grpc.OpenTracingContextKey;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,10 +35,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class ServingHttpService {
   private final FeastServing feastServing;
+  private final Tracer tracer;
 
   @Autowired
-  public ServingHttpService(FeastServing feastServing) {
+  public ServingHttpService(FeastServing feastServing, Tracer tracer) {
     this.feastServing = feastServing;
+    this.tracer = tracer;
   }
 
   @RequestMapping(
@@ -42,7 +48,13 @@ public class ServingHttpService {
       produces = "application/json",
       consumes = "application/json")
   public QueryFeaturesResponse queryFeature(@RequestBody QueryFeaturesRequest request) {
-    validateRequest(request);
-    return feastServing.queryFeatures(request);
+    Span span =tracer
+        .buildSpan("ServingHttpService.queryFeatures")
+        .asChildOf(OpenTracingContextKey.activeSpan())
+        .start();
+    try (Scope scope = tracer.scopeManager().activate(span)) {
+      validateRequest(request);
+      return feastServing.queryFeatures(request);
+    }
   }
 }

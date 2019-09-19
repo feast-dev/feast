@@ -58,12 +58,7 @@ spec:
           timeoutSeconds: 3
           failureThreshold: {{ .Values.core.readinessProbe.failureThreshold }}
         resources:
-          requests:
-            cpu: {{ .Values.core.resources.requests.cpu }}
-            memory: {{ .Values.core.resources.requests.memory }}
-          limits:
-            cpu: {{ .Values.core.resources.limits.cpu }}
-            memory: {{ .Values.core.resources.limits.memory }}
+{{ toYaml .Values.core.resources | indent 10 }}
         {{- if .Values.serviceAccount }}
         volumeMounts:
           - name: "{{ .Values.serviceAccount.name }}"
@@ -98,6 +93,18 @@ spec:
             value: "{{ .Values.core.jobs.monitoring.period }}"
           - name: JOB_MONITOR_INITIAL_DELAY_MS
             value: "{{ .Values.core.jobs.monitoring.initialDelay }}"
+
+          {{- if .Values.core.jobs.writeFeatureMetricsToInfluxDb }}
+          - name: INGESTION_METRICS_ENABLED
+            value: "{{ .Values.core.jobs.writeFeatureMetricsToInfluxDb }}"
+          - name: INGESTION_METRICS_INFLUX_URL
+            value: {{ .Values.core.jobs.influxDbUrl }}
+          - name: INGESTION_METRICS_INFLUX_DB_NAME
+            value: {{ .Values.core.jobs.influxDbDatabase }}
+          - name: INGESTION_METRICS_INFLUX_DB_MEASUREMENT
+            value: {{ .Values.core.jobs.influxDbMeasurement }}
+          {{- end }}
+
           {{- if .Values.store }}
           {{- if .Values.store.serving }}
           - name: STORE_SERVING_TYPE

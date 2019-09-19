@@ -12,22 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from feast.sdk.resources.feature import Feature, Datastore, ValueType
+from feast.sdk.resources.feature import Feature, ValueType
 
 
 class TestFeature(object):
     def dummy_feature(self):
-        warehouse_data_store = Datastore(id="BIGQUERY1", options={})
-        serving_data_store = Datastore(id="REDIS1", options={})
         my_feature = Feature(
             name="my_feature",
             entity="my_entity",
             value_type=ValueType.BYTES,
             owner="feast@web.com",
             description="test feature",
-            uri="github.com/feature_repo",
-            warehouse_store=warehouse_data_store,
-            serving_store=serving_data_store)
+            uri="github.com/feature_repo")
         return my_feature
 
     def test_set_name(self):
@@ -53,5 +49,3 @@ class TestFeature(object):
         assert feature.description == "test entity."
         assert feature.value_type == ValueType.BOOL
         assert feature.uri == "https://github.com/bob/example"
-        assert feature.serving_store.id == "REDIS1"
-        assert feature.warehouse_store.id == "BIGQUERY1"

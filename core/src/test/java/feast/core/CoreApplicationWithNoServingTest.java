@@ -42,7 +42,11 @@ import org.springframework.test.context.junit4.SpringRunner;
     "spring.datasource.url=jdbc:h2:mem:testdb",
     "feast.store.warehouse.type=file.json",
     "feast.store.warehouse.options={\"path\":\"/tmp/foobar\"}",
-    "feast.store.errors.type=stderr"
+    "feast.store.errors.type=stderr",
+    "ingestion.metrics.enabled=true",
+    "ingestion.metrics.influxUrl=localhost",
+    "ingestion.metrics.dbName=db",
+    "ingestion.metrics.dbMeasurement=measurement"
 })
 @DirtiesContext
 public class CoreApplicationWithNoServingTest {

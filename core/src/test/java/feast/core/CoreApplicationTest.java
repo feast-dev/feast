@@ -52,7 +52,11 @@ import org.springframework.test.context.junit4.SpringRunner;
     "feast.store.warehouse.options={\"path\":\"/tmp/foobar\"}",
     "feast.store.serving.type=redis",
     "feast.store.serving.options={\"host\":\"localhost\",\"port\":1234}",
-    "feast.store.errors.type=stderr"
+    "feast.store.errors.type=stderr",
+    "ingestion.metrics.enabled=true",
+    "ingestion.metrics.influxUrl=localhost",
+    "ingestion.metrics.dbName=db",
+    "ingestion.metrics.dbMeasurement=measurement"
 })
 @DirtiesContext
 public class CoreApplicationTest {
@@ -138,6 +142,10 @@ public class CoreApplicationTest {
             .setId(DEFAULT_WAREHOUSE_ID)
             .setType("file.json")
             .putOptions("path", "/tmp/foobar"))
+        .setWriteFeatureMetricsToInfluxDb(true)
+        .setInfluxDbUrl("localhost")
+        .setInfluxDbDatabase("db")
+        .setInfluxDbMeasurement("measurement")
         .build(), args.get(0));
   }
 

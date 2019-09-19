@@ -26,8 +26,17 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class InstrumentationConfig {
   @Bean
-  public StatsDClient getStatsDClient(@Value("${statsd.host}") String host,
-      @Value("${statsd.port}") int port) {
+  public StatsDClient getStatsDClient(
+      @Value("${statsd.host}") String host, @Value("${statsd.port}") int port) {
     return new NonBlockingStatsDClient("feast_core", host, port);
+  }
+
+  @Bean
+  public ImportJobMetricsConfig getImportJobMetricsConfig(
+      @Value("${ingestion.metrics.enabled}") boolean enabled,
+      @Value("${ingestion.metrics.influxUrl}") String influxDbUrl,
+      @Value("${ingestion.metrics.dbName}") String influxDbName,
+      @Value("${ingestion.metrics.dbMeasurement}") String influxDbMeasurementName) {
+    return new ImportJobMetricsConfig(enabled, influxDbUrl, influxDbName, influxDbMeasurementName);
   }
 }
