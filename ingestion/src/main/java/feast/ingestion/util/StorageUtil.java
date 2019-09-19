@@ -6,6 +6,8 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.Field.Builder;
+import com.google.cloud.bigquery.Field.Mode;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.StandardTableDefinition;
@@ -15,6 +17,7 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.bigquery.TimePartitioning.Type;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
@@ -50,11 +53,7 @@ import redis.clients.jedis.exceptions.JedisConnectionException;
 public class StorageUtil {
   private static final Map<ValueType.Enum, StandardSQLTypeName> VALUE_TYPE_TO_STANDARD_SQL_TYPE =
       new HashMap<>();
-
   // Refer to protos/feast/core/Store.proto for the mapping definition.
-
-  // TODO:
-  // Fix StandardSQLTypeName.ARRAY, should use relevant data type, with repeated mode
   static {
     VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.BYTES, StandardSQLTypeName.BYTES);
     VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.STRING, StandardSQLTypeName.STRING);
@@ -63,38 +62,44 @@ public class StorageUtil {
     VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(ValueType.Enum.DOUBLE, StandardSQLTypeName.FLOAT64);
     VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(ValueType.Enum.FLOAT, StandardSQLTypeName.FLOAT64);
     VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(ValueType.Enum.BOOL, StandardSQLTypeName.BOOL);
-    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.BYTES_LIST, StandardSQLTypeName.ARRAY);
-    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.STRING_LIST, StandardSQLTypeName.ARRAY);
-    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.INT32_LIST, StandardSQLTypeName.ARRAY);
-    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.DOUBLE_LIST, StandardSQLTypeName.ARRAY);
-    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.FLOAT_LIST, StandardSQLTypeName.ARRAY);
-    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.BOOL_LIST, StandardSQLTypeName.ARRAY);
+    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.BYTES_LIST, StandardSQLTypeName.BYTES);
+    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.STRING_LIST, StandardSQLTypeName.STRING);
+    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.INT32_LIST, StandardSQLTypeName.INT64);
+    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.INT64_LIST, StandardSQLTypeName.INT64);
+    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.DOUBLE_LIST, StandardSQLTypeName.FLOAT64);
+    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.FLOAT_LIST, StandardSQLTypeName.FLOAT64);
+    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.BOOL_LIST, StandardSQLTypeName.BOOL);
   }
 
+  @SuppressWarnings("DuplicatedCode")
   private static TableDefinition createBigQueryTableDefinition(FeatureSetSpec featureSetSpec) {
     List<Field> fields = new ArrayList<>();
-
     log.info("Table will have the following fields:");
+
     for (EntitySpec entitySpec : featureSetSpec.getEntitiesList()) {
-      Field field =
+      Builder builder =
           Field.newBuilder(
-                  entitySpec.getName(),
-                  VALUE_TYPE_TO_STANDARD_SQL_TYPE.get(entitySpec.getValueType()))
-              .build();
+              entitySpec.getName(), VALUE_TYPE_TO_STANDARD_SQL_TYPE.get(entitySpec.getValueType()));
+      if (entitySpec.getValueTypeValue() >= 7 && entitySpec.getValueTypeValue() <= 17) {
+        builder.setMode(Mode.REPEATED);
+      }
+      Field field = builder.build();
       log.info("- {}", field.toString());
       fields.add(field);
     }
     for (FeatureSpec featureSpec : featureSetSpec.getFeaturesList()) {
-      Field field =
+      Builder builder =
           Field.newBuilder(
-                  featureSpec.getName(),
-                  VALUE_TYPE_TO_STANDARD_SQL_TYPE.get(featureSpec.getValueType()))
-              .build();
+              featureSpec.getName(), VALUE_TYPE_TO_STANDARD_SQL_TYPE.get(featureSpec.getValueType()));
+      if (featureSpec.getValueTypeValue() >= 7 && featureSpec.getValueTypeValue() <= 17) {
+        builder.setMode(Mode.REPEATED);
+      }
+      Field field = builder.build();
       log.info("- {}", field.toString());
       fields.add(field);
     }
 
-    // Refer to protos/feast/core/Store.proto for these reserved field in BigQuery.
+    // Refer to protos/feast/core/Store.proto for reserved fields in BigQuery.
     Map<String, Pair<StandardSQLTypeName, String>>
         reservedFieldNameToPairOfStandardSQLTypeAndDescription =
             ImmutableMap.of(
@@ -118,6 +123,7 @@ public class StorageUtil {
 
     TimePartitioning timePartitioning =
         TimePartitioning.newBuilder(Type.DAY).setField("event_timestamp").build();
+    log.info("Table partitioning: " + timePartitioning.toString());
 
     return StandardTableDefinition.newBuilder()
         .setTimePartitioning(timePartitioning)
@@ -155,10 +161,10 @@ public class StorageUtil {
     TableId tableId = TableId.of(bigqueryProjectId, datasetId.getDataset(), tableName);
 
     // Return if there is an existing table
-    Table table = bigquery.getTable(tableId);
-    if (table == null || table.exists()) {
-      return;
-    }
+    // Table table = bigquery.getTable(tableId);
+    // if (table == null || table.exists()) {
+    //   return;
+    // }
 
     log.info(
         "Creating table '{}' in dataset '{}' in project '{}'",
