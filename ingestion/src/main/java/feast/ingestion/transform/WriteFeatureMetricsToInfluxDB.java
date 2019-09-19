@@ -100,7 +100,7 @@ public class WriteFeatureMetricsToInfluxDB
                           BatchOptions.DEFAULTS.jitterDuration(
                               DEFAULT_INFLUX_DB_JITTER_DURATION_IN_MS));
                     } catch (Exception e) {
-                      // Ignored because writing metrics is not a critical component of Feaast
+                      // Ignored because writing metrics is not a critical component of Feast
                       // and we do not want to get overwhelmed with connection error logs
                       // due to timeouts and downtime in upstream Influx DB server
                     }
@@ -152,7 +152,7 @@ public class WriteFeatureMetricsToInfluxDB
                               .tag("entity_name", entityName)
                               .build());
                     } catch (Exception e) {
-                      // Ignored because writing metrics is not a critical component of Feaast
+                      // Ignored because writing metrics is not a critical component of Feast
                       // and we do not want to get overwhelmed with failed metric write logs
                       // due to timeouts and downtime in upstream Influx DB server
                     }
