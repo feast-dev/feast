@@ -761,106 +761,106 @@ DESCRIPTOR.message_types_by_name['GetFeastServingVersionRequest'] = _GETFEASTSER
 DESCRIPTOR.message_types_by_name['GetFeastServingVersionResponse'] = _GETFEASTSERVINGVERSIONRESPONSE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-GetFeaturesRequest = _reflection.GeneratedProtocolMessageType('GetFeaturesRequest', (_message.Message,), {
+GetFeaturesRequest = _reflection.GeneratedProtocolMessageType('GetFeaturesRequest', (_message.Message,), dict(
 
-  'FeatureSet' : _reflection.GeneratedProtocolMessageType('FeatureSet', (_message.Message,), {
-    'DESCRIPTOR' : _GETFEATURESREQUEST_FEATURESET,
-    '__module__' : 'feast.serving.ServingService_pb2'
+  FeatureSet = _reflection.GeneratedProtocolMessageType('FeatureSet', (_message.Message,), dict(
+    DESCRIPTOR = _GETFEATURESREQUEST_FEATURESET,
+    __module__ = 'feast.serving.ServingService_pb2'
     # @@protoc_insertion_point(class_scope:feast.serving.GetFeaturesRequest.FeatureSet)
-    })
+    ))
   ,
 
-  'EntityDataSet' : _reflection.GeneratedProtocolMessageType('EntityDataSet', (_message.Message,), {
-    'DESCRIPTOR' : _GETFEATURESREQUEST_ENTITYDATASET,
-    '__module__' : 'feast.serving.ServingService_pb2'
+  EntityDataSet = _reflection.GeneratedProtocolMessageType('EntityDataSet', (_message.Message,), dict(
+    DESCRIPTOR = _GETFEATURESREQUEST_ENTITYDATASET,
+    __module__ = 'feast.serving.ServingService_pb2'
     # @@protoc_insertion_point(class_scope:feast.serving.GetFeaturesRequest.EntityDataSet)
-    })
+    ))
   ,
 
-  'EntityDataSetRow' : _reflection.GeneratedProtocolMessageType('EntityDataSetRow', (_message.Message,), {
-    'DESCRIPTOR' : _GETFEATURESREQUEST_ENTITYDATASETROW,
-    '__module__' : 'feast.serving.ServingService_pb2'
+  EntityDataSetRow = _reflection.GeneratedProtocolMessageType('EntityDataSetRow', (_message.Message,), dict(
+    DESCRIPTOR = _GETFEATURESREQUEST_ENTITYDATASETROW,
+    __module__ = 'feast.serving.ServingService_pb2'
     # @@protoc_insertion_point(class_scope:feast.serving.GetFeaturesRequest.EntityDataSetRow)
-    })
+    ))
   ,
-  'DESCRIPTOR' : _GETFEATURESREQUEST,
-  '__module__' : 'feast.serving.ServingService_pb2'
+  DESCRIPTOR = _GETFEATURESREQUEST,
+  __module__ = 'feast.serving.ServingService_pb2'
   # @@protoc_insertion_point(class_scope:feast.serving.GetFeaturesRequest)
-  })
+  ))
 _sym_db.RegisterMessage(GetFeaturesRequest)
 _sym_db.RegisterMessage(GetFeaturesRequest.FeatureSet)
 _sym_db.RegisterMessage(GetFeaturesRequest.EntityDataSet)
 _sym_db.RegisterMessage(GetFeaturesRequest.EntityDataSetRow)
 
-GetOnlineFeaturesResponse = _reflection.GeneratedProtocolMessageType('GetOnlineFeaturesResponse', (_message.Message,), {
+GetOnlineFeaturesResponse = _reflection.GeneratedProtocolMessageType('GetOnlineFeaturesResponse', (_message.Message,), dict(
 
-  'FeatureDataSet' : _reflection.GeneratedProtocolMessageType('FeatureDataSet', (_message.Message,), {
-    'DESCRIPTOR' : _GETONLINEFEATURESRESPONSE_FEATUREDATASET,
-    '__module__' : 'feast.serving.ServingService_pb2'
+  FeatureDataSet = _reflection.GeneratedProtocolMessageType('FeatureDataSet', (_message.Message,), dict(
+    DESCRIPTOR = _GETONLINEFEATURESRESPONSE_FEATUREDATASET,
+    __module__ = 'feast.serving.ServingService_pb2'
     # @@protoc_insertion_point(class_scope:feast.serving.GetOnlineFeaturesResponse.FeatureDataSet)
-    })
+    ))
   ,
-  'DESCRIPTOR' : _GETONLINEFEATURESRESPONSE,
-  '__module__' : 'feast.serving.ServingService_pb2'
+  DESCRIPTOR = _GETONLINEFEATURESRESPONSE,
+  __module__ = 'feast.serving.ServingService_pb2'
   # @@protoc_insertion_point(class_scope:feast.serving.GetOnlineFeaturesResponse)
-  })
+  ))
 _sym_db.RegisterMessage(GetOnlineFeaturesResponse)
 _sym_db.RegisterMessage(GetOnlineFeaturesResponse.FeatureDataSet)
 
-GetBatchFeaturesResponse = _reflection.GeneratedProtocolMessageType('GetBatchFeaturesResponse', (_message.Message,), {
-  'DESCRIPTOR' : _GETBATCHFEATURESRESPONSE,
-  '__module__' : 'feast.serving.ServingService_pb2'
+GetBatchFeaturesResponse = _reflection.GeneratedProtocolMessageType('GetBatchFeaturesResponse', (_message.Message,), dict(
+  DESCRIPTOR = _GETBATCHFEATURESRESPONSE,
+  __module__ = 'feast.serving.ServingService_pb2'
   # @@protoc_insertion_point(class_scope:feast.serving.GetBatchFeaturesResponse)
-  })
+  ))
 _sym_db.RegisterMessage(GetBatchFeaturesResponse)
 
-BatchFeaturesJob = _reflection.GeneratedProtocolMessageType('BatchFeaturesJob', (_message.Message,), {
+BatchFeaturesJob = _reflection.GeneratedProtocolMessageType('BatchFeaturesJob', (_message.Message,), dict(
 
-  'GetStatusRequest' : _reflection.GeneratedProtocolMessageType('GetStatusRequest', (_message.Message,), {
-    'DESCRIPTOR' : _BATCHFEATURESJOB_GETSTATUSREQUEST,
-    '__module__' : 'feast.serving.ServingService_pb2'
+  GetStatusRequest = _reflection.GeneratedProtocolMessageType('GetStatusRequest', (_message.Message,), dict(
+    DESCRIPTOR = _BATCHFEATURESJOB_GETSTATUSREQUEST,
+    __module__ = 'feast.serving.ServingService_pb2'
     # @@protoc_insertion_point(class_scope:feast.serving.BatchFeaturesJob.GetStatusRequest)
-    })
+    ))
   ,
 
-  'GetStatusResponse' : _reflection.GeneratedProtocolMessageType('GetStatusResponse', (_message.Message,), {
-    'DESCRIPTOR' : _BATCHFEATURESJOB_GETSTATUSRESPONSE,
-    '__module__' : 'feast.serving.ServingService_pb2'
+  GetStatusResponse = _reflection.GeneratedProtocolMessageType('GetStatusResponse', (_message.Message,), dict(
+    DESCRIPTOR = _BATCHFEATURESJOB_GETSTATUSRESPONSE,
+    __module__ = 'feast.serving.ServingService_pb2'
     # @@protoc_insertion_point(class_scope:feast.serving.BatchFeaturesJob.GetStatusResponse)
-    })
+    ))
   ,
 
-  'GetUploadUrlRequest' : _reflection.GeneratedProtocolMessageType('GetUploadUrlRequest', (_message.Message,), {
-    'DESCRIPTOR' : _BATCHFEATURESJOB_GETUPLOADURLREQUEST,
-    '__module__' : 'feast.serving.ServingService_pb2'
+  GetUploadUrlRequest = _reflection.GeneratedProtocolMessageType('GetUploadUrlRequest', (_message.Message,), dict(
+    DESCRIPTOR = _BATCHFEATURESJOB_GETUPLOADURLREQUEST,
+    __module__ = 'feast.serving.ServingService_pb2'
     # @@protoc_insertion_point(class_scope:feast.serving.BatchFeaturesJob.GetUploadUrlRequest)
-    })
+    ))
   ,
 
-  'GetUploadUrlResponse' : _reflection.GeneratedProtocolMessageType('GetUploadUrlResponse', (_message.Message,), {
-    'DESCRIPTOR' : _BATCHFEATURESJOB_GETUPLOADURLRESPONSE,
-    '__module__' : 'feast.serving.ServingService_pb2'
+  GetUploadUrlResponse = _reflection.GeneratedProtocolMessageType('GetUploadUrlResponse', (_message.Message,), dict(
+    DESCRIPTOR = _BATCHFEATURESJOB_GETUPLOADURLRESPONSE,
+    __module__ = 'feast.serving.ServingService_pb2'
     # @@protoc_insertion_point(class_scope:feast.serving.BatchFeaturesJob.GetUploadUrlResponse)
-    })
+    ))
   ,
 
-  'SetUploadCompleteRequest' : _reflection.GeneratedProtocolMessageType('SetUploadCompleteRequest', (_message.Message,), {
-    'DESCRIPTOR' : _BATCHFEATURESJOB_SETUPLOADCOMPLETEREQUEST,
-    '__module__' : 'feast.serving.ServingService_pb2'
+  SetUploadCompleteRequest = _reflection.GeneratedProtocolMessageType('SetUploadCompleteRequest', (_message.Message,), dict(
+    DESCRIPTOR = _BATCHFEATURESJOB_SETUPLOADCOMPLETEREQUEST,
+    __module__ = 'feast.serving.ServingService_pb2'
     # @@protoc_insertion_point(class_scope:feast.serving.BatchFeaturesJob.SetUploadCompleteRequest)
-    })
+    ))
   ,
 
-  'SetUploadCompleteResponse' : _reflection.GeneratedProtocolMessageType('SetUploadCompleteResponse', (_message.Message,), {
-    'DESCRIPTOR' : _BATCHFEATURESJOB_SETUPLOADCOMPLETERESPONSE,
-    '__module__' : 'feast.serving.ServingService_pb2'
+  SetUploadCompleteResponse = _reflection.GeneratedProtocolMessageType('SetUploadCompleteResponse', (_message.Message,), dict(
+    DESCRIPTOR = _BATCHFEATURESJOB_SETUPLOADCOMPLETERESPONSE,
+    __module__ = 'feast.serving.ServingService_pb2'
     # @@protoc_insertion_point(class_scope:feast.serving.BatchFeaturesJob.SetUploadCompleteResponse)
-    })
+    ))
   ,
-  'DESCRIPTOR' : _BATCHFEATURESJOB,
-  '__module__' : 'feast.serving.ServingService_pb2'
+  DESCRIPTOR = _BATCHFEATURESJOB,
+  __module__ = 'feast.serving.ServingService_pb2'
   # @@protoc_insertion_point(class_scope:feast.serving.BatchFeaturesJob)
-  })
+  ))
 _sym_db.RegisterMessage(BatchFeaturesJob)
 _sym_db.RegisterMessage(BatchFeaturesJob.GetStatusRequest)
 _sym_db.RegisterMessage(BatchFeaturesJob.GetStatusResponse)
@@ -869,32 +869,32 @@ _sym_db.RegisterMessage(BatchFeaturesJob.GetUploadUrlResponse)
 _sym_db.RegisterMessage(BatchFeaturesJob.SetUploadCompleteRequest)
 _sym_db.RegisterMessage(BatchFeaturesJob.SetUploadCompleteResponse)
 
-GetFeastServingTypeRequest = _reflection.GeneratedProtocolMessageType('GetFeastServingTypeRequest', (_message.Message,), {
-  'DESCRIPTOR' : _GETFEASTSERVINGTYPEREQUEST,
-  '__module__' : 'feast.serving.ServingService_pb2'
+GetFeastServingTypeRequest = _reflection.GeneratedProtocolMessageType('GetFeastServingTypeRequest', (_message.Message,), dict(
+  DESCRIPTOR = _GETFEASTSERVINGTYPEREQUEST,
+  __module__ = 'feast.serving.ServingService_pb2'
   # @@protoc_insertion_point(class_scope:feast.serving.GetFeastServingTypeRequest)
-  })
+  ))
 _sym_db.RegisterMessage(GetFeastServingTypeRequest)
 
-GetFeastServingTypeResponse = _reflection.GeneratedProtocolMessageType('GetFeastServingTypeResponse', (_message.Message,), {
-  'DESCRIPTOR' : _GETFEASTSERVINGTYPERESPONSE,
-  '__module__' : 'feast.serving.ServingService_pb2'
+GetFeastServingTypeResponse = _reflection.GeneratedProtocolMessageType('GetFeastServingTypeResponse', (_message.Message,), dict(
+  DESCRIPTOR = _GETFEASTSERVINGTYPERESPONSE,
+  __module__ = 'feast.serving.ServingService_pb2'
   # @@protoc_insertion_point(class_scope:feast.serving.GetFeastServingTypeResponse)
-  })
+  ))
 _sym_db.RegisterMessage(GetFeastServingTypeResponse)
 
-GetFeastServingVersionRequest = _reflection.GeneratedProtocolMessageType('GetFeastServingVersionRequest', (_message.Message,), {
-  'DESCRIPTOR' : _GETFEASTSERVINGVERSIONREQUEST,
-  '__module__' : 'feast.serving.ServingService_pb2'
+GetFeastServingVersionRequest = _reflection.GeneratedProtocolMessageType('GetFeastServingVersionRequest', (_message.Message,), dict(
+  DESCRIPTOR = _GETFEASTSERVINGVERSIONREQUEST,
+  __module__ = 'feast.serving.ServingService_pb2'
   # @@protoc_insertion_point(class_scope:feast.serving.GetFeastServingVersionRequest)
-  })
+  ))
 _sym_db.RegisterMessage(GetFeastServingVersionRequest)
 
-GetFeastServingVersionResponse = _reflection.GeneratedProtocolMessageType('GetFeastServingVersionResponse', (_message.Message,), {
-  'DESCRIPTOR' : _GETFEASTSERVINGVERSIONRESPONSE,
-  '__module__' : 'feast.serving.ServingService_pb2'
+GetFeastServingVersionResponse = _reflection.GeneratedProtocolMessageType('GetFeastServingVersionResponse', (_message.Message,), dict(
+  DESCRIPTOR = _GETFEASTSERVINGVERSIONRESPONSE,
+  __module__ = 'feast.serving.ServingService_pb2'
   # @@protoc_insertion_point(class_scope:feast.serving.GetFeastServingVersionResponse)
-  })
+  ))
 _sym_db.RegisterMessage(GetFeastServingVersionResponse)
 
 
