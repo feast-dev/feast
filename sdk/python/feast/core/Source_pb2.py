@@ -140,18 +140,18 @@ DESCRIPTOR.message_types_by_name['KafkaSourceConfig'] = _KAFKASOURCECONFIG
 DESCRIPTOR.enum_types_by_name['SourceType'] = _SOURCETYPE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-Source = _reflection.GeneratedProtocolMessageType('Source', (_message.Message,), {
-  'DESCRIPTOR' : _SOURCE,
-  '__module__' : 'feast.core.Source_pb2'
+Source = _reflection.GeneratedProtocolMessageType('Source', (_message.Message,), dict(
+  DESCRIPTOR = _SOURCE,
+  __module__ = 'feast.core.Source_pb2'
   # @@protoc_insertion_point(class_scope:feast.core.Source)
-  })
+  ))
 _sym_db.RegisterMessage(Source)
 
-KafkaSourceConfig = _reflection.GeneratedProtocolMessageType('KafkaSourceConfig', (_message.Message,), {
-  'DESCRIPTOR' : _KAFKASOURCECONFIG,
-  '__module__' : 'feast.core.Source_pb2'
+KafkaSourceConfig = _reflection.GeneratedProtocolMessageType('KafkaSourceConfig', (_message.Message,), dict(
+  DESCRIPTOR = _KAFKASOURCECONFIG,
+  __module__ = 'feast.core.Source_pb2'
   # @@protoc_insertion_point(class_scope:feast.core.KafkaSourceConfig)
-  })
+  ))
 _sym_db.RegisterMessage(KafkaSourceConfig)
 
 

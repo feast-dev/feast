@@ -41,7 +41,7 @@ class ValueType(google___protobuf___message___Message):
         def values(cls) -> typing___List[ValueType.Enum]: ...
         @classmethod
         def items(cls) -> typing___List[typing___Tuple[str, ValueType.Enum]]: ...
-        UNKNOWN = typing___cast(ValueType.Enum, 0)
+        INVALID = typing___cast(ValueType.Enum, 0)
         BYTES = typing___cast(ValueType.Enum, 1)
         STRING = typing___cast(ValueType.Enum, 2)
         INT32 = typing___cast(ValueType.Enum, 3)
@@ -56,7 +56,7 @@ class ValueType(google___protobuf___message___Message):
         DOUBLE_LIST = typing___cast(ValueType.Enum, 15)
         FLOAT_LIST = typing___cast(ValueType.Enum, 16)
         BOOL_LIST = typing___cast(ValueType.Enum, 17)
-    UNKNOWN = typing___cast(ValueType.Enum, 0)
+    INVALID = typing___cast(ValueType.Enum, 0)
     BYTES = typing___cast(ValueType.Enum, 1)
     STRING = typing___cast(ValueType.Enum, 2)
     INT32 = typing___cast(ValueType.Enum, 3)

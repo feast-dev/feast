@@ -8,7 +8,6 @@ import feast.core.SourceProto.KafkaSourceConfig;
 import feast.core.SourceProto.Source;
 import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto.Store;
-import feast.core.StoreProto.Store.Subscription;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import feast.ingestion.transform.FilterFeatureRow;
 import feast.ingestion.transform.ReadFeatureRow;
@@ -17,7 +16,6 @@ import feast.ingestion.transform.WriteFeaturesTransform;
 import feast.ingestion.util.StorageUtil;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,8 +39,8 @@ public class ImportJob {
    * <p>The arguments will be passed to Beam {@code PipelineOptionsFactory} to create {@code
    * ImportJobPipelineOptions}.
    *
-   * <p>The returned PipelineResult object can be used to check the state of the pipeline e.g. if
-   * it is running, done or cancelled.
+   * <p>The returned PipelineResult object can be used to check the state of the pipeline e.g. if it
+   * is running, done or cancelled.
    *
    * @param args command line arguments, typically come from the main() method
    * @return PipelineResult
@@ -57,8 +55,8 @@ public class ImportJob {
   /**
    * Create and run a Beam pipeline from {@code ImportJobPipelineOptions}.
    *
-   * <p>The returned PipelineResult object can be used to check the state of the pipeline e.g. if
-   * it is running, done or cancelled.
+   * <p>The returned PipelineResult object can be used to check the state of the pipeline e.g. if it
+   * is running, done or cancelled.
    *
    * @param pipelineOptions configuration for the pipeline
    * @return PipelineResult
@@ -89,7 +87,6 @@ public class ImportJob {
             .apply("Create FeatureRowExtended from FeatureRow", new ToFeatureRowExtended())
             .apply("Write FeatureRowExtended", new WriteFeaturesTransform(store, featureSetSpec));
       }
-
     }
 
     return pipeline.run();
@@ -131,9 +128,8 @@ public class ImportJob {
    * <p>Manually sets the consumer group offset for this job's consumer group to the offset at the
    * time at which we provision the ingestion job.
    *
-   * <p>This is necessary because the setup time for certain runners (e.g. Dataflow) might cause
-   * the worker to miss the messages that were emitted into the stream prior to the workers being
-   * ready.
+   * <p>This is necessary because the setup time for certain runners (e.g. Dataflow) might cause the
+   * worker to miss the messages that were emitted into the stream prior to the workers being ready.
    */
   private static void setupSource(String jobName, Source source) {
     if (!source.getType().equals(SourceType.KAFKA)) {
@@ -145,8 +141,7 @@ public class ImportJob {
 
     Properties consumerProperties = new Properties();
     consumerProperties.setProperty("group.id", jobName);
-    consumerProperties.setProperty(
-        "bootstrap.servers", kafkaSourceConfig.getBootstrapServers());
+    consumerProperties.setProperty("bootstrap.servers", kafkaSourceConfig.getBootstrapServers());
     consumerProperties.setProperty(
         "key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
     consumerProperties.setProperty(

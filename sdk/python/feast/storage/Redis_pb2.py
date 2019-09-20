@@ -69,11 +69,11 @@ _REDISKEY.fields_by_name['entities'].message_type = feast_dot_types_dot_Field__p
 DESCRIPTOR.message_types_by_name['RedisKey'] = _REDISKEY
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-RedisKey = _reflection.GeneratedProtocolMessageType('RedisKey', (_message.Message,), {
-  'DESCRIPTOR' : _REDISKEY,
-  '__module__' : 'feast.storage.Redis_pb2'
+RedisKey = _reflection.GeneratedProtocolMessageType('RedisKey', (_message.Message,), dict(
+  DESCRIPTOR = _REDISKEY,
+  __module__ = 'feast.storage.Redis_pb2'
   # @@protoc_insertion_point(class_scope:feast.storage.RedisKey)
-  })
+  ))
 _sym_db.RegisterMessage(RedisKey)
 
 
