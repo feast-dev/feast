@@ -22,6 +22,7 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetsRequest,
     ApplyFeatureSetResponse,
 )
+from feast.types.Value_pb2 import ValueType
 from feast.serving.ServingService_pb2 import (
     GetFeaturesRequest,
     GetFeastServingVersionRequest,
@@ -238,7 +239,7 @@ class Client:
             entity_dataset_row = GetFeaturesRequest.EntityDataSetRow()
             for i in range(len(entity_data.columns[1:])):
                 proto_value = pandas_value_to_proto_value(
-                    entity_data[entity_data.columns[i]].dtype, row[i+1]
+                    entity_data[entity_data.columns[i+1]].dtype, row[i+1]
                 )
                 entity_dataset_row.value.append(proto_value)
             entity_dataset_rows.append(entity_dataset_row)
@@ -258,6 +259,7 @@ class Client:
         )  # type: GetOnlineFeaturesResponse
 
         feature_dataframe = feature_data_sets_to_pandas_dataframe(
+            feature_sets=self._feature_sets,
             entity_data_set=entity_data.copy(),
             feature_data_sets=list(
                 get_online_features_response_proto.feature_data_sets
@@ -267,6 +269,7 @@ class Client:
 
 
 def feature_data_sets_to_pandas_dataframe(
+    feature_sets: List[FeatureSet],
     entity_data_set: pd.DataFrame,
     feature_data_sets: List[GetOnlineFeaturesResponse.FeatureDataSet],
 ):
@@ -283,7 +286,7 @@ def feature_data_sets_to_pandas_dataframe(
 
         # Convert to Pandas DataFrame
         feature_data_set_dataframes.append(
-            feature_data_set_to_pandas_dataframe(feature_data_set)
+            feature_data_set_to_pandas_dataframe(feature_sets[feature_data_set.name], feature_data_set)
         )
 
     # Join dataframes into a single feature dataframe
@@ -302,24 +305,29 @@ def join_feature_set_dataframes(
 
 
 def feature_data_set_to_pandas_dataframe(
+    feature_set: FeatureSet,
     feature_data_set: GetOnlineFeaturesResponse.FeatureDataSet
 ) -> pd.DataFrame:
     feature_set_name = feature_data_set.name
     dtypes = {}
     columns = []
-    for field in list(feature_data_set.feature_rows[0].fields):
-        feature_id = feature_set_name + "." + field.name
+    for field in feature_set.entities + feature_set.features:
+        field_proto = field.to_proto()
+        feature_id = feature_set_name + "." + field_proto.name
         columns.append(feature_id)
-        dtypes[feature_id] = FEAST_VALUETYPE_TO_DTYPE[field.value.WhichOneof("val")]
+        feast_value_type = ValueType.Enum.Name(field_proto.value_type)
+        dtypes[feature_id] = FEAST_VALUETYPE_TO_DTYPE[feast_value_type]
 
     dataframe = pd.DataFrame(columns=columns).reset_index(drop=True).astype(dtypes)
 
     for featureRow in list(feature_data_set.feature_rows):
         pandas_row = {}
         for field in list(featureRow.fields):
-            pandas_row[feature_set_name + "." + field.name] = getattr(
-                field.value, field.value.WhichOneof("val")
-            )
+            if field.value.WhichOneof("val") is None:
+                feature_value = None
+            else:
+                feature_value = getattr(field.value, field.value.WhichOneof("val"))
+            pandas_row[feature_set_name + "." + field.name] = feature_value
         dataframe = dataframe.append(pandas_row, ignore_index=True)
 
     return dataframe
