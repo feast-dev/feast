@@ -42,6 +42,9 @@ service ServingService {
     // Get the current status of a batch feature request job
     rpc GetBatchFeaturesJobStatus (BatchFeaturesJob.GetStatusRequest) returns (BatchFeaturesJob.GetStatusResponse);
 
+    // Request a signed URL to download batch features retrieved by a specific job
+    rpc GetBatchFeaturesDownloadUrl (BatchFeaturesJob.GetDownloadUrlRequest) returns (BatchFeaturesJob.GetDownloadUrlResponse);
+
     // Request a signed URL where a Feast client can upload user entity data
     rpc GetBatchFeaturesJobUploadUrl (BatchFeaturesJob.GetUploadUrlRequest) returns (BatchFeaturesJob.GetUploadUrlResponse);
 
@@ -118,6 +121,43 @@ message GetBatchFeaturesResponse {
 
 message BatchFeaturesJob {
 
+    enum Status {
+        STATUS_INVALID = 0;
+
+        // Waiting for an entity dataset to be uploaded to a staging location. Typically this is
+        // done by the Feast SDK.
+        STATUS_WAITING_FOR_ENTITY_DATASET = 1;
+
+        // Feast serving is busy loading entity dataset into backing store
+        STATUS_LOADING_ENTITY_DATASET = 2;
+
+        // Feast serving is orchestrating the creation of a feature data set using
+        // the entity data set
+        STATUS_BUILDING_FEATURE_DATASET = 3;
+
+        // Feast serving is orchestrating the export of the feature data set from
+        // the backing store
+        STATUS_EXPORTING_FEATURE_DATASET = 4;
+
+        // Job has been completed
+        STATUS_DONE = 5;
+
+        // An error occurred during the execution of this job
+        STATUS_ERROR = 6;
+    }
+
+    enum HttpMethod {
+        HTTP_METHOD_INVALID = 0;
+        HTTP_METHOD_GET = 1;
+        HTTP_METHOD_PUT = 2;
+    }
+
+    enum FileType {
+        FILE_TYPE_INVALID = 0;
+        FILE_TYPE_CSV = 1;
+        FILE_TYPE_PARQUET = 2;
+    }
+
     // Message used to query the status of a batch feature retrieval job
     message GetStatusRequest {
         string jobUUID = 1;
@@ -130,32 +170,23 @@ message BatchFeaturesJob {
         // Message which accompanies the relevant status code. This should be displayed
         // to the end user in order to facilitate debugging.
         string message = 2;
+    }
 
-        enum Status {
-            // Status has not been set. This message should never occur.
-            UNKNOWN = 0;
+    message GetDownloadUrlRequest {
+        // Job Id associated to this request
+        string job_UUID = 1;
+    }
 
-            // Waiting for an entity dataset to be uploaded to a staging location. Typically this is
-            // done by the Feast SDK.
-            WAITING_FOR_ENTITY_DATASET = 1;
+    message GetDownloadUrlResponse {
+        // Url specifies the full signed URL where a client can make a request to download a file from GCS
+        string url = 1;
 
-            // Feast serving is busy loading entity dataset into backing store
-            LOADING_ENTITY_DATASET = 2;
+        HttpMethod http_method = 2;
 
-            // Feast serving is orchestrating the creation of a feature data set using
-            // the entity data set
-            BUILDING_FEATURE_DATASET = 3;
+        // Expiration specifies the timestamp until which the signed URL is valid
+        google.protobuf.Timestamp expiration = 3;
 
-            // Feast serving is orchestrating the export of the feature data set from
-            // the backing store
-            EXPORTING_FEATURE_DATASET = 4;
-
-            // Job has been completed
-            DONE = 5;
-
-            // An error occurred during the execution of this job
-            ERROR = 6;
-        }
+        FileType file_type = 4;
     }
 
     // This message allows for a staging location to be requested in order to upload an entity data set
@@ -167,11 +198,6 @@ message BatchFeaturesJob {
         // Type of file that will be uploaded. Feast Serving needs to maintain this type in order to
         // interpret the entity dataset when loading it into the backing store
         FileType file_type = 2;
-
-        enum FileType {
-            CSV = 0;
-            PARQUET = 1;
-        }
     }
 
     // This message response provides a URL to the caller to upload and stage an entity data set
@@ -180,11 +206,8 @@ message BatchFeaturesJob {
         string url = 1;
 
         HttpMethod http_method = 2;
-        enum HttpMethod {
-            PUT = 0;
-        }
 
-        // Expiration specifies the timestamp the signed URL is valid until
+        // Expiration specifies the timestamp until which the signed URL is valid
         google.protobuf.Timestamp expiration = 3;
     }
 
@@ -202,16 +225,16 @@ message BatchFeaturesJob {
 message GetFeastServingTypeRequest {}
 
 message GetFeastServingTypeResponse {
+    FeastServingType type = 1;
+}
 
-    // Enumeration of Feast Serving types
-    enum type {
-        // Online Serving receives entity data directly and synchronously and will respond immediately
-        ONLINE = 0;
-
-        // Batch Serving receives entity data asynchronously and orchestrates the retrieval through a
-        // staging location
-        OFFLINE = 1;
-    }
+enum FeastServingType {
+    FEAST_SERVING_TYPE_INVALID = 0;
+    // Online Serving receives entity data directly and synchronously and will respond immediately
+    FEAST_SERVING_TYPE_ONLINE = 1;
+    // Batch Serving receives entity data asynchronously and orchestrates the retrieval through
+    // a staging location
+    FEAST_SERVING_TYPE_OFFLINE = 2;
 }
 
 message GetFeastServingVersionRequest {}

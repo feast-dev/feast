@@ -60,18 +60,27 @@ public class RedisFeastServing implements FeastServing {
     this.tracer = tracer;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public GetFeastServingVersionResponse getFeastServingVersion() {
     String artifactVersion = this.getClass().getPackage().getImplementationVersion();
     return GetFeastServingVersionResponse.newBuilder().setVersion(artifactVersion).build();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public GetFeastServingTypeResponse getFeastServingType() {
 //    return GetFeastServingTypeResponse.newBuilder().setType().build();
     return null;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public GetOnlineFeaturesResponse getOnlineFeatures(GetFeaturesRequest request) {
     try (Scope scope = tracer.buildSpan("Redis-getOnlineFeatures").startActive(true)) {
@@ -105,7 +114,6 @@ public class RedisFeastServing implements FeastServing {
           getOnlineFeatureResponseBuilder.addFeatureDataSets(featureDataSet);
         }
       }
-
       return getOnlineFeatureResponseBuilder.build();
     }
   }
@@ -147,6 +155,17 @@ public class RedisFeastServing implements FeastServing {
     return null;
   }
 
+  /**
+   * Create a list of {@link FeatureRow}
+   *
+   * @param redisKeys list of {@link RedisKey} to be retrieved from Redis
+   * @param requestedColumns list of String of requested entity and feature names
+   * @param featureSet {@link FeatureSet} so that featureSetName and featureSerVersion can be
+   * retrieved
+   * @return list of {@link FeatureRow}
+   * @throws InvalidProtocolBufferException Exception that is thrown the FeatureRow cannot be parsed
+   * from the byte array response
+   */
   private List<FeatureRow> sendAndProcessMultiGet(List<RedisKey> redisKeys,
       List<String> requestedColumns, FeatureSet featureSet) throws InvalidProtocolBufferException {
     List<byte[]> jedisResps = sendMultiGet(redisKeys);
