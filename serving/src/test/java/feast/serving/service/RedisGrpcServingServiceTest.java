@@ -26,6 +26,8 @@ import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDataSet;
 import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDataSetRow;
 import feast.serving.ServingAPIProto.GetFeaturesRequest.FeatureSet;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
+import feast.serving.service.serving.RedisServingService;
+import feast.serving.service.spec.SpecService;
 import feast.serving.testutil.FakeRedisCoreService;
 import feast.serving.testutil.RedisPopulator;
 import feast.types.FeatureProto.Field;
@@ -44,17 +46,17 @@ import org.mockito.MockitoAnnotations;
 import redis.clients.jedis.JedisPool;
 import redis.embedded.RedisServer;
 
-public class RedisFeastServingTest {
+public class RedisGrpcServingServiceTest {
 
   @Mock
-  SpecStorage coreService;
+  SpecService coreService;
 
   // Embedded redis
   RedisServer redisServer;
   RedisPopulator redisPopulator;
 
   // Class under test
-  RedisFeastServing redisFeastServing;
+  RedisServingService redisServingService;
 
   private static final String STORE_ID = "SERVING";
 
@@ -91,7 +93,7 @@ public class RedisFeastServingTest {
 
     // Setup JedisPool
     jedispool = new JedisPool(redisHost, redisPort);
-    redisFeastServing = new RedisFeastServing(jedispool, GlobalTracer.get());
+    redisServingService = new RedisServingService(jedispool, GlobalTracer.get());
     redisPopulator = new RedisPopulator(redisHost, redisPort);
 
     // Initialise a FeatureSetSpec (Source is not set)
@@ -134,7 +136,7 @@ public class RedisFeastServingTest {
     // Build GetFeatureRequest
     GetFeaturesRequest request = GetFeaturesRequest.newBuilder().addFeatureSets(featureSet)
         .setEntityDataSet(entityDataSet).build();
-    GetOnlineFeaturesResponse response = redisFeastServing.getOnlineFeatures(request);
+    GetOnlineFeaturesResponse response = redisServingService.getOnlineFeatures(request);
 
     Assert.assertEquals(featureRow, response.getFeatureDataSets(0).getFeatureRows(0));
   }
@@ -154,7 +156,7 @@ public class RedisFeastServingTest {
     GetFeaturesRequest request = GetFeaturesRequest.newBuilder()
         .addFeatureSets(featureSet).setEntityDataSet(entityDataSet).build();
 
-    GetOnlineFeaturesResponse response = redisFeastServing.getOnlineFeatures(request);
+    GetOnlineFeaturesResponse response = redisServingService.getOnlineFeatures(request);
 
     // Key does not exist in Redis, FeatureRow size == 0
     Assert.assertEquals(0, response.getFeatureDataSetsList().get(0).getFeatureRowsCount());

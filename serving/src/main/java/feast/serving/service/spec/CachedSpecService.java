@@ -15,7 +15,7 @@
  *
  */
 
-package feast.serving.service;
+package feast.serving.service.spec;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -31,18 +31,18 @@ import lombok.extern.slf4j.Slf4j;
  * SpecStorage implementation with built-in in-memory cache.
  */
 @Slf4j
-public class CachedSpecStorage implements SpecStorage {
+public class CachedSpecService implements SpecService {
 
   private static final int MAX_SPEC_COUNT = 1000;
 
-  private final SpecStorage coreService;
+  private final SpecService coreService;
   private final String storeId;
 
   private final CacheLoader<String, FeatureSetSpec> featureSetSpecCacheLoader;
   private final LoadingCache<String, FeatureSetSpec> featureSetSpecCache;
   private Store store;
 
-  public CachedSpecStorage(SpecStorage coreService, String storeId) {
+  public CachedSpecService(SpecService coreService, String storeId) {
     this.storeId = storeId;
     this.coreService = coreService;
     this.store = coreService.getStoreDetails(storeId);

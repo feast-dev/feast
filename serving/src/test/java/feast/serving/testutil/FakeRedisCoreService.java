@@ -25,14 +25,14 @@ import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.core.StoreProto.Store.Subscription;
-import feast.serving.service.SpecStorage;
+import feast.serving.service.spec.SpecService;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class FakeRedisCoreService implements SpecStorage {
+public class FakeRedisCoreService implements SpecService {
 
   private static final String REDIS_HOST = "localhost";
   private static final int REDIS_PORT = 6379;

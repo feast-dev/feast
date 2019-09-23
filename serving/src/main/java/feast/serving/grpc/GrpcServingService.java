@@ -18,6 +18,8 @@
 package feast.serving.grpc;
 
 import com.timgroup.statsd.StatsDClient;
+import feast.serving.ServingAPIProto.BatchFeaturesJob.GetDownloadUrlRequest;
+import feast.serving.ServingAPIProto.BatchFeaturesJob.GetDownloadUrlResponse;
 import feast.serving.ServingAPIProto.BatchFeaturesJob.GetStatusRequest;
 import feast.serving.ServingAPIProto.BatchFeaturesJob.GetStatusResponse;
 import feast.serving.ServingAPIProto.BatchFeaturesJob.GetUploadUrlRequest;
@@ -32,7 +34,7 @@ import feast.serving.ServingAPIProto.GetFeastServingVersionResponse;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingServiceGrpc.ServingServiceImplBase;
-import feast.serving.service.FeastServing;
+import feast.serving.service.serving.ServingService;
 import feast.serving.util.RequestHelper;
 import io.grpc.Status;
 import io.grpc.Status.Code;
@@ -45,62 +47,48 @@ import lombok.extern.slf4j.Slf4j;
 import org.lognet.springboot.grpc.GRpcService;
 import org.springframework.beans.factory.annotation.Autowired;
 
-/**
- * Grpc service implementation for Serving API.
- */
+/** Grpc service implementation for Serving API. */
 @Slf4j
 @GRpcService
-public class ServingGrpcService extends ServingServiceImplBase {
+public class GrpcServingService extends ServingServiceImplBase {
 
-  private final FeastServing feastServing;
+  private final ServingService servingService;
   private final Tracer tracer;
   private final StatsDClient statsDClient;
 
   @Autowired
-  public ServingGrpcService(FeastServing feastServing, Tracer tracer, StatsDClient statsDClient) {
-    this.feastServing = feastServing;
+  public GrpcServingService(ServingService servingService, Tracer tracer, StatsDClient statsDClient) {
+    this.servingService = servingService;
     this.tracer = tracer;
     this.statsDClient = statsDClient;
   }
 
   @Override
-  public void getFeastServingVersion(GetFeastServingVersionRequest request,
+  public void getFeastServingVersion(
+      GetFeastServingVersionRequest request,
       StreamObserver<GetFeastServingVersionResponse> responseObserver) {
-//    long currentMicro = TimeUtil.microTime();
-    Span span = tracer.buildSpan("ServingGrpcService-getServingVersion").start();
-
-    try (Scope scope = tracer.scopeManager().activate(span, false)) {
-      Span innerSpan = scope.span();
-      GetFeastServingVersionResponse response = feastServing.getFeastServingVersion();
-      innerSpan.log("calling onNext");
-      responseObserver.onNext(response);
-      innerSpan.log("calling onCompleted");
-      responseObserver.onCompleted();
-      innerSpan.log("all done");
-    } catch (Exception e) {
-      log.error("Error: {}", e.getMessage());
-      responseObserver.onError(new StatusRuntimeException(
-          Status.fromCode(Code.INTERNAL).withDescription(e.getMessage()).withCause(e)));
-    } finally {
-      span.finish();
-    }
+    String version = this.getClass().getPackage().getImplementationVersion();
+    responseObserver.onNext(
+        GetFeastServingVersionResponse.newBuilder().setVersion(version).build());
+    responseObserver.onCompleted();
   }
 
   @Override
-  public void getFeastServingType(GetFeastServingTypeRequest request,
+  public void getFeastServingType(
+      GetFeastServingTypeRequest request,
       StreamObserver<GetFeastServingTypeResponse> responseObserver) {
     super.getFeastServingType(request, responseObserver);
   }
 
   @Override
-  public void getOnlineFeatures(GetFeaturesRequest request,
-      StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
+  public void getOnlineFeatures(
+      GetFeaturesRequest request, StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
     Span span = tracer.buildSpan("ServingGrpcService-getOnlineFeatures").start();
 
     try (Scope scope = tracer.scopeManager().activate(span, false)) {
       Span innerSpan = scope.span();
       RequestHelper.validateRequest(request);
-      GetOnlineFeaturesResponse response = feastServing.getOnlineFeatures(request);
+      GetOnlineFeaturesResponse response = servingService.getOnlineFeatures(request);
       innerSpan.log("calling onNext");
       responseObserver.onNext(response);
       innerSpan.log("calling onCompleted");
@@ -108,33 +96,40 @@ public class ServingGrpcService extends ServingServiceImplBase {
       innerSpan.log("all done");
     } catch (Exception e) {
       log.error("Error: {}", e.getMessage());
-      responseObserver.onError(new StatusRuntimeException(
-          Status.fromCode(Code.INTERNAL).withDescription(e.getMessage()).withCause(e)));
+      responseObserver.onError(
+          new StatusRuntimeException(
+              Status.fromCode(Code.INTERNAL).withDescription(e.getMessage()).withCause(e)));
     }
   }
 
   @Override
-  public void getBatchFeatures(GetFeaturesRequest request,
-      StreamObserver<GetBatchFeaturesResponse> responseObserver) {
+  public void getBatchFeatures(
+      GetFeaturesRequest request, StreamObserver<GetBatchFeaturesResponse> responseObserver) {
     super.getBatchFeatures(request, responseObserver);
   }
 
   @Override
-  public void getBatchFeaturesJobStatus(GetStatusRequest request,
-      StreamObserver<GetStatusResponse> responseObserver) {
+  public void getBatchFeaturesJobStatus(
+      GetStatusRequest request, StreamObserver<GetStatusResponse> responseObserver) {
     super.getBatchFeaturesJobStatus(request, responseObserver);
   }
 
   @Override
-  public void getBatchFeaturesJobUploadUrl(GetUploadUrlRequest request,
-      StreamObserver<GetUploadUrlResponse> responseObserver) {
+  public void getBatchFeaturesDownloadUrl(
+      GetDownloadUrlRequest request, StreamObserver<GetDownloadUrlResponse> responseObserver) {
+    super.getBatchFeaturesDownloadUrl(request, responseObserver);
+  }
+
+  @Override
+  public void getBatchFeaturesJobUploadUrl(
+      GetUploadUrlRequest request, StreamObserver<GetUploadUrlResponse> responseObserver) {
     super.getBatchFeaturesJobUploadUrl(request, responseObserver);
   }
 
   @Override
-  public void setBatchFeaturesJobUploadComplete(SetUploadCompleteRequest request,
+  public void setBatchFeaturesJobUploadComplete(
+      SetUploadCompleteRequest request,
       StreamObserver<SetUploadCompleteResponse> responseObserver) {
     super.setBatchFeaturesJobUploadComplete(request, responseObserver);
   }
-
 }

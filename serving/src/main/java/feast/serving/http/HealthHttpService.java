@@ -17,7 +17,7 @@
 
 package feast.serving.http;
 
-import feast.serving.service.SpecStorage;
+import feast.serving.service.spec.SpecService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,11 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 public class HealthHttpService {
 
-  private final SpecStorage specStorage;
+  private final SpecService specService;
 
   @Autowired
-  public HealthHttpService(SpecStorage specStorage) {
-    this.specStorage = specStorage;
+  public HealthHttpService(SpecService specService) {
+    this.specService = specService;
   }
 
   @RequestMapping("/ping")
@@ -42,7 +42,7 @@ public class HealthHttpService {
 
   @RequestMapping("/healthz")
   public String healthz() {
-    if (specStorage.isConnected()) {
+    if (specService.isConnected()) {
       return "healthy";
     }
     log.error("not ready: unable to connect to core service");
