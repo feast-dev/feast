@@ -40,30 +40,4 @@ public class RequestHelper {
       }
     }
   }
-
-//  public static void validateRequest(QueryFeaturesRequest request) {
-//    // entity name shall present
-//    if (Strings.isNullOrEmpty(request.getEntityName())) {
-//      throw new IllegalArgumentException("entity name must be set");
-//    }
-//
-//    // entity id list shall not be empty
-//    if (request.getEntityIdList().size() <= 0) {
-//      throw new IllegalArgumentException("entity ID must be provided");
-//    }
-//
-//    // feature IDs shall not be empty
-//    if (request.getFeatureIdCount() <= 0) {
-//      throw new IllegalArgumentException("feature id must be provided");
-//    }
-//
-//    // feature id in each request detail shall have same entity name
-//    String entityName = request.getEntityName();
-//    for (String featureId : request.getFeatureIdList()) {
-//      if (!featureId.substring(0, featureId.indexOf(".")).equals(entityName)) {
-//        throw new IllegalArgumentException(
-//            "entity name of all feature ID in request details must be: " + entityName);
-//      }
-//    }
-//  }
 }

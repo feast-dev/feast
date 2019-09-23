@@ -31,7 +31,7 @@ import feast.serving.ServingAPIProto.GetFeastServingVersionRequest;
 import feast.serving.ServingAPIProto.GetFeastServingVersionResponse;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
-import feast.serving.ServingServiceGrpc;
+import feast.serving.ServingServiceGrpc.ServingServiceImplBase;
 import feast.serving.service.FeastServing;
 import feast.serving.util.RequestHelper;
 import io.grpc.Status;
@@ -50,7 +50,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  */
 @Slf4j
 @GRpcService
-public class ServingGrpcService extends ServingServiceGrpc.ServingServiceImplBase {
+public class ServingGrpcService extends ServingServiceImplBase {
 
   private final FeastServing feastServing;
   private final Tracer tracer;
@@ -137,35 +137,4 @@ public class ServingGrpcService extends ServingServiceGrpc.ServingServiceImplBas
     super.setBatchFeaturesJobUploadComplete(request, responseObserver);
   }
 
-  //  /** Query feature values from Feast storage. */
-//  @Override
-//  public void queryFeatures(QueryFeaturesRequest request, StreamObserver<QueryFeaturesResponse> responseObserver) {
-//    long currentMicro = TimeUtil.microTime();
-//    Span span = tracer.buildSpan("ServingGrpcService-queryFeatures").start();
-//    String[] tags = makeStatsdTags(request);
-//    statsDClient.increment("query_features_count", tags);
-//    statsDClient.gauge("query_features_entity_count", request.getEntityIdCount(), tags);
-//    statsDClient.gauge("query_features_feature_count", request.getFeatureIdCount(), tags);
-//    try (Scope scope = tracer.scopeManager().activate(span, false)) {
-//      Span innerSpan = scope.span();
-//      validateRequest(request);
-//      QueryFeaturesResponse response = feast.queryFeatures(request);
-//
-//      innerSpan.log("calling onNext");
-//      responseObserver.onNext(response);
-//      innerSpan.log("calling onCompleted");
-//      responseObserver.onCompleted();
-//      innerSpan.log("all done");
-//      statsDClient.increment("query_feature_success", tags);
-//    } catch (Exception e) {
-//      statsDClient.increment("query_feature_failed", tags);
-//      log.error("Error: {}", e.getMessage());
-//      responseObserver.onError(
-//          new StatusRuntimeException(
-//              Status.fromCode(INTERNAL).withDescription(e.getMessage()).withCause(e)));
-//    } finally {
-//      statsDClient.gauge("query_features_latency_us", TimeUtil.microTime() - currentMicro, tags);
-//      span.finish();
-//    }
-//  }
 }
