@@ -25,6 +25,6 @@
 //@SpringBootTest
 //public class ServingApiApplicationTests {
 //
-//  @Test
+//  @RedisTest
 //  public void contextLoads() {}
 //}

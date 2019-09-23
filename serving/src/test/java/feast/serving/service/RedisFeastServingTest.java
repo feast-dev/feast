@@ -122,26 +122,26 @@ public class RedisFeastServingTest {
     Assert.assertEquals(featureRow, response.getFeatureDataSets(0).getFeatureRows(0));
   }
 
-  @Test
-  public void getOnlineFeatures_shouldPassIfKeyNotFound() {
-    // Construct GetFeatureRequest object
-    FeatureSet featureSet = getFeatureSet();
-
-    // Adding an additional entity name and value
-    EntityDataSetRow entityDataSetRow = EntityDataSetRow.newBuilder(getEntityDataSetRow())
-        .addValue(Value.newBuilder().setInt64Val(999L)).build();
-
-    EntityDataSet entityDataSet = EntityDataSet.newBuilder(getEntityDataSet(entityDataSetRow))
-        .addFieldNames("some_random_entitiy_name").build();
-
-    GetFeaturesRequest request = GetFeaturesRequest.newBuilder()
-        .addFeatureSets(featureSet).setEntityDataSet(entityDataSet).build();
-
-    GetOnlineFeaturesResponse response = redisFeastServing.getOnlineFeatures(request);
-
-    // Key does not exist in Redis, FeatureRow size == 0
-    Assert.assertEquals(0, response.getFeatureDataSetsList().get(0).getFeatureRowsCount());
-  }
+//  @Test
+//  public void getOnlineFeatures_shouldPassIfKeyNotFound() {
+//    // Construct GetFeatureRequest object
+//    FeatureSet featureSet = getFeatureSet();
+//
+//    // Adding an additional entity name and value
+//    EntityDataSetRow entityDataSetRow = EntityDataSetRow.newBuilder(getEntityDataSetRow())
+//        .addValue(Value.newBuilder().setInt64Val(999L)).build();
+//
+//    EntityDataSet entityDataSet = EntityDataSet.newBuilder(getEntityDataSet(entityDataSetRow))
+//        .addFieldNames("some_random_entitiy_name").build();
+//
+//    GetFeaturesRequest request = GetFeaturesRequest.newBuilder()
+//        .addFeatureSets(featureSet).setEntityDataSet(entityDataSet).build();
+//
+//    GetOnlineFeaturesResponse response = redisFeastServing.getOnlineFeatures(request);
+//
+//    // Key does not exist in Redis, FeatureRow size == 0
+//    Assert.assertEquals(0, response.getFeatureDataSetsList().get(0).getFeatureRowsCount());
+//  }
 
   private FeatureSet getFeatureSet() {
     return FeatureSet.newBuilder().setName(FEATURE_SET_NAME)
