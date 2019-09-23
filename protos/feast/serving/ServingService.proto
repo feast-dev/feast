@@ -94,6 +94,7 @@ message GetOnlineFeaturesResponse {
     // as well as feature data that can be joined to the incoming EntityDataSet. The row count
     // for the returning FeatureDataSet will match that of the row count for the incoming
     // EntityDataSet.
+    // If any of the keys do not have values, empty feature rows will be returned.
     message FeatureDataSet {
         // Feature set name
         string name = 1;
