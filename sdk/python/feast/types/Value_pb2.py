@@ -21,7 +21,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.types',
   syntax='proto3',
   serialized_options=_b('\n\013feast.typesB\nValueProtoZ6github.com/gojek/feast/protos/generated/go/feast/types'),
-  serialized_pb=_b('\n\x17\x66\x65\x61st/types/Value.proto\x12\x0b\x66\x65\x61st.types\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe0\x01\n\tValueType\"\xd2\x01\n\x04\x45num\x12\x0b\n\x07UNKNOWN\x10\x00\x12\t\n\x05\x42YTES\x10\x01\x12\n\n\x06STRING\x10\x02\x12\t\n\x05INT32\x10\x03\x12\t\n\x05INT64\x10\x04\x12\n\n\x06\x44OUBLE\x10\x05\x12\t\n\x05\x46LOAT\x10\x06\x12\x08\n\x04\x42OOL\x10\x07\x12\x0e\n\nBYTES_LIST\x10\x0b\x12\x0f\n\x0bSTRING_LIST\x10\x0c\x12\x0e\n\nINT32_LIST\x10\r\x12\x0e\n\nINT64_LIST\x10\x0e\x12\x0f\n\x0b\x44OUBLE_LIST\x10\x0f\x12\x0e\n\nFLOAT_LIST\x10\x10\x12\r\n\tBOOL_LIST\x10\x11\"\x82\x04\n\x05Value\x12\x13\n\tbytes_val\x18\x01 \x01(\x0cH\x00\x12\x14\n\nstring_val\x18\x02 \x01(\tH\x00\x12\x13\n\tint32_val\x18\x03 \x01(\x05H\x00\x12\x13\n\tint64_val\x18\x04 \x01(\x03H\x00\x12\x14\n\ndouble_val\x18\x05 \x01(\x01H\x00\x12\x13\n\tfloat_val\x18\x06 \x01(\x02H\x00\x12\x12\n\x08\x62ool_val\x18\x07 \x01(\x08H\x00\x12\x30\n\x0e\x62ytes_list_val\x18\x0b \x01(\x0b\x32\x16.feast.types.BytesListH\x00\x12\x32\n\x0fstring_list_val\x18\x0c \x01(\x0b\x32\x17.feast.types.StringListH\x00\x12\x30\n\x0eint32_list_val\x18\r \x01(\x0b\x32\x16.feast.types.Int32ListH\x00\x12\x30\n\x0eint64_list_val\x18\x0e \x01(\x0b\x32\x16.feast.types.Int64ListH\x00\x12\x32\n\x0f\x64ouble_list_val\x18\x0f \x01(\x0b\x32\x17.feast.types.DoubleListH\x00\x12\x30\n\x0e\x66loat_list_val\x18\x10 \x01(\x0b\x32\x16.feast.types.FloatListH\x00\x12.\n\rbool_list_val\x18\x11 \x01(\x0b\x32\x15.feast.types.BoolListH\x00\x42\x05\n\x03val\"\x18\n\tBytesList\x12\x0b\n\x03val\x18\x01 \x03(\x0c\"\x19\n\nStringList\x12\x0b\n\x03val\x18\x01 \x03(\t\"\x18\n\tInt32List\x12\x0b\n\x03val\x18\x01 \x03(\x05\"\x18\n\tInt64List\x12\x0b\n\x03val\x18\x01 \x03(\x03\"\x19\n\nDoubleList\x12\x0b\n\x03val\x18\x01 \x03(\x01\"\x18\n\tFloatList\x12\x0b\n\x03val\x18\x01 \x03(\x02\"\x17\n\x08\x42oolList\x12\x0b\n\x03val\x18\x01 \x03(\x08\x42Q\n\x0b\x66\x65\x61st.typesB\nValueProtoZ6github.com/gojek/feast/protos/generated/go/feast/typesb\x06proto3')
+  serialized_pb=_b('\n\x17\x66\x65\x61st/types/Value.proto\x12\x0b\x66\x65\x61st.types\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe0\x01\n\tValueType\"\xd2\x01\n\x04\x45num\x12\x0b\n\x07INVALID\x10\x00\x12\t\n\x05\x42YTES\x10\x01\x12\n\n\x06STRING\x10\x02\x12\t\n\x05INT32\x10\x03\x12\t\n\x05INT64\x10\x04\x12\n\n\x06\x44OUBLE\x10\x05\x12\t\n\x05\x46LOAT\x10\x06\x12\x08\n\x04\x42OOL\x10\x07\x12\x0e\n\nBYTES_LIST\x10\x0b\x12\x0f\n\x0bSTRING_LIST\x10\x0c\x12\x0e\n\nINT32_LIST\x10\r\x12\x0e\n\nINT64_LIST\x10\x0e\x12\x0f\n\x0b\x44OUBLE_LIST\x10\x0f\x12\x0e\n\nFLOAT_LIST\x10\x10\x12\r\n\tBOOL_LIST\x10\x11\"\x82\x04\n\x05Value\x12\x13\n\tbytes_val\x18\x01 \x01(\x0cH\x00\x12\x14\n\nstring_val\x18\x02 \x01(\tH\x00\x12\x13\n\tint32_val\x18\x03 \x01(\x05H\x00\x12\x13\n\tint64_val\x18\x04 \x01(\x03H\x00\x12\x14\n\ndouble_val\x18\x05 \x01(\x01H\x00\x12\x13\n\tfloat_val\x18\x06 \x01(\x02H\x00\x12\x12\n\x08\x62ool_val\x18\x07 \x01(\x08H\x00\x12\x30\n\x0e\x62ytes_list_val\x18\x0b \x01(\x0b\x32\x16.feast.types.BytesListH\x00\x12\x32\n\x0fstring_list_val\x18\x0c \x01(\x0b\x32\x17.feast.types.StringListH\x00\x12\x30\n\x0eint32_list_val\x18\r \x01(\x0b\x32\x16.feast.types.Int32ListH\x00\x12\x30\n\x0eint64_list_val\x18\x0e \x01(\x0b\x32\x16.feast.types.Int64ListH\x00\x12\x32\n\x0f\x64ouble_list_val\x18\x0f \x01(\x0b\x32\x17.feast.types.DoubleListH\x00\x12\x30\n\x0e\x66loat_list_val\x18\x10 \x01(\x0b\x32\x16.feast.types.FloatListH\x00\x12.\n\rbool_list_val\x18\x11 \x01(\x0b\x32\x15.feast.types.BoolListH\x00\x42\x05\n\x03val\"\x18\n\tBytesList\x12\x0b\n\x03val\x18\x01 \x03(\x0c\"\x19\n\nStringList\x12\x0b\n\x03val\x18\x01 \x03(\t\"\x18\n\tInt32List\x12\x0b\n\x03val\x18\x01 \x03(\x05\"\x18\n\tInt64List\x12\x0b\n\x03val\x18\x01 \x03(\x03\"\x19\n\nDoubleList\x12\x0b\n\x03val\x18\x01 \x03(\x01\"\x18\n\tFloatList\x12\x0b\n\x03val\x18\x01 \x03(\x02\"\x17\n\x08\x42oolList\x12\x0b\n\x03val\x18\x01 \x03(\x08\x42Q\n\x0b\x66\x65\x61st.typesB\nValueProtoZ6github.com/gojek/feast/protos/generated/go/feast/typesb\x06proto3')
   ,
   dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,])
 
@@ -34,7 +34,7 @@ _VALUETYPE_ENUM = _descriptor.EnumDescriptor(
   file=DESCRIPTOR,
   values=[
     _descriptor.EnumValueDescriptor(
-      name='UNKNOWN', index=0, number=0,
+      name='INVALID', index=0, number=0,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
@@ -529,67 +529,67 @@ DESCRIPTOR.message_types_by_name['FloatList'] = _FLOATLIST
 DESCRIPTOR.message_types_by_name['BoolList'] = _BOOLLIST
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-ValueType = _reflection.GeneratedProtocolMessageType('ValueType', (_message.Message,), {
-  'DESCRIPTOR' : _VALUETYPE,
-  '__module__' : 'feast.types.Value_pb2'
+ValueType = _reflection.GeneratedProtocolMessageType('ValueType', (_message.Message,), dict(
+  DESCRIPTOR = _VALUETYPE,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.ValueType)
-  })
+  ))
 _sym_db.RegisterMessage(ValueType)
 
-Value = _reflection.GeneratedProtocolMessageType('Value', (_message.Message,), {
-  'DESCRIPTOR' : _VALUE,
-  '__module__' : 'feast.types.Value_pb2'
+Value = _reflection.GeneratedProtocolMessageType('Value', (_message.Message,), dict(
+  DESCRIPTOR = _VALUE,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.Value)
-  })
+  ))
 _sym_db.RegisterMessage(Value)
 
-BytesList = _reflection.GeneratedProtocolMessageType('BytesList', (_message.Message,), {
-  'DESCRIPTOR' : _BYTESLIST,
-  '__module__' : 'feast.types.Value_pb2'
+BytesList = _reflection.GeneratedProtocolMessageType('BytesList', (_message.Message,), dict(
+  DESCRIPTOR = _BYTESLIST,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.BytesList)
-  })
+  ))
 _sym_db.RegisterMessage(BytesList)
 
-StringList = _reflection.GeneratedProtocolMessageType('StringList', (_message.Message,), {
-  'DESCRIPTOR' : _STRINGLIST,
-  '__module__' : 'feast.types.Value_pb2'
+StringList = _reflection.GeneratedProtocolMessageType('StringList', (_message.Message,), dict(
+  DESCRIPTOR = _STRINGLIST,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.StringList)
-  })
+  ))
 _sym_db.RegisterMessage(StringList)
 
-Int32List = _reflection.GeneratedProtocolMessageType('Int32List', (_message.Message,), {
-  'DESCRIPTOR' : _INT32LIST,
-  '__module__' : 'feast.types.Value_pb2'
+Int32List = _reflection.GeneratedProtocolMessageType('Int32List', (_message.Message,), dict(
+  DESCRIPTOR = _INT32LIST,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.Int32List)
-  })
+  ))
 _sym_db.RegisterMessage(Int32List)
 
-Int64List = _reflection.GeneratedProtocolMessageType('Int64List', (_message.Message,), {
-  'DESCRIPTOR' : _INT64LIST,
-  '__module__' : 'feast.types.Value_pb2'
+Int64List = _reflection.GeneratedProtocolMessageType('Int64List', (_message.Message,), dict(
+  DESCRIPTOR = _INT64LIST,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.Int64List)
-  })
+  ))
 _sym_db.RegisterMessage(Int64List)
 
-DoubleList = _reflection.GeneratedProtocolMessageType('DoubleList', (_message.Message,), {
-  'DESCRIPTOR' : _DOUBLELIST,
-  '__module__' : 'feast.types.Value_pb2'
+DoubleList = _reflection.GeneratedProtocolMessageType('DoubleList', (_message.Message,), dict(
+  DESCRIPTOR = _DOUBLELIST,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.DoubleList)
-  })
+  ))
 _sym_db.RegisterMessage(DoubleList)
 
-FloatList = _reflection.GeneratedProtocolMessageType('FloatList', (_message.Message,), {
-  'DESCRIPTOR' : _FLOATLIST,
-  '__module__' : 'feast.types.Value_pb2'
+FloatList = _reflection.GeneratedProtocolMessageType('FloatList', (_message.Message,), dict(
+  DESCRIPTOR = _FLOATLIST,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.FloatList)
-  })
+  ))
 _sym_db.RegisterMessage(FloatList)
 
-BoolList = _reflection.GeneratedProtocolMessageType('BoolList', (_message.Message,), {
-  'DESCRIPTOR' : _BOOLLIST,
-  '__module__' : 'feast.types.Value_pb2'
+BoolList = _reflection.GeneratedProtocolMessageType('BoolList', (_message.Message,), dict(
+  DESCRIPTOR = _BOOLLIST,
+  __module__ = 'feast.types.Value_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.BoolList)
-  })
+  ))
 _sym_db.RegisterMessage(BoolList)
 
 

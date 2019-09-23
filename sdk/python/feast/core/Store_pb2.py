@@ -295,39 +295,39 @@ _STORE.fields_by_name['cassandra_config'].containing_oneof = _STORE.oneofs_by_na
 DESCRIPTOR.message_types_by_name['Store'] = _STORE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-Store = _reflection.GeneratedProtocolMessageType('Store', (_message.Message,), {
+Store = _reflection.GeneratedProtocolMessageType('Store', (_message.Message,), dict(
 
-  'RedisConfig' : _reflection.GeneratedProtocolMessageType('RedisConfig', (_message.Message,), {
-    'DESCRIPTOR' : _STORE_REDISCONFIG,
-    '__module__' : 'feast.core.Store_pb2'
+  RedisConfig = _reflection.GeneratedProtocolMessageType('RedisConfig', (_message.Message,), dict(
+    DESCRIPTOR = _STORE_REDISCONFIG,
+    __module__ = 'feast.core.Store_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.Store.RedisConfig)
-    })
+    ))
   ,
 
-  'BigQueryConfig' : _reflection.GeneratedProtocolMessageType('BigQueryConfig', (_message.Message,), {
-    'DESCRIPTOR' : _STORE_BIGQUERYCONFIG,
-    '__module__' : 'feast.core.Store_pb2'
+  BigQueryConfig = _reflection.GeneratedProtocolMessageType('BigQueryConfig', (_message.Message,), dict(
+    DESCRIPTOR = _STORE_BIGQUERYCONFIG,
+    __module__ = 'feast.core.Store_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.Store.BigQueryConfig)
-    })
+    ))
   ,
 
-  'CassandraConfig' : _reflection.GeneratedProtocolMessageType('CassandraConfig', (_message.Message,), {
-    'DESCRIPTOR' : _STORE_CASSANDRACONFIG,
-    '__module__' : 'feast.core.Store_pb2'
+  CassandraConfig = _reflection.GeneratedProtocolMessageType('CassandraConfig', (_message.Message,), dict(
+    DESCRIPTOR = _STORE_CASSANDRACONFIG,
+    __module__ = 'feast.core.Store_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.Store.CassandraConfig)
-    })
+    ))
   ,
 
-  'Subscription' : _reflection.GeneratedProtocolMessageType('Subscription', (_message.Message,), {
-    'DESCRIPTOR' : _STORE_SUBSCRIPTION,
-    '__module__' : 'feast.core.Store_pb2'
+  Subscription = _reflection.GeneratedProtocolMessageType('Subscription', (_message.Message,), dict(
+    DESCRIPTOR = _STORE_SUBSCRIPTION,
+    __module__ = 'feast.core.Store_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.Store.Subscription)
-    })
+    ))
   ,
-  'DESCRIPTOR' : _STORE,
-  '__module__' : 'feast.core.Store_pb2'
+  DESCRIPTOR = _STORE,
+  __module__ = 'feast.core.Store_pb2'
   # @@protoc_insertion_point(class_scope:feast.core.Store)
-  })
+  ))
 _sym_db.RegisterMessage(Store)
 _sym_db.RegisterMessage(Store.RedisConfig)
 _sym_db.RegisterMessage(Store.BigQueryConfig)

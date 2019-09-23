@@ -32,6 +32,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Component
@@ -51,16 +52,17 @@ public class ScheduledJobMonitor {
     this.statsdMetricPusher = statsdMetricPusher;
   }
 
+  @Transactional
   @Scheduled(
       fixedDelayString = "${feast.jobs.monitor.period}",
       initialDelayString = "${feast.jobs.monitor.initialDelay}")
   public void pollStatusAndMetrics() {
     getJobMetrics();
-    getJobStatus();
+    updateJobStatus();
   }
 
   /** Periodically pull status of job which is not in terminal state and update the status in DB. */
-  /* package */ void getJobStatus() {
+  /* package */ void updateJobStatus() {
     if (jobMonitor instanceof NoopJobMonitor) {
       return;
     }
@@ -106,7 +108,7 @@ public class ScheduledJobMonitor {
         continue;
       }
 
-      job.setMetrics(metrics);
+      job.updateMetrics(metrics);
       statsdMetricPusher.pushMetrics(metrics);
       jobInfoRepository.save(job);
     }

@@ -180,25 +180,25 @@ DESCRIPTOR.message_types_by_name['EntitySpec'] = _ENTITYSPEC
 DESCRIPTOR.message_types_by_name['FeatureSpec'] = _FEATURESPEC
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-FeatureSetSpec = _reflection.GeneratedProtocolMessageType('FeatureSetSpec', (_message.Message,), {
-  'DESCRIPTOR' : _FEATURESETSPEC,
-  '__module__' : 'feast.core.FeatureSet_pb2'
+FeatureSetSpec = _reflection.GeneratedProtocolMessageType('FeatureSetSpec', (_message.Message,), dict(
+  DESCRIPTOR = _FEATURESETSPEC,
+  __module__ = 'feast.core.FeatureSet_pb2'
   # @@protoc_insertion_point(class_scope:feast.core.FeatureSetSpec)
-  })
+  ))
 _sym_db.RegisterMessage(FeatureSetSpec)
 
-EntitySpec = _reflection.GeneratedProtocolMessageType('EntitySpec', (_message.Message,), {
-  'DESCRIPTOR' : _ENTITYSPEC,
-  '__module__' : 'feast.core.FeatureSet_pb2'
+EntitySpec = _reflection.GeneratedProtocolMessageType('EntitySpec', (_message.Message,), dict(
+  DESCRIPTOR = _ENTITYSPEC,
+  __module__ = 'feast.core.FeatureSet_pb2'
   # @@protoc_insertion_point(class_scope:feast.core.EntitySpec)
-  })
+  ))
 _sym_db.RegisterMessage(EntitySpec)
 
-FeatureSpec = _reflection.GeneratedProtocolMessageType('FeatureSpec', (_message.Message,), {
-  'DESCRIPTOR' : _FEATURESPEC,
-  '__module__' : 'feast.core.FeatureSet_pb2'
+FeatureSpec = _reflection.GeneratedProtocolMessageType('FeatureSpec', (_message.Message,), dict(
+  DESCRIPTOR = _FEATURESPEC,
+  __module__ = 'feast.core.FeatureSet_pb2'
   # @@protoc_insertion_point(class_scope:feast.core.FeatureSpec)
-  })
+  ))
 _sym_db.RegisterMessage(FeatureSpec)
 
 

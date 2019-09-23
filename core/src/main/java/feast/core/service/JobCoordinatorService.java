@@ -46,7 +46,8 @@ public class JobCoordinatorService {
 
   /**
    * Start or update a job given the list of FeatureSets to populate and the store to sink to. If
-   * there has been no change in the
+   * there has been no change in the featureSet, and there is a running job for the featureSet, this
+   * method will do nothing.
    */
   public JobInfo startOrUpdateJob(List<FeatureSetSpec> featureSetSpecs, StoreProto.Store store) {
     String featureSetName = featureSetSpecs.get(0).getName();
@@ -78,16 +79,12 @@ public class JobCoordinatorService {
   private Optional<JobInfo> getJob(String featureSetName, String storeName) {
     List<JobInfo> jobs = jobInfoRepository
         .findByFeatureSetsNameAndStoreName(featureSetName, storeName);
-    switch (jobs.size()) {
-      case 0:
-        return Optional.empty();
-      case 1:
-        return Optional.of(jobs.get(0));
-      default:
-        return jobs.stream()
-            .filter(job -> job.getStatus().equals(JobStatus.RUNNING))
-            .findFirst();
+    if (jobs.isEmpty()) {
+      return Optional.empty();
     }
+    return jobs.stream()
+        .filter(job -> !(JobStatus.getTerminalState().contains(job.getStatus())))
+        .findFirst();
   }
 
   /**

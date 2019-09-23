@@ -6,9 +6,12 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.Field.Builder;
+import com.google.cloud.bigquery.Field.Mode;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.StandardTableDefinition;
+import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
@@ -19,6 +22,7 @@ import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
 import feast.core.StoreProto.Store.RedisConfig;
+import feast.types.ValueProto.ValueType.Enum;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -48,59 +52,63 @@ import redis.clients.jedis.exceptions.JedisConnectionException;
 public class StorageUtil {
   private static final Map<ValueType.Enum, StandardSQLTypeName> VALUE_TYPE_TO_STANDARD_SQL_TYPE =
       new HashMap<>();
-
+  // Refer to protos/feast/core/Store.proto for the mapping definition.
   static {
-    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(ValueType.Enum.BOOL, StandardSQLTypeName.BOOL);
+    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.BYTES, StandardSQLTypeName.BYTES);
+    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.STRING, StandardSQLTypeName.STRING);
     VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(ValueType.Enum.INT32, StandardSQLTypeName.INT64);
     VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(ValueType.Enum.INT64, StandardSQLTypeName.INT64);
-    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(ValueType.Enum.BYTES, StandardSQLTypeName.BYTES);
-    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(ValueType.Enum.FLOAT, StandardSQLTypeName.FLOAT64);
     VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(ValueType.Enum.DOUBLE, StandardSQLTypeName.FLOAT64);
-    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(ValueType.Enum.STRING, StandardSQLTypeName.STRING);
+    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(ValueType.Enum.FLOAT, StandardSQLTypeName.FLOAT64);
+    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(ValueType.Enum.BOOL, StandardSQLTypeName.BOOL);
+    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.BYTES_LIST, StandardSQLTypeName.BYTES);
+    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.STRING_LIST, StandardSQLTypeName.STRING);
+    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.INT32_LIST, StandardSQLTypeName.INT64);
+    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.INT64_LIST, StandardSQLTypeName.INT64);
+    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.DOUBLE_LIST, StandardSQLTypeName.FLOAT64);
+    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.FLOAT_LIST, StandardSQLTypeName.FLOAT64);
+    VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.BOOL_LIST, StandardSQLTypeName.BOOL);
   }
 
+  @SuppressWarnings("DuplicatedCode")
   private static TableDefinition createBigQueryTableDefinition(FeatureSetSpec featureSetSpec) {
     List<Field> fields = new ArrayList<>();
-
     log.info("Table will have the following fields:");
+
     for (EntitySpec entitySpec : featureSetSpec.getEntitiesList()) {
-      Field field =
+      Builder builder =
           Field.newBuilder(
-                  entitySpec.getName(),
-                  VALUE_TYPE_TO_STANDARD_SQL_TYPE.get(entitySpec.getValueType()))
-              .build();
+              entitySpec.getName(), VALUE_TYPE_TO_STANDARD_SQL_TYPE.get(entitySpec.getValueType()));
+      if (entitySpec.getValueTypeValue() >= 7 && entitySpec.getValueTypeValue() <= 17) {
+        builder.setMode(Mode.REPEATED);
+      }
+      Field field = builder.build();
       log.info("- {}", field.toString());
       fields.add(field);
     }
     for (FeatureSpec featureSpec : featureSetSpec.getFeaturesList()) {
-      Field field =
+      Builder builder =
           Field.newBuilder(
-                  featureSpec.getName(),
-                  VALUE_TYPE_TO_STANDARD_SQL_TYPE.get(featureSpec.getValueType()))
-              .build();
+              featureSpec.getName(),
+              VALUE_TYPE_TO_STANDARD_SQL_TYPE.get(featureSpec.getValueType()));
+      if (featureSpec.getValueTypeValue() >= 7 && featureSpec.getValueTypeValue() <= 17) {
+        builder.setMode(Mode.REPEATED);
+      }
+      Field field = builder.build();
       log.info("- {}", field.toString());
       fields.add(field);
     }
 
-    // In Feast 0.3
-    // - "id" is a reserved field in BigQuery that indicates the entity id
-    // - "event_timestamp" is a reserved field in BigQuery that indicates the event time for a
-    // FeatureRow
-    // - "created_timestamp" is a reserved field in BigQuery that indicates the time a FeatureRow is
-    // crated in Feast
-    // - "job_id" is a reserved field in BigQuery that indicates the Feast import job id that writes
-    // the FeatureRows
+    // Refer to protos/feast/core/Store.proto for reserved fields in BigQuery.
     Map<String, Pair<StandardSQLTypeName, String>>
         reservedFieldNameToPairOfStandardSQLTypeAndDescription =
             ImmutableMap.of(
-                "id",
-                Pair.of(StandardSQLTypeName.STRING, "Entity ID for the FeatureRow"),
                 "event_timestamp",
                 Pair.of(StandardSQLTypeName.TIMESTAMP, "Event time for the FeatureRow"),
                 "created_timestamp",
                 Pair.of(
                     StandardSQLTypeName.TIMESTAMP,
-                    "The time when the FeatureRow is created in Feast"),
+                    "Processing time of the FeatureRow ingestion in Feast"),
                 "job_id",
                 Pair.of(StandardSQLTypeName.STRING, "Feast import job ID for the FeatureRow"));
     for (Map.Entry<String, Pair<StandardSQLTypeName, String>> entry :
@@ -115,6 +123,7 @@ public class StorageUtil {
 
     TimePartitioning timePartitioning =
         TimePartitioning.newBuilder(Type.DAY).setField("event_timestamp").build();
+    log.info("Table partitioning: " + timePartitioning.toString());
 
     return StandardTableDefinition.newBuilder()
         .setTimePartitioning(timePartitioning)
@@ -122,12 +131,24 @@ public class StorageUtil {
         .build();
   }
 
-  /** TODO: Add documentation */
+  /**
+   * This method ensures that, given a FeatureSetSpec object, the relevant BigQuery table is created
+   * with the correct schema.
+   *
+   * <p>Refer to protos/feast/core/Store.proto for the derivation of the table name and schema from
+   * a FeatureSetSpec object.
+   *
+   * @param featureSetSpec FeatureSetSpec object
+   * @param bigqueryProjectId BigQuery project id
+   * @param bigqueryDatasetId BigQuery dataset id
+   * @param bigquery BigQuery service object
+   */
   public static void setupBigQuery(
       FeatureSetSpec featureSetSpec,
       String bigqueryProjectId,
       String bigqueryDatasetId,
       BigQuery bigquery) {
+
     // Ensure BigQuery dataset exists.
     DatasetId datasetId = DatasetId.of(bigqueryProjectId, bigqueryDatasetId);
     if (bigquery.getDataset(datasetId) == null) {
@@ -135,27 +156,29 @@ public class StorageUtil {
       bigquery.create(DatasetInfo.of(datasetId));
     }
 
-    // Ensure BigQuery table with correct schema exists.
     String tableName =
-        String.format("%s_%d", featureSetSpec.getName(), featureSetSpec.getVersion());
+        String.format("%s_v%d", featureSetSpec.getName(), featureSetSpec.getVersion());
     TableId tableId = TableId.of(bigqueryProjectId, datasetId.getDataset(), tableName);
+
+    // Return if there is an existing table
+    Table table = bigquery.getTable(tableId);
+    if (table == null || table.exists()) {
+      log.info(
+          "Writing to existing BigQuery table '{}:{}.{}'",
+          bigqueryProjectId,
+          datasetId.getDataset(),
+          tableName);
+      return;
+    }
+
+    log.info(
+        "Creating table '{}' in dataset '{}' in project '{}'",
+        tableId.getTable(),
+        datasetId.getDataset(),
+        bigqueryProjectId);
     TableDefinition tableDefinition = createBigQueryTableDefinition(featureSetSpec);
     TableInfo tableInfo = TableInfo.of(tableId, tableDefinition);
-    if (bigquery.getTable(tableId) == null) {
-      log.info(
-          "Creating table '{}' in dataset '{}' in project '{}'",
-          tableId.getTable(),
-          datasetId.getDataset(),
-          bigqueryProjectId);
-      bigquery.create(tableInfo);
-    } else {
-      log.info(
-          "Updating table '{}' in dataset '{}' in project '{}'",
-          tableId.getTable(),
-          datasetId.getDataset(),
-          bigqueryProjectId);
-      bigquery.update(tableInfo);
-    }
+    bigquery.create(tableInfo);
   }
 
   /**
