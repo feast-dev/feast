@@ -224,16 +224,16 @@ message BatchFeaturesJob {
 message GetFeastServingTypeRequest {}
 
 message GetFeastServingTypeResponse {
+    FeastServingType type = 1;
+}
 
-    // Enumeration of Feast Serving types
-    enum type {
-        // Online Serving receives entity data directly and synchronously and will respond immediately
-        ONLINE = 0;
-
-        // Batch Serving receives entity data asynchronously and orchestrates the retrieval through a
-        // staging location
-        OFFLINE = 1;
-    }
+enum FeastServingType {
+    FEAST_SERVING_TYPE_INVALID = 0;
+    // Online Serving receives entity data directly and synchronously and will respond immediately
+    FEAST_SERVING_TYPE_ONLINE = 1;
+    // Batch Serving receives entity data asynchronously and orchestrates the retrieval through
+    // a staging location
+    FEAST_SERVING_TYPE_OFFLINE = 2;
 }
 
 message GetFeastServingVersionRequest {}
