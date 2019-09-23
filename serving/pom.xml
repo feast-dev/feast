@@ -199,6 +199,14 @@
       <version>1.91.0</version>
     </dependency>
 
+    <!-- OpenCensus, needed by Google Cloud -->
+    <dependency>
+      <groupId>io.opencensus</groupId>
+      <artifactId>opencensus-impl</artifactId>
+      <version>0.24.0</version>
+      <scope>runtime</scope>
+    </dependency>
+
 
     <!--compileOnly 'org.projectlombok:lombok:1.18.2'-->
     <dependency>

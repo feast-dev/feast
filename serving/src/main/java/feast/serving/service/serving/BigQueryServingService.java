@@ -37,6 +37,7 @@ public class BigQueryServingService implements ServingService {
 
   @Override
   public GetBatchFeaturesResponse getBatchFeatures(GetFeaturesRequest request) {
+
     return null;
   }
 

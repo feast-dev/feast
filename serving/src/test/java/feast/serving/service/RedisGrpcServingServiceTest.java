@@ -156,7 +156,7 @@ public class RedisGrpcServingServiceTest {
 //    GetFeaturesRequest request = GetFeaturesRequest.newBuilder()
 //        .addFeatureSets(featureSet).setEntityDataSet(entityDataSet).build();
 //
-    GetOnlineFeaturesResponse response = redisServingService.getOnlineFeatures(request);
+// GetOnlineFeaturesResponse response = redisServingService.getOnlineFeatures(request);
 //
 //    // Key does not exist in Redis, FeatureRow size == 0
 //    Assert.assertEquals(0, response.getFeatureDataSetsList().get(0).getFeatureRowsCount());

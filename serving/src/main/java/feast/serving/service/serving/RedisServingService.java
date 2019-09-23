@@ -19,6 +19,7 @@ package feast.serving.service.serving;
 import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Timestamp;
 import feast.serving.ServingAPIProto.BatchFeaturesJob.GetDownloadUrlRequest;
 import feast.serving.ServingAPIProto.BatchFeaturesJob.GetDownloadUrlResponse;
 import feast.serving.ServingAPIProto.BatchFeaturesJob.GetStatusRequest;
