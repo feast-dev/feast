@@ -34,6 +34,7 @@ from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from typing import List
 from collections import OrderedDict
 from typing import Dict
+from datetime import datetime
 import os
 import pandas as pd
 from feast.type_map import (
@@ -234,15 +235,9 @@ class Client:
                 raise Exception("Entity " + column + " could not be found")
             entity_data_field_names.append(column)
 
-        entity_dataset_rows = []
-        for _, row in entity_data.iterrows():
-            entity_dataset_row = GetFeaturesRequest.EntityDataSetRow()
-            for i in range(len(entity_data.columns[1:])):
-                proto_value = pandas_value_to_proto_value(
-                    entity_data[entity_data.columns[i+1]].dtype, row[i+1]
-                )
-                entity_dataset_row.value.append(proto_value)
-            entity_dataset_rows.append(entity_dataset_row)
+        entity_dataset_rows = entity_data.apply(
+            _convert_to_proto_value_fn(entity_data.dtypes), axis=1
+        ).to_list()
 
         feature_set_request = create_feature_set_request_from_feature_strings(
             feature_ids
@@ -268,6 +263,17 @@ class Client:
         return feature_dataframe
 
 
+def _convert_to_proto_value_fn(dtypes: pd.core.generic.NDFrame):
+    def convert_to_proto_value(row: pd.Series):
+        entity_dataset_row = GetFeaturesRequest.EntityDataSetRow()
+        for i in range(len(row) - 1):
+            proto_value = pandas_value_to_proto_value(dtypes[i + 1], row[i + 1])
+            entity_dataset_row.value.append(proto_value)
+        return entity_dataset_row
+
+    return convert_to_proto_value
+
+
 def feature_data_sets_to_pandas_dataframe(
     feature_sets: List[FeatureSet],
     entity_data_set: pd.DataFrame,
@@ -286,7 +292,9 @@ def feature_data_sets_to_pandas_dataframe(
 
         # Convert to Pandas DataFrame
         feature_data_set_dataframes.append(
-            feature_data_set_to_pandas_dataframe(feature_sets[feature_data_set.name], feature_data_set)
+            feature_data_set_to_pandas_dataframe(
+                feature_sets[feature_data_set.name], feature_data_set
+            )
         )
 
     # Join dataframes into a single feature dataframe
@@ -305,8 +313,7 @@ def join_feature_set_dataframes(
 
 
 def feature_data_set_to_pandas_dataframe(
-    feature_set: FeatureSet,
-    feature_data_set: GetOnlineFeaturesResponse.FeatureDataSet
+    feature_set: FeatureSet, feature_data_set: GetOnlineFeaturesResponse.FeatureDataSet
 ) -> pd.DataFrame:
     feature_set_name = feature_data_set.name
     dtypes = {}
@@ -342,8 +349,7 @@ def create_feature_set_request_from_feature_strings(
         if feature_set not in feature_set_request:
             feature_set_name, feature_set_version = feature_set.split(":")
             feature_set_request[feature_set] = GetFeaturesRequest.FeatureSet(
-                name=feature_set_name,
-                version=feature_set_version
+                name=feature_set_name, version=feature_set_version
             )
         feature_set_request[feature_set].feature_names.append(feature)
     return list(feature_set_request.values())

@@ -38,6 +38,7 @@ import feast.serving.exception.FeatureRetrievalException;
 import feast.storage.RedisProto.RedisKey;
 import feast.types.FeatureProto.Field;
 import feast.types.FeatureRowProto.FeatureRow;
+import feast.types.FeatureRowProto.FeatureRow.Builder;
 import feast.types.ValueProto.Value;
 import io.opentracing.Scope;
 import io.opentracing.Tracer;
@@ -83,25 +84,17 @@ public class RedisServingService implements ServingService {
       // Create a list of keys to be fetched from Redis
       List<FeatureSet> featureSets = request.getFeatureSetsList();
       for (FeatureSet featureSet : featureSets) {
-        List<RedisKey> redisKeys = new ArrayList<>();
-        String featureSetId = String.format("%s:%s", featureSet.getName(), featureSet.getVersion());
-        for (EntityDataSetRow entityDataSetRow : entityDataSetRows) {
-          redisKeys.add(makeRedisKey(featureSetId, entityNames, entityDataSetRow));
-        }
+        List<RedisKey> redisKeys = getRedisKeys(entityNames, entityDataSetRows, featureSet);
 
         // Convert ProtocolStringList to list of Strings
         List<String> requestedColumns = featureSet.getFeatureNamesList()
             .asByteStringList().stream()
             .map(ByteString::toStringUtf8)
             .collect(Collectors.toList());
-        requestedColumns.addAll(entityNames);
-        requestedColumns.add("datetime");
 
         List<FeatureRow> featureRows = new ArrayList<>();
         try {
           featureRows = sendAndProcessMultiGet(redisKeys, requestedColumns, featureSet);
-        } catch (NullPointerException e) {
-          log.error("No keys matching {} found in store", redisKeys);
         } catch (InvalidProtocolBufferException e) {
           log.error("Unable to parse protobuf", e);
           throw new FeatureRetrievalException("Unable to parse protobuf while retrieving feature",
@@ -113,6 +106,18 @@ public class RedisServingService implements ServingService {
         }
       }
       return getOnlineFeatureResponseBuilder.build();
+    }
+  }
+
+  private List<RedisKey> getRedisKeys(List<String> entityNames,
+      List<EntityDataSetRow> entityDataSetRows, FeatureSet featureSet) {
+    try (Scope scope = tracer.buildSpan("Redis-makeRedisKeys").startActive(true)) {
+      List<RedisKey> redisKeys = new ArrayList<>();
+      String featureSetId = String.format("%s:%s", featureSet.getName(), featureSet.getVersion());
+      for (EntityDataSetRow entityDataSetRow : entityDataSetRows) {
+        redisKeys.add(makeRedisKey(featureSetId, entityNames, entityDataSetRow));
+      }
+      return redisKeys;
     }
   }
 
@@ -162,16 +167,33 @@ public class RedisServingService implements ServingService {
     List<byte[]> jedisResps = sendMultiGet(redisKeys);
 
     List<FeatureRow> featureRows = new ArrayList<>();
-    for (byte[] jedisResp : jedisResps) {
-      FeatureRow featureRow = FeatureRow.parseFrom(jedisResp);
-      List<Field> fields = featureRow.getFieldsList().stream()
-          .filter(f -> requestedColumns.contains(f.getName())).collect(Collectors.toList());
-      featureRows.add(FeatureRow.newBuilder().addAllFields(fields)
-          .setEventTimestamp(featureRow.getEventTimestamp())
-          .setFeatureSet(String.format("%s:%s", featureSet.getName(), featureSet.getVersion()))
-          .build());
+
+    try (Scope scope = tracer.buildSpan("Redis-processResponse").startActive(true)) {
+      for (int i = 0; i < jedisResps.size(); i++) {
+        byte[] jedisResp = jedisResps.get(i);
+        if (jedisResp == null) {
+          Builder emptyFeatureRowBuilder = FeatureRow.newBuilder()
+              .setFeatureSet(String.format("%s:%s", featureSet.getName(), featureSet.getVersion()))
+              .addAllFields(redisKeys.get(i).getEntitiesList())
+              .setEventTimestamp(Timestamp.newBuilder().setSeconds(0).build());
+          for (String requestedColumn : requestedColumns) {
+            emptyFeatureRowBuilder.addFields(Field.newBuilder().setName(requestedColumn));
+          }
+          featureRows.add(emptyFeatureRowBuilder.build());
+        } else {
+          FeatureRow featureRow = FeatureRow.parseFrom(jedisResp);
+          List<Field> fields = featureRow.getFieldsList().stream()
+              .filter(f -> requestedColumns.contains(f.getName())).collect(Collectors.toList());
+          featureRows.add(FeatureRow.newBuilder()
+              .addAllFields(redisKeys.get(i).getEntitiesList())
+              .addAllFields(fields)
+              .setEventTimestamp(featureRow.getEventTimestamp())
+              .setFeatureSet(String.format("%s:%s", featureSet.getName(), featureSet.getVersion()))
+              .build());
+        }
+      }
+      return featureRows;
     }
-    return featureRows;
   }
 
   /**
@@ -206,15 +228,13 @@ public class RedisServingService implements ServingService {
    */
   private RedisKey makeRedisKey(String featureSet, List<String> entityNames,
       EntityDataSetRow entityDataSetRow) {
-    try (Scope scope = tracer.buildSpan("Redis-makeRedisKey").startActive(true)) {
-      RedisKey.Builder builder = RedisKey.newBuilder().setFeatureSet(featureSet);
-      for (int i = 0; i < entityNames.size(); i++) {
-        String entityName = entityNames.get(i);
-        Value entityVal = entityDataSetRow.getValue(i);
-        builder.addEntities(Field.newBuilder().setName(entityName).setValue(entityVal));
-      }
-      return builder.build();
+    RedisKey.Builder builder = RedisKey.newBuilder().setFeatureSet(featureSet);
+    for (int i = 0; i < entityNames.size(); i++) {
+      String entityName = entityNames.get(i);
+      Value entityVal = entityDataSetRow.getValue(i);
+      builder.addEntities(Field.newBuilder().setName(entityName).setValue(entityVal));
     }
+    return builder.build();
   }
 
 }
