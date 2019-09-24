@@ -22,7 +22,10 @@ package feast.serving.http;
 //import feast.serving.ServingAPIProto.QueryFeaturesRequest;
 //import feast.serving.ServingAPIProto.QueryFeaturesResponse;
 
+import feast.serving.ServingAPIProto.GetFeaturesRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -30,6 +33,12 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 public class ServingHttpService {
+
+  @RequestMapping(value = "/")
+  public String foo() {
+    return "Hello";
+  }
+
 //
 //  private final FeastServing feastServing;
 //

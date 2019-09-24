@@ -28,24 +28,24 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 public class HealthHttpService {
 
-  private final SpecService specService;
-
-  @Autowired
-  public HealthHttpService(SpecService specService) {
-    this.specService = specService;
-  }
-
-  @RequestMapping("/ping")
-  public String ping() {
-    return "pong";
-  }
-
-  @RequestMapping("/healthz")
-  public String healthz() {
-    if (specService.isConnected()) {
-      return "healthy";
-    }
-    log.error("not ready: unable to connect to core service");
-    throw new IllegalStateException("not ready: unable to connect to core service");
-  }
+  // private final SpecService specService;
+  //
+  // @Autowired
+  // public HealthHttpService(SpecService specService) {
+  //   this.specService = specService;
+  // }
+  //
+  // @RequestMapping("/ping")
+  // public String ping() {
+  //   return "pong";
+  // }
+  //
+  // @RequestMapping("/healthz")
+  // public String healthz() {
+  //   if (specService.isConnected()) {
+  //     return "healthy";
+  //   }
+  //   log.error("not ready: unable to connect to core service");
+  //   throw new IllegalStateException("not ready: unable to connect to core service");
+  // }
 }

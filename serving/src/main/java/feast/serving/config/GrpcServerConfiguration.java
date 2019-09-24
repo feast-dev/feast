@@ -17,26 +17,30 @@
 
 package feast.serving.config;
 
+import feast.serving.grpc.BigQueryServingService;
+import feast.serving.grpc.RedisServingService;
 import io.grpc.ServerBuilder;
-import java.util.concurrent.ExecutorService;
+import io.grpc.protobuf.services.ProtoReflectionService;
 import org.lognet.springboot.grpc.GRpcServerBuilderConfigurer;
 import org.springframework.stereotype.Component;
 
-/**
- * Configuration for Grpc server.
- */
+// Configuration for GRPC server.
 @Component
-public class GrpcServerConfigurer extends GRpcServerBuilderConfigurer {
+public class GrpcServerConfiguration extends GRpcServerBuilderConfigurer {
 
-  private final ExecutorService executorService;
-
-  public GrpcServerConfigurer(
-      ExecutorService executorService) {
-    this.executorService = executorService;
-  }
-
+  // private final ExecutorService executorService;
+  //
+  // public GrpcServerConfigurer(
+  //     ExecutorService executorService) {
+  //   this.executorService = executorService;
+  // }
+  //
   @Override
   public void configure(ServerBuilder<?> serverBuilder) {
-    serverBuilder.executor(executorService);
+    serverBuilder
+        .addService(new BigQueryServingService())
+        // Enable server reflection so assist client in runtime construction of requests
+        // https://github.com/grpc/grpc/blob/master/doc/server-reflection.md
+        .addService(ProtoReflectionService.newInstance());
   }
 }

@@ -90,7 +90,7 @@ message GetFeaturesRequest {
         repeated string feature_names = 3;
 
         // The features will be retrieved if:
-        // user_provided_unix_epoch - max_age  <= event_timestamp < user_provided_unix_epoch
+        // entity_timestamp - max_age  <= event_timestamp <= entity_timestamp
         //
         // If unspecified the default max_age specified in FeatureSetSpec will 
         // be used.
@@ -125,7 +125,7 @@ message GetFeaturesRequest {
         // latest is always retrieved.
         // 
         // The timestamp range is defined as follows:
-        // entity_timestamp - max_age <= event_timestamp < entity_timestamp
+        // entity_timestamp - max_age <= event_timestamp <= entity_timestamp
         google.protobuf.Timestamp entity_timestamp = 1;
 
         // The entity ids for which the feature values should be retrieved.
