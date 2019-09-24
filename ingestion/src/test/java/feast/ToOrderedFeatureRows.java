@@ -19,7 +19,7 @@ package feast;
 
 import com.google.common.collect.Lists;
 import com.google.common.primitives.UnsignedBytes;
-import feast.types.FeatureProto.Field;
+import feast.types.FieldProto.Field;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.List;

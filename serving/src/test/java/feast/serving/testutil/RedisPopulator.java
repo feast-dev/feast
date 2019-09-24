@@ -20,7 +20,7 @@ package feast.serving.testutil;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.storage.RedisProto.RedisKey;
-import feast.types.FeatureProto.Field;
+import feast.types.FieldProto.Field;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.ArrayList;
 import java.util.List;

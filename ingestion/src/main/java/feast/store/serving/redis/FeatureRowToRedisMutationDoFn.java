@@ -23,7 +23,7 @@
  import feast.storage.RedisProto.RedisKey.Builder;
  import feast.store.serving.redis.RedisCustomIO.Method;
  import feast.store.serving.redis.RedisCustomIO.RedisMutation;
- import feast.types.FeatureProto.Field;
+ import feast.types.FieldProto.Field;
  import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
  import feast.types.FeatureRowProto.FeatureRow;
  import java.util.Set;

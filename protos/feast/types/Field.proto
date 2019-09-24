@@ -21,7 +21,7 @@ import "feast/types/Value.proto";
 package feast.types;
 
 option java_package = "feast.types";
-option java_outer_classname = "FeatureProto";
+option java_outer_classname = "FieldProto";
 option go_package = "github.com/gojek/feast/protos/generated/go/feast/types";
 
 message Field {

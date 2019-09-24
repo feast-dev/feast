@@ -2,7 +2,7 @@ package feast.store.serving.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.protobuf.util.Timestamps;
-import feast.types.FeatureProto.Field;
+import feast.types.FieldProto.Field;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.Base64;
