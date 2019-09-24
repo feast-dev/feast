@@ -19,7 +19,7 @@ package feast.serving.testutil;
 
 import com.google.protobuf.ByteString;
 import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.types.FeatureProto.Field;
+import feast.types.FieldProto.Field;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.ValueProto.BoolList;
 import feast.types.ValueProto.BytesList;
