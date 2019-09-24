@@ -103,22 +103,34 @@ message GetFeaturesRequest {
         // EntityDataset if they are providing this dataset through a batch process.
         repeated string entity_names = 1;
 
-        // List of Unix epoch timestamp and entity id values
+        // List of Unix epoch entity_timestamp and entity_id values
         repeated EntityDatasetRow entity_dataset_rows = 2;
     }
 
-    message EntityDatasetRow {
-        // The first value (required) is a Unix epoch (seconds since epoch) in 
-        // INT64 Feast value type. Subsequent values are entity ids following 
-        // the order of entity_names in the entity_dataset.
+    // EntityDatasetRow specifies:
+    // - the timestamp range over which feature values should be retrieved (required for batch serving)
+    // - the specific entity ids that should be retrieved (required for online serving)
+    //
+    // If there are duplicate entity ids for the same timestamp range, only the 
+    // one with the latest event_timestamp will be retrieved.
+    //
+    // Entity ids may be ommitted for batch features retrieval. In this case,
+    // all entities with distinct entity ids within the valid timestamp range 
+    // will be retrieved.
+    message EntityDatasetRow  {
+        // entity_timestamp is the upper bound of the timestamp range over 
+        // which the feature values should be retrieved.
         // 
-        // Entity ids may be ommitted for batch features retrieval. In this case,
-        // all entities with distinct entity ids within the valid timestamp range 
-        // will be retrieved.
+        // The timestamp range is defined as follows:
+        // entity_timestamp - max_age <= event_timestamp < entity_timestamp
+        google.protobuf.Timestamp entity_timestamp = 0;
+
+        // The entity ids for which the feature values should be retrieved.
         // 
-        // The timestamp range is:
-        // user_provided_unix_epoch - max_age <= event_timestamp < user_provided_unix_epoch
-        repeated feast.types.Value value = 1;
+        // The order of the values should follow that in entity_names in EntityDataset.
+        // For online serving, it is required to specify entity_ids.
+        // For batch serving, it is optional.
+        repeated feast.types.Value entity_ids = 1;
     }
 }
 
