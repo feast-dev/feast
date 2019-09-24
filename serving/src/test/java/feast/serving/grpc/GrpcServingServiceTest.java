@@ -23,7 +23,7 @@ import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDataSet;
 import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDataSetRow;
 import feast.serving.ServingAPIProto.GetFeaturesRequest.FeatureSet;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
-import feast.serving.service.FeastServing;
+import feast.serving.service.serving.ServingService;
 import feast.types.ValueProto.Value;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -35,7 +35,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
-public class ServingGrpcServiceTest {
+public class GrpcServingServiceTest {
 
   private static final String FEATURE_SET_NAME = "feature_set_1";
   private static final String FEATURE_SET_VER = "1";
@@ -47,7 +47,7 @@ public class ServingGrpcServiceTest {
   private static final String FN_DRIVER_ID_VAL = "100";
 
   @Mock
-  private FeastServing mockFeastServing;
+  private ServingService mockServingService;
 
   @Mock
   private StreamObserver<GetOnlineFeaturesResponse> mockStreamObserver;
@@ -57,7 +57,7 @@ public class ServingGrpcServiceTest {
 
   private GetFeaturesRequest validRequest;
 
-  private ServingGrpcService service;
+  private GrpcServingService service;
 
   @Before
   public void setUp() {
@@ -68,13 +68,13 @@ public class ServingGrpcServiceTest {
         .setEntityDataSet(entityDataSet).build();
 
     Tracer tracer = Configuration.fromEnv("dummy").getTracer();
-    service = new ServingGrpcService(mockFeastServing, tracer, statsDClient);
+    service = new GrpcServingService(mockServingService, tracer, statsDClient);
   }
 
   @Test
   public void shouldPassValidRequestAsIs() {
     service.getOnlineFeatures(validRequest, mockStreamObserver);
-    Mockito.verify(mockFeastServing).getOnlineFeatures(validRequest);
+    Mockito.verify(mockServingService).getOnlineFeatures(validRequest);
   }
 
   @Test

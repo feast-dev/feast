@@ -15,7 +15,7 @@
  *
  */
 
-package feast.serving.service;
+package feast.serving.service.spec;
 
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
@@ -23,7 +23,7 @@ import feast.core.StoreProto.Store.Subscription;
 import java.util.List;
 import java.util.Map;
 
-public interface SpecStorage {
+public interface SpecService {
 
   /**
    * Get backing store information

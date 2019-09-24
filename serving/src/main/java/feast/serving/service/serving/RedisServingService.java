@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-package feast.serving.service;
+package feast.serving.service.serving;
 
 import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
+import feast.serving.ServingAPIProto.BatchFeaturesJob.GetDownloadUrlRequest;
+import feast.serving.ServingAPIProto.BatchFeaturesJob.GetDownloadUrlResponse;
 import feast.serving.ServingAPIProto.BatchFeaturesJob.GetStatusRequest;
 import feast.serving.ServingAPIProto.BatchFeaturesJob.GetStatusResponse;
 import feast.serving.ServingAPIProto.BatchFeaturesJob.GetUploadUrlRequest;
@@ -28,7 +30,6 @@ import feast.serving.ServingAPIProto.BatchFeaturesJob.SetUploadCompleteRequest;
 import feast.serving.ServingAPIProto.BatchFeaturesJob.SetUploadCompleteResponse;
 import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
-import feast.serving.ServingAPIProto.GetFeastServingVersionResponse;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
 import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDataSetRow;
 import feast.serving.ServingAPIProto.GetFeaturesRequest.FeatureSet;
@@ -52,23 +53,14 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 
 @Slf4j
-public class RedisFeastServing implements FeastServing {
+public class RedisServingService implements ServingService {
 
   private final JedisPool jedisPool;
   private final Tracer tracer;
 
-  public RedisFeastServing(JedisPool jedisPool, Tracer tracer) {
+  public RedisServingService(JedisPool jedisPool, Tracer tracer) {
     this.jedisPool = jedisPool;
     this.tracer = tracer;
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public GetFeastServingVersionResponse getFeastServingVersion() {
-    String artifactVersion = this.getClass().getPackage().getImplementationVersion();
-    return GetFeastServingVersionResponse.newBuilder().setVersion(artifactVersion).build();
   }
 
   /**
@@ -140,6 +132,11 @@ public class RedisFeastServing implements FeastServing {
   @Override
   public GetStatusResponse getBatchFeaturesJobStatus(GetStatusRequest request) {
     // Not implemented
+    return null;
+  }
+
+  @Override
+  public GetDownloadUrlResponse getBatchFeaturesDownloadUrl(GetDownloadUrlRequest request) {
     return null;
   }
 

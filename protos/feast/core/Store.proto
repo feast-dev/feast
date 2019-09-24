@@ -21,10 +21,10 @@ option java_package = "feast.core";
 option java_outer_classname = "StoreProto";
 option go_package = "github.com/gojek/feast/protos/generated/go/feast/core";
 
-// Store provides a location to which Feast reads and writes feature values.
+// Store provides a location where Feast reads and writes feature values.
 // Feature values will be written to the Store in the form of FeatureRow elements.
 // The way FeatureRow is encoded and decoded when it is written to and read from
-// the store depends on the type of the Store. 
+// the Store depends on the type of the Store.
 //
 // For example, a FeatureRow will materialize as a row in a table in 
 // BigQuery but it will materialize as a key, value pair element in Redis.
@@ -71,7 +71,7 @@ message Store {
     // - created_timestamp | TIMESTAMP        | processing time of the ingestion of the FeatureRow
     // - job_id            | STRING           | identifier for the job that writes the FeatureRow to the corresponding BigQuery table
     //
-    // BigQuery table created will be partitioned by the event_timestamp field 
+    // BigQuery table created will be partitioned by the field "event_timestamp"
     // of the FeatureRow (https://cloud.google.com/bigquery/docs/partitioned-tables).
     //
     // Since newer version of feature set can introduce breaking, non backward-
@@ -98,7 +98,7 @@ message Store {
     // FLOAT_LIST  : ARRAY
     // BOOL_LIST   : ARRAY
     //
-    // The column mode in BigQuery is set to Nullable such that unset Value 
+    // The column mode in BigQuery is set to "Nullable" such that unset Value
     // in a FeatureRow corresponds to NULL value in BigQuery.
     //
     BIGQUERY = 2;

@@ -20,11 +20,11 @@ package feast.serving.config;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import feast.core.StoreProto.Store;
-import feast.serving.service.CachedSpecStorage;
-import feast.serving.service.CoreService;
-import feast.serving.service.FeastServing;
-import feast.serving.service.RedisFeastServing;
-import feast.serving.service.SpecStorage;
+import feast.serving.service.spec.CachedSpecService;
+import feast.serving.service.spec.CoreSpecService;
+import feast.serving.service.serving.ServingService;
+import feast.serving.service.serving.RedisServingService;
+import feast.serving.service.spec.SpecService;
 import io.opentracing.Tracer;
 import io.opentracing.contrib.concurrent.TracedExecutorService;
 import java.util.List;
@@ -71,13 +71,13 @@ public class ServingApiConfiguration implements WebMvcConfigurer {
   }
 
   @Bean
-  public SpecStorage getCoreServiceSpecStorage(
+  public SpecService getCoreServiceSpecStorage(
       @Value("${feast.store.id}") String storeId,
       @Value("${feast.core.host}") String coreServiceHost,
       @Value("${feast.core.grpc.port}") String coreServicePort,
       @Value("${feast.cacheDurationMinute}") int cacheDurationMinute) {
-    final CachedSpecStorage cachedSpecStorage =
-        new CachedSpecStorage(new CoreService(coreServiceHost, Integer.parseInt(coreServicePort)),
+    final CachedSpecService cachedSpecStorage =
+        new CachedSpecService(new CoreSpecService(coreServiceHost, Integer.parseInt(coreServicePort)),
             storeId);
 
     // reload all specs including new ones periodically
@@ -94,14 +94,14 @@ public class ServingApiConfiguration implements WebMvcConfigurer {
   }
 
   @Bean
-  public FeastServing getFeastServing(
+  public ServingService getFeastServing(
       @Value("${feast.store.id}") String storeId,
       @Value("${feast.core.host}") String coreServiceHost,
       @Value("${feast.core.grpc.port}") String coreServicePort,
       AppConfig appConfig,
       Tracer tracer) {
-    CoreService coreService = new CoreService(coreServiceHost, Integer.parseInt(coreServicePort));
-    Store store = coreService.getStoreDetails(storeId);
+    CoreSpecService coreSpecService = new CoreSpecService(coreServiceHost, Integer.parseInt(coreServicePort));
+    Store store = coreSpecService.getStoreDetails(storeId);
 
     switch (store.getType()) {
       case REDIS:
@@ -110,7 +110,7 @@ public class ServingApiConfiguration implements WebMvcConfigurer {
         poolConfig.setMaxIdle(appConfig.getRedisMaxIdleSize());
         JedisPool jedisPool = new JedisPool(poolConfig, store.getRedisConfig().getHost(),
             store.getRedisConfig().getPort());
-        return new RedisFeastServing(jedisPool, tracer);
+        return new RedisServingService(jedisPool, tracer);
       case BIGQUERY:
         // TODO: Implement connection to BigQuery
         return null;

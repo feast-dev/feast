@@ -17,6 +17,8 @@
 
 package feast.serving.service;
 
+import feast.serving.service.spec.CachedSpecService;
+import feast.serving.service.spec.SpecService;
 import feast.serving.testutil.FakeRedisCoreService;
 import org.junit.Assert;
 import org.junit.Before;
@@ -24,15 +26,15 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-public class CachedSpecStorageTest {
+public class CachedSpecServiceTest {
 
   private static final String STORE_ID = "SERVING";
 
   @Mock
-  CachedSpecStorage cachedSpecStorage;
+  CachedSpecService cachedSpecStorage;
 
   @Mock
-  SpecStorage fakeCoreService;
+  SpecService fakeCoreService;
 
   @Before
   public void setUp() {
@@ -44,7 +46,7 @@ public class CachedSpecStorageTest {
   public void populateCache_shouldPassStoreFetched() {
     // Store details not fetched from CoreService
     Assert.assertNull(cachedSpecStorage.getStoreDetails(STORE_ID));
-    final CachedSpecStorage cachedSpecStorage = new CachedSpecStorage(fakeCoreService, STORE_ID);
+    final CachedSpecService cachedSpecStorage = new CachedSpecService(fakeCoreService, STORE_ID);
     cachedSpecStorage.populateCache();
     // Store details fetched from CoreService
     Assert.assertNotNull(cachedSpecStorage.getStoreDetails(STORE_ID));

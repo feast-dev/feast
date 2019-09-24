@@ -15,7 +15,7 @@
  *
  */
 
-package feast.serving.service;
+package feast.serving.service.spec;
 
 import feast.core.CoreServiceGrpc;
 import feast.core.CoreServiceProto.GetFeatureSetsRequest;
@@ -40,16 +40,16 @@ import lombok.extern.slf4j.Slf4j;
  * Class responsible for retrieving Feature, Entity, and Storage Spec from Feast Core service.
  */
 @Slf4j
-public class CoreService implements SpecStorage {
+public class CoreSpecService implements SpecService {
 
   private final ManagedChannel channel;
   private final CoreServiceGrpc.CoreServiceBlockingStub blockingStub;
 
-  public CoreService(String host, int port) {
+  public CoreSpecService(String host, int port) {
     this(ManagedChannelBuilder.forAddress(host, port));
   }
 
-  public CoreService(ManagedChannelBuilder<?> channelBuilder) {
+  public CoreSpecService(ManagedChannelBuilder<?> channelBuilder) {
     channel = channelBuilder.usePlaintext(true).build();
     blockingStub = CoreServiceGrpc.newBlockingStub(channel);
   }

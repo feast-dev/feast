@@ -108,7 +108,6 @@
       <version>${springBootVersion}</version>
     </dependency>
 
-
     <!--compile "io.grpc:grpc-netty:${grpcVersion}"-->
     <dependency>
       <groupId>io.grpc</groupId>
@@ -134,13 +133,6 @@
       <version>${protobufVersion}</version>
     </dependency>
 
-
-    <!--compile 'com.google.cloud.bigtable:bigtable-hbase-2.x-shaded:1.5.0'-->
-    <dependency>
-      <groupId>com.google.cloud.bigtable</groupId>
-      <artifactId>bigtable-hbase-2.x-shaded</artifactId>
-      <version>1.5.0</version>
-    </dependency>
     <!--compile 'redis.clients:jedis:2.9.0'-->
     <dependency>
       <groupId>redis.clients</groupId>
@@ -182,7 +174,6 @@
       <version>0.2.0</version>
     </dependency>
 
-
     <!--compile 'io.micrometer:micrometer-core:1.0.7'-->
     <dependency>
       <groupId>io.micrometer</groupId>
@@ -201,6 +192,22 @@
       <version>2.6.1</version>
     </dependency>
 
+    <!-- Google Cloud -->
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-bigquery</artifactId>
+      <version>1.91.0</version>
+    </dependency>
+
+    <!-- OpenCensus, needed by Google Cloud -->
+    <dependency>
+      <groupId>io.opencensus</groupId>
+      <artifactId>opencensus-impl</artifactId>
+      <version>0.24.0</version>
+      <scope>runtime</scope>
+    </dependency>
+
+
     <!--compileOnly 'org.projectlombok:lombok:1.18.2'-->
     <dependency>
       <groupId>org.projectlombok</groupId>
@@ -208,7 +215,6 @@
       <version>1.18.2</version>
       <scope>provided</scope>
     </dependency>
-
 
     <!--testCompile "io.grpc:grpc-testing:${grpcVersion}"-->
     <dependency>
@@ -242,6 +248,12 @@
       <groupId>com.google.guava</groupId>
       <artifactId>guava-testlib</artifactId>
       <version>26.0-jre</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>RELEASE</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
