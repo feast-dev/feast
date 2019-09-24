@@ -120,6 +120,9 @@ message GetFeaturesRequest {
     message EntityDatasetRow  {
         // entity_timestamp is the upper bound of the timestamp range over 
         // which the feature values should be retrieved.
+        //
+        // For online serving entity_timestamp is optional (ignored), as the 
+        // latest is always retrieved.
         // 
         // The timestamp range is defined as follows:
         // entity_timestamp - max_age <= event_timestamp < entity_timestamp
