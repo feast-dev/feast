@@ -19,6 +19,7 @@ syntax = "proto3";
 package feast.serving;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
 import "feast/types/Value.proto";
 import "feast/types/FeatureRow.proto";
 
@@ -27,83 +28,115 @@ option java_outer_classname = "ServingAPIProto";
 option go_package = "github.com/gojek/feast/protos/generated/go/feast/serving";
 
 service ServingService {
-    // Retrieve version information about this Feast deployment
+    // Get version information about this Feast serving.
     rpc GetFeastServingVersion (GetFeastServingVersionRequest) returns (GetFeastServingVersionResponse);
 
-    // Get Feast serving storage type (online or batch)
+    // Get Feast serving store type: online or batch.
     rpc GetFeastServingType (GetFeastServingTypeRequest) returns (GetFeastServingTypeResponse);
 
-    // Get online features from Feast serving. This is a synchronous response.
+    // Get online features synchronously.
     rpc GetOnlineFeatures (GetFeaturesRequest) returns (GetOnlineFeaturesResponse);
 
-    // Get batch features from Feast serving. This is an async job.
+    // Get batch features asynchronously. 
+    // 
+    // The client should check and reload the status of the returned job 
+    // periodically to determine if the job has completed successfully or with 
+    // an error. If the job completes successfully, the client shoud call 
+    // GetBatchFeaturesFromCompletedJob to retrieve the feature values.
     rpc GetBatchFeatures (GetFeaturesRequest) returns (GetBatchFeaturesResponse);
 
-    // Get the current status of a batch feature request job
-    rpc GetBatchFeaturesJobStatus (BatchFeaturesJob.GetStatusRequest) returns (BatchFeaturesJob.GetStatusResponse);
+    // Get the URI(s) to download batch feature values from a succesful download job.
+    rpc GetBatchFeaturesFromCompletedJob (GetBatchFeaturesFromCompletedJobRequest) returns (GetBatchFeaturesFromCompletedJobResponse);
 
-    // Request a signed URL to download batch features retrieved by a specific job
-    rpc GetBatchFeaturesDownloadUrl (BatchFeaturesJob.GetDownloadUrlRequest) returns (BatchFeaturesJob.GetDownloadUrlResponse);
+    // Get the URI prefix where the client can upload files to be accessed by Feast serving.
+    rpc GetStagingLocation (GetStagingLocationRequest) returns (GetStagingLocationResponse);
 
-    // Request a signed URL where a Feast client can upload user entity data
-    rpc GetBatchFeaturesJobUploadUrl (BatchFeaturesJob.GetUploadUrlRequest) returns (BatchFeaturesJob.GetUploadUrlResponse);
+    // Load batch features from a list of source URIs asynchronously. The source 
+    // URIs must represent a feature set of a specific version.
+    rpc LoadBatchFeatures (LoadBatchFeaturesRequest) returns (LoadBatchFeaturesResponse);
+    
+    // Reload the job status with the latest state.
+    rpc ReloadJobStatus(ReloadJobStatusRequest) returns (ReloadJobStatusResponse);
+}
 
-    // Set the state of the batch feature job to complete after user entity data has been uploaded
-    rpc SetBatchFeaturesJobUploadComplete (BatchFeaturesJob.SetUploadCompleteRequest) returns (BatchFeaturesJob.SetUploadCompleteResponse);
+message GetFeastServingVersionRequest {}
+
+message GetFeastServingVersionResponse {
+    string version = 1;
+}
+
+message GetFeastServingTypeRequest {}
+
+message GetFeastServingTypeResponse {
+    FeastServingType type = 1;
 }
 
 message GetFeaturesRequest {
     // List of feature sets and their features that are being retrieved
-    repeated FeatureSet featureSets = 1;
+    repeated FeatureSet feature_sets = 1;
 
     // Dataset containing timestamp and entity id data. Used during retrieval of feature rows
     // and for joining feature rows into a final dataset
-    EntityDataSet entityDataSet = 2;
+    EntityDataset entity_dataset = 2;
 
     message FeatureSet {
         // Feature set name
         string name = 1;
 
         // Feature set version
-        string version = 2;
+        int32 version = 2;
 
         // Features that should be retrieved from this feature set
         repeated string feature_names = 3;
+
+        // The features will be retrieved if:
+        // user_provided_unix_epoch - max_age  <= event_timestamp < user_provided_unix_epoch
+        //
+        // If unspecified the default max_age specified in FeatureSetSpec will 
+        // be used.
+        google.protobuf.Duration max_age = 4;
     }
 
-    message EntityDataSet {
+    message EntityDataset {
         // List of entity names contained within this incoming request. Each entity name is globally
         // unique within Feast. The user is assumed to have used the exact column name in their
         // EntityDataset if they are providing this dataset through a batch process.
-        repeated string fieldNames = 1;
+        repeated string entity_names = 1;
 
-        // List of timestamp and entity id values
-        repeated EntityDataSetRow entity_data_set_rows = 2;
+        // List of Unix epoch timestamp and entity id values
+        repeated EntityDatasetRow entity_dataset_rows = 2;
     }
 
-    message EntityDataSetRow {
-        // List of timestamp and entity id values. The first value is always a Unix timestamp at
-        // UTC+0. All subsequent values are entity ids in order of the entityNames list in the
-        // wrapping message
+    message EntityDatasetRow {
+        // The first value (required) is a Unix epoch (seconds since epoch) in 
+        // INT64 Feast value type. Subsequent values are entity ids following 
+        // the order of entity_names in the entity_dataset.
+        // 
+        // Entity ids may be ommitted for batch features retrieval. In this case,
+        // all entities with distinct entity ids within the valid timestamp range 
+        // will be retrieved.
+        // 
+        // The timestamp range is:
+        // user_provided_unix_epoch - max_age <= event_timestamp < user_provided_unix_epoch
         repeated feast.types.Value value = 1;
     }
 }
 
 message GetOnlineFeaturesResponse {
     // A FeatureDataSet is returned for each feature set in the incoming request
-    repeated FeatureDataSet feature_data_sets = 2;
+    repeated FeatureDataset feature_datasets = 2;
 
     // The FeatureDataSet contains information about the Feature Set in the incoming request,
     // as well as feature data that can be joined to the incoming EntityDataSet. The row count
     // for the returning FeatureDataSet will match that of the row count for the incoming
     // EntityDataSet.
     // If any of the keys do not have values, empty feature rows will be returned.
-    message FeatureDataSet {
+    message FeatureDataset {
         // Feature set name
         string name = 1;
 
         // Feature set version
-        string version = 2;
+        int32 version = 2;
 
         // Each feature data set contains a list of feature rows. The timestamps within the row
         // are the original event timestamps from when that row was written to the backing store.
@@ -114,131 +147,128 @@ message GetOnlineFeaturesResponse {
 }
 
 message GetBatchFeaturesResponse {
-    // Batch feature retrieval returns a job Id that can be used to monitor the state of the
-    // retrieval process
-    string jobUUID = 1;
+    Job job = 1;
 }
 
-message BatchFeaturesJob {
-
-    enum Status {
-        STATUS_INVALID = 0;
-
-        // Waiting for an entity dataset to be uploaded to a staging location. Typically this is
-        // done by the Feast SDK.
-        STATUS_WAITING_FOR_ENTITY_DATASET = 1;
-
-        // Feast serving is busy loading entity dataset into backing store
-        STATUS_LOADING_ENTITY_DATASET = 2;
-
-        // Feast serving is orchestrating the creation of a feature data set using
-        // the entity data set
-        STATUS_BUILDING_FEATURE_DATASET = 3;
-
-        // Feast serving is orchestrating the export of the feature data set from
-        // the backing store
-        STATUS_EXPORTING_FEATURE_DATASET = 4;
-
-        // Job has been completed
-        STATUS_DONE = 5;
-
-        // An error occurred during the execution of this job
-        STATUS_ERROR = 6;
-    }
-
-    enum HttpMethod {
-        HTTP_METHOD_INVALID = 0;
-        HTTP_METHOD_GET = 1;
-        HTTP_METHOD_PUT = 2;
-    }
-
-    enum FileType {
-        FILE_TYPE_INVALID = 0;
-        FILE_TYPE_CSV = 1;
-        FILE_TYPE_PARQUET = 2;
-    }
-
-    // Message used to query the status of a batch feature retrieval job
-    message GetStatusRequest {
-        string jobUUID = 1;
-    }
-
-    // Message response indicating the status of a batch feature retrieval job
-    message GetStatusResponse {
-        Status status = 1;
-
-        // Message which accompanies the relevant status code. This should be displayed
-        // to the end user in order to facilitate debugging.
-        string message = 2;
-    }
-
-    message GetDownloadUrlRequest {
-        // Job Id associated to this request
-        string job_UUID = 1;
-    }
-
-    message GetDownloadUrlResponse {
-        // Url specifies the full signed URL where a client can make a request to download a file from GCS
-        string url = 1;
-
-        HttpMethod http_method = 2;
-
-        // Expiration specifies the timestamp until which the signed URL is valid
-        google.protobuf.Timestamp expiration = 3;
-
-        FileType file_type = 4;
-    }
-
-    // This message allows for a staging location to be requested in order to upload an entity data set
-    message GetUploadUrlRequest {
-
-        // Job Id associated to this request
-        string job_UUID = 1;
-
-        // Type of file that will be uploaded. Feast Serving needs to maintain this type in order to
-        // interpret the entity dataset when loading it into the backing store
-        FileType file_type = 2;
-    }
-
-    // This message response provides a URL to the caller to upload and stage an entity data set
-    message GetUploadUrlResponse {
-        // Url specifies the full signed URL where a client can make a request to upload file to GCS
-        string url = 1;
-
-        HttpMethod http_method = 2;
-
-        // Expiration specifies the timestamp until which the signed URL is valid
-        google.protobuf.Timestamp expiration = 3;
-    }
-
-    // Notifies Feast Serving that the specific upload request has been completed for a job Id
-    message SetUploadCompleteRequest {
-        string job_UUID = 1;
-    }
-
-    // Notifies caller that the staged file has been found and will be ingested into the backing store
-    message SetUploadCompleteResponse {
-        bool success = 1;
-    }
+message GetBatchFeaturesFromCompletedJobRequest {
+    Job job = 1;
 }
 
-message GetFeastServingTypeRequest {}
+message GetBatchFeaturesFromCompletedJobResponse {
+    // The list of URIs for the files containing the batch feature values requested.
+    // 
+    // Feast may retrieve the batch features and save them into multiple sharded
+    // files for improving performance and reliability. The client is expected
+    // to join these sharded files manually.
+    repeated string download_uris = 1;
 
-message GetFeastServingTypeResponse {
-    FeastServingType type = 1;
+    // Data format of the file. All files will have the same data format.
+    // For CSV, the files will contain both feature values and a column header.
+    DataFormat data_format = 2; 
+}
+
+message GetStagingLocationRequest {}
+
+message GetStagingLocationResponse {
+    // The URI where the client can upload the files containing feature values.
+    //
+    // This URI acts as a staging location before the files are read by Feast.
+    // The client should upload their feature values files to the path prefixed
+    // by this URI. Note that the returned URI contains no trailing forward 
+    // slash, the client should add a forward slash before appending the 
+    // rest of the file paths to be uploaded.
+    //
+    // For example, 
+    // If the URI is "gs://bucket/staging", the client should upload "file_1.csv" 
+    // to "gs://bucket/staging/file_1.csv"
+    string uri = 1;
+}
+
+message LoadBatchFeaturesRequest {
+    // The feature set name for this batch features.
+    string feature_set_name = 1;
+
+    // The version of the feature set for this batch features.
+    int32 feature_set_version = 2;
+
+    // Source URIs for the files containing feature values that should be loaded
+    // to Feast. 
+    //
+    // The client should call GetStagingLocation beforehand to get the URI to 
+    // upload the feature values files. Feast may not load the files in the 
+    // source URIs in order.
+    // 
+    // Example source URIs: 
+    // - gs://bucket/features_1.csv
+    // - gs://bucket/features_2.csv
+    repeated string source_uris = 3;
+    
+    // Data format for the feature values file. 
+    // 
+    // All files must be of the same data format. If the data format is CSV, 
+    // the first row must be a column header and Feast will infer the data types
+    // of the feature values. For more deterministic and less error prone 
+    // batch feature loading, the client should use AVRO or PARQUET data format.
+    //
+    // Feast expects the column names of the features from the file to match 
+    // the entity names or feature names in the feature set. Although the column
+    // names need not match all the features names in the feature set, at least 
+    // one of the column names must match one of the entity names. If not, 
+    // the load job will fail.
+    DataFormat data_format = 4;
+
+    
+}
+
+message LoadBatchFeaturesResponse {
+    Job job = 1;
+}
+
+message ReloadJobStatusRequest {
+    Job job = 1;
+}
+
+message ReloadJobStatusResponse {
+    Job job = 1;
 }
 
 enum FeastServingType {
     FEAST_SERVING_TYPE_INVALID = 0;
-    // Online Serving receives entity data directly and synchronously and will respond immediately
+    // Online serving receives entity data directly and synchronously and will 
+    // respond immediately.
     FEAST_SERVING_TYPE_ONLINE = 1;
-    // Batch Serving receives entity data asynchronously and orchestrates the retrieval through
-    // a staging location
-    FEAST_SERVING_TYPE_OFFLINE = 2;
+    // Batch serving receives entity data asynchronously and orchestrates the 
+    // retrieval through a staging location.
+    FEAST_SERVING_TYPE_BATCH = 2;
 }
 
-message GetFeastServingVersionRequest {}
+enum JobType {
+    JOB_TYPE_INVALID = 0;
+    JOB_TYPE_DOWNLOAD = 1;
+    JOB_TYPE_UPLOAD = 2;
+}
 
-message GetFeastServingVersionResponse {
-    string version = 1;
+enum JobStatus {
+    JOB_STATUS_INVALID = 0;
+    JOB_STATUS_PENDING = 1;
+    JOB_STATUS_RUNNING = 2;
+    JOB_STATUS_DONE = 3;
+}
+
+enum DataFormat {
+    DATA_FORMAT_INVALID = 0;
+    DATA_FORMAT_CSV = 1;
+    DATA_FORMAT_PARQUET = 2;
+    DATA_FORMAT_AVRO = 3;
+    DATA_FORMAT_JSON = 4;
+}
+
+message Job {
+    string id = 1;
+    // Output only. The type of the job.
+    JobType type = 2;
+    // Output only. Current state of the job.
+    JobStatus status = 3;
+    // Output only. If not empty, the job has failed with this error message.
+    string error = 4;
 }
