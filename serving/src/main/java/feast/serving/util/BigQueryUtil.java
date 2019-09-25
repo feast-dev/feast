@@ -49,6 +49,7 @@ public class BigQueryUtil {
                       "%s.%s %s_%s", tableName, featureName, featureSet.getName(), featureName));
             }
           }
+          columnsSelected.add(String.format("%s.event_timestamp", getTableName(featureSets.get(0))));
           String query =
               createQueryForFeatureSet(
                   featureSets.get(0),
