@@ -15,24 +15,25 @@
 
 import logging
 
+import os
+import multiprocessing
 import pandas as pd
+from math import ceil
 from typing import List
 from collections import OrderedDict
 from typing import Dict
-from feast.source import Source, KafkaSource
+from feast.source import Source
 from feast.type_map import dtype_to_value_type
 from pandas.api.types import is_datetime64_ns_dtype
 from feast.entity import Entity
 from feast.feature import Feature, Field
 from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
-from feast.core.Source_pb2 import Source as SourceProto
 from feast.types import FeatureRow_pb2 as FeatureRow
 from google.protobuf.timestamp_pb2 import Timestamp
 from kafka import KafkaProducer
 from tqdm import tqdm
 from feast.type_map import pandas_dtype_to_feast_value_type
 from feast.types import (
-    Value_pb2 as ValueProto,
     FeatureRow_pb2 as FeatureRowProto,
     Field_pb2 as FieldProto,
 )
@@ -40,6 +41,7 @@ from feast.type_map import pandas_value_to_proto_value
 
 _logger = logging.getLogger(__name__)
 DATETIME_COLUMN = "datetime"  # type: str
+CPU_COUNT = multiprocessing.cpu_count()  # type: int
 
 
 class FeatureSet:
@@ -246,9 +248,62 @@ class FeatureSet:
             )
         self._add_fields(list(fields.values()))
 
-    def ingest(
+    def ingest(self, dataframe: pd.DataFrame, force_update: bool = False, timeout: int = 5, max_workers: int = CPU_COUNT):
+        """
+        Write rows in dataframe as feature rows into a Kafka topic. If the dataframe has more than 5000 rows,
+        do a batch ingest, otherwise, ingest dataframe normally.
+        :param dataframe: Dataframe containing the input data to be ingested.
+        :param force_update: Flag to update feature set from data set and re-register if changed.
+        :param timeout: Timeout in seconds to wait for completion.
+        :param max_workers: The maximum number of threads that can be used to execute the given calls.
+        :return:
+        """
+        # ingest_batch if dataframe rows > 10000
+        if dataframe.shape[0] > 10000:
+            _logger.info("Performing batch upload.")
+            return self.ingest_batch(dataframe, force_update, timeout, max_workers)
+        else:
+            _logger.info("Performing upload.")
+            self.ingest_one(dataframe, force_update, timeout)
+
+    def ingest_batch(self, dataframe: pd.DataFrame, force_update: bool = False, timeout: int = 5, max_workers=CPU_COUNT):
+        """
+        Fragments a large dataframe into n smaller dataframes, where n = max_workers.
+        The smaller dataframes will be loaded into a Kafka topic in parallel using concurrent.futures and `~mymodule.feature_set.ingest`.
+        :param dataframe: Dataframe containing the input data to be ingested.
+        :param force_update: Flag to update feature set from data set and re-register if changed.
+        :param timeout: Timeout in seconds to wait for completion.
+        :param max_workers: The maximum number of threads that can be used to execute the given calls.
+        :return:
+        """
+        # split dataframe into smaller dataframes
+        n = ceil(dataframe.shape[0] / max_workers)
+        list_df = [dataframe[i:min(i+n, dataframe.shape[0])] for i in range(0, dataframe.shape[0], n)]
+
+        try:
+            processes = []
+            for i in range(max_workers):
+                _logger.info(f'Starting process number = {i+1}')
+                p = multiprocessing.Process(target=self.ingest_one, args=(list_df[i], force_update, timeout))
+                p.start()
+                processes.append(p)
+
+            for p in processes:
+                _logger.info('Joining processes')
+                p.join()
+        except Exception as ex:
+            _logger.error(f'Exception occured: {ex}')
+
+    def ingest_one(
         self, dataframe: pd.DataFrame, force_update: bool = False, timeout: int = 5
     ):
+        """
+        Write the rows in the provided dataframe into a Kafka topic.
+        :param dataframe: Dataframe containing the input data to be ingested.
+        :param force_update: Flag to update feature set from data set and re-register if changed.
+        :param timeout: Timeout in seconds to wait for completion.
+        :return:
+        """
         # Update feature set from data set and re-register if changed
         if force_update:
             self.update_from_dataset(dataframe)
@@ -257,11 +312,10 @@ class FeatureSet:
         # Validate feature set version with Feast Core
         self._validate_feature_set()
 
-        # Create Kafka FeatureRow producer
-        if self._message_producer is None:
-            self._message_producer = KafkaProducer(
-                bootstrap_servers=self._get_kafka_source_brokers()
-            )
+        # Create Kafka FeatureRow producer (Required if process is forked)
+        self._message_producer = KafkaProducer(
+            bootstrap_servers=self._get_kafka_source_brokers()
+        )
 
         _logger.info(
             f"Publishing features to topic: '{self._get_kafka_source_topic()}' "
@@ -279,6 +333,35 @@ class FeatureSet:
 
         # Wait for all messages to be completely sent
         self._message_producer.flush(timeout=timeout)
+
+    def ingest_file(
+            self, file_path: str, force_update: bool = False, timeout: int = 5, max_workers=CPU_COUNT
+    ):
+        """
+        Load the contents of a file into a Kafka topic.
+        Files that are currently supported:
+            * csv
+            * parquet
+        :param file_path: Valid string path to the file
+        :param force_update: Flag to update feature set from dataset and reregister if changed.
+        :param timeout: Timeout in seconds to wait for completion
+        :param max_workers: The maximum number of threads that can be used to execute the given calls.
+        :return:
+        """
+        df = None
+        filename, file_ext = os.path.splitext(file_path)
+        if '.parquet' in file_ext:
+            df = pd.read_parquet(file_path)
+        elif '.csv' in file_ext:
+            df = pd.read_csv(file_path)
+        try:
+            # Ensure that dataframe is initialised
+            assert df
+        except AssertionError:
+            _logger.error(f'Ingestion of file type {file_ext} is not supported')
+            raise Exception("File type not supported")
+
+        self.ingest(df, force_update, timeout, max_workers)
 
     def _pandas_row_to_feature_row(
         self, dataframe: pd.DataFrame, row
