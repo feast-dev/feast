@@ -17,7 +17,3 @@ https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xm
 ### Go
 
 Make sure you apply `go fmt`.
-
-### JavaScript
-
-TODO

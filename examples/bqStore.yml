@@ -1,6 +1,0 @@
-id: BIGQUERY1
-type: bigquery
-options:
-  project: "my-feast-project"
-  dataset: "feast"
-  tempLocation: "gs://my-feast-bucket"
