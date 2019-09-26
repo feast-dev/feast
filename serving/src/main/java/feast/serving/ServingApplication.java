@@ -15,23 +15,14 @@
  *
  */
 
-package feast.serving.util;
+package feast.serving;
 
-/** Utility class for time-related function. */
-public class TimeUtil {
-  public static final int NANO_IN_MICRO = 1000;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-  private TimeUtil() {}
-
-
-  /**
-   * Returns the current value of the running Java Virtual Machine's high-resolution time source, in
-   * microseconds.
-   *
-   * @return current micro time.
-   * @see System#nanoTime()
-   */
-  public static long microTime() {
-    return System.nanoTime() / NANO_IN_MICRO;
+@SpringBootApplication
+public class ServingApplication {
+  public static void main(String[] args) {
+    SpringApplication.run(ServingApplication.class, args);
   }
 }
