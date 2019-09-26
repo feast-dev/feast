@@ -128,11 +128,11 @@
     </repositories>
 
     <dependencies>
-<!--        <dependency>-->
-<!--            <groupId>com.github.gojek.feast</groupId>-->
-<!--            <artifactId>feast-ingestion</artifactId>-->
-<!--            <version>edc13231b7</version>-->
-<!--        </dependency>-->
+        <dependency>
+            <groupId>com.github.gojek.feast</groupId>
+            <artifactId>feast-ingestion</artifactId>
+            <version>0.3-dev-SNAPSHOT</version>
+        </dependency>
         <!--compile "org.springframework.boot:spring-boot-starter-web:${springBootVersion}"-->
         <dependency>
             <groupId>org.springframework.boot</groupId>

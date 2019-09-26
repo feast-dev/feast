@@ -1,6 +1,4 @@
 
-
-
 FFFFFFFFFFFFFFFFFFFFFF                                                                tttt
 F::::::::::::::::::::F                                                             ttt:::t
 F::::::::::::::::::::F                                                             t:::::t
@@ -17,10 +15,3 @@ FF:::::::FF           e::::::::e          a::::a    a:::::a s:::::ssss::::::s   
 F::::::::FF            e::::::::eeeeeeee  a:::::aaaa::::::a s::::::::::::::s       tt::::::::::::::t
 F::::::::FF             ee:::::::::::::e   a::::::::::aa:::a s:::::::::::ss          tt:::::::::::tt
 FFFFFFFFFFF               eeeeeeeeeeeeee    aaaaaaaaaa  aaaa  sssssssssss              ttttttttttt
-
-
-
-
-
-
-

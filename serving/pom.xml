@@ -106,6 +106,20 @@
       <artifactId>spring-boot-starter-log4j2</artifactId>
       <version>${springBootVersion}</version>
     </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-devtools</artifactId>
+      <version>${springBootVersion}</version>
+      <optional>true</optional>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-web</artifactId>
+      <version>2.12.0</version>
+    </dependency>
+
     <!--compile 'org.lognet:grpc-spring-boot-starter:2.4.1'-->
     <dependency>
       <groupId>org.lognet</groupId>
@@ -184,6 +198,12 @@
       <artifactId>opentracing-concurrent</artifactId>
       <version>0.2.0</version>
     </dependency>
+    <dependency>
+      <groupId>io.opentracing</groupId>
+      <artifactId>opentracing-util</artifactId>
+      <version>0.33.0</version>
+    </dependency>
+
 
     <!--compile 'io.micrometer:micrometer-core:1.0.7'-->
     <dependency>

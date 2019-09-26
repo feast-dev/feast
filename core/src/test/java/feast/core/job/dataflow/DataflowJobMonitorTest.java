@@ -32,7 +32,7 @@ import com.google.common.collect.Lists;
 import feast.core.job.Runner;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
-import feast.types.FeatureProto.Field;
+import feast.types.FieldProto.Field;
 import feast.types.ValueProto.BoolList;
 import feast.types.ValueProto.Value;
 import feast.types.ValueProto.ValueType;
