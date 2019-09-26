@@ -150,10 +150,6 @@ class FeatureSet:
     def source(self, source: Source):
         self._source = source
 
-        # Create Kafka FeatureRow producer
-        if self._message_producer is not None:
-            self._message_producer = KafkaProducer(bootstrap_servers=source.brokers)
-
     @property
     def version(self):
         return self._version
@@ -358,9 +354,10 @@ class FeatureSet:
         self._validate_feature_set()
 
         # Create Kafka FeatureRow producer (Required if process is forked)
-        self._message_producer = KafkaProducer(
-            bootstrap_servers=self._get_kafka_source_brokers()
-        )
+        if self._message_producer is None:
+            self._message_producer = KafkaProducer(
+                bootstrap_servers=self._get_kafka_source_brokers()
+            )
 
         _logger.info(
             f"Publishing features to topic: '{self._get_kafka_source_topic()}' "
@@ -470,7 +467,7 @@ class FeatureSet:
             ],
         )
 
-    def update_from_feature_set(self, feature_set, is_dirty: bool = True):
+    def _update_from_feature_set(self, feature_set, is_dirty: bool = True):
 
         self.name = feature_set.name
         self.version = feature_set.version
