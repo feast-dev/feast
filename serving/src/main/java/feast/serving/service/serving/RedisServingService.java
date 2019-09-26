@@ -233,7 +233,7 @@ public class RedisServingService implements ServingService {
         .setFeatureSet(
             String.format("%s:%s", featureSetRequest.getName(), featureSetRequest.getVersion()))
         .addAllFields(entities)
-        .setEventTimestamp(Timestamp.newBuilder().setSeconds(0).build());
+        .setEventTimestamp(Timestamp.newBuilder());
 
     if (jedisResponse == null) {
       return featureRowBuilder
