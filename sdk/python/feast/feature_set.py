@@ -251,7 +251,7 @@ class FeatureSet:
                 n = ceil(dataframe.shape[0] / max_workers)
                 list_df = [dataframe[i : min(i + n, dataframe.shape[0])] for i in range(0, dataframe.shape[0], n)]
 
-                # Fork processes
+                # Fork ingestion processes
                 processes = []
                 for i in range(max_workers):
                     _logger.info(f"Starting process number = {i+1}")
@@ -259,7 +259,7 @@ class FeatureSet:
                     p.start()
                     processes.append(p)
 
-                # Join processes
+                # Join ingestion processes
                 for p in processes:
                     _logger.info("Joining processes")
                     p.join()
@@ -273,6 +273,7 @@ class FeatureSet:
         proc.join()  # Join listener process
         pbar.update(dataframe.shape[0] - pbar.n)  # Perform a final update
         pbar.close()
+        _logger.info("Upload complete.")
 
     def ingest_one(self, dataframe: pd.DataFrame, q: Queue, force_update: bool = False, timeout: int = 5):
         """
@@ -390,5 +391,11 @@ class FeatureSet:
 
     @staticmethod
     def _listener(pbar: tqdm, q: Queue):
+        """
+        Static method that listens to changes in a queue and updates the progress bar accordingly.
+        :param pbar: Initialised tqdm instance
+        :param q: Multiprocess queue object containing update instances as SENTINEL flags
+        :return:
+        """
         for _ in iter(q.get, None):
             pbar.update()
