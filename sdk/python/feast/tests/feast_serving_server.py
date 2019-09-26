@@ -96,12 +96,6 @@ class ServingServicer(Serving.ServingServiceServicer):
 
     def GetOnlineFeatures(self, request: GetFeaturesRequest, context):
 
-        # for feature_set_request in list(request.featureSets):
-        #     feature_data_set = self._store.get_feature_data(
-        #         feature_set_request=feature_set_request,
-        #         entity_data=request.entityDataSet,
-        #     )
-
         response = GetOnlineFeaturesResponse(
             feature_data_sets=[
                 GetOnlineFeaturesResponse.FeatureDataSet(

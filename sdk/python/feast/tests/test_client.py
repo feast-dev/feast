@@ -11,28 +11,26 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import time
 
 import grpc
 import pandas as pd
+import numpy as np
 import feast.core.CoreService_pb2_grpc as Core
 import feast.serving.ServingService_pb2_grpc as Serving
-from feast.entity import Entity
 from feast.core.CoreService_pb2 import GetFeastCoreVersionResponse
-from feast.core.CoreService_pb2 import GetFeatureSetsResponse
-from feast.core.FeatureSet_pb2 import FeatureSetSpec
-from feast.serving.ServingService_pb2 import GetFeastServingVersionResponse
+from feast.serving.ServingService_pb2 import (
+    GetFeastServingVersionResponse,
+    GetOnlineFeaturesResponse,
+)
+from google.protobuf.timestamp_pb2 import Timestamp
 import pytest
 from feast.client import Client
-from feast.tests import dataframes
 from concurrent import futures
 from feast.tests.feast_core_server import CoreServicer
 from feast.tests.feast_serving_server import ServingServicer
-from feast.feature import Feature
-from feast.feature_set import FeatureSet
-from feast.value_type import ValueType
-from feast.source import KafkaSource
-from feast.tests.fake_kafka import FakeKafka
+from feast.types import FeatureRow_pb2 as FeatureRowProto
+from feast.types import Field_pb2 as FieldProto
+from feast.types import Value_pb2 as ValueProto
 
 CORE_URL = "core.feast.example.com"
 SERVING_URL = "serving.example.com"
@@ -94,63 +92,56 @@ class TestClient:
             and status["serving"]["version"] == "0.3.0"
         )
 
-    @pytest.mark.parametrize("dataframe", [dataframes.GOOD])
-    def test_ingest_then_get_one_feature_set_success(
-        self, core_server, dataframe: pd.DataFrame
-    ):
-        # Create and register Fake Kafka
-        fake_kafka = FakeKafka()
+    def test_get_feature(self, mock_client, mocker):
+        ROW_COUNT = 300
 
-        # Set up Feast Serving with Fake Kafka
-        server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        Serving.add_ServingServiceServicer_to_server(
-            ServingServicer(kafka=fake_kafka), server
-        )
-        server.add_insecure_port("[::]:50052")
-        server.start()
-
-        # Create Feast client and register with Core and Serving
-        client = Client(core_url="localhost:50051", serving_url="localhost:50052")
-
-        # Create feature set and update based on dataframe
-        feature_set_1 = FeatureSet(
-            name="feature_set_1",
-            entities=[Entity(name="entity_id", dtype=ValueType.INT32)],
-            features=[
-                Feature(name="feature_1", dtype=ValueType.FLOAT),
-                Feature(name="feature_2", dtype=ValueType.STRING),
-                Feature(name="feature_3", dtype=ValueType.INT32),
-            ],
+        mock_client._serving_service_stub = Serving.ServingServiceStub(
+            grpc.insecure_channel("")
         )
 
-        # Register feature set with Feast core
-        client.apply(feature_set_1)
+        response = GetOnlineFeaturesResponse()
+        feature_row = FeatureRowProto.FeatureRow(
+            event_timestamp=Timestamp(), feature_set="feature_set_1:1"
+        )
+        for feature_num in range(1, 10):
+            field = FieldProto.Field(
+                name="feature_" + str(feature_num),
+                value=ValueProto.Value(int64_val=feature_num),
+            )
+            feature_row.fields.append(field)
 
-        # Register Fake Kafka with feature set
-        feature_set_1._message_producer = fake_kafka
+        feature_data_set = GetOnlineFeaturesResponse.FeatureDataset(
+            name="feature_set_1", version=1
+        )
 
-        # Ingest data into Feast using Fake Kafka
-        feature_set_1.ingest(dataframe)
+        for row_number in range(1, ROW_COUNT + 1):
+            feature_data_set.feature_rows.append(feature_row)
 
-        time.sleep(2)
+        response.feature_datasets.append(feature_data_set)
 
-        # Retrieve feature values from Feast serving
-        feature_dataframe = client.get(
-            entity_data=dataframe[["datetime", "entity_id"]],
+        mocker.patch.object(
+            mock_client._serving_service_stub,
+            "GetOnlineFeatures",
+            return_value=response,
+        )
+
+        entity_data = pd.DataFrame(
+            {"datetime": np.repeat(4, ROW_COUNT), "entity_id": np.repeat(4, ROW_COUNT)}
+        )
+
+        feature_dataframe = mock_client.get(
+            entity_data=entity_data,
             feature_ids=[
-                "feature_set_1.feature_1",
-                "feature_set_1.feature_2",
-                "feature_set_1.feature_3",
+                "feature_set_1:1.feature_1",
+                "feature_set_1:1.feature_2",
+                "feature_set_1:1.feature_3",
+                "feature_set_1:1.feature_4",
+                "feature_set_1:1.feature_5",
+                "feature_set_1:1.feature_6",
+                "feature_set_1:1.feature_7",
+                "feature_set_1:1.feature_8",
+                "feature_set_1:1.feature_9",
             ],
         )
 
-        assert True
-
-        # assert (
-        #     feature_dataframe["feature_set_1.feature_1"][0] == 0.2
-        #     and feature_dataframe["feature_set_1.feature_2"][0] == "string1"
-        #     and feature_dataframe["feature_set_1.feature_3"][0] == 1
-        # )
-
-        # Stop Feast Serving server
-        server.stop(0)
+        feature_dataframe.head()

@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime
-
-import pytz
 from unittest.mock import MagicMock
 from feast.feature_set import FeatureSet, Feature
 from feast.value_type import ValueType
@@ -109,7 +106,7 @@ class TestFeatureSet:
             dataframe,
             column_mapping={"entity_id": Entity(name="entity", dtype=ValueType.INT64)},
         )
-        driver_fs.source = KafkaSource(topic="feature-topic", brokers="fake.broker.com")
+        driver_fs.source = KafkaSource(topic="feature-topic", brokers="127.0.0.1")
         driver_fs._message_producer = MagicMock()
         driver_fs._message_producer.send = MagicMock()
 
