@@ -29,19 +29,22 @@ def cli():
 
 
 @cli.command()
-def version():
+@click.option('--client-only', '-c', is_flag=True, help="Print only the version of the CLI")
+def version(client_only: bool):
     """
     Displays version and connectivity information
     """
 
     try:
-        feast_client = Client(
-            core_url=feast_config.get_config_property_or_fail("core_url"),
-            serving_url=feast_config.get_config_property_or_fail("serving_url"),
-        )
-        feast_versions = feast_client.version()
-        local_feast_dist = pkg_resources.get_distribution("feast")
-        feast_versions["sdk"] = {"version": local_feast_dist.version}
+        feast_versions = {"sdk": {"version": pkg_resources.get_distribution("feast")}}
+
+        if not client_only:
+            feast_client = Client(
+                core_url=feast_config.get_config_property_or_fail("core_url"),
+                serving_url=feast_config.get_config_property_or_fail("serving_url"),
+            )
+            feast_versions.update(feast_client.version())
+
         print(feast_versions)
     except Exception as e:
         _logger.error("Error initializing backend store")
