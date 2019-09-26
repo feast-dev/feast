@@ -34,20 +34,25 @@ class ServingServiceStub(object):
         request_serializer=feast_dot_serving_dot_ServingService__pb2.GetFeaturesRequest.SerializeToString,
         response_deserializer=feast_dot_serving_dot_ServingService__pb2.GetBatchFeaturesResponse.FromString,
         )
-    self.GetBatchFeaturesJobStatus = channel.unary_unary(
-        '/feast.serving.ServingService/GetBatchFeaturesJobStatus',
-        request_serializer=feast_dot_serving_dot_ServingService__pb2.BatchFeaturesJob.GetStatusRequest.SerializeToString,
-        response_deserializer=feast_dot_serving_dot_ServingService__pb2.BatchFeaturesJob.GetStatusResponse.FromString,
+    self.GetBatchFeaturesFromCompletedJob = channel.unary_unary(
+        '/feast.serving.ServingService/GetBatchFeaturesFromCompletedJob',
+        request_serializer=feast_dot_serving_dot_ServingService__pb2.GetBatchFeaturesFromCompletedJobRequest.SerializeToString,
+        response_deserializer=feast_dot_serving_dot_ServingService__pb2.GetBatchFeaturesFromCompletedJobResponse.FromString,
         )
-    self.GetBatchFeaturesJobUploadUrl = channel.unary_unary(
-        '/feast.serving.ServingService/GetBatchFeaturesJobUploadUrl',
-        request_serializer=feast_dot_serving_dot_ServingService__pb2.BatchFeaturesJob.GetUploadUrlRequest.SerializeToString,
-        response_deserializer=feast_dot_serving_dot_ServingService__pb2.BatchFeaturesJob.GetUploadUrlResponse.FromString,
+    self.GetStagingLocation = channel.unary_unary(
+        '/feast.serving.ServingService/GetStagingLocation',
+        request_serializer=feast_dot_serving_dot_ServingService__pb2.GetStagingLocationRequest.SerializeToString,
+        response_deserializer=feast_dot_serving_dot_ServingService__pb2.GetStagingLocationResponse.FromString,
         )
-    self.SetBatchFeaturesJobUploadComplete = channel.unary_unary(
-        '/feast.serving.ServingService/SetBatchFeaturesJobUploadComplete',
-        request_serializer=feast_dot_serving_dot_ServingService__pb2.BatchFeaturesJob.SetUploadCompleteRequest.SerializeToString,
-        response_deserializer=feast_dot_serving_dot_ServingService__pb2.BatchFeaturesJob.SetUploadCompleteResponse.FromString,
+    self.LoadBatchFeatures = channel.unary_unary(
+        '/feast.serving.ServingService/LoadBatchFeatures',
+        request_serializer=feast_dot_serving_dot_ServingService__pb2.LoadBatchFeaturesRequest.SerializeToString,
+        response_deserializer=feast_dot_serving_dot_ServingService__pb2.LoadBatchFeaturesResponse.FromString,
+        )
+    self.ReloadJobStatus = channel.unary_unary(
+        '/feast.serving.ServingService/ReloadJobStatus',
+        request_serializer=feast_dot_serving_dot_ServingService__pb2.ReloadJobStatusRequest.SerializeToString,
+        response_deserializer=feast_dot_serving_dot_ServingService__pb2.ReloadJobStatusResponse.FromString,
         )
 
 
@@ -56,49 +61,62 @@ class ServingServiceServicer(object):
   pass
 
   def GetFeastServingVersion(self, request, context):
-    """Retrieve version information about this Feast deployment
+    """Get version information about this Feast serving.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
   def GetFeastServingType(self, request, context):
-    """Get Feast serving storage type (online or batch)
+    """Get Feast serving store type: online or batch.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
   def GetOnlineFeatures(self, request, context):
-    """Get online features from Feast serving. This is a synchronous response.
+    """Get online features synchronously.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
   def GetBatchFeatures(self, request, context):
-    """Get batch features from Feast serving. This is an async job.
+    """Get batch features asynchronously. 
+
+    The client should check and reload the status of the returned job 
+    periodically to determine if the job has completed successfully or with 
+    an error. If the job completes successfully, the client shoud call 
+    GetBatchFeaturesFromCompletedJob to retrieve the feature values.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
-  def GetBatchFeaturesJobStatus(self, request, context):
-    """Get the current status of a batch feature request job
+  def GetBatchFeaturesFromCompletedJob(self, request, context):
+    """Get the URI(s) to download batch feature values from a succesful download job.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
-  def GetBatchFeaturesJobUploadUrl(self, request, context):
-    """Request a signed URL where a Feast client can upload user entity data
+  def GetStagingLocation(self, request, context):
+    """Get the URI prefix where the client can upload files to be accessed by Feast serving.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
-  def SetBatchFeaturesJobUploadComplete(self, request, context):
-    """Set the state of the batch feature job to complete after user entity data has been uploaded
+  def LoadBatchFeatures(self, request, context):
+    """Load batch features from a list of source URIs asynchronously. The source 
+    URIs must represent a feature set of a specific version.
+    """
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
+  def ReloadJobStatus(self, request, context):
+    """Reload the job status with the latest state.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
@@ -127,20 +145,25 @@ def add_ServingServiceServicer_to_server(servicer, server):
           request_deserializer=feast_dot_serving_dot_ServingService__pb2.GetFeaturesRequest.FromString,
           response_serializer=feast_dot_serving_dot_ServingService__pb2.GetBatchFeaturesResponse.SerializeToString,
       ),
-      'GetBatchFeaturesJobStatus': grpc.unary_unary_rpc_method_handler(
-          servicer.GetBatchFeaturesJobStatus,
-          request_deserializer=feast_dot_serving_dot_ServingService__pb2.BatchFeaturesJob.GetStatusRequest.FromString,
-          response_serializer=feast_dot_serving_dot_ServingService__pb2.BatchFeaturesJob.GetStatusResponse.SerializeToString,
+      'GetBatchFeaturesFromCompletedJob': grpc.unary_unary_rpc_method_handler(
+          servicer.GetBatchFeaturesFromCompletedJob,
+          request_deserializer=feast_dot_serving_dot_ServingService__pb2.GetBatchFeaturesFromCompletedJobRequest.FromString,
+          response_serializer=feast_dot_serving_dot_ServingService__pb2.GetBatchFeaturesFromCompletedJobResponse.SerializeToString,
       ),
-      'GetBatchFeaturesJobUploadUrl': grpc.unary_unary_rpc_method_handler(
-          servicer.GetBatchFeaturesJobUploadUrl,
-          request_deserializer=feast_dot_serving_dot_ServingService__pb2.BatchFeaturesJob.GetUploadUrlRequest.FromString,
-          response_serializer=feast_dot_serving_dot_ServingService__pb2.BatchFeaturesJob.GetUploadUrlResponse.SerializeToString,
+      'GetStagingLocation': grpc.unary_unary_rpc_method_handler(
+          servicer.GetStagingLocation,
+          request_deserializer=feast_dot_serving_dot_ServingService__pb2.GetStagingLocationRequest.FromString,
+          response_serializer=feast_dot_serving_dot_ServingService__pb2.GetStagingLocationResponse.SerializeToString,
       ),
-      'SetBatchFeaturesJobUploadComplete': grpc.unary_unary_rpc_method_handler(
-          servicer.SetBatchFeaturesJobUploadComplete,
-          request_deserializer=feast_dot_serving_dot_ServingService__pb2.BatchFeaturesJob.SetUploadCompleteRequest.FromString,
-          response_serializer=feast_dot_serving_dot_ServingService__pb2.BatchFeaturesJob.SetUploadCompleteResponse.SerializeToString,
+      'LoadBatchFeatures': grpc.unary_unary_rpc_method_handler(
+          servicer.LoadBatchFeatures,
+          request_deserializer=feast_dot_serving_dot_ServingService__pb2.LoadBatchFeaturesRequest.FromString,
+          response_serializer=feast_dot_serving_dot_ServingService__pb2.LoadBatchFeaturesResponse.SerializeToString,
+      ),
+      'ReloadJobStatus': grpc.unary_unary_rpc_method_handler(
+          servicer.ReloadJobStatus,
+          request_deserializer=feast_dot_serving_dot_ServingService__pb2.ReloadJobStatusRequest.FromString,
+          response_serializer=feast_dot_serving_dot_ServingService__pb2.ReloadJobStatusResponse.SerializeToString,
       ),
   }
   generic_handler = grpc.method_handlers_generic_handler(

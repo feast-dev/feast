@@ -30,6 +30,7 @@ from feast.feature import Feature, Field
 from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
 from feast.types import FeatureRow_pb2 as FeatureRow
 from google.protobuf.timestamp_pb2 import Timestamp
+from google.protobuf.duration_pb2 import Duration
 from kafka import KafkaProducer
 from tqdm import tqdm
 from feast.type_map import pandas_dtype_to_feast_value_type
@@ -58,9 +59,9 @@ class FeatureSet:
         self._name = name
         self._fields = OrderedDict()  # type: Dict[str, Field]
         if features is not None:
-            self._add_fields(features)
+            self.features = features
         if entities is not None:
-            self._add_fields(entities)
+            self.entities = entities
         if source is None:
             self._source = Source()
         self._max_age = max_age
@@ -100,6 +101,19 @@ class FeatureSet:
         """
         return [field for field in self._fields.values() if isinstance(field, Feature)]
 
+    @features.setter
+    def features(self, features: List[Feature]):
+        for feature in features:
+            if not isinstance(feature, Feature):
+                raise Exception("object type is not a Feature: " + str(type(feature)))
+
+        for key in list(self._fields.keys()):
+            if isinstance(self._fields[key], Feature):
+                del self._fields[key]
+
+        if features is not None:
+            self._add_fields(features)
+
     @property
     def entities(self) -> List[Entity]:
         """
@@ -107,9 +121,26 @@ class FeatureSet:
         """
         return [field for field in self._fields.values() if isinstance(field, Entity)]
 
+    @entities.setter
+    def entities(self, entities: List[Entity]):
+        for entity in entities:
+            if not isinstance(entity, Entity):
+                raise Exception("object type is not na Entity: " + str(type(entity)))
+
+        for key in list(self._fields.keys()):
+            if isinstance(self._fields[key], Entity):
+                del self._fields[key]
+
+        if entities is not None:
+            self._add_fields(entities)
+
     @property
     def name(self):
         return self._name
+
+    @name.setter
+    def name(self, name):
+        self._name = name
 
     @property
     def source(self):
@@ -127,9 +158,17 @@ class FeatureSet:
     def version(self):
         return self._version
 
+    @version.setter
+    def version(self, version):
+        self._version = version
+
     @property
     def max_age(self):
         return self._max_age
+
+    @max_age.setter
+    def max_age(self, max_age):
+        self._max_age = max_age
 
     @property
     def is_dirty(self):
@@ -196,7 +235,9 @@ class FeatureSet:
 
         # Validate the data type for the datetime column
         if not is_datetime64_ns_dtype(df.dtypes[DATETIME_COLUMN]):
-            raise Exception("Column 'datetime' does not have the correct type: datetime64[ns]")
+            raise Exception(
+                "Column 'datetime' does not have the correct type: datetime64[ns]"
+            )
 
         # Iterate over all of the columns and detect their class (feature, entity) and type
         for column in df.columns:
@@ -211,7 +252,9 @@ class FeatureSet:
                 if issubclass(type(column_mapping[column]), Field):
                     fields[column] = column_mapping[column]
                     continue
-                raise ValueError("Invalid resource type specified at column name " + column)
+                raise ValueError(
+                    "Invalid resource type specified at column name " + column
+                )
 
             # Test whether this column is an existing entity (globally).
             if existing_entities and column in existing_entities:
@@ -228,16 +271,26 @@ class FeatureSet:
                 continue
 
             # Store this field as a feature
-            fields[column] = Feature(name=column, dtype=pandas_dtype_to_feast_value_type(df[column].dtype))
+            fields[column] = Feature(
+                name=column, dtype=pandas_dtype_to_feast_value_type(df[column].dtype)
+            )
 
         if len([field for field in fields.values() if type(field) == Entity]) == 0:
-            raise Exception("Could not detect entity column(s). Please provide entity column(s).")
+            raise Exception(
+                "Could not detect entity column(s). Please provide entity column(s)."
+            )
         if len([field for field in fields.values() if type(field) == Feature]) == 0:
-            raise Exception("Could not detect feature column(s). Please provide feature column(s).")
+            raise Exception(
+                "Could not detect feature column(s). Please provide feature column(s)."
+            )
         self._add_fields(list(fields.values()))
 
     def ingest(
-        self, dataframe: pd.DataFrame, force_update: bool = False, timeout: int = 5, max_workers: int = CPU_COUNT
+        self,
+        dataframe: pd.DataFrame,
+        force_update: bool = False,
+        timeout: int = 5,
+        max_workers: int = CPU_COUNT,
     ):
         pbar = tqdm(unit="rows", total=dataframe.shape[0])
         q = Queue()
@@ -249,13 +302,19 @@ class FeatureSet:
             try:
                 # Split dataframe into smaller dataframes
                 n = ceil(dataframe.shape[0] / max_workers)
-                list_df = [dataframe[i : min(i + n, dataframe.shape[0])] for i in range(0, dataframe.shape[0], n)]
+                list_df = [
+                    dataframe[i : min(i + n, dataframe.shape[0])]
+                    for i in range(0, dataframe.shape[0], n)
+                ]
 
                 # Fork ingestion processes
                 processes = []
                 for i in range(max_workers):
                     _logger.info(f"Starting process number = {i+1}")
-                    p = Process(target=self.ingest_one, args=(list_df[i], q, force_update, timeout))
+                    p = Process(
+                        target=self.ingest_one,
+                        args=(list_df[i], q, force_update, timeout),
+                    )
                     p.start()
                     processes.append(p)
 
@@ -275,7 +334,13 @@ class FeatureSet:
         pbar.close()
         _logger.info("Upload complete.")
 
-    def ingest_one(self, dataframe: pd.DataFrame, q: Queue, force_update: bool = False, timeout: int = 5):
+    def ingest_one(
+        self,
+        dataframe: pd.DataFrame,
+        q: Queue,
+        force_update: bool = False,
+        timeout: int = 5,
+    ):
         """
         Write the rows in the provided dataframe into a Kafka topic.
         :param dataframe: Dataframe containing the input data to be ingested.
@@ -293,7 +358,9 @@ class FeatureSet:
         self._validate_feature_set()
 
         # Create Kafka FeatureRow producer (Required if process is forked)
-        self._message_producer = KafkaProducer(bootstrap_servers=self._get_kafka_source_brokers())
+        self._message_producer = KafkaProducer(
+            bootstrap_servers=self._get_kafka_source_brokers()
+        )
 
         _logger.info(
             f"Publishing features to topic: '{self._get_kafka_source_topic()}' "
@@ -303,13 +370,21 @@ class FeatureSet:
         # Convert rows to FeatureRows and and push to stream
         for index, row in dataframe.iterrows():
             feature_row = self._pandas_row_to_feature_row(dataframe, row)
-            self._message_producer.send(self._get_kafka_source_topic(), feature_row.SerializeToString())
+            self._message_producer.send(
+                self._get_kafka_source_topic(), feature_row.SerializeToString()
+            )
             q.put(SENTINEL)
 
         # Wait for all messages to be completely sent
         self._message_producer.flush(timeout=timeout)
 
-    def ingest_file(self, file_path: str, force_update: bool = False, timeout: int = 5, max_workers=CPU_COUNT):
+    def ingest_file(
+        self,
+        file_path: str,
+        force_update: bool = False,
+        timeout: int = 5,
+        max_workers=CPU_COUNT,
+    ):
         """
         Load the contents of a file into a Kafka topic.
         Files that are currently supported:
@@ -336,29 +411,42 @@ class FeatureSet:
 
         self.ingest(df, force_update, timeout, max_workers)
 
-    def _pandas_row_to_feature_row(self, dataframe: pd.DataFrame, row) -> FeatureRow.FeatureRow:
+    def _pandas_row_to_feature_row(
+        self, dataframe: pd.DataFrame, row
+    ) -> FeatureRow.FeatureRow:
         if len(self._fields) != len(dataframe.columns) - 1:
-            raise Exception("Amount of entities and features in feature set do not match dataset columns")
+            raise Exception(
+                "Amount of entities and features in feature set do not match dataset columns"
+            )
 
         event_timestamp = Timestamp()
         event_timestamp.FromNanoseconds(row[DATETIME_COLUMN].value)
         feature_row = FeatureRowProto.FeatureRow(
-            event_timestamp=event_timestamp, feature_set=self.name + ":" + str(self.version)
+            event_timestamp=event_timestamp,
+            feature_set=self.name + ":" + str(self.version),
         )
 
         for column in dataframe.columns:
             if column == DATETIME_COLUMN:
                 continue
-            proto_value = pandas_value_to_proto_value(pandas_dtype=dataframe[column].dtype, pandas_value=row[column])
-            feature_row.fields.extend([FieldProto.Field(name=column, value=proto_value)])
+            proto_value = pandas_value_to_proto_value(
+                pandas_dtype=dataframe[column].dtype, pandas_value=row[column]
+            )
+            feature_row.fields.extend(
+                [FieldProto.Field(name=column, value=proto_value)]
+            )
         return feature_row
 
     @classmethod
     def from_proto(cls, feature_set_proto: FeatureSetSpecProto):
         feature_set = cls(
             name=feature_set_proto.name,
-            features=[Feature.from_proto(feature) for feature in feature_set_proto.features],
-            entities=[Entity.from_proto(entity) for entity in feature_set_proto.entities],
+            features=[
+                Feature.from_proto(feature) for feature in feature_set_proto.features
+            ],
+            entities=[
+                Entity.from_proto(entity) for entity in feature_set_proto.entities
+            ],
         )
         feature_set._version = feature_set_proto.version
         feature_set._source = Source.from_proto(feature_set_proto.source)
@@ -368,11 +456,30 @@ class FeatureSet:
         return FeatureSetSpecProto(
             name=self.name,
             version=self.version,
-            maxAge=self.max_age,
+            max_age=Duration(seconds=self.max_age),
             source=self.source.to_proto(),
-            features=[field.to_proto() for field in self._fields.values() if type(field) == Feature],
-            entities=[field.to_proto() for field in self._fields.values() if type(field) == Entity],
+            features=[
+                field.to_proto()
+                for field in self._fields.values()
+                if type(field) == Feature
+            ],
+            entities=[
+                field.to_proto()
+                for field in self._fields.values()
+                if type(field) == Entity
+            ],
         )
+
+    def update_from_feature_set(self, feature_set, is_dirty: bool = True):
+
+        self.name = feature_set.name
+        self.version = feature_set.version
+        self.source = feature_set.source
+        self.max_age = feature_set.max_age
+        self.features = feature_set.features
+        self.entities = feature_set.entities
+
+        self._is_dirty = is_dirty
 
     def _validate_feature_set(self):
         # Validate whether the feature set has been modified and needs to be saved

@@ -89,13 +89,15 @@ class TestFeatureSet:
         client.apply(fs1)
         client.apply(fs2)
 
+        feature_sets = client.feature_sets
+
         # List Feature Sets
         assert (
-            len(client.feature_sets) == 2
-            and client.feature_sets[0].name == "my-feature-set-1"
-            and client.feature_sets[0].features[0].name == "fs1-my-feature-1"
-            and client.feature_sets[0].features[0].dtype == ValueType.INT64
-            and client.feature_sets[1].features[1].dtype == ValueType.BYTES_LIST
+            len(feature_sets) == 2
+            and feature_sets[0].name == "my-feature-set-1"
+            and feature_sets[0].features[0].name == "fs1-my-feature-1"
+            and feature_sets[0].features[0].dtype == ValueType.INT64
+            and feature_sets[1].features[1].dtype == ValueType.BYTES_LIST
         )
 
     @pytest.mark.parametrize("dataframe", [dataframes.GOOD])

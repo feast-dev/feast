@@ -94,22 +94,6 @@ class TestClient:
             and status["serving"]["version"] == "0.3.0"
         )
 
-    def test_get_feature_sets(self, mock_client, mocker):
-        mock_client._core_service_stub = Core.CoreServiceStub(grpc.insecure_channel(""))
-        feature_set_response = GetFeatureSetsResponse(
-            feature_sets=[
-                FeatureSetSpec(name="my-feature-set-spec-1"),
-                FeatureSetSpec(name="my_feature_set_spec_2"),
-            ]
-        )
-        mocker.patch.object(
-            mock_client._core_service_stub,
-            "GetFeatureSets",
-            return_value=feature_set_response,
-        )
-        mock_client.refresh()
-        assert len(mock_client.feature_sets) == 2
-
     @pytest.mark.parametrize("dataframe", [dataframes.GOOD])
     def test_ingest_then_get_one_feature_set_success(
         self, core_server, dataframe: pd.DataFrame

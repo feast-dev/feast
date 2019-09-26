@@ -78,11 +78,11 @@ _FEATUREROW.fields_by_name['event_timestamp'].message_type = google_dot_protobuf
 DESCRIPTOR.message_types_by_name['FeatureRow'] = _FEATUREROW
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-FeatureRow = _reflection.GeneratedProtocolMessageType('FeatureRow', (_message.Message,), dict(
-  DESCRIPTOR = _FEATUREROW,
-  __module__ = 'feast.types.FeatureRow_pb2'
+FeatureRow = _reflection.GeneratedProtocolMessageType('FeatureRow', (_message.Message,), {
+  'DESCRIPTOR' : _FEATUREROW,
+  '__module__' : 'feast.types.FeatureRow_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.FeatureRow)
-  ))
+  })
 _sym_db.RegisterMessage(FeatureRow)
 
 

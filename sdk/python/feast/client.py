@@ -52,7 +52,6 @@ class Client:
     def __init__(
         self, core_url: str = None, serving_url: str = None, verbose: bool = False
     ):
-        self._feature_sets = OrderedDict()  # type: Dict[FeatureSet]
         self._core_url = core_url
         self._serving_url = serving_url
         self._verbose = verbose
@@ -165,9 +164,10 @@ class Client:
             return
         raise Exception("Could not determine resource type to apply")
 
-    def refresh(self):
+    @property
+    def feature_sets(self) -> List[FeatureSet]:
         """
-        Refresh list of Feature Sets from Feast Core
+        Retrieve a list of Feature Sets from Feast Core
         """
         self._connect_core(skip_if_connected=True)
 
@@ -177,21 +177,17 @@ class Client:
         )  # type: GetFeatureSetsResponse
 
         # Store list of Feature Sets
+        feature_sets = []
         for feature_set_proto in feature_set_protos.feature_sets:
             feature_set = FeatureSet.from_proto(feature_set_proto)
-            feature_set._is_dirty = False
             feature_set._client = self
-            self._feature_sets[feature_set.name.strip()] = feature_set
-
-    @property
-    def feature_sets(self) -> List[FeatureSet]:
-        self.refresh()
-        return list(self._feature_sets.values())
+            feature_sets.append(feature_set)
+        return feature_sets
 
     @property
     def entities(self) -> Dict[str, Entity]:
         entities_dict = OrderedDict()
-        for fs in list(self._feature_sets.values()):
+        for fs in self.feature_sets:
             for entity in fs.entities:
                 entities_dict[entity.name] = entity
         return entities_dict
@@ -209,14 +205,9 @@ class Client:
             raise Exception(
                 "Error while trying to apply feature set " + feature_set.name
             )
-
-        # Refresh state from Feast Core to local client
-        self.refresh()
-
-        # Replace applied feature set with refreshed feature set from Feast Core
-        deep_update_feature_set(
-            source=self._feature_sets[feature_set.name], target=feature_set
-        )
+        applied_fs = FeatureSet.from_proto(apply_fs_response.feature_set)
+        feature_set.update_from_feature_set(applied_fs, is_dirty=False)
+        return
 
     def get(
         self,
@@ -229,11 +220,11 @@ class Client:
         if "datetime" != entity_data.columns[0]:
             raise ValueError("The first column in entity_data should be 'datetime'")
 
-        entity_data_field_names = []
+        entity_names = []
         for column in entity_data.columns[1:]:
             if column not in self.entities.keys():
                 raise Exception("Entity " + column + " could not be found")
-            entity_data_field_names.append(column)
+            entity_names.append(column)
 
         entity_dataset_rows = entity_data.apply(
             _convert_to_proto_value_fn(entity_data.dtypes), axis=1
@@ -245,27 +236,24 @@ class Client:
 
         get_online_features_response_proto = self._serving_service_stub.GetOnlineFeatures(
             GetFeaturesRequest(
-                entityDataSet=GetFeaturesRequest.EntityDataSet(
-                    entity_data_set_rows=entity_dataset_rows,
-                    fieldNames=entity_data_field_names,
+                entity_dataset=GetFeaturesRequest.EntityDataset(
+                    entity_dataset_rows=entity_dataset_rows, entity_names=entity_names
                 ),
-                featureSets=feature_set_request,
+                feature_sets=feature_set_request,
             )
         )  # type: GetOnlineFeaturesResponse
 
         feature_dataframe = feature_data_sets_to_pandas_dataframe(
             feature_sets=self._feature_sets,
             entity_data_set=entity_data.copy(),
-            feature_data_sets=list(
-                get_online_features_response_proto.feature_data_sets
-            ),
+            feature_data_sets=list(get_online_features_response_proto.feature_datasets),
         )
         return feature_dataframe
 
 
 def _convert_to_proto_value_fn(dtypes: pd.core.generic.NDFrame):
     def convert_to_proto_value(row: pd.Series):
-        entity_dataset_row = GetFeaturesRequest.EntityDataSetRow()
+        entity_dataset_row = GetFeaturesRequest.EntityDatasetRow()
         for i in range(len(row) - 1):
             proto_value = pandas_value_to_proto_value(dtypes[i + 1], row[i + 1])
             entity_dataset_row.value.append(proto_value)
@@ -277,7 +265,7 @@ def _convert_to_proto_value_fn(dtypes: pd.core.generic.NDFrame):
 def feature_data_sets_to_pandas_dataframe(
     feature_sets: List[FeatureSet],
     entity_data_set: pd.DataFrame,
-    feature_data_sets: List[GetOnlineFeaturesResponse.FeatureDataSet],
+    feature_data_sets: List[GetOnlineFeaturesResponse.FeatureDataset],
 ):
     feature_data_set_dataframes = []
     for feature_data_set in feature_data_sets:
@@ -313,7 +301,7 @@ def join_feature_set_dataframes(
 
 
 def feature_data_set_to_pandas_dataframe(
-    feature_set: FeatureSet, feature_data_set: GetOnlineFeaturesResponse.FeatureDataSet
+    feature_set: FeatureSet, feature_data_set: GetOnlineFeaturesResponse.FeatureDataset
 ) -> pd.DataFrame:
     feature_set_name = feature_data_set.name
     dtypes = {}
@@ -353,13 +341,3 @@ def create_feature_set_request_from_feature_strings(
             )
         feature_set_request[feature_set].feature_names.append(feature)
     return list(feature_set_request.values())
-
-
-def deep_update_feature_set(source: FeatureSet, target: FeatureSet):
-    target._name = source.name
-    target._version = source.version
-    target._source = source.source
-    target._max_age = source.max_age
-    target._features = source.features
-    target._entities = source.entities
-    target._is_dirty = source._is_dirty
