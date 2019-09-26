@@ -19,8 +19,8 @@ package feast.serving.grpc;
 
 import com.timgroup.statsd.StatsDClient;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
-import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDataSet;
-import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDataSetRow;
+import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDataset;
+import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDatasetRow;
 import feast.serving.ServingAPIProto.GetFeaturesRequest.FeatureSet;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.service.serving.ServingService;
@@ -38,7 +38,7 @@ import org.mockito.MockitoAnnotations;
 public class GrpcServingServiceTest {
 
   private static final String FEATURE_SET_NAME = "feature_set_1";
-  private static final String FEATURE_SET_VER = "1";
+  private static final int FEATURE_SET_VER = 1;
   private static final String FN_REGION = "region";
   private static final String FN_DRIVER_ID = "driver_id";
   private static final String FN_FEATURE_1 = "feature_1";
@@ -63,9 +63,9 @@ public class GrpcServingServiceTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
 
-    EntityDataSet entityDataSet = getEntityDataSetBuilder(getEntityDataSetRowBuilder()).build();
+    EntityDataset entityDataSet = getEntityDatasetBuilder(getEntityDatasetRowBuilder()).build();
     validRequest = GetFeaturesRequest.newBuilder().addFeatureSets(getFeatureSet())
-        .setEntityDataSet(entityDataSet).build();
+        .setEntityDataset(entityDataSet).build();
 
     Tracer tracer = Configuration.fromEnv("dummy").getTracer();
     service = new GrpcServingService(mockServingService, tracer, statsDClient);
@@ -78,21 +78,21 @@ public class GrpcServingServiceTest {
   }
 
   @Test
-  public void shouldCallOnErrorIfEntityDataSetIsNotSet() {
+  public void shouldCallOnErrorIfEntityDatasetIsNotSet() {
     GetFeaturesRequest missingEntityName =
-        GetFeaturesRequest.newBuilder(validRequest).clearEntityDataSet().build();
+        GetFeaturesRequest.newBuilder(validRequest).clearEntityDataset().build();
     service.getOnlineFeatures(missingEntityName, mockStreamObserver);
     Mockito.verify(mockStreamObserver).onError(Mockito.any(StatusRuntimeException.class));
   }
 
   @Test
-  public void shouldCallOnErrorIfEntityDataSetRowAndFieldNameSizeMismatch() {
+  public void shouldCallOnErrorIfEntityDatasetRowAndFieldNameSizeMismatch() {
     // Adding an additional feature value
-    EntityDataSet sizeMismatchEntityDataSet = EntityDataSet
-        .newBuilder(validRequest.getEntityDataSet()).addFieldNames("some_random_field_name")
+    EntityDataset sizeMismatchEntityDataset = EntityDataset
+        .newBuilder(validRequest.getEntityDataset()).addEntityNames("some_random_field_name")
         .build();
     GetFeaturesRequest sizeMismatch = GetFeaturesRequest.newBuilder(validRequest)
-        .setEntityDataSet(sizeMismatchEntityDataSet).build();
+        .setEntityDataset(sizeMismatchEntityDataset).build();
     service.getOnlineFeatures(sizeMismatch, mockStreamObserver);
     Mockito.verify(mockStreamObserver).onError(Mockito.any(StatusRuntimeException.class));
   }
@@ -102,18 +102,18 @@ public class GrpcServingServiceTest {
         .setVersion(FEATURE_SET_VER).addFeatureNames(FN_FEATURE_1).build();
   }
 
-  private EntityDataSet.Builder getEntityDataSetBuilder(
-      EntityDataSetRow.Builder entityDataSetRowBuilder) {
-    return EntityDataSet.newBuilder()
-        .addFieldNames(FN_REGION)
-        .addFieldNames(FN_DRIVER_ID)
-        .addEntityDataSetRows(entityDataSetRowBuilder);
+  private EntityDataset.Builder getEntityDatasetBuilder(
+      EntityDatasetRow.Builder entityDataSetRowBuilder) {
+    return EntityDataset.newBuilder()
+        .addEntityNames(FN_REGION)
+        .addEntityNames(FN_DRIVER_ID)
+        .addEntityDatasetRows(entityDataSetRowBuilder);
   }
 
-  private EntityDataSetRow.Builder getEntityDataSetRowBuilder() {
-    return EntityDataSetRow.newBuilder()
-        .addValue(Value.newBuilder().setStringVal(FN_REGION_VAL))
-        .addValue(Value.newBuilder().setStringVal(FN_DRIVER_ID_VAL));
+  private EntityDatasetRow.Builder getEntityDatasetRowBuilder() {
+    return EntityDatasetRow.newBuilder()
+        .addEntityIds(Value.newBuilder().setStringVal(FN_REGION_VAL))
+        .addEntityIds(Value.newBuilder().setStringVal(FN_DRIVER_ID_VAL));
   }
 
 }

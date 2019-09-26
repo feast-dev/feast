@@ -1,19 +1,18 @@
 package feast.serving.service.serving;
 
 import com.google.cloud.bigquery.BigQuery;
-import feast.serving.ServingAPIProto.BatchFeaturesJob.GetDownloadUrlRequest;
-import feast.serving.ServingAPIProto.BatchFeaturesJob.GetDownloadUrlResponse;
-import feast.serving.ServingAPIProto.BatchFeaturesJob.GetStatusRequest;
-import feast.serving.ServingAPIProto.BatchFeaturesJob.GetStatusResponse;
-import feast.serving.ServingAPIProto.BatchFeaturesJob.GetUploadUrlRequest;
-import feast.serving.ServingAPIProto.BatchFeaturesJob.GetUploadUrlResponse;
-import feast.serving.ServingAPIProto.BatchFeaturesJob.SetUploadCompleteRequest;
-import feast.serving.ServingAPIProto.BatchFeaturesJob.SetUploadCompleteResponse;
-import feast.serving.ServingAPIProto.FeastServingType;
+import feast.serving.ServingAPIProto.GetBatchFeaturesFromCompletedJobRequest;
+import feast.serving.ServingAPIProto.GetBatchFeaturesFromCompletedJobResponse;
 import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
+import feast.serving.ServingAPIProto.GetStagingLocationRequest;
+import feast.serving.ServingAPIProto.GetStagingLocationResponse;
+import feast.serving.ServingAPIProto.LoadBatchFeaturesRequest;
+import feast.serving.ServingAPIProto.LoadBatchFeaturesResponse;
+import feast.serving.ServingAPIProto.ReloadJobStatusRequest;
+import feast.serving.ServingAPIProto.ReloadJobStatusResponse;
 
 public class BigQueryServingService implements ServingService {
   private BigQuery bigquery;
@@ -24,9 +23,7 @@ public class BigQueryServingService implements ServingService {
 
   @Override
   public GetFeastServingTypeResponse getFeastServingType() {
-    return GetFeastServingTypeResponse.newBuilder()
-        .setType(FeastServingType.FEAST_SERVING_TYPE_OFFLINE)
-        .build();
+    return null;
   }
 
   @Override
@@ -42,23 +39,24 @@ public class BigQueryServingService implements ServingService {
   }
 
   @Override
-  public GetStatusResponse getBatchFeaturesJobStatus(GetStatusRequest request) {
+  public GetBatchFeaturesFromCompletedJobResponse getBatchFeaturesFromCompletedJob(
+      GetBatchFeaturesFromCompletedJobRequest request) {
     return null;
   }
 
   @Override
-  public GetDownloadUrlResponse getBatchFeaturesDownloadUrl(GetDownloadUrlRequest request) {
+  public GetStagingLocationResponse getStagingLocation(GetStagingLocationRequest request) {
     return null;
   }
 
   @Override
-  public GetUploadUrlResponse getBatchFeaturesJobUploadUrl(GetUploadUrlRequest request) {
+  public LoadBatchFeaturesResponse loadBatchFeatures(LoadBatchFeaturesRequest request) {
     return null;
   }
 
   @Override
-  public SetUploadCompleteResponse setBatchFeaturesJobUploadComplete(
-      SetUploadCompleteRequest request) {
+  public ReloadJobStatusResponse reloadJobStatus(ReloadJobStatusRequest request) {
     return null;
   }
+
 }

@@ -96,12 +96,10 @@ public class ServingApiConfiguration implements WebMvcConfigurer {
   @Bean
   public ServingService getFeastServing(
       @Value("${feast.store.id}") String storeId,
-      @Value("${feast.core.host}") String coreServiceHost,
-      @Value("${feast.core.grpc.port}") String coreServicePort,
       AppConfig appConfig,
+      SpecService specService,
       Tracer tracer) {
-    CoreSpecService coreSpecService = new CoreSpecService(coreServiceHost, Integer.parseInt(coreServicePort));
-    Store store = coreSpecService.getStoreDetails(storeId);
+    Store store = specService.getStoreDetails(storeId);
 
     switch (store.getType()) {
       case REDIS:
@@ -110,7 +108,7 @@ public class ServingApiConfiguration implements WebMvcConfigurer {
         poolConfig.setMaxIdle(appConfig.getRedisMaxIdleSize());
         JedisPool jedisPool = new JedisPool(poolConfig, store.getRedisConfig().getHost(),
             store.getRedisConfig().getPort());
-        return new RedisServingService(jedisPool, tracer);
+        return new RedisServingService(jedisPool, specService, tracer);
       case BIGQUERY:
         // TODO: Implement connection to BigQuery
         return null;

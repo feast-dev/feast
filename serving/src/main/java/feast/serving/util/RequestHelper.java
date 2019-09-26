@@ -18,7 +18,7 @@
 package feast.serving.util;
 
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
-import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDataSetRow;
+import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDatasetRow;
 
 public class RequestHelper {
 
@@ -27,15 +27,15 @@ public class RequestHelper {
 
   public static void validateRequest(GetFeaturesRequest request) {
     // EntityDataSetRow shall not be empty
-    if (request.getEntityDataSet().getEntityDataSetRowsCount() <= 0) {
+    if (request.getEntityDataset().getEntityDatasetRowsCount() <= 0) {
       throw new IllegalArgumentException("Entity value must be provided");
     }
 
     // Value list size in EntityDataSetRow shall be the same as the size of fieldNames
     // First entity value will always be timestamp in EntityDataSetRow
-    int fieldNameCount = request.getEntityDataSet().getFieldNamesCount();
-    for (EntityDataSetRow edsr : request.getEntityDataSet().getEntityDataSetRowsList()) {
-      if (edsr.getValueCount() != fieldNameCount) {
+    int fieldNameCount = request.getEntityDataset().getEntityNamesCount();
+    for (EntityDatasetRow edsr : request.getEntityDataset().getEntityDatasetRowsList()) {
+      if (edsr.getEntityIdsCount() != fieldNameCount) {
         throw new IllegalArgumentException("Size mismatch between fieldNames and its values");
       }
     }

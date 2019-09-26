@@ -18,14 +18,8 @@
 package feast.serving.grpc;
 
 import com.timgroup.statsd.StatsDClient;
-import feast.serving.ServingAPIProto.BatchFeaturesJob.GetDownloadUrlRequest;
-import feast.serving.ServingAPIProto.BatchFeaturesJob.GetDownloadUrlResponse;
-import feast.serving.ServingAPIProto.BatchFeaturesJob.GetStatusRequest;
-import feast.serving.ServingAPIProto.BatchFeaturesJob.GetStatusResponse;
-import feast.serving.ServingAPIProto.BatchFeaturesJob.GetUploadUrlRequest;
-import feast.serving.ServingAPIProto.BatchFeaturesJob.GetUploadUrlResponse;
-import feast.serving.ServingAPIProto.BatchFeaturesJob.SetUploadCompleteRequest;
-import feast.serving.ServingAPIProto.BatchFeaturesJob.SetUploadCompleteResponse;
+import feast.serving.ServingAPIProto.GetBatchFeaturesFromCompletedJobRequest;
+import feast.serving.ServingAPIProto.GetBatchFeaturesFromCompletedJobResponse;
 import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingTypeRequest;
 import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
@@ -33,6 +27,12 @@ import feast.serving.ServingAPIProto.GetFeastServingVersionRequest;
 import feast.serving.ServingAPIProto.GetFeastServingVersionResponse;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
+import feast.serving.ServingAPIProto.GetStagingLocationRequest;
+import feast.serving.ServingAPIProto.GetStagingLocationResponse;
+import feast.serving.ServingAPIProto.LoadBatchFeaturesRequest;
+import feast.serving.ServingAPIProto.LoadBatchFeaturesResponse;
+import feast.serving.ServingAPIProto.ReloadJobStatusRequest;
+import feast.serving.ServingAPIProto.ReloadJobStatusResponse;
 import feast.serving.ServingServiceGrpc.ServingServiceImplBase;
 import feast.serving.service.serving.ServingService;
 import feast.serving.util.RequestHelper;
@@ -109,27 +109,27 @@ public class GrpcServingService extends ServingServiceImplBase {
   }
 
   @Override
-  public void getBatchFeaturesJobStatus(
-      GetStatusRequest request, StreamObserver<GetStatusResponse> responseObserver) {
-    super.getBatchFeaturesJobStatus(request, responseObserver);
+  public void getBatchFeaturesFromCompletedJob(GetBatchFeaturesFromCompletedJobRequest request,
+      StreamObserver<GetBatchFeaturesFromCompletedJobResponse> responseObserver) {
+    super.getBatchFeaturesFromCompletedJob(request, responseObserver);
   }
 
   @Override
-  public void getBatchFeaturesDownloadUrl(
-      GetDownloadUrlRequest request, StreamObserver<GetDownloadUrlResponse> responseObserver) {
-    super.getBatchFeaturesDownloadUrl(request, responseObserver);
+  public void getStagingLocation(GetStagingLocationRequest request,
+      StreamObserver<GetStagingLocationResponse> responseObserver) {
+    super.getStagingLocation(request, responseObserver);
   }
 
   @Override
-  public void getBatchFeaturesJobUploadUrl(
-      GetUploadUrlRequest request, StreamObserver<GetUploadUrlResponse> responseObserver) {
-    super.getBatchFeaturesJobUploadUrl(request, responseObserver);
+  public void loadBatchFeatures(LoadBatchFeaturesRequest request,
+      StreamObserver<LoadBatchFeaturesResponse> responseObserver) {
+    super.loadBatchFeatures(request, responseObserver);
   }
 
   @Override
-  public void setBatchFeaturesJobUploadComplete(
-      SetUploadCompleteRequest request,
-      StreamObserver<SetUploadCompleteResponse> responseObserver) {
-    super.setBatchFeaturesJobUploadComplete(request, responseObserver);
+  public void reloadJobStatus(ReloadJobStatusRequest request,
+      StreamObserver<ReloadJobStatusResponse> responseObserver) {
+    super.reloadJobStatus(request, responseObserver);
   }
+
 }

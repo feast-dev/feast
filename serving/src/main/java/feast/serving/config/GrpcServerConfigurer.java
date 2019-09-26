@@ -37,6 +37,7 @@ public class GrpcServerConfigurer extends GRpcServerBuilderConfigurer {
 
   @Override
   public void configure(ServerBuilder<?> serverBuilder) {
-    serverBuilder.executor(executorService);
+    serverBuilder
+        .executor(executorService);
   }
 }

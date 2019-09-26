@@ -26,6 +26,7 @@ import feast.core.CoreServiceProto.GetStoresResponse;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Subscription;
+import feast.serving.exception.FeatureRetrievalException;
 import feast.serving.exception.SpecRetrievalException;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
@@ -88,6 +89,27 @@ public class CoreSpecService implements SpecService {
       }
     }
     return featureSetSpecMap;
+  }
+
+  /**
+   * Get the featureSetSpec matching the provided id from the core service
+   *
+   * @param id featureSetId of the desired featureSet
+   * @return FeatureSetSpec of the desired featureSet
+   */
+  @Override
+  public FeatureSetSpec getFeatureSetSpec(String id) {
+    String[] split = id.split(":");
+    GetFeatureSetsRequest.Filter filter = GetFeatureSetsRequest.Filter.newBuilder()
+        .setFeatureSetName(split[0])
+        .setFeatureSetVersion(split[1])
+        .build();
+    GetFeatureSetsRequest request = GetFeatureSetsRequest.newBuilder().setFilter(filter).build();
+    GetFeatureSetsResponse response = blockingStub.getFeatureSets(request);
+    if (response.getFeatureSetsList().size() == 0) {
+      throw new FeatureRetrievalException(String.format("Unable to retrieve featureSet %s, featureSet not found", id));
+    }
+    return response.getFeatureSets(0);
   }
 
   /**

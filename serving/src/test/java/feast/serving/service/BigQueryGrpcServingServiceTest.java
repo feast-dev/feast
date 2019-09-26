@@ -21,12 +21,6 @@ class BigQueryGrpcServingServiceTest {
   }
 
   @Test
-  void getFeastServingType() {
-    assertEquals(
-        FeastServingType.FEAST_SERVING_TYPE_OFFLINE, serving.getFeastServingType().getType());
-  }
-
-  @Test
   void getOnlineFeatures() {
     assertThrows(UnsupportedOperationException.class, () -> serving.getOnlineFeatures(null));
   }

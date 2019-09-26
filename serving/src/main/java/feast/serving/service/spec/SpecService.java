@@ -42,6 +42,13 @@ public interface SpecService {
   Map<String, FeatureSetSpec> getFeatureSetSpecs(List<Subscription> subscriptions);
 
   /**
+   * Get a specific featureSetSpec where the featureSetId is equal to the id provided
+   * @param id featureSetId of the desired featureSet
+   * @return FeatureSetSpec of the desired featureSet
+   */
+  FeatureSetSpec getFeatureSetSpec(String id);
+
+  /**
    * Check whether connection to core service is ready
    *
    * @return return true if it is ready. Otherwise, return false

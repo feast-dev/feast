@@ -19,12 +19,15 @@ package feast.serving.service.spec;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
+import com.google.common.cache.CacheLoader.InvalidCacheLoadException;
 import com.google.common.cache.LoadingCache;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Subscription;
+import feast.serving.exception.FeatureRetrievalException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -68,6 +71,24 @@ public class CachedSpecService implements SpecService {
   @Override
   public Map<String, FeatureSetSpec> getFeatureSetSpecs(List<Subscription> subscriptions) {
     return featureSetSpecCache.asMap();
+  }
+
+  @Override
+  public FeatureSetSpec getFeatureSetSpec(String id) {
+    try {
+      return featureSetSpecCache.get(id);
+    } catch(InvalidCacheLoadException e) {
+      this.populateCache();
+      try {
+        return featureSetSpecCache.get(id);
+      } catch(ExecutionException | InvalidCacheLoadException retryError) {
+        throw new FeatureRetrievalException(
+            String.format("Unable to retrieve featureSet with id %s", id), retryError);
+      }
+    } catch(ExecutionException e) {
+      throw new FeatureRetrievalException(
+          String.format("Unable to retrieve featureSet with id %s", id), e);
+    }
   }
 
   /**
