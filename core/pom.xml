@@ -75,44 +75,6 @@
                 <groupId>org.xolstice.maven.plugins</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>
             </plugin>
-<!--            <plugin>-->
-<!--                <groupId>com.github.eirslett</groupId>-->
-<!--                <artifactId>frontend-maven-plugin</artifactId>-->
-<!--                <version>1.6</version>-->
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--                        <id>install node and yarn</id>-->
-<!--                        <goals>-->
-<!--                            <goal>install-node-and-yarn</goal>-->
-<!--                        </goals>-->
-<!--                        <phase>generate-resources</phase>-->
-<!--                    </execution>-->
-<!--                    <execution>-->
-<!--                        <id>yarn install</id>-->
-<!--                        <goals>-->
-<!--                            <goal>yarn</goal>-->
-<!--                        </goals>-->
-<!--                        <configuration>-->
-<!--                            <arguments>install</arguments>-->
-<!--                        </configuration>-->
-<!--                    </execution>-->
-<!--                    <execution>-->
-<!--                        <id>build</id>-->
-<!--                        <goals>-->
-<!--                            <goal>yarn</goal>-->
-<!--                        </goals>-->
-<!--                        <configuration>-->
-<!--                            <arguments>run build</arguments>-->
-<!--                        </configuration>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--                <configuration>-->
-<!--                    <nodeVersion>v10.15.3</nodeVersion>-->
-<!--                    <yarnVersion>v1.16.0</yarnVersion>-->
-<!--                    <workingDirectory>../ui</workingDirectory>-->
-<!--                    <installDirectory>target</installDirectory>-->
-<!--                </configuration>-->
-<!--            </plugin>-->
         </plugins>
     </build>
 
@@ -131,7 +93,7 @@
         <dependency>
             <groupId>com.github.gojek.feast</groupId>
             <artifactId>feast-ingestion</artifactId>
-            <version>0.3-dev-v0.1.1-g5c37ccb-180</version>
+            <version>0.3-dev-v0.1.1-g8df29cd-250</version>
         </dependency>
         <!--compile "org.springframework.boot:spring-boot-starter-web:${springBootVersion}"-->
         <dependency>
