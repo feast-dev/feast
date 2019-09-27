@@ -36,9 +36,7 @@ public class JobCoordinatorService {
 
   @Autowired
   public JobCoordinatorService(
-      JobInfoRepository jobInfoRepository,
-      JobManager jobManager,
-      ImportJobDefaults defaults) {
+      JobInfoRepository jobInfoRepository, JobManager jobManager, ImportJobDefaults defaults) {
     this.jobInfoRepository = jobInfoRepository;
     this.jobManager = jobManager;
     this.defaults = defaults;
@@ -53,14 +51,12 @@ public class JobCoordinatorService {
     String featureSetName = featureSetSpecs.get(0).getName();
     Optional<JobInfo> job = getJob(featureSetName, store.getName());
     if (job.isPresent()) {
-      Set<String> existingFeatureSetsPopulatedByJob = job.get()
-          .getFeatureSets()
-          .stream()
-          .map(FeatureSet::getId)
-          .collect(Collectors.toSet());
-      Set<String> newFeatureSetsPopulatedByJob = featureSetSpecs.stream()
-          .map(fs -> fs.getName() + ":" + fs.getVersion())
-          .collect(Collectors.toSet());
+      Set<String> existingFeatureSetsPopulatedByJob =
+          job.get().getFeatureSets().stream().map(FeatureSet::getId).collect(Collectors.toSet());
+      Set<String> newFeatureSetsPopulatedByJob =
+          featureSetSpecs.stream()
+              .map(fs -> fs.getName() + ":" + fs.getVersion())
+              .collect(Collectors.toSet());
       if (existingFeatureSetsPopulatedByJob.size() == newFeatureSetsPopulatedByJob.size()
           && existingFeatureSetsPopulatedByJob.containsAll(newFeatureSetsPopulatedByJob)) {
         return job.get();
@@ -68,17 +64,14 @@ public class JobCoordinatorService {
         return updateJob(job.get(), featureSetSpecs, store);
       }
     } else {
-      return startJob(createJobId(featureSetName, store.getName()), featureSetSpecs,
-          store);
+      return startJob(createJobId(featureSetName, store.getName()), featureSetSpecs, store);
     }
   }
 
-  /**
-   * Get the non-terminal job associated with the given featureSet name and store name, if any.
-   */
+  /** Get the non-terminal job associated with the given featureSet name and store name, if any. */
   private Optional<JobInfo> getJob(String featureSetName, String storeName) {
-    List<JobInfo> jobs = jobInfoRepository
-        .findByFeatureSetsNameAndStoreName(featureSetName, storeName);
+    List<JobInfo> jobs =
+        jobInfoRepository.findByFeatureSetsNameAndStoreName(featureSetName, storeName);
     if (jobs.isEmpty()) {
       return Optional.empty();
     }
@@ -87,13 +80,10 @@ public class JobCoordinatorService {
         .findFirst();
   }
 
-  /**
-   * Start or update the job to ingest data to the sink.
-   */
-  private JobInfo startJob(String jobId, List<FeatureSetSpec> featureSetSpecs,
-      StoreProto.Store sinkSpec) {
+  /** Start or update the job to ingest data to the sink. */
+  private JobInfo startJob(
+      String jobId, List<FeatureSetSpec> featureSetSpecs, StoreProto.Store sinkSpec) {
     try {
-
       AuditLogger.log(
           Resource.JOB,
           jobId,
@@ -114,15 +104,26 @@ public class JobCoordinatorService {
           "Job submitted to runner %s with ext id %s.",
           defaults.getRunner(),
           extId);
+
       SourceType sourceType = featureSetSpecs.get(0).getSource().getType();
       List<FeatureSet> featureSets = new ArrayList<>();
+
       for (FeatureSetSpec featureSetSpec : featureSetSpecs) {
         FeatureSet featureSet = new FeatureSet();
         featureSet.setId(featureSetSpec.getName() + ":" + featureSetSpec.getVersion());
         featureSets.add(featureSet);
       }
-      JobInfo jobInfo = new JobInfo(jobId, extId, sourceType, defaults.getRunner(),
-          Store.fromProto(sinkSpec), featureSets, JobStatus.RUNNING);
+
+      JobInfo jobInfo =
+          new JobInfo(
+              jobId,
+              extId,
+              sourceType,
+              defaults.getRunner(),
+              Store.fromProto(sinkSpec),
+              featureSets,
+              JobStatus.RUNNING);
+
       return jobInfoRepository.save(jobInfo);
     } catch (Exception e) {
       updateJobStatus(jobId, JobStatus.ERROR);
@@ -136,14 +137,13 @@ public class JobCoordinatorService {
     }
   }
 
-  /**
-   * Update the given job
-   */
-  private JobInfo updateJob(JobInfo jobInfo, List<FeatureSetSpec> featureSetSpecs,
-      StoreProto.Store store) {
-    jobInfo.setFeatureSets(featureSetSpecs.stream()
-        .map(spec -> FeatureSet.fromProto(spec))
-        .collect(Collectors.toList()));
+  /** Update the given job */
+  private JobInfo updateJob(
+      JobInfo jobInfo, List<FeatureSetSpec> featureSetSpecs, StoreProto.Store store) {
+    jobInfo.setFeatureSets(
+        featureSetSpecs.stream()
+            .map(spec -> FeatureSet.fromProto(spec))
+            .collect(Collectors.toList()));
     jobInfo.setStore(Store.fromProto(store));
     String extId = jobManager.updateJob(jobInfo);
     jobInfo.setExtId(extId);
@@ -174,9 +174,7 @@ public class JobCoordinatorService {
     jobInfoRepository.saveAndFlush(job);
   }
 
-  /**
-   * Update a given job's status
-   */
+  /** Update a given job's status */
   public void updateJobStatus(String jobId, JobStatus status) {
     Optional<JobInfo> jobRecordOptional = jobInfoRepository.findById(jobId);
     if (jobRecordOptional.isPresent()) {
