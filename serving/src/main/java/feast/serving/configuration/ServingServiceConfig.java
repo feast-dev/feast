@@ -1,5 +1,7 @@
 package feast.serving.configuration;
 
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryOptions;
 import feast.core.CoreServiceProto.GetStoresRequest;
 import feast.core.CoreServiceProto.GetStoresRequest.Filter;
 import feast.core.CoreServiceProto.GetStoresResponse;
@@ -54,7 +56,9 @@ public class ServingServiceConfig {
         break;
       case BIGQUERY:
         BigQueryConfig bqConfig = store.getBigqueryConfig();
-        servingService = new BigQueryServingService();
+        BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+        servingService =
+            new BigQueryServingService(bigquery, bqConfig.getProjectId(), bqConfig.getDatasetId());
         break;
       case CASSANDRA:
       case UNRECOGNIZED:
