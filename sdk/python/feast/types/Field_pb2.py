@@ -20,8 +20,8 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='feast/types/Field.proto',
   package='feast.types',
   syntax='proto3',
-  serialized_options=_b('\n\013feast.typesB\014FeatureProtoZ6github.com/gojek/feast/protos/generated/go/feast/types'),
-  serialized_pb=_b('\n\x17\x66\x65\x61st/types/Field.proto\x12\x0b\x66\x65\x61st.types\x1a\x17\x66\x65\x61st/types/Value.proto\"8\n\x05\x46ield\x12\x0c\n\x04name\x18\x01 \x01(\t\x12!\n\x05value\x18\x02 \x01(\x0b\x32\x12.feast.types.ValueBS\n\x0b\x66\x65\x61st.typesB\x0c\x46\x65\x61tureProtoZ6github.com/gojek/feast/protos/generated/go/feast/typesb\x06proto3')
+  serialized_options=_b('\n\013feast.typesB\nFieldProtoZ6github.com/gojek/feast/protos/generated/go/feast/types'),
+  serialized_pb=_b('\n\x17\x66\x65\x61st/types/Field.proto\x12\x0b\x66\x65\x61st.types\x1a\x17\x66\x65\x61st/types/Value.proto\"8\n\x05\x46ield\x12\x0c\n\x04name\x18\x01 \x01(\t\x12!\n\x05value\x18\x02 \x01(\x0b\x32\x12.feast.types.ValueBQ\n\x0b\x66\x65\x61st.typesB\nFieldProtoZ6github.com/gojek/feast/protos/generated/go/feast/typesb\x06proto3')
   ,
   dependencies=[feast_dot_types_dot_Value__pb2.DESCRIPTOR,])
 
@@ -69,11 +69,11 @@ _FIELD.fields_by_name['value'].message_type = feast_dot_types_dot_Value__pb2._VA
 DESCRIPTOR.message_types_by_name['Field'] = _FIELD
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-Field = _reflection.GeneratedProtocolMessageType('Field', (_message.Message,), dict(
-  DESCRIPTOR = _FIELD,
-  __module__ = 'feast.types.Field_pb2'
+Field = _reflection.GeneratedProtocolMessageType('Field', (_message.Message,), {
+  'DESCRIPTOR' : _FIELD,
+  '__module__' : 'feast.types.Field_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.Field)
-  ))
+  })
 _sym_db.RegisterMessage(Field)
 
 

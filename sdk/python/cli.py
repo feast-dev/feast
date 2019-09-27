@@ -17,8 +17,10 @@ import logging
 import click
 from feast import config as feast_config
 from feast.client import Client
+from feast.feature_set import FeatureSet
 import toml
 import pkg_resources
+import yaml
 
 _logger = logging.getLogger(__name__)
 
@@ -29,19 +31,24 @@ def cli():
 
 
 @cli.command()
-def version():
+@click.option(
+    "--client-only", "-c", is_flag=True, help="Print only the version of the CLI"
+)
+def version(client_only: bool):
     """
     Displays version and connectivity information
     """
 
     try:
-        feast_client = Client(
-            core_url=feast_config.get_config_property_or_fail("core_url"),
-            serving_url=feast_config.get_config_property_or_fail("serving_url"),
-        )
-        feast_versions = feast_client.version()
-        local_feast_dist = pkg_resources.get_distribution("feast")
-        feast_versions["sdk"] = {"version": local_feast_dist.version}
+        feast_versions = {"sdk": {"version": pkg_resources.get_distribution("feast")}}
+
+        if not client_only:
+            feast_client = Client(
+                core_url=feast_config.get_config_property_or_fail("core_url"),
+                serving_url=feast_config.get_config_property_or_fail("serving_url"),
+            )
+            feast_versions.update(feast_client.version())
+
         print(feast_versions)
     except Exception as e:
         _logger.error("Error initializing backend store")
@@ -88,6 +95,64 @@ def config_set(fproperty, value):
         _logger.error("Error in reading config file")
         _logger.exception(e)
         sys.exit(1)
+
+
+@cli.group(name="feature-sets")
+def feature_set():
+    """
+    Create and manage feature sets
+    """
+    pass
+
+
+@feature_set.command()
+def list():
+    """
+    List all feature sets
+    """
+    feast_client = Client(
+        core_url=feast_config.get_config_property_or_fail("core_url"),
+        serving_url=feast_config.get_config_property_or_fail("serving_url"),
+    )  # type: Client
+
+    for fs in feast_client.feature_sets:
+        print(f"{fs.name}:{fs.version}")
+
+
+@feature_set.command()
+@click.argument("name")
+def create(name):
+    """
+    Create a feature set
+    """
+    feast_client = Client(
+        core_url=feast_config.get_config_property_or_fail("core_url"),
+        serving_url=feast_config.get_config_property_or_fail("serving_url"),
+    )  # type: Client
+
+    feast_client.apply(FeatureSet(name=name))
+
+
+@feature_set.command()
+@click.argument("name")
+@click.argument("version")
+def describe(name, version):
+    """
+    Describe a feature set
+    """
+    feast_client = Client(
+        core_url=feast_config.get_config_property_or_fail("core_url"),
+        serving_url=feast_config.get_config_property_or_fail("serving_url"),
+    )  # type: Client
+
+    fs = feast_client.get_feature_set(name=name, version=version)
+    if not fs:
+        print(
+            f'Feature set with name "{name}" and version "{version}" could not be found'
+        )
+        return
+
+    print(yaml.dump(yaml.safe_load(str(fs)), default_flow_style=False, sort_keys=False))
 
 
 if __name__ == "__main__":

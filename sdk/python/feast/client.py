@@ -22,7 +22,6 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetsRequest,
     ApplyFeatureSetResponse,
 )
-from feast.types.Value_pb2 import ValueType
 from feast.serving.ServingService_pb2 import (
     GetFeaturesRequest,
     GetFeastServingVersionRequest,
@@ -30,20 +29,14 @@ from feast.serving.ServingService_pb2 import (
 )
 from feast.feature_set import FeatureSet, Entity
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-
 from typing import List
 from collections import OrderedDict
 from typing import Dict
-from datetime import datetime
 import os
 import pandas as pd
-from feast.type_map import (
-    pandas_value_to_proto_value,
-    dtype_to_feast_value_attr,
-    FEAST_VALUETYPE_TO_DTYPE,
-)
+from feast.type_map import pandas_value_to_proto_value, FEAST_VALUE_ATTR_TO_DTYPE
 
-GRPC_CONNECTION_TIMEOUT = 600  # type: int
+GRPC_CONNECTION_TIMEOUT = 5  # type: int
 FEAST_SERVING_URL_ENV_KEY = "FEAST_SERVING_URL"  # type: str
 FEAST_CORE_URL_ENV_KEY = "FEAST_CORE_URL"  # type: str
 
@@ -52,7 +45,6 @@ class Client:
     def __init__(
         self, core_url: str = None, serving_url: str = None, verbose: bool = False
     ):
-        self._feature_sets = OrderedDict()  # type: Dict[FeatureSet]
         self._core_url = core_url
         self._serving_url = serving_url
         self._verbose = verbose
@@ -165,33 +157,58 @@ class Client:
             return
         raise Exception("Could not determine resource type to apply")
 
-    def refresh(self):
+    @property
+    def feature_sets(self) -> List[FeatureSet]:
         """
-        Refresh list of Feature Sets from Feast Core
+        Retrieve a list of Feature Sets from Feast Core
         """
         self._connect_core(skip_if_connected=True)
 
         # Get latest Feature Sets from Feast Core
         feature_set_protos = self._core_service_stub.GetFeatureSets(
-            GetFeatureSetsRequest(filter=GetFeatureSetsRequest.Filter())
+            GetFeatureSetsRequest()
         )  # type: GetFeatureSetsResponse
 
         # Store list of Feature Sets
+        feature_sets = []
         for feature_set_proto in feature_set_protos.feature_sets:
             feature_set = FeatureSet.from_proto(feature_set_proto)
-            feature_set._is_dirty = False
             feature_set._client = self
-            self._feature_sets[feature_set.name.strip()] = feature_set
+            feature_sets.append(feature_set)
+        return feature_sets
 
-    @property
-    def feature_sets(self) -> List[FeatureSet]:
-        self.refresh()
-        return list(self._feature_sets.values())
+    def get_feature_set(self, name: str, version: int) -> FeatureSet:
+        """
+        Retrieve a single Feature Set from Feast Core
+        """
+        self._connect_core(skip_if_connected=True)
+
+        # Get latest Feature Sets from Feast Core
+        get_feature_set_response = self._core_service_stub.GetFeatureSets(
+            GetFeatureSetsRequest(
+                filter=GetFeatureSetsRequest.Filter(
+                    feature_set_name=name.strip(), feature_set_version=str(version)
+                )
+            )
+        )  # type: GetFeatureSetsResponse
+
+        num_feature_sets_found = len(list(get_feature_set_response.feature_sets))
+
+        if num_feature_sets_found == 0:
+            return
+
+        if num_feature_sets_found > 1:
+            raise Exception(
+                f'Found {num_feature_sets_found} feature sets with name "{name}"'
+                f' and version "{version}".'
+            )
+
+        return FeatureSet.from_proto(get_feature_set_response.feature_sets[0])
 
     @property
     def entities(self) -> Dict[str, Entity]:
         entities_dict = OrderedDict()
-        for fs in list(self._feature_sets.values()):
+        for fs in self.feature_sets:
             for entity in fs.entities:
                 entities_dict[entity.name] = entity
         return entities_dict
@@ -209,14 +226,9 @@ class Client:
             raise Exception(
                 "Error while trying to apply feature set " + feature_set.name
             )
-
-        # Refresh state from Feast Core to local client
-        self.refresh()
-
-        # Replace applied feature set with refreshed feature set from Feast Core
-        deep_update_feature_set(
-            source=self._feature_sets[feature_set.name], target=feature_set
-        )
+        applied_fs = FeatureSet.from_proto(apply_fs_response.feature_set)
+        feature_set._update_from_feature_set(applied_fs, is_dirty=False)
+        return
 
     def get(
         self,
@@ -229,15 +241,13 @@ class Client:
         if "datetime" != entity_data.columns[0]:
             raise ValueError("The first column in entity_data should be 'datetime'")
 
-        entity_data_field_names = []
+        entity_names = []
         for column in entity_data.columns[1:]:
-            if column not in self.entities.keys():
-                raise Exception("Entity " + column + " could not be found")
-            entity_data_field_names.append(column)
+            entity_names.append(column)
 
         entity_dataset_rows = entity_data.apply(
             _convert_to_proto_value_fn(entity_data.dtypes), axis=1
-        ).to_list()
+        )
 
         feature_set_request = create_feature_set_request_from_feature_strings(
             feature_ids
@@ -245,39 +255,35 @@ class Client:
 
         get_online_features_response_proto = self._serving_service_stub.GetOnlineFeatures(
             GetFeaturesRequest(
-                entityDataSet=GetFeaturesRequest.EntityDataSet(
-                    entity_data_set_rows=entity_dataset_rows,
-                    fieldNames=entity_data_field_names,
+                entity_dataset=GetFeaturesRequest.EntityDataset(
+                    entity_dataset_rows=entity_dataset_rows, entity_names=entity_names
                 ),
-                featureSets=feature_set_request,
+                feature_sets=feature_set_request,
             )
         )  # type: GetOnlineFeaturesResponse
 
         feature_dataframe = feature_data_sets_to_pandas_dataframe(
-            feature_sets=self._feature_sets,
             entity_data_set=entity_data.copy(),
-            feature_data_sets=list(
-                get_online_features_response_proto.feature_data_sets
-            ),
+            feature_data_sets=list(get_online_features_response_proto.feature_datasets),
         )
         return feature_dataframe
 
 
 def _convert_to_proto_value_fn(dtypes: pd.core.generic.NDFrame):
     def convert_to_proto_value(row: pd.Series):
-        entity_dataset_row = GetFeaturesRequest.EntityDataSetRow()
+        entity_dataset_row = GetFeaturesRequest.EntityDatasetRow()
         for i in range(len(row) - 1):
-            proto_value = pandas_value_to_proto_value(dtypes[i + 1], row[i + 1])
-            entity_dataset_row.value.append(proto_value)
+            entity_dataset_row.entity_ids.append(
+                pandas_value_to_proto_value(dtypes[i + 1], row[i + 1])
+            )
         return entity_dataset_row
 
     return convert_to_proto_value
 
 
 def feature_data_sets_to_pandas_dataframe(
-    feature_sets: List[FeatureSet],
     entity_data_set: pd.DataFrame,
-    feature_data_sets: List[GetOnlineFeaturesResponse.FeatureDataSet],
+    feature_data_sets: List[GetOnlineFeaturesResponse.FeatureDataset],
 ):
     feature_data_set_dataframes = []
     for feature_data_set in feature_data_sets:
@@ -292,9 +298,7 @@ def feature_data_sets_to_pandas_dataframe(
 
         # Convert to Pandas DataFrame
         feature_data_set_dataframes.append(
-            feature_data_set_to_pandas_dataframe(
-                feature_sets[feature_data_set.name], feature_data_set
-            )
+            feature_data_set_to_pandas_dataframe(feature_data_set)
         )
 
     # Join dataframes into a single feature dataframe
@@ -313,29 +317,35 @@ def join_feature_set_dataframes(
 
 
 def feature_data_set_to_pandas_dataframe(
-    feature_set: FeatureSet, feature_data_set: GetOnlineFeaturesResponse.FeatureDataSet
+    feature_data_set: GetOnlineFeaturesResponse.FeatureDataset
 ) -> pd.DataFrame:
     feature_set_name = feature_data_set.name
     dtypes = {}
+    value_attr = {}
     columns = []
-    for field in feature_set.entities + feature_set.features:
-        field_proto = field.to_proto()
-        feature_id = feature_set_name + "." + field_proto.name
-        columns.append(feature_id)
-        feast_value_type = ValueType.Enum.Name(field_proto.value_type)
-        dtypes[feature_id] = FEAST_VALUETYPE_TO_DTYPE[feast_value_type]
+    data = {}
+    first_run_done = False
 
-    dataframe = pd.DataFrame(columns=columns).reset_index(drop=True).astype(dtypes)
+    for featureRow in feature_data_set.feature_rows:
+        for field in featureRow.fields:
+            feature_id = feature_set_name + "." + field.name
 
-    for featureRow in list(feature_data_set.feature_rows):
-        pandas_row = {}
-        for field in list(featureRow.fields):
-            if field.value.WhichOneof("val") is None:
-                feature_value = None
+            if not first_run_done:
+                columns.append(feature_id)
+                data[feature_id] = []
+                value_attr[feature_id] = field.value.WhichOneof("val")
+                dtypes[feature_id] = FEAST_VALUE_ATTR_TO_DTYPE[value_attr[feature_id]]
+
+            if not field.value.HasField(value_attr[feature_id]):
+                data[feature_id].append(None)
             else:
-                feature_value = getattr(field.value, field.value.WhichOneof("val"))
-            pandas_row[feature_set_name + "." + field.name] = feature_value
-        dataframe = dataframe.append(pandas_row, ignore_index=True)
+                data[feature_id].append(getattr(field.value, value_attr[feature_id]))
+
+        first_run_done = True
+
+    dataframe = (
+        pd.DataFrame(columns=columns, data=data).reset_index(drop=True).astype(dtypes)
+    )
 
     return dataframe
 
@@ -349,17 +359,7 @@ def create_feature_set_request_from_feature_strings(
         if feature_set not in feature_set_request:
             feature_set_name, feature_set_version = feature_set.split(":")
             feature_set_request[feature_set] = GetFeaturesRequest.FeatureSet(
-                name=feature_set_name, version=feature_set_version
+                name=feature_set_name, version=int(feature_set_version)
             )
         feature_set_request[feature_set].feature_names.append(feature)
     return list(feature_set_request.values())
-
-
-def deep_update_feature_set(source: FeatureSet, target: FeatureSet):
-    target._name = source.name
-    target._version = source.version
-    target._source = source.source
-    target._max_age = source.max_age
-    target._features = source.features
-    target._entities = source.entities
-    target._is_dirty = source._is_dirty

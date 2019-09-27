@@ -96,12 +96,6 @@ class ServingServicer(Serving.ServingServiceServicer):
 
     def GetOnlineFeatures(self, request: GetFeaturesRequest, context):
 
-        # for feature_set_request in list(request.featureSets):
-        #     feature_data_set = self._store.get_feature_data(
-        #         feature_set_request=feature_set_request,
-        #         entity_data=request.entityDataSet,
-        #     )
-
         response = GetOnlineFeaturesResponse(
             feature_data_sets=[
                 GetOnlineFeaturesResponse.FeatureDataSet(
@@ -173,7 +167,7 @@ class ServingServicer(Serving.ServingServiceServicer):
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     Serving.add_ServingServiceServicer_to_server(ServingServicer(), server)
-    server.add_insecure_port("[::]:50051")
+    server.add_insecure_port("[::]:50052")
     server.start()
     try:
         while True:

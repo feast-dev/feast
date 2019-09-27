@@ -16,9 +16,9 @@
 import logging
 
 import os
-import multiprocessing
 import pandas as pd
 from math import ceil
+from multiprocessing import Process, Queue, cpu_count
 from typing import List
 from collections import OrderedDict
 from typing import Dict
@@ -30,18 +30,18 @@ from feast.feature import Feature, Field
 from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
 from feast.types import FeatureRow_pb2 as FeatureRow
 from google.protobuf.timestamp_pb2 import Timestamp
+from google.protobuf.duration_pb2 import Duration
 from kafka import KafkaProducer
 from tqdm import tqdm
 from feast.type_map import pandas_dtype_to_feast_value_type
-from feast.types import (
-    FeatureRow_pb2 as FeatureRowProto,
-    Field_pb2 as FieldProto,
-)
+from feast.types import FeatureRow_pb2 as FeatureRowProto, Field_pb2 as FieldProto
 from feast.type_map import pandas_value_to_proto_value
+from google.protobuf.json_format import MessageToJson
 
 _logger = logging.getLogger(__name__)
 DATETIME_COLUMN = "datetime"  # type: str
-CPU_COUNT = multiprocessing.cpu_count()  # type: int
+CPU_COUNT = cpu_count()  # type: int
+SENTINEL = 1  # type: int
 
 
 class FeatureSet:
@@ -60,9 +60,9 @@ class FeatureSet:
         self._name = name
         self._fields = OrderedDict()  # type: Dict[str, Field]
         if features is not None:
-            self._add_fields(features)
+            self.features = features
         if entities is not None:
-            self._add_fields(entities)
+            self.entities = entities
         if source is None:
             self._source = Source()
         self._max_age = max_age
@@ -95,12 +95,28 @@ class FeatureSet:
             return False
         return True
 
+    def __str__(self):
+        return str(MessageToJson(self.to_proto()))
+
     @property
     def features(self) -> List[Feature]:
         """
         Returns a list of features from this feature set
         """
         return [field for field in self._fields.values() if isinstance(field, Feature)]
+
+    @features.setter
+    def features(self, features: List[Feature]):
+        for feature in features:
+            if not isinstance(feature, Feature):
+                raise Exception("object type is not a Feature: " + str(type(feature)))
+
+        for key in list(self._fields.keys()):
+            if isinstance(self._fields[key], Feature):
+                del self._fields[key]
+
+        if features is not None:
+            self._add_fields(features)
 
     @property
     def entities(self) -> List[Entity]:
@@ -109,9 +125,26 @@ class FeatureSet:
         """
         return [field for field in self._fields.values() if isinstance(field, Entity)]
 
+    @entities.setter
+    def entities(self, entities: List[Entity]):
+        for entity in entities:
+            if not isinstance(entity, Entity):
+                raise Exception("object type is not na Entity: " + str(type(entity)))
+
+        for key in list(self._fields.keys()):
+            if isinstance(self._fields[key], Entity):
+                del self._fields[key]
+
+        if entities is not None:
+            self._add_fields(entities)
+
     @property
     def name(self):
         return self._name
+
+    @name.setter
+    def name(self, name):
+        self._name = name
 
     @property
     def source(self):
@@ -121,17 +154,21 @@ class FeatureSet:
     def source(self, source: Source):
         self._source = source
 
-        # Create Kafka FeatureRow producer
-        if self._message_producer is not None:
-            self._message_producer = KafkaProducer(bootstrap_servers=source.brokers)
-
     @property
     def version(self):
         return self._version
 
+    @version.setter
+    def version(self, version):
+        self._version = version
+
     @property
     def max_age(self):
         return self._max_age
+
+    @max_age.setter
+    def max_age(self, max_age):
+        self._max_age = max_age
 
     @property
     def is_dirty(self):
@@ -248,58 +285,66 @@ class FeatureSet:
             )
         self._add_fields(list(fields.values()))
 
-    def ingest(self, dataframe: pd.DataFrame, force_update: bool = False, timeout: int = 5, max_workers: int = CPU_COUNT):
-        """
-        Write rows in dataframe as feature rows into a Kafka topic. If the dataframe has more than 5000 rows,
-        do a batch ingest, otherwise, ingest dataframe normally.
-        :param dataframe: Dataframe containing the input data to be ingested.
-        :param force_update: Flag to update feature set from data set and re-register if changed.
-        :param timeout: Timeout in seconds to wait for completion.
-        :param max_workers: The maximum number of threads that can be used to execute the given calls.
-        :return:
-        """
-        # ingest_batch if dataframe rows > 10000
+    def ingest(
+        self,
+        dataframe: pd.DataFrame,
+        force_update: bool = False,
+        timeout: int = 5,
+        max_workers: int = CPU_COUNT,
+    ):
+        pbar = tqdm(unit="rows", total=dataframe.shape[0])
+        q = Queue()
+        proc = Process(target=self._listener, args=(pbar, q))
+        proc.start()  # Start the listener process
+
         if dataframe.shape[0] > 10000:
             _logger.info("Performing batch upload.")
-            return self.ingest_batch(dataframe, force_update, timeout, max_workers)
+            try:
+                # Split dataframe into smaller dataframes
+                n = ceil(dataframe.shape[0] / max_workers)
+                list_df = [
+                    dataframe[i : min(i + n, dataframe.shape[0])]
+                    for i in range(0, dataframe.shape[0], n)
+                ]
+
+                # Fork ingestion processes
+                processes = []
+                for i in range(max_workers):
+                    _logger.info(f"Starting process number = {i+1}")
+                    p = Process(
+                        target=self.ingest_one,
+                        args=(list_df[i], q, force_update, timeout),
+                    )
+                    p.start()
+                    processes.append(p)
+
+                # Join ingestion processes
+                for p in processes:
+                    _logger.info("Joining processes")
+                    p.join()
+            except Exception as ex:
+                _logger.error(f"Exception occurred: {ex}")
         else:
-            _logger.info("Performing upload.")
-            self.ingest_one(dataframe, force_update, timeout)
+            _logger.info("Performing upload")
+            self.ingest_one(dataframe, q, force_update, timeout)
 
-    def ingest_batch(self, dataframe: pd.DataFrame, force_update: bool = False, timeout: int = 5, max_workers=CPU_COUNT):
-        """
-        Fragments a large dataframe into n smaller dataframes, where n = max_workers.
-        The smaller dataframes will be loaded into a Kafka topic in parallel using concurrent.futures and `~mymodule.feature_set.ingest`.
-        :param dataframe: Dataframe containing the input data to be ingested.
-        :param force_update: Flag to update feature set from data set and re-register if changed.
-        :param timeout: Timeout in seconds to wait for completion.
-        :param max_workers: The maximum number of threads that can be used to execute the given calls.
-        :return:
-        """
-        # split dataframe into smaller dataframes
-        n = ceil(dataframe.shape[0] / max_workers)
-        list_df = [dataframe[i:min(i+n, dataframe.shape[0])] for i in range(0, dataframe.shape[0], n)]
-
-        try:
-            processes = []
-            for i in range(max_workers):
-                _logger.info(f'Starting process number = {i+1}')
-                p = multiprocessing.Process(target=self.ingest_one, args=(list_df[i], force_update, timeout))
-                p.start()
-                processes.append(p)
-
-            for p in processes:
-                _logger.info('Joining processes')
-                p.join()
-        except Exception as ex:
-            _logger.error(f'Exception occured: {ex}')
+        q.put(None)  # Signal to listener process to stop
+        proc.join()  # Join listener process
+        pbar.update(dataframe.shape[0] - pbar.n)  # Perform a final update
+        pbar.close()
+        _logger.info("Upload complete.")
 
     def ingest_one(
-        self, dataframe: pd.DataFrame, force_update: bool = False, timeout: int = 5
+        self,
+        dataframe: pd.DataFrame,
+        q: Queue,
+        force_update: bool = False,
+        timeout: int = 5,
     ):
         """
         Write the rows in the provided dataframe into a Kafka topic.
         :param dataframe: Dataframe containing the input data to be ingested.
+        :param q: Queue used to send signals to update tqdm progress bar
         :param force_update: Flag to update feature set from data set and re-register if changed.
         :param timeout: Timeout in seconds to wait for completion.
         :return:
@@ -313,9 +358,10 @@ class FeatureSet:
         self._validate_feature_set()
 
         # Create Kafka FeatureRow producer (Required if process is forked)
-        self._message_producer = KafkaProducer(
-            bootstrap_servers=self._get_kafka_source_brokers()
-        )
+        if self._message_producer is None:
+            self._message_producer = KafkaProducer(
+                bootstrap_servers=self._get_kafka_source_brokers()
+            )
 
         _logger.info(
             f"Publishing features to topic: '{self._get_kafka_source_topic()}' "
@@ -323,19 +369,22 @@ class FeatureSet:
         )
 
         # Convert rows to FeatureRows and and push to stream
-        for index, row in tqdm(
-            dataframe.iterrows(), unit="rows", total=dataframe.shape[0]
-        ):
+        for index, row in dataframe.iterrows():
             feature_row = self._pandas_row_to_feature_row(dataframe, row)
             self._message_producer.send(
                 self._get_kafka_source_topic(), feature_row.SerializeToString()
             )
+            q.put(SENTINEL)
 
         # Wait for all messages to be completely sent
         self._message_producer.flush(timeout=timeout)
 
     def ingest_file(
-            self, file_path: str, force_update: bool = False, timeout: int = 5, max_workers=CPU_COUNT
+        self,
+        file_path: str,
+        force_update: bool = False,
+        timeout: int = 5,
+        max_workers=CPU_COUNT,
     ):
         """
         Load the contents of a file into a Kafka topic.
@@ -350,15 +399,15 @@ class FeatureSet:
         """
         df = None
         filename, file_ext = os.path.splitext(file_path)
-        if '.parquet' in file_ext:
+        if ".parquet" in file_ext:
             df = pd.read_parquet(file_path)
-        elif '.csv' in file_ext:
+        elif ".csv" in file_ext:
             df = pd.read_csv(file_path)
         try:
             # Ensure that dataframe is initialised
             assert df
         except AssertionError:
-            _logger.error(f'Ingestion of file type {file_ext} is not supported')
+            _logger.error(f"Ingestion of file type {file_ext} is not supported")
             raise Exception("File type not supported")
 
         self.ingest(df, force_update, timeout, max_workers)
@@ -408,7 +457,7 @@ class FeatureSet:
         return FeatureSetSpecProto(
             name=self.name,
             version=self.version,
-            maxAge=self.max_age,
+            max_age=Duration(seconds=self.max_age),
             source=self.source.to_proto(),
             features=[
                 field.to_proto()
@@ -421,6 +470,17 @@ class FeatureSet:
                 if type(field) == Entity
             ],
         )
+
+    def _update_from_feature_set(self, feature_set, is_dirty: bool = True):
+
+        self.name = feature_set.name
+        self.version = feature_set.version
+        self.source = feature_set.source
+        self.max_age = feature_set.max_age
+        self.features = feature_set.features
+        self.entities = feature_set.entities
+
+        self._is_dirty = is_dirty
 
     def _validate_feature_set(self):
         # Validate whether the feature set has been modified and needs to be saved
@@ -436,3 +496,14 @@ class FeatureSet:
         if self.source and self.source.source_type == "Kafka":
             return self.source.topic
         raise Exception("Source type could not be identified")
+
+    @staticmethod
+    def _listener(pbar: tqdm, q: Queue):
+        """
+        Static method that listens to changes in a queue and updates the progress bar accordingly.
+        :param pbar: Initialised tqdm instance
+        :param q: Multiprocess queue object containing update instances as SENTINEL flags
+        :return:
+        """
+        for _ in iter(q.get, None):
+            pbar.update()

@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime
-
-import pytz
 from unittest.mock import MagicMock
 from feast.feature_set import FeatureSet, Feature
 from feast.value_type import ValueType
@@ -89,13 +86,15 @@ class TestFeatureSet:
         client.apply(fs1)
         client.apply(fs2)
 
+        feature_sets = client.feature_sets
+
         # List Feature Sets
         assert (
-            len(client.feature_sets) == 2
-            and client.feature_sets[0].name == "my-feature-set-1"
-            and client.feature_sets[0].features[0].name == "fs1-my-feature-1"
-            and client.feature_sets[0].features[0].dtype == ValueType.INT64
-            and client.feature_sets[1].features[1].dtype == ValueType.BYTES_LIST
+            len(feature_sets) == 2
+            and feature_sets[0].name == "my-feature-set-1"
+            and feature_sets[0].features[0].name == "fs1-my-feature-1"
+            and feature_sets[0].features[0].dtype == ValueType.INT64
+            and feature_sets[1].features[1].dtype == ValueType.BYTES_LIST
         )
 
     @pytest.mark.parametrize("dataframe", [dataframes.GOOD])
@@ -107,7 +106,7 @@ class TestFeatureSet:
             dataframe,
             column_mapping={"entity_id": Entity(name="entity", dtype=ValueType.INT64)},
         )
-        driver_fs.source = KafkaSource(topic="feature-topic", brokers="fake.broker.com")
+        driver_fs.source = KafkaSource(topic="feature-topic", brokers="127.0.0.1")
         driver_fs._message_producer = MagicMock()
         driver_fs._message_producer.send = MagicMock()
 

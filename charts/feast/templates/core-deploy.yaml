@@ -86,8 +86,6 @@ spec:
             value: {{ .Values.core.logType }}
           - name: PROJECT_ID
             value: "{{ .Values.core.projectId}}"
-          - name: TRAINING_DATASET_PREFIX
-            value: "{{ .Values.core.trainingDatasetPrefix }}"
           - name: JOB_RUNNER
             value: {{ .Values.core.jobs.runner }}
           - name: JOB_WORKSPACE
@@ -128,10 +126,6 @@ spec:
           - name: DATAFLOW_LOCATION
             value: {{ .Values.dataflow.location }}
           {{- end }}
-          - name: FEAST_STREAM_TYPE
-            value: {{ .Values.stream.type }}
-          - name: FEAST_STREAM_OPTIONS
-            value: {{ .Values.stream.options }}
           {{- if .Values.serviceAccount }}
           - name: GOOGLE_APPLICATION_CREDENTIALS
             value: /etc/gcloud/service-accounts/{{ .Values.serviceAccount.key }}

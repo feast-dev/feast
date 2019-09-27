@@ -13,7 +13,7 @@ It aims to:
 
 ## High Level Architecture
 
-![Feast Architecture](docs/architecture.png)
+![Feast Architecture](arch.png)
 
 The Feast platform is broken down into the following functional areas:
 
@@ -35,21 +35,6 @@ __Feature standardisation__: Feast presents a centralized platform on which team
 
 __Discovery__: Feast allows users to easily explore and discover features and their associated information. This allows for a deeper understanding of features and theirs specifications, more feature reuse between teams and projects, and faster experimentation. Each new ML project can leverage features that have been created by prior teams, which compounds an organization's ability to discover new insights. 
 
-## More Information
-
-* [Components](docs/components.md)
-* [Concepts](docs/concepts.md)
-
-For Feast administrators:
-* [Installation quickstart](docs/install.md)
-* [Helm charts](charts/README.md) details
-
-For Feast end users:
-* [Creating features](docs/endusers.md)
-
-For Feast developers:
-* [Building the CLI](cli/README.md)
-
 ## Notice
 
 Feast is still under active development. Your feedback and contributions are important to us. Please check our [contributing guide](CONTRIBUTING.md) for details.
@@ -63,7 +48,7 @@ doesn't comply with the license.)
 
 Apache header:
 
-    Copyright 2018 The Feast Authors
+    Copyright 2019 The Feast Authors
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.

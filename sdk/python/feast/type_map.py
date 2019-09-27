@@ -21,7 +21,7 @@ from feast.types.Value_pb2 import Value as ProtoValue, ValueType as ProtoValueTy
 # Mapping of feast value type to Pandas DataFrame dtypes
 # Integer and floating values are all 64-bit for better integration
 # with BigQuery data types
-FEAST_VALUETYPE_TO_DTYPE = {
+FEAST_VALUE_TYPE_TO_DTYPE = {
     "BYTES": np.byte,
     "STRING": np.object,
     "INT32": "Int32",  # Use pandas nullable int type
@@ -29,6 +29,16 @@ FEAST_VALUETYPE_TO_DTYPE = {
     "DOUBLE": np.float64,
     "FLOAT": np.float64,
     "BOOL": np.bool,
+}
+
+FEAST_VALUE_ATTR_TO_DTYPE = {
+    "bytes_val": np.byte,
+    "string_val": np.object,
+    "int32_val": "Int32",
+    "int64_val": "Int64",
+    "double_val": np.float64,
+    "float_val": np.float64,
+    "bool_val": np.bool,
 }
 
 
@@ -104,7 +114,7 @@ def pandas_dtype_to_feast_value_type(dtype: pd.DataFrame.dtypes) -> ValueType:
 def pandas_value_to_proto_value(pandas_dtype, pandas_value) -> ProtoValue:
     value = ProtoValue()
     value_attr = dtype_to_feast_value_attr(pandas_dtype)
-    if pandas_dtype.__str__() in ["datetime64[ns]", "datetime64[ns, UTC]"]: 
+    if pandas_dtype.__str__() in ["datetime64[ns]", "datetime64[ns, UTC]"]:
         pandas_value = int(pandas_value.timestamp())
     try:
         value.__setattr__(value_attr, pandas_value)
