@@ -1,6 +1,9 @@
 ### Scratch files ###
 scratch*
 
+### Feast UI deprecated folder ####
+ui/
+
 ### Local Environment ###
 *local*.env
 
