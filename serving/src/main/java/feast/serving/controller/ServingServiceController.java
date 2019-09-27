@@ -18,6 +18,7 @@ import feast.serving.ServingAPIProto.ReloadJobStatusRequest;
 import feast.serving.ServingAPIProto.ReloadJobStatusResponse;
 import feast.serving.ServingServiceGrpc.ServingServiceImplBase;
 import feast.serving.service.ServingService;
+import io.grpc.health.v1.HealthGrpc.HealthImplBase;
 import io.grpc.stub.StreamObserver;
 import io.opentracing.Scope;
 import io.opentracing.Span;
