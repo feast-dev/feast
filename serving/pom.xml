@@ -88,6 +88,13 @@
   </build>
 
   <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-configuration-processor</artifactId>
+      <version>${springBootVersion}</version>
+      <optional>true</optional>
+    </dependency>
+
     <!--compile "org.springframework.boot:spring-boot-starter-web:${springBootVersion}"-->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -197,11 +204,6 @@
       <groupId>io.opentracing.contrib</groupId>
       <artifactId>opentracing-concurrent</artifactId>
       <version>0.2.0</version>
-    </dependency>
-    <dependency>
-      <groupId>io.opentracing</groupId>
-      <artifactId>opentracing-util</artifactId>
-      <version>0.33.0</version>
     </dependency>
 
 
@@ -317,6 +319,18 @@
       <build>
         <plugins>
           <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-resources-plugin</artifactId>
+            <version>3.1.0</version>
+            <configuration>
+              <delimiters>
+                <delimiter>@</delimiter>
+              </delimiters>
+              <useDefaultDelimiters>false</useDefaultDelimiters>
+            </configuration>
+          </plugin>
+
+          <plugin>
             <groupId>io.fabric8</groupId>
             <artifactId>docker-maven-plugin</artifactId>
             <version>0.20.1</version>
@@ -351,6 +365,16 @@
             </executions>
           </plugin>
         </plugins>
+
+        <!-- https://docs.spring.io/spring-boot/docs/current/reference/html/howto-properties-and-configuration.html#howto-automatic-expansion-maven -->
+        <resources>
+          <resource>
+            <directory>src/main/resources</directory>
+            <filtering>true</filtering>
+          </resource>
+        </resources>
+
+
       </build>
     </profile>
     <profile>

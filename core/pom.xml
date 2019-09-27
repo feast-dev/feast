@@ -113,6 +113,15 @@
                     <installDirectory>target</installDirectory>
                 </configuration>
             </plugin>
+            <!-- This plugin is useful for development where developers can start Core with mvn exec:java command -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>1.6.0</version>
+                <configuration>
+                    <mainClass>feast.core.CoreApplication</mainClass>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 

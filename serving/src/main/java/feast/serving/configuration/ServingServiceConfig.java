@@ -4,24 +4,32 @@ import feast.core.CoreServiceProto.GetStoresRequest;
 import feast.core.CoreServiceProto.GetStoresRequest.Filter;
 import feast.core.CoreServiceProto.GetStoresResponse;
 import feast.core.StoreProto.Store;
+import feast.core.StoreProto.Store.BigQueryConfig;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
+import feast.serving.FeastProperties;
 import feast.serving.service.BigQueryServingService;
 import feast.serving.service.RedisServingService;
 import feast.serving.service.ServingService;
 import feast.serving.service.SpecService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
 
 @Slf4j
 @Configuration
 public class ServingServiceConfig {
-  @Value("${feast.store.name}")
   private String feastStoreName;
 
+  @Autowired
+  public ServingServiceConfig(FeastProperties feastProperties) {
+    feastStoreName = feastProperties.getStoreName();
+  }
+
   @Bean
+  @DependsOn({"specService"})
   public ServingService servingService(SpecService specService) {
     GetStoresResponse storesResponse =
         specService.getStores(
@@ -45,6 +53,7 @@ public class ServingServiceConfig {
         servingService = new RedisServingService(redisConfig.getHost(), redisConfig.getPort());
         break;
       case BIGQUERY:
+        BigQueryConfig bqConfig = store.getBigqueryConfig();
         servingService = new BigQueryServingService();
         break;
       case CASSANDRA:

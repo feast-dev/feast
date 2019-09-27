@@ -1,0 +1,31 @@
+feast:
+  # This value is retrieved from project.version properties in pom.xml
+  # https://docs.spring.io/spring-boot/docs/current/reference/html/
+  version: @project.version@
+  # GRPC service address for Feast Core
+  # Feast Serving requires Feast Core to retrieve and reload Feast metadata (e.g. FeatureSpecs, Store information)
+  core-host: ${FEAST_CORE_HOST:localhost}
+  core-port: ${FEAST_CORE_HOST:6565}
+  # The name of the store in Feast this instance of Feast serving will retrieve features from
+  # Ensure the store has been registered in Feast
+  store-name: ${FEAST_STORE_NAME}
+  # If true, Feast will provide tracing data (using OpenTracing API) for various RPC method calls
+  # which can be useful to debug performance issues and perform benchmarking
+  tracing-enabled: false
+  # Only Jaeger tracer is supported currently
+  # https://opentracing.io/docs/supported-tracers/
+  tracing-tracer-name: jaeger
+  # The service name identifier for the tracing data
+  tracing-service-name: feast_serving
+
+grpc:
+  # The port number Feast Serving GRPC service should listen on
+  port: 6566
+  # This allows client to discover GRPC endpoints easily
+  # https://github.com/grpc/grpc-java/blob/master/documentation/server-reflection-tutorial.md
+  enable-reflection: true
+
+spring:
+  main:
+    # Disable Tomcat webserver (not needed)
+    web-application-type: none

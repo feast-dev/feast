@@ -5,8 +5,6 @@ import feast.serving.ServingAPIProto.GetBatchFeaturesFromCompletedJobResponse;
 import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingTypeRequest;
 import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
-import feast.serving.ServingAPIProto.GetFeastServingVersionRequest;
-import feast.serving.ServingAPIProto.GetFeastServingVersionResponse;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.GetStagingLocationRequest;
@@ -17,20 +15,20 @@ import feast.serving.ServingAPIProto.ReloadJobStatusRequest;
 import feast.serving.ServingAPIProto.ReloadJobStatusResponse;
 
 public interface ServingService {
-  GetFeastServingTypeResponse GetFeastServingType(
+  GetFeastServingTypeResponse getFeastServingType(
       GetFeastServingTypeRequest getFeastServingTypeRequest);
 
-  GetOnlineFeaturesResponse GetOnlineFeatures(GetFeaturesRequest getFeaturesRequest);
+  GetOnlineFeaturesResponse getOnlineFeatures(GetFeaturesRequest getFeaturesRequest);
 
-  GetBatchFeaturesResponse GetBatchFeatures(GetFeaturesRequest getFeaturesRequest);
+  GetBatchFeaturesResponse getBatchFeatures(GetFeaturesRequest getFeaturesRequest);
 
-  GetBatchFeaturesFromCompletedJobResponse GetBatchFeaturesFromCompletedJob(
+  GetBatchFeaturesFromCompletedJobResponse getBatchFeaturesFromCompletedJob(
       GetBatchFeaturesFromCompletedJobRequest getBatchFeaturesFromCompletedJobRequest);
 
-  GetStagingLocationResponse GetStagingLocation(
+  GetStagingLocationResponse getStagingLocation(
       GetStagingLocationRequest getStagingLocationRequest);
 
-  LoadBatchFeaturesResponse LoadBatchFeatures(LoadBatchFeaturesRequest loadBatchFeaturesRequest);
+  LoadBatchFeaturesResponse loadBatchFeatures(LoadBatchFeaturesRequest loadBatchFeaturesRequest);
 
-  ReloadJobStatusResponse ReloadJobStatus(ReloadJobStatusRequest reloadJobStatusRequest);
+  ReloadJobStatusResponse reloadJobStatus(ReloadJobStatusRequest reloadJobStatusRequest);
 }

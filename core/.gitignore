@@ -1,5 +1,5 @@
 ### Scratch files ###
-scratch*
+scratch_redis*
 
 ### Local Environment ###
 *local*.env
