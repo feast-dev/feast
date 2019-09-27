@@ -1,6 +1,7 @@
 ### Getting Started for Feast Core Developers
 
 Pre-requisites:
+- [Maven](https://maven.apache.org/install.html) build tool version 3.6.x
 - A running Postgres instance. For easier to get started, please configure the database like so:
   ```
   database: postgres
