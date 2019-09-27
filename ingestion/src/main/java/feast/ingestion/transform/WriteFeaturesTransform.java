@@ -63,7 +63,7 @@ public class WriteFeaturesTransform extends PTransform<PCollection<FeatureRowExt
                 .setField(FeatureRowExtendedToTableRowDoFn.getEventTimestampColumn());
         input
             .apply(
-                "Create BigQuery TableRow from FeaureRow",
+                "Create BigQuery TableRow from FeatureRow",
                 ParDo.of(new FeatureRowExtendedToTableRowDoFn(options.getJobName())))
             .apply(
                 BigQueryIO.writeTableRows()

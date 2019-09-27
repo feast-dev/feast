@@ -3,7 +3,7 @@ feast:
   # https://docs.spring.io/spring-boot/docs/current/reference/html/
   version: @project.version@
   # GRPC service address for Feast Core
-  # Feast Serving requires Feast Core to retrieve and reload Feast metadata (e.g. FeatureSpecs, Store information)
+  # Feast Serving requires connection to Feast Core to retrieve and reload Feast metadata (e.g. FeatureSpecs, Store information)
   core-host: ${FEAST_CORE_HOST:localhost}
   core-port: ${FEAST_CORE_HOST:6565}
   # The name of the store in Feast this instance of Feast serving will retrieve features from
