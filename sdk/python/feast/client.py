@@ -166,7 +166,7 @@ class Client:
 
         # Get latest Feature Sets from Feast Core
         feature_set_protos = self._core_service_stub.GetFeatureSets(
-            GetFeatureSetsRequest(filter=GetFeatureSetsRequest.Filter())
+            GetFeatureSetsRequest()
         )  # type: GetFeatureSetsResponse
 
         # Store list of Feature Sets
@@ -176,6 +176,34 @@ class Client:
             feature_set._client = self
             feature_sets.append(feature_set)
         return feature_sets
+
+    def get_feature_set(self, name: str, version: int) -> FeatureSet:
+        """
+        Retrieve a single Feature Set from Feast Core
+        """
+        self._connect_core(skip_if_connected=True)
+
+        # Get latest Feature Sets from Feast Core
+        get_feature_set_response = self._core_service_stub.GetFeatureSets(
+            GetFeatureSetsRequest(
+                filter=GetFeatureSetsRequest.Filter(
+                    feature_set_name=name.strip(), feature_set_version=str(version)
+                )
+            )
+        )  # type: GetFeatureSetsResponse
+
+        num_feature_sets_found = len(list(get_feature_set_response.feature_sets))
+
+        if num_feature_sets_found == 0:
+            return
+
+        if num_feature_sets_found > 1:
+            raise Exception(
+                f'Found {num_feature_sets_found} feature sets with name "{name}"'
+                f' and version "{version}".'
+            )
+
+        return FeatureSet.from_proto(get_feature_set_response.feature_sets[0])
 
     @property
     def entities(self) -> Dict[str, Entity]:

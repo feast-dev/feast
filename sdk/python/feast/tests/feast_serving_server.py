@@ -167,7 +167,7 @@ class ServingServicer(Serving.ServingServiceServicer):
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     Serving.add_ServingServiceServicer_to_server(ServingServicer(), server)
-    server.add_insecure_port("[::]:50051")
+    server.add_insecure_port("[::]:50052")
     server.start()
     try:
         while True:

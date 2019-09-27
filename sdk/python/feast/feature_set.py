@@ -36,6 +36,7 @@ from tqdm import tqdm
 from feast.type_map import pandas_dtype_to_feast_value_type
 from feast.types import FeatureRow_pb2 as FeatureRowProto, Field_pb2 as FieldProto
 from feast.type_map import pandas_value_to_proto_value
+from google.protobuf.json_format import MessageToJson
 
 _logger = logging.getLogger(__name__)
 DATETIME_COLUMN = "datetime"  # type: str
@@ -93,6 +94,9 @@ class FeatureSet:
         ):
             return False
         return True
+
+    def __str__(self):
+        return str(MessageToJson(self.to_proto()))
 
     @property
     def features(self) -> List[Feature]:
