@@ -20,7 +20,7 @@ package feast.core;
 
 option java_package = "feast.core";
 option java_outer_classname = "FeatureSetProto";
-option go_package = "github.com/gojek/feast/protos/generated/go/feast/core";
+option go_package = "github.com/gojek/feast/sdk/go/protos/feast/core";
 
 import "feast/types/Value.proto";
 import "feast/core/Source.proto";

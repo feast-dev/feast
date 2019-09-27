@@ -4,7 +4,7 @@ dirs = core serving types storage
 service_dirs = core serving
 
 gen-go:
-	@$(foreach dir,$(dirs),protoc -I/usr/local/include -I. --go_out=plugins=grpc,paths=source_relative:generated/go feast/$(dir)/*.proto;)
+	@$(foreach dir,$(dirs),protoc -I/usr/local/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos/ feast/$(dir)/*.proto;)
 
 gen-python:
 	pip install grpcio-tools
