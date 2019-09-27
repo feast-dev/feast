@@ -11,7 +11,6 @@ import io.grpc.health.v1.HealthProto.HealthCheckResponse.ServingStatus;
 import io.grpc.stub.StreamObserver;
 import org.lognet.springboot.grpc.GRpcService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.DependsOn;
 
 // Reference: https://github.com/grpc/grpc/blob/master/doc/health-checking.md
 
