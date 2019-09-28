@@ -36,7 +36,7 @@ public class DirectJobRegistry {
    * @return DirectJob
    */
   public DirectJob get(String id) {
-    return jobs.get(id);
+    return jobs.getOrDefault(id, null);
   }
 
   /**
