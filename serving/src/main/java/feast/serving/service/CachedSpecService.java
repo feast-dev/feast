@@ -13,6 +13,7 @@ import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Subscription;
 import feast.serving.exception.SpecRetrievalException;
+import io.grpc.StatusRuntimeException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -88,6 +89,7 @@ public class CachedSpecService implements SpecService {
    * Preload all specs into the cache.
    */
   public void populateCache() {
+
     GetStoresResponse stores = coreService.getStores(
         GetStoresRequest.newBuilder()
             .setFilter(Filter.newBuilder()
@@ -103,18 +105,22 @@ public class CachedSpecService implements SpecService {
     HashMap<String, FeatureSetSpec> featureSetSpecs = new HashMap<>();
 
     for (Subscription subscription : this.store.getSubscriptionsList()) {
-      GetFeatureSetsResponse featureSetsResponse = coreService
-          .getFeatureSets(GetFeatureSetsRequest.newBuilder()
-              .setFilter(
-                  GetFeatureSetsRequest.Filter.newBuilder()
-                      .setFeatureSetName(subscription.getName())
-                      .setFeatureSetVersion(subscription.getVersion())
-              ).build());
+      try {
+        GetFeatureSetsResponse featureSetsResponse = coreService
+            .getFeatureSets(GetFeatureSetsRequest.newBuilder()
+                .setFilter(
+                    GetFeatureSetsRequest.Filter.newBuilder()
+                        .setFeatureSetName(subscription.getName())
+                        .setFeatureSetVersion(subscription.getVersion())
+                ).build());
 
-      for (FeatureSetSpec featureSetSpec : featureSetsResponse.getFeatureSetsList()) {
-        featureSetSpecs
-            .put(String.format("%s:%s", featureSetSpec.getName(), featureSetSpec.getVersion()),
-                featureSetSpec);
+        for (FeatureSetSpec featureSetSpec : featureSetsResponse.getFeatureSetsList()) {
+          featureSetSpecs
+              .put(String.format("%s:%s", featureSetSpec.getName(), featureSetSpec.getVersion()),
+                  featureSetSpec);
+        }
+      } catch (StatusRuntimeException e) {
+        continue;
       }
     }
     return featureSetSpecs;
