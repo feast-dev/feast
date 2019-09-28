@@ -283,12 +283,6 @@
       <version>26.0-jre</version>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter</artifactId>
-      <version>RELEASE</version>
-      <scope>test</scope>
-    </dependency>
 
     <!-- Hibernate for formatting SQL string -->
     <dependency>
