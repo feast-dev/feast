@@ -34,7 +34,7 @@ public class ServingServiceConfig {
   }
 
   @Bean
-  @DependsOn({"specService", "tracer"})
+  @DependsOn({"specService", "getTracer"})
   public ServingService servingService(
       FeastProperties feastProperties,
       SpecService specService,
