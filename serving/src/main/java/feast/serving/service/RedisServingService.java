@@ -86,8 +86,9 @@ public class RedisServingService implements ServingService {
   @Override
   public GetOnlineFeaturesResponse getOnlineFeatures(GetFeaturesRequest request) {
     try (Scope scope = tracer.buildSpan("Redis-getOnlineFeatures").startActive(true)) {
-      List<EntityDatasetRow> entityDataSetRows = request.getEntityDataset()
+      List<EntityDatasetRow> entityDatasetRows = request.getEntityDataset()
           .getEntityDatasetRowsList();
+      List<String> entityDatasetNames = request.getEntityDataset().getEntityNamesList();
       GetOnlineFeaturesResponse.Builder getOnlineFeatureResponseBuilder = GetOnlineFeaturesResponse
           .newBuilder();
 
@@ -105,7 +106,7 @@ public class RedisServingService implements ServingService {
             .getFeatureSets(getFeatureSetSpecRequest)
             .getFeatureSets(0);
 
-        List<String> entityNames = featureSetSpec.getEntitiesList().stream()
+        List<String> featureSetEntityNames = featureSetSpec.getEntitiesList().stream()
             .map(EntitySpec::getName)
             .collect(Collectors.toList());
 
@@ -116,8 +117,9 @@ public class RedisServingService implements ServingService {
               .build();
         }
 
-        List<RedisKey> redisKeys = getRedisKeys(entityNames, entityDataSetRows, featureSetRequest);
-        List<Timestamp> timestamps = entityDataSetRows.stream()
+        List<RedisKey> redisKeys = getRedisKeys(entityDatasetNames, featureSetEntityNames,
+            entityDatasetRows, featureSetRequest);
+        List<Timestamp> timestamps = entityDatasetRows.stream()
             .map(EntityDatasetRow::getEntityTimestamp).collect(
                 Collectors.toList());
 
@@ -180,20 +182,43 @@ public class RedisServingService implements ServingService {
    * Build the redis keys for retrieval from the store.
    *
    * @param entityNames column names of the entityDataset
+   * @param featureSetEntityNames entity names that actually belong to the featureSet
    * @param entityDatasetRows entity values to retrieve for
    * @param featureSetRequest details of the requested featureSet
    * @return list of RedisKeys
    */
-  private List<RedisKey> getRedisKeys(List<String> entityNames,
+  private List<RedisKey> getRedisKeys(List<String> entityNames, List<String> featureSetEntityNames,
       List<EntityDatasetRow> entityDatasetRows, FeatureSet featureSetRequest) {
     try (Scope scope = tracer.buildSpan("Redis-makeRedisKeys").startActive(true)) {
       String featureSetId = String
           .format("%s:%s", featureSetRequest.getName(), featureSetRequest.getVersion());
       List<RedisKey> redisKeys = entityDatasetRows.parallelStream()
-          .map(row -> makeRedisKey(featureSetId, entityNames, row))
+          .map(row -> makeRedisKey(featureSetId, entityNames, featureSetEntityNames, row))
           .collect(Collectors.toList());
       return redisKeys;
     }
+  }
+
+  /**
+   * Create {@link RedisKey}
+   *
+   * @param featureSet featureSet reference of the feature. E.g. feature_set_1:1
+   * @param entityNames list of entityName
+   * @param featureSetEntityNames entity names that belong to the featureSet
+   * @param entityDatasetRow entityDataSetRow to build the key from
+   * @return {@link RedisKey}
+   */
+  private RedisKey makeRedisKey(String featureSet, List<String> entityNames,
+      List<String> featureSetEntityNames, EntityDatasetRow entityDatasetRow) {
+    RedisKey.Builder builder = RedisKey.newBuilder().setFeatureSet(featureSet);
+    for (int i = 0; i < entityNames.size(); i++) {
+      String entityName = entityNames.get(i);
+      if (featureSetEntityNames.contains(entityName)) {
+        Value entityVal = entityDatasetRow.getEntityIds(i);
+        builder.addEntities(Field.newBuilder().setName(entityName).setValue(entityVal));
+      }
+    }
+    return builder.build();
   }
 
   /**
@@ -303,23 +328,5 @@ public class RedisServingService implements ServingService {
     }
   }
 
-  /**
-   * Create {@link RedisKey}
-   *
-   * @param featureSet featureSet reference of the feature. E.g. feature_set_1:1
-   * @param entityNames list of entityName
-   * @param entityDatasetRow entityDataSetRow to build the key from
-   * @return {@link RedisKey}
-   */
-  private RedisKey makeRedisKey(String featureSet, List<String> entityNames,
-      EntityDatasetRow entityDatasetRow) {
-    RedisKey.Builder builder = RedisKey.newBuilder().setFeatureSet(featureSet);
-    for (int i = 0; i < entityNames.size(); i++) {
-      String entityName = entityNames.get(i);
-      Value entityVal = entityDatasetRow.getEntityIds(i);
-      builder.addEntities(Field.newBuilder().setName(entityName).setValue(entityVal));
-    }
-    return builder.build();
-  }
 
 }
