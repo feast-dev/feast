@@ -14,11 +14,14 @@ import feast.serving.service.BigQueryServingService;
 import feast.serving.service.RedisServingService;
 import feast.serving.service.ServingService;
 import feast.serving.service.SpecService;
+import io.opentracing.Tracer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisPoolConfig;
 
 @Slf4j
 @Configuration
@@ -31,8 +34,11 @@ public class ServingServiceConfig {
   }
 
   @Bean
-  @DependsOn({"specService"})
-  public ServingService servingService(SpecService specService) {
+  @DependsOn({"specService", "tracer"})
+  public ServingService servingService(
+      FeastProperties feastProperties,
+      SpecService specService,
+      Tracer tracer) {
     GetStoresResponse storesResponse =
         specService.getStores(
             GetStoresRequest.newBuilder()
@@ -52,7 +58,12 @@ public class ServingServiceConfig {
     switch (storeType) {
       case REDIS:
         RedisConfig redisConfig = store.getRedisConfig();
-        servingService = new RedisServingService(redisConfig.getHost(), redisConfig.getPort());
+        JedisPoolConfig poolConfig = new JedisPoolConfig();
+        poolConfig.setMaxTotal(feastProperties.getRedisPoolMaxSize());
+        poolConfig.setMaxIdle(feastProperties.getRedisPoolMaxIdle());
+        JedisPool jedisPool = new JedisPool(poolConfig, store.getRedisConfig().getHost(),
+            store.getRedisConfig().getPort());
+        servingService = new RedisServingService(jedisPool, specService, tracer);
         break;
       case BIGQUERY:
         BigQueryConfig bqConfig = store.getBigqueryConfig();

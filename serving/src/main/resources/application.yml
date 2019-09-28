@@ -17,6 +17,10 @@ feast:
   tracing-tracer-name: jaeger
   # The service name identifier for the tracing data
   tracing-service-name: feast_serving
+  # If serving redis, the redis pool max size
+  redis-pool-max-size: 128
+  # If serving redis, the redis pool max idle conns
+  redis-pool-max-idle: 16
 
 grpc:
   # The port number Feast Serving GRPC service should listen on

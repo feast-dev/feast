@@ -18,6 +18,8 @@ public class FeastProperties {
   private String coreHost;
   private int corePort;
   private String storeName;
+  private int redisPoolMaxSize;
+  private int redisPoolMaxIdle;
   private boolean tracingEnabled;
   private String tracingTracerName;
   private String tracingServiceName;

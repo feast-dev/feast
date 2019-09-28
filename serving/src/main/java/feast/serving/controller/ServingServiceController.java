@@ -18,6 +18,7 @@ import feast.serving.ServingAPIProto.ReloadJobStatusRequest;
 import feast.serving.ServingAPIProto.ReloadJobStatusResponse;
 import feast.serving.ServingServiceGrpc.ServingServiceImplBase;
 import feast.serving.service.ServingService;
+import feast.serving.util.RequestHelper;
 import io.grpc.health.v1.HealthGrpc.HealthImplBase;
 import io.grpc.stub.StreamObserver;
 import io.opentracing.Scope;
@@ -64,6 +65,7 @@ public class ServingServiceController extends ServingServiceImplBase {
       GetFeaturesRequest request, StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
     Span span = tracer.buildSpan("getOnlineFeatures").start();
     try (Scope scope = tracer.scopeManager().activate(span, false)) {
+      RequestHelper.validateRequest(request);
       GetOnlineFeaturesResponse onlineFeatures = servingService.getOnlineFeatures(request);
       responseObserver.onNext(onlineFeatures);
       responseObserver.onCompleted();
