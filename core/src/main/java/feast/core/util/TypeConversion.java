@@ -80,13 +80,12 @@ public class TypeConversion {
   }
 
   /**
-   * Convert a json string of key value pairs to a array of java arguments in format --key=value
+   * Convert a map of key value pairs to a array of java arguments in format --key=value
    *
-   * @param jsonString
+   * @param map
    * @return array of string arguments
    */
-  public static String[] convertJsonStringToArgs(String jsonString) {
-    Map<String, String> map = convertJsonStringToMap(jsonString);
+  public static String[] convertMapToArgs(Map<String, String> map) {
     List<String> args = new ArrayList<>();
     for (Entry<String, String> arg : map.entrySet()) {
       args.add(Strings.lenientFormat("--%s=%s", arg.getKey(), arg.getValue()));

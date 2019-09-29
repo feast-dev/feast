@@ -24,12 +24,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.Lists;
 import feast.core.dao.JobInfoRepository;
 import feast.core.dao.MetricsRepository;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
 import feast.core.model.Metrics;
 import feast.core.model.Store;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -103,13 +105,13 @@ public class ScheduledJobMonitorTest {
             "Streaming",
             "DataflowRunner",
             new Store(),
-            Collections.emptyList(),
-            Collections.emptyList(),
+            new ArrayList<>(),
+            new ArrayList<>(),
             JobStatus.RUNNING);
 
     Metrics metric1 = new Metrics(job, "metric1", 1);
     Metrics metric2 = new Metrics(job, "metric2", 2);
-    List<Metrics> metrics = Arrays.asList(metric1, metric2);
+    List<Metrics> metrics = Lists.newArrayList(metric1, metric2);
 
     when(jobInfoRepository.findByStatusNotIn((Collection<JobStatus>) any(Collection.class)))
         .thenReturn(Arrays.asList(job));

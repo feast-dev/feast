@@ -14,8 +14,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.common.protocol.types.Field.Str;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
 /**
@@ -26,26 +26,23 @@ import org.springframework.context.annotation.Configuration;
 public class StoreConfig {
 
   @Autowired
-  public void initStores(StoreRepository storeRepository,
-      @Value("${feast.store.serving.type}") String servingType,
-      @Value("${feast.store.serving.options}") String servingOptions,
-      @Value("${feast.store.warehouse.type}") String warehouseType,
-      @Value("${feast.store.warehouse.options}") String warehouseOptions) {
-    initStore(storeRepository, "SERVING", servingType, servingOptions);
-    initStore(storeRepository, "WAREHOUSE", warehouseType, warehouseOptions);
+  public void initStores(FeastProperties feastProperties, StoreRepository storeRepository) {
+    FeastProperties.StoreProperties storeProperties = feastProperties.getStore();
+
+    initStore(storeRepository, "SERVING", storeProperties.getServingType(),
+        storeProperties.getServingOptions());
+    initStore(storeRepository, "WAREHOUSE", storeProperties.getWarehouseType(),
+        storeProperties.getWarehouseOptions());
   }
 
   private void initStore(StoreRepository storeRepository, String name, String type,
-      String options) {
-    if (type.equals("")) {
+      Map<String, String> options) {
+      if (type == null | type.equals("")) {
       return;
     }
 
-    Map<String, String> optionsMap = TypeConversion
-        .convertJsonStringToMap(options);
-
     List<Subscription> subscriptionList = new ArrayList<>();
-    for (String sub : optionsMap.getOrDefault("subscriptions", "").split(",")) {
+    for (String sub : options.getOrDefault("subscriptions", "").split(",")) {
       String[] subSplit = sub.split(":");
       subscriptionList.add(Subscription.newBuilder()
           .setName(subSplit[0])
@@ -59,22 +56,22 @@ public class StoreConfig {
     switch (servingStoreBuilder.getType()) {
       case REDIS:
         RedisConfig redisConfig = RedisConfig.newBuilder()
-            .setHost(optionsMap.get("host"))
-            .setPort(Integer.parseInt(optionsMap.get("port")))
+            .setHost(options.get("host"))
+            .setPort(Integer.parseInt(options.get("port")))
             .build();
         servingStoreBuilder.setRedisConfig(redisConfig);
         break;
       case BIGQUERY:
         BigQueryConfig bigQueryConfig = BigQueryConfig.newBuilder()
-            .setProjectId(optionsMap.get("projectId"))
-            .setDatasetId(optionsMap.get("datasetId"))
+            .setProjectId(options.get("projectId"))
+            .setDatasetId(options.get("datasetId"))
             .build();
         servingStoreBuilder.setBigqueryConfig(bigQueryConfig);
         break;
       case CASSANDRA:
         CassandraConfig cassandraConfig = CassandraConfig.newBuilder()
-            .setHost(optionsMap.get("host"))
-            .setPort(Integer.parseInt(optionsMap.get("port")))
+            .setHost(options.get("host"))
+            .setPort(Integer.parseInt(options.get("port")))
             .build();
         servingStoreBuilder.setCassandraConfig(cassandraConfig);
         break;

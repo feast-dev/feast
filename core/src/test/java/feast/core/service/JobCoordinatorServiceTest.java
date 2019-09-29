@@ -2,9 +2,7 @@ package feast.core.service;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
@@ -15,14 +13,13 @@ import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
-import feast.core.config.ImportJobDefaults;
 import feast.core.dao.JobInfoRepository;
 import feast.core.job.JobManager;
+import feast.core.job.Runner;
 import feast.core.model.FeatureSet;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
 import feast.core.model.Store;
-import feast.core.stream.FeatureStream;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -38,7 +35,6 @@ public class JobCoordinatorServiceTest {
   @Mock
   JobManager jobManager;
 
-  private ImportJobDefaults defaults;
   private JobCoordinatorService jobCoordinatorService;
   private JobInfo existingJob;
 
@@ -61,11 +57,7 @@ public class JobCoordinatorServiceTest {
     when(jobInfoRepository.findByFeatureSetsNameAndStoreName("featureSet1", "SERVING"))
         .thenReturn(Lists.newArrayList(existingJob));
 
-    defaults = ImportJobDefaults.builder()
-        .runner("DirectRunner")
-        .build();
-
-    jobCoordinatorService = new JobCoordinatorService(jobInfoRepository, jobManager, defaults);
+    jobCoordinatorService = new JobCoordinatorService(jobInfoRepository, jobManager);
     jobCoordinatorService = spy(jobCoordinatorService);
   }
 
@@ -107,6 +99,7 @@ public class JobCoordinatorServiceTest {
         .thenReturn(jobId);
     when(jobManager.startJob(jobId, Lists.newArrayList(featureSet), store))
         .thenReturn(extJobId);
+    when(jobManager.getRunnerType()).thenReturn(Runner.DIRECT);
     FeatureSet expectedFeatureSet = new FeatureSet();
     expectedFeatureSet.setId("featureSet:1");
     JobInfo expectedJobInfo = new JobInfo(jobId, extJobId, SourceType.KAFKA, "DirectRunner",

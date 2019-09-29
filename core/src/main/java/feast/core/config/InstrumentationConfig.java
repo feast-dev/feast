@@ -25,9 +25,11 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class InstrumentationConfig {
+
   @Bean
-  public StatsDClient getStatsDClient(@Value("${statsd.host}") String host,
-      @Value("${statsd.port}") int port) {
-    return new NonBlockingStatsDClient("feast_core", host, port);
+  public StatsDClient getStatsDClient(FeastProperties feastProperties) {
+    return new NonBlockingStatsDClient("feast_core",
+        feastProperties.getStatsd().getHost(),
+        feastProperties.getStatsd().getPort());
   }
 }

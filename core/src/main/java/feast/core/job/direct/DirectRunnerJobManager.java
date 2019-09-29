@@ -23,20 +23,18 @@ import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto;
-import feast.core.config.ImportJobDefaults;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
-import feast.core.model.FeatureSet;
+import feast.core.job.Runner;
 import feast.core.model.JobInfo;
-import feast.core.model.Store;
 import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.PipelineResult;
@@ -45,12 +43,20 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 @Slf4j
 public class DirectRunnerJobManager implements JobManager {
 
-  protected ImportJobDefaults defaults;
+  private final Runner RUNNER_TYPE = Runner.DIRECT;
+
+  protected Map<String, String> defaultOptions;
   private final DirectJobRegistry jobs;
 
-  public DirectRunnerJobManager(ImportJobDefaults importJobDefaults, DirectJobRegistry jobs) {
-    this.defaults = importJobDefaults;
+
+  public DirectRunnerJobManager(Map<String, String> defaultOptions, DirectJobRegistry jobs) {
+    this.defaultOptions = defaultOptions;
     this.jobs = jobs;
+  }
+
+  @Override
+  public Runner getRunnerType() {
+    return RUNNER_TYPE;
   }
 
   /**
@@ -77,7 +83,7 @@ public class DirectRunnerJobManager implements JobManager {
   private ImportJobPipelineOptions getPipelineOptions(List<FeatureSetSpec> featureSetSpecs,
       StoreProto.Store sink)
       throws InvalidProtocolBufferException {
-    String[] args = TypeConversion.convertJsonStringToArgs(defaults.getImportJobOptions());
+    String[] args = TypeConversion.convertMapToArgs(defaultOptions);
     ImportJobPipelineOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args)
         .as(ImportJobPipelineOptions.class);
     Printer printer = JsonFormat.printer();

@@ -24,6 +24,7 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.DataflowScopes;
 import com.google.common.base.Strings;
 import com.timgroup.statsd.StatsDClient;
+import feast.core.config.FeastProperties.JobProperties;
 import feast.core.job.JobManager;
 import feast.core.job.JobMonitor;
 import feast.core.job.NoopJobMonitor;
@@ -37,53 +38,44 @@ import feast.core.job.direct.DirectRunnerJobManager;
 import feast.core.job.direct.DirectRunnerJobMonitor;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hadoop.util.hash.Hash;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/** Beans for job management */
+/**
+ * Beans for job management
+ */
 @Slf4j
 @Configuration
 public class JobConfig {
 
   /**
-   * Get configuration for dataflow connection
-   *
-   * @param projectId
-   * @param location
-   * @return DataflowJobConfig
-   */
-  @Bean
-  public DataflowJobConfig getDataflowJobConfig(
-      @Value("${feast.jobs.dataflow.projectId}") String projectId,
-      @Value("${feast.jobs.dataflow.location}") String location) {
-    return new DataflowJobConfig(projectId, location);
-  }
-
-  /**
    * Get a JobManager according to the runner type and dataflow configuration.
    *
-   * @param runnerType runner type: one of [DataflowRunner, DirectRunner, FlinkRunner]
-   * @param dfConfig dataflow job configuration
-   * @return JobManager
+   * @param feastProperties feast config properties
    */
   @Bean
   @Autowired
   public JobManager getJobManager(
-      @Value("${feast.jobs.runner}") String runnerType,
-      DataflowJobConfig dfConfig,
-      ImportJobDefaults defaults,
+      FeastProperties feastProperties,
       DirectJobRegistry directJobRegistry)
       throws Exception {
 
-    Runner runner = Runner.fromString(runnerType);
+    JobProperties jobOptions = feastProperties.getJobs();
+    Runner runner = Runner.fromString(jobOptions.getRunner());
+    if (jobOptions.getOptions() == null) {
+      jobOptions.setOptions(new HashMap<>());
+    }
 
     switch (runner) {
       case DATAFLOW:
-        if (Strings.isNullOrEmpty(dfConfig.getLocation())
-            || Strings.isNullOrEmpty(dfConfig.getProjectId())) {
+        if (Strings.isNullOrEmpty(jobOptions.getDataflowLocation())
+            || Strings.isNullOrEmpty(jobOptions.getDataflowProjectId())) {
           log.error("Project and location of the Dataflow runner is not configured");
           throw new IllegalStateException(
               "Project and location of Dataflow runner must be specified for jobs to be run on Dataflow runner.");
@@ -98,7 +90,8 @@ public class JobConfig {
                   credential);
 
           return new DataflowJobManager(
-              dataflow, dfConfig.getProjectId(), dfConfig.getLocation(), defaults);
+              dataflow, jobOptions.getDataflowProjectId(), jobOptions.getDataflowLocation(),
+              jobOptions.getOptions());
         } catch (IOException e) {
           throw new IllegalStateException(
               "Unable to find credential required for Dataflow monitoring API", e);
@@ -108,32 +101,28 @@ public class JobConfig {
           throw new IllegalStateException("Unable to initialize DataflowJobManager", e);
         }
       case DIRECT:
-        return new DirectRunnerJobManager(defaults, directJobRegistry);
+        return new DirectRunnerJobManager(jobOptions.getOptions(), directJobRegistry);
       default:
-        throw new IllegalArgumentException("Unsupported runner: " + runnerType);
+        throw new IllegalArgumentException("Unsupported runner: " + jobOptions.getRunner());
     }
   }
 
   /**
    * Get a Job Monitor given the runner type and dataflow configuration.
-   *
-   * @param runnerType runner type: one of [DataflowRunner, DirectRunner, FlinkRunner]
-   * @param dfConfig dataflow job configuration
-   * @return JobMonitor
    */
   @Bean
   public JobMonitor getJobMonitor(
-      @Value("${feast.jobs.runner}") String runnerType,
-      DataflowJobConfig dfConfig,
+      FeastProperties feastProperties,
       DirectJobRegistry directJobRegistry)
       throws Exception {
 
-    Runner runner = Runner.fromString(runnerType);
+    JobProperties jobOptions = feastProperties.getJobs();
+    Runner runner = Runner.fromString(jobOptions.getRunner());
 
     switch (runner) {
       case DATAFLOW:
-        if (Strings.isNullOrEmpty(dfConfig.getLocation())
-            || Strings.isNullOrEmpty(dfConfig.getProjectId())) {
+        if (Strings.isNullOrEmpty(jobOptions.getDataflowLocation())
+            || Strings.isNullOrEmpty(jobOptions.getDataflowProjectId())) {
           log.warn(
               "Project and location of the Dataflow runner is not configured, will not do job monitoring");
           return new NoopJobMonitor();
@@ -147,7 +136,8 @@ public class JobConfig {
                   JacksonFactory.getDefaultInstance(),
                   credential);
 
-          return new DataflowJobMonitor(dataflow, dfConfig.getProjectId(), dfConfig.getLocation());
+          return new DataflowJobMonitor(dataflow, jobOptions.getDataflowProjectId(),
+              jobOptions.getDataflowLocation());
         } catch (IOException e) {
           log.error(
               "Unable to find credential required for Dataflow monitoring API: {}", e.getMessage());
@@ -166,7 +156,6 @@ public class JobConfig {
   /**
    * Get metrics pusher to statsd
    *
-   * @param statsDClient
    * @return StatsdMetricPusher
    */
   @Bean
@@ -176,7 +165,6 @@ public class JobConfig {
 
   /**
    * Get a direct job registry
-   * @return
    */
   @Bean
   public DirectJobRegistry directJobRegistry() {

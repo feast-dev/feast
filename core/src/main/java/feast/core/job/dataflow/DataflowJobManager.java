@@ -27,43 +27,50 @@ import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
-import feast.core.config.ImportJobDefaults;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
+import feast.core.job.Runner;
 import feast.core.model.FeatureSet;
 import feast.core.model.JobInfo;
 import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
-import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
 @Slf4j
 public class DataflowJobManager implements JobManager {
 
+  private final Runner RUNNER_TYPE = Runner.DATAFLOW;
+
   private final String projectId;
   private final String location;
   private final Dataflow dataflow;
-  private final ImportJobDefaults defaults;
+  private final Map<String,String> defaultOptions;
 
   public DataflowJobManager(
-      Dataflow dataflow, String projectId, String location, ImportJobDefaults importJobDefaults) {
-    this.defaults = importJobDefaults;
+      Dataflow dataflow, String projectId, String location, Map<String,String> defaultOptions) {
+    this.defaultOptions = defaultOptions;
     checkNotNull(projectId);
     checkNotNull(location);
     this.projectId = projectId;
     this.location = location;
     this.dataflow = dataflow;
   }
+
+  @Override
+  public Runner getRunnerType() {
+    return RUNNER_TYPE;
+  }
+
 
   @Override
   public String startJob(String name, List<FeatureSetSpec> featureSets, Store sink) {
@@ -132,7 +139,7 @@ public class DataflowJobManager implements JobManager {
 
   private ImportJobPipelineOptions getPipelineOptions(String jobName, List<FeatureSetSpec> featureSets, Store sink,
       boolean update) throws InvalidProtocolBufferException {
-    String[] args = TypeConversion.convertJsonStringToArgs(defaults.getImportJobOptions());
+    String[] args = TypeConversion.convertMapToArgs(defaultOptions);
     ImportJobPipelineOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args)
         .as(ImportJobPipelineOptions.class);
     Printer printer = JsonFormat.printer();

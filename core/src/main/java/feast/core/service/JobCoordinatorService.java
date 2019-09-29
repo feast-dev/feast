@@ -4,7 +4,6 @@ import com.google.common.base.Strings;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto;
-import feast.core.config.ImportJobDefaults;
 import feast.core.dao.JobInfoRepository;
 import feast.core.exception.JobExecutionException;
 import feast.core.exception.RetrievalException;
@@ -32,14 +31,12 @@ public class JobCoordinatorService {
 
   private JobInfoRepository jobInfoRepository;
   private JobManager jobManager;
-  private ImportJobDefaults defaults;
 
   @Autowired
   public JobCoordinatorService(
-      JobInfoRepository jobInfoRepository, JobManager jobManager, ImportJobDefaults defaults) {
+      JobInfoRepository jobInfoRepository, JobManager jobManager) {
     this.jobInfoRepository = jobInfoRepository;
     this.jobManager = jobManager;
-    this.defaults = defaults;
   }
 
   /**
@@ -89,7 +86,7 @@ public class JobCoordinatorService {
           jobId,
           Action.SUBMIT,
           "Building graph and submitting to %s",
-          defaults.getRunner());
+          jobManager.getRunnerType().getName());
 
       String extId = jobManager.startJob(jobId, featureSetSpecs, sinkSpec);
       if (extId.isEmpty()) {
@@ -102,7 +99,7 @@ public class JobCoordinatorService {
           jobId,
           Action.STATUS_CHANGE,
           "Job submitted to runner %s with ext id %s.",
-          defaults.getRunner(),
+          jobManager.getRunnerType().getName(),
           extId);
 
       SourceType sourceType = featureSetSpecs.get(0).getSource().getType();
@@ -119,7 +116,7 @@ public class JobCoordinatorService {
               jobId,
               extId,
               sourceType,
-              defaults.getRunner(),
+              jobManager.getRunnerType().getName(),
               Store.fromProto(sinkSpec),
               featureSets,
               JobStatus.RUNNING);
@@ -132,7 +129,7 @@ public class JobCoordinatorService {
           jobId,
           Action.STATUS_CHANGE,
           "Job failed to be submitted to runner %s. Job status changed to ERROR.",
-          defaults.getRunner());
+          jobManager.getRunnerType().getName());
       throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
     }
   }

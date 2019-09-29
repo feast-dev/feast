@@ -25,6 +25,12 @@ import java.util.List;
 public interface JobManager {
 
   /**
+   * Get Runner Type
+   * @return runner type
+   */
+  Runner getRunnerType();
+
+  /**
    * Start an import job.
    *
    * @param name of job to run

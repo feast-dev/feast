@@ -18,8 +18,8 @@ Pre-requisites:
 
 Run the following maven command to start Feast Core GRPC service running on port 6565 locally
 ```bash
-# Using configuration from src/main/resources/application-dev.properties
-mvn spring-boot:run -Dspring.profiles.active=dev
+# Using configuration from src/main/resources/application.yml
+mvn spring-boot:run
 ```
 
 If you have [grpc_cli](https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md) installed, you can check that Feast Core is running

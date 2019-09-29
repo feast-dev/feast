@@ -16,9 +16,10 @@ import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
-import feast.core.config.ImportJobDefaults;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -37,17 +38,15 @@ public class DirectRunnerJobManagerTest {
   @Mock
   private DirectJobRegistry directJobRegistry;
 
-  private ImportJobDefaults defaults;
   private DirectRunnerJobManager drJobManager;
+  private Map<String, String> defaults;
 
   @Before
   public void setUp() {
     initMocks(this);
-    defaults =
-        ImportJobDefaults.builder()
-            .runner("DataflowRunner")
-            .importJobOptions("{\"coalesceRowsEnabled\":\"true\"}")
-            .build();
+    defaults = new HashMap<>();
+    defaults.put("coalesceRowsEnabled", "true");
+
     drJobManager = new DirectRunnerJobManager(defaults, directJobRegistry);
     drJobManager = Mockito.spy(drJobManager);
   }

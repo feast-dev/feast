@@ -29,17 +29,17 @@ import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.api.services.dataflow.Dataflow;
 import com.google.common.collect.Lists;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
-import feast.core.config.ImportJobDefaults;
 import feast.core.exception.JobExecutionException;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -60,17 +60,14 @@ public class DataflowJobManagerTest {
   @Mock
   private Dataflow dataflow;
 
-  private ImportJobDefaults defaults;
+  private Map<String, String> defaults;
   private DataflowJobManager dfJobManager;
 
   @Before
   public void setUp() {
     initMocks(this);
-    defaults =
-        ImportJobDefaults.builder()
-            .runner("DataflowRunner")
-            .importJobOptions("{\"region\":\"region\"}")
-            .build();
+    defaults = new HashMap<>();
+    defaults.put("region", "region");
     dfJobManager = new DataflowJobManager(dataflow, "project", "location", defaults);
     dfJobManager = spy(dfJobManager);
   }
