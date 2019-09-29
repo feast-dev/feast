@@ -20,7 +20,9 @@ from feast.client import Client
 from feast.feature_set import FeatureSet
 import toml
 import pkg_resources
+from feast import resource
 import yaml
+import json
 
 _logger = logging.getLogger(__name__)
 
@@ -40,16 +42,18 @@ def version(client_only: bool):
     """
 
     try:
-        feast_versions = {"sdk": {"version": pkg_resources.get_distribution("feast")}}
+        feast_versions_dict = {
+            "sdk": {"version": str(pkg_resources.get_distribution("feast"))}
+        }
 
         if not client_only:
             feast_client = Client(
                 core_url=feast_config.get_config_property_or_fail("core_url"),
                 serving_url=feast_config.get_config_property_or_fail("serving_url"),
             )
-            feast_versions.update(feast_client.version())
+            feast_versions_dict.update(feast_client.version())
 
-        print(feast_versions)
+        print(json.dumps(feast_versions_dict))
     except Exception as e:
         _logger.error("Error initializing backend store")
         _logger.exception(e)
@@ -153,6 +157,30 @@ def describe(name, version):
         return
 
     print(yaml.dump(yaml.safe_load(str(fs)), default_flow_style=False, sort_keys=False))
+
+
+@cli.command()
+@click.option(
+    "--filename",
+    "-f",
+    help="Path to the configuration file that will be applied",
+    type=click.File("r"),
+)
+def apply(filename):
+    """
+    Apply a configuration to a resource by filename or stdin
+    """
+    resources = []
+    # resources can be divided by a separator of '---'
+    for resource_yaml in filename.read().split("---"):
+        resources.append(resource.from_yaml(resource_yaml))
+
+    feast_client = Client(
+        core_url=feast_config.get_config_property_or_fail("core_url"),
+        serving_url=feast_config.get_config_property_or_fail("serving_url"),
+    )  # type: Client
+
+    feast_client.apply(resources)
 
 
 if __name__ == "__main__":

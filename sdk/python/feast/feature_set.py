@@ -37,6 +37,8 @@ from feast.type_map import pandas_dtype_to_feast_value_type
 from feast.types import FeatureRow_pb2 as FeatureRowProto, Field_pb2 as FieldProto
 from feast.type_map import pandas_value_to_proto_value
 from google.protobuf.json_format import MessageToJson
+import yaml
+from google.protobuf import json_format
 
 _logger = logging.getLogger(__name__)
 DATETIME_COLUMN = "datetime"  # type: str
@@ -310,7 +312,7 @@ class FeatureSet:
                 # Fork ingestion processes
                 processes = []
                 for i in range(max_workers):
-                    _logger.info(f"Starting process number = {i+1}")
+                    _logger.info(f"Starting process number = {i + 1}")
                     p = Process(
                         target=self.ingest_one,
                         args=(list_df[i], q, force_update, timeout),
@@ -507,3 +509,22 @@ class FeatureSet:
         """
         for _ in iter(q.get, None):
             pbar.update()
+
+    @classmethod
+    def from_yaml(cls, fs_yaml):
+        featureset_dict = (
+            yaml.safe_load(resouce_yaml) if not isinstance(fs_yaml, dict) else fs_yaml
+        )
+
+        if ("kind" not in featureset_dict) and (
+            featureset_dict["kind"].strip() != "feature_set"
+        ):
+            raise Exception(
+                f"Could not determine the kind of resource from {str(fs_yaml)}"
+            )
+
+        feature_set_proto = json_format.ParseDict(
+            featureset_dict, FeatureSetSpecProto(), ignore_unknown_fields=True
+        )
+
+        return cls.from_proto(feature_set_proto)

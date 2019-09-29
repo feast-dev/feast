@@ -151,11 +151,14 @@ class Client:
         else:
             self._serving_service_stub = ServingServiceStub(self.__serving_channel)
 
-    def apply(self, resource):
-        if isinstance(resource, FeatureSet):
-            self._apply_feature_set(resource)
-            return
-        raise Exception("Could not determine resource type to apply")
+    def apply(self, resources):
+        if not isinstance(resources, list):
+            resources = [resources]
+        for resource in resources:
+            if isinstance(resource, FeatureSet):
+                self._apply_feature_set(resource)
+                continue
+            raise Exception("Could not determine resource type to apply")
 
     @property
     def feature_sets(self) -> List[FeatureSet]:
@@ -183,7 +186,6 @@ class Client:
         """
         self._connect_core(skip_if_connected=True)
 
-        # Get latest Feature Sets from Feast Core
         get_feature_set_response = self._core_service_stub.GetFeatureSets(
             GetFeatureSetsRequest(
                 filter=GetFeatureSetsRequest.Filter(
@@ -226,6 +228,7 @@ class Client:
             raise Exception(
                 "Error while trying to apply feature set " + feature_set.name
             )
+
         applied_fs = FeatureSet.from_proto(apply_fs_response.feature_set)
         feature_set._update_from_feature_set(applied_fs, is_dirty=False)
         return

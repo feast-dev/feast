@@ -102,10 +102,6 @@ public class SpecService {
         featureSets = featureSets.stream().filter(getVersionFilter(filter.getFeatureSetVersion()))
             .collect(Collectors.toList());
       }
-      if (featureSets.size() == 0) {
-        throw new RetrievalException(
-            String.format("Unable to find any featureSets matching the filter '%s'", filter));
-      }
     }
     GetFeatureSetsResponse.Builder response = GetFeatureSetsResponse.newBuilder();
     for (FeatureSet featureSet : featureSets) {
