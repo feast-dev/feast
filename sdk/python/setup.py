@@ -22,8 +22,7 @@ DESCRIPTION = "Python sdk for Feast"
 URL = "https://github.com/gojek/feast"
 AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.6.0"
-VERSION_FILE = open(os.path.join("../../", "VERSION"))
-VERSION = VERSION_FILE.read().strip()
+VERSION = "0.3.0"
 
 REQUIRED = [
     "click>=7.0",
