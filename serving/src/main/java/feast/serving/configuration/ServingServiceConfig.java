@@ -69,7 +69,7 @@ public class ServingServiceConfig {
         BigQueryConfig bqConfig = store.getBigqueryConfig();
         BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
         servingService =
-            new BigQueryServingService(bigquery, bqConfig.getProjectId(), bqConfig.getDatasetId());
+            new BigQueryServingService(bigquery, bqConfig.getProjectId(), bqConfig.getDatasetId(), specService);
         break;
       case CASSANDRA:
       case UNRECOGNIZED:
