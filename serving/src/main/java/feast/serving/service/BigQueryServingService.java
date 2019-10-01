@@ -19,6 +19,7 @@ import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingTypeRequest;
 import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
+import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDatasetRow;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.GetStagingLocationRequest;
 import feast.serving.ServingAPIProto.GetStagingLocationResponse;
@@ -79,6 +80,8 @@ public class BigQueryServingService implements ServingService {
 
   @Override
   public GetBatchFeaturesResponse getBatchFeatures(GetFeaturesRequest getFeaturesRequest) {
+    // TODO: Consider default maxAge in featureSetSpec during retrieval
+
     List<FeatureSetSpec> featureSetSpecs =
         getFeaturesRequest.getFeatureSetsList().stream()
             .map(
@@ -102,6 +105,23 @@ public class BigQueryServingService implements ServingService {
           .asRuntimeException();
     }
 
+    if (getFeaturesRequest.getEntityDataset().getEntityDatasetRowsCount() < 1) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription(
+              "entity_dataset_rows is required for batch retrieval in order to filter the retrieved entities.")
+          .asRuntimeException();
+    }
+
+    for (EntityDatasetRow entityDatasetRow :
+        getFeaturesRequest.getEntityDataset().getEntityDatasetRowsList()) {
+      if (entityDatasetRow.getEntityTimestamp().getSeconds() == 0) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription(
+                "entity_timestamp field in entity_dataset_row is required for batch retrieval.")
+            .asRuntimeException();
+      }
+    }
+
     final String query =
         BigQueryUtil.createQuery(
             getFeaturesRequest.getFeatureSetsList(),
@@ -122,18 +142,21 @@ public class BigQueryServingService implements ServingService {
 
     new Thread(
             () -> {
-              QueryJobConfiguration queryConfig =
-                  QueryJobConfiguration.newBuilder(query)
-                      .setDefaultDataset(DatasetId.of(projectId, datasetId))
-                      .build();
-              Job queryJob = bigquery.create(JobInfo.of(queryConfig));
-              jobService.upsert(
-                  ServingAPIProto.Job.newBuilder()
-                      .setId(feastJobId)
-                      .setType(JobType.JOB_TYPE_DOWNLOAD)
-                      .setStatus(JobStatus.JOB_STATUS_RUNNING)
-                      .build());
+              QueryJobConfiguration queryConfig;
+              Job queryJob;
+
               try {
+                queryConfig =
+                    QueryJobConfiguration.newBuilder(query)
+                        .setDefaultDataset(DatasetId.of(projectId, datasetId))
+                        .build();
+                queryJob = bigquery.create(JobInfo.of(queryConfig));
+                jobService.upsert(
+                    ServingAPIProto.Job.newBuilder()
+                        .setId(feastJobId)
+                        .setType(JobType.JOB_TYPE_DOWNLOAD)
+                        .setStatus(JobStatus.JOB_STATUS_RUNNING)
+                        .build());
                 queryJob.waitFor();
               } catch (BigQueryException | InterruptedException e) {
                 jobService.upsert(
@@ -146,16 +169,16 @@ public class BigQueryServingService implements ServingService {
                 return;
               }
 
-              queryConfig = queryJob.getConfiguration();
-              String exportTableDestinationUri =
-                  String.format("%s/%s/*.avro", jobStagingLocation, feastJobId);
-
-              // Hardcode the format to Avro for now
-              ExtractJobConfiguration extractConfig =
-                  ExtractJobConfiguration.of(
-                      queryConfig.getDestinationTable(), exportTableDestinationUri, "Avro");
-              Job extractJob = bigquery.create(JobInfo.of(extractConfig));
               try {
+                queryConfig = queryJob.getConfiguration();
+                String exportTableDestinationUri =
+                    String.format("%s/%s/*.avro", jobStagingLocation, feastJobId);
+
+                // Hardcode the format to Avro for now
+                ExtractJobConfiguration extractConfig =
+                    ExtractJobConfiguration.of(
+                        queryConfig.getDestinationTable(), exportTableDestinationUri, "Avro");
+                Job extractJob = bigquery.create(JobInfo.of(extractConfig));
                 extractJob.waitFor();
               } catch (BigQueryException | InterruptedException e) {
                 jobService.upsert(
@@ -215,8 +238,7 @@ public class BigQueryServingService implements ServingService {
     Optional<ServingAPIProto.Job> job = jobService.get(reloadJobRequest.getJob().getId());
     if (!job.isPresent()) {
       throw Status.NOT_FOUND
-          .withDescription(
-              String.format("Job not found: %s", reloadJobRequest.getJob().getId()))
+          .withDescription(String.format("Job not found: %s", reloadJobRequest.getJob().getId()))
           .asRuntimeException();
     }
     return ReloadJobResponse.newBuilder().setJob(job.get()).build();
