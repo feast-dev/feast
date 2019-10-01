@@ -7,7 +7,9 @@ import com.google.cloud.bigquery.ExtractJobConfiguration;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.Storage.BlobListOption;
 import feast.core.CoreServiceProto.GetFeatureSetsRequest;
 import feast.core.CoreServiceProto.GetFeatureSetsRequest.Filter;
 import feast.core.FeatureSetProto.FeatureSetSpec;
@@ -24,11 +26,13 @@ import feast.serving.ServingAPIProto.JobStatus;
 import feast.serving.ServingAPIProto.JobType;
 import feast.serving.ServingAPIProto.LoadBatchFeaturesRequest;
 import feast.serving.ServingAPIProto.LoadBatchFeaturesResponse;
-import feast.serving.ServingAPIProto.ReloadJobStatusRequest;
-import feast.serving.ServingAPIProto.ReloadJobStatusResponse;
+import feast.serving.ServingAPIProto.ReloadJobRequest;
+import feast.serving.ServingAPIProto.ReloadJobResponse;
 import feast.serving.util.BigQueryUtil;
 import io.grpc.Status;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -82,9 +86,12 @@ public class BigQueryServingService implements ServingService {
                     specService.getFeatureSets(
                         GetFeatureSetsRequest.newBuilder()
                             .setFilter(
-                                Filter.newBuilder().setFeatureSetName(featureSet.getName()).build())
+                                Filter.newBuilder()
+                                    .setFeatureSetName(featureSet.getName())
+                                    .setFeatureSetVersion(String.valueOf(featureSet.getVersion()))
+                                    .build())
                             .build()))
-            .filter(response -> response.getFeatureSetsList().size() > 1)
+            .filter(response -> response.getFeatureSetsList().size() >= 1)
             .map(response -> response.getFeatureSetsList().get(0))
             .collect(Collectors.toList());
 
@@ -141,7 +148,7 @@ public class BigQueryServingService implements ServingService {
 
               queryConfig = queryJob.getConfiguration();
               String exportTableDestinationUri =
-                  String.format("%s/%s/*.avro", jobStagingLocation, feastJob);
+                  String.format("%s/%s/*.avro", jobStagingLocation, feastJobId);
 
               // Hardcode the format to Avro for now
               ExtractJobConfiguration extractConfig =
@@ -161,20 +168,30 @@ public class BigQueryServingService implements ServingService {
                 return;
               }
 
-              String bucket =
-                  jobStagingLocation.substring(jobStagingLocation.indexOf("://") + 3).split("/")[0];
-              String prefix = "";
+              String scheme = jobStagingLocation.substring(0, jobStagingLocation.indexOf("://"));
+              String stagingLocationNoScheme =
+                  jobStagingLocation.substring(jobStagingLocation.indexOf("://") + 3);
+              String bucket = stagingLocationNoScheme.split("/")[0];
+              List<String> prefixParts = new ArrayList<>();
+              prefixParts.add(
+                  stagingLocationNoScheme.contains("/") && !stagingLocationNoScheme.endsWith("/")
+                      ? stagingLocationNoScheme.substring(stagingLocationNoScheme.indexOf("/") + 1)
+                      : "");
+              prefixParts.add(feastJobId);
+              String prefix = String.join("/", prefixParts) + "/";
 
-              // Then list all files under that bucket, prefix
-              // then return it
+              List<String> fileUris = new ArrayList<>();
+              for (Blob blob : storage.list(bucket, BlobListOption.prefix(prefix)).iterateAll()) {
+                fileUris.add(String.format("%s://%s/%s", scheme, blob.getBucket(), blob.getName()));
+              }
 
-              // for (Blob blob : storage.l)
-              //   jobService.upsert(
-              //       ServingAPIProto.Job.newBuilder()
-              //           .setId(feastJobId)
-              //           .setType(JobType.JOB_TYPE_DOWNLOAD)
-              //           .setStatus(JobStatus.JOB_STATUS_DONE)
-              //           .build());
+              jobService.upsert(
+                  ServingAPIProto.Job.newBuilder()
+                      .setId(feastJobId)
+                      .setType(JobType.JOB_TYPE_DOWNLOAD)
+                      .setStatus(JobStatus.JOB_STATUS_DONE)
+                      .addAllFileUris(fileUris)
+                      .build());
             })
         .start();
 
@@ -194,7 +211,14 @@ public class BigQueryServingService implements ServingService {
   }
 
   @Override
-  public ReloadJobStatusResponse reloadJobStatus(ReloadJobStatusRequest reloadJobStatusRequest) {
-    return null;
+  public ReloadJobResponse reloadJob(ReloadJobRequest reloadJobRequest) {
+    Optional<ServingAPIProto.Job> job = jobService.get(reloadJobRequest.getJob().getId());
+    if (!job.isPresent()) {
+      throw Status.NOT_FOUND
+          .withDescription(
+              String.format("Job not found: %s", reloadJobRequest.getJob().getId()))
+          .asRuntimeException();
+    }
+    return ReloadJobResponse.newBuilder().setJob(job.get()).build();
   }
 }

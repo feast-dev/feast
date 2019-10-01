@@ -58,7 +58,7 @@ filter {
 
 grpc_cli call localhost:6566 GetBatchFeatures '
 feature_sets {
-  name: "driver4"
+  name: "driver"
   version: 1
   feature_names: "booking_completed_count"
   max_age {
@@ -77,13 +77,16 @@ entity_dataset {
 ```
 
 ```
+python3 <<EOF
 import pandas as pd
 import fastavro
 
-with open("/tmp/000000000000.avro") as f:
+with open("/tmp/000000000000.avro", "rb") as f:
     reader = fastavro.reader(f)
     records = [r for r in reader]
-    df = pandas.DataFrame.from_records(records)
-    df.shape
-    df.head(5)
+    df = pd.DataFrame.from_records(records)
+    print(df.columns)
+    print(df.shape)
+    print(df.head(5))
+EOF
 ```

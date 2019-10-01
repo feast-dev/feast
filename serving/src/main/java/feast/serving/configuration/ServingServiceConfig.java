@@ -39,6 +39,9 @@ public class ServingServiceConfig {
       throw new IllegalArgumentException(
           String.format("jobStagingLocation is not a valid URI: %s", jobStagingLocation));
     }
+    if (jobStagingLocation.endsWith("/")) {
+      jobStagingLocation = jobStagingLocation.substring(0, jobStagingLocation.length() - 1);
+    }
   }
 
   @Bean

@@ -36,8 +36,8 @@ import feast.serving.ServingAPIProto.GetStagingLocationRequest;
 import feast.serving.ServingAPIProto.GetStagingLocationResponse;
 import feast.serving.ServingAPIProto.LoadBatchFeaturesRequest;
 import feast.serving.ServingAPIProto.LoadBatchFeaturesResponse;
-import feast.serving.ServingAPIProto.ReloadJobStatusRequest;
-import feast.serving.ServingAPIProto.ReloadJobStatusResponse;
+import feast.serving.ServingAPIProto.ReloadJobRequest;
+import feast.serving.ServingAPIProto.ReloadJobResponse;
 import feast.storage.RedisProto.RedisKey;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FeatureRowProto.FeatureRow.Builder;
@@ -164,7 +164,7 @@ public class RedisServingService implements ServingService {
   }
 
   @Override
-  public ReloadJobStatusResponse reloadJobStatus(ReloadJobStatusRequest reloadJobStatusRequest) {
+  public ReloadJobResponse reloadJob(ReloadJobRequest reloadJobRequest) {
     throw Status.UNIMPLEMENTED.withDescription("Method not implemented").asRuntimeException();
   }
 

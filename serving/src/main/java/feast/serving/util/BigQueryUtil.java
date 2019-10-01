@@ -51,12 +51,24 @@ public class BigQueryUtil {
 
         // Query for first feature set, the leftmost table (when "LEFT JOIN" is involved)
         if (j == 0) {
+          List<String> entityNamesInFirstFeatureSetSpec =
+              featureSetSpecs.get(0).getEntitiesList().stream()
+                  .map(EntitySpec::getName)
+                  .collect(Collectors.toList());
           for (String entityName : entityNames) {
-            columnsSelected.add(
-                String.format(
-                    "%s.%s %s_%s",
-                    tableName, entityName, featureSets.get(0).getName(), entityName));
+            if (entityNamesInFirstFeatureSetSpec.contains(entityName)) {
+              // If the left most feature set spec contains entity name, omit the feature set name
+              // e.g. if entity_name is driver_id and feaure set name is driver
+              // the column selected should only be "driver_id" rather than "driver_driver_id"
+              columnsSelected.add(String.format("%s.%s %s", tableName, entityName, entityName));
+            } else {
+              columnsSelected.add(
+                  String.format(
+                      "%s.%s %s_%s",
+                      tableName, entityName, featureSets.get(0).getName(), entityName));
+            }
           }
+
           for (FeatureSet featureSet : featureSets) {
             tableName = getTableName(featureSet);
             for (String featureName : featureSet.getFeatureNamesList()) {
@@ -233,5 +245,4 @@ public class BigQueryUtil {
     }
     return returnValue;
   }
-
 }

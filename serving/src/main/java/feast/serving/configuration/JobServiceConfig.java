@@ -13,6 +13,7 @@ import feast.serving.service.SpecService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 
 @Configuration
@@ -48,8 +49,9 @@ public class JobServiceConfig {
     switch (storeType) {
       case REDIS:
         RedisConfig redisConfig = store.getRedisConfig();
-        JedisPool jedisPool = new JedisPool(redisConfig.getHost(), redisConfig.getPort());
-        jobService = new RedisBackedJobService(jedisPool);
+        Jedis jedis = new Jedis(redisConfig.getHost(), redisConfig.getPort());
+        jobService = new RedisBackedJobService(jedis);
+        break;
       case INVALID:
       case BIGQUERY:
       case CASSANDRA:

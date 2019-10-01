@@ -40,7 +40,7 @@ service ServingService {
     // Get batch features asynchronously. 
     // 
     // The client should check the status of the returned job periodically by
-    // calling ReloadJobStatus to determine if the job has completed successfully 
+    // calling ReloadJob to determine if the job has completed successfully 
     // or with an error. If the job completes successfully i.e.
     // status = JOB_STATUS_DONE with no error, then the client can check
     // the file_uris for the location to download feature values data.
@@ -55,7 +55,7 @@ service ServingService {
     rpc LoadBatchFeatures (LoadBatchFeaturesRequest) returns (LoadBatchFeaturesResponse);
     
     // Reload the job status with the latest state.
-    rpc ReloadJobStatus(ReloadJobStatusRequest) returns (ReloadJobStatusResponse);
+    rpc ReloadJob(ReloadJobRequest) returns (ReloadJobResponse);
 }
 
 message GetFeastServingVersionRequest {}
@@ -221,11 +221,11 @@ message LoadBatchFeaturesResponse {
     Job job = 1;
 }
 
-message ReloadJobStatusRequest {
+message ReloadJobRequest {
     Job job = 1;
 }
 
-message ReloadJobStatusResponse {
+message ReloadJobResponse {
     Job job = 1;
 }
 

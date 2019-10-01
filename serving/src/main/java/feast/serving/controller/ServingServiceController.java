@@ -12,8 +12,8 @@ import feast.serving.ServingAPIProto.GetStagingLocationRequest;
 import feast.serving.ServingAPIProto.GetStagingLocationResponse;
 import feast.serving.ServingAPIProto.LoadBatchFeaturesRequest;
 import feast.serving.ServingAPIProto.LoadBatchFeaturesResponse;
-import feast.serving.ServingAPIProto.ReloadJobStatusRequest;
-import feast.serving.ServingAPIProto.ReloadJobStatusResponse;
+import feast.serving.ServingAPIProto.ReloadJobRequest;
+import feast.serving.ServingAPIProto.ReloadJobResponse;
 import feast.serving.ServingServiceGrpc.ServingServiceImplBase;
 import feast.serving.service.ServingService;
 import feast.serving.util.RequestHelper;
@@ -113,10 +113,10 @@ public class ServingServiceController extends ServingServiceImplBase {
   }
 
   @Override
-  public void reloadJobStatus(
-      ReloadJobStatusRequest request, StreamObserver<ReloadJobStatusResponse> responseObserver) {
+  public void reloadJob(ReloadJobRequest request,
+      StreamObserver<ReloadJobResponse> responseObserver) {
     try {
-      ReloadJobStatusResponse reloadJobStatusResponse = servingService.reloadJobStatus(request);
+      ReloadJobResponse reloadJobStatusResponse = servingService.reloadJob(request);
       responseObserver.onNext(reloadJobStatusResponse);
       responseObserver.onCompleted();
     } catch (Exception e) {

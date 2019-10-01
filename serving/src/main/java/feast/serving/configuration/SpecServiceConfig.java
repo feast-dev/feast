@@ -30,18 +30,23 @@ public class SpecServiceConfig {
 
   @Bean
   public SpecService specService(FeastProperties feastProperties) {
-    CoreSpecService coreService = new CoreSpecService(feastCoreHost, feastCorePort);
-    CachedSpecService cachedSpecStorage =
-        new CachedSpecService(coreService, feastProperties.getStoreName());
-    // reload all specs including new ones periodically
-    scheduledExecutorService.schedule(
-        cachedSpecStorage::populateCache, CACHE_REFRESH_RATE_MINUTES, TimeUnit.MINUTES);
+    // TODO: Do not used CachedSpecService for now
+    //       because it does not return correct store by name
+    //
+    // CoreSpecService coreService = new CoreSpecService(feastCoreHost, feastCorePort);
+    // CachedSpecService cachedSpecStorage =
+    //     new CachedSpecService(coreService, feastProperties.getStoreName());
+    // // reload all specs including new ones periodically
+    // scheduledExecutorService.schedule(
+    //     cachedSpecStorage::populateCache, CACHE_REFRESH_RATE_MINUTES, TimeUnit.MINUTES);
+    //
+    // try {
+    //   cachedSpecStorage.populateCache();
+    // } catch (Exception e) {
+    //   log.error("Unable to preload feast's spec");
+    // }
+    // return cachedSpecStorage;
 
-    try {
-      cachedSpecStorage.populateCache();
-    } catch (Exception e) {
-      log.error("Unable to preload feast's spec");
-    }
-    return cachedSpecStorage;
+    return new CoreSpecService(feastCoreHost, feastCorePort);
   }
 }

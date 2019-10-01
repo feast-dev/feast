@@ -6,19 +6,23 @@ import feast.serving.ServingAPIProto.Job;
 import feast.serving.ServingAPIProto.Job.Builder;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
-import redis.clients.jedis.JedisPool;
+import org.joda.time.Duration;
+import redis.clients.jedis.Jedis;
 
 @Slf4j
 public class RedisBackedJobService implements JobService {
-  private final JedisPool jedisPool;
+  private final Jedis jedis;
+  // Remove job state info after "defaultExpirySeconds" to prevent filling up Redis memory
+  // and since users normally don't require info about relatively old jobs.
+  private final int defaultExpirySeconds = (int) Duration.standardDays(1).getStandardSeconds();
 
-  public RedisBackedJobService(JedisPool jedisPool) {
-    this.jedisPool = jedisPool;
+  public RedisBackedJobService(Jedis jedis) {
+    this.jedis = jedis;
   }
 
   @Override
   public Optional<Job> get(String id) {
-    String json = jedisPool.getResource().get(id);
+    String json = jedis.get(id);
     if (json == null) {
       return Optional.empty();
     }
@@ -37,9 +41,8 @@ public class RedisBackedJobService implements JobService {
   @Override
   public void upsert(Job job) {
     try {
-      jedisPool
-          .getResource()
-          .set(job.getId(), JsonFormat.printer().omittingInsignificantWhitespace().print(job));
+      jedis.set(job.getId(), JsonFormat.printer().omittingInsignificantWhitespace().print(job));
+      jedis.expire(job.getId(), defaultExpirySeconds);
     } catch (InvalidProtocolBufferException e) {
       log.error(String.format("Failed to upsert job: %s", e.getMessage()));
     }

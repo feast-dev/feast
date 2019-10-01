@@ -9,8 +9,8 @@ import feast.serving.ServingAPIProto.GetStagingLocationRequest;
 import feast.serving.ServingAPIProto.GetStagingLocationResponse;
 import feast.serving.ServingAPIProto.LoadBatchFeaturesRequest;
 import feast.serving.ServingAPIProto.LoadBatchFeaturesResponse;
-import feast.serving.ServingAPIProto.ReloadJobStatusRequest;
-import feast.serving.ServingAPIProto.ReloadJobStatusResponse;
+import feast.serving.ServingAPIProto.ReloadJobRequest;
+import feast.serving.ServingAPIProto.ReloadJobResponse;
 
 public interface ServingService {
   GetFeastServingTypeResponse getFeastServingType(
@@ -25,5 +25,5 @@ public interface ServingService {
 
   LoadBatchFeaturesResponse loadBatchFeatures(LoadBatchFeaturesRequest loadBatchFeaturesRequest);
 
-  ReloadJobStatusResponse reloadJobStatus(ReloadJobStatusRequest reloadJobStatusRequest);
+  ReloadJobResponse reloadJob(ReloadJobRequest reloadJobStatusRequest);
 }
