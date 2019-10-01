@@ -157,7 +157,8 @@ public class StorageUtil {
     }
 
     String tableName =
-        String.format("%s_v%d", featureSetSpec.getName(), featureSetSpec.getVersion());
+        String.format("%s_v%d", featureSetSpec.getName(), featureSetSpec.getVersion())
+            .replaceAll("-", "_");
     TableId tableId = TableId.of(bigqueryProjectId, datasetId.getDataset(), tableName);
 
     // Return if there is an existing table
