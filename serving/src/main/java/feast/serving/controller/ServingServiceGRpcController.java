@@ -30,13 +30,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 @Slf4j
 @GRpcService
-public class ServingServiceController extends ServingServiceImplBase {
+public class ServingServiceGRpcController extends ServingServiceImplBase {
   private final ServingService servingService;
   private final String version;
   private final Tracer tracer;
 
   @Autowired
-  public ServingServiceController(
+  public ServingServiceGRpcController(
       ServingService servingService, FeastProperties feastProperties, Tracer tracer) {
     this.servingService = servingService;
     this.version = feastProperties.getVersion();

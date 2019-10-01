@@ -28,8 +28,3 @@ grpc:
   # This allows client to discover GRPC endpoints easily
   # https://github.com/grpc/grpc-java/blob/master/documentation/server-reflection-tutorial.md
   enable-reflection: true
-
-spring:
-  main:
-    # Disable Tomcat webserver (not needed)
-    web-application-type: none
