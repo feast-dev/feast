@@ -8,7 +8,7 @@ feast:
   core-port: ${FEAST_CORE_HOST:6565}
   # The name of the store in Feast this instance of Feast serving will retrieve features from
   # Ensure the store has been registered in Feast
-  store-name: ${FEAST_STORE_NAME}
+  store-name: ${FEAST_STORE_NAME:}
   # If true, Feast will provide tracing data (using OpenTracing API) for various RPC method calls
   # which can be useful to debug performance issues and perform benchmarking
   tracing-enabled: false
@@ -24,14 +24,22 @@ feast:
   # Job staging location specifies the URI to store intermediate files for batch serving.
   # For example: gs://mybucket/myprefix
   # Please omit the trailing slash in the URI.
-  job-staging-location: ${FEAST_JOB_STAGING_LOCATION}
+  job-staging-location: ${FEAST_JOB_STAGING_LOCATION:}
   # The name of the store in Feast that will be used to store job states.
   # Ensure the store has been registered in Feast.
-  job-store-name: ${FEAST_JOB_STORE_NAME}
+  job-store-name: ${FEAST_JOB_STORE_NAME:}
 
 grpc:
   # The port number Feast Serving GRPC service should listen on
-  port: 6566
+  # It is set default to 6566 so it does not conflict with the GRPC server on Feast Core
+  # which defaults to port 6565
+  port: ${GRPC_PORT:6566}
   # This allows client to discover GRPC endpoints easily
   # https://github.com/grpc/grpc-java/blob/master/documentation/server-reflection-tutorial.md
-  enable-reflection: true
+  enable-reflection: ${GRPC_ENABLE_REFLECTION:true}
+
+server:
+  # The port number on which the Tomcat webserver that serves REST API endpoints should listen
+  # It is set by default to 8080 so it does not conflict with Tomcat webserver on Feast Core
+  # if both Feast Core and Serving are running on the same machine
+  port: ${SERVER_PORT:8081}

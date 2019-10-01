@@ -52,10 +52,15 @@ public class ScheduledJobMonitor {
     this.statsdMetricPusher = statsdMetricPusher;
   }
 
+
+  // TODO: Keep receiving the following exception with these arguments below
+  //       Caused by: java.lang.IllegalStateException: Encountered invalid @Scheduled method 'pollStatusAndMetrics': Circular placeholder reference .. in property definitions
+  // @Scheduled(
+  //    fixedDelayString = "${feast.jobs.monitor.fixedDelay}",
+  //    initialDelayString = "${feast.jobs.monitor.initialDelay}")
+  //
   @Transactional
-  @Scheduled(
-      fixedDelayString = "${feast.jobs.monitor.period}",
-      initialDelayString = "${feast.jobs.monitor.initialDelay}")
+  @Scheduled(cron = "* * * * * *")
   public void pollStatusAndMetrics() {
     getJobMetrics();
     updateJobStatus();

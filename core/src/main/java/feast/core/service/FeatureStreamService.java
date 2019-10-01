@@ -1,7 +1,9 @@
 package feast.core.service;
 
+import com.google.gson.Gson;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.SourceProto.KafkaSourceConfig;
+import feast.core.config.FeastProperties;
 import feast.core.model.FeatureSet;
 import feast.core.model.Source;
 import feast.core.stream.FeatureStream;
@@ -25,8 +27,8 @@ public class FeatureStreamService {
   private final String defaultOptions;
 
   @Autowired
-  public FeatureStreamService(@Value("${feast.stream.options}") String defaultOptions) {
-    this.defaultOptions = defaultOptions;
+  public FeatureStreamService(FeastProperties feastProperties) {
+    this.defaultOptions = new Gson().toJson(feastProperties.getStream().getOptions());
   }
 
   /**

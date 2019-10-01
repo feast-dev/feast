@@ -27,10 +27,7 @@ public class ServingServiceRestController {
     this.tracer = tracer;
   }
 
-  @RequestMapping(
-      value = "/api/v1/version",
-      produces = "application/json"
-  )
+  @RequestMapping(value = "/api/v1/version", produces = "application/json")
   public GetFeastServingVersionResponse getVersion() {
     return GetFeastServingVersionResponse.newBuilder().setVersion(version).build();
   }

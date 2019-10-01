@@ -53,9 +53,9 @@ feast:
     type: kafka
     # Feature stream options.
     options:
-      bootstrapServers: "kafka:9092"
-      replicationFactor: "1"
-      partitions: "1"
+      bootstrapServers: ${feast.stream.options.bootstrapServers:"kafka:9092"}
+      replicationFactor: ${feast.stream.options.replicationFactor:1}
+      partitions: ${feast.stream.options.partitions:1}
   statsd:
     host: ${STATSD_HOST:localhost}
     port: ${STATSD_PORT:8125}

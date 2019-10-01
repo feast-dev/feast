@@ -17,7 +17,6 @@ import feast.serving.ServingAPIProto.ReloadJobResponse;
 import feast.serving.ServingServiceGrpc.ServingServiceImplBase;
 import feast.serving.service.ServingService;
 import feast.serving.util.RequestHelper;
-import io.grpc.health.v1.HealthGrpc.HealthImplBase;
 import io.grpc.stub.StreamObserver;
 import io.opentracing.Scope;
 import io.opentracing.Span;
@@ -113,8 +112,8 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
   }
 
   @Override
-  public void reloadJob(ReloadJobRequest request,
-      StreamObserver<ReloadJobResponse> responseObserver) {
+  public void reloadJob(
+      ReloadJobRequest request, StreamObserver<ReloadJobResponse> responseObserver) {
     try {
       ReloadJobResponse reloadJobStatusResponse = servingService.reloadJob(request);
       responseObserver.onNext(reloadJobStatusResponse);

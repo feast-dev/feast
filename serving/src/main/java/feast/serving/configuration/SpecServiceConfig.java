@@ -32,7 +32,7 @@ public class SpecServiceConfig {
   public SpecService specService(FeastProperties feastProperties) {
     // TODO: Do not used CachedSpecService for now
     //       because it does not return correct store by name
-    //
+
     // CoreSpecService coreService = new CoreSpecService(feastCoreHost, feastCorePort);
     // CachedSpecService cachedSpecStorage =
     //     new CachedSpecService(coreService, feastProperties.getStoreName());

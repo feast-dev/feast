@@ -50,6 +50,10 @@ public class ServingServiceConfig {
       SpecService specService,
       JobService jobService,
       Tracer tracer) {
+    if (feastStoreName.isEmpty()) {
+      throw new IllegalArgumentException("Store name cannot be empty. Please provide a store name that has been registered in Feast.");
+    }
+
     GetStoresResponse storesResponse =
         specService.getStores(
             GetStoresRequest.newBuilder()
@@ -61,7 +65,13 @@ public class ServingServiceConfig {
               "Cannot resolve Store from store name '%s'. Ensure the store name exists in Feast.",
               feastStoreName));
     }
-    assert storesResponse.getStoreCount() == 1;
+
+    if (storesResponse.getStoreCount() > 1) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Store name '%s' resolves to more than 1 store in Feast. It should resolve to a unique store. Please check the store name configuration.",
+              feastStoreName));
+    }
     Store store = storesResponse.getStore(0);
     StoreType storeType = store.getType();
     ServingService servingService = null;
@@ -81,6 +91,11 @@ public class ServingServiceConfig {
         BigQueryConfig bqConfig = store.getBigqueryConfig();
         BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
         Storage storage = StorageOptions.getDefaultInstance().getService();
+        if (!this.jobStagingLocation.startsWith("gs://")) {
+          throw new IllegalArgumentException(
+              "Store type BIGQUERY requires job staging location to be a valid and existing Google Cloud Storage URI. Invalid staging location: "
+                  + jobStagingLocation);
+        }
         servingService =
             new BigQueryServingService(
                 bigquery,
