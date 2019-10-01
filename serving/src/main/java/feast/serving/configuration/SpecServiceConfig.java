@@ -19,7 +19,6 @@ public class SpecServiceConfig {
   private int feastCorePort;
   private static final int CACHE_REFRESH_RATE_MINUTES = 30;
 
-
   private ScheduledExecutorService scheduledExecutorService =
       Executors.newSingleThreadScheduledExecutor();
 
@@ -32,8 +31,8 @@ public class SpecServiceConfig {
   @Bean
   public SpecService specService(FeastProperties feastProperties) {
     CoreSpecService coreService = new CoreSpecService(feastCoreHost, feastCorePort);
-    CachedSpecService cachedSpecStorage = new CachedSpecService(coreService,
-        feastProperties.getStoreName());
+    CachedSpecService cachedSpecStorage =
+        new CachedSpecService(coreService, feastProperties.getStoreName());
     // reload all specs including new ones periodically
     scheduledExecutorService.schedule(
         cachedSpecStorage::populateCache, CACHE_REFRESH_RATE_MINUTES, TimeUnit.MINUTES);

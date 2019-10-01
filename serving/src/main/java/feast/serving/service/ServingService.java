@@ -1,7 +1,5 @@
 package feast.serving.service;
 
-import feast.serving.ServingAPIProto.GetBatchFeaturesFromCompletedJobRequest;
-import feast.serving.ServingAPIProto.GetBatchFeaturesFromCompletedJobResponse;
 import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingTypeRequest;
 import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
@@ -21,9 +19,6 @@ public interface ServingService {
   GetOnlineFeaturesResponse getOnlineFeatures(GetFeaturesRequest getFeaturesRequest);
 
   GetBatchFeaturesResponse getBatchFeatures(GetFeaturesRequest getFeaturesRequest);
-
-  GetBatchFeaturesFromCompletedJobResponse getBatchFeaturesFromCompletedJob(
-      GetBatchFeaturesFromCompletedJobRequest getBatchFeaturesFromCompletedJobRequest);
 
   GetStagingLocationResponse getStagingLocation(
       GetStagingLocationRequest getStagingLocationRequest);

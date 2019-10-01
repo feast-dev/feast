@@ -24,8 +24,6 @@ import feast.core.CoreServiceProto.GetFeatureSetsRequest;
 import feast.core.CoreServiceProto.GetFeatureSetsRequest.Filter;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.serving.ServingAPIProto.GetBatchFeaturesFromCompletedJobRequest;
-import feast.serving.ServingAPIProto.GetBatchFeaturesFromCompletedJobResponse;
 import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingTypeRequest;
 import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
@@ -70,58 +68,56 @@ public class RedisServingService implements ServingService {
     this.tracer = tracer;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public GetFeastServingTypeResponse getFeastServingType(
       GetFeastServingTypeRequest getFeastServingTypeRequest) {
-//    return GetFeastServingTypeResponse.newBuilder().setType().build();
+    //    return GetFeastServingTypeResponse.newBuilder().setType().build();
     return null;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public GetOnlineFeaturesResponse getOnlineFeatures(GetFeaturesRequest request) {
     try (Scope scope = tracer.buildSpan("Redis-getOnlineFeatures").startActive(true)) {
-      List<EntityDatasetRow> entityDatasetRows = request.getEntityDataset()
-          .getEntityDatasetRowsList();
+      List<EntityDatasetRow> entityDatasetRows =
+          request.getEntityDataset().getEntityDatasetRowsList();
       List<String> entityDatasetNames = request.getEntityDataset().getEntityNamesList();
-      GetOnlineFeaturesResponse.Builder getOnlineFeatureResponseBuilder = GetOnlineFeaturesResponse
-          .newBuilder();
+      GetOnlineFeaturesResponse.Builder getOnlineFeatureResponseBuilder =
+          GetOnlineFeaturesResponse.newBuilder();
 
       List<FeatureSet> featureSetRequests = request.getFeatureSetsList();
       for (FeatureSet featureSetRequest : featureSetRequests) {
 
-        GetFeatureSetsRequest getFeatureSetSpecRequest = GetFeatureSetsRequest
-            .newBuilder()
-            .setFilter(Filter.newBuilder()
-                .setFeatureSetName(featureSetRequest.getName())
-                .setFeatureSetVersion(String.valueOf(featureSetRequest.getVersion()))
-                .build()).build();
+        GetFeatureSetsRequest getFeatureSetSpecRequest =
+            GetFeatureSetsRequest.newBuilder()
+                .setFilter(
+                    Filter.newBuilder()
+                        .setFeatureSetName(featureSetRequest.getName())
+                        .setFeatureSetVersion(String.valueOf(featureSetRequest.getVersion()))
+                        .build())
+                .build();
 
-        FeatureSetSpec featureSetSpec = specService
-            .getFeatureSets(getFeatureSetSpecRequest)
-            .getFeatureSets(0);
+        FeatureSetSpec featureSetSpec =
+            specService.getFeatureSets(getFeatureSetSpecRequest).getFeatureSets(0);
 
-        List<String> featureSetEntityNames = featureSetSpec.getEntitiesList().stream()
-            .map(EntitySpec::getName)
-            .collect(Collectors.toList());
+        List<String> featureSetEntityNames =
+            featureSetSpec.getEntitiesList().stream()
+                .map(EntitySpec::getName)
+                .collect(Collectors.toList());
 
         Duration defaultMaxAge = featureSetSpec.getMaxAge();
         if (featureSetRequest.getMaxAge() == Duration.getDefaultInstance()) {
-          featureSetRequest = featureSetRequest.toBuilder()
-              .setMaxAge(defaultMaxAge)
-              .build();
+          featureSetRequest = featureSetRequest.toBuilder().setMaxAge(defaultMaxAge).build();
         }
 
-        List<RedisKey> redisKeys = getRedisKeys(entityDatasetNames, featureSetEntityNames,
-            entityDatasetRows, featureSetRequest);
-        List<Timestamp> timestamps = entityDatasetRows.stream()
-            .map(EntityDatasetRow::getEntityTimestamp).collect(
-                Collectors.toList());
+        List<RedisKey> redisKeys =
+            getRedisKeys(
+                entityDatasetNames, featureSetEntityNames, entityDatasetRows, featureSetRequest);
+        List<Timestamp> timestamps =
+            entityDatasetRows.stream()
+                .map(EntityDatasetRow::getEntityTimestamp)
+                .collect(Collectors.toList());
 
         Map<String, Field> fields = new LinkedHashMap<>();
         featureSetRequest.getFeatureNamesList().stream()
@@ -129,19 +125,19 @@ public class RedisServingService implements ServingService {
 
         List<FeatureRow> featureRows = new ArrayList<>();
         try {
-          featureRows = sendAndProcessMultiGet(redisKeys, timestamps, fields,
-              featureSetRequest);
+          featureRows = sendAndProcessMultiGet(redisKeys, timestamps, fields, featureSetRequest);
         } catch (InvalidProtocolBufferException e) {
           throw Status.INTERNAL
               .withDescription("Unable to parse protobuf while retrieving feature")
               .withCause(e)
               .asRuntimeException();
         } finally {
-          FeatureDataset featureDataSet = FeatureDataset.newBuilder()
-              .setName(featureSetRequest.getName())
-              .setVersion(featureSetRequest.getVersion())
-              .addAllFeatureRows(featureRows)
-              .build();
+          FeatureDataset featureDataSet =
+              FeatureDataset.newBuilder()
+                  .setName(featureSetRequest.getName())
+                  .setVersion(featureSetRequest.getVersion())
+                  .addAllFeatureRows(featureRows)
+                  .build();
 
           getOnlineFeatureResponseBuilder.addFeatureDatasets(featureDataSet);
         }
@@ -152,12 +148,6 @@ public class RedisServingService implements ServingService {
 
   @Override
   public GetBatchFeaturesResponse getBatchFeatures(GetFeaturesRequest getFeaturesRequest) {
-    throw Status.UNIMPLEMENTED.withDescription("Method not implemented").asRuntimeException();
-  }
-
-  @Override
-  public GetBatchFeaturesFromCompletedJobResponse getBatchFeaturesFromCompletedJob(
-      GetBatchFeaturesFromCompletedJobRequest getBatchFeaturesFromCompletedJobRequest) {
     throw Status.UNIMPLEMENTED.withDescription("Method not implemented").asRuntimeException();
   }
 
@@ -187,14 +177,19 @@ public class RedisServingService implements ServingService {
    * @param featureSetRequest details of the requested featureSet
    * @return list of RedisKeys
    */
-  private List<RedisKey> getRedisKeys(List<String> entityNames, List<String> featureSetEntityNames,
-      List<EntityDatasetRow> entityDatasetRows, FeatureSet featureSetRequest) {
+  private List<RedisKey> getRedisKeys(
+      List<String> entityNames,
+      List<String> featureSetEntityNames,
+      List<EntityDatasetRow> entityDatasetRows,
+      FeatureSet featureSetRequest) {
     try (Scope scope = tracer.buildSpan("Redis-makeRedisKeys").startActive(true)) {
-      String featureSetId = String
-          .format("%s:%s", featureSetRequest.getName(), featureSetRequest.getVersion());
-      List<RedisKey> redisKeys = entityDatasetRows.parallelStream()
-          .map(row -> makeRedisKey(featureSetId, entityNames, featureSetEntityNames, row))
-          .collect(Collectors.toList());
+      String featureSetId =
+          String.format("%s:%s", featureSetRequest.getName(), featureSetRequest.getVersion());
+      List<RedisKey> redisKeys =
+          entityDatasetRows
+              .parallelStream()
+              .map(row -> makeRedisKey(featureSetId, entityNames, featureSetEntityNames, row))
+              .collect(Collectors.toList());
       return redisKeys;
     }
   }
@@ -208,8 +203,11 @@ public class RedisServingService implements ServingService {
    * @param entityDatasetRow entityDataSetRow to build the key from
    * @return {@link RedisKey}
    */
-  private RedisKey makeRedisKey(String featureSet, List<String> entityNames,
-      List<String> featureSetEntityNames, EntityDatasetRow entityDatasetRow) {
+  private RedisKey makeRedisKey(
+      String featureSet,
+      List<String> entityNames,
+      List<String> featureSetEntityNames,
+      EntityDatasetRow entityDatasetRow) {
     RedisKey.Builder builder = RedisKey.newBuilder().setFeatureSet(featureSet);
     for (int i = 0; i < entityNames.size(); i++) {
       String entityName = entityNames.get(i);
@@ -227,14 +225,16 @@ public class RedisServingService implements ServingService {
    * @param redisKeys list of {@link RedisKey} to be retrieved from Redis
    * @param fields map of featureId to corresponding empty field
    * @param featureSetRequest {@link FeatureSet} so that featureSetName and featureSerVersion can be
-   * retrieved
+   *     retrieved
    * @return list of {@link FeatureRow}
    * @throws InvalidProtocolBufferException Exception that is thrown the FeatureRow cannot be parsed
-   * from the byte array response
+   *     from the byte array response
    */
-  private List<FeatureRow> sendAndProcessMultiGet(List<RedisKey> redisKeys,
+  private List<FeatureRow> sendAndProcessMultiGet(
+      List<RedisKey> redisKeys,
       List<Timestamp> timestamps,
-      Map<String, Field> fields, FeatureSet featureSetRequest)
+      Map<String, Field> fields,
+      FeatureSet featureSetRequest)
       throws InvalidProtocolBufferException {
     List<byte[]> jedisResps = sendMultiGet(redisKeys);
 
@@ -243,23 +243,27 @@ public class RedisServingService implements ServingService {
 
       for (int i = 0; i < jedisResps.size(); i++) {
         featureRows.add(
-            buildFeatureRow(jedisResps.get(i), featureSetRequest,
-                redisKeys.get(i).getEntitiesList(), timestamps.get(i), fields));
+            buildFeatureRow(
+                jedisResps.get(i),
+                featureSetRequest,
+                redisKeys.get(i).getEntitiesList(),
+                timestamps.get(i),
+                fields));
       }
       return featureRows;
     }
   }
 
-
   /**
    * Build the featureRow based on the request and the response from redis. In the case of the
    * following, empty featureRows will be returned:
    *
-   * 1. Redis returns null, the key provided does not exist in the store <p></p> 2. The key stored
-   * in the store exceeds the maximum age specified in the request
+   * <p>1. Redis returns null, the key provided does not exist in the store
    *
-   * Otherwise, a featureRow will be built, excluding any columns not specified by the user. If any
-   * columns are missing in the redis featureRow, the field will still be present in the final
+   * <p>2. The key stored in the store exceeds the maximum age specified in the request
+   *
+   * <p>Otherwise, a featureRow will be built, excluding any columns not specified by the user. If
+   * any columns are missing in the redis featureRow, the field will still be present in the final
    * featureRow, but the value will be left unset.
    *
    * @param jedisResponse response from redis, in bytes
@@ -269,19 +273,22 @@ public class RedisServingService implements ServingService {
    * @param fields map of featureId to corresponding empty field
    * @return FeatureRow containing the entity and requested feature fields
    */
-  private FeatureRow buildFeatureRow(byte[] jedisResponse,
-      FeatureSet featureSetRequest, List<Field> entities,
-      Timestamp timestamp, Map<String, Field> fields) throws InvalidProtocolBufferException {
-    Builder featureRowBuilder = FeatureRow.newBuilder()
-        .setFeatureSet(
-            String.format("%s:%s", featureSetRequest.getName(), featureSetRequest.getVersion()))
-        .addAllFields(entities)
-        .setEventTimestamp(Timestamp.newBuilder());
+  private FeatureRow buildFeatureRow(
+      byte[] jedisResponse,
+      FeatureSet featureSetRequest,
+      List<Field> entities,
+      Timestamp timestamp,
+      Map<String, Field> fields)
+      throws InvalidProtocolBufferException {
+    Builder featureRowBuilder =
+        FeatureRow.newBuilder()
+            .setFeatureSet(
+                String.format("%s:%s", featureSetRequest.getName(), featureSetRequest.getVersion()))
+            .addAllFields(entities)
+            .setEventTimestamp(Timestamp.newBuilder());
 
     if (jedisResponse == null) {
-      return featureRowBuilder
-          .addAllFields(fields.values())
-          .build();
+      return featureRowBuilder.addAllFields(fields.values()).build();
     }
 
     Map<String, Field> fieldsCopy = new LinkedHashMap<>(fields);
@@ -289,9 +296,7 @@ public class RedisServingService implements ServingService {
 
     long timeDifference = timestamp.getSeconds() - featureRow.getEventTimestamp().getSeconds();
     if (timeDifference > featureSetRequest.getMaxAge().getSeconds()) {
-      return featureRowBuilder
-          .addAllFields(fields.values())
-          .build();
+      return featureRowBuilder.addAllFields(fields.values()).build();
     }
 
     featureRow.getFieldsList().stream()
@@ -327,6 +332,4 @@ public class RedisServingService implements ServingService {
       }
     }
   }
-
-
 }

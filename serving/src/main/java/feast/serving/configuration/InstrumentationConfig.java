@@ -17,7 +17,7 @@ public class InstrumentationConfig {
   }
 
   @Bean
-  public Tracer getTracer() {
+  public Tracer tracer() {
     if (!feastProperties.isTracingEnabled()) {
       return NoopTracerFactory.create();
     }

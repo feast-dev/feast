@@ -39,14 +39,13 @@ service ServingService {
 
     // Get batch features asynchronously. 
     // 
-    // The client should check and reload the status of the returned job 
-    // periodically to determine if the job has completed successfully or with 
-    // an error. If the job completes successfully, the client shoud call 
-    // GetBatchFeaturesFromCompletedJob to retrieve the feature values.
+    // The client should check the status of the returned job periodically by
+    // calling ReloadJobStatus to determine if the job has completed successfully 
+    // or with an error. If the job completes successfully i.e.
+    // status = JOB_STATUS_DONE with no error, then the client can check
+    // the file_uris for the location to download feature values data.
+    // The client is assumed to have access to these file URIs.
     rpc GetBatchFeatures (GetFeaturesRequest) returns (GetBatchFeaturesResponse);
-
-    // Get the URI(s) to download batch feature values from a succesful download job.
-    rpc GetBatchFeaturesFromCompletedJob (GetBatchFeaturesFromCompletedJobRequest) returns (GetBatchFeaturesFromCompletedJobResponse);
 
     // Get the URI prefix where the client can upload files to be accessed by Feast serving.
     rpc GetStagingLocation (GetStagingLocationRequest) returns (GetStagingLocationResponse);
@@ -165,23 +164,6 @@ message GetBatchFeaturesResponse {
     Job job = 1;
 }
 
-message GetBatchFeaturesFromCompletedJobRequest {
-    Job job = 1;
-}
-
-message GetBatchFeaturesFromCompletedJobResponse {
-    // The list of URIs for the files containing the batch feature values requested.
-    // 
-    // Feast may retrieve the batch features and save them into multiple sharded
-    // files for improving performance and reliability. The client is expected
-    // to join these sharded files manually.
-    repeated string download_uris = 1;
-
-    // Data format of the file. All files will have the same data format.
-    // For CSV, the files will contain both feature values and a column header.
-    DataFormat data_format = 2; 
-}
-
 message GetStagingLocationRequest {}
 
 message GetStagingLocationResponse {
@@ -286,4 +268,10 @@ message Job {
     JobStatus status = 3;
     // Output only. If not empty, the job has failed with this error message.
     string error = 4;
+    // Output only. The list of URIs for the files to be downloaded or 
+    // uploaded (depends on the job type) for this particular job.
+    repeated string file_uris = 5;
+    // Output only. The data format for all the files.
+    // For CSV format, the files contain both feature values and a column header.
+    DataFormat data_format = 6;
 }

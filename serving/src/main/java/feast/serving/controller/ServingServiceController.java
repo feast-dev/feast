@@ -1,8 +1,6 @@
 package feast.serving.controller;
 
 import feast.serving.FeastProperties;
-import feast.serving.ServingAPIProto.GetBatchFeaturesFromCompletedJobRequest;
-import feast.serving.ServingAPIProto.GetBatchFeaturesFromCompletedJobResponse;
 import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingTypeRequest;
 import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
@@ -80,20 +78,6 @@ public class ServingServiceController extends ServingServiceImplBase {
       GetFeaturesRequest request, StreamObserver<GetBatchFeaturesResponse> responseObserver) {
     try {
       GetBatchFeaturesResponse batchFeatures = servingService.getBatchFeatures(request);
-      responseObserver.onNext(batchFeatures);
-      responseObserver.onCompleted();
-    } catch (Exception e) {
-      responseObserver.onError(e);
-    }
-  }
-
-  @Override
-  public void getBatchFeaturesFromCompletedJob(
-      GetBatchFeaturesFromCompletedJobRequest request,
-      StreamObserver<GetBatchFeaturesFromCompletedJobResponse> responseObserver) {
-    try {
-      GetBatchFeaturesFromCompletedJobResponse batchFeatures =
-          servingService.getBatchFeaturesFromCompletedJob(request);
       responseObserver.onNext(batchFeatures);
       responseObserver.onCompleted();
     } catch (Exception e) {

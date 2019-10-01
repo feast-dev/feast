@@ -2,6 +2,8 @@ package feast.serving.configuration;
 
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
 import feast.core.CoreServiceProto.GetStoresRequest;
 import feast.core.CoreServiceProto.GetStoresRequest.Filter;
 import feast.core.CoreServiceProto.GetStoresResponse;
@@ -11,6 +13,7 @@ import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.serving.FeastProperties;
 import feast.serving.service.BigQueryServingService;
+import feast.serving.service.JobService;
 import feast.serving.service.RedisServingService;
 import feast.serving.service.ServingService;
 import feast.serving.service.SpecService;
@@ -19,7 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.DependsOn;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
@@ -27,17 +29,23 @@ import redis.clients.jedis.JedisPoolConfig;
 @Configuration
 public class ServingServiceConfig {
   private String feastStoreName;
+  private String jobStagingLocation;
 
   @Autowired
   public ServingServiceConfig(FeastProperties feastProperties) {
     feastStoreName = feastProperties.getStoreName();
+    jobStagingLocation = feastProperties.getJobStagingLocation();
+    if (!jobStagingLocation.contains("://")) {
+      throw new IllegalArgumentException(
+          String.format("jobStagingLocation is not a valid URI: %s", jobStagingLocation));
+    }
   }
 
   @Bean
-  @DependsOn({"specService", "getTracer"})
   public ServingService servingService(
       FeastProperties feastProperties,
       SpecService specService,
+      JobService jobService,
       Tracer tracer) {
     GetStoresResponse storesResponse =
         specService.getStores(
@@ -61,15 +69,24 @@ public class ServingServiceConfig {
         JedisPoolConfig poolConfig = new JedisPoolConfig();
         poolConfig.setMaxTotal(feastProperties.getRedisPoolMaxSize());
         poolConfig.setMaxIdle(feastProperties.getRedisPoolMaxIdle());
-        JedisPool jedisPool = new JedisPool(poolConfig, store.getRedisConfig().getHost(),
-            store.getRedisConfig().getPort());
+        JedisPool jedisPool =
+            new JedisPool(
+                poolConfig, store.getRedisConfig().getHost(), store.getRedisConfig().getPort());
         servingService = new RedisServingService(jedisPool, specService, tracer);
         break;
       case BIGQUERY:
         BigQueryConfig bqConfig = store.getBigqueryConfig();
         BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+        Storage storage = StorageOptions.getDefaultInstance().getService();
         servingService =
-            new BigQueryServingService(bigquery, bqConfig.getProjectId(), bqConfig.getDatasetId(), specService);
+            new BigQueryServingService(
+                bigquery,
+                bqConfig.getProjectId(),
+                bqConfig.getDatasetId(),
+                specService,
+                jobService,
+                jobStagingLocation,
+                storage);
         break;
       case CASSANDRA:
       case UNRECOGNIZED:

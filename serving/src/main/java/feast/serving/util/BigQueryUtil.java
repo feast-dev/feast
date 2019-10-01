@@ -18,8 +18,17 @@ public class BigQueryUtil {
       List<String> entityNames,
       List<EntityDatasetRow> entityDatasetRows,
       String bigqueryDataset) {
-    // TODO: Arguments validation
-    //       e.g. size of featureSetsRequested == size of featureSetSpecs, and others
+    if (featureSets == null
+        || featureSetSpecs == null
+        || entityNames == null
+        || entityDatasetRows == null
+        || bigqueryDataset.isEmpty()) {
+      return "";
+    }
+
+    if (featureSets.size() != featureSetSpecs.size()) {
+      return "";
+    }
 
     StringBuilder queryBuilder = new StringBuilder();
 
@@ -45,7 +54,8 @@ public class BigQueryUtil {
           for (String entityName : entityNames) {
             columnsSelected.add(
                 String.format(
-                    "%s.%s %s_%s", tableName, entityName, featureSets.get(0).getName(), entityName));
+                    "%s.%s %s_%s",
+                    tableName, entityName, featureSets.get(0).getName(), entityName));
           }
           for (FeatureSet featureSet : featureSets) {
             tableName = getTableName(featureSet);
@@ -55,7 +65,8 @@ public class BigQueryUtil {
                       "%s.%s %s_%s", tableName, featureName, featureSet.getName(), featureName));
             }
           }
-          columnsSelected.add(String.format("%s.event_timestamp", getTableName(featureSets.get(0))));
+          columnsSelected.add(
+              String.format("%s.event_timestamp", getTableName(featureSets.get(0))));
           String query =
               createQueryForFeatureSet(
                   featureSets.get(0),
@@ -99,11 +110,13 @@ public class BigQueryUtil {
           if (entityNamesInFeatureSetSpec.contains(entityName)) {
             String tableNameLeftMost = getTableName(featureSets.get(0));
             joinOnBoolExprAsList.add(
-                String.format("%s.%s = %s.%s", tableNameLeftMost, entityName, tableName, entityName));
+                String.format(
+                    "%s.%s = %s.%s", tableNameLeftMost, entityName, tableName, entityName));
           }
         }
         String joinOnBoolExpr = String.join(" AND ", joinOnBoolExprAsList);
-        String joinQuery = String.format("LEFT JOIN (%s) %s ON %s", query, tableName, joinOnBoolExpr);
+        String joinQuery =
+            String.format("LEFT JOIN (%s) %s ON %s", query, tableName, joinOnBoolExpr);
         queryBuilder.append(" ").append(joinQuery);
       }
 
@@ -206,7 +219,7 @@ public class BigQueryUtil {
       case BOOL_VAL:
         returnValue = String.valueOf(value.getBoolVal());
         break;
-      // TODO: Handle these types as well
+        // TODO: Handle these types as well
       case BYTES_VAL:
       case BYTES_LIST_VAL:
       case STRING_LIST_VAL:
@@ -220,4 +233,5 @@ public class BigQueryUtil {
     }
     return returnValue;
   }
+
 }

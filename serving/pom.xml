@@ -232,6 +232,12 @@
       <version>1.91.0</version>
     </dependency>
 
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-storage</artifactId>
+      <version>1.91.0</version>
+    </dependency>
+
     <!-- OpenCensus, needed by Google Cloud -->
     <dependency>
       <groupId>io.opencensus</groupId>

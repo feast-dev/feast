@@ -22,3 +22,68 @@ grpc_cli ls localhost:6566
 grpc_cli call localhost:6566 GetFeastServingVersion ''
 grpc_cli call localhost:6566 GetFeastServingType ''
 ```
+
+```bash
+grpc_cli call localhost:6565 ApplyFeatureSet '
+feature_set {
+  name: "driver"
+  version: 1
+  entities {
+    name: "driver_id"
+    value_type: STRING
+  }
+  features {
+    name: "city"
+    value_type: STRING
+  }
+  features {
+    name: "booking_completed_count"
+    value_type: INT64
+  }
+  source {
+    type: KAFKA
+    kafka_source_config {
+      bootstrap_servers: "localhost:9092"
+    }
+  }
+}
+'
+
+grpc_cli call localhost:6565 GetFeatureSets '
+filter {
+  feature_set_name: "driver"
+  feature_set_version: "1"
+}
+'
+
+grpc_cli call localhost:6566 GetBatchFeatures '
+feature_sets {
+  name: "driver4"
+  version: 1
+  feature_names: "booking_completed_count"
+  max_age {
+    seconds: 86400
+  }
+}
+entity_dataset {
+  entity_names: "driver_id"
+  entity_dataset_rows {
+    entity_timestamp {
+      seconds: 1569873954
+    }
+  }
+}
+'
+```
+
+```
+import pandas as pd
+import fastavro
+
+with open("/tmp/000000000000.avro") as f:
+    reader = fastavro.reader(f)
+    records = [r for r in reader]
+    df = pandas.DataFrame.from_records(records)
+    df.shape
+    df.head(5)
+```
