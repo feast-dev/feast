@@ -36,7 +36,8 @@ import os
 import pandas as pd
 from feast.type_map import pandas_value_to_proto_value, FEAST_VALUE_ATTR_TO_DTYPE
 
-GRPC_CONNECTION_TIMEOUT = 5  # type: int
+GRPC_CONNECTION_TIMEOUT_DEFAULT = 5  # type: int
+GRPC_CONNECTION_TIMEOUT_APPLY = 300  # type: int
 FEAST_SERVING_URL_ENV_KEY = "FEAST_SERVING_URL"  # type: str
 FEAST_CORE_URL_ENV_KEY = "FEAST_CORE_URL"  # type: str
 
@@ -83,14 +84,14 @@ class Client:
 
         try:
             core_version = self._core_service_stub.GetFeastCoreVersion(
-                GetFeastCoreVersionRequest(), timeout=GRPC_CONNECTION_TIMEOUT
+                GetFeastCoreVersionRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             ).version
         except grpc.FutureCancelledError:
             core_version = "not connected"
 
         try:
             serving_version = self._serving_service_stub.GetFeastServingVersion(
-                GetFeastServingVersionRequest(), timeout=GRPC_CONNECTION_TIMEOUT
+                GetFeastServingVersionRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             ).version
         except grpc.FutureCancelledError:
             serving_version = "not connected"
@@ -115,7 +116,7 @@ class Client:
 
         try:
             grpc.channel_ready_future(self.__core_channel).result(
-                timeout=GRPC_CONNECTION_TIMEOUT
+                timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             )
         except grpc.FutureTimeoutError:
             raise ConnectionError(
@@ -141,7 +142,7 @@ class Client:
 
         try:
             grpc.channel_ready_future(self.__serving_channel).result(
-                timeout=GRPC_CONNECTION_TIMEOUT
+                timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             )
         except grpc.FutureTimeoutError:
             raise ConnectionError(
@@ -221,7 +222,7 @@ class Client:
 
         apply_fs_response = self._core_service_stub.ApplyFeatureSet(
             ApplyFeatureSetRequest(feature_set=feature_set.to_proto()),
-            timeout=GRPC_CONNECTION_TIMEOUT,
+            timeout=GRPC_CONNECTION_TIMEOUT_APPLY,
         )  # type: ApplyFeatureSetResponse
 
         if apply_fs_response.status == ApplyFeatureSetResponse.Status.ERROR:
