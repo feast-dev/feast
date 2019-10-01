@@ -162,7 +162,7 @@ public class StorageUtil {
 
     // Return if there is an existing table
     Table table = bigquery.getTable(tableId);
-    if (table == null || table.exists()) {
+    if (table != null) {
       log.info(
           "Writing to existing BigQuery table '{}:{}.{}'",
           bigqueryProjectId,
