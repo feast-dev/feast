@@ -35,13 +35,6 @@ public class ServingServiceConfig {
   public ServingServiceConfig(FeastProperties feastProperties) {
     feastStoreName = feastProperties.getStoreName();
     jobStagingLocation = feastProperties.getJobStagingLocation();
-    if (!jobStagingLocation.contains("://")) {
-      throw new IllegalArgumentException(
-          String.format("jobStagingLocation is not a valid URI: %s", jobStagingLocation));
-    }
-    if (jobStagingLocation.endsWith("/")) {
-      jobStagingLocation = jobStagingLocation.substring(0, jobStagingLocation.length() - 1);
-    }
   }
 
   @Bean
@@ -91,6 +84,13 @@ public class ServingServiceConfig {
         BigQueryConfig bqConfig = store.getBigqueryConfig();
         BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
         Storage storage = StorageOptions.getDefaultInstance().getService();
+        if (!jobStagingLocation.contains("://")) {
+          throw new IllegalArgumentException(
+              String.format("jobStagingLocation is not a valid URI: %s", jobStagingLocation));
+        }
+        if (jobStagingLocation.endsWith("/")) {
+          jobStagingLocation = jobStagingLocation.substring(0, jobStagingLocation.length() - 1);
+        }
         if (!this.jobStagingLocation.startsWith("gs://")) {
           throw new IllegalArgumentException(
               "Store type BIGQUERY requires job staging location to be a valid and existing Google Cloud Storage URI. Invalid staging location: "

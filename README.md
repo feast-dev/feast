@@ -13,7 +13,7 @@ It aims to:
 
 ## High Level Architecture
 
-![Feast Architecture](arch.png)
+![Feast Architecture](docs/assets/arch.png)
 
 The Feast platform is broken down into the following functional areas:
 

@@ -41,7 +41,12 @@ feast:
     # Warehouse store type. For more information on the available types
     # see Store.proto. To provision feast without a warehouse store,
     # leave this value blank.
-    warehouse-type: ""
+    warehouse-type: BIGQUERY
+    warehouse-options:
+      projectId: my-google-project-id
+      datasetId: my-bigquery-dataset-id
+      # Same as feast.store.serving-options.subscriptions
+      subscriptions: ".*:>0"
   jobs:
     # Runner type for feature population jobs. Currently supported runner types are
     # DirectRunner and DataflowRunner.

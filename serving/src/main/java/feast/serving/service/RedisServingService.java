@@ -24,6 +24,7 @@ import feast.core.CoreServiceProto.GetFeatureSetsRequest;
 import feast.core.CoreServiceProto.GetFeatureSetsRequest.Filter;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.serving.ServingAPIProto.FeastServingType;
 import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingTypeRequest;
 import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
@@ -72,8 +73,9 @@ public class RedisServingService implements ServingService {
   @Override
   public GetFeastServingTypeResponse getFeastServingType(
       GetFeastServingTypeRequest getFeastServingTypeRequest) {
-    //    return GetFeastServingTypeResponse.newBuilder().setType().build();
-    return null;
+    return GetFeastServingTypeResponse.newBuilder()
+        .setType(FeastServingType.FEAST_SERVING_TYPE_ONLINE)
+        .build();
   }
 
   /** {@inheritDoc} */
