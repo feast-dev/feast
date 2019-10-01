@@ -7,8 +7,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @Getter
 @Setter
-@ConfigurationProperties(prefix = "feast", ignoreInvalidFields=true)
+@ConfigurationProperties(prefix = "feast", ignoreInvalidFields = true)
 public class FeastProperties {
+
   private String version;
   private StoreProperties store;
   private JobProperties jobs;
@@ -18,6 +19,7 @@ public class FeastProperties {
   @Getter
   @Setter
   public static class StoreProperties {
+
     private String servingType;
     private Map<String, String> servingOptions;
     private String warehouseType;
@@ -27,6 +29,7 @@ public class FeastProperties {
   @Getter
   @Setter
   public static class JobProperties {
+
     private String runner;
     private Map<String, String> options;
     private String dataflowProjectId;
@@ -36,6 +39,7 @@ public class FeastProperties {
   @Getter
   @Setter
   public static class StreamProperties {
+
     private String type;
     private Map<String, String> options;
   }
@@ -43,6 +47,7 @@ public class FeastProperties {
   @Getter
   @Setter
   public static class StatsdProperties {
+
     private String host;
     private int port;
   }

@@ -14,20 +14,44 @@
 # limitations under the License.
 #
 #
+
+grpc:
+  # The port number Feast Serving GRPC service should listen on
+  port: 6565
+  # This allows client to discover GRPC endpoints easily
+  # https://github.com/grpc/grpc-java/blob/master/documentation/server-reflection-tutorial.md
+  enable-reflection: true
+
 feast:
 #  version: @project.version@
   store:
+    # Serving store type. For more information on the available types
+    # see Store.proto. To provision feast without a serving store,
+    # leave this value blank.
     serving-type: REDIS
+    # Serving store options. The necessary option values depend on the
+    # store. For more information, see Store.proto.
     serving-options:
       host: localhost
       port: 6379
+      # Store subscriptions, as a comma delimited string of featureName:versions
+      # to populate this store with. Regex is supported for featureName, and
+      # expressions for version.
       subscriptions: ".*:>0"
+    # Warehouse store type. For more information on the available types
+    # see Store.proto. To provision feast without a warehouse store,
+    # leave this value blank.
     warehouse-type: ""
   jobs:
+    # Runner type for feature population jobs. Currently supported runner types are
+    # DirectRunner and DataflowRunner.
     runner: DirectRunner
+    # Key-value dict of job options to be passed to the population jobs.
     options: {}
   stream:
+    # Feature stream type. Only kafka is supported.
     type: kafka
+    # Feature stream options.
     options:
       bootstrapServers: "kafka:9092"
       replicationFactor: "1"
@@ -55,10 +79,3 @@ management:
         enabled: true
         host: ${STATSD_HOST:localhost}
         port: ${STATSD_PORT:8125}
-
-grpc:
-  # The port number Feast Serving GRPC service should listen on
-  port: 6565
-  # This allows client to discover GRPC endpoints easily
-  # https://github.com/grpc/grpc-java/blob/master/documentation/server-reflection-tutorial.md
-  enable-reflection: true

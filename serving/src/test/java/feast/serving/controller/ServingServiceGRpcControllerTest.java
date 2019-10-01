@@ -1,9 +1,7 @@
 package feast.serving.controller;
 
-import static org.junit.Assert.*;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import com.timgroup.statsd.StatsDClient;
 import feast.serving.FeastProperties;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
 import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDataset;
@@ -21,7 +19,7 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 
-public class ServingServiceControllerTest {
+public class ServingServiceGRpcControllerTest {
   private static final String FEATURE_SET_NAME = "feature_set_1";
   private static final int FEATURE_SET_VER = 1;
   private static final String FN_REGION = "region";
@@ -39,7 +37,7 @@ public class ServingServiceControllerTest {
 
   private GetFeaturesRequest validRequest;
 
-  private ServingServiceController service;
+  private ServingServiceGRpcController service;
 
   @Before
   public void setUp() {
@@ -51,7 +49,7 @@ public class ServingServiceControllerTest {
 
     Tracer tracer = Configuration.fromEnv("dummy").getTracer();
     FeastProperties feastProperties = new FeastProperties();
-    service = new ServingServiceController(mockServingService, feastProperties, tracer);
+    service = new ServingServiceGRpcController(mockServingService, feastProperties, tracer);
   }
 
   @Test

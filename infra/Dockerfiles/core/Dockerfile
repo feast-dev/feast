@@ -8,9 +8,5 @@ RUN mvn --projects core,ingestion -Drevision=$REVISION -DskipTests=true --batch-
 FROM openjdk:8-jre as production
 ARG REVISION=dev
 COPY --from=builder /build/core/target/feast-core-$REVISION.jar /usr/share/feast/feast-core.jar
-COPY --from=builder /build/ingestion/target/feast-ingestion-$REVISION.jar /usr/share/feast/feast-ingestion.jar
-ENV JOB_EXECUTABLE=/usr/share/feast/feast-ingestion.jar
-ENTRYPOINT ["java", \
-"-XX:+UnlockExperimentalVMOptions", \
-"-XX:+UseCGroupMemoryLimitForHeap", \
-"-jar", "/usr/share/feast/feast-core.jar"]
+COPY --from=builder /build/infra/Dockerfiles/core/bootstrap.sh /usr/share/feast/bootstrap.sh
+ENTRYPOINT ["/usr/share/feast/boostrap.sh"]
