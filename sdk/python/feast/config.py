@@ -81,7 +81,14 @@ def set_property(fproperty: str, value: str):
         sys.exit(1)
 
 
-def get_config_property_or_fail(fproperty):
+def get_config_property_or_fail(fproperty: str, cli_config: Dict[str, str]):
+    if (
+        isinstance(cli_config, dict)
+        and fproperty in cli_config
+        and cli_config[fproperty] is not None
+    ):
+        return cli_config[fproperty]
+
     active_feast_config = get_or_create_config()
     if _is_valid_property(fproperty, active_feast_config[fproperty]):
         return active_feast_config[fproperty]
