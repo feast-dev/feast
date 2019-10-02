@@ -8,10 +8,6 @@ import feast.serving.ServingAPIProto.GetFeastServingVersionRequest;
 import feast.serving.ServingAPIProto.GetFeastServingVersionResponse;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
-import feast.serving.ServingAPIProto.GetStagingLocationRequest;
-import feast.serving.ServingAPIProto.GetStagingLocationResponse;
-import feast.serving.ServingAPIProto.LoadBatchFeaturesRequest;
-import feast.serving.ServingAPIProto.LoadBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.ReloadJobRequest;
 import feast.serving.ServingAPIProto.ReloadJobResponse;
 import feast.serving.ServingServiceGrpc.ServingServiceImplBase;
@@ -78,33 +74,6 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
     try {
       GetBatchFeaturesResponse batchFeatures = servingService.getBatchFeatures(request);
       responseObserver.onNext(batchFeatures);
-      responseObserver.onCompleted();
-    } catch (Exception e) {
-      responseObserver.onError(e);
-    }
-  }
-
-  @Override
-  public void getStagingLocation(
-      GetStagingLocationRequest request,
-      StreamObserver<GetStagingLocationResponse> responseObserver) {
-    try {
-      GetStagingLocationResponse stagingLocation = servingService.getStagingLocation(request);
-      responseObserver.onNext(stagingLocation);
-      responseObserver.onCompleted();
-    } catch (Exception e) {
-      responseObserver.onError(e);
-    }
-  }
-
-  @Override
-  public void loadBatchFeatures(
-      LoadBatchFeaturesRequest request,
-      StreamObserver<LoadBatchFeaturesResponse> responseObserver) {
-    try {
-      LoadBatchFeaturesResponse loadBatchFeaturesResponse =
-          servingService.loadBatchFeatures(request);
-      responseObserver.onNext(loadBatchFeaturesResponse);
       responseObserver.onCompleted();
     } catch (Exception e) {
       responseObserver.onError(e);

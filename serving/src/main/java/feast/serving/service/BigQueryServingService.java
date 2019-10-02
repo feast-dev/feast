@@ -21,12 +21,8 @@ import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
 import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDatasetRow;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
-import feast.serving.ServingAPIProto.GetStagingLocationRequest;
-import feast.serving.ServingAPIProto.GetStagingLocationResponse;
 import feast.serving.ServingAPIProto.JobStatus;
 import feast.serving.ServingAPIProto.JobType;
-import feast.serving.ServingAPIProto.LoadBatchFeaturesRequest;
-import feast.serving.ServingAPIProto.LoadBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.ReloadJobRequest;
 import feast.serving.ServingAPIProto.ReloadJobResponse;
 import feast.serving.util.BigQueryUtil;
@@ -219,18 +215,6 @@ public class BigQueryServingService implements ServingService {
         .start();
 
     return GetBatchFeaturesResponse.newBuilder().setJob(feastJob).build();
-  }
-
-  @Override
-  public GetStagingLocationResponse getStagingLocation(
-      GetStagingLocationRequest getStagingLocationRequest) {
-    return null;
-  }
-
-  @Override
-  public LoadBatchFeaturesResponse loadBatchFeatures(
-      LoadBatchFeaturesRequest loadBatchFeaturesRequest) {
-    return null;
   }
 
   @Override
