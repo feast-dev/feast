@@ -1,9 +1,10 @@
 package feast.serving.util;
 
+import com.google.common.collect.Lists;
 import com.google.protobuf.util.Timestamps;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDatasetRow;
+import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityRow;
 import feast.serving.ServingAPIProto.GetFeaturesRequest.FeatureSet;
 import feast.types.ValueProto.Value;
 import java.util.ArrayList;
@@ -16,12 +17,12 @@ public class BigQueryUtil {
       List<FeatureSet> featureSets,
       List<FeatureSetSpec> featureSetSpecs,
       List<String> entityNames,
-      List<EntityDatasetRow> entityDatasetRows,
+      List<EntityRow> entityRows,
       String bigqueryDataset) {
     if (featureSets == null
         || featureSetSpecs == null
         || entityNames == null
-        || entityDatasetRows == null
+        || entityRows == null
         || bigqueryDataset.isEmpty()) {
       return "";
     }
@@ -32,8 +33,8 @@ public class BigQueryUtil {
 
     StringBuilder queryBuilder = new StringBuilder();
 
-    for (int i = 0; i < entityDatasetRows.size(); i++) {
-      EntityDatasetRow entityDatasetRow = entityDatasetRows.get(i);
+    for (int i = 0; i < entityRows.size(); i++) {
+      EntityRow entityDatasetRow = entityRows.get(i);
 
       if (i > 0) {
         // When multiple entity_dataset_rows are provided, we append the results of all
@@ -142,7 +143,7 @@ public class BigQueryUtil {
       FeatureSet featureSet,
       FeatureSetSpec featureSetSpec,
       List<String> entityNames,
-      EntityDatasetRow entityDatasetRow,
+      EntityRow entityRow,
       String datasetName,
       List<String> columnsSelectedAsList) {
     String columnsSelected = String.join(", ", columnsSelectedAsList);
@@ -170,13 +171,13 @@ public class BigQueryUtil {
     List<String> whereBoolExprAsList = new ArrayList<>();
     String timestampLowerBound =
         Timestamps.toString(
-            Timestamps.subtract(entityDatasetRow.getEntityTimestamp(), featureSet.getMaxAge()));
-    String timestampUpperBound = Timestamps.toString(entityDatasetRow.getEntityTimestamp());
+            Timestamps.subtract(entityRow.getEntityTimestamp(), featureSet.getMaxAge()));
+    String timestampUpperBound = Timestamps.toString(entityRow.getEntityTimestamp());
     whereBoolExprAsList.add(
         String.format(
             "%s.event_timestamp BETWEEN '%s' AND '%s'",
             tableName, timestampLowerBound, timestampUpperBound));
-    List<Value> entityIdsList = entityDatasetRow.getEntityIdsList();
+    List<Value> entityIdsList = Lists.newArrayList(entityRow.getFieldsMap().values());
     for (int i = 0; i < entityIdsList.size(); i++) {
       if (entityNamesInFeatureSetSpec.contains(entityNames.get(i))) {
         whereBoolExprAsList.add(

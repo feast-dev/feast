@@ -67,9 +67,8 @@ message GetFeaturesRequest {
     // List of feature sets and their features that are being retrieved
     repeated FeatureSet feature_sets = 1;
 
-    // Dataset containing timestamp and entity id data. Used during retrieval of feature rows
-    // and for joining feature rows into a final dataset
-    EntityDataset entity_dataset = 2;
+    // TODO: comments
+    repeated EntityRow entity_rows = 2;
 
     message FeatureSet {
         // Feature set name
@@ -89,67 +88,20 @@ message GetFeaturesRequest {
         google.protobuf.Duration max_age = 4;
     }
 
-    message EntityDataset {
-        // List of entity names contained within this incoming request. Each entity name is globally
-        // unique within Feast. The user is assumed to have used the exact column name in their
-        // EntityDataset if they are providing this dataset through a batch process.
-        repeated string entity_names = 1;
-
-        // List of Unix epoch entity_timestamp and entity_id values
-        repeated EntityDatasetRow entity_dataset_rows = 2;
-    }
-
-    // EntityDatasetRow specifies:
-    // - the timestamp range over which feature values should be retrieved (required for batch serving)
-    // - the specific entity ids that should be retrieved (required for online serving)
-    //
-    // If there are duplicate entity ids for the same timestamp range, only the 
-    // one with the latest event_timestamp will be retrieved.
-    //
-    // Entity ids may be ommitted for batch features retrieval. In this case,
-    // all entities with distinct entity ids within the valid timestamp range 
-    // will be retrieved.
-    message EntityDatasetRow  {
-        // entity_timestamp is the upper bound of the timestamp range over 
-        // which the feature values should be retrieved.
-        //
-        // For online serving entity_timestamp is optional (ignored), as the 
-        // latest is always retrieved.
-        // 
-        // The timestamp range is defined as follows:
-        // entity_timestamp - max_age <= event_timestamp <= entity_timestamp
+    // TODO: comments
+    message EntityRow {
         google.protobuf.Timestamp entity_timestamp = 1;
-
-        // The entity ids for which the feature values should be retrieved.
-        // 
-        // The order of the values should follow that in entity_names in EntityDataset.
-        // For online serving, it is required to specify entity_ids.
-        // For batch serving, it is optional.
-        repeated feast.types.Value entity_ids = 2;
+        map<string,feast.types.Value> fields = 2;
     }
 }
 
 message GetOnlineFeaturesResponse {
-    // A FeatureDataSet is returned for each feature set in the incoming request
-    repeated FeatureDataset feature_datasets = 2;
+    repeated FieldValues field_values = 1;
 
-    // The FeatureDataSet contains information about the Feature Set in the incoming request,
-    // as well as feature data that can be joined to the incoming EntityDataSet. The row count
-    // for the returning FeatureDataSet will match that of the row count for the incoming
-    // EntityDataSet.
-    // If any of the keys do not have values, empty feature rows will be returned.
-    message FeatureDataset {
-        // Feature set name
-        string name = 1;
-
-        // Feature set version
-        int32 version = 2;
-
-        // Each feature data set contains a list of feature rows. The timestamps within the row
-        // are the original event timestamps from when that row was written to the backing store.
-        // When these FeatureRows are joined to the EntityDataSetRows, the FeatureRow timestamps
-        // will be dropped in favour of the EntityDataSetRow timestamp.
-        repeated feast.types.FeatureRow feature_rows = 3;
+    // TODO: update this comment
+    // does not include timestamp, includes features and entities
+    message FieldValues {
+        map<string,feast.types.Value> fields = 1;
     }
 }
 

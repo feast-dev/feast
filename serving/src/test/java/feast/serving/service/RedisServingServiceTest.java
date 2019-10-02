@@ -1,7 +1,7 @@
 package feast.serving.service;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
@@ -15,11 +15,10 @@ import feast.core.CoreServiceProto.GetFeatureSetsResponse;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
-import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDataset;
-import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDatasetRow;
+import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityRow;
 import feast.serving.ServingAPIProto.GetFeaturesRequest.FeatureSet;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FeatureDataset;
+import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.storage.RedisProto.RedisKey;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
@@ -27,6 +26,7 @@ import feast.types.ValueProto.Value;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Test;
@@ -96,17 +96,14 @@ public class RedisServingServiceTest {
             .setVersion(1)
             .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
             .build())
-        .setEntityDataset(EntityDataset.newBuilder()
-            .addAllEntityNames(Lists.newArrayList("entity1", "entity2"))
-            .addAllEntityDatasetRows(Lists.newArrayList(
-                EntityDatasetRow.newBuilder()
-                    .addAllEntityIds(Lists.newArrayList(intValue(1), strValue("a")))
-                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100)).build(),
-                EntityDatasetRow.newBuilder()
-                    .addAllEntityIds(Lists.newArrayList(intValue(2), strValue("b")))
-                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100)).build()
-            ))
-        )
+        .addEntityRows(EntityRow.newBuilder()
+            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+            .putFields("entity1", intValue(1))
+            .putFields("entity2", strValue("a")))
+        .addEntityRows(EntityRow.newBuilder()
+            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+            .putFields("entity1", intValue(2))
+            .putFields("entity2", strValue("b")))
         .build();
 
     List<FeatureRow> featureRows = Lists.newArrayList(
@@ -140,14 +137,19 @@ public class RedisServingServiceTest {
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected = GetOnlineFeaturesResponse.newBuilder()
-        .addFeatureDatasets(FeatureDataset.newBuilder()
-            .setName("featureSet")
-            .setVersion(1)
-            .addAllFeatureRows(featureRows)
-            .build())
+        .addFieldValues(FieldValues.newBuilder()
+          .putFields("entity1", intValue(1))
+          .putFields("entity2", strValue("a"))
+          .putFields("featureSet:1.feature1", intValue(1))
+          .putFields("featureSet:1.feature2", intValue(1)))
+        .addFieldValues(FieldValues.newBuilder()
+          .putFields("entity1", intValue(2))
+          .putFields("entity2", strValue("b"))
+          .putFields("featureSet:1.feature1", intValue(2))
+          .putFields("featureSet:1.feature2", intValue(2)))
         .build();
     GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
-    assertThat(actual, equalTo(expected));
+    assertThat(responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
   }
 
   @Test
@@ -159,17 +161,14 @@ public class RedisServingServiceTest {
             .setVersion(1)
             .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
             .build())
-        .setEntityDataset(EntityDataset.newBuilder()
-            .addAllEntityNames(Lists.newArrayList("entity1", "entity2"))
-            .addAllEntityDatasetRows(Lists.newArrayList(
-                EntityDatasetRow.newBuilder()
-                    .addAllEntityIds(Lists.newArrayList(intValue(1), strValue("a")))
-                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100)).build(),
-                EntityDatasetRow.newBuilder()
-                    .addAllEntityIds(Lists.newArrayList(intValue(2), strValue("b")))
-                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100)).build()
-            ))
-        )
+        .addEntityRows(EntityRow.newBuilder()
+            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+            .putFields("entity1", intValue(1))
+            .putFields("entity2", strValue("a")))
+        .addEntityRows(EntityRow.newBuilder()
+            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+            .putFields("entity1", intValue(2))
+            .putFields("entity2", strValue("b")))
         .build();
 
     List<FeatureRow> featureRows = Lists.newArrayList(
@@ -201,14 +200,19 @@ public class RedisServingServiceTest {
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected = GetOnlineFeaturesResponse.newBuilder()
-        .addFeatureDatasets(FeatureDataset.newBuilder()
-            .setName("featureSet")
-            .setVersion(1)
-            .addAllFeatureRows(featureRows)
-            .build())
+        .addFieldValues(FieldValues.newBuilder()
+            .putFields("entity1", intValue(1))
+            .putFields("entity2", strValue("a"))
+            .putFields("featureSet:1.feature1", intValue(1))
+            .putFields("featureSet:1.feature2", intValue(1)))
+        .addFieldValues(FieldValues.newBuilder()
+            .putFields("entity1", intValue(2))
+            .putFields("entity2", strValue("b"))
+            .putFields("featureSet:1.feature1", Value.newBuilder().build())
+            .putFields("featureSet:1.feature2", Value.newBuilder().build()))
         .build();
     GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
-    assertThat(actual, equalTo(expected));
+    assertThat(responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
   }
 
   @Test
@@ -221,17 +225,14 @@ public class RedisServingServiceTest {
             .setMaxAge(Duration.newBuilder().setSeconds(10))
             .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
             .build())
-        .setEntityDataset(EntityDataset.newBuilder()
-            .addAllEntityNames(Lists.newArrayList("entity1", "entity2"))
-            .addAllEntityDatasetRows(Lists.newArrayList(
-                EntityDatasetRow.newBuilder()
-                    .addAllEntityIds(Lists.newArrayList(intValue(1), strValue("a")))
-                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100)).build(),
-                EntityDatasetRow.newBuilder()
-                    .addAllEntityIds(Lists.newArrayList(intValue(2), strValue("b")))
-                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100)).build()
-            ))
-        )
+        .addEntityRows(EntityRow.newBuilder()
+            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+            .putFields("entity1", intValue(1))
+            .putFields("entity2", strValue("a")))
+        .addEntityRows(EntityRow.newBuilder()
+            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+            .putFields("entity1", intValue(2))
+            .putFields("entity2", strValue("b")))
         .build();
 
     List<FeatureRow> featureRows = Lists.newArrayList(
@@ -264,27 +265,22 @@ public class RedisServingServiceTest {
     when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
-    FeatureRow staleFeatureRow = FeatureRow.newBuilder()
-        .setEventTimestamp(Timestamp.newBuilder()) // this value should be nulled
-        .addAllFields(Lists
-            .newArrayList(
-                Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
-                Field.newBuilder().setName("entity2").setValue(strValue("b")).build(),
-                Field.newBuilder().setName("feature1").build(),
-                Field.newBuilder().setName("feature2").build()))
-        .setFeatureSet("featureSet:1")
-        .build();
     GetOnlineFeaturesResponse expected = GetOnlineFeaturesResponse.newBuilder()
-        .addFeatureDatasets(FeatureDataset.newBuilder()
-            .setName("featureSet")
-            .setVersion(1)
-            .addFeatureRows(featureRows.get(0))
-            .addFeatureRows(staleFeatureRow)
-            .build())
+        .addFieldValues(FieldValues.newBuilder()
+            .putFields("entity1", intValue(1))
+            .putFields("entity2", strValue("a"))
+            .putFields("featureSet:1.feature1", intValue(1))
+            .putFields("featureSet:1.feature2", intValue(1)))
+        .addFieldValues(FieldValues.newBuilder()
+            .putFields("entity1", intValue(2))
+            .putFields("entity2", strValue("b"))
+            .putFields("featureSet:1.feature1", Value.newBuilder().build())
+            .putFields("featureSet:1.feature2", Value.newBuilder().build()))
         .build();
     GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
-    assertThat(actual, equalTo(expected));
+    assertThat(responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
   }
+
 
   @Test
   public void shouldReturnResponseWithUnsetValuesIfDefaultMaxAgeIsExceeded() {
@@ -295,17 +291,14 @@ public class RedisServingServiceTest {
             .setVersion(1)
             .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
             .build())
-        .setEntityDataset(EntityDataset.newBuilder()
-            .addAllEntityNames(Lists.newArrayList("entity1", "entity2"))
-            .addAllEntityDatasetRows(Lists.newArrayList(
-                EntityDatasetRow.newBuilder()
-                    .addAllEntityIds(Lists.newArrayList(intValue(1), strValue("a")))
-                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100)).build(),
-                EntityDatasetRow.newBuilder()
-                    .addAllEntityIds(Lists.newArrayList(intValue(2), strValue("b")))
-                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100)).build()
-            ))
-        )
+        .addEntityRows(EntityRow.newBuilder()
+            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+            .putFields("entity1", intValue(1))
+            .putFields("entity2", strValue("a")))
+        .addEntityRows(EntityRow.newBuilder()
+            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+            .putFields("entity1", intValue(2))
+            .putFields("entity2", strValue("b")))
         .build();
 
     List<FeatureRow> featureRows = Lists.newArrayList(
@@ -338,27 +331,22 @@ public class RedisServingServiceTest {
     when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
-    FeatureRow staleFeatureRow = FeatureRow.newBuilder()
-        .setEventTimestamp(Timestamp.newBuilder()) // this value should be nulled
-        .addAllFields(Lists
-            .newArrayList(
-                Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
-                Field.newBuilder().setName("entity2").setValue(strValue("b")).build(),
-                Field.newBuilder().setName("feature1").build(),
-                Field.newBuilder().setName("feature2").build()))
-        .setFeatureSet("featureSet:1")
-        .build();
     GetOnlineFeaturesResponse expected = GetOnlineFeaturesResponse.newBuilder()
-        .addFeatureDatasets(FeatureDataset.newBuilder()
-            .setName("featureSet")
-            .setVersion(1)
-            .addFeatureRows(featureRows.get(0))
-            .addFeatureRows(staleFeatureRow)
-            .build())
+        .addFieldValues(FieldValues.newBuilder()
+            .putFields("entity1", intValue(1))
+            .putFields("entity2", strValue("a"))
+            .putFields("featureSet:1.feature1", intValue(1))
+            .putFields("featureSet:1.feature2", intValue(1)))
+        .addFieldValues(FieldValues.newBuilder()
+            .putFields("entity1", intValue(2))
+            .putFields("entity2", strValue("b"))
+            .putFields("featureSet:1.feature1", Value.newBuilder().build())
+            .putFields("featureSet:1.feature2", Value.newBuilder().build()))
         .build();
     GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
-    assertThat(actual, equalTo(expected));
+    assertThat(responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
   }
+
 
   @Test
   public void shouldFilterOutUndesiredRows() {
@@ -369,17 +357,14 @@ public class RedisServingServiceTest {
             .setVersion(1)
             .addAllFeatureNames(Lists.newArrayList("feature1"))
             .build())
-        .setEntityDataset(EntityDataset.newBuilder()
-            .addAllEntityNames(Lists.newArrayList("entity1", "entity2"))
-            .addAllEntityDatasetRows(Lists.newArrayList(
-                EntityDatasetRow.newBuilder()
-                    .addAllEntityIds(Lists.newArrayList(intValue(1), strValue("a")))
-                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100)).build(),
-                EntityDatasetRow.newBuilder()
-                    .addAllEntityIds(Lists.newArrayList(intValue(2), strValue("b")))
-                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100)).build()
-            ))
-        )
+        .addEntityRows(EntityRow.newBuilder()
+            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+            .putFields("entity1", intValue(1))
+            .putFields("entity2", strValue("a")))
+        .addEntityRows(EntityRow.newBuilder()
+            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+            .putFields("entity1", intValue(2))
+            .putFields("entity2", strValue("b")))
         .build();
 
     List<FeatureRow> featureRows = Lists.newArrayList(
@@ -413,16 +398,21 @@ public class RedisServingServiceTest {
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected = GetOnlineFeaturesResponse.newBuilder()
-        .addFeatureDatasets(FeatureDataset.newBuilder()
-            .setName("featureSet")
-            .setVersion(1)
-            .addAllFeatureRows(featureRows.stream()
-                .map(fr -> fr.toBuilder().removeFields(3).build())
-                .collect(Collectors.toList()))
-            .build())
+        .addFieldValues(FieldValues.newBuilder()
+            .putFields("entity1", intValue(1))
+            .putFields("entity2", strValue("a"))
+            .putFields("featureSet:1.feature1", intValue(1)))
+        .addFieldValues(FieldValues.newBuilder()
+            .putFields("entity1", intValue(2))
+            .putFields("entity2", strValue("b"))
+            .putFields("featureSet:1.feature1", intValue(2)))
         .build();
     GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
-    assertThat(actual, equalTo(expected));
+    assertThat(responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
+  }
+
+  private List<Map<String, Value>> responseToMapList(GetOnlineFeaturesResponse response) {
+    return response.getFieldValuesList().stream().map(FieldValues::getFieldsMap).collect(Collectors.toList());
   }
 
   private Value intValue(int val) {
