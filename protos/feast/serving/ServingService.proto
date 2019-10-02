@@ -47,13 +47,6 @@ service ServingService {
     // The client is assumed to have access to these file URIs.
     rpc GetBatchFeatures (GetFeaturesRequest) returns (GetBatchFeaturesResponse);
 
-    // Get the URI prefix where the client can upload files to be accessed by Feast serving.
-    rpc GetStagingLocation (GetStagingLocationRequest) returns (GetStagingLocationResponse);
-
-    // Load batch features from a list of source URIs asynchronously. The source 
-    // URIs must represent a feature set of a specific version.
-    rpc LoadBatchFeatures (LoadBatchFeaturesRequest) returns (LoadBatchFeaturesResponse);
-    
     // Reload the job status with the latest state.
     rpc ReloadJob(ReloadJobRequest) returns (ReloadJobResponse);
 }
@@ -164,63 +157,6 @@ message GetBatchFeaturesResponse {
     Job job = 1;
 }
 
-message GetStagingLocationRequest {}
-
-message GetStagingLocationResponse {
-    // The URI where the client can upload the files containing feature values.
-    //
-    // This URI acts as a staging location before the files are read by Feast.
-    // The client should upload their feature values files to the path prefixed
-    // by this URI. Note that the returned URI contains no trailing forward 
-    // slash, the client should add a forward slash before appending the 
-    // rest of the file paths to be uploaded.
-    //
-    // For example, 
-    // If the URI is "gs://bucket/staging", the client should upload "file_1.csv" 
-    // to "gs://bucket/staging/file_1.csv"
-    string uri = 1;
-}
-
-message LoadBatchFeaturesRequest {
-    // The feature set name for this batch features.
-    string feature_set_name = 1;
-
-    // The version of the feature set for this batch features.
-    int32 feature_set_version = 2;
-
-    // Source URIs for the files containing feature values that should be loaded
-    // to Feast. 
-    //
-    // The client should call GetStagingLocation beforehand to get the URI to 
-    // upload the feature values files. Feast may not load the files in the 
-    // source URIs in order.
-    // 
-    // Example source URIs: 
-    // - gs://bucket/features_1.csv
-    // - gs://bucket/features_2.csv
-    repeated string source_uris = 3;
-    
-    // Data format for the feature values file. 
-    // 
-    // All files must be of the same data format. If the data format is CSV, 
-    // the first row must be a column header and Feast will infer the data types
-    // of the feature values. For more deterministic and less error prone 
-    // batch feature loading, the client should use AVRO or PARQUET data format.
-    //
-    // Feast expects the column names of the features from the file to match 
-    // the entity names or feature names in the feature set. Although the column
-    // names need not match all the features names in the feature set, at least 
-    // one of the column names must match one of the entity names. If not, 
-    // the load job will fail.
-    DataFormat data_format = 4;
-
-    
-}
-
-message LoadBatchFeaturesResponse {
-    Job job = 1;
-}
-
 message ReloadJobRequest {
     Job job = 1;
 }
@@ -242,7 +178,6 @@ enum FeastServingType {
 enum JobType {
     JOB_TYPE_INVALID = 0;
     JOB_TYPE_DOWNLOAD = 1;
-    JOB_TYPE_UPLOAD = 2;
 }
 
 enum JobStatus {
