@@ -14,6 +14,7 @@ import feast.core.CoreServiceProto.GetFeatureSetsRequest;
 import feast.core.CoreServiceProto.GetFeatureSetsRequest.Filter;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.serving.ServingAPIProto;
+import feast.serving.ServingAPIProto.DataFormat;
 import feast.serving.ServingAPIProto.FeastServingType;
 import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingTypeRequest;
@@ -210,6 +211,7 @@ public class BigQueryServingService implements ServingService {
                       .setType(JobType.JOB_TYPE_DOWNLOAD)
                       .setStatus(JobStatus.JOB_STATUS_DONE)
                       .addAllFileUris(fileUris)
+                      .setDataFormat(DataFormat.DATA_FORMAT_AVRO)
                       .build());
             })
         .start();
