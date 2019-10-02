@@ -62,22 +62,24 @@ spec:
           requests:
             cpu: "{{ .Values.serving.resources.requests.cpu }}"
             memory: "{{ .Values.serving.resources.requests.memory }}"
+          {{- if .Values.serving.resources.limits }}
           limits:
             cpu: "{{ .Values.serving.resources.limits.cpu }}"
             memory: "{{ .Values.serving.resources.limits.memory }}"
+          {{- end }}
         env:
           - name: FEAST_SERVING_HTTP_PORT
             value: "{{ .Values.serving.service.http.targetPort }}"
           - name: FEAST_SERVING_GRPC_PORT
             value: "{{ .Values.serving.service.grpc.targetPort }}"
           - name: FEAST_CORE_HOST
-            value: "{{ printf "%s.%s.svc.cluster.local" (include "feast.core.name" .) .Release.Namespace }}"
+            value: '{{ printf "%s.%s.svc.cluster.local" (include "feast.core.name" .) .Release.Namespace }}'
           - name: FEAST_CORE_GRPC_PORT
             value: "{{ .Values.core.service.grpc.port }}"
           - name: STORE_SERVING_TYPE
-            value: {{ .Values.store.serving.type }}
+            value: '{{ .Values.core.store.serving.type }}'
           - name: STORE_SERVING_OPTIONS
-            value: {{ .Values.store.serving.options | toJson }}
+            value: '{{ .Values.core.store.serving.options | toJson }}'
           - name: FEAST_MAX_NB_THREAD
             value: "{{ .Values.serving.config.maxNumberOfThread }}"
           - name: FEAST_MAX_ENTITY_PER_BATCH

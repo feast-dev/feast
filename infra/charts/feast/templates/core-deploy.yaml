@@ -61,9 +61,11 @@ spec:
           requests:
             cpu: {{ .Values.core.resources.requests.cpu }}
             memory: {{ .Values.core.resources.requests.memory }}
+          {{- if .Values.core.resources.limits }}
           limits:
             cpu: {{ .Values.core.resources.limits.cpu }}
             memory: {{ .Values.core.resources.limits.memory }}
+          {{- end }}
         {{- if .Values.serviceAccount }}
         volumeMounts:
           - name: "{{ .Values.serviceAccount.name }}"

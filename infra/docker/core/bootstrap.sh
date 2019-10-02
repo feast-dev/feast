@@ -2,7 +2,7 @@
 
 CONFIG_PATH_FLAG=""
 if [ -z "$CONFIG_PATH" ]; then
-CONFIG_PATH_FLAG="-Dspring.config.additional-location=${CONFIG_PATH}"
+CONFIG_PATH_FLAG="-Dspring.config.location=${CONFIG_PATH}"
 fi
 
 java $CONFIG_PATH_FLAG \

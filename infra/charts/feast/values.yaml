@@ -6,12 +6,9 @@ core:
     pullPolicy: IfNotPresent
     registry: gcr.io/kf-feast
     repository: feast-core
-    tag: "0.1.1"
+    tag: "0.3.0"
   replicaCount: 1
-  resources: 
-    limits: 
-      cpu: 4
-      memory: 6G
+  resources:
     requests: 
       cpu: 1
       memory: 2G
@@ -29,52 +26,59 @@ core:
     # loadBalancerSourceRanges sets the accepted IP ranges for firewall ingress rule
     # this firewall rule is usually created when the service type is "LoadBalancer"
     # loadBalancerSourceRanges: ["10.0.0.0/8"]
+  postgres:
+    host: 127.0.0.1
+    port: 5432
+    database: postgres
+    username: postgres
+    password: password
   jobs:
-    workspace: "/tmp"
     # runner specifies the Beam pipeline runner, use either DirectRunner (for development) or DataflowRunner (for production)
     runner: DirectRunner
     options: "{}"
     monitoring:
       period: 5000
       initialDelay: 60000
-  trainingDatasetPrefix: "fs"
-  # logType: JSON
   livenessProbe:
     initialDelaySeconds: 120
     failureThreshold: 3
   readinessProbe:
     initialDelaySeconds: 60
     failureThreshold: 1
+  enableReflection: true
+  store:
+    errors:
+      type: "STDOUT"
+    warehouse:
+      type: "BIGQUERY"
+    serving:
+      type: "REDIS"
+      options:
+        redis:
+          host: localhost
+          port: 6379
 
-# dataflow configuration is required when core.jobs.runner=DataflowRunner
-# dataflow:
-#   projectID: ${GCP_PROJECT}
-#   location: ${GCP_REGION}
+#  dataflow configuration is required when core.jobs.runner=DataflowRunner
+#  dataflow:
+#    projectID: ${GCP_PROJECT}
+#    location: ${GCP_REGION}
 
 ###### Feature stream ###### 
 stream:
   type: kafka
-  options: '{"bootstrapServers":""}'
+  options:
+    bootstrapServers: ""
+    replicationFactor: 1
+    partitions: 1
 
 kafka:
   provision: false
 
-###### Stores/Sinks ######
-store:
- errors:
-   type: "STDOUT"
- warehouse:
-   type: "BIGQUERY"
-   # options: '{"project": "gcp-project-id", "dataset": "feast"}'
- serving:
-   type: "REDIS"
-   # options: '{"host": "redis-master", "port": "6379"}'
-
-postgresql: 
+postgresql:
   provision: true
   persistence:
     enabled: true
-    
+
 redis:
   provision: false
   cluster:
@@ -93,12 +97,9 @@ serving:
     pullPolicy: IfNotPresent
     registry: gcr.io/kf-feast
     repository: feast-serving
-    tag: "0.1.1"
+    tag: "0.3.0"
   replicaCount: 1
-  resources: 
-    limits: 
-      cpu: 2
-      memory: 4G
+  resources:
     requests: 
       cpu: 1
       memory: 1G
