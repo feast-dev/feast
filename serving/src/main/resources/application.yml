@@ -21,7 +21,10 @@ feast:
   redis-pool-max-size: 128
   # If serving redis, the redis pool max idle conns
   redis-pool-max-idle: 16
-  # Job staging location specifies the URI to store intermediate files for batch serving.
+  # job-staging-location specifies the URI to store intermediate files for batch serving.
+  # Feast Serving client is expected to have read access to this staging location
+  # to download the batch features.
+  # 
   # For example: gs://mybucket/myprefix
   # Please omit the trailing slash in the URI.
   job-staging-location: ${FEAST_JOB_STAGING_LOCATION:}
