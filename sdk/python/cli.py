@@ -26,6 +26,17 @@ import json
 
 _logger = logging.getLogger(__name__)
 
+_common_options = [
+    click.option("--core-url", help="Set Feast core URL to connect to"),
+    click.option("--serving-url", help="Set Feast serving URL to connect to"),
+]
+
+
+def common_options(func):
+    for option in reversed(_common_options):
+        func = option(func)
+    return func
+
 
 @click.group()
 def cli():
@@ -36,7 +47,8 @@ def cli():
 @click.option(
     "--client-only", "-c", is_flag=True, help="Print only the version of the CLI"
 )
-def version(client_only: bool):
+@common_options
+def version(client_only: bool, **kwargs):
     """
     Displays version and connectivity information
     """
@@ -48,8 +60,12 @@ def version(client_only: bool):
 
         if not client_only:
             feast_client = Client(
-                core_url=feast_config.get_config_property_or_fail("core_url"),
-                serving_url=feast_config.get_config_property_or_fail("serving_url"),
+                core_url=feast_config.get_config_property_or_fail(
+                    "core_url", cli_config=kwargs
+                ),
+                serving_url=feast_config.get_config_property_or_fail(
+                    "serving_url", cli_config=kwargs
+                ),
             )
             feast_versions_dict.update(feast_client.version())
 

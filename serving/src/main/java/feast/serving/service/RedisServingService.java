@@ -143,7 +143,6 @@ public class RedisServingService implements ServingService {
     throw Status.UNIMPLEMENTED.withDescription("Method not implemented").asRuntimeException();
   }
 
-
   @Override
   public ReloadJobResponse reloadJob(ReloadJobRequest reloadJobRequest) {
     throw Status.UNIMPLEMENTED.withDescription("Method not implemented").asRuntimeException();

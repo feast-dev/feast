@@ -79,6 +79,7 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       responseObserver.onError(e);
     }
   }
+  
   @Override
   public void reloadJob(
       ReloadJobRequest request, StreamObserver<ReloadJobResponse> responseObserver) {

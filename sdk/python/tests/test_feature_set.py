@@ -20,11 +20,11 @@ import pandas as pd
 import pytest
 from concurrent import futures
 import grpc
-from feast.tests.feast_core_server import CoreServicer
+from tests.feast_core_server import CoreServicer
 import feast.core.CoreService_pb2_grpc as Core
 from feast.entity import Entity
 from feast.source import KafkaSource
-from feast.tests import dataframes
+from tests import dataframes
 
 CORE_URL = "core.feast.ai"
 SERVING_URL = "serving.feast.ai"

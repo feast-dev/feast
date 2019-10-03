@@ -9,5 +9,5 @@ dependencies:
   condition: redis.provision
 - name: kafka
   version: 0.17.0
-  repository: "@stable"
+  repository: "@incubator"
   condition: kafka.provision
