@@ -29,7 +29,7 @@ REQUIRED = [
     "google-api-core==1.*",
     "google-auth==1.*",
     "google-cloud-bigquery==1.*",
-    "google-cloud-storage==1.*",
+    "google-cloud-storage==1.20.*",
     "googleapis-common-protos==1.*",
     "google-cloud-bigquery-storage==0.*",
     "grpcio==1.*",
@@ -42,7 +42,7 @@ REQUIRED = [
     "tqdm==4.*",
     "numpy",
     "google",
-    "kafka-python",
+    "kafka-python==1.4.*",
 ]
 
 setup(
