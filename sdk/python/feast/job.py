@@ -65,7 +65,7 @@ class Job:
     def result(self, timeout_sec: int = DEFAULT_TIMEOUT_SEC):
         """
         Wait until job is done to get an iterable rows of result
-        The row represents can only represent an Avro row in Feast 0.3.
+        The row can only represent an Avro row in Feast 0.3.
 
         Args:
             timeout_sec: max no of seconds to wait until job is done. If "timeout_sec" is exceeded, an exception will be raised.
