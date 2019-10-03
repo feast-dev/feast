@@ -8,6 +8,7 @@ import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.serving.FeastProperties;
 import feast.serving.service.JobService;
+import feast.serving.service.NoopJobService;
 import feast.serving.service.RedisBackedJobService;
 import feast.serving.service.SpecService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,23 +28,15 @@ public class JobServiceConfig {
 
   @Bean
   public JobService jobService(SpecService specService) {
-    String jobStoreName = feastProperties.getJobStoreName();
-    GetStoresResponse storesResponse =
-        specService.getStores(
-            GetStoresRequest.newBuilder()
-                .setFilter(Filter.newBuilder().setName(jobStoreName).build())
-                .build());
-
-    if (storesResponse.getStoreCount() < 1) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Cannot resolve Store from store name '%s'. Ensure the store name exists in Feast.",
-              jobStoreName));
+    String storeName = feastProperties.getStoreName();
+    Store store = getStore(specService, storeName);
+    if (store.getType() == StoreType.REDIS) {
+      return new NoopJobService();
     }
 
-    assert storesResponse.getStoreCount() == 1;
-    Store store = storesResponse.getStore(0);
-    StoreType storeType = store.getType();
+    String jobStoreName = feastProperties.getJobStoreName();
+    Store jobStore = getStore(specService, jobStoreName);
+    StoreType storeType = jobStore.getType();
     JobService jobService = null;
 
     switch (storeType) {
@@ -62,5 +55,23 @@ public class JobServiceConfig {
     }
 
     return jobService;
+  }
+
+  private Store getStore(SpecService specService, String jobStoreName) {
+    GetStoresResponse storesResponse =
+        specService.getStores(
+            GetStoresRequest.newBuilder()
+                .setFilter(Filter.newBuilder().setName(jobStoreName).build())
+                .build());
+
+    if (storesResponse.getStoreCount() < 1) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot resolve Store from store name '%s'. Ensure the store name exists in Feast.",
+              jobStoreName));
+    }
+
+    assert storesResponse.getStoreCount() == 1;
+    return storesResponse.getStore(0);
   }
 }

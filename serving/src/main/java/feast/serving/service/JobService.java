@@ -13,12 +13,12 @@ public interface JobService {
    * @param id job id
    * @return feast.serving.ServingAPIProto.Job
    */
-  public Optional<Job> get(String id);
+  Optional<Job> get(String id);
 
   /**
    * Update or create a job (if not exists)
    *
    * @param job feast.serving.ServingAPIProto.Job
    */
-  public void upsert(Job job);
+  void upsert(Job job);
 }

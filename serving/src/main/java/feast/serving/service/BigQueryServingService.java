@@ -10,6 +10,7 @@ import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobListOption;
+import com.google.common.collect.Lists;
 import feast.core.CoreServiceProto.GetFeatureSetsRequest;
 import feast.core.CoreServiceProto.GetFeatureSetsRequest.Filter;
 import feast.core.FeatureSetProto.FeatureSetSpec;
@@ -20,7 +21,7 @@ import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingTypeRequest;
 import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
-import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityDatasetRow;
+import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityRow;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.JobStatus;
 import feast.serving.ServingAPIProto.JobType;
@@ -102,16 +103,16 @@ public class BigQueryServingService implements ServingService {
           .asRuntimeException();
     }
 
-    if (getFeaturesRequest.getEntityDataset().getEntityDatasetRowsCount() < 1) {
+    if (getFeaturesRequest.getEntityRowsCount() < 1) {
       throw Status.INVALID_ARGUMENT
           .withDescription(
               "entity_dataset_rows is required for batch retrieval in order to filter the retrieved entities.")
           .asRuntimeException();
     }
 
-    for (EntityDatasetRow entityDatasetRow :
-        getFeaturesRequest.getEntityDataset().getEntityDatasetRowsList()) {
-      if (entityDatasetRow.getEntityTimestamp().getSeconds() == 0) {
+    for (EntityRow entityRow :
+        getFeaturesRequest.getEntityRowsList()) {
+      if (entityRow.getEntityTimestamp().getSeconds() == 0) {
         throw Status.INVALID_ARGUMENT
             .withDescription(
                 "entity_timestamp field in entity_dataset_row is required for batch retrieval.")
@@ -123,8 +124,8 @@ public class BigQueryServingService implements ServingService {
         BigQueryUtil.createQuery(
             getFeaturesRequest.getFeatureSetsList(),
             featureSetSpecs,
-            getFeaturesRequest.getEntityDataset().getEntityNamesList(),
-            getFeaturesRequest.getEntityDataset().getEntityDatasetRowsList(),
+            Lists.newArrayList(getFeaturesRequest.getEntityRows(0).getFieldsMap().keySet()),
+            getFeaturesRequest.getEntityRowsList(),
             datasetId);
     log.debug("Running BigQuery query: {}", query);
 

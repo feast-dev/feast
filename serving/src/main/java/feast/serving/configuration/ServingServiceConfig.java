@@ -77,7 +77,7 @@ public class ServingServiceConfig {
         poolConfig.setMaxIdle(feastProperties.getRedisPoolMaxIdle());
         JedisPool jedisPool =
             new JedisPool(
-                poolConfig, store.getRedisConfig().getHost(), store.getRedisConfig().getPort());
+                poolConfig, redisConfig.getHost(), redisConfig.getPort());
         servingService = new RedisServingService(jedisPool, specService, tracer);
         break;
       case BIGQUERY:
