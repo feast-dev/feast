@@ -184,6 +184,6 @@ public class JobCoordinatorService {
   public String createJobId(String featureSetName, String storeName) {
     String dateSuffix = String.valueOf(Instant.now().toEpochMilli());
     String jobId = String.format("%s-to-%s", featureSetName, storeName) + dateSuffix;
-    return jobId.replaceAll("-", "_");
+    return jobId.replaceAll("_", "-");
   }
 }
