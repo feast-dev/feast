@@ -3,12 +3,14 @@
 # source: feast/serving/ServingService.proto
 
 import sys
-_b=sys.version_info[0]<3 and (lambda x:x) or (lambda x:x.encode('latin1'))
+
+_b = sys.version_info[0] < 3 and (lambda x: x) or (lambda x: x.encode("latin1"))
 from google.protobuf.internal import enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
+
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
@@ -21,130 +23,177 @@ from feast.types import FeatureRow_pb2 as feast_dot_types_dot_FeatureRow__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(
-  name='feast/serving/ServingService.proto',
-  package='feast.serving',
-  syntax='proto3',
-  serialized_options=_b('\n\rfeast.servingB\017ServingAPIProtoZ8github.com/gojek/feast/protos/generated/go/feast/serving'),
-  serialized_pb=_b('\n\"feast/serving/ServingService.proto\x12\rfeast.serving\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x17\x66\x65\x61st/types/Value.proto\x1a\x1c\x66\x65\x61st/types/FeatureRow.proto\"\x1f\n\x1dGetFeastServingVersionRequest\"1\n\x1eGetFeastServingVersionResponse\x12\x0f\n\x07version\x18\x01 \x01(\t\"\x1c\n\x1aGetFeastServingTypeRequest\"L\n\x1bGetFeastServingTypeResponse\x12-\n\x04type\x18\x01 \x01(\x0e\x32\x1f.feast.serving.FeastServingType\"\xfb\x03\n\x12GetFeaturesRequest\x12\x42\n\x0c\x66\x65\x61ture_sets\x18\x01 \x03(\x0b\x32,.feast.serving.GetFeaturesRequest.FeatureSet\x12G\n\x0e\x65ntity_dataset\x18\x02 \x01(\x0b\x32/.feast.serving.GetFeaturesRequest.EntityDataset\x1an\n\nFeatureSet\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\x05\x12\x15\n\rfeature_names\x18\x03 \x03(\t\x12*\n\x07max_age\x18\x04 \x01(\x0b\x32\x19.google.protobuf.Duration\x1av\n\rEntityDataset\x12\x14\n\x0c\x65ntity_names\x18\x01 \x03(\t\x12O\n\x13\x65ntity_dataset_rows\x18\x02 \x03(\x0b\x32\x32.feast.serving.GetFeaturesRequest.EntityDatasetRow\x1ap\n\x10\x45ntityDatasetRow\x12\x34\n\x10\x65ntity_timestamp\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12&\n\nentity_ids\x18\x02 \x03(\x0b\x32\x12.feast.types.Value\"\xce\x01\n\x19GetOnlineFeaturesResponse\x12Q\n\x10\x66\x65\x61ture_datasets\x18\x02 \x03(\x0b\x32\x37.feast.serving.GetOnlineFeaturesResponse.FeatureDataset\x1a^\n\x0e\x46\x65\x61tureDataset\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\x05\x12-\n\x0c\x66\x65\x61ture_rows\x18\x03 \x03(\x0b\x32\x17.feast.types.FeatureRow\";\n\x18GetBatchFeaturesResponse\x12\x1f\n\x03job\x18\x01 \x01(\x0b\x32\x12.feast.serving.Job\"J\n\'GetBatchFeaturesFromCompletedJobRequest\x12\x1f\n\x03job\x18\x01 \x01(\x0b\x32\x12.feast.serving.Job\"q\n(GetBatchFeaturesFromCompletedJobResponse\x12\x15\n\rdownload_uris\x18\x01 \x03(\t\x12.\n\x0b\x64\x61ta_format\x18\x02 \x01(\x0e\x32\x19.feast.serving.DataFormat\"\x1b\n\x19GetStagingLocationRequest\")\n\x1aGetStagingLocationResponse\x12\x0b\n\x03uri\x18\x01 \x01(\t\"\x96\x01\n\x18LoadBatchFeaturesRequest\x12\x18\n\x10\x66\x65\x61ture_set_name\x18\x01 \x01(\t\x12\x1b\n\x13\x66\x65\x61ture_set_version\x18\x02 \x01(\x05\x12\x13\n\x0bsource_uris\x18\x03 \x03(\t\x12.\n\x0b\x64\x61ta_format\x18\x04 \x01(\x0e\x32\x19.feast.serving.DataFormat\"<\n\x19LoadBatchFeaturesResponse\x12\x1f\n\x03job\x18\x01 \x01(\x0b\x32\x12.feast.serving.Job\"9\n\x16ReloadJobStatusRequest\x12\x1f\n\x03job\x18\x01 \x01(\x0b\x32\x12.feast.serving.Job\":\n\x17ReloadJobStatusResponse\x12\x1f\n\x03job\x18\x01 \x01(\x0b\x32\x12.feast.serving.Job\"p\n\x03Job\x12\n\n\x02id\x18\x01 \x01(\t\x12$\n\x04type\x18\x02 \x01(\x0e\x32\x16.feast.serving.JobType\x12(\n\x06status\x18\x03 \x01(\x0e\x32\x18.feast.serving.JobStatus\x12\r\n\x05\x65rror\x18\x04 \x01(\t*o\n\x10\x46\x65\x61stServingType\x12\x1e\n\x1a\x46\x45\x41ST_SERVING_TYPE_INVALID\x10\x00\x12\x1d\n\x19\x46\x45\x41ST_SERVING_TYPE_ONLINE\x10\x01\x12\x1c\n\x18\x46\x45\x41ST_SERVING_TYPE_BATCH\x10\x02*K\n\x07JobType\x12\x14\n\x10JOB_TYPE_INVALID\x10\x00\x12\x15\n\x11JOB_TYPE_DOWNLOAD\x10\x01\x12\x13\n\x0fJOB_TYPE_UPLOAD\x10\x02*h\n\tJobStatus\x12\x16\n\x12JOB_STATUS_INVALID\x10\x00\x12\x16\n\x12JOB_STATUS_PENDING\x10\x01\x12\x16\n\x12JOB_STATUS_RUNNING\x10\x02\x12\x13\n\x0fJOB_STATUS_DONE\x10\x03*\x7f\n\nDataFormat\x12\x17\n\x13\x44\x41TA_FORMAT_INVALID\x10\x00\x12\x13\n\x0f\x44\x41TA_FORMAT_CSV\x10\x01\x12\x17\n\x13\x44\x41TA_FORMAT_PARQUET\x10\x02\x12\x14\n\x10\x44\x41TA_FORMAT_AVRO\x10\x03\x12\x14\n\x10\x44\x41TA_FORMAT_JSON\x10\x04\x32\x82\x07\n\x0eServingService\x12u\n\x16GetFeastServingVersion\x12,.feast.serving.GetFeastServingVersionRequest\x1a-.feast.serving.GetFeastServingVersionResponse\x12l\n\x13GetFeastServingType\x12).feast.serving.GetFeastServingTypeRequest\x1a*.feast.serving.GetFeastServingTypeResponse\x12`\n\x11GetOnlineFeatures\x12!.feast.serving.GetFeaturesRequest\x1a(.feast.serving.GetOnlineFeaturesResponse\x12^\n\x10GetBatchFeatures\x12!.feast.serving.GetFeaturesRequest\x1a\'.feast.serving.GetBatchFeaturesResponse\x12\x93\x01\n GetBatchFeaturesFromCompletedJob\x12\x36.feast.serving.GetBatchFeaturesFromCompletedJobRequest\x1a\x37.feast.serving.GetBatchFeaturesFromCompletedJobResponse\x12i\n\x12GetStagingLocation\x12(.feast.serving.GetStagingLocationRequest\x1a).feast.serving.GetStagingLocationResponse\x12\x66\n\x11LoadBatchFeatures\x12\'.feast.serving.LoadBatchFeaturesRequest\x1a(.feast.serving.LoadBatchFeaturesResponse\x12`\n\x0fReloadJobStatus\x12%.feast.serving.ReloadJobStatusRequest\x1a&.feast.serving.ReloadJobStatusResponseBZ\n\rfeast.servingB\x0fServingAPIProtoZ8github.com/gojek/feast/protos/generated/go/feast/servingb\x06proto3')
-  ,
-  dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,google_dot_protobuf_dot_duration__pb2.DESCRIPTOR,feast_dot_types_dot_Value__pb2.DESCRIPTOR,feast_dot_types_dot_FeatureRow__pb2.DESCRIPTOR,])
+    name="feast/serving/ServingService.proto",
+    package="feast.serving",
+    syntax="proto3",
+    serialized_options=_b(
+        "\n\rfeast.servingB\017ServingAPIProtoZ2github.com/gojek/feast/sdk/go/protos/feast/serving"
+    ),
+    serialized_pb=_b(
+        '\n"feast/serving/ServingService.proto\x12\rfeast.serving\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x17\x66\x65\x61st/types/Value.proto\x1a\x1c\x66\x65\x61st/types/FeatureRow.proto"\x1f\n\x1dGetFeastServingVersionRequest"1\n\x1eGetFeastServingVersionResponse\x12\x0f\n\x07version\x18\x01 \x01(\t"\x1c\n\x1aGetFeastServingTypeRequest"L\n\x1bGetFeastServingTypeResponse\x12-\n\x04type\x18\x01 \x01(\x0e\x32\x1f.feast.serving.FeastServingType"\xfb\x03\n\x12GetFeaturesRequest\x12\x42\n\x0c\x66\x65\x61ture_sets\x18\x01 \x03(\x0b\x32,.feast.serving.GetFeaturesRequest.FeatureSet\x12G\n\x0e\x65ntity_dataset\x18\x02 \x01(\x0b\x32/.feast.serving.GetFeaturesRequest.EntityDataset\x1an\n\nFeatureSet\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\x05\x12\x15\n\rfeature_names\x18\x03 \x03(\t\x12*\n\x07max_age\x18\x04 \x01(\x0b\x32\x19.google.protobuf.Duration\x1av\n\rEntityDataset\x12\x14\n\x0c\x65ntity_names\x18\x01 \x03(\t\x12O\n\x13\x65ntity_dataset_rows\x18\x02 \x03(\x0b\x32\x32.feast.serving.GetFeaturesRequest.EntityDatasetRow\x1ap\n\x10\x45ntityDatasetRow\x12\x34\n\x10\x65ntity_timestamp\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12&\n\nentity_ids\x18\x02 \x03(\x0b\x32\x12.feast.types.Value"\xce\x01\n\x19GetOnlineFeaturesResponse\x12Q\n\x10\x66\x65\x61ture_datasets\x18\x02 \x03(\x0b\x32\x37.feast.serving.GetOnlineFeaturesResponse.FeatureDataset\x1a^\n\x0e\x46\x65\x61tureDataset\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\x05\x12-\n\x0c\x66\x65\x61ture_rows\x18\x03 \x03(\x0b\x32\x17.feast.types.FeatureRow";\n\x18GetBatchFeaturesResponse\x12\x1f\n\x03job\x18\x01 \x01(\x0b\x32\x12.feast.serving.Job"3\n\x10ReloadJobRequest\x12\x1f\n\x03job\x18\x01 \x01(\x0b\x32\x12.feast.serving.Job"4\n\x11ReloadJobResponse\x12\x1f\n\x03job\x18\x01 \x01(\x0b\x32\x12.feast.serving.Job"\xb3\x01\n\x03Job\x12\n\n\x02id\x18\x01 \x01(\t\x12$\n\x04type\x18\x02 \x01(\x0e\x32\x16.feast.serving.JobType\x12(\n\x06status\x18\x03 \x01(\x0e\x32\x18.feast.serving.JobStatus\x12\r\n\x05\x65rror\x18\x04 \x01(\t\x12\x11\n\tfile_uris\x18\x05 \x03(\t\x12.\n\x0b\x64\x61ta_format\x18\x06 \x01(\x0e\x32\x19.feast.serving.DataFormat*o\n\x10\x46\x65\x61stServingType\x12\x1e\n\x1a\x46\x45\x41ST_SERVING_TYPE_INVALID\x10\x00\x12\x1d\n\x19\x46\x45\x41ST_SERVING_TYPE_ONLINE\x10\x01\x12\x1c\n\x18\x46\x45\x41ST_SERVING_TYPE_BATCH\x10\x02*6\n\x07JobType\x12\x14\n\x10JOB_TYPE_INVALID\x10\x00\x12\x15\n\x11JOB_TYPE_DOWNLOAD\x10\x01*h\n\tJobStatus\x12\x16\n\x12JOB_STATUS_INVALID\x10\x00\x12\x16\n\x12JOB_STATUS_PENDING\x10\x01\x12\x16\n\x12JOB_STATUS_RUNNING\x10\x02\x12\x13\n\x0fJOB_STATUS_DONE\x10\x03*\x7f\n\nDataFormat\x12\x17\n\x13\x44\x41TA_FORMAT_INVALID\x10\x00\x12\x13\n\x0f\x44\x41TA_FORMAT_CSV\x10\x01\x12\x17\n\x13\x44\x41TA_FORMAT_PARQUET\x10\x02\x12\x14\n\x10\x44\x41TA_FORMAT_AVRO\x10\x03\x12\x14\n\x10\x44\x41TA_FORMAT_JSON\x10\x04\x32\x87\x04\n\x0eServingService\x12u\n\x16GetFeastServingVersion\x12,.feast.serving.GetFeastServingVersionRequest\x1a-.feast.serving.GetFeastServingVersionResponse\x12l\n\x13GetFeastServingType\x12).feast.serving.GetFeastServingTypeRequest\x1a*.feast.serving.GetFeastServingTypeResponse\x12`\n\x11GetOnlineFeatures\x12!.feast.serving.GetFeaturesRequest\x1a(.feast.serving.GetOnlineFeaturesResponse\x12^\n\x10GetBatchFeatures\x12!.feast.serving.GetFeaturesRequest\x1a\'.feast.serving.GetBatchFeaturesResponse\x12N\n\tReloadJob\x12\x1f.feast.serving.ReloadJobRequest\x1a .feast.serving.ReloadJobResponseBT\n\rfeast.servingB\x0fServingAPIProtoZ2github.com/gojek/feast/sdk/go/protos/feast/servingb\x06proto3'
+    ),
+    dependencies=[
+        google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,
+        google_dot_protobuf_dot_duration__pb2.DESCRIPTOR,
+        feast_dot_types_dot_Value__pb2.DESCRIPTOR,
+        feast_dot_types_dot_FeatureRow__pb2.DESCRIPTOR,
+    ],
+)
 
 _FEASTSERVINGTYPE = _descriptor.EnumDescriptor(
-  name='FeastServingType',
-  full_name='feast.serving.FeastServingType',
-  filename=None,
-  file=DESCRIPTOR,
-  values=[
-    _descriptor.EnumValueDescriptor(
-      name='FEAST_SERVING_TYPE_INVALID', index=0, number=0,
-      serialized_options=None,
-      type=None),
-    _descriptor.EnumValueDescriptor(
-      name='FEAST_SERVING_TYPE_ONLINE', index=1, number=1,
-      serialized_options=None,
-      type=None),
-    _descriptor.EnumValueDescriptor(
-      name='FEAST_SERVING_TYPE_BATCH', index=2, number=2,
-      serialized_options=None,
-      type=None),
-  ],
-  containing_type=None,
-  serialized_options=None,
-  serialized_start=1856,
-  serialized_end=1967,
+    name="FeastServingType",
+    full_name="feast.serving.FeastServingType",
+    filename=None,
+    file=DESCRIPTOR,
+    values=[
+        _descriptor.EnumValueDescriptor(
+            name="FEAST_SERVING_TYPE_INVALID",
+            index=0,
+            number=0,
+            serialized_options=None,
+            type=None,
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="FEAST_SERVING_TYPE_ONLINE",
+            index=1,
+            number=1,
+            serialized_options=None,
+            type=None,
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="FEAST_SERVING_TYPE_BATCH",
+            index=2,
+            number=2,
+            serialized_options=None,
+            type=None,
+        ),
+    ],
+    containing_type=None,
+    serialized_options=None,
+    serialized_start=1434,
+    serialized_end=1545,
 )
 _sym_db.RegisterEnumDescriptor(_FEASTSERVINGTYPE)
 
 FeastServingType = enum_type_wrapper.EnumTypeWrapper(_FEASTSERVINGTYPE)
 _JOBTYPE = _descriptor.EnumDescriptor(
-  name='JobType',
-  full_name='feast.serving.JobType',
-  filename=None,
-  file=DESCRIPTOR,
-  values=[
-    _descriptor.EnumValueDescriptor(
-      name='JOB_TYPE_INVALID', index=0, number=0,
-      serialized_options=None,
-      type=None),
-    _descriptor.EnumValueDescriptor(
-      name='JOB_TYPE_DOWNLOAD', index=1, number=1,
-      serialized_options=None,
-      type=None),
-    _descriptor.EnumValueDescriptor(
-      name='JOB_TYPE_UPLOAD', index=2, number=2,
-      serialized_options=None,
-      type=None),
-  ],
-  containing_type=None,
-  serialized_options=None,
-  serialized_start=1969,
-  serialized_end=2044,
+    name="JobType",
+    full_name="feast.serving.JobType",
+    filename=None,
+    file=DESCRIPTOR,
+    values=[
+        _descriptor.EnumValueDescriptor(
+            name="JOB_TYPE_INVALID",
+            index=0,
+            number=0,
+            serialized_options=None,
+            type=None,
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="JOB_TYPE_DOWNLOAD",
+            index=1,
+            number=1,
+            serialized_options=None,
+            type=None,
+        ),
+    ],
+    containing_type=None,
+    serialized_options=None,
+    serialized_start=1547,
+    serialized_end=1601,
 )
 _sym_db.RegisterEnumDescriptor(_JOBTYPE)
 
 JobType = enum_type_wrapper.EnumTypeWrapper(_JOBTYPE)
 _JOBSTATUS = _descriptor.EnumDescriptor(
-  name='JobStatus',
-  full_name='feast.serving.JobStatus',
-  filename=None,
-  file=DESCRIPTOR,
-  values=[
-    _descriptor.EnumValueDescriptor(
-      name='JOB_STATUS_INVALID', index=0, number=0,
-      serialized_options=None,
-      type=None),
-    _descriptor.EnumValueDescriptor(
-      name='JOB_STATUS_PENDING', index=1, number=1,
-      serialized_options=None,
-      type=None),
-    _descriptor.EnumValueDescriptor(
-      name='JOB_STATUS_RUNNING', index=2, number=2,
-      serialized_options=None,
-      type=None),
-    _descriptor.EnumValueDescriptor(
-      name='JOB_STATUS_DONE', index=3, number=3,
-      serialized_options=None,
-      type=None),
-  ],
-  containing_type=None,
-  serialized_options=None,
-  serialized_start=2046,
-  serialized_end=2150,
+    name="JobStatus",
+    full_name="feast.serving.JobStatus",
+    filename=None,
+    file=DESCRIPTOR,
+    values=[
+        _descriptor.EnumValueDescriptor(
+            name="JOB_STATUS_INVALID",
+            index=0,
+            number=0,
+            serialized_options=None,
+            type=None,
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="JOB_STATUS_PENDING",
+            index=1,
+            number=1,
+            serialized_options=None,
+            type=None,
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="JOB_STATUS_RUNNING",
+            index=2,
+            number=2,
+            serialized_options=None,
+            type=None,
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="JOB_STATUS_DONE",
+            index=3,
+            number=3,
+            serialized_options=None,
+            type=None,
+        ),
+    ],
+    containing_type=None,
+    serialized_options=None,
+    serialized_start=1603,
+    serialized_end=1707,
 )
 _sym_db.RegisterEnumDescriptor(_JOBSTATUS)
 
 JobStatus = enum_type_wrapper.EnumTypeWrapper(_JOBSTATUS)
 _DATAFORMAT = _descriptor.EnumDescriptor(
-  name='DataFormat',
-  full_name='feast.serving.DataFormat',
-  filename=None,
-  file=DESCRIPTOR,
-  values=[
-    _descriptor.EnumValueDescriptor(
-      name='DATA_FORMAT_INVALID', index=0, number=0,
-      serialized_options=None,
-      type=None),
-    _descriptor.EnumValueDescriptor(
-      name='DATA_FORMAT_CSV', index=1, number=1,
-      serialized_options=None,
-      type=None),
-    _descriptor.EnumValueDescriptor(
-      name='DATA_FORMAT_PARQUET', index=2, number=2,
-      serialized_options=None,
-      type=None),
-    _descriptor.EnumValueDescriptor(
-      name='DATA_FORMAT_AVRO', index=3, number=3,
-      serialized_options=None,
-      type=None),
-    _descriptor.EnumValueDescriptor(
-      name='DATA_FORMAT_JSON', index=4, number=4,
-      serialized_options=None,
-      type=None),
-  ],
-  containing_type=None,
-  serialized_options=None,
-  serialized_start=2152,
-  serialized_end=2279,
+    name="DataFormat",
+    full_name="feast.serving.DataFormat",
+    filename=None,
+    file=DESCRIPTOR,
+    values=[
+        _descriptor.EnumValueDescriptor(
+            name="DATA_FORMAT_INVALID",
+            index=0,
+            number=0,
+            serialized_options=None,
+            type=None,
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="DATA_FORMAT_CSV",
+            index=1,
+            number=1,
+            serialized_options=None,
+            type=None,
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="DATA_FORMAT_PARQUET",
+            index=2,
+            number=2,
+            serialized_options=None,
+            type=None,
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="DATA_FORMAT_AVRO",
+            index=3,
+            number=3,
+            serialized_options=None,
+            type=None,
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="DATA_FORMAT_JSON",
+            index=4,
+            number=4,
+            serialized_options=None,
+            type=None,
+        ),
+    ],
+    containing_type=None,
+    serialized_options=None,
+    serialized_start=1709,
+    serialized_end=1836,
 )
 _sym_db.RegisterEnumDescriptor(_DATAFORMAT)
 
@@ -154,7 +203,6 @@ FEAST_SERVING_TYPE_ONLINE = 1
 FEAST_SERVING_TYPE_BATCH = 2
 JOB_TYPE_INVALID = 0
 JOB_TYPE_DOWNLOAD = 1
-JOB_TYPE_UPLOAD = 2
 JOB_STATUS_INVALID = 0
 JOB_STATUS_PENDING = 1
 JOB_STATUS_RUNNING = 2
@@ -166,981 +214,1019 @@ DATA_FORMAT_AVRO = 3
 DATA_FORMAT_JSON = 4
 
 
-
 _GETFEASTSERVINGVERSIONREQUEST = _descriptor.Descriptor(
-  name='GetFeastServingVersionRequest',
-  full_name='feast.serving.GetFeastServingVersionRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=173,
-  serialized_end=204,
+    name="GetFeastServingVersionRequest",
+    full_name="feast.serving.GetFeastServingVersionRequest",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=173,
+    serialized_end=204,
 )
 
 
 _GETFEASTSERVINGVERSIONRESPONSE = _descriptor.Descriptor(
-  name='GetFeastServingVersionResponse',
-  full_name='feast.serving.GetFeastServingVersionResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='version', full_name='feast.serving.GetFeastServingVersionResponse.version', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=206,
-  serialized_end=255,
+    name="GetFeastServingVersionResponse",
+    full_name="feast.serving.GetFeastServingVersionResponse",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="version",
+            full_name="feast.serving.GetFeastServingVersionResponse.version",
+            index=0,
+            number=1,
+            type=9,
+            cpp_type=9,
+            label=1,
+            has_default_value=False,
+            default_value=_b("").decode("utf-8"),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        )
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=206,
+    serialized_end=255,
 )
 
 
 _GETFEASTSERVINGTYPEREQUEST = _descriptor.Descriptor(
-  name='GetFeastServingTypeRequest',
-  full_name='feast.serving.GetFeastServingTypeRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=257,
-  serialized_end=285,
+    name="GetFeastServingTypeRequest",
+    full_name="feast.serving.GetFeastServingTypeRequest",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=257,
+    serialized_end=285,
 )
 
 
 _GETFEASTSERVINGTYPERESPONSE = _descriptor.Descriptor(
-  name='GetFeastServingTypeResponse',
-  full_name='feast.serving.GetFeastServingTypeResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='type', full_name='feast.serving.GetFeastServingTypeResponse.type', index=0,
-      number=1, type=14, cpp_type=8, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=287,
-  serialized_end=363,
+    name="GetFeastServingTypeResponse",
+    full_name="feast.serving.GetFeastServingTypeResponse",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="type",
+            full_name="feast.serving.GetFeastServingTypeResponse.type",
+            index=0,
+            number=1,
+            type=14,
+            cpp_type=8,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        )
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=287,
+    serialized_end=363,
 )
 
 
 _GETFEATURESREQUEST_FEATURESET = _descriptor.Descriptor(
-  name='FeatureSet',
-  full_name='feast.serving.GetFeaturesRequest.FeatureSet',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='name', full_name='feast.serving.GetFeaturesRequest.FeatureSet.name', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='version', full_name='feast.serving.GetFeaturesRequest.FeatureSet.version', index=1,
-      number=2, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='feature_names', full_name='feast.serving.GetFeaturesRequest.FeatureSet.feature_names', index=2,
-      number=3, type=9, cpp_type=9, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='max_age', full_name='feast.serving.GetFeaturesRequest.FeatureSet.max_age', index=3,
-      number=4, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=529,
-  serialized_end=639,
+    name="FeatureSet",
+    full_name="feast.serving.GetFeaturesRequest.FeatureSet",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="name",
+            full_name="feast.serving.GetFeaturesRequest.FeatureSet.name",
+            index=0,
+            number=1,
+            type=9,
+            cpp_type=9,
+            label=1,
+            has_default_value=False,
+            default_value=_b("").decode("utf-8"),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="version",
+            full_name="feast.serving.GetFeaturesRequest.FeatureSet.version",
+            index=1,
+            number=2,
+            type=5,
+            cpp_type=1,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="feature_names",
+            full_name="feast.serving.GetFeaturesRequest.FeatureSet.feature_names",
+            index=2,
+            number=3,
+            type=9,
+            cpp_type=9,
+            label=3,
+            has_default_value=False,
+            default_value=[],
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="max_age",
+            full_name="feast.serving.GetFeaturesRequest.FeatureSet.max_age",
+            index=3,
+            number=4,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=529,
+    serialized_end=639,
 )
 
 _GETFEATURESREQUEST_ENTITYDATASET = _descriptor.Descriptor(
-  name='EntityDataset',
-  full_name='feast.serving.GetFeaturesRequest.EntityDataset',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='entity_names', full_name='feast.serving.GetFeaturesRequest.EntityDataset.entity_names', index=0,
-      number=1, type=9, cpp_type=9, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='entity_dataset_rows', full_name='feast.serving.GetFeaturesRequest.EntityDataset.entity_dataset_rows', index=1,
-      number=2, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=641,
-  serialized_end=759,
+    name="EntityDataset",
+    full_name="feast.serving.GetFeaturesRequest.EntityDataset",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="entity_names",
+            full_name="feast.serving.GetFeaturesRequest.EntityDataset.entity_names",
+            index=0,
+            number=1,
+            type=9,
+            cpp_type=9,
+            label=3,
+            has_default_value=False,
+            default_value=[],
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="entity_dataset_rows",
+            full_name="feast.serving.GetFeaturesRequest.EntityDataset.entity_dataset_rows",
+            index=1,
+            number=2,
+            type=11,
+            cpp_type=10,
+            label=3,
+            has_default_value=False,
+            default_value=[],
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=641,
+    serialized_end=759,
 )
 
 _GETFEATURESREQUEST_ENTITYDATASETROW = _descriptor.Descriptor(
-  name='EntityDatasetRow',
-  full_name='feast.serving.GetFeaturesRequest.EntityDatasetRow',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='entity_timestamp', full_name='feast.serving.GetFeaturesRequest.EntityDatasetRow.entity_timestamp', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='entity_ids', full_name='feast.serving.GetFeaturesRequest.EntityDatasetRow.entity_ids', index=1,
-      number=2, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=761,
-  serialized_end=873,
+    name="EntityDatasetRow",
+    full_name="feast.serving.GetFeaturesRequest.EntityDatasetRow",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="entity_timestamp",
+            full_name="feast.serving.GetFeaturesRequest.EntityDatasetRow.entity_timestamp",
+            index=0,
+            number=1,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="entity_ids",
+            full_name="feast.serving.GetFeaturesRequest.EntityDatasetRow.entity_ids",
+            index=1,
+            number=2,
+            type=11,
+            cpp_type=10,
+            label=3,
+            has_default_value=False,
+            default_value=[],
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=761,
+    serialized_end=873,
 )
 
 _GETFEATURESREQUEST = _descriptor.Descriptor(
-  name='GetFeaturesRequest',
-  full_name='feast.serving.GetFeaturesRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='feature_sets', full_name='feast.serving.GetFeaturesRequest.feature_sets', index=0,
-      number=1, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='entity_dataset', full_name='feast.serving.GetFeaturesRequest.entity_dataset', index=1,
-      number=2, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[_GETFEATURESREQUEST_FEATURESET, _GETFEATURESREQUEST_ENTITYDATASET, _GETFEATURESREQUEST_ENTITYDATASETROW, ],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=366,
-  serialized_end=873,
+    name="GetFeaturesRequest",
+    full_name="feast.serving.GetFeaturesRequest",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="feature_sets",
+            full_name="feast.serving.GetFeaturesRequest.feature_sets",
+            index=0,
+            number=1,
+            type=11,
+            cpp_type=10,
+            label=3,
+            has_default_value=False,
+            default_value=[],
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="entity_dataset",
+            full_name="feast.serving.GetFeaturesRequest.entity_dataset",
+            index=1,
+            number=2,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+    ],
+    extensions=[],
+    nested_types=[
+        _GETFEATURESREQUEST_FEATURESET,
+        _GETFEATURESREQUEST_ENTITYDATASET,
+        _GETFEATURESREQUEST_ENTITYDATASETROW,
+    ],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=366,
+    serialized_end=873,
 )
 
 
 _GETONLINEFEATURESRESPONSE_FEATUREDATASET = _descriptor.Descriptor(
-  name='FeatureDataset',
-  full_name='feast.serving.GetOnlineFeaturesResponse.FeatureDataset',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='name', full_name='feast.serving.GetOnlineFeaturesResponse.FeatureDataset.name', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='version', full_name='feast.serving.GetOnlineFeaturesResponse.FeatureDataset.version', index=1,
-      number=2, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='feature_rows', full_name='feast.serving.GetOnlineFeaturesResponse.FeatureDataset.feature_rows', index=2,
-      number=3, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=988,
-  serialized_end=1082,
+    name="FeatureDataset",
+    full_name="feast.serving.GetOnlineFeaturesResponse.FeatureDataset",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="name",
+            full_name="feast.serving.GetOnlineFeaturesResponse.FeatureDataset.name",
+            index=0,
+            number=1,
+            type=9,
+            cpp_type=9,
+            label=1,
+            has_default_value=False,
+            default_value=_b("").decode("utf-8"),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="version",
+            full_name="feast.serving.GetOnlineFeaturesResponse.FeatureDataset.version",
+            index=1,
+            number=2,
+            type=5,
+            cpp_type=1,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="feature_rows",
+            full_name="feast.serving.GetOnlineFeaturesResponse.FeatureDataset.feature_rows",
+            index=2,
+            number=3,
+            type=11,
+            cpp_type=10,
+            label=3,
+            has_default_value=False,
+            default_value=[],
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=988,
+    serialized_end=1082,
 )
 
 _GETONLINEFEATURESRESPONSE = _descriptor.Descriptor(
-  name='GetOnlineFeaturesResponse',
-  full_name='feast.serving.GetOnlineFeaturesResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='feature_datasets', full_name='feast.serving.GetOnlineFeaturesResponse.feature_datasets', index=0,
-      number=2, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[_GETONLINEFEATURESRESPONSE_FEATUREDATASET, ],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=876,
-  serialized_end=1082,
+    name="GetOnlineFeaturesResponse",
+    full_name="feast.serving.GetOnlineFeaturesResponse",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="feature_datasets",
+            full_name="feast.serving.GetOnlineFeaturesResponse.feature_datasets",
+            index=0,
+            number=2,
+            type=11,
+            cpp_type=10,
+            label=3,
+            has_default_value=False,
+            default_value=[],
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        )
+    ],
+    extensions=[],
+    nested_types=[_GETONLINEFEATURESRESPONSE_FEATUREDATASET],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=876,
+    serialized_end=1082,
 )
 
 
 _GETBATCHFEATURESRESPONSE = _descriptor.Descriptor(
-  name='GetBatchFeaturesResponse',
-  full_name='feast.serving.GetBatchFeaturesResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='job', full_name='feast.serving.GetBatchFeaturesResponse.job', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1084,
-  serialized_end=1143,
+    name="GetBatchFeaturesResponse",
+    full_name="feast.serving.GetBatchFeaturesResponse",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="job",
+            full_name="feast.serving.GetBatchFeaturesResponse.job",
+            index=0,
+            number=1,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        )
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=1084,
+    serialized_end=1143,
 )
 
 
-_GETBATCHFEATURESFROMCOMPLETEDJOBREQUEST = _descriptor.Descriptor(
-  name='GetBatchFeaturesFromCompletedJobRequest',
-  full_name='feast.serving.GetBatchFeaturesFromCompletedJobRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='job', full_name='feast.serving.GetBatchFeaturesFromCompletedJobRequest.job', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1145,
-  serialized_end=1219,
+_RELOADJOBREQUEST = _descriptor.Descriptor(
+    name="ReloadJobRequest",
+    full_name="feast.serving.ReloadJobRequest",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="job",
+            full_name="feast.serving.ReloadJobRequest.job",
+            index=0,
+            number=1,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        )
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=1145,
+    serialized_end=1196,
 )
 
 
-_GETBATCHFEATURESFROMCOMPLETEDJOBRESPONSE = _descriptor.Descriptor(
-  name='GetBatchFeaturesFromCompletedJobResponse',
-  full_name='feast.serving.GetBatchFeaturesFromCompletedJobResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='download_uris', full_name='feast.serving.GetBatchFeaturesFromCompletedJobResponse.download_uris', index=0,
-      number=1, type=9, cpp_type=9, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='data_format', full_name='feast.serving.GetBatchFeaturesFromCompletedJobResponse.data_format', index=1,
-      number=2, type=14, cpp_type=8, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1221,
-  serialized_end=1334,
-)
-
-
-_GETSTAGINGLOCATIONREQUEST = _descriptor.Descriptor(
-  name='GetStagingLocationRequest',
-  full_name='feast.serving.GetStagingLocationRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1336,
-  serialized_end=1363,
-)
-
-
-_GETSTAGINGLOCATIONRESPONSE = _descriptor.Descriptor(
-  name='GetStagingLocationResponse',
-  full_name='feast.serving.GetStagingLocationResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='uri', full_name='feast.serving.GetStagingLocationResponse.uri', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1365,
-  serialized_end=1406,
-)
-
-
-_LOADBATCHFEATURESREQUEST = _descriptor.Descriptor(
-  name='LoadBatchFeaturesRequest',
-  full_name='feast.serving.LoadBatchFeaturesRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='feature_set_name', full_name='feast.serving.LoadBatchFeaturesRequest.feature_set_name', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='feature_set_version', full_name='feast.serving.LoadBatchFeaturesRequest.feature_set_version', index=1,
-      number=2, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='source_uris', full_name='feast.serving.LoadBatchFeaturesRequest.source_uris', index=2,
-      number=3, type=9, cpp_type=9, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='data_format', full_name='feast.serving.LoadBatchFeaturesRequest.data_format', index=3,
-      number=4, type=14, cpp_type=8, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1409,
-  serialized_end=1559,
-)
-
-
-_LOADBATCHFEATURESRESPONSE = _descriptor.Descriptor(
-  name='LoadBatchFeaturesResponse',
-  full_name='feast.serving.LoadBatchFeaturesResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='job', full_name='feast.serving.LoadBatchFeaturesResponse.job', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1561,
-  serialized_end=1621,
-)
-
-
-_RELOADJOBSTATUSREQUEST = _descriptor.Descriptor(
-  name='ReloadJobStatusRequest',
-  full_name='feast.serving.ReloadJobStatusRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='job', full_name='feast.serving.ReloadJobStatusRequest.job', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1623,
-  serialized_end=1680,
-)
-
-
-_RELOADJOBSTATUSRESPONSE = _descriptor.Descriptor(
-  name='ReloadJobStatusResponse',
-  full_name='feast.serving.ReloadJobStatusResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='job', full_name='feast.serving.ReloadJobStatusResponse.job', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1682,
-  serialized_end=1740,
+_RELOADJOBRESPONSE = _descriptor.Descriptor(
+    name="ReloadJobResponse",
+    full_name="feast.serving.ReloadJobResponse",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="job",
+            full_name="feast.serving.ReloadJobResponse.job",
+            index=0,
+            number=1,
+            type=11,
+            cpp_type=10,
+            label=1,
+            has_default_value=False,
+            default_value=None,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        )
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=1198,
+    serialized_end=1250,
 )
 
 
 _JOB = _descriptor.Descriptor(
-  name='Job',
-  full_name='feast.serving.Job',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='id', full_name='feast.serving.Job.id', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='type', full_name='feast.serving.Job.type', index=1,
-      number=2, type=14, cpp_type=8, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='status', full_name='feast.serving.Job.status', index=2,
-      number=3, type=14, cpp_type=8, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='error', full_name='feast.serving.Job.error', index=3,
-      number=4, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1742,
-  serialized_end=1854,
+    name="Job",
+    full_name="feast.serving.Job",
+    filename=None,
+    file=DESCRIPTOR,
+    containing_type=None,
+    fields=[
+        _descriptor.FieldDescriptor(
+            name="id",
+            full_name="feast.serving.Job.id",
+            index=0,
+            number=1,
+            type=9,
+            cpp_type=9,
+            label=1,
+            has_default_value=False,
+            default_value=_b("").decode("utf-8"),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="type",
+            full_name="feast.serving.Job.type",
+            index=1,
+            number=2,
+            type=14,
+            cpp_type=8,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="status",
+            full_name="feast.serving.Job.status",
+            index=2,
+            number=3,
+            type=14,
+            cpp_type=8,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="error",
+            full_name="feast.serving.Job.error",
+            index=3,
+            number=4,
+            type=9,
+            cpp_type=9,
+            label=1,
+            has_default_value=False,
+            default_value=_b("").decode("utf-8"),
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="file_uris",
+            full_name="feast.serving.Job.file_uris",
+            index=4,
+            number=5,
+            type=9,
+            cpp_type=9,
+            label=3,
+            has_default_value=False,
+            default_value=[],
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+        _descriptor.FieldDescriptor(
+            name="data_format",
+            full_name="feast.serving.Job.data_format",
+            index=5,
+            number=6,
+            type=14,
+            cpp_type=8,
+            label=1,
+            has_default_value=False,
+            default_value=0,
+            message_type=None,
+            enum_type=None,
+            containing_type=None,
+            is_extension=False,
+            extension_scope=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
+    ],
+    extensions=[],
+    nested_types=[],
+    enum_types=[],
+    serialized_options=None,
+    is_extendable=False,
+    syntax="proto3",
+    extension_ranges=[],
+    oneofs=[],
+    serialized_start=1253,
+    serialized_end=1432,
 )
 
-_GETFEASTSERVINGTYPERESPONSE.fields_by_name['type'].enum_type = _FEASTSERVINGTYPE
-_GETFEATURESREQUEST_FEATURESET.fields_by_name['max_age'].message_type = google_dot_protobuf_dot_duration__pb2._DURATION
+_GETFEASTSERVINGTYPERESPONSE.fields_by_name["type"].enum_type = _FEASTSERVINGTYPE
+_GETFEATURESREQUEST_FEATURESET.fields_by_name[
+    "max_age"
+].message_type = google_dot_protobuf_dot_duration__pb2._DURATION
 _GETFEATURESREQUEST_FEATURESET.containing_type = _GETFEATURESREQUEST
-_GETFEATURESREQUEST_ENTITYDATASET.fields_by_name['entity_dataset_rows'].message_type = _GETFEATURESREQUEST_ENTITYDATASETROW
+_GETFEATURESREQUEST_ENTITYDATASET.fields_by_name[
+    "entity_dataset_rows"
+].message_type = _GETFEATURESREQUEST_ENTITYDATASETROW
 _GETFEATURESREQUEST_ENTITYDATASET.containing_type = _GETFEATURESREQUEST
-_GETFEATURESREQUEST_ENTITYDATASETROW.fields_by_name['entity_timestamp'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
-_GETFEATURESREQUEST_ENTITYDATASETROW.fields_by_name['entity_ids'].message_type = feast_dot_types_dot_Value__pb2._VALUE
+_GETFEATURESREQUEST_ENTITYDATASETROW.fields_by_name[
+    "entity_timestamp"
+].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
+_GETFEATURESREQUEST_ENTITYDATASETROW.fields_by_name[
+    "entity_ids"
+].message_type = feast_dot_types_dot_Value__pb2._VALUE
 _GETFEATURESREQUEST_ENTITYDATASETROW.containing_type = _GETFEATURESREQUEST
-_GETFEATURESREQUEST.fields_by_name['feature_sets'].message_type = _GETFEATURESREQUEST_FEATURESET
-_GETFEATURESREQUEST.fields_by_name['entity_dataset'].message_type = _GETFEATURESREQUEST_ENTITYDATASET
-_GETONLINEFEATURESRESPONSE_FEATUREDATASET.fields_by_name['feature_rows'].message_type = feast_dot_types_dot_FeatureRow__pb2._FEATUREROW
+_GETFEATURESREQUEST.fields_by_name[
+    "feature_sets"
+].message_type = _GETFEATURESREQUEST_FEATURESET
+_GETFEATURESREQUEST.fields_by_name[
+    "entity_dataset"
+].message_type = _GETFEATURESREQUEST_ENTITYDATASET
+_GETONLINEFEATURESRESPONSE_FEATUREDATASET.fields_by_name[
+    "feature_rows"
+].message_type = feast_dot_types_dot_FeatureRow__pb2._FEATUREROW
 _GETONLINEFEATURESRESPONSE_FEATUREDATASET.containing_type = _GETONLINEFEATURESRESPONSE
-_GETONLINEFEATURESRESPONSE.fields_by_name['feature_datasets'].message_type = _GETONLINEFEATURESRESPONSE_FEATUREDATASET
-_GETBATCHFEATURESRESPONSE.fields_by_name['job'].message_type = _JOB
-_GETBATCHFEATURESFROMCOMPLETEDJOBREQUEST.fields_by_name['job'].message_type = _JOB
-_GETBATCHFEATURESFROMCOMPLETEDJOBRESPONSE.fields_by_name['data_format'].enum_type = _DATAFORMAT
-_LOADBATCHFEATURESREQUEST.fields_by_name['data_format'].enum_type = _DATAFORMAT
-_LOADBATCHFEATURESRESPONSE.fields_by_name['job'].message_type = _JOB
-_RELOADJOBSTATUSREQUEST.fields_by_name['job'].message_type = _JOB
-_RELOADJOBSTATUSRESPONSE.fields_by_name['job'].message_type = _JOB
-_JOB.fields_by_name['type'].enum_type = _JOBTYPE
-_JOB.fields_by_name['status'].enum_type = _JOBSTATUS
-DESCRIPTOR.message_types_by_name['GetFeastServingVersionRequest'] = _GETFEASTSERVINGVERSIONREQUEST
-DESCRIPTOR.message_types_by_name['GetFeastServingVersionResponse'] = _GETFEASTSERVINGVERSIONRESPONSE
-DESCRIPTOR.message_types_by_name['GetFeastServingTypeRequest'] = _GETFEASTSERVINGTYPEREQUEST
-DESCRIPTOR.message_types_by_name['GetFeastServingTypeResponse'] = _GETFEASTSERVINGTYPERESPONSE
-DESCRIPTOR.message_types_by_name['GetFeaturesRequest'] = _GETFEATURESREQUEST
-DESCRIPTOR.message_types_by_name['GetOnlineFeaturesResponse'] = _GETONLINEFEATURESRESPONSE
-DESCRIPTOR.message_types_by_name['GetBatchFeaturesResponse'] = _GETBATCHFEATURESRESPONSE
-DESCRIPTOR.message_types_by_name['GetBatchFeaturesFromCompletedJobRequest'] = _GETBATCHFEATURESFROMCOMPLETEDJOBREQUEST
-DESCRIPTOR.message_types_by_name['GetBatchFeaturesFromCompletedJobResponse'] = _GETBATCHFEATURESFROMCOMPLETEDJOBRESPONSE
-DESCRIPTOR.message_types_by_name['GetStagingLocationRequest'] = _GETSTAGINGLOCATIONREQUEST
-DESCRIPTOR.message_types_by_name['GetStagingLocationResponse'] = _GETSTAGINGLOCATIONRESPONSE
-DESCRIPTOR.message_types_by_name['LoadBatchFeaturesRequest'] = _LOADBATCHFEATURESREQUEST
-DESCRIPTOR.message_types_by_name['LoadBatchFeaturesResponse'] = _LOADBATCHFEATURESRESPONSE
-DESCRIPTOR.message_types_by_name['ReloadJobStatusRequest'] = _RELOADJOBSTATUSREQUEST
-DESCRIPTOR.message_types_by_name['ReloadJobStatusResponse'] = _RELOADJOBSTATUSRESPONSE
-DESCRIPTOR.message_types_by_name['Job'] = _JOB
-DESCRIPTOR.enum_types_by_name['FeastServingType'] = _FEASTSERVINGTYPE
-DESCRIPTOR.enum_types_by_name['JobType'] = _JOBTYPE
-DESCRIPTOR.enum_types_by_name['JobStatus'] = _JOBSTATUS
-DESCRIPTOR.enum_types_by_name['DataFormat'] = _DATAFORMAT
+_GETONLINEFEATURESRESPONSE.fields_by_name[
+    "feature_datasets"
+].message_type = _GETONLINEFEATURESRESPONSE_FEATUREDATASET
+_GETBATCHFEATURESRESPONSE.fields_by_name["job"].message_type = _JOB
+_RELOADJOBREQUEST.fields_by_name["job"].message_type = _JOB
+_RELOADJOBRESPONSE.fields_by_name["job"].message_type = _JOB
+_JOB.fields_by_name["type"].enum_type = _JOBTYPE
+_JOB.fields_by_name["status"].enum_type = _JOBSTATUS
+_JOB.fields_by_name["data_format"].enum_type = _DATAFORMAT
+DESCRIPTOR.message_types_by_name[
+    "GetFeastServingVersionRequest"
+] = _GETFEASTSERVINGVERSIONREQUEST
+DESCRIPTOR.message_types_by_name[
+    "GetFeastServingVersionResponse"
+] = _GETFEASTSERVINGVERSIONRESPONSE
+DESCRIPTOR.message_types_by_name[
+    "GetFeastServingTypeRequest"
+] = _GETFEASTSERVINGTYPEREQUEST
+DESCRIPTOR.message_types_by_name[
+    "GetFeastServingTypeResponse"
+] = _GETFEASTSERVINGTYPERESPONSE
+DESCRIPTOR.message_types_by_name["GetFeaturesRequest"] = _GETFEATURESREQUEST
+DESCRIPTOR.message_types_by_name[
+    "GetOnlineFeaturesResponse"
+] = _GETONLINEFEATURESRESPONSE
+DESCRIPTOR.message_types_by_name["GetBatchFeaturesResponse"] = _GETBATCHFEATURESRESPONSE
+DESCRIPTOR.message_types_by_name["ReloadJobRequest"] = _RELOADJOBREQUEST
+DESCRIPTOR.message_types_by_name["ReloadJobResponse"] = _RELOADJOBRESPONSE
+DESCRIPTOR.message_types_by_name["Job"] = _JOB
+DESCRIPTOR.enum_types_by_name["FeastServingType"] = _FEASTSERVINGTYPE
+DESCRIPTOR.enum_types_by_name["JobType"] = _JOBTYPE
+DESCRIPTOR.enum_types_by_name["JobStatus"] = _JOBSTATUS
+DESCRIPTOR.enum_types_by_name["DataFormat"] = _DATAFORMAT
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-GetFeastServingVersionRequest = _reflection.GeneratedProtocolMessageType('GetFeastServingVersionRequest', (_message.Message,), {
-  'DESCRIPTOR' : _GETFEASTSERVINGVERSIONREQUEST,
-  '__module__' : 'feast.serving.ServingService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.GetFeastServingVersionRequest)
-  })
+GetFeastServingVersionRequest = _reflection.GeneratedProtocolMessageType(
+    "GetFeastServingVersionRequest",
+    (_message.Message,),
+    {
+        "DESCRIPTOR": _GETFEASTSERVINGVERSIONREQUEST,
+        "__module__": "feast.serving.ServingService_pb2"
+        # @@protoc_insertion_point(class_scope:feast.serving.GetFeastServingVersionRequest)
+    },
+)
 _sym_db.RegisterMessage(GetFeastServingVersionRequest)
 
-GetFeastServingVersionResponse = _reflection.GeneratedProtocolMessageType('GetFeastServingVersionResponse', (_message.Message,), {
-  'DESCRIPTOR' : _GETFEASTSERVINGVERSIONRESPONSE,
-  '__module__' : 'feast.serving.ServingService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.GetFeastServingVersionResponse)
-  })
+GetFeastServingVersionResponse = _reflection.GeneratedProtocolMessageType(
+    "GetFeastServingVersionResponse",
+    (_message.Message,),
+    {
+        "DESCRIPTOR": _GETFEASTSERVINGVERSIONRESPONSE,
+        "__module__": "feast.serving.ServingService_pb2"
+        # @@protoc_insertion_point(class_scope:feast.serving.GetFeastServingVersionResponse)
+    },
+)
 _sym_db.RegisterMessage(GetFeastServingVersionResponse)
 
-GetFeastServingTypeRequest = _reflection.GeneratedProtocolMessageType('GetFeastServingTypeRequest', (_message.Message,), {
-  'DESCRIPTOR' : _GETFEASTSERVINGTYPEREQUEST,
-  '__module__' : 'feast.serving.ServingService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.GetFeastServingTypeRequest)
-  })
+GetFeastServingTypeRequest = _reflection.GeneratedProtocolMessageType(
+    "GetFeastServingTypeRequest",
+    (_message.Message,),
+    {
+        "DESCRIPTOR": _GETFEASTSERVINGTYPEREQUEST,
+        "__module__": "feast.serving.ServingService_pb2"
+        # @@protoc_insertion_point(class_scope:feast.serving.GetFeastServingTypeRequest)
+    },
+)
 _sym_db.RegisterMessage(GetFeastServingTypeRequest)
 
-GetFeastServingTypeResponse = _reflection.GeneratedProtocolMessageType('GetFeastServingTypeResponse', (_message.Message,), {
-  'DESCRIPTOR' : _GETFEASTSERVINGTYPERESPONSE,
-  '__module__' : 'feast.serving.ServingService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.GetFeastServingTypeResponse)
-  })
+GetFeastServingTypeResponse = _reflection.GeneratedProtocolMessageType(
+    "GetFeastServingTypeResponse",
+    (_message.Message,),
+    {
+        "DESCRIPTOR": _GETFEASTSERVINGTYPERESPONSE,
+        "__module__": "feast.serving.ServingService_pb2"
+        # @@protoc_insertion_point(class_scope:feast.serving.GetFeastServingTypeResponse)
+    },
+)
 _sym_db.RegisterMessage(GetFeastServingTypeResponse)
 
-GetFeaturesRequest = _reflection.GeneratedProtocolMessageType('GetFeaturesRequest', (_message.Message,), {
-
-  'FeatureSet' : _reflection.GeneratedProtocolMessageType('FeatureSet', (_message.Message,), {
-    'DESCRIPTOR' : _GETFEATURESREQUEST_FEATURESET,
-    '__module__' : 'feast.serving.ServingService_pb2'
-    # @@protoc_insertion_point(class_scope:feast.serving.GetFeaturesRequest.FeatureSet)
-    })
-  ,
-
-  'EntityDataset' : _reflection.GeneratedProtocolMessageType('EntityDataset', (_message.Message,), {
-    'DESCRIPTOR' : _GETFEATURESREQUEST_ENTITYDATASET,
-    '__module__' : 'feast.serving.ServingService_pb2'
-    # @@protoc_insertion_point(class_scope:feast.serving.GetFeaturesRequest.EntityDataset)
-    })
-  ,
-
-  'EntityDatasetRow' : _reflection.GeneratedProtocolMessageType('EntityDatasetRow', (_message.Message,), {
-    'DESCRIPTOR' : _GETFEATURESREQUEST_ENTITYDATASETROW,
-    '__module__' : 'feast.serving.ServingService_pb2'
-    # @@protoc_insertion_point(class_scope:feast.serving.GetFeaturesRequest.EntityDatasetRow)
-    })
-  ,
-  'DESCRIPTOR' : _GETFEATURESREQUEST,
-  '__module__' : 'feast.serving.ServingService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.GetFeaturesRequest)
-  })
+GetFeaturesRequest = _reflection.GeneratedProtocolMessageType(
+    "GetFeaturesRequest",
+    (_message.Message,),
+    {
+        "FeatureSet": _reflection.GeneratedProtocolMessageType(
+            "FeatureSet",
+            (_message.Message,),
+            {
+                "DESCRIPTOR": _GETFEATURESREQUEST_FEATURESET,
+                "__module__": "feast.serving.ServingService_pb2"
+                # @@protoc_insertion_point(class_scope:feast.serving.GetFeaturesRequest.FeatureSet)
+            },
+        ),
+        "EntityDataset": _reflection.GeneratedProtocolMessageType(
+            "EntityDataset",
+            (_message.Message,),
+            {
+                "DESCRIPTOR": _GETFEATURESREQUEST_ENTITYDATASET,
+                "__module__": "feast.serving.ServingService_pb2"
+                # @@protoc_insertion_point(class_scope:feast.serving.GetFeaturesRequest.EntityDataset)
+            },
+        ),
+        "EntityDatasetRow": _reflection.GeneratedProtocolMessageType(
+            "EntityDatasetRow",
+            (_message.Message,),
+            {
+                "DESCRIPTOR": _GETFEATURESREQUEST_ENTITYDATASETROW,
+                "__module__": "feast.serving.ServingService_pb2"
+                # @@protoc_insertion_point(class_scope:feast.serving.GetFeaturesRequest.EntityDatasetRow)
+            },
+        ),
+        "DESCRIPTOR": _GETFEATURESREQUEST,
+        "__module__": "feast.serving.ServingService_pb2"
+        # @@protoc_insertion_point(class_scope:feast.serving.GetFeaturesRequest)
+    },
+)
 _sym_db.RegisterMessage(GetFeaturesRequest)
 _sym_db.RegisterMessage(GetFeaturesRequest.FeatureSet)
 _sym_db.RegisterMessage(GetFeaturesRequest.EntityDataset)
 _sym_db.RegisterMessage(GetFeaturesRequest.EntityDatasetRow)
 
-GetOnlineFeaturesResponse = _reflection.GeneratedProtocolMessageType('GetOnlineFeaturesResponse', (_message.Message,), {
-
-  'FeatureDataset' : _reflection.GeneratedProtocolMessageType('FeatureDataset', (_message.Message,), {
-    'DESCRIPTOR' : _GETONLINEFEATURESRESPONSE_FEATUREDATASET,
-    '__module__' : 'feast.serving.ServingService_pb2'
-    # @@protoc_insertion_point(class_scope:feast.serving.GetOnlineFeaturesResponse.FeatureDataset)
-    })
-  ,
-  'DESCRIPTOR' : _GETONLINEFEATURESRESPONSE,
-  '__module__' : 'feast.serving.ServingService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.GetOnlineFeaturesResponse)
-  })
+GetOnlineFeaturesResponse = _reflection.GeneratedProtocolMessageType(
+    "GetOnlineFeaturesResponse",
+    (_message.Message,),
+    {
+        "FeatureDataset": _reflection.GeneratedProtocolMessageType(
+            "FeatureDataset",
+            (_message.Message,),
+            {
+                "DESCRIPTOR": _GETONLINEFEATURESRESPONSE_FEATUREDATASET,
+                "__module__": "feast.serving.ServingService_pb2"
+                # @@protoc_insertion_point(class_scope:feast.serving.GetOnlineFeaturesResponse.FeatureDataset)
+            },
+        ),
+        "DESCRIPTOR": _GETONLINEFEATURESRESPONSE,
+        "__module__": "feast.serving.ServingService_pb2"
+        # @@protoc_insertion_point(class_scope:feast.serving.GetOnlineFeaturesResponse)
+    },
+)
 _sym_db.RegisterMessage(GetOnlineFeaturesResponse)
 _sym_db.RegisterMessage(GetOnlineFeaturesResponse.FeatureDataset)
 
-GetBatchFeaturesResponse = _reflection.GeneratedProtocolMessageType('GetBatchFeaturesResponse', (_message.Message,), {
-  'DESCRIPTOR' : _GETBATCHFEATURESRESPONSE,
-  '__module__' : 'feast.serving.ServingService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.GetBatchFeaturesResponse)
-  })
+GetBatchFeaturesResponse = _reflection.GeneratedProtocolMessageType(
+    "GetBatchFeaturesResponse",
+    (_message.Message,),
+    {
+        "DESCRIPTOR": _GETBATCHFEATURESRESPONSE,
+        "__module__": "feast.serving.ServingService_pb2"
+        # @@protoc_insertion_point(class_scope:feast.serving.GetBatchFeaturesResponse)
+    },
+)
 _sym_db.RegisterMessage(GetBatchFeaturesResponse)
 
-GetBatchFeaturesFromCompletedJobRequest = _reflection.GeneratedProtocolMessageType('GetBatchFeaturesFromCompletedJobRequest', (_message.Message,), {
-  'DESCRIPTOR' : _GETBATCHFEATURESFROMCOMPLETEDJOBREQUEST,
-  '__module__' : 'feast.serving.ServingService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.GetBatchFeaturesFromCompletedJobRequest)
-  })
-_sym_db.RegisterMessage(GetBatchFeaturesFromCompletedJobRequest)
+ReloadJobRequest = _reflection.GeneratedProtocolMessageType(
+    "ReloadJobRequest",
+    (_message.Message,),
+    {
+        "DESCRIPTOR": _RELOADJOBREQUEST,
+        "__module__": "feast.serving.ServingService_pb2"
+        # @@protoc_insertion_point(class_scope:feast.serving.ReloadJobRequest)
+    },
+)
+_sym_db.RegisterMessage(ReloadJobRequest)
 
-GetBatchFeaturesFromCompletedJobResponse = _reflection.GeneratedProtocolMessageType('GetBatchFeaturesFromCompletedJobResponse', (_message.Message,), {
-  'DESCRIPTOR' : _GETBATCHFEATURESFROMCOMPLETEDJOBRESPONSE,
-  '__module__' : 'feast.serving.ServingService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.GetBatchFeaturesFromCompletedJobResponse)
-  })
-_sym_db.RegisterMessage(GetBatchFeaturesFromCompletedJobResponse)
+ReloadJobResponse = _reflection.GeneratedProtocolMessageType(
+    "ReloadJobResponse",
+    (_message.Message,),
+    {
+        "DESCRIPTOR": _RELOADJOBRESPONSE,
+        "__module__": "feast.serving.ServingService_pb2"
+        # @@protoc_insertion_point(class_scope:feast.serving.ReloadJobResponse)
+    },
+)
+_sym_db.RegisterMessage(ReloadJobResponse)
 
-GetStagingLocationRequest = _reflection.GeneratedProtocolMessageType('GetStagingLocationRequest', (_message.Message,), {
-  'DESCRIPTOR' : _GETSTAGINGLOCATIONREQUEST,
-  '__module__' : 'feast.serving.ServingService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.GetStagingLocationRequest)
-  })
-_sym_db.RegisterMessage(GetStagingLocationRequest)
-
-GetStagingLocationResponse = _reflection.GeneratedProtocolMessageType('GetStagingLocationResponse', (_message.Message,), {
-  'DESCRIPTOR' : _GETSTAGINGLOCATIONRESPONSE,
-  '__module__' : 'feast.serving.ServingService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.GetStagingLocationResponse)
-  })
-_sym_db.RegisterMessage(GetStagingLocationResponse)
-
-LoadBatchFeaturesRequest = _reflection.GeneratedProtocolMessageType('LoadBatchFeaturesRequest', (_message.Message,), {
-  'DESCRIPTOR' : _LOADBATCHFEATURESREQUEST,
-  '__module__' : 'feast.serving.ServingService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.LoadBatchFeaturesRequest)
-  })
-_sym_db.RegisterMessage(LoadBatchFeaturesRequest)
-
-LoadBatchFeaturesResponse = _reflection.GeneratedProtocolMessageType('LoadBatchFeaturesResponse', (_message.Message,), {
-  'DESCRIPTOR' : _LOADBATCHFEATURESRESPONSE,
-  '__module__' : 'feast.serving.ServingService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.LoadBatchFeaturesResponse)
-  })
-_sym_db.RegisterMessage(LoadBatchFeaturesResponse)
-
-ReloadJobStatusRequest = _reflection.GeneratedProtocolMessageType('ReloadJobStatusRequest', (_message.Message,), {
-  'DESCRIPTOR' : _RELOADJOBSTATUSREQUEST,
-  '__module__' : 'feast.serving.ServingService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.ReloadJobStatusRequest)
-  })
-_sym_db.RegisterMessage(ReloadJobStatusRequest)
-
-ReloadJobStatusResponse = _reflection.GeneratedProtocolMessageType('ReloadJobStatusResponse', (_message.Message,), {
-  'DESCRIPTOR' : _RELOADJOBSTATUSRESPONSE,
-  '__module__' : 'feast.serving.ServingService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.ReloadJobStatusResponse)
-  })
-_sym_db.RegisterMessage(ReloadJobStatusResponse)
-
-Job = _reflection.GeneratedProtocolMessageType('Job', (_message.Message,), {
-  'DESCRIPTOR' : _JOB,
-  '__module__' : 'feast.serving.ServingService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.serving.Job)
-  })
+Job = _reflection.GeneratedProtocolMessageType(
+    "Job",
+    (_message.Message,),
+    {
+        "DESCRIPTOR": _JOB,
+        "__module__": "feast.serving.ServingService_pb2"
+        # @@protoc_insertion_point(class_scope:feast.serving.Job)
+    },
+)
 _sym_db.RegisterMessage(Job)
 
 
 DESCRIPTOR._options = None
 
 _SERVINGSERVICE = _descriptor.ServiceDescriptor(
-  name='ServingService',
-  full_name='feast.serving.ServingService',
-  file=DESCRIPTOR,
-  index=0,
-  serialized_options=None,
-  serialized_start=2282,
-  serialized_end=3180,
-  methods=[
-  _descriptor.MethodDescriptor(
-    name='GetFeastServingVersion',
-    full_name='feast.serving.ServingService.GetFeastServingVersion',
+    name="ServingService",
+    full_name="feast.serving.ServingService",
+    file=DESCRIPTOR,
     index=0,
-    containing_service=None,
-    input_type=_GETFEASTSERVINGVERSIONREQUEST,
-    output_type=_GETFEASTSERVINGVERSIONRESPONSE,
     serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetFeastServingType',
-    full_name='feast.serving.ServingService.GetFeastServingType',
-    index=1,
-    containing_service=None,
-    input_type=_GETFEASTSERVINGTYPEREQUEST,
-    output_type=_GETFEASTSERVINGTYPERESPONSE,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetOnlineFeatures',
-    full_name='feast.serving.ServingService.GetOnlineFeatures',
-    index=2,
-    containing_service=None,
-    input_type=_GETFEATURESREQUEST,
-    output_type=_GETONLINEFEATURESRESPONSE,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetBatchFeatures',
-    full_name='feast.serving.ServingService.GetBatchFeatures',
-    index=3,
-    containing_service=None,
-    input_type=_GETFEATURESREQUEST,
-    output_type=_GETBATCHFEATURESRESPONSE,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetBatchFeaturesFromCompletedJob',
-    full_name='feast.serving.ServingService.GetBatchFeaturesFromCompletedJob',
-    index=4,
-    containing_service=None,
-    input_type=_GETBATCHFEATURESFROMCOMPLETEDJOBREQUEST,
-    output_type=_GETBATCHFEATURESFROMCOMPLETEDJOBRESPONSE,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetStagingLocation',
-    full_name='feast.serving.ServingService.GetStagingLocation',
-    index=5,
-    containing_service=None,
-    input_type=_GETSTAGINGLOCATIONREQUEST,
-    output_type=_GETSTAGINGLOCATIONRESPONSE,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='LoadBatchFeatures',
-    full_name='feast.serving.ServingService.LoadBatchFeatures',
-    index=6,
-    containing_service=None,
-    input_type=_LOADBATCHFEATURESREQUEST,
-    output_type=_LOADBATCHFEATURESRESPONSE,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='ReloadJobStatus',
-    full_name='feast.serving.ServingService.ReloadJobStatus',
-    index=7,
-    containing_service=None,
-    input_type=_RELOADJOBSTATUSREQUEST,
-    output_type=_RELOADJOBSTATUSRESPONSE,
-    serialized_options=None,
-  ),
-])
+    serialized_start=1839,
+    serialized_end=2358,
+    methods=[
+        _descriptor.MethodDescriptor(
+            name="GetFeastServingVersion",
+            full_name="feast.serving.ServingService.GetFeastServingVersion",
+            index=0,
+            containing_service=None,
+            input_type=_GETFEASTSERVINGVERSIONREQUEST,
+            output_type=_GETFEASTSERVINGVERSIONRESPONSE,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name="GetFeastServingType",
+            full_name="feast.serving.ServingService.GetFeastServingType",
+            index=1,
+            containing_service=None,
+            input_type=_GETFEASTSERVINGTYPEREQUEST,
+            output_type=_GETFEASTSERVINGTYPERESPONSE,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name="GetOnlineFeatures",
+            full_name="feast.serving.ServingService.GetOnlineFeatures",
+            index=2,
+            containing_service=None,
+            input_type=_GETFEATURESREQUEST,
+            output_type=_GETONLINEFEATURESRESPONSE,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name="GetBatchFeatures",
+            full_name="feast.serving.ServingService.GetBatchFeatures",
+            index=3,
+            containing_service=None,
+            input_type=_GETFEATURESREQUEST,
+            output_type=_GETBATCHFEATURESRESPONSE,
+            serialized_options=None,
+        ),
+        _descriptor.MethodDescriptor(
+            name="ReloadJob",
+            full_name="feast.serving.ServingService.ReloadJob",
+            index=4,
+            containing_service=None,
+            input_type=_RELOADJOBREQUEST,
+            output_type=_RELOADJOBRESPONSE,
+            serialized_options=None,
+        ),
+    ],
+)
 _sym_db.RegisterServiceDescriptor(_SERVINGSERVICE)
 
-DESCRIPTOR.services_by_name['ServingService'] = _SERVINGSERVICE
+DESCRIPTOR.services_by_name["ServingService"] = _SERVINGSERVICE
 
 # @@protoc_insertion_point(module_scope)

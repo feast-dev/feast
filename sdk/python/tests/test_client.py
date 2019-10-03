@@ -26,8 +26,8 @@ from google.protobuf.timestamp_pb2 import Timestamp
 import pytest
 from feast.client import Client
 from concurrent import futures
-from feast.tests.feast_core_server import CoreServicer
-from feast.tests.feast_serving_server import ServingServicer
+from tests.feast_core_server import CoreServicer
+from tests.feast_serving_server import ServingServicer
 from feast.types import FeatureRow_pb2 as FeatureRowProto
 from feast.types import Field_pb2 as FieldProto
 from feast.types import Value_pb2 as ValueProto
