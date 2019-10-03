@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.joda.time.DateTime;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 
@@ -219,8 +220,12 @@ public class RedisServingService implements ServingService {
           continue;
         }
         FeatureRow featureRow = FeatureRow.parseFrom(jedisResponse);
+        long givenTimestamp = entityRow.getEntityTimestamp().getSeconds();
+        if (givenTimestamp == 0) {
+          givenTimestamp = System.currentTimeMillis();
+        }
         long timeDifference =
-            entityRow.getEntityTimestamp().getSeconds() - featureRow.getEventTimestamp()
+            givenTimestamp - featureRow.getEventTimestamp()
                 .getSeconds();
         if (timeDifference > featureSetRequest.getMaxAge().getSeconds()) {
           featureValues.putAll(nullValues);
