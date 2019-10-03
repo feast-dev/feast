@@ -13,6 +13,7 @@
 # limitations under the License.
 
 
+import time
 import grpc
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.CoreService_pb2 import (
@@ -26,6 +27,10 @@ from feast.serving.ServingService_pb2 import (
     GetFeaturesRequest,
     GetFeastServingVersionRequest,
     GetOnlineFeaturesResponse,
+    GetBatchFeaturesResponse,
+    ReloadJobRequest,
+    ReloadJobResponse,
+    Job,
 )
 from feast.feature_set import FeatureSet, Entity
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
@@ -40,6 +45,7 @@ GRPC_CONNECTION_TIMEOUT_DEFAULT = 5  # type: int
 GRPC_CONNECTION_TIMEOUT_APPLY = 300  # type: int
 FEAST_SERVING_URL_ENV_KEY = "FEAST_SERVING_URL"  # type: str
 FEAST_CORE_URL_ENV_KEY = "FEAST_CORE_URL"  # type: str
+BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS = 300
 
 
 class Client:
@@ -239,6 +245,7 @@ class Client:
         entity_data: pd.DataFrame,
         feature_ids: List[str],
         join_on: Dict[str, str] = None,
+        batch: bool = True,
     ) -> pd.DataFrame:
         self._connect_serving(skip_if_connected=True)
 
@@ -257,6 +264,73 @@ class Client:
             feature_ids
         )
 
+        if batch:
+            return self.get_batch_features(
+                entity_data, entity_dataset_rows, entity_names, feature_set_request
+            )
+
+        if not batch:
+            return sellf.get_online_features(
+                entity_data, entity_dataset_rows, entity_names, feature_set_request
+            )
+
+    def get_batch_features(
+        self, entity_data, entity_dataset_rows, entity_names, feature_set_request
+    ):
+        get_batch_features_response_proto = self._serving_service_stub.GetBatchFeatures(
+            GetFeaturesRequest(
+                entity_dataset=GetFeaturesRequest.EntityDataset(
+                    entity_dataset_rows=entity_dataset_rows, entity_names=entity_names
+                ),
+                feature_sets=feature_set_request,
+            )
+        )  # type: GetBatchFeaturesResponse
+        job = get_batch_features_response_proto.job
+        if job.id:
+            print(f"Feature retrieval job created with id: ${job.id}")
+        else:
+            raise Exception(
+                "Could not successfully start a retrieval job. No job Id received from Feast."
+            )
+
+        timeout = time.time() + BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS
+        previous_job = job
+        while True:
+            if time.time() > timeout:
+                print(
+                    "Feature retrieval timed out while waiting for serving to export data."
+                )
+                break
+
+            time.sleep(1)
+            job = get_batch_job_status(job)
+
+            if job.status == Job.status.JOB_STATUS_INVALID:
+                raise Exception(
+                    f"Could not retrieve data from serving service for job id {job.id}."
+                )
+
+            if (
+                job.status == Job.status.JOB_STATUS_RUNNING
+                and previous_job.status == Job.status.JOB_STATUS_PENDING
+            ):
+                print(f"Export job running with job id ${job.id}.")
+
+            if job.status == Job.status.JOB_STATUS_DONE:
+                print(f"Export complete for job id ${job.id}. Starting retrieval.")
+
+        feature_dataframe = feature_data_sets_to_pandas_dataframe(
+            entity_data_set=entity_data.copy(),
+            feature_data_sets=list(get_online_features_response_proto.feature_datasets),
+        )
+        return feature_dataframe
+
+    def get_batch_job_status(self, job: Job):
+        return self._serving_service_stub.ReloadJob(ReloadJobRequest(job=job))
+
+    def get_online_features(
+        self, entity_data, entity_dataset_rows, entity_names, feature_set_request
+    ):
         get_online_features_response_proto = self._serving_service_stub.GetOnlineFeatures(
             GetFeaturesRequest(
                 entity_dataset=GetFeaturesRequest.EntityDataset(
@@ -265,7 +339,6 @@ class Client:
                 feature_sets=feature_set_request,
             )
         )  # type: GetOnlineFeaturesResponse
-
         feature_dataframe = feature_data_sets_to_pandas_dataframe(
             entity_data_set=entity_data.copy(),
             feature_data_sets=list(get_online_features_response_proto.feature_datasets),
