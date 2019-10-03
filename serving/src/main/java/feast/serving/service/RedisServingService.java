@@ -16,8 +16,6 @@
 
 package feast.serving.service;
 
-import com.google.api.client.util.Lists;
-import com.google.common.base.Functions;
 import com.google.common.collect.Maps;
 import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.Duration;
@@ -44,13 +42,10 @@ import feast.types.ValueProto.Value;
 import io.grpc.Status;
 import io.opentracing.Scope;
 import io.opentracing.Tracer;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.joda.time.DateTime;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 
@@ -127,14 +122,12 @@ public class RedisServingService implements ServingService {
               .withDescription("Unable to parse protobuf while retrieving feature")
               .withCause(e)
               .asRuntimeException();
-        } finally {
-          List<FieldValues> fieldValues = featureValuesMap.values().stream()
-              .map(m -> FieldValues.newBuilder().putAllFields(m).build())
-              .collect(Collectors.toList());
-          return getOnlineFeaturesResponseBuilder.addAllFieldValues(fieldValues).build();
         }
       }
-      return getOnlineFeaturesResponseBuilder.build();
+      List<FieldValues> fieldValues = featureValuesMap.values().stream()
+          .map(m -> FieldValues.newBuilder().putAllFields(m).build())
+          .collect(Collectors.toList());
+      return getOnlineFeaturesResponseBuilder.addAllFieldValues(fieldValues).build();
     }
   }
 

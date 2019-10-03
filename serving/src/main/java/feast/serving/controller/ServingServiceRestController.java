@@ -1,5 +1,7 @@
 package feast.serving.controller;
 
+import static feast.serving.util.mappers.ResponseJSONMapper.mapGetOnlineFeaturesResponse;
+
 import feast.serving.FeastProperties;
 import feast.serving.ServingAPIProto.GetFeastServingVersionResponse;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
@@ -7,6 +9,8 @@ import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.service.ServingService;
 import feast.serving.util.RequestHelper;
 import io.opentracing.Tracer;
+import java.util.List;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -36,9 +40,9 @@ public class ServingServiceRestController {
       value = "/api/v1/features/online",
       produces = "application/json",
       consumes = "application/json")
-  public GetOnlineFeaturesResponse getOnlineFeatures(@RequestBody GetFeaturesRequest request) {
+  public List<Map<String, Object>> getOnlineFeatures(@RequestBody GetFeaturesRequest request) {
     RequestHelper.validateRequest(request);
     GetOnlineFeaturesResponse onlineFeatures = servingService.getOnlineFeatures(request);
-    return onlineFeatures;
+    return mapGetOnlineFeaturesResponse(onlineFeatures);
   }
 }
