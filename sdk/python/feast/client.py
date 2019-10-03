@@ -245,7 +245,7 @@ class Client:
         entity_data: pd.DataFrame,
         feature_ids: List[str],
         join_on: Dict[str, str] = None,
-        batch: bool = True,
+        batch: bool = False,
     ) -> pd.DataFrame:
         self._connect_serving(skip_if_connected=True)
 
@@ -296,13 +296,6 @@ class Client:
         timeout = time.time() + BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS
         previous_job = job
         while True:
-            if time.time() > timeout:
-                print(
-                    "Feature retrieval timed out while waiting for serving to export data."
-                )
-                break
-
-            time.sleep(1)
             job = get_batch_job_status(job)
 
             if job.status == Job.status.JOB_STATUS_INVALID:
@@ -319,11 +312,21 @@ class Client:
             if job.status == Job.status.JOB_STATUS_DONE:
                 print(f"Export complete for job id ${job.id}. Starting retrieval.")
 
-        feature_dataframe = feature_data_sets_to_pandas_dataframe(
-            entity_data_set=entity_data.copy(),
-            feature_data_sets=list(get_online_features_response_proto.feature_datasets),
-        )
-        return feature_dataframe
+                feature_dataframe = feature_data_sets_to_pandas_dataframe(
+                    entity_data_set=entity_data.copy(),
+                    feature_data_sets=list(
+                        get_online_features_response_proto.feature_datasets
+                    ),
+                )
+                return feature_dataframe
+
+            previous_job = job
+            time.sleep(1)
+            if time.time() > timeout:
+                print(
+                    "Feature retrieval timed out while waiting for serving to export data."
+                )
+                break
 
     def get_batch_job_status(self, job: Job):
         return self._serving_service_stub.ReloadJob(ReloadJobRequest(job=job))
