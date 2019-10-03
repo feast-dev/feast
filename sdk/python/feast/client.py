@@ -13,9 +13,15 @@
 # limitations under the License.
 
 
-import time
+import os
+from collections import OrderedDict
+from typing import Dict
+from typing import List
+
 import grpc
-from feast.core.CoreService_pb2_grpc import CoreServiceStub
+import pandas as pd
+from google.cloud import storage
+
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionRequest,
     GetFeatureSetsResponse,
@@ -23,22 +29,15 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetsRequest,
     ApplyFeatureSetResponse,
 )
+from feast.core.CoreService_pb2_grpc import CoreServiceStub
+from feast.feature_set import FeatureSet, Entity
+from feast.job import Job
 from feast.serving.ServingService_pb2 import (
     GetFeaturesRequest,
     GetFeastServingVersionRequest,
     GetOnlineFeaturesResponse,
-    GetBatchFeaturesResponse,
-    GetJobRequest,
-    GetJobResponse,
-    Job,
 )
-from feast.feature_set import FeatureSet, Entity
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-from typing import List
-from collections import OrderedDict
-from typing import Dict
-import os
-import pandas as pd
 from feast.type_map import pandas_value_to_proto_value, FEAST_VALUE_ATTR_TO_DTYPE
 
 GRPC_CONNECTION_TIMEOUT_DEFAULT = 5  # type: int
@@ -59,6 +58,7 @@ class Client:
         self.__serving_channel: grpc.Channel = None
         self._core_service_stub: CoreServiceStub = None
         self._serving_service_stub: ServingServiceStub = None
+        self._storage_client: storage.Client = None
 
     @property
     def core_url(self) -> str:
@@ -83,6 +83,16 @@ class Client:
     @serving_url.setter
     def serving_url(self, value: str):
         self._serving_url = value
+
+    @property
+    def storage_client(self) -> storage.Client:
+        if self.storage_client is not None:
+            return self.storage_client
+        return storage.Client()
+
+    @serving_url.setter
+    def serving_url(self, storage_client: storage.Client):
+        self._storage_client = storage_client
 
     def version(self):
         self._connect_core()
@@ -274,62 +284,10 @@ class Client:
                 entity_data, entity_dataset_rows, entity_names, feature_set_request
             )
 
-    def get_batch_features(
-        self, entity_data, entity_dataset_rows, entity_names, feature_set_request
-    ):
-        get_batch_features_response_proto = self._serving_service_stub.GetBatchFeatures(
-            GetFeaturesRequest(
-                entity_dataset=GetFeaturesRequest.EntityDataset(
-                    entity_dataset_rows=entity_dataset_rows, entity_names=entity_names
-                ),
-                feature_sets=feature_set_request,
-            )
-        )  # type: GetBatchFeaturesResponse
-        job = get_batch_features_response_proto.job
-        if job.id:
-            print(f"Feature retrieval job created with id: ${job.id}")
-        else:
-            raise Exception(
-                "Could not successfully start a retrieval job. No job Id received from Feast."
-            )
-
-        timeout = time.time() + BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS
-        previous_job = job
-        while True:
-            job = get_batch_job_status(job)
-
-            if job.status == Job.status.JOB_STATUS_INVALID:
-                raise Exception(
-                    f"Could not retrieve data from serving service for job id {job.id}."
-                )
-
-            if (
-                job.status == Job.status.JOB_STATUS_RUNNING
-                and previous_job.status == Job.status.JOB_STATUS_PENDING
-            ):
-                print(f"Export job running with job id ${job.id}.")
-
-            if job.status == Job.status.JOB_STATUS_DONE:
-                print(f"Export complete for job id ${job.id}. Starting retrieval.")
-
-                feature_dataframe = feature_data_sets_to_pandas_dataframe(
-                    entity_data_set=entity_data.copy(),
-                    feature_data_sets=list(
-                        get_online_features_response_proto.feature_datasets
-                    ),
-                )
-                return feature_dataframe
-
-            previous_job = job
-            time.sleep(1)
-            if time.time() > timeout:
-                print(
-                    "Feature retrieval timed out while waiting for serving to export data."
-                )
-                break
-
-    def get_batch_job_status(self, job: Job):
-        return self._serving_service_stub.ReloadJob(ReloadJobRequest(job=job))
+    def get_batch_features(self, feature_sets, entity_rows):
+        request = GetFeaturesRequest(feature_sets=feature_sets, entity_rows=entity_rows)
+        response = self._serving_service_stub.GetBatchFeatures(request)
+        return Job(response.job, self._serving_service_stub, self._storage_client)
 
     def get_online_features(
         self, entity_data, entity_dataset_rows, entity_names, feature_set_request
