@@ -220,14 +220,8 @@ public class RedisServingService implements ServingService {
           continue;
         }
         FeatureRow featureRow = FeatureRow.parseFrom(jedisResponse);
-        long givenTimestamp = entityRow.getEntityTimestamp().getSeconds();
-        if (givenTimestamp == 0) {
-          givenTimestamp = System.currentTimeMillis();
-        }
-        long timeDifference =
-            givenTimestamp - featureRow.getEventTimestamp()
-                .getSeconds();
-        if (timeDifference > featureSetRequest.getMaxAge().getSeconds()) {
+        boolean stale = isStale(featureSetRequest, entityRow, featureRow);
+        if (stale) {
           featureValues.putAll(nullValues);
           continue;
         }
@@ -236,6 +230,21 @@ public class RedisServingService implements ServingService {
             .forEach(f -> featureValues.put(featureSetId + "." + f.getName(), f.getValue()));
       }
     }
+  }
+
+  private boolean isStale(FeatureSet featureSetRequest, EntityRow entityRow,
+      FeatureRow featureRow) {
+    if (featureSetRequest.getMaxAge() == Duration.getDefaultInstance()) {
+      return false;
+    }
+    long givenTimestamp = entityRow.getEntityTimestamp().getSeconds();
+    if (givenTimestamp == 0) {
+      givenTimestamp = System.currentTimeMillis();
+    }
+    long timeDifference =
+        givenTimestamp - featureRow.getEventTimestamp()
+            .getSeconds();
+    return timeDifference > featureSetRequest.getMaxAge().getSeconds();
   }
 
   /**
