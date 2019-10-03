@@ -67,7 +67,9 @@ message GetFeaturesRequest {
     // List of feature sets and their features that are being retrieved
     repeated FeatureSet feature_sets = 1;
 
-    // TODO: comments
+    // List of entity rows, containing entity id and timestamp data.
+    // Used during retrieval of feature rows and for joining feature
+    // rows into a final dataset
     repeated EntityRow entity_rows = 2;
 
     message FeatureSet {
@@ -88,9 +90,13 @@ message GetFeaturesRequest {
         google.protobuf.Duration max_age = 4;
     }
 
-    // TODO: comments
+
     message EntityRow {
+        // Request timestamp of this row. This value will be used, together with maxAge,
+        // to determine feature staleness.
         google.protobuf.Timestamp entity_timestamp = 1;
+
+        // Map containing mapping of entity name to entity value.
         map<string,feast.types.Value> fields = 2;
     }
 }
