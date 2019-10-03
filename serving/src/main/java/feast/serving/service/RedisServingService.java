@@ -203,7 +203,7 @@ public class RedisServingService implements ServingService {
           .format("%s:%d", featureSetRequest.getName(), featureSetRequest.getVersion());
       Map<String, Value> nullValues = featureSetRequest.getFeatureNamesList().stream()
           .collect(Collectors
-              .toMap(name -> featureSetId + "." + name, name -> Value.newBuilder().build()));
+              .toMap(name -> featureSetId + ":" + name, name -> Value.newBuilder().build()));
       for (int i = 0; i < jedisResps.size(); i++) {
         EntityRow entityRow = entityRows.get(i);
         Map<String, Value> featureValues = featureValuesMap.get(entityRow);
@@ -220,7 +220,7 @@ public class RedisServingService implements ServingService {
         }
         featureRow.getFieldsList().stream()
             .filter(f -> featureSetRequest.getFeatureNamesList().contains(f.getName()))
-            .forEach(f -> featureValues.put(featureSetId + "." + f.getName(), f.getValue()));
+            .forEach(f -> featureValues.put(featureSetId + ":" + f.getName(), f.getValue()));
       }
     }
   }

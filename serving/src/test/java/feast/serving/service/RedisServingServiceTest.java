@@ -140,13 +140,13 @@ public class RedisServingServiceTest {
         .addFieldValues(FieldValues.newBuilder()
           .putFields("entity1", intValue(1))
           .putFields("entity2", strValue("a"))
-          .putFields("featureSet:1.feature1", intValue(1))
-          .putFields("featureSet:1.feature2", intValue(1)))
+          .putFields("featureSet:1:feature1", intValue(1))
+          .putFields("featureSet:1:feature2", intValue(1)))
         .addFieldValues(FieldValues.newBuilder()
           .putFields("entity1", intValue(2))
           .putFields("entity2", strValue("b"))
-          .putFields("featureSet:1.feature1", intValue(2))
-          .putFields("featureSet:1.feature2", intValue(2)))
+          .putFields("featureSet:1:feature1", intValue(2))
+          .putFields("featureSet:1:feature2", intValue(2)))
         .build();
     GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
     assertThat(responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
@@ -203,13 +203,13 @@ public class RedisServingServiceTest {
         .addFieldValues(FieldValues.newBuilder()
             .putFields("entity1", intValue(1))
             .putFields("entity2", strValue("a"))
-            .putFields("featureSet:1.feature1", intValue(1))
-            .putFields("featureSet:1.feature2", intValue(1)))
+            .putFields("featureSet:1:feature1", intValue(1))
+            .putFields("featureSet:1:feature2", intValue(1)))
         .addFieldValues(FieldValues.newBuilder()
             .putFields("entity1", intValue(2))
             .putFields("entity2", strValue("b"))
-            .putFields("featureSet:1.feature1", Value.newBuilder().build())
-            .putFields("featureSet:1.feature2", Value.newBuilder().build()))
+            .putFields("featureSet:1:feature1", Value.newBuilder().build())
+            .putFields("featureSet:1:feature2", Value.newBuilder().build()))
         .build();
     GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
     assertThat(responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
@@ -269,13 +269,13 @@ public class RedisServingServiceTest {
         .addFieldValues(FieldValues.newBuilder()
             .putFields("entity1", intValue(1))
             .putFields("entity2", strValue("a"))
-            .putFields("featureSet:1.feature1", intValue(1))
-            .putFields("featureSet:1.feature2", intValue(1)))
+            .putFields("featureSet:1:feature1", intValue(1))
+            .putFields("featureSet:1:feature2", intValue(1)))
         .addFieldValues(FieldValues.newBuilder()
             .putFields("entity1", intValue(2))
             .putFields("entity2", strValue("b"))
-            .putFields("featureSet:1.feature1", Value.newBuilder().build())
-            .putFields("featureSet:1.feature2", Value.newBuilder().build()))
+            .putFields("featureSet:1:feature1", Value.newBuilder().build())
+            .putFields("featureSet:1:feature2", Value.newBuilder().build()))
         .build();
     GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
     assertThat(responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
@@ -335,13 +335,13 @@ public class RedisServingServiceTest {
         .addFieldValues(FieldValues.newBuilder()
             .putFields("entity1", intValue(1))
             .putFields("entity2", strValue("a"))
-            .putFields("featureSet:1.feature1", intValue(1))
-            .putFields("featureSet:1.feature2", intValue(1)))
+            .putFields("featureSet:1:feature1", intValue(1))
+            .putFields("featureSet:1:feature2", intValue(1)))
         .addFieldValues(FieldValues.newBuilder()
             .putFields("entity1", intValue(2))
             .putFields("entity2", strValue("b"))
-            .putFields("featureSet:1.feature1", Value.newBuilder().build())
-            .putFields("featureSet:1.feature2", Value.newBuilder().build()))
+            .putFields("featureSet:1:feature1", Value.newBuilder().build())
+            .putFields("featureSet:1:feature2", Value.newBuilder().build()))
         .build();
     GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
     assertThat(responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
@@ -401,11 +401,11 @@ public class RedisServingServiceTest {
         .addFieldValues(FieldValues.newBuilder()
             .putFields("entity1", intValue(1))
             .putFields("entity2", strValue("a"))
-            .putFields("featureSet:1.feature1", intValue(1)))
+            .putFields("featureSet:1:feature1", intValue(1)))
         .addFieldValues(FieldValues.newBuilder()
             .putFields("entity1", intValue(2))
             .putFields("entity2", strValue("b"))
-            .putFields("featureSet:1.feature1", intValue(2)))
+            .putFields("featureSet:1:feature1", intValue(2)))
         .build();
     GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
     assertThat(responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
