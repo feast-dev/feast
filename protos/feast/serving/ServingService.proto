@@ -47,8 +47,8 @@ service ServingService {
     // The client is assumed to have access to these file URIs.
     rpc GetBatchFeatures (GetFeaturesRequest) returns (GetBatchFeaturesResponse);
 
-    // Reload the job status with the latest state.
-    rpc ReloadJob(ReloadJobRequest) returns (ReloadJobResponse);
+    // Get the latest job status for batch feature retrieval.
+    rpc GetJob (GetJobRequest) returns (GetJobResponse);
 }
 
 message GetFeastServingVersionRequest {}
@@ -115,11 +115,11 @@ message GetBatchFeaturesResponse {
     Job job = 1;
 }
 
-message ReloadJobRequest {
+message GetJobRequest {
     Job job = 1;
 }
 
-message ReloadJobResponse {
+message GetJobResponse {
     Job job = 1;
 }
 

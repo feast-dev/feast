@@ -4,9 +4,9 @@ import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingTypeRequest;
 import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
+import feast.serving.ServingAPIProto.GetJobRequest;
+import feast.serving.ServingAPIProto.GetJobResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
-import feast.serving.ServingAPIProto.ReloadJobRequest;
-import feast.serving.ServingAPIProto.ReloadJobResponse;
 
 public interface ServingService {
   GetFeastServingTypeResponse getFeastServingType(
@@ -16,5 +16,5 @@ public interface ServingService {
 
   GetBatchFeaturesResponse getBatchFeatures(GetFeaturesRequest getFeaturesRequest);
 
-  ReloadJobResponse reloadJob(ReloadJobRequest reloadJobStatusRequest);
+  GetJobResponse getJob(GetJobRequest getJobRequest);
 }

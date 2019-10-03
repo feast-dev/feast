@@ -7,9 +7,9 @@ import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
 import feast.serving.ServingAPIProto.GetFeastServingVersionRequest;
 import feast.serving.ServingAPIProto.GetFeastServingVersionResponse;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
+import feast.serving.ServingAPIProto.GetJobRequest;
+import feast.serving.ServingAPIProto.GetJobResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
-import feast.serving.ServingAPIProto.ReloadJobRequest;
-import feast.serving.ServingAPIProto.ReloadJobResponse;
 import feast.serving.ServingServiceGrpc.ServingServiceImplBase;
 import feast.serving.service.ServingService;
 import feast.serving.util.RequestHelper;
@@ -79,13 +79,12 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       responseObserver.onError(e);
     }
   }
-  
+
   @Override
-  public void reloadJob(
-      ReloadJobRequest request, StreamObserver<ReloadJobResponse> responseObserver) {
+  public void getJob(GetJobRequest request, StreamObserver<GetJobResponse> responseObserver) {
     try {
-      ReloadJobResponse reloadJobStatusResponse = servingService.reloadJob(request);
-      responseObserver.onNext(reloadJobStatusResponse);
+      GetJobResponse response = servingService.getJob(request);
+      responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (Exception e) {
       responseObserver.onError(e);
