@@ -21,7 +21,6 @@ package feast.serving;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 import "feast/types/Value.proto";
-import "feast/types/FeatureRow.proto";
 
 option java_package = "feast.serving";
 option java_outer_classname = "ServingAPIProto";

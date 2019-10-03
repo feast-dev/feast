@@ -11,7 +11,7 @@ from feast.serving.ServingService_pb2 import (
     JOB_STATUS_DONE,
     DATA_FORMAT_AVRO,
 )
-from feast.serving.ServingService_pb2 import ReloadJobRequest
+from feast.serving.ServingService_pb2 import GetJobRequest
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 
 # TODO: Need to profile and check the performance and memory consumption of
@@ -60,9 +60,7 @@ class Job:
         Reload the latest job status
         Returns: None
         """
-        self.job_proto = self.serving_stub.GetJob(
-            ReloadJobRequest(job=self.job_proto)
-        ).job
+        self.job_proto = self.serving_stub.GetJob(GetJobRequest(job=self.job_proto)).job
 
     def result(self, timeout_sec: int = DEFAULT_TIMEOUT_SEC):
         """

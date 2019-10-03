@@ -9,6 +9,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.joda.time.Duration;
 import redis.clients.jedis.Jedis;
 
+// TODO: Do rate limiting, currently if clients call get() or upsert()
+//       and an exceedingly high rate e.g. they wrap job reload in a while loop with almost no wait
+//       Redis connection may break and need to restart Feast serving. Need to handle this.
+
 @Slf4j
 public class RedisBackedJobService implements JobService {
   private final Jedis jedis;
@@ -31,7 +35,7 @@ public class RedisBackedJobService implements JobService {
     try {
       JsonFormat.parser().merge(json, builder);
       job = builder.build();
-    } catch (InvalidProtocolBufferException e) {
+    } catch (Exception e) {
       log.error(String.format("Failed to parse JSON for Feast job: %s", e.getMessage()));
     }
 
@@ -43,7 +47,7 @@ public class RedisBackedJobService implements JobService {
     try {
       jedis.set(job.getId(), JsonFormat.printer().omittingInsignificantWhitespace().print(job));
       jedis.expire(job.getId(), defaultExpirySeconds);
-    } catch (InvalidProtocolBufferException e) {
+    } catch (Exception e) {
       log.error(String.format("Failed to upsert job: %s", e.getMessage()));
     }
   }

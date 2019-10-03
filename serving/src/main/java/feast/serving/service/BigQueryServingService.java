@@ -119,13 +119,19 @@ public class BigQueryServingService implements ServingService {
       }
     }
 
-    final String query =
-        BigQueryUtil.createQuery(
-            getFeaturesRequest.getFeatureSetsList(),
-            featureSetSpecs,
-            Lists.newArrayList(getFeaturesRequest.getEntityRows(0).getFieldsMap().keySet()),
-            getFeaturesRequest.getEntityRowsList(),
-            datasetId);
+    final String query;
+    try {
+      query =
+          BigQueryUtil.createQuery(
+              getFeaturesRequest.getFeatureSetsList(),
+              featureSetSpecs,
+              Lists.newArrayList(getFeaturesRequest.getEntityRows(0).getFieldsMap().keySet()),
+              getFeaturesRequest.getEntityRowsList(),
+              datasetId);
+    } catch (Exception e) {
+      throw Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException();
+    }
+
     log.debug("Running BigQuery query: {}", query);
 
     String feastJobId = UUID.randomUUID().toString();
@@ -135,7 +141,13 @@ public class BigQueryServingService implements ServingService {
             .setType(JobType.JOB_TYPE_DOWNLOAD)
             .setStatus(JobStatus.JOB_STATUS_PENDING)
             .build();
-    jobService.upsert(feastJob);
+    try {
+      jobService.upsert(feastJob);
+    } catch (Exception e) {
+      throw Status.INTERNAL
+          .withDescription("Failed to upsert Job to job store. " + e.getMessage())
+          .asRuntimeException();
+    }
 
     new Thread(
             () -> {

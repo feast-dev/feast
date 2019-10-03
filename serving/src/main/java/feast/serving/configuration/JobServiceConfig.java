@@ -41,7 +41,7 @@ public class JobServiceConfig {
 
     switch (storeType) {
       case REDIS:
-        RedisConfig redisConfig = store.getRedisConfig();
+        RedisConfig redisConfig = jobStore.getRedisConfig();
         Jedis jedis = new Jedis(redisConfig.getHost(), redisConfig.getPort());
         jobService = new RedisBackedJobService(jedis);
         break;

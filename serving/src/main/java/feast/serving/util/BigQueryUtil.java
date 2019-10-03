@@ -7,6 +7,7 @@ import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityRow;
 import feast.serving.ServingAPIProto.GetFeaturesRequest.FeatureSet;
 import feast.types.ValueProto.Value;
+import feast.types.ValueProto.Value.ValCase;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -179,6 +180,10 @@ public class BigQueryUtil {
             tableName, timestampLowerBound, timestampUpperBound));
     List<Value> entityIdsList = Lists.newArrayList(entityRow.getFieldsMap().values());
     for (int i = 0; i < entityIdsList.size(); i++) {
+      if (entityIdsList.get(i).getValCase().equals(ValCase.VAL_NOT_SET)) {
+        continue;
+      }
+
       if (entityNamesInFeatureSetSpec.contains(entityNames.get(i))) {
         whereBoolExprAsList.add(
             String.format(

@@ -28,8 +28,8 @@ from feast.serving.ServingService_pb2 import (
     GetFeastServingVersionRequest,
     GetOnlineFeaturesResponse,
     GetBatchFeaturesResponse,
-    ReloadJobRequest,
-    ReloadJobResponse,
+    GetJobRequest,
+    GetJobResponse,
     Job,
 )
 from feast.feature_set import FeatureSet, Entity
@@ -270,7 +270,7 @@ class Client:
             )
 
         if not batch:
-            return sellf.get_online_features(
+            return self.get_online_features(
                 entity_data, entity_dataset_rows, entity_names, feature_set_request
             )
 
