@@ -14,13 +14,16 @@
 
 
 import os
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from typing import Dict
 from typing import List
 
 import grpc
+import numpy as np
 import pandas as pd
 from google.cloud import storage
+from google.protobuf.duration_pb2 import Duration
+from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionRequest,
@@ -39,6 +42,7 @@ from feast.serving.ServingService_pb2 import (
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.type_map import pandas_value_to_proto_value, FEAST_VALUE_ATTR_TO_DTYPE
+from feast.types.Value_pb2 import Value
 
 GRPC_CONNECTION_TIMEOUT_DEFAULT = 5  # type: int
 GRPC_CONNECTION_TIMEOUT_APPLY = 300  # type: int
@@ -58,7 +62,8 @@ class Client:
         self.__serving_channel: grpc.Channel = None
         self._core_service_stub: CoreServiceStub = None
         self._serving_service_stub: ServingServiceStub = None
-        self._storage_client: storage.Client = None
+        # TODO: Do not instantiate storage_client here
+        self._storage_client: storage.Client = storage.Client()
 
     @property
     def core_url(self) -> str:
@@ -83,16 +88,6 @@ class Client:
     @serving_url.setter
     def serving_url(self, value: str):
         self._serving_url = value
-
-    @property
-    def storage_client(self) -> storage.Client:
-        if self.storage_client is not None:
-            return self.storage_client
-        return storage.Client()
-
-    @serving_url.setter
-    def serving_url(self, storage_client: storage.Client):
-        self._storage_client = storage_client
 
     def version(self):
         self._connect_core()
@@ -284,7 +279,117 @@ class Client:
                 entity_data, entity_dataset_rows, entity_names, feature_set_request
             )
 
-    def get_batch_features(self, feature_sets, entity_rows):
+    def get_batch_features(
+        self, feature_ids: List[str], entity_data: pd.DataFrame
+    ) -> Job:
+        """
+
+        Args:
+            feature_ids: List of feature id. Feature id is in this format
+                         "feature_set_name:version:feature_name".
+
+            entity_data: Pandas Dataframe representing the requested features.
+
+                         The first column must be named "datetime" with dtype
+                         "datetime64[ns]" or "datetime64[ns],UTC".
+
+                         Subsequent columns representing the entity ids requested
+                         must have the correct dtypes corresponding to the fields
+                         in the features set spec.
+
+                         Example dataframe:
+
+                         datetime   | entity_id_1 | entity_id_2
+                         --------------------------------------
+                         1570154927 | 89          | 23
+
+        Returns:
+            Feast batch retrieval job: feast.job.Job
+            
+        Example usage:
+        ============================================================
+        feast_client = Client(core_url="localhost:6565", serving_url="localhost:6566")
+        feature_ids = ["driver:1:city"]
+        entity_data = pd.DataFrame({"datetime": [datetime.utcnow()], "driver_id": [np.nan]})
+        feature_retrieval_job = feast_client.get_batch_features(feature_ids, entity_data)
+        df = feature_retrieval_job.to_dataframe()
+        print(df)
+        """
+
+        # We feature_set and entity_rows to construct a GetFeaturesRequest object
+        # and send it to Feast Serving GRPC server
+        feature_sets = []
+        entity_rows = []
+
+        # Dict of feature_set_name:version (fsv) -> list of feature_names (fn)
+        # This is a variable to help construct feature_sets
+        fsv_to_fns = defaultdict(list)
+
+        # TODO: Perform validation on the provided features_ids
+
+        for feature_id in feature_ids:
+            feature_set_name, version_str, feature_name = feature_id.split(":")
+            fsv_to_fns[f"{feature_set_name}:{version_str}"].append(feature_name)
+
+        # TODO: Do not harcode max_age but allow users to specify it in the parameters
+        hardcoded_max_age_sec = 604800  # 1 week
+
+        for fsv, feature_names in fsv_to_fns.items():
+            feature_set_name, version_str = fsv.split(":")
+            feature_sets.append(
+                GetFeaturesRequest.FeatureSet(
+                    name=feature_set_name,
+                    version=int(version_str),
+                    feature_names=feature_names,
+                    max_age=Duration(seconds=hardcoded_max_age_sec),
+                )
+            )
+
+        for index, row in entity_data.iterrows():
+            # Fields is a map of entity_id to Feast Value
+            fields = {}
+
+            # TODO: Support more dtypes
+
+            for entity_id, dtype in entity_data.dtypes.items():
+                if pd.isnull(row[entity_id]):
+                    # Handle unset i.e. np.nan value
+                    fields[entity_id] = Value()
+                elif entity_id == "datetime":
+                    continue
+                elif dtype == "int64":
+                    fields[entity_id] = Value(int64_val=row[entity_id])
+                elif dtype == "int32":
+                    fields[entity_id] = Value(int32_val=row[entity_id])
+                elif dtype == "object":
+                    fields[entity_id] = Value(string_val=row[entity_id])
+                elif dtype == "float64":
+                    fields[entity_id] = Value(float_val=row[entity_id])
+                else:
+                    raise Exception("Unsupported dtype for now: " + str(dtype))
+
+            entity_rows.append(
+                GetFeaturesRequest.EntityRow(
+                    entity_timestamp=Timestamp(
+                        seconds=np.datetime64(row.datetime).astype("int64") // 1000000
+                    ),
+                    fields=fields,
+                )
+            )
+
+        request = GetFeaturesRequest(feature_sets=feature_sets, entity_rows=entity_rows)
+
+        # TODO: Move this out from this method
+        if self._serving_service_stub is None:
+            self._serving_service_stub = channel = grpc.insecure_channel(
+                self.serving_url
+            )
+            self._serving_service_stub = ServingServiceStub(channel)
+
+        response = self._serving_service_stub.GetBatchFeatures(request)
+        return Job(response.job, self._serving_service_stub, self._storage_client)
+
+    def get_batch_features_old(self, feature_sets, entity_rows):
         request = GetFeaturesRequest(feature_sets=feature_sets, entity_rows=entity_rows)
         response = self._serving_service_stub.GetBatchFeatures(request)
         return Job(response.job, self._serving_service_stub, self._storage_client)
@@ -319,9 +424,9 @@ def _convert_to_proto_value_fn(dtypes: pd.core.generic.NDFrame):
     return convert_to_proto_value
 
 
+# TODO: Update the signature to updated protos
 def feature_data_sets_to_pandas_dataframe(
-    entity_data_set: pd.DataFrame,
-    feature_data_sets: List[GetOnlineFeaturesResponse.FeatureDataset],
+    entity_data_set: pd.DataFrame, feature_data_sets
 ):
     feature_data_set_dataframes = []
     for feature_data_set in feature_data_sets:
@@ -354,9 +459,8 @@ def join_feature_set_dataframes(
     )
 
 
-def feature_data_set_to_pandas_dataframe(
-    feature_data_set: GetOnlineFeaturesResponse.FeatureDataset
-) -> pd.DataFrame:
+# TODO: Update method signature to updated protos
+def feature_data_set_to_pandas_dataframe(feature_data_set) -> pd.DataFrame:
     feature_set_name = feature_data_set.name
     dtypes = {}
     value_attr = {}
