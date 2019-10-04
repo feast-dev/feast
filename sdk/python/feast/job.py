@@ -6,12 +6,12 @@ import pandas as pd
 from fastavro import reader as fastavro_reader
 from google.cloud import storage
 
+from feast.serving.ServingService_pb2 import GetJobRequest
 from feast.serving.ServingService_pb2 import (
     Job as JobProto,
     JOB_STATUS_DONE,
     DATA_FORMAT_AVRO,
 )
-from feast.serving.ServingService_pb2 import GetJobRequest
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 
 # TODO: Need to profile and check the performance and memory consumption of
@@ -30,7 +30,6 @@ class Job:
     A class representing a job for feature retrieval in Feast.
     """
 
-    # noinspection PyShadowingNames
     def __init__(
         self,
         job_proto: JobProto,
@@ -64,7 +63,7 @@ class Job:
 
     def result(self, timeout_sec: int = DEFAULT_TIMEOUT_SEC):
         """
-        Wait until job is done to get an iterable rows of result
+        Wait until job is done to get an iterable rows of result.
         The row can only represent an Avro row in Feast 0.3.
 
         Args:
@@ -116,7 +115,7 @@ class Job:
             timeout_sec: max no of seconds to wait until job is done. If "timeout_sec" is exceeded, an exception will be raised.
         Returns: pandas Dataframe of the feature values
         """
-        records = [r for r in self.result()]
+        records = [r for r in self.result(timeout_sec=timeout_sec)]
         return pd.DataFrame.from_records(records)
 
     def __iter__(self):
