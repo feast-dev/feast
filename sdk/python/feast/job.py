@@ -19,7 +19,8 @@ from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 #       data row by row.
 
 # Maximum no of seconds to wait until the jobs status is DONE in Feast
-DEFAULT_TIMEOUT_SEC: int = 86400
+# Currently set to the maximum query execution time limit in BigQuery
+DEFAULT_TIMEOUT_SEC: int = 21600
 
 # Maximum no of seconds to wait before reloading the job status in Feast
 MAX_WAIT_INTERVAL_SEC: int = 60
