@@ -38,6 +38,13 @@ public class ServingServiceConfig {
   }
 
   @Bean
+  public Store storeDefinition(FeastProperties feastProperties){
+    Store.newBuilder()
+        .setName(feastProperties.getStoreName())
+        .setType(feastProperties.get)
+  }
+
+  @Bean
   public ServingService servingService(
       FeastProperties feastProperties,
       SpecService specService,
