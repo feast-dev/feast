@@ -39,6 +39,10 @@ service CoreService {
 
     // Idempotent creation of feature set. Will not create a new feature set if schema does not change
     rpc ApplyFeatureSet (ApplyFeatureSetRequest) returns (ApplyFeatureSetResponse);
+
+    // UpdateStore updates core with the configuration of the store. If the changes are valid,
+    // core will return the given store configuration in response.
+    rpc UpdateStore(UpdateStoreRequest) returns (UpdateStoreResponse);
 }
 
 // Retrieves details for all versions of a specific feature set
@@ -93,4 +97,12 @@ message GetFeastCoreVersionRequest {}
 
 message GetFeastCoreVersionResponse {
     string version = 1;
+}
+
+message UpdateStoreRequest {
+    feast.core.Store store = 1;
+}
+
+message UpdateStoreResponse {
+    feast.core.Store store = 1;
 }

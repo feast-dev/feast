@@ -29,17 +29,19 @@ import feast.core.CoreServiceProto.GetFeatureSetsResponse;
 import feast.core.CoreServiceProto.GetStoresRequest;
 import feast.core.CoreServiceProto.GetStoresRequest.Filter;
 import feast.core.CoreServiceProto.GetStoresResponse;
+import feast.core.CoreServiceProto.UpdateStoreRequest;
+import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Subscription;
 import feast.core.exception.RetrievalException;
 import feast.core.service.JobCoordinatorService;
 import feast.core.service.SpecService;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -47,14 +49,19 @@ import org.lognet.springboot.grpc.GRpcService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Implementation of the feast core GRPC service. */
+/**
+ * Implementation of the feast core GRPC service.
+ */
 @Slf4j
 @GRpcService
 public class CoreServiceImpl extends CoreServiceImplBase {
 
-  @Autowired private SpecService specService;
-  @Autowired private StatsDClient statsDClient;
-  @Autowired private JobCoordinatorService jobCoordinatorService;
+  @Autowired
+  private SpecService specService;
+  @Autowired
+  private StatsDClient statsDClient;
+  @Autowired
+  private JobCoordinatorService jobCoordinatorService;
 
   @Override
   public void getFeastCoreVersion(
@@ -72,7 +79,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (RetrievalException | InvalidProtocolBufferException e) {
-      responseObserver.onError(getRuntimeException(e));
+      responseObserver.onError(e);
     }
   }
 
@@ -85,7 +92,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (RetrievalException e) {
-      responseObserver.onError(getRuntimeException(e));
+      responseObserver.onError(e);
     }
   }
 
@@ -124,17 +131,37 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (Exception e) {
-      responseObserver.onError(getRuntimeException(e));
+      responseObserver.onError(e);
     }
   }
 
-  private StatusRuntimeException getRuntimeException(Exception e) {
-    return new StatusRuntimeException(
-        Status.fromCode(Status.Code.INTERNAL).withDescription(e.getMessage()).withCause(e));
-  }
+  @Override
+  public void updateStore(UpdateStoreRequest request,
+      StreamObserver<UpdateStoreResponse> responseObserver) {
+    try {
+      UpdateStoreResponse response = specService.updateStore(request);
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
 
-  private StatusRuntimeException getBadRequestException(Exception e) {
-    return new StatusRuntimeException(
-        Status.fromCode(Status.Code.OUT_OF_RANGE).withDescription(e.getMessage()).withCause(e));
+      Set<FeatureSetSpec> featureSetSpecs = new HashSet<>();
+      Store store = response.getStore();
+      for (Subscription subscription : store.getSubscriptionsList()) {
+        featureSetSpecs.addAll(
+            specService.getFeatureSets(
+                GetFeatureSetsRequest.Filter.newBuilder()
+                    .setFeatureSetName(subscription.getName())
+                    .setFeatureSetVersion(subscription.getVersion())
+                    .build())
+                .getFeatureSetsList()
+        );
+      }
+      featureSetSpecs.stream()
+          .collect(Collectors.groupingBy(FeatureSetSpec::getName))
+          .entrySet()
+          .stream()
+          .forEach(kv -> jobCoordinatorService.startOrUpdateJob(kv.getValue(), store));
+    } catch (Exception e) {
+      responseObserver.onError(e);
+    }
   }
 }
