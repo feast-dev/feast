@@ -3,50 +3,50 @@
 
 ## Table of Contents
 
-- [feast/core/CoreService.proto](#feast/core/CoreService.proto)
-    - [ApplyFeatureSetRequest](#feast.core.ApplyFeatureSetRequest)
-    - [ApplyFeatureSetResponse](#feast.core.ApplyFeatureSetResponse)
-    - [GetFeastCoreVersionRequest](#feast.core.GetFeastCoreVersionRequest)
-    - [GetFeastCoreVersionResponse](#feast.core.GetFeastCoreVersionResponse)
-    - [GetFeatureSetsRequest](#feast.core.GetFeatureSetsRequest)
-    - [GetFeatureSetsRequest.Filter](#feast.core.GetFeatureSetsRequest.Filter)
-    - [GetFeatureSetsResponse](#feast.core.GetFeatureSetsResponse)
-    - [GetStoresRequest](#feast.core.GetStoresRequest)
-    - [GetStoresRequest.Filter](#feast.core.GetStoresRequest.Filter)
-    - [GetStoresResponse](#feast.core.GetStoresResponse)
+- [feast/core/CoreService.proto](#feast-core-coreservice-proto)
+    - [ApplyFeatureSetRequest](#feast-core-applyfeaturesetrequest)
+    - [ApplyFeatureSetResponse](#feast-core-applyfeaturesetresponse)
+    - [GetFeastCoreVersionRequest](#feast-core-getfeastcoreversionrequest)
+    - [GetFeastCoreVersionResponse](#feast-core-getfeastcoreversionresponse)
+    - [GetFeatureSetsRequest](#feast-core-getfeaturesetsrequest)
+    - [GetFeatureSetsRequest.Filter](#feast-core-getfeaturesetsrequest-filter)
+    - [GetFeatureSetsResponse](#feast-core-getfeaturesetsresponse)
+    - [GetStoresRequest](#feast-core-getstoresrequest)
+    - [GetStoresRequest.Filter](#feast-core-getstoresrequest-filter)
+    - [GetStoresResponse](#feast-core-getstoresresponse)
   
-    - [ApplyFeatureSetResponse.Status](#feast.core.ApplyFeatureSetResponse.Status)
-  
-  
-    - [CoreService](#feast.core.CoreService)
-  
-
-- [feast/core/FeatureSet.proto](#feast/core/FeatureSet.proto)
-    - [EntitySpec](#feast.core.EntitySpec)
-    - [FeatureSetSpec](#feast.core.FeatureSetSpec)
-    - [FeatureSpec](#feast.core.FeatureSpec)
+    - [ApplyFeatureSetResponse.Status](#feast-core-applyfeaturesetresponse-status)
   
   
-  
+    - [CoreService](#feast-core-coreservice)
   
 
-- [feast/core/Source.proto](#feast/core/Source.proto)
-    - [KafkaSourceConfig](#feast.core.KafkaSourceConfig)
-    - [Source](#feast.core.Source)
+- [feast/core/FeatureSet.proto](#feast-core-featureset-proto)
+    - [EntitySpec](#feast-core-entityspec)
+    - [FeatureSetSpec](#feast-core-featuresetspec)
+    - [FeatureSpec](#feast-core-featurespec)
   
-    - [SourceType](#feast.core.SourceType)
   
   
   
 
-- [feast/core/Store.proto](#feast/core/Store.proto)
-    - [Store](#feast.core.Store)
-    - [Store.BigQueryConfig](#feast.core.Store.BigQueryConfig)
-    - [Store.CassandraConfig](#feast.core.Store.CassandraConfig)
-    - [Store.RedisConfig](#feast.core.Store.RedisConfig)
-    - [Store.Subscription](#feast.core.Store.Subscription)
+- [feast/core/Source.proto](#feast-core-source-proto)
+    - [KafkaSourceConfig](#feast-core-kafkasourceconfig)
+    - [Source](#feast-core-source)
   
-    - [Store.StoreType](#feast.core.Store.StoreType)
+    - [SourceType](#feast-core-sourcetype)
+  
+  
+  
+
+- [feast/core/Store.proto](#feast-core-store-proto)
+    - [Store](#feast-core-store)
+    - [Store.BigQueryConfig](#feast-core-store-bigqueryconfig)
+    - [Store.CassandraConfig](#feast-core-store-cassandraconfig)
+    - [Store.RedisConfig](#feast-core-store-redisconfig)
+    - [Store.Subscription](#feast-core-store-subscription)
+  
+    - [Store.StoreType](#feast-core-store-storetype)
   
   
   
@@ -208,7 +208,7 @@ Retrieves details for all versions of a specific feature set
 
 
 
- 
+ <!-- end messages -->
 
 
 <a name="feast.core.ApplyFeatureSetResponse.Status"></a>
@@ -223,9 +223,9 @@ Retrieves details for all versions of a specific feature set
 | ERROR | 2 | Error occurred while trying to apply changes |
 
 
- 
+ <!-- end enums -->
 
- 
+ <!-- end HasExtensions -->
 
 
 <a name="feast.core.CoreService"></a>
@@ -240,7 +240,7 @@ Retrieves details for all versions of a specific feature set
 | GetStores | [GetStoresRequest](#feast.core.GetStoresRequest) | [GetStoresResponse](#feast.core.GetStoresResponse) | Retrieve store details given a filter. Returns all stores matching that filter. |
 | ApplyFeatureSet | [ApplyFeatureSetRequest](#feast.core.ApplyFeatureSetRequest) | [ApplyFeatureSetResponse](#feast.core.ApplyFeatureSetResponse) | Idempotent creation of feature set. Will not create a new feature set if schema does not change |
 
- 
+ <!-- end services -->
 
 
 
@@ -302,13 +302,13 @@ Retrieves details for all versions of a specific feature set
 
 
 
- 
+ <!-- end messages -->
 
- 
+ <!-- end enums -->
 
- 
+ <!-- end HasExtensions -->
 
- 
+ <!-- end services -->
 
 
 
@@ -350,7 +350,7 @@ Retrieves details for all versions of a specific feature set
 
 
 
- 
+ <!-- end messages -->
 
 
 <a name="feast.core.SourceType"></a>
@@ -364,11 +364,11 @@ Retrieves details for all versions of a specific feature set
 | KAFKA | 1 |  |
 
 
- 
+ <!-- end enums -->
 
- 
+ <!-- end HasExtensions -->
 
- 
+ <!-- end services -->
 
 
 
@@ -462,13 +462,13 @@ BigQuery but it will materialize as a key, value pair element in Redis.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | name | [string](#string) |  | Name of featureSet to subscribe to. |
-| version | [string](#string) |  | Versions of the given featureSet that will be ingested into this store. Valid options for version: latest: only subscribe to latest version of feature set [version number]: pin to a specific version &gt;[version number]: subscribe to all versions larger than or equal to [version number] |
+| version | [string](#string) |  | Versions of the given featureSet that will be ingested into this store. Valid options for version: latest: only subscribe to latest version of feature set [version number]: pin to a specific version >[version number]: subscribe to all versions larger than or equal to [version number] |
 
 
 
 
 
- 
+ <!-- end messages -->
 
 
 <a name="feast.core.Store.StoreType"></a>
@@ -488,7 +488,7 @@ Encodings: - key: byte array of RedisKey (refer to feast.storage.RedisKey) - val
 
 Table name is derived from the feature set name and version as: [feature_set_name]_v[feature_set_version] 
 
-For example: A feature row for feature set &#34;driver&#34; and version &#34;1&#34; will be written to table &#34;driver_v1&#34;.
+For example: A feature row for feature set "driver" and version "1" will be written to table "driver_v1".
 
 The entities and features in a FeatureSetSpec corresponds to the fields in the BigQuery table (these make up the BigQuery schema). The name of the entity spec and feature spec corresponds to the column names, and the value_type of entity spec and feature spec corresponds to BigQuery standard SQL data type of the column. 
 
@@ -496,7 +496,7 @@ The following BigQuery fields are reserved for Feast internal use. Ingestion of 
 
  column_name | column_data_type | description ====================|==================|================================ - event_timestamp | TIMESTAMP | event time of the FeatureRow - created_timestamp | TIMESTAMP | processing time of the ingestion of the FeatureRow - job_id | STRING | identifier for the job that writes the FeatureRow to the corresponding BigQuery table
 
-BigQuery table created will be partitioned by the field &#34;event_timestamp&#34; of the FeatureRow (https://cloud.google.com/bigquery/docs/partitioned-tables).
+BigQuery table created will be partitioned by the field "event_timestamp" of the FeatureRow (https://cloud.google.com/bigquery/docs/partitioned-tables).
 
 Since newer version of feature set can introduce breaking, non backward- compatible BigQuery schema updates, incrementing the version of a feature set will result in the creation of a new empty BigQuery table with the new schema.
 
@@ -504,15 +504,15 @@ The following table shows how ValueType in Feast is mapped to BigQuery Standard 
 
 BYTES : BYTES STRING : STRING INT32 : INT64 INT64 : IN64 DOUBLE : FLOAT64 FLOAT : FLOAT64 BOOL : BOOL BYTES_LIST : ARRAY STRING_LIST : ARRAY INT32_LIST : ARRAY INT64_LIST : ARRAY DOUBLE_LIST : ARRAY FLOAT_LIST : ARRAY BOOL_LIST : ARRAY
 
-The column mode in BigQuery is set to &#34;Nullable&#34; such that unset Value in a FeatureRow corresponds to NULL value in BigQuery. |
+The column mode in BigQuery is set to "Nullable" such that unset Value in a FeatureRow corresponds to NULL value in BigQuery. |
 | CASSANDRA | 3 | Unsupported in Feast 0.3 |
 
 
- 
+ <!-- end enums -->
 
- 
+ <!-- end HasExtensions -->
 
- 
+ <!-- end services -->
 
 
 
@@ -535,4 +535,3 @@ The column mode in BigQuery is set to &#34;Nullable&#34; such that unset Value i
 | <a name="bool" /> bool |  | bool | boolean | boolean |
 | <a name="string" /> string | A string must always contain UTF-8 encoded or 7-bit ASCII text. | string | String | str/unicode |
 | <a name="bytes" /> bytes | May contain any arbitrary sequence of bytes. | string | ByteString | str |
-

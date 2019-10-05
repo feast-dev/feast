@@ -3,41 +3,41 @@
 
 ## Table of Contents
 
-- [feast/types/FeatureRow.proto](#feast/types/FeatureRow.proto)
-    - [FeatureRow](#feast.types.FeatureRow)
+- [feast/types/FeatureRow.proto](#feast-types-featurerow-proto)
+    - [FeatureRow](#feast-types-featurerow)
   
   
   
   
 
-- [feast/types/FeatureRowExtended.proto](#feast/types/FeatureRowExtended.proto)
-    - [Attempt](#feast.types.Attempt)
-    - [Error](#feast.types.Error)
-    - [FeatureRowExtended](#feast.types.FeatureRowExtended)
+- [feast/types/FeatureRowExtended.proto](#feast-types-featurerowextended-proto)
+    - [Attempt](#feast-types-attempt)
+    - [Error](#feast-types-error)
+    - [FeatureRowExtended](#feast-types-featurerowextended)
   
   
   
   
 
-- [feast/types/Field.proto](#feast/types/Field.proto)
-    - [Field](#feast.types.Field)
+- [feast/types/Field.proto](#feast-types-field-proto)
+    - [Field](#feast-types-field)
   
   
   
   
 
-- [feast/types/Value.proto](#feast/types/Value.proto)
-    - [BoolList](#feast.types.BoolList)
-    - [BytesList](#feast.types.BytesList)
-    - [DoubleList](#feast.types.DoubleList)
-    - [FloatList](#feast.types.FloatList)
-    - [Int32List](#feast.types.Int32List)
-    - [Int64List](#feast.types.Int64List)
-    - [StringList](#feast.types.StringList)
-    - [Value](#feast.types.Value)
-    - [ValueType](#feast.types.ValueType)
+- [feast/types/Value.proto](#feast-types-value-proto)
+    - [BoolList](#feast-types-boollist)
+    - [BytesList](#feast-types-byteslist)
+    - [DoubleList](#feast-types-doublelist)
+    - [FloatList](#feast-types-floatlist)
+    - [Int32List](#feast-types-int32list)
+    - [Int64List](#feast-types-int64list)
+    - [StringList](#feast-types-stringlist)
+    - [Value](#feast-types-value)
+    - [ValueType](#feast-types-valuetype)
   
-    - [ValueType.Enum](#feast.types.ValueType.Enum)
+    - [ValueType.Enum](#feast-types-valuetype-enum)
   
   
   
@@ -69,13 +69,13 @@
 
 
 
- 
+ <!-- end messages -->
 
- 
+ <!-- end enums -->
 
- 
+ <!-- end HasExtensions -->
 
- 
+ <!-- end services -->
 
 
 
@@ -136,13 +136,13 @@
 
 
 
- 
+ <!-- end messages -->
 
- 
+ <!-- end enums -->
 
- 
+ <!-- end HasExtensions -->
 
- 
+ <!-- end services -->
 
 
 
@@ -168,13 +168,13 @@
 
 
 
- 
+ <!-- end messages -->
 
- 
+ <!-- end enums -->
 
- 
+ <!-- end HasExtensions -->
 
- 
+ <!-- end services -->
 
 
 
@@ -327,7 +327,7 @@
 
 
 
- 
+ <!-- end messages -->
 
 
 <a name="feast.types.ValueType.Enum"></a>
@@ -354,11 +354,11 @@
 | BOOL_LIST | 17 |  |
 
 
- 
+ <!-- end enums -->
 
- 
+ <!-- end HasExtensions -->
 
- 
+ <!-- end services -->
 
 
 
@@ -381,4 +381,3 @@
 | <a name="bool" /> bool |  | bool | boolean | boolean |
 | <a name="string" /> string | A string must always contain UTF-8 encoded or 7-bit ASCII text. | string | String | str/unicode |
 | <a name="bytes" /> bytes | May contain any arbitrary sequence of bytes. | string | ByteString | str |
-

@@ -3,8 +3,8 @@
 
 ## Table of Contents
 
-- [feast/storage/Redis.proto](#feast/storage/Redis.proto)
-    - [RedisKey](#feast.storage.RedisKey)
+- [feast/storage/Redis.proto](#feast-storage-redis-proto)
+    - [RedisKey](#feast-storage-rediskey)
   
   
   
@@ -37,13 +37,13 @@ Field number 1 is reserved for a future distributing hash if needed
 
 
 
- 
+ <!-- end messages -->
 
- 
+ <!-- end enums -->
 
- 
+ <!-- end HasExtensions -->
 
- 
+ <!-- end services -->
 
 
 
@@ -66,4 +66,3 @@ Field number 1 is reserved for a future distributing hash if needed
 | <a name="bool" /> bool |  | bool | boolean | boolean |
 | <a name="string" /> string | A string must always contain UTF-8 encoded or 7-bit ASCII text. | string | String | str/unicode |
 | <a name="bytes" /> bytes | May contain any arbitrary sequence of bytes. | string | ByteString | str |
-

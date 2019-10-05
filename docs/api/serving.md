@@ -3,30 +3,30 @@
 
 ## Table of Contents
 
-- [feast/serving/ServingService.proto](#feast/serving/ServingService.proto)
-    - [GetBatchFeaturesResponse](#feast.serving.GetBatchFeaturesResponse)
-    - [GetFeastServingTypeRequest](#feast.serving.GetFeastServingTypeRequest)
-    - [GetFeastServingTypeResponse](#feast.serving.GetFeastServingTypeResponse)
-    - [GetFeastServingVersionRequest](#feast.serving.GetFeastServingVersionRequest)
-    - [GetFeastServingVersionResponse](#feast.serving.GetFeastServingVersionResponse)
-    - [GetFeaturesRequest](#feast.serving.GetFeaturesRequest)
-    - [GetFeaturesRequest.EntityRow](#feast.serving.GetFeaturesRequest.EntityRow)
-    - [GetFeaturesRequest.EntityRow.FieldsEntry](#feast.serving.GetFeaturesRequest.EntityRow.FieldsEntry)
-    - [GetFeaturesRequest.FeatureSet](#feast.serving.GetFeaturesRequest.FeatureSet)
-    - [GetJobRequest](#feast.serving.GetJobRequest)
-    - [GetJobResponse](#feast.serving.GetJobResponse)
-    - [GetOnlineFeaturesResponse](#feast.serving.GetOnlineFeaturesResponse)
-    - [GetOnlineFeaturesResponse.FieldValues](#feast.serving.GetOnlineFeaturesResponse.FieldValues)
-    - [GetOnlineFeaturesResponse.FieldValues.FieldsEntry](#feast.serving.GetOnlineFeaturesResponse.FieldValues.FieldsEntry)
-    - [Job](#feast.serving.Job)
+- [feast/serving/ServingService.proto](#feast-serving-servingservice-proto)
+    - [GetBatchFeaturesResponse](#feast-serving-getbatchfeaturesresponse)
+    - [GetFeastServingTypeRequest](#feast-serving-getfeastservingtyperequest)
+    - [GetFeastServingTypeResponse](#feast-serving-getfeastservingtyperesponse)
+    - [GetFeastServingVersionRequest](#feast-serving-getfeastservingversionrequest)
+    - [GetFeastServingVersionResponse](#feast-serving-getfeastservingversionresponse)
+    - [GetFeaturesRequest](#feast-serving-getfeaturesrequest)
+    - [GetFeaturesRequest.EntityRow](#feast-serving-getfeaturesrequest-entityrow)
+    - [GetFeaturesRequest.EntityRow.FieldsEntry](#feast-serving-getfeaturesrequest-entityrow-fieldsentry)
+    - [GetFeaturesRequest.FeatureSet](#feast-serving-getfeaturesrequest-featureset)
+    - [GetJobRequest](#feast-serving-getjobrequest)
+    - [GetJobResponse](#feast-serving-getjobresponse)
+    - [GetOnlineFeaturesResponse](#feast-serving-getonlinefeaturesresponse)
+    - [GetOnlineFeaturesResponse.FieldValues](#feast-serving-getonlinefeaturesresponse-fieldvalues)
+    - [GetOnlineFeaturesResponse.FieldValues.FieldsEntry](#feast-serving-getonlinefeaturesresponse-fieldvalues-fieldsentry)
+    - [Job](#feast-serving-job)
   
-    - [DataFormat](#feast.serving.DataFormat)
-    - [FeastServingType](#feast.serving.FeastServingType)
-    - [JobStatus](#feast.serving.JobStatus)
-    - [JobType](#feast.serving.JobType)
+    - [DataFormat](#feast-serving-dataformat)
+    - [FeastServingType](#feast-serving-feastservingtype)
+    - [JobStatus](#feast-serving-jobstatus)
+    - [JobType](#feast-serving-jobtype)
   
   
-    - [ServingService](#feast.serving.ServingService)
+    - [ServingService](#feast-serving-servingservice)
   
 
 - [Scalar Value Types](#scalar-value-types)
@@ -164,7 +164,7 @@
 | name | [string](#string) |  | Feature set name |
 | version | [int32](#int32) |  | Feature set version |
 | feature_names | [string](#string) | repeated | Features that should be retrieved from this feature set |
-| max_age | [google.protobuf.Duration](#google.protobuf.Duration) |  | The features will be retrieved if: entity_timestamp - max_age &lt;= event_timestamp &lt;= entity_timestamp
+| max_age | [google.protobuf.Duration](#google.protobuf.Duration) |  | The features will be retrieved if: entity_timestamp - max_age <= event_timestamp <= entity_timestamp
 
 If unspecified the default max_age specified in FeatureSetSpec will be used. |
 
@@ -269,7 +269,7 @@ does not include timestamp, includes features and entities
 
 
 
- 
+ <!-- end messages -->
 
 
 <a name="feast.serving.DataFormat"></a>
@@ -325,9 +325,9 @@ does not include timestamp, includes features and entities
 | JOB_TYPE_DOWNLOAD | 1 |  |
 
 
- 
+ <!-- end enums -->
 
- 
+ <!-- end HasExtensions -->
 
 
 <a name="feast.serving.ServingService"></a>
@@ -345,7 +345,7 @@ does not include timestamp, includes features and entities
 The client should check the status of the returned job periodically by calling ReloadJob to determine if the job has completed successfully or with an error. If the job completes successfully i.e. status = JOB_STATUS_DONE with no error, then the client can check the file_uris for the location to download feature values data. The client is assumed to have access to these file URIs. |
 | GetJob | [GetJobRequest](#feast.serving.GetJobRequest) | [GetJobResponse](#feast.serving.GetJobResponse) | Get the latest job status for batch feature retrieval. |
 
- 
+ <!-- end services -->
 
 
 
@@ -368,4 +368,3 @@ The client should check the status of the returned job periodically by calling R
 | <a name="bool" /> bool |  | bool | boolean | boolean |
 | <a name="string" /> string | A string must always contain UTF-8 encoded or 7-bit ASCII text. | string | String | str/unicode |
 | <a name="bytes" /> bytes | May contain any arbitrary sequence of bytes. | string | ByteString | str |
-
