@@ -55,14 +55,14 @@
 
 
 
-<a name="feast/core/CoreService.proto"></a>
+<a name="feast-core-coreservice-proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
 ## feast/core/CoreService.proto
 
 
 
-<a name="feast.core.ApplyFeatureSetRequest"></a>
+<a name="feast-core-applyfeaturesetrequest"></a>
 
 ### ApplyFeatureSetRequest
 
@@ -77,7 +77,7 @@
 
 
 
-<a name="feast.core.ApplyFeatureSetResponse"></a>
+<a name="feast-core-applyfeaturesetresponse"></a>
 
 ### ApplyFeatureSetResponse
 
@@ -93,7 +93,7 @@
 
 
 
-<a name="feast.core.GetFeastCoreVersionRequest"></a>
+<a name="feast-core-getfeastcoreversionrequest"></a>
 
 ### GetFeastCoreVersionRequest
 
@@ -103,7 +103,7 @@
 
 
 
-<a name="feast.core.GetFeastCoreVersionResponse"></a>
+<a name="feast-core-getfeastcoreversionresponse"></a>
 
 ### GetFeastCoreVersionResponse
 
@@ -118,7 +118,7 @@
 
 
 
-<a name="feast.core.GetFeatureSetsRequest"></a>
+<a name="feast-core-getfeaturesetsrequest"></a>
 
 ### GetFeatureSetsRequest
 Retrieves details for all versions of a specific feature set
@@ -133,7 +133,7 @@ Retrieves details for all versions of a specific feature set
 
 
 
-<a name="feast.core.GetFeatureSetsRequest.Filter"></a>
+<a name="feast-core-getfeaturesetsrequest-filter"></a>
 
 ### GetFeatureSetsRequest.Filter
 
@@ -149,7 +149,7 @@ Retrieves details for all versions of a specific feature set
 
 
 
-<a name="feast.core.GetFeatureSetsResponse"></a>
+<a name="feast-core-getfeaturesetsresponse"></a>
 
 ### GetFeatureSetsResponse
 
@@ -164,7 +164,7 @@ Retrieves details for all versions of a specific feature set
 
 
 
-<a name="feast.core.GetStoresRequest"></a>
+<a name="feast-core-getstoresrequest"></a>
 
 ### GetStoresRequest
 
@@ -179,7 +179,7 @@ Retrieves details for all versions of a specific feature set
 
 
 
-<a name="feast.core.GetStoresRequest.Filter"></a>
+<a name="feast-core-getstoresrequest-filter"></a>
 
 ### GetStoresRequest.Filter
 
@@ -194,7 +194,7 @@ Retrieves details for all versions of a specific feature set
 
 
 
-<a name="feast.core.GetStoresResponse"></a>
+<a name="feast-core-getstoresresponse"></a>
 
 ### GetStoresResponse
 
@@ -211,7 +211,7 @@ Retrieves details for all versions of a specific feature set
  <!-- end messages -->
 
 
-<a name="feast.core.ApplyFeatureSetResponse.Status"></a>
+<a name="feast-core-applyfeaturesetresponse-status"></a>
 
 ### ApplyFeatureSetResponse.Status
 
@@ -244,14 +244,14 @@ Retrieves details for all versions of a specific feature set
 
 
 
-<a name="feast/core/FeatureSet.proto"></a>
+<a name="feast-core-featureset-proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
 ## feast/core/FeatureSet.proto
 
 
 
-<a name="feast.core.EntitySpec"></a>
+<a name="feast-core-entityspec"></a>
 
 ### EntitySpec
 
@@ -267,7 +267,7 @@ Retrieves details for all versions of a specific feature set
 
 
 
-<a name="feast.core.FeatureSetSpec"></a>
+<a name="feast-core-featuresetspec"></a>
 
 ### FeatureSetSpec
 
@@ -287,7 +287,7 @@ Retrieves details for all versions of a specific feature set
 
 
 
-<a name="feast.core.FeatureSpec"></a>
+<a name="feast-core-featurespec"></a>
 
 ### FeatureSpec
 
@@ -312,14 +312,14 @@ Retrieves details for all versions of a specific feature set
 
 
 
-<a name="feast/core/Source.proto"></a>
+<a name="feast-core-source-proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
 ## feast/core/Source.proto
 
 
 
-<a name="feast.core.KafkaSourceConfig"></a>
+<a name="feast-core-kafkasourceconfig"></a>
 
 ### KafkaSourceConfig
 
@@ -335,7 +335,7 @@ Retrieves details for all versions of a specific feature set
 
 
 
-<a name="feast.core.Source"></a>
+<a name="feast-core-source"></a>
 
 ### Source
 
@@ -353,7 +353,7 @@ Retrieves details for all versions of a specific feature set
  <!-- end messages -->
 
 
-<a name="feast.core.SourceType"></a>
+<a name="feast-core-sourcetype"></a>
 
 ### SourceType
 
@@ -372,14 +372,14 @@ Retrieves details for all versions of a specific feature set
 
 
 
-<a name="feast/core/Store.proto"></a>
+<a name="feast-core-store-proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
 ## feast/core/Store.proto
 
 
 
-<a name="feast.core.Store"></a>
+<a name="feast-core-store"></a>
 
 ### Store
 Store provides a location where Feast reads and writes feature values.
@@ -405,7 +405,7 @@ BigQuery but it will materialize as a key, value pair element in Redis.
 
 
 
-<a name="feast.core.Store.BigQueryConfig"></a>
+<a name="feast-core-store-bigqueryconfig"></a>
 
 ### Store.BigQueryConfig
 
@@ -421,7 +421,7 @@ BigQuery but it will materialize as a key, value pair element in Redis.
 
 
 
-<a name="feast.core.Store.CassandraConfig"></a>
+<a name="feast-core-store-cassandraconfig"></a>
 
 ### Store.CassandraConfig
 
@@ -437,7 +437,7 @@ BigQuery but it will materialize as a key, value pair element in Redis.
 
 
 
-<a name="feast.core.Store.RedisConfig"></a>
+<a name="feast-core-store-redisconfig"></a>
 
 ### Store.RedisConfig
 
@@ -453,7 +453,7 @@ BigQuery but it will materialize as a key, value pair element in Redis.
 
 
 
-<a name="feast.core.Store.Subscription"></a>
+<a name="feast-core-store-subscription"></a>
 
 ### Store.Subscription
 
@@ -471,7 +471,7 @@ BigQuery but it will materialize as a key, value pair element in Redis.
  <!-- end messages -->
 
 
-<a name="feast.core.Store.StoreType"></a>
+<a name="feast-core-store-storetype"></a>
 
 ### Store.StoreType
 

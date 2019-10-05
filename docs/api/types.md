@@ -46,14 +46,14 @@
 
 
 
-<a name="feast/types/FeatureRow.proto"></a>
+<a name="feast-types-featurerow-proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
 ## feast/types/FeatureRow.proto
 
 
 
-<a name="feast.types.FeatureRow"></a>
+<a name="feast-types-featurerow"></a>
 
 ### FeatureRow
 
@@ -79,14 +79,14 @@
 
 
 
-<a name="feast/types/FeatureRowExtended.proto"></a>
+<a name="feast-types-featurerowextended-proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
 ## feast/types/FeatureRowExtended.proto
 
 
 
-<a name="feast.types.Attempt"></a>
+<a name="feast-types-attempt"></a>
 
 ### Attempt
 
@@ -102,7 +102,7 @@
 
 
 
-<a name="feast.types.Error"></a>
+<a name="feast-types-error"></a>
 
 ### Error
 
@@ -120,7 +120,7 @@
 
 
 
-<a name="feast.types.FeatureRowExtended"></a>
+<a name="feast-types-featurerowextended"></a>
 
 ### FeatureRowExtended
 
@@ -146,14 +146,14 @@
 
 
 
-<a name="feast/types/Field.proto"></a>
+<a name="feast-types-field-proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
 ## feast/types/Field.proto
 
 
 
-<a name="feast.types.Field"></a>
+<a name="feast-types-field"></a>
 
 ### Field
 
@@ -178,14 +178,14 @@
 
 
 
-<a name="feast/types/Value.proto"></a>
+<a name="feast-types-value-proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
 ## feast/types/Value.proto
 
 
 
-<a name="feast.types.BoolList"></a>
+<a name="feast-types-boollist"></a>
 
 ### BoolList
 
@@ -200,7 +200,7 @@
 
 
 
-<a name="feast.types.BytesList"></a>
+<a name="feast-types-byteslist"></a>
 
 ### BytesList
 
@@ -215,7 +215,7 @@
 
 
 
-<a name="feast.types.DoubleList"></a>
+<a name="feast-types-doublelist"></a>
 
 ### DoubleList
 
@@ -230,7 +230,7 @@
 
 
 
-<a name="feast.types.FloatList"></a>
+<a name="feast-types-floatlist"></a>
 
 ### FloatList
 
@@ -245,7 +245,7 @@
 
 
 
-<a name="feast.types.Int32List"></a>
+<a name="feast-types-int32list"></a>
 
 ### Int32List
 
@@ -260,7 +260,7 @@
 
 
 
-<a name="feast.types.Int64List"></a>
+<a name="feast-types-int64list"></a>
 
 ### Int64List
 
@@ -275,7 +275,7 @@
 
 
 
-<a name="feast.types.StringList"></a>
+<a name="feast-types-stringlist"></a>
 
 ### StringList
 
@@ -290,7 +290,7 @@
 
 
 
-<a name="feast.types.Value"></a>
+<a name="feast-types-value"></a>
 
 ### Value
 
@@ -318,7 +318,7 @@
 
 
 
-<a name="feast.types.ValueType"></a>
+<a name="feast-types-valuetype"></a>
 
 ### ValueType
 
@@ -330,7 +330,7 @@
  <!-- end messages -->
 
 
-<a name="feast.types.ValueType.Enum"></a>
+<a name="feast-types-valuetype-enum"></a>
 
 ### ValueType.Enum
 

@@ -33,14 +33,14 @@
 
 
 
-<a name="feast/serving/ServingService.proto"></a>
+<a name="feast-serving-servingservice-proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
 ## feast/serving/ServingService.proto
 
 
 
-<a name="feast.serving.GetBatchFeaturesResponse"></a>
+<a name="feast-serving-getbatchfeaturesresponse"></a>
 
 ### GetBatchFeaturesResponse
 
@@ -55,7 +55,7 @@
 
 
 
-<a name="feast.serving.GetFeastServingTypeRequest"></a>
+<a name="feast-serving-getfeastservingtyperequest"></a>
 
 ### GetFeastServingTypeRequest
 
@@ -65,7 +65,7 @@
 
 
 
-<a name="feast.serving.GetFeastServingTypeResponse"></a>
+<a name="feast-serving-getfeastservingtyperesponse"></a>
 
 ### GetFeastServingTypeResponse
 
@@ -80,7 +80,7 @@
 
 
 
-<a name="feast.serving.GetFeastServingVersionRequest"></a>
+<a name="feast-serving-getfeastservingversionrequest"></a>
 
 ### GetFeastServingVersionRequest
 
@@ -90,7 +90,7 @@
 
 
 
-<a name="feast.serving.GetFeastServingVersionResponse"></a>
+<a name="feast-serving-getfeastservingversionresponse"></a>
 
 ### GetFeastServingVersionResponse
 
@@ -105,7 +105,7 @@
 
 
 
-<a name="feast.serving.GetFeaturesRequest"></a>
+<a name="feast-serving-getfeaturesrequest"></a>
 
 ### GetFeaturesRequest
 
@@ -121,7 +121,7 @@
 
 
 
-<a name="feast.serving.GetFeaturesRequest.EntityRow"></a>
+<a name="feast-serving-getfeaturesrequest-entityrow"></a>
 
 ### GetFeaturesRequest.EntityRow
 
@@ -137,7 +137,7 @@
 
 
 
-<a name="feast.serving.GetFeaturesRequest.EntityRow.FieldsEntry"></a>
+<a name="feast-serving-getfeaturesrequest-entityrow-fieldsentry"></a>
 
 ### GetFeaturesRequest.EntityRow.FieldsEntry
 
@@ -153,7 +153,7 @@
 
 
 
-<a name="feast.serving.GetFeaturesRequest.FeatureSet"></a>
+<a name="feast-serving-getfeaturesrequest-featureset"></a>
 
 ### GetFeaturesRequest.FeatureSet
 
@@ -173,7 +173,7 @@ If unspecified the default max_age specified in FeatureSetSpec will be used. |
 
 
 
-<a name="feast.serving.GetJobRequest"></a>
+<a name="feast-serving-getjobrequest"></a>
 
 ### GetJobRequest
 
@@ -188,7 +188,7 @@ If unspecified the default max_age specified in FeatureSetSpec will be used. |
 
 
 
-<a name="feast.serving.GetJobResponse"></a>
+<a name="feast-serving-getjobresponse"></a>
 
 ### GetJobResponse
 
@@ -203,7 +203,7 @@ If unspecified the default max_age specified in FeatureSetSpec will be used. |
 
 
 
-<a name="feast.serving.GetOnlineFeaturesResponse"></a>
+<a name="feast-serving-getonlinefeaturesresponse"></a>
 
 ### GetOnlineFeaturesResponse
 
@@ -218,7 +218,7 @@ If unspecified the default max_age specified in FeatureSetSpec will be used. |
 
 
 
-<a name="feast.serving.GetOnlineFeaturesResponse.FieldValues"></a>
+<a name="feast-serving-getonlinefeaturesresponse-fieldvalues"></a>
 
 ### GetOnlineFeaturesResponse.FieldValues
 TODO: update this comment
@@ -234,7 +234,7 @@ does not include timestamp, includes features and entities
 
 
 
-<a name="feast.serving.GetOnlineFeaturesResponse.FieldValues.FieldsEntry"></a>
+<a name="feast-serving-getonlinefeaturesresponse-fieldvalues-fieldsentry"></a>
 
 ### GetOnlineFeaturesResponse.FieldValues.FieldsEntry
 
@@ -250,7 +250,7 @@ does not include timestamp, includes features and entities
 
 
 
-<a name="feast.serving.Job"></a>
+<a name="feast-serving-job"></a>
 
 ### Job
 
@@ -272,7 +272,7 @@ does not include timestamp, includes features and entities
  <!-- end messages -->
 
 
-<a name="feast.serving.DataFormat"></a>
+<a name="feast-serving-dataformat"></a>
 
 ### DataFormat
 
@@ -287,7 +287,7 @@ does not include timestamp, includes features and entities
 
 
 
-<a name="feast.serving.FeastServingType"></a>
+<a name="feast-serving-feastservingtype"></a>
 
 ### FeastServingType
 
@@ -300,7 +300,7 @@ does not include timestamp, includes features and entities
 
 
 
-<a name="feast.serving.JobStatus"></a>
+<a name="feast-serving-jobstatus"></a>
 
 ### JobStatus
 
@@ -314,7 +314,7 @@ does not include timestamp, includes features and entities
 
 
 
-<a name="feast.serving.JobType"></a>
+<a name="feast-serving-jobtype"></a>
 
 ### JobType
 

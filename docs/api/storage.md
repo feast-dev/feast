@@ -14,14 +14,14 @@
 
 
 
-<a name="feast/storage/Redis.proto"></a>
+<a name="feast-storage-redis-proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
 ## feast/storage/Redis.proto
 
 
 
-<a name="feast.storage.RedisKey"></a>
+<a name="feast-storage-rediskey"></a>
 
 ### RedisKey
 Field number 1 is reserved for a future distributing hash if needed
