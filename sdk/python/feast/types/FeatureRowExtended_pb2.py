@@ -172,25 +172,25 @@ DESCRIPTOR.message_types_by_name['Attempt'] = _ATTEMPT
 DESCRIPTOR.message_types_by_name['FeatureRowExtended'] = _FEATUREROWEXTENDED
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-Error = _reflection.GeneratedProtocolMessageType('Error', (_message.Message,), dict(
-  DESCRIPTOR = _ERROR,
-  __module__ = 'feast.types.FeatureRowExtended_pb2'
+Error = _reflection.GeneratedProtocolMessageType('Error', (_message.Message,), {
+  'DESCRIPTOR' : _ERROR,
+  '__module__' : 'feast.types.FeatureRowExtended_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.Error)
-  ))
+  })
 _sym_db.RegisterMessage(Error)
 
-Attempt = _reflection.GeneratedProtocolMessageType('Attempt', (_message.Message,), dict(
-  DESCRIPTOR = _ATTEMPT,
-  __module__ = 'feast.types.FeatureRowExtended_pb2'
+Attempt = _reflection.GeneratedProtocolMessageType('Attempt', (_message.Message,), {
+  'DESCRIPTOR' : _ATTEMPT,
+  '__module__' : 'feast.types.FeatureRowExtended_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.Attempt)
-  ))
+  })
 _sym_db.RegisterMessage(Attempt)
 
-FeatureRowExtended = _reflection.GeneratedProtocolMessageType('FeatureRowExtended', (_message.Message,), dict(
-  DESCRIPTOR = _FEATUREROWEXTENDED,
-  __module__ = 'feast.types.FeatureRowExtended_pb2'
+FeatureRowExtended = _reflection.GeneratedProtocolMessageType('FeatureRowExtended', (_message.Message,), {
+  'DESCRIPTOR' : _FEATUREROWEXTENDED,
+  '__module__' : 'feast.types.FeatureRowExtended_pb2'
   # @@protoc_insertion_point(class_scope:feast.types.FeatureRowExtended)
-  ))
+  })
 _sym_db.RegisterMessage(FeatureRowExtended)
 
 
