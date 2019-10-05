@@ -7,7 +7,3 @@
   * [Protocol Documentation](api/types.md)
   * [Protocol Documentation](api/core.md)
 
-## tutorials
-
-* [Testing Git Sync](tutorials/testing-git-sync.md)
-
