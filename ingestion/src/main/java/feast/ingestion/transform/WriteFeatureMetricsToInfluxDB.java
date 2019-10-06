@@ -148,6 +148,7 @@ public class WriteFeatureMetricsToInfluxDB
                               .addField("value_mean", statsForValue.getAverage())
                               .addField("value_min", statsForValue.getMin())
                               .addField("value_max", statsForValue.getMax())
+                              .addField("value_count", statsForValue.getCount())
                               .tag("feature_id", featureId)
                               .tag("entity_name", entityName)
                               .build());
