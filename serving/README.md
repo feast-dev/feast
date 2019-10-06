@@ -9,10 +9,8 @@ Run the following maven command to start Feast Serving GRPC service running on p
 ```bash
 # Assumptions: 
 # - Local Feast Core is running on localhost:6565
-# - A store named "SERVING" has been registered in Feast
 mvn spring-boot:run -Dspring-boot.run.arguments=\
---feast.jobs-staging-location=file=/tmp/feast-staging-location,\
---feast.store-name=SERVING,\
+--feast.store.config-path=./sample_redis_config.yml,\
 --feast.core-host=localhost,\
 --feast.core-port=6565
 ```

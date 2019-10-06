@@ -23,24 +23,23 @@ public class FeastProperties {
 
   @Setter
   @Getter
-  private static class StoreProperties {
-    private String name;
-    private String type;
-    private Map<String, String> options;
+  public static class StoreProperties {
+    private String configPath;
     private int redisPoolMaxSize;
     private int redisPoolMaxIdle;
   }
 
   @Setter
   @Getter
-  private static class JobProperties {
+  public static class JobProperties {
     private String stagingLocation;
-    private StoreProperties store;
+    private String storeType;
+    private Map<String, String> storeOptions;
   }
 
   @Setter
   @Getter
-  private static class TracingProperties {
+  public static class TracingProperties {
     private boolean enabled;
     private String tracerName;
     private String serviceName;

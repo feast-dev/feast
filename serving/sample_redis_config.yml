@@ -1,4 +1,4 @@
-name: test
+name: serving
 type: REDIS
 redis_config:
   host: localhost
@@ -6,5 +6,3 @@ redis_config:
 subscriptions:
 - name: .*
   version: ">0"
-- name: new
-  version: 1

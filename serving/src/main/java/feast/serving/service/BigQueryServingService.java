@@ -11,8 +11,6 @@ import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobListOption;
 import com.google.common.collect.Lists;
-import feast.core.CoreServiceProto.GetFeatureSetsRequest;
-import feast.core.CoreServiceProto.GetFeatureSetsRequest.Filter;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.serving.ServingAPIProto;
 import feast.serving.ServingAPIProto.DataFormat;
@@ -38,10 +36,11 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class BigQueryServingService implements ServingService {
+
   private final BigQuery bigquery;
   private final String projectId;
   private final String datasetId;
-  private final SpecService specService;
+  private final CachedSpecService specService;
   private final JobService jobService;
   private final String jobStagingLocation;
   private final Storage storage;
@@ -50,7 +49,7 @@ public class BigQueryServingService implements ServingService {
       BigQuery bigquery,
       String projectId,
       String datasetId,
-      SpecService specService,
+      CachedSpecService specService,
       JobService jobService,
       String jobStagingLocation,
       Storage storage) {
@@ -82,18 +81,9 @@ public class BigQueryServingService implements ServingService {
 
     List<FeatureSetSpec> featureSetSpecs =
         getFeaturesRequest.getFeatureSetsList().stream()
-            .map(
-                featureSet ->
-                    specService.getFeatureSets(
-                        GetFeatureSetsRequest.newBuilder()
-                            .setFilter(
-                                Filter.newBuilder()
-                                    .setFeatureSetName(featureSet.getName())
-                                    .setFeatureSetVersion(String.valueOf(featureSet.getVersion()))
-                                    .build())
-                            .build()))
-            .filter(response -> response.getFeatureSetsList().size() >= 1)
-            .map(response -> response.getFeatureSetsList().get(0))
+            .map(featureSet ->
+                specService.getFeatureSet(featureSet.getName(), featureSet.getVersion())
+            )
             .collect(Collectors.toList());
 
     if (getFeaturesRequest.getFeatureSetsList().size() != featureSetSpecs.size()) {
@@ -139,82 +129,82 @@ public class BigQueryServingService implements ServingService {
     jobService.upsert(feastJob);
 
     new Thread(
-            () -> {
-              QueryJobConfiguration queryConfig;
-              Job queryJob;
+        () -> {
+          QueryJobConfiguration queryConfig;
+          Job queryJob;
 
-              try {
-                queryConfig =
-                    QueryJobConfiguration.newBuilder(query)
-                        .setDefaultDataset(DatasetId.of(projectId, datasetId))
-                        .build();
-                queryJob = bigquery.create(JobInfo.of(queryConfig));
-                jobService.upsert(
-                    ServingAPIProto.Job.newBuilder()
-                        .setId(feastJobId)
-                        .setType(JobType.JOB_TYPE_DOWNLOAD)
-                        .setStatus(JobStatus.JOB_STATUS_RUNNING)
-                        .build());
-                queryJob.waitFor();
-              } catch (BigQueryException | InterruptedException e) {
-                jobService.upsert(
-                    ServingAPIProto.Job.newBuilder()
-                        .setId(feastJobId)
-                        .setType(JobType.JOB_TYPE_DOWNLOAD)
-                        .setStatus(JobStatus.JOB_STATUS_DONE)
-                        .setError(e.getMessage())
-                        .build());
-                return;
-              }
+          try {
+            queryConfig =
+                QueryJobConfiguration.newBuilder(query)
+                    .setDefaultDataset(DatasetId.of(projectId, datasetId))
+                    .build();
+            queryJob = bigquery.create(JobInfo.of(queryConfig));
+            jobService.upsert(
+                ServingAPIProto.Job.newBuilder()
+                    .setId(feastJobId)
+                    .setType(JobType.JOB_TYPE_DOWNLOAD)
+                    .setStatus(JobStatus.JOB_STATUS_RUNNING)
+                    .build());
+            queryJob.waitFor();
+          } catch (BigQueryException | InterruptedException e) {
+            jobService.upsert(
+                ServingAPIProto.Job.newBuilder()
+                    .setId(feastJobId)
+                    .setType(JobType.JOB_TYPE_DOWNLOAD)
+                    .setStatus(JobStatus.JOB_STATUS_DONE)
+                    .setError(e.getMessage())
+                    .build());
+            return;
+          }
 
-              try {
-                queryConfig = queryJob.getConfiguration();
-                String exportTableDestinationUri =
-                    String.format("%s/%s/*.avro", jobStagingLocation, feastJobId);
+          try {
+            queryConfig = queryJob.getConfiguration();
+            String exportTableDestinationUri =
+                String.format("%s/%s/*.avro", jobStagingLocation, feastJobId);
 
-                // Hardcode the format to Avro for now
-                ExtractJobConfiguration extractConfig =
-                    ExtractJobConfiguration.of(
-                        queryConfig.getDestinationTable(), exportTableDestinationUri, "Avro");
-                Job extractJob = bigquery.create(JobInfo.of(extractConfig));
-                extractJob.waitFor();
-              } catch (BigQueryException | InterruptedException e) {
-                jobService.upsert(
-                    ServingAPIProto.Job.newBuilder()
-                        .setId(feastJobId)
-                        .setType(JobType.JOB_TYPE_DOWNLOAD)
-                        .setStatus(JobStatus.JOB_STATUS_DONE)
-                        .setError(e.getMessage())
-                        .build());
-                return;
-              }
+            // Hardcode the format to Avro for now
+            ExtractJobConfiguration extractConfig =
+                ExtractJobConfiguration.of(
+                    queryConfig.getDestinationTable(), exportTableDestinationUri, "Avro");
+            Job extractJob = bigquery.create(JobInfo.of(extractConfig));
+            extractJob.waitFor();
+          } catch (BigQueryException | InterruptedException e) {
+            jobService.upsert(
+                ServingAPIProto.Job.newBuilder()
+                    .setId(feastJobId)
+                    .setType(JobType.JOB_TYPE_DOWNLOAD)
+                    .setStatus(JobStatus.JOB_STATUS_DONE)
+                    .setError(e.getMessage())
+                    .build());
+            return;
+          }
 
-              String scheme = jobStagingLocation.substring(0, jobStagingLocation.indexOf("://"));
-              String stagingLocationNoScheme =
-                  jobStagingLocation.substring(jobStagingLocation.indexOf("://") + 3);
-              String bucket = stagingLocationNoScheme.split("/")[0];
-              List<String> prefixParts = new ArrayList<>();
-              prefixParts.add(
-                  stagingLocationNoScheme.contains("/") && !stagingLocationNoScheme.endsWith("/")
-                      ? stagingLocationNoScheme.substring(stagingLocationNoScheme.indexOf("/") + 1)
-                      : "");
-              prefixParts.add(feastJobId);
-              String prefix = String.join("/", prefixParts) + "/";
+          String scheme = jobStagingLocation.substring(0, jobStagingLocation.indexOf("://"));
+          String stagingLocationNoScheme =
+              jobStagingLocation.substring(jobStagingLocation.indexOf("://") + 3);
+          String bucket = stagingLocationNoScheme.split("/")[0];
+          List<String> prefixParts = new ArrayList<>();
+          prefixParts.add(
+              stagingLocationNoScheme.contains("/") && !stagingLocationNoScheme.endsWith("/")
+                  ? stagingLocationNoScheme.substring(stagingLocationNoScheme.indexOf("/") + 1)
+                  : "");
+          prefixParts.add(feastJobId);
+          String prefix = String.join("/", prefixParts) + "/";
 
-              List<String> fileUris = new ArrayList<>();
-              for (Blob blob : storage.list(bucket, BlobListOption.prefix(prefix)).iterateAll()) {
-                fileUris.add(String.format("%s://%s/%s", scheme, blob.getBucket(), blob.getName()));
-              }
+          List<String> fileUris = new ArrayList<>();
+          for (Blob blob : storage.list(bucket, BlobListOption.prefix(prefix)).iterateAll()) {
+            fileUris.add(String.format("%s://%s/%s", scheme, blob.getBucket(), blob.getName()));
+          }
 
-              jobService.upsert(
-                  ServingAPIProto.Job.newBuilder()
-                      .setId(feastJobId)
-                      .setType(JobType.JOB_TYPE_DOWNLOAD)
-                      .setStatus(JobStatus.JOB_STATUS_DONE)
-                      .addAllFileUris(fileUris)
-                      .setDataFormat(DataFormat.DATA_FORMAT_AVRO)
-                      .build());
-            })
+          jobService.upsert(
+              ServingAPIProto.Job.newBuilder()
+                  .setId(feastJobId)
+                  .setType(JobType.JOB_TYPE_DOWNLOAD)
+                  .setStatus(JobStatus.JOB_STATUS_DONE)
+                  .addAllFileUris(fileUris)
+                  .setDataFormat(DataFormat.DATA_FORMAT_AVRO)
+                  .build());
+        })
         .start();
 
     return GetBatchFeaturesResponse.newBuilder().setJob(feastJob).build();
