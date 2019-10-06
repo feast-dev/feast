@@ -41,13 +41,10 @@ class Source:
 
 
 class KafkaSource(Source):
-    def __init__(self, brokers: str, topic: str):
-        if brokers and topic:
-            self._brokers = brokers
-            self._topic = topic
-            self._source_type = "Kafka"
-        else:
-            raise ValueError("Missing configuration parameters in Kafka source")
+    def __init__(self, brokers: str = "", topic: str = ""):
+        self._source_type = "Kafka"
+        self._brokers = brokers
+        self._topic = topic
 
     def __eq__(self, other):
         if (

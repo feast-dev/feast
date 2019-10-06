@@ -124,7 +124,7 @@ class TestClient:
 
         feature_dataframe = mock_client.get(
             entity_data=entity_data,
-            features=[
+            feature_ids=[
                 "feature_set_1:1.feature_1",
                 "feature_set_1:1.feature_2",
                 "feature_set_1:1.feature_3",

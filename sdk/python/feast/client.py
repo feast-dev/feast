@@ -62,8 +62,6 @@ class Client:
         self.__serving_channel: grpc.Channel = None
         self._core_service_stub: CoreServiceStub = None
         self._serving_service_stub: ServingServiceStub = None
-        # TODO: Do not instantiate storage_client here
-        self._storage_client: storage.Client = storage.Client()
 
     @property
     def core_url(self) -> str:
@@ -172,8 +170,7 @@ class Client:
                 continue
             raise Exception("Could not determine resource type to apply")
 
-    @property
-    def feature_sets(self) -> List[FeatureSet]:
+    def list_feature_sets(self) -> List[FeatureSet]:
         """
         Retrieve a list of Feature Sets from Feast Core
         """
@@ -222,7 +219,7 @@ class Client:
     @property
     def entities(self) -> Dict[str, Entity]:
         entities_dict = OrderedDict()
-        for fs in self.feature_sets:
+        for fs in self.list_feature_sets():
             for entity in fs.entities:
                 entities_dict[entity.name] = entity
         return entities_dict

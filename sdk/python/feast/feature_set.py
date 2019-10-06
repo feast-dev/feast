@@ -39,6 +39,8 @@ from feast.type_map import pandas_value_to_proto_value
 from google.protobuf.json_format import MessageToJson
 import yaml
 from google.protobuf import json_format
+from feast.source import KafkaSource
+
 
 _logger = logging.getLogger(__name__)
 DATETIME_COLUMN = "datetime"  # type: str
@@ -66,7 +68,7 @@ class FeatureSet:
         if entities is not None:
             self.entities = entities
         if source is None:
-            self._source = Source()
+            self._source = KafkaSource()
         self._max_age = max_age
         self._version = None
         self._client = None
