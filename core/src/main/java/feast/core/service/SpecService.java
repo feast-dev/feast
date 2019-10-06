@@ -209,6 +209,7 @@ public class SpecService {
     // Do nothing if no change
     if (existingStore != null && existingStore.toProto().equals(newStoreProto)) {
       return UpdateStoreResponse.newBuilder()
+          .setStatus(UpdateStoreResponse.Status.NO_CHANGE)
           .setStore(updateStoreRequest.getStore())
           .build();
     }
@@ -216,6 +217,7 @@ public class SpecService {
     Store newStore = Store.fromProto(newStoreProto);
     storeRepository.save(newStore);
     return UpdateStoreResponse.newBuilder()
+        .setStatus(UpdateStoreResponse.Status.UPDATED)
         .setStore(updateStoreRequest.getStore())
         .build();
   }

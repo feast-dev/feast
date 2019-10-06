@@ -37,10 +37,10 @@ service CoreService {
     // Returns all stores matching that filter.
     rpc GetStores (GetStoresRequest) returns (GetStoresResponse);
 
-    // Idempotent creation of feature set. Will not create a new feature set if schema does not change
+    // Idempotent creation of feature set. Will not create a new feature set if schema does not change.
     rpc ApplyFeatureSet (ApplyFeatureSetRequest) returns (ApplyFeatureSetResponse);
 
-    // UpdateStore updates core with the configuration of the store. If the changes are valid,
+    // Updates core with the configuration of the store. If the changes are valid,
     // core will return the given store configuration in response.
     rpc UpdateStore(UpdateStoreRequest) returns (UpdateStoreResponse);
 }
@@ -104,5 +104,13 @@ message UpdateStoreRequest {
 }
 
 message UpdateStoreResponse {
+    enum Status {
+        // Existing store config matching the given store id is identical to the given store config.
+        NO_CHANGE = 0;
+
+        // New store created or existing config updated.
+        UPDATED = 1;
+    }
     feast.core.Store store = 1;
+    Status status = 2;
 }

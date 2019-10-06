@@ -31,6 +31,7 @@ import feast.core.CoreServiceProto.GetStoresRequest.Filter;
 import feast.core.CoreServiceProto.GetStoresResponse;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
+import feast.core.CoreServiceProto.UpdateStoreResponse.Status;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Subscription;
@@ -58,8 +59,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
 
   @Autowired
   private SpecService specService;
-  @Autowired
-  private StatsDClient statsDClient;
   @Autowired
   private JobCoordinatorService jobCoordinatorService;
 
@@ -143,23 +142,25 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onNext(response);
       responseObserver.onCompleted();
 
-      Set<FeatureSetSpec> featureSetSpecs = new HashSet<>();
-      Store store = response.getStore();
-      for (Subscription subscription : store.getSubscriptionsList()) {
-        featureSetSpecs.addAll(
-            specService.getFeatureSets(
-                GetFeatureSetsRequest.Filter.newBuilder()
-                    .setFeatureSetName(subscription.getName())
-                    .setFeatureSetVersion(subscription.getVersion())
-                    .build())
-                .getFeatureSetsList()
-        );
+      if (!response.getStatus().equals(Status.NO_CHANGE)) {
+        Set<FeatureSetSpec> featureSetSpecs = new HashSet<>();
+        Store store = response.getStore();
+        for (Subscription subscription : store.getSubscriptionsList()) {
+          featureSetSpecs.addAll(
+              specService.getFeatureSets(
+                  GetFeatureSetsRequest.Filter.newBuilder()
+                      .setFeatureSetName(subscription.getName())
+                      .setFeatureSetVersion(subscription.getVersion())
+                      .build())
+                  .getFeatureSetsList()
+          );
+        }
+        featureSetSpecs.stream()
+            .collect(Collectors.groupingBy(FeatureSetSpec::getName))
+            .entrySet()
+            .stream()
+            .forEach(kv -> jobCoordinatorService.startOrUpdateJob(kv.getValue(), store));
       }
-      featureSetSpecs.stream()
-          .collect(Collectors.groupingBy(FeatureSetSpec::getName))
-          .entrySet()
-          .stream()
-          .forEach(kv -> jobCoordinatorService.startOrUpdateJob(kv.getValue(), store));
     } catch (Exception e) {
       responseObserver.onError(e);
     }

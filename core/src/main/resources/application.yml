@@ -24,29 +24,6 @@ grpc:
 
 feast:
 #  version: @project.version@
-  store:
-    # Serving store type. For more information on the available types
-    # see Store.proto. To provision feast without a serving store,
-    # leave this value blank.
-    serving-type: REDIS
-    # Serving store options. The necessary option values depend on the
-    # store. For more information, see Store.proto.
-    serving-options:
-      host: localhost
-      port: 6379
-      # Store subscriptions, as a comma delimited string of featureName:versions
-      # to populate this store with. Regex is supported for featureName, and
-      # expressions for version.
-      subscriptions: ".*:>0"
-    # Warehouse store type. For more information on the available types
-    # see Store.proto. To provision feast without a warehouse store,
-    # leave this value blank.
-    warehouse-type: BIGQUERY
-    warehouse-options:
-      projectId: my-google-project-id
-      datasetId: my-bigquery-dataset-id
-      # Same as feast.store.serving-options.subscriptions
-      subscriptions: ".*:>0"
   jobs:
     # Runner type for feature population jobs. Currently supported runner types are
     # DirectRunner and DataflowRunner.
