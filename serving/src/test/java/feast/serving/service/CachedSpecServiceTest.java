@@ -13,55 +13,79 @@ import feast.core.CoreServiceProto.GetFeatureSetsResponse;
 import feast.core.CoreServiceProto.GetStoresRequest;
 import feast.core.CoreServiceProto.GetStoresRequest.Filter;
 import feast.core.CoreServiceProto.GetStoresResponse;
+import feast.core.CoreServiceProto.UpdateStoreRequest;
+import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
+import feast.core.StoreProto.Store.RedisConfig;
+import feast.core.StoreProto.Store.StoreType;
 import feast.core.StoreProto.Store.Subscription;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
+import redis.embedded.Redis;
 
 public class CachedSpecServiceTest {
 
-  private static final String STORE_ID = "SERVING";
+  private File configFile;
+  private Store store;
 
   @Rule
   public final ExpectedException expectedException = ExpectedException.none();
 
   @Mock
-  SpecService coreService;
+  CoreSpecService coreService;
 
   private Map<String, FeatureSetSpec> featureSetSpecs;
-  private Store store;
   private CachedSpecService cachedSpecService;
 
   @Before
-  public void setUp() {
+  public void setUp() throws IOException {
     initMocks(this);
 
-    featureSetSpecs = new LinkedHashMap<>();
-    featureSetSpecs.put("fs1:1", FeatureSetSpec.newBuilder().setName("fs1").setVersion(1).build());
-    featureSetSpecs.put("fs1:2", FeatureSetSpec.newBuilder().setName("fs1").setVersion(2).build());
-    featureSetSpecs.put("fs1:3", FeatureSetSpec.newBuilder().setName("fs1").setVersion(3).build());
-    featureSetSpecs.put("fs2:1", FeatureSetSpec.newBuilder().setName("fs2").setVersion(1).build());
+    configFile = File.createTempFile( "serving", ".yml");
+    String yamlString = "name: SERVING\n"
+        + "type: REDIS\n"
+        + "redis_config:\n"
+        + "  host: localhost\n"
+        + "  port: 6379\n"
+        + "subscriptions:\n"
+        + "- name: fs1\n"
+        + "  version: \">0\"\n"
+        + "- name: fs2\n"
+        + "  version: \">0\"";
+    BufferedWriter writer = new BufferedWriter(new FileWriter(configFile));
+    writer.write(yamlString);
+    writer.close();
 
-    store = Store.newBuilder().setName(STORE_ID)
+    store = Store.newBuilder().setName("SERVING")
+        .setType(StoreType.REDIS)
+        .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379))
         .addSubscriptions(Subscription.newBuilder().setName("fs1").setVersion(">0").build())
         .addSubscriptions(Subscription.newBuilder().setName("fs2").setVersion(">0").build())
         .build();
 
-    when(coreService.getStores(
-        GetStoresRequest.newBuilder().setFilter(Filter.newBuilder().setName(STORE_ID)).build()))
-        .thenReturn(GetStoresResponse.newBuilder().addStore(store).build());
+    when(coreService.updateStore(UpdateStoreRequest.newBuilder().setStore(store).build()))
+        .thenReturn(UpdateStoreResponse.newBuilder().setStore(store).build());
+
+    featureSetSpecs = new LinkedHashMap<>();
+    featureSetSpecs.put("fs1:1", FeatureSetSpec.newBuilder().setName("fs1").setVersion(1).build());
+    featureSetSpecs.put("fs1:2", FeatureSetSpec.newBuilder().setName("fs1").setVersion(2).build());
+    featureSetSpecs.put("fs2:1", FeatureSetSpec.newBuilder().setName("fs2").setVersion(1).build());
 
     List<FeatureSetSpec> fs1FeatureSets = Lists
-        .newArrayList(featureSetSpecs.get("fs1:1"), featureSetSpecs.get("fs1:2"),
-            featureSetSpecs.get("fs1:3"));
+        .newArrayList(featureSetSpecs.get("fs1:1"), featureSetSpecs.get("fs1:2"));
     List<FeatureSetSpec> fs2FeatureSets = Lists.newArrayList(featureSetSpecs.get("fs2:1"));
     when(coreService.getFeatureSets(GetFeatureSetsRequest
         .newBuilder()
@@ -76,27 +100,26 @@ public class CachedSpecServiceTest {
         .build()))
         .thenReturn(GetFeatureSetsResponse.newBuilder().addAllFeatureSets(fs2FeatureSets).build());
 
-    cachedSpecService = new CachedSpecService(coreService, STORE_ID);
+    cachedSpecService = new CachedSpecService(coreService, configFile.toPath());
+  }
+
+  @After
+  public void tearDown() {
+    configFile.delete();
   }
 
   @Test
   public void shouldPopulateAndReturnStore() {
     cachedSpecService.populateCache();
-    Store actual = cachedSpecService.getStores(GetStoresRequest.newBuilder()
-        .setFilter(Filter.newBuilder().setName(STORE_ID))
-        .build()).getStore(0);
+    Store actual = cachedSpecService.getStore();
     assertThat(actual, equalTo(store));
   }
 
   @Test
   public void shouldPopulateAndReturnFeatureSets() {
     cachedSpecService.populateCache();
-    GetFeatureSetsResponse actual = cachedSpecService
-        .getFeatureSets(GetFeatureSetsRequest.newBuilder().build());
-
-    assertThat(actual.getFeatureSetsList().size(), equalTo(featureSetSpecs.values().size()));
-    for (FeatureSetSpec fs : featureSetSpecs.values()) {
-      assertThat(actual.getFeatureSetsList(), hasItems(fs));
-    }
+    assertThat(cachedSpecService.getFeatureSet("fs1", 1), equalTo(featureSetSpecs.get("fs1:1")));
+    assertThat(cachedSpecService.getFeatureSet("fs1", 2), equalTo(featureSetSpecs.get("fs1:2")));
+    assertThat(cachedSpecService.getFeatureSet("fs2", 1), equalTo(featureSetSpecs.get("fs2:1")));
   }
 }

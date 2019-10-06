@@ -9,9 +9,6 @@ import com.google.common.collect.Lists;
 import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
-import feast.core.CoreServiceProto.GetFeatureSetsRequest;
-import feast.core.CoreServiceProto.GetFeatureSetsRequest.Filter;
-import feast.core.CoreServiceProto.GetFeatureSetsResponse;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
@@ -45,7 +42,7 @@ public class RedisServingServiceTest {
   Jedis jedis;
 
   @Mock
-  SpecService specService;
+  CachedSpecService specService;
 
   @Mock
   Tracer tracer;
@@ -62,13 +59,8 @@ public class RedisServingServiceTest {
         .setMaxAge(Duration.newBuilder().setSeconds(30)) // default
         .build();
 
-    when(specService.getFeatureSets(GetFeatureSetsRequest
-        .newBuilder()
-        .setFilter(Filter.newBuilder()
-            .setFeatureSetName("featureSet")
-            .setFeatureSetVersion("1"))
-        .build()))
-        .thenReturn(GetFeatureSetsResponse.newBuilder().addFeatureSets(featureSetSpec).build());
+    when(specService.getFeatureSet("featureSet", 1))
+        .thenReturn(featureSetSpec);
 
     redisServingService = new RedisServingService(jedisPool, specService, tracer);
     redisKeyList = Lists.newArrayList(

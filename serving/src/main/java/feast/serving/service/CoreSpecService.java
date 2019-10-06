@@ -3,8 +3,8 @@ package feast.serving.service;
 import feast.core.CoreServiceGrpc;
 import feast.core.CoreServiceProto.GetFeatureSetsRequest;
 import feast.core.CoreServiceProto.GetFeatureSetsResponse;
-import feast.core.CoreServiceProto.GetStoresRequest;
-import feast.core.CoreServiceProto.GetStoresResponse;
+import feast.core.CoreServiceProto.UpdateStoreRequest;
+import feast.core.CoreServiceProto.UpdateStoreResponse;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 //       By default, managed channel should do auto-retry etc, but just to double check.
 
 @Slf4j
-public class CoreSpecService implements SpecService {
+public class CoreSpecService {
   private final CoreServiceGrpc.CoreServiceBlockingStub blockingStub;
 
   public CoreSpecService(String feastCoreHost, int feastCorePort) {
@@ -23,13 +23,11 @@ public class CoreSpecService implements SpecService {
     blockingStub = CoreServiceGrpc.newBlockingStub(channel);
   }
 
-  @Override
-  public GetStoresResponse getStores(GetStoresRequest getStoresRequest) {
-    return blockingStub.getStores(getStoresRequest);
-  }
-
-  @Override
   public GetFeatureSetsResponse getFeatureSets(GetFeatureSetsRequest getFeatureSetsRequest) {
     return blockingStub.getFeatureSets(getFeatureSetsRequest);
+  }
+
+  public UpdateStoreResponse updateStore(UpdateStoreRequest updateStoreRequest) {
+    return blockingStub.updateStore(updateStoreRequest);
   }
 }
