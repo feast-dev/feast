@@ -12,4 +12,4 @@ gen-python:
 	@$(foreach dir,$(service_dirs),python -m grpc_tools.protoc -I. --grpc_python_out=../sdk/python/ feast/$(dir)/*.proto;)
 
 gen-docs:
-	@$(foreach dir,$(dirs), protoc --doc_out=../docs/api/ --doc_opt=markdown,$(dir).md feast/$(dir)/*.proto;)
+	protoc --doc_out=../docs/api/ --doc_opt=../docs/assets/protoc-gen-doc-markdown.tmpl,proto.md feast/core/*.proto feast/serving/*.proto feast/storage/*.proto feast/types/*.proto;
