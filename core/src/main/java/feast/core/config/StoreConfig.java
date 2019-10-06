@@ -37,7 +37,7 @@ public class StoreConfig {
 
   private void initStore(StoreRepository storeRepository, String name, String type,
       Map<String, String> options) {
-      if (type == null | type.equals("")) {
+    if (type == null | "".equals(type)) {
       return;
     }
 

@@ -42,13 +42,18 @@ public class FeatureStreamService {
     try {
       switch (featureSet.getSource().getType()) {
         case KAFKA:
-          KafkaSourceConfig options = (KafkaSourceConfig) featureSet.getSource().getOptions();
+          KafkaFeatureStreamConfig defaultKafkaFeatureStreamConfig = KafkaFeatureStreamConfig.fromJSON(defaultOptions);
+          Source source = featureSet.getSource();
+          if (((KafkaSourceConfig) source.getOptions()).getBootstrapServers().isEmpty()){
+            KafkaSourceConfig config = (KafkaSourceConfig) source.getOptions();
+            source.setOptions(config.toBuilder().setBootstrapServers(defaultKafkaFeatureStreamConfig.getBootstrapServers()).build().toByteArray());
+          }
+
           Map<String, Object> map = new HashMap<>();
-          map.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, options.getBootstrapServers());
+          map.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, ((KafkaSourceConfig) source.getOptions()).getBootstrapServers());
           map.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "1000");
           AdminClient client = AdminClient.create(map);
-          FeatureStream featureStream = new KafkaFeatureStream(client,
-              KafkaFeatureStreamConfig.fromJSON(defaultOptions));
+          FeatureStream featureStream = new KafkaFeatureStream(client, defaultKafkaFeatureStreamConfig);
           return featureStream.provision(featureSet);
         case UNRECOGNIZED:
         default:
