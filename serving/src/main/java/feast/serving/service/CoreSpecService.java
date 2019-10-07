@@ -9,10 +9,9 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import lombok.extern.slf4j.Slf4j;
 
-// TODO: Health check and recovery for this CoreSpecService, i.e.
-//       if client fails to connect to Feast Core GRPC service, what to do or report?
-//       By default, managed channel should do auto-retry etc, but just to double check.
-
+/**
+ * Client for spec retrieval from core.
+ */
 @Slf4j
 public class CoreSpecService {
   private final CoreServiceGrpc.CoreServiceBlockingStub blockingStub;

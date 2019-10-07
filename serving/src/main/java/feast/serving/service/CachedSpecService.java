@@ -25,10 +25,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import lombok.extern.slf4j.Slf4j;
 
 /**
- * SpecStorage implementation with built-in in-memory cache.
+ * In-memory cache of specs.
  */
+@Slf4j
 public class CachedSpecService {
 
   private static final int MAX_SPEC_COUNT = 1000;
@@ -53,16 +55,28 @@ public class CachedSpecService {
         CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(featureSetSpecCacheLoader);
   }
 
+  /**
+   * Get the current store configuration.
+   *
+   * @return StoreProto.Store store configuration for this serving instance
+   */
   public Store getStore() {
     return this.store;
   }
 
+  /**
+   * Get a single FeatureSetSpec matching the given name and version.
+   *
+   * @param name of the featureSet
+   * @param version to retrieve
+   * @return FeatureSetSpec of the matching FeatureSet
+   */
   public FeatureSetSpec getFeatureSet(String name, int version) {
     String id = String.format("%s:%d", name, version);
     try {
       return featureSetSpecCache.get(id);
     } catch (InvalidCacheLoadException e) {
-      // if not found, default to core
+      // if not found, try to retrieve from core
       GetFeatureSetsRequest request = GetFeatureSetsRequest.newBuilder()
           .setFilter(Filter.newBuilder()
               .setFeatureSetName(name)
@@ -83,7 +97,8 @@ public class CachedSpecService {
   }
 
   /**
-   * Preload all specs into the cache.
+   * Reload the store configuration from the given config path, then retrieve the necessary specs
+   * from core to preload the cache.
    */
   public void populateCache() {
     this.store = updateStore(readConfig(configPath));
@@ -110,7 +125,8 @@ public class CachedSpecService {
                   featureSetSpec);
         }
       } catch (StatusRuntimeException e) {
-        continue;
+        throw new RuntimeException(
+            String.format("Unable to retrieve specs matching subscription %s", subscription), e);
       }
     }
     return featureSetSpecs;

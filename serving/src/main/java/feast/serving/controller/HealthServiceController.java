@@ -1,5 +1,6 @@
 package feast.serving.controller;
 
+import feast.core.StoreProto.Store;
 import feast.serving.ServingAPIProto.GetFeastServingTypeRequest;
 import feast.serving.service.CachedSpecService;
 import feast.serving.service.ServingService;
@@ -32,7 +33,7 @@ public class HealthServiceController extends HealthImplBase {
     //       Implement similary for batch service.
 
     try {
-      specService.getStore();
+      Store store = specService.getStore();
       servingService.getFeastServingType(GetFeastServingTypeRequest.getDefaultInstance());
       responseObserver.onNext(
           HealthCheckResponse.newBuilder().setStatus(ServingStatus.SERVING).build());
