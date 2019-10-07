@@ -30,21 +30,47 @@ service CoreService {
     rpc GetFeastCoreVersion (GetFeastCoreVersionRequest) returns (GetFeastCoreVersionResponse);
 
     // Retrieve feature set details given a filter.
-    // Returns all featureSets matching that filter.
+    //
+    // Returns all feature sets matching that filter. If none are found,
+    // an empty list will be returned.
+    // If no filter is provided in the request, the response will contain all the feature
+    // sets currently stored in the registry.
     rpc GetFeatureSets (GetFeatureSetsRequest) returns (GetFeatureSetsResponse);
 
     // Retrieve store details given a filter.
-    // Returns all stores matching that filter.
+    //
+    // Returns all stores matching that filter. If none are found, an empty list will be returned.
+    // If no filter is provided in the request, the response will contain all the stores currently
+    // stored in the registry.
     rpc GetStores (GetStoresRequest) returns (GetStoresResponse);
 
-    // Idempotent creation of feature set. Will not create a new feature set if schema does not change
+    // Create or update and existing feature set.
+    //
+    // This function is idempotent - it will not create a new feature set if schema does not change.
+    // If an existing feature set is updated, core will advance the version number, which will be
+    // returned in response.
     rpc ApplyFeatureSet (ApplyFeatureSetRequest) returns (ApplyFeatureSetResponse);
+
+    // Updates core with the configuration of the store.
+    //
+    // If the changes are valid, core will return the given store configuration in response, and
+    // start or update the necessary feature population jobs for the updated store.
+    rpc UpdateStore(UpdateStoreRequest) returns (UpdateStoreResponse);
 }
 
 // Retrieves details for all versions of a specific feature set
 message GetFeatureSetsRequest {
     message Filter {
+        // Name of the desired feature set. Valid regex strings are allowed.
+        // e.g.
+        // - .* can be used to match all feature sets
+        // - my-project-.* can be used to match all features prefixed by "my-project"
         string feature_set_name = 1;
+        // Version of the desired feature set. Either a number or valid expression can be provided.
+        // e.g.
+        // - 1 will match version 1 exactly
+        // - >=1 will match all versions greater or equal to 1
+        // - <10 will match all versions less than 10
         string feature_set_version = 2;
     }
 
@@ -57,6 +83,7 @@ message GetFeatureSetsResponse {
 
 message GetStoresRequest {
     message Filter {
+        // Name of desired store. Regex is not supported in this query.
         string name = 1;
     }
 
@@ -93,4 +120,20 @@ message GetFeastCoreVersionRequest {}
 
 message GetFeastCoreVersionResponse {
     string version = 1;
+}
+
+message UpdateStoreRequest {
+    feast.core.Store store = 1;
+}
+
+message UpdateStoreResponse {
+    enum Status {
+        // Existing store config matching the given store id is identical to the given store config.
+        NO_CHANGE = 0;
+
+        // New store created or existing config updated.
+        UPDATED = 1;
+    }
+    feast.core.Store store = 1;
+    Status status = 2;
 }

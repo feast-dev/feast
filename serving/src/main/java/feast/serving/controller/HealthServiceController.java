@@ -1,9 +1,9 @@
 package feast.serving.controller;
 
-import feast.core.CoreServiceProto.GetStoresRequest;
+import feast.core.StoreProto.Store;
 import feast.serving.ServingAPIProto.GetFeastServingTypeRequest;
+import feast.serving.service.CachedSpecService;
 import feast.serving.service.ServingService;
-import feast.serving.service.SpecService;
 import io.grpc.health.v1.HealthGrpc.HealthImplBase;
 import io.grpc.health.v1.HealthProto.HealthCheckRequest;
 import io.grpc.health.v1.HealthProto.HealthCheckResponse;
@@ -16,11 +16,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 @GRpcService
 public class HealthServiceController extends HealthImplBase {
-  private SpecService specService;
+  private CachedSpecService specService;
   private ServingService servingService;
 
   @Autowired
-  public HealthServiceController(SpecService specService, ServingService servingService) {
+  public HealthServiceController(CachedSpecService specService, ServingService servingService) {
     this.specService = specService;
     this.servingService = servingService;
   }
@@ -33,7 +33,7 @@ public class HealthServiceController extends HealthImplBase {
     //       Implement similary for batch service.
 
     try {
-      specService.getStores(GetStoresRequest.getDefaultInstance());
+      Store store = specService.getStore();
       servingService.getFeastServingType(GetFeastServingTypeRequest.getDefaultInstance());
       responseObserver.onNext(
           HealthCheckResponse.newBuilder().setStatus(ServingStatus.SERVING).build());

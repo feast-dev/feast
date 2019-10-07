@@ -1,47 +1,51 @@
 package feast.serving.service;
 
+import static feast.serving.util.mappers.YamlToProtoMapper.yamlToStoreProto;
+
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.CacheLoader.InvalidCacheLoadException;
 import com.google.common.cache.LoadingCache;
 import feast.core.CoreServiceProto.GetFeatureSetsRequest;
+import feast.core.CoreServiceProto.GetFeatureSetsRequest.Filter;
 import feast.core.CoreServiceProto.GetFeatureSetsResponse;
 import feast.core.CoreServiceProto.GetStoresRequest;
-import feast.core.CoreServiceProto.GetStoresRequest.Filter;
 import feast.core.CoreServiceProto.GetStoresResponse;
+import feast.core.CoreServiceProto.UpdateStoreRequest;
+import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Subscription;
 import feast.serving.exception.SpecRetrievalException;
 import io.grpc.StatusRuntimeException;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import lombok.extern.slf4j.Slf4j;
 
 /**
- * SpecStorage implementation with built-in in-memory cache.
+ * In-memory cache of specs.
  */
-public class CachedSpecService implements SpecService {
+@Slf4j
+public class CachedSpecService {
 
   private static final int MAX_SPEC_COUNT = 1000;
 
-  private final SpecService coreService;
-  private final String storeId;
+  private final CoreSpecService coreService;
+  private final Path configPath;
 
   private final CacheLoader<String, FeatureSetSpec> featureSetSpecCacheLoader;
   private final LoadingCache<String, FeatureSetSpec> featureSetSpecCache;
   private Store store;
 
-  public CachedSpecService(SpecService coreService, String storeId) {
-    this.storeId = storeId;
+  public CachedSpecService(CoreSpecService coreService, Path configPath) {
+    this.configPath = configPath;
     this.coreService = coreService;
-
-    GetStoresResponse stores = coreService.getStores(
-        GetStoresRequest.newBuilder()
-            .setFilter(Filter.newBuilder()
-                .setName(storeId))
-            .build());
-    this.store = stores.getStore(0);
+    this.store = updateStore(readConfig(configPath));
 
     Map<String, FeatureSetSpec> featureSetSpecs = getFeatureSetSpecMap();
     featureSetSpecCacheLoader =
@@ -52,33 +56,40 @@ public class CachedSpecService implements SpecService {
   }
 
   /**
-   * {@inheritDoc}
+   * Get the current store configuration.
+   *
+   * @return StoreProto.Store store configuration for this serving instance
    */
-  @Override
-  public GetStoresResponse getStores(GetStoresRequest getStoresRequest) {
-    return GetStoresResponse.newBuilder().addStore(this.store).build();
+  public Store getStore() {
+    return this.store;
   }
 
   /**
-   * {@inheritDoc}
+   * Get a single FeatureSetSpec matching the given name and version.
+   *
+   * @param name of the featureSet
+   * @param version to retrieve
+   * @return FeatureSetSpec of the matching FeatureSet
    */
-  @Override
-  public GetFeatureSetsResponse getFeatureSets(GetFeatureSetsRequest getFeatureSetsRequest) {
-    if (getFeatureSetsRequest.getFilter().getFeatureSetName().equals("")) {
-      return GetFeatureSetsResponse.newBuilder()
-          .addAllFeatureSets(featureSetSpecCache.asMap().values())
-          .build();
-    }
-
-    GetFeatureSetsRequest.Filter filter = getFeatureSetsRequest.getFilter();
-    String id = String.format("%s:%s", filter.getFeatureSetName(), filter.getFeatureSetVersion());
+  public FeatureSetSpec getFeatureSet(String name, int version) {
+    String id = String.format("%s:%d", name, version);
     try {
-      return GetFeatureSetsResponse.newBuilder()
-          .addFeatureSets(featureSetSpecCache.get(id))
-          .build();
+      return featureSetSpecCache.get(id);
     } catch (InvalidCacheLoadException e) {
-      // if not found, default to core
-      return coreService.getFeatureSets(getFeatureSetsRequest);
+      // if not found, try to retrieve from core
+      GetFeatureSetsRequest request = GetFeatureSetsRequest.newBuilder()
+          .setFilter(Filter.newBuilder()
+              .setFeatureSetName(name)
+              .setFeatureSetVersion(String.valueOf(version)))
+          .build();
+      GetFeatureSetsResponse featureSets = coreService.getFeatureSets(request);
+      if (featureSets.getFeatureSetsList().size() == 0) {
+        throw new SpecRetrievalException(
+            String.format(
+                "Unable to retrieve featureSet with id %s from core, featureSet does not exist",
+                id));
+      }
+      return featureSets.getFeatureSets(0);
     } catch (ExecutionException e) {
       throw new SpecRetrievalException(
           String.format("Unable to retrieve featureSet with id %s", id), e);
@@ -86,17 +97,11 @@ public class CachedSpecService implements SpecService {
   }
 
   /**
-   * Preload all specs into the cache.
+   * Reload the store configuration from the given config path, then retrieve the necessary specs
+   * from core to preload the cache.
    */
   public void populateCache() {
-
-    GetStoresResponse stores = coreService.getStores(
-        GetStoresRequest.newBuilder()
-            .setFilter(Filter.newBuilder()
-                .setName(storeId))
-            .build());
-    this.store = stores.getStore(0);
-
+    this.store = updateStore(readConfig(configPath));
     Map<String, FeatureSetSpec> featureSetSpecMap = getFeatureSetSpecMap();
     featureSetSpecCache.putAll(featureSetSpecMap);
   }
@@ -120,9 +125,34 @@ public class CachedSpecService implements SpecService {
                   featureSetSpec);
         }
       } catch (StatusRuntimeException e) {
-        continue;
+        throw new RuntimeException(
+            String.format("Unable to retrieve specs matching subscription %s", subscription), e);
       }
     }
     return featureSetSpecs;
+  }
+
+  private Store readConfig(Path path) {
+    try {
+      List<String> fileContents = Files.readAllLines(path);
+      String yaml = fileContents.stream().reduce("", (l1, l2) -> l1 + "\n" + l2);
+      return yamlToStoreProto(yaml);
+    } catch (IOException e) {
+      throw new RuntimeException(
+          String.format("Unable to read store config at %s", path.toAbsolutePath()), e);
+    }
+  }
+
+  private Store updateStore(Store store) {
+    UpdateStoreRequest request = UpdateStoreRequest.newBuilder().setStore(store).build();
+    try {
+      UpdateStoreResponse updateStoreResponse = coreService.updateStore(request);
+      if (!updateStoreResponse.getStore().equals(store)) {
+        throw new RuntimeException("Core store config not matching current store config");
+      }
+      return updateStoreResponse.getStore();
+    } catch (Exception e) {
+      throw new RuntimeException("Unable to update store configuration", e);
+    }
   }
 }

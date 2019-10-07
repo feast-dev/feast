@@ -11,20 +11,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class FeastProperties {
 
   private String version;
-  private StoreProperties store;
   private JobProperties jobs;
   private StreamProperties stream;
   private StatsdProperties statsd;
-
-  @Getter
-  @Setter
-  public static class StoreProperties {
-
-    private String servingType;
-    private Map<String, String> servingOptions;
-    private String warehouseType;
-    private Map<String, String> warehouseOptions;
-  }
 
   @Getter
   @Setter

@@ -26,7 +26,10 @@ import feast.core.CoreServiceProto.GetFeatureSetsResponse;
 import feast.core.CoreServiceProto.GetStoresRequest;
 import feast.core.CoreServiceProto.GetStoresResponse;
 import feast.core.CoreServiceProto.GetStoresResponse.Builder;
+import feast.core.CoreServiceProto.UpdateStoreRequest;
+import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.StoreProto;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.StoreRepository;
 import feast.core.exception.RetrievalException;
@@ -134,7 +137,10 @@ public class SpecService {
           .addStore(store.toProto())
           .build();
     } catch (InvalidProtocolBufferException e) {
-      throw new RetrievalException("Unable to retrieve stores", e);
+      throw io.grpc.Status.NOT_FOUND
+          .withDescription("Unable to retrieve stores")
+          .withCause(e)
+          .asRuntimeException();
     }
   }
 
@@ -188,6 +194,34 @@ public class SpecService {
         .build();
   }
 
+  /**
+   * UpdateStore updates the repository with the new given store.
+   *
+   * @param updateStoreRequest containing the new store definition
+   * @return UpdateStoreResponse containing the new store definition
+   * @throws InvalidProtocolBufferException
+   */
+  public UpdateStoreResponse updateStore(UpdateStoreRequest updateStoreRequest)
+      throws InvalidProtocolBufferException {
+    StoreProto.Store newStoreProto = updateStoreRequest.getStore();
+    Store existingStore = storeRepository.findById(newStoreProto.getName()).orElse(null);
+
+    // Do nothing if no change
+    if (existingStore != null && existingStore.toProto().equals(newStoreProto)) {
+      return UpdateStoreResponse.newBuilder()
+          .setStatus(UpdateStoreResponse.Status.NO_CHANGE)
+          .setStore(updateStoreRequest.getStore())
+          .build();
+    }
+
+    Store newStore = Store.fromProto(newStoreProto);
+    storeRepository.save(newStore);
+    return UpdateStoreResponse.newBuilder()
+        .setStatus(UpdateStoreResponse.Status.UPDATED)
+        .setStore(updateStoreRequest.getStore())
+        .build();
+  }
+
   private Predicate<? super FeatureSet> getVersionFilter(String versionFilter) {
     if (versionFilter.equals("")) {
       return v -> true;
@@ -196,11 +230,12 @@ public class SpecService {
     match.find();
 
     if (!match.matches()) {
-      throw new RetrievalException(
-          String.format(
+      throw io.grpc.Status.INVALID_ARGUMENT
+          .withDescription(String.format(
               "Invalid version string '%s' provided. Version string may either "
                   + "be a fixed version, e.g. 10, or contain a comparator, e.g. >10.",
-              versionFilter));
+              versionFilter))
+          .asRuntimeException();
     }
 
     int versionNumber = Integer.valueOf(match.group("version"));
@@ -217,11 +252,12 @@ public class SpecService {
       case "":
         return v -> v.getVersion() == versionNumber;
       default:
-        throw new RetrievalException(
-            String.format(
+        throw io.grpc.Status.INVALID_ARGUMENT
+            .withDescription(String.format(
                 "Invalid comparator '%s' provided. Version string may either "
                     + "be a fixed version, e.g. 10, or contain a comparator, e.g. >10.",
-                comparator));
+                comparator))
+            .asRuntimeException();
     }
   }
 

@@ -53,10 +53,10 @@ import redis.clients.jedis.JedisPool;
 public class RedisServingService implements ServingService {
 
   private final JedisPool jedisPool;
-  private final SpecService specService;
+  private final CachedSpecService specService;
   private final Tracer tracer;
 
-  public RedisServingService(JedisPool jedisPool, SpecService specService, Tracer tracer) {
+  public RedisServingService(JedisPool jedisPool, CachedSpecService specService, Tracer tracer) {
     this.jedisPool = jedisPool;
     this.specService = specService;
     this.tracer = tracer;
@@ -86,17 +86,8 @@ public class RedisServingService implements ServingService {
       List<FeatureSet> featureSetRequests = request.getFeatureSetsList();
       for (FeatureSet featureSetRequest : featureSetRequests) {
 
-        GetFeatureSetsRequest getFeatureSetSpecRequest =
-            GetFeatureSetsRequest.newBuilder()
-                .setFilter(
-                    Filter.newBuilder()
-                        .setFeatureSetName(featureSetRequest.getName())
-                        .setFeatureSetVersion(String.valueOf(featureSetRequest.getVersion()))
-                        .build())
-                .build();
-
         FeatureSetSpec featureSetSpec =
-            specService.getFeatureSets(getFeatureSetSpecRequest).getFeatureSets(0);
+            specService.getFeatureSet(featureSetRequest.getName(), featureSetRequest.getVersion());
 
         List<String> featureSetEntityNames =
             featureSetSpec.getEntitiesList().stream()

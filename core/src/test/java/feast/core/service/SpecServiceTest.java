@@ -32,12 +32,16 @@ import feast.core.CoreServiceProto.GetFeatureSetsRequest.Filter;
 import feast.core.CoreServiceProto.GetFeatureSetsResponse;
 import feast.core.CoreServiceProto.GetStoresRequest;
 import feast.core.CoreServiceProto.GetStoresResponse;
+import feast.core.CoreServiceProto.UpdateStoreRequest;
+import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
 import feast.core.SourceProto.KafkaSourceConfig;
 import feast.core.SourceProto.SourceType;
+import feast.core.StoreProto;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
+import feast.core.StoreProto.Store.Subscription;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.StoreRepository;
 import feast.core.exception.RetrievalException;
@@ -55,6 +59,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 
@@ -326,6 +331,40 @@ public class SpecServiceTest {
     verify(featureSetRepository).saveAndFlush(ArgumentMatchers.any(FeatureSet.class));
     assertThat(applyFeatureSetResponse.getStatus(), equalTo(Status.CREATED));
     assertThat(applyFeatureSetResponse.getFeatureSet(), equalTo(expected));
+  }
+
+  @Test
+  public void shouldUpdateStoreIfConfigChanges() throws InvalidProtocolBufferException {
+    when(storeRepository.findById("SERVING")).thenReturn(Optional.of(stores.get(0)));
+    StoreProto.Store newStore = StoreProto.Store.newBuilder()
+        .setName("SERVING")
+        .setType(StoreType.REDIS)
+        .setRedisConfig(RedisConfig.newBuilder())
+        .addSubscriptions(Subscription.newBuilder().setName("a").setVersion(">1"))
+        .build();
+    UpdateStoreResponse actual = specService
+        .updateStore(UpdateStoreRequest.newBuilder().setStore(newStore).build());
+    UpdateStoreResponse expected = UpdateStoreResponse.newBuilder()
+        .setStore(newStore)
+        .setStatus(UpdateStoreResponse.Status.UPDATED)
+        .build();
+    ArgumentCaptor<Store> argumentCaptor = ArgumentCaptor.forClass(Store.class);
+    verify(storeRepository, times(1)).save(argumentCaptor.capture());
+    assertThat(argumentCaptor.getValue().toProto(), equalTo(newStore));
+    assertThat(actual, equalTo(expected));
+  }
+
+  @Test
+  public void shouldDoNothingIfNoChange() throws InvalidProtocolBufferException {
+    when(storeRepository.findById("SERVING")).thenReturn(Optional.of(stores.get(0)));
+    UpdateStoreResponse actual = specService
+        .updateStore(UpdateStoreRequest.newBuilder().setStore(stores.get(0).toProto()).build());
+    UpdateStoreResponse expected = UpdateStoreResponse.newBuilder()
+        .setStore(stores.get(0).toProto())
+        .setStatus(UpdateStoreResponse.Status.NO_CHANGE)
+        .build();
+    verify(storeRepository, times(0)).save(ArgumentMatchers.any());
+    assertThat(actual, equalTo(expected));
   }
 
   private FeatureSet newDummyFeatureSet(String name, int version) {

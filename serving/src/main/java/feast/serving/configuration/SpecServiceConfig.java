@@ -3,7 +3,8 @@ package feast.serving.configuration;
 import feast.serving.FeastProperties;
 import feast.serving.service.CachedSpecService;
 import feast.serving.service.CoreSpecService;
-import feast.serving.service.SpecService;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -15,9 +16,10 @@ import org.springframework.context.annotation.Configuration;
 @Slf4j
 @Configuration
 public class SpecServiceConfig {
+
   private String feastCoreHost;
   private int feastCorePort;
-  private static final int CACHE_REFRESH_RATE_MINUTES = 30;
+  private static final int CACHE_REFRESH_RATE_MINUTES = 1;
 
   private ScheduledExecutorService scheduledExecutorService =
       Executors.newSingleThreadScheduledExecutor();
@@ -29,24 +31,20 @@ public class SpecServiceConfig {
   }
 
   @Bean
-  public SpecService specService(FeastProperties feastProperties) {
-    // TODO: Do not used CachedSpecService for now
-    //       because it does not return correct store by name
+  public CachedSpecService specService(FeastProperties feastProperties) {
 
-    // CoreSpecService coreService = new CoreSpecService(feastCoreHost, feastCorePort);
-    // CachedSpecService cachedSpecStorage =
-    //     new CachedSpecService(coreService, feastProperties.getStoreName());
-    // // reload all specs including new ones periodically
-    // scheduledExecutorService.schedule(
-    //     cachedSpecStorage::populateCache, CACHE_REFRESH_RATE_MINUTES, TimeUnit.MINUTES);
-    //
-    // try {
-    //   cachedSpecStorage.populateCache();
-    // } catch (Exception e) {
-    //   log.error("Unable to preload feast's spec");
-    // }
-    // return cachedSpecStorage;
-
-    return new CoreSpecService(feastCoreHost, feastCorePort);
+    CoreSpecService coreService = new CoreSpecService(feastCoreHost, feastCorePort);
+    Path path = Paths.get(feastProperties.getStore().getConfigPath());
+    CachedSpecService cachedSpecStorage =
+        new CachedSpecService(coreService, path);
+    // reload all specs including new ones periodically
+    scheduledExecutorService.schedule(
+        cachedSpecStorage::populateCache, CACHE_REFRESH_RATE_MINUTES, TimeUnit.MINUTES);
+    try {
+      cachedSpecStorage.populateCache();
+    } catch (Exception e) {
+      log.error("Unable to preload feast's spec");
+    }
+    return cachedSpecStorage;
   }
 }

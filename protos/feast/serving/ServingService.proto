@@ -63,6 +63,7 @@ message GetFeastServingTypeResponse {
 }
 
 message GetFeaturesRequest {
+
     // List of feature sets and their features that are being retrieved
     repeated FeatureSet feature_sets = 1;
 
@@ -70,6 +71,8 @@ message GetFeaturesRequest {
     // Used during retrieval of feature rows and for joining feature
     // rows into a final dataset
     repeated EntityRow entity_rows = 2;
+
+    bool omit_entities_in_response = 3;
 
     message FeatureSet {
         // Feature set name

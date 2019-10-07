@@ -18,15 +18,15 @@ public class InstrumentationConfig {
 
   @Bean
   public Tracer tracer() {
-    if (!feastProperties.isTracingEnabled()) {
+    if (!feastProperties.getTracing().isEnabled()) {
       return NoopTracerFactory.create();
     }
 
-    if (!feastProperties.getTracingTracerName().equalsIgnoreCase("jaeger")) {
+    if (!feastProperties.getTracing().getTracerName().equalsIgnoreCase("jaeger")) {
       throw new IllegalArgumentException("Only 'jaeger' tracer is supported for now.");
     }
 
-    return io.jaegertracing.Configuration.fromEnv(feastProperties.getTracingServiceName())
+    return io.jaegertracing.Configuration.fromEnv(feastProperties.getTracing().getServiceName())
         .getTracer();
   }
 }
