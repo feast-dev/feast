@@ -17,24 +17,13 @@
 
 package feast.ingestion.transform;
 
-import com.google.common.collect.ImmutableMap;
 import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.SourceProto.KafkaSourceConfig;
-import feast.core.SourceProto.SourceType;
-import feast.source.kafka.FeatureRowDeserializer;
 import feast.types.FeatureRowProto.FeatureRow;
-import java.util.Arrays;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.beam.sdk.io.kafka.KafkaIO;
-import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
-
 
 @Slf4j
 public class FilterFeatureRow extends PTransform<PCollection<FeatureRow>, PCollection<FeatureRow>> {
@@ -42,24 +31,22 @@ public class FilterFeatureRow extends PTransform<PCollection<FeatureRow>, PColle
   private String featureSetId;
 
   public FilterFeatureRow(FeatureSetSpec featureSetSpec) {
-    this.featureSetId = String
-        .format("%s:%s", featureSetSpec.getName(), featureSetSpec.getVersion());
+    this.featureSetId =
+        String.format("%s:%s", featureSetSpec.getName(), featureSetSpec.getVersion());
   }
 
   @Override
   public PCollection<FeatureRow> expand(PCollection<FeatureRow> input) {
-    return input
-        .apply(
-            "Filter unrelated featureRows",
-            ParDo.of(
-                new DoFn<FeatureRow, FeatureRow>() {
-                  @ProcessElement
-                  public void processElement(
-                      ProcessContext c, @Element FeatureRow element) {
-                    if (element.getFeatureSet().equals(featureSetId)) {
-                      c.output(element);
-                    }
-                  }
-                }));
+    return input.apply(
+        "Filter unrelated featureRows",
+        ParDo.of(
+            new DoFn<FeatureRow, FeatureRow>() {
+              @ProcessElement
+              public void processElement(ProcessContext c, @Element FeatureRow element) {
+                if (element.getFeatureSet().equals(featureSetId)) {
+                  c.output(element);
+                }
+              }
+            }));
   }
 }
