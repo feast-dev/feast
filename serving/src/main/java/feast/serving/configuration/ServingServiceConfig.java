@@ -78,8 +78,8 @@ public class ServingServiceConfig {
       case REDIS:
         RedisConfig redisConfig = store.getRedisConfig();
         JedisPoolConfig poolConfig = new JedisPoolConfig();
-        poolConfig.setMaxTotal(feastProperties.getStore().getRedisPoolMaxIdle());
-        poolConfig.setMaxIdle(feastProperties.getStore().getRedisPoolMaxSize());
+        poolConfig.setMaxTotal(feastProperties.getStore().getRedisPoolMaxSize());
+        poolConfig.setMaxIdle(feastProperties.getStore().getRedisPoolMaxIdle());
         JedisPool jedisPool =
             new JedisPool(
                 poolConfig, redisConfig.getHost(), redisConfig.getPort());
