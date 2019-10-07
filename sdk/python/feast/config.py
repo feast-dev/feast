@@ -44,7 +44,7 @@ def get_or_create_config() -> Dict:
         os.makedirs(os.path.dirname(user_config_file_dir))
 
     if not os.path.isfile(user_config_file_path):
-        _save_config(user_config_file_path, _fproperties_to_dict())
+        _save_config(user_config_file_path, _props_to_dict())
 
     try:
         return toml.load(user_config_file_path)
@@ -63,61 +63,61 @@ def get_or_create_config() -> Dict:
         sys.exit(1)
 
 
-def set_property(fproperty: str, value: str):
+def set_property(prop: str, value: str):
     """
     Sets a single property in the Feast users local configuration file
-    :param fproperty: Feast property name
+    :param prop: Feast property name
     :param value: Feast property value
     """
 
-    if _is_valid_property(fproperty, value):
+    if _is_valid_property(prop, value):
         active_feast_config = get_or_create_config()
-        active_feast_config[fproperty] = value
+        active_feast_config[prop] = value
         _, user_config_file_path = _get_config_file_locations()
         _save_config(user_config_file_path, active_feast_config)
-        print("Updated property [%s]" % fproperty)
+        print("Updated property [%s]" % prop)
     else:
         _logger.error("Invalid property selected")
         sys.exit(1)
 
 
-def get_config_property_or_fail(fproperty: str, cli_config: Dict[str, str]):
+def get_config_property_or_fail(prop: str, cli_config: Dict[str, str] = None):
     if (
         isinstance(cli_config, dict)
-        and fproperty in cli_config
-        and cli_config[fproperty] is not None
+        and prop in cli_config
+        and cli_config[prop] is not None
     ):
-        return cli_config[fproperty]
+        return cli_config[prop]
 
     active_feast_config = get_or_create_config()
-    if _is_valid_property(fproperty, active_feast_config[fproperty]):
-        return active_feast_config[fproperty]
-    _logger.error("Could not load Feast property from configuration: %s" % fproperty)
+    if _is_valid_property(prop, active_feast_config[prop]):
+        return active_feast_config[prop]
+    _logger.error("Could not load Feast property from configuration: %s" % prop)
     sys.exit(1)
 
 
-def _fproperties_to_dict() -> Dict[str, str]:
+def _props_to_dict() -> Dict[str, str]:
     prop_dict = {}
-    for fproperty in feast_configuration_properties:
-        prop_dict[fproperty] = ""
+    for prop in feast_configuration_properties:
+        prop_dict[prop] = ""
     return prop_dict
 
 
-def _is_valid_property(fproperty: str, value: str) -> bool:
+def _is_valid_property(prop: str, value: str) -> bool:
     """
     Validates both a Feast property as well as value
-    :param fproperty: Feast property name
+    :param prop: Feast property name
     :param value: Feast property value
     :return: Returns True if property and value are valid
     """
 
-    if fproperty not in feast_configuration_properties:
+    if prop not in feast_configuration_properties:
         _logger.error("You are trying to set an invalid property")
         sys.exit(1)
 
-    fprop_type = feast_configuration_properties[fproperty]
+    prop_type = feast_configuration_properties[prop]
 
-    if fprop_type == "URL":
+    if prop_type == "URL":
         if "//" not in value:
             value = "%s%s" % ("grpc://", value)
         parsed_value = urlparse(value)  # type: ParseResult

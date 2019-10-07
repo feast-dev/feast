@@ -100,24 +100,17 @@ class TestClient:
         )
 
         response = GetOnlineFeaturesResponse()
-        feature_row = FeatureRowProto.FeatureRow(
-            event_timestamp=Timestamp(), feature_set="feature_set_1:1"
-        )
-        for feature_num in range(1, 10):
-            field = FieldProto.Field(
-                name="feature_" + str(feature_num),
-                value=ValueProto.Value(int64_val=feature_num),
-            )
-            feature_row.fields.append(field)
 
-        feature_data_set = GetOnlineFeaturesResponse.FeatureDataset(
-            name="feature_set_1", version=1
-        )
+        fields = dict()
+        for feature_num in range(1, 10):
+            fields["feature_set_1:1.feature_" + str(feature_num)] = ValueProto.Value(
+                int64_val=feature_num
+            )
+
+        field_values = GetOnlineFeaturesResponse.FieldValues(fields=fields)
 
         for row_number in range(1, ROW_COUNT + 1):
-            feature_data_set.feature_rows.append(feature_row)
-
-        response.feature_datasets.append(feature_data_set)
+            response.field_values.append(field_values)
 
         mocker.patch.object(
             mock_client._serving_service_stub,

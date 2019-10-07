@@ -10,3 +10,6 @@ gen-python:
 	pip install grpcio-tools
 	@$(foreach dir,$(dirs),python -m grpc_tools.protoc -I. --python_out=../sdk/python/ --mypy_out=../sdk/python/ feast/$(dir)/*.proto;)
 	@$(foreach dir,$(service_dirs),python -m grpc_tools.protoc -I. --grpc_python_out=../sdk/python/ feast/$(dir)/*.proto;)
+
+gen-docs:
+	protoc --doc_out=../docs/api/ --doc_opt=../docs/assets/protoc-gen-doc-markdown.tmpl,proto.md feast/core/*.proto feast/serving/*.proto feast/storage/*.proto feast/types/*.proto;

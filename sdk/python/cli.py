@@ -103,14 +103,14 @@ def config_list():
 
 
 @config.command(name="set")
-@click.argument("fproperty")
+@click.argument("prop")
 @click.argument("value")
-def config_set(fproperty, value):
+def config_set(prop, value):
     """
     Set a Feast properties for the currently active configuration
     """
     try:
-        feast_config.set_property(fproperty.strip(), value.strip())
+        feast_config.set_property(prop.strip(), value.strip())
     except Exception as e:
         _logger.error("Error in reading config file")
         _logger.exception(e)
@@ -135,7 +135,7 @@ def list():
         serving_url=feast_config.get_config_property_or_fail("serving_url"),
     )  # type: Client
 
-    for fs in feast_client.feature_sets:
+    for fs in feast_client.list_feature_sets():
         print(f"{fs.name}:{fs.version}")
 
 

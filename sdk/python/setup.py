@@ -30,6 +30,7 @@ REQUIRED = [
     "google-auth==1.*",
     "google-cloud-bigquery==1.*",
     "google-cloud-storage==1.20.*",
+    "google-cloud-core==1.0.3",
     "googleapis-common-protos==1.*",
     "google-cloud-bigquery-storage==0.*",
     "grpcio==1.*",

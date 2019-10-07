@@ -86,7 +86,7 @@ class TestFeatureSet:
         client.apply(fs1)
         client.apply(fs2)
 
-        feature_sets = client.feature_sets
+        feature_sets = client.list_feature_sets()
 
         # List Feature Sets
         assert (
