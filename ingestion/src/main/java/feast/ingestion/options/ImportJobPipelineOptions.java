@@ -29,9 +29,12 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.options.Validation.Required;
 
-/** Options passed to Beam to influence the job's execution environment */
+/**
+ * Options passed to Beam to influence the job's execution environment
+ */
 public interface ImportJobPipelineOptions
     extends PipelineOptions, DataflowPipelineOptions, DirectOptions {
+
   @Required
   @Description(
       "JSON string representation of the FeatureSetSpec that the import job will process."
@@ -58,30 +61,21 @@ public interface ImportJobPipelineOptions
 
   void setStoreJson(List<String> storeJson);
 
-  @Description("Limit of rows to sample and output for debugging")
-  @Default.Integer(0)
-  int getSampleLimit();
+  @Description(
+      "MetricsAccumulator exporter type to instantiate." //TODO: expound
+  )
+  @Default.String("NONE")
+  String getMetricsExporterType();
 
-  void setSampleLimit(int value);
+  void setMetricsExporterType(String metricsExporterType);
 
   @Description(
-      "Enable coalesce rows, merges feature rows within a time window to output only the latest value")
-  @Default.Boolean(false)
-  boolean isCoalesceRowsEnabled();
+      "Address to write the metrics to. Required if the metrics exporter is set to prometheus."
+  )
+  @Default.String("localhost:9091")
+  String getPrometheusExporterAddress();
 
-  void setCoalesceRowsEnabled(boolean value);
-
-  @Description("Delay in seconds to wait for newer values to coalesce on key before emitting")
-  @Default.Integer(10)
-  int getCoalesceRowsDelaySeconds();
-
-  void setCoalesceRowsDelaySeconds(int value);
-
-  @Description("Time in seconds to retain feature rows to merge with newer records")
-  @Default.Integer(30)
-  int getCoalesceRowsTimeoutSeconds();
-
-  void setCoalesceRowsTimeoutSeconds(int value);
+  void setPrometheusExporterAddress(String prometheusExporterAddress);
 
   @Description("If dry run is set, execute up to feature row validation")
   @Default.Boolean(false)

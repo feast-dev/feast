@@ -13,7 +13,9 @@ import feast.ingestion.transform.FilterFeatureRow;
 import feast.ingestion.transform.ReadFeatureRow;
 import feast.ingestion.transform.ToFeatureRowExtended;
 import feast.ingestion.transform.WriteFeaturesTransform;
+import feast.ingestion.transform.metrics.WriteMetricsTransform;
 import feast.ingestion.util.StorageUtil;
+import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.HashMap;
@@ -25,6 +27,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.PartitionInfo;
@@ -39,8 +42,8 @@ public class ImportJob {
    * <p>The arguments will be passed to Beam {@code PipelineOptionsFactory} to create {@code
    * ImportJobPipelineOptions}.
    *
-   * <p>The returned PipelineResult object can be used to check the state of the pipeline e.g. if it
-   * is running, done or cancelled.
+   * <p>The returned PipelineResult object can be used to check the state of the pipeline e.g. if
+   * it is running, done or cancelled.
    *
    * @param args command line arguments, typically come from the main() method
    * @return PipelineResult
@@ -55,8 +58,8 @@ public class ImportJob {
   /**
    * Create and run a Beam pipeline from {@code ImportJobPipelineOptions}.
    *
-   * <p>The returned PipelineResult object can be used to check the state of the pipeline e.g. if it
-   * is running, done or cancelled.
+   * <p>The returned PipelineResult object can be used to check the state of the pipeline e.g. if
+   * it is running, done or cancelled.
    *
    * @param pipelineOptions configuration for the pipeline
    * @return PipelineResult
@@ -81,10 +84,14 @@ public class ImportJob {
         setupSource(pipelineOptions.getJobName(), featureSetSpec.getSource());
         setupStore(store, featureSetSpec);
 
-        pipeline
+        PCollection<FeatureRowExtended> featureRows = pipeline
             .apply("Read FeatureRow", new ReadFeatureRow(featureSetSpec))
             .apply("Filter FeatureRow", new FilterFeatureRow(featureSetSpec))
-            .apply("Create FeatureRowExtended from FeatureRow", new ToFeatureRowExtended())
+            .apply("Create FeatureRowExtended from FeatureRow", new ToFeatureRowExtended());
+
+        featureRows
+            .apply("Write metrics", new WriteMetricsTransform(store.getName(), featureSetSpec));
+        featureRows
             .apply("Write FeatureRowExtended", new WriteFeaturesTransform(store, featureSetSpec));
       }
     }
@@ -128,8 +135,9 @@ public class ImportJob {
    * <p>Manually sets the consumer group offset for this job's consumer group to the offset at the
    * time at which we provision the ingestion job.
    *
-   * <p>This is necessary because the setup time for certain runners (e.g. Dataflow) might cause the
-   * worker to miss the messages that were emitted into the stream prior to the workers being ready.
+   * <p>This is necessary because the setup time for certain runners (e.g. Dataflow) might cause
+   * the worker to miss the messages that were emitted into the stream prior to the workers being
+   * ready.
    */
   private static void setupSource(String jobName, Source source) {
     if (!source.getType().equals(SourceType.KAFKA)) {
@@ -174,4 +182,5 @@ public class ImportJob {
           }
         });
   }
+
 }
