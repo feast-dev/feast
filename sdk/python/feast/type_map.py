@@ -17,6 +17,9 @@ import pandas as pd
 
 from feast.value_type import ValueType
 from feast.types.Value_pb2 import Value as ProtoValue, ValueType as ProtoValueType
+from feast.types import FeatureRow_pb2 as FeatureRowProto, Field_pb2 as FieldProto
+from google.protobuf.timestamp_pb2 import Timestamp
+from feast.constants import DATETIME_COLUMN
 
 # Mapping of feast value type to Pandas DataFrame dtypes
 # Integer and floating values are all 64-bit for better integration
@@ -111,7 +114,33 @@ def pandas_dtype_to_feast_value_type(dtype: pd.DataFrame.dtypes) -> ValueType:
     return type_map[dtype.__str__()]
 
 
-def pandas_value_to_proto_value(pandas_dtype, pandas_value) -> ProtoValue:
+def convert_df_to_feature_rows(dataframe: pd.DataFrame, feature_set):
+    def convert_series_to_proto_values(row: pd.Series):
+        feature_row = FeatureRowProto.FeatureRow(
+            event_timestamp=pd_datetime_to_timestamp_proto(row[DATETIME_COLUMN]),
+            feature_set=feature_set.name + ":" + str(feature_set.version),
+        )
+
+        for column, item in row.iteritems():
+            feature_row.fields.extend(
+                [
+                    FieldProto.Field(
+                        name=column,
+                        value=pd_value_to_proto_value(dataframe[column].dtype, item),
+                    )
+                ]
+            )
+        return feature_row
+
+    return convert_series_to_proto_values
+
+
+def pd_datetime_to_timestamp_proto(datetime) -> Timestamp:
+    seconds = np.datetime64(datetime).astype("int64") // 1000000
+    return Timestamp(seconds=seconds)
+
+
+def pd_value_to_proto_value(pandas_dtype, pandas_value) -> ProtoValue:
     value = ProtoValue()
     value_attr = dtype_to_feast_value_attr(pandas_dtype)
     if pandas_dtype.__str__() in ["datetime64[ns]", "datetime64[ns, UTC]"]:

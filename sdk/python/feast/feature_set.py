@@ -35,15 +35,15 @@ from kafka import KafkaProducer
 from tqdm import tqdm
 from feast.type_map import pandas_dtype_to_feast_value_type
 from feast.types import FeatureRow_pb2 as FeatureRowProto, Field_pb2 as FieldProto
-from feast.type_map import pandas_value_to_proto_value
+from feast.type_map import pd_value_to_proto_value
 from google.protobuf.json_format import MessageToJson
 import yaml
 from google.protobuf import json_format
 from feast.source import KafkaSource
-
+from feast.type_map import convert_df_to_feature_rows
+from feast.type_map import DATETIME_COLUMN
 
 _logger = logging.getLogger(__name__)
-DATETIME_COLUMN = "datetime"  # type: str
 CPU_COUNT = cpu_count()  # type: int
 SENTINEL = 1  # type: int
 
@@ -299,11 +299,10 @@ class FeatureSet:
         pbar = tqdm(unit="rows", total=dataframe.shape[0])
         q = Queue()
         proc = Process(target=self._listener, args=(pbar, q))
-        proc.start()  # Start the listener process
-
-        if dataframe.shape[0] > 10000:
-            _logger.info("Performing batch upload.")
-            try:
+        try:
+            proc.start()  #
+            if dataframe.shape[0] > 10000:
+                _logger.info("Performing batch upload.")
                 # Split dataframe into smaller dataframes
                 n = ceil(dataframe.shape[0] / max_workers)
                 list_df = [
@@ -326,17 +325,18 @@ class FeatureSet:
                 for p in processes:
                     _logger.info("Joining processes")
                     p.join()
-            except Exception as ex:
-                _logger.error(f"Exception occurred: {ex}")
-        else:
-            _logger.info("Performing upload")
-            self.ingest_one(dataframe, q, force_update, timeout)
+            else:
+                _logger.info("Performing upload")
+                self.ingest_one(dataframe, q, force_update, timeout)
 
-        q.put(None)  # Signal to listener process to stop
-        proc.join()  # Join listener process
-        pbar.update(dataframe.shape[0] - pbar.n)  # Perform a final update
-        pbar.close()
-        _logger.info("Upload complete.")
+            _logger.info("Upload complete.")
+        except Exception as ex:
+            _logger.error(f"Exception occurred: {ex}")
+        finally:
+            q.put(None)  # Signal to listener process to stop
+            proc.join()  # Join listener process
+            pbar.update(dataframe.shape[0] - pbar.n)  # Perform a final update
+            pbar.close()
 
     def ingest_one(
         self,
@@ -372,11 +372,13 @@ class FeatureSet:
             f"on brokers: '{self._get_kafka_source_brokers()}'"
         )
 
-        # Convert rows to FeatureRows and and push to stream
-        for index, row in dataframe.iterrows():
-            feature_row = self._pandas_row_to_feature_row(dataframe, row)
+        feature_rows = dataframe.apply(
+            convert_df_to_feature_rows(dataframe, self), axis=1
+        )
+
+        for row in feature_rows:
             self._message_producer.send(
-                self._get_kafka_source_topic(), feature_row.SerializeToString()
+                self._get_kafka_source_topic(), row.SerializeToString()
             )
             q.put(SENTINEL)
 
@@ -406,41 +408,15 @@ class FeatureSet:
         if ".parquet" in file_ext:
             df = pd.read_parquet(file_path)
         elif ".csv" in file_ext:
-            df = pd.read_csv(file_path)
+            df = pd.read_csv(file_path, index_col=False)
         try:
             # Ensure that dataframe is initialised
-            assert df
+            assert isinstance(df, pd.DataFrame)
         except AssertionError:
             _logger.error(f"Ingestion of file type {file_ext} is not supported")
             raise Exception("File type not supported")
 
         self.ingest(df, force_update, timeout, max_workers)
-
-    def _pandas_row_to_feature_row(
-        self, dataframe: pd.DataFrame, row
-    ) -> FeatureRow.FeatureRow:
-        if len(self._fields) != len(dataframe.columns) - 1:
-            raise Exception(
-                "Amount of entities and features in feature set do not match dataset columns"
-            )
-
-        event_timestamp = Timestamp()
-        event_timestamp.FromNanoseconds(row[DATETIME_COLUMN].value)
-        feature_row = FeatureRowProto.FeatureRow(
-            event_timestamp=event_timestamp,
-            feature_set=self.name + ":" + str(self.version),
-        )
-
-        for column in dataframe.columns:
-            if column == DATETIME_COLUMN:
-                continue
-            proto_value = pandas_value_to_proto_value(
-                pandas_dtype=dataframe[column].dtype, pandas_value=row[column]
-            )
-            feature_row.fields.extend(
-                [FieldProto.Field(name=column, value=proto_value)]
-            )
-        return feature_row
 
     @classmethod
     def from_proto(cls, feature_set_proto: FeatureSetSpecProto):
@@ -455,6 +431,7 @@ class FeatureSet:
         )
         feature_set._version = feature_set_proto.version
         feature_set._source = Source.from_proto(feature_set_proto.source)
+        feature_set._is_dirty = False
         return feature_set
 
     def to_proto(self) -> FeatureSetSpecProto:
@@ -515,7 +492,7 @@ class FeatureSet:
     @classmethod
     def from_yaml(cls, fs_yaml):
         featureset_dict = (
-            yaml.safe_load(resouce_yaml) if not isinstance(fs_yaml, dict) else fs_yaml
+            yaml.safe_load(fs_yaml) if not isinstance(fs_yaml, dict) else fs_yaml
         )
 
         if ("kind" not in featureset_dict) and (

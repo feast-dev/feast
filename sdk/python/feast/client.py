@@ -41,7 +41,7 @@ from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesResponse,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-from feast.type_map import pandas_value_to_proto_value, FEAST_VALUE_ATTR_TO_DTYPE
+from feast.type_map import pd_datetime_to_timestamp_proto, FEAST_VALUE_ATTR_TO_DTYPE
 from feast.types.Value_pb2 import Value
 
 GRPC_CONNECTION_TIMEOUT_DEFAULT = 5  # type: int
@@ -242,40 +242,6 @@ class Client:
         feature_set._update_from_feature_set(applied_fs, is_dirty=False)
         return
 
-    def get(
-        self,
-        entity_data: pd.DataFrame,
-        feature_ids: List[str],
-        join_on: Dict[str, str] = None,
-        batch: bool = False,
-    ) -> pd.DataFrame:
-        self._connect_serving(skip_if_connected=True)
-
-        if "datetime" != entity_data.columns[0]:
-            raise ValueError("The first column in entity_data should be 'datetime'")
-
-        entity_names = []
-        for column in entity_data.columns[1:]:
-            entity_names.append(column)
-
-        entity_dataset_rows = entity_data.apply(
-            _convert_to_proto_value_fn(entity_data.dtypes), axis=1
-        )
-
-        feature_set_request = create_feature_set_request_from_feature_strings(
-            feature_ids
-        )
-
-        if batch:
-            return self.get_batch_features(
-                entity_data, entity_dataset_rows, entity_names, feature_set_request
-            )
-
-        if not batch:
-            return self.get_online_features(
-                entity_data, entity_dataset_rows, entity_names, feature_set_request
-            )
-
     def get_batch_features(
         self, feature_ids: List[str], entity_data: pd.DataFrame
     ) -> Job:
@@ -315,6 +281,8 @@ class Client:
         >>> df = feature_retrieval_job.to_dataframe()
         >>> print(df)
         """
+
+        self._connect_serving(skip_if_connected=True)
 
         # "feature_sets" and "entity_rows" are required to create a GetFeaturesRequest object.
         feature_sets = []
@@ -373,21 +341,12 @@ class Client:
 
             entity_rows.append(
                 GetFeaturesRequest.EntityRow(
-                    entity_timestamp=Timestamp(
-                        seconds=np.datetime64(row.datetime).astype("int64") // 1000000
-                    ),
+                    entity_timestamp=pd_datetime_to_timestamp_proto(row.datetime),
                     fields=fields,
                 )
             )
 
         request = GetFeaturesRequest(feature_sets=feature_sets, entity_rows=entity_rows)
-
-        # TODO: Move this out from this method
-        if self._serving_service_stub is None:
-            channel = grpc.insecure_channel(
-                self.serving_url
-            )
-            self._serving_service_stub = ServingServiceStub(channel)
 
         response = self._serving_service_stub.GetBatchFeatures(request)
         return Job(response.job, self._serving_service_stub, self._storage_client)
@@ -397,34 +356,115 @@ class Client:
         response = self._serving_service_stub.GetBatchFeatures(request)
         return Job(response.job, self._serving_service_stub, self._storage_client)
 
-    def get_online_features(
-        self, entity_data, entity_dataset_rows, entity_names, feature_set_request
-    ):
-        get_online_features_response_proto = self._serving_service_stub.GetOnlineFeatures(
-            GetFeaturesRequest(
-                entity_dataset=GetFeaturesRequest.EntityDataset(
-                    entity_dataset_rows=entity_dataset_rows, entity_names=entity_names
-                ),
-                feature_sets=feature_set_request,
+    def get_online_features(self, feature_ids: List[str], entity_data: pd.DataFrame):
+        self._connect_serving(skip_if_connected=True)
+
+        feature_sets = []
+        entity_rows = []
+
+        # Dict of feature_set_name:version (fsv) -> list of feature_names (fn)
+        # This is a variable to help construct feature_sets
+        fsv_to_fns = defaultdict(list)
+
+        # TODO: Perform validation on the provided features_ids
+
+        for feature_id in feature_ids:
+            feature_set_name, version_str, feature_name = feature_id.split(":")
+            fsv_to_fns[f"{feature_set_name}:{version_str}"].append(feature_name)
+
+        # TODO: Do not harcode max_age but allow users to specify it in the parameters
+        hardcoded_max_age_sec = 604800  # 1 week
+
+        for fsv, feature_names in fsv_to_fns.items():
+            feature_set_name, version_str = fsv.split(":")
+            feature_sets.append(
+                GetFeaturesRequest.FeatureSet(
+                    name=feature_set_name,
+                    version=int(version_str),
+                    feature_names=feature_names,
+                    max_age=Duration(seconds=hardcoded_max_age_sec),
+                )
             )
+
+        for index, row in entity_data.iterrows():
+            # Fields is a map of entity_id to Feast Value
+            fields = {}
+
+            # TODO: Support more dtypes
+
+            for entity_id, dtype in entity_data.dtypes.items():
+                if pd.isnull(row[entity_id]):
+                    # Handle unset i.e. np.nan value
+                    fields[entity_id] = Value()
+                elif entity_id == "datetime":
+                    continue
+                elif dtype == "int64":
+                    fields[entity_id] = Value(int64_val=row[entity_id])
+                elif dtype == "int32":
+                    fields[entity_id] = Value(int32_val=row[entity_id])
+                elif dtype == "object":
+                    fields[entity_id] = Value(string_val=row[entity_id])
+                elif dtype == "float64":
+                    fields[entity_id] = Value(float_val=row[entity_id])
+                else:
+                    raise Exception("Unsupported dtype: " + str(dtype))
+
+            entity_rows.append(
+                GetFeaturesRequest.EntityRow(
+                    entity_timestamp=Timestamp(
+                        seconds=np.datetime64("now").astype("int64") // 1000000
+                    ),
+                    fields=fields,
+                )
+            )
+
+        request = GetFeaturesRequest(feature_sets=feature_sets, entity_rows=entity_rows)
+
+        response = self._serving_service_stub.GetOnlineFeatures(
+            request
         )  # type: GetOnlineFeaturesResponse
-        feature_dataframe = feature_data_sets_to_pandas_dataframe(
-            entity_data_set=entity_data.copy(),
-            feature_data_sets=list(get_online_features_response_proto.feature_datasets),
-        )
+        feature_dataframe = field_values_to_df(response.field_values)
         return feature_dataframe
 
 
-def _convert_to_proto_value_fn(dtypes: pd.core.generic.NDFrame):
-    def convert_to_proto_value(row: pd.Series):
-        entity_dataset_row = GetFeaturesRequest.EntityDatasetRow()
-        for i in range(len(row) - 1):
-            entity_dataset_row.entity_ids.append(
-                pandas_value_to_proto_value(dtypes[i + 1], row[i + 1])
-            )
-        return entity_dataset_row
+def field_values_to_df(field_values: List[Dict[str, Value]]) -> pd.DataFrame():
+    dtypes = {}
+    value_attr = {}
+    columns = []
+    data = {}
+    first_row_done = False
 
-    return convert_to_proto_value
+    for row in field_values:
+        for feature_id, value in dict(row.fields).items():
+
+            # For each column, detect the first value type that has been set and keep it consistent
+            if feature_id not in value_attr or value_attr[feature_id] is None:
+                field_type = value.WhichOneof("val")
+                value_attr[feature_id] = field_type
+
+            if not first_row_done:
+                columns.append(feature_id)
+                data[feature_id] = []
+                value_attr[feature_id] = value.WhichOneof("val")
+                if value_attr[feature_id] is None:
+                    dtypes[feature_id] = None
+                else:
+                    dtypes[feature_id] = FEAST_VALUE_ATTR_TO_DTYPE[
+                        value_attr[feature_id]
+                    ]
+
+            if value_attr[feature_id] is None:
+                data[feature_id].append(None)
+            else:
+                data[feature_id].append(getattr(value, value_attr[feature_id]))
+
+        first_row_done = True
+
+    dataframe = (
+        pd.DataFrame(columns=columns, data=data).reset_index(drop=True).astype(dtypes)
+    )
+
+    return dataframe
 
 
 # TODO: Update the signature to updated protos

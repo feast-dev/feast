@@ -11,6 +11,7 @@ pandas==0.*
 protobuf==3.*
 pytest
 pytest-mock
+pytest-timeout
 PyYAML==5.1.2
 fastavro==0.21.*
 grpcio-testing==1.*

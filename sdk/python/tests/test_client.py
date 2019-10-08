@@ -103,7 +103,7 @@ class TestClient:
 
         fields = dict()
         for feature_num in range(1, 10):
-            fields["feature_set_1:1.feature_" + str(feature_num)] = ValueProto.Value(
+            fields["feature_set_1:1:feature_" + str(feature_num)] = ValueProto.Value(
                 int64_val=feature_num
             )
 
@@ -122,19 +122,22 @@ class TestClient:
             {"datetime": np.repeat(4, ROW_COUNT), "entity_id": np.repeat(4, ROW_COUNT)}
         )
 
-        feature_dataframe = mock_client.get(
+        feature_dataframe = mock_client.get_online_features(
             entity_data=entity_data,
             feature_ids=[
-                "feature_set_1:1.feature_1",
-                "feature_set_1:1.feature_2",
-                "feature_set_1:1.feature_3",
-                "feature_set_1:1.feature_4",
-                "feature_set_1:1.feature_5",
-                "feature_set_1:1.feature_6",
-                "feature_set_1:1.feature_7",
-                "feature_set_1:1.feature_8",
-                "feature_set_1:1.feature_9",
+                "feature_set_1:1:feature_1",
+                "feature_set_1:1:feature_2",
+                "feature_set_1:1:feature_3",
+                "feature_set_1:1:feature_4",
+                "feature_set_1:1:feature_5",
+                "feature_set_1:1:feature_6",
+                "feature_set_1:1:feature_7",
+                "feature_set_1:1:feature_8",
+                "feature_set_1:1:feature_9",
             ],
         )
 
-        feature_dataframe.head()
+        assert (
+            feature_dataframe["feature_set_1:1:feature_1"][0] == 1
+            and feature_dataframe["feature_set_1:1:feature_9"][2] == 9
+        )
