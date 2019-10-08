@@ -13,7 +13,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 
 @Slf4j
-public class WriteMetricsDoFn extends DoFn<KV<Integer, Iterable<FeatureRow>>, String> {
+public class WriteMetricsDoFn extends DoFn<KV<Integer, Iterable<FeatureRow>>, Void> {
 
   private final String STORE_TAG_KEY = "feast_store";
   private final String FEATURE_SET_NAME_TAG_KEY = "feast_featureSet_name";

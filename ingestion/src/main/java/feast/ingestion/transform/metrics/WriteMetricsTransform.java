@@ -50,6 +50,10 @@ public class WriteMetricsTransform extends PTransform<PCollection<FeatureRowExte
         return PDone.in(input.getPipeline());
       case "none":
       default:
+        input.apply("Noop", ParDo.of(new DoFn<FeatureRowExtended, Void>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {}
+        }));
         return PDone.in(input.getPipeline());
     }
   }
