@@ -64,7 +64,7 @@ public interface ImportJobPipelineOptions
   @Description(
       "MetricsAccumulator exporter type to instantiate." //TODO: expound
   )
-  @Default.String("NONE")
+  @Default.String("none")
   String getMetricsExporterType();
 
   void setMetricsExporterType(String metricsExporterType);

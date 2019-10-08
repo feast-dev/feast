@@ -33,7 +33,7 @@ public class WriteMetricsTransform extends PTransform<PCollection<FeatureRowExte
     ImportJobPipelineOptions options = input.getPipeline().getOptions()
         .as(ImportJobPipelineOptions.class);
     switch (options.getMetricsExporterType()) {
-      case "PROMETHEUS":
+      case "prometheus":
         input
             .apply("Window records",
                 Window.into(FixedWindows.of(Duration.standardSeconds(WINDOW_SIZE_SECONDS))))
@@ -48,7 +48,7 @@ public class WriteMetricsTransform extends PTransform<PCollection<FeatureRowExte
                 .of(new WriteMetricsDoFn(options.getJobName(), storeName, featureSetSpec,
                     options.getPrometheusExporterAddress())));
         return PDone.in(input.getPipeline());
-      case "NONE":
+      case "none":
       default:
         return PDone.in(input.getPipeline());
     }
