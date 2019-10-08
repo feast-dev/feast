@@ -351,11 +351,6 @@ class Client:
         response = self._serving_service_stub.GetBatchFeatures(request)
         return Job(response.job, self._serving_service_stub, self._storage_client)
 
-    def get_batch_features_old(self, feature_sets, entity_rows):
-        request = GetFeaturesRequest(feature_sets=feature_sets, entity_rows=entity_rows)
-        response = self._serving_service_stub.GetBatchFeatures(request)
-        return Job(response.job, self._serving_service_stub, self._storage_client)
-
     def get_online_features(self, feature_ids: List[str], entity_data: pd.DataFrame):
         self._connect_serving(skip_if_connected=True)
 
