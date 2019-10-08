@@ -18,10 +18,10 @@
 package feast.ingestion.transform;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto.KafkaSourceConfig;
 import feast.core.SourceProto.SourceType;
-import feast.source.kafka.FeatureRowDeserializer;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.Arrays;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
@@ -57,25 +57,27 @@ public class ReadFeatureRow extends PTransform<PInput, PCollection<FeatureRow>> 
         .getPipeline()
         .apply(
             "Read from Kafka",
-            KafkaIO.<byte[], FeatureRow>read()
-                .withBootstrapServers(
-                    kafkaSourceConfig.getBootstrapServers())
-                .withTopics(
-                    Arrays.asList(
-                        kafkaSourceConfig.getTopic()))
+            KafkaIO.<byte[], byte[]>read()
+                .withBootstrapServers(kafkaSourceConfig.getBootstrapServers())
+                .withTopics(Arrays.asList(kafkaSourceConfig.getTopic()))
                 .withKeyDeserializer(ByteArrayDeserializer.class)
-                .withValueDeserializer(FeatureRowDeserializer.class)
+                .withValueDeserializer(ByteArrayDeserializer.class)
                 .withReadCommitted()
                 .commitOffsetsInFinalize()
                 .updateConsumerProperties(ImmutableMap.of("group.id", kafkaConsumerGroupId)))
         .apply(
-            "Create FeatureRow from KafkaRecord",
+            "Convert KafkaRecord into FeatureRow",
             ParDo.of(
-                new DoFn<KafkaRecord<byte[], FeatureRow>, FeatureRow>() {
+                new DoFn<KafkaRecord<byte[], byte[]>, FeatureRow>() {
                   @ProcessElement
-                  public void processElement(
-                      ProcessContext c, @Element KafkaRecord<byte[], FeatureRow> element) {
-                    c.output(element.getKV().getValue());
+                  public void processElemennt(ProcessContext context) {
+                    try {
+                      FeatureRow featureRow =
+                          FeatureRow.parseFrom(context.element().getKV().getValue());
+                      context.output(featureRow);
+                    } catch (InvalidProtocolBufferException e) {
+                      e.printStackTrace();
+                    }
                   }
                 }));
   }

@@ -305,21 +305,23 @@ class Client:
             
         Example usage:
         ============================================================
-        feast_client = Client(core_url="localhost:6565", serving_url="localhost:6566")
-        feature_ids = ["driver:1:city"]
-        entity_data = pd.DataFrame({"datetime": [datetime.utcnow()], "driver_id": [np.nan]})
-        feature_retrieval_job = feast_client.get_batch_features(feature_ids, entity_data)
-        df = feature_retrieval_job.to_dataframe()
-        print(df)
+        >>> from feast.client import Client
+        >>> from datetime import datetime
+        >>>
+        >>> feast_client = Client(core_url="localhost:6565", serving_url="localhost:6566")
+        >>> feature_ids = ["driver:1:city"]
+        >>> entity_data = pd.DataFrame({"datetime": [datetime.utcnow()], "driver_id": [np.nan]})
+        >>> feature_retrieval_job = feast_client.get_batch_features(feature_ids, entity_data)
+        >>> df = feature_retrieval_job.to_dataframe()
+        >>> print(df)
         """
 
-        # We feature_set and entity_rows to construct a GetFeaturesRequest object
-        # and send it to Feast Serving GRPC server
+        # "feature_sets" and "entity_rows" are required to create a GetFeaturesRequest object.
         feature_sets = []
         entity_rows = []
 
         # Dict of feature_set_name:version (fsv) -> list of feature_names (fn)
-        # This is a variable to help construct feature_sets
+        # This is a variable to help construct feature_sets.
         fsv_to_fns = defaultdict(list)
 
         # TODO: Perform validation on the provided features_ids
@@ -349,11 +351,15 @@ class Client:
             # TODO: Support more dtypes
 
             for entity_id, dtype in entity_data.dtypes.items():
-                if pd.isnull(row[entity_id]):
-                    # Handle unset i.e. np.nan value
-                    fields[entity_id] = Value()
-                elif entity_id == "datetime":
+                # Column "datetime" is treated differently. It is used as "entity_timestamp" value.
+                if entity_id == "datetime":
                     continue
+
+                if pd.isnull(row[entity_id]):
+                    # Handle unset Feast value i.e. "np.nan" value.
+                    # For batch retrieval, having unset Feast value for the entity_id
+                    # will result in retrieval of "all" entities within the request timestampe range.
+                    fields[entity_id] = Value()
                 elif dtype == "int64":
                     fields[entity_id] = Value(int64_val=row[entity_id])
                 elif dtype == "int32":
@@ -378,7 +384,7 @@ class Client:
 
         # TODO: Move this out from this method
         if self._serving_service_stub is None:
-            self._serving_service_stub = channel = grpc.insecure_channel(
+            channel = grpc.insecure_channel(
                 self.serving_url
             )
             self._serving_service_stub = ServingServiceStub(channel)

@@ -20,11 +20,11 @@ import feast.serving.ServingAPIProto.GetFeastServingTypeRequest;
 import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
 import feast.serving.ServingAPIProto.GetFeaturesRequest;
 import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityRow;
+import feast.serving.ServingAPIProto.GetJobRequest;
+import feast.serving.ServingAPIProto.GetJobResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.JobStatus;
 import feast.serving.ServingAPIProto.JobType;
-import feast.serving.ServingAPIProto.ReloadJobRequest;
-import feast.serving.ServingAPIProto.ReloadJobResponse;
 import feast.serving.util.BigQueryUtil;
 import io.grpc.Status;
 import java.util.ArrayList;
@@ -211,13 +211,13 @@ public class BigQueryServingService implements ServingService {
   }
 
   @Override
-  public ReloadJobResponse reloadJob(ReloadJobRequest reloadJobRequest) {
-    Optional<ServingAPIProto.Job> job = jobService.get(reloadJobRequest.getJob().getId());
+  public GetJobResponse getJob(GetJobRequest getJobRequest) {
+    Optional<ServingAPIProto.Job> job = jobService.get(getJobRequest.getJob().getId());
     if (!job.isPresent()) {
       throw Status.NOT_FOUND
-          .withDescription(String.format("Job not found: %s", reloadJobRequest.getJob().getId()))
+          .withDescription(String.format("Job not found: %s", getJobRequest.getJob().getId()))
           .asRuntimeException();
     }
-    return ReloadJobResponse.newBuilder().setJob(job.get()).build();
+    return GetJobResponse.newBuilder().setJob(job.get()).build();
   }
 }
