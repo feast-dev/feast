@@ -16,6 +16,7 @@ import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
+import feast.core.config.FeastProperties.MetricsProperties;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import java.io.IOException;
 import java.util.HashMap;
@@ -45,9 +46,10 @@ public class DirectRunnerJobManagerTest {
   public void setUp() {
     initMocks(this);
     defaults = new HashMap<>();
-    defaults.put("coalesceRowsEnabled", "true");
+    MetricsProperties metricsProperties = new MetricsProperties();
+    metricsProperties.setEnabled(false);
 
-    drJobManager = new DirectRunnerJobManager(defaults, directJobRegistry);
+    drJobManager = new DirectRunnerJobManager(defaults, directJobRegistry, metricsProperties);
     drJobManager = Mockito.spy(drJobManager);
   }
 
@@ -69,7 +71,6 @@ public class DirectRunnerJobManagerTest {
     ImportJobPipelineOptions expectedPipelineOptions = PipelineOptionsFactory.fromArgs("")
         .as(ImportJobPipelineOptions.class);
     expectedPipelineOptions.setAppName("DirectRunnerJobManager");
-    expectedPipelineOptions.setCoalesceRowsEnabled(true);
     expectedPipelineOptions.setRunner(DirectRunner.class);
     expectedPipelineOptions.setBlockOnRun(false);
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));

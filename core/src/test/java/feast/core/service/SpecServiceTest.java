@@ -50,6 +50,7 @@ import feast.core.model.Field;
 import feast.core.model.Source;
 import feast.core.model.Store;
 import feast.types.ValueProto.ValueType.Enum;
+import io.grpc.StatusRuntimeException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -153,16 +154,6 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void shouldThrowErrorWhenNoFeatureSetsWithNameFound()
-      throws InvalidProtocolBufferException {
-    Filter filter = Filter.newBuilder().setFeatureSetName("asd").build();
-    expectedException.expect(RetrievalException.class);
-    expectedException.expectMessage(
-        String.format("Unable to find any featureSets matching the filter '%s'", filter));
-    specService.getFeatureSets(filter);
-  }
-
-  @Test
   public void shouldGetAllFeatureSetsMatchingVersionIfNoComparator()
       throws InvalidProtocolBufferException {
     GetFeatureSetsResponse actual = specService
@@ -231,7 +222,7 @@ public class SpecServiceTest {
   @Test
   public void shouldThrowRetrievalExceptionGivenInvalidFeatureSetVersionComparator()
       throws InvalidProtocolBufferException {
-    expectedException.expect(RetrievalException.class);
+    expectedException.expect(StatusRuntimeException.class);
     expectedException.expectMessage("Invalid comparator '=<' provided.");
     specService.getFeatureSets(
         Filter.newBuilder().setFeatureSetName("f1").setFeatureSetVersion("=<1").build());

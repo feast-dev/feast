@@ -23,14 +23,11 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.DataflowScopes;
 import com.google.common.base.Strings;
-import com.timgroup.statsd.StatsDClient;
 import feast.core.config.FeastProperties.JobProperties;
 import feast.core.job.JobManager;
 import feast.core.job.JobMonitor;
 import feast.core.job.NoopJobMonitor;
 import feast.core.job.Runner;
-import feast.core.job.StatsdMetricPusher;
-import feast.core.job.dataflow.DataflowJobConfig;
 import feast.core.job.dataflow.DataflowJobManager;
 import feast.core.job.dataflow.DataflowJobMonitor;
 import feast.core.job.direct.DirectJobRegistry;
@@ -41,9 +38,7 @@ import java.security.GeneralSecurityException;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.hadoop.util.hash.Hash;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -66,16 +61,16 @@ public class JobConfig {
       DirectJobRegistry directJobRegistry)
       throws Exception {
 
-    JobProperties jobOptions = feastProperties.getJobs();
-    Runner runner = Runner.fromString(jobOptions.getRunner());
-    if (jobOptions.getOptions() == null) {
-      jobOptions.setOptions(new HashMap<>());
+    JobProperties jobProperties = feastProperties.getJobs();
+    Runner runner = Runner.fromString(jobProperties.getRunner());
+    if (jobProperties.getOptions() == null) {
+      jobProperties.setOptions(new HashMap<>());
     }
-
+    Map<String, String> jobOptions = jobProperties.getOptions();
     switch (runner) {
       case DATAFLOW:
-        if (Strings.isNullOrEmpty(jobOptions.getDataflowLocation())
-            || Strings.isNullOrEmpty(jobOptions.getDataflowProjectId())) {
+        if (Strings.isNullOrEmpty(jobOptions.getOrDefault("region", null))
+            || Strings.isNullOrEmpty(jobOptions.getOrDefault("project", null))) {
           log.error("Project and location of the Dataflow runner is not configured");
           throw new IllegalStateException(
               "Project and location of Dataflow runner must be specified for jobs to be run on Dataflow runner.");
@@ -90,8 +85,7 @@ public class JobConfig {
                   credential);
 
           return new DataflowJobManager(
-              dataflow, jobOptions.getDataflowProjectId(), jobOptions.getDataflowLocation(),
-              jobOptions.getOptions());
+              dataflow, jobProperties.getOptions(), jobProperties.getMetrics());
         } catch (IOException e) {
           throw new IllegalStateException(
               "Unable to find credential required for Dataflow monitoring API", e);
@@ -101,9 +95,10 @@ public class JobConfig {
           throw new IllegalStateException("Unable to initialize DataflowJobManager", e);
         }
       case DIRECT:
-        return new DirectRunnerJobManager(jobOptions.getOptions(), directJobRegistry);
+        return new DirectRunnerJobManager(jobProperties.getOptions(), directJobRegistry,
+            jobProperties.getMetrics());
       default:
-        throw new IllegalArgumentException("Unsupported runner: " + jobOptions.getRunner());
+        throw new IllegalArgumentException("Unsupported runner: " + jobProperties.getRunner());
     }
   }
 
@@ -116,13 +111,14 @@ public class JobConfig {
       DirectJobRegistry directJobRegistry)
       throws Exception {
 
-    JobProperties jobOptions = feastProperties.getJobs();
-    Runner runner = Runner.fromString(jobOptions.getRunner());
+    JobProperties jobProperties = feastProperties.getJobs();
+    Runner runner = Runner.fromString(jobProperties.getRunner());
+    Map<String, String> jobOptions = jobProperties.getOptions();
 
     switch (runner) {
       case DATAFLOW:
-        if (Strings.isNullOrEmpty(jobOptions.getDataflowLocation())
-            || Strings.isNullOrEmpty(jobOptions.getDataflowProjectId())) {
+        if (Strings.isNullOrEmpty(jobOptions.getOrDefault("region", null))
+            || Strings.isNullOrEmpty(jobOptions.getOrDefault("project", null))) {
           log.warn(
               "Project and location of the Dataflow runner is not configured, will not do job monitoring");
           return new NoopJobMonitor();
@@ -136,8 +132,8 @@ public class JobConfig {
                   JacksonFactory.getDefaultInstance(),
                   credential);
 
-          return new DataflowJobMonitor(dataflow, jobOptions.getDataflowProjectId(),
-              jobOptions.getDataflowLocation());
+          return new DataflowJobMonitor(dataflow, jobOptions.get("project"),
+              jobOptions.get("region"));
         } catch (IOException e) {
           log.error(
               "Unable to find credential required for Dataflow monitoring API: {}", e.getMessage());
@@ -151,16 +147,6 @@ public class JobConfig {
       default:
         return new NoopJobMonitor();
     }
-  }
-
-  /**
-   * Get metrics pusher to statsd
-   *
-   * @return StatsdMetricPusher
-   */
-  @Bean
-  public StatsdMetricPusher getStatsdMetricPusher(StatsDClient statsDClient) {
-    return new StatsdMetricPusher(statsDClient);
   }
 
   /**

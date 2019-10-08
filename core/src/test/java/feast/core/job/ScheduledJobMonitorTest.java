@@ -48,16 +48,12 @@ public class ScheduledJobMonitorTest {
 
   @Mock JobMonitor jobMonitor;
 
-  @Mock StatsdMetricPusher stasdMetricPusher;
-
   @Mock JobInfoRepository jobInfoRepository;
 
-  @Mock MetricsRepository metricsRepository;
-
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
     MockitoAnnotations.initMocks(this);
-    scheduledJobMonitor = new ScheduledJobMonitor(jobMonitor, jobInfoRepository, stasdMetricPusher);
+    scheduledJobMonitor = new ScheduledJobMonitor(jobMonitor, jobInfoRepository);
   }
 
   @Test
@@ -96,33 +92,4 @@ public class ScheduledJobMonitorTest {
     verify(jobInfoRepository, never()).save(any(JobInfo.class));
   }
 
-  @Test
-  public void getJobMetrics_shouldPushToStatsDMetricPusherAndSaveNewMetricToDb() {
-    JobInfo job =
-        new JobInfo(
-            "jobId",
-            "extId1",
-            "Streaming",
-            "DataflowRunner",
-            new Store(),
-            new ArrayList<>(),
-            new ArrayList<>(),
-            JobStatus.RUNNING);
-
-    Metrics metric1 = new Metrics(job, "metric1", 1);
-    Metrics metric2 = new Metrics(job, "metric2", 2);
-    List<Metrics> metrics = Lists.newArrayList(metric1, metric2);
-
-    when(jobInfoRepository.findByStatusNotIn((Collection<JobStatus>) any(Collection.class)))
-        .thenReturn(Arrays.asList(job));
-    when(jobMonitor.getJobMetrics(job)).thenReturn(metrics);
-
-    scheduledJobMonitor.getJobMetrics();
-
-    verify(stasdMetricPusher).pushMetrics(metrics);
-    ArgumentCaptor<JobInfo> argCaptor = ArgumentCaptor.forClass(JobInfo.class);
-    verify(jobInfoRepository).save(argCaptor.capture());
-
-    assertThat(job.getMetrics(), equalTo(metrics));
-  }
 }

@@ -40,16 +40,13 @@ public class ScheduledJobMonitor {
 
   private final JobMonitor jobMonitor;
   private final JobInfoRepository jobInfoRepository;
-  private final StatsdMetricPusher statsdMetricPusher;
 
   @Autowired
   public ScheduledJobMonitor(
       JobMonitor jobMonitor,
-      JobInfoRepository jobInfoRepository,
-      StatsdMetricPusher statsdMetricPusher) {
+      JobInfoRepository jobInfoRepository) {
     this.jobMonitor = jobMonitor;
     this.jobInfoRepository = jobInfoRepository;
-    this.statsdMetricPusher = statsdMetricPusher;
   }
 
 
@@ -62,7 +59,6 @@ public class ScheduledJobMonitor {
   @Transactional
   @Scheduled(cron = "* * * * * *")
   public void pollStatusAndMetrics() {
-    getJobMetrics();
     updateJobStatus();
   }
 
@@ -91,30 +87,6 @@ public class ScheduledJobMonitor {
             jobStatus);
       }
       job.setStatus(jobStatus);
-      jobInfoRepository.save(job);
-    }
-  }
-
-  /** Periodically pull metrics of job which is not in terminal state and push it to statsd. */
-  /* package */ void getJobMetrics() {
-    if (jobMonitor instanceof NoopJobMonitor) {
-      return;
-    }
-
-    Collection<JobInfo> nonTerminalJobs =
-        jobInfoRepository.findByStatusNotIn(JobStatus.getTerminalState());
-
-    for (JobInfo job : nonTerminalJobs) {
-      if (Strings.isNullOrEmpty(job.getExtId())) {
-        continue;
-      }
-      List<Metrics> metrics = jobMonitor.getJobMetrics(job);
-      if (metrics == null) {
-        continue;
-      }
-
-      job.updateMetrics(metrics);
-      statsdMetricPusher.pushMetrics(metrics);
       jobInfoRepository.save(job);
     }
   }

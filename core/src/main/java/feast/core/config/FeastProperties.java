@@ -13,7 +13,6 @@ public class FeastProperties {
   private String version;
   private JobProperties jobs;
   private StreamProperties stream;
-  private StatsdProperties statsd;
 
   @Getter
   @Setter
@@ -21,8 +20,7 @@ public class FeastProperties {
 
     private String runner;
     private Map<String, String> options;
-    private String dataflowProjectId;
-    private String dataflowLocation;
+    private MetricsProperties metrics;
   }
 
   @Getter
@@ -35,8 +33,10 @@ public class FeastProperties {
 
   @Getter
   @Setter
-  public static class StatsdProperties {
+  public static class MetricsProperties {
 
+    private boolean enabled;
+    private String type;
     private String host;
     private int port;
   }

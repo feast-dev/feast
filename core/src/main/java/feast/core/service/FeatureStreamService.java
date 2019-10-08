@@ -24,11 +24,11 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 public class FeatureStreamService {
-  private final String defaultOptions;
+  private final Map<String, String> defaultOptions;
 
   @Autowired
   public FeatureStreamService(FeastProperties feastProperties) {
-    this.defaultOptions = new Gson().toJson(feastProperties.getStream().getOptions());
+    this.defaultOptions = feastProperties.getStream().getOptions();
   }
 
   /**
@@ -42,15 +42,15 @@ public class FeatureStreamService {
     try {
       switch (featureSet.getSource().getType()) {
         case KAFKA:
-          KafkaFeatureStreamConfig defaultKafkaFeatureStreamConfig = KafkaFeatureStreamConfig.fromJSON(defaultOptions);
+          KafkaFeatureStreamConfig defaultKafkaFeatureStreamConfig = KafkaFeatureStreamConfig.fromMap(defaultOptions);
           Source source = featureSet.getSource();
-          if (((KafkaSourceConfig) source.getOptions()).getBootstrapServers().isEmpty()){
-            KafkaSourceConfig config = (KafkaSourceConfig) source.getOptions();
-            source.setOptions(config.toBuilder().setBootstrapServers(defaultKafkaFeatureStreamConfig.getBootstrapServers()).build().toByteArray());
+          KafkaSourceConfig options = (KafkaSourceConfig) source.getOptions();
+          if (options.getBootstrapServers().isEmpty()) {
+            options.toBuilder().setBootstrapServers(defaultOptions.get("bootstrapServers"));
+            source.setOptions(options.toByteArray());
           }
-
           Map<String, Object> map = new HashMap<>();
-          map.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, ((KafkaSourceConfig) source.getOptions()).getBootstrapServers());
+          map.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, options.getBootstrapServers());
           map.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "1000");
           AdminClient client = AdminClient.create(map);
           FeatureStream featureStream = new KafkaFeatureStream(client, defaultKafkaFeatureStreamConfig);

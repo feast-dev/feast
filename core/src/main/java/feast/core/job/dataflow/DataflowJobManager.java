@@ -27,6 +27,7 @@ import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
+import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
@@ -55,15 +56,15 @@ public class DataflowJobManager implements JobManager {
   private final String location;
   private final Dataflow dataflow;
   private final Map<String,String> defaultOptions;
+  private final MetricsProperties metrics;
 
   public DataflowJobManager(
-      Dataflow dataflow, String projectId, String location, Map<String,String> defaultOptions) {
+      Dataflow dataflow, Map<String,String> defaultOptions, MetricsProperties metricsProperties) {
     this.defaultOptions = defaultOptions;
-    checkNotNull(projectId);
-    checkNotNull(location);
-    this.projectId = projectId;
-    this.location = location;
     this.dataflow = dataflow;
+    this.metrics = metricsProperties;
+    this.projectId = defaultOptions.get("project");
+    this.location = defaultOptions.get("region");
   }
 
   @Override
@@ -153,6 +154,13 @@ public class DataflowJobManager implements JobManager {
     pipelineOptions.setUpdate(update);
     pipelineOptions.setRunner(DataflowRunner.class);
     pipelineOptions.setJobName(jobName);
+    if (metrics.isEnabled()) {
+      pipelineOptions.setMetricsExporterType(metrics.getType());
+      if (metrics.getType().equals("prometheus")) {
+        pipelineOptions.setPrometheusExporterAddress(
+            String.format("%s:%s", metrics.getHost(), metrics.getPort()));
+      }
+    }
     return pipelineOptions;
   }
 

@@ -35,6 +35,7 @@ import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
+import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.ingestion.options.ImportJobPipelineOptions;
 import java.io.IOException;
@@ -67,8 +68,11 @@ public class DataflowJobManagerTest {
   public void setUp() {
     initMocks(this);
     defaults = new HashMap<>();
+    defaults.put("project", "project");
     defaults.put("region", "region");
-    dfJobManager = new DataflowJobManager(dataflow, "project", "location", defaults);
+    MetricsProperties metricsProperties = new MetricsProperties();
+    metricsProperties.setEnabled(false);
+    dfJobManager = new DataflowJobManager(dataflow, defaults, metricsProperties);
     dfJobManager = spy(dfJobManager);
   }
 
