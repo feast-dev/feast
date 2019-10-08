@@ -15,7 +15,7 @@
  *
  */
 
-package feast.ingestion.util;
+package feast.ingestion.utils;
 
 import com.google.protobuf.Timestamp;
 import java.time.Instant;

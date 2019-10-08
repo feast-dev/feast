@@ -17,7 +17,6 @@
 
 package feast.ingestion.options;
 
-import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -30,8 +29,7 @@ import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.options.Validation.Required;
 
 /** Options passed to Beam to influence the job's execution environment */
-public interface ImportJobPipelineOptions
-    extends PipelineOptions, DataflowPipelineOptions, DirectOptions {
+public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions, DirectOptions {
   @Required
   @Description(
       "JSON string representation of the FeatureSetSpec that the import job will process."
@@ -88,13 +86,4 @@ public interface ImportJobPipelineOptions
   Boolean isDryRun();
 
   void setDryRun(Boolean value);
-
-  @AutoService(PipelineOptionsRegistrar.class)
-  class ImportJobPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
-
-    @Override
-    public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return Collections.singleton(ImportJobPipelineOptions.class);
-    }
-  }
 }

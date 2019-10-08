@@ -1,4 +1,4 @@
-package feast.ingestion.util;
+package feast.ingestion.utils;
 
 import static feast.types.ValueProto.ValueType;
 

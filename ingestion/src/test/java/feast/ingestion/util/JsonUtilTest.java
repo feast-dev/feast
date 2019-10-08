@@ -20,6 +20,7 @@ package feast.ingestion.util;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
+import feast.ingestion.utils.JsonUtil;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;

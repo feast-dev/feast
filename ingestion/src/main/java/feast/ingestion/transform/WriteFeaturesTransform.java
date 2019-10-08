@@ -5,7 +5,7 @@ import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.BigQueryConfig;
 import feast.core.StoreProto.Store.RedisConfig;
-import feast.ingestion.options.ImportJobPipelineOptions;
+import feast.ingestion.options.ImportOptions;
 import feast.store.serving.bigquery.FeatureRowExtendedToTableRowDoFn;
 import feast.store.serving.redis.FeatureRowToRedisMutationDoFn;
 import feast.store.serving.redis.RedisCustomIO;
@@ -33,8 +33,8 @@ public class WriteFeaturesTransform extends PTransform<PCollection<FeatureRowExt
 
   @Override
   public PDone expand(PCollection<FeatureRowExtended> input) {
-    ImportJobPipelineOptions options =
-        input.getPipeline().getOptions().as(ImportJobPipelineOptions.class);
+    ImportOptions options =
+        input.getPipeline().getOptions().as(ImportOptions.class);
 
     switch (store.getType()) {
       case REDIS:

@@ -15,7 +15,7 @@
  *
  */
 
-package feast.ingestion.util;
+package feast.ingestion.utils;
 
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;

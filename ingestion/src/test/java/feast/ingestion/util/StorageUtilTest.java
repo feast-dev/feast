@@ -7,6 +7,7 @@ import com.google.cloud.bigquery.BigQuery;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
+import feast.ingestion.utils.StorageUtil;
 import org.junit.Test;
 import org.mockito.Mockito;
 

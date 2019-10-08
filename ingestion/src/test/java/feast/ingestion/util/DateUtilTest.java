@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 
 import com.google.protobuf.Timestamp;
+import feast.ingestion.utils.DateUtil;
 import junit.framework.TestCase;
 import org.joda.time.DateTime;
 

@@ -5,6 +5,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
+import feast.ingestion.utils.PathUtil;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;

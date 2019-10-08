@@ -15,7 +15,7 @@
  *
  */
 
-package feast.ingestion.util;
+package feast.ingestion.utils;
 
 import java.util.HashMap;
 
