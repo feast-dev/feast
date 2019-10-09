@@ -41,7 +41,7 @@ from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesResponse,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-from feast.type_map import pd_datetime_to_timestamp_proto, FEAST_VALUE_ATTR_TO_DTYPE
+from feast.type_map import convert_df_to_entity_rows, FEAST_VALUE_ATTR_TO_DTYPE
 from feast.types.Value_pb2 import Value
 
 GRPC_CONNECTION_TIMEOUT_DEFAULT = 5  # type: int
@@ -312,39 +312,9 @@ class Client:
                 )
             )
 
-        for index, row in entity_data.iterrows():
-            # Fields is a map of entity_id to Feast Value
-            fields = {}
-
-            # TODO: Support more dtypes
-
-            for entity_id, dtype in entity_data.dtypes.items():
-                # Column "datetime" is treated differently. It is used as "entity_timestamp" value.
-                if entity_id == "datetime":
-                    continue
-
-                if pd.isnull(row[entity_id]):
-                    # Handle unset Feast value i.e. "np.nan" value.
-                    # For batch retrieval, having unset Feast value for the entity_id
-                    # will result in retrieval of "all" entities within the request timestampe range.
-                    fields[entity_id] = Value()
-                elif dtype == "int64":
-                    fields[entity_id] = Value(int64_val=row[entity_id])
-                elif dtype == "int32":
-                    fields[entity_id] = Value(int32_val=row[entity_id])
-                elif dtype == "object":
-                    fields[entity_id] = Value(string_val=row[entity_id])
-                elif dtype == "float64":
-                    fields[entity_id] = Value(float_val=row[entity_id])
-                else:
-                    raise Exception("Unsupported dtype for now: " + str(dtype))
-
-            entity_rows.append(
-                GetFeaturesRequest.EntityRow(
-                    entity_timestamp=pd_datetime_to_timestamp_proto(row.datetime),
-                    fields=fields,
-                )
-            )
+        entity_rows = entity_data.apply(
+            convert_df_to_entity_rows(entity_data, self), axis=1, raw=True
+        )
 
         request = GetFeaturesRequest(feature_sets=feature_sets, entity_rows=entity_rows)
 
@@ -354,75 +324,22 @@ class Client:
     def get_online_features(self, feature_ids: List[str], entity_data: pd.DataFrame):
         self._connect_serving(skip_if_connected=True)
 
-        feature_sets = []
-        entity_rows = []
-
-        # Dict of feature_set_name:version (fsv) -> list of feature_names (fn)
-        # This is a variable to help construct feature_sets
-        fsv_to_fns = defaultdict(list)
-
-        # TODO: Perform validation on the provided features_ids
-
-        for feature_id in feature_ids:
-            feature_set_name, version_str, feature_name = feature_id.split(":")
-            fsv_to_fns[f"{feature_set_name}:{version_str}"].append(feature_name)
-
-        # TODO: Do not harcode max_age but allow users to specify it in the parameters
-        hardcoded_max_age_sec = 604800  # 1 week
-
-        for fsv, feature_names in fsv_to_fns.items():
-            feature_set_name, version_str = fsv.split(":")
-            feature_sets.append(
-                GetFeaturesRequest.FeatureSet(
-                    name=feature_set_name,
-                    version=int(version_str),
-                    feature_names=feature_names,
-                    max_age=Duration(seconds=hardcoded_max_age_sec),
-                )
-            )
-
-        for index, row in entity_data.iterrows():
-            # Fields is a map of entity_id to Feast Value
-            fields = {}
-
-            # TODO: Support more dtypes
-
-            for entity_id, dtype in entity_data.dtypes.items():
-                if pd.isnull(row[entity_id]):
-                    # Handle unset i.e. np.nan value
-                    fields[entity_id] = Value()
-                elif entity_id == "datetime":
-                    continue
-                elif dtype == "int64":
-                    fields[entity_id] = Value(int64_val=row[entity_id])
-                elif dtype == "int32":
-                    fields[entity_id] = Value(int32_val=row[entity_id])
-                elif dtype == "object":
-                    fields[entity_id] = Value(string_val=row[entity_id])
-                elif dtype == "float64":
-                    fields[entity_id] = Value(float_val=row[entity_id])
-                else:
-                    raise Exception("Unsupported dtype: " + str(dtype))
-
-            entity_rows.append(
-                GetFeaturesRequest.EntityRow(
-                    entity_timestamp=Timestamp(
-                        seconds=np.datetime64("now").astype("int64") // 1000000
-                    ),
-                    fields=fields,
-                )
-            )
-
-        request = GetFeaturesRequest(feature_sets=feature_sets, entity_rows=entity_rows)
+        request = GetFeaturesRequest(
+            feature_sets=build_feature_request(feature_ids),
+            entity_rows=entity_data.apply(
+                convert_df_to_entity_rows(entity_data), axis=1, raw=True
+            ),
+        )
 
         response = self._serving_service_stub.GetOnlineFeatures(
             request
         )  # type: GetOnlineFeaturesResponse
-        feature_dataframe = field_values_to_df(response.field_values)
-        return feature_dataframe
+        return field_values_to_df(list(response.field_values))
 
 
-def field_values_to_df(field_values: List[Dict[str, Value]]) -> pd.DataFrame():
+def field_values_to_df(
+    field_values: List[GetOnlineFeaturesResponse.FieldValues]
+) -> pd.DataFrame():
     dtypes = {}
     value_attr = {}
     columns = []
@@ -462,10 +379,7 @@ def field_values_to_df(field_values: List[Dict[str, Value]]) -> pd.DataFrame():
     return dataframe
 
 
-# TODO: Update the signature to updated protos
-def feature_data_sets_to_pandas_dataframe(
-    entity_data_set: pd.DataFrame, feature_data_sets
-):
+def feature_data_sets_to_pd_df(entity_data_set: pd.DataFrame, feature_data_sets):
     feature_data_set_dataframes = []
     for feature_data_set in feature_data_sets:
         # Validate feature data set length
@@ -482,22 +396,9 @@ def feature_data_sets_to_pandas_dataframe(
             feature_data_set_to_pandas_dataframe(feature_data_set)
         )
 
-    # Join dataframes into a single feature dataframe
-    dataframe = join_feature_set_dataframes(feature_data_set_dataframes)
-    return dataframe
+    return feature_data_set_dataframes
 
 
-def join_feature_set_dataframes(
-    feature_data_set_dataframes: List[pd.DataFrame]
-) -> pd.DataFrame:
-    return (
-        feature_data_set_dataframes[0]
-        if len(feature_data_set_dataframes) > 0
-        else pd.DataFrame
-    )
-
-
-# TODO: Update method signature to updated protos
 def feature_data_set_to_pandas_dataframe(feature_data_set) -> pd.DataFrame:
     feature_set_name = feature_data_set.name
     dtypes = {}
@@ -530,16 +431,15 @@ def feature_data_set_to_pandas_dataframe(feature_data_set) -> pd.DataFrame:
     return dataframe
 
 
-def create_feature_set_request_from_feature_strings(
+def build_feature_request(
     feature_ids: List[str]
 ) -> List[GetFeaturesRequest.FeatureSet]:
     feature_set_request = dict()  # type: Dict[str, GetFeaturesRequest.FeatureSet]
     for feature_id in feature_ids:
-        feature_set, feature = feature_id.split(".")
+        feature_set, version, feature = feature_id.split(":")
         if feature_set not in feature_set_request:
-            feature_set_name, feature_set_version = feature_set.split(":")
             feature_set_request[feature_set] = GetFeaturesRequest.FeatureSet(
-                name=feature_set_name, version=int(feature_set_version)
+                name=feature_set, version=int(version)
             )
         feature_set_request[feature_set].feature_names.append(feature)
     return list(feature_set_request.values())

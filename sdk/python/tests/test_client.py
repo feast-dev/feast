@@ -118,9 +118,7 @@ class TestClient:
             return_value=response,
         )
 
-        entity_data = pd.DataFrame(
-            {"datetime": np.repeat(4, ROW_COUNT), "entity_id": np.repeat(4, ROW_COUNT)}
-        )
+        entity_data = pd.DataFrame({"entity_id": np.repeat(4, ROW_COUNT)})
 
         feature_dataframe = mock_client.get_online_features(
             entity_data=entity_data,

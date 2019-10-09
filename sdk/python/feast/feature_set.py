@@ -373,7 +373,7 @@ class FeatureSet:
         )
 
         feature_rows = dataframe.apply(
-            convert_df_to_feature_rows(dataframe, self), axis=1
+            convert_df_to_feature_rows(dataframe, self), axis=1, raw=True
         )
 
         for row in feature_rows:

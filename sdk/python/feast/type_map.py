@@ -15,6 +15,7 @@
 import numpy as np
 import pandas as pd
 
+from feast.serving.ServingService_pb2 import GetFeaturesRequest
 from feast.value_type import ValueType
 from feast.types.Value_pb2 import Value as ProtoValue, ValueType as ProtoValueType
 from feast.types import FeatureRow_pb2 as FeatureRowProto, Field_pb2 as FieldProto
@@ -117,42 +118,83 @@ def pandas_dtype_to_feast_value_type(dtype: pd.DataFrame.dtypes) -> ValueType:
 def convert_df_to_feature_rows(dataframe: pd.DataFrame, feature_set):
     def convert_series_to_proto_values(row: pd.Series):
         feature_row = FeatureRowProto.FeatureRow(
-            event_timestamp=pd_datetime_to_timestamp_proto(row[DATETIME_COLUMN]),
+            event_timestamp=pd_datetime_to_timestamp_proto(
+                dataframe[DATETIME_COLUMN].dtype, row[DATETIME_COLUMN]
+            ),
             feature_set=feature_set.name + ":" + str(feature_set.version),
         )
 
-        for column, item in row.iteritems():
+        for column, dtype in dataframe.dtypes.items():
+            if column == DATETIME_COLUMN:
+                continue
+
             feature_row.fields.extend(
                 [
                     FieldProto.Field(
-                        name=column,
-                        value=pd_value_to_proto_value(dataframe[column].dtype, item),
+                        name=column, value=pd_value_to_proto_value(dtype, row[column])
                     )
                 ]
             )
-        return feature_row
+            return feature_row
 
     return convert_series_to_proto_values
 
 
-def pd_datetime_to_timestamp_proto(datetime) -> Timestamp:
-    seconds = np.datetime64(datetime).astype("int64") // 1000000
-    return Timestamp(seconds=seconds)
+def convert_df_to_entity_rows(dataframe: pd.DataFrame):
+    def convert_series_to_proto_values(row: pd.Series):
+        fields = {}
+
+        for column, dtype in dataframe.dtypes.items():
+            if column == DATETIME_COLUMN:
+                continue
+
+            fields[column] = pd_value_to_proto_value(
+                dtype, row[dataframe.columns.get_loc(column)]
+            )
+
+        return GetFeaturesRequest.EntityRow(fields=fields)
+
+    return convert_series_to_proto_values
 
 
-def pd_value_to_proto_value(pandas_dtype, pandas_value) -> ProtoValue:
-    value = ProtoValue()
-    value_attr = dtype_to_feast_value_attr(pandas_dtype)
-    if pandas_dtype.__str__() in ["datetime64[ns]", "datetime64[ns, UTC]"]:
-        pandas_value = int(pandas_value.timestamp())
-    try:
-        value.__setattr__(value_attr, pandas_value)
-    except TypeError as type_error:
-        # Numpy treats NaN as float. So if there is NaN values in column of
-        # "str" type, __setattr__ will raise TypeError. This handles that case.
-        if value_attr == "stringVal" and pd.isnull(pandas_value):
-            value.__setattr__("stringVal", "")
-        else:
-            raise type_error
+def pd_datetime_to_timestamp_proto(dtype, value) -> Timestamp:
+    if type(value) == np.float64:
+        return Timestamp(seconds=int(value))
+    if dtype.__str__() in ["datetime64[ns]", "datetime64[ns, UTC]"]:
+        return Timestamp(seconds=int(value.timestamp()))
+    else:
+        return Timestamp(seconds=np.datetime64(value).astype("int64") // 1000000)
 
-    return value
+
+def pd_value_to_proto_value(dtype, value) -> ProtoValue:
+    type_map = {
+        "float64": "double_val",
+        "float32": "float_val",
+        "int64": "int64_val",
+        "uint64": "int64_val",
+        "int32": "int32_val",
+        "uint32": "int32_val",
+        "uint8": "int32_val",
+        "int8": "int32_val",
+        "bool": "bool_val",
+        "timedelta": "int64_val",
+        "datetime64[ns]": "int64_val",
+        "datetime64[ns, UTC]": "int64_val",
+        "category": "string_val",
+        "object": "string_val",
+    }
+
+    if pd.isnull(value):
+        return ProtoValue()
+    elif dtype == "int64":
+        return ProtoValue(int64_val=int(value))
+    elif dtype == "int32":
+        return ProtoValue(int32_val=int(value))
+    elif dtype == "object":
+        return ProtoValue(string_val=value)
+    elif dtype == "float64":
+        return ProtoValue(float_val=value)
+    elif dtype in type_map:
+        raise NotImplemented(f"Data type known but not implemented: ${str(dtype)}")
+    else:
+        raise Exception(f"Unsupported data type: ${str(dtype)}")
