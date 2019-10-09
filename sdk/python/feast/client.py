@@ -14,16 +14,13 @@
 
 
 import os
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 from typing import Dict
 from typing import List
 
 import grpc
 import numpy as np
 import pandas as pd
-from google.cloud import storage
-from google.protobuf.duration_pb2 import Duration
-from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionRequest,
@@ -42,7 +39,6 @@ from feast.serving.ServingService_pb2 import (
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.type_map import convert_df_to_entity_rows, FEAST_VALUE_ATTR_TO_DTYPE
-from feast.types.Value_pb2 import Value
 
 GRPC_CONNECTION_TIMEOUT_DEFAULT = 5  # type: int
 GRPC_CONNECTION_TIMEOUT_APPLY = 300  # type: int
@@ -216,8 +212,7 @@ class Client:
 
         return FeatureSet.from_proto(get_feature_set_response.feature_sets[0])
 
-    @property
-    def entities(self) -> Dict[str, Entity]:
+    def list_entities(self) -> Dict[str, Entity]:
         entities_dict = OrderedDict()
         for fs in self.list_feature_sets():
             for entity in fs.entities:
@@ -248,21 +243,21 @@ class Client:
         """
 
         Args:
-            feature_ids: List of feature id. Feature id is in this format
+            feature_ids: List of feature ids in the following format
                          "feature_set_name:version:feature_name".
 
             entity_data: Pandas Dataframe representing the requested features.
 
-                         The first column must be named "datetime" with dtype
+                         There must be a column named "datetime" with dtype
                          "datetime64[ns]" or "datetime64[ns],UTC".
 
-                         Subsequent columns representing the entity ids requested
-                         must have the correct dtypes corresponding to the fields
-                         in the features set spec.
+                         All other columns must represent the requested entities and
+                         must have the correct dtypes corresponding to the fields in
+                         the features set spec.
 
                          Example dataframe:
 
-                         datetime   | entity_id_1 | entity_id_2
+                         datetime   | customer_id | transaction_id
                          --------------------------------------
                          1570154927 | 89          | 23
 
@@ -284,42 +279,16 @@ class Client:
 
         self._connect_serving(skip_if_connected=True)
 
-        # "feature_sets" and "entity_rows" are required to create a GetFeaturesRequest object.
-        feature_sets = []
-        entity_rows = []
-
-        # Dict of feature_set_name:version (fsv) -> list of feature_names (fn)
-        # This is a variable to help construct feature_sets.
-        fsv_to_fns = defaultdict(list)
-
-        # TODO: Perform validation on the provided features_ids
-
-        for feature_id in feature_ids:
-            feature_set_name, version_str, feature_name = feature_id.split(":")
-            fsv_to_fns[f"{feature_set_name}:{version_str}"].append(feature_name)
-
-        # TODO: Do not harcode max_age but allow users to specify it in the parameters
-        hardcoded_max_age_sec = 604800  # 1 week
-
-        for fsv, feature_names in fsv_to_fns.items():
-            feature_set_name, version_str = fsv.split(":")
-            feature_sets.append(
-                GetFeaturesRequest.FeatureSet(
-                    name=feature_set_name,
-                    version=int(version_str),
-                    feature_names=feature_names,
-                    max_age=Duration(seconds=hardcoded_max_age_sec),
-                )
-            )
-
-        entity_rows = entity_data.apply(
-            convert_df_to_entity_rows(entity_data, self), axis=1, raw=True
+        request = GetFeaturesRequest(
+            feature_sets=build_feature_request(feature_ids),
+            entity_rows=entity_data.apply(
+                convert_df_to_entity_rows(entity_data), axis=1, raw=True
+            ),
         )
 
-        request = GetFeaturesRequest(feature_sets=feature_sets, entity_rows=entity_rows)
-
         response = self._serving_service_stub.GetBatchFeatures(request)
-        return Job(response.job, self._serving_service_stub, self._storage_client)
+
+        return Job(response.job, self._serving_service_stub)
 
     def get_online_features(self, feature_ids: List[str], entity_data: pd.DataFrame):
         self._connect_serving(skip_if_connected=True)
@@ -335,6 +304,20 @@ class Client:
             request
         )  # type: GetOnlineFeaturesResponse
         return field_values_to_df(list(response.field_values))
+
+
+def build_feature_request(
+    feature_ids: List[str]
+) -> List[GetFeaturesRequest.FeatureSet]:
+    feature_set_request = dict()  # type: Dict[str, GetFeaturesRequest.FeatureSet]
+    for feature_id in feature_ids:
+        feature_set, version, feature = feature_id.split(":")
+        if feature_set not in feature_set_request:
+            feature_set_request[feature_set] = GetFeaturesRequest.FeatureSet(
+                name=feature_set, version=int(version)
+            )
+        feature_set_request[feature_set].feature_names.append(feature)
+    return list(feature_set_request.values())
 
 
 def field_values_to_df(
@@ -372,74 +355,6 @@ def field_values_to_df(
 
         first_row_done = True
 
-    dataframe = (
+    return (
         pd.DataFrame(columns=columns, data=data).reset_index(drop=True).astype(dtypes)
     )
-
-    return dataframe
-
-
-def feature_data_sets_to_pd_df(entity_data_set: pd.DataFrame, feature_data_sets):
-    feature_data_set_dataframes = []
-    for feature_data_set in feature_data_sets:
-        # Validate feature data set length
-        if len(feature_data_set.feature_rows) != len(entity_data_set.index):
-            raise Exception(
-                "Feature data set response is of different size "
-                + str(len(feature_data_set.feature_rows))
-                + " than the entity data set request "
-                + str(len(entity_data_set.index))
-            )
-
-        # Convert to Pandas DataFrame
-        feature_data_set_dataframes.append(
-            feature_data_set_to_pandas_dataframe(feature_data_set)
-        )
-
-    return feature_data_set_dataframes
-
-
-def feature_data_set_to_pandas_dataframe(feature_data_set) -> pd.DataFrame:
-    feature_set_name = feature_data_set.name
-    dtypes = {}
-    value_attr = {}
-    columns = []
-    data = {}
-    first_run_done = False
-
-    for featureRow in feature_data_set.feature_rows:
-        for field in featureRow.fields:
-            feature_id = feature_set_name + "." + field.name
-
-            if not first_run_done:
-                columns.append(feature_id)
-                data[feature_id] = []
-                value_attr[feature_id] = field.value.WhichOneof("val")
-                dtypes[feature_id] = FEAST_VALUE_ATTR_TO_DTYPE[value_attr[feature_id]]
-
-            if not field.value.HasField(value_attr[feature_id]):
-                data[feature_id].append(None)
-            else:
-                data[feature_id].append(getattr(field.value, value_attr[feature_id]))
-
-        first_run_done = True
-
-    dataframe = (
-        pd.DataFrame(columns=columns, data=data).reset_index(drop=True).astype(dtypes)
-    )
-
-    return dataframe
-
-
-def build_feature_request(
-    feature_ids: List[str]
-) -> List[GetFeaturesRequest.FeatureSet]:
-    feature_set_request = dict()  # type: Dict[str, GetFeaturesRequest.FeatureSet]
-    for feature_id in feature_ids:
-        feature_set, version, feature = feature_id.split(":")
-        if feature_set not in feature_set_request:
-            feature_set_request[feature_set] = GetFeaturesRequest.FeatureSet(
-                name=feature_set, version=int(version)
-            )
-        feature_set_request[feature_set].feature_names.append(feature)
-    return list(feature_set_request.values())
