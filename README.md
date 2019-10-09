@@ -1,4 +1,4 @@
-# Feast - Feature Store for Machine Learning [![Build Status](http://prow.feast.ai/badge.svg?jobs=integration-test)](http://prow.feast.ai)
+# Feast - Feature Store for Machine Learning
 
 ## Overview
 
