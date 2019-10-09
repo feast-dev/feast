@@ -1,31 +1,85 @@
 package feast.ingestion.transform;
 
-import feast.ingestion.values.FailsafeFeatureRow;
+import com.google.auto.value.AutoValue;
+import com.google.common.base.Preconditions;
+import feast.core.SourceProto.Source;
+import feast.core.SourceProto.SourceType;
+import feast.ingestion.values.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
+import org.apache.beam.sdk.io.kafka.KafkaIO;
+import org.apache.beam.sdk.io.kafka.KafkaRecord;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
-public class ReadFromSource extends PTransform<PInput, PCollectionTuple> {
-  TupleTag<FailsafeFeatureRow<KV<byte[], byte[]>, FeatureRow>> successTag;
-  TupleTag<FailsafeFeatureRow<KV<byte[], byte[]>, FeatureRow>> failureTag;
+@AutoValue
+public abstract class ReadFromSource extends PTransform<PInput, PCollectionTuple> {
+  public abstract Source getSource();
 
-  public ReadFromSource withSuccessTag(
-      TupleTag<FailsafeFeatureRow<KV<byte[], byte[]>, FeatureRow>> successTag) {
-    this.successTag = successTag;
-    return this;
+  public abstract TupleTag<FeatureRow> getSuccessTag();
+
+  public abstract TupleTag<FailedElement> getFailureTag();
+
+  public static Builder newBuilder() {
+    return new AutoValue_ReadFromSource.Builder();
   }
 
-  public ReadFromSource withFailureTag(
-      TupleTag<FailsafeFeatureRow<KV<byte[], byte[]>, FeatureRow>> failureTag) {
-    this.failureTag = failureTag;
-    return this;
+  @AutoValue.Builder
+  public abstract static class Builder {
+    public abstract Builder setSource(Source source);
+
+    public abstract Builder setSuccessTag(TupleTag<FeatureRow> successTag);
+
+    public abstract Builder setFailureTag(TupleTag<FailedElement> failureTag);
+
+    abstract ReadFromSource autobuild();
+
+    public ReadFromSource build() {
+      ReadFromSource read = autobuild();
+      Source source = read.getSource();
+      Preconditions.checkState(
+          source.getType().equals(SourceType.KAFKA),
+          "Source type must be KAFKA. Please raise an issue in https://github.com/gojek/feast/issues to request additional source types.");
+      Preconditions.checkState(
+          !source.getKafkaSourceConfig().getBootstrapServers().isEmpty(),
+          "bootstrap_servers cannot be empty.");
+      Preconditions.checkState(
+          !source.getKafkaSourceConfig().getTopic().isEmpty(), "topic cannot be empty.");
+      return read;
+    }
   }
 
   @Override
   public PCollectionTuple expand(PInput input) {
+    input
+        .getPipeline()
+        .apply(
+            KafkaIO.readBytes()
+                .withBootstrapServers(getSource().getKafkaSourceConfig().getBootstrapServers())
+                .withTopic(getSource().getKafkaSourceConfig().getTopic())
+                .withConsumerConfigUpdates(
+                    ImmutableMap.of(
+                        "group.id",
+                        generateConsumerGroupId(input.getPipeline().getOptions().getJobName())))
+                .withReadCommitted()
+                .commitOffsetsInFinalize())
+        .apply(ParDo.of(new KafkaRecordToFeatureRowFn()));
     return null;
+  }
+
+  private static class KafkaRecordToFeatureRowFn
+      extends DoFn<KafkaRecord<byte[], byte[]>, PCollectionTuple> {
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      // TODO
+    }
+  }
+
+  private String generateConsumerGroupId(String jobName) {
+    return "feast_import_job_" + jobName;
   }
 }
