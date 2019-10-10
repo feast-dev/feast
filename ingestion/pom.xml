@@ -29,7 +29,7 @@
     <revision>0.3.0-SNAPSHOT</revision>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-    <org.apache.beam.version>2.15.0</org.apache.beam.version>
+    <org.apache.beam.version>2.16.0</org.apache.beam.version>
     <com.google.cloud.version>1.91.0</com.google.cloud.version>
     <grpcVersion>1.21.1</grpcVersion>
     <protocVersion>3.6.1</protocVersion>

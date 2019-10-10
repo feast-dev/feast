@@ -34,7 +34,7 @@
 
  @Slf4j
  @AllArgsConstructor
- public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRowExtended, RedisMutation> {
+ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRow, RedisMutation> {
 
    private FeatureSetSpec featureSetSpec;
 
@@ -58,7 +58,7 @@
     */
    @ProcessElement
    public void processElement(ProcessContext context) {
-     FeatureRow featureRow = context.element().getRow();
+     FeatureRow featureRow = context.element();
      RedisKey key = getKey(featureRow);
 //     Duration expiry = options.getExpiryDuration();
 //     // Add randomness to expiry so that it won't expire in the same time.

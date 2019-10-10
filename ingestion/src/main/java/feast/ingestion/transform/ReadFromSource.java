@@ -2,22 +2,26 @@ package feast.ingestion.transform;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
+import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.SourceProto.Source;
 import feast.core.SourceProto.SourceType;
 import feast.ingestion.values.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
+import java.util.Base64;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 
 @AutoValue
-public abstract class ReadFromSource extends PTransform<PInput, PCollectionTuple> {
+public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple> {
   public abstract Source getSource();
 
   public abstract TupleTag<FeatureRow> getSuccessTag();
@@ -54,10 +58,11 @@ public abstract class ReadFromSource extends PTransform<PInput, PCollectionTuple
   }
 
   @Override
-  public PCollectionTuple expand(PInput input) {
-    input
+  public PCollectionTuple expand(PBegin input) {
+    return input
         .getPipeline()
         .apply(
+            "ReadFromKafka",
             KafkaIO.readBytes()
                 .withBootstrapServers(getSource().getKafkaSourceConfig().getBootstrapServers())
                 .withTopic(getSource().getKafkaSourceConfig().getTopic())
@@ -67,16 +72,30 @@ public abstract class ReadFromSource extends PTransform<PInput, PCollectionTuple
                         generateConsumerGroupId(input.getPipeline().getOptions().getJobName())))
                 .withReadCommitted()
                 .commitOffsetsInFinalize())
-        .apply(ParDo.of(new KafkaRecordToFeatureRowFn()));
-    return null;
-  }
-
-  private static class KafkaRecordToFeatureRowFn
-      extends DoFn<KafkaRecord<byte[], byte[]>, PCollectionTuple> {
-    @ProcessElement
-    public void processElement(ProcessContext context) {
-      // TODO
-    }
+        .apply(
+            "KafkaRecordToFeatureRow",
+            ParDo.of(
+                    new DoFn<KafkaRecord<byte[], byte[]>, FeatureRow>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext context) {
+                        byte[] value = context.element().getKV().getValue();
+                        try {
+                          FeatureRow featureRow = FeatureRow.parseFrom(value);
+                          context.output(featureRow);
+                        } catch (InvalidProtocolBufferException e) {
+                          context.output(
+                              getFailureTag(),
+                              FailedElement.newBuilder()
+                                  .setTransformName("KafkaRecordToFeatureRow")
+                                  .setStackTrace(ExceptionUtils.getStackTrace(e))
+                                  .setJobName(context.getPipelineOptions().getJobName())
+                                  .setPayload(new String(Base64.getEncoder().encode(value)))
+                                  .setErrorMessage(e.getMessage())
+                                  .build());
+                        }
+                      }
+                    })
+                .withOutputTags(getSuccessTag(), TupleTagList.of(getFailureTag())));
   }
 
   private String generateConsumerGroupId(String jobName) {

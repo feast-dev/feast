@@ -2,9 +2,8 @@ package feast.store.serving.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.protobuf.util.Timestamps;
-import feast.types.FieldProto.Field;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
+import feast.types.FieldProto.Field;
 import java.util.Base64;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -13,13 +12,13 @@ import org.joda.time.Instant;
 // TODO: Validate FeatureRow against FeatureSetSpec
 //       i.e. that the value types in FeatureRow matches against those in FeatureSetSpec
 
-public class FeatureRowExtendedToTableRowDoFn extends DoFn<FeatureRowExtended, TableRow> {
+public class FeatureRowToTableRowDoFn extends DoFn<FeatureRow, TableRow> {
   private static final String EVENT_TIMESTAMP_COLUMN = "event_timestamp";
   private static final String CREATED_TIMESTAMP_COLUMN = "created_timestamp";
   private static final String JOB_ID_COLUMN = "job_id";
   private final String jobId;
 
-  public FeatureRowExtendedToTableRowDoFn(String jobId) {
+  public FeatureRowToTableRowDoFn(String jobId) {
     this.jobId = jobId;
   }
 
@@ -28,9 +27,7 @@ public class FeatureRowExtendedToTableRowDoFn extends DoFn<FeatureRowExtended, T
   }
 
   @ProcessElement
-  public void processElement(
-      @Element FeatureRowExtended featureRowExtended, OutputReceiver<TableRow> out) {
-    FeatureRow featureRow = featureRowExtended.getRow();
+  public void processElement(@Element FeatureRow featureRow, OutputReceiver<TableRow> out) {
     out.output(createTableRow(featureRow, jobId));
   }
 

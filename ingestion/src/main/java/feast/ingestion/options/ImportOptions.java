@@ -17,7 +17,6 @@
 
 package feast.ingestion.options;
 
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.direct.DirectOptions;
@@ -25,7 +24,6 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Default.Boolean;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.options.Validation.Required;
 
 /** Options passed to Beam to influence the job's execution environment */
@@ -55,6 +53,14 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
   List<String> getStoreJson();
 
   void setStoreJson(List<String> storeJson);
+
+  @Description(
+      "(Optional) Deadletter elements will be written to this table."
+          + "Table spec must follow this format: <project_id>:<dataset_id>.<table_id>"
+          + "The table will be created if not exists.")
+  String getDeadLetterTableSpec();
+
+  void setDeadLetterTableSpec(String deadLetterTableSpec);
 
   @Description("Limit of rows to sample and output for debugging")
   @Default.Integer(0)
