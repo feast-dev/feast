@@ -26,8 +26,8 @@ from feast.entity import Entity
 from feast.source import KafkaSource
 from tests import dataframes
 
-CORE_URL = "core.feast.ai"
-SERVING_URL = "serving.feast.ai"
+CORE_URL = "core.feast.local"
+SERVING_URL = "serving.feast.local"
 
 
 class TestFeatureSet:
@@ -100,12 +100,12 @@ class TestFeatureSet:
     @pytest.mark.parametrize("dataframe", [dataframes.GOOD])
     def test_feature_set_ingest_success(self, dataframe, client):
 
-        # Create feature set and update based on dataframe
         driver_fs = FeatureSet("driver-feature-set")
-        driver_fs.update_from_dataset(
-            dataframe,
-            column_mapping={"entity_id": Entity(name="entity", dtype=ValueType.INT64)},
-        )
+        driver_fs.add(Feature(name="feature_1", dtype=ValueType.FLOAT))
+        driver_fs.add(Feature(name="feature_2", dtype=ValueType.STRING))
+        driver_fs.add(Feature(name="feature_3", dtype=ValueType.INT64))
+        driver_fs.add(Entity(name="entity_id", dtype=ValueType.INT64))
+
         driver_fs.source = KafkaSource(topic="feature-topic", brokers="127.0.0.1")
         driver_fs._message_producer = MagicMock()
         driver_fs._message_producer.send = MagicMock()
