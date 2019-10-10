@@ -2,9 +2,6 @@ package feast.ingestion;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.SourceProto.KafkaSourceConfig;
-import feast.core.SourceProto.Source;
-import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto.Store;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.transform.ReadFromSource;
@@ -12,6 +9,7 @@ import feast.ingestion.transform.WriteFailedElementToBigQuery;
 import feast.ingestion.transform.WriteToStore;
 import feast.ingestion.utils.ResourceUtil;
 import feast.ingestion.utils.SpecUtil;
+import feast.ingestion.utils.StoreUtil;
 import feast.ingestion.values.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.List;
@@ -19,96 +17,36 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 
 public class ImportJob {
   // Tag for main output containing Feature Row that has been successfully processed.
   private static final TupleTag<FeatureRow> FEATURE_ROW_OUT = new TupleTag<FeatureRow>() {};
+
   // Tag for deadletter output containing elements and error messages from invalid input/transform.
   private static final TupleTag<FailedElement> DEADLETTER_OUT = new TupleTag<FailedElement>() {};
 
+  /**
+   * @param args arguments to be passed to Beam pipeline
+   * @throws InvalidProtocolBufferException if options passed to the pipeline are invalid
+   */
   public static void main(String[] args) throws InvalidProtocolBufferException {
     ImportOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().create().as(ImportOptions.class);
-    run(options);
-
-    // Source source =
-    //     Source.newBuilder()
-    //         .setType(SourceType.KAFKA)
-    //         .setKafkaSourceConfig(
-    //             KafkaSourceConfig.newBuilder()
-    //                 .setBootstrapServers("localhost:9092")
-    //                 .setTopic("mytopic")
-    //                 .build())
-    //         .build();
-    //
-    // FeatureSetSpec featureSetSpec = FeatureSetSpec.getDefaultInstance();
-    // Store store = Store.getDefaultInstance();
-    //
-    // PCollectionTuple convertedFeatureRows =
-    //     pipeline.apply(
-    //         ReadFromSource.newBuilder()
-    //             .setSource(source)
-    //             .setSuccessTag(FEATURE_ROW_OUT)
-    //             .setFailureTag(DEADLETTER_OUT)
-    //             .build());
-    //
-    // convertedFeatureRows
-    //     .get(FEATURE_ROW_OUT)
-    //
-    // .apply(WriteToStore.newBuilder().setFeatureSetSpec(featureSetSpec).setStore(store).build());
-    //
-    // if (options.getDeadLetterTableSpec() != null) {
-    //   convertedFeatureRows
-    //       .get(DEADLETTER_OUT)
-    //       .apply(
-    //           "WriteFailedElements",
-    //           WriteFailedElementToBigQuery.newBuilder()
-    //               .setJsonSchema(ResourceUtil.getDeadletterTableSchemaJson())
-    //               .setTableSpec(options.getDeadLetterTableSpec())
-    //               .build());
-    // }
-
-    // pipeline
-    //     .apply(Create.of(Arrays.asList(1, 2)))
-    //     .apply(new Foo());
-    // .apply(
-    //     WriteFailedElementToBigQuery.newBuilder()
-    //         .setJsonSchema(ResourceUtil.getDeadletterTableSchemaJson())
-    //         .setTableSpec("the-big-data-staging-007:dheryanto.feast_failed_elements")
-    //         .build());
-
-    // pipeline.run();
-
-    // ImportOptions options =
-    //     PipelineOptionsFactory.fromArgs(args).withValidation().as(ImportOptions.class);
-    // run(options);
+    runPipeline(options);
   }
 
-  public static class Foo extends PTransform<PCollection<Integer>, PCollection<FailedElement>> {
+  @SuppressWarnings("UnusedReturnValue")
+  public static PipelineResult runPipeline(ImportOptions options)
+      throws InvalidProtocolBufferException {
+    /*
+     * Steps:
+     * 1. Read messages from Feast Source as FeatureRow
+     * 2. Write FeatureRow to the corresponding Store
+     * 3. Write elements that failed to be processed to a dead letter queue.
+     */
 
-    @Override
-    public PCollection<FailedElement> expand(PCollection<Integer> input) {
-      return input.apply(
-          ParDo.of(
-              new DoFn<Integer, FailedElement>() {
-                @ProcessElement
-                public void processElement(ProcessContext context) {
-                  // FailedElement failedElement =
-                  //     FailedElement.builder().errorMessage("errorMessage").build();
-                  // System.out.println(failedElement);
-                  // context.output(failedElement);
-                }
-              }));
-    }
-  }
-
-  public static PipelineResult run(ImportOptions options) throws InvalidProtocolBufferException {
     PipelineOptionsValidator.validate(ImportOptions.class, options);
     Pipeline pipeline = Pipeline.create(options);
 
@@ -121,18 +59,30 @@ public class ImportJob {
           SpecUtil.getSubscribedFeatureSets(store.getSubscriptionsList(), featureSetSpecs);
 
       for (FeatureSetSpec featureSet : subscribedFeatureSets) {
+        // Ensure Store has valid configuration and Feast can access it.
+        StoreUtil.setupStore(store, featureSet);
+
+        // Step 1. Read messages from Feast Source as FeatureRow.
         PCollectionTuple convertedFeatureRows =
             pipeline.apply(
+                "ReadFeatureRowFromSource",
                 ReadFromSource.newBuilder()
                     .setSource(featureSet.getSource())
+                    .setFieldByName(SpecUtil.getFieldByName(featureSet))
+                    .setFeatureSetName(featureSet.getName())
+                    .setFeatureSetVersion(featureSet.getVersion())
                     .setSuccessTag(FEATURE_ROW_OUT)
                     .setFailureTag(DEADLETTER_OUT)
                     .build());
 
+        // Step 2. Write FeatureRow to the corresponding Store.
         convertedFeatureRows
             .get(FEATURE_ROW_OUT)
-            .apply(WriteToStore.newBuilder().setFeatureSetSpec(featureSet).setStore(store).build());
+            .apply(
+                "WriteFeatureRowToStore",
+                WriteToStore.newBuilder().setFeatureSetSpec(featureSet).setStore(store).build());
 
+        // Step 3. Write FailedElements to a dead letter table in BigQuery.
         if (options.getDeadLetterTableSpec() != null) {
           convertedFeatureRows
               .get(DEADLETTER_OUT)
@@ -147,24 +97,5 @@ public class ImportJob {
     }
 
     return pipeline.run();
-  }
-
-  public static void writeToSingleStore(
-      Pipeline pipeline, Store store, List<FeatureSetSpec> featureSetSpecs) {
-    List<FeatureSetSpec> subscribedFeatureSets =
-        SpecUtil.getSubscribedFeatureSets(store.getSubscriptionsList(), featureSetSpecs);
-  }
-
-  public static void writeToSingleStoreForSingleFeatureSet(
-      Pipeline pipeline, Store store, FeatureSetSpec featureSet) {
-    Source source = featureSet.getSource();
-    if (!source.getType().equals(SourceType.KAFKA)) {
-      throw new UnsupportedOperationException(
-          "Only KAFKA source is currently supported. Please update the source in the FeatureSetSpec.");
-    }
-
-    KafkaSourceConfig config = source.getKafkaSourceConfig();
-    // TODO: Generate and use unique step name
-
   }
 }

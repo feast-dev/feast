@@ -7,11 +7,11 @@ import com.google.cloud.bigquery.BigQuery;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
-import feast.ingestion.utils.StorageUtil;
+import feast.ingestion.utils.StoreUtil;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-public class StorageUtilTest {
+public class StoreUtilTest {
   @Test
   public void setupBigQuery_shouldCreateTable_givenFeatureSetSpec() {
     FeatureSetSpec featureSetSpec =
@@ -23,6 +23,6 @@ public class StorageUtilTest {
             .addFeatures(FeatureSpec.newBuilder().setName("feature_2").setValueType(STRING_LIST))
             .build();
     BigQuery mockedBigquery = Mockito.mock(BigQuery.class);
-    StorageUtil.setupBigQuery(featureSetSpec, "project-1", "dataset_1", mockedBigquery);
+    StoreUtil.setupBigQuery(featureSetSpec, "project-1", "dataset_1", mockedBigquery);
   }
 }

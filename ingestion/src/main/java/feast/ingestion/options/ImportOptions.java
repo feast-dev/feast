@@ -56,10 +56,15 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
 
   @Description(
       "(Optional) Deadletter elements will be written to this table."
-          + "Table spec must follow this format: <project_id>:<dataset_id>.<table_id>"
+          + "Table spec must follow this format PROJECT_ID:DATASET_ID.PROJECT_ID"
           + "The table will be created if not exists.")
   String getDeadLetterTableSpec();
 
+  /**
+   * @param deadLetterTableSpec (Optional) BigQuery table for storing elements that failed to be
+   *                            processed. Table spec must follow this format
+   *                            PROJECT_ID:DATASET_ID.PROJECT_ID
+   */
   void setDeadLetterTableSpec(String deadLetterTableSpec);
 
   @Description("Limit of rows to sample and output for debugging")

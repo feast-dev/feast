@@ -10,7 +10,7 @@ import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto.Store;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.transform.ReadFeatureRow;
-import feast.ingestion.utils.StorageUtil;
+import feast.ingestion.utils.StoreUtil;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.HashMap;
@@ -104,10 +104,10 @@ public class ImportJobOld {
   private static void setupStore(Store store, FeatureSetSpec featureSetSpec) {
     switch (store.getType()) {
       case REDIS:
-        StorageUtil.checkRedisConnection(store.getRedisConfig());
+        StoreUtil.checkRedisConnection(store.getRedisConfig());
         break;
       case BIGQUERY:
-        StorageUtil.setupBigQuery(
+        StoreUtil.setupBigQuery(
             featureSetSpec,
             store.getBigqueryConfig().getProjectId(),
             store.getBigqueryConfig().getDatasetId(),

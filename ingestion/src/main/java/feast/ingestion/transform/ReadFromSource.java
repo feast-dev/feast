@@ -3,11 +3,15 @@ package feast.ingestion.transform;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.TextFormat;
 import feast.core.SourceProto.Source;
 import feast.core.SourceProto.SourceType;
 import feast.ingestion.values.FailedElement;
+import feast.ingestion.values.Field;
 import feast.types.FeatureRowProto.FeatureRow;
+import feast.types.FieldProto;
 import java.util.Base64;
+import java.util.Map;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -24,6 +28,12 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple> {
   public abstract Source getSource();
 
+  public abstract Map<String, Field> getFieldByName();
+
+  public abstract String getFeatureSetName();
+
+  public abstract int getFeatureSetVersion();
+
   public abstract TupleTag<FeatureRow> getSuccessTag();
 
   public abstract TupleTag<FailedElement> getFailureTag();
@@ -35,6 +45,12 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setSource(Source source);
+
+    public abstract Builder setFeatureSetName(String featureSetName);
+
+    public abstract Builder setFeatureSetVersion(int featureSetVersion);
+
+    public abstract Builder setFieldByName(Map<String, Field> fieldByName);
 
     public abstract Builder setSuccessTag(TupleTag<FeatureRow> successTag);
 
@@ -81,6 +97,30 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
                         byte[] value = context.element().getKV().getValue();
                         try {
                           FeatureRow featureRow = FeatureRow.parseFrom(value);
+
+                          // If FeatureRow contains field names that do not exist as EntitySpec
+                          // or FeatureSpec in FeatureSetSpec, mark the FeatureRow as FailedElement.
+                          //
+                          // The value of the Field is assumed to have the type that matches
+                          // the value type of EntitySpec or FeatureSpec, i.e. not checked here.
+
+                          for (FieldProto.Field field : featureRow.getFieldsList()) {
+                            if (!getFieldByName().containsKey(field.getName())) {
+                              String error =
+                                  String.format(
+                                      "FeatureRow contains field '%s' which do not exists in FeatureSet '%s' version '%d'",
+                                      field.getName(), getFeatureSetName(), getFeatureSetVersion());
+                              context.output(
+                                  getFailureTag(),
+                                  FailedElement.newBuilder()
+                                      .setTransformName("KafkaRecordToFeatureRow")
+                                      .setJobName(context.getPipelineOptions().getJobName())
+                                      .setPayload(TextFormat.printToString(featureRow))
+                                      .setErrorMessage(error)
+                                      .build());
+                              return;
+                            }
+                          }
                           context.output(featureRow);
                         } catch (InvalidProtocolBufferException e) {
                           context.output(

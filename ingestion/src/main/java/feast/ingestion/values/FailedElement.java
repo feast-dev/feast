@@ -7,6 +7,9 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.joda.time.Instant;
 
 @AutoValue
+// Use DefaultSchema annotation so this AutoValue class can be serialized by Beam
+// https://issues.apache.org/jira/browse/BEAM-1891
+// https://github.com/apache/beam/pull/7334
 @DefaultSchema(AutoValueSchema.class)
 public abstract class FailedElement {
   public abstract Instant getTimestamp();
