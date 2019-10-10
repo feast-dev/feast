@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "feast-core.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "feast-core.name" . }}
+    component: core
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  config.yaml: |
+
+    # Please see gojek/feast/core/src/main/resources/application.yml for an explanation of config
+    server:
+      port: {{ .Values.service.http.targetPort }}
+
+    grpc:
+      port: {{ .Values.service.grpc.targetPort }}
+
+    feast:
+      jobs:
+        runner: {{ .Values.jobs.runner }}
+        options: 
+{{- if .Values.jobs.options }}
+{{ toYaml .Values.jobs.options | indent 10 }}
+{{- end }}
+        metrics: 
+{{- if .Values.jobs.metrics.enabled }}
+{{ toYaml .Values.jobs.metrics | indent 10 }}
+{{ end }}
+      stream:
+        # Feature stream type. Only kafka is supported.
+        type: {{ .Values.stream.type }}
+        # Feature stream options.
+        options:
+{{- if eq .Values.stream.type "kafka" }}
+          bootstrapServers: {{ .Values.stream.options.bootstrapServers }}
+          replicationFactor: {{ .Values.stream.options.replicationFactor }}
+          partitions: {{ .Values.stream.options.partitions }}
+{{- end }}
+
+    spring:
+      datasource:
+        url: jdbc:postgresql://{{ template "postgresql.host" . }}:{{ .Values.postgresql.service.port }}/{{ .Values.postgresql.postgresqlDatabase }}
+        username: ${DB_USERNAME:{{ .Values.postgresql.postgresqlUsername }}}
+        password: ${DB_PASSWORD:{{ .Values.postgresql.postgresqlPassword }}}

@@ -8,4 +8,6 @@ fi
 java $CONFIG_PATH_FLAG \
   -XX:+UnlockExperimentalVMOptions \
   -XX:+UseCGroupMemoryLimitForHeap \
-  -jar /usr/share/feast/feast-core.jar
+  -XX:+UseStringDeduplication \
+  -XX:+UseG1GC \
+  -jar /usr/share/feast/feast-serving.jar

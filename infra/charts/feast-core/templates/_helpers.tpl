@@ -2,7 +2,7 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "feast.name" -}}
+{{- define "feast-core.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
@@ -11,7 +11,7 @@ Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
 If release name contains chart name it will be used as a full name.
 */}}
-{{- define "feast.fullname" -}}
+{{- define "feast-core.fullname" -}}
 {{- if .Values.fullnameOverride -}}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
 {{- else -}}
@@ -21,32 +21,6 @@ If release name contains chart name it will be used as a full name.
 {{- else -}}
 {{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
-Create a fully qualified core name.
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-*/}}
-{{- define "feast.core.name" -}}
-{{- $nameGlobalOverride := printf "%s-core" (include "feast.fullname" .) -}}
-{{- if .Values.core.fullnameOverride -}}
-{{- printf "%s" .Values.core.fullnameOverride | trunc 63 | trimSuffix "-" -}}
-{{- else -}}
-{{- printf "%s" $nameGlobalOverride | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
-Create a fully qualified serving name.
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-*/}}
-{{- define "feast.serving.name" -}}
-{{- $nameGlobalOverride := printf "%s-serving" (include "feast.fullname" .) -}}
-{{- if .Values.core.fullnameOverride -}}
-{{- printf "%s" .Values.serving.fullnameOverride | trunc 63 | trimSuffix "-" -}}
-{{- else -}}
-{{- printf "%s" $nameGlobalOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 {{- end -}}
 
@@ -65,8 +39,19 @@ If release name contains chart name it will be used as a full name.
 {{- end -}}
 
 {{/*
+Create a postgres hostname, if not specifically set by the user.
+*/}}
+{{- define "postgresql.host" -}}
+{{- if .Values.postgresql.host -}}
+{{- .Values.postgresql.host -}}
+{{- else -}}
+{{ printf "%s.%s.svc.cluster.local" (include "postgresql.fullname" .) .Release.Namespace }}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "feast.chart" -}}
+{{- define "feast-core.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
