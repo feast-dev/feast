@@ -36,6 +36,13 @@ spec:
       - name: {{ template "feast-core.name" . }}
         image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command:
+          - java
+          - "-Dspring.config.additional-location=/usr/share/feast/config/"
+          - "-XX:+UnlockExperimentalVMOptions"
+          - "-XX:+UseCGroupMemoryLimitForHeap"
+          - "-jar"
+          - "/usr/share/feast/feast-core.jar"
         ports:
           - containerPort: {{ .Values.service.http.targetPort }}
             name: "http"
@@ -74,15 +81,13 @@ spec:
           {{- end }}
         volumeMounts:
         - name: feast-core-config
-          mountPath: /etc/feast
+          mountPath: /usr/share/feast/config
         {{- if .Values.serviceAccount }}
         - name: "{{ .Values.serviceAccount.name }}"
           mountPath: "/etc/gcloud/service-accounts"
           readOnly: true
         {{- end }}
         env:
-        - name: CONFIG_PATH
-          value: /etc/feast/config.yaml
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef:

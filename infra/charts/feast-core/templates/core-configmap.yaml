@@ -10,7 +10,7 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 data:
-  config.yaml: |
+  application.yml: |
 
     # Please see gojek/feast/core/src/main/resources/application.yml for an explanation of config
     server:

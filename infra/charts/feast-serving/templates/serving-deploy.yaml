@@ -37,6 +37,13 @@ spec:
       - name: {{ template "feast-serving.name" . }}
         image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command:
+          - java
+          - "-Dspring.config.additional-location=/usr/share/feast/config/"
+          - "-XX:+UnlockExperimentalVMOptions"
+          - "-XX:+UseCGroupMemoryLimitForHeap"
+          - "-jar"
+          - "/usr/share/feast/feast-serving.jar"
         ports:
           - containerPort: {{ .Values.service.grpc.targetPort }}
             name: grpc
@@ -78,24 +85,22 @@ spec:
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: /etc/gcloud/service-accounts/{{ .Values.serviceAccount.key }}
         {{- end }}
-        - name: CONFIG_PATH
-          value: /etc/feast/config.yaml
         volumeMounts:
-        - name: feast-serving-config
-          mountPath: /etc/feast/config.yaml
-          subPath: config.yaml
+        - name: feast-serving-application-config
+          mountPath: /usr/share/feast/config/application.yml
+          subPath: application.yml
         - name: feast-serving-store-config
-          mountPath: /etc/feast/store.yaml
-          subPath: store.yaml
+          mountPath: /usr/share/feast/config/store.yml
+          subPath: store.yml
         {{- if .Values.serviceAccount }}
         - name: "{{ .Values.serviceAccount.name }}"
           mountPath: "/etc/gcloud/service-accounts"
           readOnly: true
         {{- end }}
       volumes:
-      - name: feast-serving-config
+      - name: feast-serving-application-config
         configMap:
-          name:  {{ template "feast-serving.fullname" . }}
+          name:  {{ template "feast-serving.fullname" . }}-application-config
       - name: feast-serving-store-config
         configMap:
           name:  {{ template "feast-serving.fullname" . }}-store-config

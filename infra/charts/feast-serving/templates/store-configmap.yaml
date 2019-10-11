@@ -10,5 +10,5 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 data:
-  store.yaml: |
+  store.yml: |
 {{ toYaml .Values.store.config | indent 4 }}

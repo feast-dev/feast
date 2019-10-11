@@ -8,5 +8,4 @@
 FROM openjdk:8-jre-alpine as production
 ARG REVISION=dev
 COPY ./serving/target/feast-serving-$REVISION.jar /usr/share/feast/feast-serving.jar
-COPY ./infra/docker/serving/bootstrap.sh /usr/share/feast/bootstrap.sh
-ENTRYPOINT ["/usr/share/feast/bootstrap.sh"]
+CMD ["java", "-XX:+UnlockExperimentalVMOptions", "-XX:+UseCGroupMemoryLimitForHeap", "-jar", "/usr/share/feast/feast-serving.jar"]

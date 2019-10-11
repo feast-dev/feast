@@ -16,5 +16,4 @@
 FROM openjdk:8-jre as production
 ARG REVISION=dev
 COPY ./core/target/feast-core-$REVISION.jar /usr/share/feast/feast-core.jar
-COPY ./infra/docker/core/bootstrap.sh /usr/share/feast/bootstrap.sh
-ENTRYPOINT ["/usr/share/feast/bootstrap.sh"]
+CMD ["java", "-XX:+UnlockExperimentalVMOptions", "-XX:+UseCGroupMemoryLimitForHeap", "-jar", "/usr/share/feast/feast-core.jar"]

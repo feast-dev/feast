@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ template "feast-serving.fullname" . }}
+  name: {{ template "feast-serving.fullname" . }}-application-config
   namespace: {{ .Release.Namespace }}
   labels:
     app: {{ template "feast-serving.name" . }}
@@ -10,7 +10,7 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 data:
-  config.yaml: |
+  application.yml: |
     feast:
       # GRPC service address for Feast Core
       # Feast Serving requires connection to Feast Core to retrieve and reload Feast metadata (e.g. FeatureSpecs, Store information)
