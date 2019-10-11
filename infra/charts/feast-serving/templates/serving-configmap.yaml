@@ -31,7 +31,7 @@ data:
 
       store:
         # Path containing the store configuration for this serving store.
-        config-path: /etc/feast/store.yaml
+        config-path: /usr/share/feast/config/store.yml
         {{- if eq .Values.store.config.type "REDIS" }}
         # If serving redis, the redis pool max size
         redis-pool-max-size: {{ .Values.store.redisPool.maxSize }}
