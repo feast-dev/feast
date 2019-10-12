@@ -16,7 +16,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class FeastProperties {
   private String version;
   private String coreHost;
-  private int corePort;
+  private int coreGrpcPort;
   private StoreProperties store;
   private JobProperties jobs;
   private TracingProperties tracing;

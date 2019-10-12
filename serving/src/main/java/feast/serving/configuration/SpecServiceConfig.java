@@ -27,7 +27,7 @@ public class SpecServiceConfig {
   @Autowired
   public SpecServiceConfig(FeastProperties feastProperties) {
     feastCoreHost = feastProperties.getCoreHost();
-    feastCorePort = feastProperties.getCorePort();
+    feastCorePort = feastProperties.getCoreGrpcPort();
   }
 
   @Bean

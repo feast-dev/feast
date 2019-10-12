@@ -5,7 +5,7 @@ feast:
   # GRPC service address for Feast Core
   # Feast Serving requires connection to Feast Core to retrieve and reload Feast metadata (e.g. FeatureSpecs, Store information)
   core-host: ${FEAST_CORE_HOST:localhost}
-  core-port: ${FEAST_CORE_PORT:6565}
+  core-grpc-port: ${FEAST_CORE_GRPC_PORT:6565}
 
   tracing:
     # If true, Feast will provide tracing data (using OpenTracing API) for various RPC method calls
