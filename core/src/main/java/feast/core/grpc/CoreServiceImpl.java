@@ -18,7 +18,6 @@
 package feast.core.grpc;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.timgroup.statsd.StatsDClient;
 import feast.core.CoreServiceGrpc.CoreServiceImplBase;
 import feast.core.CoreServiceProto.ApplyFeatureSetRequest;
 import feast.core.CoreServiceProto.ApplyFeatureSetResponse;
@@ -78,6 +77,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (RetrievalException | InvalidProtocolBufferException e) {
+      log.error("Exception has occurred in GetFeatureSets method: ", e);
       responseObserver.onError(e);
     }
   }
@@ -91,6 +91,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (RetrievalException e) {
+      log.error("Exception has occurred in GetStores method: ", e);
       responseObserver.onError(e);
     }
   }
@@ -130,6 +131,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (Exception e) {
+      log.error("Exception has occurred in ApplyFeatureSet method: ", e);
       responseObserver.onError(e);
     }
   }
@@ -163,6 +165,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
             .forEach(kv -> jobCoordinatorService.startOrUpdateJob(kv.getValue(), store));
       }
     } catch (Exception e) {
+      log.error("Exception has occurred in UpdateStore method: ", e);
       responseObserver.onError(e);
     }
   }
