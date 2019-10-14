@@ -113,7 +113,9 @@ public class BigQueryServingService implements ServingService {
 
     Table entityTable = loadEntities(getFeaturesRequest.getDatasetSource());
     Schema entityTableSchema = entityTable.getDefinition().getSchema();
-    List<String> entityNames = entityTableSchema.getFields().stream().map(Field::getName)
+    List<String> entityNames = entityTableSchema.getFields().stream()
+        .map(Field::getName)
+        .filter(name -> !name.equals("event_timestamp"))
         .collect(Collectors.toList());
 
     final String query =
