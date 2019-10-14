@@ -24,7 +24,7 @@ feast-core:
       type: prometheus
       ## Host of the metrics sink. In the case of prometheus, this is the host of the prometheus
       ## pushGateway to sink metrics to.
-      host: feast-prometheus-pushgateway.svc.cluster.local
+      host: feast-prometheus-pushgateway
       ## Port of the metrics sink. In the case of prometheus, this is the port of the prometheus
       ## pushGateway to sink metrics to.
       port: 9091
@@ -32,7 +32,7 @@ feast-core:
   stream:
     type: kafka
     options:
-      bootstrapServers: feast-kafka.svc.cluster.local:9092
+      bootstrapServers: feast-kafka:9092
       replicationFactor: 2
       partitions: 4
 
@@ -97,7 +97,7 @@ online-serving:
 
   fullnameOverride: feast-serving-online
   core:
-    host: feast-core.cluster.svc.local
+    host: feast-core
     port: 6565
 
   store:
@@ -105,7 +105,7 @@ online-serving:
       name: serving
       type: REDIS
       redis_config:
-        host: feast-redis.cluster.svc.local
+        host: feast-redis
         port: 6379
       subscriptions:
         - name: .*
@@ -197,14 +197,14 @@ warehouse-serving:
 
   fullnameOverride: feast-serving-warehouse
   core:
-    host: feast-core.cluster.svc.local
+    host: feast-core
     port: 6565
 
   store:
     config: 
       name: warehouse
       type: BIGQUERY
-      redis_config:
+      bigquery_config:
         projectId: the-big-data-staging-007
         datasetId: feast
       subscriptions:
@@ -222,7 +222,7 @@ warehouse-serving:
       stagingLocation: gs://zl-test-bucket/feast/staging
       storeType: REDIS
       storeOptions:
-        host: feast-redis.cluster.svc.local
+        host: feast-redis
         port: 6379
 
   tracing:
@@ -240,8 +240,8 @@ warehouse-serving:
       port: 80
       targetPort: 8080
     grpc:
-      port: 6565
-      targetPort: 6565
+      port: 6566
+      targetPort: 6566
     type: ClusterIP
     # loadBalancerIP:  
     # loadBalancerSourceRanges:

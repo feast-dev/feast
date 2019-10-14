@@ -9,7 +9,7 @@ image:
 # nameOverride: ""
 # fullnameOverride: ""
 core:
-  host: feast-core.svc.local
+  host: feast-core
   port: 6565
 
 store:
@@ -52,8 +52,8 @@ service:
     port: 80
     targetPort: 8080
   grpc:
-    port: 6565
-    targetPort: 6565
+    port: 6566
+    targetPort: 6566
   type: ClusterIP
   # loadBalancerIP:  
   # loadBalancerSourceRanges:
