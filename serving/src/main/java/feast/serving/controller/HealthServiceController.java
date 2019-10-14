@@ -1,7 +1,7 @@
 package feast.serving.controller;
 
 import feast.core.StoreProto.Store;
-import feast.serving.ServingAPIProto.GetFeastServingTypeRequest;
+import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.serving.service.CachedSpecService;
 import feast.serving.service.ServingService;
 import io.grpc.health.v1.HealthGrpc.HealthImplBase;
@@ -34,7 +34,7 @@ public class HealthServiceController extends HealthImplBase {
 
     try {
       Store store = specService.getStore();
-      servingService.getFeastServingType(GetFeastServingTypeRequest.getDefaultInstance());
+      servingService.getFeastServingInfo(GetFeastServingInfoRequest.getDefaultInstance());
       responseObserver.onNext(
           HealthCheckResponse.newBuilder().setStatus(ServingStatus.SERVING).build());
     } catch (Exception e) {

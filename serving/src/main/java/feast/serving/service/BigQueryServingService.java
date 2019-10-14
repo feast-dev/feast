@@ -4,9 +4,17 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.ExtractJobConfiguration;
+import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.FormatOptions;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.bigquery.LoadJobConfiguration;
 import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.bigquery.Schema;
+import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TableDefinition;
+import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobListOption;
@@ -14,14 +22,15 @@ import com.google.common.collect.Lists;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.serving.ServingAPIProto;
 import feast.serving.ServingAPIProto.DataFormat;
+import feast.serving.ServingAPIProto.DatasetSource;
 import feast.serving.ServingAPIProto.FeastServingType;
+import feast.serving.ServingAPIProto.GetBatchFeaturesRequest;
 import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
-import feast.serving.ServingAPIProto.GetFeastServingTypeRequest;
-import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
-import feast.serving.ServingAPIProto.GetFeaturesRequest;
-import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityRow;
+import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
+import feast.serving.ServingAPIProto.GetFeastServingInfoResponse;
 import feast.serving.ServingAPIProto.GetJobRequest;
 import feast.serving.ServingAPIProto.GetJobResponse;
+import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.JobStatus;
 import feast.serving.ServingAPIProto.JobType;
@@ -62,22 +71,31 @@ public class BigQueryServingService implements ServingService {
     this.storage = storage;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
-  public GetFeastServingTypeResponse getFeastServingType(
-      GetFeastServingTypeRequest getFeastServingTypeRequest) {
-    return GetFeastServingTypeResponse.newBuilder()
+  public GetFeastServingInfoResponse getFeastServingInfo(
+      GetFeastServingInfoRequest getFeastServingInfoRequest) {
+    return GetFeastServingInfoResponse.newBuilder()
         .setType(FeastServingType.FEAST_SERVING_TYPE_BATCH)
+        .setJobStagingLocation(jobStagingLocation)
         .build();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
-  public GetOnlineFeaturesResponse getOnlineFeatures(GetFeaturesRequest getFeaturesRequest) {
+  public GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest getFeaturesRequest) {
     throw Status.UNIMPLEMENTED.withDescription("Method not implemented").asRuntimeException();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
-  public GetBatchFeaturesResponse getBatchFeatures(GetFeaturesRequest getFeaturesRequest) {
-    // TODO: Consider default maxAge in featureSetSpec during retrieval
+  public GetBatchFeaturesResponse getBatchFeatures(GetBatchFeaturesRequest getFeaturesRequest) {
 
     List<FeatureSetSpec> featureSetSpecs =
         getFeaturesRequest.getFeatureSetsList().stream()
@@ -93,30 +111,17 @@ public class BigQueryServingService implements ServingService {
           .asRuntimeException();
     }
 
-    if (getFeaturesRequest.getEntityRowsCount() < 1) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription(
-              "entity_dataset_rows is required for batch retrieval in order to filter the retrieved entities.")
-          .asRuntimeException();
-    }
-
-    for (EntityRow entityRow :
-        getFeaturesRequest.getEntityRowsList()) {
-      if (entityRow.getEntityTimestamp().getSeconds() == 0) {
-        throw Status.INVALID_ARGUMENT
-            .withDescription(
-                "entity_timestamp field in entity_dataset_row is required for batch retrieval.")
-            .asRuntimeException();
-      }
-    }
+    Table entityTable = loadEntities(getFeaturesRequest.getDatasetSource());
+    Schema entityTableSchema = entityTable.getDefinition().getSchema();
+    List<String> entityNames = entityTableSchema.getFields().stream().map(Field::getName)
+        .collect(Collectors.toList());
 
     final String query =
         BigQueryUtil.createQuery(
             getFeaturesRequest.getFeatureSetsList(),
             featureSetSpecs,
-            Lists.newArrayList(getFeaturesRequest.getEntityRows(0).getFieldsMap().keySet()),
-            getFeaturesRequest.getEntityRowsList(),
-            datasetId);
+            entityNames,
+            datasetId, entityTable.getFriendlyName());
     log.debug("Running BigQuery query: {}", query);
 
     String feastJobId = UUID.randomUUID().toString();
@@ -210,6 +215,9 @@ public class BigQueryServingService implements ServingService {
     return GetBatchFeaturesResponse.newBuilder().setJob(feastJob).build();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public GetJobResponse getJob(GetJobRequest getJobRequest) {
     Optional<ServingAPIProto.Job> job = jobService.get(getJobRequest.getJob().getId());
@@ -219,5 +227,43 @@ public class BigQueryServingService implements ServingService {
           .asRuntimeException();
     }
     return GetJobResponse.newBuilder().setJob(job.get()).build();
+  }
+
+  private Table loadEntities(DatasetSource datasetSource) {
+    switch (datasetSource.getDatasetSourceCase()) {
+      case FILE_SOURCE:
+        String tableName = generateTemporaryTableName();
+        TableId tableId = TableId.of(projectId, datasetId, tableName);
+        // Currently only avro supported
+        if (datasetSource.getFileSource().getDataFormat() != DataFormat.DATA_FORMAT_AVRO) {
+          throw Status.INVALID_ARGUMENT
+              .withDescription("Invalid file format, only avro supported")
+              .asRuntimeException();
+        }
+        LoadJobConfiguration loadJobConfiguration = LoadJobConfiguration.of(tableId,
+            datasetSource.getFileSource().getFileUrisList(),
+            FormatOptions.avro());
+        Job job = bigquery.create(JobInfo.of(loadJobConfiguration));
+        try {
+          job.waitFor();
+          return bigquery.getTable(tableId);
+        } catch (InterruptedException e) {
+          throw Status.INTERNAL
+              .withDescription("Failed to load entity dataset into store")
+              .withCause(e)
+              .asRuntimeException();
+        }
+      case DATASETSOURCE_NOT_SET:
+      default:
+        throw Status.INVALID_ARGUMENT
+            .withDescription("Data source must be set.")
+            .asRuntimeException();
+    }
+  }
+
+  private String generateTemporaryTableName() {
+    String source = String.format("feast_serving_%d", System.currentTimeMillis());
+    UUID uuid = UUID.fromString(source);
+    return uuid.toString().replaceAll("-", "_");
   }
 }

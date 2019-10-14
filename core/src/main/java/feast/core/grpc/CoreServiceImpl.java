@@ -135,6 +135,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   @Override
+  @Transactional
   public void updateStore(UpdateStoreRequest request,
       StreamObserver<UpdateStoreResponse> responseObserver) {
     try {
