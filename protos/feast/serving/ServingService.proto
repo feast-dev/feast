@@ -27,11 +27,8 @@ option java_outer_classname = "ServingAPIProto";
 option go_package = "github.com/gojek/feast/sdk/go/protos/feast/serving";
 
 service ServingService {
-    // Get version information about this Feast serving.
-    rpc GetFeastServingVersion (GetFeastServingVersionRequest) returns (GetFeastServingVersionResponse);
-
-    // Get Feast serving store type: online or batch.
-    rpc GetFeastServingType (GetFeastServingTypeRequest) returns (GetFeastServingTypeResponse);
+    // Get information about this Feast serving.
+    rpc GetFeastServingInfo (GetFeastServingInfoRequest) returns (GetFeastServingInfoResponse)
 
     // Get online features synchronously.
     rpc GetOnlineFeatures (GetOnlineFeaturesRequest) returns (GetOnlineFeaturesResponse);
@@ -50,16 +47,19 @@ service ServingService {
     rpc GetJob (GetJobRequest) returns (GetJobResponse);
 }
 
-message GetFeastServingVersionRequest {}
+message GetFeastServingInfoRequest {}
 
-message GetFeastServingVersionResponse {
+message GetFeastServingInfoResponse {
+    // Feast version of this serving deployment.
     string version = 1;
-}
 
-message GetFeastServingTypeRequest {}
+    // Type of serving deployment, either ONLINE or BATCH. Different store types support different
+    // feature retrieval methods.
+    FeastServingType type = 2;
 
-message GetFeastServingTypeResponse {
-    FeastServingType type = 1;
+    // Note: Batch specific options start from 10.
+    // Staging location for this serving store, if any.
+    string job_staging_location = 10;
 }
 
 message GetOnlineFeaturesRequest {
