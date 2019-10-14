@@ -204,12 +204,8 @@ message Job {
 
 message DatasetSource {
     oneof dataset_source {
-        // SQL query to generate the dataset from. It is recommended that the SQL follows the
-        // ANSI standard.
-        string sql_query = 1;
-
         // File source to load the dataset from.
-        FileSource file_source = 2;
+        FileSource file_source = 1;
     }
 
     message FileSource {
@@ -218,7 +214,7 @@ message DatasetSource {
         // accessible by this serving instance.
         repeated string file_uris = 1;
 
-        // Format of the data.
+        // Format of the data. Currently only avro is supported.
         DataFormat data_format = 2;
     }
 }
