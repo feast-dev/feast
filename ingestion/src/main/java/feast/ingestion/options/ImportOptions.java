@@ -55,7 +55,7 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
   void setStoreJson(List<String> storeJson);
 
   @Description(
-      "(Optional) Deadletter elements will be written to this table."
+      "(Optional) Deadletter elements will be written to this BigQuery table."
           + "Table spec must follow this format PROJECT_ID:DATASET_ID.PROJECT_ID"
           + "The table will be created if not exists.")
   String getDeadLetterTableSpec();
