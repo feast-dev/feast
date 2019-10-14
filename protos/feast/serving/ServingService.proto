@@ -28,7 +28,7 @@ option go_package = "github.com/gojek/feast/sdk/go/protos/feast/serving";
 
 service ServingService {
     // Get information about this Feast serving.
-    rpc GetFeastServingInfo (GetFeastServingInfoRequest) returns (GetFeastServingInfoResponse)
+    rpc GetFeastServingInfo (GetFeastServingInfoRequest) returns (GetFeastServingInfoResponse);
 
     // Get online features synchronously.
     rpc GetOnlineFeatures (GetOnlineFeaturesRequest) returns (GetOnlineFeaturesResponse);
