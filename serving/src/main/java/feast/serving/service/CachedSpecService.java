@@ -106,6 +106,14 @@ public class CachedSpecService {
     featureSetSpecCache.putAll(featureSetSpecMap);
   }
 
+  public void scheduledPopulateCache() {
+    try {
+      populateCache();
+    } catch (Exception e) {
+      log.warn("Error updating store configuration and specs: {}", e.getMessage());
+    }
+  }
+
   private Map<String, FeatureSetSpec> getFeatureSetSpecMap() {
     HashMap<String, FeatureSetSpec> featureSetSpecs = new HashMap<>();
 
