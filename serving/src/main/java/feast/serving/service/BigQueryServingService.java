@@ -1,10 +1,17 @@
 package feast.serving.service;
 
+import static feast.serving.util.BigQueryUtil.getTimestampLimitQuery;
+
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQuery.TableField;
+import com.google.cloud.bigquery.BigQuery.TableOption;
 import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.ExtractJobConfiguration;
 import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.FormatOptions;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobInfo;
@@ -15,6 +22,7 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
+import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobListOption;
@@ -36,6 +44,7 @@ import feast.serving.ServingAPIProto.JobStatus;
 import feast.serving.ServingAPIProto.JobType;
 import feast.serving.util.BigQueryUtil;
 import io.grpc.Status;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -45,6 +54,8 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class BigQueryServingService implements ServingService {
+
+  private static final Long TABLE_EXPIRATION_TIME = 172800000L;
 
   private final BigQuery bigquery;
   private final String projectId;
@@ -112,19 +123,34 @@ public class BigQueryServingService implements ServingService {
     }
 
     Table entityTable = loadEntities(getFeaturesRequest.getDatasetSource());
+    String entityTableName = entityTable.getTableId().getTable();
+    //TODO: add expiration to temp tables
+//    entityTable = entityTable.toBuilder().setExpirationTime(TABLE_EXPIRATION_TIME).build();
+//    entityTable.update(TableOption.fields(TableField.EXPIRATION_TIME));
+    FieldValueList timestampLimits = getTimestampLimits(entityTableName);
+
     Schema entityTableSchema = entityTable.getDefinition().getSchema();
     List<String> entityNames = entityTableSchema.getFields().stream()
         .map(Field::getName)
         .filter(name -> !name.equals("event_timestamp"))
         .collect(Collectors.toList());
 
-    final String query =
-        BigQueryUtil.createQuery(
-            getFeaturesRequest.getFeatureSetsList(),
-            featureSetSpecs,
-            entityNames,
-            datasetId, entityTable.getFriendlyName());
-    log.debug("Running BigQuery query: {}", query);
+    String query;
+    try {
+      query =
+          BigQueryUtil.createQuery(
+              getFeaturesRequest.getFeatureSetsList(),
+              featureSetSpecs,
+              entityNames,
+              projectId,
+              datasetId,
+              entityTableName,
+              timestampLimits.get("min").getStringValue(),
+              timestampLimits.get("max").getStringValue());
+      log.info("Running BigQuery query: {}", query);
+    } catch (IOException e) {
+      throw new RuntimeException("Unable to generate query for batch retrieval");
+    }
 
     String feastJobId = UUID.randomUUID().toString();
     ServingAPIProto.Job feastJob =
@@ -217,6 +243,32 @@ public class BigQueryServingService implements ServingService {
     return GetBatchFeaturesResponse.newBuilder().setJob(feastJob).build();
   }
 
+  private FieldValueList getTimestampLimits(String entityTableName) {
+    QueryJobConfiguration getTimestampLimitsQuery = QueryJobConfiguration
+        .newBuilder(getTimestampLimitQuery(projectId, datasetId, entityTableName))
+        .setDefaultDataset(DatasetId.of(projectId, datasetId)).build();
+    try {
+      Job job = bigquery
+          .create(JobInfo.of(getTimestampLimitsQuery));
+      TableResult getTimestampLimitsQueryResult = job
+          .waitFor()
+          .getQueryResults();
+      FieldValueList result = null;
+      for (FieldValueList fields : getTimestampLimitsQueryResult.getValues()) {
+        result = fields;
+      }
+      if (result == null || result.get("min").isNull() || result.get("max").isNull()) {
+        throw new RuntimeException("query returned insufficient values");
+      }
+      return result;
+    } catch (InterruptedException e) {
+      throw Status.INTERNAL
+          .withDescription("Unable to extract min and max timestamps from query")
+          .withCause(e)
+          .asRuntimeException();
+    }
+  }
+
   /**
    * {@inheritDoc}
    */
@@ -234,22 +286,30 @@ public class BigQueryServingService implements ServingService {
   private Table loadEntities(DatasetSource datasetSource) {
     switch (datasetSource.getDatasetSourceCase()) {
       case FILE_SOURCE:
-        String tableName = generateTemporaryTableName();
-        TableId tableId = TableId.of(projectId, datasetId, tableName);
-        // Currently only avro supported
-        if (datasetSource.getFileSource().getDataFormat() != DataFormat.DATA_FORMAT_AVRO) {
-          throw Status.INVALID_ARGUMENT
-              .withDescription("Invalid file format, only avro supported")
-              .asRuntimeException();
-        }
-        LoadJobConfiguration loadJobConfiguration = LoadJobConfiguration.of(tableId,
-            datasetSource.getFileSource().getFileUrisList(),
-            FormatOptions.avro());
-        Job job = bigquery.create(JobInfo.of(loadJobConfiguration));
         try {
+          String tableName = generateTemporaryTableName();
+          log.info("Loading entity dataset to table {}.{}.{}", projectId, datasetId, tableName);
+          TableId tableId = TableId.of(projectId, datasetId, tableName);
+          // Currently only avro supported
+          if (datasetSource.getFileSource().getDataFormat() != DataFormat.DATA_FORMAT_AVRO) {
+            throw Status.INVALID_ARGUMENT
+                .withDescription("Invalid file format, only avro supported")
+                .asRuntimeException();
+          }
+          LoadJobConfiguration loadJobConfiguration = LoadJobConfiguration.of(tableId,
+              datasetSource.getFileSource().getFileUrisList(),
+              FormatOptions.avro());
+          loadJobConfiguration = loadJobConfiguration.toBuilder()
+              .setUseAvroLogicalTypes(true)
+              .build();
+          Job job = bigquery.create(JobInfo.of(loadJobConfiguration));
           job.waitFor();
-          return bigquery.getTable(tableId);
-        } catch (InterruptedException e) {
+          Table entityTable = bigquery.getTable(tableId);
+          if (!entityTable.exists()) {
+            throw new RuntimeException("Unable to create entity dataset table");
+          }
+          return entityTable;
+        } catch (Exception e) {
           throw Status.INTERNAL
               .withDescription("Failed to load entity dataset into store")
               .withCause(e)
@@ -264,8 +324,9 @@ public class BigQueryServingService implements ServingService {
   }
 
   private String generateTemporaryTableName() {
-    String source = String.format("feast_serving_%d", System.currentTimeMillis());
-    UUID uuid = UUID.fromString(source);
-    return uuid.toString().replaceAll("-", "_");
+    String source = String.format("feastserving%d", System.currentTimeMillis());
+    String guid = UUID.nameUUIDFromBytes(source.getBytes()).toString();
+    String suffix = guid.substring(0, Math.min(guid.length(), 10)).replaceAll("-", "");
+    return String.format("temp_%s", suffix);
   }
 }

@@ -165,6 +165,12 @@
       <version>${protobufVersion}</version>
     </dependency>
 
+    <dependency>
+      <groupId>io.pebbletemplates</groupId>
+      <artifactId>pebble</artifactId>
+      <version>3.1.0</version>
+    </dependency>
+
     <!--compile 'redis.clients:jedis:2.9.0'-->
     <dependency>
       <groupId>redis.clients</groupId>

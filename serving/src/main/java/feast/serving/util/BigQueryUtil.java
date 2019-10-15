@@ -1,20 +1,39 @@
 package feast.serving.util;
 
 import com.google.protobuf.Duration;
-import feast.core.FeatureSetProto.EntitySpec;
+import com.mitchellbosecke.pebble.PebbleEngine;
+import com.mitchellbosecke.pebble.template.PebbleTemplate;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.serving.ServingAPIProto.GetBatchFeaturesRequest.FeatureSet;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class BigQueryUtil {
+
+  private static final PebbleEngine engine = new PebbleEngine.Builder().build();
+  private static final String FEATURESET_TEMPLATE_NAME = "templates/bq_featureset_query.sql";
+
+  public static String getTimestampLimitQuery(String projectId, String datasetId,
+      String leftTableName) {
+    return String.format(
+        "SELECT DATETIME(MAX(event_timestamp)) as max, DATETIME(MIN(event_timestamp)) as min FROM `%s.%s.%s`",
+        projectId, datasetId, leftTableName);
+  }
 
   public static String createQuery(
       List<FeatureSet> featureSets,
       List<FeatureSetSpec> featureSetSpecs,
       List<String> entityNames,
+      String projectId,
       String bigqueryDataset,
-      String leftTableName) {
+      String leftTableName,
+      String minTimestamp,
+      String maxTimestamp) throws IOException {
     if (featureSets == null
         || featureSetSpecs == null
         || entityNames == null
@@ -33,10 +52,14 @@ public class BigQueryUtil {
               featureSets.get(i),
               featureSetSpecs.get(i),
               entityNames,
+              projectId,
               bigqueryDataset,
-              leftTableName));
+              leftTableName,
+              minTimestamp,
+              maxTimestamp));
     }
 
+    // TODO: templatize this as well
     if (featureSetQueries.size() > 1) {
       StringBuilder selectColumns = new StringBuilder("SELECT ");
       for (int i = 0; i < featureSets.size(); i++) {
@@ -70,44 +93,27 @@ public class BigQueryUtil {
       FeatureSet featureSet,
       FeatureSetSpec featureSetSpec,
       List<String> entityNames,
+      String projectId,
       String datasetName,
-      String leftTableName) {
+      String leftTableName,
+      String minTimestamp,
+      String maxTimestamp) throws IOException {
 
-    String joinedEntities = entityNames.stream().map(s -> String.format("joined.%s, ", s))
-        .reduce(String::concat).get();
-    String selectEntities = entityNames.stream().map(s -> String.format("l.%s, ", s))
-        .reduce(String::concat).get();
-    String joinedFeatures = featureSet.getFeatureNamesList().stream()
-        .map(s -> String.format("joined.%s_%s, ", getTableName(featureSet), s))
-        .reduce(String::concat).get();
-    String selectFeatures = featureSet.getFeatureNamesList().stream()
-        .map(s -> String.format("r.%s as %s_%s, ", s, getTableName(featureSet), s))
-        .reduce(String::concat).get();
-    String joinConditions = featureSetSpec.getEntitiesList().stream()
-        .map(EntitySpec::getName)
-        .map(s -> String.format("AND l.%s = r.%s ", s, s))
-        .reduce(String::concat).get();
+    PebbleTemplate template = engine.getTemplate(FEATURESET_TEMPLATE_NAME);
+    Map<String, Object> context = new HashMap<>();
+    context.put("entityNames", entityNames);
+    context.put("featureSet", featureSet);
+    context.put("featureSetSpec", featureSetSpec);
+    context.put("maxAge", getMaxAge(featureSet, featureSetSpec).getSeconds());
+    context.put("minTimestamp", minTimestamp);
+    context.put("maxTimestamp", maxTimestamp);
+    context.put("leftTableName", String.format("%s.%s.%s", projectId, datasetName, leftTableName));
+    context.put("rightTableName",
+        String.format("%s.%s.%s", projectId, datasetName, getTableName(featureSet)));
 
-    StringBuilder queryBuilder = new StringBuilder();
-    queryBuilder.append(String.format(
-        "SELECT * FROM (SELECT joined.event_timestamp, %s %s ROW_NUMBER() ",
-        joinedEntities, joinedFeatures));
-    queryBuilder.append(String.format(
-        "OVER ( PARTITION BY %s joined.event_timestamp ORDER BY joined.r_event_timestamp DESC) rank ",
-        joinedEntities));
-    queryBuilder.append(String.format(
-        "FROM (SELECT %s l.event_timestamp, %s r.event_timestamp AS r_event_timestamp ",
-        selectEntities, selectFeatures));
-    queryBuilder.append(String.format(
-        "FROM %s.%s AS l LEFT OUTER JOIN %s.%s AS r ",
-        datasetName, leftTableName, datasetName, getTableName(featureSet)));
-    queryBuilder.append(String.format("ON l.event_timestamp >= r.event_timestamp \n"
-            + "AND Timestamp_sub(l.event_timestamp, interval %d second) < r.event_timestamp ",
-        getMaxAge(featureSet, featureSetSpec).getSeconds()));
-    queryBuilder
-        .append(String.format("%s) AS joined) AS reduce WHERE  reduce.rank = 1",
-            joinConditions));
-    return queryBuilder.toString();
+    Writer writer = new StringWriter();
+    template.evaluate(writer, context);
+    return writer.toString();
   }
 
   private static Duration getMaxAge(FeatureSet featureSet, FeatureSetSpec featureSetSpec) {
