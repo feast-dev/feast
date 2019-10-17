@@ -2,6 +2,8 @@ package feast
 
 import "github.com/gojek/feast/sdk/go/protos/feast/types"
 
+type Row map[string]*types.Value
+
 // StrVal is a int64 type feast value
 func StrVal(val string) *types.Value {
 	return &types.Value{Val: &types.Value_StringVal{StringVal: val}}

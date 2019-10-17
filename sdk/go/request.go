@@ -3,7 +3,6 @@ package feast
 import (
 	"fmt"
 	"github.com/gojek/feast/sdk/go/protos/feast/serving"
-	"github.com/gojek/feast/sdk/go/protos/feast/types"
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"strconv"
@@ -16,8 +15,6 @@ var (
 )
 
 // OnlineFeaturesRequest wrapper on feast.serving.GetOnlineFeaturesRequest.
-//
-// Note that by default, the current timestamp is used.
 type OnlineFeaturesRequest struct {
 
 	// Features is the list of features to obtain from Feast. Each feature must be given by its fully qualified ID,
@@ -30,7 +27,7 @@ type OnlineFeaturesRequest struct {
 	MaxAgeSeconds int
 
 	// Entities is the list of entity rows to retrieve features on. Each row is a map of entity name to entity value.
-	Entities      []map[string]*types.Value
+	Entities      []Row
 }
 
 // Builds the feast-specified request payload from the wrapper.

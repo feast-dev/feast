@@ -11,24 +11,19 @@ import (
 )
 
 func TestGetOnlineFeaturesRequest(t *testing.T) {
-	type args struct {
-		features []string
-		maxAgeSeconds int
-		entities []map[string]*types.Value
-	}
 	tt := []struct {
 		name    string
-		args    args
+		req     OnlineFeaturesRequest
 		want    *serving.GetOnlineFeaturesRequest
 		wantErr bool
 		err     error
 	}{
 		{
 			name: "valid",
-			args: args{
-				features:      []string{"fs:1:feature1", "fs:1:feature2", "fs:2:feature1"},
-				maxAgeSeconds: 10,
-				entities: []map[string]*types.Value{
+			req: OnlineFeaturesRequest{
+				Features:      []string{"fs:1:feature1", "fs:1:feature2", "fs:2:feature1"},
+				MaxAgeSeconds: 10,
+				Entities: []Row{
 					{"entity1": Int64Val(1), "entity2": StrVal("bob")},
 					{"entity1": Int64Val(1), "entity2": StrVal("annie")},
 					{"entity1": Int64Val(1), "entity2": StrVal("jane")},
@@ -76,20 +71,20 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 		},
 		{
 			name: "invalid_feature_name/wrong_format",
-			args: args{
-				features:      []string{"fs1:feature1"},
-				maxAgeSeconds: 10,
-				entities:      []map[string]*types.Value{},
+			req: OnlineFeaturesRequest{
+				Features:      []string{"fs1:feature1"},
+				MaxAgeSeconds: 10,
+				Entities:      []Row{},
 			},
 			wantErr: true,
 			err: fmt.Errorf(ErrInvalidFeatureName, "fs1:feature1"),
 		},
 		{
 			name: "invalid_feature_name/invalid_version",
-			args: args{
-				features:      []string{"fs:a:feature1"},
-				maxAgeSeconds: 10,
-				entities:      []map[string]*types.Value{},
+			req: OnlineFeaturesRequest{
+				Features:      []string{"fs:a:feature1"},
+				MaxAgeSeconds: 10,
+				Entities:      []Row{},
 			},
 			wantErr: true,
 			err: fmt.Errorf(ErrInvalidFeatureName, "fs:a:feature1"),
@@ -97,7 +92,7 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := NewGetOnlineFeaturesRequest(tc.args.features, tc.args.maxAgeSeconds, tc.args.entities)
+			got, err := tc.req.buildRequest()
 			if (err != nil) != tc.wantErr {
 				t.Errorf("error = %v, wantErr %v", err, tc.wantErr)
 				return

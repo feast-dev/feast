@@ -8,12 +8,14 @@ import (
 	"github.com/gojek/feast/sdk/go/protos/feast/serving"
 	"google.golang.org/grpc"
 
-	ocgrpc "go.opencensus.io/plugin/ocgrpc"
+	"go.opencensus.io/plugin/ocgrpc"
 )
 
-var (
-	ErrUnimplementedMethod = "%s is unimplemented for this client."
-)
+// Client is a feast serving client.
+type Client interface {
+	GetOnlineFeatures(ctx context.Context, req *OnlineFeaturesRequest) (*OnlineFeaturesResponse, error)
+	GetFeastServingInfo(ctx context.Context, in *serving.GetFeastServingInfoRequest) (*serving.GetFeastServingInfoResponse, error)
+}
 
 // GrpcClient is a grpc client for feast serving.
 type GrpcClient struct {
@@ -45,10 +47,7 @@ func (fc *GrpcClient) GetOnlineFeatures(ctx context.Context, req *OnlineFeatures
 	}
 	resp, err := fc.cli.GetOnlineFeatures(ctx, featuresRequest)
 
-	return &OnlineFeaturesResponse{
-		Features:  req.Features,
-		RawResponse: resp,
-	}, nil;
+	return &OnlineFeaturesResponse{RawResponse: resp}, nil
 }
 
 // GetInfo gets information about the feast serving instance this client is connected to.
