@@ -54,23 +54,24 @@ func buildFeatureSets(features []string, maxAgeSeconds int) ([]*serving.GetOnlin
 	featureSetMap := map[string]*serving.GetOnlineFeaturesRequest_FeatureSet{}
 	for _, feature := range features {
 		split := strings.Split(feature, ":")
+		featureSetName, featureSetVersion, featureName := split[0], split[1], split[2]
 		if len(split) != 3 {
 			return nil, fmt.Errorf(ErrInvalidFeatureName, feature)
 		}
-		key := split[0] + ":" + split[1]
+		key := featureSetName + ":" + featureSetVersion
 		if fs, ok := featureSetMap[key]; !ok {
-			version, err := strconv.Atoi(split[1])
+			version, err := strconv.Atoi(featureSetVersion)
 			if err != nil {
 				return nil, fmt.Errorf(ErrInvalidFeatureName, feature)
 			}
 			featureSetMap[key] = &serving.GetOnlineFeaturesRequest_FeatureSet{
-				Name:         split[0],
+				Name:         featureSetName,
 				Version:      int32(version),
-				FeatureNames: []string{split[2]},
+				FeatureNames: []string{featureName},
 				MaxAge:       &duration.Duration{Seconds: int64(maxAgeSeconds)},
 			}
 		} else {
-			fs.FeatureNames = append(fs.GetFeatureNames(), split[2])
+			fs.FeatureNames = append(fs.GetFeatureNames(), featureName)
 		}
 	}
 	var featureSets []*serving.GetOnlineFeaturesRequest_FeatureSet
