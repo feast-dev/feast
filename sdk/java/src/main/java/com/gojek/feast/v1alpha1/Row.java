@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/** Row is */
 @SuppressWarnings("UnusedReturnValue")
 public class Row {
   private Timestamp entity_timestamp;
