@@ -54,7 +54,7 @@ LEFT JOIN
     {{ featureSet.entities | join(', ') }},
     {% for featureName in featureSet.features %}
     {{ featureName }} as {{ featureSet.name }}_v{{ featureSet.version }}_{{ featureName }},
-    {% endfor %}ROW_NUMBER() OVER(PARTITION BY event_timestamp, {{ featureSet.entities | join(', ') }}) as {{ featureSet.name }}_v{{ featureSet.version }}_rown
+    {% endfor %}ROW_NUMBER() OVER(PARTITION BY event_timestamp, {{ featureSet.entities | join(', ') }} ORDER BY created_timestamp DESC) as {{ featureSet.name }}_v{{ featureSet.version }}_rown
     FROM `{{ projectId }}.{{ datasetId }}.{{ featureSet.name }}_v{{ featureSet.version }}` WHERE event_timestamp <= '{{maxTimestamp}}' AND event_timestamp >= '{{minTimestamp}}' 
 ) WHERE {{ featureSet.name }}_v{{ featureSet.version }}_rown = 1
 ) USING ({{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp, source)
