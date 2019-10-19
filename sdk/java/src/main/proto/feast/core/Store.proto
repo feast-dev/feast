@@ -1,0 +1,152 @@
+//
+// * Copyright 2019 The Feast Authors
+// *
+// * Licensed under the Apache License, Version 2.0 (the "License");
+// * you may not use this file except in compliance with the License.
+// * You may obtain a copy of the License at
+// *
+// *     https://www.apache.org/licenses/LICENSE-2.0
+// *
+// * Unless required by applicable law or agreed to in writing, software
+// * distributed under the License is distributed on an "AS IS" BASIS,
+// * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// * See the License for the specific language governing permissions and
+// * limitations under the License.
+//
+
+syntax = "proto3";
+package feast.core;
+
+option java_package = "feast.core";
+option java_outer_classname = "StoreProto";
+option go_package = "github.com/gojek/feast/sdk/go/protos/feast/core";
+
+// Store provides a location where Feast reads and writes feature values.
+// Feature values will be written to the Store in the form of FeatureRow elements.
+// The way FeatureRow is encoded and decoded when it is written to and read from
+// the Store depends on the type of the Store.
+//
+// For example, a FeatureRow will materialize as a row in a table in 
+// BigQuery but it will materialize as a key, value pair element in Redis.
+//
+message Store {
+
+  enum StoreType {
+    INVALID = 0;
+
+    // Redis stores a FeatureRow element as a key, value pair.
+    //
+    // The Redis data types used (https://redis.io/topics/data-types):
+    // - key: STRING
+    // - value: STRING
+    // 
+    // Encodings:
+    // - key: byte array of RedisKey (refer to feast.storage.RedisKey)
+    // - value: byte array of FeatureRow (refer to feast.types.FeatureRow)
+    // 
+    REDIS = 1;
+
+    // BigQuery stores a FeatureRow element as a row in a BigQuery table.
+    // 
+    // Table name is derived from the feature set name and version as:
+    // [feature_set_name]_v[feature_set_version] 
+    // 
+    // For example:
+    // A feature row for feature set "driver" and version "1" will be written
+    // to table "driver_v1".
+    // 
+    // The entities and features in a FeatureSetSpec corresponds to the 
+    // fields in the BigQuery table (these make up the BigQuery schema). 
+    // The name of the entity spec and feature spec corresponds to the column 
+    // names, and the value_type of entity spec and feature spec corresponds 
+    // to BigQuery standard SQL data type of the column. 
+    // 
+    // The following BigQuery fields are reserved for Feast internal use. 
+    // Ingestion of entity or feature spec with names identical 
+    // to the following field names will raise an exception during ingestion.
+    //
+    //   column_name       | column_data_type | description
+    // ====================|==================|================================
+    // - event_timestamp   | TIMESTAMP        | event time of the FeatureRow
+    // - created_timestamp | TIMESTAMP        | processing time of the ingestion of the FeatureRow
+    // - job_id            | STRING           | identifier for the job that writes the FeatureRow to the corresponding BigQuery table
+    //
+    // BigQuery table created will be partitioned by the field "event_timestamp"
+    // of the FeatureRow (https://cloud.google.com/bigquery/docs/partitioned-tables).
+    //
+    // Since newer version of feature set can introduce breaking, non backward-
+    // compatible BigQuery schema updates, incrementing the version of a 
+    // feature set will result in the creation of a new empty BigQuery table
+    // with the new schema.
+    // 
+    // The following table shows how ValueType in Feast is mapped to 
+    // BigQuery Standard SQL data types 
+    // (https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types):
+    //
+    // BYTES       : BYTES 
+    // STRING      : STRING 
+    // INT32       : INT64
+    // INT64       : IN64 
+    // DOUBLE      : FLOAT64
+    // FLOAT       : FLOAT64 
+    // BOOL        : BOOL 
+    // BYTES_LIST  : ARRAY
+    // STRING_LIST : ARRAY
+    // INT32_LIST  : ARRAY
+    // INT64_LIST  : ARRAY
+    // DOUBLE_LIST : ARRAY
+    // FLOAT_LIST  : ARRAY
+    // BOOL_LIST   : ARRAY
+    //
+    // The column mode in BigQuery is set to "Nullable" such that unset Value
+    // in a FeatureRow corresponds to NULL value in BigQuery.
+    //
+    BIGQUERY = 2;
+
+    // Unsupported in Feast 0.3
+    CASSANDRA = 3;
+  }
+
+  message RedisConfig {
+    string host = 1;
+    int32 port = 2;
+  }
+
+  message BigQueryConfig {
+    string project_id = 1;
+    string dataset_id = 2;
+  }
+
+  message CassandraConfig {
+    string host = 1;
+    int32 port = 2;
+  }
+
+  message Subscription {
+    // Name of featureSet to subscribe to.
+    string name = 1;
+
+    // Versions of the given featureSet that will be ingested into this store.
+    // Valid options for version:
+    //     latest: only subscribe to latest version of feature set
+    //     [version number]: pin to a specific version
+    //     >[version number]: subscribe to all versions larger than or equal to [version number]
+    string version = 2;
+  }
+
+  // Name of the store.
+  string name = 1;
+
+  // Type of store.
+  StoreType type = 2;
+
+  // Feature sets to subscribe to.
+  repeated Subscription subscriptions = 4;
+
+  // Configuration to connect to the store. Required.
+  oneof config {
+    RedisConfig redis_config = 11;
+    BigQueryConfig bigquery_config = 12;
+    CassandraConfig cassandra_config = 13;
+  }
+}

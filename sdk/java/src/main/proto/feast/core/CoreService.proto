@@ -1,0 +1,139 @@
+//
+// Copyright 2018 The Feast Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+syntax = "proto3";
+
+package feast.core;
+
+option go_package = "github.com/gojek/feast/sdk/go/protos/feast/core";
+option java_outer_classname = "CoreServiceProto";
+option java_package = "feast.core";
+
+import "feast/core/FeatureSet.proto";
+import "feast/core/Store.proto";
+
+service CoreService {
+    // Retrieve version information about this Feast deployment
+    rpc GetFeastCoreVersion (GetFeastCoreVersionRequest) returns (GetFeastCoreVersionResponse);
+
+    // Retrieve feature set details given a filter.
+    //
+    // Returns all feature sets matching that filter. If none are found,
+    // an empty list will be returned.
+    // If no filter is provided in the request, the response will contain all the feature
+    // sets currently stored in the registry.
+    rpc GetFeatureSets (GetFeatureSetsRequest) returns (GetFeatureSetsResponse);
+
+    // Retrieve store details given a filter.
+    //
+    // Returns all stores matching that filter. If none are found, an empty list will be returned.
+    // If no filter is provided in the request, the response will contain all the stores currently
+    // stored in the registry.
+    rpc GetStores (GetStoresRequest) returns (GetStoresResponse);
+
+    // Create or update and existing feature set.
+    //
+    // This function is idempotent - it will not create a new feature set if schema does not change.
+    // If an existing feature set is updated, core will advance the version number, which will be
+    // returned in response.
+    rpc ApplyFeatureSet (ApplyFeatureSetRequest) returns (ApplyFeatureSetResponse);
+
+    // Updates core with the configuration of the store.
+    //
+    // If the changes are valid, core will return the given store configuration in response, and
+    // start or update the necessary feature population jobs for the updated store.
+    rpc UpdateStore(UpdateStoreRequest) returns (UpdateStoreResponse);
+}
+
+// Retrieves details for all versions of a specific feature set
+message GetFeatureSetsRequest {
+    message Filter {
+        // Name of the desired feature set. Valid regex strings are allowed.
+        // e.g.
+        // - .* can be used to match all feature sets
+        // - my-project-.* can be used to match all features prefixed by "my-project"
+        string feature_set_name = 1;
+        // Version of the desired feature set. Either a number or valid expression can be provided.
+        // e.g.
+        // - 1 will match version 1 exactly
+        // - >=1 will match all versions greater or equal to 1
+        // - <10 will match all versions less than 10
+        string feature_set_version = 2;
+    }
+
+    Filter filter = 1;
+}
+
+message GetFeatureSetsResponse {
+    repeated feast.core.FeatureSetSpec feature_sets = 1;
+}
+
+message GetStoresRequest {
+    message Filter {
+        // Name of desired store. Regex is not supported in this query.
+        string name = 1;
+    }
+
+    Filter filter = 1;
+}
+
+message GetStoresResponse {
+    repeated feast.core.Store store = 1;
+}
+
+message ApplyFeatureSetRequest {
+    // Feature set version and source will be ignored
+    feast.core.FeatureSetSpec feature_set = 1;
+}
+
+message ApplyFeatureSetResponse {
+    enum Status {
+        // Latest feature set version is consistent with provided feature set
+        NO_CHANGE = 0;
+
+        // New feature set or feature set version created
+        CREATED = 1;
+
+        // Error occurred while trying to apply changes
+        ERROR = 2;
+    }
+
+    // Feature set response has been enriched with version and source information
+    feast.core.FeatureSetSpec feature_set = 1;
+    Status status = 2;
+}
+
+message GetFeastCoreVersionRequest {}
+
+message GetFeastCoreVersionResponse {
+    string version = 1;
+}
+
+message UpdateStoreRequest {
+    feast.core.Store store = 1;
+}
+
+message UpdateStoreResponse {
+    enum Status {
+        // Existing store config matching the given store id is identical to the given store config.
+        NO_CHANGE = 0;
+
+        // New store created or existing config updated.
+        UPDATED = 1;
+    }
+    feast.core.Store store = 1;
+    Status status = 2;
+}
