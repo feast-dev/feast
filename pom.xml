@@ -306,6 +306,12 @@
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
+                    <compilerArgs>
+                        <arg>-Xlint:all</arg>
+                          <!-- -Xdoclint:all breaks on a false positive in JDK < 9 -->
+                          <!-- https://bugs.java.com/bugdatabase/view_bug.do?bug_id=JDK-8186647 -->
+                        <arg>-Xdoclint:-syntax</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
             <plugin>

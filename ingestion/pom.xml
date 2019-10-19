@@ -96,10 +96,6 @@
             <goals>
               <goal>jar</goal>
             </goals>
-            <!-- TODO: Remove "doclint: none" and fix javadoc error instead -->
-            <configuration>
-              <doclint>none</doclint>
-            </configuration>
           </execution>
         </executions>
       </plugin>

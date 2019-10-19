@@ -3,7 +3,6 @@ package feast.ingestion.transform;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.TextFormat;
 import feast.core.SourceProto.Source;
 import feast.core.SourceProto.SourceType;
 import feast.ingestion.values.FailedElement;
@@ -148,7 +147,7 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
                               FailedElement.newBuilder()
                                   .setTransformName("KafkaRecordToFeatureRow")
                                   .setJobName(context.getPipelineOptions().getJobName())
-                                  .setPayload(TextFormat.printToString(featureRow))
+                                  .setPayload(featureRow.toString())
                                   .setErrorMessage(error)
                                   .build());
                         } else {
