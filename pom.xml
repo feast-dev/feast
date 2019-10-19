@@ -28,6 +28,7 @@
         <module>ingestion</module>
         <module>core</module>
         <module>serving</module>
+        <module>sdk/java</module>
     </modules>
 
     <properties>
@@ -36,8 +37,8 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <grpcVersion>1.17.1</grpcVersion>
-        <protocVersion>3.6.1</protocVersion>
-        <protobufVersion>3.6.1</protobufVersion>
+        <protocVersion>3.10.0</protocVersion>
+        <protobufVersion>3.10.0</protobufVersion>
         <springBootVersion>2.0.9.RELEASE</springBootVersion>
         <org.apache.beam.version>2.16.0</org.apache.beam.version>
         <com.google.cloud.version>1.91.0</com.google.cloud.version>
@@ -99,6 +100,16 @@
             <dependency>
                 <groupId>io.grpc</groupId>
                 <artifactId>grpc-netty</artifactId>
+                <version>${grpcVersion}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-netty-shaded</artifactId>
+                <version>${grpcVersion}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-protobuf</artifactId>
                 <version>${grpcVersion}</version>
             </dependency>
             <dependency>
@@ -231,6 +242,11 @@
             </dependency>
             <dependency>
                 <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>${protobufVersion}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
                 <artifactId>protobuf-java-util</artifactId>
                 <version>${protobufVersion}</version>
             </dependency>
@@ -294,7 +310,7 @@
             <extension>
                 <groupId>kr.motd.maven</groupId>
                 <artifactId>os-maven-plugin</artifactId>
-                <version>1.6.0</version>
+                <version>1.6.2</version>
             </extension>
         </extensions>
 
@@ -302,7 +318,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.7.0</version>
+                <version>3.8.1</version>
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
@@ -335,6 +351,11 @@
                     <version>0.20.1</version>
                 </plugin>
                 <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.1.0</version>
+                </plugin>
+                <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>exec-maven-plugin</artifactId>
                     <version>1.6.0</version>
@@ -357,7 +378,7 @@
                 <plugin>
                     <groupId>org.xolstice.maven.plugins</groupId>
                     <artifactId>protobuf-maven-plugin</artifactId>
-                    <version>0.5.1</version>
+                    <version>0.6.1</version>
                     <configuration>
                         <protocArtifact>
                             com.google.protobuf:protoc:${protocVersion}:exe:${os.detected.classifier}
