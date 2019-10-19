@@ -3,11 +3,8 @@ package feast
 import (
 	"fmt"
 	"github.com/gojek/feast/sdk/go/protos/feast/serving"
-	"github.com/golang/protobuf/ptypes/duration"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"strconv"
 	"strings"
-	"time"
 )
 
 var (
@@ -21,26 +18,21 @@ type OnlineFeaturesRequest struct {
 	// in the format featureSet:version:featureName.
 	Features      []string
 
-	// MaxAgeSeconds is the maximum allowed staleness of the features in seconds. This max age will be applied to all
-	// featureSets in this request.
-	// Setting this value to 0 will cause feast to default to the max age specified on the feature set spec, if any.
-	MaxAgeSeconds int
-
 	// Entities is the list of entity rows to retrieve features on. Each row is a map of entity name to entity value.
 	Entities      []Row
 }
 
 // Builds the feast-specified request payload from the wrapper.
 func (r OnlineFeaturesRequest) buildRequest() (*serving.GetOnlineFeaturesRequest, error) {
-	featureSets, err := buildFeatureSets(r.Features, r.MaxAgeSeconds)
+	featureSets, err := buildFeatureSets(r.Features)
 	if err != nil {
 		return nil, err
 	}
+
 	entityRows := make([]*serving.GetOnlineFeaturesRequest_EntityRow, len(r.Entities))
 
 	for i := range r.Entities {
 		entityRows[i] = &serving.GetOnlineFeaturesRequest_EntityRow{
-			EntityTimestamp: &timestamp.Timestamp{Seconds: time.Now().Unix()},
 			Fields:          r.Entities[i],
 		}
 	}
@@ -50,14 +42,14 @@ func (r OnlineFeaturesRequest) buildRequest() (*serving.GetOnlineFeaturesRequest
 	}, nil
 }
 
-func buildFeatureSets(features []string, maxAgeSeconds int) ([]*serving.GetOnlineFeaturesRequest_FeatureSet, error) {
+func buildFeatureSets(features []string) ([]*serving.GetOnlineFeaturesRequest_FeatureSet, error) {
 	featureSetMap := map[string]*serving.GetOnlineFeaturesRequest_FeatureSet{}
 	for _, feature := range features {
 		split := strings.Split(feature, ":")
-		featureSetName, featureSetVersion, featureName := split[0], split[1], split[2]
 		if len(split) != 3 {
 			return nil, fmt.Errorf(ErrInvalidFeatureName, feature)
 		}
+		featureSetName, featureSetVersion, featureName := split[0], split[1], split[2]
 		key := featureSetName + ":" + featureSetVersion
 		if fs, ok := featureSetMap[key]; !ok {
 			version, err := strconv.Atoi(featureSetVersion)
@@ -68,7 +60,6 @@ func buildFeatureSets(features []string, maxAgeSeconds int) ([]*serving.GetOnlin
 				Name:         featureSetName,
 				Version:      int32(version),
 				FeatureNames: []string{featureName},
-				MaxAge:       &duration.Duration{Seconds: int64(maxAgeSeconds)},
 			}
 		} else {
 			fs.FeatureNames = append(fs.GetFeatureNames(), featureName)

@@ -5,7 +5,6 @@ import (
 	"github.com/gojek/feast/sdk/go/protos/feast/serving"
 	"github.com/gojek/feast/sdk/go/protos/feast/types"
 	json "github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/google/go-cmp/cmp"
 	"testing"
 )
@@ -22,7 +21,6 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 			name: "valid",
 			req: OnlineFeaturesRequest{
 				Features:      []string{"fs:1:feature1", "fs:1:feature2", "fs:2:feature1"},
-				MaxAgeSeconds: 10,
 				Entities: []Row{
 					{"entity1": Int64Val(1), "entity2": StrVal("bob")},
 					{"entity1": Int64Val(1), "entity2": StrVal("annie")},
@@ -35,13 +33,11 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 						Name:         "fs",
 						Version:      1,
 						FeatureNames: []string{"feature1", "feature2"},
-						MaxAge:       &duration.Duration{Seconds: 10},
 					},
 					{
 						Name:         "fs",
 						Version:      2,
 						FeatureNames: []string{"feature1"},
-						MaxAge:       &duration.Duration{Seconds: 10},
 					},
 				},
 				EntityRows: []*serving.GetOnlineFeaturesRequest_EntityRow{
@@ -73,7 +69,6 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 			name: "invalid_feature_name/wrong_format",
 			req: OnlineFeaturesRequest{
 				Features:      []string{"fs1:feature1"},
-				MaxAgeSeconds: 10,
 				Entities:      []Row{},
 			},
 			wantErr: true,
@@ -83,7 +78,6 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 			name: "invalid_feature_name/invalid_version",
 			req: OnlineFeaturesRequest{
 				Features:      []string{"fs:a:feature1"},
-				MaxAgeSeconds: 10,
 				Entities:      []Row{},
 			},
 			wantErr: true,
@@ -100,9 +94,6 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 			if tc.wantErr && err.Error() != tc.err.Error() {
 				t.Errorf("error = %v, expected err = %v", err, tc.err)
 				return
-			}
-			for i, er := range got.GetEntityRows() {
-				tc.want.EntityRows[i].EntityTimestamp = er.GetEntityTimestamp();
 			}
 			if !cmp.Equal(got, tc.want) {
 				m := json.Marshaler{}
