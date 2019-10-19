@@ -380,6 +380,7 @@
                     <artifactId>protobuf-maven-plugin</artifactId>
                     <version>0.6.1</version>
                     <configuration>
+                        <checkStaleness>true</checkStaleness>
                         <protocArtifact>
                             com.google.protobuf:protoc:${protocVersion}:exe:${os.detected.classifier}
                         </protocArtifact>
