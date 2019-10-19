@@ -17,8 +17,6 @@
 
 package feast.core.job.dataflow;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.Job;
 import com.google.common.base.Strings;
@@ -35,7 +33,7 @@ import feast.core.model.FeatureSet;
 import feast.core.model.JobInfo;
 import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
-import feast.ingestion.options.ImportJobPipelineOptions;
+import feast.ingestion.options.ImportOptions;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -128,7 +126,7 @@ public class DataflowJobManager implements JobManager {
 
   private String submitDataflowJob(String jobName, List<FeatureSetSpec> featureSets, Store sink, boolean update) {
     try {
-      ImportJobPipelineOptions pipelineOptions = getPipelineOptions(jobName, featureSets, sink, update);
+      ImportOptions pipelineOptions = getPipelineOptions(jobName, featureSets, sink, update);
       DataflowPipelineJob pipelineResult = runPipeline(pipelineOptions);
       String jobId = waitForJobToRun(pipelineResult);
       return jobId;
@@ -138,11 +136,10 @@ public class DataflowJobManager implements JobManager {
     }
   }
 
-  private ImportJobPipelineOptions getPipelineOptions(String jobName, List<FeatureSetSpec> featureSets, Store sink,
+  private ImportOptions getPipelineOptions(String jobName, List<FeatureSetSpec> featureSets, Store sink,
       boolean update) throws InvalidProtocolBufferException {
     String[] args = TypeConversion.convertMapToArgs(defaultOptions);
-    ImportJobPipelineOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args)
-        .as(ImportJobPipelineOptions.class);
+    ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
     Printer printer = JsonFormat.printer();
     List<String> featureSetsJson = new ArrayList<>();
     for (FeatureSetSpec featureSet : featureSets) {
@@ -164,7 +161,7 @@ public class DataflowJobManager implements JobManager {
     return pipelineOptions;
   }
 
-  public DataflowPipelineJob runPipeline(ImportJobPipelineOptions pipelineOptions)
+  public DataflowPipelineJob runPipeline(ImportOptions pipelineOptions)
       throws IOException {
     return (DataflowPipelineJob) ImportJob
         .runPipeline(pipelineOptions);

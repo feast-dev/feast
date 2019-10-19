@@ -17,7 +17,7 @@ import feast.core.StoreProto;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.core.config.FeastProperties.MetricsProperties;
-import feast.ingestion.options.ImportJobPipelineOptions;
+import feast.ingestion.options.ImportOptions;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -68,8 +68,8 @@ public class DirectRunnerJobManagerTest {
 
     Printer printer = JsonFormat.printer();
 
-    ImportJobPipelineOptions expectedPipelineOptions = PipelineOptionsFactory.fromArgs("")
-        .as(ImportJobPipelineOptions.class);
+    ImportOptions expectedPipelineOptions = PipelineOptionsFactory.fromArgs("")
+        .as(ImportOptions.class);
     expectedPipelineOptions.setAppName("DirectRunnerJobManager");
     expectedPipelineOptions.setRunner(DirectRunner.class);
     expectedPipelineOptions.setBlockOnRun(false);
@@ -78,8 +78,8 @@ public class DirectRunnerJobManagerTest {
         .setFeatureSetSpecJson(Lists.newArrayList(printer.print(featureSetSpec)));
 
     String expectedJobId = "feast-job-0";
-    ArgumentCaptor<ImportJobPipelineOptions> pipelineOptionsCaptor = ArgumentCaptor
-        .forClass(ImportJobPipelineOptions.class);
+    ArgumentCaptor<ImportOptions> pipelineOptionsCaptor = ArgumentCaptor
+        .forClass(ImportOptions.class);
     ArgumentCaptor<DirectJob> directJobCaptor = ArgumentCaptor
         .forClass(DirectJob.class);
 
@@ -90,7 +90,7 @@ public class DirectRunnerJobManagerTest {
     verify(drJobManager, times(1)).runPipeline(pipelineOptionsCaptor.capture());
     verify(directJobRegistry, times(1)).add(directJobCaptor.capture());
 
-    ImportJobPipelineOptions actualPipelineOptions = pipelineOptionsCaptor.getValue();
+    ImportOptions actualPipelineOptions = pipelineOptionsCaptor.getValue();
     DirectJob jobStarted = directJobCaptor.getValue();
     expectedPipelineOptions.setOptionsId(actualPipelineOptions.getOptionsId()); // avoid comparing this value
 
