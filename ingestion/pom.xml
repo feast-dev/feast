@@ -109,15 +109,15 @@
     </dependency>
 
     <dependency>
+      <groupId>javax.validation</groupId>
+      <artifactId>validation-api</artifactId>
+      <version>2.0.1.Final</version>
+    </dependency>
+
+    <dependency>
       <groupId>org.hibernate.validator</groupId>
       <artifactId>hibernate-validator</artifactId>
       <version>6.0.13.Final</version>
-    </dependency>
-
-    <!-- To force version Google Cloud SDKs need, over older that grpc does -->
-    <dependency>
-      <groupId>io.opencensus</groupId>
-      <artifactId>opencensus-contrib-http-util</artifactId>
     </dependency>
 
     <dependency>
@@ -130,11 +130,6 @@
       <artifactId>auto-value</artifactId>
       <version>1.6.6</version>
       <scope>provided</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-nio</artifactId>
     </dependency>
 
     <dependency>
@@ -151,7 +146,10 @@
       <artifactId>google-cloud-bigquery</artifactId>
     </dependency>
 
-    <!-- Clobber junit and mockito's versions of hamcrest -->
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-core</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-library</artifactId>
@@ -162,6 +160,18 @@
       <artifactId>mockito-core</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
@@ -174,7 +184,10 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>${protobufVersion}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java-util</artifactId>
     </dependency>
 
     <dependency>
@@ -208,12 +221,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>kafka_2.12</artifactId>
-      <version>2.3.0</version>
-    </dependency>
-
-    <dependency>
       <groupId>redis.clients</groupId>
       <artifactId>jedis</artifactId>
     </dependency>
@@ -227,24 +234,18 @@
       <artifactId>lombok</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+
     <!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-jdk14 -->
     <!-- Add slf4j API frontend binding with JUL backend -->
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
       <version>1.2.3</version>
-    </dependency>
-
-    <!-- Used for generating test data -->
-    <dependency>
-      <groupId>com.fasterxml.jackson.dataformat</groupId>
-      <artifactId>jackson-dataformat-csv</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.github.kstyrc</groupId>
-      <artifactId>embedded-redis</artifactId>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
