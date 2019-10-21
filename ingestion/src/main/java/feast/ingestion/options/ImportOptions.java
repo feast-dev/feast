@@ -67,6 +67,23 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
    */
   void setDeadLetterTableSpec(String deadLetterTableSpec);
 
+  // TODO: expound
+  @Description(
+      "MetricsAccumulator exporter type to instantiate."
+  )
+  @Default.String("none")
+  String getMetricsExporterType();
+
+  void setMetricsExporterType(String metricsExporterType);
+
+  @Description(
+      "Address to write the metrics to. Required if the metrics exporter is set to prometheus."
+  )
+  @Default.String("localhost:9091")
+  String getPrometheusExporterAddress();
+
+  void setPrometheusExporterAddress(String prometheusExporterAddress);
+
   @Description("Limit of rows to sample and output for debugging")
   @Default.Integer(0)
   int getSampleLimit();
