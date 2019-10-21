@@ -7,6 +7,7 @@ import feast.ingestion.options.ImportOptions;
 import feast.ingestion.transform.ReadFromSource;
 import feast.ingestion.transform.WriteFailedElementToBigQuery;
 import feast.ingestion.transform.WriteToStore;
+import feast.ingestion.transform.metrics.WriteMetricsTransform;
 import feast.ingestion.utils.ResourceUtil;
 import feast.ingestion.utils.SpecUtil;
 import feast.ingestion.utils.StoreUtil;
@@ -47,6 +48,7 @@ public class ImportJob {
      * 1. Read messages from Feast Source as FeatureRow
      * 2. Write FeatureRow to the corresponding Store
      * 3. Write elements that failed to be processed to a dead letter queue.
+     * 4. Write metrics to a metrics sink
      */
 
     PipelineOptionsValidator.validate(ImportOptions.class, options);
@@ -95,6 +97,15 @@ public class ImportJob {
                       .setTableSpec(options.getDeadLetterTableSpec())
                       .build());
         }
+
+        // Step 4. Write metrics to a metrics sink.
+        convertedFeatureRows
+            .apply("WriteMetrics", WriteMetricsTransform.newBuilder()
+                .setFeatureSetSpec(featureSet)
+                .setStoreName(store.getName())
+                .setSuccessTag(FEATURE_ROW_OUT)
+                .setFailureTag(DEADLETTER_OUT)
+                .build());
       }
     }
 
