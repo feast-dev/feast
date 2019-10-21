@@ -18,7 +18,10 @@
 <project>
     <modelVersion>4.0.0</modelVersion>
 
-    <name>Feast Parent</name>
+    <name>Feast</name>
+    <description>Feature Store for Machine Learning</description>
+    <url>${github.url}</url>
+
     <groupId>feast</groupId>
     <artifactId>feast-parent</artifactId>
     <version>${revision}</version>
@@ -33,6 +36,8 @@
 
     <properties>
         <revision>0.3.0-SNAPSHOT</revision>
+        <github.url>https://github.com/gojek/feast</github.url>
+
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
@@ -48,7 +53,33 @@
         <opencensus.version>0.21.0</opencensus.version>
     </properties>
 
+    <organization>
+        <name>Gojek</name>
+        <url>https://www.gojek.io/</url>
+    </organization>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <scm>
+        <url>${github.url}</url>
+        <connection>scm:git:${github.url}.git</connection>
+        <developerConnection>scm:git:git@github.com:gojek/feast.git</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>${github.url}/issues</url>
+    </issueManagement>
+
     <distributionManagement>
+        <!-- TODO: use a profile like local -->
         <snapshotRepository>
             <id>feast-snapshot</id>
             <url>file:///tmp/snapshot</url>
