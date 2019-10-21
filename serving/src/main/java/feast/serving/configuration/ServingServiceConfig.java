@@ -108,8 +108,8 @@ public class ServingServiceConfig {
         servingService =
             new BigQueryServingService(
                 bigquery,
-                store.getBigqueryConfig().getProjectId(),
-                store.getBigqueryConfig().getDatasetId(),
+                bqConfig.getProjectId(),
+                bqConfig.getDatasetId(),
                 specService,
                 jobService,
                 jobStagingLocation,

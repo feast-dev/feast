@@ -106,6 +106,14 @@ public class CachedSpecService {
     featureSetSpecCache.putAll(featureSetSpecMap);
   }
 
+  public void scheduledPopulateCache() {
+    try {
+      populateCache();
+    } catch (Exception e) {
+      log.warn("Error updating store configuration and specs: {}", e.getMessage());
+    }
+  }
+
   private Map<String, FeatureSetSpec> getFeatureSetSpecMap() {
     HashMap<String, FeatureSetSpec> featureSetSpecs = new HashMap<>();
 
@@ -136,6 +144,7 @@ public class CachedSpecService {
     try {
       List<String> fileContents = Files.readAllLines(path);
       String yaml = fileContents.stream().reduce("", (l1, l2) -> l1 + "\n" + l2);
+      log.info("loaded store config at {}: \n{}", path.toString(), yaml);
       return yamlToStoreProto(yaml);
     } catch (IOException e) {
       throw new RuntimeException(

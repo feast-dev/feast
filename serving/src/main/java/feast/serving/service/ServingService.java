@@ -1,20 +1,21 @@
 package feast.serving.service;
 
+import feast.serving.ServingAPIProto.GetBatchFeaturesRequest;
 import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
-import feast.serving.ServingAPIProto.GetFeastServingTypeRequest;
-import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
-import feast.serving.ServingAPIProto.GetFeaturesRequest;
+import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
+import feast.serving.ServingAPIProto.GetFeastServingInfoResponse;
 import feast.serving.ServingAPIProto.GetJobRequest;
 import feast.serving.ServingAPIProto.GetJobResponse;
+import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 
 public interface ServingService {
-  GetFeastServingTypeResponse getFeastServingType(
-      GetFeastServingTypeRequest getFeastServingTypeRequest);
+  GetFeastServingInfoResponse getFeastServingInfo(
+      GetFeastServingInfoRequest getFeastServingInfoRequest);
 
-  GetOnlineFeaturesResponse getOnlineFeatures(GetFeaturesRequest getFeaturesRequest);
+  GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest getFeaturesRequest);
 
-  GetBatchFeaturesResponse getBatchFeatures(GetFeaturesRequest getFeaturesRequest);
+  GetBatchFeaturesResponse getBatchFeatures(GetBatchFeaturesRequest getFeaturesRequest);
 
   GetJobResponse getJob(GetJobRequest getJobRequest);
 }

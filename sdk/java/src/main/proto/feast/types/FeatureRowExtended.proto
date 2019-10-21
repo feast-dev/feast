@@ -1,0 +1,44 @@
+/*
+ * Copyright 2018 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+import "feast/types/FeatureRow.proto";
+
+package feast.types;
+
+option java_package = "feast.types";
+option java_outer_classname = "FeatureRowExtendedProto";
+option go_package = "github.com/gojek/feast/sdk/go/protos/feast/types";
+
+message Error {
+  string cause = 1; // exception class name
+  string transform = 2; // name of transform where the error occurred
+  string message = 3;
+  string stack_trace = 4;
+}
+
+message Attempt {
+  int32 attempts = 1;
+  Error error = 2;
+}
+
+message FeatureRowExtended {
+  FeatureRow row = 1;
+  Attempt last_attempt = 2;
+  google.protobuf.Timestamp first_seen = 3;
+}

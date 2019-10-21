@@ -271,7 +271,11 @@
       <artifactId>jedis</artifactId>
       <version>3.1.0</version>
     </dependency>
-
+    <dependency>
+      <groupId>io.prometheus</groupId>
+      <artifactId>simpleclient_pushgateway</artifactId>
+      <version>0.7.0</version>
+    </dependency>
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>

@@ -1,0 +1,68 @@
+//
+// * Copyright 2019 The Feast Authors
+// *
+// * Licensed under the Apache License, Version 2.0 (the "License");
+// * you may not use this file except in compliance with the License.
+// * You may obtain a copy of the License at
+// *
+// *     https://www.apache.org/licenses/LICENSE-2.0
+// *
+// * Unless required by applicable law or agreed to in writing, software
+// * distributed under the License is distributed on an "AS IS" BASIS,
+// * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// * See the License for the specific language governing permissions and
+// * limitations under the License.
+//
+
+syntax = "proto3";
+
+package feast.core;
+
+option java_package = "feast.core";
+option java_outer_classname = "FeatureSetProto";
+option go_package = "github.com/gojek/feast/sdk/go/protos/feast/core";
+
+import "feast/types/Value.proto";
+import "feast/core/Source.proto";
+import "google/protobuf/duration.proto";
+
+message FeatureSetSpec {
+    // Name of the featureSet. Must be unique.
+    string name = 1;
+
+    // FeatureSet version.
+    int32 version = 2;
+
+    // List of entities contained within this featureSet.
+    // This allows the feature to be used during joins between feature sets.
+    // If the featureSet is ingested into a store that supports keys, this value
+    // will be made a key.
+    repeated EntitySpec entities = 3;
+
+    // List of features contained within this featureSet.
+    repeated FeatureSpec features = 4;
+
+    // Features in this feature set will only be retrieved if they are found 
+    // after [time - max_age]. Missing or older feature values will be returned 
+    // as nulls and indicated to end user
+    google.protobuf.Duration max_age = 5;
+
+    // Source on which feature rows can be found
+    Source source = 6;
+}
+
+message EntitySpec {
+    // Name of the entity.
+    string name = 1;
+
+    // Value type of the feature.
+    feast.types.ValueType.Enum value_type = 2;
+}
+
+message FeatureSpec {
+    // Name of the feature.
+    string name = 1;
+
+    // Value type of the feature.
+    feast.types.ValueType.Enum value_type = 2;
+}

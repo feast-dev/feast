@@ -3,8 +3,9 @@ package feast.serving.controller;
 import static feast.serving.util.mappers.ResponseJSONMapper.mapGetOnlineFeaturesResponse;
 
 import feast.serving.FeastProperties;
-import feast.serving.ServingAPIProto.GetFeastServingVersionResponse;
-import feast.serving.ServingAPIProto.GetFeaturesRequest;
+import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
+import feast.serving.ServingAPIProto.GetFeastServingInfoResponse;
+import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.service.ServingService;
 import feast.serving.util.RequestHelper;
@@ -31,17 +32,20 @@ public class ServingServiceRestController {
     this.tracer = tracer;
   }
 
-  @RequestMapping(value = "/api/v1/version", produces = "application/json")
-  public GetFeastServingVersionResponse getVersion() {
-    return GetFeastServingVersionResponse.newBuilder().setVersion(version).build();
+  @RequestMapping(value = "/api/v1/info", produces = "application/json")
+  public GetFeastServingInfoResponse getInfo() {
+    GetFeastServingInfoResponse feastServingInfo = servingService
+        .getFeastServingInfo(GetFeastServingInfoRequest.getDefaultInstance());
+    return feastServingInfo.toBuilder().setVersion(version).build();
   }
 
   @RequestMapping(
       value = "/api/v1/features/online",
       produces = "application/json",
       consumes = "application/json")
-  public List<Map<String, Object>> getOnlineFeatures(@RequestBody GetFeaturesRequest request) {
-    RequestHelper.validateRequest(request);
+  public List<Map<String, Object>> getOnlineFeatures(
+      @RequestBody GetOnlineFeaturesRequest request) {
+    RequestHelper.validateOnlineRequest(request);
     GetOnlineFeaturesResponse onlineFeatures = servingService.getOnlineFeatures(request);
     return mapGetOnlineFeaturesResponse(onlineFeatures);
   }

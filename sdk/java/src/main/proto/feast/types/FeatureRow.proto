@@ -1,0 +1,42 @@
+/*
+ * Copyright 2018 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+import "feast/types/Field.proto";
+
+package feast.types;
+
+option java_package = "feast.types";
+option java_outer_classname = "FeatureRowProto";
+option go_package = "github.com/gojek/feast/sdk/go/protos/feast/types";
+
+message FeatureRow {
+
+    // Fields in the feature row.
+    repeated Field fields = 2;
+
+    // Timestamp of the feature row. While the actual definition of this timestamp may vary
+    // depending on the upstream feature creation pipelines, this is the timestamp that Feast
+    // will use to perform joins, determine latest values, and coalesce rows.
+    google.protobuf.Timestamp event_timestamp = 3;
+
+    // Complete reference to the featureSet this featureRow belongs to, in the form of
+    // featureSetName:version. This value will be used by the feast ingestion job to filter
+    // rows, and write the values to the correct tables.
+    string feature_set = 6;
+}

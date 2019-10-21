@@ -177,6 +177,39 @@ def describe(name, version):
 
 @cli.command()
 @click.option(
+    "--name", "-n", help="Feature set name to ingest data into", required=True
+)
+@click.option(
+    "--version", "-v", help="Feature set version to ingest data into", type=int
+)
+@click.option(
+    "--filename",
+    "-f",
+    help="Path to file to be ingested",
+    type=click.Path(exists=True),
+    required=True,
+)
+@click.option(
+    "--file-type",
+    "-t",
+    type=click.Choice(["CSV"], case_sensitive=False),
+    help="Type of file to ingest. Defaults to CSV.",
+)
+def ingest(name, version, filename, file_type):
+    """
+    Ingest feature data into a feature set
+    """
+
+    feast_client = Client(
+        core_url=feast_config.get_config_property_or_fail("core_url")
+    )  # type: Client
+
+    feature_set = feast_client.get_feature_set(name=name, version=version)
+    feature_set.ingest_file(file_path=filename)
+
+
+@cli.command()
+@click.option(
     "--filename",
     "-f",
     help="Path to the configuration file that will be applied",

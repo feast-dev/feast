@@ -20,19 +20,18 @@ import com.google.common.collect.Maps;
 import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.Duration;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.CoreServiceProto.GetFeatureSetsRequest;
-import feast.core.CoreServiceProto.GetFeatureSetsRequest.Filter;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.serving.ServingAPIProto.FeastServingType;
+import feast.serving.ServingAPIProto.GetBatchFeaturesRequest;
 import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
-import feast.serving.ServingAPIProto.GetFeastServingTypeRequest;
-import feast.serving.ServingAPIProto.GetFeastServingTypeResponse;
-import feast.serving.ServingAPIProto.GetFeaturesRequest;
-import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityRow;
-import feast.serving.ServingAPIProto.GetFeaturesRequest.FeatureSet;
+import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
+import feast.serving.ServingAPIProto.GetFeastServingInfoResponse;
 import feast.serving.ServingAPIProto.GetJobRequest;
 import feast.serving.ServingAPIProto.GetJobResponse;
+import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
+import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
+import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.FeatureSet;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.storage.RedisProto.RedisKey;
@@ -64,16 +63,16 @@ public class RedisServingService implements ServingService {
 
   /** {@inheritDoc} */
   @Override
-  public GetFeastServingTypeResponse getFeastServingType(
-      GetFeastServingTypeRequest getFeastServingTypeRequest) {
-    return GetFeastServingTypeResponse.newBuilder()
+  public GetFeastServingInfoResponse getFeastServingInfo(
+      GetFeastServingInfoRequest getFeastServingInfoRequest) {
+    return GetFeastServingInfoResponse.newBuilder()
         .setType(FeastServingType.FEAST_SERVING_TYPE_ONLINE)
         .build();
   }
 
   /** {@inheritDoc} */
   @Override
-  public GetOnlineFeaturesResponse getOnlineFeatures(GetFeaturesRequest request) {
+  public GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest request) {
     try (Scope scope = tracer.buildSpan("Redis-getOnlineFeatures").startActive(true)) {
       GetOnlineFeaturesResponse.Builder getOnlineFeaturesResponseBuilder =
           GetOnlineFeaturesResponse.newBuilder();
@@ -120,7 +119,7 @@ public class RedisServingService implements ServingService {
   }
 
   @Override
-  public GetBatchFeaturesResponse getBatchFeatures(GetFeaturesRequest getFeaturesRequest) {
+  public GetBatchFeaturesResponse getBatchFeatures(GetBatchFeaturesRequest getFeaturesRequest) {
     throw Status.UNIMPLEMENTED.withDescription("Method not implemented").asRuntimeException();
   }
 

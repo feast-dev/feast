@@ -23,6 +23,7 @@ import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto;
+import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
@@ -47,11 +48,14 @@ public class DirectRunnerJobManager implements JobManager {
 
   protected Map<String, String> defaultOptions;
   private final DirectJobRegistry jobs;
+  private MetricsProperties metrics;
 
 
-  public DirectRunnerJobManager(Map<String, String> defaultOptions, DirectJobRegistry jobs) {
+  public DirectRunnerJobManager(Map<String, String> defaultOptions, DirectJobRegistry jobs,
+      MetricsProperties metricsProperties) {
     this.defaultOptions = defaultOptions;
     this.jobs = jobs;
+    this.metrics = metricsProperties;
   }
 
   @Override
@@ -67,7 +71,8 @@ public class DirectRunnerJobManager implements JobManager {
    * @param sinkSpec Store to sink features to
    */
   @Override
-  public String startJob(String name, List<FeatureSetSpec> featureSetSpecs, StoreProto.Store sinkSpec) {
+  public String startJob(String name, List<FeatureSetSpec> featureSetSpecs,
+      StoreProto.Store sinkSpec) {
     try {
       ImportJobPipelineOptions pipelineOptions = getPipelineOptions(featureSetSpecs, sinkSpec);
       PipelineResult pipelineResult = runPipeline(pipelineOptions);
@@ -94,6 +99,13 @@ public class DirectRunnerJobManager implements JobManager {
     pipelineOptions.setFeatureSetSpecJson(featureSetsJson);
     pipelineOptions.setStoreJson(Collections.singletonList(printer.print(sink)));
     pipelineOptions.setRunner(DirectRunner.class);
+    if (metrics.isEnabled()) {
+      pipelineOptions.setMetricsExporterType(metrics.getType());
+      if (metrics.getType().equals("prometheus")) {
+        pipelineOptions.setPrometheusExporterAddress(
+            String.format("%s:%s", metrics.getHost(), metrics.getPort()));
+      }
+    }
     pipelineOptions.setBlockOnRun(false);
     return pipelineOptions;
   }

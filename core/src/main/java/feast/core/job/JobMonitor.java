@@ -32,11 +32,4 @@ public interface JobMonitor {
    */
   JobStatus getJobStatus(JobInfo job);
 
-  /**
-   * Get metrics of a job.
-   *
-   * @param job .
-   * @return list of metrics associated with the job.
-   */
-  List<Metrics> getJobMetrics(JobInfo job);
 }

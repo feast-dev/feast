@@ -1,0 +1,220 @@
+/*
+ * Copyright 2018 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package feast.serving;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+import "feast/types/Value.proto";
+
+option java_package = "feast.serving";
+option java_outer_classname = "ServingAPIProto";
+option go_package = "github.com/gojek/feast/sdk/go/protos/feast/serving";
+
+service ServingService {
+    // Get information about this Feast serving.
+    rpc GetFeastServingInfo (GetFeastServingInfoRequest) returns (GetFeastServingInfoResponse);
+
+    // Get online features synchronously.
+    rpc GetOnlineFeatures (GetOnlineFeaturesRequest) returns (GetOnlineFeaturesResponse);
+
+    // Get batch features asynchronously.
+    //
+    // The client should check the status of the returned job periodically by
+    // calling ReloadJob to determine if the job has completed successfully
+    // or with an error. If the job completes successfully i.e.
+    // status = JOB_STATUS_DONE with no error, then the client can check
+    // the file_uris for the location to download feature values data.
+    // The client is assumed to have access to these file URIs.
+    rpc GetBatchFeatures (GetBatchFeaturesRequest) returns (GetBatchFeaturesResponse);
+
+    // Get the latest job status for batch feature retrieval.
+    rpc GetJob (GetJobRequest) returns (GetJobResponse);
+}
+
+message GetFeastServingInfoRequest {}
+
+message GetFeastServingInfoResponse {
+    // Feast version of this serving deployment.
+    string version = 1;
+
+    // Type of serving deployment, either ONLINE or BATCH. Different store types support different
+    // feature retrieval methods.
+    FeastServingType type = 2;
+
+    // Note: Batch specific options start from 10.
+    // Staging location for this serving store, if any.
+    string job_staging_location = 10;
+}
+
+message GetOnlineFeaturesRequest {
+
+    // List of feature sets and their features that are being retrieved
+    repeated FeatureSet feature_sets = 1;
+
+    // List of entity rows, containing entity id and timestamp data.
+    // Used during retrieval of feature rows and for joining feature
+    // rows into a final dataset
+    repeated EntityRow entity_rows = 2;
+
+    // Option to omit entities from the response. If true, only feature
+    // values will be returned.
+    bool omit_entities_in_response = 3;
+
+    message FeatureSet {
+        // Feature set name
+        string name = 1;
+
+        // Feature set version
+        int32 version = 2;
+
+        // Features that should be retrieved from this feature set
+        repeated string feature_names = 3;
+
+        // The features will be retrieved if:
+        // entity_timestamp - max_age  <= event_timestamp <= entity_timestamp
+        //
+        // If unspecified the default max_age specified in FeatureSetSpec will
+        // be used.
+        google.protobuf.Duration max_age = 4;
+    }
+
+
+    message EntityRow {
+        // Request timestamp of this row. This value will be used, together with maxAge,
+        // to determine feature staleness.
+        google.protobuf.Timestamp entity_timestamp = 1;
+
+        // Map containing mapping of entity name to entity value.
+        map<string,feast.types.Value> fields = 2;
+    }
+}
+
+message GetOnlineFeaturesResponse {
+    // Feature values retrieved from feast.
+    repeated FieldValues field_values = 1;
+
+    message FieldValues {
+        // Map of feature or entity name to feature/entity values.
+        // Timestamps are not returned in this response.
+        map<string,feast.types.Value> fields = 1;
+    }
+}
+
+message GetBatchFeaturesRequest {
+
+    // List of feature sets and their features that are being retrieved.
+    repeated FeatureSet feature_sets = 1;
+
+    // Source of the entity dataset containing the timestamps and entity keys to retrieve
+    // features for.
+    DatasetSource dataset_source = 2;
+
+    message FeatureSet {
+        // Feature set name
+        string name = 1;
+
+        // Feature set version
+        int32 version = 2;
+
+        // Features that should be retrieved from this feature set
+        repeated string feature_names = 3;
+
+        // The features will be retrieved if:
+        // entity_timestamp - max_age  <= event_timestamp <= entity_timestamp
+        //
+        // If unspecified the default max_age specified in FeatureSetSpec will
+        // be used.
+        google.protobuf.Duration max_age = 4;
+    }
+}
+
+message GetBatchFeaturesResponse {
+    Job job = 1;
+}
+
+message GetJobRequest {
+    Job job = 1;
+}
+
+message GetJobResponse {
+    Job job = 1;
+}
+
+enum FeastServingType {
+    FEAST_SERVING_TYPE_INVALID = 0;
+    // Online serving receives entity data directly and synchronously and will
+    // respond immediately.
+    FEAST_SERVING_TYPE_ONLINE = 1;
+    // Batch serving receives entity data asynchronously and orchestrates the
+    // retrieval through a staging location.
+    FEAST_SERVING_TYPE_BATCH = 2;
+}
+
+enum JobType {
+    JOB_TYPE_INVALID = 0;
+    JOB_TYPE_DOWNLOAD = 1;
+}
+
+enum JobStatus {
+    JOB_STATUS_INVALID = 0;
+    JOB_STATUS_PENDING = 1;
+    JOB_STATUS_RUNNING = 2;
+    JOB_STATUS_DONE = 3;
+}
+
+enum DataFormat {
+    DATA_FORMAT_INVALID = 0;
+    DATA_FORMAT_CSV = 1;
+    DATA_FORMAT_PARQUET = 2;
+    DATA_FORMAT_AVRO = 3;
+    DATA_FORMAT_JSON = 4;
+}
+
+message Job {
+    string id = 1;
+    // Output only. The type of the job.
+    JobType type = 2;
+    // Output only. Current state of the job.
+    JobStatus status = 3;
+    // Output only. If not empty, the job has failed with this error message.
+    string error = 4;
+    // Output only. The list of URIs for the files to be downloaded or
+    // uploaded (depends on the job type) for this particular job.
+    repeated string file_uris = 5;
+    // Output only. The data format for all the files.
+    // For CSV format, the files contain both feature values and a column header.
+    DataFormat data_format = 6;
+}
+
+message DatasetSource {
+    oneof dataset_source {
+        // File source to load the dataset from.
+        FileSource file_source = 1;
+    }
+
+    message FileSource {
+        // URIs to retrieve the dataset from, e.g. gs://bucket/directory/object.csv. Wildcards are
+        // supported. This data must be compatible to be uploaded to the serving store, and also be
+        // accessible by this serving instance.
+        repeated string file_uris = 1;
+
+        // Format of the data. Currently only avro is supported.
+        DataFormat data_format = 2;
+    }
+}

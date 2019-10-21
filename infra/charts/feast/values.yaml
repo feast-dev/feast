@@ -1,137 +1,302 @@
---- 
-###### Core ######
-core:
-  projectId: "gcp-project-id"
-  image: 
-    pullPolicy: IfNotPresent
+global: 
+  postgresql: {}
+# Feast core
+feast-core:
+  fullnameOverride: "feast-core"
+  replicaCount: 1
+  image:
     registry: gcr.io/kf-feast
     repository: feast-core
-    tag: "0.3.0"
-  replicaCount: 1
-  resources:
-    requests: 
-      cpu: 1
-      memory: 2G
-  rollingUpdate: 
-    maxSurge: 2
-    maxUnavailable: 0
-  service: 
-    type: ClusterIP
-    grpc: 
-      port: 6565
-      targetPort: 6565
-    http: 
-      port: 80
-      targetPort: 8080
-    # loadBalancerSourceRanges sets the accepted IP ranges for firewall ingress rule
-    # this firewall rule is usually created when the service type is "LoadBalancer"
-    # loadBalancerSourceRanges: ["10.0.0.0/8"]
-  postgres:
-    host: 127.0.0.1
-    port: 5432
-    database: postgres
-    username: postgres
-    password: password
+    tag: 0.3.0-SNAPSHOT
+    pullPolicy: Never
+
   jobs:
-    # runner specifies the Beam pipeline runner, use either DirectRunner (for development) or DataflowRunner (for production)
     runner: DirectRunner
-    options: "{}"
-    monitoring:
-      period: 5000
-      initialDelay: 60000
-  livenessProbe:
-    initialDelaySeconds: 120
-    failureThreshold: 3
-  readinessProbe:
-    initialDelaySeconds: 60
-    failureThreshold: 1
-  enableReflection: true
-  store:
-    errors:
-      type: "STDOUT"
-    warehouse:
-      type: "BIGQUERY"
-    serving:
-      type: "REDIS"
-      options:
-        redis:
-          host: localhost
-          port: 6379
+    options: {}
+      ## If using DataflowRunner, the following options are necessary:
+      # project: my-gcp-project
+      # tempLocation: gs://my-feast-bucket/temp
+      # region: us-central1
+      # subnetwork: default
+    metrics:
+      enabled: true
+      ## Type of metrics sink. Only prometheus is currently supported.
+      type: prometheus
+      ## Host of the metrics sink. In the case of prometheus, this is the host of the prometheus
+      ## pushGateway to sink metrics to.
+      host: feast-prometheus-pushgateway
+      ## Port of the metrics sink. In the case of prometheus, this is the port of the prometheus
+      ## pushGateway to sink metrics to.
+      port: 9091
 
-#  dataflow configuration is required when core.jobs.runner=DataflowRunner
-#  dataflow:
-#    projectID: ${GCP_PROJECT}
-#    location: ${GCP_REGION}
+  stream:
+    type: kafka
+    options:
+      bootstrapServers: feast-kafka:9092
+      replicationFactor: 2
+      partitions: 4
 
-###### Feature stream ###### 
-stream:
-  type: kafka
-  options:
-    bootstrapServers: ""
-    replicationFactor: 1
-    partitions: 1
-
-kafka:
-  provision: false
-
-postgresql:
-  provision: true
-  persistence:
-    enabled: true
-
-redis:
-  provision: false
-  cluster:
-    enabled: false
-
-###### Serving ######
-serving: 
-  config: 
-    maxEntityPerBatch: 2000
-    maxNumberOfThread: 128
-    redisPool: 
-      maxIdle: 16
-      maxSize: 128
-    timeout: 5
-  image: 
-    pullPolicy: IfNotPresent
-    registry: gcr.io/kf-feast
-    repository: feast-serving
-    tag: "0.3.0"
-  replicaCount: 1
-  resources:
-    requests: 
-      cpu: 1
-      memory: 1G
-  rollingUpdate: 
-    maxSurge: 2
-    maxUnavailable: 0
-  service: 
-    type: ClusterIP
-    grpc: 
-      port: 6565
-      targetPort: 6565
-    http: 
+  service:
+    # annotations: []
+    http:
       port: 80
       targetPort: 8080
-    # loadBalancerSourceRanges sets the accepted IP ranges for firewall ingress rule
-    # this firewall rule is usually created when the service type is "LoadBalancer"
-    # loadBalancerSourceRanges: ["10.0.0.0/8"]
-  jaeger:
-    enabled: false
+    grpc:
+      port: 6565
+      targetPort: 6565
+    type: ClusterIP
+    # loadBalancerIP:  
+    # loadBalancerSourceRanges:
+      # - 10.0.0.0/8
+    port: 80
+
+  rollingUpdate:
+    maxSurge: 2
+    maxUnavailable: 1
+
   livenessProbe:
-    initialDelaySeconds: 120
-    failureThreshold: 3
+    enabled: false
+    # initialDelaySeconds: 30
+    # failureThreshold: 3
   readinessProbe:
     initialDelaySeconds: 30
-    failureThreshold: 1
+    failureThreshold: 3
 
-# Enable only if you have an existing service account you 
-# want to mount the secret of.
-# serviceAccount:
-#   name: feast-service-account
-#   key: service-account.json
+  ## A service account if using the dataflow runner or BigQuery.
+  serviceAccount:
+    name: my-service-account
+    key: tbd_staging.json
 
-statsd:
-  host: "localhost"
-  port: 8125
+  ingress:
+    enabled: false
+    # annotations: 
+    #   kubernetes.io/ingress.class: nginx
+    # hosts:
+    #   - host: feast-core.gods.wwhatever.local
+    #     port: http
+
+  resources: 
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  nodeSelector: {}
+
+# serving
+online-serving:
+  replicaCount: 1
+
+  image:
+    registry: gcr.io/kf-feast
+    repository: feast-serving
+    tag: 0.3.0-SNAPSHOT
+    pullPolicy: Never
+
+  fullnameOverride: feast-serving-online
+  core:
+    host: feast-core
+    port: 6565
+
+  store:
+    config: 
+      name: serving
+      type: REDIS
+      redis_config:
+        host: feast-redis
+        port: 6379
+      subscriptions:
+        - name: .*
+          version: ">0"
+    
+    ## For redis serving. Configuration for the redis connection pool.
+    redisPool:
+      maxSize: 128
+      maxIdle: 8
+
+    ## Job configuration is necessary if this serving store is used to 
+    ## facilitate batch retrieval of features, which involve async jobs. 
+    jobs: {}
+      # stagingLocation: gs://feast-bucket/bq/staging
+      # storeType: REDIS
+      # storeOptions:
+      #   host: redis.svc.local
+      #   port: 6379
+
+  tracing:
+    enabled: false
+    # tracer-name: jaeger
+    # service-name: feast-serving
+
+  rollingUpdate:
+    maxSurge: 2
+    maxUnavailable: 1
+
+  service:
+    # annotations: []
+    http:
+      port: 80
+      targetPort: 8080
+    grpc:
+      port: 6565
+      targetPort: 6565
+    type: ClusterIP
+    # loadBalancerIP:  
+    # loadBalancerSourceRanges:
+      # - 10.0.0.0/8
+    port: 80
+
+  rollingUpdate:
+    maxSurge: 2
+    maxUnavailable: 1
+
+  livenessProbe:
+    enabled: false
+    # initialDelaySeconds: 30
+    # failureThreshold: 3
+  readinessProbe:
+    initialDelaySeconds: 30
+    failureThreshold: 3
+
+  ## A service account if using the dataflow runner or BigQuery.
+  # serviceAccount:
+    # name: my-service-account
+
+  ingress:
+    enabled: false
+    # annotations: 
+    #   kubernetes.io/ingress.class: nginx
+    # hosts:
+    #   - host: chart-example.local
+    #     port: http
+
+  resources: 
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  nodeSelector: {}
+
+warehouse-serving:
+  replicaCount: 1
+
+  image:
+    registry: gcr.io/kf-feast
+    repository: feast-serving
+    tag: 0.3.0-SNAPSHOT
+    pullPolicy: Never
+
+  fullnameOverride: feast-serving-warehouse
+  core:
+    host: feast-core
+    port: 6565
+
+  store:
+    config: 
+      name: warehouse
+      type: BIGQUERY
+      bigquery_config:
+        projectId: the-big-data-staging-007
+        datasetId: feast
+      subscriptions:
+        - name: .*
+          version: ">0"
+    
+    ## For redis serving. Configuration for the redis connection pool.
+    redisPool:
+      maxSize: 128
+      maxIdle: 8
+
+    ## Job configuration is necessary if this serving store is used to 
+    ## facilitate batch retrieval of features, which involve async jobs. 
+    jobs: 
+      stagingLocation: gs://zl-test-bucket/feast/staging
+      storeType: REDIS
+      storeOptions:
+        host: feast-redis
+        port: 6379
+
+  tracing:
+    enabled: false
+    # tracer-name: jaeger
+    # service-name: feast-serving
+
+  rollingUpdate:
+    maxSurge: 2
+    maxUnavailable: 1
+
+  service:
+    # annotations: []
+    http:
+      port: 80
+      targetPort: 8080
+    grpc:
+      port: 6566
+      targetPort: 6566
+    type: ClusterIP
+    # loadBalancerIP:  
+    # loadBalancerSourceRanges:
+      # - 10.0.0.0/8
+    port: 80
+
+  rollingUpdate:
+    maxSurge: 2
+    maxUnavailable: 1
+
+  livenessProbe:
+    enabled: false
+    # initialDelaySeconds: 30
+    # failureThreshold: 3
+  readinessProbe:
+    initialDelaySeconds: 30
+    failureThreshold: 3
+
+  ## A service account if using the dataflow runner or BigQuery.
+  serviceAccount:
+    name: my-service-account
+    key: tbd_staging.json
+
+  ingress:
+    enabled: false
+    # annotations: 
+    #   kubernetes.io/ingress.class: nginx
+    # hosts:
+    #   - host: chart-example.local
+    #     port: http
+
+  resources: 
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  nodeSelector: {}
+
+kafka:
+  provision: true
+  resources:
+    requests:
+      cpu: 200m
+      memory: 128Mi
+
+prometheus-pushgateway:
+  provision: true
+
+redis:
+  provision: true
+  usePassword: false

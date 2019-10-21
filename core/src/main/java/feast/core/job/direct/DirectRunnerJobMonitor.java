@@ -28,9 +28,4 @@ public class DirectRunnerJobMonitor implements JobMonitor {
     return jobStateMapper.map(directJob.getPipelineResult().getState());
   }
 
-  @Override
-  public List<Metrics> getJobMetrics(JobInfo job) {
-    // Direct runner provides no job metrics
-    return new ArrayList<>();
-  }
 }

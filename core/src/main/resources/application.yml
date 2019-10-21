@@ -30,17 +30,26 @@ feast:
     runner: DirectRunner
     # Key-value dict of job options to be passed to the population jobs.
     options: {}
+    metrics:
+      # Enable metrics pushing for all ingestion jobs.
+      enabled: false
+      # Type of metrics sink. Only prometheus is currently supported.
+      type: prometheus
+      # Host of the metrics sink. In the case of prometheus, this is the host of the prometheus
+      # pushGateway to sink metrics to.
+      host: localhost
+      # Port of the metrics sink. In the case of prometheus, this is the port of the prometheus
+      # pushGateway to sink metrics to.
+      port: 9091
+
   stream:
     # Feature stream type. Only kafka is supported.
     type: kafka
     # Feature stream options.
     options:
-      bootstrapServers: ${feast.stream.options.bootstrapServers:"kafka:9092"}
-      replicationFactor: ${feast.stream.options.replicationFactor:1}
-      partitions: ${feast.stream.options.partitions:1}
-  statsd:
-    host: ${STATSD_HOST:localhost}
-    port: ${STATSD_PORT:8125}
+      bootstrapServers: kafka:9092
+      replicationFactor: 1
+      partitions: 1
 
 spring:
   jpa:
@@ -48,7 +57,7 @@ spring:
     hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
     hibernate.ddl-auto: update
   datasource:
-    url: jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:5432}/${DB_TABLE:postgres}
+    url: jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:5432}/${DB_DATABASE:postgres}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:password}
 

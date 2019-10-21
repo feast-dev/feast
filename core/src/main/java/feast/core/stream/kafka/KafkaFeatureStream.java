@@ -14,6 +14,7 @@ import java.util.concurrent.ExecutionException;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.errors.TopicExistsException;
@@ -24,7 +25,6 @@ public class KafkaFeatureStream implements FeatureStream {
 
   private static SourceType FEATURE_STREAM_TYPE = SourceType.KAFKA;
 
-  private AdminClient client;
   private KafkaFeatureStreamConfig defaultConfig;
 
   @Override
@@ -34,6 +34,25 @@ public class KafkaFeatureStream implements FeatureStream {
 
   @Override
   public Source provision(FeatureSet featureSet) throws RuntimeException {
+
+    Source source = featureSet.getSource();
+    KafkaSourceConfig config = null;
+    String bootstrapServers = "";
+    try {
+      config = (KafkaSourceConfig) source.getOptions();
+      bootstrapServers = config.getBootstrapServers();
+    } catch (InvalidProtocolBufferException | NullPointerException e) {
+      e.printStackTrace();
+    }
+    if (bootstrapServers.isEmpty()) {
+      bootstrapServers = defaultConfig.getBootstrapServers();
+    }
+
+    Map<String, Object> map = new HashMap<>();
+    map.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    map.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "1000");
+    AdminClient client = AdminClient.create(map);
+
     String topicName = generateTopicName(featureSet.getName());
     NewTopic newTopic = new NewTopic(topicName,
         defaultConfig.getTopicNumPartitions(),
@@ -51,19 +70,9 @@ public class KafkaFeatureStream implements FeatureStream {
         throw new RuntimeException(e.getMessage(), e);
       }
     }
-    try {
-      Source source = featureSet.getSource();
-      KafkaSourceConfig config = (KafkaSourceConfig) source.getOptions();
-      source.setOptions(config.toBuilder().setTopic(topicName).build().toByteArray());
-      return source;
-    } catch (InvalidProtocolBufferException e) {
-      throw new RuntimeException(e.getMessage(), e);
-    }
-  }
-
-  @Override
-  public void deleteTopic(String topicName) {
-    client.deleteTopics(Collections.singleton(topicName));
+    assert config != null;
+    source.setOptions(config.toBuilder().setTopic(topicName).setBootstrapServers(bootstrapServers).build().toByteArray());
+    return source;
   }
 
   public String generateTopicName(String featureSetName) {

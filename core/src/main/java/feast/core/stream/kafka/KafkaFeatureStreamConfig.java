@@ -32,9 +32,9 @@ public class KafkaFeatureStreamConfig {
   short topicReplicationFactor;
 
   /**
-   * Constructor from a valid JSON string
+   * Constructor from a map
    *
-   * @param options JSON string containing the kafka feature stream configuration in key:value
+   * @param optionMap map containing the kafka feature stream configuration in key:value
    * format. The options should contain:
    * 1. bootstrapServers: optional, default kafka bootstrap servers, defaults to "KAFKA:9092" <br>
    * 2. topicPrefix: optional, topic prefix, defaults to "feast" <br>
@@ -43,8 +43,7 @@ public class KafkaFeatureStreamConfig {
    *
    * @return KafkaFeatureStreamConfig object
    */
-  public static KafkaFeatureStreamConfig fromJSON(String options) {
-    Map<String, String> optionMap = TypeConversion.convertJsonStringToMap(options);
+  public static KafkaFeatureStreamConfig fromMap(Map<String, String> optionMap) {
     String bootstrapServers = optionMap.getOrDefault("bootstrapServers", "KAFKA:9092");
     String topicPrefix = optionMap.getOrDefault("topicPrefix", "feast");
     int numPartitions = Integer.parseInt(optionMap.getOrDefault("partitions", NUM_PARTITIONS_DEFAULT));

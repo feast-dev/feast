@@ -1,21 +1,14 @@
 package feast.core.service;
 
-import com.google.gson.Gson;
-import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.SourceProto.KafkaSourceConfig;
 import feast.core.config.FeastProperties;
 import feast.core.model.FeatureSet;
 import feast.core.model.Source;
 import feast.core.stream.FeatureStream;
 import feast.core.stream.kafka.KafkaFeatureStream;
 import feast.core.stream.kafka.KafkaFeatureStreamConfig;
-import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -24,11 +17,11 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 public class FeatureStreamService {
-  private final String defaultOptions;
+  private final Map<String, String> defaultOptions;
 
   @Autowired
   public FeatureStreamService(FeastProperties feastProperties) {
-    this.defaultOptions = new Gson().toJson(feastProperties.getStream().getOptions());
+    this.defaultOptions = feastProperties.getStream().getOptions();
   }
 
   /**
@@ -39,32 +32,15 @@ public class FeatureStreamService {
    * @return Source updated with provisioned feature source
    */
   public Source setUpSource(FeatureSet featureSet) {
-    try {
-      switch (featureSet.getSource().getType()) {
-        case KAFKA:
-          KafkaFeatureStreamConfig defaultKafkaFeatureStreamConfig = KafkaFeatureStreamConfig.fromJSON(defaultOptions);
-          Source source = featureSet.getSource();
-          if (((KafkaSourceConfig) source.getOptions()).getBootstrapServers().isEmpty()){
-            KafkaSourceConfig config = (KafkaSourceConfig) source.getOptions();
-            source.setOptions(config.toBuilder().setBootstrapServers(defaultKafkaFeatureStreamConfig.getBootstrapServers()).build().toByteArray());
-          }
-
-          Map<String, Object> map = new HashMap<>();
-          map.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, ((KafkaSourceConfig) source.getOptions()).getBootstrapServers());
-          map.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "1000");
-          AdminClient client = AdminClient.create(map);
-          FeatureStream featureStream = new KafkaFeatureStream(client, defaultKafkaFeatureStreamConfig);
-          return featureStream.provision(featureSet);
-        case UNRECOGNIZED:
-        default:
-          throw new IllegalArgumentException(
-              String.format("Invalid source %s provided, only source of type [KAFKA] allowed",
-                  featureSet.getSource().getType()));
-      }
-    } catch (InvalidProtocolBufferException e) {
-      throw new RuntimeException(
-          String.format("Unable to set up source for featureSet %s", featureSet.getName()), e);
+    switch (featureSet.getSource().getType()) {
+      case KAFKA:
+        FeatureStream featureStream = new KafkaFeatureStream(KafkaFeatureStreamConfig.fromMap(defaultOptions));
+        return featureStream.provision(featureSet);
+      case UNRECOGNIZED:
+      default:
+        throw new IllegalArgumentException(
+            String.format("Invalid source %s provided, only source of type [KAFKA] allowed",
+                featureSet.getSource().getType()));
     }
   }
-
 }

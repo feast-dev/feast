@@ -5,9 +5,9 @@ import static org.mockito.MockitoAnnotations.initMocks;
 import com.google.common.collect.Lists;
 import com.google.protobuf.Timestamp;
 import feast.serving.FeastProperties;
-import feast.serving.ServingAPIProto.GetFeaturesRequest;
-import feast.serving.ServingAPIProto.GetFeaturesRequest.EntityRow;
-import feast.serving.ServingAPIProto.GetFeaturesRequest.FeatureSet;
+import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
+import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
+import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.FeatureSet;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.service.ServingService;
 import feast.types.ValueProto.Value;
@@ -28,7 +28,7 @@ public class ServingServiceGRpcControllerTest {
   @Mock
   private StreamObserver<GetOnlineFeaturesResponse> mockStreamObserver;
 
-  private GetFeaturesRequest validRequest;
+  private GetOnlineFeaturesRequest validRequest;
 
   private ServingServiceGRpcController service;
 
@@ -36,7 +36,7 @@ public class ServingServiceGRpcControllerTest {
   public void setUp() {
     initMocks(this);
 
-    validRequest = GetFeaturesRequest.newBuilder()
+    validRequest = GetOnlineFeaturesRequest.newBuilder()
         .addFeatureSets(FeatureSet.newBuilder()
             .setName("featureSet")
             .setVersion(1)
@@ -61,8 +61,8 @@ public class ServingServiceGRpcControllerTest {
 
   @Test
   public void shouldCallOnErrorIfEntityDatasetIsNotSet() {
-    GetFeaturesRequest missingEntityName =
-        GetFeaturesRequest.newBuilder(validRequest).clearEntityRows().build();
+    GetOnlineFeaturesRequest missingEntityName =
+        GetOnlineFeaturesRequest.newBuilder(validRequest).clearEntityRows().build();
     service.getOnlineFeatures(missingEntityName, mockStreamObserver);
     Mockito.verify(mockStreamObserver).onError(Mockito.any(StatusRuntimeException.class));
   }

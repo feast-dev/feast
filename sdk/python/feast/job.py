@@ -31,12 +31,7 @@ class Job:
     A class representing a job for feature retrieval in Feast.
     """
 
-    def __init__(
-        self,
-        job_proto: JobProto,
-        serving_stub: ServingServiceStub,
-        storage_client: storage.Client,
-    ):
+    def __init__(self, job_proto: JobProto, serving_stub: ServingServiceStub):
         """
         Args:
             job_proto: Job proto object (wrapped by this job object)
@@ -45,7 +40,7 @@ class Job:
         """
         self.job_proto = job_proto
         self.serving_stub = serving_stub
-        self.storage_client = storage_client
+        self.storage_client = storage.Client()
 
     @property
     def id(self):
