@@ -20,7 +20,6 @@ package feast.store;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableMap;
-import feast.store.FileStoreOptions;
 import org.joda.time.Duration;
 import org.junit.Test;
 import feast.options.OptionsParser;

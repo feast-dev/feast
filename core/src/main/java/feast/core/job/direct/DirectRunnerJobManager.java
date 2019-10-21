@@ -30,7 +30,7 @@ import feast.core.job.Runner;
 import feast.core.model.JobInfo;
 import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
-import feast.ingestion.options.ImportJobPipelineOptions;
+import feast.ingestion.options.ImportOptions;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -74,7 +74,7 @@ public class DirectRunnerJobManager implements JobManager {
   public String startJob(String name, List<FeatureSetSpec> featureSetSpecs,
       StoreProto.Store sinkSpec) {
     try {
-      ImportJobPipelineOptions pipelineOptions = getPipelineOptions(featureSetSpecs, sinkSpec);
+      ImportOptions pipelineOptions = getPipelineOptions(featureSetSpecs, sinkSpec);
       PipelineResult pipelineResult = runPipeline(pipelineOptions);
       DirectJob directJob = new DirectJob(name, pipelineResult);
       jobs.add(directJob);
@@ -85,12 +85,11 @@ public class DirectRunnerJobManager implements JobManager {
     }
   }
 
-  private ImportJobPipelineOptions getPipelineOptions(List<FeatureSetSpec> featureSetSpecs,
+  private ImportOptions getPipelineOptions(List<FeatureSetSpec> featureSetSpecs,
       StoreProto.Store sink)
       throws InvalidProtocolBufferException {
     String[] args = TypeConversion.convertMapToArgs(defaultOptions);
-    ImportJobPipelineOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args)
-        .as(ImportJobPipelineOptions.class);
+    ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
     Printer printer = JsonFormat.printer();
     List<String> featureSetsJson = new ArrayList<>();
     for (FeatureSetSpec featureSetSpec : featureSetSpecs) {
@@ -136,7 +135,7 @@ public class DirectRunnerJobManager implements JobManager {
     jobs.remove(extId);
   }
 
-  public PipelineResult runPipeline(ImportJobPipelineOptions pipelineOptions)
+  public PipelineResult runPipeline(ImportOptions pipelineOptions)
       throws IOException {
     return ImportJob.runPipeline(pipelineOptions);
   }

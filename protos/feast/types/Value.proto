@@ -16,8 +16,6 @@
 
 syntax = "proto3";
 
-import "google/protobuf/timestamp.proto";
-
 package feast.types;
 
 option java_package = "feast.types";

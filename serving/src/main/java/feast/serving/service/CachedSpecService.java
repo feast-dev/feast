@@ -9,8 +9,6 @@ import com.google.common.cache.LoadingCache;
 import feast.core.CoreServiceProto.GetFeatureSetsRequest;
 import feast.core.CoreServiceProto.GetFeatureSetsRequest.Filter;
 import feast.core.CoreServiceProto.GetFeatureSetsResponse;
-import feast.core.CoreServiceProto.GetStoresRequest;
-import feast.core.CoreServiceProto.GetStoresResponse;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto.FeatureSetSpec;
