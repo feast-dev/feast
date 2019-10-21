@@ -27,6 +27,7 @@
     </parent>
 
     <name>Feast Core</name>
+    <description>Feature registry and ingestion coordinator</description>
     <artifactId>feast-core</artifactId>
 
     <build>
