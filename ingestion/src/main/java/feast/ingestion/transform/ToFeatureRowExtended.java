@@ -17,7 +17,7 @@
 
 package feast.ingestion.transform;
 
-import feast.ingestion.util.DateUtil;
+import feast.ingestion.utils.DateUtil;
 import feast.types.FeatureRowExtendedProto.Attempt;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;

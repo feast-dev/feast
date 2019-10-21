@@ -29,7 +29,7 @@
     <revision>0.3.0-SNAPSHOT</revision>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-    <org.apache.beam.version>2.15.0</org.apache.beam.version>
+    <org.apache.beam.version>2.16.0</org.apache.beam.version>
     <com.google.cloud.version>1.91.0</com.google.cloud.version>
     <grpcVersion>1.21.1</grpcVersion>
     <protocVersion>3.6.1</protocVersion>
@@ -93,7 +93,7 @@
                   implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                 <transformer
                   implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>feast.ingestion.ImportJob</mainClass>
+                  <mainClass>feast.ingestion.ImportJobOld</mainClass>
                 </transformer>
                 <transformer
                   implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
@@ -162,9 +162,15 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.auto.service</groupId>
-      <artifactId>auto-service</artifactId>
-      <version>1.0-rc4</version>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value-annotations</artifactId>
+      <version>1.6.6</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value</artifactId>
+      <version>1.6.6</version>
+      <scope>provided</scope>
     </dependency>
 
     <!-- Provides FileSystemProvider for GCS. -->

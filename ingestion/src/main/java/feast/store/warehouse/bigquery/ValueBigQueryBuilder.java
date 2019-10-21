@@ -26,7 +26,7 @@ import lombok.Getter;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.ISODateTimeFormat;
 import feast.ingestion.exceptions.TypeConversionException;
-import feast.ingestion.util.DateUtil;
+import feast.ingestion.utils.DateUtil;
 import feast.types.ValueProto.Value;
 import feast.types.ValueProto.ValueOrBuilder;
 import feast.types.ValueProto.ValueType;

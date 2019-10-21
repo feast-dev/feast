@@ -15,7 +15,7 @@
  *
  */
 
-package feast.ingestion.util;
+package feast.ingestion.utils;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;

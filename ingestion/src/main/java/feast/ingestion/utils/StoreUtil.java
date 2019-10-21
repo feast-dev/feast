@@ -1,8 +1,9 @@
-package feast.ingestion.util;
+package feast.ingestion.utils;
 
 import static feast.types.ValueProto.ValueType;
 
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.Field;
@@ -21,7 +22,9 @@ import com.google.common.collect.ImmutableMap;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
+import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.RedisConfig;
+import feast.core.StoreProto.Store.StoreType;
 import feast.types.ValueProto.ValueType.Enum;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,7 +52,7 @@ import redis.clients.jedis.exceptions.JedisConnectionException;
  * need to manage any schemas. This class will not be used in that case.
  */
 @Slf4j
-public class StorageUtil {
+public class StoreUtil {
   private static final Map<ValueType.Enum, StandardSQLTypeName> VALUE_TYPE_TO_STANDARD_SQL_TYPE =
       new HashMap<>();
   // Refer to protos/feast/core/Store.proto for the mapping definition.
@@ -68,6 +71,25 @@ public class StorageUtil {
     VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.DOUBLE_LIST, StandardSQLTypeName.FLOAT64);
     VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.FLOAT_LIST, StandardSQLTypeName.FLOAT64);
     VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.BOOL_LIST, StandardSQLTypeName.BOOL);
+  }
+
+  public static void setupStore(Store store, FeatureSetSpec featureSetSpec) {
+    StoreType storeType = store.getType();
+    switch (storeType) {
+      case REDIS:
+        StoreUtil.checkRedisConnection(store.getRedisConfig());
+        break;
+      case BIGQUERY:
+        StoreUtil.setupBigQuery(
+            featureSetSpec,
+            store.getBigqueryConfig().getProjectId(),
+            store.getBigqueryConfig().getDatasetId(),
+            BigQueryOptions.getDefaultInstance().getService());
+        break;
+      default:
+        log.warn("Store type '{}' is unsupported", storeType);
+        break;
+    }
   }
 
   @SuppressWarnings("DuplicatedCode")

@@ -17,8 +17,6 @@
 
 package feast.ingestion.options;
 
-import com.google.auto.service.AutoService;
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.direct.DirectOptions;
@@ -26,15 +24,10 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Default.Boolean;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.options.Validation.Required;
 
-/**
- * Options passed to Beam to influence the job's execution environment
- */
-public interface ImportJobPipelineOptions
-    extends PipelineOptions, DataflowPipelineOptions, DirectOptions {
-
+/** Options passed to Beam to influence the job's execution environment */
+public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions, DirectOptions {
   @Required
   @Description(
       "JSON string representation of the FeatureSetSpec that the import job will process."
@@ -62,7 +55,21 @@ public interface ImportJobPipelineOptions
   void setStoreJson(List<String> storeJson);
 
   @Description(
-      "MetricsAccumulator exporter type to instantiate." //TODO: expound
+      "(Optional) Deadletter elements will be written to this BigQuery table."
+          + "Table spec must follow this format PROJECT_ID:DATASET_ID.PROJECT_ID"
+          + "The table will be created if not exists.")
+  String getDeadLetterTableSpec();
+
+  /**
+   * @param deadLetterTableSpec (Optional) BigQuery table for storing elements that failed to be
+   *                            processed. Table spec must follow this format
+   *                            PROJECT_ID:DATASET_ID.PROJECT_ID
+   */
+  void setDeadLetterTableSpec(String deadLetterTableSpec);
+
+  // TODO: expound
+  @Description(
+      "MetricsAccumulator exporter type to instantiate."
   )
   @Default.String("none")
   String getMetricsExporterType();
@@ -77,18 +84,34 @@ public interface ImportJobPipelineOptions
 
   void setPrometheusExporterAddress(String prometheusExporterAddress);
 
+  @Description("Limit of rows to sample and output for debugging")
+  @Default.Integer(0)
+  int getSampleLimit();
+
+  void setSampleLimit(int value);
+
+  @Description(
+      "Enable coalesce rows, merges feature rows within a time window to output only the latest value")
+  @Default.Boolean(false)
+  boolean isCoalesceRowsEnabled();
+
+  void setCoalesceRowsEnabled(boolean value);
+
+  @Description("Delay in seconds to wait for newer values to coalesce on key before emitting")
+  @Default.Integer(10)
+  int getCoalesceRowsDelaySeconds();
+
+  void setCoalesceRowsDelaySeconds(int value);
+
+  @Description("Time in seconds to retain feature rows to merge with newer records")
+  @Default.Integer(30)
+  int getCoalesceRowsTimeoutSeconds();
+
+  void setCoalesceRowsTimeoutSeconds(int value);
+
   @Description("If dry run is set, execute up to feature row validation")
   @Default.Boolean(false)
   Boolean isDryRun();
 
   void setDryRun(Boolean value);
-
-  @AutoService(PipelineOptionsRegistrar.class)
-  class ImportJobPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
-
-    @Override
-    public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return Collections.singleton(ImportJobPipelineOptions.class);
-    }
-  }
 }

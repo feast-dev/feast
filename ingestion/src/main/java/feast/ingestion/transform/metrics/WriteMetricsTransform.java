@@ -1,7 +1,7 @@
 package feast.ingestion.transform.metrics;
 
 import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.ingestion.options.ImportJobPipelineOptions;
+import feast.ingestion.options.ImportOptions;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -30,8 +30,8 @@ public class WriteMetricsTransform extends PTransform<PCollection<FeatureRowExte
 
   @Override
   public PDone expand(PCollection<FeatureRowExtended> input) {
-    ImportJobPipelineOptions options = input.getPipeline().getOptions()
-        .as(ImportJobPipelineOptions.class);
+    ImportOptions options = input.getPipeline().getOptions()
+        .as(ImportOptions.class);
     switch (options.getMetricsExporterType()) {
       case "prometheus":
         input

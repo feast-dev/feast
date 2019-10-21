@@ -5,11 +5,11 @@ import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.BigQueryConfig;
 import feast.core.StoreProto.Store.RedisConfig;
-import feast.ingestion.options.ImportJobPipelineOptions;
-import feast.store.serving.bigquery.FeatureRowExtendedToTableRowDoFn;
+import feast.ingestion.options.ImportOptions;
+import feast.store.serving.bigquery.FeatureRowToTableRowDoFn;
 import feast.store.serving.redis.FeatureRowToRedisMutationDoFn;
 import feast.store.serving.redis.RedisCustomIO;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
+import feast.types.FeatureRowProto.FeatureRow;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -21,7 +21,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
 @Slf4j
-public class WriteFeaturesTransform extends PTransform<PCollection<FeatureRowExtended>, PDone> {
+public class WriteFeaturesTransform extends PTransform<PCollection<FeatureRow>, PDone> {
 
   private final Store store;
   private final FeatureSetSpec featureSetSpec;
@@ -32,9 +32,9 @@ public class WriteFeaturesTransform extends PTransform<PCollection<FeatureRowExt
   }
 
   @Override
-  public PDone expand(PCollection<FeatureRowExtended> input) {
-    ImportJobPipelineOptions options =
-        input.getPipeline().getOptions().as(ImportJobPipelineOptions.class);
+  public PDone expand(PCollection<FeatureRow> input) {
+    ImportOptions options =
+        input.getPipeline().getOptions().as(ImportOptions.class);
 
     switch (store.getType()) {
       case REDIS:
@@ -60,11 +60,11 @@ public class WriteFeaturesTransform extends PTransform<PCollection<FeatureRowExt
         TimePartitioning timePartitioning =
             new TimePartitioning()
                 .setType("DAY")
-                .setField(FeatureRowExtendedToTableRowDoFn.getEventTimestampColumn());
+                .setField(FeatureRowToTableRowDoFn.getEventTimestampColumn());
         input
             .apply(
                 "Create BigQuery TableRow from FeatureRow",
-                ParDo.of(new FeatureRowExtendedToTableRowDoFn(options.getJobName())))
+                ParDo.of(new FeatureRowToTableRowDoFn(options.getJobName())))
             .apply(
                 BigQueryIO.writeTableRows()
                     .to(tableSpec)

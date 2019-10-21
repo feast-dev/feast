@@ -17,68 +17,116 @@
 
 package feast.ingestion.transform;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto.KafkaSourceConfig;
 import feast.core.SourceProto.SourceType;
+import feast.ingestion.options.ImportOptions;
 import feast.types.FeatureRowProto.FeatureRow;
-import java.util.Arrays;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.beam.sdk.values.TupleTag;
 
-public class ReadFeatureRow extends PTransform<PInput, PCollection<FeatureRow>> {
-  private FeatureSetSpec featureSetSpec;
+public class ReadFeatureRow extends PTransform<PInput, PCollectionTuple> {
+  private final FeatureSetSpec featureSetSpec;
+  private final ImportOptions options;
+  private final String consumerGroupId;
+  private final KafkaSourceConfig sourceConfig;
 
-  public ReadFeatureRow(FeatureSetSpec featureSetSpec) {
+  public ReadFeatureRow(FeatureSetSpec featureSetSpec, ImportOptions options) {
     this.featureSetSpec = featureSetSpec;
+    this.options = options;
+    this.consumerGroupId = String.format("feast-import-job-%s", options.getJobName());
+    this.sourceConfig = featureSetSpec.getSource().getKafkaSourceConfig();
   }
 
   @Override
-  public PCollection<FeatureRow> expand(PInput input) {
-    SourceType sourceType = featureSetSpec.getSource().getType();
-
-    if (!sourceType.equals(SourceType.KAFKA)) {
+  public PCollectionTuple expand(PInput input) {
+    if (!featureSetSpec.getSource().getType().equals(SourceType.KAFKA)) {
       throw new IllegalArgumentException(
           "Only SourceType.KAFKA is supported for Source in Feast import job.");
     }
 
-    String kafkaConsumerGroupId =
-        String.format("feast-import-job-%s", input.getPipeline().getOptions().getJobName());
+    PCollection<KafkaRecord<byte[], byte[]>> out = input.getPipeline().apply(
+        KafkaIO.readBytes().withBootstrapServers(sourceConfig.getBootstrapServers())
+            .withTopic(sourceConfig.getTopic()));
 
-    KafkaSourceConfig kafkaSourceConfig = featureSetSpec.getSource().getKafkaSourceConfig();
-    return input
-        .getPipeline()
-        .apply(
-            "Read from Kafka",
-            KafkaIO.<byte[], byte[]>read()
-                .withBootstrapServers(kafkaSourceConfig.getBootstrapServers())
-                .withTopics(Arrays.asList(kafkaSourceConfig.getTopic()))
-                .withKeyDeserializer(ByteArrayDeserializer.class)
-                .withValueDeserializer(ByteArrayDeserializer.class)
-                .withReadCommitted()
-                .commitOffsetsInFinalize()
-                .updateConsumerProperties(ImmutableMap.of("group.id", kafkaConsumerGroupId)))
-        .apply(
-            "Convert KafkaRecord into FeatureRow",
-            ParDo.of(
-                new DoFn<KafkaRecord<byte[], byte[]>, FeatureRow>() {
-                  @ProcessElement
-                  public void processElemennt(ProcessContext context) {
-                    try {
-                      FeatureRow featureRow =
-                          FeatureRow.parseFrom(context.element().getKV().getValue());
-                      context.output(featureRow);
-                    } catch (InvalidProtocolBufferException e) {
-                      e.printStackTrace();
+    // input
+    //     .getPipeline()
+    //     .apply(
+    //         "ReadFromKafka",
+    //         KafkaIO.<byte[], byte[]>read()
+    //             .withBootstrapServers(sourceConfig.getBootstrapServers())
+    //             .withTopic(sourceConfig.getTopic())
+    //             .withKeyDeserializer(ByteArrayDeserializer.class)
+    //             .withValueDeserializer(ByteArrayDeserializer.class)
+    //             //.withConsumerConfigUpdates(ImmutableMap.of("group.id", consumerGroupId))
+    //             //.withReadCommitted()
+    //             //.commitOffsetsInFinalize()
+    //     )
+    //     .apply(ParDo.of(new DoFn<KafkaRecord<byte[],byte[]>, KafkaRecord<byte[],byte[]>>() {
+    //       @ProcessElement
+    //       public void processElement(ProcessContext context) {
+    //         KafkaRecord<byte[], byte[]> element = context.element();
+    //         byte[] value = element.getKV().getValue();
+    //         context.output(element);
+    //       }
+    //     }));
+        //.apply("KafkaMessageToFeatureRow", new KafkaMessageToFeatureRow(options));
+
+    return PCollectionTuple.of("TODO", out);
+
+    // .apply(
+    //     "Convert KafkaRecord into FeatureRow",
+    //     ParDo.of(
+    //         new DoFn<KafkaRecord<byte[], byte[]>, FeatureRow>() {
+    //           @ProcessElement
+    //           public void processElemennt(ProcessContext context) {
+    //             try {
+    //               FeatureRow featureRow =
+    //                   FeatureRow.parseFrom(context.element().getKV().getValue());
+    //               context.output(featureRow);
+    //             } catch (InvalidProtocolBufferException e) {
+    //               e.printStackTrace();
+    //             }
+    //           }
+    //         }));
+  }
+
+  static class KafkaMessageToFeatureRow
+      extends PTransform<PCollection<KafkaRecord<byte[], byte[]>>, PCollectionTuple> {
+
+    private final ImportOptions options;
+
+    KafkaMessageToFeatureRow(ImportOptions options) {
+      this.options = options;
+    }
+
+    @Override
+    public PCollectionTuple expand(PCollection<KafkaRecord<byte[], byte[]>> input) {
+      TupleTag<FeatureRow> featureRowTupleTag = new TupleTag<>();
+
+      return input.apply(
+          "TODO",
+          ParDo.of(
+                  new DoFn<KafkaRecord<byte[], byte[]>, FeatureRow>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext context) {
+                      // byte[] value = context.element().getKV().getValue();
+                      // try {
+                      //   FeatureRow featureRow = FeatureRow.parseFrom(value);
+                      //   context.output(featureRow);
+                      // } catch (InvalidProtocolBufferException e) {
+                      //   e.printStackTrace();
+                      // }
                     }
-                  }
-                }));
+                  })
+              .withOutputTags(featureRowTupleTag, null));
+    }
   }
 }
