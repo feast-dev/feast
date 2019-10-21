@@ -50,6 +50,7 @@
          redisKeyBuilder.addEntities(field);
        }
      }
+
      return redisKeyBuilder.build();
    }
 

@@ -299,11 +299,11 @@
       <scope>test</scope>
     </dependency>
 
+    <!-- To simulate actual Redis for ingestion integration test -->
     <dependency>
       <groupId>com.github.kstyrc</groupId>
       <artifactId>embedded-redis</artifactId>
       <version>0.6</version>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
