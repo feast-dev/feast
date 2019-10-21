@@ -38,6 +38,9 @@ public class Source {
   @Lob
   private byte[] options;
 
+  @Column(name = "use_default")
+  private boolean useDefault;
+
   public Source() {
     super();
   }
@@ -48,6 +51,13 @@ public class Source {
   }
 
   public static Source fromProto(SourceProto.Source sourceProto) {
+    if (sourceProto.equals(SourceProto.Source.getDefaultInstance())) {
+      Source source = new Source(SourceType.UNRECOGNIZED,
+          KafkaSourceConfig.getDefaultInstance().toByteArray());
+      source.setUseDefault(true);
+      return source;
+    }
+
     byte[] options;
     switch (sourceProto.getType()) {
       case KAFKA:
@@ -100,6 +110,15 @@ public class Source {
   }
 
   /**
+   * Indicate whether to use the system defaults or not.
+   *
+   * @return boolean indicating whether this feature set source uses defaults.
+   */
+  public boolean isUseDefault() {
+    return useDefault;
+  }
+
+  /**
    * Set the topic to the source stream.
    */
   public void setTopic(String topic) throws InvalidProtocolBufferException {
@@ -114,9 +133,14 @@ public class Source {
   }
 
   public boolean equalTo(Source other) throws InvalidProtocolBufferException {
+    if (other.useDefault && useDefault) {
+      return true;
+    }
+
     if (!type.equals(other.type)) {
       return false;
     }
+
     switch (SourceType.valueOf(type)) {
       case KAFKA:
         KafkaSourceConfig kafkaCfg = KafkaSourceConfig.parseFrom(options);

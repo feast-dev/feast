@@ -1,5 +1,6 @@
 package feast.core.service;
 
+import feast.core.SourceProto.SourceType;
 import feast.core.config.FeastProperties;
 import feast.core.model.FeatureSet;
 import feast.core.model.Source;
@@ -17,11 +18,13 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 public class FeatureStreamService {
+  private final SourceType defaultStreamType;
   private final Map<String, String> defaultOptions;
 
   @Autowired
   public FeatureStreamService(FeastProperties feastProperties) {
     this.defaultOptions = feastProperties.getStream().getOptions();
+    this.defaultStreamType = SourceType.valueOf(feastProperties.getStream().getType().toUpperCase());
   }
 
   /**
@@ -32,6 +35,10 @@ public class FeatureStreamService {
    * @return Source updated with provisioned feature source
    */
   public Source setUpSource(FeatureSet featureSet) {
+    if (featureSet.getSource().isUseDefault()){
+      featureSet.getSource().setType(defaultStreamType.toString());
+    }
+
     switch (featureSet.getSource().getType()) {
       case KAFKA:
         FeatureStream featureStream = new KafkaFeatureStream(KafkaFeatureStreamConfig.fromMap(defaultOptions));

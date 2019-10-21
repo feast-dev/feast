@@ -36,16 +36,17 @@ public class KafkaFeatureStream implements FeatureStream {
   public Source provision(FeatureSet featureSet) throws RuntimeException {
 
     Source source = featureSet.getSource();
-    KafkaSourceConfig config = null;
-    String bootstrapServers = "";
-    try {
-      config = (KafkaSourceConfig) source.getOptions();
-      bootstrapServers = config.getBootstrapServers();
-    } catch (InvalidProtocolBufferException | NullPointerException e) {
-      e.printStackTrace();
-    }
-    if (bootstrapServers.isEmpty()) {
-      bootstrapServers = defaultConfig.getBootstrapServers();
+    KafkaSourceConfig config = KafkaSourceConfig.getDefaultInstance();
+    String bootstrapServers = defaultConfig.getBootstrapServers();
+    if (!source.isUseDefault()) {
+      try {
+        config = (KafkaSourceConfig) source.getOptions();
+        bootstrapServers = config.getBootstrapServers();
+      } catch (InvalidProtocolBufferException | NullPointerException e) {
+        throw new RuntimeException(String
+            .format("Unable to retrieve bootstrap servers for featureSet %s", featureSet.getName()),
+            e);
+      }
     }
 
     Map<String, Object> map = new HashMap<>();
@@ -71,7 +72,9 @@ public class KafkaFeatureStream implements FeatureStream {
       }
     }
     assert config != null;
-    source.setOptions(config.toBuilder().setTopic(topicName).setBootstrapServers(bootstrapServers).build().toByteArray());
+    source.setOptions(
+        config.toBuilder().setTopic(topicName).setBootstrapServers(bootstrapServers).build()
+            .toByteArray());
     return source;
   }
 
