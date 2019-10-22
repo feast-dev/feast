@@ -17,20 +17,28 @@ import pandas as pd
 import numpy as np
 import feast.core.CoreService_pb2_grpc as Core
 import feast.serving.ServingService_pb2_grpc as Serving
-from feast.core.CoreService_pb2 import GetFeastCoreVersionResponse
+from feast.core.FeatureSet_pb2 import FeatureSetSpec, FeatureSpec, EntitySpec
+from feast.core.Source_pb2 import SourceType, KafkaSourceConfig, Source
+from feast.core.CoreService_pb2 import (
+    GetFeastCoreVersionResponse,
+    GetFeatureSetsResponse,
+)
 from feast.serving.ServingService_pb2 import (
-    GetFeastServingVersionResponse,
+    GetFeastServingInfoResponse,
     GetOnlineFeaturesResponse,
+    GetOnlineFeaturesRequest,
 )
 from google.protobuf.timestamp_pb2 import Timestamp
 import pytest
 from feast.client import Client
 from concurrent import futures
-from tests.feast_core_server import CoreServicer
-from tests.feast_serving_server import ServingServicer
+from feast_core_server import CoreServicer
+from feast_serving_server import ServingServicer
 from feast.types import FeatureRow_pb2 as FeatureRowProto
 from feast.types import Field_pb2 as FieldProto
 from feast.types import Value_pb2 as ValueProto
+from feast.value_type import ValueType
+
 
 CORE_URL = "core.feast.example.com"
 SERVING_URL = "serving.example.com"
@@ -80,8 +88,8 @@ class TestClient:
 
         mocker.patch.object(
             mock_client._serving_service_stub,
-            "GetFeastServingVersion",
-            return_value=GetFeastServingVersionResponse(version="0.3.0"),
+            "GetFeastServingInfo",
+            return_value=GetFeastServingInfoResponse(version="0.3.0"),
         )
 
         status = mock_client.version()
@@ -99,18 +107,22 @@ class TestClient:
             grpc.insecure_channel("")
         )
 
-        response = GetOnlineFeaturesResponse()
-
         fields = dict()
         for feature_num in range(1, 10):
             fields["feature_set_1:1:feature_" + str(feature_num)] = ValueProto.Value(
                 int64_val=feature_num
             )
-
         field_values = GetOnlineFeaturesResponse.FieldValues(fields=fields)
 
+        response = GetOnlineFeaturesResponse()
+        entity_rows = []
         for row_number in range(1, ROW_COUNT + 1):
             response.field_values.append(field_values)
+            entity_rows.append(
+                GetOnlineFeaturesRequest.EntityRow(
+                    fields={"customer_id": ValueProto.Value(int64_val=row_number)}
+                )
+            )
 
         mocker.patch.object(
             mock_client._serving_service_stub,
@@ -118,10 +130,8 @@ class TestClient:
             return_value=response,
         )
 
-        entity_data = pd.DataFrame({"entity_id": np.repeat(4, ROW_COUNT)})
-
-        feature_dataframe = mock_client.get_online_features(
-            entity_data=entity_data,
+        response = mock_client.get_online_features(
+            entity_rows=entity_rows,
             feature_ids=[
                 "feature_set_1:1:feature_1",
                 "feature_set_1:1:feature_2",
@@ -133,9 +143,62 @@ class TestClient:
                 "feature_set_1:1:feature_8",
                 "feature_set_1:1:feature_9",
             ],
-        )
+        )  # type: GetOnlineFeaturesResponse
 
         assert (
-            feature_dataframe["feature_set_1:1:feature_1"][0] == 1
-            and feature_dataframe["feature_set_1:1:feature_9"][2] == 9
+            response.field_values[0].fields["feature_set_1:1:feature_1"].int64_val == 1
+            and response.field_values[0].fields["feature_set_1:1:feature_9"].int64_val
+            == 9
+        )
+
+    def test_get_feature_set(self, mock_client, mocker):
+        mock_client._core_service_stub = Core.CoreServiceStub(grpc.insecure_channel(""))
+
+        from google.protobuf.duration_pb2 import Duration
+
+        mocker.patch.object(
+            mock_client._core_service_stub,
+            "GetFeatureSets",
+            return_value=GetFeatureSetsResponse(
+                feature_sets=[
+                    FeatureSetSpec(
+                        name="my_feature_set",
+                        version=2,
+                        max_age=Duration(seconds=3600),
+                        features=[
+                            FeatureSpec(
+                                name="my_feature_1",
+                                value_type=ValueProto.ValueType.FLOAT,
+                            ),
+                            FeatureSpec(
+                                name="my_feature_2",
+                                value_type=ValueProto.ValueType.FLOAT,
+                            ),
+                        ],
+                        entities=[
+                            EntitySpec(
+                                name="my_entity_1",
+                                value_type=ValueProto.ValueType.INT64,
+                            )
+                        ],
+                        source=Source(
+                            type=SourceType.KAFKA,
+                            kafka_source_config=KafkaSourceConfig(),
+                        ),
+                    )
+                ]
+            ),
+        )
+
+        feature_set = mock_client.get_feature_set("my_feature_set", version=2)
+
+        assert (
+            feature_set.name == "my_feature_set"
+            and feature_set.version == 2
+            and feature_set.fields["my_feature_1"].name == "my_feature_1"
+            and feature_set.fields["my_feature_1"].dtype == ValueType.FLOAT
+            and feature_set.fields["my_entity_1"].name == "my_entity_1"
+            and feature_set.fields["my_entity_1"].dtype == ValueType.INT64
+            and len(feature_set.features) == 2
+            and len(feature_set.entities) == 1
         )

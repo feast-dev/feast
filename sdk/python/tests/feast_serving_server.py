@@ -6,11 +6,12 @@ import grpc
 import threading
 import feast.serving.ServingService_pb2_grpc as Serving
 from feast.serving.ServingService_pb2 import (
-    GetFeastServingVersionResponse,
-    GetFeaturesRequest,
+    GetBatchFeaturesResponse,
+    GetOnlineFeaturesRequest,
     GetOnlineFeaturesResponse,
+    GetFeastServingInfoResponse,
 )
-from tests import fake_kafka
+import fake_kafka
 from typing import Dict
 import sqlite3
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
@@ -20,7 +21,7 @@ from feast.core.CoreService_pb2 import (
     GetStoresResponse,
 )
 from feast.core import FeatureSet_pb2 as FeatureSetProto
-from tests import stores
+import stores
 from feast.types import (
     FeatureRow_pb2 as FeatureRowProto,
     Field_pb2 as FieldProto,
@@ -92,9 +93,9 @@ class ServingServicer(Serving.ServingServiceServicer):
             self._store.register_feature_set(feature_set)
 
     def GetFeastServingVersion(self, request, context):
-        return GetFeastServingVersionResponse(version="0.3.0")
+        return GetFeastServingInfoResponse(version="0.3.0")
 
-    def GetOnlineFeatures(self, request: GetFeaturesRequest, context):
+    def GetOnlineFeatures(self, request: GetOnlineFeaturesRequest, context):
 
         response = GetOnlineFeaturesResponse(
             feature_data_sets=[

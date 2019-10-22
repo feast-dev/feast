@@ -42,6 +42,7 @@ from google.protobuf import json_format
 from feast.source import KafkaSource
 from feast.type_map import convert_df_to_feature_rows
 from feast.type_map import DATETIME_COLUMN
+from feast.utils import loaders
 
 _logger = logging.getLogger(__name__)
 CPU_COUNT = cpu_count()  # type: int
@@ -59,7 +60,7 @@ class FeatureSet:
         features: List[Feature] = None,
         entities: List[Entity] = None,
         source: Source = None,
-        max_age: int = -1,
+        max_age: Optional[Duration] = None,
     ):
         self._name = name
         self._fields = OrderedDict()  # type: Dict[str, Field]
@@ -69,6 +70,8 @@ class FeatureSet:
             self.entities = entities
         if source is None:
             self._source = KafkaSource()
+        else:
+            self._source = source
         self._max_age = max_age
         self._version = None
         self._client = None
@@ -101,6 +104,13 @@ class FeatureSet:
 
     def __str__(self):
         return str(MessageToJson(self.to_proto()))
+
+    @property
+    def fields(self) -> Dict[str, Field]:
+        """
+        Returns a dict of fields from this feature set
+        """
+        return self._fields
 
     @property
     def features(self) -> List[Feature]:
@@ -353,13 +363,12 @@ class FeatureSet:
         :param timeout: Timeout in seconds to wait for completion.
         :return:
         """
-        # Update feature set from data set and re-register if changed
-        if force_update:
-            self.update_from_dataset(dataframe)
-            self._client.apply(self)
 
         # Validate feature set version with Feast Core
         self._validate_feature_set()
+
+        # Validate dataframe based on feature set
+        validate_dataframe(dataframe, self)
 
         # Create Kafka FeatureRow producer (Required if process is forked)
         if self._message_producer is None:
@@ -418,40 +427,6 @@ class FeatureSet:
 
         self.ingest(df, force_update, timeout, max_workers)
 
-    @classmethod
-    def from_proto(cls, feature_set_proto: FeatureSetSpecProto):
-        feature_set = cls(
-            name=feature_set_proto.name,
-            features=[
-                Feature.from_proto(feature) for feature in feature_set_proto.features
-            ],
-            entities=[
-                Entity.from_proto(entity) for entity in feature_set_proto.entities
-            ],
-        )
-        feature_set._version = feature_set_proto.version
-        feature_set._source = Source.from_proto(feature_set_proto.source)
-        feature_set._is_dirty = False
-        return feature_set
-
-    def to_proto(self) -> FeatureSetSpecProto:
-        return FeatureSetSpecProto(
-            name=self.name,
-            version=self.version,
-            max_age=Duration(seconds=self.max_age),
-            source=self.source.to_proto(),
-            features=[
-                field.to_proto()
-                for field in self._fields.values()
-                if type(field) == Feature
-            ],
-            entities=[
-                field.to_proto()
-                for field in self._fields.values()
-                if type(field) == Entity
-            ],
-        )
-
     def _update_from_feature_set(self, feature_set, is_dirty: bool = True):
 
         self.name = feature_set.name
@@ -464,7 +439,8 @@ class FeatureSet:
         self._is_dirty = is_dirty
 
     def _validate_feature_set(self):
-        # Validate whether the feature set has been modified and needs to be saved
+        # Validate whether the feature set has been modified and needs to be
+        # saved
         if self._is_dirty:
             raise Exception("Feature set has been modified and must be saved first")
 
@@ -490,20 +466,72 @@ class FeatureSet:
             pbar.update()
 
     @classmethod
-    def from_yaml(cls, fs_yaml):
-        featureset_dict = (
-            yaml.safe_load(fs_yaml) if not isinstance(fs_yaml, dict) else fs_yaml
+    def from_yaml(cls, yml):
+        return cls.from_dict(loaders.yaml_loader(yml, load_single=True))
+
+    @classmethod
+    def from_dict(cls, fs_dict):
+        if ("kind" not in fs_dict) and (fs_dict["kind"].strip() != "feature_set"):
+            raise Exception(f"Resource kind is not a feature set {str(fs_dict)}")
+        feature_set_proto = json_format.ParseDict(
+            fs_dict, FeatureSetSpecProto(), ignore_unknown_fields=True
+        )
+        return cls.from_proto(feature_set_proto)
+
+    @classmethod
+    def from_proto(cls, feature_set_proto: FeatureSetSpecProto):
+        feature_set = cls(
+            name=feature_set_proto.name,
+            features=[
+                Feature.from_proto(feature) for feature in feature_set_proto.features
+            ],
+            entities=[
+                Entity.from_proto(entity) for entity in feature_set_proto.entities
+            ],
+            max_age=feature_set_proto.max_age,
+            source=(
+                None
+                if feature_set_proto.source.type == 0
+                else Source.from_proto(feature_set_proto.source)
+            ),
+        )
+        feature_set._version = feature_set_proto.version
+        feature_set._is_dirty = False
+        return feature_set
+
+    def to_proto(self) -> FeatureSetSpecProto:
+        return FeatureSetSpecProto(
+            name=self.name,
+            version=self.version,
+            max_age=self.max_age,
+            source=self.source.to_proto(),
+            features=[
+                field.to_proto()
+                for field in self._fields.values()
+                if type(field) == Feature
+            ],
+            entities=[
+                field.to_proto()
+                for field in self._fields.values()
+                if type(field) == Entity
+            ],
         )
 
-        if ("kind" not in featureset_dict) and (
-            featureset_dict["kind"].strip() != "feature_set"
-        ):
-            raise Exception(
-                f"Could not determine the kind of resource from {str(fs_yaml)}"
+
+def validate_dataframe(dataframe: pd.DataFrame, fs: FeatureSet):
+    if "datetime" not in dataframe.columns:
+        raise ValueError(
+            f'Dataframe does not contain entity "datetime" in columns {dataframe.columns}'
+        )
+
+    for entity in fs.entities:
+        if entity.name not in dataframe.columns:
+            raise ValueError(
+                f"Dataframe does not contain entity {entity.name} in columns {dataframe.columns}"
             )
 
-        feature_set_proto = json_format.ParseDict(
-            featureset_dict, FeatureSetSpecProto(), ignore_unknown_fields=True
-        )
-
-        return cls.from_proto(feature_set_proto)
+    for feature in fs.features:
+        if feature.name not in dataframe.columns:
+            raise ValueError(
+                f"Dataframe does not contain feature {feature.name} in columns {dataframe.columns}"
+            )
