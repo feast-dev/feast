@@ -203,7 +203,6 @@
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka-clients</artifactId>
       <version>2.3.0</version>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
@@ -257,13 +256,22 @@
       <scope>runtime</scope>
     </dependency>
 
-    <!-- To simulate actual Redis for ingestion integration test -->
+    <!-- To run actual Redis for ingestion integration test -->
     <dependency>
       <groupId>com.github.kstyrc</groupId>
       <artifactId>embedded-redis</artifactId>
       <version>0.6</version>
       <scope>test</scope>
     </dependency>
+
+    <!-- To run actual Kafka for ingestion integration test -->
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka_2.12</artifactId>
+      <version>2.3.0</version>
+      <scope>test</scope>
+    </dependency>
+
 
     <dependency>
       <groupId>com.google.guava</groupId>
