@@ -264,7 +264,7 @@ class Client:
             feature_ids: List of feature ids in the following format
                          "feature_set_name:version:feature_name".
 
-            entity_rwaleows: List of GetFeaturesRequest.EntityRow where each row
+            entity_rows: List of GetFeaturesRequest.EntityRow where each row
                          contains entities and a timestamp.
 
                          Feature values will be looked up based on feature_id
