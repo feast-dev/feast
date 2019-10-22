@@ -18,8 +18,11 @@
 // package io.suryawirawan.henry.beam.redis.io;
 package feast.store.serving.redis;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -87,14 +90,16 @@ public class RedisCustomIO {
   }
 
   @Builder
-  @Data
+  @Getter
+  @NoArgsConstructor
+  @AllArgsConstructor
   @DefaultCoder(value = AvroCoder.class)
   public static class RedisMutation {
-    private final Method method;
-    private final byte[] key;
-    private final byte[] value;
-    private final long expiryMillis;
-    private final long score; // Score is only utilized when method is ZSET
+    private Method method;
+    private byte[] key;
+    private byte[] value;
+    private long expiryMillis;
+    private long score; // Score is only utilized when method is ZSET
   }
 
   /** ServingStoreWrite data to a Redis server. */
