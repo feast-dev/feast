@@ -60,7 +60,7 @@ class FeatureSet:
         features: List[Feature] = None,
         entities: List[Entity] = None,
         source: Source = None,
-        max_age: Duration = None,
+        max_age: Optional[Duration] = None,
     ):
         self._name = name
         self._fields = OrderedDict()  # type: Dict[str, Field]
