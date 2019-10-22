@@ -19,7 +19,7 @@ import os
 import pandas as pd
 from math import ceil
 from multiprocessing import Process, Queue, cpu_count
-from typing import List
+from typing import List, Optional
 from collections import OrderedDict
 from typing import Dict
 from feast.source import Source
