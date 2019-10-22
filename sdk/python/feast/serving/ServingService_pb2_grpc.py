@@ -14,24 +14,19 @@ class ServingServiceStub(object):
     Args:
       channel: A grpc.Channel.
     """
-    self.GetFeastServingVersion = channel.unary_unary(
-        '/feast.serving.ServingService/GetFeastServingVersion',
-        request_serializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingVersionRequest.SerializeToString,
-        response_deserializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingVersionResponse.FromString,
-        )
-    self.GetFeastServingType = channel.unary_unary(
-        '/feast.serving.ServingService/GetFeastServingType',
-        request_serializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingTypeRequest.SerializeToString,
-        response_deserializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingTypeResponse.FromString,
+    self.GetFeastServingInfo = channel.unary_unary(
+        '/feast.serving.ServingService/GetFeastServingInfo',
+        request_serializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingInfoRequest.SerializeToString,
+        response_deserializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingInfoResponse.FromString,
         )
     self.GetOnlineFeatures = channel.unary_unary(
         '/feast.serving.ServingService/GetOnlineFeatures',
-        request_serializer=feast_dot_serving_dot_ServingService__pb2.GetFeaturesRequest.SerializeToString,
+        request_serializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRequest.SerializeToString,
         response_deserializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesResponse.FromString,
         )
     self.GetBatchFeatures = channel.unary_unary(
         '/feast.serving.ServingService/GetBatchFeatures',
-        request_serializer=feast_dot_serving_dot_ServingService__pb2.GetFeaturesRequest.SerializeToString,
+        request_serializer=feast_dot_serving_dot_ServingService__pb2.GetBatchFeaturesRequest.SerializeToString,
         response_deserializer=feast_dot_serving_dot_ServingService__pb2.GetBatchFeaturesResponse.FromString,
         )
     self.GetJob = channel.unary_unary(
@@ -45,15 +40,8 @@ class ServingServiceServicer(object):
   # missing associated documentation comment in .proto file
   pass
 
-  def GetFeastServingVersion(self, request, context):
-    """Get version information about this Feast serving.
-    """
-    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-    context.set_details('Method not implemented!')
-    raise NotImplementedError('Method not implemented!')
-
-  def GetFeastServingType(self, request, context):
-    """Get Feast serving store type: online or batch.
+  def GetFeastServingInfo(self, request, context):
+    """Get information about this Feast serving.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
@@ -67,10 +55,10 @@ class ServingServiceServicer(object):
     raise NotImplementedError('Method not implemented!')
 
   def GetBatchFeatures(self, request, context):
-    """Get batch features asynchronously. 
+    """Get batch features asynchronously.
 
     The client should check the status of the returned job periodically by
-    calling ReloadJob to determine if the job has completed successfully 
+    calling ReloadJob to determine if the job has completed successfully
     or with an error. If the job completes successfully i.e.
     status = JOB_STATUS_DONE with no error, then the client can check
     the file_uris for the location to download feature values data.
@@ -90,24 +78,19 @@ class ServingServiceServicer(object):
 
 def add_ServingServiceServicer_to_server(servicer, server):
   rpc_method_handlers = {
-      'GetFeastServingVersion': grpc.unary_unary_rpc_method_handler(
-          servicer.GetFeastServingVersion,
-          request_deserializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingVersionRequest.FromString,
-          response_serializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingVersionResponse.SerializeToString,
-      ),
-      'GetFeastServingType': grpc.unary_unary_rpc_method_handler(
-          servicer.GetFeastServingType,
-          request_deserializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingTypeRequest.FromString,
-          response_serializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingTypeResponse.SerializeToString,
+      'GetFeastServingInfo': grpc.unary_unary_rpc_method_handler(
+          servicer.GetFeastServingInfo,
+          request_deserializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingInfoRequest.FromString,
+          response_serializer=feast_dot_serving_dot_ServingService__pb2.GetFeastServingInfoResponse.SerializeToString,
       ),
       'GetOnlineFeatures': grpc.unary_unary_rpc_method_handler(
           servicer.GetOnlineFeatures,
-          request_deserializer=feast_dot_serving_dot_ServingService__pb2.GetFeaturesRequest.FromString,
+          request_deserializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesRequest.FromString,
           response_serializer=feast_dot_serving_dot_ServingService__pb2.GetOnlineFeaturesResponse.SerializeToString,
       ),
       'GetBatchFeatures': grpc.unary_unary_rpc_method_handler(
           servicer.GetBatchFeatures,
-          request_deserializer=feast_dot_serving_dot_ServingService__pb2.GetFeaturesRequest.FromString,
+          request_deserializer=feast_dot_serving_dot_ServingService__pb2.GetBatchFeaturesRequest.FromString,
           response_serializer=feast_dot_serving_dot_ServingService__pb2.GetBatchFeaturesResponse.SerializeToString,
       ),
       'GetJob': grpc.unary_unary_rpc_method_handler(

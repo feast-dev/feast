@@ -96,8 +96,8 @@ class Client:
             core_version = "not connected"
 
         try:
-            serving_version = self._serving_service_stub.GetFeastServingVersion(
-                GetFeastServingVersionRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+            serving_version = self._serving_service_stub.GetFeastServingInfo(
+                GetFeastServingInfoRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             ).version
         except grpc.FutureCancelledError:
             serving_version = "not connected"
@@ -186,16 +186,19 @@ class Client:
             feature_sets.append(feature_set)
         return feature_sets
 
-    def get_feature_set(self, name: str, version=None) -> FeatureSet:
+    def get_feature_set(self, name: str, version: int = None) -> FeatureSet:
         """
         Retrieve a single Feature Set from Feast Core
         """
         self._connect_core(skip_if_connected=True)
 
+        # TODO: Version should only be integer or unset. Core should handle 'latest'
         if version is None:
             version = "latest"
-        if isinstance(version, int):
+        elif isinstance(version, int):
             version = str(version)
+        else:
+            raise ValueError(f"Version {version} is not of type integer.")
 
         try:
             get_feature_set_response = self._core_service_stub.GetFeatureSets(
@@ -332,8 +335,7 @@ def build_online_feature_request(
 
         if feature_set not in feature_set_request:
             feature_set_request[feature_set] = GetOnlineFeaturesRequest.FeatureSet(
-                name=feature_set,
-                version=int(version),
+                name=feature_set, version=version
             )
         feature_set_request[feature_set].feature_names.append(feature)
     return list(feature_set_request.values())
