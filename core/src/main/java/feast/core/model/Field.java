@@ -44,7 +44,7 @@ public class Field {
     FeatureSet featureSet = new FeatureSet();
     featureSet.setId(featureSetId);
     this.featureSet = featureSet;
-    this.id = String.format("%s.%s", featureSetId, name);
+    this.id = String.format("%s:%s", featureSetId, name);
     this.name = name;
     this.type = type.toString();
   }
