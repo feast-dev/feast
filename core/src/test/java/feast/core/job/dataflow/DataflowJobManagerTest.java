@@ -37,7 +37,7 @@ import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
-import feast.ingestion.options.ImportJobPipelineOptions;
+import feast.ingestion.options.ImportOptions;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -93,8 +93,8 @@ public class DataflowJobManagerTest {
     String expectedExtJobId = "feast-job-0";
     String jobName = "job";
 
-    ImportJobPipelineOptions expectedPipelineOptions = PipelineOptionsFactory.fromArgs("")
-        .as(ImportJobPipelineOptions.class);
+    ImportOptions expectedPipelineOptions = PipelineOptionsFactory.fromArgs("")
+        .as(ImportOptions.class);
     expectedPipelineOptions.setRunner(DataflowRunner.class);
     expectedPipelineOptions.setProject("project");
     expectedPipelineOptions.setRegion("region");
@@ -105,8 +105,8 @@ public class DataflowJobManagerTest {
     expectedPipelineOptions
         .setFeatureSetSpecJson(Lists.newArrayList(printer.print(featureSetSpec)));
 
-    ArgumentCaptor<ImportJobPipelineOptions> captor = ArgumentCaptor
-        .forClass(ImportJobPipelineOptions.class);
+    ArgumentCaptor<ImportOptions> captor = ArgumentCaptor
+        .forClass(ImportOptions.class);
 
     DataflowPipelineJob mockPipelineResult = Mockito.mock(DataflowPipelineJob.class);
     when(mockPipelineResult.getState()).thenReturn(State.RUNNING);
@@ -116,7 +116,7 @@ public class DataflowJobManagerTest {
     String jobId = dfJobManager.startJob(jobName, Lists.newArrayList(featureSetSpec), store);
 
     verify(dfJobManager, times(1)).runPipeline(captor.capture());
-    ImportJobPipelineOptions actualPipelineOptions = captor.getValue();
+    ImportOptions actualPipelineOptions = captor.getValue();
 
     expectedPipelineOptions.setOptionsId(actualPipelineOptions.getOptionsId()); // avoid comparing this value
 

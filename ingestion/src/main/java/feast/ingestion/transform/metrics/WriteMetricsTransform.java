@@ -1,59 +1,87 @@
 package feast.ingestion.transform.metrics;
 
+import com.google.auto.value.AutoValue;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.ingestion.options.ImportOptions;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
+import feast.ingestion.values.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
-import org.joda.time.Duration;
+import org.apache.beam.sdk.values.TupleTag;
 
-public class WriteMetricsTransform extends PTransform<PCollection<FeatureRowExtended>, PDone> {
 
-  private final String storeName;
-  private final FeatureSetSpec featureSetSpec;
+@Slf4j
+@AutoValue
+public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple, PDone> {
 
   private static final long WINDOW_SIZE_SECONDS = 15;
 
-  public WriteMetricsTransform(String storeName, FeatureSetSpec featureSetSpec) {
+  public abstract String getStoreName();
 
-    this.storeName = storeName;
-    this.featureSetSpec = featureSetSpec;
+  public abstract FeatureSetSpec getFeatureSetSpec();
+
+  public abstract TupleTag<FeatureRow> getSuccessTag();
+
+  public abstract TupleTag<FailedElement> getFailureTag();
+
+  public static Builder newBuilder() {
+    return new AutoValue_WriteMetricsTransform.Builder();
+  }
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+
+    public abstract Builder setStoreName(String storeName);
+
+    public abstract Builder setFeatureSetSpec(FeatureSetSpec featureSetSpec);
+
+    public abstract Builder setSuccessTag(TupleTag<FeatureRow> successTag);
+
+    public abstract Builder setFailureTag(TupleTag<FailedElement> failureTag);
+
+    public abstract WriteMetricsTransform build();
   }
 
   @Override
-  public PDone expand(PCollection<FeatureRowExtended> input) {
+  public PDone expand(PCollectionTuple input) {
     ImportOptions options = input.getPipeline().getOptions()
         .as(ImportOptions.class);
     switch (options.getMetricsExporterType()) {
       case "prometheus":
-        input
+
+        input.get(getFailureTag())
             .apply("Window records",
-                Window.into(FixedWindows.of(Duration.standardSeconds(WINDOW_SIZE_SECONDS))))
-            .apply("Add key", ParDo.of(new DoFn<FeatureRowExtended, KV<Integer, FeatureRow>>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) {
-                c.output(KV.of(1, c.element().getRow()));
-              }
-            }))
-            .apply("Collect", GroupByKey.create())
-            .apply("Write metrics", ParDo
-                .of(new WriteMetricsDoFn(options.getJobName(), storeName, featureSetSpec,
-                    options.getPrometheusExporterAddress())));
+                new WindowRecords<>(WINDOW_SIZE_SECONDS))
+            .apply("Write deadletter metrics", ParDo.of(
+                WriteDeadletterRowMetricsDoFn.newBuilder()
+                    .setFeatureSetSpec(getFeatureSetSpec())
+                    .setPgAddress(options.getPrometheusExporterAddress())
+                    .setStoreName(getStoreName())
+                    .build()));
+
+        input.get(getSuccessTag())
+            .apply("Window records",
+                new WindowRecords<>(WINDOW_SIZE_SECONDS))
+            .apply("Write row metrics", ParDo
+                .of(WriteRowMetricsDoFn.newBuilder()
+                    .setFeatureSetSpec(getFeatureSetSpec())
+                    .setPgAddress(options.getPrometheusExporterAddress())
+                    .setStoreName(getStoreName())
+                    .build()));
+
         return PDone.in(input.getPipeline());
       case "none":
       default:
-        input.apply("Noop", ParDo.of(new DoFn<FeatureRowExtended, Void>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) {}
-        }));
+        input.get(getSuccessTag()).apply("Noop",
+            ParDo.of(new DoFn<FeatureRow, Void>() {
+              @ProcessElement
+              public void processElement(ProcessContext c) {
+              }
+            }));
         return PDone.in(input.getPipeline());
     }
   }

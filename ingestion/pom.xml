@@ -19,63 +19,21 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>feast</groupId>
-  <version>${revision}</version>
-  <artifactId>feast-ingestion</artifactId>
-  <packaging>jar</packaging>
+
+  <parent>
+    <groupId>feast</groupId>
+    <artifactId>feast-parent</artifactId>
+    <version>${revision}</version>
+  </parent>
+
   <name>Feast Ingestion</name>
-
-  <properties>
-    <revision>0.3.0-SNAPSHOT</revision>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
-    <org.apache.beam.version>2.16.0</org.apache.beam.version>
-    <com.google.cloud.version>1.91.0</com.google.cloud.version>
-    <grpcVersion>1.21.1</grpcVersion>
-    <protocVersion>3.6.1</protocVersion>
-    <protobufVersion>3.6.1</protobufVersion>
-  </properties>
+  <artifactId>feast-ingestion</artifactId>
 
   <build>
-    <extensions>
-      <extension>
-        <groupId>kr.motd.maven</groupId>
-        <artifactId>os-maven-plugin</artifactId>
-        <version>1.6.0</version>
-      </extension>
-    </extensions>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.7.0</version>
-        <configuration>
-          <source>1.8</source>
-          <target>1.8</target>
-        </configuration>
-      </plugin>
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
-        <version>0.5.1</version>
-        <configuration>
-          <protocArtifact>
-            com.google.protobuf:protoc:${protocVersion}:exe:${os.detected.classifier}
-          </protocArtifact>
-          <pluginId>grpc-java</pluginId>
-          <pluginArtifact>
-            io.grpc:protoc-gen-grpc-java:${grpcVersion}:exe:${os.detected.classifier}
-          </pluginArtifact>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>compile</goal>
-              <goal>compile-custom</goal>
-              <goal>test-compile</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -131,17 +89,12 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
-        <version>3.0.1</version>
         <executions>
           <execution>
             <id>attach-javadocs</id>
             <goals>
               <goal>jar</goal>
             </goals>
-            <!-- TODO: Remove "doclint: none" and fix javadoc error instead -->
-            <configuration>
-              <doclint>none</doclint>
-            </configuration>
           </execution>
         </executions>
       </plugin>
@@ -153,6 +106,12 @@
       <groupId>org.glassfish</groupId>
       <artifactId>javax.el</artifactId>
       <version>3.0.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>javax.validation</groupId>
+      <artifactId>validation-api</artifactId>
+      <version>2.0.1.Final</version>
     </dependency>
 
     <dependency>
@@ -173,59 +132,63 @@
       <scope>provided</scope>
     </dependency>
 
-    <!-- Provides FileSystemProvider for GCS. -->
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-nio</artifactId>
-      <version>0.83.0-alpha</version>
-    </dependency>
-
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-stub</artifactId>
-      <version>1.21.1</version>
     </dependency>
 
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-storage</artifactId>
-      <version>${com.google.cloud.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-bigquery</artifactId>
-      <version>${com.google.cloud.version}</version>
     </dependency>
 
-    <!-- Hamcrest needs to be above mockito and junit so it can clobber their versions of hamcrest -->
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-core</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-library</artifactId>
-      <version>1.3</version>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
-      <version>2.28.2</version>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+    <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
-      <version>2.9.9</version>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.module</groupId>
       <artifactId>jackson-module-jsonSchema</artifactId>
-      <version>2.9.9</version>
     </dependency>
 
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
+      <version>${protobufVersion}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java-util</artifactId>
       <version>${protobufVersion}</version>
     </dependency>
 
@@ -237,9 +200,15 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+      <version>2.3.0</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
-      <version>2.9.9</version>
     </dependency>
 
     <dependency>
@@ -261,15 +230,8 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.kafka</groupId>
-      <artifactId>kafka_2.12</artifactId>
-      <version>2.3.0</version>
-    </dependency>
-
-    <dependency>
       <groupId>redis.clients</groupId>
       <artifactId>jedis</artifactId>
-      <version>3.1.0</version>
     </dependency>
     <dependency>
       <groupId>io.prometheus</groupId>
@@ -279,8 +241,11 @@
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <version>1.16.22</version>
-      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
     </dependency>
 
     <!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-jdk14 -->
@@ -289,14 +254,7 @@
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
       <version>1.2.3</version>
-    </dependency>
-
-    <!-- Used for generating test data -->
-    <dependency>
-      <groupId>com.fasterxml.jackson.dataformat</groupId>
-      <artifactId>jackson-dataformat-csv</artifactId>
-      <version>2.9.6</version>
-      <scope>test</scope>
+      <scope>runtime</scope>
     </dependency>
 
     <!-- To simulate actual Redis for ingestion integration test -->
@@ -304,15 +262,13 @@
       <groupId>com.github.kstyrc</groupId>
       <artifactId>embedded-redis</artifactId>
       <version>0.6</version>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>26.0-jre</version>
-      <scope>compile</scope>
     </dependency>
-
 
   </dependencies>
 </project>

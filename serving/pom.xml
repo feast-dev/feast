@@ -20,15 +20,6 @@
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <properties>
-    <revision>0.3.0</revision>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <protocVersion>3.6.1</protocVersion>
-    <grpcVersion>1.21.0</grpcVersion>
-    <protobufVersion>3.6.1</protobufVersion>
-    <springBootVersion>2.0.9.RELEASE</springBootVersion>
-  </properties>
-
   <parent>
     <groupId>feast</groupId>
     <artifactId>feast-parent</artifactId>
@@ -37,17 +28,8 @@
 
   <artifactId>feast-serving</artifactId>
   <name>Feast Serving</name>
-  <packaging>jar</packaging>
 
   <repositories>
-    <repository>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-      <id>central</id>
-      <name>bintray</name>
-      <url>https://jcenter.bintray.com</url>
-    </repository>
     <repository>
       <id>spring-plugins</id>
       <name>Spring Plugins</name>
@@ -88,10 +70,15 @@
   </build>
 
   <dependencies>
+    <!-- TODO: SLF4J is being used via Lombok, but also jog4j - pick one -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-configuration-processor</artifactId>
-      <version>${springBootVersion}</version>
       <optional>true</optional>
     </dependency>
 
@@ -99,70 +86,44 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
-      <version>${springBootVersion}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.springframework.boot</groupId>
-          <artifactId>spring-boot-starter-logging</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <!--compile 'org.springframework.boot:spring-boot-starter-log4j2'-->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-log4j2</artifactId>
-      <version>${springBootVersion}</version>
     </dependency>
 
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-devtools</artifactId>
-      <version>${springBootVersion}</version>
       <optional>true</optional>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-web</artifactId>
-      <version>2.12.0</version>
     </dependency>
 
     <!--compile 'org.lognet:grpc-spring-boot-starter:2.4.1'-->
     <dependency>
       <groupId>org.lognet</groupId>
       <artifactId>grpc-spring-boot-starter</artifactId>
-      <version>2.4.1</version>
     </dependency>
     <!--compile "org.springframework.boot:spring-boot-starter-actuator:${springBootVersion}"-->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
-      <version>${springBootVersion}</version>
     </dependency>
 
-    <!--compile "io.grpc:grpc-netty:${grpcVersion}"-->
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-netty</artifactId>
-      <version>${grpcVersion}</version>
-    </dependency>
     <!--compile "io.grpc:grpc-services:${grpcVersion}"-->
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-services</artifactId>
-      <version>${grpcVersion}</version>
     </dependency>
     <!--compile "io.grpc:grpc-stub:${grpcVersion}"-->
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-stub</artifactId>
-      <version>${grpcVersion}</version>
     </dependency>
     <!--compile "com.google.protobuf:protobuf-java-util:${protobufVersion}"-->
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java-util</artifactId>
-      <version>${protobufVersion}</version>
     </dependency>
 
     <dependency>
@@ -175,25 +136,16 @@
     <dependency>
       <groupId>redis.clients</groupId>
       <artifactId>jedis</artifactId>
-      <version>2.9.0</version>
     </dependency>
     <!--compile 'com.google.guava:guava:26.0-jre'-->
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>26.0-jre</version>
-    </dependency>
-    <!--compile 'commons-codec:commons-codec:1.10'-->
-    <dependency>
-      <groupId>commons-codec</groupId>
-      <artifactId>commons-codec</artifactId>
-      <version>1.10</version>
     </dependency>
     <!--compile 'joda-time:joda-time:2.9.9'-->
     <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
-      <version>2.9.9</version>
     </dependency>
     <!--compile 'io.jaegertracing:jaeger-client:0.31.0'-->
     <dependency>
@@ -207,99 +159,42 @@
       <version>0.31.0</version>
     </dependency>
     <dependency>
-      <groupId>io.opentracing.contrib</groupId>
-      <artifactId>opentracing-concurrent</artifactId>
-      <version>0.2.0</version>
-    </dependency>
-
-
-    <!--compile 'io.micrometer:micrometer-core:1.0.7'-->
-    <dependency>
-      <groupId>io.micrometer</groupId>
-      <artifactId>micrometer-core</artifactId>
-      <version>1.0.7</version>
-    </dependency>
-    <!--compile 'io.micrometer:micrometer-registry-prometheus:1.0.7'-->
-    <dependency>
-      <groupId>io.micrometer</groupId>
-      <artifactId>micrometer-registry-statsd</artifactId>
-      <version>1.0.7</version>
-    </dependency>
-    <dependency>
-      <groupId>com.datadoghq</groupId>
-      <artifactId>java-dogstatsd-client</artifactId>
-      <version>2.6.1</version>
+      <groupId>io.opentracing</groupId>
+      <artifactId>opentracing-noop</artifactId>
+      <version>0.31.0</version>
     </dependency>
 
     <!-- Google Cloud -->
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-bigquery</artifactId>
-      <version>1.91.0</version>
     </dependency>
 
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-storage</artifactId>
-      <version>1.91.0</version>
     </dependency>
-
-    <!-- OpenCensus, needed by Google Cloud -->
-    <dependency>
-      <groupId>io.opencensus</groupId>
-      <artifactId>opencensus-impl</artifactId>
-      <version>0.24.0</version>
-      <scope>runtime</scope>
-    </dependency>
-
 
     <!--compileOnly 'org.projectlombok:lombok:1.18.2'-->
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <version>1.18.2</version>
-      <scope>provided</scope>
     </dependency>
 
     <!--testCompile "io.grpc:grpc-testing:${grpcVersion}"-->
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-testing</artifactId>
-      <version>${grpcVersion}</version>
-      <scope>test</scope>
     </dependency>
     <!--testCompile 'org.springframework.boot:spring-boot-starter-test'-->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
-      <version>${springBootVersion}</version>
-      <scope>test</scope>
-    </dependency>
-    <!--testCompile 'com.github.kstyrc:embedded-redis:0.6'-->
-    <dependency>
-      <groupId>com.github.kstyrc</groupId>
-      <artifactId>embedded-redis</artifactId>
-      <version>0.6</version>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <version>2.23.0</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter</artifactId>
-      <version>RELEASE</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava-testlib</artifactId>
-      <version>26.0-jre</version>
       <scope>test</scope>
     </dependency>
 
@@ -312,20 +207,10 @@
 
     <!-- Utilities -->
     <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-collections4</artifactId>
-      <version>4.4</version>
-    </dependency>
-    <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
-      <version>2.9.9</version>
-      <scope>compile</scope>
     </dependency>
-
-
   </dependencies>
-
 
   <profiles>
     <profile>
@@ -352,7 +237,6 @@
           <plugin>
             <groupId>io.fabric8</groupId>
             <artifactId>docker-maven-plugin</artifactId>
-            <version>0.20.1</version>
             <executions>
               <execution>
                 <id>prepare-bigtable-emulator</id>
@@ -393,9 +277,9 @@
           </resource>
         </resources>
 
-
       </build>
     </profile>
+
     <profile>
       <id>profile-ci</id>
       <activation>
@@ -408,7 +292,6 @@
           <plugin>
             <groupId>io.fabric8</groupId>
             <artifactId>docker-maven-plugin</artifactId>
-            <version>0.20.1</version>
             <executions>
               <execution>
                 <id>prepare-bigtable-emulator</id>

@@ -1,8 +1,6 @@
 package feast.serving.service;
 
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.hasItems;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
@@ -10,9 +8,6 @@ import static org.mockito.MockitoAnnotations.initMocks;
 import com.google.common.collect.Lists;
 import feast.core.CoreServiceProto.GetFeatureSetsRequest;
 import feast.core.CoreServiceProto.GetFeatureSetsResponse;
-import feast.core.CoreServiceProto.GetStoresRequest;
-import feast.core.CoreServiceProto.GetStoresRequest.Filter;
-import feast.core.CoreServiceProto.GetStoresResponse;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto.FeatureSetSpec;
@@ -24,7 +19,6 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +28,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
-import redis.embedded.Redis;
 
 public class CachedSpecServiceTest {
 

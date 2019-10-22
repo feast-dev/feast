@@ -77,7 +77,6 @@ public class TextFileDynamicIOTest {
     List<Path> files = Files.walk(path).collect(Collectors.toList());
     List<String> lines = Lists.newArrayList();
     for (Path file : files) {
-      System.out.println(file);
       if (file.toFile().isFile()) {
         lines.addAll(Files.readAllLines(file));
       }
