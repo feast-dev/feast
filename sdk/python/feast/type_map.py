@@ -15,9 +15,18 @@
 import numpy as np
 import pandas as pd
 
-from feast.serving.ServingService_pb2 import GetFeaturesRequest
 from feast.value_type import ValueType
-from feast.types.Value_pb2 import Value as ProtoValue, ValueType as ProtoValueType
+from feast.types.Value_pb2 import (
+    Value as ProtoValue,
+    ValueType as ProtoValueType,
+    Int64List,
+    Int32List,
+    BoolList,
+    BytesList,
+    DoubleList,
+    StringList,
+    FloatList,
+)
 from feast.types import FeatureRow_pb2 as FeatureRowProto, Field_pb2 as FieldProto
 from google.protobuf.timestamp_pb2 import Timestamp
 from feast.constants import DATETIME_COLUMN
@@ -124,35 +133,16 @@ def convert_df_to_feature_rows(dataframe: pd.DataFrame, feature_set):
             feature_set=feature_set.name + ":" + str(feature_set.version),
         )
 
-        for column, dtype in dataframe.dtypes.items():
-            if column == DATETIME_COLUMN:
-                continue
-
+        for field_name, field in feature_set.fields.items():
             feature_row.fields.extend(
                 [
                     FieldProto.Field(
-                        name=column, value=pd_value_to_proto_value(dtype, row[column])
+                        name=field.name,
+                        value=pd_value_to_proto_value(field.dtype, row[field.name]),
                     )
                 ]
             )
-            return feature_row
-
-    return convert_series_to_proto_values
-
-
-def convert_df_to_entity_rows(dataframe: pd.DataFrame):
-    def convert_series_to_proto_values(row: pd.Series):
-        fields = {}
-
-        for column, dtype in dataframe.dtypes.items():
-            if column == DATETIME_COLUMN:
-                continue
-
-            fields[column] = pd_value_to_proto_value(
-                dtype, row[dataframe.columns.get_loc(column)]
-            )
-
-        return GetFeaturesRequest.EntityRow(fields=fields)
+        return feature_row
 
     return convert_series_to_proto_values
 
@@ -166,35 +156,105 @@ def pd_datetime_to_timestamp_proto(dtype, value) -> Timestamp:
         return Timestamp(seconds=np.datetime64(value).astype("int64") // 1000000)
 
 
-def pd_value_to_proto_value(dtype, value) -> ProtoValue:
-    type_map = {
-        "float64": "double_val",
-        "float32": "float_val",
-        "int64": "int64_val",
-        "uint64": "int64_val",
-        "int32": "int32_val",
-        "uint32": "int32_val",
-        "uint8": "int32_val",
-        "int8": "int32_val",
-        "bool": "bool_val",
-        "timedelta": "int64_val",
-        "datetime64[ns]": "int64_val",
-        "datetime64[ns, UTC]": "int64_val",
-        "category": "string_val",
-        "object": "string_val",
-    }
+def type_err(item, dtype):
+    raise ValueError(f'Value "{item}" is of type {type(item)} not of type {dtype}')
 
-    if pd.isnull(value):
-        return ProtoValue()
-    elif dtype == "int64":
-        return ProtoValue(int64_val=int(value))
-    elif dtype == "int32":
-        return ProtoValue(int32_val=int(value))
-    elif dtype == "object":
-        return ProtoValue(string_val=value)
-    elif dtype == "float64":
-        return ProtoValue(float_val=value)
-    elif dtype in type_map:
-        raise NotImplemented(f"Data type known but not implemented: ${str(dtype)}")
+
+def pd_value_to_proto_value(feast_value_type, value) -> ProtoValue:
+
+    # Detect list type and handle separately
+    if "list" in feast_value_type.name.lower():
+
+        if feast_value_type == ValueType.FLOAT_LIST:
+            return ProtoValue(
+                float_list_val=FloatList(
+                    val=[
+                        item if type(item) is np.float32 else type_err(item, np.float32)
+                        for item in value
+                    ]
+                )
+            )
+
+        if feast_value_type == ValueType.DOUBLE_LIST:
+            return ProtoValue(
+                double_list_val=DoubleList(
+                    val=[
+                        item if type(item) is np.float64 else type_err(item, np.float64)
+                        for item in value
+                    ]
+                )
+            )
+
+        if feast_value_type == ValueType.INT32_LIST:
+            return ProtoValue(
+                int32_list_val=Int32List(
+                    val=[
+                        item if type(item) is np.int32 else type_err(item, np.int32)
+                        for item in value
+                    ]
+                )
+            )
+
+        if feast_value_type == ValueType.INT64_LIST:
+            return ProtoValue(
+                int64_list_val=Int64List(
+                    val=[
+                        item if type(item) is np.int64 else type_err(item, np.int64)
+                        for item in value
+                    ]
+                )
+            )
+
+        if feast_value_type == ValueType.STRING_LIST:
+            return ProtoValue(
+                string_list_val=StringList(
+                    val=[
+                        item if type(item) is np.str_ else type_err(item, np.str_)
+                        for item in value
+                    ]
+                )
+            )
+
+        if feast_value_type == ValueType.BOOL_LIST:
+            return ProtoValue(
+                bool_list_val=BoolList(
+                    val=[
+                        item if type(item) is np.bool_ else type_err(item, np.bool_)
+                        for item in value
+                    ]
+                )
+            )
+
+        if feast_value_type == ValueType.BYTES_LIST:
+            return ProtoValue(
+                bytes_list_val=BytesList(
+                    val=[
+                        item if type(item) is np.bytes_ else type_err(item, np.bytes_)
+                        for item in value
+                    ]
+                )
+            )
+
+    # Handle scalar types below
     else:
-        raise Exception(f"Unsupported data type: ${str(dtype)}")
+        if pd.isnull(value):
+            return ProtoValue()
+        elif feast_value_type == ValueType.INT32:
+            return ProtoValue(int32_val=int(value))
+        elif feast_value_type == ValueType.INT64:
+            return ProtoValue(int64_val=int(value))
+        elif feast_value_type == ValueType.FLOAT:
+            return ProtoValue(float_val=float(value))
+        elif feast_value_type == ValueType.DOUBLE:
+            assert type(value) is float
+            return ProtoValue(float_val=value)
+        elif feast_value_type == ValueType.STRING:
+            return ProtoValue(string_val=str(value))
+        elif feast_value_type == ValueType.BYTES:
+            assert type(value) is bytes
+            return ProtoValue(bytes_val=value)
+        elif feast_value_type == ValueType.BOOL:
+            assert type(value) is bool
+            return ProtoValue(bool_val=value)
+
+    raise Exception(f"Unsupported data type: ${str(type(value))}")

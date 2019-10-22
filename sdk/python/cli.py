@@ -17,10 +17,11 @@ import logging
 import click
 from feast import config as feast_config
 from feast.client import Client
+from feast.resource import ResourceFactory
 from feast.feature_set import FeatureSet
 import toml
 import pkg_resources
-from feast import resource
+from feast.utils import loaders
 import yaml
 import json
 
@@ -131,8 +132,7 @@ def list():
     List all feature sets
     """
     feast_client = Client(
-        core_url=feast_config.get_config_property_or_fail("core_url"),
-        serving_url=feast_config.get_config_property_or_fail("serving_url"),
+        core_url=feast_config.get_config_property_or_fail("core_url")
     )  # type: Client
 
     for fs in feast_client.list_feature_sets():
@@ -146,8 +146,7 @@ def create(name):
     Create a feature set
     """
     feast_client = Client(
-        core_url=feast_config.get_config_property_or_fail("core_url"),
-        serving_url=feast_config.get_config_property_or_fail("serving_url"),
+        core_url=feast_config.get_config_property_or_fail("core_url")
     )  # type: Client
 
     feast_client.apply(FeatureSet(name=name))
@@ -161,8 +160,7 @@ def describe(name, version):
     Describe a feature set
     """
     feast_client = Client(
-        core_url=feast_config.get_config_property_or_fail("core_url"),
-        serving_url=feast_config.get_config_property_or_fail("serving_url"),
+        core_url=feast_config.get_config_property_or_fail("core_url")
     )  # type: Client
 
     fs = feast_client.get_feature_set(name=name, version=version)
@@ -213,20 +211,20 @@ def ingest(name, version, filename, file_type):
     "--filename",
     "-f",
     help="Path to the configuration file that will be applied",
-    type=click.File("r"),
+    type=click.Path(exists=True),
 )
 def apply(filename):
     """
     Apply a configuration to a resource by filename or stdin
     """
-    resources = []
-    # resources can be divided by a separator of '---'
-    for resource_yaml in filename.read().split("---"):
-        resources.append(resource.from_yaml(resource_yaml))
+
+    resources = [
+        ResourceFactory.get_resource(res_dict["kind"]).from_dict(res_dict)
+        for res_dict in loaders.yaml_loader(filename)
+    ]
 
     feast_client = Client(
-        core_url=feast_config.get_config_property_or_fail("core_url"),
-        serving_url=feast_config.get_config_property_or_fail("serving_url"),
+        core_url=feast_config.get_config_property_or_fail("core_url")
     )  # type: Client
 
     feast_client.apply(resources)

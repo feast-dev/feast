@@ -19,7 +19,7 @@ import feast.core.CoreService_pb2_grpc as Core
 import feast.serving.ServingService_pb2_grpc as Serving
 from feast.core.CoreService_pb2 import GetFeastCoreVersionResponse
 from feast.serving.ServingService_pb2 import (
-    GetFeastServingVersionResponse,
+    GetFeastServingInfoResponse,
     GetOnlineFeaturesResponse,
 )
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -81,7 +81,7 @@ class TestClient:
         mocker.patch.object(
             mock_client._serving_service_stub,
             "GetFeastServingVersion",
-            return_value=GetFeastServingVersionResponse(version="0.3.0"),
+            return_value=GetFeastServingInfoResponse(version="0.3.0"),
         )
 
         status = mock_client.version()
@@ -121,7 +121,7 @@ class TestClient:
         entity_data = pd.DataFrame({"entity_id": np.repeat(4, ROW_COUNT)})
 
         feature_dataframe = mock_client.get_online_features(
-            entity_data=entity_data,
+            entity_rows=entity_data,
             feature_ids=[
                 "feature_set_1:1:feature_1",
                 "feature_set_1:1:feature_2",

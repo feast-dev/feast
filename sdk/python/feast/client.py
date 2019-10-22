@@ -33,12 +33,13 @@ from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.feature_set import FeatureSet, Entity
 from feast.job import Job
 from feast.serving.ServingService_pb2 import (
-    GetFeaturesRequest,
-    GetFeastServingVersionRequest,
+    GetOnlineFeaturesRequest,
+    GetBatchFeaturesRequest,
+    GetFeastServingInfoRequest,
     GetOnlineFeaturesResponse,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-from feast.type_map import convert_df_to_entity_rows, FEAST_VALUE_ATTR_TO_DTYPE
+from feast.type_map import FEAST_VALUE_ATTR_TO_DTYPE
 
 GRPC_CONNECTION_TIMEOUT_DEFAULT = 5  # type: int
 GRPC_CONNECTION_TIMEOUT_APPLY = 300  # type: int
@@ -185,32 +186,42 @@ class Client:
             feature_sets.append(feature_set)
         return feature_sets
 
-    def get_feature_set(self, name: str, version: int) -> FeatureSet:
+    def get_feature_set(self, name: str, version=None) -> FeatureSet:
         """
         Retrieve a single Feature Set from Feast Core
         """
         self._connect_core(skip_if_connected=True)
 
-        get_feature_set_response = self._core_service_stub.GetFeatureSets(
-            GetFeatureSetsRequest(
-                filter=GetFeatureSetsRequest.Filter(
-                    feature_set_name=name.strip(), feature_set_version=str(version)
+        if version is None:
+            version = "latest"
+        if isinstance(version, int):
+            version = str(version)
+
+        try:
+            get_feature_set_response = self._core_service_stub.GetFeatureSets(
+                GetFeatureSetsRequest(
+                    filter=GetFeatureSetsRequest.Filter(
+                        feature_set_name=name.strip(), feature_set_version=version
+                    )
                 )
+            )  # type: GetFeatureSetsResponse
+        except grpc.RpcError as e:
+            print(
+                f"GetFeatureSets failed with\nCODE: {e.code()}\nDETAILS: {e.details()}"
             )
-        )  # type: GetFeatureSetsResponse
+        else:
+            num_feature_sets_found = len(list(get_feature_set_response.feature_sets))
 
-        num_feature_sets_found = len(list(get_feature_set_response.feature_sets))
+            if num_feature_sets_found == 0:
+                return
 
-        if num_feature_sets_found == 0:
-            return
+            if num_feature_sets_found > 1:
+                raise Exception(
+                    f'Found {num_feature_sets_found} feature sets with name "{name}"'
+                    f' and version "{version}".'
+                )
 
-        if num_feature_sets_found > 1:
-            raise Exception(
-                f'Found {num_feature_sets_found} feature sets with name "{name}"'
-                f' and version "{version}".'
-            )
-
-        return FeatureSet.from_proto(get_feature_set_response.feature_sets[0])
+            return FeatureSet.from_proto(get_feature_set_response.feature_sets[0])
 
     def list_entities(self) -> Dict[str, Entity]:
         entities_dict = OrderedDict()
@@ -223,22 +234,26 @@ class Client:
         self._connect_core(skip_if_connected=True)
         feature_set._client = self
 
-        apply_fs_response = self._core_service_stub.ApplyFeatureSet(
-            ApplyFeatureSetRequest(feature_set=feature_set.to_proto()),
-            timeout=GRPC_CONNECTION_TIMEOUT_APPLY,
-        )  # type: ApplyFeatureSetResponse
+        try:
+            apply_fs_response = self._core_service_stub.ApplyFeatureSet(
+                ApplyFeatureSetRequest(feature_set=feature_set.to_proto()),
+                timeout=GRPC_CONNECTION_TIMEOUT_APPLY,
+            )  # type: ApplyFeatureSetResponse
 
-        if apply_fs_response.status == ApplyFeatureSetResponse.Status.ERROR:
-            raise Exception(
-                "Error while trying to apply feature set " + feature_set.name
-            )
+            if apply_fs_response.status == ApplyFeatureSetResponse.Status.ERROR:
+                raise Exception(
+                    "Error while trying to apply feature set " + feature_set.name
+                )
 
-        applied_fs = FeatureSet.from_proto(apply_fs_response.feature_set)
-        feature_set._update_from_feature_set(applied_fs, is_dirty=False)
+            applied_fs = FeatureSet.from_proto(apply_fs_response.feature_set)
+            feature_set._update_from_feature_set(applied_fs, is_dirty=False)
+
+        except Exception as e:
+            print(e)
         return
 
     def get_batch_features(
-        self, feature_ids: List[str], entity_data: pd.DataFrame
+        self, feature_ids: List[str], entity_rows: List[GetBatchFeaturesRequest]
     ) -> Job:
         """
 
@@ -246,20 +261,12 @@ class Client:
             feature_ids: List of feature ids in the following format
                          "feature_set_name:version:feature_name".
 
-            entity_data: Pandas Dataframe representing the requested features.
+            entity_rwaleows: List of GetFeaturesRequest.EntityRow where each row
+                         contains entities and a timestamp.
 
-                         There must be a column named "datetime" with dtype
-                         "datetime64[ns]" or "datetime64[ns],UTC".
-
-                         All other columns must represent the requested entities and
-                         must have the correct dtypes corresponding to the fields in
-                         the features set spec.
-
-                         Example dataframe:
-
-                         datetime   | customer_id | transaction_id
-                         --------------------------------------
-                         1570154927 | 89          | 23
+                         Feature values will be looked up based on feature_id
+                         and entities, where entities are the keys. The latest
+                         feature value will be retrieved based on the timestamp
 
         Returns:
             Feast batch retrieval job: feast.job.Job
@@ -271,8 +278,10 @@ class Client:
         >>>
         >>> feast_client = Client(core_url="localhost:6565", serving_url="localhost:6566")
         >>> feature_ids = ["driver:1:city"]
-        >>> entity_data = pd.DataFrame({"datetime": [datetime.utcnow()], "driver_id": [np.nan]})
-        >>> feature_retrieval_job = feast_client.get_batch_features(feature_ids, entity_data)
+        >>> entity_rows = [GetFeaturesRequest.EntityRow(
+        >>>                fields={'driver_id': ProtoValue(int64_val='1234')})
+        >>>                for user_id in user_emb_df['user_id']]
+        >>> feature_retrieval_job = feast_client.get_batch_features(feature_ids, entity_rows)
         >>> df = feature_retrieval_job.to_dataframe()
         >>> print(df)
         """
@@ -280,41 +289,51 @@ class Client:
         self._connect_serving(skip_if_connected=True)
 
         request = GetFeaturesRequest(
-            feature_sets=build_feature_request(feature_ids),
-            entity_rows=entity_data.apply(
-                convert_df_to_entity_rows(entity_data), axis=1, raw=True
-            ),
+            feature_sets=build_online_feature_request(feature_ids),
+            entity_rows=entity_rows,
         )
 
         response = self._serving_service_stub.GetBatchFeatures(request)
 
         return Job(response.job, self._serving_service_stub)
 
-    def get_online_features(self, feature_ids: List[str], entity_data: pd.DataFrame):
+    def get_online_features(
+        self,
+        feature_ids: List[str],
+        entity_rows: List[GetOnlineFeaturesRequest.EntityRow],
+    ):
         self._connect_serving(skip_if_connected=True)
 
-        request = GetFeaturesRequest(
-            feature_sets=build_feature_request(feature_ids),
-            entity_rows=entity_data.apply(
-                convert_df_to_entity_rows(entity_data), axis=1, raw=True
-            ),
-        )
+        try:
+            response = self._serving_service_stub.GetOnlineFeatures(
+                GetOnlineFeaturesRequest(
+                    feature_sets=build_online_feature_request(feature_ids),
+                    entity_rows=entity_rows,
+                )
+            )  # type: GetOnlineFeaturesResponse
+        except grpc.RpcError as e:
+            print(
+                f"GetOnlineFeatures failed with\nCODE: {e.code()}\nDETAILS: {e.details()}"
+            )
+        else:
+            return response
 
-        response = self._serving_service_stub.GetOnlineFeatures(
-            request
-        )  # type: GetOnlineFeaturesResponse
-        return field_values_to_df(list(response.field_values))
 
-
-def build_feature_request(
+def build_online_feature_request(
     feature_ids: List[str]
-) -> List[GetFeaturesRequest.FeatureSet]:
-    feature_set_request = dict()  # type: Dict[str, GetFeaturesRequest.FeatureSet]
+) -> List[GetOnlineFeaturesRequest.FeatureSet]:
+    feature_set_request = dict()  # type: Dict[str,GetOnlineFeaturesRequest.FeatureSet]
     for feature_id in feature_ids:
-        feature_set, version, feature = feature_id.split(":")
+        fid_parts = feature_id.split(":")
+        if len(fid_parts) == 3:
+            feature_set, version, feature = fid_parts
+        else:
+            raise ValueError(f"Could not parse feature id: ${feature_id}")
+
         if feature_set not in feature_set_request:
-            feature_set_request[feature_set] = GetFeaturesRequest.FeatureSet(
-                name=feature_set, version=int(version)
+            feature_set_request[feature_set] = GetOnlineFeaturesRequest.FeatureSet(
+                name=feature_set,
+                version=int(version),
             )
         feature_set_request[feature_set].feature_names.append(feature)
     return list(feature_set_request.values())
@@ -348,7 +367,7 @@ def field_values_to_df(
                         value_attr[feature_id]
                     ]
 
-            if value_attr[feature_id] is None:
+            if feature_id in value_attr and value_attr[feature_id] is None:
                 data[feature_id].append(None)
             else:
                 data[feature_id].append(getattr(value, value_attr[feature_id]))

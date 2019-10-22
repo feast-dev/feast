@@ -6,9 +6,10 @@ import grpc
 import threading
 import feast.serving.ServingService_pb2_grpc as Serving
 from feast.serving.ServingService_pb2 import (
-    GetFeastServingVersionResponse,
-    GetFeaturesRequest,
+    GetBatchFeaturesResponse,
+    GetOnlineFeaturesRequest,
     GetOnlineFeaturesResponse,
+    GetFeastServingInfoResponse,
 )
 from tests import fake_kafka
 from typing import Dict
@@ -92,9 +93,9 @@ class ServingServicer(Serving.ServingServiceServicer):
             self._store.register_feature_set(feature_set)
 
     def GetFeastServingVersion(self, request, context):
-        return GetFeastServingVersionResponse(version="0.3.0")
+        return GetFeastServingInfoResponse(version="0.3.0")
 
-    def GetOnlineFeatures(self, request: GetFeaturesRequest, context):
+    def GetOnlineFeatures(self, request: GetOnlineFeaturesRequest, context):
 
         response = GetOnlineFeaturesResponse(
             feature_data_sets=[
