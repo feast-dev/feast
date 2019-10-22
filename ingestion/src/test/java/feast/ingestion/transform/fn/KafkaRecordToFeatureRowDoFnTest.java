@@ -66,6 +66,7 @@ public class KafkaRecordToFeatureRowDoFnTest {
             .setFeatureSetName("valid")
             .setFeatureSetVersion(1)
             .build()).withOutputTags(FEATURE_ROW_OUT, TupleTagList.of(DEADLETTER_OUT)));
+    p.run();
 
     PAssert.that(output.get(FEATURE_ROW_OUT)).empty();
     PAssert.thatSingleton(output.get(DEADLETTER_OUT).apply(Count.globally())).isEqualTo(3L);
@@ -91,6 +92,8 @@ public class KafkaRecordToFeatureRowDoFnTest {
             .setFeatureSetName("valid")
             .setFeatureSetVersion(1)
             .build()).withOutputTags(FEATURE_ROW_OUT, TupleTagList.of(DEADLETTER_OUT)));
+
+    p.run();
 
     PAssert.that(output.get(DEADLETTER_OUT)).empty();
     PAssert.thatSingleton(output.get(FEATURE_ROW_OUT).apply(Count.globally())).isEqualTo(3L);
