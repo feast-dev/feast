@@ -274,4 +274,31 @@ public class TestUtil {
           .start();
     }
   }
+
+  /**
+   * Create a field object with given name and type.
+   *
+   * @param name of the field.
+   * @param value of the field. Should be compatible with the valuetype given.
+   * @param valueType type of the field.
+   * @return Field object
+   */
+  public static Field field(String name, Object value, ValueType.Enum valueType) {
+    Field.Builder fieldBuilder = Field.newBuilder()
+        .setName(name);
+    switch (valueType) {
+      case INT32:
+        return fieldBuilder.setValue(Value.newBuilder().setInt32Val((int) value)).build();
+      case INT64:
+        return fieldBuilder.setValue(Value.newBuilder().setInt64Val((int) value)).build();
+      case FLOAT:
+        return fieldBuilder.setValue(Value.newBuilder().setFloatVal((float) value)).build();
+      case DOUBLE:
+        return fieldBuilder.setValue(Value.newBuilder().setDoubleVal((double) value)).build();
+      case STRING:
+        return fieldBuilder.setValue(Value.newBuilder().setStringVal((String) value)).build();
+      default:
+        throw new IllegalStateException("Unexpected valueType: " + value.getClass());
+    }
+  }
 }

@@ -23,12 +23,12 @@ import feast.storage.RedisProto.RedisKey;
 import feast.storage.RedisProto.RedisKey.Builder;
 import feast.store.serving.redis.RedisCustomIO.Method;
 import feast.store.serving.redis.RedisCustomIO.RedisMutation;
-import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
+import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
+import feast.types.FeatureRowProto.FeatureRow;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.transforms.DoFn;
 
@@ -38,7 +38,6 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRow, RedisMutatio
 
   private FeatureSetSpec featureSetSpec;
 
-  // TODO: type and completeness checking
   private RedisKey getKey(FeatureRow featureRow) {
     Set<String> entityNames = featureSetSpec.getEntitiesList().stream()
         .map(EntitySpec::getName).collect(Collectors.toSet());
@@ -50,7 +49,6 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRow, RedisMutatio
         redisKeyBuilder.addEntities(field);
       }
     }
-
     return redisKeyBuilder.build();
   }
 
@@ -61,9 +59,6 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRow, RedisMutatio
   public void processElement(ProcessContext context) {
     FeatureRow featureRow = context.element();
     RedisKey key = getKey(featureRow);
-    // Duration expiry = options.getExpiryDuration();
-    // Add randomness to expiry so that it won't expire in the same time.
-    // long expiryMillis = (long) (expiry.getMillis() * (1 + random.nextFloat()));
     context.output(
         RedisMutation.builder()
             .key(key.toByteArray())

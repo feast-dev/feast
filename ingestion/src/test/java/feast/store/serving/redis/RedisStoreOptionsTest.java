@@ -34,7 +34,7 @@ public class RedisStoreOptionsTest {
 
     RedisStoreOptions opts = OptionsParser.parse(map, RedisStoreOptions.class);
     assertEquals("localhost", opts.host);
-    assertEquals(1234, (int) opts.port);
+    assertEquals(1234, opts.port);
   }
 
   @Test(expected = IllegalArgumentException.class)
