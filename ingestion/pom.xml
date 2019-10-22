@@ -207,6 +207,13 @@
     </dependency>
 
     <dependency>
+      <groupId>com.github.kstyrc</groupId>
+      <artifactId>embedded-redis</artifactId>
+      <version>0.6</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
     </dependency>
@@ -233,11 +240,13 @@
       <groupId>redis.clients</groupId>
       <artifactId>jedis</artifactId>
     </dependency>
+
     <dependency>
       <groupId>io.prometheus</groupId>
       <artifactId>simpleclient_pushgateway</artifactId>
       <version>0.7.0</version>
     </dependency>
+
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
