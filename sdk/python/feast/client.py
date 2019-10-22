@@ -15,13 +15,11 @@
 
 import os
 from collections import OrderedDict
-from typing import Dict
+from typing import Dict, Union
 from typing import List
-
 import grpc
-import numpy as np
 import pandas as pd
-
+from feast.exceptions import format_grpc_exception
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionRequest,
     GetFeatureSetsResponse,
@@ -39,9 +37,9 @@ from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesResponse,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-from feast.type_map import FEAST_VALUE_ATTR_TO_DTYPE
 
-GRPC_CONNECTION_TIMEOUT_DEFAULT = 5  # type: int
+
+GRPC_CONNECTION_TIMEOUT_DEFAULT = 3  # type: int
 GRPC_CONNECTION_TIMEOUT_APPLY = 300  # type: int
 FEAST_SERVING_URL_ENV_KEY = "FEAST_SERVING_URL"  # type: str
 FEAST_CORE_URL_ENV_KEY = "FEAST_CORE_URL"  # type: str
@@ -85,26 +83,46 @@ class Client:
         self._serving_url = value
 
     def version(self):
+        """
+        Returns version information from Feast Core and Feast Serving
+        :return: Dictionary containing Core and Serving versions and status
+        """
+
         self._connect_core()
         self._connect_serving()
+
+        core_version = ""
+        serving_version = ""
+        core_status = "not connected"
+        serving_status = "not connected"
 
         try:
             core_version = self._core_service_stub.GetFeastCoreVersion(
                 GetFeastCoreVersionRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             ).version
-        except grpc.FutureCancelledError:
-            core_version = "not connected"
+            core_status = "connected"
+        except grpc.RpcError as e:
+            print(format_grpc_exception("GetFeastCoreVersion", e.code(), e.details()))
 
         try:
             serving_version = self._serving_service_stub.GetFeastServingInfo(
                 GetFeastServingInfoRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             ).version
-        except grpc.FutureCancelledError:
-            serving_version = "not connected"
+            serving_status = "connected"
+        except grpc.RpcError as e:
+            print(format_grpc_exception("GetFeastServingInfo", e.code(), e.details()))
 
         return {
-            "core": {"url": self.core_url, "version": core_version},
-            "serving": {"url": self.serving_url, "version": serving_version},
+            "core": {
+                "url": self.core_url,
+                "version": core_version,
+                "status": core_status,
+            },
+            "serving": {
+                "url": self.serving_url,
+                "version": serving_version,
+                "status": serving_status,
+            },
         }
 
     def _connect_core(self, skip_if_connected=True):
@@ -125,9 +143,8 @@ class Client:
                 timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             )
         except grpc.FutureTimeoutError:
-            raise ConnectionError(
-                "connection timed out while attempting to connect to Feast Core gRPC server "
-                + self.core_url
+            print(
+                f"Connection timed out while attempting to connect to Feast Core gRPC server {self.core_url}"
             )
         else:
             self._core_service_stub = CoreServiceStub(self.__core_channel)
@@ -151,34 +168,54 @@ class Client:
                 timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             )
         except grpc.FutureTimeoutError:
-            raise ConnectionError(
-                "connection timed out while attempting to connect to Feast Serving gRPC server "
-                + self.serving_url
+            print(
+                f"Connection timed out while attempting to connect to Feast Serving gRPC server {self.serving_url} "
             )
         else:
             self._serving_service_stub = ServingServiceStub(self.__serving_channel)
 
-    def apply(self, resources):
-        if not isinstance(resources, list):
-            resources = [resources]
-        for resource in resources:
-            if isinstance(resource, FeatureSet):
-                self._apply_feature_set(resource)
+    def apply(self, feature_sets: Union[List[FeatureSet], FeatureSet]):
+        """
+        Idempotently registers feature set(s) with Feast Core. Either a single feature set or a list can be provided.
+        :param feature_sets: Union[List[FeatureSet], FeatureSet]
+        """
+        if not isinstance(feature_sets, list):
+            feature_sets = [feature_sets]
+        for feature_set in feature_sets:
+            if isinstance(feature_set, FeatureSet):
+                self._apply_feature_set(feature_set)
                 continue
-            raise Exception("Could not determine resource type to apply")
+            raise ValueError(
+                f"Could not determine feature set type to apply {feature_set}"
+            )
+
+    def _apply_feature_set(self, feature_set: FeatureSet):
+        self._connect_core()
+        feature_set._client = self
+
+        try:
+            apply_fs_response = self._core_service_stub.ApplyFeatureSet(
+                ApplyFeatureSetRequest(feature_set=feature_set.to_proto()),
+                timeout=GRPC_CONNECTION_TIMEOUT_APPLY,
+            )  # type: ApplyFeatureSetResponse
+            applied_fs = FeatureSet.from_proto(apply_fs_response.feature_set)
+            feature_set._update_from_feature_set(applied_fs, is_dirty=False)
+        except grpc.RpcError as e:
+            print(format_grpc_exception("ApplyFeatureSet", e.code(), e.details()))
 
     def list_feature_sets(self) -> List[FeatureSet]:
         """
-        Retrieve a list of Feature Sets from Feast Core
+        Retrieve a list of feature sets from Feast Core
+        :return: Returns a list of feature sets
         """
-        self._connect_core(skip_if_connected=True)
+        self._connect_core()
 
-        # Get latest Feature Sets from Feast Core
+        # Get latest feature sets from Feast Core
         feature_set_protos = self._core_service_stub.GetFeatureSets(
             GetFeatureSetsRequest()
         )  # type: GetFeatureSetsResponse
 
-        # Store list of Feature Sets
+        # Store list of feature sets
         feature_sets = []
         for feature_set_proto in feature_set_protos.feature_sets:
             feature_set = FeatureSet.from_proto(feature_set_proto)
@@ -186,11 +223,16 @@ class Client:
             feature_sets.append(feature_set)
         return feature_sets
 
-    def get_feature_set(self, name: str, version: int = None) -> FeatureSet:
+    def get_feature_set(
+        self, name: str, version: int = None
+    ) -> Union[FeatureSet, None]:
         """
-        Retrieve a single Feature Set from Feast Core
+        Retrieve a single feature set from Feast Core
+        :param name: Name of feature set
+        :param version: Version of feature set (int)
+        :return: Returns a single feature set
         """
-        self._connect_core(skip_if_connected=True)
+        self._connect_core()
 
         # TODO: Version should only be integer or unset. Core should handle 'latest'
         if version is None:
@@ -209,51 +251,28 @@ class Client:
                 )
             )  # type: GetFeatureSetsResponse
         except grpc.RpcError as e:
-            print(
-                f"GetFeatureSets failed with\nCODE: {e.code()}\nDETAILS: {e.details()}"
-            )
+            print(format_grpc_exception("GetFeatureSets", e.code(), e.details()))
         else:
             num_feature_sets_found = len(list(get_feature_set_response.feature_sets))
-
             if num_feature_sets_found == 0:
-                return
-
+                return None
             if num_feature_sets_found > 1:
                 raise Exception(
                     f'Found {num_feature_sets_found} feature sets with name "{name}"'
-                    f' and version "{version}".'
+                    f' and version "{version}": {list(get_feature_set_response.feature_sets)}'
                 )
-
             return FeatureSet.from_proto(get_feature_set_response.feature_sets[0])
 
     def list_entities(self) -> Dict[str, Entity]:
+        """
+        Returns a dictionary of entities across all feature sets
+        :return: Dictionary of entity name to Entity
+        """
         entities_dict = OrderedDict()
         for fs in self.list_feature_sets():
             for entity in fs.entities:
                 entities_dict[entity.name] = entity
         return entities_dict
-
-    def _apply_feature_set(self, feature_set: FeatureSet):
-        self._connect_core(skip_if_connected=True)
-        feature_set._client = self
-
-        try:
-            apply_fs_response = self._core_service_stub.ApplyFeatureSet(
-                ApplyFeatureSetRequest(feature_set=feature_set.to_proto()),
-                timeout=GRPC_CONNECTION_TIMEOUT_APPLY,
-            )  # type: ApplyFeatureSetResponse
-
-            if apply_fs_response.status == ApplyFeatureSetResponse.Status.ERROR:
-                raise Exception(
-                    "Error while trying to apply feature set " + feature_set.name
-                )
-
-            applied_fs = FeatureSet.from_proto(apply_fs_response.feature_set)
-            feature_set._update_from_feature_set(applied_fs, is_dirty=False)
-
-        except Exception as e:
-            print(e)
-        return
 
     def get_batch_features(
         self, feature_ids: List[str], entity_rows: List[GetBatchFeaturesRequest]
@@ -292,7 +311,7 @@ class Client:
         self._connect_serving(skip_if_connected=True)
 
         request = GetFeaturesRequest(
-            feature_sets=build_online_feature_request(feature_ids),
+            feature_sets=_build_online_feature_request(feature_ids),
             entity_rows=entity_rows,
         )
 
@@ -304,34 +323,49 @@ class Client:
         self,
         feature_ids: List[str],
         entity_rows: List[GetOnlineFeaturesRequest.EntityRow],
-    ):
+    ) -> GetOnlineFeaturesResponse:
+        """
+        Retrieves the latest online feature data from Feast Serving
+        :param feature_ids: List of feature Ids in the following format
+                            [feature_set_name]:[version]:[feature_name]
+                            example: ["feature_set_1:6:my_feature_1",
+                                     "feature_set_1:6:my_feature_2",]
+
+        :param entity_rows: List of GetFeaturesRequest.EntityRow where each row
+                            contains entities. Timestamp should not be set for
+                            online retrieval. All entity types within a feature
+                            set must be provided for each entity key.
+        :return: Returns a list of maps where each item in the list contains
+                 the latest feature values for the provided entities
+        """
         self._connect_serving(skip_if_connected=True)
 
         try:
             response = self._serving_service_stub.GetOnlineFeatures(
                 GetOnlineFeaturesRequest(
-                    feature_sets=build_online_feature_request(feature_ids),
+                    feature_sets=_build_online_feature_request(feature_ids),
                     entity_rows=entity_rows,
                 )
             )  # type: GetOnlineFeaturesResponse
         except grpc.RpcError as e:
-            print(
-                f"GetOnlineFeatures failed with\nCODE: {e.code()}\nDETAILS: {e.details()}"
-            )
+            print(format_grpc_exception("GetOnlineFeatures", e.code(), e.details()))
         else:
             return response
 
 
-def build_online_feature_request(
-    feature_ids: List[str]
-) -> List[GetOnlineFeaturesRequest.FeatureSet]:
-    feature_set_request = dict()  # type: Dict[str,GetOnlineFeaturesRequest.FeatureSet]
+def _build_online_feature_request(feature_ids: List[str]) -> List[FeatureSet]:
+    """
+    Builds a list of FeatureSet objects from feature set ids in order to retrieve feature data from Feast Serving
+    """
+    feature_set_request = dict()  # type: Dict[str, GetOnlineFeaturesRequest.FeatureSet]
     for feature_id in feature_ids:
         fid_parts = feature_id.split(":")
         if len(fid_parts) == 3:
             feature_set, version, feature = fid_parts
         else:
-            raise ValueError(f"Could not parse feature id: ${feature_id}")
+            raise ValueError(
+                f"Could not parse feature id ${feature_id}, needs 3 colons"
+            )
 
         if feature_set not in feature_set_request:
             feature_set_request[feature_set] = GetOnlineFeaturesRequest.FeatureSet(
@@ -339,43 +373,3 @@ def build_online_feature_request(
             )
         feature_set_request[feature_set].feature_names.append(feature)
     return list(feature_set_request.values())
-
-
-def field_values_to_df(
-    field_values: List[GetOnlineFeaturesResponse.FieldValues]
-) -> pd.DataFrame():
-    dtypes = {}
-    value_attr = {}
-    columns = []
-    data = {}
-    first_row_done = False
-
-    for row in field_values:
-        for feature_id, value in dict(row.fields).items():
-
-            # For each column, detect the first value type that has been set and keep it consistent
-            if feature_id not in value_attr or value_attr[feature_id] is None:
-                field_type = value.WhichOneof("val")
-                value_attr[feature_id] = field_type
-
-            if not first_row_done:
-                columns.append(feature_id)
-                data[feature_id] = []
-                value_attr[feature_id] = value.WhichOneof("val")
-                if value_attr[feature_id] is None:
-                    dtypes[feature_id] = None
-                else:
-                    dtypes[feature_id] = FEAST_VALUE_ATTR_TO_DTYPE[
-                        value_attr[feature_id]
-                    ]
-
-            if feature_id in value_attr and value_attr[feature_id] is None:
-                data[feature_id].append(None)
-            else:
-                data[feature_id].append(getattr(value, value_attr[feature_id]))
-
-        first_row_done = True
-
-    return (
-        pd.DataFrame(columns=columns, data=data).reset_index(drop=True).astype(dtypes)
-    )
