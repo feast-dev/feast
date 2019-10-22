@@ -20,12 +20,12 @@ import pandas as pd
 import pytest
 from concurrent import futures
 import grpc
-from tests.feast_core_server import CoreServicer
+from feast_core_server import CoreServicer
 import feast.core.CoreService_pb2_grpc as Core
 from google.protobuf.duration_pb2 import Duration
 from feast.entity import Entity
 from feast.source import KafkaSource
-from tests import dataframes
+import dataframes
 
 CORE_URL = "core.feast.local"
 SERVING_URL = "serving.feast.local"

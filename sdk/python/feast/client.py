@@ -335,7 +335,7 @@ def build_online_feature_request(
 
         if feature_set not in feature_set_request:
             feature_set_request[feature_set] = GetOnlineFeaturesRequest.FeatureSet(
-                name=feature_set, version=version
+                name=feature_set, version=int(version)
             )
         feature_set_request[feature_set].feature_names.append(feature)
     return list(feature_set_request.values())

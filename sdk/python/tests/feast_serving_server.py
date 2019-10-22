@@ -11,7 +11,7 @@ from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesResponse,
     GetFeastServingInfoResponse,
 )
-from tests import fake_kafka
+import fake_kafka
 from typing import Dict
 import sqlite3
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
@@ -21,7 +21,7 @@ from feast.core.CoreService_pb2 import (
     GetStoresResponse,
 )
 from feast.core import FeatureSet_pb2 as FeatureSetProto
-from tests import stores
+import stores
 from feast.types import (
     FeatureRow_pb2 as FeatureRowProto,
     Field_pb2 as FieldProto,
