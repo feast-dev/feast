@@ -1,5 +1,6 @@
 package feast.core.model;
 
+import com.google.protobuf.Duration;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
@@ -43,6 +44,10 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   @Column(name = "version")
   private int version;
 
+  // Max allowed staleness for features in this featureSet.
+  @Column(name = "max_age")
+  private long maxAgeSeconds;
+
   @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
   @Fetch(value = FetchMode.SUBSELECT)
   @JoinColumn(name = "entities")
@@ -63,23 +68,15 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     super();
   }
 
-  public FeatureSet(String name, int version, List<Field> entities, List<Field> features,
+  public FeatureSet(String name, int version, long maxAgeSeconds, List<Field> entities, List<Field> features,
       Source source) {
     this.id = String.format("%s:%s", name, version);
     this.name = name;
     this.version = version;
+    this.maxAgeSeconds = maxAgeSeconds;
     this.entities = entities;
     this.features = features;
     this.source = source;
-  }
-
-  /**
-   * Updates the source of the featureset to point to the correct topic.
-   *
-   * @param topic topic to write this featureset to.
-   */
-  public void updateSourceTopic(String topic) throws InvalidProtocolBufferException {
-    source.setTopic(topic);
   }
 
   public static FeatureSet fromProto(FeatureSetSpec featureSetSpec) {
@@ -100,6 +97,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
 
     return new FeatureSet(featureSetSpec.getName(),
         featureSetSpec.getVersion(),
+        featureSetSpec.getMaxAge().getSeconds(),
         entities,
         features,
         source);
@@ -124,6 +122,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     return FeatureSetSpec.newBuilder()
         .setName(name)
         .setVersion(version)
+        .setMaxAge(Duration.newBuilder().setSeconds(maxAgeSeconds))
         .addAllEntities(entitySpecs)
         .addAllFeatures(featureSpecs)
         .setSource(source.toProto())

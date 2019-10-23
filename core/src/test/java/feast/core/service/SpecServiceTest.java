@@ -365,7 +365,7 @@ public class SpecServiceTest {
             .build();
     Field feature = new Field(name, "feature", Enum.INT64);
     Field entity = new Field(name, "entity", Enum.STRING);
-    return new FeatureSet(name, version, Arrays.asList(entity), Arrays.asList(feature),
+    return new FeatureSet(name, version, 100L, Arrays.asList(entity), Arrays.asList(feature),
         new Source(
             SourceType.KAFKA, kafkaFeatureSourceOptions.toByteArray()));
   }
