@@ -153,9 +153,9 @@ def create(name):
 
 
 @feature_set.command()
-@click.argument("name")
-@click.argument("version")
-def describe(name, version):
+@click.argument("name", type=click.STRING)
+@click.argument("version", type=click.INT)
+def describe(name: str, version: int):
     """
     Describe a feature set
     """
