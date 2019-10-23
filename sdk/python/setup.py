@@ -35,6 +35,7 @@ REQUIRED = [
     "google-cloud-bigquery-storage==0.*",
     "grpcio==1.*",
     "pandas==0.*",
+    "pandavro==1.5.1",
     "protobuf==3.*",
     "PyYAML==5.1.2",
     "fastavro==0.*",

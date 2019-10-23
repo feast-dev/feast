@@ -13,12 +13,17 @@
 # limitations under the License.
 
 
+import tempfile
+import shutil
+from datetime import datetime
 import os
 from collections import OrderedDict
 from typing import Dict, Union
 from typing import List
 import grpc
 import pandas as pd
+from google.cloud import storage
+from pandavro import to_avro
 from feast.exceptions import format_grpc_exception
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionRequest,
@@ -35,9 +40,17 @@ from feast.serving.ServingService_pb2 import (
     GetBatchFeaturesRequest,
     GetFeastServingInfoRequest,
     GetOnlineFeaturesResponse,
+    DatasetSource,
+    DataFormat,
+    FeatureSetRequest,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
+from feast.serving.ServingService_pb2 import GetFeastServingInfoResponse
+from urllib.parse import urlparse
+import uuid
+import numpy as np
 
+from feast.utils.loaders import export_dataframe_to_staging_location
 
 GRPC_CONNECTION_TIMEOUT_DEFAULT = 3  # type: int
 GRPC_CONNECTION_TIMEOUT_APPLY = 300  # type: int
@@ -275,49 +288,102 @@ class Client:
         return entities_dict
 
     def get_batch_features(
-        self, feature_ids: List[str], entity_rows: List[GetBatchFeaturesRequest]
+        self, feature_ids: List[str], entity_rows: pd.DataFrame
     ) -> Job:
         """
+        Retrieves historical features from a Feast Serving deployment.
 
         Args:
-            feature_ids: List of feature ids in the following format
-                         "feature_set_name:version:feature_name".
+            feature_ids: List of feature ids that will be returned for each entity.
+            Each feature id should have the following format "feature_set_name:version:feature_name".
 
-            entity_rows: List of GetFeaturesRequest.EntityRow where each row
-                         contains entities and a timestamp.
-
-                         Feature values will be looked up based on feature_id
-                         and entities, where entities are the keys. The latest
-                         feature value will be retrieved based on the timestamp
+            entity_rows: Pandas dataframe containing entities and a 'datetime' column. Each entity in
+            a feature set must be present as a column in this dataframe. The datetime column must
+            contain timestamps in epoch form and must have the type np.int64
 
         Returns:
             Feast batch retrieval job: feast.job.Job
             
         Example usage:
         ============================================================
-        >>> from feast.client import Client
+        >>> from feast import Client
         >>> from datetime import datetime
         >>>
         >>> feast_client = Client(core_url="localhost:6565", serving_url="localhost:6566")
-        >>> feature_ids = ["driver:1:city"]
-        >>> entity_rows = [GetFeaturesRequest.EntityRow(
-        >>>                fields={'driver_id': ProtoValue(int64_val='1234')})
-        >>>                for user_id in user_emb_df['user_id']]
+        >>> feature_ids = ["customer:1:bookings_7d"]
+        >>> entity_rows = pd.DataFrame(
+        >>>         {
+        >>>            "datetime": [np.int64(time.time_ns()) for _ in range(3)],
+        >>>            "customer": [1001, 1002, 1003],
+        >>>         }
+        >>>     )
         >>> feature_retrieval_job = feast_client.get_batch_features(feature_ids, entity_rows)
         >>> df = feature_retrieval_job.to_dataframe()
         >>> print(df)
         """
 
-        self._connect_serving(skip_if_connected=True)
+        self._connect_serving()
 
-        request = GetFeaturesRequest(
-            feature_sets=_build_online_feature_request(feature_ids),
-            entity_rows=entity_rows,
-        )
+        try:
+            fs_request = _build_feature_set_request(feature_ids)
+            self._validate_entity_rows_for_batch_retrieval(entity_rows, fs_request)
 
-        response = self._serving_service_stub.GetBatchFeatures(request)
+            serving_info = (
+                self._serving_service_stub.GetFeastServingInfo()
+            )  # type: GetFeastServingInfoResponse
 
-        return Job(response.job, self._serving_service_stub)
+            staged_file = export_dataframe_to_staging_location(
+                entity_rows, serving_info.job_staging_location
+            )  # type: str
+
+            request = GetBatchFeaturesRequest(
+                feature_sets=fs_request,
+                dataset_source=DatasetSource(
+                    file_source=DatasetSource.FileSource(
+                        file_uris=[staged_file], data_format=DataFormat.DATA_FORMAT_AVRO
+                    )
+                ),
+            )
+            response = self._serving_service_stub.GetBatchFeatures(request)
+            return Job(response.job, self._serving_service_stub)
+
+        except grpc.RpcError as e:
+            print(format_grpc_exception("GetBatchFeatures", e.code(), e.details()))
+
+    def _validate_entity_rows_for_batch_retrieval(
+        self, entity_rows, feature_sets_request
+    ):
+        """
+        Validate whether an entity_row dataframe contains the correct information for batch retrieval
+        :param entity_rows: Pandas dataframe containing entities and datetime column. Each entity in a feature set
+        must be present as a column in this dataframe. The datetime column must contain Unix Epoch values down to
+        nanoseconds
+        :param feature_sets_request: Feature sets that will
+        """
+        # Ensure datetime column exists
+        if "datetime" not in entity_rows.columns:
+            raise ValueError(
+                f'Entity rows does not contain "datetime" column in columns {entity_rows.columns}'
+            )
+        if entity_rows["datetime"].dtype != np.int64:
+            raise ValueError(
+                f"\"datetime\" column in entity rows is not of type np.int64, but {entity_rows['datetime'].dtype}"
+            )
+
+        # Validate dataframe columns based on feature set entities
+        for feature_set in feature_sets_request:
+            fs = self.get_feature_set(
+                name=feature_set.name, version=feature_set.version
+            )
+            if fs is None:
+                raise ValueError(
+                    f'Feature set "{feature_set.name}:{feature_set.version}" could not be found'
+                )
+            for entity_type in fs.entities:
+                if entity_type.name not in entity_rows.columns:
+                    raise ValueError(
+                        f'Dataframe does not contain entity "{entity_type.name}" column in columns "{entity_rows.columns}"'
+                    )
 
     def get_online_features(
         self,
@@ -338,12 +404,12 @@ class Client:
         :return: Returns a list of maps where each item in the list contains
                  the latest feature values for the provided entities
         """
-        self._connect_serving(skip_if_connected=True)
+        self._connect_serving()
 
         try:
             response = self._serving_service_stub.GetOnlineFeatures(
                 GetOnlineFeaturesRequest(
-                    feature_sets=_build_online_feature_request(feature_ids),
+                    feature_sets=_build_feature_set_request(feature_ids),
                     entity_rows=entity_rows,
                 )
             )  # type: GetOnlineFeaturesResponse
@@ -353,11 +419,11 @@ class Client:
             return response
 
 
-def _build_online_feature_request(feature_ids: List[str]) -> List[FeatureSet]:
+def _build_feature_set_request(feature_ids: List[str]) -> List[FeatureSetRequest]:
     """
     Builds a list of FeatureSet objects from feature set ids in order to retrieve feature data from Feast Serving
     """
-    feature_set_request = dict()  # type: Dict[str, GetOnlineFeaturesRequest.FeatureSet]
+    feature_set_request = dict()  # type: Dict[str, FeatureSetRequest]
     for feature_id in feature_ids:
         fid_parts = feature_id.split(":")
         if len(fid_parts) == 3:
@@ -368,7 +434,7 @@ def _build_online_feature_request(feature_ids: List[str]) -> List[FeatureSet]:
             )
 
         if feature_set not in feature_set_request:
-            feature_set_request[feature_set] = GetOnlineFeaturesRequest.FeatureSet(
+            feature_set_request[feature_set] = FeatureSetRequest(
                 name=feature_set, version=int(version)
             )
         feature_set_request[feature_set].feature_names.append(feature)
