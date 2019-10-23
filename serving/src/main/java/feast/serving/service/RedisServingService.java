@@ -165,6 +165,13 @@ public class RedisServingService implements ServingService {
     Map<String, Value> fieldsMap = entityRow.getFieldsMap();
     for (int i = 0; i < featureSetEntityNames.size(); i++) {
       String entityName = featureSetEntityNames.get(i);
+
+      if (!fieldsMap.containsKey(entityName)){
+        throw Status.INVALID_ARGUMENT
+            .withDescription(String.format("Entity row fields \"%s\" does not contain required entity field \"%s\"", fieldsMap.keySet().toString(), entityName))
+            .asRuntimeException();
+      }
+
       builder.addEntities(
           Field.newBuilder().setName(entityName).setValue(fieldsMap.get(entityName)));
     }

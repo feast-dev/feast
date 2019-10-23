@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -32,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 public class CachedSpecService {
 
   private static final int MAX_SPEC_COUNT = 1000;
+  private static final int EXPIRE_SPEC_SECONDS = 10;
 
   private final CoreSpecService coreService;
   private final Path configPath;
@@ -50,7 +52,10 @@ public class CachedSpecService {
         CacheLoader.from(
             (String key) -> featureSetSpecs.get(key));
     featureSetSpecCache =
-        CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(featureSetSpecCacheLoader);
+        CacheBuilder.newBuilder()
+            .maximumSize(MAX_SPEC_COUNT)
+            .expireAfterWrite(EXPIRE_SPEC_SECONDS, TimeUnit.SECONDS)
+            .build(featureSetSpecCacheLoader);
   }
 
   /**
