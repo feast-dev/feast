@@ -233,40 +233,6 @@
               <useDefaultDelimiters>false</useDefaultDelimiters>
             </configuration>
           </plugin>
-
-          <plugin>
-            <groupId>io.fabric8</groupId>
-            <artifactId>docker-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>prepare-bigtable-emulator</id>
-                <phase>pre-integration-test</phase>
-                <goals>
-                  <goal>start</goal>
-                </goals>
-                <configuration>
-                  <images>
-                    <image>
-                      <name>spotify/bigtable-emulator</name>
-                      <alias>bigtable-emulator</alias>
-                      <run>
-                        <ports>
-                          <port>8080:8080</port>
-                        </ports>
-                      </run>
-                    </image>
-                  </images>
-                </configuration>
-              </execution>
-              <execution>
-                <id>remove-bigtable-emulator</id>
-                <phase>post-integration-test</phase>
-                <goals>
-                  <goal>stop</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
         </plugins>
 
         <!-- https://docs.spring.io/spring-boot/docs/current/reference/html/howto-properties-and-configuration.html#howto-automatic-expansion-maven -->
@@ -277,53 +243,6 @@
           </resource>
         </resources>
 
-      </build>
-    </profile>
-
-    <profile>
-      <id>profile-ci</id>
-      <activation>
-        <property>
-          <name>ci</name>
-        </property>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>io.fabric8</groupId>
-            <artifactId>docker-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>prepare-bigtable-emulator</id>
-                <phase>pre-integration-test</phase>
-                <goals>
-                  <goal>start</goal>
-                </goals>
-                <configuration>
-                  <images>
-                    <image>
-                      <name>spotify/bigtable-emulator</name>
-                      <alias>bigtable-emulator</alias>
-                      <run>
-                        <net>host</net>
-                        <ports>
-                          <port>8080:8080</port>
-                        </ports>
-                      </run>
-                    </image>
-                  </images>
-                </configuration>
-              </execution>
-              <execution>
-                <id>remove-bigtable-emulator</id>
-                <phase>post-integration-test</phase>
-                <goals>
-                  <goal>stop</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
       </build>
     </profile>
   </profiles>
