@@ -35,7 +35,6 @@ import feast.core.model.JobStatus;
 import feast.types.FieldProto.Field;
 import feast.types.ValueProto.BoolList;
 import feast.types.ValueProto.Value;
-import feast.types.ValueProto.ValueType;
 import java.io.IOException;
 import org.junit.Before;
 import org.junit.Test;
