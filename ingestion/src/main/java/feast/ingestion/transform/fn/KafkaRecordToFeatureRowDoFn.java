@@ -15,7 +15,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
 @AutoValue
-public abstract class KafkaRecordToFeatureRowDoFn extends DoFn<KafkaRecord<byte[], byte[]>, FeatureRow> {
+public abstract class KafkaRecordToFeatureRowDoFn extends
+    DoFn<KafkaRecord<byte[], byte[]>, FeatureRow> {
 
   public abstract String getFeatureSetName();
 
@@ -70,30 +71,38 @@ public abstract class KafkaRecordToFeatureRowDoFn extends DoFn<KafkaRecord<byte[
     // If FeatureRow contains field names that do not exist as EntitySpec
     // or FeatureSpec in FeatureSetSpec, mark the FeatureRow as FailedElement.
     String error = null;
-    for (FieldProto.Field field : featureRow.getFieldsList()) {
-      if (!getFieldByName().containsKey(field.getName())) {
-        error =
-            String.format(
-                "FeatureRow contains field '%s' which do not exists in FeatureSet '%s' version '%d'. Please check the FeatureRow data.",
-                field.getName(), getFeatureSetName(), getFeatureSetVersion());
-        break;
-      }
-      // If value is set in the FeatureRow, make sure the value type matches
-      // that defined in FeatureSetSpec
-      if (!field.getValue().getValCase().equals(ValCase.VAL_NOT_SET)) {
-        int expectedTypeFieldNumber =
-            getFieldByName().get(field.getName()).getType().getNumber();
-        int actualTypeFieldNumber = field.getValue().getValCase().getNumber();
-        if (expectedTypeFieldNumber != actualTypeFieldNumber) {
+    String featureSetId = String.format("%s:%d", getFeatureSetName(), getFeatureSetVersion());
+    if (featureRow.getFeatureSet().equals(featureSetId)) {
+
+      for (FieldProto.Field field : featureRow.getFieldsList()) {
+        if (!getFieldByName().containsKey(field.getName())) {
           error =
               String.format(
-                  "FeatureRow contains field '%s' with invalid type '%s'. Feast expects the field type to match that in FeatureSet '%s'. Please check the FeatureRow data.",
-                  field.getName(),
-                  field.getValue().getValCase(),
-                  getFieldByName().get(field.getName()).getType());
+                  "FeatureRow contains field '%s' which do not exists in FeatureSet '%s' version '%d'. Please check the FeatureRow data.",
+                  field.getName(), getFeatureSetName(), getFeatureSetVersion());
           break;
         }
+        // If value is set in the FeatureRow, make sure the value type matches
+        // that defined in FeatureSetSpec
+        if (!field.getValue().getValCase().equals(ValCase.VAL_NOT_SET)) {
+          int expectedTypeFieldNumber =
+              getFieldByName().get(field.getName()).getType().getNumber();
+          int actualTypeFieldNumber = field.getValue().getValCase().getNumber();
+          if (expectedTypeFieldNumber != actualTypeFieldNumber) {
+            error =
+                String.format(
+                    "FeatureRow contains field '%s' with invalid type '%s'. Feast expects the field type to match that in FeatureSet '%s'. Please check the FeatureRow data.",
+                    field.getName(),
+                    field.getValue().getValCase(),
+                    getFieldByName().get(field.getName()).getType());
+            break;
+          }
+        }
       }
+    } else {
+      error = String.format(
+          "FeatureRow contains invalid feature set id %s. Please check that the feature rows are being published to the correct topic on the feature stream.",
+          featureSetId);
     }
 
     if (error != null) {
