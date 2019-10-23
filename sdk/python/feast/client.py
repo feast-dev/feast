@@ -43,6 +43,7 @@ from feast.serving.ServingService_pb2 import (
     DatasetSource,
     DataFormat,
     FeatureSetRequest,
+    FeastServingType,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.serving.ServingService_pb2 import GetFeastServingInfoResponse
@@ -326,12 +327,21 @@ class Client:
 
         try:
             fs_request = _build_feature_set_request(feature_ids)
+
+            # Validate entity rows based on entities in Feast Core
             self._validate_entity_rows_for_batch_retrieval(entity_rows, fs_request)
 
+            # Retrieve serving information to determine store type and staging location
             serving_info = (
                 self._serving_service_stub.GetFeastServingInfo()
             )  # type: GetFeastServingInfoResponse
 
+            if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
+                raise Exception(
+                    f'You are connected to a store "{self._serving_url}" which does not support batch retrieval'
+                )
+
+            # Export and upload entity row dataframe to staging location provided by Feast
             staged_file = export_dataframe_to_staging_location(
                 entity_rows, serving_info.job_staging_location
             )  # type: str
@@ -344,6 +354,8 @@ class Client:
                     )
                 ),
             )
+
+            # Retrieve Feast Job object to manage life cycle of retrieval
             response = self._serving_service_stub.GetBatchFeatures(request)
             return Job(response.job, self._serving_service_stub)
 

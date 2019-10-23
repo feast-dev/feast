@@ -35,6 +35,7 @@ from feast.serving.ServingService_pb2 import (
     JobStatus,
     DataFormat,
     GetJobResponse,
+    FeastServingType,
 )
 import pytest
 from feast.client import Client
@@ -292,7 +293,8 @@ class TestClient:
             mock_client._serving_service_stub,
             "GetFeastServingInfo",
             return_value=GetFeastServingInfoResponse(
-                job_staging_location=f"file://{tempfile.mkdtemp()}"
+                job_staging_location=f"file://{tempfile.mkdtemp()}",
+                type=FeastServingType.FEAST_SERVING_TYPE_BATCH,
             ),
         )
 
