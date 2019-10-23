@@ -5,20 +5,20 @@ import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.values.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
+import org.slf4j.Logger;
 
 
-@Slf4j
 @AutoValue
 public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple, PDone> {
 
   private static final long WINDOW_SIZE_SECONDS = 15;
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(WriteMetricsTransform.class);
 
   public abstract String getStoreName();
 

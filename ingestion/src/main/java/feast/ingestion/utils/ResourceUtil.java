@@ -2,11 +2,11 @@ package feast.ingestion.utils;
 
 import com.google.common.io.Resources;
 import java.nio.charset.StandardCharsets;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
 
-@Slf4j
 public class ResourceUtil {
   private static final String DEADLETTER_SCHEMA_FILE_PATH = "schemas/deadletter_table_schema.json";
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(ResourceUtil.class);
 
   public static String getDeadletterTableSchemaJson() {
     String schemaJson = null;

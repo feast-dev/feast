@@ -30,8 +30,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 
@@ -51,10 +51,11 @@ import redis.clients.jedis.exceptions.JedisConnectionException;
  * <p>If the storage backend is a key-value or a schema-less database, however, there may not be a
  * need to manage any schemas. This class will not be used in that case.
  */
-@Slf4j
 public class StoreUtil {
   private static final Map<ValueType.Enum, StandardSQLTypeName> VALUE_TYPE_TO_STANDARD_SQL_TYPE =
       new HashMap<>();
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(StoreUtil.class);
+
   // Refer to protos/feast/core/Store.proto for the mapping definition.
   static {
     VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.BYTES, StandardSQLTypeName.BYTES);

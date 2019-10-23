@@ -23,20 +23,22 @@ import feast.storage.RedisProto.RedisKey;
 import feast.storage.RedisProto.RedisKey.Builder;
 import feast.store.serving.redis.RedisCustomIO.Method;
 import feast.store.serving.redis.RedisCustomIO.RedisMutation;
-import feast.types.FieldProto.Field;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
+import feast.types.FieldProto.Field;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.slf4j.Logger;
 
-@Slf4j
-@AllArgsConstructor
 public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRow, RedisMutation> {
 
+  private static final Logger log = org.slf4j.LoggerFactory
+      .getLogger(FeatureRowToRedisMutationDoFn.class);
   private FeatureSetSpec featureSetSpec;
+
+  public FeatureRowToRedisMutationDoFn(FeatureSetSpec featureSetSpec) {
+    this.featureSetSpec = featureSetSpec;
+  }
 
   private RedisKey getKey(FeatureRow featureRow) {
     Set<String> entityNames = featureSetSpec.getEntitiesList().stream()
@@ -60,10 +62,10 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRow, RedisMutatio
     FeatureRow featureRow = context.element();
     RedisKey key = getKey(featureRow);
     context.output(
-        RedisMutation.builder()
-            .key(key.toByteArray())
-            .value(featureRow.toByteArray())
-            .method(Method.SET)
+        RedisMutation.newBuilder()
+            .setKey(key.toByteArray())
+            .setValue(featureRow.toByteArray())
+            .setMethod(Method.SET)
             .build());
   }
 }

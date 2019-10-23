@@ -2,21 +2,21 @@ package feast.ingestion.transform.metrics;
 
 import com.google.auto.value.AutoValue;
 import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.ingestion.transform.metrics.WriteRowMetricsDoFn.Builder;
 import feast.ingestion.values.FailedElement;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.exporter.PushGateway;
 import java.io.IOException;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
+import org.slf4j.Logger;
 
-@Slf4j
 @AutoValue
 public abstract class WriteDeadletterRowMetricsDoFn extends
     DoFn<KV<Integer, Iterable<FailedElement>>, Void> {
 
+  private static final Logger log = org.slf4j.LoggerFactory
+      .getLogger(WriteDeadletterRowMetricsDoFn.class);
   private final String STORE_TAG_KEY = "feast_store";
   private final String FEATURE_SET_NAME_TAG_KEY = "feast_featureSet_name";
   private final String FEATURE_SET_VERSION_TAG_KEY = "feast_featureSet_version";

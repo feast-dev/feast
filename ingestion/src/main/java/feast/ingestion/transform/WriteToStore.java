@@ -17,7 +17,6 @@ import feast.store.serving.redis.FeatureRowToRedisMutationDoFn;
 import feast.store.serving.redis.RedisCustomIO;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.io.IOException;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
@@ -30,10 +29,13 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.slf4j.Logger;
 
-@Slf4j
 @AutoValue
 public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, PDone> {
+
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(WriteToStore.class);
+
   public abstract Store getStore();
 
   public abstract FeatureSetSpec getFeatureSetSpec();

@@ -18,13 +18,11 @@
 // package io.suryawirawan.henry.beam.redis.io;
 package feast.store.serving.redis;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import org.apache.beam.sdk.coders.AvroCoder;
+import com.google.auto.value.AutoValue;
+import java.io.Serializable;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -89,17 +87,44 @@ public class RedisCustomIO {
     ZADD
   }
 
-  @Builder
-  @Getter
-  @NoArgsConstructor
-  @AllArgsConstructor
-  @DefaultCoder(value = AvroCoder.class)
-  public static class RedisMutation {
-    private Method method;
-    private byte[] key;
-    private byte[] value;
-    private long expiryMillis;
-    private long score; // Score is only utilized when method is ZSET
+  @AutoValue
+  @DefaultCoder(SerializableCoder.class)
+  public abstract static class RedisMutation implements Serializable {
+
+    public abstract Method getMethod();
+
+    public abstract byte[] getKey();
+
+    public abstract byte[] getValue();
+
+    @Nullable
+    public abstract Long getExpiryMillis();
+
+    // Score is only utilized when method is ZSET
+    @Nullable
+    public abstract Long getScore();
+
+    public static RedisMutation.Builder newBuilder() {
+      return new AutoValue_RedisCustomIO_RedisMutation.Builder()
+          .setExpiryMillis(0L)
+          .setScore(0L);
+    }
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+
+      public abstract Builder setMethod(Method method);
+
+      public abstract Builder setKey(byte[] key);
+
+      public abstract Builder setValue(byte[] value);
+
+      public abstract Builder setExpiryMillis(Long expiryMillis);
+
+      public abstract Builder setScore(Long score);
+
+      public abstract RedisMutation build();
+    }
   }
 
   /** ServingStoreWrite data to a Redis server. */

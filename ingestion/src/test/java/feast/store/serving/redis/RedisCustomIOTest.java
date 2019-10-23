@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.junit.AfterClass;
@@ -61,10 +62,10 @@ public class RedisCustomIOTest {
             .addFields(field("feature", "two", Enum.STRING)).build());
 
     List<RedisMutation> featureRowWrites = kvs.entrySet().stream()
-        .map(kv -> RedisMutation.builder()
-            .method(Method.SET)
-            .key(kv.getKey().toByteArray())
-            .value(kv.getValue().toByteArray())
+        .map(kv -> RedisMutation.newBuilder()
+            .setMethod(Method.SET)
+            .setKey(kv.getKey().toByteArray())
+            .setValue(kv.getValue().toByteArray())
             .build())
         .collect(Collectors.toList());
 

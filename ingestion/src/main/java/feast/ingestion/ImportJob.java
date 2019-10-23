@@ -14,21 +14,21 @@ import feast.ingestion.utils.StoreUtil;
 import feast.ingestion.values.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.slf4j.Logger;
 
-@Slf4j
 public class ImportJob {
   // Tag for main output containing Feature Row that has been successfully processed.
   private static final TupleTag<FeatureRow> FEATURE_ROW_OUT = new TupleTag<FeatureRow>() {};
 
   // Tag for deadletter output containing elements and error messages from invalid input/transform.
   private static final TupleTag<FailedElement> DEADLETTER_OUT = new TupleTag<FailedElement>() {};
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(ImportJob.class);
 
   /**
    * @param args arguments to be passed to Beam pipeline

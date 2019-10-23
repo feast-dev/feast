@@ -9,14 +9,14 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Summary;
 import io.prometheus.client.exporter.PushGateway;
 import java.io.IOException;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
+import org.slf4j.Logger;
 
-@Slf4j
 @AutoValue
 public abstract class WriteRowMetricsDoFn extends DoFn<KV<Integer, Iterable<FeatureRow>>, Void> {
 
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(WriteRowMetricsDoFn.class);
   private final String STORE_TAG_KEY = "feast_store";
   private final String FEATURE_SET_NAME_TAG_KEY = "feast_featureSet_name";
   private final String FEATURE_SET_VERSION_TAG_KEY = "feast_featureSet_version";
