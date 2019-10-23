@@ -62,10 +62,27 @@ message GetFeastServingInfoResponse {
     string job_staging_location = 10;
 }
 
-message GetOnlineFeaturesRequest {
+message FeatureSetRequest {
+    // Feature set name
+    string name = 1;
 
+    // Feature set version
+    int32 version = 2;
+
+    // Features that should be retrieved from this feature set
+    repeated string feature_names = 3;
+
+    // The features will be retrieved if:
+    // entity_timestamp - max_age  <= event_timestamp <= entity_timestamp
+    //
+    // If unspecified the default max_age specified in FeatureSetSpec will
+    // be used.
+    google.protobuf.Duration max_age = 4;
+}
+
+message GetOnlineFeaturesRequest {
     // List of feature sets and their features that are being retrieved
-    repeated FeatureSet feature_sets = 1;
+    repeated FeatureSetRequest feature_sets = 1;
 
     // List of entity rows, containing entity id and timestamp data.
     // Used during retrieval of feature rows and for joining feature
@@ -75,25 +92,6 @@ message GetOnlineFeaturesRequest {
     // Option to omit entities from the response. If true, only feature
     // values will be returned.
     bool omit_entities_in_response = 3;
-
-    message FeatureSet {
-        // Feature set name
-        string name = 1;
-
-        // Feature set version
-        int32 version = 2;
-
-        // Features that should be retrieved from this feature set
-        repeated string feature_names = 3;
-
-        // The features will be retrieved if:
-        // entity_timestamp - max_age  <= event_timestamp <= entity_timestamp
-        //
-        // If unspecified the default max_age specified in FeatureSetSpec will
-        // be used.
-        google.protobuf.Duration max_age = 4;
-    }
-
 
     message EntityRow {
         // Request timestamp of this row. This value will be used, together with maxAge,
@@ -106,31 +104,12 @@ message GetOnlineFeaturesRequest {
 }
 
 message GetBatchFeaturesRequest {
-
     // List of feature sets and their features that are being retrieved.
-    repeated FeatureSet feature_sets = 1;
+    repeated FeatureSetRequest feature_sets = 1;
 
     // Source of the entity dataset containing the timestamps and entity keys to retrieve
     // features for.
     DatasetSource dataset_source = 2;
-
-    message FeatureSet {
-        // Feature set name
-        string name = 1;
-
-        // Feature set version
-        int32 version = 2;
-
-        // Features that should be retrieved from this feature set
-        repeated string feature_names = 3;
-
-        // The features will be retrieved if:
-        // entity_timestamp - max_age  <= event_timestamp <= entity_timestamp
-        //
-        // If unspecified the default max_age specified in FeatureSetSpec will
-        // be used.
-        google.protobuf.Duration max_age = 4;
-    }
 }
 
 message GetOnlineFeaturesResponse {
@@ -180,10 +159,7 @@ enum JobStatus {
 
 enum DataFormat {
     DATA_FORMAT_INVALID = 0;
-    DATA_FORMAT_CSV = 1;
-    DATA_FORMAT_PARQUET = 2;
-    DATA_FORMAT_AVRO = 3;
-    DATA_FORMAT_JSON = 4;
+    DATA_FORMAT_AVRO = 1;
 }
 
 message Job {
