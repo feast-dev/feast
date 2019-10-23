@@ -1,7 +1,10 @@
 import tempfile
 import time
 from datetime import datetime, timedelta
+from typing import List
+from urllib.parse import urlparse
 
+import fastavro
 import pandas as pd
 from fastavro import reader as fastavro_reader
 from google.cloud import storage
@@ -13,10 +16,6 @@ from feast.serving.ServingService_pb2 import (
     DATA_FORMAT_AVRO,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-
-# TODO: Need to profile and check the performance and memory consumption of
-#       the current approach to read files into pandas DataFrame or iterate the
-#       data row by row.
 
 # Maximum no of seconds to wait until the jobs status is DONE in Feast
 # Currently set to the maximum query execution time limit in BigQuery
@@ -40,7 +39,7 @@ class Job:
         """
         self.job_proto = job_proto
         self.serving_stub = serving_stub
-        self.storage_client = storage.Client()
+        self.storage_client = storage.Client(project=None)
 
     @property
     def id(self):
@@ -91,18 +90,23 @@ class Job:
                 "your Feast Serving deployment."
             )
 
-        for file_uri in self.job_proto.file_uris:
-            if not file_uri.startswith("gs://"):
-                raise Exception(
-                    "Feast only supports reading from Google Cloud "
-                    "Storage for now. Please check your Feast Serving deployment."
-                )
-            with tempfile.TemporaryFile() as file_obj:
+        uris = [urlparse(uri) for uri in self.job_proto.file_uris]
+        for file_uri in uris:
+            if file_uri.scheme == "gs":
+                file_obj = tempfile.TemporaryFile()
                 self.storage_client.download_blob_to_file(file_uri, file_obj)
-                file_obj.seek(0)
-                avro_reader = fastavro_reader(file_obj)
-                for record in avro_reader:
-                    yield record
+            elif file_uri.scheme == "file":
+                file_obj = open(file_uri.path, "rb")
+            else:
+                raise Exception(
+                    f"Could not identify file URI {file_uri}. Only gs:// and file:// supported"
+                )
+
+            file_obj.seek(0)
+            avro_reader = fastavro.reader(file_obj)
+
+            for record in avro_reader:
+                yield record
 
     def to_dataframe(self, timeout_sec: int = DEFAULT_TIMEOUT_SEC):
         """
