@@ -37,7 +37,6 @@ import feast.core.model.FeatureSet;
 import feast.core.model.Source;
 import feast.core.model.Store;
 import feast.core.validators.FeatureSetValidator;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -99,8 +98,7 @@ public class SpecService {
       featureSets = featureSetRepository.findByNameRegex(name);
       if (filter.getFeatureSetVersion().equals("latest")) {
         featureSets = Ordering.natural().reverse()
-            .sortedCopy(featureSets)
-            .subList(0, 1);
+            .sortedCopy(featureSets).subList(0, featureSets.size() == 0 ? 0 : 1);
       } else {
         featureSets = featureSets.stream().filter(getVersionFilter(filter.getFeatureSetVersion()))
             .collect(Collectors.toList());
