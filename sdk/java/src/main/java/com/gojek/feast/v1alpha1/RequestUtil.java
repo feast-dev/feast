@@ -6,7 +6,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import javafx.util.Pair;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 
 @SuppressWarnings("WeakerAccess")
 public class RequestUtil {
@@ -37,7 +38,7 @@ public class RequestUtil {
                 parts[1]));
       }
 
-      Pair<String, Integer> key = new Pair<>(featureSetName, featureSetVersion);
+      Pair<String, Integer> key = new ImmutablePair<>(featureSetName, featureSetVersion);
       if (!featureSetMap.containsKey(key)) {
         featureSetMap.put(key, new ArrayList<>());
       }

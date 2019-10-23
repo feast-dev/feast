@@ -61,6 +61,12 @@
       <version>${junit.version}</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.6</version>
+      <scope>compile</scope>
+    </dependency>
 
   </dependencies>
 
