@@ -16,8 +16,11 @@
     - [GetStoresRequest](#getstoresrequest)
     - [GetStoresRequest.Filter](#filter)
     - [GetStoresResponse](#getstoresresponse)
+    - [UpdateStoreRequest](#updatestorerequest)
+    - [UpdateStoreResponse](#updatestoreresponse)
   
     - [ApplyFeatureSetResponse.Status](#status)
+    - [UpdateStoreResponse.Status](#status)
   
   
 
@@ -54,17 +57,18 @@
 - [feast.serving.ServingService.proto](#feast-serving-servingservice-proto)
     - [ServingService](#servingservice)
   
+    - [DatasetSource](#datasetsource)
+    - [DatasetSource.FileSource](#filesource)
+    - [FeatureSet](#featureset)
+    - [GetBatchFeaturesRequest](#getbatchfeaturesrequest)
     - [GetBatchFeaturesResponse](#getbatchfeaturesresponse)
-    - [GetFeastServingTypeRequest](#getfeastservingtyperequest)
-    - [GetFeastServingTypeResponse](#getfeastservingtyperesponse)
-    - [GetFeastServingVersionRequest](#getfeastservingversionrequest)
-    - [GetFeastServingVersionResponse](#getfeastservingversionresponse)
-    - [GetFeaturesRequest](#getfeaturesrequest)
-    - [GetFeaturesRequest.EntityRow](#entityrow)
-    - [GetFeaturesRequest.EntityRow.FieldsEntry](#fieldsentry)
-    - [GetFeaturesRequest.FeatureSet](#featureset)
+    - [GetFeastServingInfoRequest](#getfeastservinginforequest)
+    - [GetFeastServingInfoResponse](#getfeastservinginforesponse)
     - [GetJobRequest](#getjobrequest)
     - [GetJobResponse](#getjobresponse)
+    - [GetOnlineFeaturesRequest](#getonlinefeaturesrequest)
+    - [GetOnlineFeaturesRequest.EntityRow](#entityrow)
+    - [GetOnlineFeaturesRequest.EntityRow.FieldsEntry](#fieldsentry)
     - [GetOnlineFeaturesResponse](#getonlinefeaturesresponse)
     - [GetOnlineFeaturesResponse.FieldValues](#fieldvalues)
     - [GetOnlineFeaturesResponse.FieldValues.FieldsEntry](#fieldsentry)
@@ -142,9 +146,18 @@
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
 | GetFeastCoreVersion | [GetFeastCoreVersionRequest](#GetFeastCoreVersionRequest) | [GetFeastCoreVersionResponse](#GetFeastCoreVersionResponse) | Retrieve version information about this Feast deployment |
-| GetFeatureSets | [GetFeatureSetsRequest](#GetFeatureSetsRequest) | [GetFeatureSetsResponse](#GetFeatureSetsResponse) | Retrieve feature set details given a filter. Returns all featureSets matching that filter. |
-| GetStores | [GetStoresRequest](#GetStoresRequest) | [GetStoresResponse](#GetStoresResponse) | Retrieve store details given a filter. Returns all stores matching that filter. |
-| ApplyFeatureSet | [ApplyFeatureSetRequest](#ApplyFeatureSetRequest) | [ApplyFeatureSetResponse](#ApplyFeatureSetResponse) | Idempotent creation of feature set. Will not create a new feature set if schema does not change |
+| GetFeatureSets | [GetFeatureSetsRequest](#GetFeatureSetsRequest) | [GetFeatureSetsResponse](#GetFeatureSetsResponse) | Retrieve feature set details given a filter.
+
+Returns all feature sets matching that filter. If none are found, an empty list will be returned. If no filter is provided in the request, the response will contain all the feature sets currently stored in the registry. |
+| GetStores | [GetStoresRequest](#GetStoresRequest) | [GetStoresResponse](#GetStoresResponse) | Retrieve store details given a filter.
+
+Returns all stores matching that filter. If none are found, an empty list will be returned. If no filter is provided in the request, the response will contain all the stores currently stored in the registry. |
+| ApplyFeatureSet | [ApplyFeatureSetRequest](#ApplyFeatureSetRequest) | [ApplyFeatureSetResponse](#ApplyFeatureSetResponse) | Create or update and existing feature set.
+
+This function is idempotent - it will not create a new feature set if schema does not change. If an existing feature set is updated, core will advance the version number, which will be returned in response. |
+| UpdateStore | [UpdateStoreRequest](#UpdateStoreRequest) | [UpdateStoreResponse](#UpdateStoreResponse) | Updates core with the configuration of the store.
+
+If the changes are valid, core will return the given store configuration in response, and start or update the necessary feature population jobs for the updated store. |
 
  <!-- end services -->
 
@@ -228,8 +241,8 @@ Retrieves details for all versions of a specific feature set
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| feature_set_name | [string](#string) |  |  |
-| feature_set_version | [string](#string) |  |  |
+| feature_set_name | [string](#string) |  | Name of the desired feature set. Valid regex strings are allowed. e.g. - .* can be used to match all feature sets - my-project-.* can be used to match all features prefixed by "my-project" |
+| feature_set_version | [string](#string) |  | Version of the desired feature set. Either a number or valid expression can be provided. e.g. - 1 will match version 1 exactly - >=1 will match all versions greater or equal to 1 - <10 will match all versions less than 10 |
 
 
 
@@ -274,7 +287,7 @@ Retrieves details for all versions of a specific feature set
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| name | [string](#string) |  |  |
+| name | [string](#string) |  | Name of desired store. Regex is not supported in this query. |
 
 
 
@@ -295,6 +308,37 @@ Retrieves details for all versions of a specific feature set
 
 
 
+
+<a name="feast-core-updatestorerequest"></a>
+
+### UpdateStoreRequest
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| store | [Store](#feast.core.Store) |  |  |
+
+
+
+
+
+
+<a name="feast-core-updatestoreresponse"></a>
+
+### UpdateStoreResponse
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| store | [Store](#feast.core.Store) |  |  |
+| status | [UpdateStoreResponse.Status](#feast.core.UpdateStoreResponse.Status) |  |  |
+
+
+
+
+
  <!-- end messages -->
 
 
@@ -308,6 +352,18 @@ Retrieves details for all versions of a specific feature set
 | NO_CHANGE | 0 | Latest feature set version is consistent with provided feature set |
 | CREATED | 1 | New feature set or feature set version created |
 | ERROR | 2 | Error occurred while trying to apply changes |
+
+
+
+<a name="feast-core-updatestoreresponse-status"></a>
+
+### UpdateStoreResponse.Status
+
+
+| Name | Number | Description |
+| ---- | ------ | ----------- |
+| NO_CHANGE | 0 | Existing store config matching the given store id is identical to the given store config. |
+| UPDATED | 1 | New store created or existing config updated. |
 
 
  <!-- end enums -->
@@ -610,15 +666,81 @@ The column mode in BigQuery is set to "Nullable" such that unset Value in a Feat
 
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
-| GetFeastServingVersion | [GetFeastServingVersionRequest](#GetFeastServingVersionRequest) | [GetFeastServingVersionResponse](#GetFeastServingVersionResponse) | Get version information about this Feast serving. |
-| GetFeastServingType | [GetFeastServingTypeRequest](#GetFeastServingTypeRequest) | [GetFeastServingTypeResponse](#GetFeastServingTypeResponse) | Get Feast serving store type: online or batch. |
-| GetOnlineFeatures | [GetFeaturesRequest](#GetFeaturesRequest) | [GetOnlineFeaturesResponse](#GetOnlineFeaturesResponse) | Get online features synchronously. |
-| GetBatchFeatures | [GetFeaturesRequest](#GetFeaturesRequest) | [GetBatchFeaturesResponse](#GetBatchFeaturesResponse) | Get batch features asynchronously. 
+| GetFeastServingInfo | [GetFeastServingInfoRequest](#GetFeastServingInfoRequest) | [GetFeastServingInfoResponse](#GetFeastServingInfoResponse) | Get information about this Feast serving. |
+| GetOnlineFeatures | [GetOnlineFeaturesRequest](#GetOnlineFeaturesRequest) | [GetOnlineFeaturesResponse](#GetOnlineFeaturesResponse) | Get online features synchronously. |
+| GetBatchFeatures | [GetBatchFeaturesRequest](#GetBatchFeaturesRequest) | [GetBatchFeaturesResponse](#GetBatchFeaturesResponse) | Get batch features asynchronously.
 
 The client should check the status of the returned job periodically by calling ReloadJob to determine if the job has completed successfully or with an error. If the job completes successfully i.e. status = JOB_STATUS_DONE with no error, then the client can check the file_uris for the location to download feature values data. The client is assumed to have access to these file URIs. |
 | GetJob | [GetJobRequest](#GetJobRequest) | [GetJobResponse](#GetJobResponse) | Get the latest job status for batch feature retrieval. |
 
  <!-- end services -->
+
+
+<a name="feast-serving-datasetsource"></a>
+
+### DatasetSource
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| file_source | [DatasetSource.FileSource](#feast.serving.DatasetSource.FileSource) |  | File source to load the dataset from. |
+
+
+
+
+
+
+<a name="feast-serving-datasetsource-filesource"></a>
+
+### DatasetSource.FileSource
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| file_uris | [string](#string) | repeated | URIs to retrieve the dataset from, e.g. gs://bucket/directory/object.csv. Wildcards are supported. This data must be compatible to be uploaded to the serving store, and also be accessible by this serving instance. |
+| data_format | [DataFormat](#feast.serving.DataFormat) |  | Format of the data. Currently only avro is supported. |
+
+
+
+
+
+
+<a name="feast-serving-featureset"></a>
+
+### FeatureSet
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | Feature set name |
+| version | [int32](#int32) |  | Feature set version |
+| feature_names | [string](#string) | repeated | Features that should be retrieved from this feature set |
+| max_age | [google.protobuf.Duration](#google.protobuf.Duration) |  | The features will be retrieved if: entity_timestamp - max_age <= event_timestamp <= entity_timestamp
+
+If unspecified the default max_age specified in FeatureSetSpec will be used. |
+
+
+
+
+
+
+<a name="feast-serving-getbatchfeaturesrequest"></a>
+
+### GetBatchFeaturesRequest
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| feature_sets | [FeatureSet](#feast.serving.FeatureSet) | repeated | List of feature sets and their features that are being retrieved. |
+| dataset_source | [DatasetSource](#feast.serving.DatasetSource) |  | Source of the entity dataset containing the timestamps and entity keys to retrieve features for. |
+
+
+
+
 
 
 <a name="feast-serving-getbatchfeaturesresponse"></a>
@@ -636,34 +758,9 @@ The client should check the status of the returned job periodically by calling R
 
 
 
-<a name="feast-serving-getfeastservingtyperequest"></a>
+<a name="feast-serving-getfeastservinginforequest"></a>
 
-### GetFeastServingTypeRequest
-
-
-
-
-
-
-
-<a name="feast-serving-getfeastservingtyperesponse"></a>
-
-### GetFeastServingTypeResponse
-
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| type | [FeastServingType](#feast.serving.FeastServingType) |  |  |
-
-
-
-
-
-
-<a name="feast-serving-getfeastservingversionrequest"></a>
-
-### GetFeastServingVersionRequest
+### GetFeastServingInfoRequest
 
 
 
@@ -671,83 +768,17 @@ The client should check the status of the returned job periodically by calling R
 
 
 
-<a name="feast-serving-getfeastservingversionresponse"></a>
+<a name="feast-serving-getfeastservinginforesponse"></a>
 
-### GetFeastServingVersionResponse
+### GetFeastServingInfoResponse
 
 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| version | [string](#string) |  |  |
-
-
-
-
-
-
-<a name="feast-serving-getfeaturesrequest"></a>
-
-### GetFeaturesRequest
-
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| feature_sets | [GetFeaturesRequest.FeatureSet](#feast.serving.GetFeaturesRequest.FeatureSet) | repeated | List of feature sets and their features that are being retrieved |
-| entity_rows | [GetFeaturesRequest.EntityRow](#feast.serving.GetFeaturesRequest.EntityRow) | repeated | List of entity rows, containing entity id and timestamp data. Used during retrieval of feature rows and for joining feature rows into a final dataset |
-
-
-
-
-
-
-<a name="feast-serving-getfeaturesrequest-entityrow"></a>
-
-### GetFeaturesRequest.EntityRow
-
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| entity_timestamp | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  | Request timestamp of this row. This value will be used, together with maxAge, to determine feature staleness. |
-| fields | [GetFeaturesRequest.EntityRow.FieldsEntry](#feast.serving.GetFeaturesRequest.EntityRow.FieldsEntry) | repeated | Map containing mapping of entity name to entity value. |
-
-
-
-
-
-
-<a name="feast-serving-getfeaturesrequest-entityrow-fieldsentry"></a>
-
-### GetFeaturesRequest.EntityRow.FieldsEntry
-
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| key | [string](#string) |  |  |
-| value | [feast.types.Value](#feast.types.Value) |  |  |
-
-
-
-
-
-
-<a name="feast-serving-getfeaturesrequest-featureset"></a>
-
-### GetFeaturesRequest.FeatureSet
-
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| name | [string](#string) |  | Feature set name |
-| version | [int32](#int32) |  | Feature set version |
-| feature_names | [string](#string) | repeated | Features that should be retrieved from this feature set |
-| max_age | [google.protobuf.Duration](#google.protobuf.Duration) |  | The features will be retrieved if: entity_timestamp - max_age <= event_timestamp <= entity_timestamp
-
-If unspecified the default max_age specified in FeatureSetSpec will be used. |
+| version | [string](#string) |  | Feast version of this serving deployment. |
+| type | [FeastServingType](#feast.serving.FeastServingType) |  | Type of serving deployment, either ONLINE or BATCH. Different store types support different feature retrieval methods. |
+| job_staging_location | [string](#string) |  | Note: Batch specific options start from 10. Staging location for this serving store, if any. |
 
 
 
@@ -784,6 +815,55 @@ If unspecified the default max_age specified in FeatureSetSpec will be used. |
 
 
 
+<a name="feast-serving-getonlinefeaturesrequest"></a>
+
+### GetOnlineFeaturesRequest
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| feature_sets | [FeatureSet](#feast.serving.FeatureSet) | repeated | List of feature sets and their features that are being retrieved |
+| entity_rows | [GetOnlineFeaturesRequest.EntityRow](#feast.serving.GetOnlineFeaturesRequest.EntityRow) | repeated | List of entity rows, containing entity id and timestamp data. Used during retrieval of feature rows and for joining feature rows into a final dataset |
+| omit_entities_in_response | [bool](#bool) |  | Option to omit entities from the response. If true, only feature values will be returned. |
+
+
+
+
+
+
+<a name="feast-serving-getonlinefeaturesrequest-entityrow"></a>
+
+### GetOnlineFeaturesRequest.EntityRow
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| entity_timestamp | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  | Request timestamp of this row. This value will be used, together with maxAge, to determine feature staleness. |
+| fields | [GetOnlineFeaturesRequest.EntityRow.FieldsEntry](#feast.serving.GetOnlineFeaturesRequest.EntityRow.FieldsEntry) | repeated | Map containing mapping of entity name to entity value. |
+
+
+
+
+
+
+<a name="feast-serving-getonlinefeaturesrequest-entityrow-fieldsentry"></a>
+
+### GetOnlineFeaturesRequest.EntityRow.FieldsEntry
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| key | [string](#string) |  |  |
+| value | [feast.types.Value](#feast.types.Value) |  |  |
+
+
+
+
+
+
 <a name="feast-serving-getonlinefeaturesresponse"></a>
 
 ### GetOnlineFeaturesResponse
@@ -792,7 +872,7 @@ If unspecified the default max_age specified in FeatureSetSpec will be used. |
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| field_values | [GetOnlineFeaturesResponse.FieldValues](#feast.serving.GetOnlineFeaturesResponse.FieldValues) | repeated |  |
+| field_values | [GetOnlineFeaturesResponse.FieldValues](#feast.serving.GetOnlineFeaturesResponse.FieldValues) | repeated | Feature values retrieved from feast. |
 
 
 
@@ -802,13 +882,12 @@ If unspecified the default max_age specified in FeatureSetSpec will be used. |
 <a name="feast-serving-getonlinefeaturesresponse-fieldvalues"></a>
 
 ### GetOnlineFeaturesResponse.FieldValues
-TODO: update this comment
-does not include timestamp, includes features and entities
+
 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| fields | [GetOnlineFeaturesResponse.FieldValues.FieldsEntry](#feast.serving.GetOnlineFeaturesResponse.FieldValues.FieldsEntry) | repeated |  |
+| fields | [GetOnlineFeaturesResponse.FieldValues.FieldsEntry](#feast.serving.GetOnlineFeaturesResponse.FieldValues.FieldsEntry) | repeated | Map of feature or entity name to feature/entity values. Timestamps are not returned in this response. |
 
 
 
