@@ -170,6 +170,25 @@
             <version>5.3.6.Final</version>
         </dependency>
 
+        <!--compile 'org.jdbi:jdbi3:3.0.0-beta2'-->
+        <dependency>
+            <groupId>org.jdbi</groupId>
+            <artifactId>jdbi3</artifactId>
+            <version>3.0.0-beta2</version>
+        </dependency>
+        <!--compile 'org.jdbi:jdbi3-sqlobject:3.4.0'-->
+        <dependency>
+            <groupId>org.jdbi</groupId>
+            <artifactId>jdbi3-sqlobject</artifactId>
+            <version>3.4.0</version>
+        </dependency>
+        <!--compile 'org.postgresql:postgresql:42.2.5'-->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.2.5</version>
+        </dependency>
+
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
