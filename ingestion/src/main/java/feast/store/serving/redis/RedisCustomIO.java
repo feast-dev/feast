@@ -38,7 +38,7 @@ public class RedisCustomIO {
   private static final int DEFAULT_BATCH_SIZE = 1000;
   private static final int DEFAULT_TIMEOUT = 2000;
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(RedisCustomIO.class);
+  private static final Logger log = LoggerFactory.getLogger(RedisCustomIO.class);
 
   private RedisCustomIO() {}
 

@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 public class SpecUtil {
   /**
@@ -26,7 +27,8 @@ public class SpecUtil {
     List<FeatureSetSpec> subscribed = new ArrayList<>();
     for (FeatureSetSpec featureSet : featureSetSpecs) {
       for (Subscription sub : subscriptions) {
-        if (!featureSet.getName().equals(sub.getName())) {
+        Pattern pattern = Pattern.compile(sub.getName());
+        if (!pattern.matcher(featureSet.getName()).matches()) {
           continue;
         }
 
