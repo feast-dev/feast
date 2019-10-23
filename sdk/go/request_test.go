@@ -28,7 +28,7 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 				},
 			},
 			want: &serving.GetOnlineFeaturesRequest{
-				FeatureSets: []*serving.GetOnlineFeaturesRequest_FeatureSet{
+				FeatureSets: []*serving.FeatureSetRequest{
 					{
 						Name:         "fs",
 						Version:      1,

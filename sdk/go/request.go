@@ -42,8 +42,8 @@ func (r OnlineFeaturesRequest) buildRequest() (*serving.GetOnlineFeaturesRequest
 	}, nil
 }
 
-func buildFeatureSets(features []string) ([]*serving.GetOnlineFeaturesRequest_FeatureSet, error) {
-	featureSetMap := map[string]*serving.GetOnlineFeaturesRequest_FeatureSet{}
+func buildFeatureSets(features []string) ([]*serving.FeatureSetRequest, error) {
+	featureSetMap := map[string]*serving.FeatureSetRequest{}
 	for _, feature := range features {
 		split := strings.Split(feature, ":")
 		if len(split) != 3 {
@@ -56,7 +56,7 @@ func buildFeatureSets(features []string) ([]*serving.GetOnlineFeaturesRequest_Fe
 			if err != nil {
 				return nil, fmt.Errorf(ErrInvalidFeatureName, feature)
 			}
-			featureSetMap[key] = &serving.GetOnlineFeaturesRequest_FeatureSet{
+			featureSetMap[key] = &serving.FeatureSetRequest{
 				Name:         featureSetName,
 				Version:      int32(version),
 				FeatureNames: []string{featureName},
@@ -65,7 +65,7 @@ func buildFeatureSets(features []string) ([]*serving.GetOnlineFeaturesRequest_Fe
 			fs.FeatureNames = append(fs.GetFeatureNames(), featureName)
 		}
 	}
-	var featureSets []*serving.GetOnlineFeaturesRequest_FeatureSet
+	var featureSets []*serving.FeatureSetRequest
 	for _, featureSet := range featureSetMap {
 		featureSets = append(featureSets, featureSet)
 	}
