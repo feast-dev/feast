@@ -47,7 +47,7 @@ func (fc *GrpcClient) GetOnlineFeatures(ctx context.Context, req *OnlineFeatures
 	}
 	resp, err := fc.cli.GetOnlineFeatures(ctx, featuresRequest)
 
-	return &OnlineFeaturesResponse{RawResponse: resp}, nil
+	return &OnlineFeaturesResponse{RawResponse: resp}, err
 }
 
 // GetInfo gets information about the feast serving instance this client is connected to.
