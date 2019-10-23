@@ -31,7 +31,7 @@ import feast.serving.ServingAPIProto.GetJobRequest;
 import feast.serving.ServingAPIProto.GetJobResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.FeatureSet;
+import feast.serving.ServingAPIProto.FeatureSetRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.storage.RedisProto.RedisKey;
@@ -82,8 +82,8 @@ public class RedisServingService implements ServingService {
           entityRows.stream()
               .collect(Collectors.toMap(er -> er, er -> Maps.newHashMap(er.getFieldsMap())));
 
-      List<FeatureSet> featureSetRequests = request.getFeatureSetsList();
-      for (FeatureSet featureSetRequest : featureSetRequests) {
+      List<FeatureSetRequest> featureSetRequests = request.getFeatureSetsList();
+      for (FeatureSetRequest featureSetRequest : featureSetRequests) {
 
         FeatureSetSpec featureSetSpec =
             specService.getFeatureSet(featureSetRequest.getName(), featureSetRequest.getVersion());
@@ -139,7 +139,7 @@ public class RedisServingService implements ServingService {
   private List<RedisKey> getRedisKeys(
       List<String> featureSetEntityNames,
       List<EntityRow> entityRows,
-      FeatureSet featureSetRequest) {
+      FeatureSetRequest featureSetRequest) {
     try (Scope scope = tracer.buildSpan("Redis-makeRedisKeys").startActive(true)) {
       String featureSetId =
           String.format("%s:%s", featureSetRequest.getName(), featureSetRequest.getVersion());
@@ -182,7 +182,7 @@ public class RedisServingService implements ServingService {
       List<RedisKey> redisKeys,
       List<EntityRow> entityRows,
       Map<EntityRow, Map<String, Value>> featureValuesMap,
-      FeatureSet featureSetRequest)
+      FeatureSetRequest featureSetRequest)
       throws InvalidProtocolBufferException {
 
     List<byte[]> jedisResps = sendMultiGet(redisKeys);
@@ -217,7 +217,7 @@ public class RedisServingService implements ServingService {
   }
 
   private boolean isStale(
-      FeatureSet featureSetRequest, EntityRow entityRow, FeatureRow featureRow) {
+      FeatureSetRequest featureSetRequest, EntityRow entityRow, FeatureRow featureRow) {
     if (featureSetRequest.getMaxAge() == Duration.getDefaultInstance()) {
       return false;
     }

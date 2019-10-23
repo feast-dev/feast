@@ -7,7 +7,7 @@ import com.google.protobuf.Timestamp;
 import feast.serving.FeastProperties;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.FeatureSet;
+import feast.serving.ServingAPIProto.FeatureSetRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.service.ServingService;
 import feast.types.ValueProto.Value;
@@ -37,7 +37,7 @@ public class ServingServiceGRpcControllerTest {
     initMocks(this);
 
     validRequest = GetOnlineFeaturesRequest.newBuilder()
-        .addFeatureSets(FeatureSet.newBuilder()
+        .addFeatureSets(FeatureSetRequest.newBuilder()
             .setName("featureSet")
             .setVersion(1)
             .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))

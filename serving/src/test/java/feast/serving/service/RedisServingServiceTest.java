@@ -13,7 +13,7 @@ import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.FeatureSet;
+import feast.serving.ServingAPIProto.FeatureSetRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.storage.RedisProto.RedisKey;
@@ -83,7 +83,7 @@ public class RedisServingServiceTest {
   @Test
   public void shouldReturnResponseWithValuesIfKeysPresent() {
     GetOnlineFeaturesRequest request = GetOnlineFeaturesRequest.newBuilder()
-        .addFeatureSets(FeatureSet.newBuilder()
+        .addFeatureSets(FeatureSetRequest.newBuilder()
             .setName("featureSet")
             .setVersion(1)
             .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
@@ -148,7 +148,7 @@ public class RedisServingServiceTest {
   public void shouldReturnResponseWithUnsetValuesIfKeysNotPresent() {
     // some keys not present, should have empty values
     GetOnlineFeaturesRequest request = GetOnlineFeaturesRequest.newBuilder()
-        .addFeatureSets(FeatureSet.newBuilder()
+        .addFeatureSets(FeatureSetRequest.newBuilder()
             .setName("featureSet")
             .setVersion(1)
             .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
@@ -211,7 +211,7 @@ public class RedisServingServiceTest {
   public void shouldReturnResponseWithUnsetValuesIfMaxAgeIsExceeded() {
     // keys present, but too stale comp. to maxAge set in request
     GetOnlineFeaturesRequest request = GetOnlineFeaturesRequest.newBuilder()
-        .addFeatureSets(FeatureSet.newBuilder()
+        .addFeatureSets(FeatureSetRequest.newBuilder()
             .setName("featureSet")
             .setVersion(1)
             .setMaxAge(Duration.newBuilder().setSeconds(10))
@@ -278,7 +278,7 @@ public class RedisServingServiceTest {
   public void shouldReturnResponseWithUnsetValuesIfDefaultMaxAgeIsExceeded() {
     // keys present, but too stale comp. to maxAge set in featureSetSpec
     GetOnlineFeaturesRequest request = GetOnlineFeaturesRequest.newBuilder()
-        .addFeatureSets(FeatureSet.newBuilder()
+        .addFeatureSets(FeatureSetRequest.newBuilder()
             .setName("featureSet")
             .setVersion(1)
             .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
@@ -344,7 +344,7 @@ public class RedisServingServiceTest {
   public void shouldFilterOutUndesiredRows() {
     // requested rows less than the rows available in the featureset
     GetOnlineFeaturesRequest request = GetOnlineFeaturesRequest.newBuilder()
-        .addFeatureSets(FeatureSet.newBuilder()
+        .addFeatureSets(FeatureSetRequest.newBuilder()
             .setName("featureSet")
             .setVersion(1)
             .addAllFeatureNames(Lists.newArrayList("feature1"))

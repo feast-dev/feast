@@ -5,7 +5,7 @@ import com.mitchellbosecke.pebble.PebbleEngine;
 import com.mitchellbosecke.pebble.template.PebbleTemplate;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.serving.ServingAPIProto.GetBatchFeaturesRequest.FeatureSet;
+import feast.serving.ServingAPIProto.FeatureSetRequest;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
@@ -39,7 +39,7 @@ public class BigQueryUtil {
   }
 
   public static String createQuery(
-      List<FeatureSet> featureSets,
+      List<FeatureSetRequest> featureSets,
       List<FeatureSetSpec> featureSetSpecs,
       List<String> entities,
       String projectId,
@@ -61,7 +61,7 @@ public class BigQueryUtil {
     List<FeatureSetInfo> featureSetInfos = new ArrayList<>();
     for (int i = 0; i < featureSets.size(); i++) {
       FeatureSetSpec spec = featureSetSpecs.get(i);
-      FeatureSet request = featureSets.get(i);
+      FeatureSetRequest request = featureSets.get(i);
       Duration maxAge = getMaxAge(request, spec);
       List<String> fsEntities = spec.getEntitiesList().stream().map(EntitySpec::getName)
           .collect(Collectors.toList());
@@ -95,7 +95,7 @@ public class BigQueryUtil {
     return writer.toString();
   }
 
-  private static Duration getMaxAge(FeatureSet featureSet, FeatureSetSpec featureSetSpec) {
+  private static Duration getMaxAge(FeatureSetRequest featureSet, FeatureSetSpec featureSetSpec) {
     if (featureSet.getMaxAge() == Duration.getDefaultInstance()) {
       return featureSetSpec.getMaxAge();
     }
