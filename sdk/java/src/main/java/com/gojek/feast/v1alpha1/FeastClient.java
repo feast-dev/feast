@@ -4,7 +4,7 @@ import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.serving.ServingAPIProto.GetFeastServingInfoResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.FeatureSet;
+import feast.serving.ServingAPIProto.FeatureSetRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingServiceGrpc;
 import io.grpc.ManagedChannel;
@@ -78,7 +78,7 @@ public class FeastClient implements AutoCloseable {
    */
   public List<Row> getOnlineFeatures(
       List<String> featureIds, List<Row> rows, boolean omitEntitiesInResponse) {
-    List<FeatureSet> featureSets = RequestUtil.createFeatureSets(featureIds);
+    List<FeatureSetRequest> featureSets = RequestUtil.createFeatureSets(featureIds);
     List<EntityRow> entityRows =
         rows.stream()
             .map(

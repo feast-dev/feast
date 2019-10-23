@@ -1,6 +1,6 @@
 package com.gojek.feast.v1alpha1;
 
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.FeatureSet;
+import feast.serving.ServingAPIProto.FeatureSetRequest;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -11,7 +11,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 @SuppressWarnings("WeakerAccess")
 public class RequestUtil {
-  public static List<FeatureSet> createFeatureSets(List<String> featureIds) {
+  public static List<FeatureSetRequest> createFeatureSets(List<String> featureIds) {
     if (featureIds == null) {
       throw new IllegalArgumentException("featureIds cannot be null");
     }
@@ -49,7 +49,7 @@ public class RequestUtil {
     return featureSetMap.entrySet().stream()
         .map(
             entry ->
-                FeatureSet.newBuilder()
+                FeatureSetRequest.newBuilder()
                     .setName(entry.getKey().getKey())
                     .setVersion(entry.getKey().getValue())
                     .addAllFeatureNames(entry.getValue())

@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.protobuf.TextFormat;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.FeatureSet;
+import feast.serving.ServingAPIProto.FeatureSetRequest;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -22,14 +22,14 @@ class RequestUtilTest {
         Arguments.of(
             Collections.singletonList("driver:1:driver_id"),
             Collections.singletonList(
-                FeatureSet.newBuilder()
+                FeatureSetRequest.newBuilder()
                     .setName("driver")
                     .setVersion(1)
                     .addFeatureNames("driver_id"))),
         Arguments.of(
             Arrays.asList("driver:1:driver_id", "driver:1:driver_name"),
             Collections.singletonList(
-                FeatureSet.newBuilder()
+                FeatureSetRequest.newBuilder()
                     .setName("driver")
                     .setVersion(1)
                     .addAllFeatureNames(Arrays.asList("driver_id", "driver_name"))
@@ -37,12 +37,12 @@ class RequestUtilTest {
         Arguments.of(
             Arrays.asList("driver:1:driver_id", "driver:1:driver_name", "booking:2:booking_id"),
             Arrays.asList(
-                FeatureSet.newBuilder()
+                FeatureSetRequest.newBuilder()
                     .setName("driver")
                     .setVersion(1)
                     .addAllFeatureNames(Arrays.asList("driver_id", "driver_name"))
                     .build(),
-                FeatureSet.newBuilder()
+                FeatureSetRequest.newBuilder()
                     .setName("booking")
                     .setVersion(2)
                     .addFeatureNames("booking_id")
@@ -52,11 +52,11 @@ class RequestUtilTest {
   @ParameterizedTest
   @MethodSource("provideValidFeatureIds")
   void createFeatureSets_ShouldReturnFeatureSetsForValidFeatureIds(
-      List<String> input, List<FeatureSet> expected) {
-    List<FeatureSet> actual = RequestUtil.createFeatureSets(input);
+      List<String> input, List<FeatureSetRequest> expected) {
+    List<FeatureSetRequest> actual = RequestUtil.createFeatureSets(input);
     // Order of the actual and expected featureSets do no not matter
-    actual.sort(Comparator.comparing(FeatureSet::getName));
-    expected.sort(Comparator.comparing(FeatureSet::getName));
+    actual.sort(Comparator.comparing(FeatureSetRequest::getName));
+    expected.sort(Comparator.comparing(FeatureSetRequest::getName));
     assertEquals(expected.size(), actual.size());
     for (int i = 0; i < expected.size(); i++) {
       String expectedString = TextFormat.printer().printToString(expected.get(i));
