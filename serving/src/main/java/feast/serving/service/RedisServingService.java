@@ -223,7 +223,7 @@ public class RedisServingService implements ServingService {
     }
     long givenTimestamp = entityRow.getEntityTimestamp().getSeconds();
     if (givenTimestamp == 0) {
-      givenTimestamp = System.currentTimeMillis();
+      givenTimestamp = System.currentTimeMillis() / 1000;
     }
     long timeDifference = givenTimestamp - featureRow.getEventTimestamp().getSeconds();
     return timeDifference > featureSetRequest.getMaxAge().getSeconds();
