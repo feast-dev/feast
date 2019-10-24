@@ -50,7 +50,7 @@ tide:
 # presubmits list Prow jobs that run on pull requests
 presubmits:
   gojek/feast:
-  - name: unit-test-core
+  - name: test-core-and-ingestion
     decorate: true
     always_run: true
     spec:
@@ -67,66 +67,41 @@ presubmits:
         env:
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: /etc/service-account/service-account.json
-        command: [".prow/scripts/run_unit_test.sh", "--component", "core"]
+        command: [".prow/scripts/run_test.sh", "--component", "core-ingestion"]
 
-  - name: unit-test-ingestion
-    decorate: true
-    always_run: true
-    spec:
-      volumes:
-      - name: service-account
-        secret:
-          secretName: prow-service-account
-      containers:
-      - image: maven:3.6-jdk-8
-        volumeMounts:
-        - name: service-account
-          mountPath: /etc/service-account
-          readOnly: true
-        env:
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: /etc/service-account/service-account.json
-        command: [".prow/scripts/run_unit_test.sh", "--component", "ingestion"]
-
-  - name: unit-test-serving
+  - name: test-serving
     decorate: true
     always_run: true
     spec:
       containers:
       - image: maven:3.6-jdk-8
-        command: [".prow/scripts/run_unit_test.sh", "--component", "serving"]
+        command: [".prow/scripts/run_test.sh", "--component", "serving"]
 
-  - name: unit-test-cli
+  - name: test-java-sdk
     decorate: true
     always_run: true
     spec:
       containers:
-      - image: golang:1.12
-        env:
-        - name: GO111MODULE
-          value: "on"
-        command: [".prow/scripts/run_unit_test.sh", "--component", "cli"]
+      - image: maven:3.6-jdk-8
+        command: [".prow/scripts/run_test.sh", "--component", "java-sdk"]
 
-  - name: unit-test-python-sdk
+  - name: test-python-sdk
     decorate: true
     always_run: true
     spec:
-      volumes:
-      - name: service-account
-        secret:
-          secretName: prow-service-account
       containers:
       - image: python:3.6
-        volumeMounts:
-        - name: service-account
-          mountPath: /etc/service-account
-          readOnly: true
-        env:
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: /etc/service-account/service-account.json
-        command: [".prow/scripts/run_unit_test.sh", "--component", "python-sdk"]
+        command: [".prow/scripts/run_test.sh", "--component", "python-sdk"]
 
-  - name: integration-test
+  - name: test-golang-sdk
+    decorate: true
+    always_run: true
+    spec:
+      containers:
+      - image: golang:1.13
+        command: [".prow/scripts/run_test.sh", "--component", "golang-sdk"]
+
+  - name: test-end-to-end
     decorate: true
     always_run: true
     spec:
@@ -175,7 +150,7 @@ presubmits:
           exit ${TEST_EXIT_CODE}
 
 # TODO: do a release when a git tag is pushed
-# postsubmits list Prow jobs that run on every push 
 #
+# postsubmits list Prow jobs that run on every push 
 # postsubmits:
 #   gojek/feast:
