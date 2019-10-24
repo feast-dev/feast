@@ -43,7 +43,7 @@ fi
 if [[ ${COMPONENT} == "core-ingestion" ]]; then
 
   .prow/scripts/prepare_maven_cache.sh \
-    --archive-uri gs://feast-templocation-kf-feast/.m2.tar --output-dir /root/
+    --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar --output-dir /root/
 
   # Core depends on Ingestion so they are tested together
   mvn --define skipTests=true --projects core,ingestion clean install
@@ -57,7 +57,7 @@ if [[ ${COMPONENT} == "core-ingestion" ]]; then
 elif [[ ${COMPONENT} == "serving" ]]; then
 
   .prow/scripts/prepare_maven_cache.sh \
-    --archive-uri gs://feast-templocation-kf-feast/.m2.tar --output-dir /root/
+    --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar --output-dir /root/
 
   mvn --define skipTests=true --projects serving clean install
   mvn --projects serving test
@@ -68,7 +68,7 @@ elif [[ ${COMPONENT} == "serving" ]]; then
 elif [[ ${COMPONENT} == "java-sdk" ]]; then
 
   .prow/scripts/prepare_maven_cache.sh \
-    --archive-uri gs://feast-templocation-kf-feast/.m2.tar --output-dir /root/
+    --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar --output-dir /root/
 
   # Core depends on Ingestion so they are tested together
   mvn --define skipTests=true --projects sdk/java clean install
