@@ -44,8 +44,9 @@ if [[ ${COMPONENT} == "core-ingestion" ]]; then
     --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar --output-dir /root/
 
   # Core depends on Ingestion so they are tested together
-  mvn --define skipTests=true --projects core,ingestion --batch-mode clean install
-  mvn --projects core,ingestion test
+  # Skip Maven enforcer: https://stackoverflow.com/questions/50647223/maven-enforcer-issue-when-running-from-reactor-level
+  mvn --projects core,ingestion --batch-mode --define skipTests=true --define enforcer.skip=true clean install
+  mvn --projects core,ingestion --define enforcer.skip=true test
   TEST_EXIT_CODE=$?
 
   mkdir -p ${LOGS_ARTIFACT_PATH}/surefire-reports
@@ -57,8 +58,9 @@ elif [[ ${COMPONENT} == "serving" ]]; then
   .prow/scripts/prepare_maven_cache.sh \
     --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar --output-dir /root/
 
-  mvn --define skipTests=true --projects serving --batch-mode clean install
-  mvn --projects serving test
+  # Skip Maven enforcer: https://stackoverflow.com/questions/50647223/maven-enforcer-issue-when-running-from-reactor-level
+  mvn --projects serving --batch-mode --define skipTests=true --define enforcer.skip=true clean install
+  mvn --projects serving --define enforcer.skip=true test
   TEST_EXIT_CODE=$?
 
   cp -r serving/target/surefire-reports ${LOGS_ARTIFACT_PATH}/surefire-reports
@@ -68,8 +70,8 @@ elif [[ ${COMPONENT} == "java-sdk" ]]; then
   .prow/scripts/prepare_maven_cache.sh \
     --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar --output-dir /root/
 
-  mvn --define skipTests=true --projects sdk/java --batch-mode clean install
-  mvn --projects sdk/java test
+  mvn --projects sdk/java --batch-mode --define skipTests=true --define enforcer.skip=true clean install
+  mvn --projects --define enforcer.skip=true sdk/java test
   TEST_EXIT_CODE=$?
 
   cp -r sdk/java/target/surefire-reports ${LOGS_ARTIFACT_PATH}/surefire-reports
