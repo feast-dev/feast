@@ -96,8 +96,8 @@ def upload_file_to_gcs(local_path: str, bucket: str, remote_path: str):
     """
     storage_client = storage.Client(project=None)
     bucket = storage_client.get_bucket(bucket)
-    blob = bucket.blob(local_path)
-    blob.upload_from_filename(remote_path)
+    blob = bucket.blob(remote_path)
+    blob.upload_from_filename(local_path)
 
 
 def export_dataframe_to_local(df: pd.DataFrame, dir_path: Optional[str] = None):

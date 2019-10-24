@@ -331,6 +331,9 @@ class Client:
             # Validate entity rows based on entities in Feast Core
             self._validate_entity_rows_for_batch_retrieval(entity_rows, fs_request)
 
+            # we want the timestamp column naming to be consistent with the rest of feast
+            entity_rows.columns = ['event_timestamp' if col=='datetime' else col for col in entity_rows.columns]
+
             # Retrieve serving information to determine store type and staging location
             serving_info = (
                 self._serving_service_stub.GetFeastServingInfo()

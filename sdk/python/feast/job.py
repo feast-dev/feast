@@ -94,7 +94,7 @@ class Job:
         for file_uri in uris:
             if file_uri.scheme == "gs":
                 file_obj = tempfile.TemporaryFile()
-                self.storage_client.download_blob_to_file(file_uri, file_obj)
+                self.storage_client.download_blob_to_file(file_uri.geturl(), file_obj)
             elif file_uri.scheme == "file":
                 file_obj = open(file_uri.path, "rb")
             else:
