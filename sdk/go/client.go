@@ -15,11 +15,13 @@ import (
 type Client interface {
 	GetOnlineFeatures(ctx context.Context, req *OnlineFeaturesRequest) (*OnlineFeaturesResponse, error)
 	GetFeastServingInfo(ctx context.Context, in *serving.GetFeastServingInfoRequest) (*serving.GetFeastServingInfoResponse, error)
+	Close() error
 }
 
 // GrpcClient is a grpc client for feast serving.
 type GrpcClient struct {
 	cli  serving.ServingServiceClient
+	conn *grpc.ClientConn
 }
 
 // NewGrpcClient constructs a client that can interact via grpc with the feast serving instance at the given host:port.
@@ -32,6 +34,7 @@ func NewGrpcClient(host string, port int) (*GrpcClient, error) {
 		return nil, err
 	}
 	feastCli.cli = serving.NewServingServiceClient(conn)
+	feastCli.conn = conn
 	return feastCli, nil
 }
 
@@ -47,7 +50,7 @@ func (fc *GrpcClient) GetOnlineFeatures(ctx context.Context, req *OnlineFeatures
 	}
 	resp, err := fc.cli.GetOnlineFeatures(ctx, featuresRequest)
 
-	return &OnlineFeaturesResponse{RawResponse: resp}, nil
+	return &OnlineFeaturesResponse{RawResponse: resp}, err
 }
 
 // GetInfo gets information about the feast serving instance this client is connected to.
@@ -57,4 +60,9 @@ func (fc *GrpcClient) GetFeastServingInfo(ctx context.Context, in *serving.GetFe
 	defer span.Finish()
 
 	return fc.cli.GetFeastServingInfo(ctx, in)
+}
+
+// Closes the grpc connection.
+func (fc *GrpcClient) Close() error {
+	return fc.conn.Close()
 }

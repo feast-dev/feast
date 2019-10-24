@@ -1,4 +1,4 @@
-# Copyright 2018 The Feast Authors
+# Copyright 2019 The Feast Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,10 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import tempfile
+import time
 import grpc
 import pandas as pd
 import numpy as np
+from pandavro import to_avro
 import feast.core.CoreService_pb2_grpc as Core
 import feast.serving.ServingService_pb2_grpc as Serving
 from feast.core.FeatureSet_pb2 import FeatureSetSpec, FeatureSpec, EntitySpec
@@ -27,18 +29,22 @@ from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoResponse,
     GetOnlineFeaturesResponse,
     GetOnlineFeaturesRequest,
+    GetBatchFeaturesResponse,
+    Job as BatchFeaturesJob,
+    JobType,
+    JobStatus,
+    DataFormat,
+    GetJobResponse,
+    FeastServingType,
 )
-from google.protobuf.timestamp_pb2 import Timestamp
 import pytest
 from feast.client import Client
 from concurrent import futures
 from feast_core_server import CoreServicer
 from feast_serving_server import ServingServicer
-from feast.types import FeatureRow_pb2 as FeatureRowProto
-from feast.types import Field_pb2 as FieldProto
 from feast.types import Value_pb2 as ValueProto
 from feast.value_type import ValueType
-
+from feast.job import Job
 
 CORE_URL = "core.feast.example.com"
 SERVING_URL = "serving.example.com"
@@ -100,7 +106,7 @@ class TestClient:
             and status["serving"]["version"] == "0.3.0"
         )
 
-    def test_get_feature(self, mock_client, mocker):
+    def test_get_online_features(self, mock_client, mocker):
         ROW_COUNT = 300
 
         mock_client._serving_service_stub = Serving.ServingServiceStub(
@@ -201,4 +207,119 @@ class TestClient:
             and feature_set.fields["my_entity_1"].dtype == ValueType.INT64
             and len(feature_set.features) == 2
             and len(feature_set.entities) == 1
+        )
+
+    def test_get_batch_features(self, mock_client, mocker):
+
+        mock_client._serving_service_stub = Serving.ServingServiceStub(
+            grpc.insecure_channel("")
+        )
+        mock_client._core_service_stub = Core.CoreServiceStub(grpc.insecure_channel(""))
+
+        mocker.patch.object(
+            mock_client._core_service_stub,
+            "GetFeatureSets",
+            return_value=GetFeatureSetsResponse(
+                feature_sets=[
+                    FeatureSetSpec(
+                        name="customer_fs",
+                        version=1,
+                        entities=[
+                            EntitySpec(
+                                name="customer", value_type=ValueProto.ValueType.INT64
+                            ),
+                            EntitySpec(
+                                name="transaction",
+                                value_type=ValueProto.ValueType.INT64,
+                            ),
+                        ],
+                        features=[
+                            FeatureSpec(
+                                name="customer_feature_1",
+                                value_type=ValueProto.ValueType.FLOAT,
+                            ),
+                            FeatureSpec(
+                                name="customer_feature_2",
+                                value_type=ValueProto.ValueType.STRING,
+                            ),
+                        ],
+                    )
+                ]
+            ),
+        )
+
+        expected_dataframe = pd.DataFrame(
+            {
+                "datetime": [np.int64(time.time_ns()) for _ in range(3)],
+                "customer": [1001, 1002, 1003],
+                "transaction": [1001, 1002, 1003],
+                "customer_fs:1:customer_feature_1": [1001, 1002, 1003],
+                "customer_fs:1:customer_feature_2": [1001, 1002, 1003],
+            }
+        )
+
+        final_results = tempfile.mktemp()
+        to_avro(file_path_or_buffer=final_results, df=expected_dataframe)
+
+        mocker.patch.object(
+            mock_client._serving_service_stub,
+            "GetBatchFeatures",
+            return_value=GetBatchFeaturesResponse(
+                job=BatchFeaturesJob(
+                    id="123",
+                    type=JobType.JOB_TYPE_DOWNLOAD,
+                    status=JobStatus.JOB_STATUS_DONE,
+                    file_uris=[f"file://{final_results}"],
+                    data_format=DataFormat.DATA_FORMAT_AVRO,
+                )
+            ),
+        )
+
+        mocker.patch.object(
+            mock_client._serving_service_stub,
+            "GetJob",
+            return_value=GetJobResponse(
+                job=BatchFeaturesJob(
+                    id="123",
+                    type=JobType.JOB_TYPE_DOWNLOAD,
+                    status=JobStatus.JOB_STATUS_DONE,
+                    file_uris=[f"file://{final_results}"],
+                    data_format=DataFormat.DATA_FORMAT_AVRO,
+                )
+            ),
+        )
+
+        mocker.patch.object(
+            mock_client._serving_service_stub,
+            "GetFeastServingInfo",
+            return_value=GetFeastServingInfoResponse(
+                job_staging_location=f"file://{tempfile.mkdtemp()}",
+                type=FeastServingType.FEAST_SERVING_TYPE_BATCH,
+            ),
+        )
+
+        response = mock_client.get_batch_features(
+            entity_rows=pd.DataFrame(
+                {
+                    "datetime": [np.int64(time.time_ns()) for _ in range(3)],
+                    "customer": [1001, 1002, 1003],
+                    "transaction": [1001, 1002, 1003],
+                }
+            ),
+            feature_ids=[
+                "customer_fs:1:customer_feature_1",
+                "customer_fs:1:customer_feature_2",
+            ],
+        )  # type: Job
+
+        assert response.id == "123" and response.status == JobStatus.JOB_STATUS_DONE
+
+        actual_dataframe = response.to_dataframe()
+
+        assert actual_dataframe[
+            ["customer_fs:1:customer_feature_1", "customer_fs:1:customer_feature_2"]
+        ].equals(
+            expected_dataframe[
+                ["customer_fs:1:customer_feature_1", "customer_fs:1:customer_feature_2"]
+            ]
         )
