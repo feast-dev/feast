@@ -81,7 +81,8 @@ elif [[ ${COMPONENT} == "python-sdk" ]]; then
 
   cd sdk/python
   pip install -r requirements-test.txt
-  python -m pytest --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+  pip install .
+  pytest --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
   TEST_EXIT_CODE=$?
 
 elif [[ ${COMPONENT} == "golang-sdk" ]]; then
@@ -92,7 +93,6 @@ elif [[ ${COMPONENT} == "golang-sdk" ]]; then
 
   go get -u github.com/jstemmer/go-junit-report
   cat /tmp/test_output | /go/bin/go-junit-report > ${LOGS_ARTIFACT_PATH}/golang-sdk-test-report.xml
-
 
 else
   usage; exit 1

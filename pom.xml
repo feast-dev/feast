@@ -219,9 +219,9 @@
             </dependency>
 
             <dependency>
-                <groupId>org.lognet</groupId>
+                <groupId>io.github.lognet</groupId>
                 <artifactId>grpc-spring-boot-starter</artifactId>
-                <version>2.4.1</version>
+                <version>3.0.2</version>
             </dependency>
 
             <!-- Logging -->
