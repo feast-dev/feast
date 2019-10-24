@@ -10,7 +10,7 @@ UNION ALL
 SELECT
   event_timestamp,
   {% for otherFeatureSet in featureSets %}
-  {% if otherFeatureSet.id == featureSet.id %}
+  {% if otherFeatureSet.id != featureSet.id %}
   NULL as {{ otherFeatureSet.name }}_v{{ otherFeatureSet.version }}_feature_timestamp,
   {% else %}
   event_timestamp as {{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp,

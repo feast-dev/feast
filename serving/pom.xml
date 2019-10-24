@@ -28,6 +28,7 @@
 
   <artifactId>feast-serving</artifactId>
   <name>Feast Serving</name>
+  <description>Feature serving API service</description>
 
   <repositories>
     <repository>
