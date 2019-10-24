@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-set -o pipefail
-
 # Default artifact location setting in Prow jobs
 LOGS_ARTIFACT_PATH=/logs/artifacts
+
+set -o pipefail
 
 usage()
 {
@@ -38,8 +38,6 @@ if [[ ! ${COMPONENT} ]]; then
   usage; exit 1; 
 fi
 
-. .prow/scripts/install_google_cloud_sdk.sh
-
 if [[ ${COMPONENT} == "core-ingestion" ]]; then
 
   .prow/scripts/prepare_maven_cache.sh \
@@ -51,8 +49,8 @@ if [[ ${COMPONENT} == "core-ingestion" ]]; then
   TEST_EXIT_CODE=$?
 
   mkdir -p ${LOGS_ARTIFACT_PATH}/surefire-reports
-  cp core/target/surefire-reports/* ${LOGS_ARTIFACT_PATH}/surefire-reports/*
-  cp ingestion/target/surefire-reports/* ${LOGS_ARTIFACT_PATH}/surefire-reports/*
+  cp core/target/surefire-reports/* ${LOGS_ARTIFACT_PATH}/surefire-reports/
+  cp ingestion/target/surefire-reports/* ${LOGS_ARTIFACT_PATH}/surefire-reports/
 
 elif [[ ${COMPONENT} == "serving" ]]; then
 
@@ -92,7 +90,9 @@ elif [[ ${COMPONENT} == "golang-sdk" ]]; then
   TEST_EXIT_CODE=$?
 
   go get -u github.com/jstemmer/go-junit-report
-  cat /tmp/test_output | /go/bin/go-junit-report > ${LOGS_ARTIFACT_PATH}/golang-sdk-test-report.xml
+  env
+  ls -lh $GOPATH/bin
+  cat /tmp/test_output | ${GOPATH}/bin/go-junit-report > ${LOGS_ARTIFACT_PATH}/golang-sdk-test-report.xml
 
 else
   usage; exit 1

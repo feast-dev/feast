@@ -23,7 +23,7 @@ while [ "$1" != "" ]; do
   shift
 done
 
-GOOGLE_CLOUD_SDK_ARCHIVE_URL=https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-244.0.0-linux-x86_64.tar.gz
+GOOGLE_CLOUD_SDK_ARCHIVE_URL=https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-266.0.0-linux-x86_64.tar.gz
 GOOGLE_PROJECT_ID=kf-feast
 KUBE_CLUSTER_NAME=primary-test-cluster
 KUBE_CLUSTER_ZONE=us-central1-a
