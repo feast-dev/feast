@@ -57,6 +57,7 @@ spring:
     hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
     hibernate.ddl-auto: update
   datasource:
+    driverClassName: org.postgresql.Driver
     url: jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:5432}/${DB_DATABASE:postgres}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:password}
