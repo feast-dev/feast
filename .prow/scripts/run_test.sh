@@ -49,8 +49,8 @@ if [[ ${COMPONENT} == "core-ingestion" ]]; then
   TEST_EXIT_CODE=$?
 
   mkdir -p ${LOGS_ARTIFACT_PATH}/surefire-reports
-  cp -r core/target/surefire-reports/* ${LOGS_ARTIFACT_PATH}/surefire-reports/*
-  cp -r ingestion/target/surefire-reports/* ${LOGS_ARTIFACT_PATH}/surefire-reports/*
+  cp core/target/surefire-reports/* ${LOGS_ARTIFACT_PATH}/surefire-reports/*
+  cp ingestion/target/surefire-reports/* ${LOGS_ARTIFACT_PATH}/surefire-reports/*
 
 elif [[ ${COMPONENT} == "serving" ]]; then
 
