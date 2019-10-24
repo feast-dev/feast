@@ -92,7 +92,11 @@ public class TestUtil {
 
     public static void stop() {
       if (server != null) {
-        server.shutdown();
+        try {
+          server.shutdown();
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
       }
     }
   }
