@@ -84,11 +84,12 @@ elif [[ ${COMPONENT} == "python-sdk" ]]; then
 
 elif [[ ${COMPONENT} == "golang-sdk" ]]; then
 
+  cd sdk/go
   go test -v 2>&1 | tee /tmp/test_output
   TEST_EXIT_CODE=$?
 
   go get -u github.com/jstemmer/go-junit-report
-  cat /tmp/test_output | go-junit-report > ${LOGS_ARTIFACT_PATH}/golang-sdk-test-report.xml
+  cat /tmp/test_output | /go/bin/go-junit-report > ${LOGS_ARTIFACT_PATH}/golang-sdk-test-report.xml
 
 
 else
