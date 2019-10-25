@@ -65,7 +65,6 @@ rollingUpdate:
   maxUnavailable: 1
 
 livenessProbe:
-  enabled: false
   # initialDelaySeconds: 30
   # failureThreshold: 3
 readinessProbe:

@@ -88,6 +88,8 @@ spec:
           readOnly: true
         {{- end }}
         env:
+        - name: DB_HOST
+          value: {{ template "postgresql.host" . }}
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef:
