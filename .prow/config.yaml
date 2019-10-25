@@ -90,7 +90,7 @@ presubmits:
     always_run: true
     spec:
       containers:
-      - image: python:3.6
+      - image: python:3.7
         command: [".prow/scripts/run_test.sh", "--component", "python-sdk"]
 
   - name: test-golang-sdk
@@ -101,53 +101,53 @@ presubmits:
       - image: golang:1.13
         command: [".prow/scripts/run_test.sh", "--component", "golang-sdk"]
 
-  - name: test-end-to-end
-    decorate: true
-    always_run: true
-    spec:
-      volumes:
-      - name: docker-socket-volume
-        hostPath:
-          path: /var/run/docker.sock
-          type: File
-      - name: service-account
-        secret:
-          secretName: prow-service-account
-      nodeSelector:
-        os: ubuntu
-      containers:
-      - image: google/cloud-sdk
-        # securityContext and docker socket volume mounts are needed because we are building
-        # Docker images in this job
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - name: docker-socket-volume
-          mountPath: /var/run/docker.sock
-        - name: service-account
-          mountPath: /etc/service-account
-          readOnly: true
-        command:
-        - bash
-        - -c
-        - |
-          export FEAST_HOME=${PWD}
-          export FEAST_IMAGE_REGISTRY=us.gcr.io
-          export FEAST_IMAGE_TAG=${PULL_PULL_SHA}
-          export FEAST_WAREHOUSE_DATASET=feast_build_${BUILD_ID}
-          export FEAST_CORE_URL=build-${BUILD_ID:0:5}.drone.feast.ai:80
-          export FEAST_SERVING_URL=build-${BUILD_ID:0:5}.drone.feast.ai:80
-          export FEAST_RELEASE_NAME=feast-${BUILD_ID:0:5}
-          export BATCH_IMPORT_DATA_GCS_PATH=gs://feast-templocation-kf-feast/build_${BUILD_ID:0:5}/integration-tests/testdata/feature_values/ingestion_1.csv
-          export KAFKA_BROKERS=10.128.0.201:9092
-          export KAFKA_TOPICS=feast_build_${BUILD_ID:0:5}
+  # - name: test-end-to-end
+  #   decorate: true
+  #   always_run: true
+  #   spec:
+  #     volumes:
+  #     - name: docker-socket-volume
+  #       hostPath:
+  #         path: /var/run/docker.sock
+  #         type: File
+  #     - name: service-account
+  #       secret:
+  #         secretName: prow-service-account
+  #     nodeSelector:
+  #       os: ubuntu
+  #     containers:
+  #     - image: google/cloud-sdk
+  #       # securityContext and docker socket volume mounts are needed because we are building
+  #       # Docker images in this job
+  #       securityContext:
+  #         privileged: true
+  #       volumeMounts:
+  #       - name: docker-socket-volume
+  #         mountPath: /var/run/docker.sock
+  #       - name: service-account
+  #         mountPath: /etc/service-account
+  #         readOnly: true
+  #       command:
+  #       - bash
+  #       - -c
+  #       - |
+  #         export FEAST_HOME=${PWD}
+  #         export FEAST_IMAGE_REGISTRY=us.gcr.io
+  #         export FEAST_IMAGE_TAG=${PULL_PULL_SHA}
+  #         export FEAST_WAREHOUSE_DATASET=feast_build_${BUILD_ID}
+  #         export FEAST_CORE_URL=build-${BUILD_ID:0:5}.drone.feast.ai:80
+  #         export FEAST_SERVING_URL=build-${BUILD_ID:0:5}.drone.feast.ai:80
+  #         export FEAST_RELEASE_NAME=feast-${BUILD_ID:0:5}
+  #         export BATCH_IMPORT_DATA_GCS_PATH=gs://feast-templocation-kf-feast/build_${BUILD_ID:0:5}/integration-tests/testdata/feature_values/ingestion_1.csv
+  #         export KAFKA_BROKERS=10.128.0.201:9092
+  #         export KAFKA_TOPICS=feast_build_${BUILD_ID:0:5}
 
-          . .prow/scripts/prepare_integration_test.sh
-          .prow/scripts/install_feast_and_run_e2e_test.sh
-          TEST_EXIT_CODE=$?
-          .prow/scripts/cleanup_feast_installation.sh
+  #         . .prow/scripts/prepare_integration_test.sh
+  #         .prow/scripts/install_feast_and_run_e2e_test.sh
+  #         TEST_EXIT_CODE=$?
+  #         .prow/scripts/cleanup_feast_installation.sh
           
-          exit ${TEST_EXIT_CODE}
+  #         exit ${TEST_EXIT_CODE}
 
 # TODO: do a release when a git tag is pushed
 #

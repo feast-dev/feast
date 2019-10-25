@@ -94,6 +94,27 @@ elif [[ ${COMPONENT} == "golang-sdk" ]]; then
   go get -u github.com/jstemmer/go-junit-report
   cat /tmp/test_output | ${GOPATH}/bin/go-junit-report > ${LOGS_ARTIFACT_PATH}/golang-sdk-test-report.xml
 
+elif [[ ${COMPONENT} == "end-to-end" ]]; then
+
+  apt-get -qq update
+  apt-get -y install redis-server
+  apt-get -y install postgresql
+  service postgresql start
+  redis-server --daemonize yes
+
+  wget -qO- https://www-eu.apache.org/dist/kafka/2.3.0/kafka_2.12-2.3.0.tgz | tar xz
+  cd kafka_2.12-2.3.0/
+  nohup bin/zookeeper-server-start.sh -daemon config/zookeeper.properties > /dev/null 2>&1 &
+  sleep 5
+  nohup bin/kafka-server-start.sh -daemon config/server.properties > /dev/null 2>&1 &
+  sleep 5
+
+  .prow/scripts/prepare_maven_cache.sh \
+    --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar --output-dir /root/
+  
+  mvn --batch-mode --define skipTests=true clean package
+
+
 else
   usage; exit 1
 fi
