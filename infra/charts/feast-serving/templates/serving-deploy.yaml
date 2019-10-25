@@ -51,10 +51,8 @@ spec:
             name: http
         {{- if .Values.livenessProbe }}
         livenessProbe:
-          httpGet:
-            path: /ping
-            port: {{ .Values.service.http.targetPort }}
-            scheme: HTTP
+          exec:
+            command: ["/bin/grpc_health_probe", "-addr=:{{ .Values.service.grpc.targetPort }}"]
           initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
           periodSeconds: 10
           successThreshold: 1
@@ -62,10 +60,8 @@ spec:
           failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
         {{ end }}
         readinessProbe:
-          httpGet:
-            path: /healthz
-            port: {{ .Values.service.http.targetPort }}
-            scheme: HTTP
+          exec:
+            command: ["/bin/grpc_health_probe", "-addr=:{{ .Values.service.grpc.targetPort }}"]
           initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
           periodSeconds: 5
           successThreshold: 1
