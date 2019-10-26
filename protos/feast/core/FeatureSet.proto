@@ -47,7 +47,8 @@ message FeatureSetSpec {
     // as nulls and indicated to end user
     google.protobuf.Duration max_age = 5;
 
-    // Source on which feature rows can be found
+    // Optional. Source on which feature rows can be found.
+    // If not set, source will be set to the default value configured in Feast Core.
     Source source = 6;
 }
 
