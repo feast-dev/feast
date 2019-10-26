@@ -98,6 +98,7 @@ public class DirectRunnerJobManager implements JobManager {
     pipelineOptions.setFeatureSetSpecJson(featureSetsJson);
     pipelineOptions.setStoreJson(Collections.singletonList(printer.print(sink)));
     pipelineOptions.setRunner(DirectRunner.class);
+    pipelineOptions.setProject(""); // set to default value to satisfy validation
     if (metrics.isEnabled()) {
       pipelineOptions.setMetricsExporterType(metrics.getType());
       if (metrics.getType().equals("prometheus")) {

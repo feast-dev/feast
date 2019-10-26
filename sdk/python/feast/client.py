@@ -380,10 +380,6 @@ class Client:
             raise ValueError(
                 f'Entity rows does not contain "datetime" column in columns {entity_rows.columns}'
             )
-        if entity_rows["datetime"].dtype != np.int64:
-            raise ValueError(
-                f"\"datetime\" column in entity rows is not of type np.int64, but {entity_rows['datetime'].dtype}"
-            )
 
         # Validate dataframe columns based on feature set entities
         for feature_set in feature_sets_request:
