@@ -165,7 +165,19 @@ def test_all_types(client):
 
         # Register feature set
         client.apply(all_types_fs)
+
+        # Feast Core needs some time to fully commit the FeatureSet applied
+        # when there is no existing job yet for the Featureset
+        time.sleep(3)
         all_types_fs = client.get_feature_set(name="all_types", version=1)
+
+        if all_types_fs is None:
+            raise Exception(
+                "Client cannot retrieve 'all_types_fs' FeatureSet "
+                "after registration. Either Feast Core does not save the "
+                "FeatureSet correctly or the client needs to wait longer for FeatureSet "
+                "to be committed."
+            )
 
     all_types_df = pd.DataFrame(
         {
