@@ -65,6 +65,11 @@ echo "
 Building jars for Feast
 ============================================================
 "
+
+.prow/scripts/download-maven-cache.sh \
+    --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
+    --output-dir /root/
+
 # Build jars for Feast
 mvn --batch-mode --define skipTests=true clean package
 
@@ -176,7 +181,8 @@ Installing Python 3.7 with Miniconda and Feast SDK
 ============================================================
 "
 # Install Python 3.7 with Miniconda
-wget https://repo.continuum.io/miniconda/Miniconda3-4.7.12-Linux-x86_64.sh
+wget -q https://repo.continuum.io/miniconda/Miniconda3-4.7.12-Linux-x86_64.sh \
+   -O /tmp/miniconda.sh
 bash /tmp/miniconda.sh -b -p /root/miniconda -f
 /root/miniconda/bin/conda init
 source ~/.bashrc
