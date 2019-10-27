@@ -30,7 +30,7 @@ KUBE_CLUSTER_ZONE=us-central1-a
 
 curl -s ${GOOGLE_CLOUD_SDK_ARCHIVE_URL} | tar xz -C /
 export PATH=/google-cloud-sdk/bin:${PATH}
-gcloud -q components install kubectl
+gcloud -q components install kubectl &> /var/log/kubectl.install.log
 
 if [[ ${KEY_FILE} ]]; then 
     gcloud -q auth activate-service-account --key-file=${KEY_FILE}

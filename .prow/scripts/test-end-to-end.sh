@@ -10,7 +10,7 @@ if ! cat /etc/*release | grep -q stretch; then
 fi
 
 echo "
-This script will run end-to-end tests for Feast Online Serving.
+This script will run end-to-end tests for Feast Core and Online Serving.
 
 1. Install Redis as the store for Feast Online Serving.
 2. Install Postgres for persisting Feast metadata.
@@ -27,7 +27,7 @@ Installing Redis at localhost:6379
 apt-get -qq update
 # Allow starting serving in this Maven Docker image. Default set to not allowed.
 echo "exit 0" > /usr/sbin/policy-rc.d
-apt-get -y install redis-server wget
+apt-get -y install redis-server wget > /var/log/redis.install.log
 redis-server --daemonize yes
 redis-cli ping
 
