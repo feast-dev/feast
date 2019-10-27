@@ -55,10 +55,12 @@ Installing Kafka at localhost:9092
 "
 wget -qO- https://www-eu.apache.org/dist/kafka/2.3.0/kafka_2.12-2.3.0.tgz | tar xz
 mv kafka_2.12-2.3.0/ /tmp/kafka
-nohup /tmp/kafka/bin/zookeeper-server-start.sh -daemon /tmp/kafka/config/zookeeper.properties > /var/log/zooker.log 2>&1 &
+nohup /tmp/kafka/bin/zookeeper-server-start.sh /tmp/kafka/config/zookeeper.properties &> /var/log/zookeeper.log 2>&1 &
 sleep 5
-nohup /tmp/kafka/bin/kafka-server-start.sh -daemon /tmp/kafka/config/server.properties > /var/log/kafka.log 2>&1 &
+tail -n20 /var/log/zookeeper.log
+nohup /tmp/kafka/bin/kafka-server-start.sh /tmp/kafka/config/server.properties &> /var/log/kafka.log 2>&1 &
 sleep 5
+tail -n20 /var/log/kafka.log
 
 echo "
 ============================================================
@@ -122,7 +124,7 @@ nohup java -jar core/target/feast-core-0.3.0-SNAPSHOT.jar \
   --spring.config.location=file:///tmp/core.application.yml \
   &> /var/log/feast-core.log &
 sleep 20
-tail -n50 /var/log/feast-core.log
+tail -n20 /var/log/feast-core.log
 
 echo "
 ============================================================
@@ -173,7 +175,7 @@ nohup java -jar serving/target/feast-serving-0.3.0-SNAPSHOT.jar \
   --spring.config.location=file:///tmp/serving.online.application.yml \
   &> /var/log/feast-serving-online.log &
 sleep 15
-tail -n50 /var/log/feast-serving-online.log
+tail -n20 /var/log/feast-serving-online.log
 
 echo "
 ============================================================
@@ -191,7 +193,7 @@ source ~/.bashrc
 LOGS_ARTIFACT_PATH=/logs/artifacts
 
 # Run end-to-end tests with pytest with the Python SDK
-pip install sdk/feast
+pip install sdk/python
 pip install -r tests/e2e/requirements.txt
 
 ORIGINAL_DIR=$(pwd)
