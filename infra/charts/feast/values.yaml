@@ -205,8 +205,9 @@ warehouse-serving:
       name: warehouse
       type: BIGQUERY
       bigquery_config:
-        projectId: the-big-data-staging-007
-        datasetId: feast
+        # Replace with your Google Cloud project configuration
+        projectId: google-project-id
+        datasetId: bigquery-dataset
       subscriptions:
         - name: .*
           version: ">0"
