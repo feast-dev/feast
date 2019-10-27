@@ -84,8 +84,6 @@ def test_basic(client):
                 "to be committed."
             )
 
-        cust_trans_fs = client.get_feature_set(name="customer_transactions", version=1)
-
     offset = random.randint(1000, 100000)  # ensure a unique key space is used
     customer_data = pd.DataFrame(
         {
@@ -139,7 +137,7 @@ def test_basic(client):
 
 @pytest.mark.timeout(300)
 def test_all_types(client):
-    all_types_fs = client.get_feature_set(name="all_types", version="1")
+    all_types_fs = client.get_feature_set(name="all_types", version=1)
 
     if all_types_fs is None:
         # Register new feature set if it doesnt exist
@@ -167,7 +165,7 @@ def test_all_types(client):
 
         # Register feature set
         client.apply(all_types_fs)
-        all_types_fs = client.get_feature_set(name="all_types", version="1")
+        all_types_fs = client.get_feature_set(name="all_types", version=1)
 
     all_types_df = pd.DataFrame(
         {
@@ -283,9 +281,20 @@ def test_large_volume(client):
         # Register feature set
         client.apply(cust_trans_fs)
 
+        # Feast Core needs some time to fully commit the FeatureSet applied
+        # when there is no existing job yet for the Featureset
+        time.sleep(3)
         cust_trans_fs = client.get_feature_set(
             name="customer_transactions_large", version=1
         )
+
+        if cust_trans_fs is None:
+            raise Exception(
+                "Client cannot retrieve 'customer_transactions' FeatureSet "
+                "after registration. Either Feast Core does not save the "
+                "FeatureSet correctly or the client needs to wait longer for FeatureSet "
+                "to be committed."
+            )
 
     offset = random.randint(1000000, 10000000)  # ensure a unique key space
     customer_data = pd.DataFrame(
@@ -304,6 +313,8 @@ def test_large_volume(client):
 
     # Poll serving for feature values until the correct values are returned
     while True:
+        time.sleep(1)
+
         response = client.get_online_features(
             entity_rows=[
                 GetOnlineFeaturesRequest.EntityRow(
@@ -321,7 +332,6 @@ def test_large_volume(client):
         )  # type: GetOnlineFeaturesResponse
 
         if response is None:
-            time.sleep(1)
             continue
 
         returned_daily_transactions = float(
