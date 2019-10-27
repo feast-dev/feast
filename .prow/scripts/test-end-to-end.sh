@@ -36,7 +36,7 @@ echo "
 Installing Postgres at localhost:5432
 ============================================================
 "
-apt-get -y install postgresql
+apt-get -y install postgresql > /var/log/postgresql.install.log
 service postgresql start
 # Initialize with database: 'postgres', user: 'postgres', password: 'password'
 cat <<EOF > /tmp/update-postgres-role.sh
@@ -57,10 +57,10 @@ wget -qO- https://www-eu.apache.org/dist/kafka/2.3.0/kafka_2.12-2.3.0.tgz | tar 
 mv kafka_2.12-2.3.0/ /tmp/kafka
 nohup /tmp/kafka/bin/zookeeper-server-start.sh /tmp/kafka/config/zookeeper.properties &> /var/log/zookeeper.log 2>&1 &
 sleep 5
-tail -n20 /var/log/zookeeper.log
+tail -n10 /var/log/zookeeper.log
 nohup /tmp/kafka/bin/kafka-server-start.sh /tmp/kafka/config/server.properties &> /var/log/kafka.log 2>&1 &
 sleep 5
-tail -n20 /var/log/kafka.log
+tail -n10 /var/log/kafka.log
 
 echo "
 ============================================================
@@ -190,8 +190,8 @@ bash /tmp/miniconda.sh -b -p /root/miniconda -f
 source ~/.bashrc
 
 # Install Feast Python SDK and test requirements
-pip install sdk/python
-pip install -r tests/e2e/requirements.txt
+pip install -q sdk/python
+pip install -qr tests/e2e/requirements.txt
 
 echo "
 ============================================================

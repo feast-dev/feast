@@ -73,7 +73,7 @@ def test_basic(client):
 
         # Feast Core needs some time to fully commit the FeatureSet applied
         # when there is no existing job yet for the Featureset
-        time.sleep(3)
+        time.sleep(15)
         cust_trans_fs = client.get_feature_set(name="customer_transactions", version=1)
 
         if cust_trans_fs is None:
@@ -168,7 +168,7 @@ def test_all_types(client):
 
         # Feast Core needs some time to fully commit the FeatureSet applied
         # when there is no existing job yet for the Featureset
-        time.sleep(3)
+        time.sleep(10)
         all_types_fs = client.get_feature_set(name="all_types", version=1)
 
         if all_types_fs is None:
@@ -297,7 +297,7 @@ def test_large_volume(client):
 
         # Feast Core needs some time to fully commit the FeatureSet applied
         # when there is no existing job yet for the Featureset
-        time.sleep(3)
+        time.sleep(10)
         cust_trans_fs = client.get_feature_set(
             name="customer_transactions_large", version=1
         )
