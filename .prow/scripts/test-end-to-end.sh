@@ -19,16 +19,26 @@ This script will run end-to-end tests for Feast Online Serving.
    tests/e2e via pytest.
 "
 
-# Install Redis at localhost:6379
+echo "
+============================================================
+Installing Redis at localhost:6379
+============================================================
+"
 apt-get -qq update
+# Allow starting serving in this Maven Docker image. Default set to not allowed.
+echo "exit 0" > /usr/sbin/policy-rc.d
 apt-get -y install redis-server wget
 redis-server --daemonize yes
 redis-cli ping
 
-# Install Postgres at localhost:5432 
-# Initialize with database 'postgres', user 'postgres', password 'password'
+echo "
+============================================================
+Installing Postgres at localhost:5432
+============================================================
+"
 apt-get -y install postgresql
 service postgresql start
+# Initialize with database: 'postgres', user: 'postgres', password: 'password'
 cat <<EOF > /tmp/update-postgres-role.sh
 psql -c "ALTER USER postgres PASSWORD 'password';"
 EOF
@@ -37,8 +47,12 @@ su -s /bin/bash -c /tmp/update-postgres-role.sh postgres
 export PGPASSWORD=password
 pg_isready
 
-# Install Zookeeper at localhost:2181
-# Install Kafka at localhost:9092
+echo "
+============================================================
+Installing Zookeeper at localhost:2181
+Installing Kafka at localhost:9092
+============================================================
+"
 wget -qO- https://www-eu.apache.org/dist/kafka/2.3.0/kafka_2.12-2.3.0.tgz | tar xz
 mv kafka_2.12-2.3.0/ /tmp/kafka
 nohup /tmp/kafka/bin/zookeeper-server-start.sh -daemon /tmp/kafka/config/zookeeper.properties > /var/log/zooker.log 2>&1 &
@@ -46,9 +60,19 @@ sleep 5
 nohup /tmp/kafka/bin/kafka-server-start.sh -daemon /tmp/kafka/config/server.properties > /var/log/kafka.log 2>&1 &
 sleep 5
 
+echo "
+============================================================
+Building jars for Feast
+============================================================
+"
 # Build jars for Feast
 mvn --batch-mode --define skipTests=true clean package
 
+echo "
+============================================================
+Starting Feast Core
+============================================================
+"
 # Start Feast Core in background
 cat <<EOF > /tmp/core.application.yml
 grpc:
@@ -95,6 +119,11 @@ nohup java -jar core/target/feast-core-0.3.0-SNAPSHOT.jar \
 sleep 20
 tail -n50 /var/log/feast-core.log
 
+echo "
+============================================================
+Starting Feast Online Serving
+============================================================
+"
 # Start Feast Online Serving in background
 cat <<EOF > /tmp/serving.store.redis.yml
 name: serving
@@ -141,6 +170,11 @@ nohup java -jar serving/target/feast-serving-0.3.0-SNAPSHOT.jar \
 sleep 15
 tail -n50 /var/log/feast-serving-online.log
 
+echo "
+============================================================
+Installing Python 3.7 with Miniconda and Feast SDK
+============================================================
+"
 # Install Python 3.7 with Miniconda
 wget https://repo.continuum.io/miniconda/Miniconda3-4.7.12-Linux-x86_64.sh
 bash /tmp/miniconda.sh -b -p /root/miniconda -f
@@ -156,6 +190,11 @@ pip install -r tests/e2e/requirements.txt
 
 ORIGINAL_DIR=$(pwd)
 
+echo "
+============================================================
+Running end-to-end tests with pytest at 'tests/e2e'
+============================================================
+"
 cd tests/e2e
 set +e
 pytest --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
