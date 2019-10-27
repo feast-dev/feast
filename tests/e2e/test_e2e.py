@@ -230,9 +230,12 @@ def test_all_types(client):
 
     # Ingest user embedding data
     all_types_fs.ingest(dataframe=all_types_df)
+    time.sleep(3)
 
     # Poll serving for feature values until the correct values are returned
     while True:
+        time.sleep(1)
+
         response = client.get_online_features(
             entity_rows=[
                 GetOnlineFeaturesRequest.EntityRow(
@@ -258,7 +261,6 @@ def test_all_types(client):
         )  # type: GetOnlineFeaturesResponse
 
         if response is None:
-            time.sleep(1)
             continue
 
         returned_float_list = (

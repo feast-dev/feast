@@ -73,7 +73,7 @@ Building jars for Feast
     --output-dir /root/
 
 # Build jars for Feast
-mvn --batch-mode --define skipTests=true clean package
+mvn --quiet --batch-mode --define skipTests=true clean package
 
 echo "
 ============================================================
@@ -124,7 +124,7 @@ nohup java -jar core/target/feast-core-0.3.0-SNAPSHOT.jar \
   --spring.config.location=file:///tmp/core.application.yml \
   &> /var/log/feast-core.log &
 sleep 20
-tail -n20 /var/log/feast-core.log
+tail -n10 /var/log/feast-core.log
 
 echo "
 ============================================================
@@ -175,7 +175,7 @@ nohup java -jar serving/target/feast-serving-0.3.0-SNAPSHOT.jar \
   --spring.config.location=file:///tmp/serving.online.application.yml \
   &> /var/log/feast-serving-online.log &
 sleep 15
-tail -n20 /var/log/feast-serving-online.log
+tail -n10 /var/log/feast-serving-online.log
 
 echo "
 ============================================================
@@ -189,21 +189,21 @@ bash /tmp/miniconda.sh -b -p /root/miniconda -f
 /root/miniconda/bin/conda init
 source ~/.bashrc
 
-# Default artifact location setting in Prow jobs
-LOGS_ARTIFACT_PATH=/logs/artifacts
-
-# Run end-to-end tests with pytest with the Python SDK
+# Install Feast Python SDK and test requirements
 pip install sdk/python
 pip install -r tests/e2e/requirements.txt
-
-ORIGINAL_DIR=$(pwd)
 
 echo "
 ============================================================
 Running end-to-end tests with pytest at 'tests/e2e'
 ============================================================
 "
+# Default artifact location setting in Prow jobs
+LOGS_ARTIFACT_PATH=/logs/artifacts
+
+ORIGINAL_DIR=$(pwd)
 cd tests/e2e
+
 set +e
 pytest --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
