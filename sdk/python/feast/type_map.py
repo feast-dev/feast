@@ -106,7 +106,7 @@ def dtype_to_value_type(dtype):
 # TODO: to pass test_importer
 def pandas_dtype_to_feast_value_type(dtype: pd.DataFrame.dtypes) -> ValueType:
     type_map = {
-        "float64": ValueType.FLOAT,
+        "float64": ValueType.DOUBLE,
         "float32": ValueType.FLOAT,
         "int64": ValueType.INT64,
         "uint64": ValueType.INT64,
@@ -247,7 +247,7 @@ def pd_value_to_proto_value(feast_value_type, value) -> ProtoValue:
             return ProtoValue(float_val=float(value))
         elif feast_value_type == ValueType.DOUBLE:
             assert type(value) is float
-            return ProtoValue(float_val=value)
+            return ProtoValue(double_val=value)
         elif feast_value_type == ValueType.STRING:
             return ProtoValue(string_val=str(value))
         elif feast_value_type == ValueType.BYTES:
