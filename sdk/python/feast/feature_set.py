@@ -69,7 +69,7 @@ class FeatureSet:
         if entities is not None:
             self.entities = entities
         if source is None:
-            self._source = KafkaSource()
+            self._source = None
         else:
             self._source = source
         self._max_age = max_age
@@ -504,7 +504,7 @@ class FeatureSet:
             name=self.name,
             version=self.version,
             max_age=self.max_age,
-            source=self.source.to_proto(),
+            source=self.source.to_proto() if self.source is not None else None,
             features=[
                 field.to_proto()
                 for field in self._fields.values()
