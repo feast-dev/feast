@@ -438,6 +438,14 @@
                     </excludes>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- Parent POM isn't a Spring Boot app, don't try to discover main classes. -->
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
         </plugins>
 
         <pluginManagement>
