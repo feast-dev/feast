@@ -38,11 +38,13 @@ public class KafkaFeatureStream implements FeatureStream {
     Source source = featureSet.getSource();
     KafkaSourceConfig config = KafkaSourceConfig.getDefaultInstance();
     String bootstrapServers = defaultConfig.getBootstrapServers();
+    String topicName = defaultConfig.getTopic();
     if (!source.isUseDefault()) {
       try {
         config = (KafkaSourceConfig) source.getOptions();
+        topicName = config.getTopic();
         bootstrapServers = config.getBootstrapServers();
-      } catch (InvalidProtocolBufferException | NullPointerException e) {
+      } catch (NullPointerException e) {
         throw new RuntimeException(String
             .format("Unable to retrieve bootstrap servers for featureSet %s", featureSet.getName()),
             e);
@@ -54,7 +56,6 @@ public class KafkaFeatureStream implements FeatureStream {
     map.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "1000");
     AdminClient client = AdminClient.create(map);
 
-    String topicName = generateTopicName(featureSet.getName());
     NewTopic newTopic = new NewTopic(topicName,
         defaultConfig.getTopicNumPartitions(),
         defaultConfig.getTopicReplicationFactor());
@@ -71,14 +72,10 @@ public class KafkaFeatureStream implements FeatureStream {
         throw new RuntimeException(e.getMessage(), e);
       }
     }
-    assert config != null;
-    source.setOptions(
-        config.toBuilder().setTopic(topicName).setBootstrapServers(bootstrapServers).build()
-            .toByteArray());
-    return source;
-  }
 
-  public String generateTopicName(String featureSetName) {
-    return Strings.lenientFormat("%s-%s-features", defaultConfig.getTopicPrefix(), featureSetName);
+    assert config != null;
+    source.setTopics(topicName);
+    source.setBootstrapServers(bootstrapServers);
+    return source;
   }
 }

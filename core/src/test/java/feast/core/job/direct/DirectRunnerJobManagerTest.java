@@ -74,6 +74,7 @@ public class DirectRunnerJobManagerTest {
     expectedPipelineOptions.setRunner(DirectRunner.class);
     expectedPipelineOptions.setBlockOnRun(false);
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
+    expectedPipelineOptions.setProject("");
     expectedPipelineOptions
         .setFeatureSetSpecJson(Lists.newArrayList(printer.print(featureSetSpec)));
 

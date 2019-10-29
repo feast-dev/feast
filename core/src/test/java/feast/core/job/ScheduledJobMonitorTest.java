@@ -25,11 +25,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Lists;
+import feast.core.SourceProto;
 import feast.core.dao.JobInfoRepository;
 import feast.core.dao.MetricsRepository;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
 import feast.core.model.Metrics;
+import feast.core.model.Source;
 import feast.core.model.Store;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -62,8 +64,8 @@ public class ScheduledJobMonitorTest {
         new JobInfo(
             "jobId",
             "extId1",
-            "Streaming",
             "DataflowRunner",
+            Source.fromProto(SourceProto.Source.getDefaultInstance()),
             new Store(),
             Collections.emptyList(),
             Collections.emptyList(),

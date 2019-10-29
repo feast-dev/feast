@@ -17,6 +17,7 @@
 
 package feast.core.grpc;
 
+import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.CoreServiceGrpc.CoreServiceImplBase;
 import feast.core.CoreServiceProto.ApplyFeatureSetRequest;
@@ -32,9 +33,11 @@ import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.CoreServiceProto.UpdateStoreResponse.Status;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.SourceProto;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Subscription;
 import feast.core.exception.RetrievalException;
+import feast.core.model.Source;
 import feast.core.service.JobCoordinatorService;
 import feast.core.service.SpecService;
 import io.grpc.stub.StreamObserver;
@@ -113,7 +116,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
                       return p.matcher(featureSetName).matches();
                     })
                 .collect(Collectors.toList());
-        List<FeatureSetSpec> featureSetSpecs = new ArrayList<>();
+        Set<FeatureSetSpec> featureSetSpecs = new HashSet<>();
         for (Subscription subscription : relevantSubscriptions) {
           featureSetSpecs.addAll(
               specService
@@ -124,8 +127,12 @@ public class CoreServiceImpl extends CoreServiceImplBase {
                           .build())
                   .getFeatureSetsList());
         }
-        if (!featureSetSpecs.isEmpty()) {
-          jobCoordinatorService.startOrUpdateJob(featureSetSpecs, store);
+        if (!featureSetSpecs.isEmpty() && featureSetSpecs.contains(response.getFeatureSet())) {
+          // We use the request featureSet source because it contains the information
+          // about whether to default to the default feature stream or not
+          SourceProto.Source source = request.getFeatureSet().getSource();
+          jobCoordinatorService
+              .startOrUpdateJob(Lists.newArrayList(featureSetSpecs), source, store);
         }
       }
       responseObserver.onNext(response);
@@ -159,10 +166,11 @@ public class CoreServiceImpl extends CoreServiceImplBase {
           );
         }
         featureSetSpecs.stream()
-            .collect(Collectors.groupingBy(FeatureSetSpec::getName))
+            .collect(Collectors.groupingBy(FeatureSetSpec::getSource))
             .entrySet()
             .stream()
-            .forEach(kv -> jobCoordinatorService.startOrUpdateJob(kv.getValue(), store));
+            .forEach(
+                kv -> jobCoordinatorService.startOrUpdateJob(kv.getValue(), kv.getKey(), store));
       }
     } catch (Exception e) {
       log.error("Exception has occurred in UpdateStore method: ", e);

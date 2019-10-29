@@ -47,6 +47,7 @@ feast:
     type: kafka
     # Feature stream options.
     options:
+      topic: feast-features
       bootstrapServers: kafka:9092
       replicationFactor: 1
       partitions: 1

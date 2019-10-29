@@ -1,7 +1,9 @@
 package feast.core.service;
 
 import com.google.common.base.Strings;
+import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.SourceProto;
 import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto;
 import feast.core.dao.JobInfoRepository;
@@ -14,6 +16,7 @@ import feast.core.log.Resource;
 import feast.core.model.FeatureSet;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
+import feast.core.model.Source;
 import feast.core.model.Store;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -44,9 +47,11 @@ public class JobCoordinatorService {
    * there has been no change in the featureSet, and there is a running job for the featureSet, this
    * method will do nothing.
    */
-  public JobInfo startOrUpdateJob(List<FeatureSetSpec> featureSetSpecs, StoreProto.Store store) {
-    String featureSetName = featureSetSpecs.get(0).getName();
-    Optional<JobInfo> job = getJob(featureSetName, store.getName());
+  public JobInfo startOrUpdateJob(List<FeatureSetSpec> featureSetSpecs,
+      SourceProto.Source sourceSpec,
+      StoreProto.Store store) {
+    Source source = Source.fromProto(sourceSpec);
+    Optional<JobInfo> job = getJob(source.getId(), store.getName());
     if (job.isPresent()) {
       Set<String> existingFeatureSetsPopulatedByJob =
           job.get().getFeatureSets().stream().map(FeatureSet::getId).collect(Collectors.toSet());
@@ -61,14 +66,17 @@ public class JobCoordinatorService {
         return updateJob(job.get(), featureSetSpecs, store);
       }
     } else {
-      return startJob(createJobId(featureSetName, store.getName()), featureSetSpecs, store);
+      return startJob(createJobId(source.getType().toString().toLowerCase(), store.getName()),
+          featureSetSpecs, sourceSpec, store);
     }
   }
 
-  /** Get the non-terminal job associated with the given featureSet name and store name, if any. */
-  private Optional<JobInfo> getJob(String featureSetName, String storeName) {
+  /**
+   * Get the non-terminal job associated with the given featureSet name and store name, if any.
+   */
+  private Optional<JobInfo> getJob(String sourceId, String storeName) {
     List<JobInfo> jobs =
-        jobInfoRepository.findByFeatureSetsNameAndStoreName(featureSetName, storeName);
+        jobInfoRepository.findBySourceIdAndStoreName(sourceId, storeName);
     if (jobs.isEmpty()) {
       return Optional.empty();
     }
@@ -77,9 +85,12 @@ public class JobCoordinatorService {
         .findFirst();
   }
 
-  /** Start or update the job to ingest data to the sink. */
+  /**
+   * Start or update the job to ingest data to the sink.
+   */
   private JobInfo startJob(
-      String jobId, List<FeatureSetSpec> featureSetSpecs, StoreProto.Store sinkSpec) {
+      String jobId, List<FeatureSetSpec> featureSetSpecs, SourceProto.Source source,
+      StoreProto.Store sinkSpec) {
     try {
       AuditLogger.log(
           Resource.JOB,
@@ -102,7 +113,6 @@ public class JobCoordinatorService {
           jobManager.getRunnerType().getName(),
           extId);
 
-      SourceType sourceType = featureSetSpecs.get(0).getSource().getType();
       List<FeatureSet> featureSets = new ArrayList<>();
 
       for (FeatureSetSpec featureSetSpec : featureSetSpecs) {
@@ -115,8 +125,8 @@ public class JobCoordinatorService {
           new JobInfo(
               jobId,
               extId,
-              sourceType,
               jobManager.getRunnerType().getName(),
+              Source.fromProto(source),
               Store.fromProto(sinkSpec),
               featureSets,
               JobStatus.RUNNING);
@@ -134,7 +144,9 @@ public class JobCoordinatorService {
     }
   }
 
-  /** Update the given job */
+  /**
+   * Update the given job
+   */
   private JobInfo updateJob(
       JobInfo jobInfo, List<FeatureSetSpec> featureSetSpecs, StoreProto.Store store) {
     jobInfo.setFeatureSets(
@@ -171,7 +183,9 @@ public class JobCoordinatorService {
     jobInfoRepository.saveAndFlush(job);
   }
 
-  /** Update a given job's status */
+  /**
+   * Update a given job's status
+   */
   public void updateJobStatus(String jobId, JobStatus status) {
     Optional<JobInfo> jobRecordOptional = jobInfoRepository.findById(jobId);
     if (jobRecordOptional.isPresent()) {
@@ -181,9 +195,10 @@ public class JobCoordinatorService {
     }
   }
 
-  public String createJobId(String featureSetName, String storeName) {
+  public String createJobId(String sourceId, String storeName) {
     String dateSuffix = String.valueOf(Instant.now().toEpochMilli());
-    String jobId = String.format("%s-to-%s", featureSetName, storeName) + dateSuffix;
+    String sourceIdTrunc = sourceId.split("/")[0].toLowerCase();
+    String jobId = String.format("%s-to-%s", sourceIdTrunc, storeName) + dateSuffix;
     return jobId.replaceAll("_", "-");
   }
 }
