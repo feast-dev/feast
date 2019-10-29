@@ -21,7 +21,7 @@ plank:
 deck:
   tide_update_period: 1s
   spyglass:
-    size_limit: 100e+6 # 100MB
+    size_limit: 50e+6 # 50MB
     viewers:
       "started.json|finished.json": ["metadata"]
       "build-log.txt": ["buildlog"]
@@ -50,132 +50,56 @@ tide:
 # presubmits list Prow jobs that run on pull requests
 presubmits:
   gojek/feast:
-  - name: unit-test-core
-    decorate: true
-    always_run: true
-    spec:
-      volumes:
-      - name: service-account
-        secret:
-          secretName: prow-service-account
-      containers:
-      - image: maven:3.6-jdk-8
-        volumeMounts:
-        - name: service-account
-          mountPath: /etc/service-account
-          readOnly: true
-        env:
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: /etc/service-account/service-account.json
-        command: [".prow/scripts/run_unit_test.sh", "--component", "core"]
-
-  - name: unit-test-ingestion
-    decorate: true
-    always_run: true
-    spec:
-      volumes:
-      - name: service-account
-        secret:
-          secretName: prow-service-account
-      containers:
-      - image: maven:3.6-jdk-8
-        volumeMounts:
-        - name: service-account
-          mountPath: /etc/service-account
-          readOnly: true
-        env:
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: /etc/service-account/service-account.json
-        command: [".prow/scripts/run_unit_test.sh", "--component", "ingestion"]
-
-  - name: unit-test-serving
+  - name: test-core-and-ingestion
     decorate: true
     always_run: true
     spec:
       containers:
       - image: maven:3.6-jdk-8
-        command: [".prow/scripts/run_unit_test.sh", "--component", "serving"]
+        command: [".prow/scripts/test-core-ingestion.sh"]
 
-  - name: unit-test-cli
+  - name: test-serving
     decorate: true
     always_run: true
     spec:
       containers:
-      - image: golang:1.12
-        env:
-        - name: GO111MODULE
-          value: "on"
-        command: [".prow/scripts/run_unit_test.sh", "--component", "cli"]
+      - image: maven:3.6-jdk-8
+        command: [".prow/scripts/test-serving.sh"]
 
-  - name: unit-test-python-sdk
+  - name: test-java-sdk
     decorate: true
     always_run: true
     spec:
-      volumes:
-      - name: service-account
-        secret:
-          secretName: prow-service-account
       containers:
-      - image: python:3.6
-        volumeMounts:
-        - name: service-account
-          mountPath: /etc/service-account
-          readOnly: true
-        env:
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: /etc/service-account/service-account.json
-        command: [".prow/scripts/run_unit_test.sh", "--component", "python-sdk"]
+      - image: maven:3.6-jdk-8
+        command: [".prow/scripts/test-java-sdk.sh"]
 
-  - name: integration-test
+  - name: test-python-sdk
     decorate: true
     always_run: true
     spec:
-      volumes:
-      - name: docker-socket-volume
-        hostPath:
-          path: /var/run/docker.sock
-          type: File
-      - name: service-account
-        secret:
-          secretName: prow-service-account
-      nodeSelector:
-        os: ubuntu
       containers:
-      - image: google/cloud-sdk
-        # securityContext and docker socket volume mounts are needed because we are building
-        # Docker images in this job
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - name: docker-socket-volume
-          mountPath: /var/run/docker.sock
-        - name: service-account
-          mountPath: /etc/service-account
-          readOnly: true
-        command:
-        - bash
-        - -c
-        - |
-          export FEAST_HOME=${PWD}
-          export FEAST_IMAGE_REGISTRY=us.gcr.io
-          export FEAST_IMAGE_TAG=${PULL_PULL_SHA}
-          export FEAST_WAREHOUSE_DATASET=feast_build_${BUILD_ID}
-          export FEAST_CORE_URL=build-${BUILD_ID:0:5}.drone.feast.ai:80
-          export FEAST_SERVING_URL=build-${BUILD_ID:0:5}.drone.feast.ai:80
-          export FEAST_RELEASE_NAME=feast-${BUILD_ID:0:5}
-          export BATCH_IMPORT_DATA_GCS_PATH=gs://feast-templocation-kf-feast/build_${BUILD_ID:0:5}/integration-tests/testdata/feature_values/ingestion_1.csv
-          export KAFKA_BROKERS=10.128.0.201:9092
-          export KAFKA_TOPICS=feast_build_${BUILD_ID:0:5}
+      - image: python:3.7
+        command: [".prow/scripts/test-python-sdk.sh"]
 
-          . .prow/scripts/prepare_integration_test.sh
-          .prow/scripts/install_feast_and_run_e2e_test.sh
-          TEST_EXIT_CODE=$?
-          .prow/scripts/cleanup_feast_installation.sh
-          
-          exit ${TEST_EXIT_CODE}
+  - name: test-golang-sdk
+    decorate: true
+    always_run: true
+    spec:
+      containers:
+      - image: golang:1.13
+        command: [".prow/scripts/test-golang-sdk.sh"]
+
+  - name: test-end-to-end
+    decorate: true
+    always_run: true
+    spec:
+      containers:
+      - image: maven:3.6-jdk-8
+        command: [".prow/scripts/test-end-to-end.sh"]
 
 # TODO: do a release when a git tag is pushed
-# postsubmits list Prow jobs that run on every push 
 #
+# postsubmits list Prow jobs that run on every push 
 # postsubmits:
 #   gojek/feast:

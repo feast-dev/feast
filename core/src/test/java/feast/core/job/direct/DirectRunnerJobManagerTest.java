@@ -73,6 +73,7 @@ public class DirectRunnerJobManagerTest {
     expectedPipelineOptions.setAppName("DirectRunnerJobManager");
     expectedPipelineOptions.setRunner(DirectRunner.class);
     expectedPipelineOptions.setBlockOnRun(false);
+    expectedPipelineOptions.setProject("");
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
     expectedPipelineOptions.setProject("");
     expectedPipelineOptions

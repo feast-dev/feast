@@ -116,6 +116,7 @@ public class ImportJobTest {
     options.setStoreJson(
         Collections.singletonList(
             JsonFormat.printer().omittingInsignificantWhitespace().print(redis)));
+    options.setProject("");
     options.setBlockOnRun(false);
 
     int inputSize = 4096;
