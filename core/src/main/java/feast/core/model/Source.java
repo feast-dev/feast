@@ -6,6 +6,7 @@ import feast.core.SourceProto;
 import feast.core.SourceProto.KafkaSourceConfig;
 import feast.core.SourceProto.Source.Builder;
 import feast.core.SourceProto.SourceType;
+import io.grpc.Status;
 import java.util.Set;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -43,11 +44,22 @@ public class Source {
     super();
   }
 
-  public Source(SourceType type, KafkaSourceConfig config, boolean isUseDefault) {
+  public Source(SourceType type, KafkaSourceConfig config) {
+    if (config.getBootstrapServers().isEmpty() || config.getTopic().isEmpty()) {
+      throw Status.INVALID_ARGUMENT.withDescription(
+          "Unsupported source options. Kafka source requires bootstrap servers and topic to be specified.")
+          .asRuntimeException();
+    }
     this.type = type.toString();
     this.bootstrapServers = config.getBootstrapServers();
     this.topics = config.getTopic();
-    this.useDefault = isUseDefault;
+    this.useDefault = false;
+    this.id = generateId();
+  }
+
+  public Source(SourceType type) {
+    this.type = type.toString();
+    this.useDefault = true;
     this.id = generateId();
   }
 
@@ -59,18 +71,19 @@ public class Source {
    */
   public static Source fromProto(SourceProto.Source sourceProto) {
     if (sourceProto.equals(SourceProto.Source.getDefaultInstance())) {
-      Source source = new Source(SourceType.UNRECOGNIZED,
-          KafkaSourceConfig.getDefaultInstance(), true);
+      Source source = new Source(SourceType.UNRECOGNIZED);
       source.setUseDefault(true);
       return source;
     }
 
     switch (sourceProto.getType()) {
       case KAFKA:
-        return new Source(sourceProto.getType(), sourceProto.getKafkaSourceConfig(), false);
+        return new Source(sourceProto.getType(), sourceProto.getKafkaSourceConfig());
       case UNRECOGNIZED:
       default:
-        throw new IllegalArgumentException("Unsupported source type. Only [KAFKA] is supported.");
+        throw Status.INVALID_ARGUMENT
+            .withDescription("Unsupported source type. Only [KAFKA] is supported.")
+            .asRuntimeException();
     }
   }
 
@@ -141,9 +154,9 @@ public class Source {
   }
 
   /**
-   * Override equality for sources.
-   * useDefault is always compared first; if both sources are using the default feature source,
-   * they will be equal. If not they will be compared based on their type-specific options.
+   * Override equality for sources. useDefault is always compared first; if both sources are using
+   * the default feature source, they will be equal. If not they will be compared based on their
+   * type-specific options.
    *
    * @param other other Source
    * @return boolean equal
