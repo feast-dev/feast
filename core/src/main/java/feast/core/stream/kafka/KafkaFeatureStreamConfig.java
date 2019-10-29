@@ -17,9 +17,9 @@ public class KafkaFeatureStreamConfig {
   String bootstrapServers;
 
   /**
-   * Feast stream topic prefix, to be prepended to topic name
+   * Feast stream topic name
    */
-  String topicPrefix;
+  String topic;
 
   /**
    * Number of partitions per topic
@@ -45,7 +45,7 @@ public class KafkaFeatureStreamConfig {
    */
   public static KafkaFeatureStreamConfig fromMap(Map<String, String> optionMap) {
     String bootstrapServers = optionMap.getOrDefault("bootstrapServers", "KAFKA:9092");
-    String topicPrefix = optionMap.getOrDefault("topicPrefix", "feast");
+    String topicPrefix = optionMap.getOrDefault("topic", "feast-features");
     int numPartitions = Integer.parseInt(optionMap.getOrDefault("partitions", NUM_PARTITIONS_DEFAULT));
     short replicationFactor = Short.parseShort(optionMap.getOrDefault("replicationFactor", REPLICATION_FACTOR_DEFAULT));
 

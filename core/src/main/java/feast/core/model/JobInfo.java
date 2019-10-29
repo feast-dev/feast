@@ -55,18 +55,20 @@ public class JobInfo extends AbstractTimestampEntity {
   @Column(name = "ext_id")
   private String extId;
 
-  // Import job source type
-  @Column(name = "type")
-  private String type;
-
   // Runner type
   @Column(name = "runner")
   private String runner;
+
+  // Source id
+  @ManyToOne
+  @JoinColumn(name = "source_id")
+  private Source source;
 
   // Sink id
   @ManyToOne
   @JoinColumn(name = "store_name")
   private Store store;
+
 
   // FeatureSets populated by the job
   @ManyToMany
@@ -87,11 +89,11 @@ public class JobInfo extends AbstractTimestampEntity {
     super();
   }
 
-  public JobInfo(String id, String extId, SourceType type, String runner, Store sink,
+  public JobInfo(String id, String extId, String runner, Source source, Store sink,
       List<FeatureSet> featureSets, JobStatus jobStatus) {
     this.id = id;
     this.extId = extId;
-    this.type = type.toString();
+    this.source = source;
     this.runner = runner;
     this.store = sink;
     this.featureSets = featureSets;
