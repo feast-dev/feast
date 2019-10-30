@@ -27,6 +27,7 @@ import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
+import feast.core.model.FeatureSet;
 import feast.core.model.JobInfo;
 import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
@@ -36,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.PipelineResult;
@@ -111,12 +113,29 @@ public class DirectRunnerJobManager implements JobManager {
   }
 
   /**
-   * Unsupported.
+   * Stops an existing job and restarts a new job in its place as a proxy for job updates.
+   * Note that since we do not maintain a consumer group across the two jobs and the old job
+   * is not drained, some data may be lost.
+   *
+   * As a rule of thumb, direct jobs in feast should only be used for testing.
+   *
+   * @param jobInfo jobInfo of target job to change
+   * @return jobId of the job
    */
   @Override
   public String updateJob(JobInfo jobInfo) {
-    throw new UnsupportedOperationException(
-        "DirectRunner does not support job updates. To make changes to the worker, stop the existing job and rerun ingestion.");
+    String jobId = jobInfo.getExtId();
+    abortJob(jobId);
+    try {
+      List<FeatureSetSpec> featureSetSpecs = new ArrayList<>();
+      for (FeatureSet featureSet : jobInfo.getFeatureSets()) {
+        featureSetSpecs.add(featureSet.toProto());
+      }
+      startJob(jobId, featureSetSpecs, jobInfo.getStore().toProto());
+    } catch (JobExecutionException | InvalidProtocolBufferException e) {
+      throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
+    }
+    return jobId;
   }
 
   /**

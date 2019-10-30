@@ -38,13 +38,13 @@ public class Source {
   private String topics;
 
   @Column(name = "use_default")
-  private boolean useDefault;
+  private boolean isDefault;
 
   public Source() {
     super();
   }
 
-  public Source(SourceType type, KafkaSourceConfig config) {
+  public Source(SourceType type, KafkaSourceConfig config, boolean isDefault) {
     if (config.getBootstrapServers().isEmpty() || config.getTopic().isEmpty()) {
       throw Status.INVALID_ARGUMENT.withDescription(
           "Unsupported source options. Kafka source requires bootstrap servers and topic to be specified.")
@@ -53,13 +53,7 @@ public class Source {
     this.type = type.toString();
     this.bootstrapServers = config.getBootstrapServers();
     this.topics = config.getTopic();
-    this.useDefault = false;
-    this.id = generateId();
-  }
-
-  public Source(SourceType type) {
-    this.type = type.toString();
-    this.useDefault = true;
+    this.isDefault = isDefault;
     this.id = generateId();
   }
 
@@ -71,14 +65,12 @@ public class Source {
    */
   public static Source fromProto(SourceProto.Source sourceProto) {
     if (sourceProto.equals(SourceProto.Source.getDefaultInstance())) {
-      Source source = new Source(SourceType.UNRECOGNIZED);
-      source.setUseDefault(true);
-      return source;
+      return new Source();
     }
 
     switch (sourceProto.getType()) {
       case KAFKA:
-        return new Source(sourceProto.getType(), sourceProto.getKafkaSourceConfig());
+        return new Source(sourceProto.getType(), sourceProto.getKafkaSourceConfig(), false);
       case UNRECOGNIZED:
       default:
         throw Status.INVALID_ARGUMENT
@@ -149,12 +141,12 @@ public class Source {
    *
    * @return boolean indicating whether this feature set source uses defaults.
    */
-  public boolean isUseDefault() {
-    return useDefault;
+  public boolean isDefault() {
+    return isDefault;
   }
 
   /**
-   * Override equality for sources. useDefault is always compared first; if both sources are using
+   * Override equality for sources. isDefault is always compared first; if both sources are using
    * the default feature source, they will be equal. If not they will be compared based on their
    * type-specific options.
    *
@@ -162,7 +154,7 @@ public class Source {
    * @return boolean equal
    */
   public boolean equalTo(Source other) {
-    if (other.useDefault && useDefault) {
+    if (other.isDefault && isDefault) {
       return true;
     }
 
@@ -181,9 +173,6 @@ public class Source {
   }
 
   private String generateId() {
-    if (useDefault) {
-      return "DEFAULT";
-    }
     switch (SourceType.valueOf(type)) {
       case KAFKA:
         return String.format("KAFKA/%s/%s", bootstrapServers, topics);

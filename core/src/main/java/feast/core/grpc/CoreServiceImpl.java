@@ -122,7 +122,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
               specService
                   .getFeatureSets(
                       GetFeatureSetsRequest.Filter.newBuilder()
-                          .setFeatureSetName(featureSetName)
+                          .setFeatureSetName(subscription.getName())
                           .setFeatureSetVersion(subscription.getVersion())
                           .build())
                   .getFeatureSetsList());
@@ -130,7 +130,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
         if (!featureSetSpecs.isEmpty() && featureSetSpecs.contains(response.getFeatureSet())) {
           // We use the request featureSet source because it contains the information
           // about whether to default to the default feature stream or not
-          SourceProto.Source source = request.getFeatureSet().getSource();
+          SourceProto.Source source = response.getFeatureSet().getSource();
           jobCoordinatorService
               .startOrUpdateJob(Lists.newArrayList(featureSetSpecs), source, store);
         }
@@ -164,6 +164,9 @@ public class CoreServiceImpl extends CoreServiceImplBase {
                       .build())
                   .getFeatureSetsList()
           );
+        }
+        if (featureSetSpecs.size() == 0) {
+          return;
         }
         featureSetSpecs.stream()
             .collect(Collectors.groupingBy(FeatureSetSpec::getSource))

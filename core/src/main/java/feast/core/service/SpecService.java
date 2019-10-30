@@ -29,6 +29,7 @@ import feast.core.CoreServiceProto.GetStoresResponse.Builder;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.SourceProto;
 import feast.core.StoreProto;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.StoreRepository;
@@ -56,8 +57,7 @@ public class SpecService {
 
   private final FeatureSetRepository featureSetRepository;
   private final StoreRepository storeRepository;
-  private final FeatureStreamService featureStreamService;
-  private final JobCoordinatorService jobCoordinatorService;
+  private final Source defaultSource;
 
   private final Pattern versionPattern = Pattern
       .compile("^(?<comparator>[\\>\\<\\=]{0,2})(?<version>\\d*)$");
@@ -66,12 +66,10 @@ public class SpecService {
   public SpecService(
       FeatureSetRepository featureSetRepository,
       StoreRepository storeRepository,
-      FeatureStreamService featureStreamService,
-      JobCoordinatorService jobCoordinatorService) {
+      Source defaultSource) {
     this.featureSetRepository = featureSetRepository;
     this.storeRepository = storeRepository;
-    this.featureStreamService = featureStreamService;
-    this.jobCoordinatorService = jobCoordinatorService;
+    this.defaultSource = defaultSource;
   }
 
   /**
@@ -181,9 +179,9 @@ public class SpecService {
           .build();
     }
     FeatureSet featureSet = FeatureSet.fromProto(newFeatureSetSpec);
-    Source updatedSource = featureStreamService.setUpSource(featureSet);
-    featureSet.setSource(updatedSource);
-
+    if (newFeatureSetSpec.getSource() == SourceProto.Source.getDefaultInstance()) {
+      featureSet.setSource(defaultSource);
+    }
     featureSetRepository.saveAndFlush(featureSet);
 
     return ApplyFeatureSetResponse.newBuilder()
