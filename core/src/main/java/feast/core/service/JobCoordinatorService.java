@@ -66,7 +66,7 @@ public class JobCoordinatorService {
         return updateJob(job.get(), featureSetSpecs, store);
       }
     } else {
-      return startJob(createJobId(source.getType().toString().toLowerCase(), store.getName()),
+      return startJob(createJobId(source.getId(), store.getName()),
           featureSetSpecs, sourceSpec, store);
     }
   }

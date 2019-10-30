@@ -9,6 +9,8 @@ import static org.mockito.MockitoAnnotations.initMocks;
 import com.google.common.collect.Lists;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto;
+import feast.core.SourceProto.KafkaSourceConfig;
+import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
@@ -37,7 +39,7 @@ public class JobCoordinatorServiceTest {
 
   private JobCoordinatorService jobCoordinatorService;
   private JobInfo existingJob;
-
+  private Source defaultSource;
 
   @Before
   public void setUp() {
@@ -48,15 +50,19 @@ public class JobCoordinatorServiceTest {
         .setType(StoreType.REDIS)
         .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379))
         .build());
+    defaultSource = new Source(SourceType.KAFKA,
+        KafkaSourceConfig.newBuilder().setBootstrapServers("kafka:9092").setTopic("feast-topic")
+            .build(), true);
     FeatureSet featureSet1 = new FeatureSet();
     featureSet1.setId("featureSet1:1");
+    featureSet1.setSource(defaultSource);
     FeatureSet featureSet2 = new FeatureSet();
     featureSet2.setId("featureSet2:1");
-    Source source = Source.fromProto(SourceProto.Source.getDefaultInstance());
-    existingJob = new JobInfo("extid", "name", "DirectRunner", source, store,
+    featureSet2.setSource(defaultSource);
+    existingJob = new JobInfo("extid", "name", "DirectRunner", defaultSource, store,
         Lists.newArrayList(featureSet1, featureSet2), Lists.newArrayList(),
         JobStatus.RUNNING);
-    when(jobInfoRepository.findBySourceIdAndStoreName("DEFAULT", "SERVING"))
+    when(jobInfoRepository.findBySourceIdAndStoreName(defaultSource.getId(), "SERVING"))
         .thenReturn(Lists.newArrayList(existingJob));
 
     jobCoordinatorService = new JobCoordinatorService(jobInfoRepository, jobManager);
@@ -68,10 +74,12 @@ public class JobCoordinatorServiceTest {
     FeatureSetSpec featureSet1 = FeatureSetSpec.newBuilder()
         .setName("featureSet1")
         .setVersion(1)
+        .setSource(defaultSource.toProto())
         .build();
     FeatureSetSpec featureSet2 = FeatureSetSpec.newBuilder()
         .setName("featureSet2")
         .setVersion(1)
+        .setSource(defaultSource.toProto())
         .build();
     StoreProto.Store store = StoreProto.Store.newBuilder()
         .setName("SERVING")
@@ -80,7 +88,7 @@ public class JobCoordinatorServiceTest {
         .build();
     JobInfo jobInfo = jobCoordinatorService
         .startOrUpdateJob(Lists.newArrayList(featureSet1, featureSet2),
-            SourceProto.Source.getDefaultInstance(), store);
+            defaultSource.toProto(), store);
     assertThat(jobInfo, equalTo(existingJob));
   }
 
@@ -89,6 +97,7 @@ public class JobCoordinatorServiceTest {
     FeatureSetSpec featureSet = FeatureSetSpec.newBuilder()
         .setName("featureSet")
         .setVersion(1)
+        .setSource(defaultSource.toProto())
         .build();
     StoreProto.Store store = StoreProto.Store.newBuilder()
         .setName("SERVING")
@@ -104,12 +113,12 @@ public class JobCoordinatorServiceTest {
     when(jobManager.getRunnerType()).thenReturn(Runner.DIRECT);
     FeatureSet expectedFeatureSet = new FeatureSet();
     expectedFeatureSet.setId("featureSet:1");
-    Source source = Source.fromProto(SourceProto.Source.getDefaultInstance());
     JobInfo expectedJobInfo = new JobInfo(jobId, extJobId, "DirectRunner",
-        source, Store.fromProto(store), Lists.newArrayList(expectedFeatureSet), JobStatus.RUNNING);
+        defaultSource, Store.fromProto(store), Lists.newArrayList(expectedFeatureSet),
+        JobStatus.RUNNING);
     when(jobInfoRepository.save(expectedJobInfo)).thenReturn(expectedJobInfo);
     JobInfo jobInfo = jobCoordinatorService
-        .startOrUpdateJob(Lists.newArrayList(featureSet), SourceProto.Source.getDefaultInstance(),
+        .startOrUpdateJob(Lists.newArrayList(featureSet), defaultSource.toProto(),
             store);
     assertThat(jobInfo, equalTo(expectedJobInfo));
   }
@@ -119,6 +128,7 @@ public class JobCoordinatorServiceTest {
     FeatureSetSpec featureSet = FeatureSetSpec.newBuilder()
         .setName("featureSet1")
         .setVersion(1)
+        .setSource(defaultSource.toProto())
         .build();
     StoreProto.Store store = StoreProto.Store.newBuilder()
         .setName("SERVING")
@@ -126,16 +136,15 @@ public class JobCoordinatorServiceTest {
         .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379))
         .build();
     String extId = "extId123";
-    Source source = Source.fromProto(SourceProto.Source.getDefaultInstance());
     JobInfo modifiedJob = new JobInfo(existingJob.getId(), existingJob.getExtId(),
-        existingJob.getRunner(), source, Store.fromProto(store),
+        existingJob.getRunner(), defaultSource, Store.fromProto(store),
         Lists.newArrayList(FeatureSet.fromProto(featureSet)), JobStatus.RUNNING);
     when(jobManager.updateJob(modifiedJob)).thenReturn(extId);
     JobInfo expectedJobInfo = modifiedJob;
     expectedJobInfo.setExtId(extId);
     when(jobInfoRepository.save(expectedJobInfo)).thenReturn(expectedJobInfo);
     JobInfo jobInfo = jobCoordinatorService
-        .startOrUpdateJob(Lists.newArrayList(featureSet), SourceProto.Source.getDefaultInstance(),
+        .startOrUpdateJob(Lists.newArrayList(featureSet), defaultSource.toProto(),
             store);
     assertThat(jobInfo, equalTo(expectedJobInfo));
   }

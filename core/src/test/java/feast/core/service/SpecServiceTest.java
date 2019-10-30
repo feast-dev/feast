@@ -72,26 +72,26 @@ public class SpecServiceTest {
   @Mock
   private StoreRepository storeRepository;
 
-  @Mock
-  private FeatureStreamService featureStreamService;
-
-  @Mock
-  private JobCoordinatorService jobCoordinatorService;
-
   @Rule
   public final ExpectedException expectedException = ExpectedException.none();
 
   private SpecService specService;
   private List<FeatureSet> featureSets;
   private List<Store> stores;
+  private Source defaultSource;
 
   @Before
   public void setUp() {
     initMocks(this);
+    defaultSource = new Source(SourceType.KAFKA,
+        KafkaSourceConfig.newBuilder().setBootstrapServers("kafka:9092").setTopic("my-topic")
+            .build(), true);
+
     FeatureSet featureSet1v1 = newDummyFeatureSet("f1", 1);
     FeatureSet featureSet1v2 = newDummyFeatureSet("f1", 2);
     FeatureSet featureSet1v3 = newDummyFeatureSet("f1", 3);
     FeatureSet featureSet2v1 = newDummyFeatureSet("f2", 1);
+
     featureSets = Arrays.asList(featureSet1v1, featureSet1v2, featureSet1v3, featureSet2v1);
     when(featureSetRepository.findAll())
         .thenReturn(featureSets);
@@ -111,8 +111,9 @@ public class SpecServiceTest {
     when(storeRepository.findById("SERVING")).thenReturn(Optional.of(store1));
     when(storeRepository.findById("NOTFOUND")).thenReturn(Optional.empty());
 
-    specService = new SpecService(featureSetRepository, storeRepository, featureStreamService,
-        jobCoordinatorService);
+
+
+    specService = new SpecService(featureSetRepository, storeRepository, defaultSource);
   }
 
   @Test
@@ -205,7 +206,7 @@ public class SpecServiceTest {
     GetFeatureSetsResponse actual = specService
         .getFeatureSets(
             Filter.newBuilder().setFeatureSetName("f1").setFeatureSetVersion("latest").build());
-    List<FeatureSet> expectedFeatureSets = featureSets.subList(2,3);
+    List<FeatureSet> expectedFeatureSets = featureSets.subList(2, 3);
     List<FeatureSetSpec> list = new ArrayList<>();
     for (FeatureSet expectedFeatureSet : expectedFeatureSets) {
       FeatureSetSpec toProto = expectedFeatureSet.toProto();
@@ -280,11 +281,6 @@ public class SpecServiceTest {
   public void applyFeatureSetShouldApplyFeatureSetWithInitVersionIfNotExists()
       throws InvalidProtocolBufferException {
     when(featureSetRepository.findByName("f2")).thenReturn(Lists.newArrayList());
-    Source updatedSource = new Source(SourceType.KAFKA,
-        KafkaSourceConfig.newBuilder().setBootstrapServers("kafka:9092")
-            .setTopic("feast-f2-features").build());
-    when(featureStreamService.setUpSource(ArgumentMatchers.any(FeatureSet.class)))
-        .thenReturn(updatedSource);
     FeatureSetSpec incomingFeatureSet = newDummyFeatureSet("f2", 1)
         .toProto()
         .toBuilder()
@@ -295,7 +291,7 @@ public class SpecServiceTest {
     verify(featureSetRepository).saveAndFlush(ArgumentMatchers.any(FeatureSet.class));
     FeatureSetSpec expected = incomingFeatureSet.toBuilder()
         .setVersion(1)
-        .setSource(updatedSource.toProto())
+        .setSource(defaultSource.toProto())
         .build();
     assertThat(applyFeatureSetResponse.getStatus(), equalTo(Status.CREATED));
     assertThat(applyFeatureSetResponse.getFeatureSet(), equalTo(expected));
@@ -304,18 +300,13 @@ public class SpecServiceTest {
   @Test
   public void applyFeatureSetShouldIncrementFeatureSetVersionIfAlreadyExists()
       throws InvalidProtocolBufferException {
-    Source updatedSource = new Source(SourceType.KAFKA,
-        KafkaSourceConfig.newBuilder().setBootstrapServers("kafka:9092")
-            .setTopic("feast-f1-features").build());
-    when(featureStreamService.setUpSource(ArgumentMatchers.any(FeatureSet.class)))
-        .thenReturn(updatedSource);
     FeatureSetSpec incomingFeatureSet = featureSets.get(2).toProto().toBuilder()
         .clearVersion()
         .addFeatures(FeatureSpec.newBuilder().setName("feature2").setValueType(Enum.STRING))
         .build();
     FeatureSetSpec expected = incomingFeatureSet.toBuilder()
         .setVersion(4)
-        .setSource(updatedSource.toProto())
+        .setSource(defaultSource.toProto())
         .build();
     ApplyFeatureSetResponse applyFeatureSetResponse = specService
         .applyFeatureSet(incomingFeatureSet);
@@ -359,15 +350,10 @@ public class SpecServiceTest {
   }
 
   private FeatureSet newDummyFeatureSet(String name, int version) {
-    KafkaSourceConfig kafkaFeatureSourceOptions =
-        KafkaSourceConfig.newBuilder()
-            .setBootstrapServers("kafka:9092")
-            .build();
     Field feature = new Field(name, "feature", Enum.INT64);
     Field entity = new Field(name, "entity", Enum.STRING);
     return new FeatureSet(name, version, 100L, Arrays.asList(entity), Arrays.asList(feature),
-        new Source(
-            SourceType.KAFKA, kafkaFeatureSourceOptions));
+        defaultSource);
   }
 
   private Store newDummyStore(String name) {
