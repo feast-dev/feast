@@ -37,7 +37,7 @@ public class Source {
   @Column(name = "topics")
   private String topics;
 
-  @Column(name = "use_default")
+  @Column(name = "is_default")
   private boolean isDefault;
 
   public Source() {
