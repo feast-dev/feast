@@ -223,7 +223,55 @@ entity_dataset {
 '
 ```
 
-#### Tips for quickly running Postgres, Redis and Kafka locally with Docker
+## Development
+
+Notes:
+
+  - Use of Lombok is being phased out, prefer to use [Google Auto] in new code.
+
+[Google Auto]: https://github.com/google/auto
+
+### Running Unit Tests
+
+    $ mvn test
+
+### Running Integration Tests
+
+_Note: integration suite isn't yet separated from unit._
+
+    $ mvn verify
+
+### Running Components Locally
+
+The `core` and `serving` modules are Spring Boot applications. These may be run as usual for [the Spring Boot Maven plugin][boot-maven]:
+
+    $ mvn --also-make --projects core sprint-boot:run
+
+    # Or for short:
+    $ mvn -am -pl core spring-boot:run
+
+Note the use of `--also-make` since some components depend on library modules from within the project.
+
+[boot-maven]: https://docs.spring.io/spring-boot/docs/current/maven-plugin/index.html
+
+#### Running From IntelliJ
+
+IntelliJ IDEA Ultimate has built-in support for Spring Boot projects, so everything may work out of the box. The Community Edition needs help with two matters:
+
+1. The IDE is [not clever enough][idea-also-make] to apply `--also-make` for Maven when it should.
+1. The Spring Boot Maven plugin automatically puts dependencies with `provided` scope on the runtime classpath when using `spring-boot:run`, such as its embedded Tomcat server. The "Play" buttons in the gutter or right-click menu of a `main()` method [do not do this][idea-boot-main].
+
+Fortunately there is one simple way to address both:
+
+1. Open `View > Tool Windows > Maven`
+1. Drill down to e.g. `Feast Core > Plugins > spring-boot:run`, right-click and `Create 'feast-core [spring-boot'…`
+1. In the dialog that pops up, check the `Resolve Workspace artifacts` box
+1. Click `OK`. You should now be able to select this run configuration for the Play button in the main toolbar, keyboard shortcuts, etc.
+
+[idea-also-make]: https://stackoverflow.com/questions/15073877/using-mavens-also-make-option-in-intellij
+[idea-boot-main]: https://stackoverflow.com/questions/30237768/run-spring-boots-main-using-ide
+
+#### Tips for Running Postgres, Redis and Kafka with Docker
 
 This guide assumes you are running Docker service on a bridge network (which
 is usually the case if you're running Linux). Otherwise, you may need to
