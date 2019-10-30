@@ -25,11 +25,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Lists;
+import feast.core.SourceProto;
+import feast.core.SourceProto.KafkaSourceConfig;
+import feast.core.SourceProto.SourceType;
 import feast.core.dao.JobInfoRepository;
 import feast.core.dao.MetricsRepository;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
 import feast.core.model.Metrics;
+import feast.core.model.Source;
 import feast.core.model.Store;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,9 +50,11 @@ public class ScheduledJobMonitorTest {
 
   ScheduledJobMonitor scheduledJobMonitor;
 
-  @Mock JobMonitor jobMonitor;
+  @Mock
+  JobMonitor jobMonitor;
 
-  @Mock JobInfoRepository jobInfoRepository;
+  @Mock
+  JobInfoRepository jobInfoRepository;
 
   @Before
   public void setUp() {
@@ -58,12 +64,15 @@ public class ScheduledJobMonitorTest {
 
   @Test
   public void getJobStatus_shouldUpdateJobInfoForRunningJob() {
+    Source source = new Source(SourceType.KAFKA,
+        KafkaSourceConfig.newBuilder().setBootstrapServers("kafka:9092")
+            .setTopic("feast-topic").build(), true);
     JobInfo job =
         new JobInfo(
             "jobId",
             "extId1",
-            "Streaming",
             "DataflowRunner",
+            source,
             new Store(),
             Collections.emptyList(),
             Collections.emptyList(),
