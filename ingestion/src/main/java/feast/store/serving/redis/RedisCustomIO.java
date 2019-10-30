@@ -138,12 +138,16 @@ public class RedisCustomIO {
       }
 
       public WriteDoFn withBatchSize(int batchSize) {
-        if (batchSize > 0) this.batchSize = batchSize;
+        if (batchSize > 0) {
+          this.batchSize = batchSize;
+        }
         return this;
       }
 
       public WriteDoFn withTimeout(int timeout) {
-        if (timeout > 0) this.timeout = timeout;
+        if (timeout > 0) {
+          this.timeout = timeout;
+        }
         return this;
       }
 
@@ -155,7 +159,6 @@ public class RedisCustomIO {
       @StartBundle
       public void startBundle() {
         pipeline = jedis.pipelined();
-        pipeline.multi();
         batchCount = 0;
       }
 
@@ -168,9 +171,7 @@ public class RedisCustomIO {
         }
         batchCount++;
         if (batchCount >= batchSize) {
-          pipeline.exec();
           pipeline.sync();
-          pipeline.multi();
           batchCount = 0;
         }
       }
@@ -197,10 +198,7 @@ public class RedisCustomIO {
 
       @FinishBundle
       public void finishBundle() {
-        if (pipeline.isInMulti()) {
-          pipeline.exec();
-          pipeline.sync();
-        }
+        pipeline.sync();
         batchCount = 0;
       }
 
