@@ -97,6 +97,7 @@ feast:
   stream:
     type: kafka
     options:
+      topic: feast-features
       bootstrapServers: localhost:9092
       replicationFactor: 1
       partitions: 1
