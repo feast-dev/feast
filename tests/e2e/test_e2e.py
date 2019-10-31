@@ -30,8 +30,13 @@ def core_url(pytestconfig):
 
 
 @pytest.fixture()
-def serving_url(pytestconfig):
-    return pytestconfig.getoption("serving_url")
+def online_serving_url(pytestconfig):
+    return pytestconfig.getoption("online_serving_url")
+
+
+@pytest.fixture()
+def batch_serving_url(pytestconfig):
+    return pytestconfig.getoption("batch_serving_url")
 
 
 @pytest.fixture()
@@ -40,9 +45,24 @@ def allow_dirty(pytestconfig):
 
 
 @pytest.fixture
-def client(core_url, serving_url, allow_dirty):
+def online_client(core_url, online_serving_url, allow_dirty):
     # Get client for core and serving
-    client = Client(core_url=core_url, serving_url=serving_url)
+    client = Client(core_url=core_url, serving_url=online_serving_url)
+
+    # Ensure Feast core is active, but empty
+    if not allow_dirty:
+        feature_sets = client.list_feature_sets()
+        if len(feature_sets) > 0:
+            raise Exception(
+                "Feast cannot have existing feature sets registered. Exiting tests."
+            )
+
+    return client
+
+@pytest.fixture
+def batch_client(core_url, batch_serving_url, allow_dirty):
+    # Get client for core and serving
+    client = Client(core_url=core_url, serving_url=batch_serving_url)
 
     # Ensure Feast core is active, but empty
     if not allow_dirty:
@@ -55,8 +75,10 @@ def client(core_url, serving_url, allow_dirty):
     return client
 
 
+
 @pytest.mark.timeout(300)
-def test_basic(client):
+def test_basic(online_client):
+    client = online_client
 
     cust_trans_fs = client.get_feature_set(name="customer_transactions", version=1)
 
@@ -136,7 +158,8 @@ def test_basic(client):
 
 
 @pytest.mark.timeout(300)
-def test_all_types(client):
+def test_all_types(online_client):
+    client = online_client
     all_types_fs = client.get_feature_set(name="all_types", version=1)
 
     if all_types_fs is None:
@@ -282,8 +305,9 @@ def test_all_types(client):
 
 
 @pytest.mark.timeout(600)
-def test_large_volume(client):
+def test_large_volume(online_client, batch_client):
     ROW_COUNT = 50000
+    client = online_client
 
     cust_trans_fs = client.get_feature_set(
         name="customer_transactions_large", version=1
@@ -361,3 +385,15 @@ def test_large_volume(client):
             abs_tol=FLOAT_TOLERANCE,
         ):
             break
+
+    # Test if values in wh store are correct
+    feature_retrieval_job = batch_client.get_batch_features(
+        entity_rows=customer_data[['datetime', 'customer_id']],
+        feature_ids=[
+            "customer_transactions_large:1:daily_transactions",
+            "customer_transactions_large:1:total_transactions",
+        ],
+    )
+
+    batch_df = feature_retrieval_job.to_dataframe()
+    assert batch_df.equals(customer_data)
