@@ -304,7 +304,7 @@ def test_all_types(online_client):
         time.sleep(1)
 
 
-@pytest.mark.timeout(600)
+@pytest.mark.timeout(1200)
 def test_large_volume(online_client, batch_client):
     ROW_COUNT = 50000
     client = online_client
