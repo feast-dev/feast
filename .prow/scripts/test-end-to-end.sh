@@ -21,6 +21,16 @@ This script will run end-to-end tests for Feast Core and Online Serving.
 
 echo "
 ============================================================
+Installing gcloud SDK
+============================================================
+"
+if [[ ! $(command -v gsutil) ]]; then
+  CURRENT_DIR=$(dirname "$BASH_SOURCE")
+  . "${CURRENT_DIR}"/install_google_cloud_sdk.sh
+fi
+
+echo "
+============================================================
 Installing Redis at localhost:6379
 ============================================================
 "
@@ -180,6 +190,65 @@ tail -n10 /var/log/feast-serving-online.log
 
 echo "
 ============================================================
+Starting Feast Warehouse Serving
+============================================================
+"
+
+DATASET_NAME=feast_$(date +%s)
+
+bq --location=US mk \
+  --dataset \
+  --default_table_expiration 86400 \
+  kf-feast:$DATASET_NAME
+
+# Start Feast Online Serving in background
+cat <<EOF > /tmp/serving.store.bigquery.yml
+name: warehouse
+type: BIGQUERY
+bigquery_config:
+  projectId: kf-feast
+  datasetId: $DATASET_NAME
+subscriptions:
+  - name: .*
+    version: ">0"
+EOF
+
+cat <<EOF > /tmp/serving.warehouse.application.yml
+feast:
+  version: 0.3
+  core-host: localhost
+  core-grpc-port: 6565
+
+  tracing:
+    enabled: false
+
+  store:
+    config-path: /tmp/serving.store.bigquery.yml
+
+  jobs:
+    staging-location: gs://feast-templocation-kf-feast/staging-location
+    store-type: REDIS
+    store-options:
+      host: localhost
+      port: 6379
+
+grpc:
+  port: 6567
+  enable-reflection: true
+
+spring:
+  main:
+    web-environment: false
+EOF
+
+nohup java -jar serving/target/feast-serving-0.3.0-SNAPSHOT.jar \
+  --spring.config.location=file:///tmp/serving.warehouse.application.yml \
+  &> /var/log/feast-serving-warehouse.log &
+sleep 15
+tail -n10 /var/log/feast-serving-warehouse.log
+
+echo "
+============================================================
 Installing Python 3.7 with Miniconda and Feast SDK
 ============================================================
 "
@@ -210,4 +279,13 @@ pytest --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
 cd ${ORIGINAL_DIR}
+
+echo "
+============================================================
+Cleaning up
+============================================================
+"
+
+bq rm -r -f kf-feast:$DATASET_NAME
+
 exit ${TEST_EXIT_CODE}
