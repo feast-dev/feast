@@ -29,6 +29,9 @@ if [[ ! $(command -v gsutil) ]]; then
   . "${CURRENT_DIR}"/install_google_cloud_sdk.sh
 fi
 
+export GOOGLE_APPLICATION_CREDENTIALS=/etc/service-account/service-account.json
+gcloud auth activate-service-account --key-file /etc/service-account/service-account.json
+
 echo "
 ============================================================
 Installing Redis at localhost:6379
