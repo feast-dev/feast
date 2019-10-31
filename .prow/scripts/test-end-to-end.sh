@@ -30,7 +30,6 @@ if [[ ! $(command -v gsutil) ]]; then
 fi
 
 export GOOGLE_APPLICATION_CREDENTIALS=/etc/service-account/service-account.json
-gcloud auth activate-service-account --key-file /etc/service-account/service-account.json
 
 echo "
 ============================================================
@@ -199,7 +198,7 @@ Starting Feast Warehouse Serving
 
 DATASET_NAME=feast_$(date +%s)
 
-bq --location=US mk \
+bq --location=US --project_id=kf-feast mk \
   --dataset \
   --default_table_expiration 86400 \
   kf-feast:$DATASET_NAME
