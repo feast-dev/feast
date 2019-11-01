@@ -16,6 +16,7 @@ package printer
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/gojek/feast/cli/feast/pkg/timeutil"
@@ -73,7 +74,13 @@ func printFeature(featureName string, metrics map[string]float64) string {
 		fmt.Sprintf("- Id: %s", featureName),
 		"  Metrics: ",
 	}
-	for k, v := range metrics {
+	keys := make([]string, 0)
+	for k := range metrics {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := metrics[k]
 		split := strings.Split(k, ":")
 		if split[0] == "feature" {
 			if split[1] == featureName {
