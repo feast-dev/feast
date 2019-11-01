@@ -1,0 +1,23 @@
+steps:
+- id: 'test'
+  name: 'python:3.7-alpine'
+  entrypoint: 'sh'
+  args: [ '-c', 'pip install -U pip pipenv && pipenv sync -d && pipenv run pytest -vvv test.py']
+  dir: '/workspace/test'
+
+
+- name: 'gcr.io/cloud-builders/mvn:3.5.0-jdk-8'
+  args: ['clean', 'verify', '-Drevision=ff-${SHORT_SHA}']
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}', '-f', 'docker/core/Dockerfile', '.']
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}', '-f', 'docker/serving/Dockerfile', '.']
+
+images: ['gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}', 'gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}']
+
+
+options:
+  machineType: 'N1_HIGHCPU_8'
+tags: ['team__konnekt', 'repo__konnekt_data_feast', 'commit__${SHORT_SHA}', 'slack__konnekt-devops']

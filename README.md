@@ -1,5 +1,7 @@
 # Feast - Feature Store for Machine Learning
 
+<p style='border: 1px solid red; border-radius: 0.5rem; background-color: #ffd699; padding: 0.6rem;'>Note: This repo is a fork of <a href="https://github.com/gojek/feast">github.com/gojek/feast</a>.</p>
+
 ## Overview
 
 Feast (Feature Store) is a tool to manage storage and access of machine learning features.
