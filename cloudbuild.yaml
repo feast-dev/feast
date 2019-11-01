@@ -19,7 +19,7 @@ steps:
   name: 'golang:1.12'
   args: ['go', 'test', '-v', './cli/feast/...']
 - id: 'unit-test-python-sdk'
-  name: 'python:3.6.9-alpine'
+  name: 'python:3.6.9-buster'
   dir: '/workspace/sdk/python'
   entrypoint: 'sh'
   args: ['-c', 'pip install -r requirements-test.txt && pip install . && pytest ./tests']
@@ -57,11 +57,12 @@ steps:
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build', '-t', 'gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}', '-f', 'docker/serving/Dockerfile', '.']
 
-images: ['gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}', 'gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}']
-
+images:
+- gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}
+- gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}
 
 options:
-  machineType: 'N1_HIGHCPU_8'
+  machineType: N1_HIGHCPU_8
   env:
   - GO111MODULE=on
   - MAVEN_OPTS=-Dmaven.repo.local=/cache/.m2
@@ -69,8 +70,10 @@ options:
   - name: go-modules
     path: /go
   - name: m2_cache
-    path: '/cache/.m2'
+    path: /cache/.m2
+
 substitutions:
   _TEST_BUCKET: testbucket=dev-konnekt-data-deep-1-feast-tmp
   _MAVEN_VERSION: 3.6.2-jdk-11-slim
+
 tags: ['team__konnekt', 'repo__konnekt_data_feast', 'commit__${SHORT_SHA}', 'slack__konnekt-devops-test']
