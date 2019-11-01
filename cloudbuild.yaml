@@ -13,13 +13,13 @@ steps:
   entrypoint: 'mvn'
   args: ['--projects', 'serving', '-Dtestbucket=dev-konnekt-data-deep-1-feast-tmp', 'test']
 - id: 'unit-test-cli-setup'
-  name: 'mirror.gcr.io/golang:1.12'
+  name: 'golang:1.12'
   args: ['go', 'get', '-u', 'github.com/jstemmer/go-junit-report']
 - id: 'unit-test-cli-run'
-  name: 'mirror.gcr.io/golang:1.12'
+  name: 'golang:1.12'
   args: ['go', 'test', '-v', './cli/feast/...']
 - id: 'unit-test-python-sdk'
-  name: 'mirror.gcr.io/python-alpine:3.6'
+  name: 'python-alpine:3.6'
   dir: '/workspace/sdk/python'
   entrypoint: 'sh'
   args: ['-c', 'pip install -r requirements-test.txt && pip install . && pytest ./tests']
@@ -43,7 +43,7 @@ steps:
   entrypoint: 'make'
   args: ['gen-go', 'gen-python']
 - id: 'build-cli'
-  name: 'mirror.gcr.io/golang:1.12'
+  name: 'golang:1.12'
   dir: '/workspace/cli'
   entrypoint: 'make'
   args: ['build-all']
