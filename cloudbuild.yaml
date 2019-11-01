@@ -3,15 +3,15 @@ steps:
 - id: 'unit-test-core'
   name: 'maven:3.6.2-jdk-11-slim'
   entrypoint: 'mvn'
-  args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'core', '-Dtestbucket=dev-konnekt-data-deep-1-feast-tmp', 'test']
+  args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'core', '-D${_TEST_BUCKET}', 'test']
 - id: 'unit-test-ingestion'
   name: 'maven:3.6.2-jdk-11-slim'
   entrypoint: 'mvn'
-  args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'ingestion', '-Dtestbucket=dev-konnekt-data-deep-1-feast-tmp', 'test']
+  args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'ingestion', '-D${_TEST_BUCKET}', 'test']
 - id: 'unit-test-serving'
   name: 'maven:3.6.2-jdk-11-slim'
   entrypoint: 'mvn'
-  args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'serving', '-Dtestbucket=dev-konnekt-data-deep-1-feast-tmp', 'test']
+  args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'serving', '-D${_TEST_BUCKET}', 'test']
 - id: 'unit-test-cli-setup'
   name: 'golang:1.12'
   args: ['go', 'get', '-u', 'github.com/jstemmer/go-junit-report']
@@ -65,7 +65,12 @@ options:
   machineType: 'N1_HIGHCPU_8'
   env:
   - GO111MODULE=on
+  - MAVEN_OPTS=-Dmaven.repo.local=/cache/.m2
   volumes:
   - name: go-modules
     path: /go
+  - name: m2_cache
+    path: '/cache/.m2'
+substitutions:
+  _TEST_BUCKET: testbucket=dev-konnekt-data-deep-1-feast-tmp
 tags: ['team__konnekt', 'repo__konnekt_data_feast', 'commit__${SHORT_SHA}', 'slack__konnekt-devops-test']
