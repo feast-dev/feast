@@ -32,17 +32,6 @@
         <springBootVersion>2.0.9.RELEASE</springBootVersion>
     </properties>
 
-    <settings>
-        <mirrors>
-            <mirror>
-                <id>google-maven-central</id>
-                <name>GCS Maven Central mirror</name>
-                <url>https://maven-central.storage-download.googleapis.com/repos/central/data/</url>
-                <mirrorOf>central</mirrorOf>
-            </mirror>
-        </mirrors>
-    </settings>
-
     <distributionManagement>
         <snapshotRepository>
             <id>feast-snapshot</id>

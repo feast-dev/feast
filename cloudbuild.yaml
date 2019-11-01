@@ -3,15 +3,15 @@ steps:
 - id: 'unit-test-core'
   name: 'maven:3.6.2-jdk-11-slim'
   entrypoint: 'mvn'
-  args: ['--projects', 'core', '-Dtestbucket=dev-konnekt-data-deep-1-feast-tmp', 'test']
+  args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'core', '-Dtestbucket=dev-konnekt-data-deep-1-feast-tmp', 'test']
 - id: 'unit-test-ingestion'
   name: 'maven:3.6.2-jdk-11-slim'
   entrypoint: 'mvn'
-  args: ['--projects', 'ingestion', '-Dtestbucket=dev-konnekt-data-deep-1-feast-tmp', 'test']
+  args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'ingestion', '-Dtestbucket=dev-konnekt-data-deep-1-feast-tmp', 'test']
 - id: 'unit-test-serving'
   name: 'maven:3.6.2-jdk-11-slim'
   entrypoint: 'mvn'
-  args: ['--projects', 'serving', '-Dtestbucket=dev-konnekt-data-deep-1-feast-tmp', 'test']
+  args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'serving', '-Dtestbucket=dev-konnekt-data-deep-1-feast-tmp', 'test']
 - id: 'unit-test-cli-setup'
   name: 'golang:1.12'
   args: ['go', 'get', '-u', 'github.com/jstemmer/go-junit-report']
@@ -50,7 +50,7 @@ steps:
 - id: 'build-java'
   name: 'maven:3.6.2-jdk-11-slim'
   entrypoint: 'mvn'
-  args: ['clean', 'verify', '-Drevision=ff-${SHORT_SHA}']
+  args: ['-s', '/workspace/cloudbuild-settings.xml', 'clean', 'verify', '-Drevision=ff-${SHORT_SHA}']
 
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build', '-t', 'gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}', '-f', 'docker/core/Dockerfile', '.']
