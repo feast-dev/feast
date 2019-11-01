@@ -99,7 +99,7 @@ public class CoreServiceImplTest {
     Storage storage = StorageOptions.getDefaultInstance().getService();
     String fileName =
         uploadUrl.substring(
-            "https://storage.googleapis.com/feast-templocation-kf-feast/".length(),
+                ("https://storage.googleapis.com/" + testBucket + "/").length(),
             uploadUrl.indexOf("?"));
     File tempFile = File.createTempFile("prefix", "suffix");
     tempFile.deleteOnExit();

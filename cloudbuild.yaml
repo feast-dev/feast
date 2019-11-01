@@ -1,12 +1,55 @@
 steps:
-- id: 'test'
-  name: 'python:3.7-alpine'
+
+- id: 'unit-test-core'
+  name: 'maven:3.6.2-jdk-11-slim'
+  entrypoint: 'mvn'
+  args: ['--projects', 'core', '-Dtestbucket=dev-konnekt-data-deep-1-feast-tmp', 'test']
+- id: 'unit-test-ingestion'
+  name: 'maven:3.6.2-jdk-11-slim'
+  entrypoint: 'mvn'
+  args: ['--projects', 'ingestion', '-Dtestbucket=dev-konnekt-data-deep-1-feast-tmp', 'test']
+- id: 'unit-test-serving'
+  name: 'maven:3.6.2-jdk-11-slim'
+  entrypoint: 'mvn'
+  args: ['--projects', 'serving', '-Dtestbucket=dev-konnekt-data-deep-1-feast-tmp', 'test']
+- id: 'unit-test-cli-setup'
+  name: 'mirror.gcr.io/golang:1.12'
+  args: ['go', 'get', '-u', 'github.com/jstemmer/go-junit-report']
+- id: 'unit-test-cli-run'
+  name: 'mirror.gcr.io/golang:1.12'
+  args: ['go', 'test', '-v', './cli/feast/...']
+- id: 'unit-test-python-sdk'
+  name: 'mirror.gcr.io/python-alpine:3.6'
+  dir: '/workspace/sdk/python'
   entrypoint: 'sh'
-  args: [ '-c', 'pip install -U pip pipenv && pipenv sync -d && pipenv run pytest -vvv test.py']
-  dir: '/workspace/test'
+  args: ['-c', 'pip install -r requirements-test.txt && pip install . && pytest ./tests']
 
+- id: 'integration-test-setup'
+  name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'sh'
+  args: ['-c', 'echo TODO: prepare_integration_test.sh']
+- id: 'integration-test-run'
+  name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'sh'
+  args: ['-c', 'echo TODO: install_feast_and_run_e2e_test.sh']
+- id: 'integration-test-teardown'
+  name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'sh'
+  args: ['-c', 'echo TODO: cleanup_feast_installation.sh']
 
-- name: 'gcr.io/cloud-builders/mvn:3.5.0-jdk-8'
+- id: 'build-proto'
+  name: 'znly/protoc'
+  dir: '/workspace/protos'
+  entrypoint: 'make'
+  args: ['gen-go', 'gen-python']
+- id: 'build-cli'
+  name: 'mirror.gcr.io/golang:1.12'
+  dir: '/workspace/cli'
+  entrypoint: 'make'
+  args: ['build-all']
+- id: 'build-java'
+  name: 'maven:3.6.2-jdk-11-slim'
+  entrypoint: 'mvn'
   args: ['clean', 'verify', '-Drevision=ff-${SHORT_SHA}']
 
 - name: 'gcr.io/cloud-builders/docker'
@@ -20,4 +63,9 @@ images: ['gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}', 'gcr.io/${PROJECT_ID
 
 options:
   machineType: 'N1_HIGHCPU_8'
-tags: ['team__konnekt', 'repo__konnekt_data_feast', 'commit__${SHORT_SHA}', 'slack__konnekt-devops']
+  env:
+  - GO111MODULE=on
+  volumes:
+  - name: go-modules
+    path: /go
+tags: ['team__konnekt', 'repo__konnekt_data_feast', 'commit__${SHORT_SHA}', 'slack__konnekt-devops-test']
