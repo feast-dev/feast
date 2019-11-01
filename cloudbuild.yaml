@@ -1,15 +1,15 @@
 steps:
 
 - id: 'unit-test-core'
-  name: 'maven:3.6.2-jdk-11-slim'
+  name: 'maven:${_MAVEN_VERSION}'
   entrypoint: 'mvn'
   args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'core', '-D${_TEST_BUCKET}', 'test']
 - id: 'unit-test-ingestion'
-  name: 'maven:3.6.2-jdk-11-slim'
+  name: 'maven:${_MAVEN_VERSION}'
   entrypoint: 'mvn'
   args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'ingestion', '-D${_TEST_BUCKET}', 'test']
 - id: 'unit-test-serving'
-  name: 'maven:3.6.2-jdk-11-slim'
+  name: 'maven:${_MAVEN_VERSION}'
   entrypoint: 'mvn'
   args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'serving', '-D${_TEST_BUCKET}', 'test']
 - id: 'unit-test-cli-setup'
@@ -48,13 +48,12 @@ steps:
   entrypoint: 'make'
   args: ['build-all']
 - id: 'build-java'
-  name: 'maven:3.6.2-jdk-11-slim'
+  name: 'maven:${_MAVEN_VERSION}'
   entrypoint: 'mvn'
-  args: ['-s', '/workspace/cloudbuild-settings.xml', 'clean', 'verify', '-Drevision=ff-${SHORT_SHA}']
+  args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'core,ingestion,serving', '-Drevision=ff-${SHORT_SHA}', '-DskipTests=true', '--batch-mode', 'package']
 
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build', '-t', 'gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}', '-f', 'docker/core/Dockerfile', '.']
-
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build', '-t', 'gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}', '-f', 'docker/serving/Dockerfile', '.']
 
@@ -73,4 +72,5 @@ options:
     path: '/cache/.m2'
 substitutions:
   _TEST_BUCKET: testbucket=dev-konnekt-data-deep-1-feast-tmp
+  _MAVEN_VERSION: 3.6.2-jdk-11-slim
 tags: ['team__konnekt', 'repo__konnekt_data_feast', 'commit__${SHORT_SHA}', 'slack__konnekt-devops-test']
