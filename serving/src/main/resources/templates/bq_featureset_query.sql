@@ -40,7 +40,7 @@ FROM `{{projectId}}.{{datasetId}}.{{ featureSet.name }}_v{{ featureSet.version }
       {% endfor %}
       is_entity_table
     FROM union_features
-    WINDOW w AS (PARTITION BY {{ featureSet.entities }} ORDER BY event_timestamp, is_entity_table ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+    WINDOW w AS (PARTITION BY {{ featureSet.entities | join(', ') }} ORDER BY event_timestamp, is_entity_table ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
   ) WHERE is_entity_table
   {% if loop.last %}
   {% else %}
