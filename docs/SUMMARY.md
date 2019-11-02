@@ -1,4 +1,11 @@
 # Table of contents
 
-* [Feast](README.md)
-* [API](api/proto.md)
+* [Overview](README.md)
+* [Why Feast?](why-feast.md)
+* [Concepts](root.md)
+* [Getting Help](community.md)
+
+## Reference
+
+* [Core API](reference/proto.md)
+
