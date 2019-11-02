@@ -64,7 +64,7 @@ SELECT
   IF(event_timestamp >= {{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp AND Timestamp_sub(event_timestamp, interval {{ featureSet.maxAge }} second) < {{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp, {{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp, NULL) as {{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp,
   {% endfor %}
   {{ fullEntitiesList | join(', ')}}
-FROM ts_coalesce WHERE rn = 1
+ FROM ts_coalesce WHERE rn = 1
 )
 SELECT * FROM ts_final
 {% for featureSet in featureSets %}
