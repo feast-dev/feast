@@ -32,8 +32,8 @@ FROM `{{projectId}}.{{datasetId}}.{{ featureSet.name }}_v{{ featureSet.version }
       event_timestamp,
       {{ fullEntitiesList | join(', ')}},
       {% for otherFeatureSet in featureSets %}
-      {% if otherFeatureSet.id != featureSet.id %}
-      LAST_VALUE({{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp IGNORE NULLS) over w AS {{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp,
+      {% if otherFeatureSet.id == featureSet.id %}
+      LAST_VALUE({{ otherFeatureSet.name }}_v{{ otherFeatureSet.version }}_feature_timestamp IGNORE NULLS) over w AS {{ otherFeatureSet.name }}_v{{ otherFeatureSet.version }}_feature_timestamp,
       {% else %}
       {{ otherFeatureSet.name }}_v{{ otherFeatureSet.version }}_feature_timestamp,
       {% endif %}
