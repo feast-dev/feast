@@ -1,0 +1,9 @@
+name: location
+kind: feature_set
+entities:
+- name: location_id
+  valueType: INT64
+features:
+- name: total_revenue
+  valueType: INT64
+maxAge: 1210000s

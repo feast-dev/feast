@@ -1,0 +1,11 @@
+name: merchant_sales
+kind: feature_set
+entities:
+- name: merchant_id
+  valueType: INT64
+features:
+- name: daily_sales
+  valueType: INT64
+- name: total_revenue
+  valueType: INT64
+maxAge: 1210000s
