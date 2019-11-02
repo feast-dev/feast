@@ -402,7 +402,7 @@ def test_large_volume(online_client, batch_client):
 
 @pytest.mark.timeout(1200)
 def test_batch_multiple_feature_sets(batch_client):
-    client = batch_client("localhost:6565", "localhost:6567", True)
+    client = batch_client
     merchant_sales_fs = client.get_feature_set(
         name="merchant_sales", version=1
     )
@@ -480,7 +480,8 @@ def test_batch_multiple_feature_sets(batch_client):
     merchant_sales_fs.ingest(dataframe=merchant_data[["datetime", "merchant_id", "daily_sales", "total_revenue"]])
     loc_sales_fs.ingest(dataframe=loc_data)
 
-    expected = merchant_data.merge(loc_data[["location_id", "total_revenue"]], on=["location_id"])
+    expected = merchant_data.merge(loc_data[["datetime", "location_id", "total_revenue"]], on=["location_id"])
+
     feature_retrieval_job = batch_client.get_batch_features(
         entity_rows=merchant_data[["datetime", "merchant_id", "location_id"]],
         feature_ids=[

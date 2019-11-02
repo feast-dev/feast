@@ -289,6 +289,6 @@ Cleaning up
 ============================================================
 "
 
-bq rm -r -f kf-feast:$DATASET_NAME
+# bq rm -r -f kf-feast:$DATASET_NAME
 
 exit ${TEST_EXIT_CODE}
