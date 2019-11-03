@@ -60,10 +60,10 @@ FROM `{{projectId}}.{{datasetId}}.{{ featureSet.name }}_v{{ featureSet.version }
 ), ts_final AS (
 SELECT
   event_timestamp,
+  {{ fullEntitiesList | join(', ')}},
   {% for featureSet in featureSets %}
-  IF(event_timestamp >= {{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp AND Timestamp_sub(event_timestamp, interval {{ featureSet.maxAge }} second) < {{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp, {{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp, NULL) as {{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp,
+  IF(event_timestamp >= {{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp AND Timestamp_sub(event_timestamp, interval {{ featureSet.maxAge }} second) < {{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp, {{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp, NULL) as {{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp{% if loop.last %}{% else %}, {% endif %}
   {% endfor %}
-  {{ fullEntitiesList | join(', ')}}
  FROM ts_coalesce WHERE rn = 1
 )
 SELECT * FROM ts_final
