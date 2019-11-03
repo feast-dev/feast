@@ -20,7 +20,6 @@ import numpy as np
 
 from feast.feature import Feature
 
-
 FLOAT_TOLERANCE = 0.00001
 
 
@@ -59,6 +58,7 @@ def online_client(core_url, online_serving_url, allow_dirty):
 
     return client
 
+
 @pytest.fixture
 def batch_client(core_url, batch_serving_url, allow_dirty):
     # Get client for core and serving
@@ -73,7 +73,6 @@ def batch_client(core_url, batch_serving_url, allow_dirty):
             )
 
     return client
-
 
 
 @pytest.mark.timeout(300)
@@ -144,15 +143,15 @@ def test_basic(online_client):
 
         returned_daily_transactions = float(
             response.field_values[0]
-            .fields["customer_transactions:1:daily_transactions"]
-            .float_val
+                .fields["customer_transactions:1:daily_transactions"]
+                .float_val
         )
         sent_daily_transactions = float(customer_data.iloc[0]["daily_transactions"])
 
         if math.isclose(
-            sent_daily_transactions,
-            returned_daily_transactions,
-            abs_tol=FLOAT_TOLERANCE,
+                sent_daily_transactions,
+                returned_daily_transactions,
+                abs_tol=FLOAT_TOLERANCE,
         ):
             break
 
@@ -288,15 +287,15 @@ def test_all_types(online_client):
 
         returned_float_list = (
             response.field_values[0]
-            .fields["all_types:1:float_list_feature"]
-            .float_list_val.val
+                .fields["all_types:1:float_list_feature"]
+                .float_list_val.val
         )
 
         sent_float_list = all_types_df.iloc[0]["float_list_feature"]
 
         # TODO: Add tests for each value and type
         if math.isclose(
-            returned_float_list[0], sent_float_list[0], abs_tol=FLOAT_TOLERANCE
+                returned_float_list[0], sent_float_list[0], abs_tol=FLOAT_TOLERANCE
         ):
             break
 
@@ -374,15 +373,15 @@ def test_large_volume(online_client, batch_client):
 
         returned_daily_transactions = float(
             response.field_values[0]
-            .fields["customer_transactions_large:1:daily_transactions"]
-            .float_val
+                .fields["customer_transactions_large:1:daily_transactions"]
+                .float_val
         )
         sent_daily_transactions = float(customer_data.iloc[0]["daily_transactions"])
 
         if math.isclose(
-            sent_daily_transactions,
-            returned_daily_transactions,
-            abs_tol=FLOAT_TOLERANCE,
+                sent_daily_transactions,
+                returned_daily_transactions,
+                abs_tol=FLOAT_TOLERANCE,
         ):
             break
 
@@ -396,8 +395,15 @@ def test_large_volume(online_client, batch_client):
     )
 
     batch_df = feature_retrieval_job.to_dataframe()
-    print(batch_df.columns)
-    assert batch_df.equals(customer_data)
+    batch_df = batch_df[['datetime',
+                         'customer_id',
+                         'customer_transactions_large_v1_daily_transactions',
+                         'customer_transactions_large_v1_total_transactions']]
+    batch_df.columns = ['datetime',
+                        'customer_id',
+                        'daily_transactions',
+                        'total_transactions']
+    pd.testing.assert_frame_equal(batch_df, customer_data, check_less_precise=True)
 
 
 @pytest.mark.timeout(1200)
