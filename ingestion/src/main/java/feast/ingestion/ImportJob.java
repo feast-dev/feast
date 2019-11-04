@@ -106,7 +106,8 @@ public class ImportJob {
             .apply(ValidateFeatureRows.newBuilder()
                 .setFeatureSetSpec(featureSet)
                 .setSuccessTag(FEATURE_ROW_OUT)
-                .setFailureTag(DEADLETTER_OUT).build());
+                .setFailureTag(DEADLETTER_OUT)
+                .build());
 
         // Step 3. Write FeatureRow to the corresponding Store.
         validatedRows
