@@ -58,7 +58,12 @@ func printEntity(entityName string, metrics map[string]float64) string {
 		fmt.Sprintf("- Name: %s", entityName),
 		"  Metrics: ",
 	}
-	for k, v := range metrics {
+	keys := make([]string, 0)
+	for k := range metrics {
+		keys = append(keys, k)
+	}
+	for _, k := range keys {
+		v := metrics[k]
 		split := strings.Split(k, ":")
 		if split[0] == "entity" {
 			if split[1] == entityName {
