@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Feast Authors
+ * Copyright 2019 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,53 +15,23 @@
  */
 
 syntax = "proto3";
-import "google/protobuf/timestamp.proto";
 
-import "feast/types/Value.proto";
+import "feast/types/Field.proto";
 
 package feast.storage;
 
 option java_outer_classname = "RedisProto";
 option java_package = "feast.storage";
-option go_package = "github.com/gojek/feast/protos/generated/go/feast/storage";
+option go_package = "github.com/gojek/feast/sdk/go/protos/feast/storage";
 
-message RedisBucketKey {
+message RedisKey {
   // Field number 1 is reserved for a future distributing hash if needed
   // (for when redis is clustered).
 
-  // Entity key from the FeatureRow
-  string entityKey = 2;
+  // FeatureSet this row belongs to, this is defined as featureSetName:version.
+  string feature_set = 2;
 
-  /**
-   * This should be the first 7 characters of a sha1 of the featureId
-   * This is just to save storage space as it's kept in memory.
-   */
-  string featureIdSha1Prefix = 3;
-
-  /**
-   * This groups a feature's values (for different eventTimestamps),
-   * into buckets so many can be retrieved together.
-   *
-   * See FeatureRowToRedisMutationDoFn.
-   * bucketId = roundedToGranularity(eventTimestamp).seconds / bucketSize.seconds
-   */
-  fixed64 bucketId = 4;
-}
-
-/**
- * Because in redis features are stored as a key per feature not per
- * feature row, we need the event timestamp in the value.
- */
-message RedisBucketValue {
-  feast.types.Value value = 1;
-  google.protobuf.Timestamp eventTimestamp = 2;
-}
-
-
-/**
- * This allows us to group multiple bucket values together in a
- * single list to make it easier to keep sets together
- */
-message RedisBucketValueList {
-  repeated RedisBucketValue values = 1;
+  // List of fields containing entity names and their respective values
+  // contained within this feature row.
+  repeated feast.types.Field entities = 3;
 }

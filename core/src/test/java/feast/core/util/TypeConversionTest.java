@@ -25,6 +25,7 @@ import java.util.*;
 import static com.jayway.jsonpath.matchers.JsonPathMatchers.hasJsonPath;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 public class TypeConversionTest {
   @Test
@@ -68,5 +69,17 @@ public class TypeConversionTest {
     Map<String, String> input = new HashMap<>();
     input.put("key", "value");
     assertThat(TypeConversion.convertMapToJsonString(input), hasJsonPath("$.key", equalTo("value")));
+  }
+
+  @Test
+  public void convertJsonStringToArgsShouldReturnCorrectListOfArgs() {
+    Map<String, String> input = new HashMap<>();
+    input.put("key", "value");
+    input.put("key2", "value2");
+
+    String[] expected = new String[]{"--key=value", "--key2=value2"};
+    String[] actual = TypeConversion.convertMapToArgs(input);
+    assertThat(actual.length, equalTo(expected.length));
+    assertTrue(Arrays.asList(actual).containsAll(Arrays.asList(expected)));
   }
 }

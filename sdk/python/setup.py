@@ -1,4 +1,4 @@
-# Copyright 2018 The Feast Authors
+# Copyright 2019 The Feast Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,25 +14,37 @@
 
 import imp
 import os
-from setuptools import find_packages, setup, Command
+
+from setuptools import find_packages, setup
 
 NAME = "feast"
 DESCRIPTION = "Python sdk for Feast"
 URL = "https://github.com/gojek/feast"
 AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.6.0"
-VERSION = imp.load_source("feast.version", os.path.join("feast", "version.py")).VERSION
+VERSION = "0.3.0"
+
 REQUIRED = [
-    "google-api-core>=1.7.0",
-    "google-auth>=1.6.0",
-    "google-cloud-bigquery>=1.8.0",
-    "google-cloud-storage>=1.13.0",
-    "googleapis-common-protos>=1.5.5",
-    "grpcio>=1.16.1",
-    "pandas",
-    "protobuf>=3.0.0",
-    "PyYAML",
-    "fastavro>=0.21.19"
+    "click>=7.0",
+    "google-api-core==1.*",
+    "google-auth==1.*",
+    "google-cloud-bigquery==1.*",
+    "google-cloud-storage==1.20.*",
+    "google-cloud-core==1.0.3",
+    "googleapis-common-protos==1.*",
+    "google-cloud-bigquery-storage==0.*",
+    "grpcio==1.*",
+    "pandas==0.*",
+    "pandavro==1.5.1",
+    "protobuf==3.10.*",
+    "PyYAML==5.1.2",
+    "fastavro==0.*",
+    "kafka-python==1.4.*",
+    "toml==0.10.0",
+    "tqdm==4.*",
+    "numpy",
+    "google",
+    "kafka-python==1.4.*",
 ]
 
 setup(
@@ -44,6 +56,9 @@ setup(
     url=URL,
     packages=find_packages(exclude=("tests",)),
     install_requires=REQUIRED,
+    # https://stackoverflow.com/questions/28509965/setuptools-development-requirements
+    # Install dev requirements with: pip install -e .[dev]
+    extras_require={"dev": ["mypy-protobuf==1.*", "grpcio-testing==1.*"]},
     include_package_data=True,
     license="Apache",
     classifiers=[
@@ -54,4 +69,5 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
     ],
+    entry_points={"console_scripts": ["feast=cli:cli"]},
 )

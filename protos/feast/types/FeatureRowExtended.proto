@@ -23,13 +23,13 @@ package feast.types;
 
 option java_package = "feast.types";
 option java_outer_classname = "FeatureRowExtendedProto";
-option go_package = "github.com/gojek/feast/protos/generated/go/feast/types";
+option go_package = "github.com/gojek/feast/sdk/go/protos/feast/types";
 
 message Error {
   string cause = 1; // exception class name
   string transform = 2; // name of transform where the error occurred
   string message = 3;
-  string stackTrace = 4;
+  string stack_trace = 4;
 }
 
 message Attempt {
@@ -39,6 +39,6 @@ message Attempt {
 
 message FeatureRowExtended {
   FeatureRow row = 1;
-  Attempt lastAttempt = 2;
-  google.protobuf.Timestamp firstSeen = 3;
+  Attempt last_attempt = 2;
+  google.protobuf.Timestamp first_seen = 3;
 }

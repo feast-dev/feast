@@ -1,8 +1,14 @@
 ### Scratch files ###
 scratch*
 
+### Feast UI deprecated folder ####
+ui/
+
 ### Local Environment ###
 *local*.env
+
+### Secret ###
+**/service_account.json
 
 ### Gradle ###
 **/.gradle
@@ -53,6 +59,7 @@ vendor
 __pycache__/
 *.py[cod]
 *$py.class
+*.prof
 
 # C extensions
 *.so

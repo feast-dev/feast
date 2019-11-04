@@ -1,0 +1,32 @@
+dependencies:
+- name: feast-core
+  version: 0.3.0
+  repository: "@local"
+# - name: postgresql
+#   version: 3.17.0
+#   repository: "@stable"
+#   condition: postgres.provision
+- name: feast-serving
+  version: 0.3.0
+  repository: "@local"
+  alias: online-serving
+- name: feast-serving
+  version: 0.3.0
+  repository: "@local"
+  alias: warehouse-serving
+- name: redis
+  version: 6.4.4
+  repository: "@stable"
+  condition: redis.provision
+- name: kafka
+  version: 0.17.0
+  repository: "@incubator"
+  condition: kafka.provision
+- name: prometheus-pushgateway
+  version: 1.0.1
+  repository: "@stable"
+  condition: prometheus-pushgateway.provision
+- name: nginx-ingress
+  version: 1.24.2
+  repository: "@stable"
+  condition: nginx-ingress.provision

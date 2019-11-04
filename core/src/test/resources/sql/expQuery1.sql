@@ -1,11 +1,11 @@
 SELECT
-    project.dataset.myentity.id,
-    project.dataset.myentity.event_timestamp ,
-    myentity_feature1,
-    myentity_feature2,
-    myentity_feature3
+    id,
+    event_timestamp,
+    feature1,
+    feature2,
+    feature3
 FROM
-    project.dataset.myentity
+    `project.dataset.myentity`
 WHERE
     event_timestamp >= TIMESTAMP("2018-01-02")
     AND event_timestamp <= TIMESTAMP(DATETIME_ADD("2018-01-30", INTERVAL 1 DAY)) LIMIT 100

@@ -1,6 +1,0 @@
-id: BIGQUERY1
-type: bigquery
-options:
-  dataset: "feast"
-  project: "gcp-project"
-  tempLocation: "gs://feast-storage"

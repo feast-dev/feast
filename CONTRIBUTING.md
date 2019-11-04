@@ -1,9 +1,314 @@
 # Contributing Guide
 
+## Getting Started
+
+The following guide will help you quickly run Feast in your local machine.
+
+The main components of Feast are:
+- **Feast Core** handles FeatureSpec registration, starts and monitors Ingestion 
+  jobs and ensures that Feast internal metadata is consistent.
+- **Feast Ingestion** subscribes to streams of FeatureRow and writes the feature
+  values to registered Stores. 
+- **Feast Serving** handles requests for features values retrieval from the end users.
+
+![Feast Components Overview](docs/assets/feast-components-overview.png)
+
+**Pre-requisites**
+- Java SDK version 8
+- Python version 3.6 (or above) and pip
+- Access to Postgres database (version 11 and above)
+- Access to [Redis](https://redis.io/topics/quickstart) instance (tested on version 5.x)
+- Access to [Kafka](https://kafka.apache.org/) brokers (tested on version 2.x)
+- [Maven ](https://maven.apache.org/install.html) version 3.6.x
+- [grpc_cli](https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md)
+  is useful for debugging and quick testing
+- An overview of Feast specifications and [protos](./protos/feast)
+
+> **Assumptions:**  
+> 
+> 1. Postgres is running in "localhost:5432" and has a database called "postgres" which 
+> can be accessed with credentials user "postgres" and password "password". 
+> To use different database name and credentials, please update 
+> "$FEAST_HOME/core/src/main/resources/application.yml" 
+> or set these environment variables: DB_HOST, DB_USERNAME, DB_PASSWORD.
+> 2. Redis is running locally and accessible from "localhost:6379"
+> 3. Feast has admin access to BigQuery.
+
+
+```
+# Clone Feast branch 0.3-dev
+# $FEAST_HOME will refer to be the root directory of this Feast Git repository
+
+git clone -b 0.3-dev https://github.com/gojek/feast
+cd feast
+```
+
+#### Starting Feast Core
+
+```
+cd $FEAST_HOME/core
+
+# Please check the default configuration for Feast Core in 
+# "$FEAST_HOME/core/src/main/resources/application.yml" and update it accordingly.
+# 
+# Start Feast Core GRPC server on localhost:6565
+mvn spring-boot:run
+
+# If Feast Core starts successfully, verify the correct Stores are registered
+# correctly, for example by using grpc_cli.
+grpc_cli call localhost:6565 GetStores ''
+
+# Should return something similar to the following.
+# Note that you should change BigQuery projectId and datasetId accordingly
+# in "$FEAST_HOME/core/src/main/resources/application.yml"
+
+store {
+  name: "SERVING"
+  type: REDIS
+  subscriptions {
+    name: ".*"
+    version: ">0"
+  }
+  redis_config {
+    host: "localhost"
+    port: 6379
+  }
+}
+store {
+  name: "WAREHOUSE"
+  type: BIGQUERY
+  subscriptions {
+    name: ".*"
+    version: ">0"
+  }
+  bigquery_config {
+    project_id: "my-google-project-id"
+    dataset_id: "my-bigquery-dataset-id"
+  }
+}
+```
+
+#### Starting Feast Serving
+
+Feast Serving requires administrators to provide an **existing** store name in Feast. 
+An instance of Feast Serving can only retrieve features from a **single** store. 
+> In order to retrieve features from multiple stores you must start **multiple**
+instances of Feast serving. If you start multiple Feast serving on a single host,
+make sure that they are listening on different ports.
+
+```
+cd $FEAST_HOME/serving
+
+# Start Feast Serving GRPC server on localhost:6566 with store name "SERVING"
+mvn spring-boot:run -Dspring-boot.run.arguments='--feast.store-name=SERVING'
+
+# To verify Feast Serving starts successfully
+grpc_cli call localhost:6566 GetFeastServingType ''
+
+# Should return something similar to the following.
+type: FEAST_SERVING_TYPE_ONLINE
+```
+
+
+#### Registering a FeatureSet
+
+Create a new FeatureSet on Feast by sending a request to Feast Core. When a 
+feature set is successfully registered, Feast Core will start an **ingestion** job
+that listens for new features in the FeatureSet. Note that Feast currently only 
+supports source of type "KAFKA", so you must have access to a running Kafka broker
+to register a FeatureSet successfully.
+
+```
+# Example of registering a new driver feature set 
+# Note the source value, it assumes that you have access to a Kafka broker
+# running on localhost:9092
+
+grpc_cli call localhost:6565 ApplyFeatureSet '
+feature_set {
+  name: "driver"
+  version: 1
+
+  entities {
+    name: "driver_id"
+    value_type: INT64
+  }
+
+  features {
+    name: "city"
+    value_type: STRING
+  }
+
+  source {
+    type: KAFKA
+    kafka_source_config {
+      bootstrap_servers: "localhost:9092"
+    }
+  }
+}
+'
+
+# To check that the FeatureSet has been registered correctly.
+# You should also see logs from Feast Core of the ingestion job being started
+grpc_cli call localhost:6565 GetFeatureSets ''
+```
+
+
+#### Ingestion and Population of Feature Values
+
+```
+# Produce FeatureRow messages to Kafka so it will be ingested by Feast
+# and written to the registered stores.
+# Make sure the value here is the topic assigned to the feature set
+# ... producer.send("feast-driver-features" ...)
+# 
+# Install Python SDK to help writing FeatureRow messages to Kafka
+cd $FEAST_HOME/sdk/python
+pip3 install -e .
+pip3 install pendulum
+
+# Produce FeatureRow messages to Kafka so it will be ingested by Feast
+# and written to the corresponding store.
+# Make sure the value here is the topic assigned to the feature set
+# ... producer.send("feast-test_feature_set-features" ...)
+python3 - <<EOF
+import logging
+import pendulum
+from google.protobuf.timestamp_pb2 import Timestamp
+from kafka import KafkaProducer
+from feast.types.FeatureRow_pb2 import FeatureRow
+from feast.types.Field_pb2 import Field
+from feast.types.Value_pb2 import Value, Int32List, BytesList
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+producer = KafkaProducer(bootstrap_servers="localhost:9092")
+
+row = FeatureRow()
+
+fields = [
+    Field(name="driver_id", value=Value(int64_val=1234)),
+    Field(name="city", value=Value(string_val="JAKARTA")),
+]
+row.fields.MergeFrom(fields)
+
+timestamp = Timestamp()
+timestamp.FromJsonString(
+    pendulum.now("UTC").to_iso8601_string()
+)
+row.event_timestamp.CopyFrom(timestamp)
+
+# The format is [FEATURE_NAME]:[VERSION]
+row.feature_set = "driver:1"
+
+producer.send("feast-driver-features", row.SerializeToString())
+producer.flush()
+logger.info(row)
+EOF
+
+# Check that the ingested feature rows can be retrieved from Feast serving
+grpc_cli call localhost:6566 GetOnlineFeatures '
+feature_sets {
+  name: "driver"
+  version: 1
+}
+entity_dataset {
+  entity_names: "driver_id"
+  entity_dataset_rows {
+    entity_ids {
+      int64_val: 1234
+    }
+  }
+}
+'
+```
+
+## Development
+
+Notes:
+
+  - Use of Lombok is being phased out, prefer to use [Google Auto] in new code.
+
+[Google Auto]: https://github.com/google/auto
+
+### Running Unit Tests
+
+    $ mvn test
+
+### Running Integration Tests
+
+_Note: integration suite isn't yet separated from unit._
+
+    $ mvn verify
+
+### Running Components Locally
+
+The `core` and `serving` modules are Spring Boot applications. These may be run as usual for [the Spring Boot Maven plugin][boot-maven]:
+
+    $ mvn --also-make --projects core sprint-boot:run
+
+    # Or for short:
+    $ mvn -am -pl core spring-boot:run
+
+Note the use of `--also-make` since some components depend on library modules from within the project.
+
+[boot-maven]: https://docs.spring.io/spring-boot/docs/current/maven-plugin/index.html
+
+#### Running From IntelliJ
+
+IntelliJ IDEA Ultimate has built-in support for Spring Boot projects, so everything may work out of the box. The Community Edition needs help with two matters:
+
+1. The IDE is [not clever enough][idea-also-make] to apply `--also-make` for Maven when it should.
+1. The Spring Boot Maven plugin automatically puts dependencies with `provided` scope on the runtime classpath when using `spring-boot:run`, such as its embedded Tomcat server. The "Play" buttons in the gutter or right-click menu of a `main()` method [do not do this][idea-boot-main].
+
+Fortunately there is one simple way to address both:
+
+1. Open `View > Tool Windows > Maven`
+1. Drill down to e.g. `Feast Core > Plugins > spring-boot:run`, right-click and `Create 'feast-core [spring-boot'…`
+1. In the dialog that pops up, check the `Resolve Workspace artifacts` box
+1. Click `OK`. You should now be able to select this run configuration for the Play button in the main toolbar, keyboard shortcuts, etc.
+
+[idea-also-make]: https://stackoverflow.com/questions/15073877/using-mavens-also-make-option-in-intellij
+[idea-boot-main]: https://stackoverflow.com/questions/30237768/run-spring-boots-main-using-ide
+
+#### Tips for Running Postgres, Redis and Kafka with Docker
+
+This guide assumes you are running Docker service on a bridge network (which
+is usually the case if you're running Linux). Otherwise, you may need to
+use different network options than shown below.
+
+> `--net host` usually only works as expected when you're running Docker
+> service in bridge networking mode.
+
+```
+# Start Postgres
+docker run --name postgres --rm -it -d --net host -e POSTGRES_DB=postgres -e POSTGRES_USER=postgres \
+-e POSTGRES_PASSWORD=password postgres:12-alpine
+
+# Start Redis
+docker run --name redis --rm -it --net host -d redis:5-alpine
+
+# Start Zookeeper (needed by Kafka)
+docker run --rm \
+  --net=host \
+  --name=zookeeper \
+  --env=ZOOKEEPER_CLIENT_PORT=2181 \
+  --detach confluentinc/cp-zookeeper:5.2.1
+
+# Start Kafka
+docker run --rm \
+  --net=host \
+  --name=kafka \
+  --env=KAFKA_ZOOKEEPER_CONNECT=localhost:2181 \
+  --env=KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+  --env=KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+  --detach confluentinc/cp-kafka:5.2.1
+```
+
 ## Code reviews
 
-All submissions, including submissions by project members, require review. We use GitHub pull
-requests for this purpose. Consult GitHub Help for more information on using pull requests.
+Code submission to Feast (including submission from project maintainers) requires review and approval.
+Please submit a **pull request** to initiate the code review process. We use [prow](https://github.com/kubernetes/test-infra/tree/master/prow) to manage the testing and reviewing of pull requests. Please refer to [config.yaml](../.prow/config.yaml) for details on the test jobs. 
 
 ## Code conventions
 
@@ -11,11 +316,9 @@ requests for this purpose. Consult GitHub Help for more information on using pul
 
 We conform to the [java google style guide](https://google.github.io/styleguide/javaguide.html)
 
-If using intellij please import the code styles:
+If using Intellij please import the code styles:
 https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xml
 
 ### Go
 
 Make sure you apply `go fmt`.
-
-### JavaScript

@@ -1,7 +1,0 @@
-id: my_fg
-tags: ["tag1", "tag2"]
-dataStores:
-  serving:
-    id: "REDIS1"
-  warehouse:
-    id: "BIGQUERY1"

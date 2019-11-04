@@ -1,0 +1,105 @@
+prowjob_namespace: default
+pod_namespace: test-pods
+
+plank:
+  allow_cancellations: true
+  job_url_prefix: http://prow.feast.ai/view/gcs
+  report_template: '[Full PR test history](https://prow.feast.ai/pr-history?org={{.Spec.Refs.Org}}&repo={{.Spec.Refs.Repo}}&pr={{with index .Spec.Refs.Pulls 0}}{{.Number}}{{end}})'
+  default_decoration_config:
+    timeout: 7200000000000    # 2h
+    grace_period: 15000000000 # 15s
+    utility_images:
+      clonerefs: gcr.io/k8s-prow/clonerefs:v20190221-d14461a
+      initupload: gcr.io/k8s-prow/initupload:v20190221-d14461a
+      entrypoint: gcr.io/k8s-prow/entrypoint:v20190221-d14461a
+      sidecar: gcr.io/k8s-prow/sidecar:v20190221-d14461a
+    gcs_configuration:
+      bucket: feast-templocation-kf-feast
+      path_strategy: explicit
+    gcs_credentials_secret: prow-service-account
+
+deck:
+  tide_update_period: 1s
+  spyglass:
+    size_limit: 50e+6 # 50MB
+    viewers:
+      "started.json|finished.json": ["metadata"]
+      "build-log.txt": ["buildlog"]
+      "report.xml": ["junit"]
+      "artifacts/.*\\.xml": ["junit"]
+      "surefire-reports/.*\\.xml": ["junit"]
+
+tide:
+  queries:
+  - repos:
+    - gojek/feast
+    labels:
+    - lgtm
+    - approved
+    missingLabels:
+    - do-not-merge
+    - do-not-merge/hold
+    - do-not-merge/invalid-owners-file
+    - do-not-merge/work-in-progress
+    - needs-rebase
+  merge_method:
+    gojek/feast: squash
+  blocker_label: merge-blocker
+  squash_label: tide/squash
+
+# presubmits list Prow jobs that run on pull requests
+presubmits:
+  gojek/feast:
+  - name: test-core-and-ingestion
+    decorate: true
+    always_run: true
+    spec:
+      containers:
+      - image: maven:3.6-jdk-8
+        command: [".prow/scripts/test-core-ingestion.sh"]
+
+  - name: test-serving
+    decorate: true
+    always_run: true
+    spec:
+      containers:
+      - image: maven:3.6-jdk-8
+        command: [".prow/scripts/test-serving.sh"]
+
+  - name: test-java-sdk
+    decorate: true
+    always_run: true
+    spec:
+      containers:
+      - image: maven:3.6-jdk-8
+        command: [".prow/scripts/test-java-sdk.sh"]
+
+  - name: test-python-sdk
+    decorate: true
+    always_run: true
+    spec:
+      containers:
+      - image: python:3.7
+        command: [".prow/scripts/test-python-sdk.sh"]
+
+  - name: test-golang-sdk
+    decorate: true
+    always_run: true
+    spec:
+      containers:
+      - image: golang:1.13
+        command: [".prow/scripts/test-golang-sdk.sh"]
+
+  - name: test-end-to-end
+    decorate: true
+    always_run: true
+    spec:
+      containers:
+      - image: maven:3.6-jdk-8
+        command: [".prow/scripts/test-end-to-end.sh"]
+
+# TODO: do a release when a git tag is pushed
+#
+# postsubmits list Prow jobs that run on every push 
+# postsubmits:
+#   gojek/feast:

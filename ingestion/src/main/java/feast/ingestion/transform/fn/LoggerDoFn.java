@@ -20,13 +20,13 @@ package feast.ingestion.transform.fn;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.slf4j.Logger;
 import org.slf4j.event.Level;
 
-@Slf4j
 public class LoggerDoFn extends DoFn<Message, Void> {
 
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(LoggerDoFn.class);
   private Level level;
   private String prefix = "";
 

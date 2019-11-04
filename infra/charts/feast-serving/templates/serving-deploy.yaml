@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "feast-serving.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "feast-serving.name" . }}
+    component: serving
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "feast-serving.name" . }}
+      component: serving
+      release: {{ .Release.Name }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: {{ .Values.rollingUpdate.maxSurge }}
+      maxUnavailable: {{ .Values.rollingUpdate.maxUnavailable }}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: {{ template "feast-serving.name" . }}
+        component: serving
+        release: {{ .Release.Name }}
+    spec:
+{{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+{{- end }}
+      containers:
+      - name: {{ template "feast-serving.name" . }}
+        image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command:
+          - java
+          - "-Dspring.config.additional-location=/usr/share/feast/config/"
+          - "-XX:+UnlockExperimentalVMOptions"
+          - "-XX:+UseCGroupMemoryLimitForHeap"
+          - "-jar"
+          - "/usr/share/feast/feast-serving.jar"
+        ports:
+          - containerPort: {{ .Values.service.grpc.targetPort }}
+            name: grpc
+          - containerPort: {{ .Values.service.http.targetPort }}
+            name: http
+        {{- if .Values.livenessProbe }}
+        livenessProbe:
+          exec:
+            command: ["/bin/grpc_health_probe", "-addr=:{{ .Values.service.grpc.targetPort }}"]
+          initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+          failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+        {{ end }}
+        readinessProbe:
+          exec:
+            command: ["/bin/grpc_health_probe", "-addr=:{{ .Values.service.grpc.targetPort }}"]
+          initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 3
+          failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+        resources:
+          requests:
+            cpu: "{{ .Values.resources.requests.cpu }}"
+            memory: "{{ .Values.resources.requests.memory }}"
+          {{- if .Values.resources.limits }}
+          limits:
+            cpu: "{{ .Values.resources.limits.cpu }}"
+            memory: "{{ .Values.resources.limits.memory }}"
+          {{- end }}
+        env:
+        {{- if .Values.serviceAccount }}
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /etc/gcloud/service-accounts/{{ .Values.serviceAccount.key }}
+        {{- end }}
+        volumeMounts:
+        - name: feast-serving-application-config
+          mountPath: /usr/share/feast/config/application.yml
+          subPath: application.yml
+        - name: feast-serving-store-config
+          mountPath: /usr/share/feast/config/store.yml
+          subPath: store.yml
+        {{- if .Values.serviceAccount }}
+        - name: "{{ .Values.serviceAccount.name }}"
+          mountPath: "/etc/gcloud/service-accounts"
+          readOnly: true
+        {{- end }}
+      volumes:
+      - name: feast-serving-application-config
+        configMap:
+          name:  {{ template "feast-serving.fullname" . }}-application-config
+      - name: feast-serving-store-config
+        configMap:
+          name:  {{ template "feast-serving.fullname" . }}-store-config
+      {{- if .Values.serviceAccount }}
+      - name: "{{ .Values.serviceAccount.name }}"
+        secret:
+          secretName: "{{ .Values.serviceAccount.name }}"
+      {{- end }}

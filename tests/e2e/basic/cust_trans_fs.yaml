@@ -1,0 +1,11 @@
+name: customer_transactions
+kind: feature_set
+entities:
+- name: customer_id
+  valueType: INT64
+features:
+- name: daily_transactions
+  valueType: FLOAT
+- name: total_transactions
+  valueType: FLOAT
+maxAge: 3600s

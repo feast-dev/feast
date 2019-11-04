@@ -22,30 +22,43 @@ import com.google.common.base.Strings;
 import java.util.regex.Pattern;
 
 public class Matchers {
+
   private static Pattern UPPER_SNAKE_CASE_REGEX = Pattern.compile("^[A-Z0-9]+(_[A-Z0-9]+)*$");
   private static Pattern LOWER_SNAKE_CASE_REGEX = Pattern.compile("^[a-z0-9]+(_[a-z0-9]+)*$");
+  private static Pattern VALID_CHARACTERS_REGEX = Pattern.compile("^[a-zA-Z0-9\\-_]*$");
 
   private static String ERROR_MESSAGE_TEMPLATE = "invalid value for field %s: %s";
 
   public static void checkUpperSnakeCase(String input, String fieldName)
-          throws IllegalArgumentException {
+      throws IllegalArgumentException {
     if (!UPPER_SNAKE_CASE_REGEX.matcher(input).matches()) {
       throw new IllegalArgumentException(
-              Strings.lenientFormat(
-                      ERROR_MESSAGE_TEMPLATE,
-                      fieldName,
-                      "argument must be in upper snake case, and cannot include any special characters."));
+          String.format(
+              ERROR_MESSAGE_TEMPLATE,
+              fieldName,
+              "argument must be in upper snake case, and cannot include any special characters."));
     }
   }
 
   public static void checkLowerSnakeCase(String input, String fieldName)
-          throws IllegalArgumentException {
+      throws IllegalArgumentException {
     if (!LOWER_SNAKE_CASE_REGEX.matcher(input).matches()) {
       throw new IllegalArgumentException(
-              Strings.lenientFormat(
-                      ERROR_MESSAGE_TEMPLATE,
-                      fieldName,
-                      "argument must be in lower snake case, and cannot include any special characters."));
+          String.format(
+              ERROR_MESSAGE_TEMPLATE,
+              fieldName,
+              "argument must be in lower snake case, and cannot include any special characters."));
+    }
+  }
+
+  public static void checkValidCharacters(String input, String fieldName)
+      throws IllegalArgumentException {
+    if (!VALID_CHARACTERS_REGEX.matcher(input).matches()) {
+      throw new IllegalArgumentException(
+          String.format(
+              ERROR_MESSAGE_TEMPLATE,
+              fieldName,
+              "argument must only contain alphanumeric characters, dashes and underscores."));
     }
   }
 }

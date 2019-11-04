@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "feast-core.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "feast-core.name" . }}
+    component: core
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "feast-core.name" . }}
+      component: core
+      release: {{ .Release.Name }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: {{ .Values.rollingUpdate.maxSurge }}
+      maxUnavailable: {{ .Values.rollingUpdate.maxUnavailable }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "feast-core.name" . }}
+        component: core
+        release: {{ .Release.Name }}
+    spec:
+{{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+{{- end }}
+      containers:
+      - name: {{ template "feast-core.name" . }}
+        image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command:
+          - java
+          - "-Dspring.config.additional-location=/usr/share/feast/config/"
+          - "-XX:+UnlockExperimentalVMOptions"
+          - "-XX:+UseCGroupMemoryLimitForHeap"
+          - "-jar"
+          - "/usr/share/feast/feast-core.jar"
+        ports:
+          - containerPort: {{ .Values.service.http.targetPort }}
+            name: "http"
+          - containerPort: {{ .Values.service.grpc.targetPort }}
+            name: "grpc"
+        {{- if .Values.livenessProbe.enabled }}
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: {{ .Values.service.http.targetPort }}
+            scheme: HTTP
+          initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+          failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+        {{ end }}
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: {{ .Values.service.http.targetPort }}
+            scheme: HTTP
+          initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 3
+          failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+        resources:
+          requests:
+            cpu: {{ .Values.resources.requests.cpu }}
+            memory: {{ .Values.resources.requests.memory }}
+          {{- if .Values.resources.limits }}
+          limits:
+            cpu: {{ .Values.resources.limits.cpu }}
+            memory: {{ .Values.resources.limits.memory }}
+          {{- end }}
+        volumeMounts:
+        - name: feast-core-config
+          mountPath: /usr/share/feast/config
+        {{- if .Values.serviceAccount }}
+        - name: "{{ .Values.serviceAccount.name }}"
+          mountPath: "/etc/gcloud/service-accounts"
+          readOnly: true
+        {{- end }}
+        env:
+        - name: DB_HOST
+          value: {{ template "postgresql.host" . }}
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "postgresql.secretName" . }}
+              key: postgresql-password
+        {{- if .Values.serviceAccount }}
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /etc/gcloud/service-accounts/{{ .Values.serviceAccount.key }}
+        {{- end }}
+      volumes:
+      - name: feast-core-config
+        configMap:
+          name:  {{ template "feast-core.fullname" . }}
+      {{- if .Values.serviceAccount }}
+      - name: "{{ .Values.serviceAccount.name }}"
+        secret:
+          secretName: "{{ .Values.serviceAccount.name }}"
+      {{- end }}

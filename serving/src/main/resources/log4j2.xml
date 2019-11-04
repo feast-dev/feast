@@ -16,7 +16,7 @@
   ~
   -->
 
-<Configuration status="DEBUG" monitorInterval="60">
+<Configuration status="info" monitorInterval="60">
     <Properties>
         <Property name="LOG_PATTERN">
             %d{yyyy-MM-dd HH:mm:ss.SSS} %5p ${hostName} --- [%15.15t] %-40.40c{1.} : %m%n%ex

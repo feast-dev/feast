@@ -1,0 +1,24 @@
+dependencies:
+- name: feast-core
+  repository: http://127.0.0.1:8879/charts
+  version: 0.3.0
+- name: feast-serving
+  repository: http://127.0.0.1:8879/charts
+  version: 0.3.0
+- name: feast-serving
+  repository: http://127.0.0.1:8879/charts
+  version: 0.3.0
+- name: redis
+  repository: https://kubernetes-charts.storage.googleapis.com
+  version: 6.4.4
+- name: kafka
+  repository: https://kubernetes-charts-incubator.storage.googleapis.com/
+  version: 0.17.0
+- name: prometheus-pushgateway
+  repository: https://kubernetes-charts.storage.googleapis.com
+  version: 1.0.1
+- name: nginx-ingress
+  repository: https://kubernetes-charts.storage.googleapis.com
+  version: 1.24.2
+digest: sha256:47e72348460a8ffb02d384e0a2b9548f1baeeeb74ab1af5b2262e72b559fbbaa
+generated: "2019-10-10T13:28:47.406676+08:00"

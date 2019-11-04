@@ -1,0 +1,25 @@
+plugins:
+  gojek/feast:
+  - approve      
+  - assign
+  - help
+  - hold
+  - label
+  - lgtm
+  - lifecycle     
+  - size
+  - verify-owners 
+  - wip         
+  - trigger
+  - config-updater
+
+config_updater:
+  maps:
+    .prow/config.yaml:
+      name: config
+
+external_plugins:
+  gojek/feast:
+  - name: needs-rebase
+    events:
+    - pull_request

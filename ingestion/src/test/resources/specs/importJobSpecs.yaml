@@ -1,61 +1,27 @@
-importSpec: {}
-servingStorageSpecs:
-  - id: TEST_SERVING
-    type: serving.mock
-    options: {}
-warehouseStorageSpecs:
-  - id: TEST_WAREHOUSE
-    type: warehouse.mock
-    options: {}
+sourceSpec: {}
+sinkStorageSpec:
+  id: TEST_SERVING
+  type: serving.mock
+  options: {}
 errorsStorageSpec:
   id: errors
   type: errors.mock
   options: {}
-entitySpecs:
-  - name: testEntity
-    description: This is a test entity
-    tags: []
+entitySpec:
+  name: testEntity
+  description: This is a test entity
+  tags: []
 featureSpecs:
   - id: testEntity.testInt64
     entity: testEntity
     name: testInt64
     owner: feast@example.com
-    description: This is test feature of type integer
+    description: This is test feature of long
     uri: https://example.com/
     valueType: INT64
     tags: []
-    options: {}
-    dataStores:
-      serving:
-        id: TEST_SERVING
-      warehouse:
-        id: TEST_WAREHOUSE
-  - id: testEntity.redisInt32
-    entity: testEntity
-    name: redisInt32
-    owner: feast@example.com
-    description: This is test feature of type integer the goes to redis
-    uri: https://example.com/
-    valueType: INT32
-    tags: []
-    options: {}
-    dataStores:
-      serving:
-        id: REDIS1
-        options:
-          expiry: PT1H
-  - id: testEntity.redisString
-    entity: testEntity
-    name: redisString
-    owner: feast@example.com
-    description: This is test feature of type integer that goes to redis
-    uri: https://example.com/
-    valueType: STRING
-    tags: []
-    options: {}
-    dataStores:
-      serving:
-        id: REDIS1
+    options:
+      nonsense: "I should be safely ignored"
   - id: testEntity.testInt32
     entity: testEntity
     name: testInt32
@@ -64,71 +30,15 @@ featureSpecs:
     uri: https://example.com/
     valueType: INT32
     tags: []
-    options: {}
-    dataStores:
-      serving:
-        id: TEST_SERVING
-      warehouse:
-        id: TEST_WAREHOUSE
-  - id: testEntity.testInt64
-    entity: testEntity
-    name: testInt64
-    owner: feast@example.com
-    description: This is test feature of type integer
-    uri: https://example.com/
-    valueType: INT64
-    tags: []
-    options: {}
-    dataStores:
-      serving:
-        id: TEST_SERVING
-      warehouse:
-        id: TEST_WAREHOUSE
-  - id: testEntity.testInt64NoWarehouse
-    entity: testEntity
-    name: testInt64NoWarehouse
-    owner: feast@example.com
-    description: This is test feature of type integer
-    uri: https://example.com/
-    valueType: INT64
-    tags: []
-    options: {}
-    dataStores:
-      serving:
-        id: TEST_SERVING
+    options:
+      nonsense: "I should be safely ignored"
   - id: testEntity.testString
     entity: testEntity
     name: testString
     owner: feast@example.com
-    description: This is test feature of type integer
+    description: This is test feature of type string
     uri: https://example.com/
     valueType: STRING
-    dataStores:
-      serving:
-        id: TEST_SERVING
-      warehouse:
-        id: TEST_WAREHOUSE
-  - id: testEntity.testStringNoWarehouse
-    entity: testEntity
-    name: testStringNoWarehouse
-    owner: feast@example.com
-    description: This is test feature of type integer
-    uri: https://example.com/
-    valueType: STRING
-    dataStores:
-      serving:
-        id: TEST_SERVING
-  - id: testEntity.unknownInt32
-    entity: testEntity
-    name: unknownInt32
-    owner: feast@example.com
-    description: This is test feature of type integer that goes to an unknown serving
-      store
-    uri: https://example.com/
-    valueType: INT32
     tags: []
-    options: {}
-    dataStores:
-      serving:
-        id: UNKNOWN1
-        options: {}
+    options:
+      nonsense: "I should be safely ignored"

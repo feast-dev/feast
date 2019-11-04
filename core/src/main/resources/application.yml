@@ -1,0 +1,74 @@
+#
+# Copyright 2018 The Feast Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+#
+
+grpc:
+  # The port number Feast Serving GRPC service should listen on
+  port: 6565
+  # This allows client to discover GRPC endpoints easily
+  # https://github.com/grpc/grpc-java/blob/master/documentation/server-reflection-tutorial.md
+  enable-reflection: true
+
+feast:
+#  version: @project.version@
+  jobs:
+    # Runner type for feature population jobs. Currently supported runner types are
+    # DirectRunner and DataflowRunner.
+    runner: DirectRunner
+    # Key-value dict of job options to be passed to the population jobs.
+    options: {}
+    metrics:
+      # Enable metrics pushing for all ingestion jobs.
+      enabled: false
+      # Type of metrics sink. Only prometheus is currently supported.
+      type: prometheus
+      # Host of the metrics sink. In the case of prometheus, this is the host of the prometheus
+      # pushGateway to sink metrics to.
+      host: localhost
+      # Port of the metrics sink. In the case of prometheus, this is the port of the prometheus
+      # pushGateway to sink metrics to.
+      port: 9091
+
+  stream:
+    # Feature stream type. Only kafka is supported.
+    type: kafka
+    # Feature stream options.
+    options:
+      topic: feast-features
+      bootstrapServers: kafka:9092
+      replicationFactor: 1
+      partitions: 1
+
+spring:
+  jpa:
+    properties.hibernate.format_sql: true
+    hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
+    hibernate.ddl-auto: update
+  datasource:
+    driverClassName: org.postgresql.Driver
+    url: jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:5432}/${DB_DATABASE:postgres}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:password}
+
+management:
+  metrics:
+    export:
+      simple:
+        enabled: false
+      statsd:
+        enabled: true
+        host: ${STATSD_HOST:localhost}
+        port: ${STATSD_PORT:8125}

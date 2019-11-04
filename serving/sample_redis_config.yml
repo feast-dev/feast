@@ -1,0 +1,8 @@
+name: serving
+type: REDIS
+redis_config:
+  host: localhost
+  port: 6379
+subscriptions:
+  - name: .*
+    version: ">0"

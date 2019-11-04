@@ -1,9 +1,0 @@
-dependencies:
-  - name: postgresql
-    version: ^0.19.0
-    repository: "@stable"
-    condition: postgres.provision
-  - name: redis
-    version: ^6.0.0
-    repository: "@stable"
-    condition: redis.provision
