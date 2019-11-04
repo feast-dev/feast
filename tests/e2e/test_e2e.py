@@ -403,7 +403,7 @@ def test_large_volume(online_client, batch_client):
                         'customer_id',
                         'daily_transactions',
                         'total_transactions']
-    batch_df.datetime = batch_df.datetime.apply(lambda dt: dt.replace(tzinfo=pytz.utc))
+    batch_df['datetime'] = batch_df.datetime.apply(lambda dt: dt.replace(tzinfo=pytz.utc))
     pd.testing.assert_frame_equal(batch_df, customer_data, check_less_precise=True)
 
 
@@ -488,7 +488,19 @@ def test_batch_multiple_feature_sets(batch_client):
     loc_sales_fs.ingest(dataframe=loc_data)
 
     expected = merchant_data.merge(loc_data[["datetime", "location_id", "total_revenue"]], on=["location_id"])
-    expected = expected[['datetime', 'merchant_id', 'location_id', '']]
+    expected = expected[['datetime',
+                         'merchant_id',
+                         'location_id',
+                         'daily_sales',
+                         'total_revenue_x',
+                         'total_revenue_y']]
+
+    expected.columns = ['datetime',
+                        'merchant_id',
+                        'location_id',
+                        'merchant_sales_v1_daily_sales',
+                        'merchant_sales_v1_total_revenue',
+                        'location_v1_total_revenue']
 
     feature_retrieval_job = batch_client.get_batch_features(
         entity_rows=merchant_data[["datetime", "merchant_id", "location_id"]],
@@ -499,3 +511,12 @@ def test_batch_multiple_feature_sets(batch_client):
         ],
     )
     actual = feature_retrieval_job.to_dataframe()
+    actual = actual[['event_timestamp',
+                     'merchant_id',
+                     'location_id',
+                     'merchant_sales_v1_daily_sales',
+                     'merchant_sales_v1_total_revenue',
+                     'location_v1_total_revenue']]
+    actual.columns = expected.columns
+    actual['datetime'] = actual.datetime.apply(lambda dt: dt.replace(tzinfo=pytz.utc))
+    pd.testing.assert_frame_equal(expected, actual, check_less_precise=True)
