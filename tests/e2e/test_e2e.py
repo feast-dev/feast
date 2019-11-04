@@ -362,8 +362,8 @@ def test_large_volume(online_client, batch_client):
     batch_df.columns = ["datetime", "customer_id", "daily_transactions", "total_transactions"]
     batch_df["datetime"] = batch_df.datetime.apply(lambda dt: dt.replace(tzinfo=pytz.utc))
 
-    customer_data.sort_values(by=["datetime", "customer_id"], inplace=True).reset_index(inplace=True, drop=True)
-    batch_df.sort_values(by=["datetime", "customer_id"], inplace=True).reset_index(inplace=True, drop=True)
+    customer_data.sort_values(by=["datetime", "customer_id"]).reset_index(inplace=True, drop=True)
+    batch_df.sort_values(by=["datetime", "customer_id"]).reset_index(inplace=True, drop=True)
     pd.testing.assert_frame_equal(batch_df, customer_data, check_less_precise=True)
 
 
@@ -471,8 +471,6 @@ def test_batch_multiple_feature_sets(batch_client):
     actual.columns = expected.columns
     actual["datetime"] = actual.datetime.apply(lambda dt: dt.replace(tzinfo=pytz.utc))
 
-    expected.sort_values(by=["datetime", "merchant_id", "location_id"], inplace=True).reset_index(
-        inplace=True, drop=True
-    )
-    actual.sort_values(by=["datetime", "merchant_id", "location_id"], inplace=True).reset_index(inplace=True, drop=True)
+    expected.sort_values(by=["datetime", "merchant_id", "location_id"]).reset_index(inplace=True, drop=True)
+    actual.sort_values(by=["datetime", "merchant_id", "location_id"]).reset_index(inplace=True, drop=True)
     pd.testing.assert_frame_equal(expected, actual, check_less_precise=True)
