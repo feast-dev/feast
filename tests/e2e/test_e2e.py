@@ -2,10 +2,7 @@ import math
 import random
 import time
 from feast.entity import Entity
-from feast.serving.ServingService_pb2 import (
-    GetOnlineFeaturesRequest,
-    GetOnlineFeaturesResponse,
-)
+from feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest, GetOnlineFeaturesResponse
 from feast.types.Value_pb2 import Value as Value
 from feast.client import Client
 from feast.feature_set import FeatureSet
@@ -52,9 +49,7 @@ def online_client(core_url, online_serving_url, allow_dirty):
     if not allow_dirty:
         feature_sets = client.list_feature_sets()
         if len(feature_sets) > 0:
-            raise Exception(
-                "Feast cannot have existing feature sets registered. Exiting tests."
-            )
+            raise Exception("Feast cannot have existing feature sets registered. Exiting tests.")
 
     return client
 
@@ -68,9 +63,7 @@ def batch_client(core_url, batch_serving_url, allow_dirty):
     if not allow_dirty:
         feature_sets = client.list_feature_sets()
         if len(feature_sets) > 0:
-            raise Exception(
-                "Feast cannot have existing feature sets registered. Exiting tests."
-            )
+            raise Exception("Feast cannot have existing feature sets registered. Exiting tests.")
 
     return client
 
@@ -125,34 +118,21 @@ def test_basic(online_client):
         response = client.get_online_features(
             entity_rows=[
                 GetOnlineFeaturesRequest.EntityRow(
-                    fields={
-                        "customer_id": Value(
-                            int64_val=customer_data.iloc[0]["customer_id"]
-                        )
-                    }
+                    fields={"customer_id": Value(int64_val=customer_data.iloc[0]["customer_id"])}
                 )
             ],
-            feature_ids=[
-                "customer_transactions:1:daily_transactions",
-                "customer_transactions:1:total_transactions",
-            ],
+            feature_ids=["customer_transactions:1:daily_transactions", "customer_transactions:1:total_transactions"],
         )  # type: GetOnlineFeaturesResponse
 
         if response is None:
             continue
 
         returned_daily_transactions = float(
-            response.field_values[0]
-                .fields["customer_transactions:1:daily_transactions"]
-                .float_val
+            response.field_values[0].fields["customer_transactions:1:daily_transactions"].float_val
         )
         sent_daily_transactions = float(customer_data.iloc[0]["daily_transactions"])
 
-        if math.isclose(
-                sent_daily_transactions,
-                returned_daily_transactions,
-                abs_tol=FLOAT_TOLERANCE,
-        ):
+        if math.isclose(sent_daily_transactions, returned_daily_transactions, abs_tol=FLOAT_TOLERANCE):
             break
 
 
@@ -260,9 +240,7 @@ def test_all_types(online_client):
 
         response = client.get_online_features(
             entity_rows=[
-                GetOnlineFeaturesRequest.EntityRow(
-                    fields={"user_id": Value(int64_val=all_types_df.iloc[0]["user_id"])}
-                )
+                GetOnlineFeaturesRequest.EntityRow(fields={"user_id": Value(int64_val=all_types_df.iloc[0]["user_id"])})
             ],
             feature_ids=[
                 "all_types:1:float_feature",
@@ -285,18 +263,12 @@ def test_all_types(online_client):
         if response is None:
             continue
 
-        returned_float_list = (
-            response.field_values[0]
-                .fields["all_types:1:float_list_feature"]
-                .float_list_val.val
-        )
+        returned_float_list = response.field_values[0].fields["all_types:1:float_list_feature"].float_list_val.val
 
         sent_float_list = all_types_df.iloc[0]["float_list_feature"]
 
         # TODO: Add tests for each value and type
-        if math.isclose(
-                returned_float_list[0], sent_float_list[0], abs_tol=FLOAT_TOLERANCE
-        ):
+        if math.isclose(returned_float_list[0], sent_float_list[0], abs_tol=FLOAT_TOLERANCE):
             break
 
         # Wait for values to appear in Serving
@@ -308,9 +280,7 @@ def test_large_volume(online_client, batch_client):
     ROW_COUNT = 50000
     client = online_client
 
-    cust_trans_fs = client.get_feature_set(
-        name="customer_transactions_large", version=1
-    )
+    cust_trans_fs = client.get_feature_set(name="customer_transactions_large", version=1)
     if cust_trans_fs is None:
         # Load feature set from file
         cust_trans_fs = FeatureSet.from_yaml("feature_sets/cust_trans_large_fs.yaml")
@@ -321,9 +291,7 @@ def test_large_volume(online_client, batch_client):
         # Feast Core needs some time to fully commit the FeatureSet applied
         # when there is no existing job yet for the Featureset
         time.sleep(10)
-        cust_trans_fs = client.get_feature_set(
-            name="customer_transactions_large", version=1
-        )
+        cust_trans_fs = client.get_feature_set(name="customer_transactions_large", version=1)
 
         if cust_trans_fs is None:
             raise Exception(
@@ -336,9 +304,7 @@ def test_large_volume(online_client, batch_client):
     offset = random.randint(1000000, 10000000)  # ensure a unique key space
     customer_data = pd.DataFrame(
         {
-            "datetime": [
-                datetime.utcnow().replace(tzinfo=pytz.utc) for _ in range(ROW_COUNT)
-            ],
+            "datetime": [datetime.utcnow().replace(tzinfo=pytz.utc) for _ in range(ROW_COUNT)],
             "customer_id": [offset + inc for inc in range(ROW_COUNT)],
             "daily_transactions": [np.random.rand() for _ in range(ROW_COUNT)],
             "total_transactions": [256 for _ in range(ROW_COUNT)],
@@ -355,11 +321,7 @@ def test_large_volume(online_client, batch_client):
         response = client.get_online_features(
             entity_rows=[
                 GetOnlineFeaturesRequest.EntityRow(
-                    fields={
-                        "customer_id": Value(
-                            int64_val=customer_data.iloc[0]["customer_id"]
-                        )
-                    }
+                    fields={"customer_id": Value(int64_val=customer_data.iloc[0]["customer_id"])}
                 )
             ],
             feature_ids=[
@@ -372,22 +334,16 @@ def test_large_volume(online_client, batch_client):
             continue
 
         returned_daily_transactions = float(
-            response.field_values[0]
-                .fields["customer_transactions_large:1:daily_transactions"]
-                .float_val
+            response.field_values[0].fields["customer_transactions_large:1:daily_transactions"].float_val
         )
         sent_daily_transactions = float(customer_data.iloc[0]["daily_transactions"])
 
-        if math.isclose(
-                sent_daily_transactions,
-                returned_daily_transactions,
-                abs_tol=FLOAT_TOLERANCE,
-        ):
+        if math.isclose(sent_daily_transactions, returned_daily_transactions, abs_tol=FLOAT_TOLERANCE):
             break
 
     # Test if values in wh store are correct
     feature_retrieval_job = batch_client.get_batch_features(
-        entity_rows=customer_data[['datetime', 'customer_id']],
+        entity_rows=customer_data[["datetime", "customer_id"]],
         feature_ids=[
             "customer_transactions_large:1:daily_transactions",
             "customer_transactions_large:1:total_transactions",
@@ -395,30 +351,27 @@ def test_large_volume(online_client, batch_client):
     )
 
     batch_df = feature_retrieval_job.to_dataframe()
-    batch_df = batch_df[["event_timestamp",
-                         "customer_id",
-                         "customer_transactions_large_v1_daily_transactions",
-                         "customer_transactions_large_v1_total_transactions"]]
-    batch_df.columns = ["datetime",
-                        "customer_id",
-                        "daily_transactions",
-                        "total_transactions"]
+    batch_df = batch_df[
+        [
+            "event_timestamp",
+            "customer_id",
+            "customer_transactions_large_v1_daily_transactions",
+            "customer_transactions_large_v1_total_transactions",
+        ]
+    ]
+    batch_df.columns = ["datetime", "customer_id", "daily_transactions", "total_transactions"]
     batch_df["datetime"] = batch_df.datetime.apply(lambda dt: dt.replace(tzinfo=pytz.utc))
 
-    customer_data.sort_values(by=["datetime", "customer_id"], inplace=True)
-    batch_df.sort_values(by=["datetime", "customer_id"], inplace=True)
+    customer_data.sort_values(by=["datetime", "customer_id"], inplace=True).reset_index(inplace=True, drop=True)
+    batch_df.sort_values(by=["datetime", "customer_id"], inplace=True).reset_index(inplace=True, drop=True)
     pd.testing.assert_frame_equal(batch_df, customer_data, check_less_precise=True)
 
 
 @pytest.mark.timeout(1200)
 def test_batch_multiple_feature_sets(batch_client):
     client = batch_client
-    merchant_sales_fs = client.get_feature_set(
-        name="merchant_sales", version=1
-    )
-    loc_sales_fs = client.get_feature_set(
-        name="location", version=1
-    )
+    merchant_sales_fs = client.get_feature_set(name="merchant_sales", version=1)
+    loc_sales_fs = client.get_feature_set(name="location", version=1)
     if merchant_sales_fs is None or loc_sales_fs is None:
         # Load feature set from file
         merchant_sales_fs = FeatureSet.from_yaml("feature_sets/mer_sales_fs.yaml")
@@ -429,9 +382,7 @@ def test_batch_multiple_feature_sets(batch_client):
         # Feast Core needs some time to fully commit the FeatureSet applied
         # when there is no existing job yet for the Featureset
         time.sleep(10)
-        merchant_sales_fs = client.get_feature_set(
-            name="merchant_sales", version=1
-        )
+        merchant_sales_fs = client.get_feature_set(name="merchant_sales", version=1)
 
         if merchant_sales_fs is None:
             raise Exception(
@@ -449,9 +400,7 @@ def test_batch_multiple_feature_sets(batch_client):
         # Feast Core needs some time to fully commit the FeatureSet applied
         # when there is no existing job yet for the Featureset
         time.sleep(10)
-        loc_sales_fs = client.get_feature_set(
-            name="location", version=1
-        )
+        loc_sales_fs = client.get_feature_set(name="location", version=1)
 
         if loc_sales_fs is None:
             raise Exception(
@@ -491,38 +440,39 @@ def test_batch_multiple_feature_sets(batch_client):
     loc_sales_fs.ingest(dataframe=loc_data)
 
     expected = merchant_data.merge(loc_data[["datetime", "location_id", "total_revenue"]], on=["location_id"])
-    expected = expected[['datetime_x',
-                         'merchant_id',
-                         'location_id',
-                         'daily_sales',
-                         'total_revenue_x',
-                         'total_revenue_y']]
+    expected = expected[
+        ["datetime_x", "merchant_id", "location_id", "daily_sales", "total_revenue_x", "total_revenue_y"]
+    ]
 
-    expected.columns = ["datetime",
-                        "merchant_id",
-                        "location_id",
-                        "merchant_sales_v1_daily_sales",
-                        "merchant_sales_v1_total_revenue",
-                        "location_v1_total_revenue"]
+    expected.columns = [
+        "datetime",
+        "merchant_id",
+        "location_id",
+        "merchant_sales_v1_daily_sales",
+        "merchant_sales_v1_total_revenue",
+        "location_v1_total_revenue",
+    ]
 
     feature_retrieval_job = batch_client.get_batch_features(
         entity_rows=merchant_data[["datetime", "merchant_id", "location_id"]],
-        feature_ids=[
-            "merchant_sales:1:daily_sales",
-            "merchant_sales:1:total_revenue",
-            "location:1:total_revenue"
-        ],
+        feature_ids=["merchant_sales:1:daily_sales", "merchant_sales:1:total_revenue", "location:1:total_revenue"],
     )
     actual = feature_retrieval_job.to_dataframe()
-    actual = actual[["event_timestamp",
-                     "merchant_id",
-                     "location_id",
-                     "merchant_sales_v1_daily_sales",
-                     "merchant_sales_v1_total_revenue",
-                     "location_v1_total_revenue"]]
+    actual = actual[
+        [
+            "event_timestamp",
+            "merchant_id",
+            "location_id",
+            "merchant_sales_v1_daily_sales",
+            "merchant_sales_v1_total_revenue",
+            "location_v1_total_revenue",
+        ]
+    ]
     actual.columns = expected.columns
     actual["datetime"] = actual.datetime.apply(lambda dt: dt.replace(tzinfo=pytz.utc))
 
-    expected.sort_values(by=["datetime", "merchant_id", "location_id"], inplace=True)
-    actual.sort_values(by=["datetime", "merchant_id", "location_id"], inplace=True)
+    expected.sort_values(by=["datetime", "merchant_id", "location_id"], inplace=True).reset_index(
+        inplace=True, drop=True
+    )
+    actual.sort_values(by=["datetime", "merchant_id", "location_id"], inplace=True).reset_index(inplace=True, drop=True)
     pd.testing.assert_frame_equal(expected, actual, check_less_precise=True)
