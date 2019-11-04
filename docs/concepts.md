@@ -6,9 +6,9 @@
 
 The core components of a Feast deployment are
 
-* **Feast Core:** Feast Core is a centralized service that acts as the authority on features within an organization. There should only be one "Core" deployment per organization, with all feature management happening through it.
-* **Feast Ingestion Jobs:** Feast ingestion jobs retrieve feature data from user defined data sources and populate serving stores with this feature data. These jobs are managed by Feast Core. Data can either be sources from existing sources \(like Kafka\), or it can be ingested into Feast through its API.
-* **Feast Serving:** Feast Serving is the data access layer through which end users and production systems retrieve feature data. Each Serving store is backed by one or more databases. These databases are updated by the Feast ingestion jobs. There are two types of stores: Batch, and online. Batch stores hold historical data, while online stores only hold the latest feature values. 
+* **Feast Core:** Feast Core is a centralized service that acts as the authority on features within an organization. Typically there is only one "Core" deployment per organization, with all feature management happening through it.
+* **Feast Ingestion Jobs:** Feast ingestion jobs retrieve feature data from user defined data sources and populate serving stores with this feature data. These jobs are managed by Feast Core. Data can either be sources from existing sources \(like [Kafka](https://kafka.apache.org/)\), or it can be loaded into Feast through its API.
+* **Feast Serving:** Feast Serving is the data access layer through which end users and production systems retrieve feature data. Each Serving store is backed by one or more databases. These databases are updated by the Feast ingestion jobs. There are two types of stores: batch and online. Batch stores hold large volumes historical data, while online stores only hold the latest feature values. 
 
 ## Data Model
 

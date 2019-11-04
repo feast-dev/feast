@@ -2,7 +2,7 @@
 
 * [Overview](README.md)
 * [Why Feast?](why-feast.md)
-* [Concepts](root.md)
+* [Concepts](concepts.md)
 * [Getting Help](community.md)
 
 ## Reference
