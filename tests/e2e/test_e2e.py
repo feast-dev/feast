@@ -395,7 +395,7 @@ def test_large_volume(online_client, batch_client):
     )
 
     batch_df = feature_retrieval_job.to_dataframe()
-    batch_df = batch_df[['datetime',
+    batch_df = batch_df[['event_timestamp',
                          'customer_id',
                          'customer_transactions_large_v1_daily_transactions',
                          'customer_transactions_large_v1_total_transactions']]
