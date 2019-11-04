@@ -2,9 +2,11 @@ package feast.ingestion;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.SourceProto.Source;
 import feast.core.StoreProto.Store;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.transform.ReadFromSource;
+import feast.ingestion.transform.ValidateFeatureRows;
 import feast.ingestion.transform.WriteFailedElementToBigQuery;
 import feast.ingestion.transform.WriteToStore;
 import feast.ingestion.transform.metrics.WriteMetricsTransform;
@@ -14,20 +16,26 @@ import feast.ingestion.utils.StoreUtil;
 import feast.ingestion.values.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 
 public class ImportJob {
+
   // Tag for main output containing Feature Row that has been successfully processed.
-  private static final TupleTag<FeatureRow> FEATURE_ROW_OUT = new TupleTag<FeatureRow>() {};
+  private static final TupleTag<FeatureRow> FEATURE_ROW_OUT = new TupleTag<FeatureRow>() {
+  };
 
   // Tag for deadletter output containing elements and error messages from invalid input/transform.
-  private static final TupleTag<FailedElement> DEADLETTER_OUT = new TupleTag<FailedElement>() {};
+  private static final TupleTag<FailedElement> DEADLETTER_OUT = new TupleTag<FailedElement>() {
+  };
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(ImportJob.class);
 
   /**
@@ -46,13 +54,16 @@ public class ImportJob {
     /*
      * Steps:
      * 1. Read messages from Feast Source as FeatureRow
-     * 2. Write FeatureRow to the corresponding Store
-     * 3. Write elements that failed to be processed to a dead letter queue.
-     * 4. Write metrics to a metrics sink
+     * 2. Validate the feature rows to ensure the schema matches what is registered to the system
+     * 3. Write FeatureRow to the corresponding Store
+     * 4. Write elements that failed to be processed to a dead letter queue.
+     * 5. Write metrics to a metrics sink
      */
 
     PipelineOptionsValidator.validate(ImportOptions.class, options);
     Pipeline pipeline = Pipeline.create(options);
+
+    log.info("Starting import job with settings: \n{}", options.toString());
 
     List<FeatureSetSpec> featureSetSpecs =
         SpecUtil.parseFeatureSetSpecJsonList(options.getFeatureSetSpecJson());
@@ -62,48 +73,74 @@ public class ImportJob {
       List<FeatureSetSpec> subscribedFeatureSets =
           SpecUtil.getSubscribedFeatureSets(store.getSubscriptionsList(), featureSetSpecs);
 
+      // Generate tags by key
+      Map<String, TupleTag<FeatureRow>> featureSetTagsByKey = subscribedFeatureSets.stream()
+          .map(fs -> {
+            String id = String.format("%s:%s", fs.getName(), fs.getVersion());
+            return Pair.of(id, new TupleTag<FeatureRow>(id) {
+            });
+          })
+          .collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
+
+      // TODO: make the source part of the job initialisation options
+      Source source = subscribedFeatureSets.get(0).getSource();
+
+      // Step 1. Read messages from Feast Source as FeatureRow.
+      PCollectionTuple convertedFeatureRows =
+          pipeline.apply(
+              "ReadFeatureRowFromSource",
+              ReadFromSource.newBuilder()
+                  .setSource(source)
+                  .setFeatureSetTagByKey(featureSetTagsByKey)
+                  .setFailureTag(DEADLETTER_OUT)
+                  .build());
+
       for (FeatureSetSpec featureSet : subscribedFeatureSets) {
         // Ensure Store has valid configuration and Feast can access it.
         StoreUtil.setupStore(store, featureSet);
+        String id = String.format("%s:%s", featureSet.getName(), featureSet.getVersion());
 
-        // Step 1. Read messages from Feast Source as FeatureRow.
-        PCollectionTuple convertedFeatureRows =
-            pipeline.apply(
-                "ReadFeatureRowFromSource",
-                ReadFromSource.newBuilder()
-                    .setSource(featureSet.getSource())
-                    .setFieldByName(SpecUtil.getFieldByName(featureSet))
-                    .setFeatureSetName(featureSet.getName())
-                    .setFeatureSetVersion(featureSet.getVersion())
-                    .setSuccessTag(FEATURE_ROW_OUT)
-                    .setFailureTag(DEADLETTER_OUT)
-                    .build());
+        // Step 2. Validate incoming FeatureRows
+        PCollectionTuple validatedRows = convertedFeatureRows
+            .get(featureSetTagsByKey.get(id))
+            .apply(ValidateFeatureRows.newBuilder()
+                .setFeatureSetSpec(featureSet)
+                .setSuccessTag(FEATURE_ROW_OUT)
+                .setFailureTag(DEADLETTER_OUT).build());
 
-        // Step 2. Write FeatureRow to the corresponding Store.
-        convertedFeatureRows
+        // Step 3. Write FeatureRow to the corresponding Store.
+        validatedRows
             .get(FEATURE_ROW_OUT)
             .apply(
                 "WriteFeatureRowToStore",
                 WriteToStore.newBuilder().setFeatureSetSpec(featureSet).setStore(store).build());
 
-        // Step 3. Write FailedElements to a dead letter table in BigQuery.
+        // Step 4. Write FailedElements to a dead letter table in BigQuery.
         if (options.getDeadLetterTableSpec() != null) {
           convertedFeatureRows
               .get(DEADLETTER_OUT)
               .apply(
-                  "WriteFailedElements",
+                  "WriteFailedElements_ReadFromSource",
+                  WriteFailedElementToBigQuery.newBuilder()
+                      .setJsonSchema(ResourceUtil.getDeadletterTableSchemaJson())
+                      .setTableSpec(options.getDeadLetterTableSpec())
+                      .build());
+
+          validatedRows
+              .get(DEADLETTER_OUT)
+              .apply("WriteFailedElements_ValidateRows",
                   WriteFailedElementToBigQuery.newBuilder()
                       .setJsonSchema(ResourceUtil.getDeadletterTableSchemaJson())
                       .setTableSpec(options.getDeadLetterTableSpec())
                       .build());
         }
 
-        // Step 4. Write metrics to a metrics sink.
+        // Step 5. Write metrics to a metrics sink.
         convertedFeatureRows
             .apply("WriteMetrics", WriteMetricsTransform.newBuilder()
                 .setFeatureSetSpec(featureSet)
                 .setStoreName(store.getName())
-                .setSuccessTag(FEATURE_ROW_OUT)
+                .setFeatureSetTag(featureSetTagsByKey.get(id))
                 .setFailureTag(DEADLETTER_OUT)
                 .build());
       }
