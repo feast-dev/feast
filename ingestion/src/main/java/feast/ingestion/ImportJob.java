@@ -136,11 +136,11 @@ public class ImportJob {
         }
 
         // Step 5. Write metrics to a metrics sink.
-        convertedFeatureRows
+        validatedRows
             .apply("WriteMetrics", WriteMetricsTransform.newBuilder()
                 .setFeatureSetSpec(featureSet)
                 .setStoreName(store.getName())
-                .setFeatureSetTag(featureSetTagsByKey.get(id))
+                .setSuccessTag(FEATURE_ROW_OUT)
                 .setFailureTag(DEADLETTER_OUT)
                 .build());
       }

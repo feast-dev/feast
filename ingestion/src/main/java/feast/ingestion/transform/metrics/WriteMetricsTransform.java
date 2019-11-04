@@ -24,7 +24,7 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
 
   public abstract FeatureSetSpec getFeatureSetSpec();
 
-  public abstract TupleTag<FeatureRow> getFeatureSetTag();
+  public abstract TupleTag<FeatureRow> getSuccessTag();
 
   public abstract TupleTag<FailedElement> getFailureTag();
 
@@ -39,7 +39,7 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
 
     public abstract Builder setFeatureSetSpec(FeatureSetSpec featureSetSpec);
 
-    public abstract Builder setFeatureSetTag(TupleTag<FeatureRow> featureSetTag);
+    public abstract Builder setSuccessTag(TupleTag<FeatureRow> successTag);
 
     public abstract Builder setFailureTag(TupleTag<FailedElement> failureTag);
 
@@ -63,7 +63,7 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
                     .setStoreName(getStoreName())
                     .build()));
 
-        input.get(getFeatureSetTag())
+        input.get(getSuccessTag())
             .apply("Window records",
                 new WindowRecords<>(WINDOW_SIZE_SECONDS))
             .apply("Write row metrics", ParDo
@@ -76,7 +76,7 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
         return PDone.in(input.getPipeline());
       case "none":
       default:
-        input.get(getFeatureSetTag()).apply("Noop",
+        input.get(getSuccessTag()).apply("Noop",
             ParDo.of(new DoFn<FeatureRow, Void>() {
               @ProcessElement
               public void processElement(ProcessContext c) {
