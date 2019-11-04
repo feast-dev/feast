@@ -38,16 +38,25 @@ steps:
   entrypoint: 'sh'
   args: ['-c', 'echo TODO: cleanup_feast_installation.sh']
 
-- id: 'build-proto'
-  name: 'znly/protoc'
+- id: 'gen-proto-go'
+  name: 'gcr.io/konnekt-core/protoc-go:3.6.1'
   dir: '/workspace/protos'
   entrypoint: 'make'
-  args: ['gen-go', 'gen-python']
+  args: ['gen-go']
+- id: 'gen-proto-python'
+  name: 'gcr.io/konnekt-core/protoc-python:3.6.1'
+  dir: '/workspace/protos'
+  entrypoint: 'make'
+  args: ['gen-python']
+
 - id: 'build-cli'
-  name: 'golang:1.12'
+  env:
+  - 'FEAST_VERSION=ff-${SHORT_SHA}'
+  name: 'gcr.io/konnekt-core/protoc-go:3.6.1'
   dir: '/workspace/cli'
   entrypoint: 'make'
   args: ['build-all']
+
 - id: 'build-java'
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: 'mvn'

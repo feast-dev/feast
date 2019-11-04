@@ -73,11 +73,11 @@ _ENTITYSPEC = _descriptor.Descriptor(
 DESCRIPTOR.message_types_by_name['EntitySpec'] = _ENTITYSPEC
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-EntitySpec = _reflection.GeneratedProtocolMessageType('EntitySpec', (_message.Message,), dict(
-  DESCRIPTOR = _ENTITYSPEC,
-  __module__ = 'feast.specs.EntitySpec_pb2'
+EntitySpec = _reflection.GeneratedProtocolMessageType('EntitySpec', (_message.Message,), {
+  'DESCRIPTOR' : _ENTITYSPEC,
+  '__module__' : 'feast.specs.EntitySpec_pb2'
   # @@protoc_insertion_point(class_scope:feast.specs.EntitySpec)
-  ))
+  })
 _sym_db.RegisterMessage(EntitySpec)
 
 

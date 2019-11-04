@@ -114,18 +114,18 @@ _FEATUREGROUPSPEC.fields_by_name['options'].message_type = _FEATUREGROUPSPEC_OPT
 DESCRIPTOR.message_types_by_name['FeatureGroupSpec'] = _FEATUREGROUPSPEC
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-FeatureGroupSpec = _reflection.GeneratedProtocolMessageType('FeatureGroupSpec', (_message.Message,), dict(
+FeatureGroupSpec = _reflection.GeneratedProtocolMessageType('FeatureGroupSpec', (_message.Message,), {
 
-  OptionsEntry = _reflection.GeneratedProtocolMessageType('OptionsEntry', (_message.Message,), dict(
-    DESCRIPTOR = _FEATUREGROUPSPEC_OPTIONSENTRY,
-    __module__ = 'feast.specs.FeatureGroupSpec_pb2'
+  'OptionsEntry' : _reflection.GeneratedProtocolMessageType('OptionsEntry', (_message.Message,), {
+    'DESCRIPTOR' : _FEATUREGROUPSPEC_OPTIONSENTRY,
+    '__module__' : 'feast.specs.FeatureGroupSpec_pb2'
     # @@protoc_insertion_point(class_scope:feast.specs.FeatureGroupSpec.OptionsEntry)
-    ))
+    })
   ,
-  DESCRIPTOR = _FEATUREGROUPSPEC,
-  __module__ = 'feast.specs.FeatureGroupSpec_pb2'
+  'DESCRIPTOR' : _FEATUREGROUPSPEC,
+  '__module__' : 'feast.specs.FeatureGroupSpec_pb2'
   # @@protoc_insertion_point(class_scope:feast.specs.FeatureGroupSpec)
-  ))
+  })
 _sym_db.RegisterMessage(FeatureGroupSpec)
 _sym_db.RegisterMessage(FeatureGroupSpec.OptionsEntry)
 

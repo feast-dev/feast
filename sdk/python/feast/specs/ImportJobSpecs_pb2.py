@@ -112,11 +112,11 @@ _IMPORTJOBSPECS.fields_by_name['errorsStorageSpec'].message_type = feast_dot_spe
 DESCRIPTOR.message_types_by_name['ImportJobSpecs'] = _IMPORTJOBSPECS
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-ImportJobSpecs = _reflection.GeneratedProtocolMessageType('ImportJobSpecs', (_message.Message,), dict(
-  DESCRIPTOR = _IMPORTJOBSPECS,
-  __module__ = 'feast.specs.ImportJobSpecs_pb2'
+ImportJobSpecs = _reflection.GeneratedProtocolMessageType('ImportJobSpecs', (_message.Message,), {
+  'DESCRIPTOR' : _IMPORTJOBSPECS,
+  '__module__' : 'feast.specs.ImportJobSpecs_pb2'
   # @@protoc_insertion_point(class_scope:feast.specs.ImportJobSpecs)
-  ))
+  })
 _sym_db.RegisterMessage(ImportJobSpecs)
 
 

@@ -567,109 +567,109 @@ _CORESERVICETYPES_GETUPLOADURLRESPONSE_HTTPMETHOD.containing_type = _CORESERVICE
 DESCRIPTOR.message_types_by_name['CoreServiceTypes'] = _CORESERVICETYPES
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-CoreServiceTypes = _reflection.GeneratedProtocolMessageType('CoreServiceTypes', (_message.Message,), dict(
+CoreServiceTypes = _reflection.GeneratedProtocolMessageType('CoreServiceTypes', (_message.Message,), {
 
-  GetEntitiesRequest = _reflection.GeneratedProtocolMessageType('GetEntitiesRequest', (_message.Message,), dict(
-    DESCRIPTOR = _CORESERVICETYPES_GETENTITIESREQUEST,
-    __module__ = 'feast.core.CoreService_pb2'
+  'GetEntitiesRequest' : _reflection.GeneratedProtocolMessageType('GetEntitiesRequest', (_message.Message,), {
+    'DESCRIPTOR' : _CORESERVICETYPES_GETENTITIESREQUEST,
+    '__module__' : 'feast.core.CoreService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.GetEntitiesRequest)
-    ))
+    })
   ,
 
-  GetEntitiesResponse = _reflection.GeneratedProtocolMessageType('GetEntitiesResponse', (_message.Message,), dict(
-    DESCRIPTOR = _CORESERVICETYPES_GETENTITIESRESPONSE,
-    __module__ = 'feast.core.CoreService_pb2'
+  'GetEntitiesResponse' : _reflection.GeneratedProtocolMessageType('GetEntitiesResponse', (_message.Message,), {
+    'DESCRIPTOR' : _CORESERVICETYPES_GETENTITIESRESPONSE,
+    '__module__' : 'feast.core.CoreService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.GetEntitiesResponse)
-    ))
+    })
   ,
 
-  ListEntitiesResponse = _reflection.GeneratedProtocolMessageType('ListEntitiesResponse', (_message.Message,), dict(
-    DESCRIPTOR = _CORESERVICETYPES_LISTENTITIESRESPONSE,
-    __module__ = 'feast.core.CoreService_pb2'
+  'ListEntitiesResponse' : _reflection.GeneratedProtocolMessageType('ListEntitiesResponse', (_message.Message,), {
+    'DESCRIPTOR' : _CORESERVICETYPES_LISTENTITIESRESPONSE,
+    '__module__' : 'feast.core.CoreService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.ListEntitiesResponse)
-    ))
+    })
   ,
 
-  GetFeaturesRequest = _reflection.GeneratedProtocolMessageType('GetFeaturesRequest', (_message.Message,), dict(
-    DESCRIPTOR = _CORESERVICETYPES_GETFEATURESREQUEST,
-    __module__ = 'feast.core.CoreService_pb2'
+  'GetFeaturesRequest' : _reflection.GeneratedProtocolMessageType('GetFeaturesRequest', (_message.Message,), {
+    'DESCRIPTOR' : _CORESERVICETYPES_GETFEATURESREQUEST,
+    '__module__' : 'feast.core.CoreService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.GetFeaturesRequest)
-    ))
+    })
   ,
 
-  GetFeaturesResponse = _reflection.GeneratedProtocolMessageType('GetFeaturesResponse', (_message.Message,), dict(
-    DESCRIPTOR = _CORESERVICETYPES_GETFEATURESRESPONSE,
-    __module__ = 'feast.core.CoreService_pb2'
+  'GetFeaturesResponse' : _reflection.GeneratedProtocolMessageType('GetFeaturesResponse', (_message.Message,), {
+    'DESCRIPTOR' : _CORESERVICETYPES_GETFEATURESRESPONSE,
+    '__module__' : 'feast.core.CoreService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.GetFeaturesResponse)
-    ))
+    })
   ,
 
-  ListFeaturesResponse = _reflection.GeneratedProtocolMessageType('ListFeaturesResponse', (_message.Message,), dict(
-    DESCRIPTOR = _CORESERVICETYPES_LISTFEATURESRESPONSE,
-    __module__ = 'feast.core.CoreService_pb2'
+  'ListFeaturesResponse' : _reflection.GeneratedProtocolMessageType('ListFeaturesResponse', (_message.Message,), {
+    'DESCRIPTOR' : _CORESERVICETYPES_LISTFEATURESRESPONSE,
+    '__module__' : 'feast.core.CoreService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.ListFeaturesResponse)
-    ))
+    })
   ,
 
-  GetStorageRequest = _reflection.GeneratedProtocolMessageType('GetStorageRequest', (_message.Message,), dict(
-    DESCRIPTOR = _CORESERVICETYPES_GETSTORAGEREQUEST,
-    __module__ = 'feast.core.CoreService_pb2'
+  'GetStorageRequest' : _reflection.GeneratedProtocolMessageType('GetStorageRequest', (_message.Message,), {
+    'DESCRIPTOR' : _CORESERVICETYPES_GETSTORAGEREQUEST,
+    '__module__' : 'feast.core.CoreService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.GetStorageRequest)
-    ))
+    })
   ,
 
-  GetStorageResponse = _reflection.GeneratedProtocolMessageType('GetStorageResponse', (_message.Message,), dict(
-    DESCRIPTOR = _CORESERVICETYPES_GETSTORAGERESPONSE,
-    __module__ = 'feast.core.CoreService_pb2'
+  'GetStorageResponse' : _reflection.GeneratedProtocolMessageType('GetStorageResponse', (_message.Message,), {
+    'DESCRIPTOR' : _CORESERVICETYPES_GETSTORAGERESPONSE,
+    '__module__' : 'feast.core.CoreService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.GetStorageResponse)
-    ))
+    })
   ,
 
-  ListStorageResponse = _reflection.GeneratedProtocolMessageType('ListStorageResponse', (_message.Message,), dict(
-    DESCRIPTOR = _CORESERVICETYPES_LISTSTORAGERESPONSE,
-    __module__ = 'feast.core.CoreService_pb2'
+  'ListStorageResponse' : _reflection.GeneratedProtocolMessageType('ListStorageResponse', (_message.Message,), {
+    'DESCRIPTOR' : _CORESERVICETYPES_LISTSTORAGERESPONSE,
+    '__module__' : 'feast.core.CoreService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.ListStorageResponse)
-    ))
+    })
   ,
 
-  ApplyEntityResponse = _reflection.GeneratedProtocolMessageType('ApplyEntityResponse', (_message.Message,), dict(
-    DESCRIPTOR = _CORESERVICETYPES_APPLYENTITYRESPONSE,
-    __module__ = 'feast.core.CoreService_pb2'
+  'ApplyEntityResponse' : _reflection.GeneratedProtocolMessageType('ApplyEntityResponse', (_message.Message,), {
+    'DESCRIPTOR' : _CORESERVICETYPES_APPLYENTITYRESPONSE,
+    '__module__' : 'feast.core.CoreService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.ApplyEntityResponse)
-    ))
+    })
   ,
 
-  ApplyFeatureResponse = _reflection.GeneratedProtocolMessageType('ApplyFeatureResponse', (_message.Message,), dict(
-    DESCRIPTOR = _CORESERVICETYPES_APPLYFEATURERESPONSE,
-    __module__ = 'feast.core.CoreService_pb2'
+  'ApplyFeatureResponse' : _reflection.GeneratedProtocolMessageType('ApplyFeatureResponse', (_message.Message,), {
+    'DESCRIPTOR' : _CORESERVICETYPES_APPLYFEATURERESPONSE,
+    '__module__' : 'feast.core.CoreService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.ApplyFeatureResponse)
-    ))
+    })
   ,
 
-  ApplyFeatureGroupResponse = _reflection.GeneratedProtocolMessageType('ApplyFeatureGroupResponse', (_message.Message,), dict(
-    DESCRIPTOR = _CORESERVICETYPES_APPLYFEATUREGROUPRESPONSE,
-    __module__ = 'feast.core.CoreService_pb2'
+  'ApplyFeatureGroupResponse' : _reflection.GeneratedProtocolMessageType('ApplyFeatureGroupResponse', (_message.Message,), {
+    'DESCRIPTOR' : _CORESERVICETYPES_APPLYFEATUREGROUPRESPONSE,
+    '__module__' : 'feast.core.CoreService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.ApplyFeatureGroupResponse)
-    ))
+    })
   ,
 
-  GetUploadUrlRequest = _reflection.GeneratedProtocolMessageType('GetUploadUrlRequest', (_message.Message,), dict(
-    DESCRIPTOR = _CORESERVICETYPES_GETUPLOADURLREQUEST,
-    __module__ = 'feast.core.CoreService_pb2'
+  'GetUploadUrlRequest' : _reflection.GeneratedProtocolMessageType('GetUploadUrlRequest', (_message.Message,), {
+    'DESCRIPTOR' : _CORESERVICETYPES_GETUPLOADURLREQUEST,
+    '__module__' : 'feast.core.CoreService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.GetUploadUrlRequest)
-    ))
+    })
   ,
 
-  GetUploadUrlResponse = _reflection.GeneratedProtocolMessageType('GetUploadUrlResponse', (_message.Message,), dict(
-    DESCRIPTOR = _CORESERVICETYPES_GETUPLOADURLRESPONSE,
-    __module__ = 'feast.core.CoreService_pb2'
+  'GetUploadUrlResponse' : _reflection.GeneratedProtocolMessageType('GetUploadUrlResponse', (_message.Message,), {
+    'DESCRIPTOR' : _CORESERVICETYPES_GETUPLOADURLRESPONSE,
+    '__module__' : 'feast.core.CoreService_pb2'
     # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.GetUploadUrlResponse)
-    ))
+    })
   ,
-  DESCRIPTOR = _CORESERVICETYPES,
-  __module__ = 'feast.core.CoreService_pb2'
+  'DESCRIPTOR' : _CORESERVICETYPES,
+  '__module__' : 'feast.core.CoreService_pb2'
   # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes)
-  ))
+  })
 _sym_db.RegisterMessage(CoreServiceTypes)
 _sym_db.RegisterMessage(CoreServiceTypes.GetEntitiesRequest)
 _sym_db.RegisterMessage(CoreServiceTypes.GetEntitiesResponse)
