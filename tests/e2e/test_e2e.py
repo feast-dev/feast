@@ -12,14 +12,13 @@ from feast.feature_set import FeatureSet
 from feast.type_map import ValueType
 from google.protobuf.duration_pb2 import Duration
 import pytest
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 
 import pandas as pd
 import numpy as np
 
 from feast.feature import Feature
-
 
 FLOAT_TOLERANCE = 0.00001
 
@@ -30,8 +29,13 @@ def core_url(pytestconfig):
 
 
 @pytest.fixture()
-def serving_url(pytestconfig):
-    return pytestconfig.getoption("serving_url")
+def online_serving_url(pytestconfig):
+    return pytestconfig.getoption("online_serving_url")
+
+
+@pytest.fixture()
+def batch_serving_url(pytestconfig):
+    return pytestconfig.getoption("batch_serving_url")
 
 
 @pytest.fixture()
@@ -40,9 +44,25 @@ def allow_dirty(pytestconfig):
 
 
 @pytest.fixture
-def client(core_url, serving_url, allow_dirty):
+def online_client(core_url, online_serving_url, allow_dirty):
     # Get client for core and serving
-    client = Client(core_url=core_url, serving_url=serving_url)
+    client = Client(core_url=core_url, serving_url=online_serving_url)
+
+    # Ensure Feast core is active, but empty
+    if not allow_dirty:
+        feature_sets = client.list_feature_sets()
+        if len(feature_sets) > 0:
+            raise Exception(
+                "Feast cannot have existing feature sets registered. Exiting tests."
+            )
+
+    return client
+
+
+@pytest.fixture
+def batch_client(core_url, batch_serving_url, allow_dirty):
+    # Get client for core and serving
+    client = Client(core_url=core_url, serving_url=batch_serving_url)
 
     # Ensure Feast core is active, but empty
     if not allow_dirty:
@@ -56,7 +76,8 @@ def client(core_url, serving_url, allow_dirty):
 
 
 @pytest.mark.timeout(300)
-def test_basic(client):
+def test_basic(online_client):
+    client = online_client
 
     cust_trans_fs = client.get_feature_set(name="customer_transactions", version=1)
 
@@ -66,7 +87,7 @@ def test_basic(client):
 
     if cust_trans_fs is None:
         # Load feature set from file
-        cust_trans_fs = FeatureSet.from_yaml("basic/cust_trans_fs.yaml")
+        cust_trans_fs = FeatureSet.from_yaml("feature_sets/cust_trans_fs.yaml")
 
         # Register feature set
         client.apply(cust_trans_fs)
@@ -122,21 +143,22 @@ def test_basic(client):
 
         returned_daily_transactions = float(
             response.field_values[0]
-            .fields["customer_transactions:1:daily_transactions"]
-            .float_val
+                .fields["customer_transactions:1:daily_transactions"]
+                .float_val
         )
         sent_daily_transactions = float(customer_data.iloc[0]["daily_transactions"])
 
         if math.isclose(
-            sent_daily_transactions,
-            returned_daily_transactions,
-            abs_tol=FLOAT_TOLERANCE,
+                sent_daily_transactions,
+                returned_daily_transactions,
+                abs_tol=FLOAT_TOLERANCE,
         ):
             break
 
 
 @pytest.mark.timeout(300)
-def test_all_types(client):
+def test_all_types(online_client):
+    client = online_client
     all_types_fs = client.get_feature_set(name="all_types", version=1)
 
     if all_types_fs is None:
@@ -265,15 +287,15 @@ def test_all_types(client):
 
         returned_float_list = (
             response.field_values[0]
-            .fields["all_types:1:float_list_feature"]
-            .float_list_val.val
+                .fields["all_types:1:float_list_feature"]
+                .float_list_val.val
         )
 
         sent_float_list = all_types_df.iloc[0]["float_list_feature"]
 
         # TODO: Add tests for each value and type
         if math.isclose(
-            returned_float_list[0], sent_float_list[0], abs_tol=FLOAT_TOLERANCE
+                returned_float_list[0], sent_float_list[0], abs_tol=FLOAT_TOLERANCE
         ):
             break
 
@@ -281,16 +303,17 @@ def test_all_types(client):
         time.sleep(1)
 
 
-@pytest.mark.timeout(600)
-def test_large_volume(client):
+@pytest.mark.timeout(1200)
+def test_large_volume(online_client, batch_client):
     ROW_COUNT = 50000
+    client = online_client
 
     cust_trans_fs = client.get_feature_set(
         name="customer_transactions_large", version=1
     )
     if cust_trans_fs is None:
         # Load feature set from file
-        cust_trans_fs = FeatureSet.from_yaml("large_volume/cust_trans_large_fs.yaml")
+        cust_trans_fs = FeatureSet.from_yaml("feature_sets/cust_trans_large_fs.yaml")
 
         # Register feature set
         client.apply(cust_trans_fs)
@@ -350,14 +373,150 @@ def test_large_volume(client):
 
         returned_daily_transactions = float(
             response.field_values[0]
-            .fields["customer_transactions_large:1:daily_transactions"]
-            .float_val
+                .fields["customer_transactions_large:1:daily_transactions"]
+                .float_val
         )
         sent_daily_transactions = float(customer_data.iloc[0]["daily_transactions"])
 
         if math.isclose(
-            sent_daily_transactions,
-            returned_daily_transactions,
-            abs_tol=FLOAT_TOLERANCE,
+                sent_daily_transactions,
+                returned_daily_transactions,
+                abs_tol=FLOAT_TOLERANCE,
         ):
             break
+
+    # Test if values in wh store are correct
+    feature_retrieval_job = batch_client.get_batch_features(
+        entity_rows=customer_data[['datetime', 'customer_id']],
+        feature_ids=[
+            "customer_transactions_large:1:daily_transactions",
+            "customer_transactions_large:1:total_transactions",
+        ],
+    )
+
+    batch_df = feature_retrieval_job.to_dataframe()
+    batch_df = batch_df[['event_timestamp',
+                         'customer_id',
+                         'customer_transactions_large_v1_daily_transactions',
+                         'customer_transactions_large_v1_total_transactions']]
+    batch_df.columns = ['datetime',
+                        'customer_id',
+                        'daily_transactions',
+                        'total_transactions']
+    batch_df['datetime'] = batch_df.datetime.apply(lambda dt: dt.replace(tzinfo=pytz.utc))
+    pd.testing.assert_frame_equal(batch_df, customer_data, check_less_precise=True)
+
+
+@pytest.mark.timeout(1200)
+def test_batch_multiple_feature_sets(batch_client):
+    client = batch_client
+    merchant_sales_fs = client.get_feature_set(
+        name="merchant_sales", version=1
+    )
+    loc_sales_fs = client.get_feature_set(
+        name="location", version=1
+    )
+    if merchant_sales_fs is None or loc_sales_fs is None:
+        # Load feature set from file
+        merchant_sales_fs = FeatureSet.from_yaml("feature_sets/mer_sales_fs.yaml")
+
+        # Register feature set
+        client.apply(merchant_sales_fs)
+
+        # Feast Core needs some time to fully commit the FeatureSet applied
+        # when there is no existing job yet for the Featureset
+        time.sleep(10)
+        merchant_sales_fs = client.get_feature_set(
+            name="merchant_sales", version=1
+        )
+
+        if merchant_sales_fs is None:
+            raise Exception(
+                "Client cannot retrieve 'merchant_sales' FeatureSet "
+                "after registration. Either Feast Core does not save the "
+                "FeatureSet correctly or the client needs to wait longer for FeatureSet "
+                "to be committed."
+            )
+
+        loc_sales_fs = FeatureSet.from_yaml("feature_sets/loc_sales_fs.yaml")
+
+        # Register feature set
+        client.apply(loc_sales_fs)
+
+        # Feast Core needs some time to fully commit the FeatureSet applied
+        # when there is no existing job yet for the Featureset
+        time.sleep(10)
+        loc_sales_fs = client.get_feature_set(
+            name="location", version=1
+        )
+
+        if loc_sales_fs is None:
+            raise Exception(
+                "Client cannot retrieve 'location' FeatureSet "
+                "after registration. Either Feast Core does not save the "
+                "FeatureSet correctly or the client needs to wait longer for FeatureSet "
+                "to be committed."
+            )
+
+    N_MERCHANTS = 600
+    N_TIMESTAMPS = 7
+    N_LOCATIONS = 10
+
+    offset = random.randint(1000000, 10000000)  # ensure a unique key space
+    time_offset = datetime.utcnow().replace(tzinfo=pytz.utc) - timedelta(days=N_TIMESTAMPS)
+
+    merchants = [(offset + inc, random.randint(0, N_LOCATIONS)) for inc in range(N_MERCHANTS)]
+    datetimes = [time_offset + timedelta(days=1 * i) for i in range(N_TIMESTAMPS)]
+    merchant_data = pd.DataFrame(
+        {
+            "datetime": [ts for ts in datetimes for i in range(N_MERCHANTS)],
+            "merchant_id": [m[0] for m in merchants] * N_TIMESTAMPS,
+            "location_id": [m[1] for m in merchants] * N_TIMESTAMPS,
+            "daily_sales": [random.randint(6000, 10000) for _ in range(N_MERCHANTS * N_TIMESTAMPS)],
+            "total_revenue": [random.randint(100000, 200000) for _ in range(N_MERCHANTS * N_TIMESTAMPS)],
+        }
+    )
+    loc_data = pd.DataFrame(
+        {
+            "datetime": [time_offset] * N_LOCATIONS,
+            "location_id": [i for i in range(N_LOCATIONS)],
+            "total_revenue": [random.randint(100000, 500000) for _ in range(N_LOCATIONS)],
+        }
+    )
+
+    merchant_sales_fs.ingest(dataframe=merchant_data[["datetime", "merchant_id", "daily_sales", "total_revenue"]])
+    loc_sales_fs.ingest(dataframe=loc_data)
+
+    expected = merchant_data.merge(loc_data[["datetime", "location_id", "total_revenue"]], on=["location_id"])
+    expected = expected[['datetime',
+                         'merchant_id',
+                         'location_id',
+                         'daily_sales',
+                         'total_revenue_x',
+                         'total_revenue_y']]
+
+    expected.columns = ['datetime',
+                        'merchant_id',
+                        'location_id',
+                        'merchant_sales_v1_daily_sales',
+                        'merchant_sales_v1_total_revenue',
+                        'location_v1_total_revenue']
+
+    feature_retrieval_job = batch_client.get_batch_features(
+        entity_rows=merchant_data[["datetime", "merchant_id", "location_id"]],
+        feature_ids=[
+            "merchant_sales:1:daily_sales",
+            "merchant_sales:1:total_revenue",
+            "location:1:total_revenue"
+        ],
+    )
+    actual = feature_retrieval_job.to_dataframe()
+    actual = actual[['event_timestamp',
+                     'merchant_id',
+                     'location_id',
+                     'merchant_sales_v1_daily_sales',
+                     'merchant_sales_v1_total_revenue',
+                     'location_v1_total_revenue']]
+    actual.columns = expected.columns
+    actual['datetime'] = actual.datetime.apply(lambda dt: dt.replace(tzinfo=pytz.utc))
+    pd.testing.assert_frame_equal(expected, actual, check_less_precise=True)
