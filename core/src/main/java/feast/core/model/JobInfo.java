@@ -74,7 +74,7 @@ public class JobInfo extends AbstractTimestampEntity {
   @ManyToMany
   @JoinTable(
       joinColumns = {@JoinColumn(name = "job_id")},
-      inverseJoinColumns = {@JoinColumn(name = "feature_id")})
+      inverseJoinColumns = {@JoinColumn(name = "feature_set_id")})
   private List<FeatureSet> featureSets;
 
   // Job Metrics
