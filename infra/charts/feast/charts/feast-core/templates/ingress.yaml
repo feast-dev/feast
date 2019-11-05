@@ -1,13 +1,13 @@
 {{- if .Values.ingress.enabled -}}
-{{- $fullName := include "feast-serving.fullname" . -}}
+{{- $fullName := include "feast-core.fullname" . -}}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: {{ $fullName }}
   labels:
-    app: {{ template "feast-serving.name" . }}
+    app: {{ template "feast-core.name" . }}
     chart: {{ .Chart.Name }}-{{ .Chart.Version }}
-    component: serving
+    component: core
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
   annotations:
@@ -20,9 +20,9 @@ spec:
     - host: {{ .host | quote }}
       http:
         paths:
-          - path: /
-            backend:
-              serviceName: {{ $fullName }}
-              servicePort: {{ .port | quote }}
+        - path: /
+          backend:
+            serviceName: {{ $fullName }}
+            servicePort: {{ .port | quote }}
   {{- end }}
 {{- end }}

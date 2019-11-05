@@ -14,8 +14,6 @@ If release name contains chart name it will be used as a full name.
 {{- define "feast-serving.fullname" -}}
 {{- if .Values.fullnameOverride -}}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
-{{- else if contains "feast" .Release.Name -}}
-{{- $name := "serving" }}
 {{- else -}}
 {{- $name := default .Chart.Name .Values.nameOverride -}}
 {{- if contains $name .Release.Name -}}
@@ -31,4 +29,17 @@ Create chart name and version as used by the chart label.
 */}}
 {{- define "feast-serving.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Common labels
+*/}}
+{{- define "feast-serving.labels" -}}
+app.kubernetes.io/name: {{ include "feast-serving.name" . }}
+helm.sh/chart: {{ include "feast-serving.chart" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}

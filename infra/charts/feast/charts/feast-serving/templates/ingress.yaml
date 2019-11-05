@@ -1,13 +1,13 @@
 {{- if .Values.ingress.enabled -}}
-{{- $fullName := include "feast-core.fullname" . -}}
+{{- $fullName := include "feast-serving.fullname" . -}}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: {{ $fullName }}
   labels:
-    app: {{ template "feast-core.name" . }}
+    app: {{ template "feast-serving.name" . }}
     chart: {{ .Chart.Name }}-{{ .Chart.Version }}
-    component: core
+    component: serving
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
   annotations:

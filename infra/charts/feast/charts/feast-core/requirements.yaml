@@ -1,0 +1,9 @@
+dependencies:
+- name: postgresql
+  version: 6.5.5
+  repository: "@stable"
+  condition: postgresql.enabled
+- name: kafka
+  version: 0.20.1
+  repository: "@incubator"
+  condition: kafka.enabled

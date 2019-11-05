@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "feast-serving.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "feast-serving.name" . }}
+    component: serving
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "feast-serving.name" . }}
+      component: serving
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "feast-serving.name" . }}
+        component: serving
+        release: {{ .Release.Name }}
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      volumes:
+      - name: {{ template "feast-serving.fullname" . }}-config
+        configMap:
+          name: {{ template "feast-serving.fullname" . }}
+      {{- if .Values.gcpServiceAccount.useExistingSecret }}
+      - name: {{ template "feast-serving.fullname" . }}-gcpserviceaccount
+        secret:
+          secretName: {{ .Values.gcpServiceAccount.existingSecret.name }}
+      {{- end }}
+
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        
+        volumeMounts:
+        - name: {{ template "feast-serving.fullname" . }}-config
+          mountPath: "{{ .Values.springConfigMountPath }}"
+        {{- if .Values.gcpServiceAccount.useExistingSecret }}
+        - name: {{ template "feast-serving.fullname" . }}-gcpserviceaccount
+          mountPath: {{ .Values.gcpServiceAccount.mountPath }}
+          readOnly: true
+        {{- end }}
+
+        env:
+        {{- if .Values.gcpServiceAccount.useExistingSecret }}
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: {{ .Values.gcpServiceAccount.mountPath }}/{{ .Values.gcpServiceAccount.existingSecret.key }}
+        {{- end }}
+
+        command:
+        - java
+        {{- range .Values.jvmOptions }}
+        - {{ . }}
+        {{- end }}
+        - -jar 
+        - /opt/feast/feast-serving.jar
+        - "--spring.config.location=file:{{ .Values.springConfigMountPath }}/application.yaml"
+
+        ports:
+        - name: http
+          containerPort: {{ .Values.service.http.targetPort }}
+        - name: grpc 
+          containerPort: {{ .Values.service.grpc.targetPort }}
+
+        {{- if .Values.livenessProbe.enabled }}
+        livenessProbe:
+          exec:
+            command: ["grpc-health-probe", "-addr=:{{ .Values.service.grpc.targetPort }}"]
+          initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+          successThreshold: {{ .Values.livenessProbe.successThreshold }}
+          timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+        {{- end }}
+
+        {{- if .Values.readinessProbe.enabled }}
+        readinessProbe:
+          exec:
+            command: ["grpc-health-probe", "-addr=:{{ .Values.service.grpc.targetPort }}"]
+          initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+          successThreshold: {{ .Values.readinessProbe.successThreshold }}
+          timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+        {{- end }}
+        
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}

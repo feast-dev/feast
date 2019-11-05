@@ -1,0 +1,5 @@
+# TODO @dheryanto
+#
+# The following are sample values for installing Feast without setting up
+# Kafka and Redis stores. In other words, using Feast with external stream
+# source and stores. 

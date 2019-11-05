@@ -1,0 +1,5 @@
+dependencies:
+- name: redis
+  version: 9.5.0
+  repository: "@stable"
+  condition: redis.enabled
