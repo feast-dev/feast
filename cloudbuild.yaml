@@ -70,15 +70,18 @@ steps:
   args: ['-c', 'pip install -qe sdk/python']
 
 # Integration Test (DISABLED TODO: Enable)
-- id: 'integration-test-setup'
+- id: integration-test-setup
+  waitFor: ['build-java', 'build-cli', 'install-python-sdk']
   name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: sh
   args: ['-c', 'echo TODO: prepare_integration_test.sh']
-- id: 'integration-test-run'
+- id: integration-test-run
+  waitFor: ['integration-test-setup']
   name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: sh
   args: ['-c', 'echo TODO: install_feast_and_run_e2e_test.sh']
-- id: 'integration-test-teardown'
+- id: integration-test-teardown
+  waitFor: ['integration-test-run']
   name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: sh
   args: ['-c', 'echo TODO: cleanup_feast_installation.sh']
