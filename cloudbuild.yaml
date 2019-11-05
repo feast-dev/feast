@@ -69,7 +69,7 @@ steps:
   entrypoint: sh
   args: ['-c', 'pip install -qe sdk/python']
 
-# Integration Test (DISABLED)
+# Integration Test (DISABLED TODO: Enable)
 - id: 'integration-test-setup'
   name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: sh
@@ -84,10 +84,14 @@ steps:
   args: ['-c', 'echo TODO: cleanup_feast_installation.sh']
 
 # Docker Images
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}', '-f', 'docker/core/Dockerfile', '.']
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}', '-f', 'docker/serving/Dockerfile', '.']
+- id: docker-build-core
+  waitFor: ['build-java']
+  name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '--build-arg', 'REVISION=ff-${SHORT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}', '-f', 'Dockerfiles/core/Dockerfile', '.']
+- id: docker-build-serving
+  waitFor: ['build-java']
+  name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '--build-arg', 'REVISION=ff-${SHORT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}', '-f', 'Dockerfiles/serving/Dockerfile', '.']
 
 images:
 - gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}
