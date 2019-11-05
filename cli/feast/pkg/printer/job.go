@@ -62,6 +62,7 @@ func printEntity(entityName string, metrics map[string]float64) string {
 	for k := range metrics {
 		keys = append(keys, k)
 	}
+	sort.Strings(keys)
 	for _, k := range keys {
 		v := metrics[k]
 		split := strings.Split(k, ":")

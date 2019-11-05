@@ -785,14 +785,10 @@ type CoreServiceClient interface {
 	//
 	//Get storage specs specified in request.
 	//This process returns a list of storage specs.
-	//
-	// Deprecated: Do not use.
 	GetStorage(ctx context.Context, in *CoreServiceTypes_GetStorageRequest, opts ...grpc.CallOption) (*CoreServiceTypes_GetStorageResponse, error)
 	//
 	//Get all storage specs.
 	//This process returns a list of storage specs.
-	//
-	// Deprecated: Do not use.
 	ListStorage(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*CoreServiceTypes_ListStorageResponse, error)
 	//
 	//Get features specified in request.
@@ -935,14 +931,10 @@ type CoreServiceServer interface {
 	//
 	//Get storage specs specified in request.
 	//This process returns a list of storage specs.
-	//
-	// Deprecated: Do not use.
 	GetStorage(context.Context, *CoreServiceTypes_GetStorageRequest) (*CoreServiceTypes_GetStorageResponse, error)
 	//
 	//Get all storage specs.
 	//This process returns a list of storage specs.
-	//
-	// Deprecated: Do not use.
 	ListStorage(context.Context, *empty.Empty) (*CoreServiceTypes_ListStorageResponse, error)
 	//
 	//Get features specified in request.

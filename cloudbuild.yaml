@@ -3,15 +3,15 @@ steps:
 - id: 'unit-test-core'
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: 'mvn'
-  args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'core', '-D${_TEST_BUCKET}', 'test']
+  args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'core', '-Dtestbucket=${_TEST_BUCKET}', 'test']
 - id: 'unit-test-ingestion'
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: 'mvn'
-  args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'ingestion', '-D${_TEST_BUCKET}', 'test']
+  args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'ingestion', '-Dtestbucket=${_TEST_BUCKET}', 'test']
 - id: 'unit-test-serving'
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: 'mvn'
-  args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'serving', '-D${_TEST_BUCKET}', 'test']
+  args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'serving', '-Dtestbucket=${_TEST_BUCKET}', 'test']
 - id: 'unit-test-mockgen'
   name: 'gcr.io/konnekt-core/mockgen:1.3.1'
   args: ['-package=mock', '-destination=cmd/mock/core_service.go', 'github.com/gojek/feast/protos/generated/go/feast/core', 'CoreServiceClient']
@@ -78,15 +78,16 @@ options:
   machineType: N1_HIGHCPU_8
   env:
   - GO111MODULE=on
+  - GOPATH=/cache/go
   - MAVEN_OPTS=-Dmaven.repo.local=/cache/.m2
   volumes:
-  - name: go-modules
-    path: /go
+  - name: go_cache
+    path: /cache/go
   - name: m2_cache
     path: /cache/.m2
 
 substitutions:
-  _TEST_BUCKET: testbucket=dev-konnekt-data-deep-1-feast-tmp
+  _TEST_BUCKET: dev-konnekt-data-deep-1-feast-tmp
   _MAVEN_VERSION: 3.6.2-jdk-11-slim
 
 tags: ['team__konnekt', 'repo__konnekt_data_feast', 'commit__${SHORT_SHA}', 'slack__konnekt-devops-test']
