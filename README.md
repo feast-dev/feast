@@ -2,6 +2,40 @@
 
 <p style='border: 1px solid red; border-radius: 0.5rem; background-color: #ffd699; padding: 0.6rem;'>Note: This repo is a fork of <a href="https://github.com/gojek/feast">github.com/gojek/feast</a>.</p>
 
+## Farfetch Section
+
+### How-to: Build locally
+
+This project runs on CI for all commits (on all branches) and creates artifacts based on the commit hash.
+Using Cloud Build locally is generally not however, it can be useful if debugging the `cloudbuild.yaml`.
+
+Install the required dependencies: https://cloud.google.com/cloud-build/docs/build-debug-locally
+
+```bash
+cloud-build-local --config=cloudbuild.yaml --dryrun=false --substitutions SHORT_SHA=$(git rev-parse --short HEAD) .
+```
+
+### How-to: Build single step locally
+
+Some steps can be build directly on your own machine - follow the commands that `cloudbuild.yaml` is invoking.
+
+If you do not have the required dependencies, you can translate the `cloudbuild.yaml` step into a Docker command. E.g.:
+
+```bash
+docker run --rm --name feast-build \
+    -v $(pwd):/workspace \
+    -v go_cache:/cache/go \
+    -v m2_cache:/cache/m2 \
+    -w /workspace/protos \
+    -e GO111MODULE=on \
+    -e GOPATH=/cache/go \
+    -e MAVEN_OPTS=-Dmaven.repo.local=/cache/m2 \
+    -e FEAST_VERSION=ff-$(git rev-parse --short HEAD)-dev \
+    --entrypoint make \
+    gcr.io/konnekt-core/protoc-go:3.6.1 \
+    gen-go
+```
+
 ## Overview
 
 Feast (Feature Store) is a tool to manage storage and access of machine learning features.

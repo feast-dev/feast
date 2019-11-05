@@ -104,6 +104,9 @@ public class SchemaManager {
       case RedisStorageManager.TYPE:
         storageManager = new RedisStorageManager(id);
         break;
+      case NoOpStorageManager.TYPE:
+        storageManager = new NoOpStorageManager();
+        break;
       default:
         log.warn("Unknown storage type: {} \n {}", storageSpec.getType(), storageSpec);
         return;

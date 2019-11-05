@@ -28,11 +28,7 @@ import com.google.common.collect.Streams;
 import feast.core.dao.EntityInfoRepository;
 import feast.core.dao.FeatureGroupInfoRepository;
 import feast.core.dao.FeatureInfoRepository;
-import feast.core.storage.BigQueryStorageManager;
-import feast.core.storage.BigTableStorageManager;
-import feast.core.storage.JsonFileStorageManager;
-import feast.core.storage.PostgresStorageManager;
-import feast.core.storage.RedisStorageManager;
+import feast.core.storage.*;
 import feast.specs.EntitySpecProto.EntitySpec;
 import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
 import feast.specs.FeatureSpecProto.FeatureSpec;
@@ -55,7 +51,7 @@ public class SpecValidator {
       };
   private static final String[] SUPPORTED_SERVING_STORES =
       new String[]{
-          BigTableStorageManager.TYPE, PostgresStorageManager.TYPE, RedisStorageManager.TYPE,
+          BigTableStorageManager.TYPE, PostgresStorageManager.TYPE, RedisStorageManager.TYPE, NoOpStorageManager.TYPE,
       };
   private static final String[] SUPPORTED_ERRORS_STORES = new String[]{"file.json", "stderr",
       "stdout"};

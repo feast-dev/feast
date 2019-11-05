@@ -318,6 +318,8 @@ public class SpecValidatorTest {
         .setType("redis").build());
     validator.validateServingStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_SERVING_ID)
         .setType("bigtable").build());
+    validator.validateServingStorageSpec(StorageSpec.newBuilder().setId(DEFAULT_SERVING_ID)
+        .setType("noop").build());
   }
 
   @Test(expected = IllegalArgumentException.class)
