@@ -58,15 +58,14 @@ steps:
   args: ['gen-python']
 - id: unit-test-python-sdk
   waitFor: ['gen-proto-python']
-  name: 'python:3.6.9-buster'
+  name: 'python:3.7-buster'
   dir: '/workspace/sdk/python'
   env: ['SKIP_BIGQUERY_TEST=true'] # TODO: Configure project/permissions and re-enable
   entrypoint: sh
   args: ['-c', 'pip install -r requirements-test.txt && pip install . && pytest ./tests']
 - id: install-python-sdk
   waitFor: ['unit-test-python-sdk']
-  name: 'python:3.6.9-buster'
-  dir: '/workspace/sdk/python'
+  name: 'python:3.7-buster'
   entrypoint: sh
   args: ['-c', 'pip install -qe sdk/python']
 
