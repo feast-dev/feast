@@ -11,13 +11,25 @@ fi
 
 echo "
 This script will run end-to-end tests for Feast Core and Online Serving.
-
 1. Install Redis as the store for Feast Online Serving.
 2. Install Postgres for persisting Feast metadata.
 3. Install Kafka and Zookeeper as the Source in Feast.
 4. Install Python 3.7.4, Feast Python SDK and run end-to-end tests from 
    tests/e2e via pytest.
 "
+
+echo "
+============================================================
+Installing gcloud SDK
+============================================================
+"
+if [[ ! $(command -v gsutil) ]]; then
+  CURRENT_DIR=$(dirname "$BASH_SOURCE")
+  . "${CURRENT_DIR}"/install_google_cloud_sdk.sh
+fi
+
+export GOOGLE_APPLICATION_CREDENTIALS=/etc/service-account/service-account.json
+gcloud auth activate-service-account --key-file /etc/service-account/service-account.json
 
 echo "
 ============================================================
@@ -85,7 +97,6 @@ cat <<EOF > /tmp/core.application.yml
 grpc:
   port: 6565
   enable-reflection: true
-
 feast:
   version: 0.3
   jobs:
@@ -93,7 +104,6 @@ feast:
     options: {}
     metrics:
       enabled: false
-
   stream:
     type: kafka
     options:
@@ -101,7 +111,6 @@ feast:
       bootstrapServers: localhost:9092
       replicationFactor: 1
       partitions: 1
-
 spring:
   jpa:
     properties.hibernate.format_sql: true
@@ -111,7 +120,6 @@ spring:
     url: jdbc:postgresql://localhost:5432/postgres
     username: postgres
     password: password
-
 management:
   metrics:
     export:
@@ -149,24 +157,19 @@ feast:
   version: 0.3
   core-host: localhost
   core-grpc-port: 6565
-
   tracing:
     enabled: false
-
   store:
     config-path: /tmp/serving.store.redis.yml
     redis-pool-max-size: 128
     redis-pool-max-idle: 16
-
   jobs:
     staging-location: gs://feast-templocation-kf-feast/staging-location
     store-type:
     store-options: {}
-
 grpc:
   port: 6566
   enable-reflection: true
-
 spring:
   main:
     web-environment: false
@@ -177,6 +180,60 @@ nohup java -jar serving/target/feast-serving-0.3.0-SNAPSHOT.jar \
   &> /var/log/feast-serving-online.log &
 sleep 15
 tail -n10 /var/log/feast-serving-online.log
+
+echo "
+============================================================
+Starting Feast Warehouse Serving
+============================================================
+"
+
+DATASET_NAME=feast_$(date +%s)
+
+bq --location=US --project_id=kf-feast mk \
+  --dataset \
+  --default_table_expiration 86400 \
+  kf-feast:$DATASET_NAME
+
+# Start Feast Online Serving in background
+cat <<EOF > /tmp/serving.store.bigquery.yml
+name: warehouse
+type: BIGQUERY
+bigquery_config:
+  projectId: kf-feast
+  datasetId: $DATASET_NAME
+subscriptions:
+  - name: .*
+    version: ">0"
+EOF
+
+cat <<EOF > /tmp/serving.warehouse.application.yml
+feast:
+  version: 0.3
+  core-host: localhost
+  core-grpc-port: 6565
+  tracing:
+    enabled: false
+  store:
+    config-path: /tmp/serving.store.bigquery.yml
+  jobs:
+    staging-location: gs://feast-templocation-kf-feast/staging-location
+    store-type: REDIS
+    store-options:
+      host: localhost
+      port: 6379
+grpc:
+  port: 6567
+  enable-reflection: true
+spring:
+  main:
+    web-environment: false
+EOF
+
+nohup java -jar serving/target/feast-serving-0.3.0-SNAPSHOT.jar \
+  --spring.config.location=file:///tmp/serving.warehouse.application.yml \
+  &> /var/log/feast-serving-warehouse.log &
+sleep 15
+tail -n10 /var/log/feast-serving-warehouse.log
 
 echo "
 ============================================================
@@ -206,8 +263,17 @@ ORIGINAL_DIR=$(pwd)
 cd tests/e2e
 
 set +e
-pytest --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+pytest --allow_dirty true --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
 cd ${ORIGINAL_DIR}
+
+echo "
+============================================================
+Cleaning up
+============================================================
+"
+
+bq rm -r -f kf-feast:$DATASET_NAME
+
 exit ${TEST_EXIT_CODE}
