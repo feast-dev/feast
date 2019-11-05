@@ -17,9 +17,6 @@
 
 package feast.ingestion.config;
 
-import static org.junit.Assert.assertEquals;
-
-import com.google.protobuf.util.JsonFormat;
 import feast.ingestion.model.Specs;
 import feast.ingestion.util.DateUtil;
 import feast.specs.EntitySpecProto.EntitySpec;
@@ -30,73 +27,25 @@ import feast.specs.ImportSpecProto.ImportSpec;
 import feast.specs.ImportSpecProto.Schema;
 import feast.specs.StorageSpecProto.StorageSpec;
 import feast.types.ValueProto.ValueType.Enum;
+import org.junit.Test;
+import org.springframework.core.io.ClassPathResource;
+
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.nio.file.Files;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+
+import static org.hamcrest.Matchers.isEmptyOrNullString;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 public class ImportJobSpecsSupplierTest {
 
-  @Rule
-  public TemporaryFolder temporaryFolder = new TemporaryFolder();
-  String importSpecYaml =
-      "---\n"
-          + "servingStorageSpec:\n"
-          + "  id: TEST_SERVING\n"
-          + "  type: serving.mock\n"
-          + "  options: {}\n"
-          + "warehouseStorageSpec:\n"
-          + "  id: TEST_WAREHOUSE\n"
-          + "  type: warehouse.mock\n"
-          + "  options: {}\n"
-          + "errorsStorageSpec:\n"
-          + "  id: ERRORS\n"
-          + "  type: stdout\n"
-          + "  options: {}\n"
-          + "entitySpecs:\n"
-          + "  - name: testEntity\n"
-          + "    description: This is a test entity\n"
-          + "    tags: []\n"
-          + "featureSpecs:\n"
-          + "  - id: testEntity.testInt64\n"
-          + "    entity: testEntity\n"
-          + "    name: testInt64\n"
-          + "    owner: feast@example.com\n"
-          + "    description: This is test feature of type integer\n"
-          + "    uri: https://example.com/\n"
-          + "    valueType: INT64\n"
-          + "    tags: []\n"
-          + "    options: {}\n"
-          + "importSpec:\n"
-          + "  type: file.csv\n"
-          + "  sourceOptions:\n"
-          + "    path: data.csv\n"
-          + "  entities:\n"
-          + "    - driver\n"
-          + "  schema:\n"
-          + "    entityIdColumn: driver_id\n"
-          + "    timestampValue: 2018-09-25T00:00:00.000Z\n"
-          + "    fields:\n"
-          + "      - name: timestamp\n"
-          + "      - name: driver_id\n"
-          + "      - name: trips_completed\n"
-          + "        featureId: driver.trips_completed\n"
-          + "\n";
-
   @Test
   public void testSupplierImportSpecYamlFile() throws IOException {
-    File yamlFile = temporaryFolder.newFile("importJobSpecs.yaml");
-    try (PrintWriter printWriter = new PrintWriter(Files.newOutputStream(yamlFile.toPath()))) {
-      printWriter.print(importSpecYaml);
-    }
+    File yamlFile = new ClassPathResource("ImportJobSpecsSupplierTest/testSupplierImportSpecYamlFile/importJobSpecs.yaml").getFile();
 
     ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(yamlFile.getParent()).get();
     Specs specs = new Specs("", importJobSpecs);
-    System.out.println(
-        JsonFormat.printer().omittingInsignificantWhitespace().print(importJobSpecs));
+
     assertEquals(
         ImportSpec.newBuilder()
             .setType("file.csv")
@@ -149,4 +98,25 @@ public class ImportJobSpecsSupplierTest {
             .build(),
         specs.getFeatureSpec("testEntity.testInt64"));
   }
+
+  @Test
+  public void testNoServingSpec() throws IOException {
+    File yamlFile = new ClassPathResource("ImportJobSpecsSupplierTest/testNoStorageSpecs/importJobSpecs.yaml").getFile();
+
+    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(yamlFile.getParent()).get();
+
+    assertEquals(StorageSpec.getDefaultInstance(), importJobSpecs.getServingStorageSpec());
+    assertThat(importJobSpecs.getServingStorageSpec().getId(), isEmptyOrNullString());
+  }
+
+  @Test
+  public void testNoWarehouseSpec() throws IOException {
+    File yamlFile = new ClassPathResource("ImportJobSpecsSupplierTest/testNoStorageSpecs/importJobSpecs.yaml").getFile();
+
+    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(yamlFile.getParent()).get();
+
+    assertEquals(StorageSpec.getDefaultInstance(), importJobSpecs.getWarehouseStorageSpec());
+    assertThat(importJobSpecs.getWarehouseStorageSpec().getId(), isEmptyOrNullString());
+  }
+
 }

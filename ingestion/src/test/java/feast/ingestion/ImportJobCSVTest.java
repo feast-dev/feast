@@ -17,10 +17,6 @@
 
 package feast.ingestion;
 
-import static feast.FeastMatchers.hasCount;
-import static feast.NormalizeFeatureRows.normalize;
-import static org.junit.Assert.assertEquals;
-
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
@@ -47,12 +43,6 @@ import feast.store.serving.FeatureServingFactoryService;
 import feast.store.warehouse.FeatureWarehouseFactoryService;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.text.ParseException;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -63,6 +53,17 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.text.ParseException;
+import java.util.List;
+
+import static feast.FeastMatchers.hasCount;
+import static feast.NormalizeFeatureRows.normalize;
+import static org.junit.Assert.assertEquals;
 
 @Slf4j
 public class ImportJobCSVTest {
@@ -637,6 +638,68 @@ public class ImportJobCSVTest {
     PAssert.that(writtenToErrors).satisfies(hasCount(0));
     PAssert.that(writtenToServing).satisfies(hasCount(3));
     PAssert.that(writtenToWarehouse).satisfies(hasCount(0));
+    testPipeline.run();
+  }
+
+  @Test
+  public void testImportWithoutServingStoreSetByFeature() throws IOException {
+    ImportSpec importSpec =
+        ProtoUtil.decodeProtoYaml(
+            "---\n"
+                + "type: file.csv\n"
+                + "sourceOptions:\n"
+                + "  # path: to be overwritten in tests\n"
+                + "entities:\n"
+                + "  - testEntity\n"
+                + "schema:\n"
+                + "  entityIdColumn: id\n"
+                + "  timestampValue: 2018-09-25T00:00:00.000Z\n"
+                + "  fields:\n"
+                + "    - name: id\n"
+                + "    - featureId: testEntity.testInt64\n"
+                + "    - featureId: testEntity.testString\n"
+                + "\n",
+            ImportSpec.getDefaultInstance());
+
+    File csvFile = folder.newFile("data.csv");
+
+    Files.asCharSink(csvFile, Charsets.UTF_8).write("1,101,a\n2,202,b\n3,303,c\n");
+
+    ImportJobPipelineOptions options = initOptions();
+
+    ImportJobSpecs importJobSpecs = getImportJobSpecs(importSpec, csvFile.toString()).toBuilder()
+        .clearServingStorageSpec().build();
+    Injector injector =
+        Guice.createInjector(
+            new ImportJobModule(options, importJobSpecs),
+            new TestPipelineModule(testPipeline));
+
+    ImportJob job = injector.getInstance(ImportJob.class);
+
+    injector.getInstance(ImportJob.class);
+    job.expand();
+
+    PCollection<FeatureRowExtended> writtenToServing =
+        PCollectionList
+            .of(FeatureServingFactoryService.get(MockServingFactory.class).getWrite()
+                .getInputs())
+            .apply("flatten serving input", Flatten.pCollections());
+
+    PCollection<FeatureRowExtended> writtenToWarehouse =
+        PCollectionList
+            .of(FeatureWarehouseFactoryService.get(MockWarehouseFactory.class).getWrite()
+                .getInputs())
+            .apply("flatten warehouse input", Flatten.pCollections());
+
+    PCollection<FeatureRowExtended> writtenToErrors =
+        PCollectionList
+            .of(FeatureErrorsFactoryService.get(MockFeatureErrorsFactory.class).getWrite()
+                .getInputs())
+            .apply("flatten errors input", Flatten.pCollections());
+
+    PAssert.that(writtenToErrors).satisfies(hasCount(0));
+    PAssert.that(writtenToServing).satisfies(hasCount(0));
+    PAssert.that(writtenToWarehouse).satisfies(hasCount(3));
     testPipeline.run();
   }
 }

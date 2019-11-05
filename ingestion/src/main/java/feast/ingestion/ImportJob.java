@@ -180,7 +180,9 @@ public class ImportJob {
     }
 
     if (!dryRun) {
-      servingRows.apply("Write to Serving Stores", servingStoreTransform);
+      if (!Strings.isNullOrEmpty(importJobSpecs.getServingStorageSpec().getId())) {
+        servingRows.apply("Write to Serving Stores", servingStoreTransform);
+      }
       if (!Strings.isNullOrEmpty(importJobSpecs.getWarehouseStorageSpec().getId())) {
         warehouseRows.apply("Write to Warehouse  Stores", warehouseStoreTransform);
       }
