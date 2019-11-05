@@ -5,22 +5,22 @@ steps:
   waitFor: ['-']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: mvn
-  args: ['--projects', 'core', '-Dtestbucket=${_TEST_BUCKET}', 'test']
+  args: ['--projects', 'core', '-Drevision=${_FEAST_VERSION}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
 - id: unit-test-ingestion
   waitFor: ['unit-test-core']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: mvn
-  args: ['--projects', 'ingestion', '-Dtestbucket=${_TEST_BUCKET}', 'test']
+  args: ['--projects', 'ingestion', '-Drevision=${_FEAST_VERSION}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
 - id: unit-test-serving
   waitFor: ['unit-test-ingestion']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: mvn
-  args: ['--projects', 'serving', '-Dtestbucket=${_TEST_BUCKET}', 'test']
+  args: ['--projects', 'serving', '-Drevision=${_FEAST_VERSION}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
 - id: build-java
   waitFor: ['unit-test-core', 'unit-test-ingestion', 'unit-test-serving']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: mvn
-  args: ['--projects', 'core,ingestion,serving', '-Drevision=ff-${SHORT_SHA}', '-DskipTests=true', '--batch-mode', 'package']
+  args: ['--projects', 'core,ingestion,serving', '-Drevision=${_FEAST_VERSION}', '-DskipTests=true', '--batch-mode', 'package']
   timeout: 900s
 
 # CLI (GO)
@@ -90,15 +90,15 @@ steps:
 - id: docker-build-core
   waitFor: ['build-java']
   name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--build-arg', 'REVISION=ff-${SHORT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}', '-f', 'Dockerfiles/core/Dockerfile', '.']
+  args: ['build', '--build-arg', 'REVISION=${_FEAST_VERSION}', '-t', 'gcr.io/${PROJECT_ID}/feast-core:${_FEAST_VERSION}', '-f', 'Dockerfiles/core/Dockerfile', '.']
 - id: docker-build-serving
   waitFor: ['build-java']
   name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--build-arg', 'REVISION=ff-${SHORT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}', '-f', 'Dockerfiles/serving/Dockerfile', '.']
+  args: ['build', '--build-arg', 'REVISION=${_FEAST_VERSION}', '-t', 'gcr.io/${PROJECT_ID}/feast-serving:${_FEAST_VERSION}', '-f', 'Dockerfiles/serving/Dockerfile', '.']
 
 images:
-- gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}
-- gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}
+- gcr.io/${PROJECT_ID}/feast-core:${_FEAST_VERSION}
+- gcr.io/${PROJECT_ID}/feast-serving:${_FEAST_VERSION}
 
 options:
   machineType: N1_HIGHCPU_8
@@ -106,7 +106,7 @@ options:
   - GO111MODULE=on
   - GOPATH=/cache/go
   - MAVEN_OPTS=-Dmaven.repo.local=/cache/m2 -Dorg.apache.maven.user-settings=/workspace/cloudbuild-settings.xml
-  - FEAST_VERSION=ff-${SHORT_SHA}
+  - FEAST_VERSION=${_FEAST_VERSION}
   volumes:
   - name: go_cache
     path: /cache/go
@@ -118,5 +118,6 @@ timeout: 1800s
 substitutions:
   _TEST_BUCKET: dev-konnekt-data-deep-1-feast-tmp
   _MAVEN_VERSION: 3.6.2-jdk-11-slim
+  _FEAST_VERSION: ff-${SHORT_SHA}
 
 tags: ['team__konnekt', 'repo__konnekt_data_feast', 'commit__${SHORT_SHA}', 'slack__konnekt-devops-test']
