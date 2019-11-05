@@ -5,22 +5,22 @@ steps:
   waitFor: ['-']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: mvn
-  args: ['--projects', 'core', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
+  args: ['--settings=cloudbuild-settings.xml', '--projects=core', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
 - id: unit-test-ingestion
   waitFor: ['unit-test-core']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: mvn
-  args: ['--projects', 'ingestion', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
+  args: ['--settings=cloudbuild-settings.xml', '--projects=ingestion', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
 - id: unit-test-serving
   waitFor: ['unit-test-ingestion']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: mvn
-  args: ['--projects', 'serving', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
+  args: ['--settings=cloudbuild-settings.xml', '--projects=serving', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
 - id: build-java
   waitFor: ['unit-test-core', 'unit-test-ingestion', 'unit-test-serving']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: mvn
-  args: ['--projects', 'core,ingestion,serving', '-Drevision=ff-${SHORT_SHA}', '-DskipTests=true', '--batch-mode', 'package']
+  args: ['--settings=cloudbuild-settings.xml', '--projects=core,ingestion,serving', '-Drevision=ff-${SHORT_SHA}', '-DskipTests=true', '--batch-mode', 'package']
   timeout: 900s
 
 # CLI (GO)
@@ -105,7 +105,7 @@ options:
   env:
   - GO111MODULE=on
   - GOPATH=/cache/go
-  - MAVEN_OPTS=-Dmaven.repo.local=/cache/m2 -Dorg.apache.maven.user-settings=/workspace/cloudbuild-settings.xml
+  - MAVEN_OPTS=-Dmaven.repo.local=/cache/m2
   - FEAST_VERSION=ff-${SHORT_SHA}
   volumes:
   - name: go_cache
