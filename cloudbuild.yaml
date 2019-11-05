@@ -1,70 +1,90 @@
 steps:
 
-- id: 'unit-test-core'
+# JAVA
+- id: unit-test-core
+  waitFor: ['-']
   name: 'maven:${_MAVEN_VERSION}'
-  entrypoint: 'mvn'
+  entrypoint: mvn
   args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'core', '-Dtestbucket=${_TEST_BUCKET}', 'test']
-- id: 'unit-test-ingestion'
+- id: unit-test-ingestion
+  waitFor: ['unit-test-core']
   name: 'maven:${_MAVEN_VERSION}'
-  entrypoint: 'mvn'
+  entrypoint: mvn
   args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'ingestion', '-Dtestbucket=${_TEST_BUCKET}', 'test']
-- id: 'unit-test-serving'
+- id: unit-test-serving
+  waitFor: ['unit-test-ingestion']
   name: 'maven:${_MAVEN_VERSION}'
-  entrypoint: 'mvn'
+  entrypoint: mvn
   args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'serving', '-Dtestbucket=${_TEST_BUCKET}', 'test']
-- id: 'unit-test-mockgen'
+- id: build-java
+  waitFor: ['unit-test-core', 'unit-test-ingestion', 'unit-test-serving']
+  name: 'maven:${_MAVEN_VERSION}'
+  entrypoint: mvn
+  args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'core,ingestion,serving', '-Drevision=ff-${SHORT_SHA}', '-DskipTests=true', '--batch-mode', 'package']
+  timeout: 900s
+
+# CLI (GO)
+- id: gen-proto-go
+  waitFor: ['-']
+  name: 'gcr.io/konnekt-core/protoc-go:3.6.1'
+  dir: '/workspace/protos'
+  entrypoint: make
+  args: ['gen-go']
+- id: unit-test-mockgen
+  waitFor: ['gen-proto-go']
   name: 'gcr.io/konnekt-core/mockgen:1.3.1'
   args: ['-package=mock', '-destination=cmd/mock/core_service.go', 'github.com/gojek/feast/protos/generated/go/feast/core', 'CoreServiceClient']
-- id: 'unit-test-cli-setup'
+- id: unit-test-cli-setup
+  waitFor: ['-']
   name: 'golang:1.13'
   args: ['go', 'get', '-u', 'github.com/jstemmer/go-junit-report']
-- id: 'unit-test-cli-run'
+- id: unit-test-cli-run
+  waitFor: ['unit-test-mockgen', 'unit-test-cli-setup']
   name: 'golang:1.13'
   args: ['go', 'test', '-v', './cli/feast/...']
-- id: 'unit-test-python-sdk'
+- id: build-cli
+  waitFor: ['unit-test-cli-run']
+  name: 'gcr.io/konnekt-core/protoc-go:3.6.1'
+  dir: '/workspace/cli'
+  entrypoint: make
+  args: ['build-all']
+
+# SDK (Python)
+- id: gen-proto-python
+  waitFor: ['-']
+  name: 'gcr.io/konnekt-core/protoc-python:3.6.1'
+  dir: '/workspace/protos'
+  entrypoint: make
+  args: ['gen-python']
+- id: unit-test-python-sdk
+  waitFor: ['gen-proto-python']
   name: 'python:3.6.9-buster'
   dir: '/workspace/sdk/python'
   env: ['SKIP_BIGQUERY_TEST=true'] # TODO: Configure project/permissions and re-enable
-  entrypoint: 'sh'
+  entrypoint: sh
   args: ['-c', 'pip install -r requirements-test.txt && pip install . && pytest ./tests']
+- id: install-python-sdk
+  waitFor: ['unit-test-python-sdk']
+  name: 'python:3.6.9-buster'
+  dir: '/workspace/sdk/python'
+  entrypoint: sh
+  args: ['-c', 'pip install -qe sdk/python']
 
+# Integration Test (DISABLED)
 - id: 'integration-test-setup'
   name: 'gcr.io/cloud-builders/gcloud'
-  entrypoint: 'sh'
+  entrypoint: sh
   args: ['-c', 'echo TODO: prepare_integration_test.sh']
 - id: 'integration-test-run'
   name: 'gcr.io/cloud-builders/gcloud'
-  entrypoint: 'sh'
+  entrypoint: sh
   args: ['-c', 'echo TODO: install_feast_and_run_e2e_test.sh']
 - id: 'integration-test-teardown'
   name: 'gcr.io/cloud-builders/gcloud'
-  entrypoint: 'sh'
+  entrypoint: sh
   args: ['-c', 'echo TODO: cleanup_feast_installation.sh']
 
-- id: 'gen-proto-go'
-  name: 'gcr.io/konnekt-core/protoc-go:3.6.1'
-  dir: '/workspace/protos'
-  entrypoint: 'make'
-  args: ['gen-go']
-- id: 'gen-proto-python'
-  name: 'gcr.io/konnekt-core/protoc-python:3.6.1'
-  dir: '/workspace/protos'
-  entrypoint: 'make'
-  args: ['gen-python']
-
-- id: 'build-cli'
-  env:
-  - 'FEAST_VERSION=ff-${SHORT_SHA}'
-  name: 'gcr.io/konnekt-core/protoc-go:3.6.1'
-  dir: '/workspace/cli'
-  entrypoint: 'make'
-  args: ['build-all']
-
-- id: 'build-java'
-  name: 'maven:${_MAVEN_VERSION}'
-  entrypoint: 'mvn'
-  args: ['-s', '/workspace/cloudbuild-settings.xml', '--projects', 'core,ingestion,serving', '-Drevision=ff-${SHORT_SHA}', '-DskipTests=true', '--batch-mode', 'package']
-
+# Docker Images
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build', '-t', 'gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}', '-f', 'docker/core/Dockerfile', '.']
 - name: 'gcr.io/cloud-builders/docker'
@@ -79,12 +99,15 @@ options:
   env:
   - GO111MODULE=on
   - GOPATH=/cache/go
-  - MAVEN_OPTS=-Dmaven.repo.local=/cache/.m2
+  - MAVEN_OPTS=-Dmaven.repo.local=/cache/m2
+  - FEAST_VERSION=ff-${SHORT_SHA}
   volumes:
   - name: go_cache
     path: /cache/go
   - name: m2_cache
-    path: /cache/.m2
+    path: /cache/m2
+
+timeout: 1800s
 
 substitutions:
   _TEST_BUCKET: dev-konnekt-data-deep-1-feast-tmp
