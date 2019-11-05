@@ -13,7 +13,7 @@ FROM openjdk:8-jre as production
 ARG REVISION=dev
 COPY --from=builder /build/core/target/feast-core-$REVISION.jar /opt/feast/feast-core.jar
 CMD ["java",\
-     "-Xms1024m",\
-     "-Xmx1024m",\
+     "-Xms2048m",\
+     "-Xmx2048m",\
      "-jar",\
      "/opt/feast/feast-core.jar"]
