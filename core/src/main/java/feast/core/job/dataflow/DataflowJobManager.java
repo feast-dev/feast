@@ -34,11 +34,14 @@ import feast.core.model.JobInfo;
 import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
 import feast.ingestion.options.ImportOptions;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -151,6 +154,19 @@ public class DataflowJobManager implements JobManager {
     pipelineOptions.setUpdate(update);
     pipelineOptions.setRunner(DataflowRunner.class);
     pipelineOptions.setJobName(jobName);
+
+    // "DataflowRunner.detectClassPathResourcesToStage" runs into this issue when trying to detect jars
+    // to upload, when Feast Core starts from a packaged jar.
+    //
+    // https://stackoverflow.com/questions/48961440/illegalargumentexception-unable-to-convert-url-jarfile-app-jar-boot-inf-cla
+    // https://stackoverflow.com/questions/48292491/java-dataflow-unable-to-use-classloader-to-detect-classpath-elements
+    //
+    // Set the files to stage manually, following the quick workaround in Stackoverflow.
+    // Perhaps there is a cleaner solution?
+    pipelineOptions.setFilesToStage(
+        Arrays.stream(System.getProperty("java.class.path").split(File.pathSeparator)).
+            map(entry -> new File(entry).toString()).
+            collect(Collectors.toList()));
     if (metrics.isEnabled()) {
       pipelineOptions.setMetricsExporterType(metrics.getType());
       if (metrics.getType().equals("prometheus")) {
