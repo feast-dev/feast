@@ -213,7 +213,14 @@ class Client:
                 timeout=GRPC_CONNECTION_TIMEOUT_APPLY,
             )  # type: ApplyFeatureSetResponse
             applied_fs = FeatureSet.from_proto(apply_fs_response.feature_set)
-            feature_set._update_from_feature_set(applied_fs, is_dirty=False)
+
+            if apply_fs_response.status == ApplyFeatureSetResponse.Status.CREATED:
+                print(f'Feature set updated/created: "{applied_fs.name}:{applied_fs.version}".')
+                feature_set._update_from_feature_set(applied_fs, is_dirty=False)
+                return
+            if apply_fs_response.status == ApplyFeatureSetResponse.Status.NO_CHANGE:
+                print(f'No change detected in feature set {feature_set.name}:{feature_set.version}')
+                return
         except grpc.RpcError as e:
             print(format_grpc_exception("ApplyFeatureSet", e.code(), e.details()))
 
