@@ -120,6 +120,13 @@ public class DataflowJobManagerTest {
 
     expectedPipelineOptions.setOptionsId(actualPipelineOptions.getOptionsId()); // avoid comparing this value
 
+    // We only check that we are calling getFilesToStage() manually, because the automatic approach
+    // throws an error: https://github.com/gojek/feast/pull/291 i.e. do not check for the actual files that are staged
+    assertThat("filesToStage in pipelineOptions should not be null, job manager should set it.", actualPipelineOptions.getFilesToStage() != null);
+    assertThat("filesToStage in pipelineOptions should contain at least 1 item", actualPipelineOptions.getFilesToStage().size() > 0);
+    // Assume the files that are staged are correct
+    expectedPipelineOptions.setFilesToStage(actualPipelineOptions.getFilesToStage());
+
     assertThat(actualPipelineOptions.toString(),
         equalTo(expectedPipelineOptions.toString()));
     assertThat(jobId, equalTo(expectedExtJobId));
