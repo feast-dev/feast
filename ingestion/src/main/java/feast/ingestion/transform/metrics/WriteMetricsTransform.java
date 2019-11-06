@@ -51,7 +51,7 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
     ImportOptions options = input.getPipeline().getOptions()
         .as(ImportOptions.class);
     switch (options.getMetricsExporterType()) {
-      case "prometheus":
+      case "statsd":
 
         input.get(getFailureTag())
             .apply("Window records",
@@ -59,7 +59,8 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
             .apply("Write deadletter metrics", ParDo.of(
                 WriteDeadletterRowMetricsDoFn.newBuilder()
                     .setFeatureSetSpec(getFeatureSetSpec())
-                    .setPgAddress(options.getPrometheusExporterAddress())
+                    .setStatsdHost(options.getStatsdHost())
+                    .setStatsdPort(options.getStatsdPort())
                     .setStoreName(getStoreName())
                     .build()));
 
@@ -69,7 +70,8 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
             .apply("Write row metrics", ParDo
                 .of(WriteRowMetricsDoFn.newBuilder()
                     .setFeatureSetSpec(getFeatureSetSpec())
-                    .setPgAddress(options.getPrometheusExporterAddress())
+                    .setStatsdHost(options.getStatsdHost())
+                    .setStatsdPort(options.getStatsdPort())
                     .setStoreName(getStoreName())
                     .build()));
 
