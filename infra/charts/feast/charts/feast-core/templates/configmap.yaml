@@ -21,7 +21,10 @@ data:
 
 {{- if .Values.kafka.enabled }}
 {{- $topic := index .Values.kafka.topics 0 }}
-{{- $options := dict "topic" $topic.name "replicationFactor" $topic.replicationFactor "partitions" $topic.partitions "bootstrapServers" (printf "%s:9092" (printf "%s-kafka" .Release.Name)) }}
+{{- $options := dict "topic" $topic.name "replicationFactor" $topic.replicationFactor "partitions" $topic.partitions }}
+{{- if not .Values.kafka.external.enabled }}
+{{- $_ := set $options "bootstrapServers" (printf "%s:9092" (printf "%s-kafka" .Release.Name)) }}
+{{- end }}
 {{- $newConfig := dict "feast" (dict "stream" (dict "type" "kafka" "options" $options))}}
 {{- $config := mergeOverwrite $config $newConfig }}
 {{- end }}
