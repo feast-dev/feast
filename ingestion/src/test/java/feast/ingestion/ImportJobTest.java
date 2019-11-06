@@ -63,7 +63,7 @@ public class ImportJobTest {
   // Expected time taken for the import job to be ready to receive Feature Row input
   private static final int IMPORT_JOB_READY_DURATION_SEC = 5;
   // Expected time taken for the import job to finish writing to Store
-  private static final int IMPORT_JOB_RUN_DURATION_SEC = 10;
+  private static final int IMPORT_JOB_RUN_DURATION_SEC = 30;
 
   @BeforeClass
   public static void setup() throws IOException, InterruptedException {
