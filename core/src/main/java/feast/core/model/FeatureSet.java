@@ -5,12 +5,9 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
-import feast.core.SourceProto;
-import feast.core.util.TypeConversion;
 import feast.types.ValueProto.ValueType;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -68,7 +65,8 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     super();
   }
 
-  public FeatureSet(String name, int version, long maxAgeSeconds, List<Field> entities, List<Field> features,
+  public FeatureSet(String name, int version, long maxAgeSeconds, List<Field> entities,
+      List<Field> features,
       Source source) {
     this.id = String.format("%s:%s", name, version);
     this.name = name;
@@ -137,7 +135,8 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
    */
   public boolean equalTo(FeatureSet other) throws InvalidProtocolBufferException {
     return name.equals(other.getName()) && entities.equals(other.entities) && features
-        .equals(other.features) && source.equalTo(other.getSource());
+        .equals(other.features) && source.equalTo(other.getSource())
+        && maxAgeSeconds == other.maxAgeSeconds;
   }
 
   @Override
