@@ -1,23 +1,23 @@
 steps:
 
 # JAVA
-- id: unit-test-core
-  waitFor: ['-']
-  name: 'maven:${_MAVEN_VERSION}'
-  entrypoint: mvn
-  args: ['--settings=cloudbuild-settings.xml', '--projects=core', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
-- id: unit-test-ingestion
-  waitFor: ['unit-test-core']
-  name: 'maven:${_MAVEN_VERSION}'
-  entrypoint: mvn
-  args: ['--settings=cloudbuild-settings.xml', '--projects=ingestion', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
-- id: unit-test-serving
-  waitFor: ['unit-test-ingestion']
-  name: 'maven:${_MAVEN_VERSION}'
-  entrypoint: mvn
-  args: ['--settings=cloudbuild-settings.xml', '--projects=serving', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
+#- id: unit-test-core
+#  waitFor: ['-']
+#  name: 'maven:${_MAVEN_VERSION}'
+#  entrypoint: mvn
+#  args: ['--settings=cloudbuild-settings.xml', '--projects=core', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
+#- id: unit-test-ingestion
+#  waitFor: ['unit-test-core']
+#  name: 'maven:${_MAVEN_VERSION}'
+#  entrypoint: mvn
+#  args: ['--settings=cloudbuild-settings.xml', '--projects=ingestion', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
+#- id: unit-test-serving
+#  waitFor: ['unit-test-ingestion']
+#  name: 'maven:${_MAVEN_VERSION}'
+#  entrypoint: mvn
+#  args: ['--settings=cloudbuild-settings.xml', '--projects=serving', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
 - id: build-java
-  waitFor: ['unit-test-core', 'unit-test-ingestion', 'unit-test-serving']
+  waitFor: ['-']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: mvn
   args: ['--settings=cloudbuild-settings.xml', '--projects=core,ingestion,serving', '-Drevision=ff-${SHORT_SHA}', '-DskipTests=true', '--batch-mode', 'package']

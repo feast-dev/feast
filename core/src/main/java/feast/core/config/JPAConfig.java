@@ -24,13 +24,18 @@ import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.persistence.EntityManagerFactory;
+import javax.persistence.PersistenceUnit;
 
 /** Configuration of JPA related services and beans for the core application. */
 @Configuration
 @Slf4j
 public class JPAConfig {
+
+  @PersistenceUnit
+  EntityManagerFactory emf;
+
   @Bean
-  public PlatformTransactionManager transactionManager(EntityManagerFactory emf) {
+  public PlatformTransactionManager transactionManager() {
     JpaTransactionManager transactionManager = new JpaTransactionManager();
     transactionManager.setEntityManagerFactory(emf);
 

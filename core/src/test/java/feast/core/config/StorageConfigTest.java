@@ -68,4 +68,12 @@ public class StorageConfigTest {
     assertNull(storageSpecs.getServingStorageSpec());
     verify(validator).validateWarehouseStorageSpec(storageSpec);
   }
+
+  @Test
+  public void testMine() {
+    StorageSpecs storageSpecs = config.getStorageSpecs(
+        "noop", "{}",
+        "STORE_WAREHOUSE_TYPE", "{\"project\": \"dev-konnekt-data-deep-1\", \"dataset\": \"feast_warehouse\"}",
+        "stdout", "");
+  }
 }
