@@ -17,6 +17,8 @@
 
 package feast.core.job.dataflow;
 
+import static feast.core.util.PipelineUtil.detectClassPathResourcesToStage;
+
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.Job;
 import com.google.common.base.Strings;
@@ -34,14 +36,11 @@ import feast.core.model.JobInfo;
 import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
 import feast.ingestion.options.ImportOptions;
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -56,11 +55,11 @@ public class DataflowJobManager implements JobManager {
   private final String projectId;
   private final String location;
   private final Dataflow dataflow;
-  private final Map<String,String> defaultOptions;
+  private final Map<String, String> defaultOptions;
   private final MetricsProperties metrics;
 
   public DataflowJobManager(
-      Dataflow dataflow, Map<String,String> defaultOptions, MetricsProperties metricsProperties) {
+      Dataflow dataflow, Map<String, String> defaultOptions, MetricsProperties metricsProperties) {
     this.defaultOptions = defaultOptions;
     this.dataflow = dataflow;
     this.metrics = metricsProperties;
@@ -92,7 +91,8 @@ public class DataflowJobManager implements JobManager {
       for (FeatureSet featureSet : jobInfo.getFeatureSets()) {
         featureSetSpecs.add(featureSet.toProto());
       }
-      return submitDataflowJob(jobInfo.getId(), featureSetSpecs, jobInfo.getStore().toProto(), true);
+      return submitDataflowJob(jobInfo.getId(), featureSetSpecs, jobInfo.getStore().toProto(),
+          true);
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(String.format("Unable to update job %s", jobInfo.getId()), e);
     }
@@ -127,7 +127,8 @@ public class DataflowJobManager implements JobManager {
     }
   }
 
-  private String submitDataflowJob(String jobName, List<FeatureSetSpec> featureSets, Store sink, boolean update) {
+  private String submitDataflowJob(String jobName, List<FeatureSetSpec> featureSets, Store sink,
+      boolean update) {
     try {
       ImportOptions pipelineOptions = getPipelineOptions(jobName, featureSets, sink, update);
       DataflowPipelineJob pipelineResult = runPipeline(pipelineOptions);
@@ -139,8 +140,9 @@ public class DataflowJobManager implements JobManager {
     }
   }
 
-  private ImportOptions getPipelineOptions(String jobName, List<FeatureSetSpec> featureSets, Store sink,
-      boolean update) throws InvalidProtocolBufferException {
+  private ImportOptions getPipelineOptions(String jobName, List<FeatureSetSpec> featureSets,
+      Store sink,
+      boolean update) throws IOException {
     String[] args = TypeConversion.convertMapToArgs(defaultOptions);
     ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
     Printer printer = JsonFormat.printer();
@@ -154,19 +156,9 @@ public class DataflowJobManager implements JobManager {
     pipelineOptions.setUpdate(update);
     pipelineOptions.setRunner(DataflowRunner.class);
     pipelineOptions.setJobName(jobName);
+    pipelineOptions
+        .setFilesToStage(detectClassPathResourcesToStage(DataflowRunner.class.getClassLoader()));
 
-    // "DataflowRunner.detectClassPathResourcesToStage" runs into this issue when trying to detect jars
-    // to upload, when Feast Core starts from a packaged jar.
-    //
-    // https://stackoverflow.com/questions/48961440/illegalargumentexception-unable-to-convert-url-jarfile-app-jar-boot-inf-cla
-    // https://stackoverflow.com/questions/48292491/java-dataflow-unable-to-use-classloader-to-detect-classpath-elements
-    //
-    // Set the files to stage manually, following the quick workaround in Stackoverflow.
-    // Perhaps there is a cleaner solution?
-    pipelineOptions.setFilesToStage(
-        Arrays.stream(System.getProperty("java.class.path").split(File.pathSeparator)).
-            map(entry -> new File(entry).toString()).
-            collect(Collectors.toList()));
     if (metrics.isEnabled()) {
       pipelineOptions.setMetricsExporterType(metrics.getType());
       if (metrics.getType().equals("prometheus")) {
