@@ -1,0 +1,55 @@
+version: '3'
+services:
+  feast-core:
+    build:
+      context: .
+      dockerfile: Dockerfiles/core/Dockerfile
+      args:
+        REVISION: dev
+    ports:
+      - "8080:8080"
+      - "6566:6566"
+    environment:
+      GRPC_PORT: 6565
+      DB_HOST: postgresql
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: password
+      DB_DATABASE: postgres
+      LOG_TYPE: JSON
+      PROJECT_ID: dev-konnekt-data-deep-1
+      TRAINING_DATASET_PREFIX: feast_training
+      JOB_RUNNER: DataflowRunner
+      JOB_WORKSPACE: gs://dev-konnekt-data-deep-1-dataflow-workspace
+      JOB_OPTIONS: '{}'
+      JOB_MONITOR_PERIOD_MS: 5000
+      JOB_MONITOR_INITIAL_DELAY_MS: 60000
+      STORE_SERVING_TYPE: noop
+      STORE_SERVING_OPTIONS: '{}'
+      STORE_WAREHOUSE_TYPE: bigquery
+      STORE_WAREHOUSE_OPTIONS: '{"project": "dev-konnekt-data-deep-1", "dataset": "feast_warehouse"}'
+      STORE_ERRORS_TYPE: stdout
+      STORE_ERRORS_OPTIONS: ""
+      STATSD_HOST: statsd-exporter
+      STATSD_PORT: 9125
+      DATAFLOW_PROJECT_ID: dev-konnekt-data-deep-1
+      DATAFLOW_LOCATION: europe-west4
+      GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/credentials.json
+    volumes:
+      - ./secrets:/etc/gcloud/service-accounts
+    links:
+      - postgresql
+      - statsd-exporter
+  postgresql:
+    image: bitnami/postgresql:11.5.0-debian-9-r84
+    environment:
+      POSTGRESQL_USERNAME: postgres
+      POSTGRESQL_PASSWORD: password
+      POSTGRESQL_DATABASE: postgres
+  statsd-exporter:
+    image: prom/statsd-exporter:v0.12.2
+    entrypoint:
+      - /bin/statsd_exporter
+      - --log.format=logger:stdout?json=true
+    ports:
+      - "9102:9102"

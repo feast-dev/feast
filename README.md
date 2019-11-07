@@ -36,6 +36,13 @@ docker run --rm --name feast-build \
     gen-go
 ```
 
+### How-to: Run locally
+
+```bash
+mvn --projects core,ingestion -Drevision=dev -DskipTests=true --batch-mode package
+docker-compose up --build
+```
+
 ## Overview
 
 Feast (Feature Store) is a tool to manage storage and access of machine learning features.
