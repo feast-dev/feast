@@ -20,14 +20,12 @@ feast-core:
       # subnetwork: default
     metrics:
       enabled: true
-      ## Type of metrics sink. Only prometheus is currently supported.
-      type: prometheus
-      ## Host of the metrics sink. In the case of prometheus, this is the host of the prometheus
-      ## pushGateway to sink metrics to.
-      host: feast-prometheus-pushgateway
-      ## Port of the metrics sink. In the case of prometheus, this is the port of the prometheus
-      ## pushGateway to sink metrics to.
-      port: 9091
+      ## Type of metrics sink. Only statsd is currently supported.
+      type: statsd
+      ## Host of the metrics sink. In the case of statsd, this is the host of the statsd exporter
+      host: feast-prometheus-statsd-exporter
+      ## Port of the metrics sink.
+      port: 9125
 
   stream:
     type: kafka
@@ -295,7 +293,7 @@ kafka:
       cpu: 200m
       memory: 128Mi
 
-prometheus-pushgateway:
+prometheus-statsd-exporter:
   provision: true
 
 redis:

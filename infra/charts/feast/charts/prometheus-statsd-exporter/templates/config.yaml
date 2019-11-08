@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "prometheus-statsd-exporter.fullname" . }}-config
+  labels:
+    app: {{ template "prometheus-statsd-exporter.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  statsd_mappings.yaml: |
+#
+#     defaults:
+#       ttl: "45s"

@@ -46,7 +46,7 @@ public class ImportJobTest {
   private static final Logger LOGGER = LoggerFactory.getLogger(ImportJobTest.class.getName());
 
   private static final String KAFKA_HOST = "localhost";
-  private static final int KAFKA_PORT = 9093;
+  private static final int KAFKA_PORT = 19092;
   private static final String KAFKA_BOOTSTRAP_SERVERS = KAFKA_HOST + ":" + KAFKA_PORT;
   private static final short KAFKA_REPLICATION_FACTOR = 1;
   private static final String KAFKA_TOPIC = "topic_1";
@@ -119,7 +119,7 @@ public class ImportJobTest {
     options.setProject("");
     options.setBlockOnRun(false);
 
-    int inputSize = 4096;
+    int inputSize = 128;
     List<FeatureRow> input = new ArrayList<>();
     Map<RedisKey, FeatureRow> expected = new HashMap<>();
 

@@ -137,8 +137,8 @@ public class TestUtil {
    */
   public static FeatureRow createRandomFeatureRow(FeatureSetSpec spec) {
     ThreadLocalRandom random = ThreadLocalRandom.current();
-    int randomStringSizeMaxSize = 16;
-    return createRandomFeatureRow(spec, random.nextInt(0, randomStringSizeMaxSize));
+    int randomStringSizeMaxSize = 12;
+    return createRandomFeatureRow(spec, random.nextInt(0, randomStringSizeMaxSize) + 4);
   }
 
   /**

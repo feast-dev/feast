@@ -21,7 +21,6 @@ import java.util.List;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Default.Boolean;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation.Required;
@@ -77,11 +76,18 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
   void setMetricsExporterType(String metricsExporterType);
 
   @Description(
-      "Address to write the metrics to. Required if the metrics exporter is set to prometheus."
+      "Host to write the metrics to. Required if the metrics exporter is set to StatsD."
   )
-  @Default.String("localhost:9091")
-  String getPrometheusExporterAddress();
+  @Default.String("localhost")
+  String getStatsdHost();
 
-  void setPrometheusExporterAddress(String prometheusExporterAddress);
+  void setStatsdHost(String StatsdHost);
 
+  @Description(
+      "Port on StatsD server to write metrics to. Required if the metrics exporter is set to StatsD."
+  )
+  @Default.Integer(8125)
+  int getStatsdPort();
+
+  void setStatsdPort(int StatsdPort);
 }

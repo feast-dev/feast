@@ -37,7 +37,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.PipelineResult;
@@ -103,9 +102,9 @@ public class DirectRunnerJobManager implements JobManager {
     pipelineOptions.setProject(""); // set to default value to satisfy validation
     if (metrics.isEnabled()) {
       pipelineOptions.setMetricsExporterType(metrics.getType());
-      if (metrics.getType().equals("prometheus")) {
-        pipelineOptions.setPrometheusExporterAddress(
-            String.format("%s:%s", metrics.getHost(), metrics.getPort()));
+      if (metrics.getType().equals("statsd")) {
+        pipelineOptions.setStatsdHost(metrics.getHost());
+        pipelineOptions.setStatsdPort(metrics.getPort());
       }
     }
     pipelineOptions.setBlockOnRun(false);
