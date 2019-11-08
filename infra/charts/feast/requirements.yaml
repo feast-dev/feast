@@ -22,10 +22,10 @@ dependencies:
   version: 0.17.0
   repository: "@incubator"
   condition: kafka.provision
-- name: prometheus-pushgateway
-  version: 1.0.1
-  repository: "@stable"
-  condition: prometheus-pushgateway.provision
+- name: prometheus-statsd-exporter
+  version: 0.1.2
+  repository: "@local"
+  condition: prometheus-statsd-exporter.provision
 - name: nginx-ingress
   version: 1.24.2
   repository: "@stable"

@@ -219,12 +219,6 @@
     </dependency>
 
     <dependency>
-      <groupId>io.prometheus</groupId>
-      <artifactId>simpleclient_pushgateway</artifactId>
-      <version>0.7.0</version>
-    </dependency>
-
-    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>

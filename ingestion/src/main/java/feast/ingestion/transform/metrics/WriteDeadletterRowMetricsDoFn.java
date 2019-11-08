@@ -52,14 +52,17 @@ public abstract class WriteDeadletterRowMetricsDoFn extends
 
   }
 
-  @ProcessElement
-  public void processElement(ProcessContext c) {
-    statsd = statsd != null ? statsd : new NonBlockingStatsDClient(
+  @Setup
+  public void setup() {
+    statsd = new NonBlockingStatsDClient(
         METRIC_PREFIX,
         getStatsdHost(),
         getStatsdPort()
     );
+  }
 
+  @ProcessElement
+  public void processElement(ProcessContext c) {
     FeatureSetSpec featureSetSpec = getFeatureSetSpec();
 
     long rowCount = 0;

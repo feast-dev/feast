@@ -14,9 +14,6 @@ dependencies:
 - name: kafka
   repository: https://kubernetes-charts-incubator.storage.googleapis.com/
   version: 0.17.0
-- name: prometheus-pushgateway
-  repository: https://kubernetes-charts.storage.googleapis.com
-  version: 1.0.1
 - name: nginx-ingress
   repository: https://kubernetes-charts.storage.googleapis.com
   version: 1.24.2

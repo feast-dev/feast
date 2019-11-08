@@ -52,16 +52,17 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<Integer, Iterable<Feat
     public abstract WriteRowMetricsDoFn build();
   }
 
-
-  @ProcessElement
-  public void processElement(ProcessContext c) {
-    statsd = statsd != null ? statsd : new NonBlockingStatsDClient(
+  @Setup
+  public void setup() {
+    statsd = new NonBlockingStatsDClient(
         METRIC_PREFIX,
         getStatsdHost(),
         getStatsdPort()
     );
+  }
 
-    Long currentTimestamp = System.currentTimeMillis();
+  @ProcessElement
+  public void processElement(ProcessContext c) {
     FeatureSetSpec featureSetSpec = getFeatureSetSpec();
 
     long rowCount = 0;
@@ -70,17 +71,24 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<Integer, Iterable<Feat
     try {
       for (FeatureRow row : c.element().getValue()) {
         rowCount++;
-        long eventTimestamp = row.getEventTimestamp().getSeconds() * 1000;
-        long lag = currentTimestamp - eventTimestamp;
+        long eventTimestamp = com.google.protobuf.util.Timestamps.toMillis(row.getEventTimestamp());
 
-        statsd.gauge("feature_row_lag_ms", lag, STORE_TAG_KEY + ":" + getStoreName(),
+        statsd.gauge("feature_row_lag_ms", System.currentTimeMillis() - eventTimestamp,
+            STORE_TAG_KEY + ":" + getStoreName(),
+            FEATURE_SET_NAME_TAG_KEY + ":" + featureSetSpec.getName(),
+            FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetSpec.getVersion(),
+            INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
+
+        statsd.gauge("feature_row_event_time_epoch_ms", eventTimestamp,
+            STORE_TAG_KEY + ":" + getStoreName(),
             FEATURE_SET_NAME_TAG_KEY + ":" + featureSetSpec.getName(),
             FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetSpec.getVersion(),
             INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
 
         for (Field field : row.getFieldsList()) {
           if (!field.getValue().getValCase().equals(ValCase.VAL_NOT_SET)) {
-            statsd.gauge("feature_value_lag_ms", lag, STORE_TAG_KEY + ":" + getStoreName(),
+            statsd.gauge("feature_value_lag_ms", System.currentTimeMillis() - eventTimestamp,
+                STORE_TAG_KEY + ":" + getStoreName(),
                 FEATURE_SET_NAME_TAG_KEY + ":" + featureSetSpec.getName(),
                 FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetSpec.getVersion(),
                 FEATURE_TAG_KEY + ":" + field.getName(),
