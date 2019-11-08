@@ -28,8 +28,8 @@ Feature sets are a grouping of feature sets based on how they are loaded into Fe
 
 Below is an example of a basic `customer transactions` feature set that has been exported to YAML:
 
-{% code-tabs %}
-{% code-tabs-item title="customer\_transactions\_feature\_set.yaml" %}
+{% tabs %}
+{% tab title="customer\_transactions\_feature\_set.yaml" %}
 ```yaml
 name: customer_transactions
 kind: feature_set
@@ -41,10 +41,10 @@ features:
   valueType: FLOAT
 - name: total_transactions
   valueType: FLOAT
-maxAge: 3600s
+  maxAge: 3600s
 ```
-{% endcode-tabs-item %}
-{% endcode-tabs %}
+{% endtab %}
+{% endtabs %}
 
 The dataframe below \(`customer_data.csv`\) contains the features and entities of the above feature set
 

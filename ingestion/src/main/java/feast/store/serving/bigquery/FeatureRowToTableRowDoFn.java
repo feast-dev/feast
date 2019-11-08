@@ -32,6 +32,7 @@ public class FeatureRowToTableRowDoFn extends DoFn<FeatureRow, TableRow> {
   }
 
   private static TableRow createTableRow(FeatureRow featureRow, String jobId) {
+
     TableRow tableRow = new TableRow();
     tableRow.set(EVENT_TIMESTAMP_COLUMN, Timestamps.toString(featureRow.getEventTimestamp()));
     tableRow.set(CREATED_TIMESTAMP_COLUMN, Instant.now().toString());

@@ -153,9 +153,9 @@ public class DataflowJobManager implements JobManager {
     pipelineOptions.setJobName(jobName);
     if (metrics.isEnabled()) {
       pipelineOptions.setMetricsExporterType(metrics.getType());
-      if (metrics.getType().equals("prometheus")) {
-        pipelineOptions.setPrometheusExporterAddress(
-            String.format("%s:%s", metrics.getHost(), metrics.getPort()));
+      if (metrics.getType().equals("statsd")) {
+        pipelineOptions.setStatsdHost(metrics.getHost());
+        pipelineOptions.setStatsdPort(metrics.getPort());
       }
     }
     return pipelineOptions;
