@@ -207,7 +207,7 @@ class Client:
         self._connect_core()
         feature_set._client = self
 
-        try:
+        try
             apply_fs_response = self._core_service_stub.ApplyFeatureSet(
                 ApplyFeatureSetRequest(feature_set=feature_set.to_proto()),
                 timeout=GRPC_CONNECTION_TIMEOUT_APPLY,
@@ -219,7 +219,7 @@ class Client:
                 feature_set._update_from_feature_set(applied_fs, is_dirty=False)
                 return
             if apply_fs_response.status == ApplyFeatureSetResponse.Status.NO_CHANGE:
-                print(f'No change detected in feature set {feature_set.name}:{feature_set.version}')
+                print(f'No change detected in feature set {feature_set.name}')
                 return
         except grpc.RpcError as e:
             print(format_grpc_exception("ApplyFeatureSet", e.code(), e.details()))

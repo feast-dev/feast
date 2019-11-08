@@ -65,7 +65,9 @@ public class Source {
    */
   public static Source fromProto(SourceProto.Source sourceProto) {
     if (sourceProto.equals(SourceProto.Source.getDefaultInstance())) {
-      return new Source();
+      Source source = new Source();
+      source.isDefault = true;
+      return source;
     }
 
     switch (sourceProto.getType()) {
