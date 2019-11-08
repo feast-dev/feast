@@ -147,9 +147,17 @@ service:
   http:
     port: 80
     targetPort: 8080
+    # nodePort is the port number that each cluster node will listen to
+    # https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
+    #
+    # nodePort:
   grpc:
     port: 6565
     targetPort: 6565
+    # nodePort is the port number that each cluster node will listen to
+    # https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
+    #
+    # nodePort:
 
 ingress:
   enabled: false
