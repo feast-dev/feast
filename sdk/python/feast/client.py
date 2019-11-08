@@ -207,7 +207,7 @@ class Client:
         self._connect_core()
         feature_set._client = self
 
-        try
+        try:
             apply_fs_response = self._core_service_stub.ApplyFeatureSet(
                 ApplyFeatureSetRequest(feature_set=feature_set.to_proto()),
                 timeout=GRPC_CONNECTION_TIMEOUT_APPLY,
