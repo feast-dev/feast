@@ -3,26 +3,68 @@
 #   to be durable
 # - Only online serving (no batch serving) is installed to remove dependency 
 #   on Google Cloud services. Batch serving requires BigQuery dependency.
+# - Replace all occurrences of "feast.example.com" with your cluster's domain
+#   or external IP
+#
 
 feast-core:
   enabled: true
+
+  gcpServiceAccount:
+    useExistingSecret: false
+
+  service:
+    type: NodePort
+    grpc:
+      nodePort: 32090
+
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
   postgresql:
     persistence:
       enabled: false
+
+
   kafka:
+    enabled: true
     persistence:
       enabled: false
+    external:
+      enabled: true
+      type: NodePort
+      domain: feast.example.com
+    configurationOverrides:
+      "advertised.listeners": |-
+        EXTERNAL://feast.example.com:$((31090 + ${KAFKA_BROKER_ID}))
+      "listener.security.protocol.map": |-
+        PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+
+  application.yaml:
+    feast:
+      stream:
+        options:
+          bootstrapServers: feast.example.com:31090
 
 feast-serving-online:
   enabled: true
   redis:
     enabled: true
+
+  service:
+    type: NodePort
+    grpc:
+      nodePort: 32091
+
   store.yaml:
     name: redis
     type: REDIS
     subscriptions:
-    - name: ".*"
-      version: ">0"
+      - name: ".*"
+        version: ">0"
 
 feast-serving-batch:
   enabled: false
