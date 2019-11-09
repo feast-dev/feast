@@ -5,6 +5,10 @@
 * [Concepts](concepts.md)
 * [Getting Help](community.md)
 
+## Getting Started
+
+* [Install Feast](getting-started/install-feast.md)
+
 ## Reference
 
 * [Core API](reference/proto.md)
