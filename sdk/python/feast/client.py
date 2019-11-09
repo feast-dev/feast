@@ -50,6 +50,7 @@ from feast.serving.ServingService_pb2 import GetFeastServingInfoResponse
 from urllib.parse import urlparse
 import uuid
 import numpy as np
+import sys
 
 from feast.utils.loaders import export_dataframe_to_staging_location
 
@@ -160,6 +161,7 @@ class Client:
             print(
                 f"Connection timed out while attempting to connect to Feast Core gRPC server {self.core_url}"
             )
+            sys.exit(1)
         else:
             self._core_service_stub = CoreServiceStub(self.__core_channel)
 
@@ -185,6 +187,7 @@ class Client:
             print(
                 f"Connection timed out while attempting to connect to Feast Serving gRPC server {self.serving_url} "
             )
+            sys.exit(1)
         else:
             self._serving_service_stub = ServingServiceStub(self.__serving_channel)
 
@@ -231,10 +234,13 @@ class Client:
         """
         self._connect_core()
 
-        # Get latest feature sets from Feast Core
-        feature_set_protos = self._core_service_stub.GetFeatureSets(
-            GetFeatureSetsRequest()
-        )  # type: GetFeatureSetsResponse
+        try:
+            # Get latest feature sets from Feast Core
+            feature_set_protos = self._core_service_stub.GetFeatureSets(
+                GetFeatureSetsRequest()
+            )  # type: GetFeatureSetsResponse
+        except grpc.RpcError as e:
+            print(format_grpc_exception("GetFeatureSets", e.code(), e.details()))
 
         # Store list of feature sets
         feature_sets = []
