@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "feast-serving.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "feast-serving.name" . }}
+    component: serving
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  application.yaml: |
+{{- $config := index .Values "application.yaml" }}
+
+{{- if .Values.core.enabled }}
+{{- $newConfig := dict "feast" (dict "core-host" (printf "%s-feast-core" .Release.Name)) }}
+{{- $config := mergeOverwrite $config $newConfig }}
+{{- end }}
+
+{{- $store := index .Values "store.yaml" }}
+{{- if eq $store.type "BIGQUERY" }}
+{{- $jobStore := dict "host" (printf "%s-redis-headless" .Release.Name) "port" 6379 }}
+{{- $newConfig := dict "feast" (dict "jobs" (dict "store-options" $jobStore)) }}
+{{- $config := mergeOverwrite $config $newConfig }}
+{{- end }}
+
+{{- toYaml $config | nindent 4 }}
+  
+  store.yaml: |
+{{- $config := index .Values "store.yaml"}}
+
+{{- if and .Values.redis.enabled (eq $config.type "REDIS") }}
+{{- $newConfig := dict "redis_config" (dict "host" (printf "%s-redis-headless" .Release.Name) "port" .Values.redis.redisPort) }}
+{{- $config := mergeOverwrite $config $newConfig }}
+
+{{- if and (eq .Values.redis.master.service.type "LoadBalancer") (not (empty .Values.redis.master.service.loadBalancerIP)) }}
+{{- $newConfig := dict "redis_config" (dict "host" .Values.redis.master.service.loadBalancerIP "port" .Values.redis.redisPort) }}
+{{- $config := mergeOverwrite $config $newConfig }}
+{{- end }}
+
+{{- end }}
+
+{{- toYaml $config | nindent 4 }}

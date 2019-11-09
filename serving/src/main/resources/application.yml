@@ -36,7 +36,12 @@ feast:
     # Type of store to store job metadata. This only needs to be set if the
     # serving store type is Bigquery.
     store-type: ${FEAST_JOB_STORE_TYPE:}
-    # Job store connection options. If the job store is redis, the redis instance host and port are required.
+    #
+    # Job store connection options. If the job store is redis, the following items are required:
+    #
+    # store-options:
+    #   host: localhost
+    #   port: 6379
     store-options: {}
 
 grpc:

@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "feast-core.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "feast-core.name" . }}
+    component: core
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  application.yaml: |
+{{- $config := index .Values "application.yaml"}}
+
+{{- if .Values.postgresql.enabled }}
+{{- $datasource := dict "url" (printf "jdbc:postgresql://%s:%s/%s" (printf "%s-postgresql" .Release.Name) (.Values.postgresql.service.port | toString) (.Values.postgresql.postgresqlDatabase)) "driverClassName" "org.postgresql.Driver" }}
+{{- $newConfig := dict "spring" (dict "datasource" $datasource) }}
+{{- $config := mergeOverwrite $config $newConfig }}
+{{- end }}
+
+{{- if .Values.kafka.enabled }}
+{{- $topic := index .Values.kafka.topics 0 }}
+{{- $options := dict "topic" $topic.name "replicationFactor" $topic.replicationFactor "partitions" $topic.partitions }}
+{{- if not .Values.kafka.external.enabled }}
+{{- $_ := set $options "bootstrapServers" (printf "%s:9092" (printf "%s-kafka" .Release.Name)) }}
+{{- end }}
+{{- $newConfig := dict "feast" (dict "stream" (dict "type" "kafka" "options" $options))}}
+{{- $config := mergeOverwrite $config $newConfig }}
+{{- end }}
+
+{{- toYaml $config | nindent 4 }}

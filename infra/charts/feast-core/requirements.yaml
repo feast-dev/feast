@@ -1,5 +1,0 @@
-dependencies:
-- name: postgresql
-  version: 3.17.0
-  repository: "@stable"
-  condition: postgres.provision

@@ -1,0 +1,28 @@
+# The following are values for installing Feast for demonstration purpose:
+# - Persistence is disabled since for demo purpose data is not expected
+#   to be durable
+# - Only online serving (no batch serving) is installed to remove dependency 
+#   on Google Cloud services. Batch serving requires BigQuery dependency.
+
+feast-core:
+  enabled: true
+  postgresql:
+    persistence:
+      enabled: false
+  kafka:
+    persistence:
+      enabled: false
+
+feast-serving-online:
+  enabled: true
+  redis:
+    enabled: true
+  store.yaml:
+    name: redis
+    type: REDIS
+    subscriptions:
+    - name: ".*"
+      version: ">0"
+
+feast-serving-batch:
+  enabled: false
