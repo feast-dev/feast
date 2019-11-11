@@ -218,11 +218,13 @@ class Client:
             applied_fs = FeatureSet.from_proto(apply_fs_response.feature_set)
 
             if apply_fs_response.status == ApplyFeatureSetResponse.Status.CREATED:
-                print(f'Feature set updated/created: "{applied_fs.name}:{applied_fs.version}".')
+                print(
+                    f'Feature set updated/created: "{applied_fs.name}:{applied_fs.version}".'
+                )
                 feature_set._update_from_feature_set(applied_fs, is_dirty=False)
                 return
             if apply_fs_response.status == ApplyFeatureSetResponse.Status.NO_CHANGE:
-                print(f'No change detected in feature set {feature_set.name}')
+                print(f"No change detected in feature set {feature_set.name}")
                 return
         except grpc.RpcError as e:
             print(format_grpc_exception("ApplyFeatureSet", e.code(), e.details()))
@@ -345,7 +347,10 @@ class Client:
             self._validate_entity_rows_for_batch_retrieval(entity_rows, fs_request)
 
             # we want the timestamp column naming to be consistent with the rest of feast
-            entity_rows.columns = ['event_timestamp' if col=='datetime' else col for col in entity_rows.columns]
+            entity_rows.columns = [
+                "event_timestamp" if col == "datetime" else col
+                for col in entity_rows.columns
+            ]
 
             # Retrieve serving information to determine store type and staging location
             serving_info = (

@@ -40,6 +40,7 @@ REQUIRED = [
     "PyYAML==5.1.2",
     "fastavro==0.*",
     "kafka-python==1.4.*",
+    "tabulate==0.8.*",
     "toml==0.10.0",
     "tqdm==4.*",
     "numpy",

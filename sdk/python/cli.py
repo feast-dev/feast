@@ -135,8 +135,13 @@ def list():
         core_url=feast_config.get_config_property_or_fail("core_url")
     )  # type: Client
 
+    table = []
     for fs in feast_client.list_feature_sets():
-        print(f"{fs.name}:{fs.version}")
+        table.append([fs.name, fs.version])
+
+    from tabulate import tabulate
+
+    print(tabulate(table, headers=["NAME", "VERSION"], tablefmt="plain"))
 
 
 @feature_set.command()

@@ -305,7 +305,7 @@ class FeatureSet:
         force_update: bool = False,
         timeout: int = 5,
         max_workers: int = CPU_COUNT,
-        disable_progress_bar: bool = False
+        disable_progress_bar: bool = False,
     ):
 
         pbar = tqdm(unit="rows", total=dataframe.shape[0], disable=disable_progress_bar)
