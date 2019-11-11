@@ -17,6 +17,8 @@
 
 package feast.core.job.dataflow;
 
+import static feast.core.util.PipelineUtil.detectClassPathResourcesToStage;
+
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.Job;
 import com.google.common.base.Strings;
@@ -53,11 +55,11 @@ public class DataflowJobManager implements JobManager {
   private final String projectId;
   private final String location;
   private final Dataflow dataflow;
-  private final Map<String,String> defaultOptions;
+  private final Map<String, String> defaultOptions;
   private final MetricsProperties metrics;
 
   public DataflowJobManager(
-      Dataflow dataflow, Map<String,String> defaultOptions, MetricsProperties metricsProperties) {
+      Dataflow dataflow, Map<String, String> defaultOptions, MetricsProperties metricsProperties) {
     this.defaultOptions = defaultOptions;
     this.dataflow = dataflow;
     this.metrics = metricsProperties;
@@ -89,7 +91,8 @@ public class DataflowJobManager implements JobManager {
       for (FeatureSet featureSet : jobInfo.getFeatureSets()) {
         featureSetSpecs.add(featureSet.toProto());
       }
-      return submitDataflowJob(jobInfo.getId(), featureSetSpecs, jobInfo.getStore().toProto(), true);
+      return submitDataflowJob(jobInfo.getId(), featureSetSpecs, jobInfo.getStore().toProto(),
+          true);
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(String.format("Unable to update job %s", jobInfo.getId()), e);
     }
@@ -124,7 +127,8 @@ public class DataflowJobManager implements JobManager {
     }
   }
 
-  private String submitDataflowJob(String jobName, List<FeatureSetSpec> featureSets, Store sink, boolean update) {
+  private String submitDataflowJob(String jobName, List<FeatureSetSpec> featureSets, Store sink,
+      boolean update) {
     try {
       ImportOptions pipelineOptions = getPipelineOptions(jobName, featureSets, sink, update);
       DataflowPipelineJob pipelineResult = runPipeline(pipelineOptions);
@@ -136,8 +140,9 @@ public class DataflowJobManager implements JobManager {
     }
   }
 
-  private ImportOptions getPipelineOptions(String jobName, List<FeatureSetSpec> featureSets, Store sink,
-      boolean update) throws InvalidProtocolBufferException {
+  private ImportOptions getPipelineOptions(String jobName, List<FeatureSetSpec> featureSets,
+      Store sink,
+      boolean update) throws IOException {
     String[] args = TypeConversion.convertMapToArgs(defaultOptions);
     ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
     Printer printer = JsonFormat.printer();
@@ -151,6 +156,9 @@ public class DataflowJobManager implements JobManager {
     pipelineOptions.setUpdate(update);
     pipelineOptions.setRunner(DataflowRunner.class);
     pipelineOptions.setJobName(jobName);
+    pipelineOptions
+        .setFilesToStage(detectClassPathResourcesToStage(DataflowRunner.class.getClassLoader()));
+
     if (metrics.isEnabled()) {
       pipelineOptions.setMetricsExporterType(metrics.getType());
       if (metrics.getType().equals("statsd")) {
