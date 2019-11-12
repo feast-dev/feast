@@ -335,7 +335,7 @@
             <version>2.6.1</version>
         </dependency>
 
-        <!-- fix runtime error -->
+        <!-- upgrade bytebuddy -->
         <dependency>
             <groupId>net.bytebuddy</groupId>
             <artifactId>byte-buddy</artifactId>

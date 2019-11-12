@@ -17,7 +17,7 @@ steps:
 
 # JAVA
 - id: unit-test-core
-  waitFor: ['-']
+  waitFor: ['m2-cahce-pull']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: mvn
   args: ['--settings=cloudbuild-settings.xml', '--projects=core', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
@@ -32,7 +32,7 @@ steps:
   entrypoint: mvn
   args: ['--settings=cloudbuild-settings.xml', '--projects=serving', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
 - id: build-java
-  waitFor: ['m2-cahce-pull']
+  waitFor: ['unit-test-core', 'unit-test-ingestion', 'unit-test-serving']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: mvn
   args: ['--settings=cloudbuild-settings.xml', '--projects=core,ingestion,serving', '-Drevision=ff-${SHORT_SHA}', '-DskipTests=true', '--batch-mode', 'package']
