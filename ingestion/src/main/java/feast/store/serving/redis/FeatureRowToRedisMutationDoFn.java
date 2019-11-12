@@ -61,11 +61,15 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRow, RedisMutatio
   public void processElement(ProcessContext context) {
     FeatureRow featureRow = context.element();
     RedisKey key = getKey(featureRow);
-    context.output(
-        RedisMutation.newBuilder()
-            .setKey(key.toByteArray())
-            .setValue(featureRow.toByteArray())
-            .setMethod(Method.SET)
-            .build());
+    try {
+      context.output(
+          RedisMutation.newBuilder()
+              .setKey(key.toByteArray())
+              .setValue(featureRow.toByteArray())
+              .setMethod(Method.SET)
+              .build());
+    } catch (Exception e) {
+      log.error(e.getMessage(), e);
+    }
   }
 }

@@ -353,9 +353,8 @@ class Client:
             ]
 
             # Retrieve serving information to determine store type and staging location
-            serving_info = (
-                self._serving_service_stub.GetFeastServingInfo(
-                    GetFeastServingInfoRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT)
+            serving_info = self._serving_service_stub.GetFeastServingInfo(
+                GetFeastServingInfoRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             )  # type: GetFeastServingInfoResponse
 
             if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
