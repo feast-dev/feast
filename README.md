@@ -43,6 +43,20 @@ mvn --projects core,ingestion -Drevision=dev -DskipTests=true --batch-mode packa
 docker-compose up --build
 ```
 
+### How-to: Run locally in IDE
+
+```bash
+docker run --rm --name postgresql \
+    -e POSTGRESQL_USERNAME=postgres \
+    -e POSTGRESQL_PASSWORD=password \
+    -e POSTGRESQL_DATABASE=postgres \
+    -p 5432:5432 \
+    bitnami/postgresql:11.5.0-debian-9-r84
+```
+
+```text
+LOG_TYPE=JSON;PROJECT_ID=dev-konnekt-data-deep-1;TRAINING_DATASET_PREFIX=feast_training;JOB_RUNNER=DataflowRunner;JOB_WORKSPACE=gs://dev-konnekt-data-deep-1-dataflow-workspace;JOB_OPTIONS={};STORE_SERVING_TYPE=noop;STORE_SERVING_OPTIONS={};STORE_WAREHOUSE_TYPE=bigquery;STORE_WAREHOUSE_OPTIONS={"project": "dev-konnekt-data-deep-1", "dataset": "feast_warehouse"};STORE_ERRORS_TYPE=stdout;STORE_ERRORS_OPTIONS=;DATAFLOW_PROJECT_ID=dev-konnekt-data-deep-1;DATAFLOW_LOCATION=europe-west4
+```
 ## Overview
 
 Feast (Feature Store) is a tool to manage storage and access of machine learning features.

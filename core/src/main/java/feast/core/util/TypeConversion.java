@@ -33,6 +33,9 @@ public class TypeConversion {
    * @return protobuf.Timestamp object of the given timestamp
    */
   public static com.google.protobuf.Timestamp convertTimestamp(Date ts) {
+    if (ts == null) {
+      return null;
+    }
     return com.google.protobuf.Timestamp.newBuilder().setSeconds(ts.getTime() / 1000).build();
   }
 

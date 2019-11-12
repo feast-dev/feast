@@ -18,23 +18,19 @@
 package feast.core.config;
 
 import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
 import feast.core.config.StorageConfig.StorageSpecs;
-import feast.core.dao.EntityInfoRepository;
-import feast.core.dao.FeatureGroupInfoRepository;
-import feast.core.dao.FeatureInfoRepository;
 import feast.core.storage.BigQueryViewTemplater;
 import feast.core.storage.SchemaManager;
-import feast.core.validators.SpecValidator;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 
 /**
  * Configuration providing utility objects for the core application.
@@ -42,9 +38,12 @@ import org.springframework.core.io.Resource;
 @Configuration
 public class ServerUtilConfig {
 
+  private final StorageSpecs storageSpecs;
 
   @Autowired
-  private StorageSpecs storageSpecs;
+  public ServerUtilConfig(StorageSpecs storageSpecs) {
+    this.storageSpecs = storageSpecs;
+  }
 
   /**
    * Get a BigQuery view templater.
@@ -68,24 +67,6 @@ public class ServerUtilConfig {
   @Bean
   public SchemaManager schemaManager(BigQueryViewTemplater bigQueryViewTemplater) {
     return new SchemaManager(bigQueryViewTemplater, storageSpecs);
-
   }
 
-  /**
-   * Get a spec validator.
-   *
-   * @return SpecValidator
-   */
-  @Bean
-  public SpecValidator specValidator(
-      EntityInfoRepository entityInfoRepository,
-      FeatureGroupInfoRepository featureGroupInfoRepository,
-      FeatureInfoRepository featureInfoRepository) {
-    SpecValidator specValidator =
-        new SpecValidator(
-            entityInfoRepository,
-            featureGroupInfoRepository,
-            featureInfoRepository);
-    return specValidator;
-  }
 }

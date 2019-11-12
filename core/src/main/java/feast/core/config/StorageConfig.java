@@ -1,31 +1,32 @@
 package feast.core.config;
 
-import static feast.core.util.TypeConversion.convertJsonStringToMap;
-
 import com.google.common.base.Strings;
 import feast.core.validators.SpecValidator;
 import feast.specs.StorageSpecProto.StorageSpec;
-import java.util.Map;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.Map;
+
+import static feast.core.util.TypeConversion.convertJsonStringToMap;
+
 @Configuration
-@AllArgsConstructor
-@NoArgsConstructor
 public class StorageConfig {
 
   public static final String DEFAULT_SERVING_ID = "SERVING";
   public static final String DEFAULT_WAREHOUSE_ID = "WAREHOUSE";
   public static final String DEFAULT_ERRORS_ID = "ERRORS";
 
+  private final SpecValidator validator;
+
   @Autowired
-  private SpecValidator validator;
+  public StorageConfig(SpecValidator validator) {
+    this.validator = validator;
+  }
 
   private StorageSpec buildStorageSpec(
       String id,
@@ -63,19 +64,17 @@ public class StorageConfig {
       @Value("${feast.store.warehouse.options}") String warehouseOptions,
       @Value("${feast.store.errors.type}") String errorsType,
       @Value("${feast.store.errors.options}") String errorsOptions) {
-    StorageSpecs storageSpecs = StorageSpecs.builder()
+    return StorageSpecs.builder()
         .servingStorageSpec(buildStorageSpec(DEFAULT_SERVING_ID, servingType, servingOptions))
         .warehouseStorageSpec(
             buildStorageSpec(DEFAULT_WAREHOUSE_ID, warehouseType, warehouseOptions))
         .errorsStorageSpec(buildStorageSpec(DEFAULT_ERRORS_ID, errorsType, errorsOptions))
         .build();
-    return storageSpecs;
   }
 
   @Builder
   @Getter
   public static class StorageSpecs {
-
     private StorageSpec servingStorageSpec;
     private StorageSpec warehouseStorageSpec;
     private StorageSpec errorsStorageSpec;

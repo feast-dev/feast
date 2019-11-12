@@ -65,19 +65,21 @@ public class StorageInfo extends AbstractTimestampEntity {
    */
   public StorageSpec getStorageSpec() {
     return StorageSpec.newBuilder()
-            .setId(id)
-            .setType(type)
-            .putAllOptions(convertJsonStringToMap(options))
-            .build();
+        .setId(id)
+        .setType(type)
+        .putAllOptions(convertJsonStringToMap(options))
+        .build();
   }
 
   /**
    * Get the storage detail containing both spec and metadata, associated with this record.
    */
   public StorageDetail getStorageDetail() {
-    return StorageDetail.newBuilder()
-            .setSpec(this.getStorageSpec())
-            .setLastUpdated(convertTimestamp(this.getLastUpdated()))
-            .build();
+    StorageDetail.Builder storageDetailBuilder = StorageDetail.newBuilder()
+        .setSpec(this.getStorageSpec());
+    if (this.getLastUpdated() != null) {
+      storageDetailBuilder.setLastUpdated(convertTimestamp(this.getLastUpdated()));
+    }
+    return storageDetailBuilder.build();
   }
 }

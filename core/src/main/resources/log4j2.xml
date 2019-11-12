@@ -24,7 +24,7 @@
         <Property name="APPENDER_TYPE">${env:LOG_TYPE:-Console}</Property>
     </Properties>
     <CustomLevels>
-        <CustomLevel name="AUDIT" intLevel="350" />
+        <CustomLevel name="AUDIT" intLevel="350"/>
     </CustomLevels>
     <Appenders>
         <Console name="ConsoleAppender" target="SYSTEM_OUT" follow="true">
@@ -35,8 +35,20 @@
         </Console>
     </Appenders>
     <Loggers>
-        <Root level="debug">
-            <AppenderRef ref="${APPENDER_TYPE}Appender" />
+        <Logger name="io.micrometer" level="trace" additivity="false">
+            <AppenderRef ref="${APPENDER_TYPE}Appender"/>
+        </Logger>
+        <Logger name="io.netty" level="warn" additivity="false">
+            <AppenderRef ref="${APPENDER_TYPE}Appender"/>
+        </Logger>
+        <Logger name="com.zaxxer.hikari" level="info" additivity="false">
+            <AppenderRef ref="${APPENDER_TYPE}Appender"/>
+        </Logger>
+        <Logger name="org.hibernate.validator" level="info" additivity="false">
+            <AppenderRef ref="${APPENDER_TYPE}Appender"/>
+        </Logger>
+        <Root level="warn">
+            <AppenderRef ref="${APPENDER_TYPE}Appender"/>
         </Root>
     </Loggers>
 </Configuration>

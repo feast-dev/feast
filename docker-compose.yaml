@@ -1,6 +1,7 @@
 version: '3'
 services:
   feast-core:
+#    image: gcr.io/konnekt-core/feast-core:ff-debug-6c92161
     build:
       context: .
       dockerfile: Dockerfiles/core/Dockerfile

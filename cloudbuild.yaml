@@ -1,23 +1,38 @@
 steps:
 
-# JAVA
-#- id: unit-test-core
-#  waitFor: ['-']
-#  name: 'maven:${_MAVEN_VERSION}'
-#  entrypoint: mvn
-#  args: ['--settings=cloudbuild-settings.xml', '--projects=core', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
-#- id: unit-test-ingestion
-#  waitFor: ['unit-test-core']
-#  name: 'maven:${_MAVEN_VERSION}'
-#  entrypoint: mvn
-#  args: ['--settings=cloudbuild-settings.xml', '--projects=ingestion', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
-#- id: unit-test-serving
-#  waitFor: ['unit-test-ingestion']
-#  name: 'maven:${_MAVEN_VERSION}'
-#  entrypoint: mvn
-#  args: ['--settings=cloudbuild-settings.xml', '--projects=serving', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
-- id: build-java
+# Setup
+- id: m2-cahce-pull
   waitFor: ['-']
+  name: gcr.io/cloud-builders/gsutil
+  args:
+  - -o GSUtil:parallel_process_count=16
+  - -o GSUtil:parallel_thread_count=1
+  - -m
+  - rsync
+  - -j
+  - pom,sha1
+  - -r
+  - gs://dev-konnekt-data-deep-1-feast-tmp/cache/m2
+  - /cache/m2
+
+# JAVA
+- id: unit-test-core
+  waitFor: ['-']
+  name: 'maven:${_MAVEN_VERSION}'
+  entrypoint: mvn
+  args: ['--settings=cloudbuild-settings.xml', '--projects=core', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
+- id: unit-test-ingestion
+  waitFor: ['unit-test-core']
+  name: 'maven:${_MAVEN_VERSION}'
+  entrypoint: mvn
+  args: ['--settings=cloudbuild-settings.xml', '--projects=ingestion', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
+- id: unit-test-serving
+  waitFor: ['unit-test-ingestion']
+  name: 'maven:${_MAVEN_VERSION}'
+  entrypoint: mvn
+  args: ['--settings=cloudbuild-settings.xml', '--projects=serving', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
+- id: build-java
+  waitFor: ['m2-cahce-pull']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: mvn
   args: ['--settings=cloudbuild-settings.xml', '--projects=core,ingestion,serving', '-Drevision=ff-${SHORT_SHA}', '-DskipTests=true', '--batch-mode', 'package']
@@ -96,6 +111,21 @@ steps:
   name: 'gcr.io/cloud-builders/docker'
   args: ['build', '--build-arg', 'REVISION=ff-${SHORT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}', '-f', 'Dockerfiles/serving/Dockerfile', '.']
 
+# Teardown
+- id: m2-cahce-push
+  waitFor: ['build-java']
+  name: gcr.io/cloud-builders/gsutil
+  args:
+    - -o GSUtil:parallel_process_count=16
+    - -o GSUtil:parallel_thread_count=1
+    - -m
+    - rsync
+    - -j
+    - pom,sha1
+    - -r
+    - /cache/m2
+    - gs://dev-konnekt-data-deep-1-feast-tmp/cache/m2
+
 images:
 - gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}
 - gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}
@@ -105,7 +135,6 @@ options:
   env:
   - GO111MODULE=on
   - GOPATH=/cache/go
-  - MAVEN_OPTS=-Dmaven.repo.local=/cache/m2
   - FEAST_VERSION=ff-${SHORT_SHA}
   volumes:
   - name: go_cache

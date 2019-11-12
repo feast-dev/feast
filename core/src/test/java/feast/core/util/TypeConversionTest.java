@@ -24,9 +24,16 @@ import java.util.*;
 
 import static com.jayway.jsonpath.matchers.JsonPathMatchers.hasJsonPath;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 public class TypeConversionTest {
+
+  @Test
+  public void convertTimeStampShouldHanldeNulls() {
+    assertThat(TypeConversion.convertTimestamp(null), nullValue());
+  }
+
   @Test
   public void convertTimeStampShouldCorrectlyConvertDateToProtobufTimestamp() {
     Date date = new Date(1000);

@@ -23,7 +23,6 @@ import feast.specs.StorageSpecProto.StorageSpec;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.time.Instant;
 import java.util.Date;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -64,6 +63,14 @@ public class StorageInfoTest {
     Timestamp ts = Timestamp.newBuilder().setSeconds(1).build();
     StorageDetail expected =
         StorageDetail.newBuilder().setSpec(storageSpec).setLastUpdated(ts).build();
+    assertThat(storageInfo.getStorageDetail(), equalTo(expected));
+  }
+
+  @Test
+  public void shouldHandleNullDate() {
+    storageInfo.setLastUpdated(null);
+    StorageDetail expected =
+        StorageDetail.newBuilder().setSpec(storageSpec).build();
     assertThat(storageInfo.getStorageDetail(), equalTo(expected));
   }
 }
