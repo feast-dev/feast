@@ -12,10 +12,14 @@ import org.springframework.stereotype.Component;
 @Component
 public class OnContextRefresh {
 
+  private final SchemaManager schemaManager;
+  private final StorageSpecs storageSpecs;
+
   @Autowired
-  private SchemaManager schemaManager;
-  @Autowired
-  private StorageSpecs storageSpecs;
+  public OnContextRefresh(SchemaManager schemaManager, StorageSpecs storageSpecs) {
+    this.schemaManager = schemaManager;
+    this.storageSpecs = storageSpecs;
+  }
 
   @EventListener
   public void onApplicationEvent(ContextRefreshedEvent event) {

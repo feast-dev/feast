@@ -35,12 +35,6 @@
         </Console>
     </Appenders>
     <Loggers>
-        <Logger name="io.micrometer" level="trace" additivity="false">
-            <AppenderRef ref="${APPENDER_TYPE}Appender"/>
-        </Logger>
-        <Logger name="io.netty" level="warn" additivity="false">
-            <AppenderRef ref="${APPENDER_TYPE}Appender"/>
-        </Logger>
         <Logger name="com.zaxxer.hikari" level="info" additivity="false">
             <AppenderRef ref="${APPENDER_TYPE}Appender"/>
         </Logger>

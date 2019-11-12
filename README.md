@@ -36,6 +36,24 @@ docker run --rm --name feast-build \
     gen-go
 ```
 
+```bash
+docker run --rm --name feast-build \
+    -v $(pwd):/workspace \
+    -v go_cache:/cache/go \
+    -v m2_cache:/cache/m2 \
+    -w /workspace \
+    -e GO111MODULE=on \
+    -e GOPATH=/cache/go \
+    -e MAVEN_OPTS=-Dmaven.repo.local=/cache/m2 \
+    -e FEAST_VERSION=ff-$(git rev-parse --short HEAD) \
+    --entrypoint mvn -- \
+    maven:3.6.2-jdk-11-slim \
+    --projects=core \
+    -Drevision=ff-$(git rev-parse --short HEAD) \
+    -Dtestbucket=dev-konnekt-data-deep-1-feast-tmp \
+    test
+```
+
 ### How-to: Run locally
 
 ```bash
