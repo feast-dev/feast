@@ -14,7 +14,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.junit.AfterClass;
@@ -62,20 +61,19 @@ public class RedisCustomIOTest {
             .addFields(field("feature", "two", Enum.STRING)).build());
 
     List<RedisMutation> featureRowWrites = kvs.entrySet().stream()
-        .map(kv -> RedisMutation.newBuilder()
-            .setMethod(Method.SET)
-            .setKey(kv.getKey().toByteArray())
-            .setValue(kv.getValue().toByteArray())
-            .build())
+        .map(kv -> new RedisMutation(Method.SET, kv.getKey().toByteArray(),
+            kv.getValue().toByteArray(),
+            null, null)
+        )
         .collect(Collectors.toList());
 
     p.apply(Create.of(featureRowWrites))
         .apply(RedisCustomIO.write("localhost", REDIS_PORT));
     p.run();
 
-    kvs.entrySet().forEach(kv -> {
-      byte[] actual = jedis.get(kv.getKey().toByteArray());
-      assertThat(actual, equalTo(kv.getValue().toByteArray()));
+    kvs.forEach((key, value) -> {
+      byte[] actual = jedis.get(key.toByteArray());
+      assertThat(actual, equalTo(value.toByteArray()));
     });
   }
 }

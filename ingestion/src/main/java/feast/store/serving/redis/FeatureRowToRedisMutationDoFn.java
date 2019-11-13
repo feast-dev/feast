@@ -62,12 +62,9 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRow, RedisMutatio
     FeatureRow featureRow = context.element();
     RedisKey key = getKey(featureRow);
     try {
-      context.output(
-          RedisMutation.newBuilder()
-              .setKey(key.toByteArray())
-              .setValue(featureRow.toByteArray())
-              .setMethod(Method.SET)
-              .build());
+      RedisMutation redisMutation = new RedisMutation(Method.SET, key.toByteArray(),
+          featureRow.toByteArray(), null, null);
+      context.output(redisMutation);
     } catch (Exception e) {
       log.error(e.getMessage(), e);
     }
