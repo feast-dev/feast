@@ -106,6 +106,22 @@ presubmits:
           mountPath: /etc/service-account
           readOnly: true
 
+  - name: test-end-to-end
+      decorate: true
+      always_run: true
+      spec:
+        volumes:
+          - name: service-account
+            secret:
+              secretName: prow-service-account
+        containers:
+          - image: maven:3.6-jdk-8
+            command: [".prow/scripts/test-end-to-end-dataflow.sh"]
+            volumeMounts:
+              - name: service-account
+                mountPath: /etc/service-account
+                readOnly: true
+
 # TODO: do a release when a git tag is pushed
 #
 # postsubmits list Prow jobs that run on every push 

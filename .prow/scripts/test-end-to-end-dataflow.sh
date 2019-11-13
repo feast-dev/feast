@@ -31,17 +31,6 @@ fi
 export GOOGLE_APPLICATION_CREDENTIALS=/etc/service-account/service-account.json
 gcloud auth activate-service-account --key-file /etc/service-account/service-account.json
 
-echo "
-============================================================
-Installing Redis at localhost:6379
-============================================================
-"
-apt-get -qq update
-# Allow starting serving in this Maven Docker image. Default set to not allowed.
-echo "exit 0" > /usr/sbin/policy-rc.d
-apt-get -y install redis-server wget > /var/log/redis.install.log
-redis-server --daemonize yes
-redis-cli ping
 
 echo "
 ============================================================
@@ -61,18 +50,17 @@ pg_isready
 
 echo "
 ============================================================
-Installing Zookeeper at localhost:2181
-Installing Kafka at localhost:9092
+Starting remote kafka and redis instances
+
 ============================================================
 "
-wget -qO- https://www-eu.apache.org/dist/kafka/2.3.0/kafka_2.12-2.3.0.tgz | tar xz
-mv kafka_2.12-2.3.0/ /tmp/kafka
-nohup /tmp/kafka/bin/zookeeper-server-start.sh /tmp/kafka/config/zookeeper.properties &> /var/log/zookeeper.log 2>&1 &
-sleep 5
-tail -n10 /var/log/zookeeper.log
-nohup /tmp/kafka/bin/kafka-server-start.sh /tmp/kafka/config/server.properties &> /var/log/kafka.log 2>&1 &
-sleep 5
-tail -n10 /var/log/kafka.log
+INSTANCE_NAME=feast_$(date +%s)
+REMOTE_HOST=${INSTANCE_NAME}.us-central1.c.kf-feast.internal
+
+gcloud compute instances create $INSTANCE_NAME \
+  --source-instance-template feast-external-resources
+
+sleep 10
 
 echo "
 ============================================================
@@ -100,15 +88,18 @@ grpc:
 feast:
   version: 0.3
   jobs:
-    runner: DirectRunner
-    options: {}
+    runner: DataflowRunner
+    options:
+      project: kf-feast
+      tempLocation: gs://feast-templocation-kf-feast/staging-location
+      region: us-central1
     metrics:
       enabled: false
   stream:
     type: kafka
     options:
       topic: feast-features
-      bootstrapServers: localhost:9092
+      bootstrapServers: $REMOTE_HOST:9092
       replicationFactor: 1
       partitions: 1
 spring:
@@ -145,7 +136,7 @@ cat <<EOF > /tmp/serving.store.redis.yml
 name: serving
 type: REDIS
 redis_config:
-  host: localhost
+  host: $REMOTE_HOST
   port: 6379
 subscriptions:
   - name: .*
@@ -263,7 +254,7 @@ ORIGINAL_DIR=$(pwd)
 cd tests/e2e
 
 set +e
-pytest --allow_dirty true -k 'TestBasic' --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+pytest --allow_dirty true -k 'TestLargeVolume' --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
 cd ${ORIGINAL_DIR}
