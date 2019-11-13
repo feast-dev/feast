@@ -67,6 +67,12 @@ Update all occurrences of the domain `feast.example.com` inside of  `my-feast-va
 sed -i "s/feast.example.com/${FEAST_IP}/g" my-feast-values.yaml
 ```
 
+Install Tiller:
+
+```bash
+helm init
+```
+
 Install the Feast Helm chart:
 
 ```bash
