@@ -31,8 +31,11 @@ data:
 {{- $config := index .Values "store.yaml"}}
 
 {{- if and .Values.redis.enabled (eq $config.type "REDIS") }}
+
+{{- if eq .Values.redis.master.service.type "ClusterIP" }}
 {{- $newConfig := dict "redis_config" (dict "host" (printf "%s-redis-headless" .Release.Name) "port" .Values.redis.redisPort) }}
 {{- $config := mergeOverwrite $config $newConfig }}
+{{- end }}
 
 {{- if and (eq .Values.redis.master.service.type "LoadBalancer") (not (empty .Values.redis.master.service.loadBalancerIP)) }}
 {{- $newConfig := dict "redis_config" (dict "host" .Values.redis.master.service.loadBalancerIP "port" .Values.redis.redisPort) }}
