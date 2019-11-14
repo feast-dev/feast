@@ -29,9 +29,4 @@ public class NoopJobMonitor implements JobMonitor {
   public JobStatus getJobStatus(JobInfo job) {
     return JobStatus.UNKNOWN;
   }
-
-  @Override
-  public List<Metrics> getJobMetrics(JobInfo job) {
-    return Collections.emptyList();
-  }
 }

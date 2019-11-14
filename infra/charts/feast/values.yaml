@@ -1,0 +1,100 @@
+# Feast deployment installs the following components:
+# - Feast Core
+# - Feast Serving Online
+# - Feast Serving Batch
+# 
+# The configuration for different components can be referenced from:
+# - charts/feast-core/values.yaml
+# - charts/feast-serving/values.yaml
+#
+# Note that "feast-serving-online" and "feast-serving-batch" are
+# aliases to "feast-serving" chart since in typical scenario two instances
+# of Feast Serving: online and batch will be deployed. Both described 
+# using the same chart "feast-serving".
+#
+# The following are default values for typical Feast deployment, but not
+# for production setting. Refer to "values-production.yaml" for recommended
+# values in production environment.
+# 
+# Note that the import job by default uses DirectRunner 
+# https://beam.apache.org/documentation/runners/direct/
+# in this configuration since it allows Feast to run in more environments
+# (unlike DataflowRunner which requires Google Cloud services).
+# 
+# A secret containing Google Cloud service account JSON key is required 
+# in this configuration. 
+# https://cloud.google.com/iam/docs/creating-managing-service-accounts
+# 
+# The Google Cloud service account must have the following roles:
+# - bigquery.dataEditor
+# - bigquery.jobUser
+#
+# Assuming a service account JSON key file has been downloaded to
+# (please name the file key.json):
+# /home/user/key.json
+# 
+# Run the following command to create the secret in your Kubernetes cluster:
+#
+# kubectl create secret generic feast-gcp-service-account \
+#   --from-file=/home/user/key.json
+#
+
+feast-core:
+  enabled: true
+  jvmOptions: 
+  - -Xms1024m
+  - -Xmx1024m
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 1024Mi
+  gcpServiceAccount:
+    useExistingSecret: true
+
+feast-serving-online:
+  enabled: true
+  redis:
+    enabled: true
+  jvmOptions: 
+  - -Xms1024m
+  - -Xmx1024m
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1024Mi
+  store.yaml:
+    name: redis
+    type: REDIS
+    redis_config:
+      port: 6379
+    subscriptions:
+    - name: ".*"
+      version: ">0"
+
+feast-serving-batch:
+  enabled: true
+  redis:
+    enabled: false
+  jvmOptions: 
+  - -Xms1024m
+  - -Xmx1024m
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1024Mi
+  gcpServiceAccount:
+    useExistingSecret: true
+  application.yaml:
+    feast:
+      jobs: 
+        staging-location: gs://bucket/path
+        store-type: REDIS
+  store.yaml:
+    name: bigquery
+    type: BIGQUERY
+    bigquery_config:
+      project_id: PROJECT_ID
+      dataset_id: DATASET_ID
+    subscriptions:
+    - name: ".*"
+      version: ">0"

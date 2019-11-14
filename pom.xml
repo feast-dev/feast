@@ -17,22 +17,72 @@
 
 <project>
     <modelVersion>4.0.0</modelVersion>
+
+    <name>Feast</name>
+    <description>Feature Store for Machine Learning</description>
+    <url>${github.url}</url>
+
     <groupId>feast</groupId>
     <artifactId>feast-parent</artifactId>
     <version>${revision}</version>
     <packaging>pom</packaging>
-    <name>Feast Parent</name>
+
+    <modules>
+        <module>ingestion</module>
+        <module>core</module>
+        <module>serving</module>
+        <module>sdk/java</module>
+    </modules>
 
     <properties>
-        <revision>0.1.1</revision>
+        <revision>0.3.0-SNAPSHOT</revision>
+        <github.url>https://github.com/gojek/feast</github.url>
+
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <protocVersion>3.6.1</protocVersion>
-        <grpcVersion>1.14.0</grpcVersion>
-        <protobufVersion>3.6.1</protobufVersion>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <grpcVersion>1.17.1</grpcVersion>
+        <protocVersion>3.10.0</protocVersion>
+        <protobufVersion>3.10.0</protobufVersion>
         <springBootVersion>2.0.9.RELEASE</springBootVersion>
+        <org.apache.beam.version>2.16.0</org.apache.beam.version>
+        <com.google.cloud.version>1.91.0</com.google.cloud.version>
+
+        <byte-buddy.version>1.9.10</byte-buddy.version>
+        <hamcrest.version>1.3</hamcrest.version>
+        <kafka.version>2.3.0</kafka.version>
+        <mockito.version>2.28.2</mockito.version>
+        <!-- OpenCensus is used in grpc and Google's HTTP client libs in Cloud SDKs -->
+        <opencensus.version>0.21.0</opencensus.version>
     </properties>
 
+    <organization>
+        <name>Gojek</name>
+        <url>https://www.gojek.io/</url>
+    </organization>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <scm>
+        <url>${github.url}</url>
+        <connection>scm:git:${github.url}.git</connection>
+        <developerConnection>scm:git:git@github.com:gojek/feast.git</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>${github.url}/issues</url>
+    </issueManagement>
+
     <distributionManagement>
+        <!-- TODO: use a profile like local -->
         <snapshotRepository>
             <id>feast-snapshot</id>
             <url>file:///tmp/snapshot</url>
@@ -43,45 +93,276 @@
         </repository>
     </distributionManagement>
 
-    <modules>
-        <module>ingestion</module>
-        <module>core</module>
-        <module>serving</module>
-    </modules>
+    <dependencyManagement>
+        <dependencies>
+            <!-- Google Cloud -->
+            <dependency>
+                <groupId>com.google.cloud</groupId>
+                <artifactId>google-cloud-bigquery</artifactId>
+                <version>${com.google.cloud.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.cloud</groupId>
+                <artifactId>google-cloud-storage</artifactId>
+                <version>${com.google.cloud.version}</version>
+            </dependency>
+
+            <!-- Provides FileSystemProvider for GCS. -->
+            <dependency>
+                <groupId>com.google.cloud</groupId>
+                <artifactId>google-cloud-nio</artifactId>
+                <version>0.83.0-alpha</version>
+            </dependency>
+
+            <dependency>
+              <groupId>io.opencensus</groupId>
+              <artifactId>opencensus-api</artifactId>
+              <version>${opencensus.version}</version>
+            </dependency>
+            <dependency>
+              <groupId>io.opencensus</groupId>
+              <artifactId>opencensus-contrib-grpc-util</artifactId>
+              <version>${opencensus.version}</version>
+            </dependency>
+            <dependency>
+              <groupId>io.opencensus</groupId>
+              <artifactId>opencensus-contrib-http-util</artifactId>
+              <version>${opencensus.version}</version>
+            </dependency>
+
+            <!-- gRPC -->
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-netty</artifactId>
+                <version>${grpcVersion}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-netty-shaded</artifactId>
+                <version>${grpcVersion}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-protobuf</artifactId>
+                <version>${grpcVersion}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-services</artifactId>
+                <version>${grpcVersion}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-stub</artifactId>
+                <version>${grpcVersion}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-testing</artifactId>
+                <version>${grpcVersion}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <!-- Spring Extended -->
+            <dependency>
+                <groupId>io.github.lognet</groupId>
+                <artifactId>grpc-spring-boot-starter</artifactId>
+                <version>3.0.2</version>
+            </dependency>
+
+            <!-- Other Stuff -->
+            <dependency>
+              <groupId>com.datadoghq</groupId>
+              <artifactId>java-dogstatsd-client</artifactId>
+              <version>2.6.1</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>26.0-jre</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>${protobufVersion}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java-util</artifactId>
+                <version>${protobufVersion}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>1.18.2</version>
+                <scope>provided</scope>
+            </dependency>
+
+            <!-- Misc Testing -->
+            <dependency>
+                <groupId>com.github.kstyrc</groupId>
+                <artifactId>embedded-redis</artifactId>
+                <version>0.6</version>
+                <scope>test</scope>
+            </dependency>
+
+            <!-- Spring Boot BOM overrides -->
+            <dependency>
+                <groupId>org.apache.kafka</groupId>
+                <artifactId>kafka_2.12</artifactId>
+                <version>${kafka.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.kafka</groupId>
+                <artifactId>kafka-clients</artifactId>
+                <version>${kafka.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy</artifactId>
+                <version>${byte-buddy.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>${mockito.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-web</artifactId>
+                <version>${springBootVersion}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-starter-logging</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+            <!--
+                Import Spring Boot's dependency management.
+                Override things *before* here if needed, but be wary of that!
+
+                https://www.baeldung.com/spring-boot-dependency-management-custom-parent
+                https://github.com/spring-projects/spring-boot/blob/v2.0.9.RELEASE/spring-boot-project/spring-boot-dependencies/pom.xml
+            -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${springBootVersion}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <build>
         <extensions>
             <extension>
                 <groupId>kr.motd.maven</groupId>
                 <artifactId>os-maven-plugin</artifactId>
-                <version>1.6.0</version>
+                <version>1.6.2</version>
             </extension>
         </extensions>
+
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.7.0</version>
+                <version>3.8.1</version>
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
+                    <compilerArgs>
+                        <arg>-Xlint:all</arg>
+                          <!-- -Xdoclint:all breaks on a false positive in JDK < 9 -->
+                          <!-- https://bugs.java.com/bugdatabase/view_bug.do?bug_id=JDK-8186647 -->
+                        <arg>-Xdoclint:-syntax</arg>
+                    </compilerArgs>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.0.0-M2</version>
+                <executions>
+                    <execution>
+                        <id>valid-build-environment</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireMavenVersion>
+                                    <version>[3.5,4.0)</version>
+                                </requireMavenVersion>
+                                <requireJavaVersion>
+                                    <version>[1.8,1.9)</version>
+                                </requireJavaVersion>
+                                <reactorModuleConvergence />
+                            </rules>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>consistent-dependency-versions</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <banDuplicatePomDependencyVersions />
+                            </rules>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>no-snapshot-deps-at-release</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireReleaseDeps>
+                                    <onlyWhenRelease>true</onlyWhenRelease>
+                                </requireReleaseDeps>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.22.1</version>
                 <configuration>
-                    <argLine>-Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
+                    <argLine>-Xms2048m -Xmx2048m -Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
                     <excludes>
                         <groups>IntegrationTest</groups>
                     </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- Parent POM isn't a Spring Boot app, don't try to discover main classes. -->
+                    <skip>true</skip>
                 </configuration>
             </plugin>
         </plugins>
 
         <pluginManagement>
             <plugins>
+                <plugin>
+                    <groupId>io.fabric8</groupId>
+                    <artifactId>docker-maven-plugin</artifactId>
+                    <version>0.20.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.1.0</version>
+                </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>exec-maven-plugin</artifactId>
@@ -105,8 +386,9 @@
                 <plugin>
                     <groupId>org.xolstice.maven.plugins</groupId>
                     <artifactId>protobuf-maven-plugin</artifactId>
-                    <version>0.5.1</version>
+                    <version>0.6.1</version>
                     <configuration>
+                        <checkStaleness>true</checkStaleness>
                         <protocArtifact>
                             com.google.protobuf:protoc:${protocVersion}:exe:${os.detected.classifier}
                         </protocArtifact>

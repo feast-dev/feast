@@ -1,7 +1,0 @@
-id: word.count
-name: count
-entity: word
-owner: bob@feast.com
-description: number of times the word appears
-valueType:  INT64
-uri: https://github.com/bob/example

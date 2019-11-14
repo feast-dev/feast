@@ -17,24 +17,42 @@
 
 package feast.core.job;
 
-import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
-import java.nio.file.Path;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.StoreProto.Store;
+import feast.core.model.JobInfo;
+import java.util.List;
 
 public interface JobManager {
 
   /**
-   * Submit an ingestion job into runner
-   *
-   * @param importJobSpecs wrapper of all the specs needed for the ingestion job to run
-   * @param workspace path for working directory of the job, for errors and specs
-   * @return extId runner specific job ID.
+   * Get Runner Type
+   * @return runner type
    */
-  String submitJob(ImportJobSpecs importJobSpecs, Path workspace);
+  Runner getRunnerType();
 
   /**
-   * abort a job given runner-specific job ID.
+   * Start an import job.
+   *
+   * @param name of job to run
+   * @param featureSets list of featureSets to be populated by the job
+   * @param sink Store to sink features to
+   * @return runner specific job id
+   */
+  String startJob(String name, List<FeatureSetSpec> featureSets, Store sink);
+
+  /**
+   * Update already running job with new set of features to ingest.
+   *
+   * @param jobInfo jobInfo of target job to change
+   * @return job runner specific job id
+   */
+  String updateJob(JobInfo jobInfo);
+
+  /**
+   * Abort a job given runner-specific job ID.
    *
    * @param extId runner specific job id.
    */
   void abortJob(String extId);
+
 }

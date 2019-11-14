@@ -14,9 +14,6 @@
 #  limitations under the License.
 # 
 
-VERSION_FILE                = VERSION
-FEAST_VERSION               = `cat $(VERSION_FILE)`
-
 test:
 	mvn test
 
@@ -26,19 +23,20 @@ test-integration:
 build-proto:
 	$(MAKE) -C protos gen-go
 	$(MAKE) -C protos gen-python
+	$(MAKE) -C protos gen-docs
 
 build-cli:
 	$(MAKE) build-proto
 	$(MAKE) -C cli build-all
 
 build-java:
-	mvn clean verify -Drevision=$(FEAST_VERSION)
+	mvn clean verify -Drevision=$(VERSION)
 
 build-docker:
-	docker build -t $(registry)/feast-core:$(version) -f docker/core/Dockerfile .
-	docker build -t $(registry)/feast-serving:$(version) -f docker/serving/Dockerfile .
+	docker build -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
+	docker build -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
 
 build-push-docker:
-	@$(MAKE) build-docker registry=$(registry) version=$(version)
-	docker push $(registry)/feast-core:$(version)
-	docker push $(registry)/feast-serving:$(version)
+	@$(MAKE) build-docker registry=$(REGISTRY) version=$(VERSION)
+	docker push $(REGISTRY)/feast-core:$(VERSION)
+	docker push $(REGISTRY)/feast-serving:$(VERSION)

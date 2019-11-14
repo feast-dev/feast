@@ -19,24 +19,18 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
+
   <parent>
     <groupId>feast</groupId>
     <artifactId>feast-parent</artifactId>
     <version>${revision}</version>
   </parent>
+
   <artifactId>feast-serving</artifactId>
   <name>Feast Serving</name>
-  <packaging>jar</packaging>
+  <description>Feature serving API service</description>
 
   <repositories>
-    <repository>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-      <id>central</id>
-      <name>bintray</name>
-      <url>https://jcenter.bintray.com</url>
-    </repository>
     <repository>
       <id>spring-plugins</id>
       <name>Spring Plugins</name>
@@ -49,6 +43,9 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <skip>false</skip>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
@@ -77,93 +74,82 @@
   </build>
 
   <dependencies>
+    <!-- TODO: SLF4J is being used via Lombok, but also jog4j - pick one -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-configuration-processor</artifactId>
+      <optional>true</optional>
+    </dependency>
+
     <!--compile "org.springframework.boot:spring-boot-starter-web:${springBootVersion}"-->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
-      <version>${springBootVersion}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.springframework.boot</groupId>
-          <artifactId>spring-boot-starter-logging</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <!--compile 'org.springframework.boot:spring-boot-starter-log4j2'-->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-log4j2</artifactId>
-      <version>${springBootVersion}</version>
     </dependency>
-    <!--compile 'org.lognet:grpc-spring-boot-starter:2.4.1'-->
+
     <dependency>
-      <groupId>org.lognet</groupId>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-devtools</artifactId>
+      <optional>true</optional>
+    </dependency>
+
+    <!--compile io.github.lognet:grpc-spring-boot-starter:3.0.2'-->
+    <dependency>
+      <groupId>io.github.lognet</groupId>
       <artifactId>grpc-spring-boot-starter</artifactId>
-      <version>2.4.1</version>
     </dependency>
     <!--compile "org.springframework.boot:spring-boot-starter-actuator:${springBootVersion}"-->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
-      <version>${springBootVersion}</version>
     </dependency>
 
-
-    <!--compile "io.grpc:grpc-netty:${grpcVersion}"-->
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-netty</artifactId>
-      <version>${grpcVersion}</version>
-    </dependency>
     <!--compile "io.grpc:grpc-services:${grpcVersion}"-->
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-services</artifactId>
-      <version>${grpcVersion}</version>
     </dependency>
     <!--compile "io.grpc:grpc-stub:${grpcVersion}"-->
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-stub</artifactId>
-      <version>${grpcVersion}</version>
     </dependency>
     <!--compile "com.google.protobuf:protobuf-java-util:${protobufVersion}"-->
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java-util</artifactId>
-      <version>${protobufVersion}</version>
     </dependency>
 
-
-    <!--compile 'com.google.cloud.bigtable:bigtable-hbase-2.x-shaded:1.5.0'-->
     <dependency>
-      <groupId>com.google.cloud.bigtable</groupId>
-      <artifactId>bigtable-hbase-2.x-shaded</artifactId>
-      <version>1.5.0</version>
+      <groupId>io.pebbletemplates</groupId>
+      <artifactId>pebble</artifactId>
+      <version>3.1.0</version>
     </dependency>
+
     <!--compile 'redis.clients:jedis:2.9.0'-->
     <dependency>
       <groupId>redis.clients</groupId>
       <artifactId>jedis</artifactId>
-      <version>2.9.0</version>
     </dependency>
     <!--compile 'com.google.guava:guava:26.0-jre'-->
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>26.0-jre</version>
-    </dependency>
-    <!--compile 'commons-codec:commons-codec:1.10'-->
-    <dependency>
-      <groupId>commons-codec</groupId>
-      <artifactId>commons-codec</artifactId>
-      <version>1.10</version>
     </dependency>
     <!--compile 'joda-time:joda-time:2.9.9'-->
     <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
-      <version>2.9.9</version>
     </dependency>
     <!--compile 'io.jaegertracing:jaeger-client:0.31.0'-->
     <dependency>
@@ -177,60 +163,41 @@
       <version>0.31.0</version>
     </dependency>
     <dependency>
-      <groupId>io.opentracing.contrib</groupId>
-      <artifactId>opentracing-concurrent</artifactId>
-      <version>0.2.0</version>
+      <groupId>io.opentracing</groupId>
+      <artifactId>opentracing-noop</artifactId>
+      <version>0.31.0</version>
     </dependency>
 
+    <!-- Google Cloud -->
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-bigquery</artifactId>
+    </dependency>
 
-    <!--compile 'io.micrometer:micrometer-core:1.0.7'-->
     <dependency>
-      <groupId>io.micrometer</groupId>
-      <artifactId>micrometer-core</artifactId>
-      <version>1.0.7</version>
-    </dependency>
-    <!--compile 'io.micrometer:micrometer-registry-prometheus:1.0.7'-->
-    <dependency>
-      <groupId>io.micrometer</groupId>
-      <artifactId>micrometer-registry-statsd</artifactId>
-      <version>1.0.7</version>
-    </dependency>
-    <dependency>
-      <groupId>com.datadoghq</groupId>
-      <artifactId>java-dogstatsd-client</artifactId>
-      <version>2.6.1</version>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-storage</artifactId>
     </dependency>
 
     <!--compileOnly 'org.projectlombok:lombok:1.18.2'-->
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <version>1.18.2</version>
-      <scope>provided</scope>
     </dependency>
-
 
     <!--testCompile "io.grpc:grpc-testing:${grpcVersion}"-->
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-testing</artifactId>
-      <version>${grpcVersion}</version>
-      <scope>test</scope>
     </dependency>
     <!--testCompile 'org.springframework.boot:spring-boot-starter-test'-->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
-      <version>${springBootVersion}</version>
       <scope>test</scope>
     </dependency>
-    <!--testCompile 'com.github.kstyrc:embedded-redis:0.6'-->
-    <dependency>
-      <groupId>com.github.kstyrc</groupId>
-      <artifactId>embedded-redis</artifactId>
-      <version>0.6</version>
-      <scope>test</scope>
-    </dependency>
+
+    <!-- TODO: fix version discrepancy with managed version -->
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
@@ -238,14 +205,19 @@
       <scope>test</scope>
     </dependency>
 
+    <!-- Hibernate for formatting SQL string -->
     <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava-testlib</artifactId>
-      <version>26.0-jre</version>
-      <scope>test</scope>
+      <groupId>org.hibernate</groupId>
+      <artifactId>hibernate-core</artifactId>
+      <version>5.4.5.Final</version>
+    </dependency>
+
+    <!-- Utilities -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.dataformat</groupId>
+      <artifactId>jackson-dataformat-yaml</artifactId>
     </dependency>
   </dependencies>
-
 
   <profiles>
     <profile>
@@ -258,87 +230,26 @@
       <build>
         <plugins>
           <plugin>
-            <groupId>io.fabric8</groupId>
-            <artifactId>docker-maven-plugin</artifactId>
-            <version>0.20.1</version>
-            <executions>
-              <execution>
-                <id>prepare-bigtable-emulator</id>
-                <phase>pre-integration-test</phase>
-                <goals>
-                  <goal>start</goal>
-                </goals>
-                <configuration>
-                  <images>
-                    <image>
-                      <name>spotify/bigtable-emulator</name>
-                      <alias>bigtable-emulator</alias>
-                      <run>
-                        <ports>
-                          <port>8080:8080</port>
-                        </ports>
-                      </run>
-                    </image>
-                  </images>
-                </configuration>
-              </execution>
-              <execution>
-                <id>remove-bigtable-emulator</id>
-                <phase>post-integration-test</phase>
-                <goals>
-                  <goal>stop</goal>
-                </goals>
-              </execution>
-            </executions>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-resources-plugin</artifactId>
+            <version>3.1.0</version>
+            <configuration>
+              <delimiters>
+                <delimiter>@</delimiter>
+              </delimiters>
+              <useDefaultDelimiters>false</useDefaultDelimiters>
+            </configuration>
           </plugin>
         </plugins>
-      </build>
-    </profile>
-    <profile>
-      <id>profile-ci</id>
-      <activation>
-        <property>
-          <name>ci</name>
-        </property>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>io.fabric8</groupId>
-            <artifactId>docker-maven-plugin</artifactId>
-            <version>0.20.1</version>
-            <executions>
-              <execution>
-                <id>prepare-bigtable-emulator</id>
-                <phase>pre-integration-test</phase>
-                <goals>
-                  <goal>start</goal>
-                </goals>
-                <configuration>
-                  <images>
-                    <image>
-                      <name>spotify/bigtable-emulator</name>
-                      <alias>bigtable-emulator</alias>
-                      <run>
-                        <net>host</net>
-                        <ports>
-                          <port>8080:8080</port>
-                        </ports>
-                      </run>
-                    </image>
-                  </images>
-                </configuration>
-              </execution>
-              <execution>
-                <id>remove-bigtable-emulator</id>
-                <phase>post-integration-test</phase>
-                <goals>
-                  <goal>stop</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
+
+        <!-- https://docs.spring.io/spring-boot/docs/current/reference/html/howto-properties-and-configuration.html#howto-automatic-expansion-maven -->
+        <resources>
+          <resource>
+            <directory>src/main/resources</directory>
+            <filtering>true</filtering>
+          </resource>
+        </resources>
+
       </build>
     </profile>
   </profiles>

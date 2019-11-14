@@ -1,6 +1,9 @@
 ### Scratch files ###
 scratch*
 
+### Feast UI deprecated folder ####
+ui/
+
 ### Local Environment ###
 *local*.env
 
@@ -56,6 +59,7 @@ vendor
 __pycache__/
 *.py[cod]
 *$py.class
+*.prof
 
 # C extensions
 *.so

@@ -1,0 +1,187 @@
+# postgresql configures Postgresql that is installed as part of Feast Core.
+# Refer to https://github.com/helm/charts/tree/c42002a21abf8eff839ff1d2382152bde2bbe596/stable/postgresql
+# for additional configuration.
+postgresql:
+  # enabled specifies whether Postgresql should be installed as part of Feast Core.
+  #
+  # Feast Core requires a database to store data such as the created FeatureSets 
+  # and job statuses. If enabled, the database and service port specified below
+  # will override "spring.datasource.url" value in application.yaml. The 
+  # username and password will also be set as environment variables that will
+  # override "spring.datasource.username/password" in application.yaml.
+  enabled: true
+  # postgresqlDatabase is the name of the database used by Feast Core.
+  postgresqlDatabase: feast
+  # postgresqlUsername is the username to authenticate to the database.
+  postgresqlUsername: postgres
+  # postgresqlPassword is the password to authenticate to the database.
+  postgresqlPassword: password
+  service:
+    # port is the TCP port that Postgresql will listen to
+    port: 5432
+
+# kafka configures Kafka that is installed as part of Feast Core.
+# Refer to https://github.com/helm/charts/tree/c42002a21abf8eff839ff1d2382152bde2bbe596/incubator/kafka
+# for additional configuration.
+kafka:
+  # enabled specifies whether Kafka should be installed as part of Feast Core.
+  # 
+  # Feast Core requires a Kafka instance to be set as the default source for
+  # FeatureRows. If enabled, "feast.stream" option in application.yaml will
+  # be overridden by this installed Kafka configuration.
+  enabled: true
+  topics:
+  # topic that will be used as default in Feast Core for the default Kafka source.
+  - name: feast
+    replicationFactor: 1
+    partitions: 1
+
+# replicaCount is the number of pods that will be created.
+replicaCount: 1
+
+# image configures the Docker image for Feast Core
+image:
+  repository: gcr.io/kf-feast/feast-core
+  tag: 0.3.0-alpha.1
+  pullPolicy: IfNotPresent
+
+# application.yaml is the main configuration for Feast Core application.
+# 
+# Feast Core is a Spring Boot app which uses this yaml configuration file.
+# Refer to https://github.com/gojek/feast/blob/79eb4ab5fa3d37102c1dca9968162a98690526ba/core/src/main/resources/application.yml
+# for a complete list and description of the configuration.
+#
+# Note that some properties defined in application.yaml may be overriden by 
+# Helm under certain conditions. For example, if postgresql and kafka dependencies
+# are enabled.
+application.yaml:
+  grpc:
+    port: 6565
+    enable-reflection: true
+  feast:
+    jobs:
+      runner: DirectRunner
+      options: {}
+      metrics:
+        enabled: false
+        type: prometheus
+        host: localhost
+        port: 9091
+    stream:
+      type: kafka
+      options:
+        topic: TOPIC
+        bootstrapServers: HOST:PORT
+        replicationFactor: 1
+        partitions: 1
+  spring:
+    jpa:
+      properties.hibernate.format_sql: true
+      hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
+      hibernate.ddl-auto: update
+    datasource:
+      driverClassName: org.postgresql.Driver
+      url: jdbc:postgresql://HOST:PORT/DATABASE
+      username: USERNAME
+      password: PASSWORD
+  management:
+    metrics:
+      export:
+        simple:
+          enabled: false
+        statsd:
+          enabled: false
+          host: localhost
+          port: 8125
+
+# springConfigMountPath is the directory path where application.yaml will be 
+# mounted in the container.
+springConfigMountPath: /etc/feast/feast-core
+
+# gcpServiceAccount is the service account that Feast Core will use.
+gcpServiceAccount:
+  # useExistingSecret specifies Feast to use an existing secret containing Google
+  # Cloud service account JSON key file.
+  useExistingSecret: false
+  existingSecret:
+    # name is the secret name of the existing secret for the service account.
+    name: feast-gcp-service-account 
+    # key is the secret key of the existing secret for the service account.
+    # key is normally derived from the file name of the JSON key file.
+    key: key.json
+  # mountPath is the directory path where the JSON key file will be mounted.
+  # the value of "existingSecret.key" is file name of the service account file.
+  mountPath: /etc/gcloud/service-accounts
+
+# jvmOptions are options that will be passed to the Java Virtual Machine (JVM) 
+# running Feast Core.
+# 
+# For example, it is good practice to set min and max heap size in JVM.
+# https://stackoverflow.com/questions/6902135/side-effect-for-increasing-maxpermsize-and-max-heap-size
+#
+# Refer to https://docs.oracle.com/cd/E22289_01/html/821-1274/configuring-the-default-jvm-and-java-arguments.html
+# to see other JVM options that can be set.
+#
+# jvmOptions: 
+# - -Xms1024m 
+# - -Xmx1024m
+
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 5
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 10
+  successThreshold: 1
+  failureThreshold: 5
+
+service:
+  type: ClusterIP
+  http:
+    port: 80
+    targetPort: 8080
+    # nodePort is the port number that each cluster node will listen to
+    # https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
+    #
+    # nodePort:
+  grpc:
+    port: 6565
+    targetPort: 6565
+    # nodePort is the port number that each cluster node will listen to
+    # https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
+    #
+    # nodePort:
+
+ingress:
+  enabled: false
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+  hosts:
+  # - host: chart-example.local
+  #   port: http
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  #
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

@@ -74,44 +74,4 @@ public class DataflowJobMonitor implements JobMonitor {
     }
     return JobStatus.UNKNOWN;
   }
-
-
-  /**
-   * Get list of feast-related metrics of a dataflow job given the {@code dataflowJobId}.
-   *
-   * @param job job instance.
-   * @return list of feast-related metrics. Or return an empty list if error happens.
-   */
-  public List<Metrics> getJobMetrics(JobInfo job) {
-    if (!Runner.DATAFLOW.getName().equals(job.getRunner())) {
-      return null;
-    }
-
-    String dataflowJobId = job.getExtId();
-    try {
-      JobMetrics jobMetrics = dataflow.projects().locations().jobs()
-          .getMetrics(projectId, location, dataflowJobId).execute();
-      return jobMetrics.getMetrics().stream()
-          // only get feast metrics
-          .filter(m -> FEAST_METRICS_NAMESPACE
-              .equals(m.getName().getContext().get(METRICS_NAMESPACE_KEY)))
-          // convert to internal feast metric structure.
-          .map(m -> mapDataflowMetricsToFeastMetrics(job, m))
-          .filter(m -> m != null)
-          .collect(Collectors.toList());
-    } catch (Exception e) {
-      log.error("Unable to retrieve metrics for job with id: {}\ncause: {}", dataflowJobId, e);
-    }
-    return Collections.emptyList();
-  }
-
-  private Metrics mapDataflowMetricsToFeastMetrics(JobInfo job, MetricUpdate dfMetrics) {
-    String name = dfMetrics.getName().getName();
-    if (dfMetrics.getScalar() == null) {
-      return null;
-    }
-    double value = ((Number) dfMetrics.getScalar()).doubleValue();
-    Metrics feastMetric = new Metrics(job, name, value);
-    return feastMetric;
-  }
 }

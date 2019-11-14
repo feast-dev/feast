@@ -16,12 +16,19 @@
   -->
 
 <configuration>
-  <logger name="feast" level="DEBUG" />
+  <!-- For cleaner logs when running tests so it's easier to see the relevant errors -->
+  <logger name="org.apache.zookeeper" level="WARN" />
+  <logger name="kafka" level="WARN" />
+  <logger name="org.apache.kafka" level="WARN" />
+  <logger name="org.apache.beam.sdk.io.kafka" level="WARN" />
+  <logger name="org.apache.kafka.clients.NetworkClient" level="ERROR" />
+
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
       <pattern>%d{HH:mm:ss} [%thread] %-5level %logger{50} - %msg%n</pattern>
     </encoder>
   </appender>
+
   <root level="INFO">
     <appender-ref ref="STDOUT"/>
   </root>

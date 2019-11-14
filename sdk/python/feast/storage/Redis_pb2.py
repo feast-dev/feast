@@ -13,115 +13,38 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
-from feast.types import Value_pb2 as feast_dot_types_dot_Value__pb2
+from feast.types import Field_pb2 as feast_dot_types_dot_Field__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='feast/storage/Redis.proto',
   package='feast.storage',
   syntax='proto3',
-  serialized_options=_b('\n\rfeast.storageB\nRedisProtoZ8github.com/gojek/feast/protos/generated/go/feast/storage'),
-  serialized_pb=_b('\n\x19\x66\x65\x61st/storage/Redis.proto\x12\rfeast.storage\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17\x66\x65\x61st/types/Value.proto\"R\n\x0eRedisBucketKey\x12\x11\n\tentityKey\x18\x02 \x01(\t\x12\x1b\n\x13\x66\x65\x61tureIdSha1Prefix\x18\x03 \x01(\t\x12\x10\n\x08\x62ucketId\x18\x04 \x01(\x06\"i\n\x10RedisBucketValue\x12!\n\x05value\x18\x01 \x01(\x0b\x32\x12.feast.types.Value\x12\x32\n\x0e\x65ventTimestamp\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\"G\n\x14RedisBucketValueList\x12/\n\x06values\x18\x01 \x03(\x0b\x32\x1f.feast.storage.RedisBucketValueBU\n\rfeast.storageB\nRedisProtoZ8github.com/gojek/feast/protos/generated/go/feast/storageb\x06proto3')
+  serialized_options=_b('\n\rfeast.storageB\nRedisProtoZ2github.com/gojek/feast/sdk/go/protos/feast/storage'),
+  serialized_pb=_b('\n\x19\x66\x65\x61st/storage/Redis.proto\x12\rfeast.storage\x1a\x17\x66\x65\x61st/types/Field.proto\"E\n\x08RedisKey\x12\x13\n\x0b\x66\x65\x61ture_set\x18\x02 \x01(\t\x12$\n\x08\x65ntities\x18\x03 \x03(\x0b\x32\x12.feast.types.FieldBO\n\rfeast.storageB\nRedisProtoZ2github.com/gojek/feast/sdk/go/protos/feast/storageb\x06proto3')
   ,
-  dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,feast_dot_types_dot_Value__pb2.DESCRIPTOR,])
+  dependencies=[feast_dot_types_dot_Field__pb2.DESCRIPTOR,])
 
 
 
 
-_REDISBUCKETKEY = _descriptor.Descriptor(
-  name='RedisBucketKey',
-  full_name='feast.storage.RedisBucketKey',
+_REDISKEY = _descriptor.Descriptor(
+  name='RedisKey',
+  full_name='feast.storage.RedisKey',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='entityKey', full_name='feast.storage.RedisBucketKey.entityKey', index=0,
+      name='feature_set', full_name='feast.storage.RedisKey.feature_set', index=0,
       number=2, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='featureIdSha1Prefix', full_name='feast.storage.RedisBucketKey.featureIdSha1Prefix', index=1,
-      number=3, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='bucketId', full_name='feast.storage.RedisBucketKey.bucketId', index=2,
-      number=4, type=6, cpp_type=4, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=102,
-  serialized_end=184,
-)
-
-
-_REDISBUCKETVALUE = _descriptor.Descriptor(
-  name='RedisBucketValue',
-  full_name='feast.storage.RedisBucketValue',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='value', full_name='feast.storage.RedisBucketValue.value', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='eventTimestamp', full_name='feast.storage.RedisBucketValue.eventTimestamp', index=1,
-      number=2, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=186,
-  serialized_end=291,
-)
-
-
-_REDISBUCKETVALUELIST = _descriptor.Descriptor(
-  name='RedisBucketValueList',
-  full_name='feast.storage.RedisBucketValueList',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='values', full_name='feast.storage.RedisBucketValueList.values', index=0,
-      number=1, type=11, cpp_type=10, label=3,
+      name='entities', full_name='feast.storage.RedisKey.entities', index=1,
+      number=3, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -138,38 +61,20 @@ _REDISBUCKETVALUELIST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=293,
-  serialized_end=364,
+  serialized_start=69,
+  serialized_end=138,
 )
 
-_REDISBUCKETVALUE.fields_by_name['value'].message_type = feast_dot_types_dot_Value__pb2._VALUE
-_REDISBUCKETVALUE.fields_by_name['eventTimestamp'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
-_REDISBUCKETVALUELIST.fields_by_name['values'].message_type = _REDISBUCKETVALUE
-DESCRIPTOR.message_types_by_name['RedisBucketKey'] = _REDISBUCKETKEY
-DESCRIPTOR.message_types_by_name['RedisBucketValue'] = _REDISBUCKETVALUE
-DESCRIPTOR.message_types_by_name['RedisBucketValueList'] = _REDISBUCKETVALUELIST
+_REDISKEY.fields_by_name['entities'].message_type = feast_dot_types_dot_Field__pb2._FIELD
+DESCRIPTOR.message_types_by_name['RedisKey'] = _REDISKEY
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-RedisBucketKey = _reflection.GeneratedProtocolMessageType('RedisBucketKey', (_message.Message,), dict(
-  DESCRIPTOR = _REDISBUCKETKEY,
-  __module__ = 'feast.storage.Redis_pb2'
-  # @@protoc_insertion_point(class_scope:feast.storage.RedisBucketKey)
-  ))
-_sym_db.RegisterMessage(RedisBucketKey)
-
-RedisBucketValue = _reflection.GeneratedProtocolMessageType('RedisBucketValue', (_message.Message,), dict(
-  DESCRIPTOR = _REDISBUCKETVALUE,
-  __module__ = 'feast.storage.Redis_pb2'
-  # @@protoc_insertion_point(class_scope:feast.storage.RedisBucketValue)
-  ))
-_sym_db.RegisterMessage(RedisBucketValue)
-
-RedisBucketValueList = _reflection.GeneratedProtocolMessageType('RedisBucketValueList', (_message.Message,), dict(
-  DESCRIPTOR = _REDISBUCKETVALUELIST,
-  __module__ = 'feast.storage.Redis_pb2'
-  # @@protoc_insertion_point(class_scope:feast.storage.RedisBucketValueList)
-  ))
-_sym_db.RegisterMessage(RedisBucketValueList)
+RedisKey = _reflection.GeneratedProtocolMessageType('RedisKey', (_message.Message,), {
+  'DESCRIPTOR' : _REDISKEY,
+  '__module__' : 'feast.storage.Redis_pb2'
+  # @@protoc_insertion_point(class_scope:feast.storage.RedisKey)
+  })
+_sym_db.RegisterMessage(RedisKey)
 
 
 DESCRIPTOR._options = None

@@ -19,27 +19,37 @@ package feast.core.job.dataflow;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.api.services.dataflow.Dataflow;
 import com.google.common.collect.Lists;
-import feast.core.config.ImportJobDefaults;
-import feast.core.util.PathUtil;
-import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
-import feast.specs.ImportSpecProto.ImportSpec;
-import java.io.ByteArrayInputStream;
+import com.google.protobuf.util.JsonFormat;
+import com.google.protobuf.util.JsonFormat.Printer;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.StoreProto;
+import feast.core.StoreProto.Store.RedisConfig;
+import feast.core.StoreProto.Store.StoreType;
+import feast.core.config.FeastProperties.MetricsProperties;
+import feast.core.exception.JobExecutionException;
+import feast.ingestion.options.ImportOptions;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.beam.runners.dataflow.DataflowPipelineJob;
+import org.apache.beam.runners.dataflow.DataflowRunner;
+import org.apache.beam.sdk.PipelineResult.State;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.junit.rules.TemporaryFolder;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 
@@ -49,99 +59,101 @@ public class DataflowJobManagerTest {
   public final ExpectedException expectedException = ExpectedException.none();
 
   @Mock
-  Dataflow dataflow;
+  private Dataflow dataflow;
 
-  @Rule
-  public TemporaryFolder tempFolder = new TemporaryFolder();
-
-  private ImportJobDefaults defaults;
+  private Map<String, String> defaults;
   private DataflowJobManager dfJobManager;
-  private Path workspace;
 
   @Before
-  public void setUp() throws IOException {
+  public void setUp() {
     initMocks(this);
-    workspace = Paths.get(tempFolder.newFolder().toString());
-    defaults =
-        ImportJobDefaults.builder()
-            .runner("DataflowRunner")
-            .importJobOptions("{\"key\":\"value\"}")
-            .executable("ingestion.jar")
-            .workspace(workspace.toString()).build();
-    dfJobManager = new DataflowJobManager(dataflow, "project", "location", defaults);
+    defaults = new HashMap<>();
+    defaults.put("project", "project");
+    defaults.put("region", "region");
+    MetricsProperties metricsProperties = new MetricsProperties();
+    metricsProperties.setEnabled(false);
+    dfJobManager = new DataflowJobManager(dataflow, defaults, metricsProperties);
+    dfJobManager = spy(dfJobManager);
   }
 
   @Test
-  public void shouldBuildProcessBuilderWithCorrectOptions() {
-    ImportSpec importSpec = ImportSpec.newBuilder().setType("file").build();
-    String jobName = "test";
-    ImportJobSpecs importJobSpecs = ImportJobSpecs.newBuilder().setJobId(jobName)
-        .setImportSpec(importSpec).build();
+  public void shouldStartJobWithCorrectPipelineOptions() throws IOException {
+    StoreProto.Store store = StoreProto.Store.newBuilder()
+        .setName("SERVING")
+        .setType(StoreType.REDIS)
+        .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
+        .build();
 
-    ProcessBuilder pb = dfJobManager.getProcessBuilder(importJobSpecs, Paths.get("/tmp/foobar"));
-    List<String> expected =
-        Lists.newArrayList(
-            "java",
-            "-jar",
-            "ingestion.jar",
-            "--jobName=test",
-            "--workspace=file:///tmp/foobar",
-            "--runner=DataflowRunner",
-            "--key=value");
-    assertThat(pb.command(), equalTo(expected));
+    FeatureSetSpec featureSetSpec = FeatureSetSpec.newBuilder()
+        .setName("featureSet")
+        .setVersion(1)
+        .build();
+
+    Printer printer = JsonFormat.printer();
+    String expectedExtJobId = "feast-job-0";
+    String jobName = "job";
+
+    ImportOptions expectedPipelineOptions = PipelineOptionsFactory.fromArgs("")
+        .as(ImportOptions.class);
+    expectedPipelineOptions.setRunner(DataflowRunner.class);
+    expectedPipelineOptions.setProject("project");
+    expectedPipelineOptions.setRegion("region");
+    expectedPipelineOptions.setUpdate(false);
+    expectedPipelineOptions.setAppName("DataflowJobManager");
+    expectedPipelineOptions.setJobName(jobName);
+    expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
+    expectedPipelineOptions
+        .setFeatureSetSpecJson(Lists.newArrayList(printer.print(featureSetSpec)));
+
+    ArgumentCaptor<ImportOptions> captor = ArgumentCaptor
+        .forClass(ImportOptions.class);
+
+    DataflowPipelineJob mockPipelineResult = Mockito.mock(DataflowPipelineJob.class);
+    when(mockPipelineResult.getState()).thenReturn(State.RUNNING);
+    when(mockPipelineResult.getJobId()).thenReturn(expectedExtJobId);
+
+    doReturn(mockPipelineResult).when(dfJobManager).runPipeline(any());
+    String jobId = dfJobManager.startJob(jobName, Lists.newArrayList(featureSetSpec), store);
+
+    verify(dfJobManager, times(1)).runPipeline(captor.capture());
+    ImportOptions actualPipelineOptions = captor.getValue();
+
+    expectedPipelineOptions.setOptionsId(actualPipelineOptions.getOptionsId()); // avoid comparing this value
+
+    // We only check that we are calling getFilesToStage() manually, because the automatic approach
+    // throws an error: https://github.com/gojek/feast/pull/291 i.e. do not check for the actual files that are staged
+    assertThat("filesToStage in pipelineOptions should not be null, job manager should set it.", actualPipelineOptions.getFilesToStage() != null);
+    assertThat("filesToStage in pipelineOptions should contain at least 1 item", actualPipelineOptions.getFilesToStage().size() > 0);
+    // Assume the files that are staged are correct
+    expectedPipelineOptions.setFilesToStage(actualPipelineOptions.getFilesToStage());
+
+    assertThat(actualPipelineOptions.toString(),
+        equalTo(expectedPipelineOptions.toString()));
+    assertThat(jobId, equalTo(expectedExtJobId));
   }
 
-  @Test
-  public void shouldBuildProcessBuilderWithGCSWorkspace() {
-    ImportSpec importSpec = ImportSpec.newBuilder().setType("file").build();
-    String jobName = "test";
-    ImportJobSpecs importJobSpecs = ImportJobSpecs.newBuilder().setJobId(jobName)
-        .setImportSpec(importSpec).build();
-
-    ProcessBuilder pb = dfJobManager.getProcessBuilder(importJobSpecs, PathUtil.getPath("gs://bucket/tmp/foobar"));
-    List<String> expected =
-        Lists.newArrayList(
-            "java",
-            "-jar",
-            "ingestion.jar",
-            "--jobName=test",
-            "--workspace=gs://bucket/tmp/foobar",
-            "--runner=DataflowRunner",
-            "--key=value");
-    assertThat(pb.command(), equalTo(expected));
-  }
 
   @Test
-  public void shouldRunProcessAndGetJobIdIfNoError() throws IOException {
-    Process process = Mockito.mock(Process.class);
-    String processOutput = "log1: asdds\nlog2: dasdasd\nlog3: FeastImportJobId:1231231231\n";
-    String errorOutput = "";
-    InputStream outputStream =
-        new ByteArrayInputStream(processOutput.getBytes(StandardCharsets.UTF_8));
-    InputStream errorStream =
-        new ByteArrayInputStream(errorOutput.getBytes(StandardCharsets.UTF_8));
-    when(process.getInputStream()).thenReturn(outputStream);
-    when(process.getErrorStream()).thenReturn(errorStream);
-    when(process.exitValue()).thenReturn(0);
-    when(process.isAlive()).thenReturn(true).thenReturn(false);
-    String jobId = dfJobManager.runProcess(process);
-    assertThat(jobId, equalTo("1231231231"));
-  }
+  public void shouldThrowExceptionWhenJobStateTerminal() throws IOException {
+    StoreProto.Store store = StoreProto.Store.newBuilder()
+        .setName("SERVING")
+        .setType(StoreType.REDIS)
+        .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
+        .build();
 
-  @Test
-  public void shouldThrowRuntimeExceptionIfErrorOccursInProcess() {
-    Process process = Mockito.mock(Process.class);
-    String processOutput = "log1: asdds\nlog2: dasdasd\n";
-    String errorOutput = "error: stacktrace";
-    InputStream outputStream =
-        new ByteArrayInputStream(processOutput.getBytes(StandardCharsets.UTF_8));
-    InputStream errorStream =
-        new ByteArrayInputStream(errorOutput.getBytes(StandardCharsets.UTF_8));
-    when(process.getInputStream()).thenReturn(outputStream);
-    when(process.getErrorStream()).thenReturn(errorStream);
-    when(process.exitValue()).thenReturn(1);
-    when(process.isAlive()).thenReturn(true).thenReturn(false);
-    expectedException.expect(RuntimeException.class);
-    dfJobManager.runProcess(process);
+    FeatureSetSpec featureSetSpec = FeatureSetSpec.newBuilder()
+        .setName("featureSet")
+        .setVersion(1)
+        .build();
+
+    dfJobManager = Mockito.spy(dfJobManager);
+
+    DataflowPipelineJob mockPipelineResult = Mockito.mock(DataflowPipelineJob.class);
+    when(mockPipelineResult.getState()).thenReturn(State.FAILED);
+
+    doReturn(mockPipelineResult).when(dfJobManager).runPipeline(any());
+
+    expectedException.expect(JobExecutionException.class);
+    dfJobManager.startJob("job", Lists.newArrayList(featureSetSpec), store);
   }
 }

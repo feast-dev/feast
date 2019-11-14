@@ -17,109 +17,145 @@
 
 package feast.core.job.direct;
 
-import com.google.common.annotations.VisibleForTesting;
-import feast.core.config.ImportJobDefaults;
+import com.google.common.base.Strings;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
+import com.google.protobuf.util.JsonFormat.Printer;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.StoreProto;
+import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
+import feast.core.job.Runner;
+import feast.core.model.FeatureSet;
+import feast.core.model.JobInfo;
 import feast.core.util.TypeConversion;
-import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.file.Path;
+import feast.ingestion.ImportJob;
+import feast.ingestion.options.ImportOptions;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.beam.runners.direct.DirectRunner;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
 @Slf4j
 public class DirectRunnerJobManager implements JobManager {
 
-  private static final int SLEEP_MS = 10;
-  private static final Pattern JOB_EXT_ID_PREFIX_REGEX = Pattern.compile(".*FeastImportJobId:.*");
-  protected ImportJobDefaults defaults;
+  private final Runner RUNNER_TYPE = Runner.DIRECT;
 
-  public DirectRunnerJobManager(ImportJobDefaults importJobDefaults) {
-    this.defaults = importJobDefaults;
+  protected Map<String, String> defaultOptions;
+  private final DirectJobRegistry jobs;
+  private MetricsProperties metrics;
+
+
+  public DirectRunnerJobManager(Map<String, String> defaultOptions, DirectJobRegistry jobs,
+      MetricsProperties metricsProperties) {
+    this.defaultOptions = defaultOptions;
+    this.jobs = jobs;
+    this.metrics = metricsProperties;
   }
 
   @Override
-  public String submitJob(ImportJobSpecs importJobSpecs, Path workspace) {
-    ProcessBuilder pb = getProcessBuilder(importJobSpecs, workspace);
+  public Runner getRunnerType() {
+    return RUNNER_TYPE;
+  }
 
-    log.info(String.format("Executing command: %s", String.join(" ", pb.command())));
-
+  /**
+   * Start a direct runner job.
+   *
+   * @param name of job to run
+   * @param featureSetSpecs list of specs for featureSets to be populated by the job
+   * @param sinkSpec Store to sink features to
+   */
+  @Override
+  public String startJob(String name, List<FeatureSetSpec> featureSetSpecs,
+      StoreProto.Store sinkSpec) {
     try {
-      Process p = pb.start();
-      return runProcess(p);
+      ImportOptions pipelineOptions = getPipelineOptions(featureSetSpecs, sinkSpec);
+      PipelineResult pipelineResult = runPipeline(pipelineOptions);
+      DirectJob directJob = new DirectJob(name, pipelineResult);
+      jobs.add(directJob);
+      return name;
     } catch (Exception e) {
       log.error("Error submitting job", e);
       throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
     }
   }
 
+  private ImportOptions getPipelineOptions(List<FeatureSetSpec> featureSetSpecs,
+      StoreProto.Store sink)
+      throws InvalidProtocolBufferException {
+    String[] args = TypeConversion.convertMapToArgs(defaultOptions);
+    ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
+    Printer printer = JsonFormat.printer();
+    List<String> featureSetsJson = new ArrayList<>();
+    for (FeatureSetSpec featureSetSpec : featureSetSpecs) {
+      featureSetsJson.add(printer.print(featureSetSpec));
+    }
+    pipelineOptions.setFeatureSetSpecJson(featureSetsJson);
+    pipelineOptions.setStoreJson(Collections.singletonList(printer.print(sink)));
+    pipelineOptions.setRunner(DirectRunner.class);
+    pipelineOptions.setProject(""); // set to default value to satisfy validation
+    if (metrics.isEnabled()) {
+      pipelineOptions.setMetricsExporterType(metrics.getType());
+      if (metrics.getType().equals("statsd")) {
+        pipelineOptions.setStatsdHost(metrics.getHost());
+        pipelineOptions.setStatsdPort(metrics.getPort());
+      }
+    }
+    pipelineOptions.setBlockOnRun(false);
+    return pipelineOptions;
+  }
+
+  /**
+   * Stops an existing job and restarts a new job in its place as a proxy for job updates.
+   * Note that since we do not maintain a consumer group across the two jobs and the old job
+   * is not drained, some data may be lost.
+   *
+   * As a rule of thumb, direct jobs in feast should only be used for testing.
+   *
+   * @param jobInfo jobInfo of target job to change
+   * @return jobId of the job
+   */
   @Override
-  public void abortJob(String extId) {
-    throw new UnsupportedOperationException("Unable to abort a job running in direct runner");
-  }
-
-  /**
-   * Builds the command to execute the ingestion job
-   *
-   * @return configured ProcessBuilder
-   */
-  @VisibleForTesting
-  public ProcessBuilder getProcessBuilder(ImportJobSpecs importJobSpecs, Path workspace) {
-    Map<String, String> options =
-        TypeConversion.convertJsonStringToMap(defaults.getImportJobOptions());
-    List<String> commands = new ArrayList<>();
-    commands.add("java");
-    commands.add("-jar");
-    commands.add(defaults.getExecutable());
-    commands.add(option("jobName", importJobSpecs.getJobId()));
-    commands.add(option("workspace", workspace.toUri().toString()));
-    commands.add(option("runner", defaults.getRunner()));
-
-    options.forEach((k, v) -> commands.add(option(k, v)));
-    return new ProcessBuilder(commands);
-  }
-
-  /**
-   * Run the given process and extract the job id from the output logs
-   *
-   * @param p Process
-   * @return job id
-   */
-  @VisibleForTesting
-  public String runProcess(Process p) {
-    try (BufferedReader outputStream =
-        new BufferedReader(new InputStreamReader(p.getInputStream()));
-        BufferedReader errorsStream =
-            new BufferedReader(new InputStreamReader(p.getErrorStream()))) {
-      String extId = "";
-      while (p.isAlive()) {
-        while (outputStream.ready()) {
-          String l = outputStream.readLine();
-          System.out.println(l);
-          if (JOB_EXT_ID_PREFIX_REGEX.matcher(l).matches()) {
-            extId = l.split("FeastImportJobId:")[1];
-          }
-        }
-        Thread.sleep(SLEEP_MS);
+  public String updateJob(JobInfo jobInfo) {
+    String jobId = jobInfo.getExtId();
+    abortJob(jobId);
+    try {
+      List<FeatureSetSpec> featureSetSpecs = new ArrayList<>();
+      for (FeatureSet featureSet : jobInfo.getFeatureSets()) {
+        featureSetSpecs.add(featureSet.toProto());
       }
-      if (p.exitValue() > 0) {
-        Optional<String> errorString = errorsStream.lines().reduce((l1, l2) -> l1 + '\n' + l2);
-        throw new RuntimeException(String.format("Could not submit job: \n%s", errorString));
-      }
-      return extId;
-    } catch (Exception e) {
-      log.error("Error running ingestion job: ", e);
+      startJob(jobId, featureSetSpecs, jobInfo.getStore().toProto());
+    } catch (JobExecutionException | InvalidProtocolBufferException e) {
       throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
     }
+    return jobId;
   }
 
-  private String option(String key, String value) {
-    return String.format("--%s=%s", key, value);
+  /**
+   * Abort the direct runner job with the given id, then remove it from the direct jobs registry.
+   *
+   * @param extId runner specific job id.
+   */
+  @Override
+  public void abortJob(String extId) {
+    DirectJob job = jobs.get(extId);
+    try {
+      job.abort();
+    } catch (IOException e) {
+      throw new RuntimeException(
+          Strings.lenientFormat("Unable to abort DirectRunner job %s", extId), e);
+    }
+    jobs.remove(extId);
+  }
+
+  public PipelineResult runPipeline(ImportOptions pipelineOptions)
+      throws IOException {
+    return ImportJob.runPipeline(pipelineOptions);
   }
 }
