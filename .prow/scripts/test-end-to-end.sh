@@ -56,7 +56,7 @@ Starting remote kafka and redis instances
 
 ============================================================
 "
-INSTANCE_NAME=feast_$(date +%s)
+INSTANCE_NAME=feast-pr-$(date +%s)
 REMOTE_HOST=${INSTANCE_NAME}.us-central1.c.kf-feast.internal
 
 gcloud compute instances create $INSTANCE_NAME \
