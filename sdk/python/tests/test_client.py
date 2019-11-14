@@ -11,11 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from datetime import datetime
+import pytz
 import tempfile
 import time
 import grpc
 import pandas as pd
 import numpy as np
+from pytz import timezone
 from pandavro import to_avro
 import feast.core.CoreService_pb2_grpc as Core
 import feast.serving.ServingService_pb2_grpc as Serving
@@ -250,7 +253,7 @@ class TestClient:
 
         expected_dataframe = pd.DataFrame(
             {
-                "datetime": [np.int64(time.time_ns()) for _ in range(3)],
+                "datetime": [datetime.utcnow() for _ in range(3)],
                 "customer": [1001, 1002, 1003],
                 "transaction": [1001, 1002, 1003],
                 "customer_fs:1:customer_feature_1": [1001, 1002, 1003],
@@ -293,7 +296,7 @@ class TestClient:
             mock_client._serving_service_stub,
             "GetFeastServingInfo",
             return_value=GetFeastServingInfoResponse(
-                job_staging_location=f"file://{tempfile.mkdtemp()}",
+                job_staging_location=f"file://{tempfile.mkdtemp()}/",
                 type=FeastServingType.FEAST_SERVING_TYPE_BATCH,
             ),
         )
@@ -301,7 +304,9 @@ class TestClient:
         response = mock_client.get_batch_features(
             entity_rows=pd.DataFrame(
                 {
-                    "datetime": [np.int64(time.time_ns()) for _ in range(3)],
+                    "datetime": [
+                        pd.datetime.now(tz=timezone("Asia/Singapore")) for _ in range(3)
+                    ],
                     "customer": [1001, 1002, 1003],
                     "transaction": [1001, 1002, 1003],
                 }

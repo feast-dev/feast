@@ -73,7 +73,7 @@ def export_dataframe_to_staging_location(
     if uri.scheme == "gs":
         dir_path, file_name, source_path = export_dataframe_to_local(df)
         upload_file_to_gcs(
-            source_path, uri.hostname, str(uri.path).lstrip("/") + file_name
+            source_path, uri.hostname, str(uri.path).strip("/") + "/" + file_name
         )
         if len(str(dir_path)) < 5:
             raise Exception(f"Export location {dir_path} dangerous. Stopping.")
@@ -84,7 +84,8 @@ def export_dataframe_to_staging_location(
         raise Exception(
             f"Staging location {staging_location_uri} does not have a valid URI. Only gs:// and file:// are supported"
         )
-    return staging_location_uri + file_name
+
+    return staging_location_uri.rstrip("/") + "/" + file_name
 
 
 def upload_file_to_gcs(local_path: str, bucket: str, remote_path: str):

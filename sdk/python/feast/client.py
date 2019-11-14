@@ -51,7 +51,6 @@ from urllib.parse import urlparse
 import uuid
 import numpy as np
 import sys
-
 from feast.utils.loaders import export_dataframe_to_staging_location
 
 GRPC_CONNECTION_TIMEOUT_DEFAULT = 3  # type: int
@@ -315,7 +314,7 @@ class Client:
 
             entity_rows: Pandas dataframe containing entities and a 'datetime' column. Each entity in
             a feature set must be present as a column in this dataframe. The datetime column must
-            contain timestamps in epoch form and must have the type np.int64
+            contain timestamps in datetime64 format
 
         Returns:
             Feast batch retrieval job: feast.job.Job
@@ -329,7 +328,7 @@ class Client:
         >>> feature_ids = ["customer:1:bookings_7d"]
         >>> entity_rows = pd.DataFrame(
         >>>         {
-        >>>            "datetime": [np.int64(time.time_ns()) for _ in range(3)],
+        >>>            "datetime": [pd.datetime.now() for _ in range(3)],
         >>>            "customer": [1001, 1002, 1003],
         >>>         }
         >>>     )
@@ -346,11 +345,21 @@ class Client:
             # Validate entity rows based on entities in Feast Core
             self._validate_entity_rows_for_batch_retrieval(entity_rows, fs_request)
 
-            # we want the timestamp column naming to be consistent with the rest of feast
+            # We want the timestamp column naming to be consistent with the
+            # rest of Feast
             entity_rows.columns = [
                 "event_timestamp" if col == "datetime" else col
                 for col in entity_rows.columns
             ]
+
+            # Remove timezone from datetime column
+            if isinstance(
+                entity_rows["event_timestamp"].dtype,
+                pd.core.dtypes.dtypes.DatetimeTZDtype,
+            ):
+                entity_rows["event_timestamp"] = pd.DatetimeIndex(
+                    entity_rows["event_timestamp"]
+                ).tz_localize(None)
 
             # Retrieve serving information to determine store type and staging location
             serving_info = self._serving_service_stub.GetFeastServingInfo(
@@ -389,10 +398,10 @@ class Client:
         """
         Validate whether an entity_row dataframe contains the correct information for batch retrieval
         :param entity_rows: Pandas dataframe containing entities and datetime column. Each entity in a feature set
-        must be present as a column in this dataframe. The datetime column must contain Unix Epoch values down to
-        nanoseconds
+        must be present as a column in this dataframe.
         :param feature_sets_request: Feature sets that will
         """
+
         # Ensure datetime column exists
         if "datetime" not in entity_rows.columns:
             raise ValueError(
