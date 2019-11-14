@@ -37,6 +37,8 @@ echo "
 Installing Postgres at localhost:5432
 ============================================================
 "
+apt-get update
+
 apt-get -y install postgresql > /var/log/postgresql.install.log
 service postgresql start
 # Initialize with database: 'postgres', user: 'postgres', password: 'password'
@@ -58,7 +60,7 @@ INSTANCE_NAME=feast_$(date +%s)
 REMOTE_HOST=${INSTANCE_NAME}.us-central1.c.kf-feast.internal
 
 gcloud compute instances create $INSTANCE_NAME \
-  --source-instance-template feast-external-resources
+  --zone us-central1 --source-instance-template feast-external-resources
 
 sleep 10
 
@@ -267,5 +269,6 @@ Cleaning up
 
 bq rm -r -f kf-feast:$DATASET_NAME
 gcloud compute instances delete $INSTANCE_NAME
+
 
 exit ${TEST_EXIT_CODE}
