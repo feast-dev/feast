@@ -15,9 +15,10 @@
 package cmd
 
 import (
+	"crypto/tls"
 	"fmt"
-
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 // global variables
@@ -28,7 +29,7 @@ var (
 
 func initConn() {
 	var err error
-	coreConn, err = grpc.Dial(cfg.CoreURI, grpc.WithInsecure())
+	coreConn, err = grpc.Dial(cfg.CoreURI, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
 	if err != nil {
 		handleErr(fmt.Errorf("unable to connect to core service at %s: %v", cfg.CoreURI, err))
 	}
@@ -36,6 +37,9 @@ func initConn() {
 
 func closeConn() {
 	if coreConn != nil {
-		coreConn.Close()
+		err := coreConn.Close()
+		if err != nil {
+			handleErr(fmt.Errorf("unable to close connection: %v", err))
+		}
 	}
 }
