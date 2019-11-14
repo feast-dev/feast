@@ -54,6 +54,22 @@ docker run --rm --name feast-build \
     test
 ```
 
+```bash
+docker run --rm --name feast-build \
+    -v $(pwd):/workspace \
+    -v go_cache:/cache/go \
+    -v m2_cache:/cache/m2 \
+    -w /workspace/sdk/python \
+    -e GO111MODULE=on \
+    -e GOPATH=/cache/go \
+    -e MAVEN_OPTS=-Dmaven.repo.local=/cache/m2 \
+    -e FEAST_VERSION=ff-$(git rev-parse --short HEAD) \
+    -e SKIP_BIGQUERY_TEST=true \
+    --entrypoint sh -- \
+    python:3.7-buster \
+    -c 'pip install -r requirements-test.txt && pip install . && pytest ./tests'
+```
+
 ### How-to: Run locally
 
 ```bash
