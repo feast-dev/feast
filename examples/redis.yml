@@ -1,5 +1,0 @@
-id: REDIS1
-type: redis
-options:
-  host: 10.19.255.250
-  port: 6379

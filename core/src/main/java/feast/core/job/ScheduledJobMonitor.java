@@ -32,6 +32,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Component
@@ -39,28 +40,30 @@ public class ScheduledJobMonitor {
 
   private final JobMonitor jobMonitor;
   private final JobInfoRepository jobInfoRepository;
-  private final StatsdMetricPusher statsdMetricPusher;
 
   @Autowired
   public ScheduledJobMonitor(
       JobMonitor jobMonitor,
-      JobInfoRepository jobInfoRepository,
-      StatsdMetricPusher statsdMetricPusher) {
+      JobInfoRepository jobInfoRepository) {
     this.jobMonitor = jobMonitor;
     this.jobInfoRepository = jobInfoRepository;
-    this.statsdMetricPusher = statsdMetricPusher;
   }
 
-  @Scheduled(
-      fixedDelayString = "${feast.jobs.monitor.period}",
-      initialDelayString = "${feast.jobs.monitor.initialDelay}")
+
+  // TODO: Keep receiving the following exception with these arguments below
+  //       Caused by: java.lang.IllegalStateException: Encountered invalid @Scheduled method 'pollStatusAndMetrics': Circular placeholder reference .. in property definitions
+  // @Scheduled(
+  //    fixedDelayString = "${feast.jobs.monitor.fixedDelay}",
+  //    initialDelayString = "${feast.jobs.monitor.initialDelay}")
+  //
+  @Transactional
+  @Scheduled(cron = "* * * * * *")
   public void pollStatusAndMetrics() {
-    getJobMetrics();
-    getJobStatus();
+    updateJobStatus();
   }
 
   /** Periodically pull status of job which is not in terminal state and update the status in DB. */
-  /* package */ void getJobStatus() {
+  /* package */ void updateJobStatus() {
     if (jobMonitor instanceof NoopJobMonitor) {
       return;
     }
@@ -84,30 +87,6 @@ public class ScheduledJobMonitor {
             jobStatus);
       }
       job.setStatus(jobStatus);
-      jobInfoRepository.save(job);
-    }
-  }
-
-  /** Periodically pull metrics of job which is not in terminal state and push it to statsd. */
-  /* package */ void getJobMetrics() {
-    if (jobMonitor instanceof NoopJobMonitor) {
-      return;
-    }
-
-    Collection<JobInfo> nonTerminalJobs =
-        jobInfoRepository.findByStatusNotIn(JobStatus.getTerminalState());
-
-    for (JobInfo job : nonTerminalJobs) {
-      if (Strings.isNullOrEmpty(job.getExtId())) {
-        continue;
-      }
-      List<Metrics> metrics = jobMonitor.getJobMetrics(job);
-      if (metrics == null) {
-        continue;
-      }
-
-      job.setMetrics(metrics);
-      statsdMetricPusher.pushMetrics(metrics);
       jobInfoRepository.save(job);
     }
   }

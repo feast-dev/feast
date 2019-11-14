@@ -18,8 +18,7 @@
 // package io.suryawirawan.henry.beam.redis.io;
 package feast.store.serving.redis;
 
-import lombok.Builder;
-import lombok.Data;
+import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -34,12 +33,14 @@ import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.Response;
 
 public class RedisCustomIO {
+
   private static final int DEFAULT_BATCH_SIZE = 1000;
   private static final int DEFAULT_TIMEOUT = 2000;
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(RedisCustomIO.class);
+  private static final Logger log = LoggerFactory.getLogger(RedisCustomIO.class);
 
-  private RedisCustomIO() {}
+  private RedisCustomIO() {
+  }
 
   public static Write write(String host, int port) {
     return new Write(host, port);
@@ -53,7 +54,9 @@ public class RedisCustomIO {
      */
     APPEND,
 
-    /** Use SET command. If key already holds a value, it is overwritten. */
+    /**
+     * Use SET command. If key already holds a value, it is overwritten.
+     */
     SET,
 
     /**
@@ -86,18 +89,74 @@ public class RedisCustomIO {
     ZADD
   }
 
-  @Builder
-  @Data
-  @DefaultCoder(value = AvroCoder.class)
+  @DefaultCoder(AvroCoder.class)
   public static class RedisMutation {
-    private final Method method;
-    private final byte[] key;
-    private final byte[] value;
-    private final long expiryMillis;
-    private final long score; // Score is only utilized when method is ZSET
+
+    private Method method;
+    private byte[] key;
+    private byte[] value;
+    @Nullable
+    private Long expiryMillis;
+    @Nullable
+    private Long score;
+
+    public RedisMutation() {}
+
+    public RedisMutation(Method method, byte[] key, byte[] value, @Nullable Long expiryMillis,
+        @Nullable Long score) {
+      this.method = method;
+      this.key = key;
+      this.value = value;
+      this.expiryMillis = expiryMillis;
+      this.score = score;
+    }
+
+    public Method getMethod() {
+      return method;
+    }
+
+    public void setMethod(Method method) {
+      this.method = method;
+    }
+
+    public byte[] getKey() {
+      return key;
+    }
+
+    public void setKey(byte[] key) {
+      this.key = key;
+    }
+
+    public byte[] getValue() {
+      return value;
+    }
+
+    public void setValue(byte[] value) {
+      this.value = value;
+    }
+
+    @Nullable
+    public Long getExpiryMillis() {
+      return expiryMillis;
+    }
+
+    public void setExpiryMillis(@Nullable Long expiryMillis) {
+      this.expiryMillis = expiryMillis;
+    }
+
+    @Nullable
+    public Long getScore() {
+      return score;
+    }
+
+    public void setScore(@Nullable Long score) {
+      this.score = score;
+    }
   }
 
-  /** ServingStoreWrite data to a Redis server. */
+  /**
+   * ServingStoreWrite data to a Redis server.
+   */
   public static class Write extends PTransform<PCollection<RedisMutation>, PDone> {
 
     private WriteDoFn dofn;
@@ -138,12 +197,16 @@ public class RedisCustomIO {
       }
 
       public WriteDoFn withBatchSize(int batchSize) {
-        if (batchSize > 0) this.batchSize = batchSize;
+        if (batchSize > 0) {
+          this.batchSize = batchSize;
+        }
         return this;
       }
 
       public WriteDoFn withTimeout(int timeout) {
-        if (timeout > 0) this.timeout = timeout;
+        if (timeout > 0) {
+          this.timeout = timeout;
+        }
         return this;
       }
 
@@ -163,7 +226,7 @@ public class RedisCustomIO {
       public void processElement(ProcessContext context) {
         RedisMutation mutation = context.element();
         writeRecord(mutation);
-        if (mutation.getExpiryMillis() > 0) {
+        if (mutation.getExpiryMillis() != null && mutation.getExpiryMillis() > 0) {
           pipeline.pexpire(mutation.getKey(), mutation.getExpiryMillis());
         }
         batchCount++;

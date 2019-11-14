@@ -16,17 +16,15 @@
 
 syntax = "proto3";
 
-import "google/protobuf/timestamp.proto";
-
 package feast.types;
 
 option java_package = "feast.types";
 option java_outer_classname = "ValueProto";
-option go_package = "github.com/gojek/feast/protos/generated/go/feast/types";
+option go_package = "github.com/gojek/feast/sdk/go/protos/feast/types";
 
 message ValueType {
   enum Enum {
-    UNKNOWN = 0;
+    INVALID = 0;
     BYTES = 1;
     STRING = 2;
     INT32 = 3;
@@ -34,36 +32,34 @@ message ValueType {
     DOUBLE = 5;
     FLOAT = 6;
     BOOL = 7;
-    TIMESTAMP = 8;
+    BYTES_LIST = 11;
+    STRING_LIST = 12;
+    INT32_LIST = 13;
+    INT64_LIST = 14;
+    DOUBLE_LIST = 15;
+    FLOAT_LIST = 16;
+    BOOL_LIST = 17;
   }
 }
 
 message Value {
   // ValueType is referenced by the metadata types, FeatureInfo and EntityInfo.
   // The enum values do not have to match the oneof val field ids, but they should.
-
   oneof val {
-    bytes bytesVal = 1;
-    string stringVal = 2;
-    int32 int32Val = 3;
-    int64 int64Val = 4;
-    double doubleVal = 5;
-    float floatVal = 6;
-    bool boolVal = 7;
-    google.protobuf.Timestamp timestampVal = 8;
-  }
-}
-
-message ValueList {
-  oneof valueList {
-    BytesList bytesList = 1;
-    StringList stringList = 2;
-    Int32List int32List = 3;
-    Int64List int64List = 4;
-    DoubleList doubleList = 5;
-    FloatList floatList = 6;
-    BoolList boolList = 7;
-    TimestampList timestampList = 8;
+    bytes bytes_val = 1;
+    string string_val = 2;
+    int32 int32_val = 3;
+    int64 int64_val = 4;
+    double double_val = 5;
+    float float_val = 6;
+    bool bool_val = 7;
+    BytesList bytes_list_val = 11;
+    StringList string_list_val = 12;
+    Int32List int32_list_val = 13;
+    Int64List int64_list_val = 14;
+    DoubleList double_list_val = 15;
+    FloatList float_list_val = 16;
+    BoolList bool_list_val = 17;
   }
 }
 
@@ -93,8 +89,4 @@ message FloatList {
 
 message BoolList {
   repeated bool val = 1;
-}
-
-message TimestampList {
-  repeated google.protobuf.Timestamp val = 1;
 }

@@ -2,10 +2,6 @@
 import grpc
 
 from feast.core import CoreService_pb2 as feast_dot_core_dot_CoreService__pb2
-from feast.specs import EntitySpec_pb2 as feast_dot_specs_dot_EntitySpec__pb2
-from feast.specs import FeatureGroupSpec_pb2 as feast_dot_specs_dot_FeatureGroupSpec__pb2
-from feast.specs import FeatureSpec_pb2 as feast_dot_specs_dot_FeatureSpec__pb2
-from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
 
 
 class CoreServiceStub(object):
@@ -18,55 +14,30 @@ class CoreServiceStub(object):
     Args:
       channel: A grpc.Channel.
     """
-    self.GetEntities = channel.unary_unary(
-        '/feast.core.CoreService/GetEntities',
-        request_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetEntitiesRequest.SerializeToString,
-        response_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetEntitiesResponse.FromString,
+    self.GetFeastCoreVersion = channel.unary_unary(
+        '/feast.core.CoreService/GetFeastCoreVersion',
+        request_serializer=feast_dot_core_dot_CoreService__pb2.GetFeastCoreVersionRequest.SerializeToString,
+        response_deserializer=feast_dot_core_dot_CoreService__pb2.GetFeastCoreVersionResponse.FromString,
         )
-    self.ListEntities = channel.unary_unary(
-        '/feast.core.CoreService/ListEntities',
-        request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
-        response_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ListEntitiesResponse.FromString,
+    self.GetFeatureSets = channel.unary_unary(
+        '/feast.core.CoreService/GetFeatureSets',
+        request_serializer=feast_dot_core_dot_CoreService__pb2.GetFeatureSetsRequest.SerializeToString,
+        response_deserializer=feast_dot_core_dot_CoreService__pb2.GetFeatureSetsResponse.FromString,
         )
-    self.GetStorage = channel.unary_unary(
-        '/feast.core.CoreService/GetStorage',
-        request_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetStorageRequest.SerializeToString,
-        response_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetStorageResponse.FromString,
+    self.GetStores = channel.unary_unary(
+        '/feast.core.CoreService/GetStores',
+        request_serializer=feast_dot_core_dot_CoreService__pb2.GetStoresRequest.SerializeToString,
+        response_deserializer=feast_dot_core_dot_CoreService__pb2.GetStoresResponse.FromString,
         )
-    self.ListStorage = channel.unary_unary(
-        '/feast.core.CoreService/ListStorage',
-        request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
-        response_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ListStorageResponse.FromString,
+    self.ApplyFeatureSet = channel.unary_unary(
+        '/feast.core.CoreService/ApplyFeatureSet',
+        request_serializer=feast_dot_core_dot_CoreService__pb2.ApplyFeatureSetRequest.SerializeToString,
+        response_deserializer=feast_dot_core_dot_CoreService__pb2.ApplyFeatureSetResponse.FromString,
         )
-    self.GetFeatures = channel.unary_unary(
-        '/feast.core.CoreService/GetFeatures',
-        request_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetFeaturesRequest.SerializeToString,
-        response_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetFeaturesResponse.FromString,
-        )
-    self.ListFeatures = channel.unary_unary(
-        '/feast.core.CoreService/ListFeatures',
-        request_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
-        response_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ListFeaturesResponse.FromString,
-        )
-    self.ApplyFeature = channel.unary_unary(
-        '/feast.core.CoreService/ApplyFeature',
-        request_serializer=feast_dot_specs_dot_FeatureSpec__pb2.FeatureSpec.SerializeToString,
-        response_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ApplyFeatureResponse.FromString,
-        )
-    self.ApplyFeatureGroup = channel.unary_unary(
-        '/feast.core.CoreService/ApplyFeatureGroup',
-        request_serializer=feast_dot_specs_dot_FeatureGroupSpec__pb2.FeatureGroupSpec.SerializeToString,
-        response_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ApplyFeatureGroupResponse.FromString,
-        )
-    self.ApplyEntity = channel.unary_unary(
-        '/feast.core.CoreService/ApplyEntity',
-        request_serializer=feast_dot_specs_dot_EntitySpec__pb2.EntitySpec.SerializeToString,
-        response_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ApplyEntityResponse.FromString,
-        )
-    self.GetUploadUrl = channel.unary_unary(
-        '/feast.core.CoreService/GetUploadUrl',
-        request_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetUploadUrlRequest.SerializeToString,
-        response_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetUploadUrlResponse.FromString,
+    self.UpdateStore = channel.unary_unary(
+        '/feast.core.CoreService/UpdateStore',
+        request_serializer=feast_dot_core_dot_CoreService__pb2.UpdateStoreRequest.SerializeToString,
+        response_deserializer=feast_dot_core_dot_CoreService__pb2.UpdateStoreResponse.FromString,
         )
 
 
@@ -74,93 +45,52 @@ class CoreServiceServicer(object):
   # missing associated documentation comment in .proto file
   pass
 
-  def GetEntities(self, request, context):
-    """
-    Get entities specified in request.
-    This process returns a list of entity specs.
+  def GetFeastCoreVersion(self, request, context):
+    """Retrieve version information about this Feast deployment
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
-  def ListEntities(self, request, context):
-    """
-    Get all entities
-    This process returns a list of entity specs.
+  def GetFeatureSets(self, request, context):
+    """Retrieve feature set details given a filter.
+
+    Returns all feature sets matching that filter. If none are found,
+    an empty list will be returned.
+    If no filter is provided in the request, the response will contain all the feature
+    sets currently stored in the registry.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
-  def GetStorage(self, request, context):
-    """
-    Get storage specs specified in request.
-    This process returns a list of storage specs.
+  def GetStores(self, request, context):
+    """Retrieve store details given a filter.
+
+    Returns all stores matching that filter. If none are found, an empty list will be returned.
+    If no filter is provided in the request, the response will contain all the stores currently
+    stored in the registry.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
-  def ListStorage(self, request, context):
-    """
-    Get all storage specs.
-    This process returns a list of storage specs.
+  def ApplyFeatureSet(self, request, context):
+    """Create or update and existing feature set.
+
+    This function is idempotent - it will not create a new feature set if schema does not change.
+    If an existing feature set is updated, core will advance the version number, which will be
+    returned in response.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
-  def GetFeatures(self, request, context):
-    """
-    Get features specified in request.
-    This process returns a list of feature specs.
-    """
-    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-    context.set_details('Method not implemented!')
-    raise NotImplementedError('Method not implemented!')
+  def UpdateStore(self, request, context):
+    """Updates core with the configuration of the store.
 
-  def ListFeatures(self, request, context):
-    """
-    Get all features.
-    This process returns a list of entity specs.
-    """
-    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-    context.set_details('Method not implemented!')
-    raise NotImplementedError('Method not implemented!')
-
-  def ApplyFeature(self, request, context):
-    """
-    Register a new feature to the metadata store, or update an existing feature.
-    If any validation errors occur, only the first encountered error will be returned.
-    """
-    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-    context.set_details('Method not implemented!')
-    raise NotImplementedError('Method not implemented!')
-
-  def ApplyFeatureGroup(self, request, context):
-    """
-    Register a new feature group to the metadata store, or update an existing feature group.
-    If any validation errors occur, only the first encountered error will be returned.
-    """
-    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-    context.set_details('Method not implemented!')
-    raise NotImplementedError('Method not implemented!')
-
-  def ApplyEntity(self, request, context):
-    """
-    Register a new entity to the metadata store, or update an existing entity.
-    If any validation errors occur, only the first encountered error will be returned.
-    """
-    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-    context.set_details('Method not implemented!')
-    raise NotImplementedError('Method not implemented!')
-
-  def GetUploadUrl(self, request, context):
-    """
-    Request a signed URL where a Feast client can upload a feature values file for an import job.
-    The signed URL will be valid by default for 5 minutes during which the client can start
-    uploading the feature values file. As of 2019-06-28, only CSV and JSON files are supported,
-    and the upload must complete in one PUT request i.e. resumable upload is not supported.
+    If the changes are valid, core will return the given store configuration in response, and
+    start or update the necessary feature population jobs for the updated store.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
@@ -169,55 +99,30 @@ class CoreServiceServicer(object):
 
 def add_CoreServiceServicer_to_server(servicer, server):
   rpc_method_handlers = {
-      'GetEntities': grpc.unary_unary_rpc_method_handler(
-          servicer.GetEntities,
-          request_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetEntitiesRequest.FromString,
-          response_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetEntitiesResponse.SerializeToString,
+      'GetFeastCoreVersion': grpc.unary_unary_rpc_method_handler(
+          servicer.GetFeastCoreVersion,
+          request_deserializer=feast_dot_core_dot_CoreService__pb2.GetFeastCoreVersionRequest.FromString,
+          response_serializer=feast_dot_core_dot_CoreService__pb2.GetFeastCoreVersionResponse.SerializeToString,
       ),
-      'ListEntities': grpc.unary_unary_rpc_method_handler(
-          servicer.ListEntities,
-          request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
-          response_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ListEntitiesResponse.SerializeToString,
+      'GetFeatureSets': grpc.unary_unary_rpc_method_handler(
+          servicer.GetFeatureSets,
+          request_deserializer=feast_dot_core_dot_CoreService__pb2.GetFeatureSetsRequest.FromString,
+          response_serializer=feast_dot_core_dot_CoreService__pb2.GetFeatureSetsResponse.SerializeToString,
       ),
-      'GetStorage': grpc.unary_unary_rpc_method_handler(
-          servicer.GetStorage,
-          request_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetStorageRequest.FromString,
-          response_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetStorageResponse.SerializeToString,
+      'GetStores': grpc.unary_unary_rpc_method_handler(
+          servicer.GetStores,
+          request_deserializer=feast_dot_core_dot_CoreService__pb2.GetStoresRequest.FromString,
+          response_serializer=feast_dot_core_dot_CoreService__pb2.GetStoresResponse.SerializeToString,
       ),
-      'ListStorage': grpc.unary_unary_rpc_method_handler(
-          servicer.ListStorage,
-          request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
-          response_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ListStorageResponse.SerializeToString,
+      'ApplyFeatureSet': grpc.unary_unary_rpc_method_handler(
+          servicer.ApplyFeatureSet,
+          request_deserializer=feast_dot_core_dot_CoreService__pb2.ApplyFeatureSetRequest.FromString,
+          response_serializer=feast_dot_core_dot_CoreService__pb2.ApplyFeatureSetResponse.SerializeToString,
       ),
-      'GetFeatures': grpc.unary_unary_rpc_method_handler(
-          servicer.GetFeatures,
-          request_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetFeaturesRequest.FromString,
-          response_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetFeaturesResponse.SerializeToString,
-      ),
-      'ListFeatures': grpc.unary_unary_rpc_method_handler(
-          servicer.ListFeatures,
-          request_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
-          response_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ListFeaturesResponse.SerializeToString,
-      ),
-      'ApplyFeature': grpc.unary_unary_rpc_method_handler(
-          servicer.ApplyFeature,
-          request_deserializer=feast_dot_specs_dot_FeatureSpec__pb2.FeatureSpec.FromString,
-          response_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ApplyFeatureResponse.SerializeToString,
-      ),
-      'ApplyFeatureGroup': grpc.unary_unary_rpc_method_handler(
-          servicer.ApplyFeatureGroup,
-          request_deserializer=feast_dot_specs_dot_FeatureGroupSpec__pb2.FeatureGroupSpec.FromString,
-          response_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ApplyFeatureGroupResponse.SerializeToString,
-      ),
-      'ApplyEntity': grpc.unary_unary_rpc_method_handler(
-          servicer.ApplyEntity,
-          request_deserializer=feast_dot_specs_dot_EntitySpec__pb2.EntitySpec.FromString,
-          response_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.ApplyEntityResponse.SerializeToString,
-      ),
-      'GetUploadUrl': grpc.unary_unary_rpc_method_handler(
-          servicer.GetUploadUrl,
-          request_deserializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetUploadUrlRequest.FromString,
-          response_serializer=feast_dot_core_dot_CoreService__pb2.CoreServiceTypes.GetUploadUrlResponse.SerializeToString,
+      'UpdateStore': grpc.unary_unary_rpc_method_handler(
+          servicer.UpdateStore,
+          request_deserializer=feast_dot_core_dot_CoreService__pb2.UpdateStoreRequest.FromString,
+          response_serializer=feast_dot_core_dot_CoreService__pb2.UpdateStoreResponse.SerializeToString,
       ),
   }
   generic_handler = grpc.method_handlers_generic_handler(

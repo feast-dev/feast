@@ -1,0 +1,12 @@
+dependencies:
+- name: feast-core
+  repository: ""
+  version: 0.3.0-alpha.1
+- name: feast-serving
+  repository: ""
+  version: 0.3.0-alpha.1
+- name: feast-serving
+  repository: ""
+  version: 0.3.0-alpha.1
+digest: sha256:98e5dbbc48287626aeef6aa550b81c1494fe2206af92e2d532134e9e30fb97d8
+generated: "2019-11-05T12:09:26.710407597+08:00"

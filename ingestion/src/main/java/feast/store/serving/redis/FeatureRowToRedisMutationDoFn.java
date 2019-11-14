@@ -17,52 +17,41 @@
 
 package feast.store.serving.redis;
 
-import feast.SerializableCache;
-import feast.ingestion.model.Specs;
-import feast.ingestion.util.DateUtil;
-import feast.options.OptionsParser;
-import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.storage.RedisProto.RedisBucketKey;
-import feast.storage.RedisProto.RedisBucketValue;
+import feast.core.FeatureSetProto.EntitySpec;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.storage.RedisProto.RedisKey;
+import feast.storage.RedisProto.RedisKey.Builder;
 import feast.store.serving.redis.RedisCustomIO.Method;
 import feast.store.serving.redis.RedisCustomIO.RedisMutation;
-import feast.types.FeatureProto.Feature;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
-import java.util.Random;
+import feast.types.FieldProto.Field;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.commons.codec.digest.DigestUtils;
-import org.joda.time.Duration;
+import org.slf4j.Logger;
 
-public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRowExtended, RedisMutation> {
+public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRow, RedisMutation> {
 
-  private final SerializableCache<FeatureSpec, RedisFeatureOptions> servingOptionsCache =
-      SerializableCache.<FeatureSpec, RedisFeatureOptions>builder()
-          .loadingFunction(
-              (featureSpec) ->
-                  OptionsParser.lenientParse(
-                      featureSpec.getOptionsMap(),
-                      RedisFeatureOptions.class))
-          .build();
-  private Specs specs;
-  private Random random;
+  private static final Logger log = org.slf4j.LoggerFactory
+      .getLogger(FeatureRowToRedisMutationDoFn.class);
+  private FeatureSetSpec featureSetSpec;
 
-  public FeatureRowToRedisMutationDoFn(Specs specs) {
-    this.specs = specs;
-    this.random = new Random();
+  public FeatureRowToRedisMutationDoFn(FeatureSetSpec featureSetSpec) {
+    this.featureSetSpec = featureSetSpec;
   }
 
-  static RedisBucketKey getRedisBucketKey(
-      String entityId, String featureIdSha1Prefix, long bucketId) {
-    return RedisBucketKey.newBuilder()
-        .setEntityKey(entityId)
-        .setFeatureIdSha1Prefix(featureIdSha1Prefix)
-        .setBucketId(bucketId)
-        .build();
-  }
+  private RedisKey getKey(FeatureRow featureRow) {
+    Set<String> entityNames = featureSetSpec.getEntitiesList().stream()
+        .map(EntitySpec::getName).collect(Collectors.toSet());
 
-  static String getFeatureIdSha1Prefix(String featureId) {
-    return DigestUtils.sha1Hex(featureId.getBytes()).substring(0, 7);
+    Builder redisKeyBuilder = RedisKey.newBuilder()
+        .setFeatureSet(featureRow.getFeatureSet());
+    for (Field field : featureRow.getFieldsList()) {
+      if (entityNames.contains(field.getName())) {
+        redisKeyBuilder.addEntities(field);
+      }
+    }
+    return redisKeyBuilder.build();
   }
 
   /**
@@ -70,35 +59,14 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRowExtended, Redi
    */
   @ProcessElement
   public void processElement(ProcessContext context) {
-    FeatureRowExtended rowExtended = context.element();
-    FeatureRow row = rowExtended.getRow();
-
-    String entityKey = row.getEntityKey();
-
-    for (Feature feature : row.getFeaturesList()) {
-      String featureId = feature.getId();
-      FeatureSpec featureSpec = specs.getFeatureSpec(featureId);
-      String featureIdHash = getFeatureIdSha1Prefix(featureId);
-
-      RedisFeatureOptions options = servingOptionsCache.get(featureSpec);
-
-      RedisBucketValue value =
-          RedisBucketValue.newBuilder()
-              .setValue(feature.getValue())
-              .setEventTimestamp(row.getEventTimestamp())
-              .build();
-      RedisBucketKey keyForLatest = getRedisBucketKey(entityKey, featureIdHash, 0L);
-
-      Duration expiry = options.getExpiryDuration();
-      // add randomness to expiry so that it won't expire in the same time.
-      long expiryMillis = (long) (expiry.getMillis() * (1 + random.nextFloat()));
-      context.output(
-          RedisMutation.builder()
-              .key(keyForLatest.toByteArray())
-              .value(value.toByteArray())
-              .expiryMillis(expiryMillis)
-              .method(Method.SET)
-              .build());
+    FeatureRow featureRow = context.element();
+    RedisKey key = getKey(featureRow);
+    try {
+      RedisMutation redisMutation = new RedisMutation(Method.SET, key.toByteArray(),
+          featureRow.toByteArray(), null, null);
+      context.output(redisMutation);
+    } catch (Exception e) {
+      log.error(e.getMessage(), e);
     }
   }
 }

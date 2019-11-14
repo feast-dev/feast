@@ -17,408 +17,353 @@
 
 package feast.core.service;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.mockito.ArgumentMatchers.any;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsEqual.equalTo;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import feast.core.config.StorageConfig.StorageSpecs;
-import feast.core.dao.EntityInfoRepository;
-import feast.core.dao.FeatureGroupInfoRepository;
-import feast.core.dao.FeatureInfoRepository;
+import com.google.api.client.util.Lists;
+import com.google.protobuf.InvalidProtocolBufferException;
+import feast.core.CoreServiceProto.ApplyFeatureSetResponse;
+import feast.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
+import feast.core.CoreServiceProto.GetFeatureSetsRequest.Filter;
+import feast.core.CoreServiceProto.GetFeatureSetsResponse;
+import feast.core.CoreServiceProto.GetStoresRequest;
+import feast.core.CoreServiceProto.GetStoresResponse;
+import feast.core.CoreServiceProto.UpdateStoreRequest;
+import feast.core.CoreServiceProto.UpdateStoreResponse;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.FeatureSetProto.FeatureSpec;
+import feast.core.SourceProto.KafkaSourceConfig;
+import feast.core.SourceProto.SourceType;
+import feast.core.StoreProto;
+import feast.core.StoreProto.Store.RedisConfig;
+import feast.core.StoreProto.Store.StoreType;
+import feast.core.StoreProto.Store.Subscription;
+import feast.core.dao.FeatureSetRepository;
+import feast.core.dao.StoreRepository;
 import feast.core.exception.RetrievalException;
-import feast.core.model.EntityInfo;
-import feast.core.model.FeatureGroupInfo;
-import feast.core.model.FeatureInfo;
-import feast.core.model.StorageInfo;
-import feast.core.storage.SchemaManager;
-import feast.specs.EntitySpecProto.EntitySpec;
-import feast.specs.FeatureGroupSpecProto.FeatureGroupSpec;
-import feast.specs.FeatureSpecProto.FeatureSpec;
-import feast.types.ValueProto.ValueType;
+import feast.core.model.FeatureSet;
+import feast.core.model.Field;
+import feast.core.model.Source;
+import feast.core.model.Store;
+import feast.types.ValueProto.ValueType.Enum;
+import io.grpc.StatusRuntimeException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 
 public class SpecServiceTest {
 
+  @Mock
+  private FeatureSetRepository featureSetRepository;
+
+  @Mock
+  private StoreRepository storeRepository;
+
   @Rule
-  public final ExpectedException exception = ExpectedException.none();
-  @Mock
-  EntityInfoRepository entityInfoRepository;
-  @Mock
-  FeatureInfoRepository featureInfoRepository;
-  @Mock
-  FeatureGroupInfoRepository featureGroupInfoRepository;
-  @Mock
-  SchemaManager schemaManager;
-  @Mock
-  StorageSpecs storageSpecs;
+  public final ExpectedException expectedException = ExpectedException.none();
+
+  private SpecService specService;
+  private List<FeatureSet> featureSets;
+  private List<Store> stores;
+  private Source defaultSource;
 
   @Before
   public void setUp() {
     initMocks(this);
-  }
+    defaultSource = new Source(SourceType.KAFKA,
+        KafkaSourceConfig.newBuilder().setBootstrapServers("kafka:9092").setTopic("my-topic")
+            .build(), true);
 
-  private EntityInfo newTestEntityInfo(String name) {
-    EntityInfo entity = new EntityInfo();
-    entity.setName(name);
-    entity.setDescription("testing");
-    return entity;
-  }
+    FeatureSet featureSet1v1 = newDummyFeatureSet("f1", 1);
+    FeatureSet featureSet1v2 = newDummyFeatureSet("f1", 2);
+    FeatureSet featureSet1v3 = newDummyFeatureSet("f1", 3);
+    FeatureSet featureSet2v1 = newDummyFeatureSet("f2", 1);
 
-  private StorageInfo newTestStorageInfo(String id, String type) {
-    StorageInfo storage = new StorageInfo();
-    storage.setId(id);
-    storage.setType(type);
-    return storage;
-  }
+    featureSets = Arrays.asList(featureSet1v1, featureSet1v2, featureSet1v3, featureSet2v1);
+    when(featureSetRepository.findAll())
+        .thenReturn(featureSets);
+    when(featureSetRepository.findByName("f1"))
+        .thenReturn(featureSets.subList(0, 3));
+    when(featureSetRepository.findByNameRegex("f1"))
+        .thenReturn(featureSets.subList(0, 3));
+    when(featureSetRepository.findByName("asd"))
+        .thenReturn(Lists.newArrayList());
+    when(featureSetRepository.findByNameRegex("asd"))
+        .thenReturn(Lists.newArrayList());
 
-  private FeatureInfo newTestFeatureInfo(String name) {
-    FeatureInfo feature = new FeatureInfo();
-    feature.setId(Strings.lenientFormat("entity.%s", name));
-    feature.setName(name);
-    feature.setEntity(newTestEntityInfo("entity"));
-    feature.setDescription("");
-    feature.setOwner("@test");
-    feature.setValueType(ValueType.Enum.BOOL);
-    feature.setUri("");
-    return feature;
+    Store store1 = newDummyStore("SERVING");
+    Store store2 = newDummyStore("WAREHOUSE");
+    stores = Arrays.asList(store1, store2);
+    when(storeRepository.findAll()).thenReturn(stores);
+    when(storeRepository.findById("SERVING")).thenReturn(Optional.of(store1));
+    when(storeRepository.findById("NOTFOUND")).thenReturn(Optional.empty());
+
+
+
+    specService = new SpecService(featureSetRepository, storeRepository, defaultSource);
   }
 
   @Test
-  public void shouldGetEntitiesMatchingIds() {
-    EntityInfo entity1 = newTestEntityInfo("entity1");
-    EntityInfo entity2 = newTestEntityInfo("entity2");
-
-    ArrayList<String> ids = Lists.newArrayList("entity1", "entity2");
-    when(entityInfoRepository.findAllById(any(Iterable.class)))
-        .thenReturn(Lists.newArrayList(entity1, entity2));
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            schemaManager,
-            storageSpecs);
-    List<EntityInfo> actual = specService.getEntities(ids);
-    List<EntityInfo> expected = Lists.newArrayList(entity1, entity2);
+  public void shouldGetAllFeatureSetsIfNoFilterProvided() throws InvalidProtocolBufferException {
+    GetFeatureSetsResponse actual = specService
+        .getFeatureSets(Filter.newBuilder().setFeatureSetName("").build());
+    List<FeatureSetSpec> list = new ArrayList<>();
+    for (FeatureSet featureSet : featureSets) {
+      FeatureSetSpec toProto = featureSet.toProto();
+      list.add(toProto);
+    }
+    GetFeatureSetsResponse expected = GetFeatureSetsResponse
+        .newBuilder()
+        .addAllFeatureSets(
+            list)
+        .build();
     assertThat(actual, equalTo(expected));
   }
 
   @Test
-  public void shouldDeduplicateGetEntities() {
-    EntityInfo entity1 = newTestEntityInfo("entity1");
-    EntityInfo entity2 = newTestEntityInfo("entity2");
-
-    ArrayList<String> ids = Lists.newArrayList("entity1", "entity2", "entity2");
-    when(entityInfoRepository.findAllById(any(Iterable.class)))
-        .thenReturn(Lists.newArrayList(entity1, entity2));
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            schemaManager,
-            storageSpecs);
-    List<EntityInfo> actual = specService.getEntities(ids);
-    List<EntityInfo> expected = Lists.newArrayList(entity1, entity2);
+  public void shouldGetAllFeatureSetsMatchingNameIfNoVersionProvided()
+      throws InvalidProtocolBufferException {
+    GetFeatureSetsResponse actual = specService
+        .getFeatureSets(Filter.newBuilder().setFeatureSetName("f1").build());
+    List<FeatureSet> expectedFeatureSets = featureSets.stream()
+        .filter(fs -> fs.getName().equals("f1"))
+        .collect(Collectors.toList());
+    List<FeatureSetSpec> list = new ArrayList<>();
+    for (FeatureSet expectedFeatureSet : expectedFeatureSets) {
+      FeatureSetSpec toProto = expectedFeatureSet.toProto();
+      list.add(toProto);
+    }
+    GetFeatureSetsResponse expected = GetFeatureSetsResponse
+        .newBuilder()
+        .addAllFeatureSets(
+            list)
+        .build();
     assertThat(actual, equalTo(expected));
   }
 
   @Test
-  public void shouldThrowRetrievalExceptionIfAnyEntityNotFound() {
-    EntityInfo entity1 = newTestEntityInfo("entity1");
-
-    ArrayList<String> ids = Lists.newArrayList("entity1", "entity2");
-    when(entityInfoRepository.findAllById(ids)).thenReturn(Lists.newArrayList(entity1));
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            schemaManager,
-            storageSpecs);
-
-    exception.expect(RetrievalException.class);
-    exception.expectMessage("unable to retrieve all entities requested");
-    specService.getEntities(ids);
-  }
-
-  @Test
-  public void shouldListAllEntitiesRegistered() {
-    EntityInfo entity1 = newTestEntityInfo("entity1");
-    EntityInfo entity2 = newTestEntityInfo("entity2");
-
-    when(entityInfoRepository.findAll()).thenReturn(Lists.newArrayList(entity1, entity2));
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            schemaManager,
-            storageSpecs);
-
-    List<EntityInfo> actual = specService.listEntities();
-    List<EntityInfo> expected = Lists.newArrayList(entity1, entity2);
+  public void shouldGetAllFeatureSetsMatchingVersionIfNoComparator()
+      throws InvalidProtocolBufferException {
+    GetFeatureSetsResponse actual = specService
+        .getFeatureSets(
+            Filter.newBuilder().setFeatureSetName("f1").setFeatureSetVersion("1").build());
+    List<FeatureSet> expectedFeatureSets = featureSets.stream()
+        .filter(fs -> fs.getName().equals("f1"))
+        .filter(fs -> fs.getVersion() == 1)
+        .collect(Collectors.toList());
+    List<FeatureSetSpec> list = new ArrayList<>();
+    for (FeatureSet expectedFeatureSet : expectedFeatureSets) {
+      FeatureSetSpec toProto = expectedFeatureSet.toProto();
+      list.add(toProto);
+    }
+    GetFeatureSetsResponse expected = GetFeatureSetsResponse
+        .newBuilder()
+        .addAllFeatureSets(
+            list)
+        .build();
     assertThat(actual, equalTo(expected));
   }
 
   @Test
-  public void shouldGetFeaturesMatchingIds() {
-    FeatureInfo feature1 = newTestFeatureInfo("feature1");
-    FeatureInfo feature2 = newTestFeatureInfo("feature2");
-
-    ArrayList<String> ids = Lists.newArrayList("entity.feature1", "entity.feature2");
-    when(featureInfoRepository.findAllById(any(Iterable.class))).thenReturn(Lists.newArrayList(feature1, feature2));
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            schemaManager,
-            storageSpecs);
-    List<FeatureInfo> actual = specService.getFeatures(ids);
-    List<FeatureInfo> expected = Lists.newArrayList(feature1, feature2);
+  public void shouldGetAllFeatureSetsGivenVersionWithComparator()
+      throws InvalidProtocolBufferException {
+    GetFeatureSetsResponse actual = specService
+        .getFeatureSets(
+            Filter.newBuilder().setFeatureSetName("f1").setFeatureSetVersion(">1").build());
+    List<FeatureSet> expectedFeatureSets = featureSets.stream()
+        .filter(fs -> fs.getName().equals("f1"))
+        .filter(fs -> fs.getVersion() > 1)
+        .collect(Collectors.toList());
+    List<FeatureSetSpec> list = new ArrayList<>();
+    for (FeatureSet expectedFeatureSet : expectedFeatureSets) {
+      FeatureSetSpec toProto = expectedFeatureSet.toProto();
+      list.add(toProto);
+    }
+    GetFeatureSetsResponse expected = GetFeatureSetsResponse
+        .newBuilder()
+        .addAllFeatureSets(
+            list)
+        .build();
     assertThat(actual, equalTo(expected));
   }
 
   @Test
-  public void shouldDeduplicateGetFeature() {
-    FeatureInfo feature1 = newTestFeatureInfo("feature1");
-    FeatureInfo feature2 = newTestFeatureInfo("feature2");
-
-    ArrayList<String> ids = Lists.newArrayList("entity.feature1", "entity.feature2", "entity.feature2");
-    when(featureInfoRepository.findAllById(any(Iterable.class))).thenReturn(Lists.newArrayList(feature1, feature2));
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            schemaManager,
-            storageSpecs);
-    List<FeatureInfo> actual = specService.getFeatures(ids);
-    List<FeatureInfo> expected = Lists.newArrayList(feature1, feature2);
+  public void shouldGetLatestFeatureSetGivenLatestVersionFilter()
+      throws InvalidProtocolBufferException {
+    GetFeatureSetsResponse actual = specService
+        .getFeatureSets(
+            Filter.newBuilder().setFeatureSetName("f1").setFeatureSetVersion("latest").build());
+    List<FeatureSet> expectedFeatureSets = featureSets.subList(2, 3);
+    List<FeatureSetSpec> list = new ArrayList<>();
+    for (FeatureSet expectedFeatureSet : expectedFeatureSets) {
+      FeatureSetSpec toProto = expectedFeatureSet.toProto();
+      list.add(toProto);
+    }
+    GetFeatureSetsResponse expected = GetFeatureSetsResponse
+        .newBuilder()
+        .addAllFeatureSets(
+            list)
+        .build();
     assertThat(actual, equalTo(expected));
   }
 
   @Test
-  public void shouldThrowRetrievalExceptionIfAnyFeatureNotFound() {
-    FeatureInfo feature2 = newTestFeatureInfo("feature2");
-
-    ArrayList<String> ids = Lists.newArrayList("entity.feature1", "entity.feature2");
-    when(featureInfoRepository.findAllById(ids)).thenReturn(Lists.newArrayList(feature2));
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            schemaManager,
-            storageSpecs);
-    exception.expect(RetrievalException.class);
-    exception.expectMessage("unable to retrieve all features requested: " + ids);
-    specService.getFeatures(ids);
+  public void shouldThrowRetrievalExceptionGivenInvalidFeatureSetVersionComparator()
+      throws InvalidProtocolBufferException {
+    expectedException.expect(StatusRuntimeException.class);
+    expectedException.expectMessage("Invalid comparator '=<' provided.");
+    specService.getFeatureSets(
+        Filter.newBuilder().setFeatureSetName("f1").setFeatureSetVersion("=<1").build());
   }
 
   @Test
-  public void shouldListAllFeaturesRegistered() {
-    FeatureInfo feature1 = newTestFeatureInfo("feature1");
-    FeatureInfo feature2 = newTestFeatureInfo("feature2");
+  public void shouldReturnAllStoresIfNoNameProvided() throws InvalidProtocolBufferException {
+    GetStoresResponse actual = specService
+        .getStores(GetStoresRequest.Filter.newBuilder().build());
+    GetStoresResponse.Builder expected = GetStoresResponse.newBuilder();
+    for (Store expectedStore : stores) {
+      expected.addStore(expectedStore.toProto());
+    }
+    assertThat(actual, equalTo(expected.build()));
+  }
 
-    when(featureInfoRepository.findAll()).thenReturn(Lists.newArrayList(feature1, feature2));
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            schemaManager,
-            storageSpecs);
-    List<FeatureInfo> actual = specService.listFeatures();
-    List<FeatureInfo> expected = Lists.newArrayList(feature1, feature2);
+  @Test
+  public void shouldReturnStoreWithName() throws InvalidProtocolBufferException {
+    GetStoresResponse actual = specService
+        .getStores(GetStoresRequest.Filter.newBuilder().setName("SERVING").build());
+    List<Store> expectedStores = stores.stream().filter(s -> s.getName().equals("SERVING"))
+        .collect(Collectors.toList());
+    GetStoresResponse.Builder expected = GetStoresResponse.newBuilder();
+    for (Store expectedStore : expectedStores) {
+      expected.addStore(expectedStore.toProto());
+    }
+    assertThat(actual, equalTo(expected.build()));
+  }
+
+  @Test
+  public void shouldThrowRetrievalExceptionIfNoStoresFoundWithName() {
+    expectedException.expect(RetrievalException.class);
+    expectedException.expectMessage("Store with name 'NOTFOUND' not found");
+    specService
+        .getStores(GetStoresRequest.Filter.newBuilder().setName("NOTFOUND").build());
+  }
+
+  @Test
+  public void applyFeatureSetShouldReturnFeatureSetWithLatestVersionIfFeatureSetHasNotChanged()
+      throws InvalidProtocolBufferException {
+    FeatureSetSpec incomingFeatureSet = featureSets.get(2)
+        .toProto()
+        .toBuilder()
+        .clearVersion()
+        .build();
+    ApplyFeatureSetResponse applyFeatureSetResponse = specService
+        .applyFeatureSet(incomingFeatureSet);
+
+    verify(featureSetRepository, times(0)).save(ArgumentMatchers.any(FeatureSet.class));
+    assertThat(applyFeatureSetResponse.getStatus(), equalTo(Status.NO_CHANGE));
+    assertThat(applyFeatureSetResponse.getFeatureSet(), equalTo(featureSets.get(2).toProto()));
+  }
+
+  @Test
+  public void applyFeatureSetShouldApplyFeatureSetWithInitVersionIfNotExists()
+      throws InvalidProtocolBufferException {
+    when(featureSetRepository.findByName("f2")).thenReturn(Lists.newArrayList());
+    FeatureSetSpec incomingFeatureSet = newDummyFeatureSet("f2", 1)
+        .toProto()
+        .toBuilder()
+        .clearVersion()
+        .build();
+    ApplyFeatureSetResponse applyFeatureSetResponse = specService
+        .applyFeatureSet(incomingFeatureSet);
+    verify(featureSetRepository).saveAndFlush(ArgumentMatchers.any(FeatureSet.class));
+    FeatureSetSpec expected = incomingFeatureSet.toBuilder()
+        .setVersion(1)
+        .setSource(defaultSource.toProto())
+        .build();
+    assertThat(applyFeatureSetResponse.getStatus(), equalTo(Status.CREATED));
+    assertThat(applyFeatureSetResponse.getFeatureSet(), equalTo(expected));
+  }
+
+  @Test
+  public void applyFeatureSetShouldIncrementFeatureSetVersionIfAlreadyExists()
+      throws InvalidProtocolBufferException {
+    FeatureSetSpec incomingFeatureSet = featureSets.get(2).toProto().toBuilder()
+        .clearVersion()
+        .addFeatures(FeatureSpec.newBuilder().setName("feature2").setValueType(Enum.STRING))
+        .build();
+    FeatureSetSpec expected = incomingFeatureSet.toBuilder()
+        .setVersion(4)
+        .setSource(defaultSource.toProto())
+        .build();
+    ApplyFeatureSetResponse applyFeatureSetResponse = specService
+        .applyFeatureSet(incomingFeatureSet);
+    verify(featureSetRepository).saveAndFlush(ArgumentMatchers.any(FeatureSet.class));
+    assertThat(applyFeatureSetResponse.getStatus(), equalTo(Status.CREATED));
+    assertThat(applyFeatureSetResponse.getFeatureSet(), equalTo(expected));
+  }
+
+  @Test
+  public void shouldUpdateStoreIfConfigChanges() throws InvalidProtocolBufferException {
+    when(storeRepository.findById("SERVING")).thenReturn(Optional.of(stores.get(0)));
+    StoreProto.Store newStore = StoreProto.Store.newBuilder()
+        .setName("SERVING")
+        .setType(StoreType.REDIS)
+        .setRedisConfig(RedisConfig.newBuilder())
+        .addSubscriptions(Subscription.newBuilder().setName("a").setVersion(">1"))
+        .build();
+    UpdateStoreResponse actual = specService
+        .updateStore(UpdateStoreRequest.newBuilder().setStore(newStore).build());
+    UpdateStoreResponse expected = UpdateStoreResponse.newBuilder()
+        .setStore(newStore)
+        .setStatus(UpdateStoreResponse.Status.UPDATED)
+        .build();
+    ArgumentCaptor<Store> argumentCaptor = ArgumentCaptor.forClass(Store.class);
+    verify(storeRepository, times(1)).save(argumentCaptor.capture());
+    assertThat(argumentCaptor.getValue().toProto(), equalTo(newStore));
     assertThat(actual, equalTo(expected));
   }
 
   @Test
-  public void shouldGetStorageMatchingIds() {
-    StorageInfo redisStorage = newTestStorageInfo("REDIS1", "REDIS");
-    StorageInfo bqStorage = newTestStorageInfo("BIGQUERY1", "BIGQUERY");
-    when(storageSpecs.getServingStorageSpec()).thenReturn(redisStorage.getStorageSpec());
-    when(storageSpecs.getWarehouseStorageSpec()).thenReturn(bqStorage.getStorageSpec());
-
-    ArrayList<String> ids = Lists.newArrayList("REDIS1", "BIGQUERY1");
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            schemaManager,
-            storageSpecs);
-    List<StorageInfo> actual = specService.getStorage(ids);
-    List<StorageInfo> expected = Lists.newArrayList(redisStorage, bqStorage);
+  public void shouldDoNothingIfNoChange() throws InvalidProtocolBufferException {
+    when(storeRepository.findById("SERVING")).thenReturn(Optional.of(stores.get(0)));
+    UpdateStoreResponse actual = specService
+        .updateStore(UpdateStoreRequest.newBuilder().setStore(stores.get(0).toProto()).build());
+    UpdateStoreResponse expected = UpdateStoreResponse.newBuilder()
+        .setStore(stores.get(0).toProto())
+        .setStatus(UpdateStoreResponse.Status.NO_CHANGE)
+        .build();
+    verify(storeRepository, times(0)).save(ArgumentMatchers.any());
     assertThat(actual, equalTo(expected));
   }
 
-  @Test
-  public void shouldDeduplicateGetStorage() {
-    StorageInfo redisStorage = newTestStorageInfo("REDIS1", "REDIS");
-    StorageInfo bqStorage = newTestStorageInfo("BIGQUERY1", "BIGQUERY");
-    when(storageSpecs.getServingStorageSpec()).thenReturn(redisStorage.getStorageSpec());
-    when(storageSpecs.getWarehouseStorageSpec()).thenReturn(bqStorage.getStorageSpec());
-    ArrayList<String> ids = Lists.newArrayList("REDIS1", "BIGQUERY1", "BIGQUERY1");
-
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            schemaManager,
-            storageSpecs);
-    List<StorageInfo> actual = specService.getStorage(ids);
-    List<StorageInfo> expected = Lists.newArrayList(redisStorage, bqStorage);
-    assertThat(actual, equalTo(expected));
+  private FeatureSet newDummyFeatureSet(String name, int version) {
+    Field feature = new Field(name, "feature", Enum.INT64);
+    Field entity = new Field(name, "entity", Enum.STRING);
+    return new FeatureSet(name, version, 100L, Arrays.asList(entity), Arrays.asList(feature),
+        defaultSource);
   }
 
-  @Test
-  public void shouldThrowRetrievalExceptionIfAnyStorageNotFound() {
-    StorageInfo redisStorage = newTestStorageInfo("REDIS1", "REDIS");
-    when(storageSpecs.getServingStorageSpec()).thenReturn(redisStorage.getStorageSpec());
-
-    ArrayList<String> ids = Lists.newArrayList("REDIS1", "BIGQUERY1");
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            schemaManager,
-            storageSpecs);
-
-    exception.expect(RetrievalException.class);
-    exception.expectMessage("unable to retrieve all storage requested: " + ids);
-    specService.getStorage(ids);
-  }
-
-  @Test
-  public void shouldListAllStorageRegistered() {
-    StorageInfo redisStorage = newTestStorageInfo("REDIS1", "REDIS");
-    StorageInfo bqStorage = newTestStorageInfo("BIGQUERY1", "BIGQUERY");
-    when(storageSpecs.getServingStorageSpec()).thenReturn(redisStorage.getStorageSpec());
-    when(storageSpecs.getWarehouseStorageSpec()).thenReturn(bqStorage.getStorageSpec());
-
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            schemaManager,
-            storageSpecs);
-    List<StorageInfo> actual = specService.listStorage();
-    List<StorageInfo> expected = Lists.newArrayList(redisStorage, bqStorage);
-    assertThat(actual, equalTo(expected));
-  }
-
-  @Test
-  public void shouldRegisterFeatureWithGroupInheritance() {
-    FeatureGroupInfo group = new FeatureGroupInfo();
-    group.setId("testGroup");
-    when(featureGroupInfoRepository.findById("testGroup")).thenReturn(Optional.of(group));
-
-    EntityInfo entity = new EntityInfo();
-    entity.setName("entity");
-    when(entityInfoRepository.findById("entity")).thenReturn(Optional.of(entity));
-
-    FeatureSpec spec =
-        FeatureSpec.newBuilder()
-            .setId("entity.name")
-            .setName("name")
-            .setOwner("owner")
-            .setDescription("desc")
-            .setEntity("entity")
-            .setUri("uri")
-            .setGroup("testGroup")
-            .setValueType(ValueType.Enum.BYTES)
-            .build();
-
-    FeatureSpec resolvedSpec =
-        FeatureSpec.newBuilder()
-            .setId("entity.name")
-            .setName("name")
-            .setOwner("owner")
-            .setDescription("desc")
-            .setEntity("entity")
-            .setUri("uri")
-            .setGroup("testGroup")
-            .setValueType(ValueType.Enum.BYTES)
-            .build();
-
-    ArgumentCaptor<FeatureSpec> resolvedSpecCaptor = ArgumentCaptor.forClass(FeatureSpec.class);
-
-    FeatureInfo featureInfo = new FeatureInfo(spec, entity, group);
-    when(featureInfoRepository.saveAndFlush(featureInfo)).thenReturn(featureInfo);
-
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            schemaManager,
-            storageSpecs);
-    FeatureInfo actual = specService.applyFeature(spec);
-    verify(schemaManager).registerFeature(resolvedSpecCaptor.capture());
-
-    assertThat(resolvedSpecCaptor.getValue(), equalTo(resolvedSpec));
-    assertThat(actual, equalTo(featureInfo));
-  }
-
-  @Test
-  public void shouldRegisterFeatureGroup() {
-    FeatureGroupSpec spec =
-        FeatureGroupSpec.newBuilder()
-            .setId("group")
-            .addTags("tag")
-            .build();
-    FeatureGroupInfo expectedFeatureGroupInfo = new FeatureGroupInfo(spec);
-
-    when(featureGroupInfoRepository.saveAndFlush(expectedFeatureGroupInfo))
-        .thenReturn(expectedFeatureGroupInfo);
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            schemaManager,
-            storageSpecs);
-    FeatureGroupInfo actual = specService.applyFeatureGroup(spec);
-    assertThat(actual, equalTo(expectedFeatureGroupInfo));
-  }
-
-  @Test
-  public void shouldRegisterEntity() {
-    EntitySpec spec =
-        EntitySpec.newBuilder()
-            .setName("entity")
-            .setDescription("description")
-            .addTags("tag")
-            .build();
-    EntityInfo entityInfo = new EntityInfo(spec);
-    when(entityInfoRepository.saveAndFlush(entityInfo)).thenReturn(entityInfo);
-    SpecService specService =
-        new SpecService(
-            entityInfoRepository,
-            featureInfoRepository,
-            featureGroupInfoRepository,
-            schemaManager,
-            storageSpecs);
-    EntityInfo actual = specService.applyEntity(spec);
-    assertThat(actual, equalTo(entityInfo));
+  private Store newDummyStore(String name) {
+    // Add type to this method when we enable filtering by type
+    Store store = new Store();
+    store.setName(name);
+    store.setType(StoreType.REDIS.toString());
+    store.setSubscriptions("");
+    store.setConfig(RedisConfig.newBuilder().setPort(6379).build().toByteArray());
+    return store;
   }
 }
+

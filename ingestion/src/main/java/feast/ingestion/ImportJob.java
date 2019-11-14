@@ -1,230 +1,152 @@
-/*
- * Copyright 2018 The Feast Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
-
 package feast.ingestion;
 
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.base.Strings;
-import com.google.inject.Guice;
-import com.google.inject.Inject;
-import com.google.inject.Injector;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
-import feast.ingestion.boot.ImportJobModule;
-import feast.ingestion.boot.PipelineModule;
-import feast.ingestion.config.ImportJobSpecsSupplier;
-import feast.ingestion.metrics.FeastMetrics;
-import feast.ingestion.model.Specs;
-import feast.ingestion.options.ImportJobPipelineOptions;
-import feast.ingestion.options.JobOptions;
-import feast.ingestion.transform.CoalesceFeatureRowExtended;
-import feast.ingestion.transform.ErrorsStoreTransform;
-import feast.ingestion.transform.ReadFeaturesTransform;
-import feast.ingestion.transform.ServingStoreTransform;
-import feast.ingestion.transform.ToFeatureRowExtended;
-import feast.ingestion.transform.ValidateTransform;
-import feast.ingestion.transform.WarehouseStoreTransform;
-import feast.ingestion.transform.fn.ConvertTypesDoFn;
-import feast.ingestion.transform.fn.LoggerDoFn;
-import feast.ingestion.values.PFeatureRows;
-import feast.options.OptionsParser;
-import feast.specs.ImportJobSpecsProto.ImportJobSpecs;
-import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.SourceProto.Source;
+import feast.core.StoreProto.Store;
+import feast.ingestion.options.ImportOptions;
+import feast.ingestion.transform.ReadFromSource;
+import feast.ingestion.transform.ValidateFeatureRows;
+import feast.ingestion.transform.WriteFailedElementToBigQuery;
+import feast.ingestion.transform.WriteToStore;
+import feast.ingestion.transform.metrics.WriteMetricsTransform;
+import feast.ingestion.utils.ResourceUtil;
+import feast.ingestion.utils.SpecUtil;
+import feast.ingestion.utils.StoreUtil;
+import feast.ingestion.values.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
-import java.util.Arrays;
-import java.util.Random;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.beam.runners.dataflow.DataflowPipelineJob;
-import org.apache.beam.runners.dataflow.DataflowRunner;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
-import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Sample;
-import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.commons.codec.digest.DigestUtils;
-import org.joda.time.DateTime;
-import org.joda.time.Duration;
-import org.slf4j.event.Level;
+import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
 
-@Slf4j
 public class ImportJob {
 
-  private static Random random = new Random(System.currentTimeMillis());
+  // Tag for main output containing Feature Row that has been successfully processed.
+  private static final TupleTag<FeatureRow> FEATURE_ROW_OUT = new TupleTag<FeatureRow>() {
+  };
 
-  private final Pipeline pipeline;
-  private final ImportJobSpecs importJobSpecs;
-  private final ReadFeaturesTransform readFeaturesTransform;
-  private final ServingStoreTransform servingStoreTransform;
-  private final WarehouseStoreTransform warehouseStoreTransform;
-  private final ErrorsStoreTransform errorsStoreTransform;
-  private final boolean dryRun;
-  private final ImportJobPipelineOptions options;
-  private final Specs specs;
+  // Tag for deadletter output containing elements and error messages from invalid input/transform.
+  private static final TupleTag<FailedElement> DEADLETTER_OUT = new TupleTag<FailedElement>() {
+  };
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(ImportJob.class);
 
-  @Inject
-  public ImportJob(
-      Pipeline pipeline,
-      ImportJobSpecs importJobSpecs,
-      ReadFeaturesTransform readFeaturesTransform,
-      ServingStoreTransform servingStoreTransform,
-      WarehouseStoreTransform warehouseStoreTransform,
-      ErrorsStoreTransform errorsStoreTransform,
-      ImportJobPipelineOptions options,
-      Specs specs) {
-    this.pipeline = pipeline;
-    this.importJobSpecs = importJobSpecs;
-    this.readFeaturesTransform = readFeaturesTransform;
-    this.servingStoreTransform = servingStoreTransform;
-    this.warehouseStoreTransform = warehouseStoreTransform;
-    this.errorsStoreTransform = errorsStoreTransform;
-    this.dryRun = options.isDryRun();
-    this.options = options;
-    this.specs = specs;
+  /**
+   * @param args arguments to be passed to Beam pipeline
+   * @throws InvalidProtocolBufferException if options passed to the pipeline are invalid
+   */
+  public static void main(String[] args) throws InvalidProtocolBufferException {
+    ImportOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().create().as(ImportOptions.class);
+    runPipeline(options);
   }
 
-  public static void main(String[] args) {
-    mainWithResult(args);
-  }
+  @SuppressWarnings("UnusedReturnValue")
+  public static PipelineResult runPipeline(ImportOptions options)
+      throws InvalidProtocolBufferException {
+    /*
+     * Steps:
+     * 1. Read messages from Feast Source as FeatureRow
+     * 2. Validate the feature rows to ensure the schema matches what is registered to the system
+     * 3. Write FeatureRow to the corresponding Store
+     * 4. Write elements that failed to be processed to a dead letter queue.
+     * 5. Write metrics to a metrics sink
+     */
 
-  public static PipelineResult mainWithResult(String[] args) {
-    log.info("Arguments: " + Arrays.toString(args));
-    ImportJobPipelineOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(ImportJobPipelineOptions.class);
-    if (options.getJobName().isEmpty()) {
-      options.setJobName(generateName());
-    }
-    log.info("options: " + options.toString());
-    ImportJobSpecs importJobSpecs = new ImportJobSpecsSupplier(options.getWorkspace())
-        .get();
-    Injector injector =
-        Guice.createInjector(new ImportJobModule(options, importJobSpecs), new PipelineModule());
-    ImportJob job = injector.getInstance(ImportJob.class);
+    PipelineOptionsValidator.validate(ImportOptions.class, options);
+    Pipeline pipeline = Pipeline.create(options);
 
-    job.expand();
-    return job.run();
-  }
+    log.info("Starting import job with settings: \n{}", options.toString());
 
-  private static String generateName() {
-    byte[] bytes = new byte[7];
-    random.nextBytes(bytes);
-    String randomHex = DigestUtils.sha1Hex(bytes).substring(0, 7);
-    return String.format("feast-importjob-%s-%s", DateTime.now().getMillis(), randomHex);
-  }
+    List<FeatureSetSpec> featureSetSpecs =
+        SpecUtil.parseFeatureSetSpecJsonList(options.getFeatureSetSpecJson());
+    List<Store> stores = SpecUtil.parseStoreJsonList(options.getStoreJson());
 
-  public void expand() {
-    CoderRegistry coderRegistry = pipeline.getCoderRegistry();
-    coderRegistry.registerCoderForType(
-        TypeDescriptor.of(FeatureRow.class), ProtoCoder.of(FeatureRow.class));
-    coderRegistry.registerCoderForType(
-        TypeDescriptor.of(FeatureRowExtended.class), ProtoCoder.of(FeatureRowExtended.class));
-    coderRegistry.registerCoderForType(TypeDescriptor.of(TableRow.class), TableRowJsonCoder.of());
+    for (Store store : stores) {
+      List<FeatureSetSpec> subscribedFeatureSets =
+          SpecUtil.getSubscribedFeatureSets(store.getSubscriptionsList(), featureSetSpecs);
 
-    JobOptions jobOptions = OptionsParser
-        .parse(importJobSpecs.getImportSpec().getJobOptionsMap(), JobOptions.class);
+      // Generate tags by key
+      Map<String, TupleTag<FeatureRow>> featureSetTagsByKey = subscribedFeatureSets.stream()
+          .map(fs -> {
+            String id = String.format("%s:%s", fs.getName(), fs.getVersion());
+            return Pair.of(id, new TupleTag<FeatureRow>(id) {
+            });
+          })
+          .collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
 
-    try {
-      log.info(JsonFormat.printer().print(importJobSpecs));
-    } catch (InvalidProtocolBufferException e) {
-      // pass
-    }
-    specs.validate();
+      // TODO: make the source part of the job initialisation options
+      Source source = subscribedFeatureSets.get(0).getSource();
 
-    PCollection<FeatureRow> features = pipeline.apply("Read", readFeaturesTransform);
-    if (jobOptions.getSampleLimit() > 0) {
-      features = features.apply(Sample.any(jobOptions.getSampleLimit()));
-    }
+      // Step 1. Read messages from Feast Source as FeatureRow.
+      PCollectionTuple convertedFeatureRows =
+          pipeline.apply(
+              "ReadFeatureRowFromSource",
+              ReadFromSource.newBuilder()
+                  .setSource(source)
+                  .setFeatureSetTagByKey(featureSetTagsByKey)
+                  .setFailureTag(DEADLETTER_OUT)
+                  .build());
 
-    PCollection<FeatureRowExtended> featuresExtended =
-        features.apply("Wrap with attempt data", new ToFeatureRowExtended());
+      for (FeatureSetSpec featureSet : subscribedFeatureSets) {
+        // Ensure Store has valid configuration and Feast can access it.
+        StoreUtil.setupStore(store, featureSet);
+        String id = String.format("%s:%s", featureSet.getName(), featureSet.getVersion());
 
-    PFeatureRows pFeatureRows = PFeatureRows.of(featuresExtended);
-    pFeatureRows = pFeatureRows.applyDoFn("Convert feature types", new ConvertTypesDoFn(specs));
-    pFeatureRows = pFeatureRows.apply("Validate features", new ValidateTransform(specs));
+        // Step 2. Validate incoming FeatureRows
+        PCollectionTuple validatedRows = convertedFeatureRows
+            .get(featureSetTagsByKey.get(id))
+            .apply(ValidateFeatureRows.newBuilder()
+                .setFeatureSetSpec(featureSet)
+                .setSuccessTag(FEATURE_ROW_OUT)
+                .setFailureTag(DEADLETTER_OUT)
+                .build());
 
-    log.info(
-        "A sample of size 1 of incoming rows from MAIN and ERRORS will logged every 30 seconds for visibility");
-    logNRows(pFeatureRows, "Output sample", 1, Duration.standardSeconds(30));
+        // Step 3. Write FeatureRow to the corresponding Store.
+        validatedRows
+            .get(FEATURE_ROW_OUT)
+            .apply(
+                "WriteFeatureRowToStore",
+                WriteToStore.newBuilder().setFeatureSetSpec(featureSet).setStore(store).build());
 
-    PCollection<FeatureRowExtended> warehouseRows = pFeatureRows.getMain();
-    PCollection<FeatureRowExtended> servingRows = pFeatureRows.getMain();
-    PCollection<FeatureRowExtended> errorRows = pFeatureRows.getErrors();
-    if (jobOptions.isCoalesceRowsEnabled()) {
-      // Should we merge and dedupe rows before writing to the serving store?
-      servingRows = servingRows.apply("Coalesce Rows", new CoalesceFeatureRowExtended(
-          jobOptions.getCoalesceRowsDelaySeconds(),
-          jobOptions.getCoalesceRowsTimeoutSeconds()));
-    }
+        // Step 4. Write FailedElements to a dead letter table in BigQuery.
+        if (options.getDeadLetterTableSpec() != null) {
+          convertedFeatureRows
+              .get(DEADLETTER_OUT)
+              .apply(
+                  "WriteFailedElements_ReadFromSource",
+                  WriteFailedElementToBigQuery.newBuilder()
+                      .setJsonSchema(ResourceUtil.getDeadletterTableSchemaJson())
+                      .setTableSpec(options.getDeadLetterTableSpec())
+                      .build());
 
-    if (!dryRun) {
-      if (!Strings.isNullOrEmpty(importJobSpecs.getServingStorageSpec().getId())) {
-        servingRows.apply("Write to Serving Stores", servingStoreTransform);
+          validatedRows
+              .get(DEADLETTER_OUT)
+              .apply("WriteFailedElements_ValidateRows",
+                  WriteFailedElementToBigQuery.newBuilder()
+                      .setJsonSchema(ResourceUtil.getDeadletterTableSchemaJson())
+                      .setTableSpec(options.getDeadLetterTableSpec())
+                      .build());
+        }
+
+        // Step 5. Write metrics to a metrics sink.
+        validatedRows
+            .apply("WriteMetrics", WriteMetricsTransform.newBuilder()
+                .setFeatureSetSpec(featureSet)
+                .setStoreName(store.getName())
+                .setSuccessTag(FEATURE_ROW_OUT)
+                .setFailureTag(DEADLETTER_OUT)
+                .build());
       }
-      if (!Strings.isNullOrEmpty(importJobSpecs.getWarehouseStorageSpec().getId())) {
-        warehouseRows.apply("Write to Warehouse  Stores", warehouseStoreTransform);
-      }
-      errorRows.apply(errorsStoreTransform);
-    }
-  }
-
-  public PipelineResult run() {
-    PipelineResult result = pipeline.run();
-    log.info(String.format("FeastImportJobId:%s", this.retrieveId(result)));
-    return result;
-  }
-
-  public void logNRows(PFeatureRows pFeatureRows, String name, long limit, Duration period) {
-    PCollection<FeatureRowExtended> main = pFeatureRows.getMain();
-    PCollection<FeatureRowExtended> errors = pFeatureRows.getErrors();
-
-    if (main.isBounded().equals(IsBounded.UNBOUNDED)) {
-      Window<FeatureRowExtended> minuteWindow =
-          Window.<FeatureRowExtended>into(FixedWindows.of(period))
-              .triggering(AfterWatermark.pastEndOfWindow())
-              .discardingFiredPanes()
-              .withAllowedLateness(Duration.ZERO);
-      main = main.apply(minuteWindow);
-      errors = errors.apply(minuteWindow);
     }
 
-    main.apply("metrics.store.lag", ParDo.of(FeastMetrics.lagUpdateDoFn()));
-
-    main.apply("Sample success", Sample.any(limit))
-        .apply("Log success sample", ParDo.of(new LoggerDoFn(Level.INFO, name + " MAIN ")));
-    errors
-        .apply("Sample errors", Sample.any(limit))
-        .apply("Log errors sample", ParDo.of(new LoggerDoFn(Level.ERROR, name + " ERRORS ")));
-  }
-
-  private String retrieveId(PipelineResult result) {
-    Class<? extends PipelineRunner<?>> runner = options.getRunner();
-    if (runner.isAssignableFrom(DataflowRunner.class)) {
-      return ((DataflowPipelineJob) result).getJobId();
-    } else {
-      return this.options.getJobName();
-    }
+    return pipeline.run();
   }
 }

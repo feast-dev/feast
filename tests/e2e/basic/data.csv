@@ -1,0 +1,3 @@
+datetime,customer_id,daily_transactions,total_transactions
+1570366527,1001,1.3,500
+1570366536,1002,1.4,600

@@ -13,77 +13,88 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-from feast.specs import EntitySpec_pb2 as feast_dot_specs_dot_EntitySpec__pb2
-from feast.specs import FeatureSpec_pb2 as feast_dot_specs_dot_FeatureSpec__pb2
-from feast.specs import FeatureGroupSpec_pb2 as feast_dot_specs_dot_FeatureGroupSpec__pb2
-from feast.specs import StorageSpec_pb2 as feast_dot_specs_dot_StorageSpec__pb2
-from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
-from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
+from feast.core import FeatureSet_pb2 as feast_dot_core_dot_FeatureSet__pb2
+from feast.core import Store_pb2 as feast_dot_core_dot_Store__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='feast/core/CoreService.proto',
   package='feast.core',
   syntax='proto3',
-  serialized_options=_b('\n\nfeast.coreB\020CoreServiceProtoZ5github.com/gojek/feast/protos/generated/go/feast/core'),
-  serialized_pb=_b('\n\x1c\x66\x65\x61st/core/CoreService.proto\x12\nfeast.core\x1a\x1c\x66\x65\x61st/specs/EntitySpec.proto\x1a\x1d\x66\x65\x61st/specs/FeatureSpec.proto\x1a\"feast/specs/FeatureGroupSpec.proto\x1a\x1d\x66\x65\x61st/specs/StorageSpec.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xef\x07\n\x10\x43oreServiceTypes\x1a!\n\x12GetEntitiesRequest\x12\x0b\n\x03ids\x18\x01 \x03(\t\x1a@\n\x13GetEntitiesResponse\x12)\n\x08\x65ntities\x18\x01 \x03(\x0b\x32\x17.feast.specs.EntitySpec\x1a\x41\n\x14ListEntitiesResponse\x12)\n\x08\x65ntities\x18\x01 \x03(\x0b\x32\x17.feast.specs.EntitySpec\x1a!\n\x12GetFeaturesRequest\x12\x0b\n\x03ids\x18\x01 \x03(\t\x1a\x41\n\x13GetFeaturesResponse\x12*\n\x08\x66\x65\x61tures\x18\x01 \x03(\x0b\x32\x18.feast.specs.FeatureSpec\x1a\x42\n\x14ListFeaturesResponse\x12*\n\x08\x66\x65\x61tures\x18\x01 \x03(\x0b\x32\x18.feast.specs.FeatureSpec\x1a \n\x11GetStorageRequest\x12\x0b\n\x03ids\x18\x01 \x03(\t\x1a\x44\n\x12GetStorageResponse\x12.\n\x0cstorageSpecs\x18\x01 \x03(\x0b\x32\x18.feast.specs.StorageSpec\x1a\x45\n\x13ListStorageResponse\x12.\n\x0cstorageSpecs\x18\x01 \x03(\x0b\x32\x18.feast.specs.StorageSpec\x1a)\n\x13\x41pplyEntityResponse\x12\x12\n\nentityName\x18\x01 \x01(\t\x1a)\n\x14\x41pplyFeatureResponse\x12\x11\n\tfeatureId\x18\x01 \x01(\t\x1a\x33\n\x19\x41pplyFeatureGroupResponse\x12\x16\n\x0e\x66\x65\x61tureGroupId\x18\x01 \x01(\t\x1a\x81\x01\n\x13GetUploadUrlRequest\x12K\n\x08\x66ileType\x18\x01 \x01(\x0e\x32\x39.feast.core.CoreServiceTypes.GetUploadUrlRequest.FileType\"\x1d\n\x08\x46ileType\x12\x07\n\x03\x43SV\x10\x00\x12\x08\n\x04JSON\x10\x01\x1a\xca\x01\n\x14GetUploadUrlResponse\x12\x0b\n\x03url\x18\x01 \x01(\t\x12P\n\nhttpMethod\x18\x02 \x01(\x0e\x32<.feast.core.CoreServiceTypes.GetUploadUrlResponse.HttpMethod\x12.\n\nexpiration\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x0c\n\x04path\x18\x04 \x01(\t\"\x15\n\nHttpMethod\x12\x07\n\x03PUT\x10\x00\x32\xa1\x08\n\x0b\x43oreService\x12r\n\x0bGetEntities\x12/.feast.core.CoreServiceTypes.GetEntitiesRequest\x1a\x30.feast.core.CoreServiceTypes.GetEntitiesResponse\"\x00\x12[\n\x0cListEntities\x12\x16.google.protobuf.Empty\x1a\x31.feast.core.CoreServiceTypes.ListEntitiesResponse\"\x00\x12r\n\nGetStorage\x12..feast.core.CoreServiceTypes.GetStorageRequest\x1a/.feast.core.CoreServiceTypes.GetStorageResponse\"\x03\x88\x02\x01\x12\\\n\x0bListStorage\x12\x16.google.protobuf.Empty\x1a\x30.feast.core.CoreServiceTypes.ListStorageResponse\"\x03\x88\x02\x01\x12r\n\x0bGetFeatures\x12/.feast.core.CoreServiceTypes.GetFeaturesRequest\x1a\x30.feast.core.CoreServiceTypes.GetFeaturesResponse\"\x00\x12[\n\x0cListFeatures\x12\x16.google.protobuf.Empty\x1a\x31.feast.core.CoreServiceTypes.ListFeaturesResponse\"\x00\x12]\n\x0c\x41pplyFeature\x12\x18.feast.specs.FeatureSpec\x1a\x31.feast.core.CoreServiceTypes.ApplyFeatureResponse\"\x00\x12l\n\x11\x41pplyFeatureGroup\x12\x1d.feast.specs.FeatureGroupSpec\x1a\x36.feast.core.CoreServiceTypes.ApplyFeatureGroupResponse\"\x00\x12Z\n\x0b\x41pplyEntity\x12\x17.feast.specs.EntitySpec\x1a\x30.feast.core.CoreServiceTypes.ApplyEntityResponse\"\x00\x12u\n\x0cGetUploadUrl\x12\x30.feast.core.CoreServiceTypes.GetUploadUrlRequest\x1a\x31.feast.core.CoreServiceTypes.GetUploadUrlResponse\"\x00\x42U\n\nfeast.coreB\x10\x43oreServiceProtoZ5github.com/gojek/feast/protos/generated/go/feast/coreb\x06proto3')
+  serialized_options=_b('\n\nfeast.coreB\020CoreServiceProtoZ/github.com/gojek/feast/sdk/go/protos/feast/core'),
+  serialized_pb=_b('\n\x1c\x66\x65\x61st/core/CoreService.proto\x12\nfeast.core\x1a\x1b\x66\x65\x61st/core/FeatureSet.proto\x1a\x16\x66\x65\x61st/core/Store.proto\"\x92\x01\n\x15GetFeatureSetsRequest\x12\x38\n\x06\x66ilter\x18\x01 \x01(\x0b\x32(.feast.core.GetFeatureSetsRequest.Filter\x1a?\n\x06\x46ilter\x12\x18\n\x10\x66\x65\x61ture_set_name\x18\x01 \x01(\t\x12\x1b\n\x13\x66\x65\x61ture_set_version\x18\x02 \x01(\t\"J\n\x16GetFeatureSetsResponse\x12\x30\n\x0c\x66\x65\x61ture_sets\x18\x01 \x03(\x0b\x32\x1a.feast.core.FeatureSetSpec\"_\n\x10GetStoresRequest\x12\x33\n\x06\x66ilter\x18\x01 \x01(\x0b\x32#.feast.core.GetStoresRequest.Filter\x1a\x16\n\x06\x46ilter\x12\x0c\n\x04name\x18\x01 \x01(\t\"5\n\x11GetStoresResponse\x12 \n\x05store\x18\x01 \x03(\x0b\x32\x11.feast.core.Store\"I\n\x16\x41pplyFeatureSetRequest\x12/\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x1a.feast.core.FeatureSetSpec\"\xb7\x01\n\x17\x41pplyFeatureSetResponse\x12/\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x1a.feast.core.FeatureSetSpec\x12:\n\x06status\x18\x02 \x01(\x0e\x32*.feast.core.ApplyFeatureSetResponse.Status\"/\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0b\n\x07\x43REATED\x10\x01\x12\t\n\x05\x45RROR\x10\x02\"\x1c\n\x1aGetFeastCoreVersionRequest\".\n\x1bGetFeastCoreVersionResponse\x12\x0f\n\x07version\x18\x01 \x01(\t\"6\n\x12UpdateStoreRequest\x12 \n\x05store\x18\x01 \x01(\x0b\x32\x11.feast.core.Store\"\x95\x01\n\x13UpdateStoreResponse\x12 \n\x05store\x18\x01 \x01(\x0b\x32\x11.feast.core.Store\x12\x36\n\x06status\x18\x02 \x01(\x0e\x32&.feast.core.UpdateStoreResponse.Status\"$\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0b\n\x07UPDATED\x10\x01\x32\xc4\x03\n\x0b\x43oreService\x12\x66\n\x13GetFeastCoreVersion\x12&.feast.core.GetFeastCoreVersionRequest\x1a\'.feast.core.GetFeastCoreVersionResponse\x12W\n\x0eGetFeatureSets\x12!.feast.core.GetFeatureSetsRequest\x1a\".feast.core.GetFeatureSetsResponse\x12H\n\tGetStores\x12\x1c.feast.core.GetStoresRequest\x1a\x1d.feast.core.GetStoresResponse\x12Z\n\x0f\x41pplyFeatureSet\x12\".feast.core.ApplyFeatureSetRequest\x1a#.feast.core.ApplyFeatureSetResponse\x12N\n\x0bUpdateStore\x12\x1e.feast.core.UpdateStoreRequest\x1a\x1f.feast.core.UpdateStoreResponseBO\n\nfeast.coreB\x10\x43oreServiceProtoZ/github.com/gojek/feast/sdk/go/protos/feast/coreb\x06proto3')
   ,
-  dependencies=[feast_dot_specs_dot_EntitySpec__pb2.DESCRIPTOR,feast_dot_specs_dot_FeatureSpec__pb2.DESCRIPTOR,feast_dot_specs_dot_FeatureGroupSpec__pb2.DESCRIPTOR,feast_dot_specs_dot_StorageSpec__pb2.DESCRIPTOR,google_dot_protobuf_dot_empty__pb2.DESCRIPTOR,google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,])
+  dependencies=[feast_dot_core_dot_FeatureSet__pb2.DESCRIPTOR,feast_dot_core_dot_Store__pb2.DESCRIPTOR,])
 
 
 
-_CORESERVICETYPES_GETUPLOADURLREQUEST_FILETYPE = _descriptor.EnumDescriptor(
-  name='FileType',
-  full_name='feast.core.CoreServiceTypes.GetUploadUrlRequest.FileType',
+_APPLYFEATURESETRESPONSE_STATUS = _descriptor.EnumDescriptor(
+  name='Status',
+  full_name='feast.core.ApplyFeatureSetResponse.Status',
   filename=None,
   file=DESCRIPTOR,
   values=[
     _descriptor.EnumValueDescriptor(
-      name='CSV', index=0, number=0,
+      name='NO_CHANGE', index=0, number=0,
       serialized_options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='JSON', index=1, number=1,
+      name='CREATED', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='ERROR', index=2, number=2,
       serialized_options=None,
       type=None),
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1008,
-  serialized_end=1037,
+  serialized_start=686,
+  serialized_end=733,
 )
-_sym_db.RegisterEnumDescriptor(_CORESERVICETYPES_GETUPLOADURLREQUEST_FILETYPE)
+_sym_db.RegisterEnumDescriptor(_APPLYFEATURESETRESPONSE_STATUS)
 
-_CORESERVICETYPES_GETUPLOADURLRESPONSE_HTTPMETHOD = _descriptor.EnumDescriptor(
-  name='HttpMethod',
-  full_name='feast.core.CoreServiceTypes.GetUploadUrlResponse.HttpMethod',
+_UPDATESTORERESPONSE_STATUS = _descriptor.EnumDescriptor(
+  name='Status',
+  full_name='feast.core.UpdateStoreResponse.Status',
   filename=None,
   file=DESCRIPTOR,
   values=[
     _descriptor.EnumValueDescriptor(
-      name='PUT', index=0, number=0,
+      name='NO_CHANGE', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='UPDATED', index=1, number=1,
       serialized_options=None,
       type=None),
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1221,
-  serialized_end=1242,
+  serialized_start=983,
+  serialized_end=1019,
 )
-_sym_db.RegisterEnumDescriptor(_CORESERVICETYPES_GETUPLOADURLRESPONSE_HTTPMETHOD)
+_sym_db.RegisterEnumDescriptor(_UPDATESTORERESPONSE_STATUS)
 
 
-_CORESERVICETYPES_GETENTITIESREQUEST = _descriptor.Descriptor(
-  name='GetEntitiesRequest',
-  full_name='feast.core.CoreServiceTypes.GetEntitiesRequest',
+_GETFEATURESETSREQUEST_FILTER = _descriptor.Descriptor(
+  name='Filter',
+  full_name='feast.core.GetFeatureSetsRequest.Filter',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='ids', full_name='feast.core.CoreServiceTypes.GetEntitiesRequest.ids', index=0,
-      number=1, type=9, cpp_type=9, label=3,
-      has_default_value=False, default_value=[],
+      name='feature_set_name', full_name='feast.core.GetFeatureSetsRequest.Filter.feature_set_name', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='feature_set_version', full_name='feast.core.GetFeatureSetsRequest.Filter.feature_set_version', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -99,19 +110,50 @@ _CORESERVICETYPES_GETENTITIESREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=255,
-  serialized_end=288,
+  serialized_start=181,
+  serialized_end=244,
 )
 
-_CORESERVICETYPES_GETENTITIESRESPONSE = _descriptor.Descriptor(
-  name='GetEntitiesResponse',
-  full_name='feast.core.CoreServiceTypes.GetEntitiesResponse',
+_GETFEATURESETSREQUEST = _descriptor.Descriptor(
+  name='GetFeatureSetsRequest',
+  full_name='feast.core.GetFeatureSetsRequest',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='entities', full_name='feast.core.CoreServiceTypes.GetEntitiesResponse.entities', index=0,
+      name='filter', full_name='feast.core.GetFeatureSetsRequest.filter', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[_GETFEATURESETSREQUEST_FILTER, ],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=98,
+  serialized_end=244,
+)
+
+
+_GETFEATURESETSRESPONSE = _descriptor.Descriptor(
+  name='GetFeatureSetsResponse',
+  full_name='feast.core.GetFeatureSetsResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='feature_sets', full_name='feast.core.GetFeatureSetsResponse.feature_sets', index=0,
       number=1, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
@@ -129,229 +171,20 @@ _CORESERVICETYPES_GETENTITIESRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=290,
-  serialized_end=354,
+  serialized_start=246,
+  serialized_end=320,
 )
 
-_CORESERVICETYPES_LISTENTITIESRESPONSE = _descriptor.Descriptor(
-  name='ListEntitiesResponse',
-  full_name='feast.core.CoreServiceTypes.ListEntitiesResponse',
+
+_GETSTORESREQUEST_FILTER = _descriptor.Descriptor(
+  name='Filter',
+  full_name='feast.core.GetStoresRequest.Filter',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='entities', full_name='feast.core.CoreServiceTypes.ListEntitiesResponse.entities', index=0,
-      number=1, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=356,
-  serialized_end=421,
-)
-
-_CORESERVICETYPES_GETFEATURESREQUEST = _descriptor.Descriptor(
-  name='GetFeaturesRequest',
-  full_name='feast.core.CoreServiceTypes.GetFeaturesRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='ids', full_name='feast.core.CoreServiceTypes.GetFeaturesRequest.ids', index=0,
-      number=1, type=9, cpp_type=9, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=423,
-  serialized_end=456,
-)
-
-_CORESERVICETYPES_GETFEATURESRESPONSE = _descriptor.Descriptor(
-  name='GetFeaturesResponse',
-  full_name='feast.core.CoreServiceTypes.GetFeaturesResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='features', full_name='feast.core.CoreServiceTypes.GetFeaturesResponse.features', index=0,
-      number=1, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=458,
-  serialized_end=523,
-)
-
-_CORESERVICETYPES_LISTFEATURESRESPONSE = _descriptor.Descriptor(
-  name='ListFeaturesResponse',
-  full_name='feast.core.CoreServiceTypes.ListFeaturesResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='features', full_name='feast.core.CoreServiceTypes.ListFeaturesResponse.features', index=0,
-      number=1, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=525,
-  serialized_end=591,
-)
-
-_CORESERVICETYPES_GETSTORAGEREQUEST = _descriptor.Descriptor(
-  name='GetStorageRequest',
-  full_name='feast.core.CoreServiceTypes.GetStorageRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='ids', full_name='feast.core.CoreServiceTypes.GetStorageRequest.ids', index=0,
-      number=1, type=9, cpp_type=9, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=593,
-  serialized_end=625,
-)
-
-_CORESERVICETYPES_GETSTORAGERESPONSE = _descriptor.Descriptor(
-  name='GetStorageResponse',
-  full_name='feast.core.CoreServiceTypes.GetStorageResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='storageSpecs', full_name='feast.core.CoreServiceTypes.GetStorageResponse.storageSpecs', index=0,
-      number=1, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=627,
-  serialized_end=695,
-)
-
-_CORESERVICETYPES_LISTSTORAGERESPONSE = _descriptor.Descriptor(
-  name='ListStorageResponse',
-  full_name='feast.core.CoreServiceTypes.ListStorageResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='storageSpecs', full_name='feast.core.CoreServiceTypes.ListStorageResponse.storageSpecs', index=0,
-      number=1, type=11, cpp_type=10, label=3,
-      has_default_value=False, default_value=[],
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=697,
-  serialized_end=766,
-)
-
-_CORESERVICETYPES_APPLYENTITYRESPONSE = _descriptor.Descriptor(
-  name='ApplyEntityResponse',
-  full_name='feast.core.CoreServiceTypes.ApplyEntityResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='entityName', full_name='feast.core.CoreServiceTypes.ApplyEntityResponse.entityName', index=0,
+      name='name', full_name='feast.core.GetStoresRequest.Filter.name', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -369,21 +202,52 @@ _CORESERVICETYPES_APPLYENTITYRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=768,
-  serialized_end=809,
+  serialized_start=395,
+  serialized_end=417,
 )
 
-_CORESERVICETYPES_APPLYFEATURERESPONSE = _descriptor.Descriptor(
-  name='ApplyFeatureResponse',
-  full_name='feast.core.CoreServiceTypes.ApplyFeatureResponse',
+_GETSTORESREQUEST = _descriptor.Descriptor(
+  name='GetStoresRequest',
+  full_name='feast.core.GetStoresRequest',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='featureId', full_name='feast.core.CoreServiceTypes.ApplyFeatureResponse.featureId', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      name='filter', full_name='feast.core.GetStoresRequest.filter', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[_GETSTORESREQUEST_FILTER, ],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=322,
+  serialized_end=417,
+)
+
+
+_GETSTORESRESPONSE = _descriptor.Descriptor(
+  name='GetStoresResponse',
+  full_name='feast.core.GetStoresResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='store', full_name='feast.core.GetStoresResponse.store', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -399,21 +263,22 @@ _CORESERVICETYPES_APPLYFEATURERESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=811,
-  serialized_end=852,
+  serialized_start=419,
+  serialized_end=472,
 )
 
-_CORESERVICETYPES_APPLYFEATUREGROUPRESPONSE = _descriptor.Descriptor(
-  name='ApplyFeatureGroupResponse',
-  full_name='feast.core.CoreServiceTypes.ApplyFeatureGroupResponse',
+
+_APPLYFEATURESETREQUEST = _descriptor.Descriptor(
+  name='ApplyFeatureSetRequest',
+  full_name='feast.core.ApplyFeatureSetRequest',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='featureGroupId', full_name='feast.core.CoreServiceTypes.ApplyFeatureGroupResponse.featureGroupId', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      name='feature_set', full_name='feast.core.ApplyFeatureSetRequest.feature_set', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -429,72 +294,84 @@ _CORESERVICETYPES_APPLYFEATUREGROUPRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=854,
-  serialized_end=905,
+  serialized_start=474,
+  serialized_end=547,
 )
 
-_CORESERVICETYPES_GETUPLOADURLREQUEST = _descriptor.Descriptor(
-  name='GetUploadUrlRequest',
-  full_name='feast.core.CoreServiceTypes.GetUploadUrlRequest',
+
+_APPLYFEATURESETRESPONSE = _descriptor.Descriptor(
+  name='ApplyFeatureSetResponse',
+  full_name='feast.core.ApplyFeatureSetResponse',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='fileType', full_name='feast.core.CoreServiceTypes.GetUploadUrlRequest.fileType', index=0,
-      number=1, type=14, cpp_type=8, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-    _CORESERVICETYPES_GETUPLOADURLREQUEST_FILETYPE,
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=908,
-  serialized_end=1037,
-)
-
-_CORESERVICETYPES_GETUPLOADURLRESPONSE = _descriptor.Descriptor(
-  name='GetUploadUrlResponse',
-  full_name='feast.core.CoreServiceTypes.GetUploadUrlResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='url', full_name='feast.core.CoreServiceTypes.GetUploadUrlResponse.url', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='httpMethod', full_name='feast.core.CoreServiceTypes.GetUploadUrlResponse.httpMethod', index=1,
-      number=2, type=14, cpp_type=8, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='expiration', full_name='feast.core.CoreServiceTypes.GetUploadUrlResponse.expiration', index=2,
-      number=3, type=11, cpp_type=10, label=1,
+      name='feature_set', full_name='feast.core.ApplyFeatureSetResponse.feature_set', index=0,
+      number=1, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='path', full_name='feast.core.CoreServiceTypes.GetUploadUrlResponse.path', index=3,
-      number=4, type=9, cpp_type=9, label=1,
+      name='status', full_name='feast.core.ApplyFeatureSetResponse.status', index=1,
+      number=2, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _APPLYFEATURESETRESPONSE_STATUS,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=550,
+  serialized_end=733,
+)
+
+
+_GETFEASTCOREVERSIONREQUEST = _descriptor.Descriptor(
+  name='GetFeastCoreVersionRequest',
+  full_name='feast.core.GetFeastCoreVersionRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=735,
+  serialized_end=763,
+)
+
+
+_GETFEASTCOREVERSIONRESPONSE = _descriptor.Descriptor(
+  name='GetFeastCoreVersionResponse',
+  full_name='feast.core.GetFeastCoreVersionResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='version', full_name='feast.core.GetFeastCoreVersionResponse.version', index=0,
+      number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -504,7 +381,6 @@ _CORESERVICETYPES_GETUPLOADURLRESPONSE = _descriptor.Descriptor(
   ],
   nested_types=[],
   enum_types=[
-    _CORESERVICETYPES_GETUPLOADURLRESPONSE_HTTPMETHOD,
   ],
   serialized_options=None,
   is_extendable=False,
@@ -512,21 +388,29 @@ _CORESERVICETYPES_GETUPLOADURLRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1040,
-  serialized_end=1242,
+  serialized_start=765,
+  serialized_end=811,
 )
 
-_CORESERVICETYPES = _descriptor.Descriptor(
-  name='CoreServiceTypes',
-  full_name='feast.core.CoreServiceTypes',
+
+_UPDATESTOREREQUEST = _descriptor.Descriptor(
+  name='UpdateStoreRequest',
+  full_name='feast.core.UpdateStoreRequest',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
+    _descriptor.FieldDescriptor(
+      name='store', full_name='feast.core.UpdateStoreRequest.store', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
-  nested_types=[_CORESERVICETYPES_GETENTITIESREQUEST, _CORESERVICETYPES_GETENTITIESRESPONSE, _CORESERVICETYPES_LISTENTITIESRESPONSE, _CORESERVICETYPES_GETFEATURESREQUEST, _CORESERVICETYPES_GETFEATURESRESPONSE, _CORESERVICETYPES_LISTFEATURESRESPONSE, _CORESERVICETYPES_GETSTORAGEREQUEST, _CORESERVICETYPES_GETSTORAGERESPONSE, _CORESERVICETYPES_LISTSTORAGERESPONSE, _CORESERVICETYPES_APPLYENTITYRESPONSE, _CORESERVICETYPES_APPLYFEATURERESPONSE, _CORESERVICETYPES_APPLYFEATUREGROUPRESPONSE, _CORESERVICETYPES_GETUPLOADURLREQUEST, _CORESERVICETYPES_GETUPLOADURLRESPONSE, ],
+  nested_types=[],
   enum_types=[
   ],
   serialized_options=None,
@@ -535,156 +419,160 @@ _CORESERVICETYPES = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=235,
-  serialized_end=1242,
+  serialized_start=813,
+  serialized_end=867,
 )
 
-_CORESERVICETYPES_GETENTITIESREQUEST.containing_type = _CORESERVICETYPES
-_CORESERVICETYPES_GETENTITIESRESPONSE.fields_by_name['entities'].message_type = feast_dot_specs_dot_EntitySpec__pb2._ENTITYSPEC
-_CORESERVICETYPES_GETENTITIESRESPONSE.containing_type = _CORESERVICETYPES
-_CORESERVICETYPES_LISTENTITIESRESPONSE.fields_by_name['entities'].message_type = feast_dot_specs_dot_EntitySpec__pb2._ENTITYSPEC
-_CORESERVICETYPES_LISTENTITIESRESPONSE.containing_type = _CORESERVICETYPES
-_CORESERVICETYPES_GETFEATURESREQUEST.containing_type = _CORESERVICETYPES
-_CORESERVICETYPES_GETFEATURESRESPONSE.fields_by_name['features'].message_type = feast_dot_specs_dot_FeatureSpec__pb2._FEATURESPEC
-_CORESERVICETYPES_GETFEATURESRESPONSE.containing_type = _CORESERVICETYPES
-_CORESERVICETYPES_LISTFEATURESRESPONSE.fields_by_name['features'].message_type = feast_dot_specs_dot_FeatureSpec__pb2._FEATURESPEC
-_CORESERVICETYPES_LISTFEATURESRESPONSE.containing_type = _CORESERVICETYPES
-_CORESERVICETYPES_GETSTORAGEREQUEST.containing_type = _CORESERVICETYPES
-_CORESERVICETYPES_GETSTORAGERESPONSE.fields_by_name['storageSpecs'].message_type = feast_dot_specs_dot_StorageSpec__pb2._STORAGESPEC
-_CORESERVICETYPES_GETSTORAGERESPONSE.containing_type = _CORESERVICETYPES
-_CORESERVICETYPES_LISTSTORAGERESPONSE.fields_by_name['storageSpecs'].message_type = feast_dot_specs_dot_StorageSpec__pb2._STORAGESPEC
-_CORESERVICETYPES_LISTSTORAGERESPONSE.containing_type = _CORESERVICETYPES
-_CORESERVICETYPES_APPLYENTITYRESPONSE.containing_type = _CORESERVICETYPES
-_CORESERVICETYPES_APPLYFEATURERESPONSE.containing_type = _CORESERVICETYPES
-_CORESERVICETYPES_APPLYFEATUREGROUPRESPONSE.containing_type = _CORESERVICETYPES
-_CORESERVICETYPES_GETUPLOADURLREQUEST.fields_by_name['fileType'].enum_type = _CORESERVICETYPES_GETUPLOADURLREQUEST_FILETYPE
-_CORESERVICETYPES_GETUPLOADURLREQUEST.containing_type = _CORESERVICETYPES
-_CORESERVICETYPES_GETUPLOADURLREQUEST_FILETYPE.containing_type = _CORESERVICETYPES_GETUPLOADURLREQUEST
-_CORESERVICETYPES_GETUPLOADURLRESPONSE.fields_by_name['httpMethod'].enum_type = _CORESERVICETYPES_GETUPLOADURLRESPONSE_HTTPMETHOD
-_CORESERVICETYPES_GETUPLOADURLRESPONSE.fields_by_name['expiration'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
-_CORESERVICETYPES_GETUPLOADURLRESPONSE.containing_type = _CORESERVICETYPES
-_CORESERVICETYPES_GETUPLOADURLRESPONSE_HTTPMETHOD.containing_type = _CORESERVICETYPES_GETUPLOADURLRESPONSE
-DESCRIPTOR.message_types_by_name['CoreServiceTypes'] = _CORESERVICETYPES
+
+_UPDATESTORERESPONSE = _descriptor.Descriptor(
+  name='UpdateStoreResponse',
+  full_name='feast.core.UpdateStoreResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='store', full_name='feast.core.UpdateStoreResponse.store', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='status', full_name='feast.core.UpdateStoreResponse.status', index=1,
+      number=2, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _UPDATESTORERESPONSE_STATUS,
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=870,
+  serialized_end=1019,
+)
+
+_GETFEATURESETSREQUEST_FILTER.containing_type = _GETFEATURESETSREQUEST
+_GETFEATURESETSREQUEST.fields_by_name['filter'].message_type = _GETFEATURESETSREQUEST_FILTER
+_GETFEATURESETSRESPONSE.fields_by_name['feature_sets'].message_type = feast_dot_core_dot_FeatureSet__pb2._FEATURESETSPEC
+_GETSTORESREQUEST_FILTER.containing_type = _GETSTORESREQUEST
+_GETSTORESREQUEST.fields_by_name['filter'].message_type = _GETSTORESREQUEST_FILTER
+_GETSTORESRESPONSE.fields_by_name['store'].message_type = feast_dot_core_dot_Store__pb2._STORE
+_APPLYFEATURESETREQUEST.fields_by_name['feature_set'].message_type = feast_dot_core_dot_FeatureSet__pb2._FEATURESETSPEC
+_APPLYFEATURESETRESPONSE.fields_by_name['feature_set'].message_type = feast_dot_core_dot_FeatureSet__pb2._FEATURESETSPEC
+_APPLYFEATURESETRESPONSE.fields_by_name['status'].enum_type = _APPLYFEATURESETRESPONSE_STATUS
+_APPLYFEATURESETRESPONSE_STATUS.containing_type = _APPLYFEATURESETRESPONSE
+_UPDATESTOREREQUEST.fields_by_name['store'].message_type = feast_dot_core_dot_Store__pb2._STORE
+_UPDATESTORERESPONSE.fields_by_name['store'].message_type = feast_dot_core_dot_Store__pb2._STORE
+_UPDATESTORERESPONSE.fields_by_name['status'].enum_type = _UPDATESTORERESPONSE_STATUS
+_UPDATESTORERESPONSE_STATUS.containing_type = _UPDATESTORERESPONSE
+DESCRIPTOR.message_types_by_name['GetFeatureSetsRequest'] = _GETFEATURESETSREQUEST
+DESCRIPTOR.message_types_by_name['GetFeatureSetsResponse'] = _GETFEATURESETSRESPONSE
+DESCRIPTOR.message_types_by_name['GetStoresRequest'] = _GETSTORESREQUEST
+DESCRIPTOR.message_types_by_name['GetStoresResponse'] = _GETSTORESRESPONSE
+DESCRIPTOR.message_types_by_name['ApplyFeatureSetRequest'] = _APPLYFEATURESETREQUEST
+DESCRIPTOR.message_types_by_name['ApplyFeatureSetResponse'] = _APPLYFEATURESETRESPONSE
+DESCRIPTOR.message_types_by_name['GetFeastCoreVersionRequest'] = _GETFEASTCOREVERSIONREQUEST
+DESCRIPTOR.message_types_by_name['GetFeastCoreVersionResponse'] = _GETFEASTCOREVERSIONRESPONSE
+DESCRIPTOR.message_types_by_name['UpdateStoreRequest'] = _UPDATESTOREREQUEST
+DESCRIPTOR.message_types_by_name['UpdateStoreResponse'] = _UPDATESTORERESPONSE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-CoreServiceTypes = _reflection.GeneratedProtocolMessageType('CoreServiceTypes', (_message.Message,), {
+GetFeatureSetsRequest = _reflection.GeneratedProtocolMessageType('GetFeatureSetsRequest', (_message.Message,), {
 
-  'GetEntitiesRequest' : _reflection.GeneratedProtocolMessageType('GetEntitiesRequest', (_message.Message,), {
-    'DESCRIPTOR' : _CORESERVICETYPES_GETENTITIESREQUEST,
+  'Filter' : _reflection.GeneratedProtocolMessageType('Filter', (_message.Message,), {
+    'DESCRIPTOR' : _GETFEATURESETSREQUEST_FILTER,
     '__module__' : 'feast.core.CoreService_pb2'
-    # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.GetEntitiesRequest)
+    # @@protoc_insertion_point(class_scope:feast.core.GetFeatureSetsRequest.Filter)
     })
   ,
-
-  'GetEntitiesResponse' : _reflection.GeneratedProtocolMessageType('GetEntitiesResponse', (_message.Message,), {
-    'DESCRIPTOR' : _CORESERVICETYPES_GETENTITIESRESPONSE,
-    '__module__' : 'feast.core.CoreService_pb2'
-    # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.GetEntitiesResponse)
-    })
-  ,
-
-  'ListEntitiesResponse' : _reflection.GeneratedProtocolMessageType('ListEntitiesResponse', (_message.Message,), {
-    'DESCRIPTOR' : _CORESERVICETYPES_LISTENTITIESRESPONSE,
-    '__module__' : 'feast.core.CoreService_pb2'
-    # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.ListEntitiesResponse)
-    })
-  ,
-
-  'GetFeaturesRequest' : _reflection.GeneratedProtocolMessageType('GetFeaturesRequest', (_message.Message,), {
-    'DESCRIPTOR' : _CORESERVICETYPES_GETFEATURESREQUEST,
-    '__module__' : 'feast.core.CoreService_pb2'
-    # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.GetFeaturesRequest)
-    })
-  ,
-
-  'GetFeaturesResponse' : _reflection.GeneratedProtocolMessageType('GetFeaturesResponse', (_message.Message,), {
-    'DESCRIPTOR' : _CORESERVICETYPES_GETFEATURESRESPONSE,
-    '__module__' : 'feast.core.CoreService_pb2'
-    # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.GetFeaturesResponse)
-    })
-  ,
-
-  'ListFeaturesResponse' : _reflection.GeneratedProtocolMessageType('ListFeaturesResponse', (_message.Message,), {
-    'DESCRIPTOR' : _CORESERVICETYPES_LISTFEATURESRESPONSE,
-    '__module__' : 'feast.core.CoreService_pb2'
-    # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.ListFeaturesResponse)
-    })
-  ,
-
-  'GetStorageRequest' : _reflection.GeneratedProtocolMessageType('GetStorageRequest', (_message.Message,), {
-    'DESCRIPTOR' : _CORESERVICETYPES_GETSTORAGEREQUEST,
-    '__module__' : 'feast.core.CoreService_pb2'
-    # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.GetStorageRequest)
-    })
-  ,
-
-  'GetStorageResponse' : _reflection.GeneratedProtocolMessageType('GetStorageResponse', (_message.Message,), {
-    'DESCRIPTOR' : _CORESERVICETYPES_GETSTORAGERESPONSE,
-    '__module__' : 'feast.core.CoreService_pb2'
-    # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.GetStorageResponse)
-    })
-  ,
-
-  'ListStorageResponse' : _reflection.GeneratedProtocolMessageType('ListStorageResponse', (_message.Message,), {
-    'DESCRIPTOR' : _CORESERVICETYPES_LISTSTORAGERESPONSE,
-    '__module__' : 'feast.core.CoreService_pb2'
-    # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.ListStorageResponse)
-    })
-  ,
-
-  'ApplyEntityResponse' : _reflection.GeneratedProtocolMessageType('ApplyEntityResponse', (_message.Message,), {
-    'DESCRIPTOR' : _CORESERVICETYPES_APPLYENTITYRESPONSE,
-    '__module__' : 'feast.core.CoreService_pb2'
-    # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.ApplyEntityResponse)
-    })
-  ,
-
-  'ApplyFeatureResponse' : _reflection.GeneratedProtocolMessageType('ApplyFeatureResponse', (_message.Message,), {
-    'DESCRIPTOR' : _CORESERVICETYPES_APPLYFEATURERESPONSE,
-    '__module__' : 'feast.core.CoreService_pb2'
-    # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.ApplyFeatureResponse)
-    })
-  ,
-
-  'ApplyFeatureGroupResponse' : _reflection.GeneratedProtocolMessageType('ApplyFeatureGroupResponse', (_message.Message,), {
-    'DESCRIPTOR' : _CORESERVICETYPES_APPLYFEATUREGROUPRESPONSE,
-    '__module__' : 'feast.core.CoreService_pb2'
-    # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.ApplyFeatureGroupResponse)
-    })
-  ,
-
-  'GetUploadUrlRequest' : _reflection.GeneratedProtocolMessageType('GetUploadUrlRequest', (_message.Message,), {
-    'DESCRIPTOR' : _CORESERVICETYPES_GETUPLOADURLREQUEST,
-    '__module__' : 'feast.core.CoreService_pb2'
-    # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.GetUploadUrlRequest)
-    })
-  ,
-
-  'GetUploadUrlResponse' : _reflection.GeneratedProtocolMessageType('GetUploadUrlResponse', (_message.Message,), {
-    'DESCRIPTOR' : _CORESERVICETYPES_GETUPLOADURLRESPONSE,
-    '__module__' : 'feast.core.CoreService_pb2'
-    # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes.GetUploadUrlResponse)
-    })
-  ,
-  'DESCRIPTOR' : _CORESERVICETYPES,
+  'DESCRIPTOR' : _GETFEATURESETSREQUEST,
   '__module__' : 'feast.core.CoreService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.core.CoreServiceTypes)
+  # @@protoc_insertion_point(class_scope:feast.core.GetFeatureSetsRequest)
   })
-_sym_db.RegisterMessage(CoreServiceTypes)
-_sym_db.RegisterMessage(CoreServiceTypes.GetEntitiesRequest)
-_sym_db.RegisterMessage(CoreServiceTypes.GetEntitiesResponse)
-_sym_db.RegisterMessage(CoreServiceTypes.ListEntitiesResponse)
-_sym_db.RegisterMessage(CoreServiceTypes.GetFeaturesRequest)
-_sym_db.RegisterMessage(CoreServiceTypes.GetFeaturesResponse)
-_sym_db.RegisterMessage(CoreServiceTypes.ListFeaturesResponse)
-_sym_db.RegisterMessage(CoreServiceTypes.GetStorageRequest)
-_sym_db.RegisterMessage(CoreServiceTypes.GetStorageResponse)
-_sym_db.RegisterMessage(CoreServiceTypes.ListStorageResponse)
-_sym_db.RegisterMessage(CoreServiceTypes.ApplyEntityResponse)
-_sym_db.RegisterMessage(CoreServiceTypes.ApplyFeatureResponse)
-_sym_db.RegisterMessage(CoreServiceTypes.ApplyFeatureGroupResponse)
-_sym_db.RegisterMessage(CoreServiceTypes.GetUploadUrlRequest)
-_sym_db.RegisterMessage(CoreServiceTypes.GetUploadUrlResponse)
+_sym_db.RegisterMessage(GetFeatureSetsRequest)
+_sym_db.RegisterMessage(GetFeatureSetsRequest.Filter)
+
+GetFeatureSetsResponse = _reflection.GeneratedProtocolMessageType('GetFeatureSetsResponse', (_message.Message,), {
+  'DESCRIPTOR' : _GETFEATURESETSRESPONSE,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.GetFeatureSetsResponse)
+  })
+_sym_db.RegisterMessage(GetFeatureSetsResponse)
+
+GetStoresRequest = _reflection.GeneratedProtocolMessageType('GetStoresRequest', (_message.Message,), {
+
+  'Filter' : _reflection.GeneratedProtocolMessageType('Filter', (_message.Message,), {
+    'DESCRIPTOR' : _GETSTORESREQUEST_FILTER,
+    '__module__' : 'feast.core.CoreService_pb2'
+    # @@protoc_insertion_point(class_scope:feast.core.GetStoresRequest.Filter)
+    })
+  ,
+  'DESCRIPTOR' : _GETSTORESREQUEST,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.GetStoresRequest)
+  })
+_sym_db.RegisterMessage(GetStoresRequest)
+_sym_db.RegisterMessage(GetStoresRequest.Filter)
+
+GetStoresResponse = _reflection.GeneratedProtocolMessageType('GetStoresResponse', (_message.Message,), {
+  'DESCRIPTOR' : _GETSTORESRESPONSE,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.GetStoresResponse)
+  })
+_sym_db.RegisterMessage(GetStoresResponse)
+
+ApplyFeatureSetRequest = _reflection.GeneratedProtocolMessageType('ApplyFeatureSetRequest', (_message.Message,), {
+  'DESCRIPTOR' : _APPLYFEATURESETREQUEST,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.ApplyFeatureSetRequest)
+  })
+_sym_db.RegisterMessage(ApplyFeatureSetRequest)
+
+ApplyFeatureSetResponse = _reflection.GeneratedProtocolMessageType('ApplyFeatureSetResponse', (_message.Message,), {
+  'DESCRIPTOR' : _APPLYFEATURESETRESPONSE,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.ApplyFeatureSetResponse)
+  })
+_sym_db.RegisterMessage(ApplyFeatureSetResponse)
+
+GetFeastCoreVersionRequest = _reflection.GeneratedProtocolMessageType('GetFeastCoreVersionRequest', (_message.Message,), {
+  'DESCRIPTOR' : _GETFEASTCOREVERSIONREQUEST,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.GetFeastCoreVersionRequest)
+  })
+_sym_db.RegisterMessage(GetFeastCoreVersionRequest)
+
+GetFeastCoreVersionResponse = _reflection.GeneratedProtocolMessageType('GetFeastCoreVersionResponse', (_message.Message,), {
+  'DESCRIPTOR' : _GETFEASTCOREVERSIONRESPONSE,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.GetFeastCoreVersionResponse)
+  })
+_sym_db.RegisterMessage(GetFeastCoreVersionResponse)
+
+UpdateStoreRequest = _reflection.GeneratedProtocolMessageType('UpdateStoreRequest', (_message.Message,), {
+  'DESCRIPTOR' : _UPDATESTOREREQUEST,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.UpdateStoreRequest)
+  })
+_sym_db.RegisterMessage(UpdateStoreRequest)
+
+UpdateStoreResponse = _reflection.GeneratedProtocolMessageType('UpdateStoreResponse', (_message.Message,), {
+  'DESCRIPTOR' : _UPDATESTORERESPONSE,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.UpdateStoreResponse)
+  })
+_sym_db.RegisterMessage(UpdateStoreResponse)
 
 
 DESCRIPTOR._options = None
@@ -695,97 +583,52 @@ _CORESERVICE = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=1245,
-  serialized_end=2302,
+  serialized_start=1022,
+  serialized_end=1474,
   methods=[
   _descriptor.MethodDescriptor(
-    name='GetEntities',
-    full_name='feast.core.CoreService.GetEntities',
+    name='GetFeastCoreVersion',
+    full_name='feast.core.CoreService.GetFeastCoreVersion',
     index=0,
     containing_service=None,
-    input_type=_CORESERVICETYPES_GETENTITIESREQUEST,
-    output_type=_CORESERVICETYPES_GETENTITIESRESPONSE,
+    input_type=_GETFEASTCOREVERSIONREQUEST,
+    output_type=_GETFEASTCOREVERSIONRESPONSE,
     serialized_options=None,
   ),
   _descriptor.MethodDescriptor(
-    name='ListEntities',
-    full_name='feast.core.CoreService.ListEntities',
+    name='GetFeatureSets',
+    full_name='feast.core.CoreService.GetFeatureSets',
     index=1,
     containing_service=None,
-    input_type=google_dot_protobuf_dot_empty__pb2._EMPTY,
-    output_type=_CORESERVICETYPES_LISTENTITIESRESPONSE,
+    input_type=_GETFEATURESETSREQUEST,
+    output_type=_GETFEATURESETSRESPONSE,
     serialized_options=None,
   ),
   _descriptor.MethodDescriptor(
-    name='GetStorage',
-    full_name='feast.core.CoreService.GetStorage',
+    name='GetStores',
+    full_name='feast.core.CoreService.GetStores',
     index=2,
     containing_service=None,
-    input_type=_CORESERVICETYPES_GETSTORAGEREQUEST,
-    output_type=_CORESERVICETYPES_GETSTORAGERESPONSE,
-    serialized_options=_b('\210\002\001'),
+    input_type=_GETSTORESREQUEST,
+    output_type=_GETSTORESRESPONSE,
+    serialized_options=None,
   ),
   _descriptor.MethodDescriptor(
-    name='ListStorage',
-    full_name='feast.core.CoreService.ListStorage',
+    name='ApplyFeatureSet',
+    full_name='feast.core.CoreService.ApplyFeatureSet',
     index=3,
     containing_service=None,
-    input_type=google_dot_protobuf_dot_empty__pb2._EMPTY,
-    output_type=_CORESERVICETYPES_LISTSTORAGERESPONSE,
-    serialized_options=_b('\210\002\001'),
+    input_type=_APPLYFEATURESETREQUEST,
+    output_type=_APPLYFEATURESETRESPONSE,
+    serialized_options=None,
   ),
   _descriptor.MethodDescriptor(
-    name='GetFeatures',
-    full_name='feast.core.CoreService.GetFeatures',
+    name='UpdateStore',
+    full_name='feast.core.CoreService.UpdateStore',
     index=4,
     containing_service=None,
-    input_type=_CORESERVICETYPES_GETFEATURESREQUEST,
-    output_type=_CORESERVICETYPES_GETFEATURESRESPONSE,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='ListFeatures',
-    full_name='feast.core.CoreService.ListFeatures',
-    index=5,
-    containing_service=None,
-    input_type=google_dot_protobuf_dot_empty__pb2._EMPTY,
-    output_type=_CORESERVICETYPES_LISTFEATURESRESPONSE,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='ApplyFeature',
-    full_name='feast.core.CoreService.ApplyFeature',
-    index=6,
-    containing_service=None,
-    input_type=feast_dot_specs_dot_FeatureSpec__pb2._FEATURESPEC,
-    output_type=_CORESERVICETYPES_APPLYFEATURERESPONSE,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='ApplyFeatureGroup',
-    full_name='feast.core.CoreService.ApplyFeatureGroup',
-    index=7,
-    containing_service=None,
-    input_type=feast_dot_specs_dot_FeatureGroupSpec__pb2._FEATUREGROUPSPEC,
-    output_type=_CORESERVICETYPES_APPLYFEATUREGROUPRESPONSE,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='ApplyEntity',
-    full_name='feast.core.CoreService.ApplyEntity',
-    index=8,
-    containing_service=None,
-    input_type=feast_dot_specs_dot_EntitySpec__pb2._ENTITYSPEC,
-    output_type=_CORESERVICETYPES_APPLYENTITYRESPONSE,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='GetUploadUrl',
-    full_name='feast.core.CoreService.GetUploadUrl',
-    index=9,
-    containing_service=None,
-    input_type=_CORESERVICETYPES_GETUPLOADURLREQUEST,
-    output_type=_CORESERVICETYPES_GETUPLOADURLRESPONSE,
+    input_type=_UPDATESTOREREQUEST,
+    output_type=_UPDATESTORERESPONSE,
     serialized_options=None,
   ),
 ])

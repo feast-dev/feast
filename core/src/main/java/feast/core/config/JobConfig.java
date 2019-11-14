@@ -23,79 +23,54 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.DataflowScopes;
 import com.google.common.base.Strings;
-import com.timgroup.statsd.StatsDClient;
+import feast.core.config.FeastProperties.JobProperties;
 import feast.core.job.JobManager;
 import feast.core.job.JobMonitor;
 import feast.core.job.NoopJobMonitor;
 import feast.core.job.Runner;
-import feast.core.job.StatsdMetricPusher;
-import feast.core.job.dataflow.DataflowJobConfig;
 import feast.core.job.dataflow.DataflowJobManager;
 import feast.core.job.dataflow.DataflowJobMonitor;
+import feast.core.job.direct.DirectJobRegistry;
 import feast.core.job.direct.DirectRunnerJobManager;
-import feast.core.job.flink.FlinkJobConfig;
-import feast.core.job.flink.FlinkJobManager;
-import feast.core.job.flink.FlinkJobMonitor;
-import feast.core.job.flink.FlinkRestApi;
+import feast.core.job.direct.DirectRunnerJobMonitor;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.flink.client.cli.CliFrontend;
-import org.apache.flink.client.cli.CustomCommandLine;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.client.RestTemplate;
 
-/** Beans for job management */
+/**
+ * Beans for job management
+ */
 @Slf4j
 @Configuration
 public class JobConfig {
 
   /**
-   * Get configuration for dataflow connection
-   *
-   * @param projectId
-   * @param location
-   * @return DataflowJobConfig
-   */
-  @Bean
-  public DataflowJobConfig getDataflowJobConfig(
-      @Value("${feast.jobs.dataflow.projectId}") String projectId,
-      @Value("${feast.jobs.dataflow.location}") String location) {
-    return new DataflowJobConfig(projectId, location);
-  }
-
-  @Bean
-  public FlinkJobConfig getFlinkJobConfig(
-      @Value("${feast.jobs.flink.configDir}") String flinkConfigDir,
-      @Value("${feast.jobs.flink.masterUrl}") String flinkMasterUrl) {
-    return new FlinkJobConfig(flinkMasterUrl, flinkConfigDir);
-  }
-
-  /**
    * Get a JobManager according to the runner type and dataflow configuration.
    *
-   * @param runnerType runner type: one of [DataflowRunner, DirectRunner, FlinkRunner]
-   * @param dfConfig dataflow job configuration
-   * @return JobManager
+   * @param feastProperties feast config properties
    */
   @Bean
+  @Autowired
   public JobManager getJobManager(
-      @Value("${feast.jobs.runner}") String runnerType,
-      DataflowJobConfig dfConfig,
-      FlinkJobConfig flinkConfig,
-      ImportJobDefaults defaults)
+      FeastProperties feastProperties,
+      DirectJobRegistry directJobRegistry)
       throws Exception {
 
-    Runner runner = Runner.fromString(runnerType);
-
+    JobProperties jobProperties = feastProperties.getJobs();
+    Runner runner = Runner.fromString(jobProperties.getRunner());
+    if (jobProperties.getOptions() == null) {
+      jobProperties.setOptions(new HashMap<>());
+    }
+    Map<String, String> jobOptions = jobProperties.getOptions();
     switch (runner) {
       case DATAFLOW:
-        if (Strings.isNullOrEmpty(dfConfig.getLocation())
-            || Strings.isNullOrEmpty(dfConfig.getProjectId())) {
+        if (Strings.isNullOrEmpty(jobOptions.getOrDefault("region", null))
+            || Strings.isNullOrEmpty(jobOptions.getOrDefault("project", null))) {
           log.error("Project and location of the Dataflow runner is not configured");
           throw new IllegalStateException(
               "Project and location of Dataflow runner must be specified for jobs to be run on Dataflow runner.");
@@ -110,7 +85,7 @@ public class JobConfig {
                   credential);
 
           return new DataflowJobManager(
-              dataflow, dfConfig.getProjectId(), dfConfig.getLocation(), defaults);
+              dataflow, jobProperties.getOptions(), jobProperties.getMetrics());
         } catch (IOException e) {
           throw new IllegalStateException(
               "Unable to find credential required for Dataflow monitoring API", e);
@@ -119,42 +94,31 @@ public class JobConfig {
         } catch (Exception e) {
           throw new IllegalStateException("Unable to initialize DataflowJobManager", e);
         }
-      case FLINK:
-        org.apache.flink.configuration.Configuration configuration =
-            GlobalConfiguration.loadConfiguration(flinkConfig.getConfigDir());
-        List<CustomCommandLine<?>> customCommandLines =
-            CliFrontend.loadCustomCommandLines(configuration, flinkConfig.getConfigDir());
-        CliFrontend flinkCli = new CliFrontend(configuration, customCommandLines);
-        FlinkRestApi flinkRestApi =
-            new FlinkRestApi(new RestTemplate(), flinkConfig.getMasterUrl());
-        return new FlinkJobManager(flinkCli, flinkConfig, flinkRestApi, defaults);
       case DIRECT:
-        return new DirectRunnerJobManager(defaults);
+        return new DirectRunnerJobManager(jobProperties.getOptions(), directJobRegistry,
+            jobProperties.getMetrics());
       default:
-        throw new IllegalArgumentException("Unsupported runner: " + runnerType);
+        throw new IllegalArgumentException("Unsupported runner: " + jobProperties.getRunner());
     }
   }
 
   /**
    * Get a Job Monitor given the runner type and dataflow configuration.
-   *
-   * @param runnerType runner type: one of [DataflowRunner, DirectRunner, FlinkRunner]
-   * @param dfConfig dataflow job configuration
-   * @return JobMonitor
    */
   @Bean
   public JobMonitor getJobMonitor(
-      @Value("${feast.jobs.runner}") String runnerType,
-      DataflowJobConfig dfConfig,
-      FlinkJobConfig flinkJobConfig)
+      FeastProperties feastProperties,
+      DirectJobRegistry directJobRegistry)
       throws Exception {
 
-    Runner runner = Runner.fromString(runnerType);
+    JobProperties jobProperties = feastProperties.getJobs();
+    Runner runner = Runner.fromString(jobProperties.getRunner());
+    Map<String, String> jobOptions = jobProperties.getOptions();
 
     switch (runner) {
       case DATAFLOW:
-        if (Strings.isNullOrEmpty(dfConfig.getLocation())
-            || Strings.isNullOrEmpty(dfConfig.getProjectId())) {
+        if (Strings.isNullOrEmpty(jobOptions.getOrDefault("region", null))
+            || Strings.isNullOrEmpty(jobOptions.getOrDefault("project", null))) {
           log.warn(
               "Project and location of the Dataflow runner is not configured, will not do job monitoring");
           return new NoopJobMonitor();
@@ -168,7 +132,8 @@ public class JobConfig {
                   JacksonFactory.getDefaultInstance(),
                   credential);
 
-          return new DataflowJobMonitor(dataflow, dfConfig.getProjectId(), dfConfig.getLocation());
+          return new DataflowJobMonitor(dataflow, jobOptions.get("project"),
+              jobOptions.get("region"));
         } catch (IOException e) {
           log.error(
               "Unable to find credential required for Dataflow monitoring API: {}", e.getMessage());
@@ -177,24 +142,18 @@ public class JobConfig {
         } catch (Exception e) {
           log.error("Unable to initialize DataflowJobMonitor", e);
         }
-      case FLINK:
-        FlinkRestApi flinkRestApi =
-            new FlinkRestApi(new RestTemplate(), flinkJobConfig.getMasterUrl());
-        return new FlinkJobMonitor(flinkRestApi);
       case DIRECT:
+        return new DirectRunnerJobMonitor(directJobRegistry);
       default:
         return new NoopJobMonitor();
     }
   }
 
   /**
-   * Get metrics pusher to statsd
-   *
-   * @param statsDClient
-   * @return StatsdMetricPusher
+   * Get a direct job registry
    */
   @Bean
-  public StatsdMetricPusher getStatsdMetricPusher(StatsDClient statsDClient) {
-    return new StatsdMetricPusher(statsDClient);
+  public DirectJobRegistry directJobRegistry() {
+    return new DirectJobRegistry();
   }
 }
