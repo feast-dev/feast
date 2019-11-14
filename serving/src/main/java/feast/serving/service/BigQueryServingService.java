@@ -2,12 +2,8 @@ package feast.serving.service;
 
 import static feast.serving.util.BigQueryUtil.getTimestampLimitQuery;
 
-import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQuery.TableField;
-import com.google.cloud.bigquery.BigQuery.TableOption;
 import com.google.cloud.bigquery.BigQueryException;
-import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.ExtractJobConfiguration;
 import com.google.cloud.bigquery.Field;
@@ -19,14 +15,11 @@ import com.google.cloud.bigquery.LoadJobConfiguration;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.Table;
-import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
-import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobListOption;
-import com.google.common.collect.Lists;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.serving.ServingAPIProto;
 import feast.serving.ServingAPIProto.DataFormat;
@@ -310,6 +303,7 @@ public class BigQueryServingService implements ServingService {
           }
           return entityTable;
         } catch (Exception e) {
+          log.error("Exception has occurred in loadEntities method: ", e);
           throw Status.INTERNAL
               .withDescription("Failed to load entity dataset into store")
               .withCause(e)
