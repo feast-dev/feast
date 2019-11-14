@@ -130,6 +130,13 @@ images:
 - gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}
 - gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}
 
+artifacts:
+  objects:
+    location: 'gs://konnekt-artifacts/binaries/feast/ff-${SHORT_SHA}/'
+    paths:
+    - cli/bin/darwin-amd64/feast
+    - cli/bin/linux-amd64/feast
+  i
 options:
   machineType: N1_HIGHCPU_8
   env:
