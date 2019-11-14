@@ -8,14 +8,15 @@ cli-linux:
 	mkdir -p bin
 	export GOOS=linux; \
 	export GOARCH=amd64; \
-	mkdir -p bin/$$GOOS-$$GOARCH && go build \
+	go build \
 	-ldflags "-X main.Version=${FEAST_VERSION}" \
-	-o bin/$$GOOS-$$GOARCH/feast feast/main.go
+	-o bin/feast.$$GOOS-$$GOARCH feast/main.go
 
 .PHONY: cli-darwin
 cli-darwin:
+	mkdir -p bin
 	export GOOS=darwin; \
 	export GOARCH=amd64; \
-	mkdir -p bin/$$GOOS-$$GOARCH && go build \
+	go build \
 	-ldflags "-X main.Version=${FEAST_VERSION}" \
-	-o bin/$$GOOS-$$GOARCH/feast feast/main.go
+	-o bin/feast.$$GOOS-$$GOARCH feast/main.go

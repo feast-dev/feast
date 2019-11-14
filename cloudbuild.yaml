@@ -134,8 +134,7 @@ artifacts:
   objects:
     location: 'gs://konnekt-artifacts/binaries/feast/ff-${SHORT_SHA}/'
     paths:
-    - cli/bin/darwin-amd64/feast
-    - cli/bin/linux-amd64/feast
+    - cli/bin/feast.*
 
 options:
   machineType: N1_HIGHCPU_8
