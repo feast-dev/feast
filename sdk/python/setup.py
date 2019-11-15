@@ -38,6 +38,7 @@ REQUIRED = [
     "pandavro==1.5.1",
     "protobuf==3.10.*",
     "PyYAML==5.1.2",
+    "google-resumable-media==0.3.1",
     "fastavro==0.*",
     "kafka-python==1.4.*",
     "tabulate==0.8.*",
