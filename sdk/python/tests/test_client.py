@@ -12,16 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from datetime import datetime
+
 import pytz
 import tempfile
 import time
 import grpc
 import pandas as pd
 import numpy as np
+from google.protobuf.duration_pb2 import Duration
+from mock import MagicMock
 from pytz import timezone
 from pandavro import to_avro
 import feast.core.CoreService_pb2_grpc as Core
 import feast.serving.ServingService_pb2_grpc as Serving
+from feast import FeatureSet, Feature, KafkaSource, Entity
 from feast.core.FeatureSet_pb2 import FeatureSetSpec, FeatureSpec, EntitySpec
 from feast.core.Source_pb2 import SourceType, KafkaSourceConfig, Source
 from feast.core.CoreService_pb2 import (
@@ -48,6 +52,7 @@ from feast_serving_server import ServingServicer
 from feast.types import Value_pb2 as ValueProto
 from feast.value_type import ValueType
 from feast.job import Job
+import dataframes
 
 CORE_URL = "core.feast.example.com"
 SERVING_URL = "serving.example.com"
@@ -80,7 +85,7 @@ class TestClient:
         return client
 
     @pytest.fixture
-    def client_with_servers(self, core_server, serving_server):
+    def client(self, core_server, serving_server):
         return Client(core_url="localhost:50051", serving_url="localhost:50052")
 
     def test_version(self, mock_client, mocker):
@@ -192,7 +197,9 @@ class TestClient:
                         ],
                         source=Source(
                             type=SourceType.KAFKA,
-                            kafka_source_config=KafkaSourceConfig(),
+                            kafka_source_config=KafkaSourceConfig(
+                                bootstrap_servers="localhost:9092", topic="topic"
+                            ),
                         ),
                     )
                 ]
@@ -328,3 +335,129 @@ class TestClient:
                 ["customer_fs:1:customer_feature_1", "customer_fs:1:customer_feature_2"]
             ]
         )
+
+    def test_apply_feature_set(self, client):
+
+        # Create Feature Sets
+        fs1 = FeatureSet("my-feature-set-1")
+        fs1.add(Feature(name="fs1-my-feature-1", dtype=ValueType.INT64))
+        fs1.add(Feature(name="fs1-my-feature-2", dtype=ValueType.STRING))
+
+        fs2 = FeatureSet("my-feature-set-2")
+        fs2.add(Feature(name="fs2-my-feature-1", dtype=ValueType.STRING_LIST))
+        fs2.add(Feature(name="fs2-my-feature-2", dtype=ValueType.BYTES_LIST))
+
+        # Register Feature Set with Core
+        client.apply(fs1)
+        client.apply(fs2)
+
+        feature_sets = client.list_feature_sets()
+
+        # List Feature Sets
+        assert (
+            len(feature_sets) == 2
+            and feature_sets[0].name == "my-feature-set-1"
+            and feature_sets[0].features[0].name == "fs1-my-feature-1"
+            and feature_sets[0].features[0].dtype == ValueType.INT64
+            and feature_sets[1].features[1].dtype == ValueType.BYTES_LIST
+        )
+
+    @pytest.mark.parametrize("dataframe", [dataframes.GOOD])
+    def test_feature_set_ingest_success(self, dataframe, client, mocker):
+
+        driver_fs = FeatureSet("driver-feature-set")
+        driver_fs.add(Feature(name="feature_1", dtype=ValueType.FLOAT))
+        driver_fs.add(Feature(name="feature_2", dtype=ValueType.STRING))
+        driver_fs.add(Feature(name="feature_3", dtype=ValueType.INT64))
+        driver_fs.add(Entity(name="entity_id", dtype=ValueType.INT64))
+
+        driver_fs.source = KafkaSource(topic="feature-topic", brokers="127.0.0.1")
+
+        client._message_producer = MagicMock()
+        client._message_producer.produce = MagicMock()
+
+        # Register with Feast core
+        client.apply(driver_fs)
+
+        mocker.patch.object(
+            client._core_service_stub,
+            "GetFeatureSets",
+            return_value=GetFeatureSetsResponse(feature_sets=[driver_fs.to_proto()]),
+        )
+
+        # Ingest data into Feast
+        client.ingest(name="driver-feature-set", dataframe=dataframe)
+
+    @pytest.mark.parametrize(
+        "dataframe,exception",
+        [
+            (dataframes.BAD_NO_DATETIME, Exception),
+            (dataframes.BAD_INCORRECT_DATETIME_TYPE, Exception),
+            (dataframes.BAD_NO_ENTITY, Exception),
+            (dataframes.BAD_NO_FEATURES, Exception),
+        ],
+    )
+    def test_feature_set_ingest_failure(self, client, dataframe, exception):
+        with pytest.raises(exception):
+            # Create feature set
+            driver_fs = FeatureSet("driver-feature-set")
+            driver_fs.source = KafkaSource(
+                topic="feature-topic", brokers="fake.broker.com"
+            )
+            client._message_producer = MagicMock()
+            client._message_producer.produce = MagicMock()
+
+            # Update based on dataset
+            driver_fs.add_fields_from_df(
+                dataframe,
+                column_mapping={
+                    "entity_id": Entity(name="entity", dtype=ValueType.INT64)
+                },
+            )
+
+            # Register with Feast core
+            client.apply(driver_fs)
+
+            # Ingest data into Feast
+            driver_fs.ingest(dataframe=dataframe)
+
+    @pytest.mark.parametrize("dataframe", [dataframes.ALL_TYPES])
+    def test_feature_set_types_success(self, client, dataframe, mocker):
+
+        all_types_fs = FeatureSet(
+            name="all_types",
+            entities=[Entity(name="user_id", dtype=ValueType.INT64)],
+            features=[
+                Feature(name="float_feature", dtype=ValueType.FLOAT),
+                Feature(name="int64_feature", dtype=ValueType.INT64),
+                Feature(name="int32_feature", dtype=ValueType.INT32),
+                Feature(name="string_feature", dtype=ValueType.STRING),
+                Feature(name="bytes_feature", dtype=ValueType.BYTES),
+                Feature(name="bool_feature", dtype=ValueType.BOOL),
+                Feature(name="double_feature", dtype=ValueType.DOUBLE),
+                Feature(name="float_list_feature", dtype=ValueType.FLOAT_LIST),
+                Feature(name="int64_list_feature", dtype=ValueType.INT64_LIST),
+                Feature(name="int32_list_feature", dtype=ValueType.INT32_LIST),
+                Feature(name="string_list_feature", dtype=ValueType.STRING_LIST),
+                Feature(name="bytes_list_feature", dtype=ValueType.BYTES_LIST),
+                Feature(name="bool_list_feature", dtype=ValueType.BOOL_LIST),
+                Feature(name="double_list_feature", dtype=ValueType.DOUBLE_LIST),
+            ],
+            max_age=Duration(seconds=3600),
+        )
+
+        all_types_fs.source = KafkaSource(topic="feature-topic", brokers="127.0.0.1")
+        client._message_producer = MagicMock()
+        client._message_producer.produce = MagicMock()
+
+        # Register with Feast core
+        client.apply(all_types_fs)
+
+        mocker.patch.object(
+            client._core_service_stub,
+            "GetFeatureSets",
+            return_value=GetFeatureSetsResponse(feature_sets=[all_types_fs.to_proto()]),
+        )
+
+        # Ingest data into Feast
+        client.ingest(name="all_types", dataframe=dataframe)

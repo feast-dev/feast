@@ -11,19 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
-import tempfile
-import shutil
-from datetime import datetime
+import logging
 import os
 from collections import OrderedDict
 from typing import Dict, Union
 from typing import List
 import grpc
 import pandas as pd
-from google.cloud import storage
-from pandavro import to_avro
+from feast.loaders.ingest import ingest_kafka
+from confluent_kafka import Producer
+
 from feast.exceptions import format_grpc_exception
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionRequest,
@@ -51,13 +48,16 @@ from urllib.parse import urlparse
 import uuid
 import numpy as np
 import sys
-from feast.utils.loaders import export_dataframe_to_staging_location
+from feast.loaders.file import export_dataframe_to_staging_location
+
+_logger = logging.getLogger(__name__)
 
 GRPC_CONNECTION_TIMEOUT_DEFAULT = 3  # type: int
 GRPC_CONNECTION_TIMEOUT_APPLY = 300  # type: int
 FEAST_SERVING_URL_ENV_KEY = "FEAST_SERVING_URL"  # type: str
 FEAST_CORE_URL_ENV_KEY = "FEAST_CORE_URL"  # type: str
 BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS = 300
+CPU_COUNT = os.cpu_count()  # type: int
 
 
 class Client:
@@ -252,7 +252,7 @@ class Client:
         return feature_sets
 
     def get_feature_set(
-        self, name: str, version: int = None
+        self, name: str, version: int = None, fail_if_missing: bool = False
     ) -> Union[FeatureSet, None]:
         """
         Retrieve a single feature set from Feast Core
@@ -283,6 +283,11 @@ class Client:
         else:
             num_feature_sets_found = len(list(get_feature_set_response.feature_sets))
             if num_feature_sets_found == 0:
+                if fail_if_missing:
+                    raise Exception(
+                        f'Could not find feature set with name "{name}" and '
+                        f'version "{version}" '
+                    )
                 return None
             if num_feature_sets_found > 1:
                 raise Exception(
@@ -455,6 +460,42 @@ class Client:
             print(format_grpc_exception("GetOnlineFeatures", e.code(), e.details()))
         else:
             return response
+
+    def ingest(
+        self,
+        name: str,
+        dataframe: pd.DataFrame,
+        version: int = None,
+        force_update: bool = False,
+        timeout: int = 5,
+        max_workers: int = CPU_COUNT,
+        disable_progress_bar: bool = False,
+        chunk_size: int = 5000,
+    ):
+        feature_set = self.get_feature_set(name, version, fail_if_missing=True)
+
+        if feature_set.source.source_type == "Kafka":
+            ingest_kafka(
+                feature_set=feature_set,
+                dataframe=dataframe,
+                force_update=force_update,
+                timeout=timeout,
+                max_workers=max_workers,
+                disable_progress_bar=disable_progress_bar,
+                chunk_size=chunk_size,
+                producer=Producer(
+                    {"bootstrap.servers": feature_set.get_kafka_source_brokers()}
+                ),
+            )
+        else:
+            raise Exception(
+                f"Could not determine source type for feature set "
+                f'"{feature_set.name}" with source type '
+                f'"{feature_set.source.source_type}"'
+            )
+
+    def ingest_file(self):
+        pass
 
 
 def _build_feature_set_request(feature_ids: List[str]) -> List[FeatureSetRequest]:
