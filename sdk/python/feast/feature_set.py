@@ -40,13 +40,8 @@ from google.protobuf.json_format import MessageToJson
 import yaml
 from google.protobuf import json_format
 from feast.source import KafkaSource
-from feast.type_map import convert_df_to_feature_rows
 from feast.type_map import DATETIME_COLUMN
-from feast.utils import loaders
-
-_logger = logging.getLogger(__name__)
-CPU_COUNT = cpu_count()  # type: int
-SENTINEL = 1  # type: int
+from feast.loaders import yaml as feast_yaml
 
 
 class FeatureSet:
@@ -75,7 +70,6 @@ class FeatureSet:
         self._max_age = max_age
         self._version = None
         self._client = None
-        self._message_producer = None
         self._busy_ingesting = False
         self._is_dirty = True
 
@@ -205,11 +199,11 @@ class FeatureSet:
             )
 
         if issubclass(type(resource), Field):
-            return self._add_field(resource)
+            return self._set_field(resource)
 
         raise ValueError("Could not identify the resource being added")
 
-    def _add_field(self, field: Field):
+    def _set_field(self, field: Field):
         self._fields[field.name] = field
         return
 
@@ -232,16 +226,21 @@ class FeatureSet:
         for field in fields:
             self.add(field)
 
-    def update_from_dataset(self, df: pd.DataFrame, column_mapping=None):
+    def add_fields_from_df(
+        self,
+        df: pd.DataFrame,
+        replace_existing_features=False,
+        replace_existing_entities=False,
+    ):
         """
-        Updates Feature Set values based on the data set. Only Pandas dataframes are supported.
-        :param column_mapping: Dictionary of column names to resource (entity, feature) mapping. Forces the interpretation
-        of a column as either an entity or feature. Example: {"driver_id": Entity(name="driver", dtype=ValueType.INT64)}
-        :param df: Pandas dataframe containing datetime column, entity columns, and feature columns.
+        Updates Feature Set values based on the data set. Only Pandas
+        dataframes are supported. :param column_mapping: Dictionary of column
+        names to resource (entity, feature) mapping. Forces the
+        interpretation of a column as either an entity or feature. Example: {
+        "driver_id": Entity(name="driver", dtype=ValueType.INT64)} :param df:
+        Pandas dataframe containing datetime column, entity columns,
+        and feature columns.
         """
-
-        fields = OrderedDict()
-        existing_entities = self._client.entities if self._client is not None else None
 
         # Validate whether the datetime column exists with the right name
         if DATETIME_COLUMN not in df:
@@ -253,7 +252,7 @@ class FeatureSet:
                 "Column 'datetime' does not have the correct type: datetime64[ns]"
             )
 
-        # Iterate over all of the columns and detect their class (feature, entity) and type
+        # Iterate over all of the columns and create features
         for column in df.columns:
             column = column.strip()
 
@@ -261,173 +260,27 @@ class FeatureSet:
             if DATETIME_COLUMN in column:
                 continue
 
-            # Use entity or feature value if provided by the column mapping
-            if column_mapping and column in column_mapping:
-                if issubclass(type(column_mapping[column]), Field):
-                    fields[column] = column_mapping[column]
-                    continue
-                raise ValueError(
-                    "Invalid resource type specified at column name " + column
-                )
-
-            # Test whether this column is an existing entity (globally).
-            if existing_entities and column in existing_entities:
-                entity = existing_entities[column]
-
-                # test whether registered entity type matches user provided type
-                if entity.dtype == dtype_to_value_type(df[column].dtype):
-                    # Store this field as an entity
-                    fields[column] = entity
-                    continue
-
-            # Ignore fields that already exist
+            # Only overwrite conflicting fields if replacement is allowed
             if column in self._fields:
-                continue
+                if (
+                    isinstance(self._fields[column], Feature)
+                    and not replace_existing_features
+                ):
+                    continue
+
+                if (
+                    isinstance(self._fields[column], Entity)
+                    and not replace_existing_entities
+                ):
+                    continue
 
             # Store this field as a feature
-            fields[column] = Feature(
-                name=column, dtype=pandas_dtype_to_feast_value_type(df[column].dtype)
+            self._set_field(
+                Feature(
+                    name=column,
+                    dtype=pandas_dtype_to_feast_value_type(df[column].dtype),
+                )
             )
-
-        if len([field for field in fields.values() if type(field) == Entity]) == 0:
-            raise Exception(
-                "Could not detect entity column(s). Please provide entity column(s)."
-            )
-        if len([field for field in fields.values() if type(field) == Feature]) == 0:
-            raise Exception(
-                "Could not detect feature column(s). Please provide feature column(s)."
-            )
-        self._add_fields(list(fields.values()))
-
-    def ingest(
-        self,
-        dataframe: pd.DataFrame,
-        force_update: bool = False,
-        timeout: int = 5,
-        max_workers: int = CPU_COUNT,
-        disable_progress_bar: bool = False,
-    ):
-
-        pbar = tqdm(unit="rows", total=dataframe.shape[0], disable=disable_progress_bar)
-        q = Queue()
-        proc = Process(target=self._listener, args=(pbar, q))
-        try:
-            proc.start()  #
-            if dataframe.shape[0] > 10000:
-                _logger.info("Performing batch upload.")
-                # Split dataframe into smaller dataframes
-                n = ceil(dataframe.shape[0] / max_workers)
-                list_df = [
-                    dataframe[i : min(i + n, dataframe.shape[0])]
-                    for i in range(0, dataframe.shape[0], n)
-                ]
-
-                # Fork ingestion processes
-                processes = []
-                for i in range(max_workers):
-                    _logger.info(f"Starting process number = {i + 1}")
-                    p = Process(
-                        target=self.ingest_one,
-                        args=(list_df[i], q, force_update, timeout),
-                    )
-                    p.start()
-                    processes.append(p)
-
-                # Join ingestion processes
-                for p in processes:
-                    _logger.info("Joining processes")
-                    p.join()
-            else:
-                _logger.info("Performing upload")
-                self.ingest_one(dataframe, q, force_update, timeout)
-
-            _logger.info("Upload complete.")
-        except Exception as ex:
-            _logger.error(f"Exception occurred: {ex}")
-        finally:
-            q.put(None)  # Signal to listener process to stop
-            proc.join()  # Join listener process
-            pbar.update(dataframe.shape[0] - pbar.n)  # Perform a final update
-            pbar.close()
-
-    def ingest_one(
-        self,
-        dataframe: pd.DataFrame,
-        q: Queue,
-        force_update: bool = False,
-        timeout: int = 5,
-    ):
-        """
-        Write the rows in the provided dataframe into a Kafka topic.
-        :param dataframe: Dataframe containing the input data to be ingested.
-        :param q: Queue used to send signals to update tqdm progress bar
-        :param force_update: Flag to update feature set from data set and re-register if changed.
-        :param timeout: Timeout in seconds to wait for completion.
-        :return:
-        """
-
-        # Validate feature set version with Feast Core
-        self._validate_feature_set()
-
-        # Validate dataframe based on feature set
-        validate_dataframe(dataframe, self)
-
-        # Create Kafka FeatureRow producer (Required if process is forked)
-        if self._message_producer is None:
-            self._message_producer = KafkaProducer(
-                bootstrap_servers=self._get_kafka_source_brokers()
-            )
-
-        _logger.info(
-            f"Publishing features to topic: '{self._get_kafka_source_topic()}' "
-            f"on brokers: '{self._get_kafka_source_brokers()}'"
-        )
-
-        feature_rows = dataframe.apply(
-            convert_df_to_feature_rows(dataframe, self), axis=1, raw=True
-        )
-
-        for row in feature_rows:
-            self._message_producer.send(
-                self._get_kafka_source_topic(), row.SerializeToString()
-            )
-            q.put(SENTINEL)
-
-        # Wait for all messages to be completely sent
-        self._message_producer.flush(timeout=timeout)
-
-    def ingest_file(
-        self,
-        file_path: str,
-        force_update: bool = False,
-        timeout: int = 5,
-        max_workers=CPU_COUNT,
-    ):
-        """
-        Load the contents of a file into a Kafka topic.
-        Files that are currently supported:
-            * csv
-            * parquet
-        :param file_path: Valid string path to the file
-        :param force_update: Flag to update feature set from dataset and reregister if changed.
-        :param timeout: Timeout in seconds to wait for completion
-        :param max_workers: The maximum number of threads that can be used to execute the given calls.
-        :return:
-        """
-        df = None
-        filename, file_ext = os.path.splitext(file_path)
-        if ".parquet" in file_ext:
-            df = pd.read_parquet(file_path)
-        elif ".csv" in file_ext:
-            df = pd.read_csv(file_path, index_col=False)
-        try:
-            # Ensure that dataframe is initialised
-            assert isinstance(df, pd.DataFrame)
-        except AssertionError:
-            _logger.error(f"Ingestion of file type {file_ext} is not supported")
-            raise Exception("File type not supported")
-
-        self.ingest(df, force_update, timeout, max_workers)
 
     def _update_from_feature_set(self, feature_set, is_dirty: bool = True):
 
@@ -440,36 +293,19 @@ class FeatureSet:
 
         self._is_dirty = is_dirty
 
-    def _validate_feature_set(self):
-        # Validate whether the feature set has been modified and needs to be
-        # saved
-        if self._is_dirty:
-            raise Exception("Feature set has been modified and must be saved first")
-
-    def _get_kafka_source_brokers(self) -> str:
+    def get_kafka_source_brokers(self) -> str:
         if self.source and self.source.source_type is "Kafka":
             return self.source.brokers
         raise Exception("Source type could not be identified")
 
-    def _get_kafka_source_topic(self) -> str:
+    def get_kafka_source_topic(self) -> str:
         if self.source and self.source.source_type == "Kafka":
             return self.source.topic
         raise Exception("Source type could not be identified")
 
-    @staticmethod
-    def _listener(pbar: tqdm, q: Queue):
-        """
-        Static method that listens to changes in a queue and updates the progress bar accordingly.
-        :param pbar: Initialised tqdm instance
-        :param q: Multiprocess queue object containing update instances as SENTINEL flags
-        :return:
-        """
-        for _ in iter(q.get, None):
-            pbar.update()
-
     @classmethod
     def from_yaml(cls, yml):
-        return cls.from_dict(loaders.yaml_loader(yml, load_single=True))
+        return cls.from_dict(feast_yaml.yaml_loader(yml, load_single=True))
 
     @classmethod
     def from_dict(cls, fs_dict):
@@ -518,22 +354,3 @@ class FeatureSet:
                 if type(field) == Entity
             ],
         )
-
-
-def validate_dataframe(dataframe: pd.DataFrame, fs: FeatureSet):
-    if "datetime" not in dataframe.columns:
-        raise ValueError(
-            f'Dataframe does not contain entity "datetime" in columns {dataframe.columns}'
-        )
-
-    for entity in fs.entities:
-        if entity.name not in dataframe.columns:
-            raise ValueError(
-                f"Dataframe does not contain entity {entity.name} in columns {dataframe.columns}"
-            )
-
-    for feature in fs.features:
-        if feature.name not in dataframe.columns:
-            raise ValueError(
-                f"Dataframe does not contain feature {feature.name} in columns {dataframe.columns}"
-            )

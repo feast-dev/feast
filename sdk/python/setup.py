@@ -26,6 +26,7 @@ VERSION = "0.3.0"
 
 REQUIRED = [
     "click>=7.0",
+    "confluent-kafka==1.2.0",
     "google-api-core==1.*",
     "google-auth==1.*",
     "google-cloud-bigquery==1.*",
@@ -45,7 +46,6 @@ REQUIRED = [
     "tqdm==4.*",
     "numpy",
     "google",
-    "kafka-python==1.4.*",
 ]
 
 setup(
