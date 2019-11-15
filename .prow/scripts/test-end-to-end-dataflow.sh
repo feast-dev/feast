@@ -210,7 +210,7 @@ feast:
     staging-location: gs://feast-templocation-kf-feast/staging-location
     store-type: REDIS
     store-options:
-      host: localhost
+      host: $REMOTE_HOST
       port: 6379
 grpc:
   port: 6567

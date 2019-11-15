@@ -296,7 +296,7 @@ class TestLargeVolume:
 
             # Feast Core needs some time to fully commit the FeatureSet applied
             # when there is no existing job yet for the Featureset
-            time.sleep(10)
+            time.sleep(120)
             cust_trans_fs = client.get_feature_set(name="customer_transactions_large", version=1)
 
             if cust_trans_fs is None:
@@ -404,7 +404,7 @@ class TestLargeVolume:
 
             # Feast Core needs some time to fully commit the FeatureSet applied
             # when there is no existing job yet for the Featureset
-            time.sleep(10)
+            time.sleep(120)
             loc_sales_fs = client.get_feature_set(name="location", version=1)
 
             if loc_sales_fs is None:

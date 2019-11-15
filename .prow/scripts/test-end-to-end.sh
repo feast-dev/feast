@@ -23,10 +23,8 @@ echo "
 Installing gcloud SDK
 ============================================================
 "
-if [[ ! $(command -v gsutil) ]]; then
-  CURRENT_DIR=$(dirname "$BASH_SOURCE")
-  . "${CURRENT_DIR}"/install_google_cloud_sdk.sh
-fi
+. .prow/scripts/install_google_cloud_sdk.sh
+
 
 export GOOGLE_APPLICATION_CREDENTIALS=/etc/service-account/service-account.json
 gcloud auth activate-service-account --key-file /etc/service-account/service-account.json
@@ -57,10 +55,10 @@ Starting remote kafka and redis instances
 ============================================================
 "
 INSTANCE_NAME=feast-pr-$(date +%s)
-REMOTE_HOST=${INSTANCE_NAME}.us-central1.c.kf-feast.internal
+REMOTE_HOST=${INSTANCE_NAME}.c.kf-feast.internal
 
 gcloud compute instances create $INSTANCE_NAME \
-  --zone us-central1-a --source-instance-template feast-external-resources-1
+  --zone us-central1-a --source-instance-template feast-external-resources
 
 sleep 10
 
@@ -95,6 +93,7 @@ feast:
       project: kf-feast
       tempLocation: gs://feast-templocation-kf-feast/staging-location
       region: us-central1
+      serviceAccount: dataflow@kf-feast.iam.gserviceaccount.com
     metrics:
       enabled: false
   stream:
@@ -268,7 +267,12 @@ Cleaning up
 "
 
 bq rm -r -f kf-feast:$DATASET_NAME
-gcloud compute instances delete $INSTANCE_NAME
+
+gcloud compute instances delete -q --zone us-central1-a $INSTANCE_NAME
+
+psql -U postgres -h 127.0.0.1 -t \
+  -c "SELECT ext_id FROM jobs WHERE status='RUNNING'" | xargs \
+  -L1 gcloud dataflow jobs cancel --region=us-central1 -q
 
 
 exit ${TEST_EXIT_CODE}
