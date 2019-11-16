@@ -30,7 +30,9 @@ from feast.core.FeatureSet_pb2 import FeatureSetSpec, FeatureSpec, EntitySpec
 from feast.core.Source_pb2 import SourceType, KafkaSourceConfig, Source
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
-    GetFeatureSetsResponse,
+    ListFeatureSetsResponse,
+    GetFeatureSetResponse,
+    GetFeatureSetRequest,
 )
 from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoResponse,
@@ -172,37 +174,32 @@ class TestClient:
 
         mocker.patch.object(
             mock_client._core_service_stub,
-            "GetFeatureSets",
-            return_value=GetFeatureSetsResponse(
-                feature_sets=[
-                    FeatureSetSpec(
-                        name="my_feature_set",
-                        version=2,
-                        max_age=Duration(seconds=3600),
-                        features=[
-                            FeatureSpec(
-                                name="my_feature_1",
-                                value_type=ValueProto.ValueType.FLOAT,
-                            ),
-                            FeatureSpec(
-                                name="my_feature_2",
-                                value_type=ValueProto.ValueType.FLOAT,
-                            ),
-                        ],
-                        entities=[
-                            EntitySpec(
-                                name="my_entity_1",
-                                value_type=ValueProto.ValueType.INT64,
-                            )
-                        ],
-                        source=Source(
-                            type=SourceType.KAFKA,
-                            kafka_source_config=KafkaSourceConfig(
-                                bootstrap_servers="localhost:9092", topic="topic"
-                            ),
+            "GetFeatureSet",
+            return_value=GetFeatureSetResponse(
+                feature_set=FeatureSetSpec(
+                    name="my_feature_set",
+                    version=2,
+                    max_age=Duration(seconds=3600),
+                    features=[
+                        FeatureSpec(
+                            name="my_feature_1", value_type=ValueProto.ValueType.FLOAT
                         ),
-                    )
-                ]
+                        FeatureSpec(
+                            name="my_feature_2", value_type=ValueProto.ValueType.FLOAT
+                        ),
+                    ],
+                    entities=[
+                        EntitySpec(
+                            name="my_entity_1", value_type=ValueProto.ValueType.INT64
+                        )
+                    ],
+                    source=Source(
+                        type=SourceType.KAFKA,
+                        kafka_source_config=KafkaSourceConfig(
+                            bootstrap_servers="localhost:9092", topic="topic"
+                        ),
+                    ),
+                )
             ),
         )
 
@@ -228,33 +225,30 @@ class TestClient:
 
         mocker.patch.object(
             mock_client._core_service_stub,
-            "GetFeatureSets",
-            return_value=GetFeatureSetsResponse(
-                feature_sets=[
-                    FeatureSetSpec(
-                        name="customer_fs",
-                        version=1,
-                        entities=[
-                            EntitySpec(
-                                name="customer", value_type=ValueProto.ValueType.INT64
-                            ),
-                            EntitySpec(
-                                name="transaction",
-                                value_type=ValueProto.ValueType.INT64,
-                            ),
-                        ],
-                        features=[
-                            FeatureSpec(
-                                name="customer_feature_1",
-                                value_type=ValueProto.ValueType.FLOAT,
-                            ),
-                            FeatureSpec(
-                                name="customer_feature_2",
-                                value_type=ValueProto.ValueType.STRING,
-                            ),
-                        ],
-                    )
-                ]
+            "GetFeatureSet",
+            return_value=GetFeatureSetResponse(
+                feature_set=FeatureSetSpec(
+                    name="customer_fs",
+                    version=1,
+                    entities=[
+                        EntitySpec(
+                            name="customer", value_type=ValueProto.ValueType.INT64
+                        ),
+                        EntitySpec(
+                            name="transaction", value_type=ValueProto.ValueType.INT64
+                        ),
+                    ],
+                    features=[
+                        FeatureSpec(
+                            name="customer_feature_1",
+                            value_type=ValueProto.ValueType.FLOAT,
+                        ),
+                        FeatureSpec(
+                            name="customer_feature_2",
+                            value_type=ValueProto.ValueType.STRING,
+                        ),
+                    ],
+                )
             ),
         )
 
@@ -383,8 +377,8 @@ class TestClient:
 
         mocker.patch.object(
             client._core_service_stub,
-            "GetFeatureSets",
-            return_value=GetFeatureSetsResponse(feature_sets=[driver_fs.to_proto()]),
+            "GetFeatureSet",
+            return_value=GetFeatureSetResponse(feature_set=driver_fs.to_proto()),
         )
 
         # Ingest data into Feast
@@ -452,8 +446,8 @@ class TestClient:
 
         mocker.patch.object(
             client._core_service_stub,
-            "GetFeatureSets",
-            return_value=GetFeatureSetsResponse(feature_sets=[all_types_fs.to_proto()]),
+            "GetFeatureSet",
+            return_value=GetFeatureSetResponse(feature_set=all_types_fs.to_proto()),
         )
 
         # Ingest data into Feast

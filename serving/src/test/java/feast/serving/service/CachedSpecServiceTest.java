@@ -6,8 +6,8 @@ import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.common.collect.Lists;
-import feast.core.CoreServiceProto.GetFeatureSetsRequest;
-import feast.core.CoreServiceProto.GetFeatureSetsResponse;
+import feast.core.CoreServiceProto.ListFeatureSetsRequest;
+import feast.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto.FeatureSetSpec;
@@ -80,18 +80,18 @@ public class CachedSpecServiceTest {
     List<FeatureSetSpec> fs1FeatureSets = Lists
         .newArrayList(featureSetSpecs.get("fs1:1"), featureSetSpecs.get("fs1:2"));
     List<FeatureSetSpec> fs2FeatureSets = Lists.newArrayList(featureSetSpecs.get("fs2:1"));
-    when(coreService.getFeatureSets(GetFeatureSetsRequest
+    when(coreService.listFeatureSets(ListFeatureSetsRequest
         .newBuilder()
-        .setFilter(GetFeatureSetsRequest.Filter.newBuilder().setFeatureSetName("fs1")
+        .setFilter(ListFeatureSetsRequest.Filter.newBuilder().setFeatureSetName("fs1")
             .setFeatureSetVersion(">0").build())
         .build()))
-        .thenReturn(GetFeatureSetsResponse.newBuilder().addAllFeatureSets(fs1FeatureSets).build());
-    when(coreService.getFeatureSets(GetFeatureSetsRequest
+        .thenReturn(ListFeatureSetsResponse.newBuilder().addAllFeatureSets(fs1FeatureSets).build());
+    when(coreService.listFeatureSets(ListFeatureSetsRequest
         .newBuilder()
-        .setFilter(GetFeatureSetsRequest.Filter.newBuilder().setFeatureSetName("fs2")
+        .setFilter(ListFeatureSetsRequest.Filter.newBuilder().setFeatureSetName("fs2")
             .setFeatureSetVersion(">0").build())
         .build()))
-        .thenReturn(GetFeatureSetsResponse.newBuilder().addAllFeatureSets(fs2FeatureSets).build());
+        .thenReturn(ListFeatureSetsResponse.newBuilder().addAllFeatureSets(fs2FeatureSets).build());
 
     cachedSpecService = new CachedSpecService(coreService, configFile.toPath());
   }

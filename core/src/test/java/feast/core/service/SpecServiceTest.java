@@ -28,10 +28,12 @@ import com.google.api.client.util.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
-import feast.core.CoreServiceProto.GetFeatureSetsRequest.Filter;
-import feast.core.CoreServiceProto.GetFeatureSetsResponse;
-import feast.core.CoreServiceProto.GetStoresRequest;
-import feast.core.CoreServiceProto.GetStoresResponse;
+import feast.core.CoreServiceProto.GetFeatureSetRequest;
+import feast.core.CoreServiceProto.GetFeatureSetResponse;
+import feast.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
+import feast.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.core.CoreServiceProto.ListStoresRequest;
+import feast.core.CoreServiceProto.ListStoresResponse;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto.FeatureSetSpec;
@@ -97,11 +99,11 @@ public class SpecServiceTest {
         .thenReturn(featureSets);
     when(featureSetRepository.findByName("f1"))
         .thenReturn(featureSets.subList(0, 3));
-    when(featureSetRepository.findByNameRegex("f1"))
+    when(featureSetRepository.findByNameWithWildcard("f1"))
         .thenReturn(featureSets.subList(0, 3));
     when(featureSetRepository.findByName("asd"))
         .thenReturn(Lists.newArrayList());
-    when(featureSetRepository.findByNameRegex("asd"))
+    when(featureSetRepository.findByNameWithWildcard("asd"))
         .thenReturn(Lists.newArrayList());
 
     Store store1 = newDummyStore("SERVING");
@@ -118,14 +120,14 @@ public class SpecServiceTest {
 
   @Test
   public void shouldGetAllFeatureSetsIfNoFilterProvided() throws InvalidProtocolBufferException {
-    GetFeatureSetsResponse actual = specService
-        .getFeatureSets(Filter.newBuilder().setFeatureSetName("").build());
+    ListFeatureSetsResponse actual = specService
+        .listFeatureSets(Filter.newBuilder().setFeatureSetName("").build());
     List<FeatureSetSpec> list = new ArrayList<>();
     for (FeatureSet featureSet : featureSets) {
       FeatureSetSpec toProto = featureSet.toProto();
       list.add(toProto);
     }
-    GetFeatureSetsResponse expected = GetFeatureSetsResponse
+    ListFeatureSetsResponse expected = ListFeatureSetsResponse
         .newBuilder()
         .addAllFeatureSets(
             list)
@@ -136,8 +138,8 @@ public class SpecServiceTest {
   @Test
   public void shouldGetAllFeatureSetsMatchingNameIfNoVersionProvided()
       throws InvalidProtocolBufferException {
-    GetFeatureSetsResponse actual = specService
-        .getFeatureSets(Filter.newBuilder().setFeatureSetName("f1").build());
+    ListFeatureSetsResponse actual = specService
+        .listFeatureSets(Filter.newBuilder().setFeatureSetName("f1").build());
     List<FeatureSet> expectedFeatureSets = featureSets.stream()
         .filter(fs -> fs.getName().equals("f1"))
         .collect(Collectors.toList());
@@ -146,7 +148,7 @@ public class SpecServiceTest {
       FeatureSetSpec toProto = expectedFeatureSet.toProto();
       list.add(toProto);
     }
-    GetFeatureSetsResponse expected = GetFeatureSetsResponse
+    ListFeatureSetsResponse expected = ListFeatureSetsResponse
         .newBuilder()
         .addAllFeatureSets(
             list)
@@ -157,8 +159,8 @@ public class SpecServiceTest {
   @Test
   public void shouldGetAllFeatureSetsMatchingVersionIfNoComparator()
       throws InvalidProtocolBufferException {
-    GetFeatureSetsResponse actual = specService
-        .getFeatureSets(
+    ListFeatureSetsResponse actual = specService
+        .listFeatureSets(
             Filter.newBuilder().setFeatureSetName("f1").setFeatureSetVersion("1").build());
     List<FeatureSet> expectedFeatureSets = featureSets.stream()
         .filter(fs -> fs.getName().equals("f1"))
@@ -169,7 +171,7 @@ public class SpecServiceTest {
       FeatureSetSpec toProto = expectedFeatureSet.toProto();
       list.add(toProto);
     }
-    GetFeatureSetsResponse expected = GetFeatureSetsResponse
+    ListFeatureSetsResponse expected = ListFeatureSetsResponse
         .newBuilder()
         .addAllFeatureSets(
             list)
@@ -180,8 +182,8 @@ public class SpecServiceTest {
   @Test
   public void shouldGetAllFeatureSetsGivenVersionWithComparator()
       throws InvalidProtocolBufferException {
-    GetFeatureSetsResponse actual = specService
-        .getFeatureSets(
+    ListFeatureSetsResponse actual = specService
+        .listFeatureSets(
             Filter.newBuilder().setFeatureSetName("f1").setFeatureSetVersion(">1").build());
     List<FeatureSet> expectedFeatureSets = featureSets.stream()
         .filter(fs -> fs.getName().equals("f1"))
@@ -192,7 +194,7 @@ public class SpecServiceTest {
       FeatureSetSpec toProto = expectedFeatureSet.toProto();
       list.add(toProto);
     }
-    GetFeatureSetsResponse expected = GetFeatureSetsResponse
+    ListFeatureSetsResponse expected = ListFeatureSetsResponse
         .newBuilder()
         .addAllFeatureSets(
             list)
@@ -201,23 +203,37 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void shouldGetLatestFeatureSetGivenLatestVersionFilter()
+  public void shouldGetLatestFeatureSetGivenMissingVersionFilter()
       throws InvalidProtocolBufferException {
-    GetFeatureSetsResponse actual = specService
-        .getFeatureSets(
-            Filter.newBuilder().setFeatureSetName("f1").setFeatureSetVersion("latest").build());
-    List<FeatureSet> expectedFeatureSets = featureSets.subList(2, 3);
-    List<FeatureSetSpec> list = new ArrayList<>();
-    for (FeatureSet expectedFeatureSet : expectedFeatureSets) {
-      FeatureSetSpec toProto = expectedFeatureSet.toProto();
-      list.add(toProto);
-    }
-    GetFeatureSetsResponse expected = GetFeatureSetsResponse
-        .newBuilder()
-        .addAllFeatureSets(
-            list)
-        .build();
-    assertThat(actual, equalTo(expected));
+    GetFeatureSetResponse actual = specService
+        .getFeatureSet(GetFeatureSetRequest.newBuilder().setName("f1").build());
+    FeatureSet expected = featureSets.get(2);
+    assertThat(actual.getFeatureSet(), equalTo(expected.toProto()));
+  }
+
+  @Test
+  public void shouldGetSpecificFeatureSetGivenSpecificVersionFilter()
+      throws InvalidProtocolBufferException {
+    GetFeatureSetResponse actual = specService
+        .getFeatureSet(GetFeatureSetRequest.newBuilder().setName("f1").setVersion(2).build());
+    FeatureSet expected = featureSets.get(1);
+    assertThat(actual.getFeatureSet(), equalTo(expected.toProto()));
+  }
+
+  @Test
+  public void shouldThrowExceptionGivenMissingFeatureSetName()
+      throws InvalidProtocolBufferException {
+    expectedException.expect(StatusRuntimeException.class);
+    expectedException.expectMessage("INVALID_ARGUMENT: No feature set name provided");
+    specService.getFeatureSet(GetFeatureSetRequest.newBuilder().setVersion(2).build());
+  }
+
+  @Test
+  public void shouldThrowExceptionGivenMissingFeatureSet()
+      throws InvalidProtocolBufferException {
+    expectedException.expect(StatusRuntimeException.class);
+    expectedException.expectMessage("NOT_FOUND: Feature set could not be found");
+    specService.getFeatureSet(GetFeatureSetRequest.newBuilder().setName("f1000").setVersion(2).build());
   }
 
   @Test
@@ -225,15 +241,15 @@ public class SpecServiceTest {
       throws InvalidProtocolBufferException {
     expectedException.expect(StatusRuntimeException.class);
     expectedException.expectMessage("Invalid comparator '=<' provided.");
-    specService.getFeatureSets(
+    specService.listFeatureSets(
         Filter.newBuilder().setFeatureSetName("f1").setFeatureSetVersion("=<1").build());
   }
 
   @Test
   public void shouldReturnAllStoresIfNoNameProvided() throws InvalidProtocolBufferException {
-    GetStoresResponse actual = specService
-        .getStores(GetStoresRequest.Filter.newBuilder().build());
-    GetStoresResponse.Builder expected = GetStoresResponse.newBuilder();
+    ListStoresResponse actual = specService
+        .listStores(ListStoresRequest.Filter.newBuilder().build());
+    ListStoresResponse.Builder expected = ListStoresResponse.newBuilder();
     for (Store expectedStore : stores) {
       expected.addStore(expectedStore.toProto());
     }
@@ -242,11 +258,11 @@ public class SpecServiceTest {
 
   @Test
   public void shouldReturnStoreWithName() throws InvalidProtocolBufferException {
-    GetStoresResponse actual = specService
-        .getStores(GetStoresRequest.Filter.newBuilder().setName("SERVING").build());
+    ListStoresResponse actual = specService
+        .listStores(ListStoresRequest.Filter.newBuilder().setName("SERVING").build());
     List<Store> expectedStores = stores.stream().filter(s -> s.getName().equals("SERVING"))
         .collect(Collectors.toList());
-    GetStoresResponse.Builder expected = GetStoresResponse.newBuilder();
+    ListStoresResponse.Builder expected = ListStoresResponse.newBuilder();
     for (Store expectedStore : expectedStores) {
       expected.addStore(expectedStore.toProto());
     }
@@ -258,7 +274,7 @@ public class SpecServiceTest {
     expectedException.expect(RetrievalException.class);
     expectedException.expectMessage("Store with name 'NOTFOUND' not found");
     specService
-        .getStores(GetStoresRequest.Filter.newBuilder().setName("NOTFOUND").build());
+        .listStores(ListStoresRequest.Filter.newBuilder().setName("NOTFOUND").build());
   }
 
   @Test
