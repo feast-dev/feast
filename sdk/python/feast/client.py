@@ -244,7 +244,9 @@ class Client:
                 GetFeatureSetsRequest()
             )  # type: GetFeatureSetsResponse
         except grpc.RpcError as e:
-            print(format_grpc_exception("GetFeatureSets", e.code(), e.details()))
+            raise Exception(
+                format_grpc_exception("GetFeatureSets", e.code(), e.details())
+            )
 
         # Store list of feature sets
         feature_sets = []
