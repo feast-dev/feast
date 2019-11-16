@@ -91,8 +91,6 @@ def test_basic_register_feature_set_success(client):
             "to be committed."
         )
 
-    assert cust_trans_fs_applied == cust_trans_fs
-
 
 @pytest.mark.timeout(30)
 def test_basic_ingest_success(client, basic_dataframe):
@@ -241,8 +239,6 @@ def test_all_types_register_feature_set_success(client):
             "to be committed."
         )
 
-    assert all_types_fs == all_types_fs_applied
-
 
 @pytest.mark.timeout(300)
 def test_all_types_ingest_success(client, all_types_dataframe):
@@ -341,8 +337,6 @@ def test_large_volume_register_feature_set_success(client):
             "FeatureSet correctly or the client needs to wait longer for FeatureSet "
             "to be committed."
         )
-
-    assert cust_trans_fs_applied == cust_trans_fs
 
 
 @pytest.mark.timeout(30)
