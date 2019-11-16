@@ -336,16 +336,18 @@ class TestClient:
             ]
         )
 
-    def test_apply_feature_set(self, client):
+    def test_apply_feature_set_success(self, client):
 
         # Create Feature Sets
         fs1 = FeatureSet("my-feature-set-1")
         fs1.add(Feature(name="fs1-my-feature-1", dtype=ValueType.INT64))
         fs1.add(Feature(name="fs1-my-feature-2", dtype=ValueType.STRING))
+        fs1.add(Entity(name="fs1-my-entity-1", dtype=ValueType.INT64))
 
         fs2 = FeatureSet("my-feature-set-2")
         fs2.add(Feature(name="fs2-my-feature-1", dtype=ValueType.STRING_LIST))
         fs2.add(Feature(name="fs2-my-feature-2", dtype=ValueType.BYTES_LIST))
+        fs2.add(Entity(name="fs2-my-entity-1", dtype=ValueType.INT64))
 
         # Register Feature Set with Core
         client.apply(fs1)
@@ -386,7 +388,7 @@ class TestClient:
         )
 
         # Ingest data into Feast
-        client.ingest(name="driver-feature-set", dataframe=dataframe)
+        client.ingest("driver-feature-set", dataframe=dataframe)
 
     @pytest.mark.parametrize(
         "dataframe,exception",
@@ -394,7 +396,7 @@ class TestClient:
             (dataframes.BAD_NO_DATETIME, Exception),
             (dataframes.BAD_INCORRECT_DATETIME_TYPE, Exception),
             (dataframes.BAD_NO_ENTITY, Exception),
-            (dataframes.BAD_NO_FEATURES, Exception),
+            (dataframes.NO_FEATURES, Exception),
         ],
     )
     def test_feature_set_ingest_failure(self, client, dataframe, exception):
@@ -408,18 +410,13 @@ class TestClient:
             client._message_producer.produce = MagicMock()
 
             # Update based on dataset
-            driver_fs.add_fields_from_df(
-                dataframe,
-                column_mapping={
-                    "entity_id": Entity(name="entity", dtype=ValueType.INT64)
-                },
-            )
+            driver_fs.infer_fields_from_df(dataframe)
 
             # Register with Feast core
             client.apply(driver_fs)
 
             # Ingest data into Feast
-            driver_fs.ingest(dataframe=dataframe)
+            client.ingest(driver_fs, dataframe=dataframe)
 
     @pytest.mark.parametrize("dataframe", [dataframes.ALL_TYPES])
     def test_feature_set_types_success(self, client, dataframe, mocker):
@@ -460,4 +457,4 @@ class TestClient:
         )
 
         # Ingest data into Feast
-        client.ingest(name="all_types", dataframe=dataframe)
+        client.ingest(all_types_fs, dataframe=dataframe)

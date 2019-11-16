@@ -226,21 +226,43 @@ class FeatureSet:
         for field in fields:
             self.add(field)
 
-    def add_fields_from_df(
+    def infer_fields_from_df(
         self,
         df: pd.DataFrame,
-        replace_existing_features=False,
-        replace_existing_entities=False,
+        entities: Optional[List[Entity]] = None,
+        features: Optional[List[Feature]] = None,
+        replace_existing_features: bool = False,
+        replace_existing_entities: bool = False,
+        discard_unused_fields: bool = False,
     ):
         """
-        Updates Feature Set values based on the data set. Only Pandas
-        dataframes are supported. :param column_mapping: Dictionary of column
-        names to resource (entity, feature) mapping. Forces the
-        interpretation of a column as either an entity or feature. Example: {
-        "driver_id": Entity(name="driver", dtype=ValueType.INT64)} :param df:
-        Pandas dataframe containing datetime column, entity columns,
-        and feature columns.
+        Adds fields (Features or Entities) to a feature set based on the schema
+        of a Datatframe. Only Pandas dataframes are supported. All columns are
+        detected as features, so setting at least one entity manually is
+        advised.
+
+        :param df: Pandas dataframe to read schema from
+        :param entities: List of entities that will be set manually and not
+        inferred. These will take precedence over any existing entities or
+        entities found in the dataframe.
+        :param features: List of features that will be set manually and not
+        inferred. These will take precedence over any existing feature or
+        features found in the dataframe.
+        :param discard_unused_fields: Boolean flag. Setting this to True will
+        discard any existing fields that are not found in the dataset or
+        provided by the user
+        :param replace_existing_features: Boolean flag. If true, will replace
+        existing features in this feature set with features found in dataframe.
+        If false, will skip conflicting features
+        :param replace_existing_entities: Boolean flag. If true, will replace
+        existing entities in this feature set with features found in dataframe.
+        If false, will skip conflicting entities
         """
+
+        if entities is None:
+            entities = list()
+        if features is None:
+            features = list()
 
         # Validate whether the datetime column exists with the right name
         if DATETIME_COLUMN not in df:
@@ -252,6 +274,33 @@ class FeatureSet:
                 "Column 'datetime' does not have the correct type: datetime64[ns]"
             )
 
+        # Create dictionary of fields that will not be inferred (manually set)
+        provided_fields = OrderedDict()
+
+        for field in entities + features:
+            if not isinstance(field, Field):
+                raise Exception(f"Invalid field object type provided {type(field)}")
+            if field.name not in provided_fields:
+                provided_fields[field.name] = field
+            else:
+                raise Exception(f"Duplicate field name detected {field.name}.")
+
+        new_fields = self._fields.copy()
+        output_log = ""
+
+        # Add in provided fields
+        for name, field in provided_fields.items():
+            if name in new_fields.keys():
+                upsert_message = "created"
+            else:
+                upsert_message = "updated (replacing an existing field)"
+
+            output_log += (
+                f"{type(field).__name__} {field.name}"
+                f"({field.dtype}) manually {upsert_message}.\n"
+            )
+            new_fields[name] = field
+
         # Iterate over all of the columns and create features
         for column in df.columns:
             column = column.strip()
@@ -260,8 +309,12 @@ class FeatureSet:
             if DATETIME_COLUMN in column:
                 continue
 
+            # Skip user provided fields
+            if column in provided_fields.keys():
+                continue
+
             # Only overwrite conflicting fields if replacement is allowed
-            if column in self._fields:
+            if column in new_fields:
                 if (
                     isinstance(self._fields[column], Feature)
                     and not replace_existing_features
@@ -275,12 +328,24 @@ class FeatureSet:
                     continue
 
             # Store this field as a feature
-            self._set_field(
-                Feature(
-                    name=column,
-                    dtype=pandas_dtype_to_feast_value_type(df[column].dtype),
-                )
+            new_fields[column] = Feature(
+                name=column, dtype=pandas_dtype_to_feast_value_type(df[column].dtype)
             )
+            output_log += f"{type(new_fields[column]).__name__} {new_fields[column].name} ({new_fields[column].dtype}) added from dataframe.\n"
+
+        # Discard unused fields from feature set
+        if discard_unused_fields:
+            keys_to_remove = []
+            for key in new_fields.keys():
+                if not (key in df.columns or key in provided_fields.keys()):
+                    output_log += f"{type(new_fields[key]).__name__} {new_fields[key].name} ({new_fields[key].dtype}) removed because it is unused.\n"
+                    keys_to_remove.append(key)
+            for key in keys_to_remove:
+                del new_fields[key]
+
+        # Update feature set
+        self._fields = new_fields
+        print(output_log)
 
     def _update_from_feature_set(self, feature_set, is_dirty: bool = True):
 
@@ -302,6 +367,16 @@ class FeatureSet:
         if self.source and self.source.source_type == "Kafka":
             return self.source.topic
         raise Exception("Source type could not be identified")
+
+    def is_valid(self):
+        """
+        Validates the state of a feature set locally
+        :return: (bool, str) True if valid, false if invalid. Contains a message
+        string with a reason
+        """
+        if len(self.entities) == 0:
+            return False, f"No entities found in feature set {self.name}"
+        return True, ""
 
     @classmethod
     def from_yaml(cls, yml):

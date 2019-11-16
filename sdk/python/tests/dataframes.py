@@ -14,6 +14,32 @@ GOOD = pd.DataFrame(
     }
 )
 
+GOOD_FIVE_FEATURES = pd.DataFrame(
+    {
+        "datetime": [datetime.utcnow().replace(tzinfo=pytz.utc) for _ in range(3)],
+        "entity_id": [1001, 1002, 1004],
+        "feature_1": [0.2, 0.4, 0.5],
+        "feature_2": ["string1", "string2", "string3"],
+        "feature_3": [1, 2, 5],
+        "feature_4": [1, 2, 5],
+        "feature_5": [1, 2, 5],
+    }
+)
+
+GOOD_FIVE_FEATURES_TWO_ENTITIES = pd.DataFrame(
+    {
+        "datetime": [datetime.utcnow().replace(tzinfo=pytz.utc) for _ in range(3)],
+        "entity_1_id": [1001, 1002, 1004],
+        "entity_2_id": ["1001", "1002", "1003"],
+        "feature_1": [0.2, 0.4, 0.5],
+        "feature_2": ["string1", "string2", "string3"],
+        "feature_3": [1, 2, 5],
+        "feature_4": [1, 2, 5],
+        "feature_5": [1.3, 1.3, 1.3],
+    }
+)
+
+
 BAD_NO_ENTITY = pd.DataFrame(
     {
         "datetime": [datetime.utcnow().replace(tzinfo=pytz.utc) for _ in range(3)],
@@ -23,7 +49,7 @@ BAD_NO_ENTITY = pd.DataFrame(
     }
 )
 
-BAD_NO_FEATURES = pd.DataFrame(
+NO_FEATURES = pd.DataFrame(
     {
         "datetime": [datetime.utcnow().replace(tzinfo=pytz.utc) for _ in range(3)],
         "entity_id": [1001, 1002, 1004],

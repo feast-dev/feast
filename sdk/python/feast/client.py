@@ -209,6 +209,9 @@ class Client:
         self._connect_core()
         feature_set._client = self
 
+        valid, message = feature_set.is_valid()
+        if not valid:
+            raise Exception(message)
         try:
             apply_fs_response = self._core_service_stub.ApplyFeatureSet(
                 ApplyFeatureSetRequest(feature_set=feature_set.to_proto()),
@@ -463,23 +466,56 @@ class Client:
 
     def ingest(
         self,
-        name: str,
+        feature_set: Union[str, FeatureSet],
         dataframe: pd.DataFrame,
         version: int = None,
         force_update: bool = False,
-        timeout: int = 5,
         max_workers: int = CPU_COUNT,
         disable_progress_bar: bool = False,
         chunk_size: int = 5000,
     ):
+        """
+        Loads data into Feast for a specific feature set.
+
+        :param feature_set: (str, FeatureSet) Feature set object or the
+        string name of the feature set (without a version)
+        :param dataframe:
+        Pandas dataframe to load into Feast for this feature set
+        :param
+        version: (int) Version of the feature set for which this ingestion
+        should happen
+        :param force_update: (bool) Automatically update
+        feature set before ingesting data
+        :param max_workers: Number of
+        worker processes to use to encode the dataframe
+        :param
+        disable_progress_bar: Disable progress bar during ingestion
+        :param
+        chunk_size: Number of rows per chunk to encode before ingesting to
+        Feast
+        """
+        if isinstance(feature_set, FeatureSet):
+            name = feature_set.name
+            if version is None:
+                version = feature_set.version
+        elif isinstance(feature_set, str):
+            name = feature_set
+        else:
+            raise Exception(f"Feature set name must be provided")
+
         feature_set = self.get_feature_set(name, version, fail_if_missing=True)
+
+        # Update the feature set based on dataframe schema
+        if force_update:
+            feature_set.infer_fields_from_df(
+                dataframe, discard_unused_fields=True, replace_existing_features=True
+            )
+            self.apply(feature_set)
 
         if feature_set.source.source_type == "Kafka":
             ingest_kafka(
                 feature_set=feature_set,
                 dataframe=dataframe,
-                force_update=force_update,
-                timeout=timeout,
                 max_workers=max_workers,
                 disable_progress_bar=disable_progress_bar,
                 chunk_size=chunk_size,
@@ -493,9 +529,6 @@ class Client:
                 f'"{feature_set.name}" with source type '
                 f'"{feature_set.source.source_type}"'
             )
-
-    def ingest_file(self):
-        pass
 
 
 def _build_feature_set_request(feature_ids: List[str]) -> List[FeatureSetRequest]:
