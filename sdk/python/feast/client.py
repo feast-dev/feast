@@ -487,7 +487,7 @@ class Client:
         version: (int) Version of the feature set for which this ingestion
         should happen
         :param force_update: (bool) Automatically update
-        feature set before ingesting data
+        feature set based on data frame before ingesting data
         :param max_workers: Number of
         worker processes to use to encode the dataframe
         :param

@@ -28,7 +28,7 @@ def _kafka_feature_row_chunk_producer(
     processed_chunks = 0
     rows_processed = 0
     while processed_chunks < chunk_count:
-        if feature_row_chunks.qsize() == 0:
+        if feature_row_chunks.empty():
             time.sleep(0.1)
         else:
             feature_rows = feature_row_chunks.get()
