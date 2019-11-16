@@ -23,23 +23,23 @@ from feast.feature import Feature
 FLOAT_TOLERANCE = 0.00001
 
 
-@pytest.fixture()
+@pytest.fixture(scope='session')
 def core_url(pytestconfig):
     return pytestconfig.getoption("core_url")
 
 
-@pytest.fixture()
+@pytest.fixture(scope='session')
 def serving_url(pytestconfig):
     return pytestconfig.getoption("serving_url")
 
 
-@pytest.fixture()
+@pytest.fixture(scope='session')
 def allow_dirty(pytestconfig):
     return True if pytestconfig.getoption(
         "allow_dirty").lower() == "true" else False
 
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def client(core_url, serving_url, allow_dirty):
     # Get client for core and serving
     client = Client(core_url=core_url, serving_url=serving_url)
