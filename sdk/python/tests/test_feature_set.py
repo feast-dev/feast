@@ -15,7 +15,7 @@ from datetime import datetime
 
 import pytz
 
-from feast import Entity
+from feast.entity import Entity
 from feast.feature_set import FeatureSet, Feature
 from feast.value_type import ValueType
 from feast.client import Client
