@@ -107,22 +107,6 @@ def ingest_kafka(
         )
 
 
-def _ingest_chunk(
-    client, dataframe: pd.DataFrame, feature_set: FeatureSet, q: Queue, timeout: int = 5
-):
-    """
-    Write the rows in the provided dataframe into a Kafka topic.
-    :param dataframe: Dataframe containing the input data to be ingested.
-    :param q: Queue used to send signals to update tqdm progress bar
-    :param force_update: Flag to update feature set from data set and re-register if changed.
-    :param timeout: Timeout in seconds to wait for completion.
-    :return:
-    """
-
-    # Wait for all messages to be completely sent
-    client._message_producer.flush(timeout=timeout)
-
-
 def ingest_file(
     client,
     file_path: str,
