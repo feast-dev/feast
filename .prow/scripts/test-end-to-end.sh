@@ -61,7 +61,14 @@ gcloud compute instances create $INSTANCE_NAME \
   --zone us-central1-a --source-instance-template feast-external-resources \
   --source-snapshot feast-external-resources-docker
 
-sleep 20
+apt-get install netcat
+MAX_RETRIES=10
+RETRIES=0
+until nc -zv $REMOTE_HOST 9092; do
+  if [ $RETRIES == $MAX_RETRIES ]; then break; fi
+  sleep 20
+  let RETRIES+=1
+done
 
 echo "
 ============================================================
