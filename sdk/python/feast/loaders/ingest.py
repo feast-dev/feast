@@ -22,7 +22,7 @@ BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS = 300
 CPU_COUNT = os.cpu_count()  # type: int
 
 
-def _ingestor(
+def _kafka_feature_row_chunk_producer(
     feature_row_chunks: Queue, chunk_count: int, producer, topic, progress_bar: tqdm
 ):
     processed_chunks = 0
@@ -49,9 +49,7 @@ def ingest_kafka(
     feature_set: FeatureSet,
     dataframe: pd.DataFrame,
     producer: Producer,
-    force_update: bool = False,
-    timeout: int = 5,
-    max_workers: int = CPU_COUNT,
+    max_workers: int,
     chunk_size: int = 5000,
     disable_progress_bar: bool = False,
 ):
@@ -63,7 +61,7 @@ def ingest_kafka(
     validate_dataframe(dataframe, feature_set)
 
     # Split dataframe into chunks
-    num_chunks = max(dataframe.shape[0] / chunk_size, 1)
+    num_chunks = max(dataframe.shape[0] / max(chunk_size, 100), 1)
     df_chunks = np.array_split(dataframe, num_chunks)
 
     try:
@@ -72,7 +70,7 @@ def ingest_kafka(
 
         # Start ingestion process to push feature rows to Kafka
         ingestion_process = Process(
-            target=_ingestor,
+            target=_kafka_feature_row_chunk_producer,
             args=(
                 chunk_queue,
                 num_chunks,

@@ -11,8 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from datetime import datetime
 
+import pytz
 
+from feast import Entity
 from feast.feature_set import FeatureSet, Feature
 from feast.value_type import ValueType
 from feast.client import Client
@@ -54,14 +57,113 @@ class TestFeatureSet:
             fs = FeatureSet("my-feature-set")
             fs.drop(name="my-feature-1")
 
-    @pytest.mark.parametrize("dataframe", [dataframes.GOOD])
-    def test_add_from_df_success(self, dataframe):
-        fs = FeatureSet("driver-feature-set")
-        fs.add_fields_from_df(dataframe)
-        assert len(fs.features) == 4 and fs.features[1].name == "feature_1"
-
     def test_update_from_source_failure(self):
         with pytest.raises(Exception):
             df = pd.DataFrame()
             fs = FeatureSet("driver-feature-set")
-            fs.add_fields_from_df(df)
+            fs.infer_fields_from_df(df)
+
+    @pytest.mark.parametrize(
+        "dataframe,feature_count,entity_count,discard_unused_fields,features,entities",
+        [
+            (
+                dataframes.GOOD,
+                3,
+                1,
+                True,
+                [],
+                [Entity(name="entity_id", dtype=ValueType.INT64)],
+            ),
+            (
+                dataframes.GOOD_FIVE_FEATURES,
+                5,
+                1,
+                True,
+                [],
+                [Entity(name="entity_id", dtype=ValueType.INT64)],
+            ),
+            (
+                dataframes.GOOD_FIVE_FEATURES,
+                6,
+                1,
+                True,
+                [Feature(name="feature_6", dtype=ValueType.INT64)],
+                [Entity(name="entity_id", dtype=ValueType.INT64)],
+            ),
+            (
+                dataframes.GOOD_FIVE_FEATURES_TWO_ENTITIES,
+                5,
+                2,
+                True,
+                [],
+                [
+                    Entity(name="entity_1_id", dtype=ValueType.INT64),
+                    Entity(name="entity_2_id", dtype=ValueType.INT64),
+                ],
+            ),
+            (
+                dataframes.GOOD_FIVE_FEATURES_TWO_ENTITIES,
+                6,
+                3,
+                False,
+                [],
+                [
+                    Entity(name="entity_1_id", dtype=ValueType.INT64),
+                    Entity(name="entity_2_id", dtype=ValueType.INT64),
+                ],
+            ),
+            (
+                dataframes.NO_FEATURES,
+                0,
+                1,
+                True,
+                [],
+                [Entity(name="entity_id", dtype=ValueType.INT64)],
+            ),
+            (
+                pd.DataFrame(
+                    {
+                        "datetime": [
+                            datetime.utcnow().replace(tzinfo=pytz.utc) for _ in range(3)
+                        ]
+                    }
+                ),
+                0,
+                0,
+                True,
+                [],
+                [],
+            ),
+        ],
+        ids=[
+            "Test small dataframe update with hardcoded entity",
+            "Test larger dataframe update with hardcoded entity",
+            "Test larger dataframe update with hardcoded entity and feature",
+            "Test larger dataframe update with two hardcoded entities and discarding of existing fields",
+            "Test larger dataframe update with two hardcoded entities and retention of existing fields",
+            "Test dataframe with no featuresdataframe",
+            "Test empty dataframe",
+        ],
+    )
+    def test_add_features_from_df_success(
+        self,
+        dataframe,
+        feature_count,
+        entity_count,
+        discard_unused_fields,
+        features,
+        entities,
+    ):
+        my_feature_set = FeatureSet(
+            name="my_feature_set",
+            features=[Feature(name="dummy_f1", dtype=ValueType.INT64)],
+            entities=[Entity(name="dummy_entity_1", dtype=ValueType.INT64)],
+        )
+        my_feature_set.infer_fields_from_df(
+            dataframe,
+            discard_unused_fields=discard_unused_fields,
+            features=features,
+            entities=entities,
+        )
+        assert len(my_feature_set.features) == feature_count
+        assert len(my_feature_set.entities) == entity_count
