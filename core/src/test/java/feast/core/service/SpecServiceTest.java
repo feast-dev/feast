@@ -103,8 +103,8 @@ public class SpecServiceTest {
         .thenReturn(featureSets.subList(0, 3));
     when(featureSetRepository.findByName("asd"))
         .thenReturn(Lists.newArrayList());
-    when(featureSetRepository.findByNameWithWildcard("asd"))
-        .thenReturn(Lists.newArrayList());
+    when(featureSetRepository.findByNameWithWildcard("f%"))
+        .thenReturn(featureSets);
 
     Store store1 = newDummyStore("SERVING");
     Store store2 = newDummyStore("WAREHOUSE");
@@ -142,6 +142,27 @@ public class SpecServiceTest {
         .listFeatureSets(Filter.newBuilder().setFeatureSetName("f1").build());
     List<FeatureSet> expectedFeatureSets = featureSets.stream()
         .filter(fs -> fs.getName().equals("f1"))
+        .collect(Collectors.toList());
+    List<FeatureSetSpec> list = new ArrayList<>();
+    for (FeatureSet expectedFeatureSet : expectedFeatureSets) {
+      FeatureSetSpec toProto = expectedFeatureSet.toProto();
+      list.add(toProto);
+    }
+    ListFeatureSetsResponse expected = ListFeatureSetsResponse
+        .newBuilder()
+        .addAllFeatureSets(
+            list)
+        .build();
+    assertThat(actual, equalTo(expected));
+  }
+
+  @Test
+  public void shouldGetAllFeatureSetsMatchingNameWithWildcardSearch()
+      throws InvalidProtocolBufferException {
+    ListFeatureSetsResponse actual = specService
+        .listFeatureSets(Filter.newBuilder().setFeatureSetName("f*").build());
+    List<FeatureSet> expectedFeatureSets = featureSets.stream()
+        .filter(fs -> fs.getName().startsWith("f"))
         .collect(Collectors.toList());
     List<FeatureSetSpec> list = new ArrayList<>();
     for (FeatureSet expectedFeatureSet : expectedFeatureSets) {
