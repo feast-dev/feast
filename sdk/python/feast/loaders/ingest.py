@@ -64,21 +64,23 @@ def ingest_kafka(
     num_chunks = max(dataframe.shape[0] / max(chunk_size, 100), 1)
     df_chunks = np.array_split(dataframe, num_chunks)
 
-    try:
-        # Create queue through which encoding and ingestion will coordinate
-        chunk_queue = Queue()
+    # Create queue through which encoding and ingestion will coordinate
+    chunk_queue = Queue()
 
-        # Start ingestion process to push feature rows to Kafka
-        ingestion_process = Process(
-            target=_kafka_feature_row_chunk_producer,
-            args=(
-                chunk_queue,
-                num_chunks,
-                producer,
-                feature_set.get_kafka_source_topic(),
-                progress_bar,
-            ),
-        )
+    # Start ingestion process to push feature rows to Kafka
+    ingestion_process = Process(
+        target=_kafka_feature_row_chunk_producer,
+        args=(
+            chunk_queue,
+            num_chunks,
+            producer,
+            feature_set.get_kafka_source_topic(),
+            progress_bar,
+        ),
+    )
+
+    try:
+        # Start ingestion process
         ingestion_process.start()
 
         # Create a pool of workers to convert df chunks into feature row chunks
@@ -99,7 +101,6 @@ def ingest_kafka(
     finally:
         producer.flush()
         ingestion_process.join()
-        ingestion_process.close()
         rows_ingested = progress_bar.total
         progress_bar.close()
         print(
