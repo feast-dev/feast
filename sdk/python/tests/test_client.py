@@ -13,19 +13,19 @@
 # limitations under the License.
 from datetime import datetime
 
-import pytz
 import tempfile
-import time
 import grpc
 import pandas as pd
-import numpy as np
 from google.protobuf.duration_pb2 import Duration
 from mock import MagicMock
 from pytz import timezone
 from pandavro import to_avro
 import feast.core.CoreService_pb2_grpc as Core
 import feast.serving.ServingService_pb2_grpc as Serving
-from feast import FeatureSet, Feature, KafkaSource, Entity
+from feast.feature_set import FeatureSet
+from feast.entity import Entity
+from feast.feature_set import Feature
+from feast.source import KafkaSource
 from feast.core.FeatureSet_pb2 import FeatureSetSpec, FeatureSpec, EntitySpec
 from feast.core.Source_pb2 import SourceType, KafkaSourceConfig, Source
 from feast.core.CoreService_pb2 import (
