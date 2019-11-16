@@ -58,9 +58,10 @@ INSTANCE_NAME=feast-pr-$(date +%s)
 REMOTE_HOST=${INSTANCE_NAME}.c.kf-feast.internal
 
 gcloud compute instances create $INSTANCE_NAME \
-  --zone us-central1-a --source-instance-template feast-external-resources
+  --zone us-central1-a --source-instance-template feast-external-resources \
+  --source-snapshot feast-external-resources-docker
 
-sleep 10
+sleep 20
 
 echo "
 ============================================================
