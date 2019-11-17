@@ -14,7 +14,7 @@
 
 import numpy as np
 import pandas as pd
-
+from datetime import datetime, timezone
 from feast.value_type import ValueType
 from feast.types.Value_pb2 import (
     Value as ProtoValue,
@@ -148,9 +148,15 @@ def convert_df_to_feature_rows(dataframe: pd.DataFrame, feature_set):
 
 
 def pd_datetime_to_timestamp_proto(dtype, value) -> Timestamp:
-    if type(value) == np.float64:
+    if type(value) in [np.float64, np.float32, np.int32, np.int64]:
         return Timestamp(seconds=int(value))
-    if dtype.__str__() in ["datetime64[ns]", "datetime64[ns, UTC]"]:
+    if dtype.__str__() == "datetime64[ns]":
+        # If timestamp does not contain timezone, we assume it is of local
+        # timezone and adjust it to UTC
+        local_timezone = datetime.now(timezone.utc).astimezone().tzinfo
+        value = value.tz_localize(local_timezone).tz_convert("UTC").tz_localize(None)
+        return Timestamp(seconds=int(value.timestamp()))
+    if dtype.__str__() == "datetime64[ns, UTC]":
         return Timestamp(seconds=int(value.timestamp()))
     else:
         return Timestamp(seconds=np.datetime64(value).astype("int64") // 1000000)
