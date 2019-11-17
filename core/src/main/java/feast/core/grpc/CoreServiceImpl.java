@@ -126,7 +126,12 @@ public class CoreServiceImpl extends CoreServiceImplBase {
             store.getSubscriptionsList().stream()
                 .filter(
                     sub -> {
-                      Pattern p = Pattern.compile(sub.getName());
+                      String subString = sub.getName();
+                      if (!subString.contains(".*"))
+                      {
+                        subString = subString.replace("*", ".*");
+                      }
+                      Pattern p = Pattern.compile(subString);
                       return p.matcher(featureSetName).matches();
                     })
                 .collect(Collectors.toList());

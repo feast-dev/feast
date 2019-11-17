@@ -508,9 +508,6 @@ class Client:
                 max_workers=max_workers,
                 disable_progress_bar=disable_progress_bar,
                 chunk_size=chunk_size,
-                producer=Producer(
-                    {"bootstrap.servers": feature_set.get_kafka_source_brokers()}
-                ),
             )
         else:
             raise Exception(

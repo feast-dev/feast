@@ -77,22 +77,11 @@ class FeatureSet:
         if not isinstance(other, FeatureSet):
             return NotImplemented
 
-        for self_feature in self.features:
-            for other_feature in other.features:
-                if self_feature != other_feature:
-                    return False
+        for key in self.fields.keys():
+            if key not in other.fields.keys() or self.fields[key] != other.fields[key]:
+                return False
 
-        for self_entity in self.entities:
-            for other_entity in other.entities:
-                if self_entity != other_entity:
-                    return False
-
-        if (
-            self.name != other.name
-            or self.version != other.version
-            or self.max_age != other.max_age
-            or self.source != other.source
-        ):
+        if self.name != other.name or self.max_age != other.max_age:
             return False
         return True
 
