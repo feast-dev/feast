@@ -96,7 +96,9 @@ public class SpecService {
             .asRuntimeException();
       }
       if (request.getVersion() < 0){
-        throw new IllegalArgumentException("Version number cannot be less than 0");
+        throw io.grpc.Status.INVALID_ARGUMENT
+            .withDescription("Version number cannot be less than 0")
+            .asRuntimeException();
       }
 
       // Find a list of feature sets with the requested name
