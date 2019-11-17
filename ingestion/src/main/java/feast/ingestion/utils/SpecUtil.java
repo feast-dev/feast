@@ -15,31 +15,40 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 public class SpecUtil {
+
   /**
    * Get only feature set specs that matches the subscription
-   *
-   * @param subscriptions
-   * @param featureSetSpecs
-   * @return
    */
   public static List<FeatureSetSpec> getSubscribedFeatureSets(
       List<Subscription> subscriptions, List<FeatureSetSpec> featureSetSpecs) {
     List<FeatureSetSpec> subscribed = new ArrayList<>();
     for (FeatureSetSpec featureSet : featureSetSpecs) {
       for (Subscription sub : subscriptions) {
-        Pattern pattern = Pattern.compile(sub.getName());
+        // Convert wildcard to regex
+        String subName = sub.getName();
+        if (!sub.getName().contains(".*")) {
+          subName = subName.replace("*", ".*");
+        }
+
+        // Match feature set name to pattern
+        Pattern pattern = Pattern.compile(subName);
         if (!pattern.matcher(featureSet.getName()).matches()) {
           continue;
         }
 
-        // Supports only subscription version with number only or number with ">" sign
-        if (sub.getVersion().startsWith(">") && sub.getVersion().length() > 1) {
+        // If version is empty, match all
+        if (sub.getVersion().isEmpty()) {
+          subscribed.add(featureSet);
+          break;
+        } else if (sub.getVersion().startsWith(">") && sub.getVersion().length() > 1) {
+          // if version starts with >, match only those greater than the version number
           int lowerBoundIncl = Integer.parseInt(sub.getVersion().substring(1));
           if (featureSet.getVersion() >= lowerBoundIncl) {
             subscribed.add(featureSet);
             break;
           }
         } else {
+          // If a specific version, match that version alone
           int version = Integer.parseInt(sub.getVersion());
           if (featureSet.getVersion() == version) {
             subscribed.add(featureSet);
