@@ -6,7 +6,6 @@ import numpy as np
 from itertools import repeat
 from multiprocessing import Process, Queue, Pool
 import pandas as pd
-from confluent_kafka import Producer
 from kafka import KafkaProducer
 
 from tqdm import tqdm
@@ -28,7 +27,7 @@ def _kafka_feature_row_chunk_producer(
 ):
     processed_chunks = 0
     rows_processed = 0
-    producer = Producer({"bootstrap.servers": brokers})
+    producer = KafkaProducer(bootstrap_servers=brokers)
     while processed_chunks < chunk_count:
         if feature_row_chunk_queue.empty():
             time.sleep(0.1)
@@ -37,7 +36,7 @@ def _kafka_feature_row_chunk_producer(
             rows_processed += len(feature_rows)
             for row in feature_rows:
                 progress_bar.update()
-                producer.produce(topic=topic, value=row.SerializeToString())
+                producer.send(topic, row.SerializeToString())
 
             producer.flush()
             progress_bar.refresh()

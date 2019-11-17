@@ -19,7 +19,6 @@ from typing import List
 import grpc
 import pandas as pd
 from feast.loaders.ingest import ingest_kafka
-from confluent_kafka import Producer
 
 from feast.exceptions import format_grpc_exception
 from feast.core.CoreService_pb2 import (
