@@ -64,7 +64,7 @@ store {
   name: "SERVING"
   type: REDIS
   subscriptions {
-    name: ".*"
+    name: "*"
     version: ">0"
   }
   redis_config {
@@ -76,7 +76,7 @@ store {
   name: "WAREHOUSE"
   type: BIGQUERY
   subscriptions {
-    name: ".*"
+    name: "*"
     version: ">0"
   }
   bigquery_config {

@@ -6,9 +6,9 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.CacheLoader.InvalidCacheLoadException;
 import com.google.common.cache.LoadingCache;
-import feast.core.CoreServiceProto.GetFeatureSetsRequest;
-import feast.core.CoreServiceProto.GetFeatureSetsRequest.Filter;
-import feast.core.CoreServiceProto.GetFeatureSetsResponse;
+import feast.core.CoreServiceProto.ListFeatureSetsRequest;
+import feast.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
+import feast.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto.FeatureSetSpec;
@@ -75,12 +75,12 @@ public class CachedSpecService {
       return featureSetSpecCache.get(id);
     } catch (InvalidCacheLoadException e) {
       // if not found, try to retrieve from core
-      GetFeatureSetsRequest request = GetFeatureSetsRequest.newBuilder()
+      ListFeatureSetsRequest request = ListFeatureSetsRequest.newBuilder()
           .setFilter(Filter.newBuilder()
               .setFeatureSetName(name)
               .setFeatureSetVersion(String.valueOf(version)))
           .build();
-      GetFeatureSetsResponse featureSets = coreService.getFeatureSets(request);
+      ListFeatureSetsResponse featureSets = coreService.listFeatureSets(request);
       if (featureSets.getFeatureSetsList().size() == 0) {
         throw new SpecRetrievalException(
             String.format(
@@ -117,10 +117,10 @@ public class CachedSpecService {
 
     for (Subscription subscription : this.store.getSubscriptionsList()) {
       try {
-        GetFeatureSetsResponse featureSetsResponse = coreService
-            .getFeatureSets(GetFeatureSetsRequest.newBuilder()
+        ListFeatureSetsResponse featureSetsResponse = coreService
+            .listFeatureSets(ListFeatureSetsRequest.newBuilder()
                 .setFilter(
-                    GetFeatureSetsRequest.Filter.newBuilder()
+                    ListFeatureSetsRequest.Filter.newBuilder()
                         .setFeatureSetName(subscription.getName())
                         .setFeatureSetVersion(subscription.getVersion())
                 ).build());

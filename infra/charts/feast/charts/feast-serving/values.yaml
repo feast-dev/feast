@@ -91,7 +91,7 @@ application.yaml:
 #     host: localhost
 #     port: 6379
 #   subscriptions:
-#   - name: ".*"
+#   - name: "*"
 #     version: ">0"
 #
 # store.yaml:
@@ -101,7 +101,7 @@ application.yaml:
 #     project_id: PROJECT_ID
 #     dataset_id: DATASET_ID
 #   subscriptions:
-#   - name: ".*"
+#   - name: "*"
 #     version: ">0"
 
 # springConfigMountPath is the directory path where application.yaml and 

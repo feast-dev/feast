@@ -24,11 +24,13 @@ import feast.core.CoreServiceProto.ApplyFeatureSetRequest;
 import feast.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.core.CoreServiceProto.GetFeastCoreVersionRequest;
 import feast.core.CoreServiceProto.GetFeastCoreVersionResponse;
-import feast.core.CoreServiceProto.GetFeatureSetsRequest;
-import feast.core.CoreServiceProto.GetFeatureSetsResponse;
-import feast.core.CoreServiceProto.GetStoresRequest;
-import feast.core.CoreServiceProto.GetStoresRequest.Filter;
-import feast.core.CoreServiceProto.GetStoresResponse;
+import feast.core.CoreServiceProto.GetFeatureSetRequest;
+import feast.core.CoreServiceProto.GetFeatureSetResponse;
+import feast.core.CoreServiceProto.ListFeatureSetsRequest;
+import feast.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.core.CoreServiceProto.ListStoresRequest;
+import feast.core.CoreServiceProto.ListStoresRequest.Filter;
+import feast.core.CoreServiceProto.ListStoresResponse;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.CoreServiceProto.UpdateStoreResponse.Status;
@@ -37,11 +39,9 @@ import feast.core.SourceProto;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Subscription;
 import feast.core.exception.RetrievalException;
-import feast.core.model.Source;
 import feast.core.service.JobCoordinatorService;
 import feast.core.service.SpecService;
 import io.grpc.stub.StreamObserver;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -73,28 +73,42 @@ public class CoreServiceImpl extends CoreServiceImplBase {
 
   @Override
   @Transactional
-  public void getFeatureSets(
-      GetFeatureSetsRequest request, StreamObserver<GetFeatureSetsResponse> responseObserver) {
+  public void getFeatureSet(
+      GetFeatureSetRequest request, StreamObserver<GetFeatureSetResponse> responseObserver) {
     try {
-      GetFeatureSetsResponse response = specService.getFeatureSets(request.getFilter());
+      GetFeatureSetResponse response = specService.getFeatureSet(request);
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (RetrievalException | InvalidProtocolBufferException e) {
-      log.error("Exception has occurred in GetFeatureSets method: ", e);
+      log.error("Exception has occurred in GetFeatureSet method: ", e);
       responseObserver.onError(e);
     }
   }
 
   @Override
   @Transactional
-  public void getStores(
-      GetStoresRequest request, StreamObserver<GetStoresResponse> responseObserver) {
+  public void listFeatureSets(
+      ListFeatureSetsRequest request, StreamObserver<ListFeatureSetsResponse> responseObserver) {
     try {
-      GetStoresResponse response = specService.getStores(request.getFilter());
+      ListFeatureSetsResponse response = specService.listFeatureSets(request.getFilter());
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (RetrievalException | InvalidProtocolBufferException e) {
+      log.error("Exception has occurred in ListFeatureSet method: ", e);
+      responseObserver.onError(e);
+    }
+  }
+
+  @Override
+  @Transactional
+  public void listStores(
+      ListStoresRequest request, StreamObserver<ListStoresResponse> responseObserver) {
+    try {
+      ListStoresResponse response = specService.listStores(request.getFilter());
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (RetrievalException e) {
-      log.error("Exception has occurred in GetStores method: ", e);
+      log.error("Exception has occurred in ListStores method: ", e);
       responseObserver.onError(e);
     }
   }
@@ -106,13 +120,18 @@ public class CoreServiceImpl extends CoreServiceImplBase {
     try {
       ApplyFeatureSetResponse response = specService.applyFeatureSet(request.getFeatureSet());
       String featureSetName = response.getFeatureSet().getName();
-      GetStoresResponse stores = specService.getStores(Filter.newBuilder().build());
+      ListStoresResponse stores = specService.listStores(Filter.newBuilder().build());
       for (Store store : stores.getStoreList()) {
         List<Subscription> relevantSubscriptions =
             store.getSubscriptionsList().stream()
                 .filter(
                     sub -> {
-                      Pattern p = Pattern.compile(sub.getName());
+                      String subString = sub.getName();
+                      if (!subString.contains(".*"))
+                      {
+                        subString = subString.replace("*", ".*");
+                      }
+                      Pattern p = Pattern.compile(subString);
                       return p.matcher(featureSetName).matches();
                     })
                 .collect(Collectors.toList());
@@ -120,8 +139,8 @@ public class CoreServiceImpl extends CoreServiceImplBase {
         for (Subscription subscription : relevantSubscriptions) {
           featureSetSpecs.addAll(
               specService
-                  .getFeatureSets(
-                      GetFeatureSetsRequest.Filter.newBuilder()
+                  .listFeatureSets(
+                      ListFeatureSetsRequest.Filter.newBuilder()
                           .setFeatureSetName(subscription.getName())
                           .setFeatureSetVersion(subscription.getVersion())
                           .build())
@@ -157,8 +176,8 @@ public class CoreServiceImpl extends CoreServiceImplBase {
         Store store = response.getStore();
         for (Subscription subscription : store.getSubscriptionsList()) {
           featureSetSpecs.addAll(
-              specService.getFeatureSets(
-                  GetFeatureSetsRequest.Filter.newBuilder()
+              specService.listFeatureSets(
+                  ListFeatureSetsRequest.Filter.newBuilder()
                       .setFeatureSetName(subscription.getName())
                       .setFeatureSetVersion(subscription.getVersion())
                       .build())

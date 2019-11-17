@@ -55,7 +55,7 @@ def client(core_url, serving_url, allow_dirty):
     return client
 
 
-@pytest.fixture()
+@pytest.fixture(scope='session')
 def basic_dataframe():
     offset = random.randint(1000, 100000)  # ensure a unique key space is used
     return pd.DataFrame(
@@ -69,21 +69,24 @@ def basic_dataframe():
     )
 
 
-@pytest.mark.timeout(30)
+@pytest.mark.timeout(45)
+@pytest.mark.run(order=10)
 def test_basic_register_feature_set_success(client):
     # Load feature set from file
-    cust_trans_fs = FeatureSet.from_yaml("basic/cust_trans_fs.yaml")
+    cust_trans_fs_expected = FeatureSet.from_yaml("basic/cust_trans_fs.yaml")
 
     # Register feature set
-    client.apply(cust_trans_fs)
+    client.apply(cust_trans_fs_expected)
 
     # Feast Core needs some time to fully commit the FeatureSet applied
     # when there is no existing job yet for the Featureset
     time.sleep(15)
 
-    cust_trans_fs_applied = client.get_feature_set(name="customer_transactions")
+    cust_trans_fs_actual = client.get_feature_set(name="customer_transactions")
 
-    if cust_trans_fs_applied is None:
+    assert cust_trans_fs_actual == cust_trans_fs_expected
+
+    if cust_trans_fs_actual is None:
         raise Exception(
             "Client cannot retrieve 'customer_transactions' FeatureSet "
             "after registration. Either Feast Core does not save the "
@@ -91,10 +94,9 @@ def test_basic_register_feature_set_success(client):
             "to be committed."
         )
 
-    assert cust_trans_fs_applied == cust_trans_fs
-
 
 @pytest.mark.timeout(30)
+@pytest.mark.run(order=11)
 def test_basic_ingest_success(client, basic_dataframe):
     cust_trans_fs = client.get_feature_set(name="customer_transactions")
 
@@ -102,7 +104,8 @@ def test_basic_ingest_success(client, basic_dataframe):
     client.ingest(cust_trans_fs, dataframe=basic_dataframe)
 
 
-@pytest.mark.timeout(30)
+@pytest.mark.timeout(45)
+@pytest.mark.run(order=12)
 def test_basic_retrieve_online_success(client, basic_dataframe):
     # Poll serving for feature values until the correct values are returned
     while True:
@@ -143,7 +146,7 @@ def test_basic_retrieve_online_success(client, basic_dataframe):
             break
 
 
-@pytest.fixture()
+@pytest.fixture(scope='session')
 def all_types_dataframe():
     return pd.DataFrame(
         {
@@ -197,10 +200,10 @@ def all_types_dataframe():
     )
 
 
-@pytest.mark.timeout(30)
-@pytest.mark.run(order=1)
+@pytest.mark.timeout(45)
+@pytest.mark.run(order=20)
 def test_all_types_register_feature_set_success(client):
-    all_types_fs = FeatureSet(
+    all_types_fs_expected = FeatureSet(
         name="all_types",
         entities=[Entity(name="user_id", dtype=ValueType.INT64)],
         features=[
@@ -225,15 +228,17 @@ def test_all_types_register_feature_set_success(client):
     )
 
     # Register feature set
-    client.apply(all_types_fs)
+    client.apply(all_types_fs_expected)
 
     # Feast Core needs some time to fully commit the FeatureSet applied
     # when there is no existing job yet for the Featureset
     time.sleep(10)
 
-    all_types_fs_applied = client.get_feature_set(name="all_types")
+    all_types_fs_actual = client.get_feature_set(name="all_types")
 
-    if all_types_fs is None:
+    assert all_types_fs_actual == all_types_fs_expected
+
+    if all_types_fs_actual is None:
         raise Exception(
             "Client cannot retrieve 'all_types_fs' FeatureSet "
             "after registration. Either Feast Core does not save the "
@@ -241,10 +246,9 @@ def test_all_types_register_feature_set_success(client):
             "to be committed."
         )
 
-    assert all_types_fs == all_types_fs_applied
-
 
 @pytest.mark.timeout(300)
+@pytest.mark.run(order=21)
 def test_all_types_ingest_success(client, all_types_dataframe):
     # Get all_types feature set
     all_types_fs = client.get_feature_set(name="all_types")
@@ -254,6 +258,7 @@ def test_all_types_ingest_success(client, all_types_dataframe):
 
 
 @pytest.mark.timeout(300)
+@pytest.mark.run(order=22)
 def test_all_types_retrieve_online_success(client, all_types_dataframe):
 
     # Poll serving for feature values until the correct values are returned
@@ -302,9 +307,9 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
             break
 
 
-@pytest.fixture()
+@pytest.fixture(scope='session')
 def large_volume_dataframe():
-    ROW_COUNT = 50000
+    ROW_COUNT = 100000
     offset = random.randint(1000000, 10000000)  # ensure a unique key space
     customer_data = pd.DataFrame(
         {
@@ -321,20 +326,22 @@ def large_volume_dataframe():
 
 
 @pytest.mark.timeout(30)
-@pytest.mark.run(order=1)
+@pytest.mark.run(order=30)
 def test_large_volume_register_feature_set_success(client):
-    cust_trans_fs = FeatureSet.from_yaml(
+    cust_trans_fs_expected = FeatureSet.from_yaml(
         "large_volume/cust_trans_large_fs.yaml")
 
     # Register feature set
-    client.apply(cust_trans_fs)
+    client.apply(cust_trans_fs_expected)
 
     # Feast Core needs some time to fully commit the FeatureSet applied
     # when there is no existing job yet for the Featureset
     time.sleep(10)
-    cust_trans_fs_applied = client.get_feature_set(name="customer_transactions_large")
+    cust_trans_fs_actual = client.get_feature_set(name="customer_transactions_large")
 
-    if cust_trans_fs is None:
+    assert cust_trans_fs_actual == cust_trans_fs_expected
+
+    if cust_trans_fs_actual is None:
         raise Exception(
             "Client cannot retrieve 'customer_transactions' FeatureSet "
             "after registration. Either Feast Core does not save the "
@@ -342,11 +349,9 @@ def test_large_volume_register_feature_set_success(client):
             "to be committed."
         )
 
-    assert cust_trans_fs_applied == cust_trans_fs
 
-
-@pytest.mark.timeout(30)
-@pytest.mark.run(order=2)
+@pytest.mark.timeout(90)
+@pytest.mark.run(order=31)
 def test_large_volume_ingest_success(client, large_volume_dataframe):
 
     # Get large volume feature set
@@ -357,7 +362,7 @@ def test_large_volume_ingest_success(client, large_volume_dataframe):
 
 
 @pytest.mark.timeout(20)
-@pytest.mark.run(order=3)
+@pytest.mark.run(order=32)
 def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
     # Poll serving for feature values until the correct values are returned
     while True:

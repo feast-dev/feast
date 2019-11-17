@@ -68,7 +68,7 @@ feast-serving-online:
     redis_config:
       port: 6379
     subscriptions:
-    - name: ".*"
+    - name: "*"
       version: ">0"
 
 feast-serving-batch:
@@ -96,5 +96,5 @@ feast-serving-batch:
       project_id: PROJECT_ID
       dataset_id: DATASET_ID
     subscriptions:
-    - name: ".*"
+    - name: "*"
       version: ">0"

@@ -8,9 +8,9 @@
   * [ApplyFeatureSetResponse](proto.md#applyfeaturesetresponse)
   * [GetFeastCoreVersionRequest](proto.md#getfeastcoreversionrequest)
   * [GetFeastCoreVersionResponse](proto.md#getfeastcoreversionresponse)
-  * [GetFeatureSetsRequest](proto.md#getfeaturesetsrequest)
-  * [GetFeatureSetsRequest.Filter](proto.md#filter)
-  * [GetFeatureSetsResponse](proto.md#getfeaturesetsresponse)
+  * [ListFeatureSetsRequest](proto.md#ListFeatureSetsRequest)
+  * [ListFeatureSetsRequest.Filter](proto.md#filter)
+  * [ListFeatureSetsResponse](proto.md#ListFeatureSetsResponse)
   * [GetStoresRequest](proto.md#getstoresrequest)
   * [GetStoresRequest.Filter](proto.md#filter)
   * [GetStoresResponse](proto.md#getstoresresponse)
@@ -87,7 +87,7 @@
 | Method Name | Request Type | Response Type | Description |
 | :--- | :--- | :--- | :--- |
 | GetFeastCoreVersion | [GetFeastCoreVersionRequest](proto.md#GetFeastCoreVersionRequest) | [GetFeastCoreVersionResponse](proto.md#GetFeastCoreVersionResponse) | Retrieve version information about this Feast deployment |
-| GetFeatureSets | [GetFeatureSetsRequest](proto.md#GetFeatureSetsRequest) | [GetFeatureSetsResponse](proto.md#GetFeatureSetsResponse) | Retrieve feature set details given a filter. |
+| GetFeatureSets | [ListFeatureSetsRequest](proto.md#ListFeatureSetsRequest) | [ListFeatureSetsResponse](proto.md#ListFeatureSetsResponse) | Retrieve feature set details given a filter. |
 
 Returns all feature sets matching that filter. If none are found, an empty list will be returned. If no filter is provided in the request, the response will contain all the feature sets currently stored in the registry. \| \| GetStores \| [GetStoresRequest](proto.md#GetStoresRequest) \| [GetStoresResponse](proto.md#GetStoresResponse) \| Retrieve store details given a filter.
 
@@ -118,22 +118,22 @@ If the changes are valid, core will return the given store configuration in resp
 | :--- | :--- | :--- | :--- |
 | version | [string](proto.md#string) |  |  |
 
-### GetFeatureSetsRequest
+### ListFeatureSetsRequest
 
 Retrieves details for all versions of a specific feature set
 
 | Field | Type | Label | Description |
 | :--- | :--- | :--- | :--- |
-| filter | [GetFeatureSetsRequest.Filter](proto.md#feast.core.GetFeatureSetsRequest.Filter) |  |  |
+| filter | [ListFeatureSetsRequest.Filter](proto.md#feast.core.ListFeatureSetsRequest.Filter) |  |  |
 
-### GetFeatureSetsRequest.Filter
+### ListFeatureSetsRequest.Filter
 
 | Field | Type | Label | Description |
 | :--- | :--- | :--- | :--- |
 | feature\_set\_name | [string](proto.md#string) |  | Name of the desired feature set. Valid regex strings are allowed. e.g. - . _can be used to match all feature sets - my-project-._ can be used to match all features prefixed by "my-project" |
 | feature\_set\_version | [string](proto.md#string) |  | Version of the desired feature set. Either a number or valid expression can be provided. e.g. - 1 will match version 1 exactly - &gt;=1 will match all versions greater or equal to 1 - &lt;10 will match all versions less than 10 |
 
-### GetFeatureSetsResponse
+### ListFeatureSetsResponse
 
 | Field | Type | Label | Description |
 | :--- | :--- | :--- | :--- |

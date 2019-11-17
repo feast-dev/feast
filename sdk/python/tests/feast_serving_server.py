@@ -16,9 +16,9 @@ from typing import Dict
 import sqlite3
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.CoreService_pb2 import (
-    GetFeatureSetsResponse,
-    GetStoresRequest,
-    GetStoresResponse,
+    ListFeatureSetsResponse,
+    ListStoresRequest,
+    ListStoresResponse,
 )
 from feast.core import FeatureSet_pb2 as FeatureSetProto
 import stores
@@ -67,8 +67,8 @@ class ServingServicer(Serving.ServingServiceServicer):
     def __get_feature_sets_from_core(self):
         # Get updated list of feature sets
         feature_sets = (
-            self._core_service_stub.GetFeatureSets
-        )  # type: GetFeatureSetsResponse
+            self._core_service_stub.ListFeatureSets
+        )  # type: ListFeatureSetsResponse
 
         # Store each feature set locally
         for feature_set in list(feature_sets.feature_sets):

@@ -6,7 +6,7 @@ import numpy as np
 from itertools import repeat
 from multiprocessing import Process, Queue, Pool
 import pandas as pd
-from confluent_kafka import Producer
+from kafka import KafkaProducer
 
 from tqdm import tqdm
 from feast.type_map import convert_df_to_feature_rows
@@ -23,19 +23,22 @@ CPU_COUNT = os.cpu_count()  # type: int
 
 
 def _kafka_feature_row_chunk_producer(
-    feature_row_chunks: Queue, chunk_count: int, producer, topic, progress_bar: tqdm
+    feature_row_chunk_queue: Queue, chunk_count: int, brokers, topic, progress_bar: tqdm
 ):
     processed_chunks = 0
     rows_processed = 0
+    producer = KafkaProducer(bootstrap_servers=brokers)
     while processed_chunks < chunk_count:
-        if feature_row_chunks.empty():
+        if feature_row_chunk_queue.empty():
             time.sleep(0.1)
         else:
-            feature_rows = feature_row_chunks.get()
+            feature_rows = feature_row_chunk_queue.get()
             rows_processed += len(feature_rows)
             for row in feature_rows:
                 progress_bar.update()
-                producer.produce(topic=topic, value=row.SerializeToString())
+                producer.send(topic, row.SerializeToString())
+
+            producer.flush()
             progress_bar.refresh()
             processed_chunks += 1
 
@@ -48,7 +51,6 @@ def _encode_chunk(df: pd.DataFrame, feature_set: FeatureSet):
 def ingest_kafka(
     feature_set: FeatureSet,
     dataframe: pd.DataFrame,
-    producer: Producer,
     max_workers: int,
     chunk_size: int = 5000,
     disable_progress_bar: bool = False,
@@ -73,7 +75,7 @@ def ingest_kafka(
         args=(
             chunk_queue,
             num_chunks,
-            producer,
+            feature_set.get_kafka_source_brokers(),
             feature_set.get_kafka_source_topic(),
             progress_bar,
         ),
@@ -99,7 +101,6 @@ def ingest_kafka(
     except Exception as ex:
         _logger.error(f"Exception occurred: {ex}")
     finally:
-        producer.flush()
         ingestion_process.join()
         rows_ingested = progress_bar.total
         progress_bar.close()

@@ -1,8 +1,8 @@
 package feast.serving.service;
 
 import feast.core.CoreServiceGrpc;
-import feast.core.CoreServiceProto.GetFeatureSetsRequest;
-import feast.core.CoreServiceProto.GetFeatureSetsResponse;
+import feast.core.CoreServiceProto.ListFeatureSetsRequest;
+import feast.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import io.grpc.ManagedChannel;
@@ -22,8 +22,8 @@ public class CoreSpecService {
     blockingStub = CoreServiceGrpc.newBlockingStub(channel);
   }
 
-  public GetFeatureSetsResponse getFeatureSets(GetFeatureSetsRequest getFeatureSetsRequest) {
-    return blockingStub.getFeatureSets(getFeatureSetsRequest);
+  public ListFeatureSetsResponse listFeatureSets(ListFeatureSetsRequest ListFeatureSetsRequest) {
+    return blockingStub.listFeatureSets(ListFeatureSetsRequest);
   }
 
   public UpdateStoreResponse updateStore(UpdateStoreRequest updateStoreRequest) {

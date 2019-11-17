@@ -38,7 +38,8 @@ type FeatureSetSpec struct {
 	// after [time - max_age]. Missing or older feature values will be returned
 	// as nulls and indicated to end user
 	MaxAge *duration.Duration `protobuf:"bytes,5,opt,name=max_age,json=maxAge,proto3" json:"max_age,omitempty"`
-	// Source on which feature rows can be found
+	// Optional. Source on which feature rows can be found.
+	// If not set, source will be set to the default value configured in Feast Core.
 	Source               *Source  `protobuf:"bytes,6,opt,name=source,proto3" json:"source,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

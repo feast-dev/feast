@@ -140,7 +140,7 @@ redis_config:
   host: localhost
   port: 6379
 subscriptions:
-  - name: .*
+  - name: "*"
     version: ">0"
 EOF
 

@@ -19,15 +19,16 @@ from typing import List
 import grpc
 import pandas as pd
 from feast.loaders.ingest import ingest_kafka
-from confluent_kafka import Producer
 
 from feast.exceptions import format_grpc_exception
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionRequest,
-    GetFeatureSetsResponse,
+    ListFeatureSetsResponse,
     ApplyFeatureSetRequest,
-    GetFeatureSetsRequest,
+    ListFeatureSetsRequest,
     ApplyFeatureSetResponse,
+    GetFeatureSetRequest,
+    GetFeatureSetResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.feature_set import FeatureSet, Entity
@@ -240,12 +241,12 @@ class Client:
 
         try:
             # Get latest feature sets from Feast Core
-            feature_set_protos = self._core_service_stub.GetFeatureSets(
-                GetFeatureSetsRequest()
-            )  # type: GetFeatureSetsResponse
+            feature_set_protos = self._core_service_stub.ListFeatureSets(
+                ListFeatureSetsRequest()
+            )  # type: ListFeatureSetsResponse
         except grpc.RpcError as e:
             raise Exception(
-                format_grpc_exception("GetFeatureSets", e.code(), e.details())
+                format_grpc_exception("ListFeatureSets", e.code(), e.details())
             )
 
         # Store list of feature sets
@@ -261,45 +262,30 @@ class Client:
     ) -> Union[FeatureSet, None]:
         """
         Retrieve a single feature set from Feast Core
-        :param name: Name of feature set
-        :param version: Version of feature set (int)
+        :param name: (str) Name of feature set
+        :param version: (int) Version of feature set
+        :param fail_if_missing: (bool) Throws an exception if the feature set is not
+         found
         :return: Returns a single feature set
+
         """
         self._connect_core()
-
-        # TODO: Version should only be integer or unset. Core should handle 'latest'
-        if version is None:
-            version = "latest"
-        elif isinstance(version, int):
-            version = str(version)
-        else:
-            raise ValueError(f"Version {version} is not of type integer.")
-
         try:
-            get_feature_set_response = self._core_service_stub.GetFeatureSets(
-                GetFeatureSetsRequest(
-                    filter=GetFeatureSetsRequest.Filter(
-                        feature_set_name=name.strip(), feature_set_version=version
-                    )
-                )
-            )  # type: GetFeatureSetsResponse
+            get_feature_set_response = self._core_service_stub.GetFeatureSet(
+                GetFeatureSetRequest(name=name.strip(), version=str(version))
+            )  # type: GetFeatureSetResponse
+            feature_set = get_feature_set_response.feature_set
         except grpc.RpcError as e:
-            print(format_grpc_exception("GetFeatureSets", e.code(), e.details()))
+            print(format_grpc_exception("GetFeatureSet", e.code(), e.details()))
         else:
-            num_feature_sets_found = len(list(get_feature_set_response.feature_sets))
-            if num_feature_sets_found == 0:
-                if fail_if_missing:
-                    raise Exception(
-                        f'Could not find feature set with name "{name}" and '
-                        f'version "{version}" '
-                    )
-                return None
-            if num_feature_sets_found > 1:
+            if feature_set is not None:
+                return FeatureSet.from_proto(feature_set)
+
+            if fail_if_missing:
                 raise Exception(
-                    f'Found {num_feature_sets_found} feature sets with name "{name}"'
-                    f' and version "{version}": {list(get_feature_set_response.feature_sets)}'
+                    f'Could not find feature set with name "{name}" and '
+                    f'version "{version}"'
                 )
-            return FeatureSet.from_proto(get_feature_set_response.feature_sets[0])
 
     def list_entities(self) -> Dict[str, Entity]:
         """
@@ -521,9 +507,6 @@ class Client:
                 max_workers=max_workers,
                 disable_progress_bar=disable_progress_bar,
                 chunk_size=chunk_size,
-                producer=Producer(
-                    {"bootstrap.servers": feature_set.get_kafka_source_brokers()}
-                ),
             )
         else:
             raise Exception(
