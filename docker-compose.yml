@@ -1,0 +1,50 @@
+version: "3.7"
+
+services:
+  core:
+    build:
+      dockerfile: ./infra/docker/core/Dockerfile
+      context: ./
+    environment:
+      DB_HOST: db
+    depends_on:
+      - kafka
+    ports:
+      - 6565:6565
+
+  serving:
+    build:
+      dockerfile: ./infra/docker/serving/Dockerfile
+      context: ./
+    # patch host to redis (not localhost!)
+    volumes: ['./serving/sample_redis_config.yml:/sample_redis_config.yml']
+    environment:
+      FEAST_CORE_HOST: core
+    depends_on:
+      - core
+      - redis
+    ports:
+      - 6566:6566
+    restart: on-failure
+
+  redis:
+    image: redis:5-alpine
+
+  kafka:
+    image: confluentinc/cp-kafka:5.2.1
+    restart: on-failure
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - zookeeper
+
+  # https://github.com/confluentinc/docker-images/blob/master/examples/fullstack/docker-compose.yml
+  zookeeper:
+    image: confluentinc/cp-zookeeper:5.2.1
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  db:
+    image: postgres:12-alpine
