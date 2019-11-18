@@ -1,4 +1,4 @@
 apiVersion: v1
 description: A Helm chart to install Feast on kubernetes
 name: feast
-version: 0.3.0-alpha.1
+version: 0.3.0
