@@ -39,7 +39,7 @@ helm repo update
 Install Feast release with minimal features, without batch serving and persistency:
 ```bash
 RELEASE_NAME=demo
-helm install feast-charts/feast --name $RELEASE_NAME --version 0.3.0-alpha.1 -f values-demo.yaml
+helm install feast-charts/feast --name $RELEASE_NAME --version 0.3.0 -f values-demo.yaml
 ```
 
 Install Feast release for typical use cases, with batch and online serving:
@@ -60,7 +60,7 @@ PROJECT_ID=google-cloud-project-id
 DATASET_ID=bigquery-dataset-id
 
 # Install the Helm release using default values.yaml
-helm install feast-charts/feast --name feast --version 0.3.0-alpha.1 \
+helm install feast-charts/feast --name feast --version 0.3.0 \
   --set feast-serving-batch."application\.yaml".feast.jobs.staging-location=$STAGING_LOCATION \
   --set feast-serving-batch."store\.yaml".bigquery_config.project_id=$PROJECT_ID \
   --set feast-serving-batch."store\.yaml".bigquery_config.dataset_id=$DATASET_ID
