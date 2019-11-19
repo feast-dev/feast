@@ -16,7 +16,6 @@ services:
     build:
       dockerfile: ./infra/docker/serving/Dockerfile
       context: ./
-    # patch host to redis (not localhost!)
     volumes: ['./serving/sample_redis_config.yml:/sample_redis_config.yml']
     environment:
       FEAST_CORE_HOST: core
