@@ -367,11 +367,6 @@ class TestClient:
         driver_fs.add(Feature(name="feature_3", dtype=ValueType.INT64))
         driver_fs.add(Entity(name="entity_id", dtype=ValueType.INT64))
 
-        driver_fs.source = KafkaSource(topic="feature-topic", brokers="127.0.0.1")
-
-        client._message_producer = MagicMock()
-        client._message_producer.produce = MagicMock()
-
         # Register with Feast core
         client.apply(driver_fs)
 
@@ -397,11 +392,6 @@ class TestClient:
         with pytest.raises(exception):
             # Create feature set
             driver_fs = FeatureSet("driver-feature-set")
-            driver_fs.source = KafkaSource(
-                topic="feature-topic", brokers="fake.broker.com"
-            )
-            client._message_producer = MagicMock()
-            client._message_producer.produce = MagicMock()
 
             # Update based on dataset
             driver_fs.infer_fields_from_df(dataframe)
@@ -436,10 +426,6 @@ class TestClient:
             ],
             max_age=Duration(seconds=3600),
         )
-
-        all_types_fs.source = KafkaSource(topic="feature-topic", brokers="127.0.0.1")
-        client._message_producer = MagicMock()
-        client._message_producer.produce = MagicMock()
 
         # Register with Feast core
         client.apply(all_types_fs)
