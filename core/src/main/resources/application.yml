@@ -33,14 +33,12 @@ feast:
     metrics:
       # Enable metrics pushing for all ingestion jobs.
       enabled: false
-      # Type of metrics sink. Only prometheus is currently supported.
-      type: prometheus
-      # Host of the metrics sink. In the case of prometheus, this is the host of the prometheus
-      # pushGateway to sink metrics to.
+      # Type of metrics sink. Only statsd is currently supported.
+      type: statsd
+      # Host of the metrics sink.
       host: localhost
-      # Port of the metrics sink. In the case of prometheus, this is the port of the prometheus
-      # pushGateway to sink metrics to.
-      port: 9091
+      # Port of the metrics sink.
+      port: 8125
 
   stream:
     # Feature stream type. Only kafka is supported.

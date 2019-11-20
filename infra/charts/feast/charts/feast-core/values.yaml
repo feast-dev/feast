@@ -64,9 +64,9 @@ application.yaml:
       options: {}
       metrics:
         enabled: false
-        type: prometheus
+        type: statsd
         host: localhost
-        port: 9091
+        port: 8125
     stream:
       type: kafka
       options:
