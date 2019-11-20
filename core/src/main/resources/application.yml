@@ -38,7 +38,7 @@ feast:
       # Host of the metrics sink.
       host: localhost
       # Port of the metrics sink.
-      port: 8125
+      port: 9125
 
   stream:
     # Feature stream type. Only kafka is supported.
