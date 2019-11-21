@@ -16,6 +16,11 @@
 
 package feast.serving.service;
 
+import static feast.serving.util.Metrics.missingKeyCount;
+import static feast.serving.util.Metrics.requestLatency;
+import static feast.serving.util.Metrics.requestCount;
+import static feast.serving.util.Metrics.staleKeyCount;
+
 import com.google.common.collect.Maps;
 import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.Duration;
@@ -41,6 +46,7 @@ import feast.types.ValueProto.Value;
 import io.grpc.Status;
 import io.opentracing.Scope;
 import io.opentracing.Tracer;
+import io.prometheus.client.Summary.Timer;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -61,7 +67,9 @@ public class RedisServingService implements ServingService {
     this.tracer = tracer;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public GetFeastServingInfoResponse getFeastServingInfo(
       GetFeastServingInfoRequest getFeastServingInfoRequest) {
@@ -70,10 +78,13 @@ public class RedisServingService implements ServingService {
         .build();
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest request) {
     try (Scope scope = tracer.buildSpan("Redis-getOnlineFeatures").startActive(true)) {
+      Timer getOnlineFeaturesTimer = requestLatency.labels("getOnlineFeatures").startTimer();
       GetOnlineFeaturesResponse.Builder getOnlineFeaturesResponseBuilder =
           GetOnlineFeaturesResponse.newBuilder();
 
@@ -114,6 +125,7 @@ public class RedisServingService implements ServingService {
           featureValuesMap.values().stream()
               .map(m -> FieldValues.newBuilder().putAllFields(m).build())
               .collect(Collectors.toList());
+      getOnlineFeaturesTimer.observeDuration();
       return getOnlineFeaturesResponseBuilder.addAllFieldValues(fieldValues).build();
     }
   }
@@ -166,9 +178,11 @@ public class RedisServingService implements ServingService {
     for (int i = 0; i < featureSetEntityNames.size(); i++) {
       String entityName = featureSetEntityNames.get(i);
 
-      if (!fieldsMap.containsKey(entityName)){
+      if (!fieldsMap.containsKey(entityName)) {
         throw Status.INVALID_ARGUMENT
-            .withDescription(String.format("Entity row fields \"%s\" does not contain required entity field \"%s\"", fieldsMap.keySet().toString(), entityName))
+            .withDescription(String
+                .format("Entity row fields \"%s\" does not contain required entity field \"%s\"",
+                    fieldsMap.keySet().toString(), entityName))
             .asRuntimeException();
       }
 
@@ -186,33 +200,45 @@ public class RedisServingService implements ServingService {
       throws InvalidProtocolBufferException {
 
     List<byte[]> jedisResps = sendMultiGet(redisKeys);
-
+    Timer processResponseTimer = requestLatency.labels("processResponse")
+        .startTimer();
     try (Scope scope = tracer.buildSpan("Redis-processResponse").startActive(true)) {
       String featureSetId =
           String.format("%s:%d", featureSetRequest.getName(), featureSetRequest.getVersion());
+
       Map<String, Value> nullValues =
           featureSetRequest.getFeatureNamesList().stream()
               .collect(
                   Collectors.toMap(
                       name -> featureSetId + ":" + name, name -> Value.newBuilder().build()));
+
       for (int i = 0; i < jedisResps.size(); i++) {
         EntityRow entityRow = entityRows.get(i);
         Map<String, Value> featureValues = featureValuesMap.get(entityRow);
+
         byte[] jedisResponse = jedisResps.get(i);
         if (jedisResponse == null) {
+          missingKeyCount.labels(featureSetRequest.getName()).inc();
           featureValues.putAll(nullValues);
           continue;
         }
+
         FeatureRow featureRow = FeatureRow.parseFrom(jedisResponse);
+
         boolean stale = isStale(featureSetRequest, entityRow, featureRow);
         if (stale) {
+          staleKeyCount.labels(featureSetRequest.getName()).inc();
           featureValues.putAll(nullValues);
           continue;
         }
+
+        requestCount.labels(featureSetRequest.getName()).inc();
         featureRow.getFieldsList().stream()
             .filter(f -> featureSetRequest.getFeatureNamesList().contains(f.getName()))
             .forEach(f -> featureValues.put(featureSetId + ":" + f.getName(), f.getValue()));
       }
+    } finally {
+      processResponseTimer.observeDuration();
     }
   }
 
@@ -237,6 +263,7 @@ public class RedisServingService implements ServingService {
    */
   private List<byte[]> sendMultiGet(List<RedisKey> keys) {
     try (Scope scope = tracer.buildSpan("Redis-sendMultiGet").startActive(true)) {
+      Timer sendMultiGetTimer = requestLatency.labels("sendMultiGet").startTimer();
       try (Jedis jedis = jedisPool.getResource()) {
         byte[][] binaryKeys =
             keys.stream()
@@ -249,6 +276,8 @@ public class RedisServingService implements ServingService {
             .withDescription("Unable to retrieve feature from Redis")
             .withCause(e)
             .asRuntimeException();
+      } finally {
+        sendMultiGetTimer.observeDuration();
       }
     }
   }
