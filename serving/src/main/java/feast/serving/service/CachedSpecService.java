@@ -42,9 +42,11 @@ public class CachedSpecService {
   private Store store;
 
   private static Gauge featureSetsCount = Gauge.build().name("feature_set_count")
+      .subsystem("feast_serving")
       .help("number of feature sets served by this instance")
       .register();
   private static Gauge cacheLastUpdated = Gauge.build().name("cache_last_updated")
+      .subsystem("feast_serving")
       .help("epoch time of the last time the cache was updated")
       .register();
 
