@@ -29,8 +29,11 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
 
   public abstract int getStatsdPort();
 
-  public static WriteRowMetricsDoFn create(String newStoreName, FeatureSetSpec newFeatureSetSpec,
-      String newStatsdHost, int newStatsdPort) {
+  public static WriteRowMetricsDoFn create(
+      String newStoreName,
+      FeatureSetSpec newFeatureSetSpec,
+      String newStatsdHost,
+      int newStatsdPort) {
     return newBuilder()
         .setStoreName(newStoreName)
         .setStatsdHost(newStatsdHost)
@@ -58,11 +61,7 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
 
   @Setup
   public void setup() {
-    statsd = new NonBlockingStatsDClient(
-        METRIC_PREFIX,
-        getStatsdHost(),
-        getStatsdPort()
-    );
+    statsd = new NonBlockingStatsDClient(METRIC_PREFIX, getStatsdHost(), getStatsdPort());
   }
 
   @ProcessElement
@@ -76,13 +75,17 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
       String featureSetName = split[0];
       String featureSetVersion = split[1];
 
-      statsd.histogram("feature_row_lag_ms", System.currentTimeMillis() - eventTimestamp,
+      statsd.histogram(
+          "feature_row_lag_ms",
+          System.currentTimeMillis() - eventTimestamp,
           STORE_TAG_KEY + ":" + getStoreName(),
           FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
           FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
           INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
 
-      statsd.histogram("feature_row_event_time_epoch_ms", eventTimestamp,
+      statsd.histogram(
+          "feature_row_event_time_epoch_ms",
+          eventTimestamp,
           STORE_TAG_KEY + ":" + getStoreName(),
           FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
           FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
@@ -90,14 +93,18 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
 
       for (Field field : row.getFieldsList()) {
         if (!field.getValue().getValCase().equals(ValCase.VAL_NOT_SET)) {
-          statsd.histogram("feature_value_lag_ms", System.currentTimeMillis() - eventTimestamp,
+          statsd.histogram(
+              "feature_value_lag_ms",
+              System.currentTimeMillis() - eventTimestamp,
               STORE_TAG_KEY + ":" + getStoreName(),
               FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
               FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
               FEATURE_TAG_KEY + ":" + field.getName(),
               INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
         } else {
-          statsd.count("feature_value_missing_count", 1,
+          statsd.count(
+              "feature_value_missing_count",
+              1,
               STORE_TAG_KEY + ":" + getStoreName(),
               FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
               FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
@@ -106,14 +113,15 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
         }
       }
 
-      statsd.count("feature_row_ingested_count", 1,
+      statsd.count(
+          "feature_row_ingested_count",
+          1,
           STORE_TAG_KEY + ":" + getStoreName(),
           FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
           FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
           INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
 
-    } catch (
-        StatsDClientException e) {
+    } catch (StatsDClientException e) {
       log.warn("Unable to push metrics to server", e);
     }
   }

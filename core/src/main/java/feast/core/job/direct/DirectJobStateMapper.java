@@ -22,6 +22,7 @@ public class DirectJobStateMapper {
 
   /**
    * Map a dataflow job state to Feast's JobStatus
+   *
    * @param jobState beam PipelineResult State
    * @return JobStatus
    */

@@ -1,8 +1,6 @@
 package feast.core.log;
 
-/**
- * Actions taken for audit logging purposes
- */
+/** Actions taken for audit logging purposes */
 public enum Action {
   // Job-related actions
   SUBMIT,

@@ -78,9 +78,7 @@ public class BigQueryServingService implements ServingService {
     this.storage = storage;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public GetFeastServingInfoResponse getFeastServingInfo(
       GetFeastServingInfoRequest getFeastServingInfoRequest) {
@@ -90,27 +88,23 @@ public class BigQueryServingService implements ServingService {
         .build();
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest getFeaturesRequest) {
     throw Status.UNIMPLEMENTED.withDescription("Method not implemented").asRuntimeException();
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public GetBatchFeaturesResponse getBatchFeatures(GetBatchFeaturesRequest getFeaturesRequest) {
     Timer getBatchFeaturesTimer = requestLatency.labels("getBatchFeatures").startTimer();
     List<FeatureSetSpec> featureSetSpecs =
         getFeaturesRequest.getFeatureSetsList().stream()
-            .map(featureSet -> {
+            .map(
+                featureSet -> {
                   requestCount.labels(featureSet.getName()).inc();
                   return specService.getFeatureSet(featureSet.getName(), featureSet.getVersion());
-                }
-            )
+                })
             .collect(Collectors.toList());
 
     if (getFeaturesRequest.getFeatureSetsList().size() != featureSetSpecs.size()) {
@@ -122,16 +116,17 @@ public class BigQueryServingService implements ServingService {
 
     Table entityTable = loadEntities(getFeaturesRequest.getDatasetSource());
     String entityTableName = entityTable.getTableId().getTable();
-    //TODO: add expiration to temp tables
-//    entityTable = entityTable.toBuilder().setExpirationTime(TABLE_EXPIRATION_TIME).build();
-//    entityTable.update(TableOption.fields(TableField.EXPIRATION_TIME));
+    // TODO: add expiration to temp tables
+    //    entityTable = entityTable.toBuilder().setExpirationTime(TABLE_EXPIRATION_TIME).build();
+    //    entityTable.update(TableOption.fields(TableField.EXPIRATION_TIME));
     FieldValueList timestampLimits = getTimestampLimits(entityTableName);
 
     Schema entityTableSchema = entityTable.getDefinition().getSchema();
-    List<String> entityNames = entityTableSchema.getFields().stream()
-        .map(Field::getName)
-        .filter(name -> !name.equals("event_timestamp"))
-        .collect(Collectors.toList());
+    List<String> entityNames =
+        entityTableSchema.getFields().stream()
+            .map(Field::getName)
+            .filter(name -> !name.equals("event_timestamp"))
+            .collect(Collectors.toList());
 
     String query;
     try {
@@ -160,82 +155,82 @@ public class BigQueryServingService implements ServingService {
     jobService.upsert(feastJob);
 
     new Thread(
-        () -> {
-          QueryJobConfiguration queryConfig;
-          Job queryJob;
+            () -> {
+              QueryJobConfiguration queryConfig;
+              Job queryJob;
 
-          try {
-            queryConfig =
-                QueryJobConfiguration.newBuilder(query)
-                    .setDefaultDataset(DatasetId.of(projectId, datasetId))
-                    .build();
-            queryJob = bigquery.create(JobInfo.of(queryConfig));
-            jobService.upsert(
-                ServingAPIProto.Job.newBuilder()
-                    .setId(feastJobId)
-                    .setType(JobType.JOB_TYPE_DOWNLOAD)
-                    .setStatus(JobStatus.JOB_STATUS_RUNNING)
-                    .build());
-            queryJob.waitFor();
-          } catch (BigQueryException | InterruptedException e) {
-            jobService.upsert(
-                ServingAPIProto.Job.newBuilder()
-                    .setId(feastJobId)
-                    .setType(JobType.JOB_TYPE_DOWNLOAD)
-                    .setStatus(JobStatus.JOB_STATUS_DONE)
-                    .setError(e.getMessage())
-                    .build());
-            return;
-          }
+              try {
+                queryConfig =
+                    QueryJobConfiguration.newBuilder(query)
+                        .setDefaultDataset(DatasetId.of(projectId, datasetId))
+                        .build();
+                queryJob = bigquery.create(JobInfo.of(queryConfig));
+                jobService.upsert(
+                    ServingAPIProto.Job.newBuilder()
+                        .setId(feastJobId)
+                        .setType(JobType.JOB_TYPE_DOWNLOAD)
+                        .setStatus(JobStatus.JOB_STATUS_RUNNING)
+                        .build());
+                queryJob.waitFor();
+              } catch (BigQueryException | InterruptedException e) {
+                jobService.upsert(
+                    ServingAPIProto.Job.newBuilder()
+                        .setId(feastJobId)
+                        .setType(JobType.JOB_TYPE_DOWNLOAD)
+                        .setStatus(JobStatus.JOB_STATUS_DONE)
+                        .setError(e.getMessage())
+                        .build());
+                return;
+              }
 
-          try {
-            queryConfig = queryJob.getConfiguration();
-            String exportTableDestinationUri =
-                String.format("%s/%s/*.avro", jobStagingLocation, feastJobId);
+              try {
+                queryConfig = queryJob.getConfiguration();
+                String exportTableDestinationUri =
+                    String.format("%s/%s/*.avro", jobStagingLocation, feastJobId);
 
-            // Hardcode the format to Avro for now
-            ExtractJobConfiguration extractConfig =
-                ExtractJobConfiguration.of(
-                    queryConfig.getDestinationTable(), exportTableDestinationUri, "Avro");
-            Job extractJob = bigquery.create(JobInfo.of(extractConfig));
-            extractJob.waitFor();
-          } catch (BigQueryException | InterruptedException e) {
-            jobService.upsert(
-                ServingAPIProto.Job.newBuilder()
-                    .setId(feastJobId)
-                    .setType(JobType.JOB_TYPE_DOWNLOAD)
-                    .setStatus(JobStatus.JOB_STATUS_DONE)
-                    .setError(e.getMessage())
-                    .build());
-            return;
-          }
+                // Hardcode the format to Avro for now
+                ExtractJobConfiguration extractConfig =
+                    ExtractJobConfiguration.of(
+                        queryConfig.getDestinationTable(), exportTableDestinationUri, "Avro");
+                Job extractJob = bigquery.create(JobInfo.of(extractConfig));
+                extractJob.waitFor();
+              } catch (BigQueryException | InterruptedException e) {
+                jobService.upsert(
+                    ServingAPIProto.Job.newBuilder()
+                        .setId(feastJobId)
+                        .setType(JobType.JOB_TYPE_DOWNLOAD)
+                        .setStatus(JobStatus.JOB_STATUS_DONE)
+                        .setError(e.getMessage())
+                        .build());
+                return;
+              }
 
-          String scheme = jobStagingLocation.substring(0, jobStagingLocation.indexOf("://"));
-          String stagingLocationNoScheme =
-              jobStagingLocation.substring(jobStagingLocation.indexOf("://") + 3);
-          String bucket = stagingLocationNoScheme.split("/")[0];
-          List<String> prefixParts = new ArrayList<>();
-          prefixParts.add(
-              stagingLocationNoScheme.contains("/") && !stagingLocationNoScheme.endsWith("/")
-                  ? stagingLocationNoScheme.substring(stagingLocationNoScheme.indexOf("/") + 1)
-                  : "");
-          prefixParts.add(feastJobId);
-          String prefix = String.join("/", prefixParts) + "/";
+              String scheme = jobStagingLocation.substring(0, jobStagingLocation.indexOf("://"));
+              String stagingLocationNoScheme =
+                  jobStagingLocation.substring(jobStagingLocation.indexOf("://") + 3);
+              String bucket = stagingLocationNoScheme.split("/")[0];
+              List<String> prefixParts = new ArrayList<>();
+              prefixParts.add(
+                  stagingLocationNoScheme.contains("/") && !stagingLocationNoScheme.endsWith("/")
+                      ? stagingLocationNoScheme.substring(stagingLocationNoScheme.indexOf("/") + 1)
+                      : "");
+              prefixParts.add(feastJobId);
+              String prefix = String.join("/", prefixParts) + "/";
 
-          List<String> fileUris = new ArrayList<>();
-          for (Blob blob : storage.list(bucket, BlobListOption.prefix(prefix)).iterateAll()) {
-            fileUris.add(String.format("%s://%s/%s", scheme, blob.getBucket(), blob.getName()));
-          }
+              List<String> fileUris = new ArrayList<>();
+              for (Blob blob : storage.list(bucket, BlobListOption.prefix(prefix)).iterateAll()) {
+                fileUris.add(String.format("%s://%s/%s", scheme, blob.getBucket(), blob.getName()));
+              }
 
-          jobService.upsert(
-              ServingAPIProto.Job.newBuilder()
-                  .setId(feastJobId)
-                  .setType(JobType.JOB_TYPE_DOWNLOAD)
-                  .setStatus(JobStatus.JOB_STATUS_DONE)
-                  .addAllFileUris(fileUris)
-                  .setDataFormat(DataFormat.DATA_FORMAT_AVRO)
-                  .build());
-        })
+              jobService.upsert(
+                  ServingAPIProto.Job.newBuilder()
+                      .setId(feastJobId)
+                      .setType(JobType.JOB_TYPE_DOWNLOAD)
+                      .setStatus(JobStatus.JOB_STATUS_DONE)
+                      .addAllFileUris(fileUris)
+                      .setDataFormat(DataFormat.DATA_FORMAT_AVRO)
+                      .build());
+            })
         .start();
 
     getBatchFeaturesTimer.observeDuration();
@@ -243,15 +238,14 @@ public class BigQueryServingService implements ServingService {
   }
 
   private FieldValueList getTimestampLimits(String entityTableName) {
-    QueryJobConfiguration getTimestampLimitsQuery = QueryJobConfiguration
-        .newBuilder(getTimestampLimitQuery(projectId, datasetId, entityTableName))
-        .setDefaultDataset(DatasetId.of(projectId, datasetId)).build();
+    QueryJobConfiguration getTimestampLimitsQuery =
+        QueryJobConfiguration.newBuilder(
+                getTimestampLimitQuery(projectId, datasetId, entityTableName))
+            .setDefaultDataset(DatasetId.of(projectId, datasetId))
+            .build();
     try {
-      Job job = bigquery
-          .create(JobInfo.of(getTimestampLimitsQuery));
-      TableResult getTimestampLimitsQueryResult = job
-          .waitFor()
-          .getQueryResults();
+      Job job = bigquery.create(JobInfo.of(getTimestampLimitsQuery));
+      TableResult getTimestampLimitsQueryResult = job.waitFor().getQueryResults();
       FieldValueList result = null;
       for (FieldValueList fields : getTimestampLimitsQueryResult.getValues()) {
         result = fields;
@@ -268,9 +262,7 @@ public class BigQueryServingService implements ServingService {
     }
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public GetJobResponse getJob(GetJobRequest getJobRequest) {
     Optional<ServingAPIProto.Job> job = jobService.get(getJobRequest.getJob().getId());
@@ -295,12 +287,11 @@ public class BigQueryServingService implements ServingService {
                 .withDescription("Invalid file format, only avro supported")
                 .asRuntimeException();
           }
-          LoadJobConfiguration loadJobConfiguration = LoadJobConfiguration.of(tableId,
-              datasetSource.getFileSource().getFileUrisList(),
-              FormatOptions.avro());
-          loadJobConfiguration = loadJobConfiguration.toBuilder()
-              .setUseAvroLogicalTypes(true)
-              .build();
+          LoadJobConfiguration loadJobConfiguration =
+              LoadJobConfiguration.of(
+                  tableId, datasetSource.getFileSource().getFileUrisList(), FormatOptions.avro());
+          loadJobConfiguration =
+              loadJobConfiguration.toBuilder().setUseAvroLogicalTypes(true).build();
           Job job = bigquery.create(JobInfo.of(loadJobConfiguration));
           job.waitFor();
           Table entityTable = bigquery.getTable(tableId);

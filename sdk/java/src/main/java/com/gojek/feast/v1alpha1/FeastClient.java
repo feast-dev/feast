@@ -1,10 +1,10 @@
 package com.gojek.feast.v1alpha1;
 
+import feast.serving.ServingAPIProto.FeatureSetRequest;
 import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.serving.ServingAPIProto.GetFeastServingInfoResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
-import feast.serving.ServingAPIProto.FeatureSetRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingServiceGrpc;
 import io.grpc.ManagedChannel;

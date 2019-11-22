@@ -9,12 +9,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class ContextClosedHandler implements ApplicationListener<ContextClosedEvent> {
 
-  @Autowired
-  ScheduledExecutorService executor;
+  @Autowired ScheduledExecutorService executor;
 
   @Override
   public void onApplicationEvent(ContextClosedEvent event) {
     executor.shutdown();
   }
 }
-

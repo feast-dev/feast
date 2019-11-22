@@ -58,8 +58,7 @@ public class Field {
       return false;
     }
     Field field = (Field) o;
-    return name.equals(field.getName()) &&
-        type.equals(field.getType());
+    return name.equals(field.getName()) && type.equals(field.getType());
   }
 
   @Override

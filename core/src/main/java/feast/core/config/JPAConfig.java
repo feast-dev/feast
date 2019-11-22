@@ -17,13 +17,12 @@
 
 package feast.core.config;
 
+import javax.persistence.EntityManagerFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
-
-import javax.persistence.EntityManagerFactory;
 
 /** Configuration of JPA related services and beans for the core application. */
 @Configuration

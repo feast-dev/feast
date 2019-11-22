@@ -2,14 +2,11 @@ package feast.ingestion.transform;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import feast.core.SourceProto.Source;
 import feast.core.SourceProto.SourceType;
 import feast.ingestion.transform.fn.KafkaRecordToFeatureRowDoFn;
 import feast.ingestion.values.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
-import java.util.List;
-import java.util.Map;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -74,10 +71,12 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
                 .withReadCommitted()
                 .commitOffsetsInFinalize())
         .apply(
-            "KafkaRecordToFeatureRow", ParDo.of(KafkaRecordToFeatureRowDoFn.newBuilder()
-                .setSuccessTag(getSuccessTag())
-                .setFailureTag(getFailureTag())
-                .build())
+            "KafkaRecordToFeatureRow",
+            ParDo.of(
+                    KafkaRecordToFeatureRowDoFn.newBuilder()
+                        .setSuccessTag(getSuccessTag())
+                        .setFailureTag(getFailureTag())
+                        .build())
                 .withOutputTags(getSuccessTag(), TupleTagList.of(getFailureTag())));
   }
 

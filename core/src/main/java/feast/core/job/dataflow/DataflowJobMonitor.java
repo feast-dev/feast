@@ -21,16 +21,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.Job;
-import com.google.api.services.dataflow.model.JobMetrics;
-import com.google.api.services.dataflow.model.MetricUpdate;
 import feast.core.job.JobMonitor;
 import feast.core.job.Runner;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
-import feast.core.model.Metrics;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -65,12 +59,19 @@ public class DataflowJobMonitor implements JobMonitor {
     }
 
     try {
-      Job job = dataflow.projects().locations().jobs().get(projectId, location, jobInfo.getExtId())
-          .execute();
+      Job job =
+          dataflow
+              .projects()
+              .locations()
+              .jobs()
+              .get(projectId, location, jobInfo.getExtId())
+              .execute();
       return jobStateMaper.map(job.getCurrentState());
     } catch (Exception e) {
-      log.error("Unable to retrieve status of a dataflow job with id : {}\ncause: {}",
-          jobInfo.getExtId(), e.getMessage());
+      log.error(
+          "Unable to retrieve status of a dataflow job with id : {}\ncause: {}",
+          jobInfo.getExtId(),
+          e.getMessage());
     }
     return JobStatus.UNKNOWN;
   }

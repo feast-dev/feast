@@ -2,7 +2,6 @@ package feast.ingestion.values;
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
-import javax.validation.constraints.Null;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.joda.time.Instant;

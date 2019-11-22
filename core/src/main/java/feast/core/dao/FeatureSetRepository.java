@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 /** JPA repository supplying FeatureSet objects keyed by id. */
-public interface FeatureSetRepository  extends JpaRepository<FeatureSet, String> {
+public interface FeatureSetRepository extends JpaRepository<FeatureSet, String> {
 
   // Find feature set by name and version
   FeatureSet findFeatureSetByNameAndVersion(String name, Integer version);
@@ -18,6 +18,6 @@ public interface FeatureSetRepository  extends JpaRepository<FeatureSet, String>
   List<FeatureSet> findByName(String name);
 
   // find all versions of featureSets with names matching the regex
-  @Query(nativeQuery=true, value="SELECT * FROM feature_sets WHERE name LIKE ?1")
+  @Query(nativeQuery = true, value = "SELECT * FROM feature_sets WHERE name LIKE ?1")
   List<FeatureSet> findByNameWithWildcard(String name);
 }

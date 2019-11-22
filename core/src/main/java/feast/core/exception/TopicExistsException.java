@@ -17,9 +17,7 @@
 
 package feast.core.exception;
 
-/**
- * Exception thrown when creation of a topic in the stream fails because it already exists.
- */
+/** Exception thrown when creation of a topic in the stream fails because it already exists. */
 public class TopicExistsException extends RuntimeException {
   public TopicExistsException() {
     super();

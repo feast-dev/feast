@@ -12,7 +12,5 @@ public class NoopJobService implements JobService {
   }
 
   @Override
-  public void upsert(Job job) {
-
-  }
+  public void upsert(Job job) {}
 }

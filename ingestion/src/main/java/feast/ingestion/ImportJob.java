@@ -30,12 +30,10 @@ import org.slf4j.Logger;
 public class ImportJob {
 
   // Tag for main output containing Feature Row that has been successfully processed.
-  private static final TupleTag<FeatureRow> FEATURE_ROW_OUT = new TupleTag<FeatureRow>() {
-  };
+  private static final TupleTag<FeatureRow> FEATURE_ROW_OUT = new TupleTag<FeatureRow>() {};
 
   // Tag for deadletter output containing elements and error messages from invalid input/transform.
-  private static final TupleTag<FailedElement> DEADLETTER_OUT = new TupleTag<FailedElement>() {
-  };
+  private static final TupleTag<FailedElement> DEADLETTER_OUT = new TupleTag<FailedElement>() {};
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(ImportJob.class);
 
   /**
@@ -74,12 +72,14 @@ public class ImportJob {
           SpecUtil.getSubscribedFeatureSets(store.getSubscriptionsList(), featureSetSpecs);
 
       // Generate tags by key
-      Map<String, FeatureSetSpec> featureSetSpecsByKey = subscribedFeatureSets.stream()
-          .map(fs -> {
-            String id = String.format("%s:%s", fs.getName(), fs.getVersion());
-            return Pair.of(id, fs);
-          })
-          .collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
+      Map<String, FeatureSetSpec> featureSetSpecsByKey =
+          subscribedFeatureSets.stream()
+              .map(
+                  fs -> {
+                    String id = String.format("%s:%s", fs.getName(), fs.getVersion());
+                    return Pair.of(id, fs);
+                  })
+              .collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
 
       // TODO: make the source part of the job initialisation options
       Source source = subscribedFeatureSets.get(0).getSource();
@@ -100,20 +100,23 @@ public class ImportJob {
       }
 
       // Step 2. Validate incoming FeatureRows
-      PCollectionTuple validatedRows = convertedFeatureRows
-          .get(FEATURE_ROW_OUT)
-          .apply(ValidateFeatureRows.newBuilder()
-              .setFeatureSetSpecs(featureSetSpecsByKey)
-              .setSuccessTag(FEATURE_ROW_OUT)
-              .setFailureTag(DEADLETTER_OUT)
-              .build());
+      PCollectionTuple validatedRows =
+          convertedFeatureRows
+              .get(FEATURE_ROW_OUT)
+              .apply(
+                  ValidateFeatureRows.newBuilder()
+                      .setFeatureSetSpecs(featureSetSpecsByKey)
+                      .setSuccessTag(FEATURE_ROW_OUT)
+                      .setFailureTag(DEADLETTER_OUT)
+                      .build());
 
       // Step 3. Write FeatureRow to the corresponding Store.
       validatedRows
           .get(FEATURE_ROW_OUT)
           .apply(
               "WriteFeatureRowToStore",
-              WriteToStore.newBuilder().setFeatureSetSpecs(featureSetSpecsByKey)
+              WriteToStore.newBuilder()
+                  .setFeatureSetSpecs(featureSetSpecsByKey)
                   .setStore(store)
                   .build());
 
@@ -130,7 +133,8 @@ public class ImportJob {
 
         validatedRows
             .get(DEADLETTER_OUT)
-            .apply("WriteFailedElements_ValidateRows",
+            .apply(
+                "WriteFailedElements_ValidateRows",
                 WriteFailedElementToBigQuery.newBuilder()
                     .setJsonSchema(ResourceUtil.getDeadletterTableSchemaJson())
                     .setTableSpec(options.getDeadLetterTableSpec())
@@ -138,8 +142,9 @@ public class ImportJob {
       }
 
       // Step 5. Write metrics to a metrics sink.
-      validatedRows
-          .apply("WriteMetrics", WriteMetricsTransform.newBuilder()
+      validatedRows.apply(
+          "WriteMetrics",
+          WriteMetricsTransform.newBuilder()
               .setStoreName(store.getName())
               .setSuccessTag(FEATURE_ROW_OUT)
               .setFailureTag(DEADLETTER_OUT)

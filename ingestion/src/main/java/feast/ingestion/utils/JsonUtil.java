@@ -37,8 +37,7 @@ public class JsonUtil {
     if (jsonString == null || jsonString.equals("") || jsonString.equals("{}")) {
       return Collections.emptyMap();
     }
-    Type stringMapType = new TypeToken<Map<String, String>>() {
-    }.getType();
+    Type stringMapType = new TypeToken<Map<String, String>>() {}.getType();
     return gson.fromJson(jsonString, stringMapType);
   }
 }

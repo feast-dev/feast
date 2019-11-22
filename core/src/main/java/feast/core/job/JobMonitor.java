@@ -19,8 +19,6 @@ package feast.core.job;
 
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
-import feast.core.model.Metrics;
-import java.util.List;
 
 public interface JobMonitor {
 
@@ -31,5 +29,4 @@ public interface JobMonitor {
    * @return job status.
    */
   JobStatus getJobStatus(JobInfo job);
-
 }

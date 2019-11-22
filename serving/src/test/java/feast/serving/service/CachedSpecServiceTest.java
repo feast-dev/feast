@@ -34,11 +34,9 @@ public class CachedSpecServiceTest {
   private File configFile;
   private Store store;
 
-  @Rule
-  public final ExpectedException expectedException = ExpectedException.none();
+  @Rule public final ExpectedException expectedException = ExpectedException.none();
 
-  @Mock
-  CoreSpecService coreService;
+  @Mock CoreSpecService coreService;
 
   private Map<String, FeatureSetSpec> featureSetSpecs;
   private CachedSpecService cachedSpecService;
@@ -47,27 +45,30 @@ public class CachedSpecServiceTest {
   public void setUp() throws IOException {
     initMocks(this);
 
-    configFile = File.createTempFile( "serving", ".yml");
-    String yamlString = "name: SERVING\n"
-        + "type: REDIS\n"
-        + "redis_config:\n"
-        + "  host: localhost\n"
-        + "  port: 6379\n"
-        + "subscriptions:\n"
-        + "- name: fs1\n"
-        + "  version: \">0\"\n"
-        + "- name: fs2\n"
-        + "  version: \">0\"";
+    configFile = File.createTempFile("serving", ".yml");
+    String yamlString =
+        "name: SERVING\n"
+            + "type: REDIS\n"
+            + "redis_config:\n"
+            + "  host: localhost\n"
+            + "  port: 6379\n"
+            + "subscriptions:\n"
+            + "- name: fs1\n"
+            + "  version: \">0\"\n"
+            + "- name: fs2\n"
+            + "  version: \">0\"";
     BufferedWriter writer = new BufferedWriter(new FileWriter(configFile));
     writer.write(yamlString);
     writer.close();
 
-    store = Store.newBuilder().setName("SERVING")
-        .setType(StoreType.REDIS)
-        .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379))
-        .addSubscriptions(Subscription.newBuilder().setName("fs1").setVersion(">0").build())
-        .addSubscriptions(Subscription.newBuilder().setName("fs2").setVersion(">0").build())
-        .build();
+    store =
+        Store.newBuilder()
+            .setName("SERVING")
+            .setType(StoreType.REDIS)
+            .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379))
+            .addSubscriptions(Subscription.newBuilder().setName("fs1").setVersion(">0").build())
+            .addSubscriptions(Subscription.newBuilder().setName("fs2").setVersion(">0").build())
+            .build();
 
     when(coreService.updateStore(UpdateStoreRequest.newBuilder().setStore(store).build()))
         .thenReturn(UpdateStoreResponse.newBuilder().setStore(store).build());
@@ -77,20 +78,26 @@ public class CachedSpecServiceTest {
     featureSetSpecs.put("fs1:2", FeatureSetSpec.newBuilder().setName("fs1").setVersion(2).build());
     featureSetSpecs.put("fs2:1", FeatureSetSpec.newBuilder().setName("fs2").setVersion(1).build());
 
-    List<FeatureSetSpec> fs1FeatureSets = Lists
-        .newArrayList(featureSetSpecs.get("fs1:1"), featureSetSpecs.get("fs1:2"));
+    List<FeatureSetSpec> fs1FeatureSets =
+        Lists.newArrayList(featureSetSpecs.get("fs1:1"), featureSetSpecs.get("fs1:2"));
     List<FeatureSetSpec> fs2FeatureSets = Lists.newArrayList(featureSetSpecs.get("fs2:1"));
-    when(coreService.listFeatureSets(ListFeatureSetsRequest
-        .newBuilder()
-        .setFilter(ListFeatureSetsRequest.Filter.newBuilder().setFeatureSetName("fs1")
-            .setFeatureSetVersion(">0").build())
-        .build()))
+    when(coreService.listFeatureSets(
+            ListFeatureSetsRequest.newBuilder()
+                .setFilter(
+                    ListFeatureSetsRequest.Filter.newBuilder()
+                        .setFeatureSetName("fs1")
+                        .setFeatureSetVersion(">0")
+                        .build())
+                .build()))
         .thenReturn(ListFeatureSetsResponse.newBuilder().addAllFeatureSets(fs1FeatureSets).build());
-    when(coreService.listFeatureSets(ListFeatureSetsRequest
-        .newBuilder()
-        .setFilter(ListFeatureSetsRequest.Filter.newBuilder().setFeatureSetName("fs2")
-            .setFeatureSetVersion(">0").build())
-        .build()))
+    when(coreService.listFeatureSets(
+            ListFeatureSetsRequest.newBuilder()
+                .setFilter(
+                    ListFeatureSetsRequest.Filter.newBuilder()
+                        .setFeatureSetName("fs2")
+                        .setFeatureSetVersion(">0")
+                        .build())
+                .build()))
         .thenReturn(ListFeatureSetsResponse.newBuilder().addAllFeatureSets(fs2FeatureSets).build());
 
     cachedSpecService = new CachedSpecService(coreService, configFile.toPath());

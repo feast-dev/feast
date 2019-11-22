@@ -41,6 +41,3 @@ public class FeastProperties {
     private int port;
   }
 }
-
-
-

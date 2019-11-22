@@ -17,21 +17,19 @@
 
 package feast.core.config;
 
+import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.protobuf.ProtobufJsonFormatHttpMessageConverter;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import java.util.List;
-
-/**
- * Configuration for the spring web MVC layer
- */
+/** Configuration for the spring web MVC layer */
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
   /**
    * Get a json-protobuf converter.
+   *
    * @return ProtobufJsonFormatHttpMessageConverter
    */
   @Bean
@@ -39,9 +37,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     return new ProtobufJsonFormatHttpMessageConverter();
   }
 
-  /**
-   * Register json-protobuf converter.
-   */
+  /** Register json-protobuf converter. */
   @Override
   public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
     converters.add(getProtobufHttpMessageConverter());

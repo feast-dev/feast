@@ -10,8 +10,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class ServingApiConfiguration implements WebMvcConfigurer {
-  @Autowired
-  private ProtobufJsonFormatHttpMessageConverter protobufConverter;
+  @Autowired private ProtobufJsonFormatHttpMessageConverter protobufConverter;
 
   @Bean
   ProtobufJsonFormatHttpMessageConverter protobufHttpMessageConverter() {

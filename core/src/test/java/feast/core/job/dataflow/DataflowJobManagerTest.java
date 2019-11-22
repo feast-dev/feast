@@ -55,11 +55,9 @@ import org.mockito.Mockito;
 
 public class DataflowJobManagerTest {
 
-  @Rule
-  public final ExpectedException expectedException = ExpectedException.none();
+  @Rule public final ExpectedException expectedException = ExpectedException.none();
 
-  @Mock
-  private Dataflow dataflow;
+  @Mock private Dataflow dataflow;
 
   private Map<String, String> defaults;
   private DataflowJobManager dfJobManager;
@@ -78,23 +76,22 @@ public class DataflowJobManagerTest {
 
   @Test
   public void shouldStartJobWithCorrectPipelineOptions() throws IOException {
-    StoreProto.Store store = StoreProto.Store.newBuilder()
-        .setName("SERVING")
-        .setType(StoreType.REDIS)
-        .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
-        .build();
+    StoreProto.Store store =
+        StoreProto.Store.newBuilder()
+            .setName("SERVING")
+            .setType(StoreType.REDIS)
+            .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
+            .build();
 
-    FeatureSetSpec featureSetSpec = FeatureSetSpec.newBuilder()
-        .setName("featureSet")
-        .setVersion(1)
-        .build();
+    FeatureSetSpec featureSetSpec =
+        FeatureSetSpec.newBuilder().setName("featureSet").setVersion(1).build();
 
     Printer printer = JsonFormat.printer();
     String expectedExtJobId = "feast-job-0";
     String jobName = "job";
 
-    ImportOptions expectedPipelineOptions = PipelineOptionsFactory.fromArgs("")
-        .as(ImportOptions.class);
+    ImportOptions expectedPipelineOptions =
+        PipelineOptionsFactory.fromArgs("").as(ImportOptions.class);
     expectedPipelineOptions.setRunner(DataflowRunner.class);
     expectedPipelineOptions.setProject("project");
     expectedPipelineOptions.setRegion("region");
@@ -102,11 +99,10 @@ public class DataflowJobManagerTest {
     expectedPipelineOptions.setAppName("DataflowJobManager");
     expectedPipelineOptions.setJobName(jobName);
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
-    expectedPipelineOptions
-        .setFeatureSetSpecJson(Lists.newArrayList(printer.print(featureSetSpec)));
+    expectedPipelineOptions.setFeatureSetSpecJson(
+        Lists.newArrayList(printer.print(featureSetSpec)));
 
-    ArgumentCaptor<ImportOptions> captor = ArgumentCaptor
-        .forClass(ImportOptions.class);
+    ArgumentCaptor<ImportOptions> captor = ArgumentCaptor.forClass(ImportOptions.class);
 
     DataflowPipelineJob mockPipelineResult = Mockito.mock(DataflowPipelineJob.class);
     when(mockPipelineResult.getState()).thenReturn(State.RUNNING);
@@ -118,33 +114,36 @@ public class DataflowJobManagerTest {
     verify(dfJobManager, times(1)).runPipeline(captor.capture());
     ImportOptions actualPipelineOptions = captor.getValue();
 
-    expectedPipelineOptions.setOptionsId(actualPipelineOptions.getOptionsId()); // avoid comparing this value
+    expectedPipelineOptions.setOptionsId(
+        actualPipelineOptions.getOptionsId()); // avoid comparing this value
 
     // We only check that we are calling getFilesToStage() manually, because the automatic approach
-    // throws an error: https://github.com/gojek/feast/pull/291 i.e. do not check for the actual files that are staged
-    assertThat("filesToStage in pipelineOptions should not be null, job manager should set it.", actualPipelineOptions.getFilesToStage() != null);
-    assertThat("filesToStage in pipelineOptions should contain at least 1 item", actualPipelineOptions.getFilesToStage().size() > 0);
+    // throws an error: https://github.com/gojek/feast/pull/291 i.e. do not check for the actual
+    // files that are staged
+    assertThat(
+        "filesToStage in pipelineOptions should not be null, job manager should set it.",
+        actualPipelineOptions.getFilesToStage() != null);
+    assertThat(
+        "filesToStage in pipelineOptions should contain at least 1 item",
+        actualPipelineOptions.getFilesToStage().size() > 0);
     // Assume the files that are staged are correct
     expectedPipelineOptions.setFilesToStage(actualPipelineOptions.getFilesToStage());
 
-    assertThat(actualPipelineOptions.toString(),
-        equalTo(expectedPipelineOptions.toString()));
+    assertThat(actualPipelineOptions.toString(), equalTo(expectedPipelineOptions.toString()));
     assertThat(jobId, equalTo(expectedExtJobId));
   }
 
-
   @Test
   public void shouldThrowExceptionWhenJobStateTerminal() throws IOException {
-    StoreProto.Store store = StoreProto.Store.newBuilder()
-        .setName("SERVING")
-        .setType(StoreType.REDIS)
-        .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
-        .build();
+    StoreProto.Store store =
+        StoreProto.Store.newBuilder()
+            .setName("SERVING")
+            .setType(StoreType.REDIS)
+            .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
+            .build();
 
-    FeatureSetSpec featureSetSpec = FeatureSetSpec.newBuilder()
-        .setName("featureSet")
-        .setVersion(1)
-        .build();
+    FeatureSetSpec featureSetSpec =
+        FeatureSetSpec.newBuilder().setName("featureSet").setVersion(1).build();
 
     dfJobManager = Mockito.spy(dfJobManager);
 

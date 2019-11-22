@@ -61,31 +61,25 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
 
   /**
    * @param deadLetterTableSpec (Optional) BigQuery table for storing elements that failed to be
-   *                            processed. Table spec must follow this format
-   *                            PROJECT_ID:DATASET_ID.PROJECT_ID
+   *     processed. Table spec must follow this format PROJECT_ID:DATASET_ID.PROJECT_ID
    */
   void setDeadLetterTableSpec(String deadLetterTableSpec);
 
   // TODO: expound
-  @Description(
-      "MetricsAccumulator exporter type to instantiate."
-  )
+  @Description("MetricsAccumulator exporter type to instantiate.")
   @Default.String("none")
   String getMetricsExporterType();
 
   void setMetricsExporterType(String metricsExporterType);
 
-  @Description(
-      "Host to write the metrics to. Required if the metrics exporter is set to StatsD."
-  )
+  @Description("Host to write the metrics to. Required if the metrics exporter is set to StatsD.")
   @Default.String("localhost")
   String getStatsdHost();
 
   void setStatsdHost(String StatsdHost);
 
   @Description(
-      "Port on StatsD server to write metrics to. Required if the metrics exporter is set to StatsD."
-  )
+      "Port on StatsD server to write metrics to. Required if the metrics exporter is set to StatsD.")
   @Default.Integer(8125)
   int getStatsdPort();
 

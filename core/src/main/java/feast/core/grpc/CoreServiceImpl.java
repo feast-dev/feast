@@ -52,17 +52,13 @@ import org.lognet.springboot.grpc.GRpcService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Implementation of the feast core GRPC service.
- */
+/** Implementation of the feast core GRPC service. */
 @Slf4j
 @GRpcService
 public class CoreServiceImpl extends CoreServiceImplBase {
 
-  @Autowired
-  private SpecService specService;
-  @Autowired
-  private JobCoordinatorService jobCoordinatorService;
+  @Autowired private SpecService specService;
+  @Autowired private JobCoordinatorService jobCoordinatorService;
 
   @Override
   public void getFeastCoreVersion(
@@ -127,8 +123,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
                 .filter(
                     sub -> {
                       String subString = sub.getName();
-                      if (!subString.contains(".*"))
-                      {
+                      if (!subString.contains(".*")) {
                         subString = subString.replace("*", ".*");
                       }
                       Pattern p = Pattern.compile(subString);
@@ -150,8 +145,8 @@ public class CoreServiceImpl extends CoreServiceImplBase {
           // We use the request featureSet source because it contains the information
           // about whether to default to the default feature stream or not
           SourceProto.Source source = response.getFeatureSet().getSource();
-          jobCoordinatorService
-              .startOrUpdateJob(Lists.newArrayList(featureSetSpecs), source, store);
+          jobCoordinatorService.startOrUpdateJob(
+              Lists.newArrayList(featureSetSpecs), source, store);
         }
       }
       responseObserver.onNext(response);
@@ -164,8 +159,8 @@ public class CoreServiceImpl extends CoreServiceImplBase {
 
   @Override
   @Transactional
-  public void updateStore(UpdateStoreRequest request,
-      StreamObserver<UpdateStoreResponse> responseObserver) {
+  public void updateStore(
+      UpdateStoreRequest request, StreamObserver<UpdateStoreResponse> responseObserver) {
     try {
       UpdateStoreResponse response = specService.updateStore(request);
       responseObserver.onNext(response);
@@ -176,13 +171,13 @@ public class CoreServiceImpl extends CoreServiceImplBase {
         Store store = response.getStore();
         for (Subscription subscription : store.getSubscriptionsList()) {
           featureSetSpecs.addAll(
-              specService.listFeatureSets(
-                  ListFeatureSetsRequest.Filter.newBuilder()
-                      .setFeatureSetName(subscription.getName())
-                      .setFeatureSetVersion(subscription.getVersion())
-                      .build())
-                  .getFeatureSetsList()
-          );
+              specService
+                  .listFeatureSets(
+                      ListFeatureSetsRequest.Filter.newBuilder()
+                          .setFeatureSetName(subscription.getName())
+                          .setFeatureSetVersion(subscription.getVersion())
+                          .build())
+                  .getFeatureSetsList());
         }
         if (featureSetSpecs.size() == 0) {
           return;

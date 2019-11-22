@@ -54,6 +54,7 @@ public class ImportJobTest {
 
   @SuppressWarnings("UnstableApiUsage")
   private static final String ZOOKEEPER_DATA_DIR = Files.createTempDir().getAbsolutePath();
+
   private static final String ZOOKEEPER_HOST = "localhost";
   private static final int ZOOKEEPER_PORT = 2182;
 
@@ -67,8 +68,14 @@ public class ImportJobTest {
 
   @BeforeClass
   public static void setup() throws IOException, InterruptedException {
-    LocalKafka.start(KAFKA_HOST, KAFKA_PORT, KAFKA_REPLICATION_FACTOR, true, ZOOKEEPER_HOST,
-        ZOOKEEPER_PORT, ZOOKEEPER_DATA_DIR);
+    LocalKafka.start(
+        KAFKA_HOST,
+        KAFKA_PORT,
+        KAFKA_REPLICATION_FACTOR,
+        true,
+        ZOOKEEPER_HOST,
+        ZOOKEEPER_PORT,
+        ZOOKEEPER_DATA_DIR);
     LocalRedis.start(REDIS_PORT);
   }
 
@@ -82,31 +89,50 @@ public class ImportJobTest {
   public void runPipeline_ShouldWriteToRedisCorrectlyGivenValidSpecAndFeatureRow()
       throws IOException, InterruptedException {
     FeatureSetSpec spec =
-        FeatureSetSpec.newBuilder().setName("feature_set").setVersion(3)
-            .addEntities(EntitySpec.newBuilder()
-                .setName("entity_id_primary").setValueType(Enum.INT32).build())
-            .addEntities(EntitySpec.newBuilder()
-                .setName("entity_id_secondary").setValueType(Enum.STRING).build())
-            .addFeatures(FeatureSpec.newBuilder()
-                .setName("feature_1").setValueType(Enum.STRING_LIST).build())
-            .addFeatures(FeatureSpec.newBuilder()
-                .setName("feature_2").setValueType(Enum.STRING).build())
-            .addFeatures(FeatureSpec.newBuilder()
-                .setName("feature_3").setValueType(Enum.INT64).build())
-            .setSource(Source.newBuilder()
-                .setType(SourceType.KAFKA).setKafkaSourceConfig(
-                    KafkaSourceConfig.newBuilder()
-                        .setBootstrapServers(KAFKA_HOST + ":" + KAFKA_PORT)
-                        .setTopic(KAFKA_TOPIC).build())
-                .build())
+        FeatureSetSpec.newBuilder()
+            .setName("feature_set")
+            .setVersion(3)
+            .addEntities(
+                EntitySpec.newBuilder()
+                    .setName("entity_id_primary")
+                    .setValueType(Enum.INT32)
+                    .build())
+            .addEntities(
+                EntitySpec.newBuilder()
+                    .setName("entity_id_secondary")
+                    .setValueType(Enum.STRING)
+                    .build())
+            .addFeatures(
+                FeatureSpec.newBuilder()
+                    .setName("feature_1")
+                    .setValueType(Enum.STRING_LIST)
+                    .build())
+            .addFeatures(
+                FeatureSpec.newBuilder().setName("feature_2").setValueType(Enum.STRING).build())
+            .addFeatures(
+                FeatureSpec.newBuilder().setName("feature_3").setValueType(Enum.INT64).build())
+            .setSource(
+                Source.newBuilder()
+                    .setType(SourceType.KAFKA)
+                    .setKafkaSourceConfig(
+                        KafkaSourceConfig.newBuilder()
+                            .setBootstrapServers(KAFKA_HOST + ":" + KAFKA_PORT)
+                            .setTopic(KAFKA_TOPIC)
+                            .build())
+                    .build())
             .build();
 
     Store redis =
-        Store.newBuilder().setName(StoreType.REDIS.toString()).setType(StoreType.REDIS)
-            .setRedisConfig(RedisConfig.newBuilder()
-                .setHost(REDIS_HOST).setPort(REDIS_PORT).build())
-            .addSubscriptions(Subscription.newBuilder()
-                .setName(spec.getName()).setVersion(String.valueOf(spec.getVersion())).build())
+        Store.newBuilder()
+            .setName(StoreType.REDIS.toString())
+            .setType(StoreType.REDIS)
+            .setRedisConfig(
+                RedisConfig.newBuilder().setHost(REDIS_HOST).setPort(REDIS_PORT).build())
+            .addSubscriptions(
+                Subscription.newBuilder()
+                    .setName(spec.getName())
+                    .setVersion(String.valueOf(spec.getVersion()))
+                    .build())
             .build();
 
     ImportOptions options = PipelineOptionsFactory.create().as(ImportOptions.class);
@@ -124,12 +150,14 @@ public class ImportJobTest {
     Map<RedisKey, FeatureRow> expected = new HashMap<>();
 
     LOGGER.info("Generating test data ...");
-    IntStream.range(0, inputSize).forEach(i -> {
-      FeatureRow randomRow = TestUtil.createRandomFeatureRow(spec);
-      RedisKey redisKey = TestUtil.createRedisKey(spec, randomRow);
-      input.add(randomRow);
-      expected.put(redisKey, randomRow);
-    });
+    IntStream.range(0, inputSize)
+        .forEach(
+            i -> {
+              FeatureRow randomRow = TestUtil.createRandomFeatureRow(spec);
+              RedisKey redisKey = TestUtil.createRedisKey(spec, randomRow);
+              input.add(randomRow);
+              expected.put(redisKey, randomRow);
+            });
 
     LOGGER.info("Starting Import Job with the following options: {}", options.toString());
     PipelineResult pipelineResult = ImportJob.runPipeline(options);
@@ -137,24 +165,30 @@ public class ImportJobTest {
     Assert.assertEquals(pipelineResult.getState(), State.RUNNING);
 
     LOGGER.info("Publishing {} Feature Row messages to Kafka ...", input.size());
-    TestUtil.publishFeatureRowsToKafka(KAFKA_BOOTSTRAP_SERVERS, KAFKA_TOPIC, input,
-        ByteArraySerializer.class, KAFKA_PUBLISH_TIMEOUT_SEC);
+    TestUtil.publishFeatureRowsToKafka(
+        KAFKA_BOOTSTRAP_SERVERS,
+        KAFKA_TOPIC,
+        input,
+        ByteArraySerializer.class,
+        KAFKA_PUBLISH_TIMEOUT_SEC);
     Thread.sleep(Duration.ofSeconds(IMPORT_JOB_RUN_DURATION_SEC).toMillis());
 
     LOGGER.info("Validating the actual values written to Redis ...");
     Jedis jedis = new Jedis(REDIS_HOST, REDIS_PORT);
-    expected.forEach((key, expectedValue) -> {
-      byte[] actualByteValue = jedis.get(key.toByteArray());
-      Assert.assertNotNull("Key not found in Redis: " + key, actualByteValue);
-      FeatureRow actualValue = null;
-      try {
-        actualValue = FeatureRow.parseFrom(actualByteValue);
-      } catch (InvalidProtocolBufferException e) {
-        Assert.fail(String
-            .format("Actual Redis value cannot be parsed as FeatureRow, key: %s, value :%s",
-                key, new String(actualByteValue, StandardCharsets.UTF_8)));
-      }
-      Assert.assertEquals(expectedValue, actualValue);
-    });
+    expected.forEach(
+        (key, expectedValue) -> {
+          byte[] actualByteValue = jedis.get(key.toByteArray());
+          Assert.assertNotNull("Key not found in Redis: " + key, actualByteValue);
+          FeatureRow actualValue = null;
+          try {
+            actualValue = FeatureRow.parseFrom(actualByteValue);
+          } catch (InvalidProtocolBufferException e) {
+            Assert.fail(
+                String.format(
+                    "Actual Redis value cannot be parsed as FeatureRow, key: %s, value :%s",
+                    key, new String(actualByteValue, StandardCharsets.UTF_8)));
+          }
+          Assert.assertEquals(expectedValue, actualValue);
+        });
   }
 }

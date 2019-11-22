@@ -52,9 +52,9 @@ public class DataflowJobStateMapper {
     DATAFLOW_TO_FEAST_JOB_STATUS.put(JOB_STATE_DONE, JobStatus.COMPLETED);
   }
 
-
   /**
    * Map a string containing Dataflow's JobState into Feast's JobStatus
+   *
    * @param jobState Dataflow JobState
    * @return JobStatus.
    * @throws IllegalArgumentException if jobState is invalid.

@@ -36,19 +36,19 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
   }
 
   @Override
-  public void getFeastServingInfo(GetFeastServingInfoRequest request,
+  public void getFeastServingInfo(
+      GetFeastServingInfoRequest request,
       StreamObserver<GetFeastServingInfoResponse> responseObserver) {
     GetFeastServingInfoResponse feastServingInfo = servingService.getFeastServingInfo(request);
-    feastServingInfo = feastServingInfo.toBuilder()
-        .setVersion(version)
-        .build();
+    feastServingInfo = feastServingInfo.toBuilder().setVersion(version).build();
     responseObserver.onNext(feastServingInfo);
     responseObserver.onCompleted();
   }
 
   @Override
   public void getOnlineFeatures(
-      GetOnlineFeaturesRequest request, StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
+      GetOnlineFeaturesRequest request,
+      StreamObserver<GetOnlineFeaturesResponse> responseObserver) {
     Span span = tracer.buildSpan("getOnlineFeatures").start();
     try (Scope scope = tracer.scopeManager().activate(span, false)) {
       RequestHelper.validateOnlineRequest(request);

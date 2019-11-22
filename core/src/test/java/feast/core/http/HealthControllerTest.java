@@ -1,15 +1,14 @@
 package feast.core.http;
 
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.*;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+import javax.sql.DataSource;
 import org.junit.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.SQLException;
-
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.*;
 
 public class HealthControllerTest {
   @Test

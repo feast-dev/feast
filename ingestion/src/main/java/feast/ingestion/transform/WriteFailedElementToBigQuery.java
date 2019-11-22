@@ -27,12 +27,15 @@ public abstract class WriteFailedElementToBigQuery
   public abstract static class Builder {
 
     /**
-     * @param tableSpec Table spec should follow the format "PROJECT_ID:DATASET_ID.TABLE_ID". Table will be created if not exists.
+     * @param tableSpec Table spec should follow the format "PROJECT_ID:DATASET_ID.TABLE_ID". Table
+     *     will be created if not exists.
      */
     public abstract Builder setTableSpec(String tableSpec);
 
     /**
-     * @param jsonSchema JSON string describing the <a href="https://cloud.google.com/bigquery/docs/schemas#specifying_a_json_schema_file">schema</a> of the table.
+     * @param jsonSchema JSON string describing the <a
+     *     href="https://cloud.google.com/bigquery/docs/schemas#specifying_a_json_schema_file">schema</a>
+     *     of the table.
      */
     public abstract Builder setJsonSchema(String jsonSchema);
 

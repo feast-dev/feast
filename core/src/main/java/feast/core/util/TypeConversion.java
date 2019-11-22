@@ -20,7 +20,6 @@ package feast.core.util;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.Map.Entry;
@@ -61,8 +60,7 @@ public class TypeConversion {
     if (jsonString == null || jsonString.equals("") || jsonString.equals("{}")) {
       return Collections.emptyMap();
     }
-    Type stringMapType = new TypeToken<Map<String, String>>() {
-    }.getType();
+    Type stringMapType = new TypeToken<Map<String, String>>() {}.getType();
     return gson.fromJson(jsonString, stringMapType);
   }
 
@@ -90,6 +88,6 @@ public class TypeConversion {
     for (Entry<String, String> arg : map.entrySet()) {
       args.add(Strings.lenientFormat("--%s=%s", arg.getKey(), arg.getValue()));
     }
-    return args.toArray(new String[]{});
+    return args.toArray(new String[] {});
   }
 }

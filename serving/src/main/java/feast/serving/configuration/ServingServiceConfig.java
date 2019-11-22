@@ -30,40 +30,42 @@ import redis.clients.jedis.JedisPoolConfig;
 @Configuration
 public class ServingServiceConfig {
 
-  @Bean(name="JobStore")
+  @Bean(name = "JobStore")
   public Store jobStoreDefinition(FeastProperties feastProperties) {
     JobProperties jobProperties = feastProperties.getJobs();
     if (feastProperties.getJobs().getStoreType().equals("")) {
       return Store.newBuilder().build();
     }
     Map<String, String> options = jobProperties.getStoreOptions();
-    Builder storeDefinitionBuilder = Store.newBuilder()
-        .setType(StoreType.valueOf(jobProperties.getStoreType()));
+    Builder storeDefinitionBuilder =
+        Store.newBuilder().setType(StoreType.valueOf(jobProperties.getStoreType()));
     return setStoreConfig(storeDefinitionBuilder, options);
   }
 
   private Store setStoreConfig(Store.Builder builder, Map<String, String> options) {
     switch (builder.getType()) {
       case REDIS:
-        RedisConfig redisConfig = RedisConfig.newBuilder()
-            .setHost(options.get("host"))
-            .setPort(Integer.parseInt(options.get("port")))
-            .build();
+        RedisConfig redisConfig =
+            RedisConfig.newBuilder()
+                .setHost(options.get("host"))
+                .setPort(Integer.parseInt(options.get("port")))
+                .build();
         return builder.setRedisConfig(redisConfig).build();
       case BIGQUERY:
-        BigQueryConfig bqConfig = BigQueryConfig.newBuilder()
-            .setProjectId(options.get("projectId"))
-            .setDatasetId(options.get("datasetId"))
-            .build();
+        BigQueryConfig bqConfig =
+            BigQueryConfig.newBuilder()
+                .setProjectId(options.get("projectId"))
+                .setDatasetId(options.get("datasetId"))
+                .build();
         return builder.setBigqueryConfig(bqConfig).build();
       case CASSANDRA:
       default:
-        throw new IllegalArgumentException(String.format(
-            "Unsupported store %s provided, only REDIS or BIGQUERY are currently supported.",
-            builder.getType()));
+        throw new IllegalArgumentException(
+            String.format(
+                "Unsupported store %s provided, only REDIS or BIGQUERY are currently supported.",
+                builder.getType()));
     }
   }
-
 
   @Bean
   public ServingService servingService(
@@ -81,8 +83,7 @@ public class ServingServiceConfig {
         poolConfig.setMaxTotal(feastProperties.getStore().getRedisPoolMaxSize());
         poolConfig.setMaxIdle(feastProperties.getStore().getRedisPoolMaxIdle());
         JedisPool jedisPool =
-            new JedisPool(
-                poolConfig, redisConfig.getHost(), redisConfig.getPort());
+            new JedisPool(poolConfig, redisConfig.getHost(), redisConfig.getPort());
         servingService = new RedisServingService(jedisPool, specService, tracer);
         break;
       case BIGQUERY:
@@ -103,7 +104,8 @@ public class ServingServiceConfig {
                   + jobStagingLocation);
         }
         if (jobService.getClass() == NoopJobService.class) {
-          throw new IllegalArgumentException("Unable to instantiate jobService for BigQuery store.");
+          throw new IllegalArgumentException(
+              "Unable to instantiate jobService for BigQuery store.");
         }
         servingService =
             new BigQueryServingService(
@@ -120,7 +122,8 @@ public class ServingServiceConfig {
       case INVALID:
         throw new IllegalArgumentException(
             String.format(
-                "Unsupported store type '%s' for store name '%s'", store.getType(), store.getName()));
+                "Unsupported store type '%s' for store name '%s'",
+                store.getType(), store.getName()));
     }
 
     return servingService;

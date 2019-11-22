@@ -98,7 +98,8 @@ public class DataflowJobMonitorTest {
   public void getJobStatus_shouldReturnUnknownStateWhenExceptionHappen() throws IOException {
     String jobId = "myJobId";
 
-    when(jobService.get(projectId, location, jobId)).thenThrow(new RuntimeException("some thing wrong"));
+    when(jobService.get(projectId, location, jobId))
+        .thenThrow(new RuntimeException("some thing wrong"));
 
     JobInfo jobInfo = mock(JobInfo.class);
     when(jobInfo.getExtId()).thenReturn(jobId);
@@ -108,11 +109,16 @@ public class DataflowJobMonitorTest {
 
   @Test
   public void test() {
-    Field field = Field.newBuilder()
-        .setName("Hello")
-        .setValue(Value.newBuilder().setBoolListVal(BoolList.newBuilder().addAllVal(
-            Lists.newArrayList(true,false,true,true)).build()))
-        .build();
+    Field field =
+        Field.newBuilder()
+            .setName("Hello")
+            .setValue(
+                Value.newBuilder()
+                    .setBoolListVal(
+                        BoolList.newBuilder()
+                            .addAllVal(Lists.newArrayList(true, false, true, true))
+                            .build()))
+            .build();
     field.getName();
   }
 }

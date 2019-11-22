@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class CoreGRpcServerBuilderConfig extends GRpcServerBuilderConfigurer {
   @Override
-  public void configure(ServerBuilder<?> serverBuilder){
+  public void configure(ServerBuilder<?> serverBuilder) {
     serverBuilder.addService(ProtoReflectionService.newInstance());
   }
 }

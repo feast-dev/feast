@@ -22,13 +22,14 @@ public class FeatureSetValidator {
     }
   }
 
-  private static void checkUniqueColumns(List<EntitySpec> entitySpecs, List<FeatureSpec> featureSpecs) {
+  private static void checkUniqueColumns(
+      List<EntitySpec> entitySpecs, List<FeatureSpec> featureSpecs) {
     List<String> names = entitySpecs.stream().map(EntitySpec::getName).collect(Collectors.toList());
     featureSpecs.stream().map(f -> names.add(f.getName()));
     HashSet<String> nameSet = Sets.newHashSet(names);
     if (nameSet.size() != names.size()) {
-      throw new IllegalArgumentException(String.format(
-          "fields within a featureset must be unique."));
+      throw new IllegalArgumentException(
+          String.format("fields within a featureset must be unique."));
     }
   }
 }

@@ -17,15 +17,14 @@
 
 package feast.core.util;
 
-import com.google.protobuf.Timestamp;
-import org.junit.Test;
-
-import java.util.*;
-
 import static com.jayway.jsonpath.matchers.JsonPathMatchers.hasJsonPath;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+
+import com.google.protobuf.Timestamp;
+import java.util.*;
+import org.junit.Test;
 
 public class TypeConversionTest {
   @Test
@@ -68,7 +67,8 @@ public class TypeConversionTest {
   public void convertMapToJsonStringShouldReturnJsonStringForGivenMap() {
     Map<String, String> input = new HashMap<>();
     input.put("key", "value");
-    assertThat(TypeConversion.convertMapToJsonString(input), hasJsonPath("$.key", equalTo("value")));
+    assertThat(
+        TypeConversion.convertMapToJsonString(input), hasJsonPath("$.key", equalTo("value")));
   }
 
   @Test
@@ -77,7 +77,7 @@ public class TypeConversionTest {
     input.put("key", "value");
     input.put("key2", "value2");
 
-    String[] expected = new String[]{"--key=value", "--key2=value2"};
+    String[] expected = new String[] {"--key=value", "--key2=value2"};
     String[] actual = TypeConversion.convertMapToArgs(input);
     assertThat(actual.length, equalTo(expected.length));
     assertTrue(Arrays.asList(actual).containsAll(Arrays.asList(expected)));

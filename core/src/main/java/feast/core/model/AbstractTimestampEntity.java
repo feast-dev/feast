@@ -17,10 +17,9 @@
 
 package feast.core.model;
 
-import lombok.Data;
-
-import javax.persistence.*;
 import java.util.Date;
+import javax.persistence.*;
+import lombok.Data;
 
 /**
  * Base object class ensuring that all objects stored in the registry have an auto-generated

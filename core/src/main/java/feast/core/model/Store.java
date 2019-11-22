@@ -20,7 +20,6 @@ import javax.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import com.google.protobuf.util.JsonFormat;
 
 @Getter
 @Setter
@@ -70,16 +69,17 @@ public class Store {
       default:
         throw new IllegalArgumentException("Invalid store provided");
     }
-    return new Store(storeProto.getName(), storeProto.getType().toString(),
-        config, String.join(",", subs));
+    return new Store(
+        storeProto.getName(), storeProto.getType().toString(), config, String.join(",", subs));
   }
 
   public StoreProto.Store toProto() throws InvalidProtocolBufferException {
     List<Subscription> subscriptionProtos = getSubscriptions();
-    Builder storeProtoBuilder = StoreProto.Store.newBuilder()
-        .setName(name)
-        .setType(StoreType.valueOf(type))
-        .addAllSubscriptions(subscriptionProtos);
+    Builder storeProtoBuilder =
+        StoreProto.Store.newBuilder()
+            .setName(name)
+            .setType(StoreType.valueOf(type))
+            .addAllSubscriptions(subscriptionProtos);
     switch (StoreType.valueOf(type)) {
       case REDIS:
         RedisConfig redisConfig = RedisConfig.parseFrom(config);
@@ -110,9 +110,6 @@ public class Store {
       return Subscription.newBuilder().build();
     }
     String[] split = sub.split(":");
-    return Subscription.newBuilder()
-        .setName(split[0])
-        .setVersion(split[1])
-        .build();
+    return Subscription.newBuilder().setName(split[0]).setVersion(split[1]).build();
   }
 }

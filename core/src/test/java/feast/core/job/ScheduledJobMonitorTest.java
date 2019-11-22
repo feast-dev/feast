@@ -24,22 +24,15 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.Lists;
-import feast.core.SourceProto;
 import feast.core.SourceProto.KafkaSourceConfig;
 import feast.core.SourceProto.SourceType;
 import feast.core.dao.JobInfoRepository;
-import feast.core.dao.MetricsRepository;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
-import feast.core.model.Metrics;
 import feast.core.model.Source;
 import feast.core.model.Store;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -50,11 +43,9 @@ public class ScheduledJobMonitorTest {
 
   ScheduledJobMonitor scheduledJobMonitor;
 
-  @Mock
-  JobMonitor jobMonitor;
+  @Mock JobMonitor jobMonitor;
 
-  @Mock
-  JobInfoRepository jobInfoRepository;
+  @Mock JobInfoRepository jobInfoRepository;
 
   @Before
   public void setUp() {
@@ -64,9 +55,14 @@ public class ScheduledJobMonitorTest {
 
   @Test
   public void getJobStatus_shouldUpdateJobInfoForRunningJob() {
-    Source source = new Source(SourceType.KAFKA,
-        KafkaSourceConfig.newBuilder().setBootstrapServers("kafka:9092")
-            .setTopic("feast-topic").build(), true);
+    Source source =
+        new Source(
+            SourceType.KAFKA,
+            KafkaSourceConfig.newBuilder()
+                .setBootstrapServers("kafka:9092")
+                .setTopic("feast-topic")
+                .build(),
+            true);
     JobInfo job =
         new JobInfo(
             "jobId",
@@ -100,5 +96,4 @@ public class ScheduledJobMonitorTest {
 
     verify(jobInfoRepository, never()).save(any(JobInfo.class));
   }
-
 }

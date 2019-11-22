@@ -1,6 +1,5 @@
 package feast.serving.service;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.serving.ServingAPIProto.Job;
 import feast.serving.ServingAPIProto.Job.Builder;

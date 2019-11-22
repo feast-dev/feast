@@ -7,8 +7,8 @@ import java.io.Serializable;
 import java.util.Map;
 
 /**
- * This class represents {@link feast.core.FeatureSetProto.FeatureSetSpec} but
- * contains fields directly accessible by name for feature validation purposes.
+ * This class represents {@link feast.core.FeatureSetProto.FeatureSetSpec} but contains fields
+ * directly accessible by name for feature validation purposes.
  *
  * <p>The use for this class is mainly for validating the Fields in FeatureRow.
  */

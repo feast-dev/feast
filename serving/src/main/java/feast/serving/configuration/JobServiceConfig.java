@@ -7,7 +7,6 @@ import feast.serving.service.CachedSpecService;
 import feast.serving.service.JobService;
 import feast.serving.service.NoopJobService;
 import feast.serving.service.RedisBackedJobService;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import redis.clients.jedis.Jedis;
@@ -16,8 +15,7 @@ import redis.clients.jedis.Jedis;
 public class JobServiceConfig {
 
   @Bean
-  public JobService jobService(Store jobStore,
-      CachedSpecService specService) {
+  public JobService jobService(Store jobStore, CachedSpecService specService) {
     if (!specService.getStore().getType().equals(StoreType.BIGQUERY)) {
       return new NoopJobService();
     }
@@ -34,8 +32,8 @@ public class JobServiceConfig {
       default:
         throw new IllegalArgumentException(
             String.format(
-                "Unsupported store type '%s' for job store name '%s'", jobStore.getType(),
-                jobStore.getName()));
+                "Unsupported store type '%s' for job store name '%s'",
+                jobStore.getType(), jobStore.getName()));
     }
   }
 }

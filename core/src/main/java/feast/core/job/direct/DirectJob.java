@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.apache.beam.sdk.PipelineResult;
 
-
 @Getter
 @AllArgsConstructor
 public class DirectJob {
@@ -23,4 +22,3 @@ public class DirectJob {
     }
   }
 }
-

@@ -34,7 +34,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "metrics")
-public class Metrics extends AbstractTimestampEntity{
+public class Metrics extends AbstractTimestampEntity {
 
   @Id
   @GeneratedValue(strategy = GenerationType.AUTO)
@@ -44,14 +44,10 @@ public class Metrics extends AbstractTimestampEntity{
   @JoinColumn(name = "job_id")
   private JobInfo jobInfo;
 
-  /**
-   * Metrics name
-   */
+  /** Metrics name */
   private String name;
 
-  /**
-   * Metrics value
-   */
+  /** Metrics value */
   private double value;
 
   /**

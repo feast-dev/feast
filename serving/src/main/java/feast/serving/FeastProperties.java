@@ -44,5 +44,4 @@ public class FeastProperties {
     private String tracerName;
     private String serviceName;
   }
-
 }

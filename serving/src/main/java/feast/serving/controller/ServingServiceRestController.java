@@ -34,8 +34,8 @@ public class ServingServiceRestController {
 
   @RequestMapping(value = "/api/v1/info", produces = "application/json")
   public GetFeastServingInfoResponse getInfo() {
-    GetFeastServingInfoResponse feastServingInfo = servingService
-        .getFeastServingInfo(GetFeastServingInfoRequest.getDefaultInstance());
+    GetFeastServingInfoResponse feastServingInfo =
+        servingService.getFeastServingInfo(GetFeastServingInfoRequest.getDefaultInstance());
     return feastServingInfo.toBuilder().setVersion(version).build();
   }
 

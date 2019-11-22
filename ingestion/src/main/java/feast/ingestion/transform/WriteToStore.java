@@ -2,7 +2,6 @@ package feast.ingestion.transform;
 
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse.InsertErrors;
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.auto.value.AutoValue;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
@@ -63,7 +62,6 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
 
     switch (storeType) {
       case REDIS:
-
         RedisConfig redisConfig = getStore().getRedisConfig();
         input
             .apply(
@@ -74,22 +72,21 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
                 RedisCustomIO.write(redisConfig.getHost(), redisConfig.getPort()));
         break;
       case BIGQUERY:
-
         BigQueryConfig bigqueryConfig = getStore().getBigqueryConfig();
 
         WriteResult bigqueryWriteResult =
-            input
-                .apply(
-                    "WriteTableRowToBigQuery",
-                    BigQueryIO.<FeatureRow>write()
-                        .to(new GetTableDestination(bigqueryConfig.getProjectId(),
-                            bigqueryConfig.getDatasetId()))
-                        .withFormatFunction(new FeatureRowToTableRow(options.getJobName()))
-                        .withCreateDisposition(CreateDisposition.CREATE_NEVER)
-                        .withWriteDisposition(WriteDisposition.WRITE_APPEND)
-                        .withExtendedErrorInfo()
-                        .withMethod(Method.STREAMING_INSERTS)
-                        .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors()));
+            input.apply(
+                "WriteTableRowToBigQuery",
+                BigQueryIO.<FeatureRow>write()
+                    .to(
+                        new GetTableDestination(
+                            bigqueryConfig.getProjectId(), bigqueryConfig.getDatasetId()))
+                    .withFormatFunction(new FeatureRowToTableRow(options.getJobName()))
+                    .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+                    .withWriteDisposition(WriteDisposition.WRITE_APPEND)
+                    .withExtendedErrorInfo()
+                    .withMethod(Method.STREAMING_INSERTS)
+                    .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors()));
 
         if (options.getDeadLetterTableSpec() != null) {
           bigqueryWriteResult

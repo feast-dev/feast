@@ -35,17 +35,13 @@ import redis.clients.jedis.JedisPool;
 
 public class RedisServingServiceTest {
 
-  @Mock
-  JedisPool jedisPool;
+  @Mock JedisPool jedisPool;
 
-  @Mock
-  Jedis jedis;
+  @Mock Jedis jedis;
 
-  @Mock
-  CachedSpecService specService;
+  @Mock CachedSpecService specService;
 
-  @Mock
-  Tracer tracer;
+  @Mock Tracer tracer;
 
   private RedisServingService redisServingService;
   private byte[][] redisKeyList;
@@ -55,194 +51,217 @@ public class RedisServingServiceTest {
     initMocks(this);
 
     redisServingService = new RedisServingService(jedisPool, specService, tracer);
-    redisKeyList = Lists.newArrayList(
-        RedisKey.newBuilder().setFeatureSet("featureSet:1")
-            .addAllEntities(Lists.newArrayList(
-                Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
-                Field.newBuilder().setName("entity2").setValue(strValue("a")).build()
-            )).build(),
-        RedisKey.newBuilder().setFeatureSet("featureSet:1")
-            .addAllEntities(Lists.newArrayList(
-                Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
-                Field.newBuilder().setName("entity2").setValue(strValue("b")).build()
-            )).build()
-    ).stream()
-        .map(AbstractMessageLite::toByteArray)
-        .collect(Collectors.toList())
-        .toArray(new byte[0][0]);
+    redisKeyList =
+        Lists.newArrayList(
+                RedisKey.newBuilder()
+                    .setFeatureSet("featureSet:1")
+                    .addAllEntities(
+                        Lists.newArrayList(
+                            Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
+                            Field.newBuilder().setName("entity2").setValue(strValue("a")).build()))
+                    .build(),
+                RedisKey.newBuilder()
+                    .setFeatureSet("featureSet:1")
+                    .addAllEntities(
+                        Lists.newArrayList(
+                            Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
+                            Field.newBuilder().setName("entity2").setValue(strValue("b")).build()))
+                    .build())
+            .stream()
+            .map(AbstractMessageLite::toByteArray)
+            .collect(Collectors.toList())
+            .toArray(new byte[0][0]);
   }
 
   @Test
   public void shouldReturnResponseWithValuesIfKeysPresent() {
-    GetOnlineFeaturesRequest request = GetOnlineFeaturesRequest.newBuilder()
-        .addFeatureSets(FeatureSetRequest.newBuilder()
-            .setName("featureSet")
-            .setVersion(1)
-            .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
-            .build())
-        .addEntityRows(EntityRow.newBuilder()
-            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .putFields("entity1", intValue(1))
-            .putFields("entity2", strValue("a")))
-        .addEntityRows(EntityRow.newBuilder()
-            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .putFields("entity1", intValue(2))
-            .putFields("entity2", strValue("b")))
-        .build();
+    GetOnlineFeaturesRequest request =
+        GetOnlineFeaturesRequest.newBuilder()
+            .addFeatureSets(
+                FeatureSetRequest.newBuilder()
+                    .setName("featureSet")
+                    .setVersion(1)
+                    .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
+                    .build())
+            .addEntityRows(
+                EntityRow.newBuilder()
+                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .putFields("entity1", intValue(1))
+                    .putFields("entity2", strValue("a")))
+            .addEntityRows(
+                EntityRow.newBuilder()
+                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .putFields("entity1", intValue(2))
+                    .putFields("entity2", strValue("b")))
+            .build();
 
-    List<FeatureRow> featureRows = Lists.newArrayList(
-        FeatureRow.newBuilder()
-            .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .addAllFields(Lists
-                .newArrayList(
-                    Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
-                    Field.newBuilder().setName("entity2").setValue(strValue("a")).build(),
-                    Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
-                    Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-            .setFeatureSet("featureSet:1")
-            .build(),
-        FeatureRow.newBuilder()
-            .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .addAllFields(Lists
-                .newArrayList(
-                    Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
-                    Field.newBuilder().setName("entity2").setValue(strValue("b")).build(),
-                    Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
-                    Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
-            .setFeatureSet("featureSet:1")
-            .build()
-    );
+    List<FeatureRow> featureRows =
+        Lists.newArrayList(
+            FeatureRow.newBuilder()
+                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                .addAllFields(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
+                        Field.newBuilder().setName("entity2").setValue(strValue("a")).build(),
+                        Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
+                        Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
+                .setFeatureSet("featureSet:1")
+                .build(),
+            FeatureRow.newBuilder()
+                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                .addAllFields(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
+                        Field.newBuilder().setName("entity2").setValue(strValue("b")).build(),
+                        Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
+                        Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
+                .setFeatureSet("featureSet:1")
+                .build());
 
-    List<byte[]> featureRowBytes = featureRows.stream()
-        .map(AbstractMessageLite::toByteArray)
-        .collect(Collectors.toList());
+    List<byte[]> featureRowBytes =
+        featureRows.stream().map(AbstractMessageLite::toByteArray).collect(Collectors.toList());
     when(specService.getFeatureSet("featureSet", 1)).thenReturn(getFeatureSetSpec());
     when(jedisPool.getResource()).thenReturn(jedis);
     when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
-    GetOnlineFeaturesResponse expected = GetOnlineFeaturesResponse.newBuilder()
-        .addFieldValues(FieldValues.newBuilder()
-          .putFields("entity1", intValue(1))
-          .putFields("entity2", strValue("a"))
-          .putFields("featureSet:1:feature1", intValue(1))
-          .putFields("featureSet:1:feature2", intValue(1)))
-        .addFieldValues(FieldValues.newBuilder()
-          .putFields("entity1", intValue(2))
-          .putFields("entity2", strValue("b"))
-          .putFields("featureSet:1:feature1", intValue(2))
-          .putFields("featureSet:1:feature2", intValue(2)))
-        .build();
+    GetOnlineFeaturesResponse expected =
+        GetOnlineFeaturesResponse.newBuilder()
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(1))
+                    .putFields("entity2", strValue("a"))
+                    .putFields("featureSet:1:feature1", intValue(1))
+                    .putFields("featureSet:1:feature2", intValue(1)))
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(2))
+                    .putFields("entity2", strValue("b"))
+                    .putFields("featureSet:1:feature1", intValue(2))
+                    .putFields("featureSet:1:feature2", intValue(2)))
+            .build();
     GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
-    assertThat(responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
+    assertThat(
+        responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
   }
 
   @Test
   public void shouldReturnResponseWithValuesWhenFeatureSetSpecHasUnspecifiedMaxAge() {
-    GetOnlineFeaturesRequest request = GetOnlineFeaturesRequest.newBuilder()
-        .addFeatureSets(FeatureSetRequest.newBuilder()
-            .setName("featureSet")
-            .setVersion(1)
-            .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
-            .build())
-        .addEntityRows(EntityRow.newBuilder()
-            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .putFields("entity1", intValue(1))
-            .putFields("entity2", strValue("a")))
-        .addEntityRows(EntityRow.newBuilder()
-            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .putFields("entity1", intValue(2))
-            .putFields("entity2", strValue("b")))
-        .build();
+    GetOnlineFeaturesRequest request =
+        GetOnlineFeaturesRequest.newBuilder()
+            .addFeatureSets(
+                FeatureSetRequest.newBuilder()
+                    .setName("featureSet")
+                    .setVersion(1)
+                    .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
+                    .build())
+            .addEntityRows(
+                EntityRow.newBuilder()
+                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .putFields("entity1", intValue(1))
+                    .putFields("entity2", strValue("a")))
+            .addEntityRows(
+                EntityRow.newBuilder()
+                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .putFields("entity1", intValue(2))
+                    .putFields("entity2", strValue("b")))
+            .build();
 
-    List<FeatureRow> featureRows = Lists.newArrayList(
-        FeatureRow.newBuilder()
-            .setEventTimestamp(Timestamp.newBuilder().setSeconds(2)) // much older timestamp
-            .addAllFields(Lists
-                .newArrayList(
-                    Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
-                    Field.newBuilder().setName("entity2").setValue(strValue("a")).build(),
-                    Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
-                    Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-            .setFeatureSet("featureSet:1")
-            .build(),
-        FeatureRow.newBuilder()
-            .setEventTimestamp(Timestamp.newBuilder().setSeconds(15)) // much older timestamp
-            .addAllFields(Lists
-                .newArrayList(
-                    Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
-                    Field.newBuilder().setName("entity2").setValue(strValue("b")).build(),
-                    Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
-                    Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
-            .setFeatureSet("featureSet:1")
-            .build()
-    );
+    List<FeatureRow> featureRows =
+        Lists.newArrayList(
+            FeatureRow.newBuilder()
+                .setEventTimestamp(Timestamp.newBuilder().setSeconds(2)) // much older timestamp
+                .addAllFields(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
+                        Field.newBuilder().setName("entity2").setValue(strValue("a")).build(),
+                        Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
+                        Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
+                .setFeatureSet("featureSet:1")
+                .build(),
+            FeatureRow.newBuilder()
+                .setEventTimestamp(Timestamp.newBuilder().setSeconds(15)) // much older timestamp
+                .addAllFields(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
+                        Field.newBuilder().setName("entity2").setValue(strValue("b")).build(),
+                        Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
+                        Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
+                .setFeatureSet("featureSet:1")
+                .build());
 
-    List<byte[]> featureRowBytes = featureRows.stream()
-        .map(AbstractMessageLite::toByteArray)
-        .collect(Collectors.toList());
+    List<byte[]> featureRowBytes =
+        featureRows.stream().map(AbstractMessageLite::toByteArray).collect(Collectors.toList());
     when(specService.getFeatureSet("featureSet", 1)).thenReturn(getFeatureSetSpecWithNoMaxAge());
     when(jedisPool.getResource()).thenReturn(jedis);
     when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
-    GetOnlineFeaturesResponse expected = GetOnlineFeaturesResponse.newBuilder()
-        .addFieldValues(FieldValues.newBuilder()
-          .putFields("entity1", intValue(1))
-          .putFields("entity2", strValue("a"))
-          .putFields("featureSet:1:feature1", intValue(1))
-          .putFields("featureSet:1:feature2", intValue(1)))
-        .addFieldValues(FieldValues.newBuilder()
-          .putFields("entity1", intValue(2))
-          .putFields("entity2", strValue("b"))
-          .putFields("featureSet:1:feature1", intValue(2))
-          .putFields("featureSet:1:feature2", intValue(2)))
-        .build();
+    GetOnlineFeaturesResponse expected =
+        GetOnlineFeaturesResponse.newBuilder()
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(1))
+                    .putFields("entity2", strValue("a"))
+                    .putFields("featureSet:1:feature1", intValue(1))
+                    .putFields("featureSet:1:feature2", intValue(1)))
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(2))
+                    .putFields("entity2", strValue("b"))
+                    .putFields("featureSet:1:feature1", intValue(2))
+                    .putFields("featureSet:1:feature2", intValue(2)))
+            .build();
     GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
-    assertThat(responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
+    assertThat(
+        responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
   }
 
   @Test
   public void shouldReturnResponseWithUnsetValuesIfKeysNotPresent() {
     // some keys not present, should have empty values
-    GetOnlineFeaturesRequest request = GetOnlineFeaturesRequest.newBuilder()
-        .addFeatureSets(FeatureSetRequest.newBuilder()
-            .setName("featureSet")
-            .setVersion(1)
-            .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
-            .build())
-        .addEntityRows(EntityRow.newBuilder()
-            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .putFields("entity1", intValue(1))
-            .putFields("entity2", strValue("a")))
-        .addEntityRows(EntityRow.newBuilder()
-            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .putFields("entity1", intValue(2))
-            .putFields("entity2", strValue("b")))
-        .build();
+    GetOnlineFeaturesRequest request =
+        GetOnlineFeaturesRequest.newBuilder()
+            .addFeatureSets(
+                FeatureSetRequest.newBuilder()
+                    .setName("featureSet")
+                    .setVersion(1)
+                    .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
+                    .build())
+            .addEntityRows(
+                EntityRow.newBuilder()
+                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .putFields("entity1", intValue(1))
+                    .putFields("entity2", strValue("a")))
+            .addEntityRows(
+                EntityRow.newBuilder()
+                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .putFields("entity1", intValue(2))
+                    .putFields("entity2", strValue("b")))
+            .build();
 
-    List<FeatureRow> featureRows = Lists.newArrayList(
-        FeatureRow.newBuilder()
-            .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .addAllFields(Lists
-                .newArrayList(
-                    Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
-                    Field.newBuilder().setName("entity2").setValue(strValue("a")).build(),
-                    Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
-                    Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-            .setFeatureSet("featureSet:1")
-            .build(),
-        FeatureRow.newBuilder()
-            .setEventTimestamp(Timestamp.newBuilder())
-            .addAllFields(Lists
-                .newArrayList(
-                    Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
-                    Field.newBuilder().setName("entity2").setValue(strValue("b")).build(),
-                    Field.newBuilder().setName("feature1").build(),
-                    Field.newBuilder().setName("feature2").build()))
-            .setFeatureSet("featureSet:1")
-            .build()
-    );
+    List<FeatureRow> featureRows =
+        Lists.newArrayList(
+            FeatureRow.newBuilder()
+                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                .addAllFields(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
+                        Field.newBuilder().setName("entity2").setValue(strValue("a")).build(),
+                        Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
+                        Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
+                .setFeatureSet("featureSet:1")
+                .build(),
+            FeatureRow.newBuilder()
+                .setEventTimestamp(Timestamp.newBuilder())
+                .addAllFields(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
+                        Field.newBuilder().setName("entity2").setValue(strValue("b")).build(),
+                        Field.newBuilder().setName("feature1").build(),
+                        Field.newBuilder().setName("feature2").build()))
+                .setFeatureSet("featureSet:1")
+                .build());
 
     List<byte[]> featureRowBytes = Lists.newArrayList(featureRows.get(0).toByteArray(), null);
     when(specService.getFeatureSet("featureSet", 1)).thenReturn(getFeatureSetSpec());
@@ -250,223 +269,250 @@ public class RedisServingServiceTest {
     when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
-    GetOnlineFeaturesResponse expected = GetOnlineFeaturesResponse.newBuilder()
-        .addFieldValues(FieldValues.newBuilder()
-            .putFields("entity1", intValue(1))
-            .putFields("entity2", strValue("a"))
-            .putFields("featureSet:1:feature1", intValue(1))
-            .putFields("featureSet:1:feature2", intValue(1)))
-        .addFieldValues(FieldValues.newBuilder()
-            .putFields("entity1", intValue(2))
-            .putFields("entity2", strValue("b"))
-            .putFields("featureSet:1:feature1", Value.newBuilder().build())
-            .putFields("featureSet:1:feature2", Value.newBuilder().build()))
-        .build();
+    GetOnlineFeaturesResponse expected =
+        GetOnlineFeaturesResponse.newBuilder()
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(1))
+                    .putFields("entity2", strValue("a"))
+                    .putFields("featureSet:1:feature1", intValue(1))
+                    .putFields("featureSet:1:feature2", intValue(1)))
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(2))
+                    .putFields("entity2", strValue("b"))
+                    .putFields("featureSet:1:feature1", Value.newBuilder().build())
+                    .putFields("featureSet:1:feature2", Value.newBuilder().build()))
+            .build();
     GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
-    assertThat(responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
+    assertThat(
+        responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
   }
 
   @Test
   public void shouldReturnResponseWithUnsetValuesIfMaxAgeIsExceeded() {
     // keys present, but too stale comp. to maxAge set in request
-    GetOnlineFeaturesRequest request = GetOnlineFeaturesRequest.newBuilder()
-        .addFeatureSets(FeatureSetRequest.newBuilder()
-            .setName("featureSet")
-            .setVersion(1)
-            .setMaxAge(Duration.newBuilder().setSeconds(10))
-            .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
-            .build())
-        .addEntityRows(EntityRow.newBuilder()
-            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .putFields("entity1", intValue(1))
-            .putFields("entity2", strValue("a")))
-        .addEntityRows(EntityRow.newBuilder()
-            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .putFields("entity1", intValue(2))
-            .putFields("entity2", strValue("b")))
-        .build();
+    GetOnlineFeaturesRequest request =
+        GetOnlineFeaturesRequest.newBuilder()
+            .addFeatureSets(
+                FeatureSetRequest.newBuilder()
+                    .setName("featureSet")
+                    .setVersion(1)
+                    .setMaxAge(Duration.newBuilder().setSeconds(10))
+                    .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
+                    .build())
+            .addEntityRows(
+                EntityRow.newBuilder()
+                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .putFields("entity1", intValue(1))
+                    .putFields("entity2", strValue("a")))
+            .addEntityRows(
+                EntityRow.newBuilder()
+                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .putFields("entity1", intValue(2))
+                    .putFields("entity2", strValue("b")))
+            .build();
 
-    List<FeatureRow> featureRows = Lists.newArrayList(
-        FeatureRow.newBuilder()
-            .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .addAllFields(Lists
-                .newArrayList(
-                    Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
-                    Field.newBuilder().setName("entity2").setValue(strValue("a")).build(),
-                    Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
-                    Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-            .setFeatureSet("featureSet:1")
-            .build(),
-        FeatureRow.newBuilder()
-            .setEventTimestamp(Timestamp.newBuilder().setSeconds(50)) // this value should be nulled
-            .addAllFields(Lists
-                .newArrayList(
-                    Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
-                    Field.newBuilder().setName("entity2").setValue(strValue("b")).build(),
-                    Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
-                    Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
-            .setFeatureSet("featureSet:1")
-            .build()
-    );
+    List<FeatureRow> featureRows =
+        Lists.newArrayList(
+            FeatureRow.newBuilder()
+                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                .addAllFields(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
+                        Field.newBuilder().setName("entity2").setValue(strValue("a")).build(),
+                        Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
+                        Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
+                .setFeatureSet("featureSet:1")
+                .build(),
+            FeatureRow.newBuilder()
+                .setEventTimestamp(
+                    Timestamp.newBuilder().setSeconds(50)) // this value should be nulled
+                .addAllFields(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
+                        Field.newBuilder().setName("entity2").setValue(strValue("b")).build(),
+                        Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
+                        Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
+                .setFeatureSet("featureSet:1")
+                .build());
 
-    List<byte[]> featureRowBytes = featureRows.stream()
-        .map(AbstractMessageLite::toByteArray)
-        .collect(Collectors.toList());
+    List<byte[]> featureRowBytes =
+        featureRows.stream().map(AbstractMessageLite::toByteArray).collect(Collectors.toList());
     when(specService.getFeatureSet("featureSet", 1)).thenReturn(getFeatureSetSpec());
     when(jedisPool.getResource()).thenReturn(jedis);
     when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
-    GetOnlineFeaturesResponse expected = GetOnlineFeaturesResponse.newBuilder()
-        .addFieldValues(FieldValues.newBuilder()
-            .putFields("entity1", intValue(1))
-            .putFields("entity2", strValue("a"))
-            .putFields("featureSet:1:feature1", intValue(1))
-            .putFields("featureSet:1:feature2", intValue(1)))
-        .addFieldValues(FieldValues.newBuilder()
-            .putFields("entity1", intValue(2))
-            .putFields("entity2", strValue("b"))
-            .putFields("featureSet:1:feature1", Value.newBuilder().build())
-            .putFields("featureSet:1:feature2", Value.newBuilder().build()))
-        .build();
+    GetOnlineFeaturesResponse expected =
+        GetOnlineFeaturesResponse.newBuilder()
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(1))
+                    .putFields("entity2", strValue("a"))
+                    .putFields("featureSet:1:feature1", intValue(1))
+                    .putFields("featureSet:1:feature2", intValue(1)))
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(2))
+                    .putFields("entity2", strValue("b"))
+                    .putFields("featureSet:1:feature1", Value.newBuilder().build())
+                    .putFields("featureSet:1:feature2", Value.newBuilder().build()))
+            .build();
     GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
-    assertThat(responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
+    assertThat(
+        responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
   }
-
 
   @Test
   public void shouldReturnResponseWithUnsetValuesIfDefaultMaxAgeIsExceeded() {
     // keys present, but too stale comp. to maxAge set in featureSetSpec
-    GetOnlineFeaturesRequest request = GetOnlineFeaturesRequest.newBuilder()
-        .addFeatureSets(FeatureSetRequest.newBuilder()
-            .setName("featureSet")
-            .setVersion(1)
-            .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
-            .build())
-        .addEntityRows(EntityRow.newBuilder()
-            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .putFields("entity1", intValue(1))
-            .putFields("entity2", strValue("a")))
-        .addEntityRows(EntityRow.newBuilder()
-            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .putFields("entity1", intValue(2))
-            .putFields("entity2", strValue("b")))
-        .build();
+    GetOnlineFeaturesRequest request =
+        GetOnlineFeaturesRequest.newBuilder()
+            .addFeatureSets(
+                FeatureSetRequest.newBuilder()
+                    .setName("featureSet")
+                    .setVersion(1)
+                    .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
+                    .build())
+            .addEntityRows(
+                EntityRow.newBuilder()
+                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .putFields("entity1", intValue(1))
+                    .putFields("entity2", strValue("a")))
+            .addEntityRows(
+                EntityRow.newBuilder()
+                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .putFields("entity1", intValue(2))
+                    .putFields("entity2", strValue("b")))
+            .build();
 
-    List<FeatureRow> featureRows = Lists.newArrayList(
-        FeatureRow.newBuilder()
-            .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .addAllFields(Lists
-                .newArrayList(
-                    Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
-                    Field.newBuilder().setName("entity2").setValue(strValue("a")).build(),
-                    Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
-                    Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-            .setFeatureSet("featureSet:1")
-            .build(),
-        FeatureRow.newBuilder()
-            .setEventTimestamp(Timestamp.newBuilder().setSeconds(0)) // this value should be nulled
-            .addAllFields(Lists
-                .newArrayList(
-                    Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
-                    Field.newBuilder().setName("entity2").setValue(strValue("b")).build(),
-                    Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
-                    Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
-            .setFeatureSet("featureSet:1")
-            .build()
-    );
+    List<FeatureRow> featureRows =
+        Lists.newArrayList(
+            FeatureRow.newBuilder()
+                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                .addAllFields(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
+                        Field.newBuilder().setName("entity2").setValue(strValue("a")).build(),
+                        Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
+                        Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
+                .setFeatureSet("featureSet:1")
+                .build(),
+            FeatureRow.newBuilder()
+                .setEventTimestamp(
+                    Timestamp.newBuilder().setSeconds(0)) // this value should be nulled
+                .addAllFields(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
+                        Field.newBuilder().setName("entity2").setValue(strValue("b")).build(),
+                        Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
+                        Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
+                .setFeatureSet("featureSet:1")
+                .build());
 
-    List<byte[]> featureRowBytes = featureRows.stream()
-        .map(AbstractMessageLite::toByteArray)
-        .collect(Collectors.toList());
+    List<byte[]> featureRowBytes =
+        featureRows.stream().map(AbstractMessageLite::toByteArray).collect(Collectors.toList());
     when(specService.getFeatureSet("featureSet", 1)).thenReturn(getFeatureSetSpec());
     when(jedisPool.getResource()).thenReturn(jedis);
     when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
-    GetOnlineFeaturesResponse expected = GetOnlineFeaturesResponse.newBuilder()
-        .addFieldValues(FieldValues.newBuilder()
-            .putFields("entity1", intValue(1))
-            .putFields("entity2", strValue("a"))
-            .putFields("featureSet:1:feature1", intValue(1))
-            .putFields("featureSet:1:feature2", intValue(1)))
-        .addFieldValues(FieldValues.newBuilder()
-            .putFields("entity1", intValue(2))
-            .putFields("entity2", strValue("b"))
-            .putFields("featureSet:1:feature1", Value.newBuilder().build())
-            .putFields("featureSet:1:feature2", Value.newBuilder().build()))
-        .build();
+    GetOnlineFeaturesResponse expected =
+        GetOnlineFeaturesResponse.newBuilder()
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(1))
+                    .putFields("entity2", strValue("a"))
+                    .putFields("featureSet:1:feature1", intValue(1))
+                    .putFields("featureSet:1:feature2", intValue(1)))
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(2))
+                    .putFields("entity2", strValue("b"))
+                    .putFields("featureSet:1:feature1", Value.newBuilder().build())
+                    .putFields("featureSet:1:feature2", Value.newBuilder().build()))
+            .build();
     GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
-    assertThat(responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
+    assertThat(
+        responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
   }
-
 
   @Test
   public void shouldFilterOutUndesiredRows() {
     // requested rows less than the rows available in the featureset
-    GetOnlineFeaturesRequest request = GetOnlineFeaturesRequest.newBuilder()
-        .addFeatureSets(FeatureSetRequest.newBuilder()
-            .setName("featureSet")
-            .setVersion(1)
-            .addAllFeatureNames(Lists.newArrayList("feature1"))
-            .build())
-        .addEntityRows(EntityRow.newBuilder()
-            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .putFields("entity1", intValue(1))
-            .putFields("entity2", strValue("a")))
-        .addEntityRows(EntityRow.newBuilder()
-            .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .putFields("entity1", intValue(2))
-            .putFields("entity2", strValue("b")))
-        .build();
+    GetOnlineFeaturesRequest request =
+        GetOnlineFeaturesRequest.newBuilder()
+            .addFeatureSets(
+                FeatureSetRequest.newBuilder()
+                    .setName("featureSet")
+                    .setVersion(1)
+                    .addAllFeatureNames(Lists.newArrayList("feature1"))
+                    .build())
+            .addEntityRows(
+                EntityRow.newBuilder()
+                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .putFields("entity1", intValue(1))
+                    .putFields("entity2", strValue("a")))
+            .addEntityRows(
+                EntityRow.newBuilder()
+                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
+                    .putFields("entity1", intValue(2))
+                    .putFields("entity2", strValue("b")))
+            .build();
 
-    List<FeatureRow> featureRows = Lists.newArrayList(
-        FeatureRow.newBuilder()
-            .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .addAllFields(Lists
-                .newArrayList(
-                    Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
-                    Field.newBuilder().setName("entity2").setValue(strValue("a")).build(),
-                    Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
-                    Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-            .setFeatureSet("featureSet:1")
-            .build(),
-        FeatureRow.newBuilder()
-            .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .addAllFields(Lists
-                .newArrayList(
-                    Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
-                    Field.newBuilder().setName("entity2").setValue(strValue("b")).build(),
-                    Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
-                    Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
-            .setFeatureSet("featureSet:1")
-            .build()
-    );
+    List<FeatureRow> featureRows =
+        Lists.newArrayList(
+            FeatureRow.newBuilder()
+                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                .addAllFields(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
+                        Field.newBuilder().setName("entity2").setValue(strValue("a")).build(),
+                        Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
+                        Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
+                .setFeatureSet("featureSet:1")
+                .build(),
+            FeatureRow.newBuilder()
+                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                .addAllFields(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
+                        Field.newBuilder().setName("entity2").setValue(strValue("b")).build(),
+                        Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
+                        Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
+                .setFeatureSet("featureSet:1")
+                .build());
 
-    List<byte[]> featureRowBytes = featureRows.stream()
-        .map(AbstractMessageLite::toByteArray)
-        .collect(Collectors.toList());
+    List<byte[]> featureRowBytes =
+        featureRows.stream().map(AbstractMessageLite::toByteArray).collect(Collectors.toList());
     when(specService.getFeatureSet("featureSet", 1)).thenReturn(getFeatureSetSpec());
     when(jedisPool.getResource()).thenReturn(jedis);
     when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
-    GetOnlineFeaturesResponse expected = GetOnlineFeaturesResponse.newBuilder()
-        .addFieldValues(FieldValues.newBuilder()
-            .putFields("entity1", intValue(1))
-            .putFields("entity2", strValue("a"))
-            .putFields("featureSet:1:feature1", intValue(1)))
-        .addFieldValues(FieldValues.newBuilder()
-            .putFields("entity1", intValue(2))
-            .putFields("entity2", strValue("b"))
-            .putFields("featureSet:1:feature1", intValue(2)))
-        .build();
+    GetOnlineFeaturesResponse expected =
+        GetOnlineFeaturesResponse.newBuilder()
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(1))
+                    .putFields("entity2", strValue("a"))
+                    .putFields("featureSet:1:feature1", intValue(1)))
+            .addFieldValues(
+                FieldValues.newBuilder()
+                    .putFields("entity1", intValue(2))
+                    .putFields("entity2", strValue("b"))
+                    .putFields("featureSet:1:feature1", intValue(2)))
+            .build();
     GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
-    assertThat(responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
+    assertThat(
+        responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
   }
 
   private List<Map<String, Value>> responseToMapList(GetOnlineFeaturesResponse response) {
-    return response.getFieldValuesList().stream().map(FieldValues::getFieldsMap).collect(Collectors.toList());
+    return response.getFieldValuesList().stream()
+        .map(FieldValues::getFieldsMap)
+        .collect(Collectors.toList());
   }
 
   private Value intValue(int val) {
@@ -476,6 +522,7 @@ public class RedisServingServiceTest {
   private Value strValue(String val) {
     return Value.newBuilder().setStringVal(val).build();
   }
+
   private FeatureSetSpec getFeatureSetSpec() {
     return FeatureSetSpec.newBuilder()
         .addEntities(EntitySpec.newBuilder().setName("entity1"))
@@ -491,5 +538,4 @@ public class RedisServingServiceTest {
         .setMaxAge(Duration.newBuilder().setSeconds(0).setNanos(0).build())
         .build();
   }
-
 }

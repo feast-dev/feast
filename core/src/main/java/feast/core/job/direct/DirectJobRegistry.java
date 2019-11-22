@@ -19,6 +19,7 @@ public class DirectJobRegistry {
 
   /**
    * Add the given job to the registry.
+   *
    * @param job containing the job id,
    */
   public void add(DirectJob job) {
@@ -48,9 +49,7 @@ public class DirectJobRegistry {
     jobs.remove(id);
   }
 
-  /**
-   * Kill all child jobs when the registry is garbage collected
-   */
+  /** Kill all child jobs when the registry is garbage collected */
   @Override
   public void finalize() {
     for (DirectJob job : this.jobs.values()) {

@@ -10,7 +10,8 @@ import java.util.stream.Collectors;
 // ResponseJSONMapper maps GRPC Response types to more human readable JSON responses
 public class ResponseJSONMapper {
 
-  public static List<Map<String, Object>> mapGetOnlineFeaturesResponse(GetOnlineFeaturesResponse response) {
+  public static List<Map<String, Object>> mapGetOnlineFeaturesResponse(
+      GetOnlineFeaturesResponse response) {
     return response.getFieldValuesList().stream()
         .map(fieldValue -> convertFieldValuesToMap(fieldValue))
         .collect(Collectors.toList());
@@ -55,5 +56,4 @@ public class ResponseJSONMapper {
         return null;
     }
   }
-
 }

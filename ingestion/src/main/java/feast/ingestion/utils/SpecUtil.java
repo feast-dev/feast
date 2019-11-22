@@ -16,9 +16,7 @@ import java.util.regex.Pattern;
 
 public class SpecUtil {
 
-  /**
-   * Get only feature set specs that matches the subscription
-   */
+  /** Get only feature set specs that matches the subscription */
   public static List<FeatureSetSpec> getSubscribedFeatureSets(
       List<Subscription> subscriptions, List<FeatureSetSpec> featureSetSpecs) {
     List<FeatureSetSpec> subscribed = new ArrayList<>();

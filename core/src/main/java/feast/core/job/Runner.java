@@ -16,7 +16,7 @@ public enum Runner {
   }
 
   public static Runner fromString(String runner) {
-    for(Runner r: Runner.values()) {
+    for (Runner r : Runner.values()) {
       if (r.getName().equals(runner)) {
         return r;
       }

@@ -17,9 +17,7 @@
 
 package feast.core.exception;
 
-/**
- * Exception thrown when a request for job execution fails.
- */
+/** Exception thrown when a request for job execution fails. */
 public class JobExecutionException extends RuntimeException {
   public JobExecutionException() {
     super();

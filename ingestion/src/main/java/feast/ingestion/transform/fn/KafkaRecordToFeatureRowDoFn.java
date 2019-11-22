@@ -2,23 +2,18 @@ package feast.ingestion.transform.fn;
 
 import com.google.auto.value.AutoValue;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.ingestion.transform.ReadFromSource;
 import feast.ingestion.transform.ReadFromSource.Builder;
 import feast.ingestion.values.FailedElement;
-import feast.ingestion.values.Field;
 import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.FieldProto;
-import feast.types.ValueProto.Value.ValCase;
 import java.util.Base64;
-import java.util.Map;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
 @AutoValue
-public abstract class KafkaRecordToFeatureRowDoFn extends
-    DoFn<KafkaRecord<byte[], byte[]>, FeatureRow> {
+public abstract class KafkaRecordToFeatureRowDoFn
+    extends DoFn<KafkaRecord<byte[], byte[]>, FeatureRow> {
 
   public abstract TupleTag<FeatureRow> getSuccessTag();
 

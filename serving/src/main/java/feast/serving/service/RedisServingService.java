@@ -17,8 +17,8 @@
 package feast.serving.service;
 
 import static feast.serving.util.Metrics.missingKeyCount;
-import static feast.serving.util.Metrics.requestLatency;
 import static feast.serving.util.Metrics.requestCount;
+import static feast.serving.util.Metrics.requestLatency;
 import static feast.serving.util.Metrics.staleKeyCount;
 
 import com.google.common.collect.Maps;
@@ -28,6 +28,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.serving.ServingAPIProto.FeastServingType;
+import feast.serving.ServingAPIProto.FeatureSetRequest;
 import feast.serving.ServingAPIProto.GetBatchFeaturesRequest;
 import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
@@ -36,7 +37,6 @@ import feast.serving.ServingAPIProto.GetJobRequest;
 import feast.serving.ServingAPIProto.GetJobResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
-import feast.serving.ServingAPIProto.FeatureSetRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.storage.RedisProto.RedisKey;
@@ -67,9 +67,7 @@ public class RedisServingService implements ServingService {
     this.tracer = tracer;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public GetFeastServingInfoResponse getFeastServingInfo(
       GetFeastServingInfoRequest getFeastServingInfoRequest) {
@@ -78,9 +76,7 @@ public class RedisServingService implements ServingService {
         .build();
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest request) {
     try (Scope scope = tracer.buildSpan("Redis-getOnlineFeatures").startActive(true)) {
@@ -180,8 +176,9 @@ public class RedisServingService implements ServingService {
 
       if (!fieldsMap.containsKey(entityName)) {
         throw Status.INVALID_ARGUMENT
-            .withDescription(String
-                .format("Entity row fields \"%s\" does not contain required entity field \"%s\"",
+            .withDescription(
+                String.format(
+                    "Entity row fields \"%s\" does not contain required entity field \"%s\"",
                     fieldsMap.keySet().toString(), entityName))
             .asRuntimeException();
       }
@@ -200,8 +197,7 @@ public class RedisServingService implements ServingService {
       throws InvalidProtocolBufferException {
 
     List<byte[]> jedisResps = sendMultiGet(redisKeys);
-    Timer processResponseTimer = requestLatency.labels("processResponse")
-        .startTimer();
+    Timer processResponseTimer = requestLatency.labels("processResponse").startTimer();
     try (Scope scope = tracer.buildSpan("Redis-processResponse").startActive(true)) {
       String featureSetId =
           String.format("%s:%d", featureSetRequest.getName(), featureSetRequest.getVersion());

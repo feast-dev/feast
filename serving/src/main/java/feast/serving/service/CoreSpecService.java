@@ -9,9 +9,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Client for spec retrieval from core.
- */
+/** Client for spec retrieval from core. */
 @Slf4j
 public class CoreSpecService {
   private final CoreServiceGrpc.CoreServiceBlockingStub blockingStub;

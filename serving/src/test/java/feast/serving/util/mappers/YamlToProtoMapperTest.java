@@ -14,23 +14,23 @@ public class YamlToProtoMapperTest {
 
   @Test
   public void shouldConvertYamlToProto() throws IOException {
-    String yaml = "name: test\n"
-        + "type: REDIS\n"
-        + "redis_config:\n"
-        + "  host: localhost\n"
-        + "  port: 6379\n"
-        + "subscriptions:\n"
-        + "- name: \"*\"\n"
-        + "  version: \">0\"\n";
+    String yaml =
+        "name: test\n"
+            + "type: REDIS\n"
+            + "redis_config:\n"
+            + "  host: localhost\n"
+            + "  port: 6379\n"
+            + "subscriptions:\n"
+            + "- name: \"*\"\n"
+            + "  version: \">0\"\n";
     Store store = YamlToProtoMapper.yamlToStoreProto(yaml);
-    Store expected = Store.newBuilder()
-        .setName("test")
-        .setType(StoreType.REDIS)
-        .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379))
-        .addSubscriptions(Subscription.newBuilder()
-            .setName("*")
-            .setVersion(">0"))
-        .build();
+    Store expected =
+        Store.newBuilder()
+            .setName("test")
+            .setType(StoreType.REDIS)
+            .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379))
+            .addSubscriptions(Subscription.newBuilder().setName("*").setVersion(">0"))
+            .build();
     assertThat(store, equalTo(expected));
   }
 }

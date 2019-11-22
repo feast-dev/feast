@@ -2,12 +2,11 @@ package feast.ingestion.transform;
 
 import com.google.auto.value.AutoValue;
 import feast.core.FeatureSetProto;
-import feast.ingestion.values.FeatureSetSpec;
 import feast.ingestion.transform.fn.ValidateFeatureRowDoFn;
 import feast.ingestion.values.FailedElement;
+import feast.ingestion.values.FeatureSetSpec;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -18,8 +17,8 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.commons.lang3.tuple.Pair;
 
 @AutoValue
-public abstract class ValidateFeatureRows extends
-    PTransform<PCollection<FeatureRow>, PCollectionTuple> {
+public abstract class ValidateFeatureRows
+    extends PTransform<PCollection<FeatureRow>, PCollectionTuple> {
 
   public abstract Map<String, FeatureSetProto.FeatureSetSpec> getFeatureSetSpecs();
 
@@ -34,7 +33,8 @@ public abstract class ValidateFeatureRows extends
   @AutoValue.Builder
   public abstract static class Builder {
 
-    public abstract Builder setFeatureSetSpecs(Map<String, FeatureSetProto.FeatureSetSpec> featureSetSpec);
+    public abstract Builder setFeatureSetSpecs(
+        Map<String, FeatureSetProto.FeatureSetSpec> featureSetSpec);
 
     public abstract Builder setSuccessTag(TupleTag<FeatureRow> successTag);
 
@@ -46,18 +46,19 @@ public abstract class ValidateFeatureRows extends
   @Override
   public PCollectionTuple expand(PCollection<FeatureRow> input) {
 
-    Map<String, FeatureSetSpec> featureSetSpecs = getFeatureSetSpecs().entrySet().stream()
-        .map(e -> Pair.of(e.getKey(), new FeatureSetSpec(e.getValue())))
-        .collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
+    Map<String, FeatureSetSpec> featureSetSpecs =
+        getFeatureSetSpecs().entrySet().stream()
+            .map(e -> Pair.of(e.getKey(), new FeatureSetSpec(e.getValue())))
+            .collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
 
-    return input.apply("ValidateFeatureRows",
-        ParDo.of(ValidateFeatureRowDoFn.newBuilder()
-            .setFeatureSetSpecs(featureSetSpecs)
-            .setSuccessTag(getSuccessTag())
-            .setFailureTag(getFailureTag())
-            .build())
+    return input.apply(
+        "ValidateFeatureRows",
+        ParDo.of(
+                ValidateFeatureRowDoFn.newBuilder()
+                    .setFeatureSetSpecs(featureSetSpecs)
+                    .setSuccessTag(getSuccessTag())
+                    .setFailureTag(getFailureTag())
+                    .build())
             .withOutputTags(getSuccessTag(), TupleTagList.of(getFailureTag())));
   }
-
-
 }

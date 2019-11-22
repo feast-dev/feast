@@ -3,9 +3,6 @@ package feast.core.job.direct;
 import feast.core.job.JobMonitor;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
-import feast.core.model.Metrics;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -27,5 +24,4 @@ public class DirectRunnerJobMonitor implements JobMonitor {
     }
     return jobStateMapper.map(directJob.getPipelineResult().getState());
   }
-
 }

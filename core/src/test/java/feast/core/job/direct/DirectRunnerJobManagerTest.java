@@ -33,11 +33,9 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 
 public class DirectRunnerJobManagerTest {
-  @Rule
-  public final ExpectedException expectedException = ExpectedException.none();
+  @Rule public final ExpectedException expectedException = ExpectedException.none();
 
-  @Mock
-  private DirectJobRegistry directJobRegistry;
+  @Mock private DirectJobRegistry directJobRegistry;
 
   private DirectRunnerJobManager drJobManager;
   private Map<String, String> defaults;
@@ -55,35 +53,33 @@ public class DirectRunnerJobManagerTest {
 
   @Test
   public void shouldStartDirectJobAndRegisterPipelineResult() throws IOException {
-    StoreProto.Store store = StoreProto.Store.newBuilder()
-        .setName("SERVING")
-        .setType(StoreType.REDIS)
-        .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
-        .build();
+    StoreProto.Store store =
+        StoreProto.Store.newBuilder()
+            .setName("SERVING")
+            .setType(StoreType.REDIS)
+            .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
+            .build();
 
-    FeatureSetSpec featureSetSpec = FeatureSetSpec.newBuilder()
-        .setName("featureSet")
-        .setVersion(1)
-        .build();
+    FeatureSetSpec featureSetSpec =
+        FeatureSetSpec.newBuilder().setName("featureSet").setVersion(1).build();
 
     Printer printer = JsonFormat.printer();
 
-    ImportOptions expectedPipelineOptions = PipelineOptionsFactory.fromArgs("")
-        .as(ImportOptions.class);
+    ImportOptions expectedPipelineOptions =
+        PipelineOptionsFactory.fromArgs("").as(ImportOptions.class);
     expectedPipelineOptions.setAppName("DirectRunnerJobManager");
     expectedPipelineOptions.setRunner(DirectRunner.class);
     expectedPipelineOptions.setBlockOnRun(false);
     expectedPipelineOptions.setProject("");
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
     expectedPipelineOptions.setProject("");
-    expectedPipelineOptions
-        .setFeatureSetSpecJson(Lists.newArrayList(printer.print(featureSetSpec)));
+    expectedPipelineOptions.setFeatureSetSpecJson(
+        Lists.newArrayList(printer.print(featureSetSpec)));
 
     String expectedJobId = "feast-job-0";
-    ArgumentCaptor<ImportOptions> pipelineOptionsCaptor = ArgumentCaptor
-        .forClass(ImportOptions.class);
-    ArgumentCaptor<DirectJob> directJobCaptor = ArgumentCaptor
-        .forClass(DirectJob.class);
+    ArgumentCaptor<ImportOptions> pipelineOptionsCaptor =
+        ArgumentCaptor.forClass(ImportOptions.class);
+    ArgumentCaptor<DirectJob> directJobCaptor = ArgumentCaptor.forClass(DirectJob.class);
 
     PipelineResult mockPipelineResult = Mockito.mock(PipelineResult.class);
     doReturn(mockPipelineResult).when(drJobManager).runPipeline(any());
@@ -94,10 +90,10 @@ public class DirectRunnerJobManagerTest {
 
     ImportOptions actualPipelineOptions = pipelineOptionsCaptor.getValue();
     DirectJob jobStarted = directJobCaptor.getValue();
-    expectedPipelineOptions.setOptionsId(actualPipelineOptions.getOptionsId()); // avoid comparing this value
+    expectedPipelineOptions.setOptionsId(
+        actualPipelineOptions.getOptionsId()); // avoid comparing this value
 
-    assertThat(actualPipelineOptions.toString(),
-        equalTo(expectedPipelineOptions.toString()));
+    assertThat(actualPipelineOptions.toString(), equalTo(expectedPipelineOptions.toString()));
     assertThat(jobStarted.getPipelineResult(), equalTo(mockPipelineResult));
     assertThat(jobStarted.getJobId(), equalTo(expectedJobId));
     assertThat(jobId, equalTo(expectedJobId));

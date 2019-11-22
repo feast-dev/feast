@@ -24,14 +24,11 @@ import feast.core.log.AuditLogger;
 import feast.core.log.Resource;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
-import feast.core.model.Metrics;
+import java.util.Collection;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-
-import java.util.Collection;
-import java.util.List;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
@@ -42,16 +39,14 @@ public class ScheduledJobMonitor {
   private final JobInfoRepository jobInfoRepository;
 
   @Autowired
-  public ScheduledJobMonitor(
-      JobMonitor jobMonitor,
-      JobInfoRepository jobInfoRepository) {
+  public ScheduledJobMonitor(JobMonitor jobMonitor, JobInfoRepository jobInfoRepository) {
     this.jobMonitor = jobMonitor;
     this.jobInfoRepository = jobInfoRepository;
   }
 
-
   // TODO: Keep receiving the following exception with these arguments below
-  //       Caused by: java.lang.IllegalStateException: Encountered invalid @Scheduled method 'pollStatusAndMetrics': Circular placeholder reference .. in property definitions
+  //       Caused by: java.lang.IllegalStateException: Encountered invalid @Scheduled method
+  // 'pollStatusAndMetrics': Circular placeholder reference .. in property definitions
   // @Scheduled(
   //    fixedDelayString = "${feast.jobs.monitor.fixedDelay}",
   //    initialDelayString = "${feast.jobs.monitor.initialDelay}")

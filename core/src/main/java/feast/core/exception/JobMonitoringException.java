@@ -17,9 +17,7 @@
 
 package feast.core.exception;
 
-/**
- * Exception thrown when error happen during job monitoring.
- */
+/** Exception thrown when error happen during job monitoring. */
 public class JobMonitoringException extends RuntimeException {
 
   public JobMonitoringException() {

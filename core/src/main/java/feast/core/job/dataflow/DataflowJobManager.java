@@ -72,7 +72,6 @@ public class DataflowJobManager implements JobManager {
     return RUNNER_TYPE;
   }
 
-
   @Override
   public String startJob(String name, List<FeatureSetSpec> featureSets, Store sink) {
     return submitDataflowJob(name, featureSets, sink, false);
@@ -91,8 +90,8 @@ public class DataflowJobManager implements JobManager {
       for (FeatureSet featureSet : jobInfo.getFeatureSets()) {
         featureSetSpecs.add(featureSet.toProto());
       }
-      return submitDataflowJob(jobInfo.getId(), featureSetSpecs, jobInfo.getStore().toProto(),
-          true);
+      return submitDataflowJob(
+          jobInfo.getId(), featureSetSpecs, jobInfo.getStore().toProto(), true);
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(String.format("Unable to update job %s", jobInfo.getId()), e);
     }
@@ -127,8 +126,8 @@ public class DataflowJobManager implements JobManager {
     }
   }
 
-  private String submitDataflowJob(String jobName, List<FeatureSetSpec> featureSets, Store sink,
-      boolean update) {
+  private String submitDataflowJob(
+      String jobName, List<FeatureSetSpec> featureSets, Store sink, boolean update) {
     try {
       ImportOptions pipelineOptions = getPipelineOptions(jobName, featureSets, sink, update);
       DataflowPipelineJob pipelineResult = runPipeline(pipelineOptions);
@@ -140,9 +139,9 @@ public class DataflowJobManager implements JobManager {
     }
   }
 
-  private ImportOptions getPipelineOptions(String jobName, List<FeatureSetSpec> featureSets,
-      Store sink,
-      boolean update) throws IOException {
+  private ImportOptions getPipelineOptions(
+      String jobName, List<FeatureSetSpec> featureSets, Store sink, boolean update)
+      throws IOException {
     String[] args = TypeConversion.convertMapToArgs(defaultOptions);
     ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
     Printer printer = JsonFormat.printer();
@@ -156,8 +155,8 @@ public class DataflowJobManager implements JobManager {
     pipelineOptions.setUpdate(update);
     pipelineOptions.setRunner(DataflowRunner.class);
     pipelineOptions.setJobName(jobName);
-    pipelineOptions
-        .setFilesToStage(detectClassPathResourcesToStage(DataflowRunner.class.getClassLoader()));
+    pipelineOptions.setFilesToStage(
+        detectClassPathResourcesToStage(DataflowRunner.class.getClassLoader()));
 
     if (metrics.isEnabled()) {
       pipelineOptions.setMetricsExporterType(metrics.getType());
@@ -169,10 +168,8 @@ public class DataflowJobManager implements JobManager {
     return pipelineOptions;
   }
 
-  public DataflowPipelineJob runPipeline(ImportOptions pipelineOptions)
-      throws IOException {
-    return (DataflowPipelineJob) ImportJob
-        .runPipeline(pipelineOptions);
+  public DataflowPipelineJob runPipeline(ImportOptions pipelineOptions) throws IOException {
+    return (DataflowPipelineJob) ImportJob.runPipeline(pipelineOptions);
   }
 
   private String waitForJobToRun(DataflowPipelineJob pipelineResult)
@@ -181,8 +178,9 @@ public class DataflowJobManager implements JobManager {
     while (true) {
       State state = pipelineResult.getState();
       if (state.isTerminal()) {
-        String dataflowDashboardUrl = String
-            .format("https://console.cloud.google.com/dataflow/jobsDetail/locations/%s/jobs/%s",
+        String dataflowDashboardUrl =
+            String.format(
+                "https://console.cloud.google.com/dataflow/jobsDetail/locations/%s/jobs/%s",
                 location, pipelineResult.getJobId());
         throw new RuntimeException(
             String.format(

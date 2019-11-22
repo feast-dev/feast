@@ -26,13 +26,11 @@ import redis.embedded.RedisServer;
 
 public class RedisCustomIOTest {
 
-  @Rule
-  public transient TestPipeline p = TestPipeline.create();
+  @Rule public transient TestPipeline p = TestPipeline.create();
 
   private static int REDIS_PORT = 51234;
   private static Redis redis;
   private static Jedis jedis;
-
 
   @BeforeClass
   public static void setUp() throws IOException {
@@ -49,31 +47,46 @@ public class RedisCustomIOTest {
   @Test
   public void shouldWriteToRedis() {
     HashMap<RedisKey, FeatureRow> kvs = new LinkedHashMap<>();
-    kvs.put(RedisKey.newBuilder().setFeatureSet("fs:1")
-            .addEntities(field("entity", 1, Enum.INT64)).build(),
-        FeatureRow.newBuilder().setFeatureSet("fs:1")
+    kvs.put(
+        RedisKey.newBuilder()
+            .setFeatureSet("fs:1")
+            .addEntities(field("entity", 1, Enum.INT64))
+            .build(),
+        FeatureRow.newBuilder()
+            .setFeatureSet("fs:1")
             .addFields(field("entity", 1, Enum.INT64))
-            .addFields(field("feature", "one", Enum.STRING)).build());
-    kvs.put(RedisKey.newBuilder().setFeatureSet("fs:1")
-            .addEntities(field("entity", 2, Enum.INT64)).build(),
-        FeatureRow.newBuilder().setFeatureSet("fs:1")
+            .addFields(field("feature", "one", Enum.STRING))
+            .build());
+    kvs.put(
+        RedisKey.newBuilder()
+            .setFeatureSet("fs:1")
+            .addEntities(field("entity", 2, Enum.INT64))
+            .build(),
+        FeatureRow.newBuilder()
+            .setFeatureSet("fs:1")
             .addFields(field("entity", 2, Enum.INT64))
-            .addFields(field("feature", "two", Enum.STRING)).build());
+            .addFields(field("feature", "two", Enum.STRING))
+            .build());
 
-    List<RedisMutation> featureRowWrites = kvs.entrySet().stream()
-        .map(kv -> new RedisMutation(Method.SET, kv.getKey().toByteArray(),
-            kv.getValue().toByteArray(),
-            null, null)
-        )
-        .collect(Collectors.toList());
+    List<RedisMutation> featureRowWrites =
+        kvs.entrySet().stream()
+            .map(
+                kv ->
+                    new RedisMutation(
+                        Method.SET,
+                        kv.getKey().toByteArray(),
+                        kv.getValue().toByteArray(),
+                        null,
+                        null))
+            .collect(Collectors.toList());
 
-    p.apply(Create.of(featureRowWrites))
-        .apply(RedisCustomIO.write("localhost", REDIS_PORT));
+    p.apply(Create.of(featureRowWrites)).apply(RedisCustomIO.write("localhost", REDIS_PORT));
     p.run();
 
-    kvs.forEach((key, value) -> {
-      byte[] actual = jedis.get(key.toByteArray());
-      assertThat(actual, equalTo(value.toByteArray()));
-    });
+    kvs.forEach(
+        (key, value) -> {
+          byte[] actual = jedis.get(key.toByteArray());
+          assertThat(actual, equalTo(value.toByteArray()));
+        });
   }
 }

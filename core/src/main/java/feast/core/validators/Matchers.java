@@ -24,7 +24,8 @@ public class Matchers {
   private static Pattern UPPER_SNAKE_CASE_REGEX = Pattern.compile("^[A-Z0-9]+(_[A-Z0-9]+)*$");
   private static Pattern LOWER_SNAKE_CASE_REGEX = Pattern.compile("^[a-z0-9]+(_[a-z0-9]+)*$");
   private static Pattern VALID_CHARACTERS_REGEX = Pattern.compile("^[a-zA-Z0-9\\-_]*$");
-  private static Pattern VALID_CHARACTERS_FSET_FILTER_REGEX = Pattern.compile("^[a-zA-Z0-9\\-_*]*$");
+  private static Pattern VALID_CHARACTERS_FSET_FILTER_REGEX =
+      Pattern.compile("^[a-zA-Z0-9\\-_*]*$");
 
   private static String ERROR_MESSAGE_TEMPLATE = "invalid value for field %s: %s";
 

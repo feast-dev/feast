@@ -42,9 +42,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Beans for job management
- */
+/** Beans for job management */
 @Slf4j
 @Configuration
 public class JobConfig {
@@ -57,9 +55,7 @@ public class JobConfig {
   @Bean
   @Autowired
   public JobManager getJobManager(
-      FeastProperties feastProperties,
-      DirectJobRegistry directJobRegistry)
-      throws Exception {
+      FeastProperties feastProperties, DirectJobRegistry directJobRegistry) throws Exception {
 
     JobProperties jobProperties = feastProperties.getJobs();
     Runner runner = Runner.fromString(jobProperties.getRunner());
@@ -95,21 +91,17 @@ public class JobConfig {
           throw new IllegalStateException("Unable to initialize DataflowJobManager", e);
         }
       case DIRECT:
-        return new DirectRunnerJobManager(jobProperties.getOptions(), directJobRegistry,
-            jobProperties.getMetrics());
+        return new DirectRunnerJobManager(
+            jobProperties.getOptions(), directJobRegistry, jobProperties.getMetrics());
       default:
         throw new IllegalArgumentException("Unsupported runner: " + jobProperties.getRunner());
     }
   }
 
-  /**
-   * Get a Job Monitor given the runner type and dataflow configuration.
-   */
+  /** Get a Job Monitor given the runner type and dataflow configuration. */
   @Bean
   public JobMonitor getJobMonitor(
-      FeastProperties feastProperties,
-      DirectJobRegistry directJobRegistry)
-      throws Exception {
+      FeastProperties feastProperties, DirectJobRegistry directJobRegistry) throws Exception {
 
     JobProperties jobProperties = feastProperties.getJobs();
     Runner runner = Runner.fromString(jobProperties.getRunner());
@@ -132,8 +124,8 @@ public class JobConfig {
                   JacksonFactory.getDefaultInstance(),
                   credential);
 
-          return new DataflowJobMonitor(dataflow, jobOptions.get("project"),
-              jobOptions.get("region"));
+          return new DataflowJobMonitor(
+              dataflow, jobOptions.get("project"), jobOptions.get("region"));
         } catch (IOException e) {
           log.error(
               "Unable to find credential required for Dataflow monitoring API: {}", e.getMessage());
@@ -149,9 +141,7 @@ public class JobConfig {
     }
   }
 
-  /**
-   * Get a direct job registry
-   */
+  /** Get a direct job registry */
   @Bean
   public DirectJobRegistry directJobRegistry() {
     return new DirectJobRegistry();

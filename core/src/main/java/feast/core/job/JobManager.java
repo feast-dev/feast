@@ -26,6 +26,7 @@ public interface JobManager {
 
   /**
    * Get Runner Type
+   *
    * @return runner type
    */
   Runner getRunnerType();
@@ -54,5 +55,4 @@ public interface JobManager {
    * @param extId runner specific job id.
    */
   void abortJob(String extId);
-
 }

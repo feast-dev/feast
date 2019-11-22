@@ -46,8 +46,9 @@ public class Source {
 
   public Source(SourceType type, KafkaSourceConfig config, boolean isDefault) {
     if (config.getBootstrapServers().isEmpty() || config.getTopic().isEmpty()) {
-      throw Status.INVALID_ARGUMENT.withDescription(
-          "Unsupported source options. Kafka source requires bootstrap servers and topic to be specified.")
+      throw Status.INVALID_ARGUMENT
+          .withDescription(
+              "Unsupported source options. Kafka source requires bootstrap servers and topic to be specified.")
           .asRuntimeException();
     }
     this.type = type.toString();
@@ -87,13 +88,14 @@ public class Source {
    * @return SourceProto.Source
    */
   public SourceProto.Source toProto() {
-    Builder builder = SourceProto.Source.newBuilder()
-        .setType(SourceType.valueOf(type));
+    Builder builder = SourceProto.Source.newBuilder().setType(SourceType.valueOf(type));
     switch (SourceType.valueOf(type)) {
       case KAFKA:
-        KafkaSourceConfig config = KafkaSourceConfig.newBuilder()
-            .setBootstrapServers(bootstrapServers)
-            .setTopic(topics).build();
+        KafkaSourceConfig config =
+            KafkaSourceConfig.newBuilder()
+                .setBootstrapServers(bootstrapServers)
+                .setTopic(topics)
+                .build();
         return builder.setKafkaSourceConfig(config).build();
       case UNRECOGNIZED:
       default:
@@ -118,8 +120,7 @@ public class Source {
   public Message getOptions() {
     switch (SourceType.valueOf(type)) {
       case KAFKA:
-        return KafkaSourceConfig
-            .newBuilder()
+        return KafkaSourceConfig.newBuilder()
             .setBootstrapServers(bootstrapServers)
             .setTopic(topics)
             .build();
@@ -166,8 +167,7 @@ public class Source {
 
     switch (SourceType.valueOf(type)) {
       case KAFKA:
-        return bootstrapServers.equals(other.bootstrapServers) &&
-            topics.equals(other.topics);
+        return bootstrapServers.equals(other.bootstrapServers) && topics.equals(other.topics);
       case UNRECOGNIZED:
       default:
         return false;
@@ -184,5 +184,3 @@ public class Source {
     }
   }
 }
-
-
