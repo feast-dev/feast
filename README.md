@@ -10,6 +10,12 @@ Feast aims to:
 * Provide consistent and point-in-time correct access to feature data.
 * Enable discovery, documentation, and insights into your features.
 
+## Important resources
+* [Documentation](docs/)
+  * [Why Feast?](docs/why-feast.md)
+  * [Concepts](docs/concepts.md)
+  * [Installation](docs/getting-started/install-feast.md)
+
 ## Notice
 
 Feast is a community project and is still under active development. Your feedback and contributions are important to us. Please have a look at our [contributing guide](CONTRIBUTING.md) for details.
