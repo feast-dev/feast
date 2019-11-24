@@ -1,15 +1,13 @@
 package feast.serving.util;
 
 import io.prometheus.client.Counter;
+import io.prometheus.client.Histogram;
 import io.prometheus.client.Summary;
 
 public class Metrics {
 
-  public static final Summary requestLatency = Summary.build()
-      .quantile(0.5, 0.01)
-      .quantile(0.9, 0.01)
-      .quantile(0.95, 0.01)
-      .quantile(0.99, 0.01)
+  public static final Histogram requestLatency = Histogram.build()
+      .buckets(2, 4, 6, 8, 10, 15, 20, 25, 30, 35, 50)
       .name("request_latency_ms")
       .subsystem("feast_serving")
       .help("Request latency in milliseconds.")
