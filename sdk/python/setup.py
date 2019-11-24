@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import imp
-import os
-
 from setuptools import find_packages, setup
 
 NAME = "feast"
@@ -25,26 +22,26 @@ REQUIRES_PYTHON = ">=3.6.0"
 VERSION = "0.3.0"
 
 REQUIRED = [
-    "click>=7.0",
-    "google-api-core==1.*",
-    "google-auth==1.*",
-    "google-cloud-bigquery==1.*",
+    "Click==7.*",
+    "google-api-core==1.14.*",
+    "google-auth==1.6.*",
+    "google-cloud-bigquery==1.18.*",
     "google-cloud-storage==1.20.*",
-    "google-cloud-core==1.0.3",
+    "google-cloud-core==1.0.*",
     "googleapis-common-protos==1.*",
-    "google-cloud-bigquery-storage==0.*",
-    "grpcio==1.*",
+    "google-cloud-bigquery-storage==0.7.*",
+    "grpcio==1.23.*",
     "pandas==0.*",
-    "pandavro==1.5.1",
+    "pandavro==1.5.*",
     "protobuf==3.10.*",
-    "PyYAML==5.1.2",
-    "fastavro==0.*",
+    "PyYAML==5.1.*",
+    "fastavro==0.21.*",
     "kafka-python==1.4.*",
     "tabulate==0.8.*",
-    "toml==0.10.0",
-    "tqdm==4.*",
-    "numpy",
-    "google",
+    "toml==0.10.*",
+    "tqdm==4.31.*",
+    "numpy==1.16.*",
+    "google==2.0.*",
 ]
 
 setup(
