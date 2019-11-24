@@ -4,6 +4,16 @@
 
 [Full Changelog](https://github.com/gojek/feast/compare/v0.1.8...v0.3.0)
 
+**Summary:**
+
+* Introduced "Feature Sets" as a concept with a new [Feast Core API](https://github.com/gojek/feast/blob/v0.3.0/protos/feast/core/CoreService.proto), [Feast Serving API](https://github.com/gojek/feast/blob/v0.3.0/protos/feast/serving/ServingService.proto)
+* Upgraded [Python SDK](https://github.com/gojek/feast/tree/v0.3.0/sdk/python) to support new Feast API. Allows for management of Feast as a library or through the command line.
+* Implemented a [Golang SDK](https://github.com/gojek/feast/tree/v0.3.0/sdk/go) and [Java SDK](https://github.com/gojek/feast/tree/v0.3.0/sdk/java) to support the new Feast Core and Feast Serving APIs.
+* Added support for multi-feature set retrieval and joins.
+* Added point-in-time correct retrieval for both batch and online serving.
+* Added support for an external source in Kafka.
+* Added job management to Feast Core to manage ingestion/population jobs to remote Feast deployments
+* Added metric support through Prometheus
 
 **Merged pull requests:**
 
@@ -20,7 +30,7 @@
 - Database tweaks [\#290](https://github.com/gojek/feast/pull/290) ([smadarasmi](https://github.com/smadarasmi))
 - Feast Helm charts and build script [\#289](https://github.com/gojek/feast/pull/289) ([davidheryanto](https://github.com/davidheryanto))
 - Fix max\_age changes not updating specs and add TQDM silencing flag [\#292](https://github.com/gojek/feast/pull/292) ([woop](https://github.com/woop))
-- Zl/ingestion fixes [\#286](https://github.com/gojek/feast/pull/286) ([zhilingc](https://github.com/zhilingc))
+- Ingestion fixes [\#286](https://github.com/gojek/feast/pull/286) ([zhilingc](https://github.com/zhilingc))
 - Consolidate jobs [\#279](https://github.com/gojek/feast/pull/279) ([zhilingc](https://github.com/zhilingc))
 - Import Spring Boot's dependency BOM, fix spring-boot:run at parent project level [\#276](https://github.com/gojek/feast/pull/276) ([ches](https://github.com/ches))
 - Feast 0.3 Continuous Integration \(CI\) Update  [\#271](https://github.com/gojek/feast/pull/271) ([davidheryanto](https://github.com/davidheryanto))
@@ -31,7 +41,7 @@
 - Clean up the Maven build [\#262](https://github.com/gojek/feast/pull/262) ([ches](https://github.com/ches))
 - Add golang SDK [\#261](https://github.com/gojek/feast/pull/261) ([zhilingc](https://github.com/zhilingc))
 - Move storage configuration to serving [\#254](https://github.com/gojek/feast/pull/254) ([zhilingc](https://github.com/zhilingc))
-- 0.3 dev serving api change [\#253](https://github.com/gojek/feast/pull/253) ([zhilingc](https://github.com/zhilingc))
+- Serving API changes for 0.3 [\#253](https://github.com/gojek/feast/pull/253) ([zhilingc](https://github.com/zhilingc))
 
 ## [v0.1.8](https://github.com/gojek/feast/tree/v0.1.8) (2019-10-30)
 
@@ -52,37 +62,6 @@
 - Dataflow monitoring by core is failing with incorrect job id [\#153](https://github.com/gojek/feast/issues/153)
 - Feast core crashes without logger set [\#150](https://github.com/gojek/feast/issues/150)
 
-**Closed issues:**
-
-- Update Prow for Feast 0.3 to run tests for PRs on GitHub [\#275](https://github.com/gojek/feast/issues/275)
-- Remove JavaFX \(Oracle\) dependency and move to OpenJDK [\#266](https://github.com/gojek/feast/issues/266)
-- Update Go Client to Feast 0.3 for Online Serving [\#260](https://github.com/gojek/feast/issues/260)
-- Update Java Client to Feast 0.3 API for Online Serving [\#257](https://github.com/gojek/feast/issues/257)
-- Create end-to-end test for Feast 0.3 [\#256](https://github.com/gojek/feast/issues/256)
-- Move storage configuration to serving deployment [\#255](https://github.com/gojek/feast/issues/255)
-- StorageInfoRepository [\#233](https://github.com/gojek/feast/issues/233)
-- Error when running feast apply entity integration-tests/testdata/entity\_specs/entity\_1.yaml [\#226](https://github.com/gojek/feast/issues/226)
-- Does Feast help in feature engineering as a whole, i.e, calculating/ extracting the features or is this going to be developed in the near future? [\#220](https://github.com/gojek/feast/issues/220)
-- Redis Error saying JedisConnectionException:connection timed out [\#219](https://github.com/gojek/feast/issues/219)
-- Entity & feature deletion [\#202](https://github.com/gojek/feast/issues/202)
-- REDIS1 error  [\#193](https://github.com/gojek/feast/issues/193)
-- Not able to push to feature store [\#192](https://github.com/gojek/feast/issues/192)
-- Add nodeSelector to helm charts [\#186](https://github.com/gojek/feast/issues/186)
-- Multiple feature specs in a single yaml file [\#181](https://github.com/gojek/feast/issues/181)
-- Update continuous integration/deployment \(CI/CD\) process [\#180](https://github.com/gojek/feast/issues/180)
-- Integration test for streaming data [\#179](https://github.com/gojek/feast/issues/179)
-- Quickstart.ipynb shows Description field cannot be empty [\#178](https://github.com/gojek/feast/issues/178)
-- Default service type for Helm chart should not be LoadBalancer [\#161](https://github.com/gojek/feast/issues/161)
-- Support for ingesting flat json from text files and streams [\#140](https://github.com/gojek/feast/issues/140)
-- Ability to correct mistakes made by ingesting the wrong data [\#139](https://github.com/gojek/feast/issues/139)
-- Add ability to start job from yaml using python sdk [\#124](https://github.com/gojek/feast/issues/124)
-- Add build/test triggering for every PR and on the master branch [\#102](https://github.com/gojek/feast/issues/102)
-- Create Getting Started documentation [\#98](https://github.com/gojek/feast/issues/98)
-- Create a release [\#65](https://github.com/gojek/feast/issues/65)
-- Add python tests to unit testing script [\#58](https://github.com/gojek/feast/issues/58)
-- Create proper OWNERS files for each sub-component [\#41](https://github.com/gojek/feast/issues/41)
-- Option to create a resource without overwriting existing records [\#37](https://github.com/gojek/feast/issues/37)
-
 **Merged pull requests:**
 
 - Remove redis transaction [\#280](https://github.com/gojek/feast/pull/280) ([pradithya](https://github.com/pradithya))
@@ -95,19 +74,8 @@
 **Fixed bugs:**
 
 - Batch Import, feature with datetime format issue [\#203](https://github.com/gojek/feast/issues/203)
-- Serving not correctly report readiness check if there is no activity [\#190](https://github.com/gojek/feast/issues/190)
+- Serving not correctly reporting readiness check if there is no activity [\#190](https://github.com/gojek/feast/issues/190)
 - Serving stop periodically reloading feature specification after a while [\#188](https://github.com/gojek/feast/issues/188)
-
-**Closed issues:**
-
-- \[question\] I just confused why FlinkJobManager always use DirectRunner as runner. [\#231](https://github.com/gojek/feast/issues/231)
-- dtype 'datetime64\[ns, UTC\]' importer fails because key looks like 'datetime64\[ns, tz\]' [\#229](https://github.com/gojek/feast/issues/229)
-- Add filtering capability to create dataset api [\#214](https://github.com/gojek/feast/issues/214)
-- DataFlow throws out " java.io.FileNotFoundException: No files matched spec: bucket/ingestion\_1.csv" while executing [\#212](https://github.com/gojek/feast/issues/212)
-- Python tests for sdk are broken [\#204](https://github.com/gojek/feast/issues/204)
-- Python SDK create\_dataset is actually creating dataset in BQ [\#201](https://github.com/gojek/feast/issues/201)
-- Python SDK Importer unable to stage dataframe without timestamp [\#195](https://github.com/gojek/feast/issues/195)
-- Remove requirement to specify a staging bucket. [\#177](https://github.com/gojek/feast/issues/177)
 
 **Merged pull requests:**
 
@@ -140,12 +108,6 @@
 **Fixed bugs:**
 
 - Fix BigQuery query template to retrieve training data [\#182](https://github.com/gojek/feast/pull/182) ([davidheryanto](https://github.com/davidheryanto))
-
-**Closed issues:**
-
-- "pip install Feast" does not work properly   [\#175](https://github.com/gojek/feast/issues/175)
-- Push Feast Python SDK to https://pypi.org [\#121](https://github.com/gojek/feast/issues/121)
-- Toggle data stores using flags in feature specifications [\#38](https://github.com/gojek/feast/issues/38)
 
 **Merged pull requests:**
 
@@ -234,38 +196,6 @@
 - Runtime Dependency Error After Upgrade to Beam 2.9.0 [\#44](https://github.com/gojek/feast/issues/44)
 - \[FlinkRunner\] Core should not follow remote flink runner job to completion [\#21](https://github.com/gojek/feast/issues/21)
 - Go packages in protos use incorrect repo [\#16](https://github.com/gojek/feast/issues/16)
-
-**Closed issues:**
-
-- Build failure in cloudbuild [\#128](https://github.com/gojek/feast/issues/128)
-- Add Redis to Feast Helm chart [\#122](https://github.com/gojek/feast/issues/122)
-- RedisIO fails to ingest all of the data [\#118](https://github.com/gojek/feast/issues/118)
-- Error thrown by core when requesting feature spec is not clear [\#116](https://github.com/gojek/feast/issues/116)
-- Add filter to ingress for internal load balancer defined in helm chart [\#113](https://github.com/gojek/feast/issues/113)
-- Build on master branch [\#111](https://github.com/gojek/feast/issues/111)
-- Cleanup warning while compiling protobuf [\#107](https://github.com/gojek/feast/issues/107)
-- Include ui into core's build [\#105](https://github.com/gojek/feast/issues/105)
-- Go tests failing for CLI [\#96](https://github.com/gojek/feast/issues/96)
-- Update CLI to reflect recent changes in API [\#84](https://github.com/gojek/feast/issues/84)
-- Jackson dependency issues [\#81](https://github.com/gojek/feast/issues/81)
-- Branch conflicts with tag when using cloud build trigger [\#78](https://github.com/gojek/feast/issues/78)
-- Newest \(latest?\) value of a feature [\#77](https://github.com/gojek/feast/issues/77)
-- Create helm package repo to host helm charts [\#70](https://github.com/gojek/feast/issues/70)
-- Option to add service account to core deployment. [\#69](https://github.com/gojek/feast/issues/69)
-- Deduplicate list of storages in specs service [\#66](https://github.com/gojek/feast/issues/66)
-- Vulnerability in dependency \(webpack-dev-server\) [\#60](https://github.com/gojek/feast/issues/60)
-- Add build process for docker images [\#55](https://github.com/gojek/feast/issues/55)
-- Python SDK [\#48](https://github.com/gojek/feast/issues/48)
-- Bump Apache Beam SDK version [\#42](https://github.com/gojek/feast/issues/42)
-- Fix unit tests script [\#36](https://github.com/gojek/feast/issues/36)
-- Create CONTRIBUTING documentation [\#32](https://github.com/gojek/feast/issues/32)
-- Errors during kafka deserializer \(passing\) test execution [\#31](https://github.com/gojek/feast/issues/31)
-- Removal of ingestion's profile for different runner [\#28](https://github.com/gojek/feast/issues/28)
-- Error Store should not require a storage spec [\#27](https://github.com/gojek/feast/issues/27)
-- \[FlinkRunner\] Ingestion job tries to connect to every store available in core [\#20](https://github.com/gojek/feast/issues/20)
-- FeatureRow proto to wrap FeatureRowKey and FeatureRowMessage [\#13](https://github.com/gojek/feast/issues/13)
-- Ingestion should fail immediately when there are no valid stores [\#12](https://github.com/gojek/feast/issues/12)
-- Create CI [\#2](https://github.com/gojek/feast/issues/2)
 
 **Merged pull requests:**
 
