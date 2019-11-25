@@ -11,18 +11,16 @@
 
 ## Mailing list
 
-#### Feast discussion
+### Feast discussion
 
-* Google Group: [https://groups.google.com/d/forum/feast-discuss](https://groups.google.com/d/forum/feast-discuss
-  )
+* Google Group: \[[https://groups.google.com/d/forum/feast-discuss\]\(https://groups.google.com/d/forum/feast-discuss](https://groups.google.com/d/forum/feast-discuss]%28https://groups.google.com/d/forum/feast-discuss)
+
+  \)
+
 * Mailing List: [feast-discuss@googlegroups.com](mailto:feast-discuss@googlegroups.com)
 
-#### Feast development
+### Feast development
 
 * Google Group: [https://groups.google.com/d/forum/feast-dev](https://groups.google.com/d/forum/feast-dev)
 * Mailing List: [feast-dev@googlegroups.com](mailto:feast-dev@googlegroups.com)
-
-### 
-
-
 
