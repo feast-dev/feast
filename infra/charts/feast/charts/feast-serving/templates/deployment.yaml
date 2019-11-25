@@ -11,8 +11,9 @@ metadata:
     heritage: {{ .Release.Service }}
   annotations:
     {{- if .Values.prometheus.enabled }}
+    {{ $config := index .Values "application.yaml" }}
     prometheus.io/path: /metrics
-    prometheus.io/port: "{{ .Values.application.yaml.server.port }}"
+    prometheus.io/port: "{{ $config.server.port }}"
     prometheus.io/scrape: "true"
     {{- end }}
 spec:
