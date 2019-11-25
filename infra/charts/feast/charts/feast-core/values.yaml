@@ -42,7 +42,7 @@ replicaCount: 1
 # image configures the Docker image for Feast Core
 image:
   repository: gcr.io/kf-feast/feast-core
-  tag: 0.3.0
+  tag: 0.3.1
   pullPolicy: IfNotPresent
 
 # application.yaml is the main configuration for Feast Core application.

@@ -29,7 +29,7 @@ replicaCount: 1
 # image configures the Docker image for Feast Serving
 image:
   repository: gcr.io/kf-feast/feast-serving
-  tag: 0.3.0
+  tag: 0.3.1
   pullPolicy: IfNotPresent
 
 # application.yaml is the main configuration for Feast Serving application.
@@ -65,9 +65,6 @@ application.yaml:
     enable-reflection: true
   server:
     port: 8080
-  spring:
-    main:
-      web-application-type: none
 
 # store.yaml is the configuration for Feast Store.
 # 
