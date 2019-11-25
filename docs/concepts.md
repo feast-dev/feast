@@ -65,7 +65,7 @@ customer_df = pd.read_csv("customer_data.csv")
 cust_trans_fs = FeatureSet.from_yaml("customer_transactions_feature_set.yaml")
 
 # Load feature data into Feast for this specific feature set
-cust_trans_fs.ingest(dataframe=customer_data)
+client.ingest(cust_trans_fs, customer_data)
 ```
 
 ### Feature
