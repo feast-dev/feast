@@ -1,5 +1,6 @@
 import logging
 import math
+import multiprocessing
 import os
 import time
 import numpy as np
@@ -20,27 +21,50 @@ FEAST_SERVING_URL_ENV_KEY = "FEAST_SERVING_URL"  # type: str
 FEAST_CORE_URL_ENV_KEY = "FEAST_CORE_URL"  # type: str
 BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS = 300
 CPU_COUNT = os.cpu_count()  # type: int
+KAFKA_CHUNK_PRODUCTION_TIMEOUT = 120  # type: int
 
 
 def _kafka_feature_row_chunk_producer(
-    feature_row_chunk_queue: Queue, chunk_count: int, brokers, topic, progress_bar: tqdm
+    feature_row_chunk_queue: Queue,
+    chunk_count: int,
+    brokers,
+    topic,
+    ctx: dict,
+    pbar: tqdm,
 ):
-    processed_chunks = 0
-    rows_processed = 0
+    # Callback for failed production to Kafka
+    def on_error(e):
+        # Save last exception
+        ctx["last_exception"] = e
+
+        # Increment error count
+        if "error_count" in ctx:
+            ctx["error_count"] += 1
+        else:
+            ctx["error_count"] = 1
+
+    # Callback for succeeded production to Kafka
+    def on_success(meta):
+        pbar.update()
+
     producer = KafkaProducer(bootstrap_servers=brokers)
+    processed_chunks = 0
+
     while processed_chunks < chunk_count:
         if feature_row_chunk_queue.empty():
             time.sleep(0.1)
         else:
             feature_rows = feature_row_chunk_queue.get()
-            rows_processed += len(feature_rows)
             for row in feature_rows:
-                progress_bar.update()
-                producer.send(topic, row.SerializeToString())
-
-            producer.flush()
-            progress_bar.refresh()
+                producer.send(topic, row.SerializeToString()).add_callback(
+                    on_success
+                ).add_errback(on_error)
+            producer.flush(timeout=KAFKA_CHUNK_PRODUCTION_TIMEOUT)
             processed_chunks += 1
+            pbar.refresh()
+    # Using progress bar as counter is much faster than incrementing dict
+    ctx["success_count"] = pbar.n
+    pbar.close()
 
 
 def _encode_chunk(df: pd.DataFrame, feature_set: FeatureSet):
@@ -52,12 +76,11 @@ def ingest_kafka(
     feature_set: FeatureSet,
     dataframe: pd.DataFrame,
     max_workers: int,
+    timeout: int = None,
     chunk_size: int = 5000,
-    disable_progress_bar: bool = False,
+    disable_pbar: bool = False,
 ):
-    progress_bar = tqdm(
-        unit="rows", total=dataframe.shape[0], disable=disable_progress_bar
-    )
+    pbar = tqdm(unit="rows", total=dataframe.shape[0], disable=disable_pbar)
 
     # Validate feature set schema
     validate_dataframe(dataframe, feature_set)
@@ -66,10 +89,15 @@ def ingest_kafka(
     num_chunks = max(dataframe.shape[0] / max(chunk_size, 100), 1)
     df_chunks = np.array_split(dataframe, num_chunks)
 
-    # Create queue through which encoding and ingestion will coordinate
+    # Create queue through which encoding and production will coordinate
     chunk_queue = Queue()
 
-    # Start ingestion process to push feature rows to Kafka
+    # Create a context object to send and receive information across processes
+    ctx = multiprocessing.Manager().dict(
+        {"success_count": 0, "error_count": 0, "last_exception": ""}
+    )
+
+    # Create producer to push feature rows to Kafka
     ingestion_process = Process(
         target=_kafka_feature_row_chunk_producer,
         args=(
@@ -77,12 +105,14 @@ def ingest_kafka(
             num_chunks,
             feature_set.get_kafka_source_brokers(),
             feature_set.get_kafka_source_topic(),
-            progress_bar,
+            ctx,
+            pbar,
         ),
     )
 
     try:
         # Start ingestion process
+        print(f"\nIngestion started for {feature_set.name}:{feature_set.version}")
         ingestion_process.start()
 
         # Create a pool of workers to convert df chunks into feature row chunks
@@ -95,17 +125,32 @@ def ingest_kafka(
                     _encode_chunk,
                     zip(df_chunks[chunks_done:chunks_to], repeat(feature_set)),
                 )
+
+                # Push feature row encoded chunks onto queue
                 for result in results.get():
                     chunk_queue.put(result)
                 chunks_done += max_workers
     except Exception as ex:
         _logger.error(f"Exception occurred: {ex}")
     finally:
-        ingestion_process.join()
-        rows_ingested = progress_bar.total
-        progress_bar.close()
+        # Wait for ingestion to complete, or time out
+        ingestion_process.join(timeout=timeout)
+        failed_message = (
+            ""
+            if ctx["error_count"] == 0
+            else f"\nFail: {ctx['error_count']}/{dataframe.shape[0]}"
+        )
+
+        last_exception_message = (
+            ""
+            if ctx["last_exception"] == ""
+            else f"\nLast exception:\n{ctx['last_exception']}"
+        )
         print(
-            f"\nIngested {rows_ingested} rows into {feature_set.name}:{feature_set.version}"
+            f"\nIngestion statistics:"
+            f"\nSuccess: {ctx['success_count']}/{dataframe.shape[0]}"
+            f"{failed_message}"
+            f"{last_exception_message}"
         )
 
 

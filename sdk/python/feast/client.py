@@ -464,6 +464,7 @@ class Client:
         max_workers: int = CPU_COUNT,
         disable_progress_bar: bool = False,
         chunk_size: int = 5000,
+        timeout: int = None,
     ):
         """
         Loads data into Feast for a specific feature set.
@@ -485,6 +486,7 @@ class Client:
         chunk_size: Number of rows per chunk to encode before ingesting to
         Feast
         """
+
         if isinstance(feature_set, FeatureSet):
             name = feature_set.name
             if version is None:
@@ -508,8 +510,9 @@ class Client:
                 feature_set=feature_set,
                 dataframe=dataframe,
                 max_workers=max_workers,
-                disable_progress_bar=disable_progress_bar,
+                disable_pbar=disable_progress_bar,
                 chunk_size=chunk_size,
+                timeout=timeout,
             )
         else:
             raise Exception(
