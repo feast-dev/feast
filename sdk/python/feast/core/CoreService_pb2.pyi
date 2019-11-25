@@ -38,12 +38,12 @@ from typing_extensions import (
 class GetFeatureSetRequest(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
     name = ... # type: typing___Text
-    version = ... # type: typing___Text
+    version = ... # type: int
 
     def __init__(self,
         *,
         name : typing___Optional[typing___Text] = None,
-        version : typing___Optional[typing___Text] = None,
+        version : typing___Optional[int] = None,
         ) -> None: ...
     @classmethod
     def FromString(cls, s: bytes) -> GetFeatureSetRequest: ...

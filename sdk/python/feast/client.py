@@ -271,8 +271,11 @@ class Client:
         """
         self._connect_core()
         try:
+            name = name.strip()
+            if version is None:
+                version = 0
             get_feature_set_response = self._core_service_stub.GetFeatureSet(
-                GetFeatureSetRequest(name=name.strip(), version=str(version))
+                GetFeatureSetRequest(name=name, version=version)
             )  # type: GetFeatureSetResponse
             feature_set = get_feature_set_response.feature_set
         except grpc.RpcError as e:
@@ -505,7 +508,7 @@ class Client:
                 feature_set=feature_set,
                 dataframe=dataframe,
                 max_workers=max_workers,
-                disable_progress_bar=disable_progress_bar,
+                disable_pbar=disable_progress_bar,
                 chunk_size=chunk_size,
             )
         else:

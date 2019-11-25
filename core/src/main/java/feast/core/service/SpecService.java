@@ -101,35 +101,23 @@ public class SpecService {
             .asRuntimeException();
       }
 
-      // Find a list of feature sets with the requested name
-      List<FeatureSet> featureSets = featureSetRepository.findByNameWithWildcard(request.getName());
+      FeatureSet featureSet;
 
       // Filter the list based on version
       if (request.getVersion() == 0){
-        // Version is not set, filter list to latest version
-        featureSets = Ordering.natural().reverse()
-            .sortedCopy(featureSets).subList(0, featureSets.size() == 0 ? 0 : 1);
-      } else if(request.getVersion() > 0) {
-        // Version is set, find specific version
-        featureSets = featureSets.stream()
-            .filter(fs -> request.getVersion() == fs.getVersion()).collect(Collectors.toList());
+        featureSet = featureSetRepository.findFirstFeatureSetByNameOrderByVersionDesc(request.getName());
+      } else {
+        featureSet = featureSetRepository.findFeatureSetByNameAndVersion(request.getName(), request.getVersion());
       }
 
-      // Validate remaining items
-      if (featureSets.size() == 0){
+      if (featureSet == null){
         throw io.grpc.Status.NOT_FOUND
             .withDescription("Feature set could not be found")
             .asRuntimeException();
       }
-      if (featureSets.size() > 1){
-        throw io.grpc.Status.INTERNAL
-            .withDescription(String.format("Multiple feature sets found with the name %s and "
-                + "version %s", request.getName(), request.getVersion()))
-            .asRuntimeException();
-      }
 
       // Only a single item in list, return successfully
-      return GetFeatureSetResponse.newBuilder().setFeatureSet(featureSets.get(0).toProto()).build();
+      return GetFeatureSetResponse.newBuilder().setFeatureSet(featureSet.toProto()).build();
   }
 
   /**
