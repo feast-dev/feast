@@ -16,6 +16,7 @@ import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Subscription;
 import feast.serving.exception.SpecRetrievalException;
 import io.grpc.StatusRuntimeException;
+import io.prometheus.client.Gauge;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,6 +40,15 @@ public class CachedSpecService {
   private final CacheLoader<String, FeatureSetSpec> featureSetSpecCacheLoader;
   private final LoadingCache<String, FeatureSetSpec> featureSetSpecCache;
   private Store store;
+
+  private static Gauge featureSetsCount = Gauge.build().name("feature_set_count")
+      .subsystem("feast_serving")
+      .help("number of feature sets served by this instance")
+      .register();
+  private static Gauge cacheLastUpdated = Gauge.build().name("cache_last_updated")
+      .subsystem("feast_serving")
+      .help("epoch time of the last time the cache was updated")
+      .register();
 
   public CachedSpecService(CoreSpecService coreService, Path configPath) {
     this.configPath = configPath;
@@ -102,6 +112,9 @@ public class CachedSpecService {
     this.store = updateStore(readConfig(configPath));
     Map<String, FeatureSetSpec> featureSetSpecMap = getFeatureSetSpecMap();
     featureSetSpecCache.putAll(featureSetSpecMap);
+
+    featureSetsCount.set(featureSetSpecCache.size());
+    cacheLastUpdated.set(System.currentTimeMillis());
   }
 
   public void scheduledPopulateCache() {

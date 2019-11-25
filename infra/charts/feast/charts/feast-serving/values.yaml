@@ -63,6 +63,8 @@ application.yaml:
   grpc:
     port: 6566
     enable-reflection: true
+  server:
+    port: 8080
   spring:
     main:
       web-application-type: none
@@ -176,6 +178,9 @@ ingress:
   hosts:
   # - host: chart-example.local
   #   port: http
+
+prometheus:
+  enabled: true
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
