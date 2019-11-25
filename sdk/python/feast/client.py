@@ -508,7 +508,7 @@ class Client:
                 feature_set=feature_set,
                 dataframe=dataframe,
                 max_workers=max_workers,
-                disable_pbar=disable_progress_bar,
+                disable_progress_bar=disable_progress_bar,
                 chunk_size=chunk_size,
             )
         else:
