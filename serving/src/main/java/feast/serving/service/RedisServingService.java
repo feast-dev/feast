@@ -46,7 +46,7 @@ import feast.types.ValueProto.Value;
 import io.grpc.Status;
 import io.opentracing.Scope;
 import io.opentracing.Tracer;
-import io.prometheus.client.Summary.Timer;
+import io.prometheus.client.Histogram.Timer;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;

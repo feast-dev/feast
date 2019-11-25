@@ -39,7 +39,7 @@ import feast.serving.ServingAPIProto.JobStatus;
 import feast.serving.ServingAPIProto.JobType;
 import feast.serving.util.BigQueryUtil;
 import io.grpc.Status;
-import io.prometheus.client.Summary.Timer;
+import io.prometheus.client.Histogram.Timer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
