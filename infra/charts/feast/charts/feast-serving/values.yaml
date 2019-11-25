@@ -65,9 +65,6 @@ application.yaml:
     enable-reflection: true
   server:
     port: 8080
-  spring:
-    main:
-      web-application-type: none
 
 # store.yaml is the configuration for Feast Store.
 # 
