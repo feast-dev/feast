@@ -10,9 +10,9 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
   annotations:
-    {{- if prometheus.enabled }}
+    {{- if .Values.prometheus.enabled }}
     prometheus.io/path: /metrics
-    prometheus.io/port: "8080"
+    prometheus.io/port: "{{ .Values.application.yaml.server.port }}"
     prometheus.io/scrape: "true"
     {{- end }}
 spec:
