@@ -81,11 +81,13 @@ def dtype_to_feast_value_attr(dtype):
 
 
 def dtype_to_value_type(dtype):
-    """Returns the equivalent feast valueType for the given dtype
-    Args:
-        dtype (pandas.dtype): pandas dtype
-    Returns:
-        feast.types.ValueType2.ValueType: equivalent feast valuetype
+    """
+    Returns the equivalent feast valueType for the given dtype.
+
+    :param dtype: Pandas dtype.
+    :type dtype: pandas.dtype
+    :return: Equivalent feast value type.
+    :rtype: feast.types.ValueType2.ValueType
     """
     # Mapping of pandas dtypes to feast value type strings
     type_map = {
@@ -128,19 +130,19 @@ def pandas_dtype_to_feast_value_type(dtype: pd.DataFrame.dtypes) -> ValueType:
     return type_map[dtype.__str__()]
 
 
-def convert_df_to_feature_rows(dataframe: pd.DataFrame,
-                               feature_set: FeatureSet) -> Callable:
+def convert_df_to_feature_rows(
+        dataframe: pd.DataFrame,
+        feature_set: FeatureSet
+) -> Callable:
     """
     Function to convert pandas DataFrame to FeatureRow protos.
-    This must be used in a dataframe.apply() function.
 
-    Args:
-        dataframe (pd.DataFrame): Input DataFrame to use.
-        feature_set (FeatureSet): FeatureSet representing a collection of
-            features.
-
-    Returns:
-        Callable: Function to convert a row in DataFrame to FeatureRow object.
+    :param dataframe: Input DataFrame to use.
+    :type dataframe: pd.DataFrame
+    :param feature_set: FeatureSet representing a collection of features.
+    :type feature_set: FeatureSet
+    :return: Function to convert a row in DataFrame to FeatureRow object.
+    :rtype: Callable
     """
 
     def convert_series_to_proto_values(row: pd.Series) -> \
@@ -148,11 +150,10 @@ def convert_df_to_feature_rows(dataframe: pd.DataFrame,
         """
         Nested function to convert a row in a DataFrame to a FeatureRow object.
 
-        Args:
-            row (pd.Series): Row to convert to FeatureRow object.
-
-        Returns:
-            FeatureRow: FeatureRow object.
+        :param row: Row to convert to FeatureRow object.
+        :type row: pd.Series
+        :return: FeatureRow object.
+        :rtype: FeatureRow
         """
         feature_row = FeatureRowProto.FeatureRow(
             event_timestamp=pd_datetime_to_timestamp_proto(

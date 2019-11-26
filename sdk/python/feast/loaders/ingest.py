@@ -48,7 +48,7 @@ def _kafka_feature_row_chunk_producer(
         topic,
         ctx: dict,
         pbar: tqdm,
-):
+) -> None:
     # Callback for failed production to Kafka
     def on_error(e):
         # Save last exception
@@ -85,44 +85,41 @@ def _kafka_feature_row_chunk_producer(
 
 
 # TODO: This function is not in use.
-def _encode_chunk(df: pd.DataFrame, feature_set: FeatureSet) \
-        -> List[FeatureRow]:
+def _encode_chunk(
+        df: pd.DataFrame, feature_set: FeatureSet
+) -> List[FeatureRow]:
     """
     Encode DataFrame chunk into feature rows chunk.
 
-    Args:
-        df (pd.DataFrame): DataFrame to encode.
-        feature_set (FeatureSet): FeatureSet describing the DataFrame.
-
-    Returns:
-        List[FeatureRow]:
-            List of FeatureRow objects.
+    :param df: DataFrame to encode.
+    :type df: pd.DataFrame
+    :param feature_set: FeatureSet describing the DataFrame.
+    :type feature_set: FeatureSet
+    :return: List of FeatureRow objects.
+    :rtype: List[FeatureRow]
     """
     return df.apply(convert_df_to_feature_rows(df, feature_set), axis=1,
                     raw=True)
 
 
 # TODO: This function is not in use.
-def encode_df_chunks(df: pd.DataFrame, feature_set: FeatureSet,
-                     chunk_size: int = None) \
-        -> Iterable[Tuple[int, List[FeatureRow]]]:
+def encode_df_chunks(
+        df: pd.DataFrame, feature_set: FeatureSet,
+        chunk_size: int = None
+) -> Iterable[Tuple[int, List[FeatureRow]]]:
     """
     Generator function to encode chunks of DataFrame into a chunked list of
     FeatureRow objects.
 
-    Args:
-        df (pd.DataFrame):
-            DataFrame to encode.
-        feature_set (FeatureSet):
-            FeatureSet describing the DataFrame.
-        chunk_size (int):
-            Size of DataFrame to encode.
-
-    Returns:
-        Iterable[Tuple[int, List[FeatureRow]]]:
-            Iterable tuple containing the remaining rows in generator and a
-            list of FeatureRow objects generated from encoding a chunk of
-            DataFrame.
+    :param df: DataFrame to encode.
+    :type df: pd.DataFrame
+    :param feature_set: FeatureSet describing the DataFrame.
+    :type feature_set: FeatureSet
+    :param chunk_size: Size of DataFrame to encode.
+    :type chunk_size: int
+    :return: Iterable tuple containing the remaining rows in generator and a
+        list of FeatureRow objects generated from encoding a chunk of DataFrame.
+    :rtype: Iterable[Tuple[int, List[FeatureRow]]]
     """
     df = df.reset_index(drop=True)
     if chunk_size is None:
@@ -142,27 +139,25 @@ def encode_df_chunks(df: pd.DataFrame, feature_set: FeatureSet,
 
 
 # TODO: This function is not in use.
-def encode_pa_chunks(table: pa.lib.Table,
-                     feature_set: FeatureSet,
-                     chunk_size: int = None) \
-        -> Iterable[Tuple[int, List[FeatureRow]]]:
+def encode_pa_chunks(
+        table: pa.lib.Table,
+        feature_set: FeatureSet,
+        chunk_size: int = None
+) -> Iterable[Tuple[int, List[FeatureRow]]]:
     """
     Generator function to encode chunks of PyArrow table of type RecordBatch
     into a chunked list of FeatureRow objects.
 
-    Args:
-        table (pa.lib.Table):
-            PyArrow table.
-        feature_set (FeatureSet):
-            FeatureSet describing the PyArrow table.
-        chunk_size (int):
-            Size of DataFrame to encode.
-
-    Returns:
-        Iterable[Tuple[int, List[FeatureRow]]]:
-            Iterable tuple containing the remaining batches in generator and a
-            list of FeatureRow objects generated from encoding a RecordBatch of
-            PyArrow table.
+    :param table: PyArrow table.
+    :type table: pa.lib.Table
+    :param feature_set: FeatureSet describing the PyArrow table.
+    :type feature_set: FeatureSet
+    :param chunk_size: Size of DataFrame to encode.
+    :type chunk_size: int
+    :return: Iterable tuple containing the remaining batches in generator and
+        a list of FeatureRow objects generated from encoding a RecordBatch of
+        PyArrow table.
+    :rtype: Iterable[Tuple[int, List[FeatureRow]]]
     """
     if chunk_size is None:
         # Encode the entire table
@@ -184,7 +179,7 @@ def ingest_kafka(
         timeout: int = None,
         chunk_size: int = 5000,
         disable_pbar: bool = False,
-):
+) -> None:
     pbar = tqdm(unit="rows", total=dataframe.shape[0], disable=disable_pbar)
 
     # Validate feature set schema
@@ -268,14 +263,12 @@ def validate_dataframe(dataframe: pd.DataFrame, fs: FeatureSet) -> None:
     An error will be raised if there are no matching entity/feature names in
     FeatureSet and DataFrame.
 
-    Args:
-        dataframe (pd.DataFrame):
-            Pandas DataFrame to be validated.
-        fs (FeatureSet):
-            FeatureSet that DataFrame should be validated against.
-
-    Returns:
-        None
+    :param dataframe: Pandas DataFrame to be validated.
+    :type dataframe: pd.DataFrame
+    :param fs: FeatureSet that DataFrame should be validated against.
+    :type fs: FeatureSet
+    :return: None
+    :rtype: None
     """
     if "datetime" not in dataframe.columns:
         raise ValueError(

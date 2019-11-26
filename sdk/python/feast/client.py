@@ -101,9 +101,8 @@ class Client:
         """
         Returns version information from Feast Core and Feast Serving.
 
-        Returns:
-            dict:
-                Dictionary containing Core and Serving versions and status
+        :return: Dictionary containing Core and Serving versions and status
+        :rtype: dict
         """
         self._connect_core()
         self._connect_serving()
@@ -150,11 +149,10 @@ class Client:
         """
         Connect to Core API.
 
-        Args:
-            skip_if_connected (bool):
-
-        Returns:
-            None
+        :param skip_if_connected:
+        :type skip_if_connected: bool
+        :return: None
+        :rtype: None
         """
         if skip_if_connected and self._core_service_stub:
             return
@@ -180,13 +178,12 @@ class Client:
 
     def _connect_serving(self, skip_if_connected=True) -> None:
         """
-        Connect to Serving API
+        Connect to Serving API.
 
-        Args:
-            skip_if_connected (bool):
-
-        Returns:
-            None
+        :param skip_if_connected:
+        :type skip_if_connected: bool
+        :return: None
+        :rtype: None
         """
         if skip_if_connected and self._serving_service_stub:
             return
@@ -211,16 +208,15 @@ class Client:
             self._serving_service_stub = ServingServiceStub(
                 self.__serving_channel)
 
-    def apply(self, feature_sets: Union[List[FeatureSet], FeatureSet]):
+    def apply(self, feature_sets: Union[List[FeatureSet], FeatureSet]) -> None:
         """
         Idempotently registers feature set(s) with Feast Core.
         Either a single feature set or a list can be provided.
 
-        Args:
-            feature_sets Union[List[FeatureSet], FeatureSet]:
-
-        Returns:
-
+        :param feature_sets:
+        :type feature_sets: Union[List[FeatureSet], FeatureSet]
+        :return: None
+        :rtype: None
         """
         if not isinstance(feature_sets, list):
             feature_sets = [feature_sets]
@@ -266,9 +262,8 @@ class Client:
         """
         Retrieve a list of feature sets from Feast Core.
 
-        Returns:
-            List[FeatureSet]:
-                Returns a list of feature sets.
+        :return: Returns a list of feature sets.
+        :rtype: List[FeatureSet]
         """
         self._connect_core()
 
@@ -296,17 +291,15 @@ class Client:
         """
         Retrieve a single feature set from Feast Core.
 
-        Args:
-            name (str):
-                Name of feature set.
-            version (int):
-                Version of feature set.
-            fail_if_missing(bool):
-                Throws an exception if the feature set is not found.
-
-        Returns:
-            Union[FeatureSet, None]:
-                Returns a single feature set
+        :param name: Name of feature set.
+        :type name: str
+        :param version: Version of feature set.
+        :type version: int
+        :param fail_if_missing: Throws an exception if the feature set is not
+            found.
+        :type fail_if_missing: bool
+        :return: Returns a single feature set.
+        :rtype: Union[FeatureSet, None]
         """
         self._connect_core()
         try:
@@ -333,9 +326,8 @@ class Client:
         """
         Returns a dictionary of entities across all feature sets.
 
-        Returns:
-            Dict[str, Entity]:
-                Dictionary of entity name to Entity
+        :return: Dictionary of entity name to Entity.
+        :rtype: Dict[str, Entity]
         """
         entities_dict = OrderedDict()
         for fs in self.list_feature_sets():
@@ -343,25 +335,25 @@ class Client:
                 entities_dict[entity.name] = entity
         return entities_dict
 
-    def get_batch_features(
-            self, feature_ids: List[str], entity_rows: pd.DataFrame
-    ) -> Job:
+    def get_batch_features(self, feature_ids: List[str],
+                           entity_rows: pd.DataFrame) -> Job:
         """
         Retrieves historical features from a Feast Serving deployment.
 
-        Args:
-            feature_ids (List[str]):
-                List of feature ids that will be returned for each entity.
-                Each feature id should have the following format
-                "feature_set_name:version:feature_name".
+        :param feature_ids: List of feature ids that will be returned for each
+            entity. Each feature id should have the following format
+            "feature_set_name:version:feature_name".
+        :type feature_ids: List[str]
+        :param entity_rows: Pandas DataFrame containing entities and a
+            'datetime' column. Each entity in feature set must be present as a
+            column in this DataFrame. The datetime column must contain
+            timestamps in datetime64 format.
+        :type entity_rows: pd.DataFrame
+        :return: Feast batch retrieval job.
+        :rtype: feast.job.Job
 
-            entity_rows (pd.DataFrame):
-                Pandas DataFrame containing entities and a 'datetime' column.
-                Each entity in feature set must be present as a column in this
-                DataFrame. The datetime column must contain timestamps in
-                datetime64 format.
+        :Example:
 
-        Example usage:
         ============================================================
         >>> from feast import Client
         >>> from datetime import datetime
@@ -380,11 +372,7 @@ class Client:
         >>> df = feature_retrieval_job.to_dataframe()
         >>> print(df)
 
-        Returns:
-            feast.job.Job:
-                Feast batch retrieval job.
         """
-
         self._connect_serving()
 
         try:
@@ -423,7 +411,7 @@ class Client:
                     f'which does not support batch retrieval'
                 )
 
-            # Export and upload entity row dataframe to staging location
+            # Export and upload entity row DataFrame to staging location
             # provided by Feast
             staged_file = export_dataframe_to_staging_location(
                 entity_rows, serving_info.job_staging_location
@@ -449,22 +437,20 @@ class Client:
 
     def _validate_entity_rows_for_batch_retrieval(
             self, entity_rows: pd.DataFrame,
-            feature_sets_request: FeatureSetRequest
+            feature_sets_request: List[FeatureSetRequest]
     ) -> None:
         """
         Validate whether an entity_row DataFrame contains the correct
         information for batch retrieval.
 
-        Args:
-            entity_rows (pd.DataFrame):
-                Pandas DataFrame containing entities and datetime column. Each
-                entity in a feature set must be present as a column in this
-                DataFrame.
-            feature_sets_request (List[FeatureSet]):
-                List of FeatureSet objects.
-
-        Returns:
-            None
+        :param entity_rows: Pandas DataFrame containing entities and datetime
+            column. Each entity in a feature set must be present as a column in
+            this DataFrame.
+        :type entity_rows: pd.DataFrame
+        :param feature_sets_request: List of FeatureSet objects.
+        :type feature_sets_request: List[FeatureSetRequest]
+        :return: None
+        :rtype: None
         """
         # Ensure datetime column exists
         if "datetime" not in entity_rows.columns:
@@ -492,32 +478,30 @@ class Client:
                     )
 
     def get_online_features(
-            self,
-            feature_ids: List[str],
+            self, feature_ids: List[str],
             entity_rows: List[GetOnlineFeaturesRequest.EntityRow],
     ) -> GetOnlineFeaturesResponse:
         """
         Retrieves the latest online feature data from Feast Serving.
 
-        Args:
-            feature_ids (List[str]):
-                List of feature Ids in the following format
-                [feature_set_name]:[version]:[feature_name]
-            entity_rows (List[GetOnlineFeaturesRequest.EntityRow]):
-                List of GetFeaturesRequest.EntityRow where each row contains
-                entities. Timestamp should not be set for online retrieval.
-                All entity types within a feature set must be provided for each
-                entity key.
+        :param feature_ids: List of feature Ids in the following format
+            [feature_set_name]:[version]:[feature_name].
+        :type feature_ids: List[str]
+        :param entity_rows: List of GetFeaturesRequest.EntityRow where each row
+            contains entities. Timestamp should not be set for online retrieval.
+            All entity types within a feature set must be provided for each
+            entity key.
+        :type entity_rows: List[GetOnlineFeaturesRequest.EntityRow]
+        :return: Returns a list of maps where each item in the list contains
+            the latest feature values for the provided entities.
+        :rtype: GetOnlineFeaturesResponse
 
-        Examples:
-            List of feature ids:
-                ["feature_set_1:6:my_feature_1",
-                "feature_set_1:6:my_feature_2",]
+        :Example:
 
-        Returns:
-            GetOnlineFeaturesResponse:
-                Returns a list of maps where each item in the list contains the
-                latest feature values for the provided entities.
+        ============================================================
+        >>> feature_ids = ["feature_set_1:6:my_feature_1",
+                           "feature_set_1:6:my_feature_2",]
+
         """
         self._connect_serving()
 
@@ -535,42 +519,41 @@ class Client:
             return response
 
     def ingest(
-            self,
-            feature_set: Union[str, FeatureSet],
+            self, feature_set: Union[str, FeatureSet],
             dataframe: pd.DataFrame,
             version: int = None,
             force_update: bool = False,
             max_workers: int = CPU_COUNT,
             disable_progress_bar: bool = False,
             chunk_size: int = 5000,
-            timeout: int = None,
+            timeout: int = None
     ) -> None:
         """
         Loads data into Feast for a specific feature set.
 
-        Args:
-            feature_set (Union[str, FeatureSet]:
-                Feature set object or the string name of the feature set
-                (without a version).
-            dataframe (pd.DataFrame):
-                Pandas DataFarme to load into Feast for this feature set.
-            version (int):
-                Version of the feature set for which this ingestion.
-            force_update (bool):
-                Automatically update.
-            max_workers (int):
-                Number of worker processes to use to encode the DataFrame.
-            disable_progress_bar (bool):
-                Disable progress bar during ingestion.
-            chunk_size (int):
-                Number of rows per chunk to encode before ingesting to Feast
-            timeout (int):
-                Timeout in seconds to wait for completion.
-
-        Returns:
-            None
+        :param feature_set: Feature set object or the string name of the
+            feature set (without a version).
+        :type feature_set: Union[str, FeatureSet]
+        :param dataframe: Pandas DataFrame to load into Feast for this feature
+            set.
+        :type dataframe: pd.DataFrame
+        :param version: Version of the feature set for which this ingestion.
+        :type version: int
+        :param force_update: Automatically update.
+        :type force_update: bool
+        :param max_workers: Number of worker processes to use to encode the
+            DataFrame.
+        :type max_workers: int
+        :param disable_progress_bar: Disable progress bar during ingestion.
+        :type disable_progress_bar: bool
+        :param chunk_size: Number of rows per chunk to encode before ingesting
+            to Feast.
+        :type chunk_size: int
+        :param timeout: Timeout in seconds to wait for completion.
+        :type timeout: int
+        :return: None
+        :rtype: None
         """
-
         if isinstance(feature_set, FeatureSet):
             name = feature_set.name
             if version is None:
@@ -606,42 +589,45 @@ class Client:
                 f'"{feature_set.source.source_type}"'
             )
 
-    def ingest_file(self,
-                    file_path: str,
-                    feature_set: Union[str, FeatureSet],
-                    version: int = None,
-                    force_update: bool = False,
-                    max_workers: int = CPU_COUNT,
-                    disable_progress_bar: bool = False,
-                    chunk_size: int = 5000,
-                    timeout: int = None) -> None:
+    def ingest_file(
+            self,
+            file_path: str,
+            feature_set: Union[str, FeatureSet],
+            version: int = None,
+            force_update: bool = False,
+            max_workers: int = CPU_COUNT,
+            disable_progress_bar: bool = False,
+            chunk_size: int = 5000,
+            timeout: int = None
+    ) -> None:
         """
         Load the contents of a file into a Kafka topic.
         Files that are currently supported:
             * parquet
+            * csv
 
-        Args:
-            file_path (str):
-                Valid string path to the file.
-            feature_set (Union[str, FeatureSet]:
-                Feature set object or the string name of the feature set
-                (without a version).
-            version (int):
-                Version of the feature set for which this ingestion.
-            force_update (bool):
-                Flag to update feature set from dataset and re-register if
-                changed / Automatically update.
-            max_workers (int):
-                Number of worker processes to use to encode the dataframe.
-            disable_progress_bar (bool):
-                Disable progress bar during ingestion.
-            chunk_size (int):
-                Number of rows per chunk to encode before ingesting to Feast
-            timeout (int):
-                Timeout in seconds to wait for completion.
-
-        Returns:
-            None
+        :param file_path: Valid string path to the file.
+        :type file_path: str
+        :param feature_set: Feature set object or the string name of the
+            feature set (without a version).
+        :type feature_set: Union[str, FeatureSet]
+        :param version: Version of the feature set for which this ingestion.
+        :type version: int
+        :param force_update: Flag to update feature set from dataset and
+            re-register if changed / Automatically update.
+        :type force_update: bool
+        :param max_workers: Number of worker processes to use to encode the
+            DataFrame.
+        :type max_workers: int
+        :param disable_progress_bar: Disable progress bar during ingestion.
+        :type disable_progress_bar: bool
+        :param chunk_size: Number of rows per chunk to encode before ingesting
+            to Feast.
+        :type chunk_size: int
+        :param timeout: Timeout in seconds to wait for completion.
+        :type timeout: int
+        :return: None
+        :rtype: None
         """
         filename, file_ext = os.path.splitext(file_path)
         if ".parquet" in file_ext:
@@ -666,6 +652,7 @@ class Client:
             # Ensure that DataFrame is initialised
             assert isinstance(df, pd.DataFrame)
 
+            print(f"Ingesting batch {i}/{total_batches}")
             self.ingest(feature_set=feature_set,
                         dataframe=df,
                         version=version,
@@ -677,18 +664,17 @@ class Client:
             print(f"Finished ingesting batch {i}/{total_batches}")
 
 
-def _build_feature_set_request(feature_ids: List[str]) \
-        -> List[FeatureSetRequest]:
+def _build_feature_set_request(
+        feature_ids: List[str]
+) -> List[FeatureSetRequest]:
     """
     Builds a list of FeatureSet objects from feature set ids in order to
     retrieve feature data from Feast Serving.
 
-    Args:
-        feature_ids (List[str]):
-            List of feature id.
-
-    Returns:
-        List[FeatureSetRequest]: List of FeatureSetRequesrts
+    :param feature_ids: List of feature id.
+    :type feature_ids: List[str]
+    :return: List of FeatureSetRequesrts
+    :rtype: List[FeatureSetRequest]
     """
     feature_set_request = dict()  # type: Dict[str, FeatureSetRequest]
     for feature_id in feature_ids:
