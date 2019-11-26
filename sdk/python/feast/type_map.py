@@ -18,7 +18,6 @@ from typing import Callable
 import numpy as np
 import pandas as pd
 from feast.constants import DATETIME_COLUMN
-from feast.feature_set import FeatureSet
 from feast.types import FeatureRow_pb2 as FeatureRowProto, \
     Field_pb2 as FieldProto
 from feast.types.Value_pb2 import (
