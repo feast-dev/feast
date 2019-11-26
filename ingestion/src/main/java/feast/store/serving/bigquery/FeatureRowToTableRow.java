@@ -6,19 +6,19 @@ import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
 import java.util.Base64;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.joda.time.Instant;
 
 // TODO: Validate FeatureRow against FeatureSetSpec
 //       i.e. that the value types in FeatureRow matches against those in FeatureSetSpec
 
-public class FeatureRowToTableRowDoFn extends DoFn<FeatureRow, TableRow> {
+public class FeatureRowToTableRow implements SerializableFunction<FeatureRow, TableRow> {
   private static final String EVENT_TIMESTAMP_COLUMN = "event_timestamp";
   private static final String CREATED_TIMESTAMP_COLUMN = "created_timestamp";
   private static final String JOB_ID_COLUMN = "job_id";
   private final String jobId;
 
-  public FeatureRowToTableRowDoFn(String jobId) {
+  public FeatureRowToTableRow(String jobId) {
     this.jobId = jobId;
   }
 
@@ -26,12 +26,7 @@ public class FeatureRowToTableRowDoFn extends DoFn<FeatureRow, TableRow> {
     return EVENT_TIMESTAMP_COLUMN;
   }
 
-  @ProcessElement
-  public void processElement(@Element FeatureRow featureRow, OutputReceiver<TableRow> out) {
-    out.output(createTableRow(featureRow, jobId));
-  }
-
-  private static TableRow createTableRow(FeatureRow featureRow, String jobId) {
+  public TableRow apply(FeatureRow featureRow) {
 
     TableRow tableRow = new TableRow();
     tableRow.set(EVENT_TIMESTAMP_COLUMN, Timestamps.toString(featureRow.getEventTimestamp()));

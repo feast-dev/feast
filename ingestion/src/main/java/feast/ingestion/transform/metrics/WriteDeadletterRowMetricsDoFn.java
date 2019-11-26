@@ -25,8 +25,6 @@ public abstract class WriteDeadletterRowMetricsDoFn extends
 
   public abstract String getStoreName();
 
-  public abstract FeatureSetSpec getFeatureSetSpec();
-
   public abstract String getStatsdHost();
 
   public abstract int getStatsdPort();
@@ -41,8 +39,6 @@ public abstract class WriteDeadletterRowMetricsDoFn extends
   public abstract static class Builder {
 
     public abstract Builder setStoreName(String storeName);
-
-    public abstract Builder setFeatureSetSpec(FeatureSetSpec featureSetSpec);
 
     public abstract Builder setStatsdHost(String statsdHost);
 
@@ -63,21 +59,17 @@ public abstract class WriteDeadletterRowMetricsDoFn extends
 
   @ProcessElement
   public void processElement(ProcessContext c) {
-    FeatureSetSpec featureSetSpec = getFeatureSetSpec();
 
-    long rowCount = 0;
     for (FailedElement ignored : c.element().getValue()) {
-      rowCount++;
-    }
-
-    try {
-      statsd.count("deadletter_row_count", rowCount,
-          STORE_TAG_KEY + ":" + getStoreName(),
-          FEATURE_SET_NAME_TAG_KEY + ":" + featureSetSpec.getName(),
-          FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetSpec.getVersion(),
-          INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
-    } catch (StatsDClientException e) {
-      log.warn("Unable to push metrics to server", e);
+      try {
+        statsd.count("deadletter_row_count", 1,
+            STORE_TAG_KEY + ":" + getStoreName(),
+            FEATURE_SET_NAME_TAG_KEY + ":" + ignored.getFeatureSetName(),
+            FEATURE_SET_VERSION_TAG_KEY + ":" + ignored.getFeatureSetVersion(),
+            INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
+      } catch (StatsDClientException e) {
+        log.warn("Unable to push metrics to server", e);
+      }
     }
   }
 }

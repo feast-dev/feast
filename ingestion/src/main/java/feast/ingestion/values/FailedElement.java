@@ -2,6 +2,7 @@ package feast.ingestion.values;
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
+import javax.validation.constraints.Null;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.joda.time.Instant;
@@ -16,6 +17,12 @@ public abstract class FailedElement {
 
   @Nullable
   public abstract String getJobName();
+
+  @Nullable
+  public abstract String getFeatureSetName();
+
+  @Nullable
+  public abstract String getFeatureSetVersion();
 
   @Nullable
   public abstract String getTransformName();
@@ -36,6 +43,10 @@ public abstract class FailedElement {
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setTimestamp(Instant timestamp);
+
+    public abstract Builder setFeatureSetName(String featureSetName);
+
+    public abstract Builder setFeatureSetVersion(String featureSetVersion);
 
     public abstract Builder setJobName(String jobName);
 

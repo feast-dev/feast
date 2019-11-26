@@ -1,6 +1,8 @@
 package feast.ingestion.transform.fn;
 
 import com.google.auto.value.AutoValue;
+import feast.ingestion.values.FailedElement.Builder;
+import feast.ingestion.values.FeatureSetSpec;
 import feast.ingestion.values.FailedElement;
 import feast.ingestion.values.Field;
 import feast.types.FeatureRowProto.FeatureRow;
@@ -13,11 +15,7 @@ import org.apache.beam.sdk.values.TupleTag;
 @AutoValue
 public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow> {
 
-  public abstract String getFeatureSetName();
-
-  public abstract int getFeatureSetVersion();
-
-  public abstract Map<String, Field> getFieldByName();
+  public abstract Map<String, FeatureSetSpec> getFeatureSetSpecs();
 
   public abstract TupleTag<FeatureRow> getSuccessTag();
 
@@ -29,11 +27,8 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
 
   @AutoValue.Builder
   public abstract static class Builder {
-    public abstract Builder setFeatureSetName(String featureSetName);
 
-    public abstract Builder setFeatureSetVersion(int featureSetVersion);
-
-    public abstract Builder setFieldByName(Map<String, Field> fieldByName);
+    public abstract Builder setFeatureSetSpecs(Map<String, FeatureSetSpec> featureSetSpecs);
 
     public abstract Builder setSuccessTag(TupleTag<FeatureRow> successTag);
 
@@ -42,27 +37,28 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
     public abstract ValidateFeatureRowDoFn build();
   }
 
-
   @ProcessElement
   public void processElement(ProcessContext context) {
     String error = null;
-    String featureSetId = String.format("%s:%d", getFeatureSetName(), getFeatureSetVersion());
     FeatureRow featureRow = context.element();
-    if (featureRow.getFeatureSet().equals(featureSetId)) {
+    FeatureSetSpec featureSetSpec = getFeatureSetSpecs()
+        .getOrDefault(featureRow.getFeatureSet(), null);
+    if (featureSetSpec != null) {
 
       for (FieldProto.Field field : featureRow.getFieldsList()) {
-        if (!getFieldByName().containsKey(field.getName())) {
+        Field fieldSpec = featureSetSpec.getField(field.getName());
+        if (fieldSpec == null) {
           error =
               String.format(
                   "FeatureRow contains field '%s' which do not exists in FeatureSet '%s' version '%d'. Please check the FeatureRow data.",
-                  field.getName(), getFeatureSetName(), getFeatureSetVersion());
+                  field.getName(), featureSetSpec.getId());
           break;
         }
         // If value is set in the FeatureRow, make sure the value type matches
         // that defined in FeatureSetSpec
         if (!field.getValue().getValCase().equals(ValCase.VAL_NOT_SET)) {
           int expectedTypeFieldNumber =
-              getFieldByName().get(field.getName()).getType().getNumber();
+              fieldSpec.getType().getNumber();
           int actualTypeFieldNumber = field.getValue().getValCase().getNumber();
           if (expectedTypeFieldNumber != actualTypeFieldNumber) {
             error =
@@ -70,7 +66,7 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
                     "FeatureRow contains field '%s' with invalid type '%s'. Feast expects the field type to match that in FeatureSet '%s'. Please check the FeatureRow data.",
                     field.getName(),
                     field.getValue().getValCase(),
-                    getFieldByName().get(field.getName()).getType());
+                    fieldSpec.getType());
             break;
           }
         }
@@ -78,20 +74,25 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
     } else {
       error = String.format(
           "FeatureRow contains invalid feature set id %s. Please check that the feature rows are being published to the correct topic on the feature stream.",
-          featureSetId);
+          featureRow.getFeatureSet());
     }
 
     if (error != null) {
-        context.output(
-            getFailureTag(),
-            FailedElement.newBuilder()
-                .setTransformName("ValidateFeatureRow")
-                .setJobName(context.getPipelineOptions().getJobName())
-                .setPayload(featureRow.toString())
-                .setErrorMessage(error)
-                .build());
-      } else {
-        context.output(getSuccessTag(), featureRow);
+      FailedElement.Builder failedElement = FailedElement.newBuilder()
+          .setTransformName("ValidateFeatureRow")
+          .setJobName(context.getPipelineOptions().getJobName())
+          .setPayload(featureRow.toString())
+          .setErrorMessage(error);
+      if (featureSetSpec != null) {
+        String[] split = featureSetSpec.getId().split(":");
+        failedElement = failedElement
+            .setFeatureSetName(split[0])
+            .setFeatureSetVersion(split[1]);
       }
+      context.output(
+          getFailureTag(), failedElement.build());
+    } else {
+      context.output(getSuccessTag(), featureRow);
+    }
   }
 }
