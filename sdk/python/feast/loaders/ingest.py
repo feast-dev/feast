@@ -24,7 +24,6 @@ from typing import Tuple, Iterable
 import numpy as np
 import pandas as pd
 import pyarrow as pa
-from feast import Client
 from feast.feature_set import FeatureSet
 from feast.type_map import convert_df_to_feature_rows
 from feast.types.FeatureRow_pb2 import FeatureRow
@@ -261,53 +260,6 @@ def ingest_kafka(
         )
 
 
-# TODO: This function is not in use.
-def ingest_file(
-        client: Client,
-        file_path: str,
-        force_update: bool = False,
-        timeout: int = 5,
-        max_workers=CPU_COUNT,
-) -> None:
-    """
-    Load the contents of a file into a Kafka topic.
-    Files that are currently supported:
-        * csv
-        * parquet
-
-    Args:
-        client (Client):
-            Feast client with connection configurations initialised.
-        file_path (str):
-            Valid string path to the file.
-        force_update (bool):
-            Flag to update feature set from dataset and re-register if changed.
-        timeout (int):
-            Timeout in seconds to wait for completion.
-        max_workers:
-            The maximum number of threads that can be used to execute the given
-            calls.
-
-    Returns:
-        None
-    """
-    df = None
-    filename, file_ext = os.path.splitext(file_path)
-    if ".parquet" in file_ext:
-        df = pd.read_parquet(file_path)
-    elif ".csv" in file_ext:
-        df = pd.read_csv(file_path, index_col=False)
-    try:
-        # Ensure that DataFrame is initialised
-        assert isinstance(df, pd.DataFrame)
-    except AssertionError:
-        _logger.error(f"Ingestion of file type {file_ext} is not supported")
-        raise Exception("File type not supported")
-
-    client.ingest(dataframe=df, force_update=force_update, timeout=timeout,
-                  max_workers=max_workers)
-
-
 def validate_dataframe(dataframe: pd.DataFrame, fs: FeatureSet) -> None:
     """
     Validate a DataFrame to check if all entity and feature names described
@@ -327,20 +279,20 @@ def validate_dataframe(dataframe: pd.DataFrame, fs: FeatureSet) -> None:
     """
     if "datetime" not in dataframe.columns:
         raise ValueError(
-            f'Dataframe does not contain entity "datetime" in columns '
+            f'DataFrame does not contain entity "datetime" in columns '
             f'{dataframe.columns}'
         )
 
     for entity in fs.entities:
         if entity.name not in dataframe.columns:
             raise ValueError(
-                f"Dataframe does not contain entity {entity.name} in columns "
+                f"DataFrame does not contain entity {entity.name} in columns "
                 f"{dataframe.columns}"
             )
 
     for feature in fs.features:
         if feature.name not in dataframe.columns:
             raise ValueError(
-                f"Dataframe does not contain feature {feature.name} in columns "
+                f"DataFrame does not contain feature {feature.name} in columns "
                 f"{dataframe.columns}"
             )
