@@ -19,10 +19,11 @@ import time
 from itertools import repeat
 from multiprocessing import Process, Queue, Pool
 from typing import List
-from typing import Tuple
+from typing import Tuple, Iterable
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 from feast import Client
 from feast.feature_set import FeatureSet
 from feast.type_map import convert_df_to_feature_rows
@@ -103,10 +104,12 @@ def _encode_chunk(df: pd.DataFrame, feature_set: FeatureSet) \
 
 
 # TODO: This function is not in use.
-def encode_chunks(df: pd.DataFrame, feature_set: FeatureSet,
-                  chunk_size: int = None) -> Tuple[int, List[FeatureRow]]:
+def encode_df_chunks(df: pd.DataFrame, feature_set: FeatureSet,
+                     chunk_size: int = None) \
+        -> Iterable[Tuple[int, List[FeatureRow]]]:
     """
-    Encode DataFrame in chunks of chunk_size.
+    Generator function to encode chunks of DataFrame into a chunked list of
+    FeatureRow objects.
 
     Args:
         df (pd.DataFrame):
@@ -117,14 +120,15 @@ def encode_chunks(df: pd.DataFrame, feature_set: FeatureSet,
             Size of DataFrame to encode.
 
     Returns:
-        Tuple[int, List[FeatureRow]]:
-            Tuple with remaining rows in iterator and a list of FeatureRow
-            objects generated from encoding the chunk of DataFrame.
+        Iterable[Tuple[int, List[FeatureRow]]]:
+            Iterable tuple containing the remaining rows in generator and a
+            list of FeatureRow objects generated from encoding a chunk of
+            DataFrame.
     """
     df = df.reset_index(drop=True)
     if chunk_size is None:
         # Encode the entire DataFrame
-        yield 0, _encode_chunk(df)
+        yield 0, _encode_chunk(df, feature_set)
         return
 
     remaining_rows = len(df)
@@ -136,6 +140,42 @@ def encode_chunks(df: pd.DataFrame, feature_set: FeatureSet,
         start_index += chunk_size
         remaining_rows = max(0, remaining_rows - chunk_size)
         yield remaining_rows, chunk_buffer
+
+
+# TODO: This function is not in use.
+def encode_pa_chunks(table: pa.lib.Table,
+                     feature_set: FeatureSet,
+                     chunk_size: int = None) \
+        -> Iterable[Tuple[int, List[FeatureRow]]]:
+    """
+    Generator function to encode chunks of PyArrow table of type RecordBatch
+    into a chunked list of FeatureRow objects.
+
+    Args:
+        table (pa.lib.Table):
+            PyArrow table.
+        feature_set (FeatureSet):
+            FeatureSet describing the PyArrow table.
+        chunk_size (int):
+            Size of DataFrame to encode.
+
+    Returns:
+        Iterable[Tuple[int, List[FeatureRow]]]:
+            Iterable tuple containing the remaining batches in generator and a
+            list of FeatureRow objects generated from encoding a RecordBatch of
+            PyArrow table.
+    """
+    if chunk_size is None:
+        # Encode the entire table
+        yield 0, _encode_chunk(table.to_pandas(), feature_set)
+        return
+
+    batches = table.to_batches(max_chunksize=chunk_size)
+    remaining_batches = len(batches)
+    for batch in batches:
+        chunk_buffer = _encode_chunk(batch.to_pandas(), feature_set)
+        remaining_batches -= 1
+        yield remaining_batches, chunk_buffer
 
 
 def ingest_kafka(
