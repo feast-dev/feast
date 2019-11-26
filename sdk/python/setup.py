@@ -45,6 +45,7 @@ REQUIRED = [
     "tqdm==4.*",
     "numpy",
     "google",
+    "pyarrow",
 ]
 
 setup(
