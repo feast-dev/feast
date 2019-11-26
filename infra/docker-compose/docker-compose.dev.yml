@@ -1,0 +1,17 @@
+version: "3.7"
+
+services:
+  core:
+    build:
+      dockerfile: infra/docker/core/Dockerfile
+      context: ../../
+
+  serving:
+    build:
+      dockerfile: infra/docker/serving/Dockerfile
+      context: ../../
+
+  jupyter:
+    build:
+      dockerfile: ../../infra/docker/jupyter/Dockerfile
+      context: ../../sdk/python

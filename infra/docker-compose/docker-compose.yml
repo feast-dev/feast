@@ -1,0 +1,75 @@
+version: "3.7"
+
+services:
+  core:
+    volumes:
+      - ./core/${FEAST_CORE_CONFIG}.yml:${FEAST_CORE_CONFIG_PATH}
+      - ./gcp-service-accounts/${FEAST_CORE_GCP_SERVICE_ACCOUNT_KEY}.json:${FEAST_GCP_SERVICE_ACCOUNT_KEY_PATH}
+    environment:
+      DB_HOST: db
+      GOOGLE_APPLICATION_CREDENTIALS: ${FEAST_GCP_SERVICE_ACCOUNT_KEY_PATH}
+    depends_on:
+      - db
+      - kafka
+    ports:
+      - 6565:6565
+    command:
+      - java
+      - -jar
+      - /opt/feast/feast-core.jar
+      - --spring.config.location=classpath:/application.yml,file:${FEAST_CORE_CONFIG_PATH}
+    restart: on-failure
+
+  serving:
+    volumes:
+      - ./serving/${FEAST_SERVING_STORE_CONFIG}.yml:${FEAST_SERVING_STORE_CONFIG_PATH}
+      - ./gcp-service-accounts/${FEAST_CORE_GCP_SERVICE_ACCOUNT_KEY}.json:${FEAST_GCP_SERVICE_ACCOUNT_KEY_PATH}
+    environment:
+      FEAST_CORE_HOST: core
+      FEAST_STORE_CONFIG_PATH: ${FEAST_SERVING_STORE_CONFIG_PATH}
+      GOOGLE_APPLICATION_CREDENTIALS: ${FEAST_GCP_SERVICE_ACCOUNT_KEY_PATH}
+    depends_on:
+      - core
+      - redis
+    ports:
+      - 6566:6566
+    restart: on-failure
+
+  jupyter:
+    volumes:
+      - ./jupyter/notebooks:/home/jovyan/feast-notebooks
+      - ./jupyter/features:/home/jovyan/features
+    depends_on:
+      - core
+      - serving
+    environment:
+      FEAST_SERVING_URL: serving:6566
+      FEAST_CORE_URL: core:6565
+    ports:
+      - 8888:8888
+    command:
+      - start-notebook.sh
+      - --NotebookApp.token=''
+
+  redis:
+    image: redis:5-alpine
+    ports:
+      - 6379:6379
+
+  kafka:
+    image: confluentinc/cp-kafka:5.2.1
+    restart: on-failure
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - zookeeper
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:5.2.1
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  db:
+    image: postgres:12-alpine
