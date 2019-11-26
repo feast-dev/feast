@@ -132,7 +132,7 @@ def pandas_dtype_to_feast_value_type(dtype: pd.DataFrame.dtypes) -> ValueType:
 
 def convert_df_to_feature_rows(
         dataframe: pd.DataFrame,
-        feature_set: FeatureSet
+        feature_set
 ) -> Callable:
     """
     Function to convert pandas DataFrame to FeatureRow protos.
