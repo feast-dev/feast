@@ -1,17 +1,34 @@
+# Copyright 2019 The Feast Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import logging
-import math
 import multiprocessing
 import os
 import time
-import numpy as np
 from itertools import repeat
 from multiprocessing import Process, Queue, Pool
-import pandas as pd
-from kafka import KafkaProducer
+from typing import List
+from typing import Tuple
 
-from tqdm import tqdm
-from feast.type_map import convert_df_to_feature_rows
+import numpy as np
+import pandas as pd
+from feast import Client
 from feast.feature_set import FeatureSet
+from feast.type_map import convert_df_to_feature_rows
+from feast.types.FeatureRow_pb2 import FeatureRow
+from kafka import KafkaProducer
+from tqdm import tqdm
 
 _logger = logging.getLogger(__name__)
 
@@ -25,12 +42,12 @@ KAFKA_CHUNK_PRODUCTION_TIMEOUT = 120  # type: int
 
 
 def _kafka_feature_row_chunk_producer(
-    feature_row_chunk_queue: Queue,
-    chunk_count: int,
-    brokers,
-    topic,
-    ctx: dict,
-    pbar: tqdm,
+        feature_row_chunk_queue: Queue,
+        chunk_count: int,
+        brokers,
+        topic,
+        ctx: dict,
+        pbar: tqdm,
 ):
     # Callback for failed production to Kafka
     def on_error(e):
@@ -67,18 +84,67 @@ def _kafka_feature_row_chunk_producer(
     pbar.close()
 
 
-def _encode_chunk(df: pd.DataFrame, feature_set: FeatureSet):
-    # Encode dataframe chunk into feature rows chunk
-    return df.apply(convert_df_to_feature_rows(df, feature_set), axis=1, raw=True)
+# TODO: This function is not in use.
+def _encode_chunk(df: pd.DataFrame, feature_set: FeatureSet) \
+        -> List[FeatureRow]:
+    """
+    Encode DataFrame chunk into feature rows chunk.
+
+    Args:
+        df (pd.DataFrame): DataFrame to encode.
+        feature_set (FeatureSet): FeatureSet describing the DataFrame.
+
+    Returns:
+        List[FeatureRow]:
+            List of FeatureRow objects.
+    """
+    return df.apply(convert_df_to_feature_rows(df, feature_set), axis=1,
+                    raw=True)
+
+
+# TODO: This function is not in use.
+def encode_chunks(df: pd.DataFrame, feature_set: FeatureSet,
+                  chunk_size: int = None) -> Tuple[int, List[FeatureRow]]:
+    """
+    Encode DataFrame in chunks of chunk_size.
+
+    Args:
+        df (pd.DataFrame):
+            DataFrame to encode.
+        feature_set (FeatureSet):
+            FeatureSet describing the DataFrame.
+        chunk_size (int):
+            Size of DataFrame to encode.
+
+    Returns:
+        Tuple[int, List[FeatureRow]]:
+            Tuple with remaining rows in iterator and a list of FeatureRow
+            objects generated from encoding the chunk of DataFrame.
+    """
+    df = df.reset_index(drop=True)
+    if chunk_size is None:
+        # Encode the entire DataFrame
+        yield 0, _encode_chunk(df)
+        return
+
+    remaining_rows = len(df)
+    total_rows = remaining_rows
+    start_index = 0
+    while start_index < total_rows:
+        end_index = start_index + chunk_size
+        chunk_buffer = _encode_chunk(df[start_index:end_index], feature_set)
+        start_index += chunk_size
+        remaining_rows = max(0, remaining_rows - chunk_size)
+        yield remaining_rows, chunk_buffer
 
 
 def ingest_kafka(
-    feature_set: FeatureSet,
-    dataframe: pd.DataFrame,
-    max_workers: int,
-    timeout: int = None,
-    chunk_size: int = 5000,
-    disable_pbar: bool = False,
+        feature_set: FeatureSet,
+        dataframe: pd.DataFrame,
+        max_workers: int,
+        timeout: int = None,
+        chunk_size: int = 5000,
+        disable_pbar: bool = False,
 ):
     pbar = tqdm(unit="rows", total=dataframe.shape[0], disable=disable_pbar)
 
@@ -112,7 +178,8 @@ def ingest_kafka(
 
     try:
         # Start ingestion process
-        print(f"\nIngestion started for {feature_set.name}:{feature_set.version}")
+        print(
+            f"\nIngestion started for {feature_set.name}:{feature_set.version}")
         ingestion_process.start()
 
         # Create a pool of workers to convert df chunks into feature row chunks
@@ -154,23 +221,35 @@ def ingest_kafka(
         )
 
 
+# TODO: This function is not in use.
 def ingest_file(
-    client,
-    file_path: str,
-    force_update: bool = False,
-    timeout: int = 5,
-    max_workers=CPU_COUNT,
-):
+        client: Client,
+        file_path: str,
+        force_update: bool = False,
+        timeout: int = 5,
+        max_workers=CPU_COUNT,
+) -> None:
     """
     Load the contents of a file into a Kafka topic.
     Files that are currently supported:
         * csv
         * parquet
-    :param file_path: Valid string path to the file
-    :param force_update: Flag to update feature set from dataset and reregister if changed.
-    :param timeout: Timeout in seconds to wait for completion
-    :param max_workers: The maximum number of threads that can be used to execute the given calls.
-    :return:
+
+    Args:
+        client (Client):
+            Feast client with connection configurations initialised.
+        file_path (str):
+            Valid string path to the file.
+        force_update (bool):
+            Flag to update feature set from dataset and re-register if changed.
+        timeout (int):
+            Timeout in seconds to wait for completion.
+        max_workers:
+            The maximum number of threads that can be used to execute the given
+            calls.
+
+    Returns:
+        None
     """
     df = None
     filename, file_ext = os.path.splitext(file_path)
@@ -179,29 +258,49 @@ def ingest_file(
     elif ".csv" in file_ext:
         df = pd.read_csv(file_path, index_col=False)
     try:
-        # Ensure that dataframe is initialised
+        # Ensure that DataFrame is initialised
         assert isinstance(df, pd.DataFrame)
     except AssertionError:
         _logger.error(f"Ingestion of file type {file_ext} is not supported")
         raise Exception("File type not supported")
 
-    client.ingest(df, force_update, timeout, max_workers)
+    client.ingest(dataframe=df, force_update=force_update, timeout=timeout,
+                  max_workers=max_workers)
 
 
-def validate_dataframe(dataframe: pd.DataFrame, fs: FeatureSet):
+def validate_dataframe(dataframe: pd.DataFrame, fs: FeatureSet) -> None:
+    """
+    Validate a DataFrame to check if all entity and feature names described
+    in FeatureSet are present in the DataFrame columns.
+
+    An error will be raised if there are no matching entity/feature names in
+    FeatureSet and DataFrame.
+
+    Args:
+        dataframe (pd.DataFrame):
+            Pandas DataFrame to be validated.
+        fs (FeatureSet):
+            FeatureSet that DataFrame should be validated against.
+
+    Returns:
+        None
+    """
     if "datetime" not in dataframe.columns:
         raise ValueError(
-            f'Dataframe does not contain entity "datetime" in columns {dataframe.columns}'
+            f'Dataframe does not contain entity "datetime" in columns '
+            f'{dataframe.columns}'
         )
 
     for entity in fs.entities:
         if entity.name not in dataframe.columns:
             raise ValueError(
-                f"Dataframe does not contain entity {entity.name} in columns {dataframe.columns}"
+                f"Dataframe does not contain entity {entity.name} in columns "
+                f"{dataframe.columns}"
             )
 
     for feature in fs.features:
         if feature.name not in dataframe.columns:
             raise ValueError(
-                f"Dataframe does not contain feature {feature.name} in columns {dataframe.columns}"
+                f"Dataframe does not contain feature {feature.name} in columns "
+                f"{dataframe.columns}"
             )

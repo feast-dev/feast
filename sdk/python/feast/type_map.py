@@ -12,10 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from datetime import datetime, timezone
+from typing import Callable
+
 import numpy as np
 import pandas as pd
-from datetime import datetime, timezone
-from feast.value_type import ValueType
+from feast.constants import DATETIME_COLUMN
+from feast.feature_set import FeatureSet
+from feast.types import FeatureRow_pb2 as FeatureRowProto, \
+    Field_pb2 as FieldProto
 from feast.types.Value_pb2 import (
     Value as ProtoValue,
     ValueType as ProtoValueType,
@@ -27,9 +32,8 @@ from feast.types.Value_pb2 import (
     StringList,
     FloatList,
 )
-from feast.types import FeatureRow_pb2 as FeatureRowProto, Field_pb2 as FieldProto
+from feast.value_type import ValueType
 from google.protobuf.timestamp_pb2 import Timestamp
-from feast.constants import DATETIME_COLUMN
 
 # Mapping of feast value type to Pandas DataFrame dtypes
 # Integer and floating values are all 64-bit for better integration
@@ -83,7 +87,7 @@ def dtype_to_value_type(dtype):
     Returns:
         feast.types.ValueType2.ValueType: equivalent feast valuetype
     """
-    # mapping of pandas dtypes to feast value type strings
+    # Mapping of pandas dtypes to feast value type strings
     type_map = {
         "float64": ProtoValueType.DOUBLE,
         "float32": ProtoValueType.FLOAT,
@@ -124,8 +128,32 @@ def pandas_dtype_to_feast_value_type(dtype: pd.DataFrame.dtypes) -> ValueType:
     return type_map[dtype.__str__()]
 
 
-def convert_df_to_feature_rows(dataframe: pd.DataFrame, feature_set):
-    def convert_series_to_proto_values(row: pd.Series):
+def convert_df_to_feature_rows(dataframe: pd.DataFrame,
+                               feature_set: FeatureSet) -> Callable:
+    """
+    Function to convert pandas DataFrame to FeatureRow protos.
+    This must be used in a dataframe.apply() function.
+
+    Args:
+        dataframe (pd.DataFrame): Input DataFrame to use.
+        feature_set (FeatureSet): FeatureSet representing a collection of
+            features.
+
+    Returns:
+        Callable: Function to convert a row in DataFrame to FeatureRow object.
+    """
+
+    def convert_series_to_proto_values(row: pd.Series) -> \
+            FeatureRowProto.FeatureRow:
+        """
+        Nested function to convert a row in a DataFrame to a FeatureRow object.
+
+        Args:
+            row (pd.Series): Row to convert to FeatureRow object.
+
+        Returns:
+            FeatureRow: FeatureRow object.
+        """
         feature_row = FeatureRowProto.FeatureRow(
             event_timestamp=pd_datetime_to_timestamp_proto(
                 dataframe[DATETIME_COLUMN].dtype, row[DATETIME_COLUMN]
@@ -138,7 +166,8 @@ def convert_df_to_feature_rows(dataframe: pd.DataFrame, feature_set):
                 [
                     FieldProto.Field(
                         name=field.name,
-                        value=pd_value_to_proto_value(field.dtype, row[field.name]),
+                        value=pd_value_to_proto_value(field.dtype,
+                                                      row[field.name]),
                     )
                 ]
             )
@@ -154,90 +183,92 @@ def pd_datetime_to_timestamp_proto(dtype, value) -> Timestamp:
         # If timestamp does not contain timezone, we assume it is of local
         # timezone and adjust it to UTC
         local_timezone = datetime.now(timezone.utc).astimezone().tzinfo
-        value = value.tz_localize(local_timezone).tz_convert("UTC").tz_localize(None)
+        value = value.tz_localize(local_timezone).tz_convert("UTC").tz_localize(
+            None)
         return Timestamp(seconds=int(value.timestamp()))
     if dtype.__str__() == "datetime64[ns, UTC]":
         return Timestamp(seconds=int(value.timestamp()))
     else:
-        return Timestamp(seconds=np.datetime64(value).astype("int64") // 1000000)
+        return Timestamp(
+            seconds=np.datetime64(value).astype("int64") // 1000000)
 
 
 def type_err(item, dtype):
-    raise ValueError(f'Value "{item}" is of type {type(item)} not of type {dtype}')
+    raise ValueError(
+        f'Value "{item}" is of type {type(item)} not of type {dtype}')
 
 
-def pd_value_to_proto_value(feast_value_type, value) -> ProtoValue:
-
+def pd_value_to_proto_value(feast_value_type: ValueType, value) -> ProtoValue:
     # Detect list type and handle separately
     if "list" in feast_value_type.name.lower():
 
         if feast_value_type == ValueType.FLOAT_LIST:
             return ProtoValue(
                 float_list_val=FloatList(
-                    val=[
-                        item if type(item) is np.float32 else type_err(item, np.float32)
-                        for item in value
-                    ]
+                    val=[item
+                         if type(item) is np.float32
+                         else type_err(item, np.float32)
+                         for item in value]
                 )
             )
 
         if feast_value_type == ValueType.DOUBLE_LIST:
             return ProtoValue(
                 double_list_val=DoubleList(
-                    val=[
-                        item if type(item) is np.float64 else type_err(item, np.float64)
-                        for item in value
-                    ]
+                    val=[item
+                         if type(item) is np.float64
+                         else type_err(item, np.float64)
+                         for item in value]
                 )
             )
 
         if feast_value_type == ValueType.INT32_LIST:
             return ProtoValue(
                 int32_list_val=Int32List(
-                    val=[
-                        item if type(item) is np.int32 else type_err(item, np.int32)
-                        for item in value
-                    ]
+                    val=[item
+                         if type(item) is np.int32
+                         else type_err(item, np.int32)
+                         for item in value]
                 )
             )
 
         if feast_value_type == ValueType.INT64_LIST:
             return ProtoValue(
                 int64_list_val=Int64List(
-                    val=[
-                        item if type(item) is np.int64 else type_err(item, np.int64)
-                        for item in value
-                    ]
+                    val=[item
+                         if type(item) is np.int64
+                         else type_err(item, np.int64)
+                         for item in value]
                 )
             )
 
         if feast_value_type == ValueType.STRING_LIST:
             return ProtoValue(
                 string_list_val=StringList(
-                    val=[
-                        item if type(item) is np.str_ else type_err(item, np.str_)
-                        for item in value
-                    ]
+                    val=[item
+                         if type(item) is np.str_
+                         else type_err(item, np.str_)
+                         for item in value]
                 )
             )
 
         if feast_value_type == ValueType.BOOL_LIST:
             return ProtoValue(
                 bool_list_val=BoolList(
-                    val=[
-                        item if type(item) is np.bool_ else type_err(item, np.bool_)
-                        for item in value
-                    ]
+                    val=[item
+                         if type(item) is np.bool_
+                         else type_err(item, np.bool_)
+                         for item in value]
                 )
             )
 
         if feast_value_type == ValueType.BYTES_LIST:
             return ProtoValue(
                 bytes_list_val=BytesList(
-                    val=[
-                        item if type(item) is np.bytes_ else type_err(item, np.bytes_)
-                        for item in value
-                    ]
+                    val=[item
+                         if type(item) is np.bytes_
+                         else type_err(item, np.bytes_)
+                         for item in value]
                 )
             )
 
