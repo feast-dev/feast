@@ -19,7 +19,7 @@ feast:
 
   store:
     # Path containing the store configuration for this serving store.
-    config-path: ${FEAST_STORE_CONFIG_PATH:./sample_redis_config.yml}
+    config-path: ${FEAST_STORE_CONFIG_PATH:serving/sample_redis_config.yml}
     # If serving redis, the redis pool max size
     redis-pool-max-size: ${FEAST_REDIS_POOL_MAX_SIZE:128}
     # If serving redis, the redis pool max idle conns
