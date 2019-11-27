@@ -24,7 +24,7 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
 
   public abstract Source getSource();
 
-  public abstract Map<String, TupleTag<FeatureRow>> getFeatureSetTagByKey();
+  public abstract TupleTag<FeatureRow> getSuccessTag();
 
   public abstract TupleTag<FailedElement> getFailureTag();
 
@@ -37,8 +37,7 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
 
     public abstract Builder setSource(Source source);
 
-    public abstract Builder setFeatureSetTagByKey(
-        Map<String, TupleTag<FeatureRow>> featureSetTagByKey);
+    public abstract Builder setSuccessTag(TupleTag<FeatureRow> successTag);
 
     public abstract Builder setFailureTag(TupleTag<FailedElement> failureTag);
 
@@ -76,13 +75,10 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
                 .commitOffsetsInFinalize())
         .apply(
             "KafkaRecordToFeatureRow", ParDo.of(KafkaRecordToFeatureRowDoFn.newBuilder()
-                .setFeatureSetTagByKey(getFeatureSetTagByKey())
+                .setSuccessTag(getSuccessTag())
                 .setFailureTag(getFailureTag())
                 .build())
-                .withOutputTags(new TupleTag<FeatureRow>("placeholder") {},
-                    TupleTagList.of(Lists
-                        .newArrayList(getFeatureSetTagByKey().values()))
-                        .and(getFailureTag())));
+                .withOutputTags(getSuccessTag(), TupleTagList.of(getFailureTag())));
   }
 
   private String generateConsumerGroupId(String jobName) {

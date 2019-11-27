@@ -82,7 +82,7 @@ public class SpecUtil {
     return stores;
   }
 
-  public static Map<String, Field> getFieldByName(FeatureSetSpec featureSetSpec) {
+  public static Map<String, Field> getFieldsByName(FeatureSetSpec featureSetSpec) {
     Map<String, Field> fieldByName = new HashMap<>();
     for (EntitySpec entitySpec : featureSetSpec.getEntitiesList()) {
       fieldByName.put(

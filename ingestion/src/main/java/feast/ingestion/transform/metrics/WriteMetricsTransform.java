@@ -22,8 +22,6 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
 
   public abstract String getStoreName();
 
-  public abstract FeatureSetSpec getFeatureSetSpec();
-
   public abstract TupleTag<FeatureRow> getSuccessTag();
 
   public abstract TupleTag<FailedElement> getFailureTag();
@@ -36,9 +34,6 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
   public abstract static class Builder {
 
     public abstract Builder setStoreName(String storeName);
-
-    public abstract Builder setFeatureSetSpec(FeatureSetSpec featureSetSpec);
-
     public abstract Builder setSuccessTag(TupleTag<FeatureRow> successTag);
 
     public abstract Builder setFailureTag(TupleTag<FailedElement> failureTag);
@@ -58,7 +53,6 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
                 new WindowRecords<>(WINDOW_SIZE_SECONDS))
             .apply("Write deadletter metrics", ParDo.of(
                 WriteDeadletterRowMetricsDoFn.newBuilder()
-                    .setFeatureSetSpec(getFeatureSetSpec())
                     .setStatsdHost(options.getStatsdHost())
                     .setStatsdPort(options.getStatsdPort())
                     .setStoreName(getStoreName())
@@ -69,7 +63,6 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
                 new WindowRecords<>(WINDOW_SIZE_SECONDS))
             .apply("Write row metrics", ParDo
                 .of(WriteRowMetricsDoFn.newBuilder()
-                    .setFeatureSetSpec(getFeatureSetSpec())
                     .setStatsdHost(options.getStatsdHost())
                     .setStatsdPort(options.getStatsdPort())
                     .setStoreName(getStoreName())

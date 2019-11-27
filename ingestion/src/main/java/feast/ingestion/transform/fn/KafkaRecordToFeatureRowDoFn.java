@@ -19,7 +19,8 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 @AutoValue
 public abstract class KafkaRecordToFeatureRowDoFn extends
     DoFn<KafkaRecord<byte[], byte[]>, FeatureRow> {
-  public abstract Map<String, TupleTag<FeatureRow>> getFeatureSetTagByKey();
+
+  public abstract TupleTag<FeatureRow> getSuccessTag();
 
   public abstract TupleTag<FailedElement> getFailureTag();
 
@@ -30,7 +31,7 @@ public abstract class KafkaRecordToFeatureRowDoFn extends
   @AutoValue.Builder
   public abstract static class Builder {
 
-    public abstract Builder setFeatureSetTagByKey(Map<String, TupleTag<FeatureRow>> featureSetTagByKey);
+    public abstract Builder setSuccessTag(TupleTag<FeatureRow> successTag);
 
     public abstract Builder setFailureTag(TupleTag<FailedElement> failureTag);
 
@@ -56,19 +57,6 @@ public abstract class KafkaRecordToFeatureRowDoFn extends
               .build());
       return;
     }
-    TupleTag<FeatureRow> tag = getFeatureSetTagByKey()
-        .getOrDefault(featureRow.getFeatureSet(), null);
-    if (tag == null) {
-      context.output(
-          getFailureTag(),
-          FailedElement.newBuilder()
-              .setTransformName("KafkaRecordToFeatureRow")
-              .setJobName(context.getPipelineOptions().getJobName())
-              .setPayload(new String(Base64.getEncoder().encode(value)))
-              .setErrorMessage(String.format("Got row with unexpected feature set id %s. Expected one of %s.", featureRow.getFeatureSet(), getFeatureSetTagByKey().keySet()))
-              .build());
-      return;
-    }
-    context.output(tag, featureRow);
+    context.output(featureRow);
   }
 }

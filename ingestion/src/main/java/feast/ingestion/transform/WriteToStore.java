@@ -12,23 +12,28 @@ import feast.core.StoreProto.Store.StoreType;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.utils.ResourceUtil;
 import feast.ingestion.values.FailedElement;
-import feast.store.serving.bigquery.FeatureRowToTableRowDoFn;
+import feast.store.serving.bigquery.FeatureRowToTableRow;
 import feast.store.serving.redis.FeatureRowToRedisMutationDoFn;
 import feast.store.serving.redis.RedisCustomIO;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.io.IOException;
+import java.util.Map;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryInsertError;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
+import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.codehaus.jackson.JsonParser.Feature;
 import org.slf4j.Logger;
 
 @AutoValue
@@ -38,7 +43,7 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
 
   public abstract Store getStore();
 
-  public abstract FeatureSetSpec getFeatureSetSpec();
+  public abstract Map<String, FeatureSetSpec> getFeatureSetSpecs();
 
   public static Builder newBuilder() {
     return new AutoValue_WriteToStore.Builder();
@@ -46,9 +51,10 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
 
   @AutoValue.Builder
   public abstract static class Builder {
+
     public abstract Builder setStore(Store store);
 
-    public abstract Builder setFeatureSetSpec(FeatureSetSpec featureSetSpec);
+    public abstract Builder setFeatureSetSpecs(Map<String, FeatureSetSpec> featureSetSpecs);
 
     public abstract WriteToStore build();
   }
@@ -64,34 +70,34 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
         input
             .apply(
                 "FeatureRowToRedisMutation",
-                ParDo.of(new FeatureRowToRedisMutationDoFn(getFeatureSetSpec())))
+                ParDo.of(new FeatureRowToRedisMutationDoFn(getFeatureSetSpecs())))
             .apply(
                 "WriteRedisMutationToRedis",
                 RedisCustomIO.write(redisConfig.getHost(), redisConfig.getPort()));
         break;
       case BIGQUERY:
+
         BigQueryConfig bigqueryConfig = getStore().getBigqueryConfig();
-        String tableSpec =
-            String.format(
-                "%s:%s.%s_v%s",
-                bigqueryConfig.getProjectId(),
-                bigqueryConfig.getDatasetId(),
-                getFeatureSetSpec().getName(),
-                getFeatureSetSpec().getVersion());
         TimePartitioning timePartitioning =
             new TimePartitioning()
                 .setType("DAY")
-                .setField(FeatureRowToTableRowDoFn.getEventTimestampColumn());
+                .setField(FeatureRowToTableRow.getEventTimestampColumn());
 
         WriteResult bigqueryWriteResult =
             input
                 .apply(
-                    "FeatureRowToTableRow",
-                    ParDo.of(new FeatureRowToTableRowDoFn(options.getJobName())))
-                .apply(
                     "WriteTableRowToBigQuery",
-                    BigQueryIO.writeTableRows()
-                        .to(tableSpec)
+                    BigQueryIO.<FeatureRow>write()
+                        .to((SerializableFunction<ValueInSingleWindow<FeatureRow>, TableDestination>) element -> {
+                          String[] split = element.getValue().getFeatureSet().split(":");
+                          return new TableDestination(String.format(
+                              "%s:%s.%s_v%s",
+                              bigqueryConfig.getProjectId(),
+                              bigqueryConfig.getDatasetId(),
+                              split[0],
+                              split[1]), null);
+                        })
+                        .withFormatFunction(new FeatureRowToTableRow(options.getJobName()))
                         .withCreateDisposition(CreateDisposition.CREATE_NEVER)
                         .withWriteDisposition(WriteDisposition.WRITE_APPEND)
                         .withExtendedErrorInfo()

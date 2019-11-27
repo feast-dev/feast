@@ -99,6 +99,8 @@ public class SpecServiceTest {
         .thenReturn(featureSets);
     when(featureSetRepository.findByName("f1"))
         .thenReturn(featureSets.subList(0, 3));
+    when(featureSetRepository.findFirstFeatureSetByNameOrderByVersionDesc("f1"))
+        .thenReturn(featureSet1v3);
     when(featureSetRepository.findByNameWithWildcard("f1"))
         .thenReturn(featureSets.subList(0, 3));
     when(featureSetRepository.findByName("asd"))
@@ -235,6 +237,8 @@ public class SpecServiceTest {
   @Test
   public void shouldGetSpecificFeatureSetGivenSpecificVersionFilter()
       throws InvalidProtocolBufferException {
+    when(featureSetRepository.findFeatureSetByNameAndVersion("f1", 2))
+        .thenReturn(featureSets.get(1));
     GetFeatureSetResponse actual = specService
         .getFeatureSet(GetFeatureSetRequest.newBuilder().setName("f1").setVersion(2).build());
     FeatureSet expected = featureSets.get(1);

@@ -26,11 +26,18 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<Integer, Iterable<Feat
 
   public abstract String getStoreName();
 
-  public abstract FeatureSetSpec getFeatureSetSpec();
-
   public abstract String getStatsdHost();
 
   public abstract int getStatsdPort();
+
+  public static WriteRowMetricsDoFn create(String newStoreName, FeatureSetSpec newFeatureSetSpec,
+      String newStatsdHost, int newStatsdPort) {
+    return newBuilder()
+        .setStoreName(newStoreName)
+        .setStatsdHost(newStatsdHost)
+        .setStatsdPort(newStatsdPort)
+        .build();
+  }
 
   public StatsDClient statsd;
 
@@ -42,8 +49,6 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<Integer, Iterable<Feat
   public abstract static class Builder {
 
     public abstract Builder setStoreName(String storeName);
-
-    public abstract Builder setFeatureSetSpec(FeatureSetSpec featureSetSpec);
 
     public abstract Builder setStatsdHost(String statsdHost);
 
@@ -63,53 +68,52 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<Integer, Iterable<Feat
 
   @ProcessElement
   public void processElement(ProcessContext c) {
-    FeatureSetSpec featureSetSpec = getFeatureSetSpec();
 
-    long rowCount = 0;
     long missingValueCount = 0;
 
     try {
       for (FeatureRow row : c.element().getValue()) {
-        rowCount++;
         long eventTimestamp = com.google.protobuf.util.Timestamps.toMillis(row.getEventTimestamp());
 
-        statsd.gauge("feature_row_lag_ms", System.currentTimeMillis() - eventTimestamp,
+        String[] split = row.getFeatureSet().split(":");
+        String featureSetName = split[0];
+        String featureSetVersion = split[1];
+        statsd.histogram("feature_row_lag_ms", System.currentTimeMillis() - eventTimestamp,
             STORE_TAG_KEY + ":" + getStoreName(),
-            FEATURE_SET_NAME_TAG_KEY + ":" + featureSetSpec.getName(),
-            FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetSpec.getVersion(),
+            FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
+            FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
             INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
 
-        statsd.gauge("feature_row_event_time_epoch_ms", eventTimestamp,
+        statsd.histogram("feature_row_event_time_epoch_ms", eventTimestamp,
             STORE_TAG_KEY + ":" + getStoreName(),
-            FEATURE_SET_NAME_TAG_KEY + ":" + featureSetSpec.getName(),
-            FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetSpec.getVersion(),
+            FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
+            FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
             INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
 
         for (Field field : row.getFieldsList()) {
           if (!field.getValue().getValCase().equals(ValCase.VAL_NOT_SET)) {
-            statsd.gauge("feature_value_lag_ms", System.currentTimeMillis() - eventTimestamp,
+            statsd.histogram("feature_value_lag_ms", System.currentTimeMillis() - eventTimestamp,
                 STORE_TAG_KEY + ":" + getStoreName(),
-                FEATURE_SET_NAME_TAG_KEY + ":" + featureSetSpec.getName(),
-                FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetSpec.getVersion(),
+                FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
+                FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
                 FEATURE_TAG_KEY + ":" + field.getName(),
                 INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
           } else {
             missingValueCount++;
           }
         }
+        statsd.count("feature_row_ingested_count", 1,
+            STORE_TAG_KEY + ":" + getStoreName(),
+            FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
+            FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
+            INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
+
+        statsd.count("feature_row_missing_value_count", missingValueCount,
+            STORE_TAG_KEY + ":" + getStoreName(),
+            FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
+            FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
+            INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
       }
-
-      statsd.count("feature_row_ingested_count", rowCount,
-          STORE_TAG_KEY + ":" + getStoreName(),
-          FEATURE_SET_NAME_TAG_KEY + ":" + featureSetSpec.getName(),
-          FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetSpec.getVersion(),
-          INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
-
-      statsd.count("feature_row_missing_value_count", missingValueCount,
-          STORE_TAG_KEY + ":" + getStoreName(),
-          FEATURE_SET_NAME_TAG_KEY + ":" + featureSetSpec.getName(),
-          FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetSpec.getVersion(),
-          INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
 
     } catch (StatsDClientException e) {
       log.warn("Unable to push metrics to server", e);

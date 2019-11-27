@@ -25,6 +25,7 @@ import feast.store.serving.redis.RedisCustomIO.Method;
 import feast.store.serving.redis.RedisCustomIO.RedisMutation;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -34,13 +35,14 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRow, RedisMutatio
 
   private static final Logger log = org.slf4j.LoggerFactory
       .getLogger(FeatureRowToRedisMutationDoFn.class);
-  private FeatureSetSpec featureSetSpec;
+  private Map<String, FeatureSetSpec>  featureSetSpecs;
 
-  public FeatureRowToRedisMutationDoFn(FeatureSetSpec featureSetSpec) {
-    this.featureSetSpec = featureSetSpec;
+  public FeatureRowToRedisMutationDoFn(Map<String, FeatureSetSpec> featureSetSpecs) {
+    this.featureSetSpecs = featureSetSpecs;
   }
 
   private RedisKey getKey(FeatureRow featureRow) {
+    FeatureSetSpec featureSetSpec = featureSetSpecs.get(featureRow.getFeatureSet());
     Set<String> entityNames = featureSetSpec.getEntitiesList().stream()
         .map(EntitySpec::getName).collect(Collectors.toSet());
 
@@ -60,8 +62,8 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRow, RedisMutatio
   @ProcessElement
   public void processElement(ProcessContext context) {
     FeatureRow featureRow = context.element();
-    RedisKey key = getKey(featureRow);
     try {
+      RedisKey key = getKey(featureRow);
       RedisMutation redisMutation = new RedisMutation(Method.SET, key.toByteArray(),
           featureRow.toByteArray(), null, null);
       context.output(redisMutation);

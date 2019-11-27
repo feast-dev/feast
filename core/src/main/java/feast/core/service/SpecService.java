@@ -202,7 +202,6 @@ public class SpecService {
         .findByName(newFeatureSetSpec.getName());
     if (existingFeatureSets.size() == 0) {
       newFeatureSetSpec = newFeatureSetSpec.toBuilder().setVersion(1).build();
-
     } else {
       existingFeatureSets = Ordering.natural().reverse().sortedCopy(existingFeatureSets);
       FeatureSet latest = existingFeatureSets.get(0);
@@ -210,11 +209,8 @@ public class SpecService {
 
       // If the featureSet remains unchanged, we do nothing.
       if (featureSet.equalTo(latest)) {
-        newFeatureSetSpec = newFeatureSetSpec.toBuilder()
-            .setVersion(latest.getVersion())
-            .build();
         return ApplyFeatureSetResponse.newBuilder()
-            .setFeatureSet(newFeatureSetSpec)
+            .setFeatureSet(latest.toProto())
             .setStatus(Status.NO_CHANGE)
             .build();
       }
