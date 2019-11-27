@@ -124,7 +124,7 @@ EOF
 nohup java -jar core/target/feast-core-0.3.2-SNAPSHOT.jar \
   --spring.config.location=file:///tmp/core.application.yml \
   &> /var/log/feast-core.log &
-sleep 20
+sleep 30
 tail -n10 /var/log/feast-core.log
 
 echo "
