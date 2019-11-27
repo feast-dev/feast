@@ -214,6 +214,12 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-cassandra</artifactId>
+      <version>${org.apache.beam.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>redis.clients</groupId>
       <artifactId>jedis</artifactId>
     </dependency>
@@ -242,6 +248,13 @@
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka_2.12</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.cassandraunit</groupId>
+      <artifactId>cassandra-unit-shaded</artifactId>
+      <version>3.11.2.0</version>
       <scope>test</scope>
     </dependency>
 

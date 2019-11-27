@@ -66,7 +66,7 @@ public class JobStatusService {
   //  public JobDetail getJob(String id) {
   //    Optional<JobInfo> job = jobInfoRepository.findById(id);
   //    if (!job.isPresent()) {
-  //      throw new RetrievalException(Strings.lenientFormat("Unable to retrieve job with id %s",
+  //      throw new RetrievalException(String.format("Unable to retrieve job with id %s",
   // id));
   //    }
   //    JobDetail.Builder jobDetailBuilder = job.get().getJobDetail().toBuilder();

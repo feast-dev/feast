@@ -179,7 +179,7 @@ public class JobCoordinatorService {
   public void abortJob(String id) {
     Optional<JobInfo> jobOptional = jobInfoRepository.findById(id);
     if (!jobOptional.isPresent()) {
-      throw new RetrievalException(Strings.lenientFormat("Unable to retrieve job with id %s", id));
+      throw new RetrievalException(String.format("Unable to retrieve job with id %s", id));
     }
     JobInfo job = jobOptional.get();
     if (JobStatus.getTerminalState().contains(job.getStatus())) {

@@ -41,7 +41,7 @@ public class DirectJobRegistry {
   public void add(DirectJob job) {
     if (jobs.containsKey(job.getJobId())) {
       throw new IllegalArgumentException(
-          Strings.lenientFormat("Job with id %s already exists and is running", job.getJobId()));
+          String.format("Job with id %s already exists and is running", job.getJobId()));
     }
     jobs.put(job.getJobId(), job);
   }

@@ -114,7 +114,7 @@
             <artifactId>protobuf-java-util</artifactId>
         </dependency>
 
-        <!--compile 'com.google.guava:guava:26.0-jre'-->
+        <!--compile 'com.google.guava:guava:25.0-jre'-->
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>

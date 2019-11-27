@@ -103,7 +103,13 @@ message Store {
     //
     BIGQUERY = 2;
 
-    // Unsupported in Feast 0.3
+    // Cassandra stores entities as a string partition key, feature as clustering column.
+    //
+    // Columns:
+    // - entities: concatenated string of feature set name and all entities' keys and values
+    // - feature: clustering column where each feature is a column
+    // - value: byte array of Value (refer to feast.types.Value)
+    //
     CASSANDRA = 3;
   }
 
@@ -118,8 +124,12 @@ message Store {
   }
 
   message CassandraConfig {
-    string host = 1;
+    // - bootstrapHosts: [comma delimited value of hosts]
+    string bootstrap_hosts = 1;
     int32 port = 2;
+    string keyspace = 3;
+    string table_name = 4;
+    map<string, string> replication_options = 5;
   }
 
   message Subscription {
