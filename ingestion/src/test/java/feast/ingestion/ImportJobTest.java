@@ -60,6 +60,9 @@ public class ImportJobTest {
   private static final String REDIS_HOST = "localhost";
   private static final int REDIS_PORT = 6380;
 
+  // No of samples of feature row that will be generated and used for testing.
+  // Note that larger no of samples will increase completion time for ingestion.
+  private static final int IMPORT_JOB_SAMPLE_FEATURE_ROW_SIZE = 128;
   // Expected time taken for the import job to be ready to receive Feature Row input
   private static final int IMPORT_JOB_READY_DURATION_SEC = 5;
   // Expected time taken for the import job to finish writing to Store
@@ -119,12 +122,11 @@ public class ImportJobTest {
     options.setProject("");
     options.setBlockOnRun(false);
 
-    int inputSize = 128;
     List<FeatureRow> input = new ArrayList<>();
     Map<RedisKey, FeatureRow> expected = new HashMap<>();
 
     LOGGER.info("Generating test data ...");
-    IntStream.range(0, inputSize).forEach(i -> {
+    IntStream.range(0, IMPORT_JOB_SAMPLE_FEATURE_ROW_SIZE).forEach(i -> {
       FeatureRow randomRow = TestUtil.createRandomFeatureRow(spec);
       RedisKey redisKey = TestUtil.createRedisKey(spec, randomRow);
       input.add(randomRow);
@@ -144,8 +146,23 @@ public class ImportJobTest {
     LOGGER.info("Validating the actual values written to Redis ...");
     Jedis jedis = new Jedis(REDIS_HOST, REDIS_PORT);
     expected.forEach((key, expectedValue) -> {
+
+      // Ensure ingested key exists.
       byte[] actualByteValue = jedis.get(key.toByteArray());
-      Assert.assertNotNull("Key not found in Redis: " + key, actualByteValue);
+      if (actualByteValue == null) {
+        LOGGER.error("Key not found in Redis: " + key);
+        LOGGER.info("Redis INFO:");
+        LOGGER.info(jedis.info());
+        String randomKey = jedis.randomKey();
+        if (randomKey != null) {
+          LOGGER.info("Sample random key, value (for debugging purpose):");
+          LOGGER.info("Key: " + randomKey);
+          LOGGER.info("Value: " + jedis.get(randomKey));
+        }
+        Assert.fail("Missing key in Redis.");
+      }
+
+      // Ensure value is a valid serialized FeatureRow object.
       FeatureRow actualValue = null;
       try {
         actualValue = FeatureRow.parseFrom(actualByteValue);
@@ -154,6 +171,8 @@ public class ImportJobTest {
             .format("Actual Redis value cannot be parsed as FeatureRow, key: %s, value :%s",
                 key, new String(actualByteValue, StandardCharsets.UTF_8)));
       }
+
+      // Ensure the retrieved FeatureRow is equal to the ingested FeatureRow.
       Assert.assertEquals(expectedValue, actualValue);
     });
   }
