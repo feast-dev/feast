@@ -105,7 +105,7 @@ public class RedisServingService implements ServingService {
                 .collect(Collectors.toList());
 
         Duration defaultMaxAge = featureSetSpec.getMaxAge();
-        if (featureSetRequest.getMaxAge() == Duration.getDefaultInstance()) {
+        if (featureSetRequest.getMaxAge().equals(Duration.getDefaultInstance())) {
           featureSetRequest = featureSetRequest.toBuilder().setMaxAge(defaultMaxAge).build();
         }
 
@@ -244,7 +244,7 @@ public class RedisServingService implements ServingService {
 
   private boolean isStale(
       FeatureSetRequest featureSetRequest, EntityRow entityRow, FeatureRow featureRow) {
-    if (featureSetRequest.getMaxAge() == Duration.getDefaultInstance()) {
+    if (featureSetRequest.getMaxAge().equals(Duration.getDefaultInstance())) {
       return false;
     }
     long givenTimestamp = entityRow.getEntityTimestamp().getSeconds();
