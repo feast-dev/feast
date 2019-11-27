@@ -93,7 +93,7 @@ class ServingServicer(Serving.ServingServiceServicer):
             self._store.register_feature_set(feature_set)
 
     def GetFeastServingVersion(self, request, context):
-        return GetFeastServingInfoResponse(version="0.3.0")
+        return GetFeastServingInfoResponse(version="0.3.2")
 
     def GetOnlineFeatures(self, request: GetOnlineFeaturesRequest, context):
 

@@ -123,7 +123,7 @@ feast version
 ```javascript
 {
   "sdk": {
-    "version": "feast 0.3.0"
+    "version": "feast 0.3.2"
   },
   "core": {
     "url": "192.168.99.100:32090",
@@ -355,7 +355,7 @@ feast version
 ```javascript
 {
   "sdk": {
-    "version": "feast 0.3.0"
+    "version": "feast 0.3.2"
   },
   "core": {
     "url": "192.168.99.100:32090",

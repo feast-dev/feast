@@ -22,7 +22,7 @@ DESCRIPTION = "Python sdk for Feast"
 URL = "https://github.com/gojek/feast"
 AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.6.0"
-VERSION = "0.3.0"
+VERSION = "0.3.2"
 
 REQUIRED = [
     "click>=7.0",
