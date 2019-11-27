@@ -13,6 +13,7 @@ import feast.ingestion.options.ImportOptions;
 import feast.ingestion.utils.ResourceUtil;
 import feast.ingestion.values.FailedElement;
 import feast.store.serving.bigquery.FeatureRowToTableRow;
+import feast.store.serving.bigquery.GetTableReference;
 import feast.store.serving.redis.FeatureRowToRedisMutationDoFn;
 import feast.store.serving.redis.RedisCustomIO;
 import feast.types.FeatureRowProto.FeatureRow;
@@ -24,16 +25,12 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryInsertError;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
-import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.codehaus.jackson.JsonParser.Feature;
 import org.slf4j.Logger;
 
 @AutoValue
@@ -88,15 +85,8 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
                 .apply(
                     "WriteTableRowToBigQuery",
                     BigQueryIO.<FeatureRow>write()
-                        .to((SerializableFunction<ValueInSingleWindow<FeatureRow>, TableDestination>) element -> {
-                          String[] split = element.getValue().getFeatureSet().split(":");
-                          return new TableDestination(String.format(
-                              "%s:%s.%s_v%s",
-                              bigqueryConfig.getProjectId(),
-                              bigqueryConfig.getDatasetId(),
-                              split[0],
-                              split[1]), null);
-                        })
+                        .to(new GetTableReference(bigqueryConfig.getProjectId(),
+                            bigqueryConfig.getDatasetId()))
                         .withFormatFunction(new FeatureRowToTableRow(options.getJobName()))
                         .withCreateDisposition(CreateDisposition.CREATE_NEVER)
                         .withWriteDisposition(WriteDisposition.WRITE_APPEND)
