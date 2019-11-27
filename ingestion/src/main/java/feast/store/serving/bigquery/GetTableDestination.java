@@ -6,13 +6,13 @@ import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
-public class GetTableReference implements
+public class GetTableDestination implements
     SerializableFunction<ValueInSingleWindow<FeatureRow>, TableDestination> {
 
   private String projectId;
   private String datasetId;
 
-  public GetTableReference(String projectId, String datasetId) {
+  public GetTableDestination(String projectId, String datasetId) {
     this.projectId = projectId;
     this.datasetId = datasetId;
   }

@@ -13,7 +13,7 @@ import feast.ingestion.options.ImportOptions;
 import feast.ingestion.utils.ResourceUtil;
 import feast.ingestion.values.FailedElement;
 import feast.store.serving.bigquery.FeatureRowToTableRow;
-import feast.store.serving.bigquery.GetTableReference;
+import feast.store.serving.bigquery.GetTableDestination;
 import feast.store.serving.redis.FeatureRowToRedisMutationDoFn;
 import feast.store.serving.redis.RedisCustomIO;
 import feast.types.FeatureRowProto.FeatureRow;
@@ -85,7 +85,7 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
                 .apply(
                     "WriteTableRowToBigQuery",
                     BigQueryIO.<FeatureRow>write()
-                        .to(new GetTableReference(bigqueryConfig.getProjectId(),
+                        .to(new GetTableDestination(bigqueryConfig.getProjectId(),
                             bigqueryConfig.getDatasetId()))
                         .withFormatFunction(new FeatureRowToTableRow(options.getJobName()))
                         .withCreateDisposition(CreateDisposition.CREATE_NEVER)
