@@ -1,7 +1,6 @@
 package feast.ingestion.transform.metrics;
 
 import com.google.auto.value.AutoValue;
-import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.values.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
@@ -49,9 +48,7 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
       case "statsd":
 
         input.get(getFailureTag())
-            .apply("Window records",
-                new WindowRecords<>(WINDOW_SIZE_SECONDS))
-            .apply("Write deadletter metrics", ParDo.of(
+            .apply("WriteDeadletterMetrics", ParDo.of(
                 WriteDeadletterRowMetricsDoFn.newBuilder()
                     .setStatsdHost(options.getStatsdHost())
                     .setStatsdPort(options.getStatsdPort())
@@ -59,9 +56,7 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
                     .build()));
 
         input.get(getSuccessTag())
-            .apply("Window records",
-                new WindowRecords<>(WINDOW_SIZE_SECONDS))
-            .apply("Write row metrics", ParDo
+            .apply("WriteRowMetrics", ParDo
                 .of(WriteRowMetricsDoFn.newBuilder()
                     .setStatsdHost(options.getStatsdHost())
                     .setStatsdPort(options.getStatsdPort())

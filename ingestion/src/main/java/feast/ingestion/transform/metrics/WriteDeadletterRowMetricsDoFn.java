@@ -4,15 +4,13 @@ import com.google.auto.value.AutoValue;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import com.timgroup.statsd.StatsDClientException;
-import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.ingestion.values.FailedElement;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 
 @AutoValue
 public abstract class WriteDeadletterRowMetricsDoFn extends
-    DoFn<KV<Integer, Iterable<FailedElement>>, Void> {
+    DoFn<FailedElement, Void> {
 
   private static final Logger log = org.slf4j.LoggerFactory
       .getLogger(WriteDeadletterRowMetricsDoFn.class);
@@ -59,17 +57,15 @@ public abstract class WriteDeadletterRowMetricsDoFn extends
 
   @ProcessElement
   public void processElement(ProcessContext c) {
-
-    for (FailedElement ignored : c.element().getValue()) {
-      try {
-        statsd.count("deadletter_row_count", 1,
-            STORE_TAG_KEY + ":" + getStoreName(),
-            FEATURE_SET_NAME_TAG_KEY + ":" + ignored.getFeatureSetName(),
-            FEATURE_SET_VERSION_TAG_KEY + ":" + ignored.getFeatureSetVersion(),
-            INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
-      } catch (StatsDClientException e) {
-        log.warn("Unable to push metrics to server", e);
-      }
+    FailedElement ignored = c.element();
+    try {
+      statsd.count("deadletter_row_count", 1,
+          STORE_TAG_KEY + ":" + getStoreName(),
+          FEATURE_SET_NAME_TAG_KEY + ":" + ignored.getFeatureSetName(),
+          FEATURE_SET_VERSION_TAG_KEY + ":" + ignored.getFeatureSetVersion(),
+          INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
+    } catch (StatsDClientException e) {
+      log.warn("Unable to push metrics to server", e);
     }
   }
 }
