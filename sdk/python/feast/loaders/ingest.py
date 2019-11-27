@@ -1,34 +1,17 @@
-# Copyright 2019 The Feast Authors
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import logging
+import math
 import multiprocessing
 import os
 import time
+import numpy as np
 from itertools import repeat
 from multiprocessing import Process, Queue, Pool
-from typing import List
-from typing import Tuple, Iterable
-
-import numpy as np
 import pandas as pd
-import pyarrow as pa
-from feast.feature_set import FeatureSet
-from feast.type_map import convert_df_to_feature_rows
-from feast.types.FeatureRow_pb2 import FeatureRow
 from kafka import KafkaProducer
+
 from tqdm import tqdm
+from feast.type_map import convert_df_to_feature_rows
+from feast.feature_set import FeatureSet
 
 _logger = logging.getLogger(__name__)
 
@@ -42,13 +25,13 @@ KAFKA_CHUNK_PRODUCTION_TIMEOUT = 120  # type: int
 
 
 def _kafka_feature_row_chunk_producer(
-        feature_row_chunk_queue: Queue,
-        chunk_count: int,
-        brokers,
-        topic,
-        ctx: dict,
-        pbar: tqdm,
-) -> None:
+    feature_row_chunk_queue: Queue,
+    chunk_count: int,
+    brokers,
+    topic,
+    ctx: dict,
+    pbar: tqdm,
+):
     # Callback for failed production to Kafka
     def on_error(e):
         # Save last exception
@@ -84,102 +67,19 @@ def _kafka_feature_row_chunk_producer(
     pbar.close()
 
 
-# TODO: This function is not in use.
-def _encode_chunk(
-        df: pd.DataFrame, feature_set: FeatureSet
-) -> List[FeatureRow]:
-    """
-    Encode DataFrame chunk into feature rows chunk.
-
-    :param df: DataFrame to encode.
-    :type df: pd.DataFrame
-    :param feature_set: FeatureSet describing the DataFrame.
-    :type feature_set: FeatureSet
-    :return: List of FeatureRow objects.
-    :rtype: List[FeatureRow]
-    """
-    return df.apply(convert_df_to_feature_rows(df, feature_set), axis=1,
-                    raw=True)
-
-
-# TODO: This function is not in use.
-def encode_df_chunks(
-        df: pd.DataFrame, feature_set: FeatureSet,
-        chunk_size: int = None
-) -> Iterable[Tuple[int, List[FeatureRow]]]:
-    """
-    Generator function to encode chunks of DataFrame into a chunked list of
-    FeatureRow objects.
-
-    :param df: DataFrame to encode.
-    :type df: pd.DataFrame
-    :param feature_set: FeatureSet describing the DataFrame.
-    :type feature_set: FeatureSet
-    :param chunk_size: Size of DataFrame to encode.
-    :type chunk_size: int
-    :return: Iterable tuple containing the remaining rows in generator and a
-        list of FeatureRow objects generated from encoding a chunk of DataFrame.
-    :rtype: Iterable[Tuple[int, List[FeatureRow]]]
-    """
-    df = df.reset_index(drop=True)
-    if chunk_size is None:
-        # Encode the entire DataFrame
-        yield 0, _encode_chunk(df, feature_set)
-        return
-
-    remaining_rows = len(df)
-    total_rows = remaining_rows
-    start_index = 0
-    while start_index < total_rows:
-        end_index = start_index + chunk_size
-        chunk_buffer = _encode_chunk(df[start_index:end_index], feature_set)
-        start_index += chunk_size
-        remaining_rows = max(0, remaining_rows - chunk_size)
-        yield remaining_rows, chunk_buffer
-
-
-# TODO: This function is not in use.
-def encode_pa_chunks(
-        table: pa.lib.Table,
-        feature_set: FeatureSet,
-        chunk_size: int = None
-) -> Iterable[Tuple[int, List[FeatureRow]]]:
-    """
-    Generator function to encode chunks of PyArrow table of type RecordBatch
-    into a chunked list of FeatureRow objects.
-
-    :param table: PyArrow table.
-    :type table: pa.lib.Table
-    :param feature_set: FeatureSet describing the PyArrow table.
-    :type feature_set: FeatureSet
-    :param chunk_size: Size of DataFrame to encode.
-    :type chunk_size: int
-    :return: Iterable tuple containing the remaining batches in generator and
-        a list of FeatureRow objects generated from encoding a RecordBatch of
-        PyArrow table.
-    :rtype: Iterable[Tuple[int, List[FeatureRow]]]
-    """
-    if chunk_size is None:
-        # Encode the entire table
-        yield 0, _encode_chunk(table.to_pandas(), feature_set)
-        return
-
-    batches = table.to_batches(max_chunksize=chunk_size)
-    remaining_batches = len(batches)
-    for batch in batches:
-        chunk_buffer = _encode_chunk(batch.to_pandas(), feature_set)
-        remaining_batches -= 1
-        yield remaining_batches, chunk_buffer
+def _encode_chunk(df: pd.DataFrame, feature_set: FeatureSet):
+    # Encode dataframe chunk into feature rows chunk
+    return df.apply(convert_df_to_feature_rows(df, feature_set), axis=1, raw=True)
 
 
 def ingest_kafka(
-        feature_set: FeatureSet,
-        dataframe: pd.DataFrame,
-        max_workers: int,
-        timeout: int = None,
-        chunk_size: int = 5000,
-        disable_pbar: bool = False,
-) -> None:
+    feature_set: FeatureSet,
+    dataframe: pd.DataFrame,
+    max_workers: int,
+    timeout: int = None,
+    chunk_size: int = 5000,
+    disable_pbar: bool = False,
+):
     pbar = tqdm(unit="rows", total=dataframe.shape[0], disable=disable_pbar)
 
     # Validate feature set schema
@@ -212,8 +112,7 @@ def ingest_kafka(
 
     try:
         # Start ingestion process
-        print(
-            f"\nIngestion started for {feature_set.name}:{feature_set.version}")
+        print(f"\nIngestion started for {feature_set.name}:{feature_set.version}")
         ingestion_process.start()
 
         # Create a pool of workers to convert df chunks into feature row chunks
@@ -255,37 +154,54 @@ def ingest_kafka(
         )
 
 
-def validate_dataframe(dataframe: pd.DataFrame, fs: FeatureSet) -> None:
+def ingest_file(
+    client,
+    file_path: str,
+    force_update: bool = False,
+    timeout: int = 5,
+    max_workers=CPU_COUNT,
+):
     """
-    Validate a DataFrame to check if all entity and feature names described
-    in FeatureSet are present in the DataFrame columns.
-
-    An error will be raised if there are no matching entity/feature names in
-    FeatureSet and DataFrame.
-
-    :param dataframe: Pandas DataFrame to be validated.
-    :type dataframe: pd.DataFrame
-    :param fs: FeatureSet that DataFrame should be validated against.
-    :type fs: FeatureSet
-    :return: None
-    :rtype: None
+    Load the contents of a file into a Kafka topic.
+    Files that are currently supported:
+        * csv
+        * parquet
+    :param file_path: Valid string path to the file
+    :param force_update: Flag to update feature set from dataset and reregister if changed.
+    :param timeout: Timeout in seconds to wait for completion
+    :param max_workers: The maximum number of threads that can be used to execute the given calls.
+    :return:
     """
+    df = None
+    filename, file_ext = os.path.splitext(file_path)
+    if ".parquet" in file_ext:
+        df = pd.read_parquet(file_path)
+    elif ".csv" in file_ext:
+        df = pd.read_csv(file_path, index_col=False)
+    try:
+        # Ensure that dataframe is initialised
+        assert isinstance(df, pd.DataFrame)
+    except AssertionError:
+        _logger.error(f"Ingestion of file type {file_ext} is not supported")
+        raise Exception("File type not supported")
+
+    client.ingest(df, force_update, timeout, max_workers)
+
+
+def validate_dataframe(dataframe: pd.DataFrame, fs: FeatureSet):
     if "datetime" not in dataframe.columns:
         raise ValueError(
-            f'DataFrame does not contain entity "datetime" in columns '
-            f'{dataframe.columns}'
+            f'Dataframe does not contain entity "datetime" in columns {dataframe.columns}'
         )
 
     for entity in fs.entities:
         if entity.name not in dataframe.columns:
             raise ValueError(
-                f"DataFrame does not contain entity {entity.name} in columns "
-                f"{dataframe.columns}"
+                f"Dataframe does not contain entity {entity.name} in columns {dataframe.columns}"
             )
 
     for feature in fs.features:
         if feature.name not in dataframe.columns:
             raise ValueError(
-                f"DataFrame does not contain feature {feature.name} in columns "
-                f"{dataframe.columns}"
+                f"Dataframe does not contain feature {feature.name} in columns {dataframe.columns}"
             )
