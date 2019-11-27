@@ -147,6 +147,42 @@ def convert_df_to_feature_rows(dataframe: pd.DataFrame, feature_set):
     return convert_series_to_proto_values
 
 
+def convert_dict_to_proto_values(
+        row: dict,
+        df_datetime_dtype: pd.DataFrame.dtypes,
+        feature_set
+) -> FeatureRowProto.FeatureRow:
+    """
+    Encode a dictionary describing a feature row into a FeatureRows object.
+
+    :param row: Dictionary describing a feature row.
+    :type row: dict
+    :param df_datetime_dtype: Pandas dtype of datetime column.
+    :type df_datetime_dtype: pd.DataFrame.dtypes
+    :param feature_set: Feature set describing feature row.
+    :type feature_set: FeatureSet
+    :return: FeatureRow object.
+    :rtype: FeatureRowProto.FeatureRow
+    """
+    feature_row = FeatureRowProto.FeatureRow(
+        event_timestamp=pd_datetime_to_timestamp_proto(
+            df_datetime_dtype, row[DATETIME_COLUMN]
+        ),
+        feature_set=feature_set.name + ":" + str(feature_set.version),
+    )
+
+    for field_name, field in feature_set.fields.items():
+        feature_row.fields.extend(
+            [
+                FieldProto.Field(
+                    name=field.name,
+                    value=pd_value_to_proto_value(field.dtype, row[field.name]),
+                )
+            ]
+        )
+    return feature_row
+
+
 def pd_datetime_to_timestamp_proto(dtype, value) -> Timestamp:
     if type(value) in [np.float64, np.float32, np.int32, np.int64]:
         return Timestamp(seconds=int(value))
@@ -252,7 +288,7 @@ def pd_value_to_proto_value(feast_value_type, value) -> ProtoValue:
         elif feast_value_type == ValueType.FLOAT:
             return ProtoValue(float_val=float(value))
         elif feast_value_type == ValueType.DOUBLE:
-            assert type(value) is float
+            assert type(value) is float or np.float64
             return ProtoValue(double_val=value)
         elif feast_value_type == ValueType.STRING:
             return ProtoValue(string_val=str(value))
