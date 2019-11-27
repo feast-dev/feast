@@ -88,8 +88,8 @@ store {
 
 #### Starting Feast Serving
 
-Feast Serving requires administrators to provide an **existing** store name in Feast. 
-An instance of Feast Serving can only retrieve features from a **single** store. 
+Feast Serving requires administrators to provide an **existing** store name in Feast.
+An instance of Feast Serving can only retrieve features from a **single** store.
 > In order to retrieve features from multiple stores you must start **multiple**
 instances of Feast serving. If you start multiple Feast serving on a single host,
 make sure that they are listening on different ports.
