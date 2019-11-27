@@ -92,8 +92,7 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
                         .withWriteDisposition(WriteDisposition.WRITE_APPEND)
                         .withExtendedErrorInfo()
                         .withMethod(Method.STREAMING_INSERTS)
-                        .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
-                        .withTimePartitioning(timePartitioning));
+                        .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors()));
 
         if (options.getDeadLetterTableSpec() != null) {
           bigqueryWriteResult
