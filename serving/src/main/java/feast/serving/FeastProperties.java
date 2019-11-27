@@ -107,39 +107,39 @@ public class FeastProperties {
       return this.redisPoolMaxIdle;
     }
 
-    public int getCassandraPoolCoreLocalConnections {
+    public int getCassandraPoolCoreLocalConnections() {
       return this.cassandraPoolCoreLocalConnections;
     }
 
-    public int getCassandraPoolMaxLocalConnections {
+    public int getCassandraPoolMaxLocalConnections() {
       return this.cassandraPoolMaxLocalConnections;
     }
 
-    public int getCassandraPoolCoreRemoteConnections {
+    public int getCassandraPoolCoreRemoteConnections() {
       return this.cassandraPoolCoreRemoteConnections;
     }
 
-    public int getCassandraPoolMaxRemoteConnections {
+    public int getCassandraPoolMaxRemoteConnections() {
       return this.cassandraPoolMaxRemoteConnections;
     }
 
-    public int getCassandraPoolMaxRequestsLocalConnection {
+    public int getCassandraPoolMaxRequestsLocalConnection() {
       return this.cassandraPoolMaxRequestsLocalConnection;
     }
 
-    public int getCassandraPoolMaxRequestsRemoteConnection {
+    public int getCassandraPoolMaxRequestsRemoteConnection() {
       return this.cassandraPoolMaxRequestsRemoteConnection;
     }
 
-    public int getCassandraPoolNewLocalConnectionThreshold {
+    public int getCassandraPoolNewLocalConnectionThreshold() {
       return this.cassandraPoolNewLocalConnectionThreshold;
     }
 
-    public int getCassandraPoolNewRemoteConnectionThreshold {
+    public int getCassandraPoolNewRemoteConnectionThreshold() {
       return this.cassandraPoolNewRemoteConnectionThreshold;
     }
 
-    public int getCassandraPoolTimeoutMillis {
+    public int getCassandraPoolTimeoutMillis() {
       return this.cassandraPoolTimeoutMillis;
     }
 
