@@ -59,7 +59,7 @@ nohup /tmp/kafka/bin/zookeeper-server-start.sh /tmp/kafka/config/zookeeper.prope
 sleep 5
 tail -n10 /var/log/zookeeper.log
 nohup /tmp/kafka/bin/kafka-server-start.sh /tmp/kafka/config/server.properties &> /var/log/kafka.log 2>&1 &
-sleep 5
+sleep 10
 tail -n10 /var/log/kafka.log
 
 echo "
@@ -124,7 +124,7 @@ EOF
 nohup java -jar core/target/feast-core-0.3.2-SNAPSHOT.jar \
   --spring.config.location=file:///tmp/core.application.yml \
   &> /var/log/feast-core.log &
-sleep 20
+sleep 30
 tail -n10 /var/log/feast-core.log
 
 echo "

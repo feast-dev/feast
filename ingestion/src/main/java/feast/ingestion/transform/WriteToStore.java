@@ -13,6 +13,7 @@ import feast.ingestion.options.ImportOptions;
 import feast.ingestion.utils.ResourceUtil;
 import feast.ingestion.values.FailedElement;
 import feast.store.serving.bigquery.FeatureRowToTableRow;
+import feast.store.serving.bigquery.GetTableDestination;
 import feast.store.serving.redis.FeatureRowToRedisMutationDoFn;
 import feast.store.serving.redis.RedisCustomIO;
 import feast.types.FeatureRowProto.FeatureRow;
@@ -24,7 +25,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryInsertError;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
-import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -32,7 +32,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -97,22 +96,14 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
                 .apply(
                     "WriteTableRowToBigQuery",
                     BigQueryIO.<FeatureRow>write()
-                        .to((SerializableFunction<ValueInSingleWindow<FeatureRow>, TableDestination>) element -> {
-                          String[] split = element.getValue().getFeatureSet().split(":");
-                          return new TableDestination(String.format(
-                              "%s:%s.%s_v%s",
-                              bigqueryConfig.getProjectId(),
-                              bigqueryConfig.getDatasetId(),
-                              split[0],
-                              split[1]), null);
-                        })
+                        .to(new GetTableDestination(bigqueryConfig.getProjectId(),
+                            bigqueryConfig.getDatasetId()))
                         .withFormatFunction(new FeatureRowToTableRow(options.getJobName()))
                         .withCreateDisposition(CreateDisposition.CREATE_NEVER)
                         .withWriteDisposition(WriteDisposition.WRITE_APPEND)
                         .withExtendedErrorInfo()
                         .withMethod(Method.STREAMING_INSERTS)
-                        .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
-                        .withTimePartitioning(timePartitioning));
+                        .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors()));
 
         if (options.getDeadLetterTableSpec() != null) {
           bigqueryWriteResult
