@@ -55,7 +55,6 @@ import feast.serving.ServingAPIProto.JobStatus;
 import feast.serving.ServingAPIProto.JobType;
 import feast.serving.util.BigQueryUtil;
 import io.grpc.Status;
-import io.prometheus.client.Histogram.Timer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -113,7 +112,7 @@ public class BigQueryServingService implements ServingService {
   /** {@inheritDoc} */
   @Override
   public GetBatchFeaturesResponse getBatchFeatures(GetBatchFeaturesRequest getFeaturesRequest) {
-    Timer getBatchFeaturesTimer = requestLatency.labels("getBatchFeatures").startTimer();
+    long startTime = System.currentTimeMillis();
     List<FeatureSetSpec> featureSetSpecs =
         getFeaturesRequest.getFeatureSetsList().stream()
             .map(
@@ -249,7 +248,7 @@ public class BigQueryServingService implements ServingService {
             })
         .start();
 
-    getBatchFeaturesTimer.observeDuration();
+    requestLatency.labels("getBatchFeatures").observe(System.currentTimeMillis() - startTime);
     return GetBatchFeaturesResponse.newBuilder().setJob(feastJob).build();
   }
 
