@@ -1,5 +1,6 @@
 /*
- * Copyright 2018 The Feast Authors
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,10 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
-
-// package io.suryawirawan.henry.beam.redis.io;
 package feast.store.serving.redis;
 
 import org.apache.avro.reflect.Nullable;
@@ -39,8 +37,7 @@ public class RedisCustomIO {
 
   private static final Logger log = LoggerFactory.getLogger(RedisCustomIO.class);
 
-  private RedisCustomIO() {
-  }
+  private RedisCustomIO() {}
 
   public static Write write(String host, int port) {
     return new Write(host, port);
@@ -54,9 +51,7 @@ public class RedisCustomIO {
      */
     APPEND,
 
-    /**
-     * Use SET command. If key already holds a value, it is overwritten.
-     */
+    /** Use SET command. If key already holds a value, it is overwritten. */
     SET,
 
     /**
@@ -95,14 +90,16 @@ public class RedisCustomIO {
     private Method method;
     private byte[] key;
     private byte[] value;
-    @Nullable
-    private Long expiryMillis;
-    @Nullable
-    private Long score;
+    @Nullable private Long expiryMillis;
+    @Nullable private Long score;
 
     public RedisMutation() {}
 
-    public RedisMutation(Method method, byte[] key, byte[] value, @Nullable Long expiryMillis,
+    public RedisMutation(
+        Method method,
+        byte[] key,
+        byte[] value,
+        @Nullable Long expiryMillis,
         @Nullable Long score) {
       this.method = method;
       this.key = key;
@@ -154,9 +151,7 @@ public class RedisCustomIO {
     }
   }
 
-  /**
-   * ServingStoreWrite data to a Redis server.
-   */
+  /** ServingStoreWrite data to a Redis server. */
   public static class Write extends PTransform<PCollection<RedisMutation>, PDone> {
 
     private WriteDoFn dofn;

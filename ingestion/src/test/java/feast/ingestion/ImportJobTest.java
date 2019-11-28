@@ -1,3 +1,19 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package feast.ingestion;
 
 import com.google.common.io.Files;
@@ -54,6 +70,7 @@ public class ImportJobTest {
 
   @SuppressWarnings("UnstableApiUsage")
   private static final String ZOOKEEPER_DATA_DIR = Files.createTempDir().getAbsolutePath();
+
   private static final String ZOOKEEPER_HOST = "localhost";
   private static final int ZOOKEEPER_PORT = 2182;
 
@@ -72,8 +89,14 @@ public class ImportJobTest {
 
   @BeforeClass
   public static void setup() throws IOException, InterruptedException {
-    LocalKafka.start(KAFKA_HOST, KAFKA_PORT, KAFKA_REPLICATION_FACTOR, true, ZOOKEEPER_HOST,
-        ZOOKEEPER_PORT, ZOOKEEPER_DATA_DIR);
+    LocalKafka.start(
+        KAFKA_HOST,
+        KAFKA_PORT,
+        KAFKA_REPLICATION_FACTOR,
+        true,
+        ZOOKEEPER_HOST,
+        ZOOKEEPER_PORT,
+        ZOOKEEPER_DATA_DIR);
     LocalRedis.start(REDIS_PORT);
   }
 
@@ -87,31 +110,50 @@ public class ImportJobTest {
   public void runPipeline_ShouldWriteToRedisCorrectlyGivenValidSpecAndFeatureRow()
       throws IOException, InterruptedException {
     FeatureSetSpec spec =
-        FeatureSetSpec.newBuilder().setName("feature_set").setVersion(3)
-            .addEntities(EntitySpec.newBuilder()
-                .setName("entity_id_primary").setValueType(Enum.INT32).build())
-            .addEntities(EntitySpec.newBuilder()
-                .setName("entity_id_secondary").setValueType(Enum.STRING).build())
-            .addFeatures(FeatureSpec.newBuilder()
-                .setName("feature_1").setValueType(Enum.STRING_LIST).build())
-            .addFeatures(FeatureSpec.newBuilder()
-                .setName("feature_2").setValueType(Enum.STRING).build())
-            .addFeatures(FeatureSpec.newBuilder()
-                .setName("feature_3").setValueType(Enum.INT64).build())
-            .setSource(Source.newBuilder()
-                .setType(SourceType.KAFKA).setKafkaSourceConfig(
-                    KafkaSourceConfig.newBuilder()
-                        .setBootstrapServers(KAFKA_HOST + ":" + KAFKA_PORT)
-                        .setTopic(KAFKA_TOPIC).build())
-                .build())
+        FeatureSetSpec.newBuilder()
+            .setName("feature_set")
+            .setVersion(3)
+            .addEntities(
+                EntitySpec.newBuilder()
+                    .setName("entity_id_primary")
+                    .setValueType(Enum.INT32)
+                    .build())
+            .addEntities(
+                EntitySpec.newBuilder()
+                    .setName("entity_id_secondary")
+                    .setValueType(Enum.STRING)
+                    .build())
+            .addFeatures(
+                FeatureSpec.newBuilder()
+                    .setName("feature_1")
+                    .setValueType(Enum.STRING_LIST)
+                    .build())
+            .addFeatures(
+                FeatureSpec.newBuilder().setName("feature_2").setValueType(Enum.STRING).build())
+            .addFeatures(
+                FeatureSpec.newBuilder().setName("feature_3").setValueType(Enum.INT64).build())
+            .setSource(
+                Source.newBuilder()
+                    .setType(SourceType.KAFKA)
+                    .setKafkaSourceConfig(
+                        KafkaSourceConfig.newBuilder()
+                            .setBootstrapServers(KAFKA_HOST + ":" + KAFKA_PORT)
+                            .setTopic(KAFKA_TOPIC)
+                            .build())
+                    .build())
             .build();
 
     Store redis =
-        Store.newBuilder().setName(StoreType.REDIS.toString()).setType(StoreType.REDIS)
-            .setRedisConfig(RedisConfig.newBuilder()
-                .setHost(REDIS_HOST).setPort(REDIS_PORT).build())
-            .addSubscriptions(Subscription.newBuilder()
-                .setName(spec.getName()).setVersion(String.valueOf(spec.getVersion())).build())
+        Store.newBuilder()
+            .setName(StoreType.REDIS.toString())
+            .setType(StoreType.REDIS)
+            .setRedisConfig(
+                RedisConfig.newBuilder().setHost(REDIS_HOST).setPort(REDIS_PORT).build())
+            .addSubscriptions(
+                Subscription.newBuilder()
+                    .setName(spec.getName())
+                    .setVersion(String.valueOf(spec.getVersion()))
+                    .build())
             .build();
 
     ImportOptions options = PipelineOptionsFactory.create().as(ImportOptions.class);

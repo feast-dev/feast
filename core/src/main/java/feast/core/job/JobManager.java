@@ -1,5 +1,6 @@
 /*
- * Copyright 2018 The Feast Authors
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,9 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
-
 package feast.core.job;
 
 import feast.core.FeatureSetProto.FeatureSetSpec;
@@ -26,6 +25,7 @@ public interface JobManager {
 
   /**
    * Get Runner Type
+   *
    * @return runner type
    */
   Runner getRunnerType();
@@ -54,5 +54,4 @@ public interface JobManager {
    * @param extId runner specific job id.
    */
   void abortJob(String extId);
-
 }

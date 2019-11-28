@@ -1,21 +1,34 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package feast.ingestion.transform.metrics;
 
 import com.google.auto.value.AutoValue;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import com.timgroup.statsd.StatsDClientException;
-import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.ingestion.values.FailedElement;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 
 @AutoValue
-public abstract class WriteDeadletterRowMetricsDoFn extends
-    DoFn<KV<Integer, Iterable<FailedElement>>, Void> {
+public abstract class WriteDeadletterRowMetricsDoFn extends DoFn<FailedElement, Void> {
 
-  private static final Logger log = org.slf4j.LoggerFactory
-      .getLogger(WriteDeadletterRowMetricsDoFn.class);
+  private static final Logger log =
+      org.slf4j.LoggerFactory.getLogger(WriteDeadletterRowMetricsDoFn.class);
 
   private final String INGESTION_JOB_NAME_KEY = "ingestion_job_name";
   private final String METRIC_PREFIX = "feast_ingestion";
@@ -45,31 +58,26 @@ public abstract class WriteDeadletterRowMetricsDoFn extends
     public abstract Builder setStatsdPort(int statsdPort);
 
     public abstract WriteDeadletterRowMetricsDoFn build();
-
   }
 
   @Setup
   public void setup() {
-    statsd = new NonBlockingStatsDClient(
-        METRIC_PREFIX,
-        getStatsdHost(),
-        getStatsdPort()
-    );
+    statsd = new NonBlockingStatsDClient(METRIC_PREFIX, getStatsdHost(), getStatsdPort());
   }
 
   @ProcessElement
   public void processElement(ProcessContext c) {
-
-    for (FailedElement ignored : c.element().getValue()) {
-      try {
-        statsd.count("deadletter_row_count", 1,
-            STORE_TAG_KEY + ":" + getStoreName(),
-            FEATURE_SET_NAME_TAG_KEY + ":" + ignored.getFeatureSetName(),
-            FEATURE_SET_VERSION_TAG_KEY + ":" + ignored.getFeatureSetVersion(),
-            INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
-      } catch (StatsDClientException e) {
-        log.warn("Unable to push metrics to server", e);
-      }
+    FailedElement ignored = c.element();
+    try {
+      statsd.count(
+          "deadletter_row_count",
+          1,
+          STORE_TAG_KEY + ":" + getStoreName(),
+          FEATURE_SET_NAME_TAG_KEY + ":" + ignored.getFeatureSetName(),
+          FEATURE_SET_VERSION_TAG_KEY + ":" + ignored.getFeatureSetVersion(),
+          INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
+    } catch (StatsDClientException e) {
+      log.warn("Unable to push metrics to server", e);
     }
   }
 }

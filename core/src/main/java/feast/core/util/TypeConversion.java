@@ -1,5 +1,6 @@
 /*
- * Copyright 2018 The Feast Authors
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,15 +13,12 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
-
 package feast.core.util;
 
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.Map.Entry;
@@ -61,8 +59,7 @@ public class TypeConversion {
     if (jsonString == null || jsonString.equals("") || jsonString.equals("{}")) {
       return Collections.emptyMap();
     }
-    Type stringMapType = new TypeToken<Map<String, String>>() {
-    }.getType();
+    Type stringMapType = new TypeToken<Map<String, String>>() {}.getType();
     return gson.fromJson(jsonString, stringMapType);
   }
 
@@ -90,6 +87,6 @@ public class TypeConversion {
     for (Entry<String, String> arg : map.entrySet()) {
       args.add(Strings.lenientFormat("--%s=%s", arg.getKey(), arg.getValue()));
     }
-    return args.toArray(new String[]{});
+    return args.toArray(new String[] {});
   }
 }
