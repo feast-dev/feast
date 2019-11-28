@@ -19,13 +19,14 @@ This script will run end-to-end tests for Feast Core and Online Serving.
    tests/e2e via pytest.
 "
 
+apt-get -qq update
+apt-get -y install wget netcat kafkacat
+
 echo "
 ============================================================
 Installing Redis at localhost:6379
 ============================================================
 "
-apt-get -qq update
-apt-get -y install wget netcat 
 
 # Allow starting serving in this Maven Docker image. Default set to not allowed.
 echo "exit 0" > /usr/sbin/policy-rc.d
@@ -63,9 +64,7 @@ tail -n10 /var/log/zookeeper.log
 nohup /tmp/kafka/bin/kafka-server-start.sh /tmp/kafka/config/server.properties &> /var/log/kafka.log 2>&1 &
 sleep 10
 tail -n10 /var/log/kafka.log
-# Test connection to Zookeeper and Kafka
-nc localhost 2181 < /dev/null 
-nc localhost 9092 < /dev/null
+kafkacat -b localhost:9092 -L
 
 echo "
 ============================================================
