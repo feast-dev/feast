@@ -1,15 +1,28 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package feast.ingestion.transform;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import feast.core.SourceProto.Source;
 import feast.core.SourceProto.SourceType;
 import feast.ingestion.transform.fn.KafkaRecordToFeatureRowDoFn;
 import feast.ingestion.values.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
-import java.util.List;
-import java.util.Map;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -74,10 +87,12 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
                 .withReadCommitted()
                 .commitOffsetsInFinalize())
         .apply(
-            "KafkaRecordToFeatureRow", ParDo.of(KafkaRecordToFeatureRowDoFn.newBuilder()
-                .setSuccessTag(getSuccessTag())
-                .setFailureTag(getFailureTag())
-                .build())
+            "KafkaRecordToFeatureRow",
+            ParDo.of(
+                    KafkaRecordToFeatureRowDoFn.newBuilder()
+                        .setSuccessTag(getSuccessTag())
+                        .setFailureTag(getFailureTag())
+                        .build())
                 .withOutputTags(getSuccessTag(), TupleTagList.of(getFailureTag())));
   }
 

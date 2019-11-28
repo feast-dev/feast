@@ -1,8 +1,23 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package feast.ingestion.transform;
 
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse.InsertErrors;
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.auto.value.AutoValue;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
@@ -63,7 +78,6 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
 
     switch (storeType) {
       case REDIS:
-
         RedisConfig redisConfig = getStore().getRedisConfig();
         input
             .apply(
@@ -74,22 +88,21 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
                 RedisCustomIO.write(redisConfig.getHost(), redisConfig.getPort()));
         break;
       case BIGQUERY:
-
         BigQueryConfig bigqueryConfig = getStore().getBigqueryConfig();
 
         WriteResult bigqueryWriteResult =
-            input
-                .apply(
-                    "WriteTableRowToBigQuery",
-                    BigQueryIO.<FeatureRow>write()
-                        .to(new GetTableDestination(bigqueryConfig.getProjectId(),
-                            bigqueryConfig.getDatasetId()))
-                        .withFormatFunction(new FeatureRowToTableRow(options.getJobName()))
-                        .withCreateDisposition(CreateDisposition.CREATE_NEVER)
-                        .withWriteDisposition(WriteDisposition.WRITE_APPEND)
-                        .withExtendedErrorInfo()
-                        .withMethod(Method.STREAMING_INSERTS)
-                        .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors()));
+            input.apply(
+                "WriteTableRowToBigQuery",
+                BigQueryIO.<FeatureRow>write()
+                    .to(
+                        new GetTableDestination(
+                            bigqueryConfig.getProjectId(), bigqueryConfig.getDatasetId()))
+                    .withFormatFunction(new FeatureRowToTableRow(options.getJobName()))
+                    .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+                    .withWriteDisposition(WriteDisposition.WRITE_APPEND)
+                    .withExtendedErrorInfo()
+                    .withMethod(Method.STREAMING_INSERTS)
+                    .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors()));
 
         if (options.getDeadLetterTableSpec() != null) {
           bigqueryWriteResult

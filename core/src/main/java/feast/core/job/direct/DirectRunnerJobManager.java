@@ -1,5 +1,6 @@
 /*
- * Copyright 2018 The Feast Authors
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,9 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
-
 package feast.core.job.direct;
 
 import com.google.common.base.Strings;
@@ -51,8 +50,9 @@ public class DirectRunnerJobManager implements JobManager {
   private final DirectJobRegistry jobs;
   private MetricsProperties metrics;
 
-
-  public DirectRunnerJobManager(Map<String, String> defaultOptions, DirectJobRegistry jobs,
+  public DirectRunnerJobManager(
+      Map<String, String> defaultOptions,
+      DirectJobRegistry jobs,
       MetricsProperties metricsProperties) {
     this.defaultOptions = defaultOptions;
     this.jobs = jobs;
@@ -72,8 +72,8 @@ public class DirectRunnerJobManager implements JobManager {
    * @param sinkSpec Store to sink features to
    */
   @Override
-  public String startJob(String name, List<FeatureSetSpec> featureSetSpecs,
-      StoreProto.Store sinkSpec) {
+  public String startJob(
+      String name, List<FeatureSetSpec> featureSetSpecs, StoreProto.Store sinkSpec) {
     try {
       ImportOptions pipelineOptions = getPipelineOptions(featureSetSpecs, sinkSpec);
       PipelineResult pipelineResult = runPipeline(pipelineOptions);
@@ -86,8 +86,8 @@ public class DirectRunnerJobManager implements JobManager {
     }
   }
 
-  private ImportOptions getPipelineOptions(List<FeatureSetSpec> featureSetSpecs,
-      StoreProto.Store sink)
+  private ImportOptions getPipelineOptions(
+      List<FeatureSetSpec> featureSetSpecs, StoreProto.Store sink)
       throws InvalidProtocolBufferException {
     String[] args = TypeConversion.convertMapToArgs(defaultOptions);
     ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
@@ -112,11 +112,11 @@ public class DirectRunnerJobManager implements JobManager {
   }
 
   /**
-   * Stops an existing job and restarts a new job in its place as a proxy for job updates.
-   * Note that since we do not maintain a consumer group across the two jobs and the old job
-   * is not drained, some data may be lost.
+   * Stops an existing job and restarts a new job in its place as a proxy for job updates. Note that
+   * since we do not maintain a consumer group across the two jobs and the old job is not drained,
+   * some data may be lost.
    *
-   * As a rule of thumb, direct jobs in feast should only be used for testing.
+   * <p>As a rule of thumb, direct jobs in feast should only be used for testing.
    *
    * @param jobInfo jobInfo of target job to change
    * @return jobId of the job
@@ -154,8 +154,7 @@ public class DirectRunnerJobManager implements JobManager {
     jobs.remove(extId);
   }
 
-  public PipelineResult runPipeline(ImportOptions pipelineOptions)
-      throws IOException {
+  public PipelineResult runPipeline(ImportOptions pipelineOptions) throws IOException {
     return ImportJob.runPipeline(pipelineOptions);
   }
 }
