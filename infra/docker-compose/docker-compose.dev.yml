@@ -3,12 +3,12 @@ version: "3.7"
 services:
   core:
     build:
-      dockerfile: infra/docker/core/Dockerfile
+      dockerfile: infra/docker/core/Dockerfile.dev
       context: ../../
 
   serving:
     build:
-      dockerfile: infra/docker/serving/Dockerfile
+      dockerfile: infra/docker/serving/Dockerfile.dev
       context: ../../
 
   jupyter:
