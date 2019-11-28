@@ -6,7 +6,7 @@ plank:
   job_url_prefix: http://prow.feast.ai/view/gcs
   report_template: '[Full PR test history](https://prow.feast.ai/pr-history?org={{.Spec.Refs.Org}}&repo={{.Spec.Refs.Repo}}&pr={{with index .Spec.Refs.Pulls 0}}{{.Number}}{{end}})'
   default_decoration_config:
-    timeout: 7200000000000    # 2h
+    timeout: 3600000000000    # 1h
     grace_period: 15000000000 # 15s
     utility_images:
       clonerefs: gcr.io/k8s-prow/clonerefs:v20190221-d14461a
