@@ -16,9 +16,6 @@ import org.slf4j.Logger;
 @AutoValue
 public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple, PDone> {
 
-  private static final long WINDOW_SIZE_SECONDS = 15;
-  private static final Logger log = org.slf4j.LoggerFactory.getLogger(WriteMetricsTransform.class);
-
   public abstract String getStoreName();
 
   public abstract TupleTag<FeatureRow> getSuccessTag();
