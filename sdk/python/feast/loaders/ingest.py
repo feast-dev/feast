@@ -226,7 +226,7 @@ def ingest_table_to_kafka(
 
     try:
         # Start ingestion process
-        print(f"\nIngestion started for {feature_set.name}:{feature_set.version}")
+        print(f"\n(ingest table to kafka) Ingestion started for {feature_set.name}:{feature_set.version}")
         ingestion_process.start()
 
         for row in _encode_pa_chunks(
