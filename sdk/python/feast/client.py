@@ -62,8 +62,7 @@ CPU_COUNT = os.cpu_count()  # type: int
 
 class Client:
     def __init__(
-            self, core_url: str = None, serving_url: str = None,
-            verbose: bool = False
+        self, core_url: str = None, serving_url: str = None, verbose: bool = False
     ):
         self._core_url = core_url
         self._serving_url = serving_url
@@ -113,23 +112,19 @@ class Client:
 
         try:
             core_version = self._core_service_stub.GetFeastCoreVersion(
-                GetFeastCoreVersionRequest(),
-                timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+                GetFeastCoreVersionRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             ).version
             core_status = "connected"
         except grpc.RpcError as e:
-            print(format_grpc_exception("GetFeastCoreVersion", e.code(),
-                                        e.details()))
+            print(format_grpc_exception("GetFeastCoreVersion", e.code(), e.details()))
 
         try:
             serving_version = self._serving_service_stub.GetFeastServingInfo(
-                GetFeastServingInfoRequest(),
-                timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+                GetFeastServingInfoRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             ).version
             serving_status = "connected"
         except grpc.RpcError as e:
-            print(format_grpc_exception("GetFeastServingInfo", e.code(),
-                                        e.details()))
+            print(format_grpc_exception("GetFeastServingInfo", e.code(), e.details()))
 
         return {
             "core": {
@@ -193,8 +188,7 @@ class Client:
             )
             sys.exit(1)
         else:
-            self._serving_service_stub = ServingServiceStub(
-                self.__serving_channel)
+            self._serving_service_stub = ServingServiceStub(self.__serving_channel)
 
     def apply(self, feature_sets: Union[List[FeatureSet], FeatureSet]):
         """
@@ -235,8 +229,7 @@ class Client:
                 print(f"No change detected in feature set {feature_set.name}")
                 return
         except grpc.RpcError as e:
-            print(
-                format_grpc_exception("ApplyFeatureSet", e.code(), e.details()))
+            print(format_grpc_exception("ApplyFeatureSet", e.code(), e.details()))
 
     def list_feature_sets(self) -> List[FeatureSet]:
         """
@@ -264,7 +257,7 @@ class Client:
         return feature_sets
 
     def get_feature_set(
-            self, name: str, version: int = None, fail_if_missing: bool = False
+        self, name: str, version: int = None, fail_if_missing: bool = False
     ) -> Union[FeatureSet, None]:
         """
         Retrieve a single feature set from Feast Core
@@ -308,7 +301,7 @@ class Client:
         return entities_dict
 
     def get_batch_features(
-            self, feature_ids: List[str], entity_rows: pd.DataFrame
+        self, feature_ids: List[str], entity_rows: pd.DataFrame
     ) -> Job:
         """
         Retrieves historical features from a Feast Serving deployment.
@@ -348,8 +341,7 @@ class Client:
             fs_request = _build_feature_set_request(feature_ids)
 
             # Validate entity rows based on entities in Feast Core
-            self._validate_entity_rows_for_batch_retrieval(entity_rows,
-                                                           fs_request)
+            self._validate_entity_rows_for_batch_retrieval(entity_rows, fs_request)
 
             # We want the timestamp column naming to be consistent with the
             # rest of Feast
@@ -360,8 +352,8 @@ class Client:
 
             # Remove timezone from datetime column
             if isinstance(
-                    entity_rows["event_timestamp"].dtype,
-                    pd.core.dtypes.dtypes.DatetimeTZDtype,
+                entity_rows["event_timestamp"].dtype,
+                pd.core.dtypes.dtypes.DatetimeTZDtype,
             ):
                 entity_rows["event_timestamp"] = pd.DatetimeIndex(
                     entity_rows["event_timestamp"]
@@ -369,8 +361,7 @@ class Client:
 
             # Retrieve serving information to determine store type and staging location
             serving_info = self._serving_service_stub.GetFeastServingInfo(
-                GetFeastServingInfoRequest(),
-                timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+                GetFeastServingInfoRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             )  # type: GetFeastServingInfoResponse
 
             if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
@@ -387,8 +378,7 @@ class Client:
                 feature_sets=fs_request,
                 dataset_source=DatasetSource(
                     file_source=DatasetSource.FileSource(
-                        file_uris=[staged_file],
-                        data_format=DataFormat.DATA_FORMAT_AVRO
+                        file_uris=[staged_file], data_format=DataFormat.DATA_FORMAT_AVRO
                     )
                 ),
             )
@@ -398,11 +388,10 @@ class Client:
             return Job(response.job, self._serving_service_stub)
 
         except grpc.RpcError as e:
-            print(format_grpc_exception("GetBatchFeatures", e.code(),
-                                        e.details()))
+            print(format_grpc_exception("GetBatchFeatures", e.code(), e.details()))
 
     def _validate_entity_rows_for_batch_retrieval(
-            self, entity_rows, feature_sets_request
+        self, entity_rows, feature_sets_request
     ):
         """
         Validate whether an entity_row dataframe contains the correct information for batch retrieval
@@ -433,9 +422,9 @@ class Client:
                     )
 
     def get_online_features(
-            self,
-            feature_ids: List[str],
-            entity_rows: List[GetOnlineFeaturesRequest.EntityRow],
+        self,
+        feature_ids: List[str],
+        entity_rows: List[GetOnlineFeaturesRequest.EntityRow],
     ) -> GetOnlineFeaturesResponse:
         """
         Retrieves the latest online feature data from Feast Serving
@@ -461,21 +450,20 @@ class Client:
                 )
             )  # type: GetOnlineFeaturesResponse
         except grpc.RpcError as e:
-            print(format_grpc_exception("GetOnlineFeatures", e.code(),
-                                        e.details()))
+            print(format_grpc_exception("GetOnlineFeatures", e.code(), e.details()))
         else:
             return response
 
     def ingest(
-            self,
-            feature_set: Union[str, FeatureSet],
-            dataframe: pd.DataFrame,
-            version: int = None,
-            force_update: bool = False,
-            max_workers: int = CPU_COUNT,
-            disable_progress_bar: bool = False,
-            chunk_size: int = 5000,
-            timeout: int = None,
+        self,
+        feature_set: Union[str, FeatureSet],
+        dataframe: pd.DataFrame,
+        version: int = None,
+        force_update: bool = False,
+        max_workers: int = CPU_COUNT,
+        disable_progress_bar: bool = False,
+        chunk_size: int = 5000,
+        timeout: int = None,
     ):
         """
         Loads data into Feast for a specific feature set.
@@ -507,15 +495,14 @@ class Client:
         else:
             raise Exception(f"Feature set name must be provided")
 
-        feature_set = self.get_feature_set(name, version, fail_if_missing=True)
-
         # Update the feature set based on DataFrame schema
         if force_update:
             feature_set.infer_fields_from_df(
-                dataframe, discard_unused_fields=True,
-                replace_existing_features=True
+                dataframe, discard_unused_fields=True, replace_existing_features=True
             )
             self.apply(feature_set)
+
+        feature_set = self.get_feature_set(name, version, fail_if_missing=True)
 
         if feature_set.source.source_type == "Kafka":
             ingest_kafka(
@@ -534,14 +521,14 @@ class Client:
             )
 
     def ingest_file(
-            self,
-            file_path: str,
-            feature_set: Union[str, FeatureSet],
-            version: int = None,
-            force_update: bool = False,
-            max_workers: int = CPU_COUNT,
-            disable_progress_bar: bool = False,
-            chunk_size: int = 5000,
+        self,
+        file_path: str,
+        feature_set: Union[str, FeatureSet],
+        version: int = None,
+        force_update: bool = False,
+        max_workers: int = CPU_COUNT,
+        disable_progress_bar: bool = False,
+        chunk_size: int = 5000,
     ) -> None:
         """
         Load the contents of a file into a Kafka topic.
@@ -591,18 +578,17 @@ class Client:
         # Ensure that PyArrow table is initialised
         assert isinstance(table, pa.lib.Table)
 
-        feature_set = self.get_feature_set(name, version, fail_if_missing=True)
-
         # Update the feature set based on DataFrame schema
         if force_update:
             # Use a small as reference DataFrame to infer fields
             ref_df = table.to_batches(max_chunksize=100)[0].to_pandas()
 
             feature_set.infer_fields_from_df(
-                ref_df, discard_unused_fields=True,
-                replace_existing_features=True
+                ref_df, discard_unused_fields=True, replace_existing_features=True
             )
             self.apply(feature_set)
+
+        feature_set = self.get_feature_set(name, version, fail_if_missing=True)
 
         if feature_set.source.source_type == "Kafka":
             ingest_table_to_kafka(
@@ -610,7 +596,7 @@ class Client:
                 tbl=table,
                 max_workers=max_workers,
                 disable_pbar=disable_progress_bar,
-                chunk_size=chunk_size
+                chunk_size=chunk_size,
             )
         else:
             raise Exception(
@@ -620,8 +606,7 @@ class Client:
             )
 
 
-def _build_feature_set_request(feature_ids: List[str]) -> List[
-    FeatureSetRequest]:
+def _build_feature_set_request(feature_ids: List[str]) -> List[FeatureSetRequest]:
     """
     Builds a list of FeatureSet objects from feature set ids in order to retrieve feature data from Feast Serving
     """
