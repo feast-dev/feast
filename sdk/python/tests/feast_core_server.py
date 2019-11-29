@@ -27,7 +27,7 @@ class CoreServicer(Core.CoreServiceServicer):
         self._feature_sets = dict()
 
     def GetFeastCoreVersion(self, request, context):
-        return GetFeastCoreVersionResponse(version="0.3.0")
+        return GetFeastCoreVersionResponse(version="0.3.2")
 
     def ListFeatureSets(self, request: ListFeatureSetsRequest, context):
 

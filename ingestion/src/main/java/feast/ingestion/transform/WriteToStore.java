@@ -1,8 +1,23 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package feast.ingestion.transform;
 
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse.InsertErrors;
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.auto.value.AutoValue;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
@@ -12,11 +27,13 @@ import feast.core.StoreProto.Store.StoreType;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.utils.ResourceUtil;
 import feast.ingestion.values.FailedElement;
-import feast.store.serving.bigquery.FeatureRowToTableRowDoFn;
+import feast.store.serving.bigquery.FeatureRowToTableRow;
+import feast.store.serving.bigquery.GetTableDestination;
 import feast.store.serving.redis.FeatureRowToRedisMutationDoFn;
 import feast.store.serving.redis.RedisCustomIO;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.io.IOException;
+import java.util.Map;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
@@ -38,7 +55,7 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
 
   public abstract Store getStore();
 
-  public abstract FeatureSetSpec getFeatureSetSpec();
+  public abstract Map<String, FeatureSetSpec> getFeatureSetSpecs();
 
   public static Builder newBuilder() {
     return new AutoValue_WriteToStore.Builder();
@@ -46,9 +63,10 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
 
   @AutoValue.Builder
   public abstract static class Builder {
+
     public abstract Builder setStore(Store store);
 
-    public abstract Builder setFeatureSetSpec(FeatureSetSpec featureSetSpec);
+    public abstract Builder setFeatureSetSpecs(Map<String, FeatureSetSpec> featureSetSpecs);
 
     public abstract WriteToStore build();
   }
@@ -64,40 +82,27 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
         input
             .apply(
                 "FeatureRowToRedisMutation",
-                ParDo.of(new FeatureRowToRedisMutationDoFn(getFeatureSetSpec())))
+                ParDo.of(new FeatureRowToRedisMutationDoFn(getFeatureSetSpecs())))
             .apply(
                 "WriteRedisMutationToRedis",
                 RedisCustomIO.write(redisConfig.getHost(), redisConfig.getPort()));
         break;
       case BIGQUERY:
         BigQueryConfig bigqueryConfig = getStore().getBigqueryConfig();
-        String tableSpec =
-            String.format(
-                "%s:%s.%s_v%s",
-                bigqueryConfig.getProjectId(),
-                bigqueryConfig.getDatasetId(),
-                getFeatureSetSpec().getName(),
-                getFeatureSetSpec().getVersion());
-        TimePartitioning timePartitioning =
-            new TimePartitioning()
-                .setType("DAY")
-                .setField(FeatureRowToTableRowDoFn.getEventTimestampColumn());
 
         WriteResult bigqueryWriteResult =
-            input
-                .apply(
-                    "FeatureRowToTableRow",
-                    ParDo.of(new FeatureRowToTableRowDoFn(options.getJobName())))
-                .apply(
-                    "WriteTableRowToBigQuery",
-                    BigQueryIO.writeTableRows()
-                        .to(tableSpec)
-                        .withCreateDisposition(CreateDisposition.CREATE_NEVER)
-                        .withWriteDisposition(WriteDisposition.WRITE_APPEND)
-                        .withExtendedErrorInfo()
-                        .withMethod(Method.STREAMING_INSERTS)
-                        .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
-                        .withTimePartitioning(timePartitioning));
+            input.apply(
+                "WriteTableRowToBigQuery",
+                BigQueryIO.<FeatureRow>write()
+                    .to(
+                        new GetTableDestination(
+                            bigqueryConfig.getProjectId(), bigqueryConfig.getDatasetId()))
+                    .withFormatFunction(new FeatureRowToTableRow(options.getJobName()))
+                    .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+                    .withWriteDisposition(WriteDisposition.WRITE_APPEND)
+                    .withExtendedErrorInfo()
+                    .withMethod(Method.STREAMING_INSERTS)
+                    .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors()));
 
         if (options.getDeadLetterTableSpec() != null) {
           bigqueryWriteResult

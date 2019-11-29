@@ -1,5 +1,6 @@
 /*
- * Copyright 2018 The Feast Authors
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,16 +13,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
-
 package feast;
 
 import com.google.common.collect.Lists;
 import com.google.common.primitives.UnsignedBytes;
-import feast.types.FieldProto.Field;
 import feast.types.FeatureRowExtendedProto.FeatureRowExtended;
 import feast.types.FeatureRowProto.FeatureRow;
+import feast.types.FieldProto.Field;
 import java.util.List;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -47,7 +46,7 @@ public class ToOrderedFeatureRows
             MapElements.into(TypeDescriptor.of(FeatureRow.class)).via(FeatureRowExtended::getRow))
         .apply(
             "normalize rows",
-            MapElements.into(TypeDescriptor.of(FeatureRow.class)).via(
-                ToOrderedFeatureRows::orderedFeatureRow));
+            MapElements.into(TypeDescriptor.of(FeatureRow.class))
+                .via(ToOrderedFeatureRows::orderedFeatureRow));
   }
 }

@@ -99,21 +99,21 @@ class TestClient:
         mocker.patch.object(
             mock_client._core_service_stub,
             "GetFeastCoreVersion",
-            return_value=GetFeastCoreVersionResponse(version="0.3.0"),
+            return_value=GetFeastCoreVersionResponse(version="0.3.2"),
         )
 
         mocker.patch.object(
             mock_client._serving_service_stub,
             "GetFeastServingInfo",
-            return_value=GetFeastServingInfoResponse(version="0.3.0"),
+            return_value=GetFeastServingInfoResponse(version="0.3.2"),
         )
 
         status = mock_client.version()
         assert (
             status["core"]["url"] == CORE_URL
-            and status["core"]["version"] == "0.3.0"
+            and status["core"]["version"] == "0.3.2"
             and status["serving"]["url"] == SERVING_URL
-            and status["serving"]["version"] == "0.3.0"
+            and status["serving"]["version"] == "0.3.2"
         )
 
     def test_get_online_features(self, mock_client, mocker):

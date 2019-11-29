@@ -1,5 +1,6 @@
 /*
- * Copyright 2019 The Feast Authors
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,12 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package feast.serving.service;
 
 import static feast.serving.util.Metrics.missingKeyCount;
-import static feast.serving.util.Metrics.requestLatency;
 import static feast.serving.util.Metrics.requestCount;
+import static feast.serving.util.Metrics.requestLatency;
 import static feast.serving.util.Metrics.staleKeyCount;
 
 import com.google.common.collect.Maps;
@@ -28,6 +28,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.serving.ServingAPIProto.FeastServingType;
+import feast.serving.ServingAPIProto.FeatureSetRequest;
 import feast.serving.ServingAPIProto.GetBatchFeaturesRequest;
 import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
@@ -36,7 +37,6 @@ import feast.serving.ServingAPIProto.GetJobRequest;
 import feast.serving.ServingAPIProto.GetJobResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
-import feast.serving.ServingAPIProto.FeatureSetRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.storage.RedisProto.RedisKey;
@@ -46,7 +46,6 @@ import feast.types.ValueProto.Value;
 import io.grpc.Status;
 import io.opentracing.Scope;
 import io.opentracing.Tracer;
-import io.prometheus.client.Histogram.Timer;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -67,9 +66,7 @@ public class RedisServingService implements ServingService {
     this.tracer = tracer;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public GetFeastServingInfoResponse getFeastServingInfo(
       GetFeastServingInfoRequest getFeastServingInfoRequest) {
@@ -78,13 +75,11 @@ public class RedisServingService implements ServingService {
         .build();
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest request) {
     try (Scope scope = tracer.buildSpan("Redis-getOnlineFeatures").startActive(true)) {
-      Timer getOnlineFeaturesTimer = requestLatency.labels("getOnlineFeatures").startTimer();
+      long startTime = System.currentTimeMillis();
       GetOnlineFeaturesResponse.Builder getOnlineFeaturesResponseBuilder =
           GetOnlineFeaturesResponse.newBuilder();
 
@@ -105,7 +100,7 @@ public class RedisServingService implements ServingService {
                 .collect(Collectors.toList());
 
         Duration defaultMaxAge = featureSetSpec.getMaxAge();
-        if (featureSetRequest.getMaxAge() == Duration.getDefaultInstance()) {
+        if (featureSetRequest.getMaxAge().equals(Duration.getDefaultInstance())) {
           featureSetRequest = featureSetRequest.toBuilder().setMaxAge(defaultMaxAge).build();
         }
 
@@ -125,7 +120,7 @@ public class RedisServingService implements ServingService {
           featureValuesMap.values().stream()
               .map(m -> FieldValues.newBuilder().putAllFields(m).build())
               .collect(Collectors.toList());
-      getOnlineFeaturesTimer.observeDuration();
+      requestLatency.labels("getOnlineFeatures").observe(System.currentTimeMillis() - startTime);
       return getOnlineFeaturesResponseBuilder.addAllFieldValues(fieldValues).build();
     }
   }
@@ -180,8 +175,9 @@ public class RedisServingService implements ServingService {
 
       if (!fieldsMap.containsKey(entityName)) {
         throw Status.INVALID_ARGUMENT
-            .withDescription(String
-                .format("Entity row fields \"%s\" does not contain required entity field \"%s\"",
+            .withDescription(
+                String.format(
+                    "Entity row fields \"%s\" does not contain required entity field \"%s\"",
                     fieldsMap.keySet().toString(), entityName))
             .asRuntimeException();
       }
@@ -200,8 +196,7 @@ public class RedisServingService implements ServingService {
       throws InvalidProtocolBufferException {
 
     List<byte[]> jedisResps = sendMultiGet(redisKeys);
-    Timer processResponseTimer = requestLatency.labels("processResponse")
-        .startTimer();
+    long startTime = System.currentTimeMillis();
     try (Scope scope = tracer.buildSpan("Redis-processResponse").startActive(true)) {
       String featureSetId =
           String.format("%s:%d", featureSetRequest.getName(), featureSetRequest.getVersion());
@@ -238,13 +233,13 @@ public class RedisServingService implements ServingService {
             .forEach(f -> featureValues.put(featureSetId + ":" + f.getName(), f.getValue()));
       }
     } finally {
-      processResponseTimer.observeDuration();
+      requestLatency.labels("processResponse").observe(System.currentTimeMillis() - startTime);
     }
   }
 
   private boolean isStale(
       FeatureSetRequest featureSetRequest, EntityRow entityRow, FeatureRow featureRow) {
-    if (featureSetRequest.getMaxAge() == Duration.getDefaultInstance()) {
+    if (featureSetRequest.getMaxAge().equals(Duration.getDefaultInstance())) {
       return false;
     }
     long givenTimestamp = entityRow.getEntityTimestamp().getSeconds();
@@ -263,7 +258,7 @@ public class RedisServingService implements ServingService {
    */
   private List<byte[]> sendMultiGet(List<RedisKey> keys) {
     try (Scope scope = tracer.buildSpan("Redis-sendMultiGet").startActive(true)) {
-      Timer sendMultiGetTimer = requestLatency.labels("sendMultiGet").startTimer();
+      long startTime = System.currentTimeMillis();
       try (Jedis jedis = jedisPool.getResource()) {
         byte[][] binaryKeys =
             keys.stream()
@@ -277,7 +272,7 @@ public class RedisServingService implements ServingService {
             .withCause(e)
             .asRuntimeException();
       } finally {
-        sendMultiGetTimer.observeDuration();
+        requestLatency.labels("sendMultiGet").observe(System.currentTimeMillis() - startTime);
       }
     }
   }

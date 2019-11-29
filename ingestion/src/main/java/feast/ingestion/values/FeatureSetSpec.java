@@ -16,31 +16,33 @@
  */
 package feast.ingestion.values;
 
-import feast.types.ValueProto.ValueType;
+import static feast.ingestion.utils.SpecUtil.getFieldsByName;
+
+import feast.core.FeatureSetProto;
 import java.io.Serializable;
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.DefaultCoder;
+import java.util.Map;
 
 /**
- * Field class represents {@link feast.types.FieldProto.Field} but without value.
+ * This class represents {@link feast.core.FeatureSetProto.FeatureSetSpec} but contains fields
+ * directly accessible by name for feature validation purposes.
  *
  * <p>The use for this class is mainly for validating the Fields in FeatureRow.
  */
-@DefaultCoder(AvroCoder.class)
-public class Field implements Serializable {
-  private final String name;
-  private final ValueType.Enum type;
+public class FeatureSetSpec implements Serializable {
+  private final String id;
 
-  public Field(String name, ValueType.Enum type) {
-    this.name = name;
-    this.type = type;
+  private final Map<String, Field> fields;
+
+  public FeatureSetSpec(FeatureSetProto.FeatureSetSpec featureSetSpec) {
+    this.id = String.format("%s:%d", featureSetSpec.getName(), featureSetSpec.getVersion());
+    this.fields = getFieldsByName(featureSetSpec);
   }
 
-  public String getName() {
-    return name;
+  public String getId() {
+    return id;
   }
 
-  public ValueType.Enum getType() {
-    return type;
+  public Field getField(String fieldName) {
+    return fields.getOrDefault(fieldName, null);
   }
 }

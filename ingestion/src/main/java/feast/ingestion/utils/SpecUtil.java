@@ -1,3 +1,19 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package feast.ingestion.utils;
 
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -16,9 +32,7 @@ import java.util.regex.Pattern;
 
 public class SpecUtil {
 
-  /**
-   * Get only feature set specs that matches the subscription
-   */
+  /** Get only feature set specs that matches the subscription */
   public static List<FeatureSetSpec> getSubscribedFeatureSets(
       List<Subscription> subscriptions, List<FeatureSetSpec> featureSetSpecs) {
     List<FeatureSetSpec> subscribed = new ArrayList<>();
@@ -82,7 +96,7 @@ public class SpecUtil {
     return stores;
   }
 
-  public static Map<String, Field> getFieldByName(FeatureSetSpec featureSetSpec) {
+  public static Map<String, Field> getFieldsByName(FeatureSetSpec featureSetSpec) {
     Map<String, Field> fieldByName = new HashMap<>();
     for (EntitySpec entitySpec : featureSetSpec.getEntitiesList()) {
       fieldByName.put(

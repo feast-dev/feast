@@ -1,10 +1,24 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package feast.core.service;
 
 import com.google.common.base.Strings;
-import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto;
-import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto;
 import feast.core.dao.JobInfoRepository;
 import feast.core.exception.JobExecutionException;
@@ -36,8 +50,7 @@ public class JobCoordinatorService {
   private JobManager jobManager;
 
   @Autowired
-  public JobCoordinatorService(
-      JobInfoRepository jobInfoRepository, JobManager jobManager) {
+  public JobCoordinatorService(JobInfoRepository jobInfoRepository, JobManager jobManager) {
     this.jobInfoRepository = jobInfoRepository;
     this.jobManager = jobManager;
   }
@@ -47,9 +60,8 @@ public class JobCoordinatorService {
    * there has been no change in the featureSet, and there is a running job for the featureSet, this
    * method will do nothing.
    */
-  public JobInfo startOrUpdateJob(List<FeatureSetSpec> featureSetSpecs,
-      SourceProto.Source sourceSpec,
-      StoreProto.Store store) {
+  public JobInfo startOrUpdateJob(
+      List<FeatureSetSpec> featureSetSpecs, SourceProto.Source sourceSpec, StoreProto.Store store) {
     Source source = Source.fromProto(sourceSpec);
     Optional<JobInfo> job = getJob(source.getId(), store.getName());
     if (job.isPresent()) {
@@ -66,17 +78,14 @@ public class JobCoordinatorService {
         return updateJob(job.get(), featureSetSpecs, store);
       }
     } else {
-      return startJob(createJobId(source.getId(), store.getName()),
-          featureSetSpecs, sourceSpec, store);
+      return startJob(
+          createJobId(source.getId(), store.getName()), featureSetSpecs, sourceSpec, store);
     }
   }
 
-  /**
-   * Get the non-terminal job associated with the given featureSet name and store name, if any.
-   */
+  /** Get the non-terminal job associated with the given featureSet name and store name, if any. */
   private Optional<JobInfo> getJob(String sourceId, String storeName) {
-    List<JobInfo> jobs =
-        jobInfoRepository.findBySourceIdAndStoreName(sourceId, storeName);
+    List<JobInfo> jobs = jobInfoRepository.findBySourceIdAndStoreName(sourceId, storeName);
     if (jobs.isEmpty()) {
       return Optional.empty();
     }
@@ -85,11 +94,11 @@ public class JobCoordinatorService {
         .findFirst();
   }
 
-  /**
-   * Start or update the job to ingest data to the sink.
-   */
+  /** Start or update the job to ingest data to the sink. */
   private JobInfo startJob(
-      String jobId, List<FeatureSetSpec> featureSetSpecs, SourceProto.Source source,
+      String jobId,
+      List<FeatureSetSpec> featureSetSpecs,
+      SourceProto.Source source,
       StoreProto.Store sinkSpec) {
     try {
       AuditLogger.log(
@@ -144,9 +153,7 @@ public class JobCoordinatorService {
     }
   }
 
-  /**
-   * Update the given job
-   */
+  /** Update the given job */
   private JobInfo updateJob(
       JobInfo jobInfo, List<FeatureSetSpec> featureSetSpecs, StoreProto.Store store) {
     jobInfo.setFeatureSets(
@@ -183,9 +190,7 @@ public class JobCoordinatorService {
     jobInfoRepository.saveAndFlush(job);
   }
 
-  /**
-   * Update a given job's status
-   */
+  /** Update a given job's status */
   public void updateJobStatus(String jobId, JobStatus status) {
     Optional<JobInfo> jobRecordOptional = jobInfoRepository.findById(jobId);
     if (jobRecordOptional.isPresent()) {

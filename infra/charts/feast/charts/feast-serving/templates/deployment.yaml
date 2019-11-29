@@ -9,13 +9,6 @@ metadata:
     chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
-  annotations:
-    {{- if .Values.prometheus.enabled }}
-    {{ $config := index .Values "application.yaml" }}
-    prometheus.io/path: /metrics
-    prometheus.io/port: "{{ $config.server.port }}"
-    prometheus.io/scrape: "true"
-    {{- end }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -25,6 +18,13 @@ spec:
       release: {{ .Release.Name }}
   template:
     metadata:
+      annotations:
+      {{- if .Values.prometheus.enabled }}
+      {{ $config := index .Values "application.yaml" }}
+        prometheus.io/path: /metrics
+        prometheus.io/port: "{{ $config.server.port }}"
+        prometheus.io/scrape: "true"
+      {{- end }}
       labels:
         app: {{ template "feast-serving.name" . }}
         component: serving

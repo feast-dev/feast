@@ -1,3 +1,19 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package feast.ingestion.transform.metrics;
 
 import com.google.auto.value.AutoValue;
@@ -9,11 +25,10 @@ import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
 import feast.types.ValueProto.Value.ValCase;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 
 @AutoValue
-public abstract class WriteRowMetricsDoFn extends DoFn<KV<Integer, Iterable<FeatureRow>>, Void> {
+public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
 
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(WriteRowMetricsDoFn.class);
 
@@ -26,11 +41,21 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<Integer, Iterable<Feat
 
   public abstract String getStoreName();
 
-  public abstract FeatureSetSpec getFeatureSetSpec();
-
   public abstract String getStatsdHost();
 
   public abstract int getStatsdPort();
+
+  public static WriteRowMetricsDoFn create(
+      String newStoreName,
+      FeatureSetSpec newFeatureSetSpec,
+      String newStatsdHost,
+      int newStatsdPort) {
+    return newBuilder()
+        .setStoreName(newStoreName)
+        .setStatsdHost(newStatsdHost)
+        .setStatsdPort(newStatsdPort)
+        .build();
+  }
 
   public StatsDClient statsd;
 
@@ -43,8 +68,6 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<Integer, Iterable<Feat
 
     public abstract Builder setStoreName(String storeName);
 
-    public abstract Builder setFeatureSetSpec(FeatureSetSpec featureSetSpec);
-
     public abstract Builder setStatsdHost(String statsdHost);
 
     public abstract Builder setStatsdPort(int statsdPort);
@@ -54,61 +77,64 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<Integer, Iterable<Feat
 
   @Setup
   public void setup() {
-    statsd = new NonBlockingStatsDClient(
-        METRIC_PREFIX,
-        getStatsdHost(),
-        getStatsdPort()
-    );
+    statsd = new NonBlockingStatsDClient(METRIC_PREFIX, getStatsdHost(), getStatsdPort());
   }
 
   @ProcessElement
   public void processElement(ProcessContext c) {
-    FeatureSetSpec featureSetSpec = getFeatureSetSpec();
-
-    long rowCount = 0;
-    long missingValueCount = 0;
 
     try {
-      for (FeatureRow row : c.element().getValue()) {
-        rowCount++;
-        long eventTimestamp = com.google.protobuf.util.Timestamps.toMillis(row.getEventTimestamp());
+      FeatureRow row = c.element();
+      long eventTimestamp = com.google.protobuf.util.Timestamps.toMillis(row.getEventTimestamp());
 
-        statsd.gauge("feature_row_lag_ms", System.currentTimeMillis() - eventTimestamp,
-            STORE_TAG_KEY + ":" + getStoreName(),
-            FEATURE_SET_NAME_TAG_KEY + ":" + featureSetSpec.getName(),
-            FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetSpec.getVersion(),
-            INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
+      String[] split = row.getFeatureSet().split(":");
+      String featureSetName = split[0];
+      String featureSetVersion = split[1];
 
-        statsd.gauge("feature_row_event_time_epoch_ms", eventTimestamp,
-            STORE_TAG_KEY + ":" + getStoreName(),
-            FEATURE_SET_NAME_TAG_KEY + ":" + featureSetSpec.getName(),
-            FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetSpec.getVersion(),
-            INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
+      statsd.histogram(
+          "feature_row_lag_ms",
+          System.currentTimeMillis() - eventTimestamp,
+          STORE_TAG_KEY + ":" + getStoreName(),
+          FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
+          FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
+          INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
 
-        for (Field field : row.getFieldsList()) {
-          if (!field.getValue().getValCase().equals(ValCase.VAL_NOT_SET)) {
-            statsd.gauge("feature_value_lag_ms", System.currentTimeMillis() - eventTimestamp,
-                STORE_TAG_KEY + ":" + getStoreName(),
-                FEATURE_SET_NAME_TAG_KEY + ":" + featureSetSpec.getName(),
-                FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetSpec.getVersion(),
-                FEATURE_TAG_KEY + ":" + field.getName(),
-                INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
-          } else {
-            missingValueCount++;
-          }
+      statsd.histogram(
+          "feature_row_event_time_epoch_ms",
+          eventTimestamp,
+          STORE_TAG_KEY + ":" + getStoreName(),
+          FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
+          FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
+          INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
+
+      for (Field field : row.getFieldsList()) {
+        if (!field.getValue().getValCase().equals(ValCase.VAL_NOT_SET)) {
+          statsd.histogram(
+              "feature_value_lag_ms",
+              System.currentTimeMillis() - eventTimestamp,
+              STORE_TAG_KEY + ":" + getStoreName(),
+              FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
+              FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
+              FEATURE_TAG_KEY + ":" + field.getName(),
+              INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
+        } else {
+          statsd.count(
+              "feature_value_missing_count",
+              1,
+              STORE_TAG_KEY + ":" + getStoreName(),
+              FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
+              FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
+              FEATURE_TAG_KEY + ":" + field.getName(),
+              INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
         }
       }
 
-      statsd.count("feature_row_ingested_count", rowCount,
+      statsd.count(
+          "feature_row_ingested_count",
+          1,
           STORE_TAG_KEY + ":" + getStoreName(),
-          FEATURE_SET_NAME_TAG_KEY + ":" + featureSetSpec.getName(),
-          FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetSpec.getVersion(),
-          INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
-
-      statsd.count("feature_row_missing_value_count", missingValueCount,
-          STORE_TAG_KEY + ":" + getStoreName(),
-          FEATURE_SET_NAME_TAG_KEY + ":" + featureSetSpec.getName(),
-          FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetSpec.getVersion(),
+          FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
+          FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
           INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
 
     } catch (StatsDClientException e) {
