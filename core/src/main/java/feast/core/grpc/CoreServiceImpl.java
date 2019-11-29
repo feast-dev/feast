@@ -51,13 +51,23 @@ import org.lognet.springboot.grpc.GRpcService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Implementation of the feast core GRPC service. */
+/**
+ * Implementation of the feast core GRPC service.
+ */
 @Slf4j
 @GRpcService
 public class CoreServiceImpl extends CoreServiceImplBase {
 
-  @Autowired private SpecService specService;
-  @Autowired private JobCoordinatorService jobCoordinatorService;
+  private SpecService specService;
+  private JobCoordinatorService jobCoordinatorService;
+
+  @Autowired
+  public CoreServiceImpl(
+      SpecService specService,
+      JobCoordinatorService jobCoordinatorService) {
+    this.specService = specService;
+    this.jobCoordinatorService = jobCoordinatorService;
+  }
 
   @Override
   public void getFeastCoreVersion(
@@ -114,23 +124,10 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       ApplyFeatureSetRequest request, StreamObserver<ApplyFeatureSetResponse> responseObserver) {
     try {
       ApplyFeatureSetResponse response = specService.applyFeatureSet(request.getFeatureSet());
-      String featureSetName = response.getFeatureSet().getName();
       ListStoresResponse stores = specService.listStores(Filter.newBuilder().build());
       for (Store store : stores.getStoreList()) {
-        List<Subscription> relevantSubscriptions =
-            store.getSubscriptionsList().stream()
-                .filter(
-                    sub -> {
-                      String subString = sub.getName();
-                      if (!subString.contains(".*")) {
-                        subString = subString.replace("*", ".*");
-                      }
-                      Pattern p = Pattern.compile(subString);
-                      return p.matcher(featureSetName).matches();
-                    })
-                .collect(Collectors.toList());
         Set<FeatureSetSpec> featureSetSpecs = new HashSet<>();
-        for (Subscription subscription : relevantSubscriptions) {
+        for (Subscription subscription : store.getSubscriptionsList()) {
           featureSetSpecs.addAll(
               specService
                   .listFeatureSets(
@@ -144,6 +141,9 @@ public class CoreServiceImpl extends CoreServiceImplBase {
           // We use the request featureSet source because it contains the information
           // about whether to default to the default feature stream or not
           SourceProto.Source source = response.getFeatureSet().getSource();
+          featureSetSpecs = featureSetSpecs.stream().filter(
+              fs -> fs.getSource().equals(source)
+          ).collect(Collectors.toSet());
           jobCoordinatorService.startOrUpdateJob(
               Lists.newArrayList(featureSetSpecs), source, store);
         }
