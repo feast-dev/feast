@@ -11,8 +11,7 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 from feast.feature_set import FeatureSet
-from feast.type_map import convert_df_to_feature_rows, \
-    convert_dict_to_proto_values
+from feast.type_map import convert_df_to_feature_rows, convert_dict_to_proto_values
 from feast.types.FeatureRow_pb2 import FeatureRow
 from kafka import KafkaProducer
 from tqdm import tqdm
@@ -27,6 +26,55 @@ FEAST_CORE_URL_ENV_KEY = "FEAST_CORE_URL"  # type: str
 BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS = 300
 CPU_COUNT = os.cpu_count()  # type: int
 KAFKA_CHUNK_PRODUCTION_TIMEOUT = 120  # type: int
+
+
+def _kafka_feature_row_producer(
+    feature_row_queue: Queue, row_count: int, brokers, topic, ctx: dict, pbar: tqdm
+):
+    # Callback for failed production to Kafka
+    def on_error(e):
+        # Save last exception
+        ctx["last_exception"] = e
+
+        # Increment error count
+        if "error_count" in ctx:
+            ctx["error_count"] += 1
+        else:
+            ctx["error_count"] = 1
+
+    # Callback for succeeded production to Kafka
+    def on_success(meta):
+        pbar.update()
+
+    producer = KafkaProducer(bootstrap_servers=brokers)
+    processed_rows = 0
+
+    while processed_rows < row_count:
+        if feature_row_queue.empty():
+            time.sleep(1)
+            producer.flush(timeout=KAFKA_CHUNK_PRODUCTION_TIMEOUT)
+        else:
+            while not feature_row_queue.empty():
+                row = feature_row_queue.get()
+                if row is not None:
+                    # Push row to Kafka
+                    producer.send(topic, row.SerializeToString()).add_callback(
+                        on_success
+                    ).add_errback(on_error)
+                processed_rows += 1
+
+                # Force an occasional flush
+                if processed_rows % 10000 == 0:
+                    producer.flush(timeout=KAFKA_CHUNK_PRODUCTION_TIMEOUT)
+                del row
+            pbar.refresh()
+
+    # Ensure that all rows are pushed
+    producer.flush(timeout=KAFKA_CHUNK_PRODUCTION_TIMEOUT)
+
+    # Using progress bar as counter is much faster than incrementing dict
+    ctx["success_count"] = pbar.n
+    pbar.close()
 
 
 def _kafka_feature_row_chunk_producer(
@@ -78,11 +126,11 @@ def _encode_chunk(df: pd.DataFrame, feature_set: FeatureSet):
 
 
 def _encode_pa_chunks(
-        tbl: pa.lib.Table,
-        fs: FeatureSet,
-        max_workers: int,
-        df_datetime_dtype: pd.DataFrame.dtypes,
-        chunk_size: int = 5000
+    tbl: pa.lib.Table,
+    fs: FeatureSet,
+    max_workers: int,
+    df_datetime_dtype: pd.DataFrame.dtypes,
+    chunk_size: int = 5000,
 ) -> Iterable[FeatureRow]:
     """
     Generator function to encode rows in PyArrow table to FeatureRows by
@@ -107,9 +155,11 @@ def _encode_pa_chunks(
     pool = Pool(max_workers)
 
     # Create a partial function with static non-iterable arguments
-    func = partial(convert_dict_to_proto_values,
-                   df_datetime_dtype=df_datetime_dtype,
-                   feature_set=fs)
+    func = partial(
+        convert_dict_to_proto_values,
+        df_datetime_dtype=df_datetime_dtype,
+        feature_set=fs,
+    )
 
     for batch in tbl.to_batches(max_chunksize=chunk_size):
         m_df = batch.to_pandas()
@@ -122,11 +172,11 @@ def _encode_pa_chunks(
 
 
 def ingest_table_to_kafka(
-        feature_set: FeatureSet,
-        tbl: pa.lib.Table,
-        max_workers: int,
-        chunk_size: int = 5000,
-        disable_pbar: bool = False,
+    feature_set: FeatureSet,
+    tbl: pa.lib.Table,
+    max_workers: int,
+    chunk_size: int = 5000,
+    disable_pbar: bool = False,
 ) -> None:
     """
 
@@ -144,56 +194,56 @@ def ingest_table_to_kafka(
     :return: None
     :rtype: None
     """
-    # Callback for failed production to Kafka
-    def on_error(e):
-        # Save last exception
-        ctx["last_exception"] = e
-
-        # Increment error count
-        if "error_count" in ctx:
-            ctx["error_count"] += 1
-        else:
-            ctx["error_count"] = 1
-
-    # Callback for succeeded production to Kafka
-    def on_success(meta):
-        pbar.update()
-
     pbar = tqdm(unit="rows", total=tbl.num_rows, disable=disable_pbar)
 
     # Use a small DataFrame to validate feature set schema
-    ref_df = tbl.to_batches(max_chunksize=100)[0]
+    ref_df = tbl.to_batches(max_chunksize=100)[0].to_pandas()
     df_datetime_dtype = ref_df[DATETIME_COLUMN].dtype
 
     # Validate feature set schema
     validate_dataframe(ref_df, feature_set)
 
-    # Create a context object to track errors
-    ctx = {"success_count": 0, "error_count": 0, "last_exception": ""}
+    # Create queue through which encoding and production will coordinate
+    row_queue = Queue()
 
-    brokers = feature_set.get_kafka_source_brokers()
-    topic = feature_set.get_kafka_source_topic()
-    producer = KafkaProducer(bootstrap_servers=brokers)
+    # Create a context object to send and receive information across processes
+    ctx = multiprocessing.Manager().dict(
+        {"success_count": 0, "error_count": 0, "last_exception": ""}
+    )
+
+    # Create producer to push feature rows to Kafka
+    ingestion_process = Process(
+        target=_kafka_feature_row_producer,
+        args=(
+            row_queue,
+            tbl.num_rows,
+            feature_set.get_kafka_source_brokers(),
+            feature_set.get_kafka_source_topic(),
+            ctx,
+            pbar,
+        ),
+    )
 
     try:
-        for row in _encode_pa_chunks(tbl=tbl,
-                                     fs=feature_set,
-                                     max_workers=max_workers,
-                                     chunk_size=chunk_size,
-                                     df_datetime_dtype=df_datetime_dtype):
-            producer.send(topic, row.SerializeToString()).add_callback(
-                on_success
-            ).add_errback(on_error)
+        # Start ingestion process
+        print(f"\nIngestion started for {feature_set.name}:{feature_set.version}")
+        ingestion_process.start()
 
-            producer.flush(timeout=KAFKA_CHUNK_PRODUCTION_TIMEOUT)
-            pbar.refresh()
-
-        # Using progress bar as counter is much faster than incrementing dict
-        ctx["success_count"] = pbar.n
-        pbar.close()
+        for row in _encode_pa_chunks(
+            tbl=tbl,
+            fs=feature_set,
+            max_workers=max_workers,
+            chunk_size=chunk_size,
+            df_datetime_dtype=df_datetime_dtype,
+        ):
+            row_queue.put(row)
+            while row_queue.qsize() > chunk_size:
+                time.sleep(0.1)
+        row_queue.put(None)
     except Exception as ex:
         _logger.error(f"Exception occurred: {ex}")
     finally:
+        ingestion_process.join(timeout=300)
         failed_message = (
             ""
             if ctx["error_count"] == 0
@@ -217,7 +267,7 @@ def ingest_kafka(
     feature_set: FeatureSet,
     dataframe: pd.DataFrame,
     max_workers: int,
-    timeout: int = None,
+    timeout: int = 600,
     chunk_size: int = 5000,
     disable_pbar: bool = False,
 ):
