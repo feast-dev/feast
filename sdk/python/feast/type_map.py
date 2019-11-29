@@ -104,8 +104,17 @@ def dtype_to_value_type(dtype):
 
 
 # TODO: to pass test_importer
-def pandas_dtype_to_feast_value_type(dtype: pd.DataFrame.dtypes) -> ValueType:
+def pandas_dtype_to_feast_value_type(
+    name: str, value, recurse: bool = True
+) -> ValueType:
+
+    type_name = type(value).__name__
+
     type_map = {
+        "int": ValueType.INT64,
+        "str": ValueType.STRING,
+        "float": ValueType.DOUBLE,
+        "bytes": ValueType.BYTES,
         "float64": ValueType.DOUBLE,
         "float32": ValueType.FLOAT,
         "int64": ValueType.INT64,
@@ -119,9 +128,43 @@ def pandas_dtype_to_feast_value_type(dtype: pd.DataFrame.dtypes) -> ValueType:
         "datetime64[ns]": ValueType.INT64,
         "datetime64[ns, tz]": ValueType.INT64,
         "category": ValueType.STRING,
-        "object": ValueType.STRING,
     }
-    return type_map[dtype.__str__()]
+
+    if type_name in type_map:
+        return type_map[type_name]
+
+    if type_name == "ndarray":
+        if recurse:
+
+            # Convert to list type
+            list_items = pd.core.series.Series(value)
+
+            # This is the final type which we infer from the list
+            list_item_value_types = None
+            for item in list_items:
+                # Get the type from the current item, only one level deep
+                list_item_value_type = pandas_dtype_to_feast_value_type(
+                    name=name, value=item, recurse=False
+                )
+                # Validate whether the type stays consistent
+                if (
+                    list_item_value_types
+                    and not list_item_value_types == list_item_value_type
+                ):
+                    raise ValueError(
+                        f"List value type for field {name} is inconsistent. "
+                        f"{list_item_value_types} different from "
+                        f"{list_item_value_type}."
+                    )
+                list_item_value_types = list_item_value_type
+
+            return ValueType[list_item_value_types.name + "_LIST"]
+        else:
+            raise ValueError(
+                f"Value type for field {name} is {value.dtype.__str__()} but recursion is not allowed. Array types can only be one level deep."
+            )
+
+    return type_map[value.dtype.__str__()]
 
 
 def convert_df_to_feature_rows(dataframe: pd.DataFrame, feature_set):
@@ -148,9 +191,7 @@ def convert_df_to_feature_rows(dataframe: pd.DataFrame, feature_set):
 
 
 def convert_dict_to_proto_values(
-        row: dict,
-        df_datetime_dtype: pd.DataFrame.dtypes,
-        feature_set
+    row: dict, df_datetime_dtype: pd.DataFrame.dtypes, feature_set
 ) -> FeatureRowProto.FeatureRow:
     """
     Encode a dictionary describing a feature row into a FeatureRows object.
@@ -211,7 +252,9 @@ def pd_value_to_proto_value(feast_value_type, value) -> ProtoValue:
             return ProtoValue(
                 float_list_val=FloatList(
                     val=[
-                        item if type(item) is np.float32 else type_err(item, np.float32)
+                        item
+                        if type(item) in [np.float32, np.float64]
+                        else type_err(item, np.float32)
                         for item in value
                     ]
                 )
@@ -221,7 +264,9 @@ def pd_value_to_proto_value(feast_value_type, value) -> ProtoValue:
             return ProtoValue(
                 double_list_val=DoubleList(
                     val=[
-                        item if type(item) is np.float64 else type_err(item, np.float64)
+                        item
+                        if type(item) in [np.float64, np.float32]
+                        else type_err(item, np.float64)
                         for item in value
                     ]
                 )
@@ -241,7 +286,9 @@ def pd_value_to_proto_value(feast_value_type, value) -> ProtoValue:
             return ProtoValue(
                 int64_list_val=Int64List(
                     val=[
-                        item if type(item) is np.int64 else type_err(item, np.int64)
+                        item
+                        if type(item) in [np.int64, np.int32]
+                        else type_err(item, np.int64)
                         for item in value
                     ]
                 )
@@ -251,7 +298,9 @@ def pd_value_to_proto_value(feast_value_type, value) -> ProtoValue:
             return ProtoValue(
                 string_list_val=StringList(
                     val=[
-                        item if type(item) is np.str_ else type_err(item, np.str_)
+                        item
+                        if type(item) in [np.str_, str]
+                        else type_err(item, np.str_)
                         for item in value
                     ]
                 )
@@ -261,7 +310,9 @@ def pd_value_to_proto_value(feast_value_type, value) -> ProtoValue:
             return ProtoValue(
                 bool_list_val=BoolList(
                     val=[
-                        item if type(item) is np.bool_ else type_err(item, np.bool_)
+                        item
+                        if type(item) in [np.bool_, bool]
+                        else type_err(item, np.bool_)
                         for item in value
                     ]
                 )
@@ -271,7 +322,9 @@ def pd_value_to_proto_value(feast_value_type, value) -> ProtoValue:
             return ProtoValue(
                 bytes_list_val=BytesList(
                     val=[
-                        item if type(item) is np.bytes_ else type_err(item, np.bytes_)
+                        item
+                        if type(item) in [np.bytes_, bytes]
+                        else type_err(item, np.bytes_)
                         for item in value
                     ]
                 )
