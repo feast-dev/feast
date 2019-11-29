@@ -223,6 +223,7 @@ class FeatureSet:
         replace_existing_features: bool = False,
         replace_existing_entities: bool = False,
         discard_unused_fields: bool = False,
+        rows_to_sample: int = 100,
     ):
         """
         Adds fields (Features or Entities) to a feature set based on the schema
@@ -318,8 +319,10 @@ class FeatureSet:
 
             # Store this field as a feature
             new_fields[column] = Feature(
-                name=column, dtype=pandas_dtype_to_feast_value_type(df[column].dtype)
+                name=column,
+                dtype=self._infer_pd_column_type(column, df[column], rows_to_sample),
             )
+
             output_log += f"{type(new_fields[column]).__name__} {new_fields[column].name} ({new_fields[column].dtype}) added from dataframe.\n"
 
         # Discard unused fields from feature set
@@ -335,6 +338,34 @@ class FeatureSet:
         # Update feature set
         self._fields = new_fields
         print(output_log)
+
+    def _infer_pd_column_type(self, column, series, rows_to_sample):
+        dtype = None
+        sample_count = 0
+
+        # Loop over all rows for this column to infer types
+        for key, value in series.iteritems():
+            sample_count += 1
+            # Stop sampling at the row limit
+            if sample_count > rows_to_sample:
+                continue
+
+            # Infer the specific type for this row
+            current_dtype = pandas_dtype_to_feast_value_type(name=column, value=value)
+
+            # Make sure the type is consistent for column
+            if dtype:
+                if dtype != current_dtype:
+                    raise ValueError(
+                        f"Type mismatch detected in column {column}. Both "
+                        f"the types {current_dtype} and {dtype} "
+                        f"have been found."
+                    )
+            else:
+                # Store dtype in field to type map if it isnt already
+                dtype = current_dtype
+
+        return dtype
 
     def _update_from_feature_set(self, feature_set, is_dirty: bool = True):
 
