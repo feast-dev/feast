@@ -17,7 +17,7 @@ import tempfile
 import grpc
 import pandas as pd
 from google.protobuf.duration_pb2 import Duration
-from mock import MagicMock
+from mock import MagicMock, patch
 from pytz import timezone
 from pandavro import to_avro
 import feast.core.CoreService_pb2_grpc as Core
@@ -361,7 +361,9 @@ class TestClient:
     @pytest.mark.parametrize("dataframe", [dataframes.GOOD])
     def test_feature_set_ingest_success(self, dataframe, client, mocker):
 
-        driver_fs = FeatureSet("driver-feature-set")
+        driver_fs = FeatureSet(
+            "driver-feature-set", source=KafkaSource(brokers="kafka:9092", topic="test")
+        )
         driver_fs.add(Feature(name="feature_1", dtype=ValueType.FLOAT))
         driver_fs.add(Feature(name="feature_2", dtype=ValueType.STRING))
         driver_fs.add(Feature(name="feature_3", dtype=ValueType.INT64))
@@ -376,8 +378,10 @@ class TestClient:
             return_value=GetFeatureSetResponse(feature_set=driver_fs.to_proto()),
         )
 
-        # Ingest data into Feast
-        client.ingest("driver-feature-set", dataframe=dataframe)
+        # Need to create a mock producer
+        with patch("feast.loaders.ingest.KafkaProducer") as mocked_queue:
+            # Ingest data into Feast
+            client.ingest("driver-feature-set", dataframe)
 
     @pytest.mark.parametrize(
         "dataframe,exception",
@@ -421,7 +425,9 @@ class TestClient:
                 Feature(name="int32_list_feature", dtype=ValueType.INT32_LIST),
                 Feature(name="string_list_feature", dtype=ValueType.STRING_LIST),
                 Feature(name="bytes_list_feature", dtype=ValueType.BYTES_LIST),
-                Feature(name="bool_list_feature", dtype=ValueType.BOOL_LIST),
+                # Feature(name="bool_list_feature",
+                # dtype=ValueType.BOOL_LIST), # TODO: Add support for this
+                #  type again https://github.com/gojek/feast/issues/341
                 Feature(name="double_list_feature", dtype=ValueType.DOUBLE_LIST),
             ],
             max_age=Duration(seconds=3600),
@@ -437,4 +443,4 @@ class TestClient:
         )
 
         # Ingest data into Feast
-        client.ingest(all_types_fs, dataframe=dataframe)
+        client.ingest(all_types_fs, dataframe)

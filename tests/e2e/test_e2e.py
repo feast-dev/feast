@@ -102,7 +102,7 @@ def test_basic_ingest_success(client, basic_dataframe):
     cust_trans_fs = client.get_feature_set(name="customer_transactions")
 
     # Ingest customer transaction data
-    client.ingest(cust_trans_fs, dataframe=basic_dataframe)
+    client.ingest(cust_trans_fs, basic_dataframe)
 
 
 @pytest.mark.timeout(45)
@@ -419,7 +419,7 @@ def all_types_parquet_file():
             "double_feature": [np.float64(random.random()) for _ in range(COUNT)],
             "string_feature": ["one" + str(random.random()) for _ in range(COUNT)],
             "bytes_feature": [b"one" for _ in range(COUNT)],
-            "bool_feature": [True for _ in range(COUNT)],
+            # "bool_feature": [True for _ in range(COUNT)], # TODO:  https://github.com/gojek/feast/pull/340
             "int32_list_feature": [
                 np.array([1, 2, 3, random.randint(0, 10000)], dtype=np.int32) for _
                 in range(COUNT)
@@ -456,7 +456,7 @@ def all_types_parquet_file():
 @pytest.mark.run(order=41)
 def test_all_types_infer_register_ingest_file_success(client, all_types_parquet_file):
     # Create all types parquet feature set
-    all_types_fs = FeatureSet("all_types_parquet", entities=[Entity(name='customer_id', dtype=ValueType.INT64)])
+    all_types_fs = FeatureSet("all_types_parquet2", entities=[Entity(name='customer_id', dtype=ValueType.INT64)])
 
     # Ingest user embedding data
-    client.ingest_file(feature_set=all_types_fs, file_path=all_types_parquet_file, force_update=True)
+    client.ingest(feature_set=all_types_fs, source=all_types_parquet_file, force_update=True)
