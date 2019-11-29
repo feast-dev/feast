@@ -550,7 +550,7 @@ def _build_feature_set_request(feature_ids: List[str]) -> List[FeatureSetRequest
     return list(feature_set_request.values())
 
 
-def _read_table_from_source(source: Union[pd.DataFrame, str]) -> pa.lib.table:
+def _read_table_from_source(source: Union[pd.DataFrame, str]) -> pa.lib.Table:
     """
     Infers a data source type (path or Pandas Dataframe) and reads it in as
     a PyArrow Table.
