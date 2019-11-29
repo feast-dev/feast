@@ -17,7 +17,8 @@ import pytz
 
 import pandas as pd
 import numpy as np
-
+import tempfile
+import os
 from feast.feature import Feature
 
 FLOAT_TOLERANCE = 0.00001
@@ -221,8 +222,6 @@ def test_all_types_register_feature_set_success(client):
                     dtype=ValueType.STRING_LIST),
             Feature(name="bytes_list_feature", dtype=ValueType.BYTES_LIST),
             Feature(name="bool_list_feature", dtype=ValueType.BOOL_LIST),
-            Feature(name="double_list_feature",
-                    dtype=ValueType.DOUBLE_LIST),
         ],
         max_age=Duration(seconds=3600),
     )
@@ -356,7 +355,7 @@ def test_large_volume_ingest_success(client, large_volume_dataframe):
 
     # Get large volume feature set
     cust_trans_fs = client.get_feature_set(name="customer_transactions_large")
-    
+
     # Ingest customer transaction data
     client.ingest(cust_trans_fs, dataframe=large_volume_dataframe)
 
@@ -402,3 +401,62 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
             abs_tol=FLOAT_TOLERANCE,
         ):
             break
+
+
+@pytest.fixture(scope='session')
+def all_types_parquet_file():
+    COUNT = 20000
+
+    df = pd.DataFrame(
+        {
+            "datetime": [datetime.utcnow() for _ in range(COUNT)],
+            "customer_id": [np.int32(random.randint(0, 10000)) for _ in range(COUNT)],
+            "int32_feature": [np.int32(random.randint(0, 10000)) for _ in
+                              range(COUNT)],
+            "int64_feature": [np.int64(random.randint(0, 10000)) for _ in
+                              range(COUNT)],
+            "float_feature": [np.float(random.random()) for _ in range(COUNT)],
+            "double_feature": [np.float64(random.random()) for _ in range(COUNT)],
+            "string_feature": ["one" + str(random.random()) for _ in range(COUNT)],
+            "bytes_feature": [b"one" for _ in range(COUNT)],
+            "bool_feature": [True for _ in range(COUNT)],
+            "int32_list_feature": [
+                np.array([1, 2, 3, random.randint(0, 10000)], dtype=np.int32) for _
+                in range(COUNT)
+            ],
+            "int64_list_feature": [
+                np.array([1, random.randint(0, 10000), 3, 4], dtype=np.int64) for _
+                in range(COUNT)
+            ],
+            "float_list_feature": [
+                np.array([1.1, 1.2, 1.3, random.random()], dtype=np.float32) for _
+                in range(COUNT)
+            ],
+            "double_list_feature": [
+                np.array([1.1, 1.2, 1.3, random.random()], dtype=np.float64) for _
+                in range(COUNT)
+            ],
+            "string_list_feature": [
+                np.array(["one", "two" + str(random.random()), "three"]) for _ in
+                range(COUNT)
+            ],
+            "bytes_list_feature": [
+                np.array([b"one", b"two", b"three"]) for _ in range(COUNT)
+            ],
+        }
+    )
+
+    # TODO: Boolean list is not being tested. Problem writing to parquet.
+    file_path = os.path.join(tempfile.mkdtemp(), 'all_types.parquet')
+    df.to_parquet(file_path, allow_truncated_timestamps=True)
+    return file_path
+
+
+@pytest.mark.timeout(600)
+@pytest.mark.run(order=41)
+def test_all_types_infer_register_ingest_file_success(client, all_types_parquet_file):
+    # Create all types parquet feature set
+    all_types_fs = FeatureSet("all_types_parquet", entities=[Entity(name='customer_id', dtype=ValueType.INT64)])
+
+    # Ingest user embedding data
+    client.ingest_file(feature_set=all_types_fs, file_path=all_types_parquet_file, force_update=True)
