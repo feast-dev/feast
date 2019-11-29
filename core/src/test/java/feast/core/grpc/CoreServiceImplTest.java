@@ -1,3 +1,19 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package feast.core.grpc;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -14,7 +30,6 @@ import feast.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
 import feast.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
-import feast.core.CoreServiceProto.ListStoresRequest.Filter;
 import feast.core.CoreServiceProto.ListStoresResponse;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto.KafkaSourceConfig;
@@ -37,14 +52,11 @@ import org.mockito.Mock;
 
 public class CoreServiceImplTest {
 
-  @Mock
-  private JobCoordinatorService jobCoordinatorService;
+  @Mock private JobCoordinatorService jobCoordinatorService;
 
-  @Mock
-  private SpecService specService;
+  @Mock private SpecService specService;
 
-  @Captor
-  private ArgumentCaptor<ArrayList<FeatureSetSpec>> fsListArgCaptor;
+  @Captor private ArgumentCaptor<ArrayList<FeatureSetSpec>> fsListArgCaptor;
 
   @Before
   public void setUp() {
@@ -55,83 +67,87 @@ public class CoreServiceImplTest {
   public void shouldPassCorrectListOfFeatureSetsToJobService()
       throws InvalidProtocolBufferException {
     CoreServiceImpl coreService = new CoreServiceImpl(specService, jobCoordinatorService);
-    Store store = Store.newBuilder()
-        .setType(StoreType.REDIS)
-        .setRedisConfig(RedisConfig.newBuilder()
-            .setHost("localhost").setPort(6379).build())
-        .addSubscriptions(Subscription.newBuilder().setName("*").setVersion(">0"))
-        .build();
-    FeatureSetSpec fs1Sc1 = FeatureSetSpec.newBuilder()
-        .setName("feature_set")
-        .setVersion(1)
-        .setSource(Source.newBuilder()
-            .setType(SourceType.KAFKA)
-            .setKafkaSourceConfig(
-                KafkaSourceConfig.newBuilder()
-                    .setBootstrapServers("kafka:9092")
-                    .setTopic("topic1")
-                    .build()))
-        .build();
-    FeatureSetSpec fs2Sc1 = FeatureSetSpec.newBuilder()
-        .setName("feature_set_other")
-        .setVersion(1)
-        .setSource(Source.newBuilder()
-            .setType(SourceType.KAFKA)
-            .setKafkaSourceConfig(
-                KafkaSourceConfig.newBuilder()
-                    .setBootstrapServers("kafka:9092")
-                    .setTopic("topic1")
-                    .build()))
-        .build();
-    FeatureSetSpec fs3Sc2 = FeatureSetSpec.newBuilder()
-        .setName("feature_set")
-        .setVersion(2)
-        .setSource(Source.newBuilder()
-            .setType(SourceType.KAFKA)
-            .setKafkaSourceConfig(
-                KafkaSourceConfig.newBuilder()
-                    .setBootstrapServers("kafka:9092")
-                    .setTopic("topic2")
-                    .build()))
-        .build();
+    Store store =
+        Store.newBuilder()
+            .setType(StoreType.REDIS)
+            .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
+            .addSubscriptions(Subscription.newBuilder().setName("*").setVersion(">0"))
+            .build();
+    FeatureSetSpec fs1Sc1 =
+        FeatureSetSpec.newBuilder()
+            .setName("feature_set")
+            .setVersion(1)
+            .setSource(
+                Source.newBuilder()
+                    .setType(SourceType.KAFKA)
+                    .setKafkaSourceConfig(
+                        KafkaSourceConfig.newBuilder()
+                            .setBootstrapServers("kafka:9092")
+                            .setTopic("topic1")
+                            .build()))
+            .build();
+    FeatureSetSpec fs2Sc1 =
+        FeatureSetSpec.newBuilder()
+            .setName("feature_set_other")
+            .setVersion(1)
+            .setSource(
+                Source.newBuilder()
+                    .setType(SourceType.KAFKA)
+                    .setKafkaSourceConfig(
+                        KafkaSourceConfig.newBuilder()
+                            .setBootstrapServers("kafka:9092")
+                            .setTopic("topic1")
+                            .build()))
+            .build();
+    FeatureSetSpec fs3Sc2 =
+        FeatureSetSpec.newBuilder()
+            .setName("feature_set")
+            .setVersion(2)
+            .setSource(
+                Source.newBuilder()
+                    .setType(SourceType.KAFKA)
+                    .setKafkaSourceConfig(
+                        KafkaSourceConfig.newBuilder()
+                            .setBootstrapServers("kafka:9092")
+                            .setTopic("topic2")
+                            .build()))
+            .build();
     when(specService.applyFeatureSet(fs1Sc1))
-        .thenReturn(ApplyFeatureSetResponse.newBuilder()
-            .setStatus(Status.CREATED)
-            .setFeatureSet(fs1Sc1)
-            .build());
+        .thenReturn(
+            ApplyFeatureSetResponse.newBuilder()
+                .setStatus(Status.CREATED)
+                .setFeatureSet(fs1Sc1)
+                .build());
     when(specService.listStores(ArgumentMatchers.any()))
-        .thenReturn(ListStoresResponse.newBuilder()
-            .addStore(store).build());
+        .thenReturn(ListStoresResponse.newBuilder().addStore(store).build());
     when(specService.listFeatureSets(
-        ListFeatureSetsRequest.Filter
-            .newBuilder()
-            .setFeatureSetName("*")
-            .setFeatureSetVersion(">0").build()))
-        .thenReturn(ListFeatureSetsResponse.newBuilder()
-            .addFeatureSets(fs1Sc1)
-            .addFeatureSets(fs3Sc2)
-            .addFeatureSets(fs2Sc1).build());
+            ListFeatureSetsRequest.Filter.newBuilder()
+                .setFeatureSetName("*")
+                .setFeatureSetVersion(">0")
+                .build()))
+        .thenReturn(
+            ListFeatureSetsResponse.newBuilder()
+                .addFeatureSets(fs1Sc1)
+                .addFeatureSets(fs3Sc2)
+                .addFeatureSets(fs2Sc1)
+                .build());
 
-    coreService.applyFeatureSet(ApplyFeatureSetRequest.newBuilder()
-        .setFeatureSet(fs1Sc1).build(), new StreamObserver<ApplyFeatureSetResponse>() {
-      @Override
-      public void onNext(ApplyFeatureSetResponse applyFeatureSetResponse) {
-      }
+    coreService.applyFeatureSet(
+        ApplyFeatureSetRequest.newBuilder().setFeatureSet(fs1Sc1).build(),
+        new StreamObserver<ApplyFeatureSetResponse>() {
+          @Override
+          public void onNext(ApplyFeatureSetResponse applyFeatureSetResponse) {}
 
-      @Override
-      public void onError(Throwable throwable) {
-      }
+          @Override
+          public void onError(Throwable throwable) {}
 
-      @Override
-      public void onCompleted() {
-      }
-    });
+          @Override
+          public void onCompleted() {}
+        });
 
     verify(jobCoordinatorService, times(1))
         .startOrUpdateJob(fsListArgCaptor.capture(), eq(fs1Sc1.getSource()), eq(store));
 
     assertThat(fsListArgCaptor.getValue(), containsInAnyOrder(fs1Sc1, fs2Sc1));
   }
-
-
 }
