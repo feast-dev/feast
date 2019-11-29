@@ -132,7 +132,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
                   .getFeatureSetsList());
         }
         if (!featureSetSpecs.isEmpty() && featureSetSpecs.contains(response.getFeatureSet())) {
-          // We use the request featureSet source because it contains the information
+          // We use the response featureSet source because it contains the information
           // about whether to default to the default feature stream or not
           SourceProto.Source source = response.getFeatureSet().getSource();
           featureSetSpecs =
