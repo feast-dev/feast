@@ -68,9 +68,18 @@ import redis.clients.jedis.exceptions.JedisConnectionException;
  * need to manage any schemas. This class will not be used in that case.
  */
 public class StoreUtil {
+
   private static final Map<ValueType.Enum, StandardSQLTypeName> VALUE_TYPE_TO_STANDARD_SQL_TYPE =
       new HashMap<>();
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(StoreUtil.class);
+
+  // Column description for reserved fields
+  public static final String BIGQUERY_EVENT_TIMESTAMP_FIELD_DESCRIPTION =
+      "Event time for the FeatureRow";
+  public static final String BIGQUERY_CREATED_TIMESTAMP_FIELD_DESCRIPTION =
+      "Processing time of the FeatureRow ingestion in Feast\"";
+  public static final String BIGQUERY_JOB_ID_FIELD_DESCRIPTION =
+      "Feast import job ID for the FeatureRow";
 
   // Refer to protos/feast/core/Store.proto for the mapping definition.
   static {
@@ -110,7 +119,7 @@ public class StoreUtil {
   }
 
   @SuppressWarnings("DuplicatedCode")
-  private static TableDefinition createBigQueryTableDefinition(FeatureSetSpec featureSetSpec) {
+  public static TableDefinition createBigQueryTableDefinition(FeatureSetSpec featureSetSpec) {
     List<Field> fields = new ArrayList<>();
     log.info("Table will have the following fields:");
 
@@ -118,7 +127,7 @@ public class StoreUtil {
       Builder builder =
           Field.newBuilder(
               entitySpec.getName(), VALUE_TYPE_TO_STANDARD_SQL_TYPE.get(entitySpec.getValueType()));
-      if (entitySpec.getValueTypeValue() >= 7 && entitySpec.getValueTypeValue() <= 17) {
+      if (entitySpec.getValueType().name().toLowerCase().endsWith("_list")) {
         builder.setMode(Mode.REPEATED);
       }
       Field field = builder.build();
@@ -130,7 +139,7 @@ public class StoreUtil {
           Field.newBuilder(
               featureSpec.getName(),
               VALUE_TYPE_TO_STANDARD_SQL_TYPE.get(featureSpec.getValueType()));
-      if (featureSpec.getValueTypeValue() >= 7 && featureSpec.getValueTypeValue() <= 17) {
+      if (featureSpec.getValueType().name().toLowerCase().endsWith("_list")) {
         builder.setMode(Mode.REPEATED);
       }
       Field field = builder.build();
@@ -143,13 +152,12 @@ public class StoreUtil {
         reservedFieldNameToPairOfStandardSQLTypeAndDescription =
             ImmutableMap.of(
                 "event_timestamp",
-                Pair.of(StandardSQLTypeName.TIMESTAMP, "Event time for the FeatureRow"),
+                Pair.of(StandardSQLTypeName.TIMESTAMP, BIGQUERY_EVENT_TIMESTAMP_FIELD_DESCRIPTION),
                 "created_timestamp",
                 Pair.of(
-                    StandardSQLTypeName.TIMESTAMP,
-                    "Processing time of the FeatureRow ingestion in Feast"),
+                    StandardSQLTypeName.TIMESTAMP, BIGQUERY_CREATED_TIMESTAMP_FIELD_DESCRIPTION),
                 "job_id",
-                Pair.of(StandardSQLTypeName.STRING, "Feast import job ID for the FeatureRow"));
+                Pair.of(StandardSQLTypeName.STRING, BIGQUERY_JOB_ID_FIELD_DESCRIPTION));
     for (Map.Entry<String, Pair<StandardSQLTypeName, String>> entry :
         reservedFieldNameToPairOfStandardSQLTypeAndDescription.entrySet()) {
       Field field =

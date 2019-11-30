@@ -38,7 +38,6 @@ import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.ValueProto.ValueType.Enum;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -49,6 +48,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -77,10 +77,15 @@ public class ImportJobTest {
   private static final String REDIS_HOST = "localhost";
   private static final int REDIS_PORT = 6380;
 
-  // Expected time taken for the import job to be ready to receive Feature Row input
-  private static final int IMPORT_JOB_READY_DURATION_SEC = 5;
-  // Expected time taken for the import job to finish writing to Store
-  private static final int IMPORT_JOB_RUN_DURATION_SEC = 30;
+  // No of samples of feature row that will be generated and used for testing.
+  // Note that larger no of samples will increase completion time for ingestion.
+  private static final int IMPORT_JOB_SAMPLE_FEATURE_ROW_SIZE = 128;
+  // Expected time taken for the import job to be ready to receive Feature Row input.
+  private static final int IMPORT_JOB_READY_DURATION_SEC = 10;
+  // The interval between checks for import job to finish writing elements to store.
+  private static final int IMPORT_JOB_CHECK_INTERVAL_DURATION_SEC = 5;
+  // Max duration to wait until the import job finishes writing to Store.
+  private static final int IMPORT_JOB_MAX_RUN_DURATION_SEC = 300;
 
   @BeforeClass
   public static void setup() throws IOException, InterruptedException {
@@ -161,50 +166,60 @@ public class ImportJobTest {
     options.setProject("");
     options.setBlockOnRun(false);
 
-    int inputSize = 128;
     List<FeatureRow> input = new ArrayList<>();
     Map<RedisKey, FeatureRow> expected = new HashMap<>();
 
     LOGGER.info("Generating test data ...");
-    IntStream.range(0, inputSize)
-        .forEach(
-            i -> {
-              FeatureRow randomRow = TestUtil.createRandomFeatureRow(spec);
-              RedisKey redisKey = TestUtil.createRedisKey(spec, randomRow);
-              input.add(randomRow);
-              expected.put(redisKey, randomRow);
-            });
+    IntStream.range(0, IMPORT_JOB_SAMPLE_FEATURE_ROW_SIZE).forEach(i -> {
+      FeatureRow randomRow = TestUtil.createRandomFeatureRow(spec);
+      RedisKey redisKey = TestUtil.createRedisKey(spec, randomRow);
+      input.add(randomRow);
+      expected.put(redisKey, randomRow);
+    });
 
     LOGGER.info("Starting Import Job with the following options: {}", options.toString());
     PipelineResult pipelineResult = ImportJob.runPipeline(options);
-    Thread.sleep(Duration.ofSeconds(IMPORT_JOB_READY_DURATION_SEC).toMillis());
+    Thread.sleep(Duration.standardSeconds(IMPORT_JOB_READY_DURATION_SEC).getMillis());
     Assert.assertEquals(pipelineResult.getState(), State.RUNNING);
 
     LOGGER.info("Publishing {} Feature Row messages to Kafka ...", input.size());
-    TestUtil.publishFeatureRowsToKafka(
-        KAFKA_BOOTSTRAP_SERVERS,
-        KAFKA_TOPIC,
-        input,
-        ByteArraySerializer.class,
-        KAFKA_PUBLISH_TIMEOUT_SEC);
-    Thread.sleep(Duration.ofSeconds(IMPORT_JOB_RUN_DURATION_SEC).toMillis());
+    TestUtil.publishFeatureRowsToKafka(KAFKA_BOOTSTRAP_SERVERS, KAFKA_TOPIC, input,
+        ByteArraySerializer.class, KAFKA_PUBLISH_TIMEOUT_SEC);
+    TestUtil.waitUntilAllElementsAreWrittenToStore(pipelineResult,
+        Duration.standardSeconds(IMPORT_JOB_MAX_RUN_DURATION_SEC),
+        Duration.standardSeconds(IMPORT_JOB_CHECK_INTERVAL_DURATION_SEC));
 
     LOGGER.info("Validating the actual values written to Redis ...");
     Jedis jedis = new Jedis(REDIS_HOST, REDIS_PORT);
-    expected.forEach(
-        (key, expectedValue) -> {
-          byte[] actualByteValue = jedis.get(key.toByteArray());
-          Assert.assertNotNull("Key not found in Redis: " + key, actualByteValue);
-          FeatureRow actualValue = null;
-          try {
-            actualValue = FeatureRow.parseFrom(actualByteValue);
-          } catch (InvalidProtocolBufferException e) {
-            Assert.fail(
-                String.format(
-                    "Actual Redis value cannot be parsed as FeatureRow, key: %s, value :%s",
-                    key, new String(actualByteValue, StandardCharsets.UTF_8)));
-          }
-          Assert.assertEquals(expectedValue, actualValue);
-        });
+    expected.forEach((key, expectedValue) -> {
+
+      // Ensure ingested key exists.
+      byte[] actualByteValue = jedis.get(key.toByteArray());
+      if (actualByteValue == null) {
+        LOGGER.error("Key not found in Redis: " + key);
+        LOGGER.info("Redis INFO:");
+        LOGGER.info(jedis.info());
+        String randomKey = jedis.randomKey();
+        if (randomKey != null) {
+          LOGGER.info("Sample random key, value (for debugging purpose):");
+          LOGGER.info("Key: " + randomKey);
+          LOGGER.info("Value: " + jedis.get(randomKey));
+        }
+        Assert.fail("Missing key in Redis.");
+      }
+
+      // Ensure value is a valid serialized FeatureRow object.
+      FeatureRow actualValue = null;
+      try {
+        actualValue = FeatureRow.parseFrom(actualByteValue);
+      } catch (InvalidProtocolBufferException e) {
+        Assert.fail(String
+            .format("Actual Redis value cannot be parsed as FeatureRow, key: %s, value :%s",
+                key, new String(actualByteValue, StandardCharsets.UTF_8)));
+      }
+
+      // Ensure the retrieved FeatureRow is equal to the ingested FeatureRow.
+      Assert.assertEquals(expectedValue, actualValue);
+    });
   }
 }
