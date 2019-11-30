@@ -19,6 +19,7 @@ package feast.test;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.util.Timestamps;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.ingestion.transform.WriteToStore;
 import feast.storage.RedisProto.RedisKey;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FeatureRowProto.FeatureRow.Builder;
@@ -41,6 +42,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServerStartable;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.PipelineResult.State;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -48,6 +53,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.LongSerializer;
 import org.apache.zookeeper.server.ServerConfig;
 import org.apache.zookeeper.server.ZooKeeperServerMain;
+import org.joda.time.Duration;
 import redis.embedded.RedisServer;
 
 @SuppressWarnings("WeakerAccess")
@@ -341,6 +347,66 @@ public class TestUtil {
         return fieldBuilder.setValue(Value.newBuilder().setStringVal((String) value)).build();
       default:
         throw new IllegalStateException("Unexpected valueType: " + value.getClass());
+    }
+  }
+
+  /**
+   * This blocking method waits until an ImportJob pipeline has written all elements to the store.
+   * <p>
+   * The pipeline must be in the RUNNING state before calling this method.
+   *
+   * @param pipelineResult  result of running the Pipeline
+   * @param maxWaitDuration wait until this max amount of duration
+   * @throws InterruptedException if the thread is interruped while waiting
+   */
+  public static void waitUntilAllElementsAreWrittenToStore(PipelineResult pipelineResult,
+      Duration maxWaitDuration, Duration checkInterval) throws InterruptedException {
+    if (pipelineResult.getState().isTerminal()) {
+      return;
+    }
+
+    if (!pipelineResult.getState().equals(State.RUNNING)) {
+      throw new IllegalArgumentException(
+          "Pipeline must be in RUNNING state before calling this method.");
+    }
+
+    MetricResults metricResults;
+    try {
+      metricResults = pipelineResult.metrics();
+    } catch (UnsupportedOperationException e) {
+      // Runner does not support metrics so we just wait as long as we are allowed to.
+      Thread.sleep(maxWaitDuration.getMillis());
+      return;
+    }
+
+    String writeToStoreMetric =
+        WriteToStore.METRIC_NAMESPACE + ":" + WriteToStore.ELEMENTS_WRITTEN_METRIC;
+    long committed = 0;
+    long maxSystemTimeMillis = System.currentTimeMillis() + maxWaitDuration.getMillis();
+
+    while (System.currentTimeMillis() <= maxSystemTimeMillis) {
+      Thread.sleep(checkInterval.getMillis());
+
+      for (MetricResult<Long> metricResult : metricResults.allMetrics().getCounters()) {
+        // We are only concerned with the metric: count of elements that have been
+        // written to the store.
+        if (!metricResult.getName().toString().contains(writeToStoreMetric)) {
+          continue;
+        }
+        try {
+          // If between check interval, no more changes in the no of committed elements
+          // we can assume the pipeline has finished writing all the elements to store.
+          if (metricResult.getCommitted() == committed) {
+            return;
+          }
+          committed = metricResult.getCommitted();
+          break;
+        } catch (UnsupportedOperationException e) {
+          // Runner does not support committed metrics so we just wait as long as we are allowed to.
+          Thread.sleep(maxWaitDuration.getMillis());
+          return;
+        }
+      }
     }
   }
 }

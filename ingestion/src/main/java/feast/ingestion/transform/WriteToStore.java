@@ -41,17 +41,28 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryInsertError;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.slf4j.Logger;
 
 @AutoValue
 public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, PDone> {
 
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(WriteToStore.class);
+
+  public static final String METRIC_NAMESPACE = "WriteToStore";
+  public static final String ELEMENTS_WRITTEN_METRIC = "elements_written";
+
+  private static final Counter elementsWritten = Metrics
+      .counter(METRIC_NAMESPACE, ELEMENTS_WRITTEN_METRIC);
 
   public abstract Store getStore();
 
@@ -139,6 +150,12 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
         log.error("Store type '{}' is not supported. No Feature Row will be written.", storeType);
         break;
     }
+
+    input.apply("IncrementWriteToStoreElementsWrittenCounter",
+        MapElements.into(TypeDescriptors.booleans()).via((FeatureRow row) -> {
+          elementsWritten.inc();
+          return true;
+        }));
 
     return PDone.in(input.getPipeline());
   }
