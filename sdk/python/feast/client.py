@@ -13,14 +13,16 @@
 # limitations under the License.
 import logging
 import os
+import sys
 from collections import OrderedDict
 from typing import Dict, Union
 from typing import List
+from urllib.parse import urlparse
+
 import grpc
 import pandas as pd
-from feast.loaders.ingest import ingest_kafka
-
-from feast.exceptions import format_grpc_exception
+import pyarrow as pa
+import pyarrow.parquet as pq
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionRequest,
     ListFeatureSetsResponse,
@@ -31,8 +33,12 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
+from feast.exceptions import format_grpc_exception
 from feast.feature_set import FeatureSet, Entity
 from feast.job import Job
+from feast.loaders.file import export_dataframe_to_staging_location
+from feast.loaders.ingest import ingest_table_to_kafka
+from feast.serving.ServingService_pb2 import GetFeastServingInfoResponse
 from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequest,
     GetBatchFeaturesRequest,
@@ -44,12 +50,6 @@ from feast.serving.ServingService_pb2 import (
     FeastServingType,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-from feast.serving.ServingService_pb2 import GetFeastServingInfoResponse
-from urllib.parse import urlparse
-import uuid
-import numpy as np
-import sys
-from feast.loaders.file import export_dataframe_to_staging_location
 
 _logger = logging.getLogger(__name__)
 
@@ -317,7 +317,7 @@ class Client:
 
         Returns:
             Feast batch retrieval job: feast.job.Job
-            
+
         Example usage:
         ============================================================
         >>> from feast import Client
@@ -458,7 +458,7 @@ class Client:
     def ingest(
         self,
         feature_set: Union[str, FeatureSet],
-        dataframe: pd.DataFrame,
+        source: Union[pd.DataFrame, str],
         version: int = None,
         force_update: bool = False,
         max_workers: int = CPU_COUNT,
@@ -471,20 +471,21 @@ class Client:
 
         :param feature_set: (str, FeatureSet) Feature set object or the
         string name of the feature set (without a version)
-        :param dataframe:
-        Pandas dataframe to load into Feast for this feature set
-        :param
-        version: (int) Version of the feature set for which this ingestion
-        should happen
-        :param force_update: (bool) Automatically update
-        feature set based on data frame before ingesting data
-        :param max_workers: Number of
-        worker processes to use to encode the dataframe
-        :param
-        disable_progress_bar: Disable progress bar during ingestion
-        :param
-        chunk_size: Number of rows per chunk to encode before ingesting to
-        Feast
+        :param source:
+        Either a file path or Pandas Dataframe to ingest into Feast
+        Files that are currently supported:
+            * parquet
+            * csv
+            * json
+
+        :param version: Feature set version
+        :param force_update: (bool) Automatically update feature set based on
+        source data prior to ingesting. This will also register changes to Feast
+        :param max_workers: Number of worker processes to use to encode values
+        :param disable_progress_bar: Disable printing of progress statistics
+        :param timeout: Time in seconds before ingestion times out
+        :param chunk_size: Amount of rows to load and ingest at a time
+
         """
 
         if isinstance(feature_set, FeatureSet):
@@ -496,19 +497,24 @@ class Client:
         else:
             raise Exception(f"Feature set name must be provided")
 
-        feature_set = self.get_feature_set(name, version, fail_if_missing=True)
+        table = _read_table_from_source(source)
 
-        # Update the feature set based on dataframe schema
+        # Update the feature set based on DataFrame schema
         if force_update:
+            # Use a small as reference DataFrame to infer fields
+            ref_df = table.to_batches(max_chunksize=20)[0].to_pandas()
+
             feature_set.infer_fields_from_df(
-                dataframe, discard_unused_fields=True, replace_existing_features=True
+                ref_df, discard_unused_fields=True, replace_existing_features=True
             )
             self.apply(feature_set)
 
+        feature_set = self.get_feature_set(name, version, fail_if_missing=True)
+
         if feature_set.source.source_type == "Kafka":
-            ingest_kafka(
+            ingest_table_to_kafka(
                 feature_set=feature_set,
-                dataframe=dataframe,
+                table=table,
                 max_workers=max_workers,
                 disable_pbar=disable_progress_bar,
                 chunk_size=chunk_size,
@@ -542,3 +548,39 @@ def _build_feature_set_request(feature_ids: List[str]) -> List[FeatureSetRequest
             )
         feature_set_request[feature_set].feature_names.append(feature)
     return list(feature_set_request.values())
+
+
+def _read_table_from_source(source: Union[pd.DataFrame, str]) -> pa.lib.Table:
+    """
+    Infers a data source type (path or Pandas Dataframe) and reads it in as
+    a PyArrow Table.
+    :param source: Either a string path or Pandas dataframe
+    :return: PyArrow table
+    """
+
+    # Pandas dataframe detected
+    if isinstance(source, pd.DataFrame):
+        table = pa.Table.from_pandas(df=source)
+
+    # Inferring a string path
+    elif isinstance(source, str):
+        file_path = source
+        filename, file_ext = os.path.splitext(file_path)
+
+        if ".csv" in file_ext:
+            from pyarrow import csv
+
+            table = csv.read_csv(filename)
+        elif ".json" in file_ext:
+            from pyarrow import json
+
+            table = json.read_json(filename)
+        else:
+            table = pq.read_table(file_path)
+    else:
+        raise ValueError(f"Unknown data source provided for ingestion: {source}")
+
+    # Ensure that PyArrow table is initialised
+    assert isinstance(table, pa.lib.Table)
+
+    return table

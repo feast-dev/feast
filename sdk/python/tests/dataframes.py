@@ -116,10 +116,5 @@ ALL_TYPES = pd.DataFrame(
             np.array([b"one", b"two", b"three"]),
             np.array([b"one", b"two", b"three"]),
         ],
-        "bool_list_feature": [
-            np.array([True, False, True]),
-            np.array([True, False, True]),
-            np.array([True, False, True]),
-        ],
     }
 )
