@@ -70,7 +70,7 @@ def basic_dataframe():
     )
 
 
-@pytest.mark.timeout(45)
+@pytest.mark.timeout(300)
 @pytest.mark.run(order=10)
 def test_basic_register_feature_set_success(client):
     # Load feature set from file
@@ -96,7 +96,7 @@ def test_basic_register_feature_set_success(client):
         )
 
 
-@pytest.mark.timeout(30)
+@pytest.mark.timeout(45)
 @pytest.mark.run(order=11)
 def test_basic_ingest_success(client, basic_dataframe):
     cust_trans_fs = client.get_feature_set(name="customer_transactions")
@@ -192,16 +192,17 @@ def all_types_dataframe():
                 np.array([b"one", b"two", b"three"]),
                 np.array([b"one", b"two", b"three"]),
             ],
-            "bool_list_feature": [
-                np.array([True, False, True]),
-                np.array([True, False, True]),
-                np.array([True, False, True]),
-            ],
+            # "bool_list_feature": [
+            #     np.array([True, False, True]),
+            #     np.array([True, False, True]),
+            #     np.array([True, False, True]),
+            # ],
+            # TODO: https://github.com/gojek/feast/issues/341
         }
     )
 
 
-@pytest.mark.timeout(45)
+@pytest.mark.timeout(300)
 @pytest.mark.run(order=20)
 def test_all_types_register_feature_set_success(client):
     all_types_fs_expected = FeatureSet(
@@ -221,7 +222,6 @@ def test_all_types_register_feature_set_success(client):
             Feature(name="string_list_feature",
                     dtype=ValueType.STRING_LIST),
             Feature(name="bytes_list_feature", dtype=ValueType.BYTES_LIST),
-            Feature(name="bool_list_feature", dtype=ValueType.BOOL_LIST),
         ],
         max_age=Duration(seconds=3600),
     )
@@ -231,7 +231,7 @@ def test_all_types_register_feature_set_success(client):
 
     # Feast Core needs some time to fully commit the FeatureSet applied
     # when there is no existing job yet for the Featureset
-    time.sleep(10)
+    time.sleep(15)
 
     all_types_fs_actual = client.get_feature_set(name="all_types")
 
@@ -246,7 +246,7 @@ def test_all_types_register_feature_set_success(client):
         )
 
 
-@pytest.mark.timeout(300)
+@pytest.mark.timeout(45)
 @pytest.mark.run(order=21)
 def test_all_types_ingest_success(client, all_types_dataframe):
     # Get all_types feature set
@@ -256,7 +256,7 @@ def test_all_types_ingest_success(client, all_types_dataframe):
     client.ingest(all_types_fs, all_types_dataframe)
 
 
-@pytest.mark.timeout(300)
+@pytest.mark.timeout(15)
 @pytest.mark.run(order=22)
 def test_all_types_retrieve_online_success(client, all_types_dataframe):
 
@@ -284,7 +284,6 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
                 "all_types:1:int32_list_feature",
                 "all_types:1:string_list_feature",
                 "all_types:1:bytes_list_feature",
-                "all_types:1:bool_list_feature",
                 "all_types:1:double_list_feature",
             ],
         )  # type: GetOnlineFeaturesResponse
@@ -324,7 +323,7 @@ def large_volume_dataframe():
     return customer_data
 
 
-@pytest.mark.timeout(30)
+@pytest.mark.timeout(300)
 @pytest.mark.run(order=30)
 def test_large_volume_register_feature_set_success(client):
     cust_trans_fs_expected = FeatureSet.from_yaml(
@@ -349,7 +348,7 @@ def test_large_volume_register_feature_set_success(client):
         )
 
 
-@pytest.mark.timeout(90)
+@pytest.mark.timeout(300)
 @pytest.mark.run(order=31)
 def test_large_volume_ingest_success(client, large_volume_dataframe):
 
@@ -360,7 +359,7 @@ def test_large_volume_ingest_success(client, large_volume_dataframe):
     client.ingest(cust_trans_fs, large_volume_dataframe)
 
 
-@pytest.mark.timeout(20)
+@pytest.mark.timeout(45)
 @pytest.mark.run(order=32)
 def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
     # Poll serving for feature values until the correct values are returned
@@ -419,7 +418,6 @@ def all_types_parquet_file():
             "double_feature": [np.float64(random.random()) for _ in range(COUNT)],
             "string_feature": ["one" + str(random.random()) for _ in range(COUNT)],
             "bytes_feature": [b"one" for _ in range(COUNT)],
-            # "bool_feature": [True for _ in range(COUNT)], # TODO:  https://github.com/gojek/feast/pull/340
             "int32_list_feature": [
                 np.array([1, 2, 3, random.randint(0, 10000)], dtype=np.int32) for _
                 in range(COUNT)
@@ -446,17 +444,47 @@ def all_types_parquet_file():
         }
     )
 
-    # TODO: Boolean list is not being tested. Problem writing to parquet.
+    # TODO: Boolean list is not being tested.
+    #  https://github.com/gojek/feast/issues/341
+
     file_path = os.path.join(tempfile.mkdtemp(), 'all_types.parquet')
     df.to_parquet(file_path, allow_truncated_timestamps=True)
     return file_path
 
 
+
+@pytest.mark.timeout(300)
+@pytest.mark.run(order=40)
+def test_all_types_parquet_register_feature_set_success(client):
+    # Load feature set from file
+    all_types_parquet_expected = FeatureSet.from_yaml("all_types_parquet/all_types_parquet.yaml")
+
+    # Register feature set
+    client.apply(all_types_parquet_expected)
+
+    # Feast Core needs some time to fully commit the FeatureSet applied
+    # when there is no existing job yet for the Featureset
+    time.sleep(30)
+
+    all_types_parquet_actual = client.get_feature_set(name="all_types_parquet")
+
+    assert all_types_parquet_actual == all_types_parquet_expected
+
+    if all_types_parquet_actual is None:
+        raise Exception(
+            "Client cannot retrieve 'customer_transactions' FeatureSet "
+            "after registration. Either Feast Core does not save the "
+            "FeatureSet correctly or the client needs to wait longer for FeatureSet "
+            "to be committed."
+        )
+
+
 @pytest.mark.timeout(600)
 @pytest.mark.run(order=41)
 def test_all_types_infer_register_ingest_file_success(client, all_types_parquet_file):
-    # Create all types parquet feature set
-    all_types_fs = FeatureSet("all_types_parquet2", entities=[Entity(name='customer_id', dtype=ValueType.INT64)])
+
+    # Get feature set
+    all_types_fs = client.get_feature_set(name="all_types_parquet")
 
     # Ingest user embedding data
     client.ingest(feature_set=all_types_fs, source=all_types_parquet_file, force_update=True)
