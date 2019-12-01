@@ -253,7 +253,7 @@ def test_all_types_ingest_success(client, all_types_dataframe):
     all_types_fs = client.get_feature_set(name="all_types")
 
     # Ingest user embedding data
-    client.ingest(all_types_fs, dataframe=all_types_dataframe)
+    client.ingest(all_types_fs, all_types_dataframe)
 
 
 @pytest.mark.timeout(300)
@@ -357,7 +357,7 @@ def test_large_volume_ingest_success(client, large_volume_dataframe):
     cust_trans_fs = client.get_feature_set(name="customer_transactions_large")
 
     # Ingest customer transaction data
-    client.ingest(cust_trans_fs, dataframe=large_volume_dataframe)
+    client.ingest(cust_trans_fs, large_volume_dataframe)
 
 
 @pytest.mark.timeout(20)
