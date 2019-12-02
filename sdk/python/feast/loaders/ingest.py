@@ -8,7 +8,7 @@ from typing import Iterable
 import pandas as pd
 import pyarrow as pa
 from feast.feature_set import FeatureSet
-from feast.type_map import convert_df_to_feature_rows, convert_dict_to_proto_values
+from feast.type_map import convert_dict_to_proto_values
 from feast.types.FeatureRow_pb2 import FeatureRow
 from kafka import KafkaProducer
 from tqdm import tqdm
@@ -28,6 +28,17 @@ KAFKA_CHUNK_PRODUCTION_TIMEOUT = 120  # type: int
 def _kafka_feature_row_producer(
     feature_row_queue: Queue, row_count: int, brokers, topic, ctx: dict, pbar: tqdm
 ):
+    """
+    Pushes Feature Rows to Kafka. Reads rows from a queue. Function will run
+    until total row_count is reached.
+    :param feature_row_queue: Queue containing rows.
+    :param row_count: Total row count to process
+    :param brokers: Broker to push to
+    :param topic: Topic to push to
+    :param ctx: Context dict used to communicate with primary process
+    :param pbar: Progress bar object
+    """
+
     # Callback for failed production to Kafka
     def on_error(e):
         # Save last exception
@@ -46,7 +57,9 @@ def _kafka_feature_row_producer(
     producer = KafkaProducer(bootstrap_servers=brokers)
     processed_rows = 0
 
+    # Loop through feature rows until all rows are processed
     while processed_rows < row_count:
+        # Wait if queue is empty
         if feature_row_queue.empty():
             time.sleep(1)
             producer.flush(timeout=KAFKA_CHUNK_PRODUCTION_TIMEOUT)
@@ -129,6 +142,7 @@ def ingest_table_to_kafka(
     timeout: int = None,
 ) -> None:
     """
+    Ingest a PyArrow Table to a Kafka topic based for a Feature Set
 
     :param feature_set: FeatureSet describing PyArrow table.
     :type feature_set: FeatureSet
@@ -140,7 +154,7 @@ def ingest_table_to_kafka(
     :type chunk_size: int
     :param disable_pbar: Flag to indicate if tqdm progress bar should be
         disabled.
-    :type disable_pbar: bool Disable printing of ingestion progress bar
+    :type disable_pbar: bool
     :param timeout: Maximum time before method times out.
     :return: None
     :rtype: None
@@ -152,7 +166,7 @@ def ingest_table_to_kafka(
     df_datetime_dtype = ref_df[DATETIME_COLUMN].dtype
 
     # Validate feature set schema
-    validate_dataframe(ref_df, feature_set)
+    _validate_dataframe(ref_df, feature_set)
 
     # Create queue through which encoding and production will coordinate
     row_queue = Queue()
@@ -182,6 +196,7 @@ def ingest_table_to_kafka(
         )
         ingestion_process.start()
 
+        # Iterate over chunks in the table and return feature rows
         for row in _encode_pa_chunks(
             tbl=table,
             fs=feature_set,
@@ -189,6 +204,7 @@ def ingest_table_to_kafka(
             chunk_size=chunk_size,
             df_datetime_dtype=df_datetime_dtype,
         ):
+            # Push rows onto a queue for the production process to pick up
             row_queue.put(row)
             while row_queue.qsize() > chunk_size:
                 time.sleep(0.1)
@@ -196,6 +212,7 @@ def ingest_table_to_kafka(
     except Exception as ex:
         _logger.error(f"Exception occurred: {ex}")
     finally:
+        # Wait for the Kafka production to complete
         ingestion_process.join(timeout=timeout)
         failed_message = (
             ""
@@ -216,19 +233,25 @@ def ingest_table_to_kafka(
         )
 
 
-def validate_dataframe(dataframe: pd.DataFrame, fs: FeatureSet):
+def _validate_dataframe(dataframe: pd.DataFrame, feature_set: FeatureSet):
+    """
+    Validates a Pandas dataframe based on a feature set
+    :param dataframe: Pandas dataframe
+    :param feature_set: Feature Set instance
+    """
+
     if "datetime" not in dataframe.columns:
         raise ValueError(
             f'Dataframe does not contain entity "datetime" in columns {dataframe.columns}'
         )
 
-    for entity in fs.entities:
+    for entity in feature_set.entities:
         if entity.name not in dataframe.columns:
             raise ValueError(
                 f"Dataframe does not contain entity {entity.name} in columns {dataframe.columns}"
             )
 
-    for feature in fs.features:
+    for feature in feature_set.features:
         if feature.name not in dataframe.columns:
             raise ValueError(
                 f"Dataframe does not contain feature {feature.name} in columns {dataframe.columns}"

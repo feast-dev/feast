@@ -47,6 +47,7 @@ def export_dataframe_to_local(df: pd.DataFrame, dir_path: Optional[str] = None):
     :param dir_path: (optional) Absolute directory path '/data/project/subfolder/'
     :return:
     """
+
     # Create local staging location if not provided
     if dir_path is None:
         dir_path = tempfile.mkdtemp()

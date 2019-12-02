@@ -9,6 +9,25 @@ def yaml_loader(yml, load_single=False):
     :param load_single: Expect only a single YAML resource, fail otherwise
     :return: Either a single YAML dictionary or a list of YAML dictionaries
     """
+    yml_content = _get_yaml_contents(yml)
+    yaml_strings = yml_content.strip("---").split("---")
+
+    # Return a single resource dict
+    if load_single:
+        if len(yaml_strings) > 1:
+            raise Exception(
+                f"More than one YAML file is being loaded when only a single file is supported: ${yaml_strings}"
+            )
+        return _yaml_to_dict(yaml_strings[0])
+
+    # Return a list of resource dicts
+    resources = []
+    for yaml_string in yaml_strings:
+        resources.append(_yaml_to_dict(yaml_string))
+    return resources
+
+
+def _get_yaml_contents(yml):
     if (
         isinstance(yml, str)
         and yml.count("\n") == 0
@@ -23,25 +42,10 @@ def yaml_loader(yml, load_single=False):
         raise Exception(
             f"Invalid YAML provided. Please provide either a file path or YAML string: ${yml}"
         )
-
-    yaml_strings = yml_content.strip("---").split("---")
-
-    # Return a single resource dict
-    if load_single:
-        if len(yaml_strings) > 1:
-            raise Exception(
-                f"More than one YAML file is being loaded when only a single file is supported: ${yaml_strings}"
-            )
-        return yaml_to_dict(yaml_strings[0])
-
-    # Return a list of resource dicts
-    resources = []
-    for yaml_string in yaml_strings:
-        resources.append(yaml_to_dict(yaml_string))
-    return resources
+    return yml_content
 
 
-def yaml_to_dict(yaml_string):
+def _yaml_to_dict(yaml_string):
     yaml_dict = yaml.safe_load(yaml_string)
     if not isinstance(yaml_dict, dict) or not "kind" in yaml_dict:
         raise Exception(f"Could not detect YAML kind from resource: ${yaml_string}")
