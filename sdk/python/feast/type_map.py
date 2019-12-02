@@ -18,7 +18,6 @@ from datetime import datetime, timezone
 from feast.value_type import ValueType
 from feast.types.Value_pb2 import (
     Value as ProtoValue,
-    ValueType as ProtoValueType,
     Int64List,
     Int32List,
     BoolList,
@@ -31,82 +30,20 @@ from feast.types import FeatureRow_pb2 as FeatureRowProto, Field_pb2 as FieldPro
 from google.protobuf.timestamp_pb2 import Timestamp
 from feast.constants import DATETIME_COLUMN
 
-# Mapping of feast value type to Pandas DataFrame dtypes
-# Integer and floating values are all 64-bit for better integration
-# with BigQuery data types
-FEAST_VALUE_TYPE_TO_DTYPE = {
-    "BYTES": np.byte,
-    "STRING": np.object,
-    "INT32": "Int32",  # Use pandas nullable int type
-    "INT64": "Int64",  # Use pandas nullable int type
-    "DOUBLE": np.float64,
-    "FLOAT": np.float64,
-    "BOOL": np.bool,
-}
 
-FEAST_VALUE_ATTR_TO_DTYPE = {
-    "bytes_val": np.byte,
-    "string_val": np.object,
-    "int32_val": "Int32",
-    "int64_val": "Int64",
-    "double_val": np.float64,
-    "float_val": np.float64,
-    "bool_val": np.bool,
-}
-
-
-def dtype_to_feast_value_attr(dtype):
-    # Mapping of Pandas dtype to attribute name in Feast Value
-    type_map = {
-        "float64": "double_val",
-        "float32": "float_val",
-        "int64": "int64_val",
-        "uint64": "int64_val",
-        "int32": "int32_val",
-        "uint32": "int32_val",
-        "uint8": "int32_val",
-        "int8": "int32_val",
-        "bool": "bool_val",
-        "timedelta": "int64_val",
-        "datetime64[ns]": "int64_val",
-        "datetime64[ns, UTC]": "int64_val",
-        "category": "string_val",
-        "object": "string_val",
-    }
-    return type_map[dtype.__str__()]
-
-
-def dtype_to_value_type(dtype):
-    """Returns the equivalent feast valueType for the given dtype
-    Args:
-        dtype (pandas.dtype): pandas dtype
-    Returns:
-        feast.types.ValueType2.ValueType: equivalent feast valuetype
-    """
-    # mapping of pandas dtypes to feast value type strings
-    type_map = {
-        "float64": ProtoValueType.DOUBLE,
-        "float32": ProtoValueType.FLOAT,
-        "int64": ProtoValueType.INT64,
-        "uint64": ProtoValueType.INT64,
-        "int32": ProtoValueType.INT32,
-        "uint32": ProtoValueType.INT32,
-        "uint8": ProtoValueType.INT32,
-        "int8": ProtoValueType.INT32,
-        "bool": ProtoValueType.BOOL,
-        "timedelta": ProtoValueType.INT64,
-        "datetime64[ns]": ProtoValueType.INT64,
-        "datetime64[ns, UTC]": ProtoValueType.INT64,
-        "category": ProtoValueType.STRING,
-        "object": ProtoValueType.STRING,
-    }
-    return type_map[dtype.__str__()]
-
-
-# TODO: to pass test_importer
-def pandas_dtype_to_feast_value_type(
+def python_type_to_feast_value_type(
     name: str, value, recurse: bool = True
 ) -> ValueType:
+    """
+    Finds the equivalent Feast Value Type for a Python value. Both native
+    and Pandas types are supported. This function will recursively look
+    for nested types when arrays are detected. All types must be homogenous.
+
+    :param name: Name of the value or field
+    :param value: Value that will be inspected
+    :param recurse: Whether to recursively look for nested types in arrays
+    :return: Feast Value Type
+    """
 
     type_name = type(value).__name__
 
@@ -140,37 +77,55 @@ def pandas_dtype_to_feast_value_type(
             list_items = pd.core.series.Series(value)
 
             # This is the final type which we infer from the list
-            list_item_value_types = None
+            common_item_value_type = None
             for item in list_items:
                 # Get the type from the current item, only one level deep
-                list_item_value_type = pandas_dtype_to_feast_value_type(
+                current_item_value_type = python_type_to_feast_value_type(
                     name=name, value=item, recurse=False
                 )
                 # Validate whether the type stays consistent
                 if (
-                    list_item_value_types
-                    and not list_item_value_types == list_item_value_type
+                    common_item_value_type
+                    and not common_item_value_type == current_item_value_type
                 ):
                     raise ValueError(
                         f"List value type for field {name} is inconsistent. "
-                        f"{list_item_value_types} different from "
-                        f"{list_item_value_type}."
+                        f"{common_item_value_type} different from "
+                        f"{current_item_value_type}."
                     )
-                list_item_value_types = list_item_value_type
-
-            return ValueType[list_item_value_types.name + "_LIST"]
+                common_item_value_type = current_item_value_type
+            if common_item_value_type is None:
+                raise ValueError(
+                    f"field {name} cannot have null values for type inference."
+                )
+            return ValueType[common_item_value_type.name + "_LIST"]
         else:
             raise ValueError(
-                f"Value type for field {name} is {value.dtype.__str__()} but recursion is not allowed. Array types can only be one level deep."
+                f"Value type for field {name} is {value.dtype.__str__()} "
+                f"but recursion is not allowed. Array types can only be one "
+                f"level deep."
             )
 
     return type_map[value.dtype.__str__()]
 
 
 def convert_df_to_feature_rows(dataframe: pd.DataFrame, feature_set):
+    """
+    Returns a function that converts a Pandas Series to a Feast FeatureRow
+    for a given Feature Set and Pandas Dataframe
+    :param dataframe: Dataframe that will be converted
+    :param feature_set: Feature set used as schema for conversion
+    :return: Function that will do conversion
+    """
+
     def convert_series_to_proto_values(row: pd.Series):
+        """
+        Converts a Pandas Series to a Feast FeatureRow
+        :param row: pd.Series The row that should be converted
+        :return: Feast FeatureRow
+        """
         feature_row = FeatureRowProto.FeatureRow(
-            event_timestamp=pd_datetime_to_timestamp_proto(
+            event_timestamp=_pd_datetime_to_timestamp_proto(
                 dataframe[DATETIME_COLUMN].dtype, row[DATETIME_COLUMN]
             ),
             feature_set=feature_set.name + ":" + str(feature_set.version),
@@ -181,7 +136,9 @@ def convert_df_to_feature_rows(dataframe: pd.DataFrame, feature_set):
                 [
                     FieldProto.Field(
                         name=field.name,
-                        value=pd_value_to_proto_value(field.dtype, row[field.name]),
+                        value=_python_value_to_proto_value(
+                            field.dtype, row[field.name]
+                        ),
                     )
                 ]
             )
@@ -206,7 +163,7 @@ def convert_dict_to_proto_values(
     :rtype: FeatureRowProto.FeatureRow
     """
     feature_row = FeatureRowProto.FeatureRow(
-        event_timestamp=pd_datetime_to_timestamp_proto(
+        event_timestamp=_pd_datetime_to_timestamp_proto(
             df_datetime_dtype, row[DATETIME_COLUMN]
         ),
         feature_set=feature_set.name + ":" + str(feature_set.version),
@@ -217,14 +174,21 @@ def convert_dict_to_proto_values(
             [
                 FieldProto.Field(
                     name=field.name,
-                    value=pd_value_to_proto_value(field.dtype, row[field.name]),
+                    value=_python_value_to_proto_value(field.dtype, row[field.name]),
                 )
             ]
         )
     return feature_row
 
 
-def pd_datetime_to_timestamp_proto(dtype, value) -> Timestamp:
+def _pd_datetime_to_timestamp_proto(dtype, value) -> Timestamp:
+    """
+    Converts a Pandas datetime to a Timestamp Proto
+    :param dtype: Pandas datatype
+    :param value: Value of datetime
+    :return: Timestamp protobuf value
+    """
+
     if type(value) in [np.float64, np.float32, np.int32, np.int64]:
         return Timestamp(seconds=int(value))
     if dtype.__str__() == "datetime64[ns]":
@@ -239,11 +203,18 @@ def pd_datetime_to_timestamp_proto(dtype, value) -> Timestamp:
         return Timestamp(seconds=np.datetime64(value).astype("int64") // 1000000)
 
 
-def type_err(item, dtype):
+def _type_err(item, dtype):
     raise ValueError(f'Value "{item}" is of type {type(item)} not of type {dtype}')
 
 
-def pd_value_to_proto_value(feast_value_type, value) -> ProtoValue:
+def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
+    """
+    Converts a Python (native, pandas) value to a Feast Proto Value based
+    on a provided value type
+    :param feast_value_type: The target value type
+    :param value: Value that will be converted
+    :return: Feast Value
+    """
 
     # Detect list type and handle separately
     if "list" in feast_value_type.name.lower():
@@ -254,7 +225,7 @@ def pd_value_to_proto_value(feast_value_type, value) -> ProtoValue:
                     val=[
                         item
                         if type(item) in [np.float32, np.float64]
-                        else type_err(item, np.float32)
+                        else _type_err(item, np.float32)
                         for item in value
                     ]
                 )
@@ -266,7 +237,7 @@ def pd_value_to_proto_value(feast_value_type, value) -> ProtoValue:
                     val=[
                         item
                         if type(item) in [np.float64, np.float32]
-                        else type_err(item, np.float64)
+                        else _type_err(item, np.float64)
                         for item in value
                     ]
                 )
@@ -276,7 +247,7 @@ def pd_value_to_proto_value(feast_value_type, value) -> ProtoValue:
             return ProtoValue(
                 int32_list_val=Int32List(
                     val=[
-                        item if type(item) is np.int32 else type_err(item, np.int32)
+                        item if type(item) is np.int32 else _type_err(item, np.int32)
                         for item in value
                     ]
                 )
@@ -288,7 +259,7 @@ def pd_value_to_proto_value(feast_value_type, value) -> ProtoValue:
                     val=[
                         item
                         if type(item) in [np.int64, np.int32]
-                        else type_err(item, np.int64)
+                        else _type_err(item, np.int64)
                         for item in value
                     ]
                 )
@@ -300,7 +271,7 @@ def pd_value_to_proto_value(feast_value_type, value) -> ProtoValue:
                     val=[
                         item
                         if type(item) in [np.str_, str]
-                        else type_err(item, np.str_)
+                        else _type_err(item, np.str_)
                         for item in value
                     ]
                 )
@@ -312,7 +283,7 @@ def pd_value_to_proto_value(feast_value_type, value) -> ProtoValue:
                     val=[
                         item
                         if type(item) in [np.bool_, bool]
-                        else type_err(item, np.bool_)
+                        else _type_err(item, np.bool_)
                         for item in value
                     ]
                 )
@@ -324,7 +295,7 @@ def pd_value_to_proto_value(feast_value_type, value) -> ProtoValue:
                     val=[
                         item
                         if type(item) in [np.bytes_, bytes]
-                        else type_err(item, np.bytes_)
+                        else _type_err(item, np.bytes_)
                         for item in value
                     ]
                 )

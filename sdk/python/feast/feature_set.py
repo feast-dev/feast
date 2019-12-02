@@ -13,33 +13,19 @@
 # limitations under the License.
 
 
-import logging
-
-import os
 import pandas as pd
-from math import ceil
-from multiprocessing import Process, Queue, cpu_count
 from typing import List, Optional
 from collections import OrderedDict
 from typing import Dict
 from feast.source import Source
-from feast.type_map import dtype_to_value_type
 from pandas.api.types import is_datetime64_ns_dtype
 from feast.entity import Entity
 from feast.feature import Feature, Field
 from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
-from feast.types import FeatureRow_pb2 as FeatureRow
-from google.protobuf.timestamp_pb2 import Timestamp
 from google.protobuf.duration_pb2 import Duration
-from kafka import KafkaProducer
-from tqdm import tqdm
-from feast.type_map import pandas_dtype_to_feast_value_type
-from feast.types import FeatureRow_pb2 as FeatureRowProto, Field_pb2 as FieldProto
-from feast.type_map import pd_value_to_proto_value
+from feast.type_map import python_type_to_feast_value_type
 from google.protobuf.json_format import MessageToJson
-import yaml
 from google.protobuf import json_format
-from feast.source import KafkaSource
 from feast.type_map import DATETIME_COLUMN
 from feast.loaders import yaml as feast_yaml
 
@@ -104,6 +90,11 @@ class FeatureSet:
 
     @features.setter
     def features(self, features: List[Feature]):
+        """
+        Sets the active features within this feature set
+        Args:
+            features: List of feature objects
+        """
         for feature in features:
             if not isinstance(feature, Feature):
                 raise Exception("object type is not a Feature: " + str(type(feature)))
@@ -124,6 +115,11 @@ class FeatureSet:
 
     @entities.setter
     def entities(self, entities: List[Entity]):
+        """
+        Sets the active entities within this feature set
+        Args:
+            entities: List of entities objects
+        """
         for entity in entities:
             if not isinstance(entity, Entity):
                 raise Exception("object type is not na Entity: " + str(type(entity)))
@@ -175,8 +171,9 @@ class FeatureSet:
         """
         Adds a resource (Feature, Entity) to this Feature Set.
         Does not register the updated Feature Set with Feast Core
-        :param resource: A resource can be either a Feature or an Entity object
-        :return:
+
+        Args:
+            resource: A resource can be either a Feature or an Entity object
         """
         if resource.name in self._fields.keys():
             raise ValueError(
@@ -199,7 +196,9 @@ class FeatureSet:
     def drop(self, name: str):
         """
         Removes a Feature or Entity from a Feature Set
-        :param name: Name of Feature or Entity to be removed
+
+        Args:
+            name: Name of Feature or Entity to be removed
         """
         if name not in self._fields:
             raise ValueError("Could not find field " + name + ", no action taken")
@@ -226,12 +225,13 @@ class FeatureSet:
         rows_to_sample: int = 100,
     ):
         """
+
         Adds fields (Features or Entities) to a feature set based on the schema
         of a Datatframe. Only Pandas dataframes are supported. All columns are
         detected as features, so setting at least one entity manually is
         advised.
 
-        :param df: Pandas dataframe to read schema from
+        :param df:
         :param entities: List of entities that will be set manually and not
         inferred. These will take precedence over any existing entities or
         entities found in the dataframe.
@@ -247,8 +247,17 @@ class FeatureSet:
         :param replace_existing_entities: Boolean flag. If true, will replace
         existing entities in this feature set with features found in dataframe.
         If false, will skip conflicting entities
-        """
 
+
+        Args:
+            df: Pandas dataframe to read schema from
+            entities:
+            features:
+            replace_existing_features:
+            replace_existing_entities:
+            discard_unused_fields:
+            rows_to_sample:
+        """
         if entities is None:
             entities = list()
         if features is None:
@@ -351,7 +360,7 @@ class FeatureSet:
                 continue
 
             # Infer the specific type for this row
-            current_dtype = pandas_dtype_to_feast_value_type(name=column, value=value)
+            current_dtype = python_type_to_feast_value_type(name=column, value=value)
 
             # Make sure the type is consistent for column
             if dtype:

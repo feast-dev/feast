@@ -442,5 +442,7 @@ class TestClient:
             return_value=GetFeatureSetResponse(feature_set=all_types_fs.to_proto()),
         )
 
-        # Ingest data into Feast
-        client.ingest(all_types_fs, dataframe)
+        # Need to create a mock producer
+        with patch("feast.loaders.ingest.KafkaProducer") as mocked_queue:
+            # Ingest data into Feast
+            client.ingest(all_types_fs, dataframe)

@@ -32,11 +32,8 @@ CONFIGURATION_FILE_DIR = os.environ.get("FEAST_CONFIG", ".feast")
 CONFIGURATION_FILE_NAME = "config.toml"
 
 
-def get_or_create_config() -> Dict:
-    """
-    Creates or gets the Feast users active configuration
-    :return: dictionary of Feast properties
-    """
+def _get_or_create_config() -> Dict:
+    """Get user configuration file or create it and return"""
 
     user_config_file_dir, user_config_file_path = _get_config_file_locations()
     user_config_file_dir = user_config_file_dir.rstrip("/") + "/"
@@ -66,12 +63,13 @@ def get_or_create_config() -> Dict:
 def set_property(prop: str, value: str):
     """
     Sets a single property in the Feast users local configuration file
-    :param prop: Feast property name
-    :param value: Feast property value
-    """
 
+    Args:
+        prop: Feast property name
+        value: Feast property value
+    """
     if _is_valid_property(prop, value):
-        active_feast_config = get_or_create_config()
+        active_feast_config = _get_or_create_config()
         active_feast_config[prop] = value
         _, user_config_file_path = _get_config_file_locations()
         _save_config(user_config_file_path, active_feast_config)
@@ -81,15 +79,26 @@ def set_property(prop: str, value: str):
         sys.exit(1)
 
 
-def get_config_property_or_fail(prop: str, cli_config: Dict[str, str] = None):
-    if (
-        isinstance(cli_config, dict)
-        and prop in cli_config
-        and cli_config[prop] is not None
-    ):
-        return cli_config[prop]
+def get_config_property_or_fail(prop: str, force_config: Dict[str, str] = None) -> str:
+    """
+    Gets a single property in the users configuration
 
-    active_feast_config = get_or_create_config()
+    Args:
+        prop: Property to retrieve
+        force_config: Configuration dictionary containing properties that should
+            be overridden. This will take precedence over file based properties.
+
+    Returns:
+        Returns a string property
+    """
+    if (
+        isinstance(force_config, dict)
+        and prop in force_config
+        and force_config[prop] is not None
+    ):
+        return force_config[prop]
+
+    active_feast_config = _get_or_create_config()
     if _is_valid_property(prop, active_feast_config[prop]):
         return active_feast_config[prop]
     _logger.error("Could not load Feast property from configuration: %s" % prop)
@@ -97,6 +106,7 @@ def get_config_property_or_fail(prop: str, cli_config: Dict[str, str] = None):
 
 
 def _props_to_dict() -> Dict[str, str]:
+    """Create empty dictionary of all Feast properties"""
     prop_dict = {}
     for prop in feast_configuration_properties:
         prop_dict[prop] = ""
@@ -106,11 +116,14 @@ def _props_to_dict() -> Dict[str, str]:
 def _is_valid_property(prop: str, value: str) -> bool:
     """
     Validates both a Feast property as well as value
-    :param prop: Feast property name
-    :param value: Feast property value
-    :return: Returns True if property and value are valid
-    """
 
+    Args:
+        prop: Feast property name
+        value: Feast property value
+
+    Returns:
+        Returns True if property and value are valid
+    """
     if prop not in feast_configuration_properties:
         _logger.error("You are trying to set an invalid property")
         sys.exit(1)
@@ -131,10 +144,11 @@ def _is_valid_property(prop: str, value: str) -> bool:
 def _save_config(user_config_file_path: str, config_string: Dict[str, str]):
     """
     Saves Feast configuration
-    :param user_config_file_path: Local file system path to save configuration
-    :param config_string: Contents in dictionary format to save to path
-    """
 
+    Args:
+        user_config_file_path: Local file system path to save configuration
+        config_string: Contents in dictionary format to save to path
+    """
     try:
         with open(user_config_file_path, "w+") as f:
             toml.dump(config_string, f)
@@ -145,6 +159,7 @@ def _save_config(user_config_file_path: str, config_string: Dict[str, str]):
 
 
 def _get_config_file_locations() -> (str, str):
+    """Gets the local user configuration directory and file path"""
     user_config_file_dir = join(expanduser("~"), CONFIGURATION_FILE_DIR)
     user_config_file_path = join(user_config_file_dir, CONFIGURATION_FILE_NAME)
     return user_config_file_dir, user_config_file_path
