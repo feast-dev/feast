@@ -68,8 +68,8 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
   public static final String METRIC_NAMESPACE = "WriteToStore";
   public static final String ELEMENTS_WRITTEN_METRIC = "elements_written";
 
-  private static final Counter elementsWritten =
-      Metrics.counter(METRIC_NAMESPACE, ELEMENTS_WRITTEN_METRIC);
+  private static final Counter elementsWritten = Metrics
+      .counter(METRIC_NAMESPACE, ELEMENTS_WRITTEN_METRIC);
 
   public abstract Store getStore();
 
@@ -155,35 +155,32 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
         break;
       case CASSANDRA:
         CassandraConfig cassandraConfig = getStore().getCassandraConfig();
-        SerializableFunction<Session, Mapper> mapperFactory =
-            new CassandraMutationMapperFactory(CassandraMutation.class);
+        SerializableFunction<Session, Mapper> mapperFactory = new CassandraMutationMapperFactory(CassandraMutation.class);
         input
             .apply(
                 "Create CassandraMutation from FeatureRow",
-                ParDo.of(
-                    new FeatureRowToCassandraMutationDoFn(
-                        getFeatureSetSpecs(), cassandraConfig.getDefaultTtl())))
+                ParDo.of(new FeatureRowToCassandraMutationDoFn(
+                    getFeatureSetSpecs(), cassandraConfig.getDefaultTtl()))
+            )
             .apply(
                 CassandraIO.<CassandraMutation>write()
                     .withHosts(Arrays.asList(cassandraConfig.getBootstrapHosts().split(",")))
                     .withPort(cassandraConfig.getPort())
                     .withKeyspace(cassandraConfig.getKeyspace())
                     .withEntity(CassandraMutation.class)
-                    .withMapperFactoryFn(mapperFactory));
+                    .withMapperFactoryFn(mapperFactory)
+            );
         break;
       default:
         log.error("Store type '{}' is not supported. No Feature Row will be written.", storeType);
         break;
     }
 
-    input.apply(
-        "IncrementWriteToStoreElementsWrittenCounter",
-        MapElements.into(TypeDescriptors.booleans())
-            .via(
-                (FeatureRow row) -> {
-                  elementsWritten.inc();
-                  return true;
-                }));
+    input.apply("IncrementWriteToStoreElementsWrittenCounter",
+        MapElements.into(TypeDescriptors.booleans()).via((FeatureRow row) -> {
+          elementsWritten.inc();
+          return true;
+        }));
 
     return PDone.in(input.getPipeline());
   }

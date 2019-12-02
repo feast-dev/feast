@@ -17,6 +17,8 @@
 syntax = "proto3";
 package feast.core;
 
+import "google/protobuf/duration.proto";
+
 option java_package = "feast.core";
 option java_outer_classname = "StoreProto";
 option go_package = "github.com/gojek/feast/sdk/go/protos/feast/core";
@@ -104,12 +106,17 @@ message Store {
     BIGQUERY = 2;
 
     // Cassandra stores entities as a string partition key, feature as clustering column.
+    // NOTE: This store currently uses max_age defined in FeatureSet for ttl
     //
     // Columns:
     // - entities: concatenated string of feature set name and all entities' keys and values
     // - feature: clustering column where each feature is a column
     // - value: byte array of Value (refer to feast.types.Value)
     //
+    // Internal columns:
+    // - writeTime: timestamp of the written record. This is used to ensure that new records are not replaced
+    //              by older ones
+    // - ttl: expiration time the record. Currently using max_age from feature set spec as ttl
     CASSANDRA = 3;
   }
 
@@ -130,6 +137,9 @@ message Store {
     string keyspace = 3;
     string table_name = 4;
     map<string, string> replication_options = 5;
+    // Default expiration in seconds to use when FeatureSetSpec does not have max_age defined.
+    // Specify 0 for no default expiration
+    google.protobuf.Duration default_ttl = 6;
   }
 
   message Subscription {

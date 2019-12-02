@@ -49,7 +49,7 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class CassandraWriteToStoreITTest implements Serializable {
+public class CassandraWriteToStoreIT implements Serializable {
   private FeatureSetSpec featureSetSpec;
   private FeatureRow row;
 
