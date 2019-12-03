@@ -40,9 +40,9 @@ REQUIRED = [
     "tabulate==0.8.*",
     "toml==0.10.*",
     "tqdm==4.*",
+    "pyarrow>=0.15.1",
     "numpy",
     "google",
-    "pyarrow",
 ]
 
 setup(
