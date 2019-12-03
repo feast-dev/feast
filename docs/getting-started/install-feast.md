@@ -5,7 +5,7 @@
 This installation guide will demonstrate two ways of installing Feast:
 
 * [**Minikube \(Minimal\)**](install-feast.md#minikube)**:** This installation has no external dependencies, but does not have a historical feature store installed. It allows users to quickly get a feel for Feast.
-* \*\*\*\*[**Google Kubernetes Engine \(Recommended\):**](install-feast.md#google-kubernetes-engine) _\*\*_The guide that follows is a single cluster Feast installation on Google's GKE. It has Google Cloud specific dependencies like BigQuery, Dataflow, and Google Cloud Storage.
+* \*\*\*\*[**Google Kubernetes Engine \(Recommended\):**](install-feast.md#google-kubernetes-engine) \_\*\*\_The guide that follows is a single cluster Feast installation on Google's GKE. It has Google Cloud specific dependencies like BigQuery, Dataflow, and Google Cloud Storage.
 
 ## Minikube
 
