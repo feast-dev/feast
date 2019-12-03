@@ -52,7 +52,7 @@ func (x ApplyFeatureSetResponse_Status) String() string {
 }
 
 func (ApplyFeatureSetResponse_Status) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_d9be266444105411, []int{5, 0}
+	return fileDescriptor_d9be266444105411, []int{7, 0}
 }
 
 type UpdateStoreResponse_Status int32
@@ -79,50 +79,140 @@ func (x UpdateStoreResponse_Status) String() string {
 }
 
 func (UpdateStoreResponse_Status) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_d9be266444105411, []int{9, 0}
+	return fileDescriptor_d9be266444105411, []int{11, 0}
 }
 
-// Retrieves details for all versions of a specific feature set
-type GetFeatureSetsRequest struct {
-	Filter               *GetFeatureSetsRequest_Filter `protobuf:"bytes,1,opt,name=filter,proto3" json:"filter,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                      `json:"-"`
-	XXX_unrecognized     []byte                        `json:"-"`
-	XXX_sizecache        int32                         `json:"-"`
+// Request for a single feature set
+type GetFeatureSetRequest struct {
+	// Name of feature set (required).
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Version of feature set (optional). If omitted then latest feature set will be returned.
+	Version              int32    `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GetFeatureSetsRequest) Reset()         { *m = GetFeatureSetsRequest{} }
-func (m *GetFeatureSetsRequest) String() string { return proto.CompactTextString(m) }
-func (*GetFeatureSetsRequest) ProtoMessage()    {}
-func (*GetFeatureSetsRequest) Descriptor() ([]byte, []int) {
+func (m *GetFeatureSetRequest) Reset()         { *m = GetFeatureSetRequest{} }
+func (m *GetFeatureSetRequest) String() string { return proto.CompactTextString(m) }
+func (*GetFeatureSetRequest) ProtoMessage()    {}
+func (*GetFeatureSetRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_d9be266444105411, []int{0}
 }
 
-func (m *GetFeatureSetsRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetFeatureSetsRequest.Unmarshal(m, b)
+func (m *GetFeatureSetRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetFeatureSetRequest.Unmarshal(m, b)
 }
-func (m *GetFeatureSetsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetFeatureSetsRequest.Marshal(b, m, deterministic)
+func (m *GetFeatureSetRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetFeatureSetRequest.Marshal(b, m, deterministic)
 }
-func (m *GetFeatureSetsRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetFeatureSetsRequest.Merge(m, src)
+func (m *GetFeatureSetRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetFeatureSetRequest.Merge(m, src)
 }
-func (m *GetFeatureSetsRequest) XXX_Size() int {
-	return xxx_messageInfo_GetFeatureSetsRequest.Size(m)
+func (m *GetFeatureSetRequest) XXX_Size() int {
+	return xxx_messageInfo_GetFeatureSetRequest.Size(m)
 }
-func (m *GetFeatureSetsRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetFeatureSetsRequest.DiscardUnknown(m)
+func (m *GetFeatureSetRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetFeatureSetRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_GetFeatureSetsRequest proto.InternalMessageInfo
+var xxx_messageInfo_GetFeatureSetRequest proto.InternalMessageInfo
 
-func (m *GetFeatureSetsRequest) GetFilter() *GetFeatureSetsRequest_Filter {
+func (m *GetFeatureSetRequest) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *GetFeatureSetRequest) GetVersion() int32 {
+	if m != nil {
+		return m.Version
+	}
+	return 0
+}
+
+// Response containing a single feature set
+type GetFeatureSetResponse struct {
+	FeatureSet           *FeatureSetSpec `protobuf:"bytes,1,opt,name=feature_set,json=featureSet,proto3" json:"feature_set,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
+	XXX_unrecognized     []byte          `json:"-"`
+	XXX_sizecache        int32           `json:"-"`
+}
+
+func (m *GetFeatureSetResponse) Reset()         { *m = GetFeatureSetResponse{} }
+func (m *GetFeatureSetResponse) String() string { return proto.CompactTextString(m) }
+func (*GetFeatureSetResponse) ProtoMessage()    {}
+func (*GetFeatureSetResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d9be266444105411, []int{1}
+}
+
+func (m *GetFeatureSetResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetFeatureSetResponse.Unmarshal(m, b)
+}
+func (m *GetFeatureSetResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetFeatureSetResponse.Marshal(b, m, deterministic)
+}
+func (m *GetFeatureSetResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetFeatureSetResponse.Merge(m, src)
+}
+func (m *GetFeatureSetResponse) XXX_Size() int {
+	return xxx_messageInfo_GetFeatureSetResponse.Size(m)
+}
+func (m *GetFeatureSetResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetFeatureSetResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetFeatureSetResponse proto.InternalMessageInfo
+
+func (m *GetFeatureSetResponse) GetFeatureSet() *FeatureSetSpec {
+	if m != nil {
+		return m.FeatureSet
+	}
+	return nil
+}
+
+// Retrieves details for all versions of a specific feature set
+type ListFeatureSetsRequest struct {
+	Filter               *ListFeatureSetsRequest_Filter `protobuf:"bytes,1,opt,name=filter,proto3" json:"filter,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                       `json:"-"`
+	XXX_unrecognized     []byte                         `json:"-"`
+	XXX_sizecache        int32                          `json:"-"`
+}
+
+func (m *ListFeatureSetsRequest) Reset()         { *m = ListFeatureSetsRequest{} }
+func (m *ListFeatureSetsRequest) String() string { return proto.CompactTextString(m) }
+func (*ListFeatureSetsRequest) ProtoMessage()    {}
+func (*ListFeatureSetsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d9be266444105411, []int{2}
+}
+
+func (m *ListFeatureSetsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListFeatureSetsRequest.Unmarshal(m, b)
+}
+func (m *ListFeatureSetsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListFeatureSetsRequest.Marshal(b, m, deterministic)
+}
+func (m *ListFeatureSetsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListFeatureSetsRequest.Merge(m, src)
+}
+func (m *ListFeatureSetsRequest) XXX_Size() int {
+	return xxx_messageInfo_ListFeatureSetsRequest.Size(m)
+}
+func (m *ListFeatureSetsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListFeatureSetsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListFeatureSetsRequest proto.InternalMessageInfo
+
+func (m *ListFeatureSetsRequest) GetFilter() *ListFeatureSetsRequest_Filter {
 	if m != nil {
 		return m.Filter
 	}
 	return nil
 }
 
-type GetFeatureSetsRequest_Filter struct {
+type ListFeatureSetsRequest_Filter struct {
 	// Name of the desired feature set. Valid regex strings are allowed.
 	// e.g.
 	// - .* can be used to match all feature sets
@@ -139,124 +229,124 @@ type GetFeatureSetsRequest_Filter struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GetFeatureSetsRequest_Filter) Reset()         { *m = GetFeatureSetsRequest_Filter{} }
-func (m *GetFeatureSetsRequest_Filter) String() string { return proto.CompactTextString(m) }
-func (*GetFeatureSetsRequest_Filter) ProtoMessage()    {}
-func (*GetFeatureSetsRequest_Filter) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d9be266444105411, []int{0, 0}
+func (m *ListFeatureSetsRequest_Filter) Reset()         { *m = ListFeatureSetsRequest_Filter{} }
+func (m *ListFeatureSetsRequest_Filter) String() string { return proto.CompactTextString(m) }
+func (*ListFeatureSetsRequest_Filter) ProtoMessage()    {}
+func (*ListFeatureSetsRequest_Filter) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d9be266444105411, []int{2, 0}
 }
 
-func (m *GetFeatureSetsRequest_Filter) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetFeatureSetsRequest_Filter.Unmarshal(m, b)
+func (m *ListFeatureSetsRequest_Filter) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListFeatureSetsRequest_Filter.Unmarshal(m, b)
 }
-func (m *GetFeatureSetsRequest_Filter) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetFeatureSetsRequest_Filter.Marshal(b, m, deterministic)
+func (m *ListFeatureSetsRequest_Filter) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListFeatureSetsRequest_Filter.Marshal(b, m, deterministic)
 }
-func (m *GetFeatureSetsRequest_Filter) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetFeatureSetsRequest_Filter.Merge(m, src)
+func (m *ListFeatureSetsRequest_Filter) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListFeatureSetsRequest_Filter.Merge(m, src)
 }
-func (m *GetFeatureSetsRequest_Filter) XXX_Size() int {
-	return xxx_messageInfo_GetFeatureSetsRequest_Filter.Size(m)
+func (m *ListFeatureSetsRequest_Filter) XXX_Size() int {
+	return xxx_messageInfo_ListFeatureSetsRequest_Filter.Size(m)
 }
-func (m *GetFeatureSetsRequest_Filter) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetFeatureSetsRequest_Filter.DiscardUnknown(m)
+func (m *ListFeatureSetsRequest_Filter) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListFeatureSetsRequest_Filter.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_GetFeatureSetsRequest_Filter proto.InternalMessageInfo
+var xxx_messageInfo_ListFeatureSetsRequest_Filter proto.InternalMessageInfo
 
-func (m *GetFeatureSetsRequest_Filter) GetFeatureSetName() string {
+func (m *ListFeatureSetsRequest_Filter) GetFeatureSetName() string {
 	if m != nil {
 		return m.FeatureSetName
 	}
 	return ""
 }
 
-func (m *GetFeatureSetsRequest_Filter) GetFeatureSetVersion() string {
+func (m *ListFeatureSetsRequest_Filter) GetFeatureSetVersion() string {
 	if m != nil {
 		return m.FeatureSetVersion
 	}
 	return ""
 }
 
-type GetFeatureSetsResponse struct {
+type ListFeatureSetsResponse struct {
 	FeatureSets          []*FeatureSetSpec `protobuf:"bytes,1,rep,name=feature_sets,json=featureSets,proto3" json:"feature_sets,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
 	XXX_unrecognized     []byte            `json:"-"`
 	XXX_sizecache        int32             `json:"-"`
 }
 
-func (m *GetFeatureSetsResponse) Reset()         { *m = GetFeatureSetsResponse{} }
-func (m *GetFeatureSetsResponse) String() string { return proto.CompactTextString(m) }
-func (*GetFeatureSetsResponse) ProtoMessage()    {}
-func (*GetFeatureSetsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d9be266444105411, []int{1}
+func (m *ListFeatureSetsResponse) Reset()         { *m = ListFeatureSetsResponse{} }
+func (m *ListFeatureSetsResponse) String() string { return proto.CompactTextString(m) }
+func (*ListFeatureSetsResponse) ProtoMessage()    {}
+func (*ListFeatureSetsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d9be266444105411, []int{3}
 }
 
-func (m *GetFeatureSetsResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetFeatureSetsResponse.Unmarshal(m, b)
+func (m *ListFeatureSetsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListFeatureSetsResponse.Unmarshal(m, b)
 }
-func (m *GetFeatureSetsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetFeatureSetsResponse.Marshal(b, m, deterministic)
+func (m *ListFeatureSetsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListFeatureSetsResponse.Marshal(b, m, deterministic)
 }
-func (m *GetFeatureSetsResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetFeatureSetsResponse.Merge(m, src)
+func (m *ListFeatureSetsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListFeatureSetsResponse.Merge(m, src)
 }
-func (m *GetFeatureSetsResponse) XXX_Size() int {
-	return xxx_messageInfo_GetFeatureSetsResponse.Size(m)
+func (m *ListFeatureSetsResponse) XXX_Size() int {
+	return xxx_messageInfo_ListFeatureSetsResponse.Size(m)
 }
-func (m *GetFeatureSetsResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetFeatureSetsResponse.DiscardUnknown(m)
+func (m *ListFeatureSetsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListFeatureSetsResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_GetFeatureSetsResponse proto.InternalMessageInfo
+var xxx_messageInfo_ListFeatureSetsResponse proto.InternalMessageInfo
 
-func (m *GetFeatureSetsResponse) GetFeatureSets() []*FeatureSetSpec {
+func (m *ListFeatureSetsResponse) GetFeatureSets() []*FeatureSetSpec {
 	if m != nil {
 		return m.FeatureSets
 	}
 	return nil
 }
 
-type GetStoresRequest struct {
-	Filter               *GetStoresRequest_Filter `protobuf:"bytes,1,opt,name=filter,proto3" json:"filter,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
-	XXX_unrecognized     []byte                   `json:"-"`
-	XXX_sizecache        int32                    `json:"-"`
+type ListStoresRequest struct {
+	Filter               *ListStoresRequest_Filter `protobuf:"bytes,1,opt,name=filter,proto3" json:"filter,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                  `json:"-"`
+	XXX_unrecognized     []byte                    `json:"-"`
+	XXX_sizecache        int32                     `json:"-"`
 }
 
-func (m *GetStoresRequest) Reset()         { *m = GetStoresRequest{} }
-func (m *GetStoresRequest) String() string { return proto.CompactTextString(m) }
-func (*GetStoresRequest) ProtoMessage()    {}
-func (*GetStoresRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d9be266444105411, []int{2}
+func (m *ListStoresRequest) Reset()         { *m = ListStoresRequest{} }
+func (m *ListStoresRequest) String() string { return proto.CompactTextString(m) }
+func (*ListStoresRequest) ProtoMessage()    {}
+func (*ListStoresRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d9be266444105411, []int{4}
 }
 
-func (m *GetStoresRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetStoresRequest.Unmarshal(m, b)
+func (m *ListStoresRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListStoresRequest.Unmarshal(m, b)
 }
-func (m *GetStoresRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetStoresRequest.Marshal(b, m, deterministic)
+func (m *ListStoresRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListStoresRequest.Marshal(b, m, deterministic)
 }
-func (m *GetStoresRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetStoresRequest.Merge(m, src)
+func (m *ListStoresRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListStoresRequest.Merge(m, src)
 }
-func (m *GetStoresRequest) XXX_Size() int {
-	return xxx_messageInfo_GetStoresRequest.Size(m)
+func (m *ListStoresRequest) XXX_Size() int {
+	return xxx_messageInfo_ListStoresRequest.Size(m)
 }
-func (m *GetStoresRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetStoresRequest.DiscardUnknown(m)
+func (m *ListStoresRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListStoresRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_GetStoresRequest proto.InternalMessageInfo
+var xxx_messageInfo_ListStoresRequest proto.InternalMessageInfo
 
-func (m *GetStoresRequest) GetFilter() *GetStoresRequest_Filter {
+func (m *ListStoresRequest) GetFilter() *ListStoresRequest_Filter {
 	if m != nil {
 		return m.Filter
 	}
 	return nil
 }
 
-type GetStoresRequest_Filter struct {
+type ListStoresRequest_Filter struct {
 	// Name of desired store. Regex is not supported in this query.
 	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -264,71 +354,71 @@ type GetStoresRequest_Filter struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GetStoresRequest_Filter) Reset()         { *m = GetStoresRequest_Filter{} }
-func (m *GetStoresRequest_Filter) String() string { return proto.CompactTextString(m) }
-func (*GetStoresRequest_Filter) ProtoMessage()    {}
-func (*GetStoresRequest_Filter) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d9be266444105411, []int{2, 0}
+func (m *ListStoresRequest_Filter) Reset()         { *m = ListStoresRequest_Filter{} }
+func (m *ListStoresRequest_Filter) String() string { return proto.CompactTextString(m) }
+func (*ListStoresRequest_Filter) ProtoMessage()    {}
+func (*ListStoresRequest_Filter) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d9be266444105411, []int{4, 0}
 }
 
-func (m *GetStoresRequest_Filter) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetStoresRequest_Filter.Unmarshal(m, b)
+func (m *ListStoresRequest_Filter) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListStoresRequest_Filter.Unmarshal(m, b)
 }
-func (m *GetStoresRequest_Filter) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetStoresRequest_Filter.Marshal(b, m, deterministic)
+func (m *ListStoresRequest_Filter) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListStoresRequest_Filter.Marshal(b, m, deterministic)
 }
-func (m *GetStoresRequest_Filter) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetStoresRequest_Filter.Merge(m, src)
+func (m *ListStoresRequest_Filter) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListStoresRequest_Filter.Merge(m, src)
 }
-func (m *GetStoresRequest_Filter) XXX_Size() int {
-	return xxx_messageInfo_GetStoresRequest_Filter.Size(m)
+func (m *ListStoresRequest_Filter) XXX_Size() int {
+	return xxx_messageInfo_ListStoresRequest_Filter.Size(m)
 }
-func (m *GetStoresRequest_Filter) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetStoresRequest_Filter.DiscardUnknown(m)
+func (m *ListStoresRequest_Filter) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListStoresRequest_Filter.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_GetStoresRequest_Filter proto.InternalMessageInfo
+var xxx_messageInfo_ListStoresRequest_Filter proto.InternalMessageInfo
 
-func (m *GetStoresRequest_Filter) GetName() string {
+func (m *ListStoresRequest_Filter) GetName() string {
 	if m != nil {
 		return m.Name
 	}
 	return ""
 }
 
-type GetStoresResponse struct {
+type ListStoresResponse struct {
 	Store                []*Store `protobuf:"bytes,1,rep,name=store,proto3" json:"store,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GetStoresResponse) Reset()         { *m = GetStoresResponse{} }
-func (m *GetStoresResponse) String() string { return proto.CompactTextString(m) }
-func (*GetStoresResponse) ProtoMessage()    {}
-func (*GetStoresResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d9be266444105411, []int{3}
+func (m *ListStoresResponse) Reset()         { *m = ListStoresResponse{} }
+func (m *ListStoresResponse) String() string { return proto.CompactTextString(m) }
+func (*ListStoresResponse) ProtoMessage()    {}
+func (*ListStoresResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d9be266444105411, []int{5}
 }
 
-func (m *GetStoresResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetStoresResponse.Unmarshal(m, b)
+func (m *ListStoresResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListStoresResponse.Unmarshal(m, b)
 }
-func (m *GetStoresResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetStoresResponse.Marshal(b, m, deterministic)
+func (m *ListStoresResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListStoresResponse.Marshal(b, m, deterministic)
 }
-func (m *GetStoresResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetStoresResponse.Merge(m, src)
+func (m *ListStoresResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListStoresResponse.Merge(m, src)
 }
-func (m *GetStoresResponse) XXX_Size() int {
-	return xxx_messageInfo_GetStoresResponse.Size(m)
+func (m *ListStoresResponse) XXX_Size() int {
+	return xxx_messageInfo_ListStoresResponse.Size(m)
 }
-func (m *GetStoresResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetStoresResponse.DiscardUnknown(m)
+func (m *ListStoresResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListStoresResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_GetStoresResponse proto.InternalMessageInfo
+var xxx_messageInfo_ListStoresResponse proto.InternalMessageInfo
 
-func (m *GetStoresResponse) GetStore() []*Store {
+func (m *ListStoresResponse) GetStore() []*Store {
 	if m != nil {
 		return m.Store
 	}
@@ -347,7 +437,7 @@ func (m *ApplyFeatureSetRequest) Reset()         { *m = ApplyFeatureSetRequest{}
 func (m *ApplyFeatureSetRequest) String() string { return proto.CompactTextString(m) }
 func (*ApplyFeatureSetRequest) ProtoMessage()    {}
 func (*ApplyFeatureSetRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d9be266444105411, []int{4}
+	return fileDescriptor_d9be266444105411, []int{6}
 }
 
 func (m *ApplyFeatureSetRequest) XXX_Unmarshal(b []byte) error {
@@ -388,7 +478,7 @@ func (m *ApplyFeatureSetResponse) Reset()         { *m = ApplyFeatureSetResponse
 func (m *ApplyFeatureSetResponse) String() string { return proto.CompactTextString(m) }
 func (*ApplyFeatureSetResponse) ProtoMessage()    {}
 func (*ApplyFeatureSetResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d9be266444105411, []int{5}
+	return fileDescriptor_d9be266444105411, []int{7}
 }
 
 func (m *ApplyFeatureSetResponse) XXX_Unmarshal(b []byte) error {
@@ -433,7 +523,7 @@ func (m *GetFeastCoreVersionRequest) Reset()         { *m = GetFeastCoreVersionR
 func (m *GetFeastCoreVersionRequest) String() string { return proto.CompactTextString(m) }
 func (*GetFeastCoreVersionRequest) ProtoMessage()    {}
 func (*GetFeastCoreVersionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d9be266444105411, []int{6}
+	return fileDescriptor_d9be266444105411, []int{8}
 }
 
 func (m *GetFeastCoreVersionRequest) XXX_Unmarshal(b []byte) error {
@@ -465,7 +555,7 @@ func (m *GetFeastCoreVersionResponse) Reset()         { *m = GetFeastCoreVersion
 func (m *GetFeastCoreVersionResponse) String() string { return proto.CompactTextString(m) }
 func (*GetFeastCoreVersionResponse) ProtoMessage()    {}
 func (*GetFeastCoreVersionResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d9be266444105411, []int{7}
+	return fileDescriptor_d9be266444105411, []int{9}
 }
 
 func (m *GetFeastCoreVersionResponse) XXX_Unmarshal(b []byte) error {
@@ -504,7 +594,7 @@ func (m *UpdateStoreRequest) Reset()         { *m = UpdateStoreRequest{} }
 func (m *UpdateStoreRequest) String() string { return proto.CompactTextString(m) }
 func (*UpdateStoreRequest) ProtoMessage()    {}
 func (*UpdateStoreRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d9be266444105411, []int{8}
+	return fileDescriptor_d9be266444105411, []int{10}
 }
 
 func (m *UpdateStoreRequest) XXX_Unmarshal(b []byte) error {
@@ -544,7 +634,7 @@ func (m *UpdateStoreResponse) Reset()         { *m = UpdateStoreResponse{} }
 func (m *UpdateStoreResponse) String() string { return proto.CompactTextString(m) }
 func (*UpdateStoreResponse) ProtoMessage()    {}
 func (*UpdateStoreResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d9be266444105411, []int{9}
+	return fileDescriptor_d9be266444105411, []int{11}
 }
 
 func (m *UpdateStoreResponse) XXX_Unmarshal(b []byte) error {
@@ -582,12 +672,14 @@ func (m *UpdateStoreResponse) GetStatus() UpdateStoreResponse_Status {
 func init() {
 	proto.RegisterEnum("feast.core.ApplyFeatureSetResponse_Status", ApplyFeatureSetResponse_Status_name, ApplyFeatureSetResponse_Status_value)
 	proto.RegisterEnum("feast.core.UpdateStoreResponse_Status", UpdateStoreResponse_Status_name, UpdateStoreResponse_Status_value)
-	proto.RegisterType((*GetFeatureSetsRequest)(nil), "feast.core.GetFeatureSetsRequest")
-	proto.RegisterType((*GetFeatureSetsRequest_Filter)(nil), "feast.core.GetFeatureSetsRequest.Filter")
-	proto.RegisterType((*GetFeatureSetsResponse)(nil), "feast.core.GetFeatureSetsResponse")
-	proto.RegisterType((*GetStoresRequest)(nil), "feast.core.GetStoresRequest")
-	proto.RegisterType((*GetStoresRequest_Filter)(nil), "feast.core.GetStoresRequest.Filter")
-	proto.RegisterType((*GetStoresResponse)(nil), "feast.core.GetStoresResponse")
+	proto.RegisterType((*GetFeatureSetRequest)(nil), "feast.core.GetFeatureSetRequest")
+	proto.RegisterType((*GetFeatureSetResponse)(nil), "feast.core.GetFeatureSetResponse")
+	proto.RegisterType((*ListFeatureSetsRequest)(nil), "feast.core.ListFeatureSetsRequest")
+	proto.RegisterType((*ListFeatureSetsRequest_Filter)(nil), "feast.core.ListFeatureSetsRequest.Filter")
+	proto.RegisterType((*ListFeatureSetsResponse)(nil), "feast.core.ListFeatureSetsResponse")
+	proto.RegisterType((*ListStoresRequest)(nil), "feast.core.ListStoresRequest")
+	proto.RegisterType((*ListStoresRequest_Filter)(nil), "feast.core.ListStoresRequest.Filter")
+	proto.RegisterType((*ListStoresResponse)(nil), "feast.core.ListStoresResponse")
 	proto.RegisterType((*ApplyFeatureSetRequest)(nil), "feast.core.ApplyFeatureSetRequest")
 	proto.RegisterType((*ApplyFeatureSetResponse)(nil), "feast.core.ApplyFeatureSetResponse")
 	proto.RegisterType((*GetFeastCoreVersionRequest)(nil), "feast.core.GetFeastCoreVersionRequest")
@@ -599,45 +691,47 @@ func init() {
 func init() { proto.RegisterFile("feast/core/CoreService.proto", fileDescriptor_d9be266444105411) }
 
 var fileDescriptor_d9be266444105411 = []byte{
-	// 598 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x55, 0x41, 0x6f, 0x12, 0x41,
-	0x14, 0x76, 0x5b, 0x4b, 0xc3, 0x5b, 0xad, 0xcb, 0x10, 0x91, 0x6c, 0x51, 0xeb, 0xd4, 0xb4, 0xc4,
-	0xc3, 0x6e, 0x82, 0x07, 0x0f, 0x5a, 0x23, 0x50, 0x4a, 0x4f, 0xd0, 0x2c, 0x62, 0x93, 0x5e, 0xc8,
-	0x42, 0x07, 0xc4, 0x16, 0x66, 0xdd, 0x19, 0x9a, 0xf8, 0x7f, 0xfc, 0x1b, 0xde, 0xbc, 0xf9, 0xa7,
-	0x0c, 0x33, 0x53, 0x76, 0x58, 0x96, 0xc5, 0xc4, 0xdb, 0xee, 0xbc, 0xef, 0x7d, 0xf3, 0xe6, 0xfb,
-	0xde, 0xcc, 0x83, 0xd2, 0x90, 0xf8, 0x8c, 0xbb, 0x03, 0x1a, 0x12, 0xb7, 0x4e, 0x43, 0xd2, 0x21,
-	0xe1, 0xdd, 0x78, 0x40, 0x9c, 0x20, 0xa4, 0x9c, 0x22, 0x10, 0x51, 0x67, 0x1e, 0xb5, 0xf7, 0x35,
-	0xe4, 0x19, 0xf1, 0xf9, 0x6c, 0x0e, 0xe6, 0x12, 0x68, 0x17, 0xb4, 0x60, 0x87, 0xd3, 0x50, 0x11,
-	0xe0, 0x5f, 0x06, 0x3c, 0x6d, 0x12, 0x1e, 0xe1, 0x99, 0x47, 0xbe, 0xcf, 0x08, 0xe3, 0xe8, 0x13,
-	0x64, 0x86, 0xe3, 0x5b, 0x4e, 0xc2, 0xa2, 0x71, 0x60, 0x94, 0xcd, 0x4a, 0xd9, 0x89, 0xf6, 0x72,
-	0x12, 0x53, 0x9c, 0x33, 0x81, 0xf7, 0x54, 0x9e, 0xdd, 0x87, 0x8c, 0x5c, 0x41, 0x65, 0xb0, 0x86,
-	0x12, 0xde, 0x63, 0x84, 0xf7, 0xa6, 0xfe, 0x84, 0x08, 0xd6, 0xac, 0xb7, 0x37, 0x5c, 0xd0, 0xb4,
-	0xfc, 0x09, 0x41, 0x0e, 0xe4, 0x75, 0xe4, 0x1d, 0x09, 0xd9, 0x98, 0x4e, 0x8b, 0x5b, 0x02, 0x9c,
-	0x8b, 0xc0, 0x5f, 0x64, 0x00, 0x5f, 0x42, 0x21, 0x5e, 0x0b, 0x0b, 0xe8, 0x94, 0x11, 0x74, 0x02,
-	0x8f, 0x34, 0x26, 0x56, 0x34, 0x0e, 0xb6, 0xcb, 0x66, 0xc5, 0xd6, 0x4f, 0x11, 0xa5, 0x75, 0x02,
-	0x32, 0xf0, 0xcc, 0x88, 0x9e, 0xe1, 0x09, 0x58, 0x4d, 0xc2, 0x85, 0x54, 0x0b, 0x49, 0xde, 0xc7,
-	0x24, 0x39, 0x8c, 0x49, 0xb2, 0x84, 0x8e, 0xab, 0x51, 0x5a, 0xa8, 0x81, 0xe0, 0xa1, 0xa6, 0x80,
-	0xf8, 0xc6, 0x1f, 0x20, 0xa7, 0x11, 0xa8, 0x23, 0x1c, 0xc3, 0x0e, 0x9b, 0xaf, 0xa8, 0xda, 0x73,
-	0xfa, 0x76, 0x02, 0xea, 0xc9, 0x38, 0xee, 0x42, 0xa1, 0x1a, 0x04, 0xb7, 0x3f, 0xa2, 0x03, 0x45,
-	0x25, 0x9b, 0x9a, 0x0a, 0xaa, 0xee, 0x34, 0x11, 0x20, 0x12, 0x01, 0xff, 0x31, 0xe0, 0xd9, 0x0a,
-	0xaf, 0xaa, 0xed, 0x7f, 0x88, 0x51, 0x0d, 0x32, 0x8c, 0xfb, 0x7c, 0xc6, 0x84, 0xb1, 0x7b, 0x95,
-	0x37, 0x7a, 0xde, 0x9a, 0x1d, 0x9d, 0x8e, 0xc8, 0xf0, 0x54, 0x26, 0x76, 0x21, 0x23, 0x57, 0xd0,
-	0x63, 0xc8, 0xb6, 0xda, 0xbd, 0xfa, 0x79, 0xb5, 0xd5, 0x6c, 0x58, 0x0f, 0x90, 0x09, 0xbb, 0x75,
-	0xaf, 0x51, 0xfd, 0xdc, 0x38, 0xb5, 0x0c, 0x94, 0x85, 0x9d, 0x86, 0xe7, 0xb5, 0x3d, 0x6b, 0x0b,
-	0x97, 0xc0, 0x96, 0xad, 0xc2, 0xf8, 0xfc, 0x22, 0xa9, 0x0e, 0x52, 0x42, 0xe1, 0x77, 0xb0, 0x9f,
-	0x18, 0x55, 0xc7, 0x2d, 0xc2, 0xee, 0x7d, 0x2f, 0x4a, 0xdb, 0xee, 0x7f, 0xf1, 0x09, 0xa0, 0x6e,
-	0x70, 0xed, 0x73, 0x22, 0x1d, 0x51, 0xba, 0x6b, 0xd6, 0x19, 0xa9, 0xd6, 0xfd, 0x34, 0x20, 0xbf,
-	0x94, 0xbf, 0xea, 0x7d, 0x2a, 0x01, 0xfa, 0x18, 0xd3, 0xf2, 0x48, 0x47, 0x26, 0x30, 0xc7, 0x75,
-	0x7c, 0x9d, 0xa2, 0x63, 0xf7, 0xe2, 0x54, 0xea, 0x58, 0xf9, 0xbd, 0x0d, 0xa6, 0xf6, 0xfc, 0xa0,
-	0x21, 0xe4, 0x13, 0xe4, 0x42, 0x47, 0xab, 0x8f, 0x44, 0x92, 0xda, 0xf6, 0xf1, 0x46, 0x9c, 0x92,
-	0xe1, 0x12, 0xf6, 0x96, 0xef, 0x37, 0x7a, 0xb5, 0xf1, 0x1d, 0xb2, 0x71, 0x1a, 0x44, 0x11, 0x9f,
-	0x43, 0x76, 0x71, 0xe1, 0x50, 0x29, 0xed, 0x22, 0xdb, 0xcf, 0xd7, 0x44, 0x15, 0xd3, 0x15, 0x3c,
-	0x89, 0xb5, 0x2c, 0xc2, 0xa9, 0xfd, 0x2c, 0x59, 0x0f, 0xff, 0xa1, 0xe7, 0x51, 0x0b, 0x4c, 0xcd,
-	0x42, 0xf4, 0x62, 0xad, 0xb7, 0x92, 0xf3, 0xe5, 0x06, 0xef, 0x6b, 0x6d, 0xd0, 0x26, 0x46, 0xcd,
-	0xd2, 0x1c, 0xbd, 0x98, 0x8f, 0x83, 0x2b, 0x77, 0x34, 0xe6, 0x5f, 0x67, 0x7d, 0x67, 0x40, 0x27,
-	0xee, 0x88, 0x7e, 0x23, 0x37, 0xae, 0x9c, 0x1b, 0xec, 0xfa, 0xc6, 0x1d, 0x51, 0x57, 0xcc, 0x0c,
-	0xe6, 0x46, 0xb3, 0xa4, 0x9f, 0x11, 0x4b, 0x6f, 0xff, 0x06, 0x00, 0x00, 0xff, 0xff, 0x9c, 0xcc,
-	0xb9, 0x51, 0xa7, 0x06, 0x00, 0x00,
+	// 636 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x55, 0xdd, 0x72, 0xd2, 0x40,
+	0x14, 0x36, 0xb5, 0xa5, 0xc3, 0x89, 0xad, 0xb0, 0x28, 0x65, 0x52, 0xac, 0x18, 0x3b, 0x16, 0xbd,
+	0x48, 0x66, 0xf0, 0xc2, 0x0b, 0xc5, 0x19, 0xfe, 0x5a, 0x67, 0x74, 0xa0, 0xb3, 0x80, 0xe3, 0xf4,
+	0x86, 0x01, 0xba, 0x20, 0xb6, 0x65, 0x63, 0x76, 0xe9, 0x8c, 0x6f, 0xe3, 0x85, 0xef, 0xe1, 0x03,
+	0xf8, 0x52, 0x4e, 0xb2, 0x5b, 0xb2, 0x09, 0x21, 0x5c, 0xe8, 0x5d, 0xb2, 0xe7, 0x3b, 0xdf, 0x9e,
+	0xfd, 0xce, 0x1f, 0x14, 0x27, 0x64, 0xc8, 0xb8, 0x3d, 0xa6, 0x2e, 0xb1, 0x1b, 0xd4, 0x25, 0x5d,
+	0xe2, 0xde, 0xce, 0xc6, 0xc4, 0x72, 0x5c, 0xca, 0x29, 0x02, 0xdf, 0x6a, 0x79, 0x56, 0xe3, 0x50,
+	0x41, 0x9e, 0x92, 0x21, 0x5f, 0x78, 0x60, 0x2e, 0x80, 0x46, 0x5e, 0x31, 0x76, 0x39, 0x75, 0x25,
+	0x81, 0xd9, 0x84, 0x47, 0x67, 0x84, 0x07, 0x70, 0x4c, 0xbe, 0x2f, 0x08, 0xe3, 0x08, 0xc1, 0xf6,
+	0x7c, 0x78, 0x43, 0x0a, 0x5a, 0x49, 0x2b, 0xa7, 0xb1, 0xff, 0x8d, 0x0a, 0xb0, 0x7b, 0x4b, 0x5c,
+	0x36, 0xa3, 0xf3, 0xc2, 0x56, 0x49, 0x2b, 0xef, 0xe0, 0xbb, 0x5f, 0xb3, 0x07, 0x8f, 0x23, 0x2c,
+	0xcc, 0xa1, 0x73, 0x46, 0xd0, 0x5b, 0xd0, 0x27, 0xe2, 0x74, 0xc0, 0x08, 0xf7, 0xd9, 0xf4, 0x8a,
+	0x61, 0x05, 0x51, 0x5b, 0x81, 0x53, 0xd7, 0x21, 0x63, 0x0c, 0x93, 0xe5, 0xbf, 0xf9, 0x5b, 0x83,
+	0xfc, 0xa7, 0x19, 0x53, 0x78, 0xd9, 0x5d, 0x78, 0x35, 0x48, 0x4d, 0x66, 0xd7, 0x9c, 0xb8, 0x92,
+	0xf2, 0xa5, 0x4a, 0x19, 0xef, 0x63, 0x9d, 0xfa, 0x0e, 0x58, 0x3a, 0x1a, 0x23, 0x48, 0x89, 0x13,
+	0x54, 0x86, 0x8c, 0x12, 0xe4, 0x40, 0x79, 0xf7, 0x7e, 0x10, 0x4d, 0xdb, 0x53, 0xc0, 0x82, 0x9c,
+	0x8a, 0x54, 0xd5, 0x48, 0xe3, 0x6c, 0x00, 0xfe, 0x2c, 0x75, 0xf9, 0x02, 0x07, 0x2b, 0xc1, 0x48,
+	0x65, 0xaa, 0xf0, 0x40, 0xa1, 0x62, 0x05, 0xad, 0x74, 0x7f, 0x83, 0x34, 0x7a, 0xc0, 0xcf, 0x4c,
+	0x0a, 0x59, 0x8f, 0xd9, 0x4f, 0xe5, 0x52, 0x95, 0x77, 0x11, 0x55, 0x8e, 0xa3, 0xaa, 0x84, 0xe0,
+	0x51, 0x41, 0x8a, 0x4b, 0x41, 0x62, 0x92, 0x6f, 0x56, 0x01, 0xa9, 0x0c, 0xf2, 0x15, 0x27, 0xb0,
+	0xc3, 0xbc, 0x13, 0x19, 0x7e, 0x56, 0xbd, 0xd0, 0x87, 0x62, 0x61, 0x37, 0xfb, 0x90, 0xaf, 0x39,
+	0xce, 0xf5, 0x8f, 0xd5, 0x4a, 0xfb, 0xa7, 0x12, 0xf9, 0xa3, 0xc1, 0xc1, 0x0a, 0xef, 0x7f, 0xa8,
+	0x3d, 0x54, 0x87, 0x14, 0xe3, 0x43, 0xbe, 0x60, 0x7e, 0x72, 0xf7, 0x2b, 0xaf, 0x54, 0xbf, 0x35,
+	0x37, 0x5a, 0x5d, 0xdf, 0x03, 0x4b, 0x4f, 0xd3, 0x86, 0x94, 0x38, 0x41, 0x7b, 0x90, 0x6e, 0x77,
+	0x06, 0x8d, 0x0f, 0xb5, 0xf6, 0x59, 0x2b, 0x73, 0x0f, 0xe9, 0xb0, 0xdb, 0xc0, 0xad, 0x5a, 0xaf,
+	0xd5, 0xcc, 0x68, 0x28, 0x0d, 0x3b, 0x2d, 0x8c, 0x3b, 0x38, 0xb3, 0x65, 0x16, 0xc1, 0x10, 0x6d,
+	0xc4, 0xb8, 0xd7, 0xea, 0xb2, 0x8a, 0xa4, 0x50, 0xe6, 0x1b, 0x38, 0x8c, 0xb5, 0xca, 0xe7, 0x2a,
+	0xdd, 0x29, 0xf2, 0xb6, 0xec, 0xce, 0x2a, 0xa0, 0xbe, 0x73, 0x39, 0xe4, 0x44, 0x64, 0x44, 0xea,
+	0xae, 0xa4, 0x4e, 0x4b, 0x4c, 0xdd, 0x2f, 0x0d, 0x72, 0x21, 0xff, 0xd5, 0xdc, 0x27, 0x12, 0xa0,
+	0xf7, 0x11, 0x2d, 0x5f, 0xa8, 0xc8, 0x18, 0xe6, 0xa8, 0x8e, 0xc7, 0x09, 0x3a, 0xf6, 0xcf, 0x9b,
+	0x42, 0xc7, 0xca, 0xcf, 0x6d, 0xd0, 0x95, 0x01, 0x89, 0x26, 0x90, 0x8b, 0x91, 0x0b, 0x85, 0x2e,
+	0x5f, 0xaf, 0xb6, 0x71, 0xb2, 0x11, 0x27, 0x65, 0xe8, 0xc1, 0x5e, 0x68, 0xf6, 0xa1, 0xd2, 0xaa,
+	0x67, 0xb8, 0xe4, 0x8d, 0x67, 0x09, 0x08, 0xc9, 0x7a, 0x01, 0x0f, 0x23, 0x93, 0x03, 0x99, 0x9b,
+	0x67, 0x9c, 0xf1, 0x3c, 0x11, 0x23, 0xb9, 0x3f, 0x02, 0x04, 0xad, 0x8c, 0x9e, 0x24, 0x0e, 0x09,
+	0xe3, 0x68, 0x9d, 0x39, 0x08, 0x34, 0xd2, 0x0e, 0xe1, 0x40, 0xe3, 0xbb, 0x3e, 0x1c, 0xe8, 0xba,
+	0x0e, 0x6e, 0x83, 0xae, 0x94, 0x07, 0x3a, 0x5a, 0x5b, 0x37, 0x82, 0xf3, 0xe9, 0x86, 0xba, 0xaa,
+	0x77, 0x40, 0xd9, 0x97, 0xf5, 0x8c, 0x52, 0x2d, 0xe7, 0xde, 0x32, 0xbc, 0xb0, 0xa7, 0x33, 0xfe,
+	0x75, 0x31, 0xb2, 0xc6, 0xf4, 0xc6, 0x9e, 0xd2, 0x6f, 0xe4, 0xca, 0x16, 0x5b, 0x93, 0x5d, 0x5e,
+	0xd9, 0x53, 0x6a, 0xfb, 0x1b, 0x93, 0xd9, 0xc1, 0x26, 0x1d, 0xa5, 0xfc, 0xa3, 0xd7, 0x7f, 0x03,
+	0x00, 0x00, 0xff, 0xff, 0xc7, 0xc1, 0x10, 0xf1, 0xa5, 0x07, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -654,19 +748,21 @@ const _ = grpc.SupportPackageIsVersion4
 type CoreServiceClient interface {
 	// Retrieve version information about this Feast deployment
 	GetFeastCoreVersion(ctx context.Context, in *GetFeastCoreVersionRequest, opts ...grpc.CallOption) (*GetFeastCoreVersionResponse, error)
+	// Returns a specific feature set
+	GetFeatureSet(ctx context.Context, in *GetFeatureSetRequest, opts ...grpc.CallOption) (*GetFeatureSetResponse, error)
 	// Retrieve feature set details given a filter.
 	//
 	// Returns all feature sets matching that filter. If none are found,
 	// an empty list will be returned.
 	// If no filter is provided in the request, the response will contain all the feature
 	// sets currently stored in the registry.
-	GetFeatureSets(ctx context.Context, in *GetFeatureSetsRequest, opts ...grpc.CallOption) (*GetFeatureSetsResponse, error)
+	ListFeatureSets(ctx context.Context, in *ListFeatureSetsRequest, opts ...grpc.CallOption) (*ListFeatureSetsResponse, error)
 	// Retrieve store details given a filter.
 	//
 	// Returns all stores matching that filter. If none are found, an empty list will be returned.
 	// If no filter is provided in the request, the response will contain all the stores currently
 	// stored in the registry.
-	GetStores(ctx context.Context, in *GetStoresRequest, opts ...grpc.CallOption) (*GetStoresResponse, error)
+	ListStores(ctx context.Context, in *ListStoresRequest, opts ...grpc.CallOption) (*ListStoresResponse, error)
 	// Create or update and existing feature set.
 	//
 	// This function is idempotent - it will not create a new feature set if schema does not change.
@@ -697,18 +793,27 @@ func (c *coreServiceClient) GetFeastCoreVersion(ctx context.Context, in *GetFeas
 	return out, nil
 }
 
-func (c *coreServiceClient) GetFeatureSets(ctx context.Context, in *GetFeatureSetsRequest, opts ...grpc.CallOption) (*GetFeatureSetsResponse, error) {
-	out := new(GetFeatureSetsResponse)
-	err := c.cc.Invoke(ctx, "/feast.core.CoreService/GetFeatureSets", in, out, opts...)
+func (c *coreServiceClient) GetFeatureSet(ctx context.Context, in *GetFeatureSetRequest, opts ...grpc.CallOption) (*GetFeatureSetResponse, error) {
+	out := new(GetFeatureSetResponse)
+	err := c.cc.Invoke(ctx, "/feast.core.CoreService/GetFeatureSet", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *coreServiceClient) GetStores(ctx context.Context, in *GetStoresRequest, opts ...grpc.CallOption) (*GetStoresResponse, error) {
-	out := new(GetStoresResponse)
-	err := c.cc.Invoke(ctx, "/feast.core.CoreService/GetStores", in, out, opts...)
+func (c *coreServiceClient) ListFeatureSets(ctx context.Context, in *ListFeatureSetsRequest, opts ...grpc.CallOption) (*ListFeatureSetsResponse, error) {
+	out := new(ListFeatureSetsResponse)
+	err := c.cc.Invoke(ctx, "/feast.core.CoreService/ListFeatureSets", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *coreServiceClient) ListStores(ctx context.Context, in *ListStoresRequest, opts ...grpc.CallOption) (*ListStoresResponse, error) {
+	out := new(ListStoresResponse)
+	err := c.cc.Invoke(ctx, "/feast.core.CoreService/ListStores", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -737,19 +842,21 @@ func (c *coreServiceClient) UpdateStore(ctx context.Context, in *UpdateStoreRequ
 type CoreServiceServer interface {
 	// Retrieve version information about this Feast deployment
 	GetFeastCoreVersion(context.Context, *GetFeastCoreVersionRequest) (*GetFeastCoreVersionResponse, error)
+	// Returns a specific feature set
+	GetFeatureSet(context.Context, *GetFeatureSetRequest) (*GetFeatureSetResponse, error)
 	// Retrieve feature set details given a filter.
 	//
 	// Returns all feature sets matching that filter. If none are found,
 	// an empty list will be returned.
 	// If no filter is provided in the request, the response will contain all the feature
 	// sets currently stored in the registry.
-	GetFeatureSets(context.Context, *GetFeatureSetsRequest) (*GetFeatureSetsResponse, error)
+	ListFeatureSets(context.Context, *ListFeatureSetsRequest) (*ListFeatureSetsResponse, error)
 	// Retrieve store details given a filter.
 	//
 	// Returns all stores matching that filter. If none are found, an empty list will be returned.
 	// If no filter is provided in the request, the response will contain all the stores currently
 	// stored in the registry.
-	GetStores(context.Context, *GetStoresRequest) (*GetStoresResponse, error)
+	ListStores(context.Context, *ListStoresRequest) (*ListStoresResponse, error)
 	// Create or update and existing feature set.
 	//
 	// This function is idempotent - it will not create a new feature set if schema does not change.
@@ -770,11 +877,14 @@ type UnimplementedCoreServiceServer struct {
 func (*UnimplementedCoreServiceServer) GetFeastCoreVersion(ctx context.Context, req *GetFeastCoreVersionRequest) (*GetFeastCoreVersionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFeastCoreVersion not implemented")
 }
-func (*UnimplementedCoreServiceServer) GetFeatureSets(ctx context.Context, req *GetFeatureSetsRequest) (*GetFeatureSetsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetFeatureSets not implemented")
+func (*UnimplementedCoreServiceServer) GetFeatureSet(ctx context.Context, req *GetFeatureSetRequest) (*GetFeatureSetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetFeatureSet not implemented")
 }
-func (*UnimplementedCoreServiceServer) GetStores(ctx context.Context, req *GetStoresRequest) (*GetStoresResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetStores not implemented")
+func (*UnimplementedCoreServiceServer) ListFeatureSets(ctx context.Context, req *ListFeatureSetsRequest) (*ListFeatureSetsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListFeatureSets not implemented")
+}
+func (*UnimplementedCoreServiceServer) ListStores(ctx context.Context, req *ListStoresRequest) (*ListStoresResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListStores not implemented")
 }
 func (*UnimplementedCoreServiceServer) ApplyFeatureSet(ctx context.Context, req *ApplyFeatureSetRequest) (*ApplyFeatureSetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ApplyFeatureSet not implemented")
@@ -805,38 +915,56 @@ func _CoreService_GetFeastCoreVersion_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _CoreService_GetFeatureSets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetFeatureSetsRequest)
+func _CoreService_GetFeatureSet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetFeatureSetRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CoreServiceServer).GetFeatureSets(ctx, in)
+		return srv.(CoreServiceServer).GetFeatureSet(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/feast.core.CoreService/GetFeatureSets",
+		FullMethod: "/feast.core.CoreService/GetFeatureSet",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CoreServiceServer).GetFeatureSets(ctx, req.(*GetFeatureSetsRequest))
+		return srv.(CoreServiceServer).GetFeatureSet(ctx, req.(*GetFeatureSetRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _CoreService_GetStores_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetStoresRequest)
+func _CoreService_ListFeatureSets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListFeatureSetsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CoreServiceServer).GetStores(ctx, in)
+		return srv.(CoreServiceServer).ListFeatureSets(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/feast.core.CoreService/GetStores",
+		FullMethod: "/feast.core.CoreService/ListFeatureSets",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CoreServiceServer).GetStores(ctx, req.(*GetStoresRequest))
+		return srv.(CoreServiceServer).ListFeatureSets(ctx, req.(*ListFeatureSetsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CoreService_ListStores_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListStoresRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoreServiceServer).ListStores(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/feast.core.CoreService/ListStores",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoreServiceServer).ListStores(ctx, req.(*ListStoresRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -886,12 +1014,16 @@ var _CoreService_serviceDesc = grpc.ServiceDesc{
 			Handler:    _CoreService_GetFeastCoreVersion_Handler,
 		},
 		{
-			MethodName: "GetFeatureSets",
-			Handler:    _CoreService_GetFeatureSets_Handler,
+			MethodName: "GetFeatureSet",
+			Handler:    _CoreService_GetFeatureSet_Handler,
 		},
 		{
-			MethodName: "GetStores",
-			Handler:    _CoreService_GetStores_Handler,
+			MethodName: "ListFeatureSets",
+			Handler:    _CoreService_ListFeatureSets_Handler,
+		},
+		{
+			MethodName: "ListStores",
+			Handler:    _CoreService_ListStores_Handler,
 		},
 		{
 			MethodName: "ApplyFeatureSet",

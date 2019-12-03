@@ -4,11 +4,11 @@
 
 **Problem:** The process of engineering features is one of the most time consuming activities in building an end-to-end ML system. Despite this, many teams continue to redevelop the same features from scratch for every new project. Often these features never leaving the notebooks or pipelines they are built in.
 
-**Solution:**  A centralized feature store allows organizations to build up a foundation of features that can be reused across projects. Teams are then able to utilize features developed by other teams, and as more features are added to the store it becomes easier and cheaper to build models.
+**Solution:** A centralized feature store allows organizations to build up a foundation of features that can be reused across projects. Teams are then able to utilize features developed by other teams, and as more features are added to the store it becomes easier and cheaper to build models.
 
 ## Serving features is hard
 
-**Problem:** Serving up to date features at scale is hard. Raw data can come from a variety of sources, from data lakes, to even streams, to data warehouse, to simply flat files. Data scientists need the ability to produce massive datasets of features from this data in order to train their models offline. These models then need access to real-time feature data at low latency and high throughput when they are served in production. 
+**Problem:** Serving up to date features at scale is hard. Raw data can come from a variety of sources, from data lakes, to even streams, to data warehouse, to simply flat files. Data scientists need the ability to produce massive datasets of features from this data in order to train their models offline. These models then need access to real-time feature data at low latency and high throughput when they are served in production.
 
 **Solution:** Feast is built to be able to ingest data from a variety of sources, supporting both streaming and batch sources. Once data is loaded into Feast as features, they become available through both a batch serving API as well as an real-time \(online serving\) API. These APIs allows data scientists and ML engineers to easily retrieve feature data for their development, training, or in production. Feast also comes with a Java, Go, and Python SDK to make this experience easy.
 

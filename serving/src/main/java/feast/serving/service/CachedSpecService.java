@@ -1,3 +1,19 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package feast.serving.service;
 
 import static feast.serving.util.mappers.YamlToProtoMapper.yamlToStoreProto;
@@ -6,9 +22,9 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.CacheLoader.InvalidCacheLoadException;
 import com.google.common.cache.LoadingCache;
-import feast.core.CoreServiceProto.GetFeatureSetsRequest;
-import feast.core.CoreServiceProto.GetFeatureSetsRequest.Filter;
-import feast.core.CoreServiceProto.GetFeatureSetsResponse;
+import feast.core.CoreServiceProto.ListFeatureSetsRequest;
+import feast.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
+import feast.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto.FeatureSetSpec;
@@ -16,6 +32,7 @@ import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Subscription;
 import feast.serving.exception.SpecRetrievalException;
 import io.grpc.StatusRuntimeException;
+import io.prometheus.client.Gauge;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,9 +42,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * In-memory cache of specs.
- */
+/** In-memory cache of specs. */
 @Slf4j
 public class CachedSpecService {
 
@@ -40,15 +55,26 @@ public class CachedSpecService {
   private final LoadingCache<String, FeatureSetSpec> featureSetSpecCache;
   private Store store;
 
+  private static Gauge featureSetsCount =
+      Gauge.build()
+          .name("feature_set_count")
+          .subsystem("feast_serving")
+          .help("number of feature sets served by this instance")
+          .register();
+  private static Gauge cacheLastUpdated =
+      Gauge.build()
+          .name("cache_last_updated")
+          .subsystem("feast_serving")
+          .help("epoch time of the last time the cache was updated")
+          .register();
+
   public CachedSpecService(CoreSpecService coreService, Path configPath) {
     this.configPath = configPath;
     this.coreService = coreService;
     this.store = updateStore(readConfig(configPath));
 
     Map<String, FeatureSetSpec> featureSetSpecs = getFeatureSetSpecMap();
-    featureSetSpecCacheLoader =
-        CacheLoader.from(
-            (String key) -> featureSetSpecs.get(key));
+    featureSetSpecCacheLoader = CacheLoader.from((String key) -> featureSetSpecs.get(key));
     featureSetSpecCache =
         CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(featureSetSpecCacheLoader);
   }
@@ -75,12 +101,14 @@ public class CachedSpecService {
       return featureSetSpecCache.get(id);
     } catch (InvalidCacheLoadException e) {
       // if not found, try to retrieve from core
-      GetFeatureSetsRequest request = GetFeatureSetsRequest.newBuilder()
-          .setFilter(Filter.newBuilder()
-              .setFeatureSetName(name)
-              .setFeatureSetVersion(String.valueOf(version)))
-          .build();
-      GetFeatureSetsResponse featureSets = coreService.getFeatureSets(request);
+      ListFeatureSetsRequest request =
+          ListFeatureSetsRequest.newBuilder()
+              .setFilter(
+                  Filter.newBuilder()
+                      .setFeatureSetName(name)
+                      .setFeatureSetVersion(String.valueOf(version)))
+              .build();
+      ListFeatureSetsResponse featureSets = coreService.listFeatureSets(request);
       if (featureSets.getFeatureSetsList().size() == 0) {
         throw new SpecRetrievalException(
             String.format(
@@ -102,6 +130,9 @@ public class CachedSpecService {
     this.store = updateStore(readConfig(configPath));
     Map<String, FeatureSetSpec> featureSetSpecMap = getFeatureSetSpecMap();
     featureSetSpecCache.putAll(featureSetSpecMap);
+
+    featureSetsCount.set(featureSetSpecCache.size());
+    cacheLastUpdated.set(System.currentTimeMillis());
   }
 
   public void scheduledPopulateCache() {
@@ -117,18 +148,19 @@ public class CachedSpecService {
 
     for (Subscription subscription : this.store.getSubscriptionsList()) {
       try {
-        GetFeatureSetsResponse featureSetsResponse = coreService
-            .getFeatureSets(GetFeatureSetsRequest.newBuilder()
-                .setFilter(
-                    GetFeatureSetsRequest.Filter.newBuilder()
-                        .setFeatureSetName(subscription.getName())
-                        .setFeatureSetVersion(subscription.getVersion())
-                ).build());
+        ListFeatureSetsResponse featureSetsResponse =
+            coreService.listFeatureSets(
+                ListFeatureSetsRequest.newBuilder()
+                    .setFilter(
+                        ListFeatureSetsRequest.Filter.newBuilder()
+                            .setFeatureSetName(subscription.getName())
+                            .setFeatureSetVersion(subscription.getVersion()))
+                    .build());
 
         for (FeatureSetSpec featureSetSpec : featureSetsResponse.getFeatureSetsList()) {
-          featureSetSpecs
-              .put(String.format("%s:%s", featureSetSpec.getName(), featureSetSpec.getVersion()),
-                  featureSetSpec);
+          featureSetSpecs.put(
+              String.format("%s:%s", featureSetSpec.getName(), featureSetSpec.getVersion()),
+              featureSetSpec);
         }
       } catch (StatusRuntimeException e) {
         throw new RuntimeException(

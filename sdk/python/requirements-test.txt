@@ -7,6 +7,7 @@ google-resumable-media==0.3.1
 googleapis-common-protos==1.*
 grpcio==1.*
 numpy
+mock==2.0.0
 pandas==0.*
 protobuf==3.*
 pytest
@@ -15,3 +16,5 @@ pytest-timeout
 PyYAML==5.1.2
 fastavro==0.21.*
 grpcio-testing==1.*
+pytest-ordering==0.6.*
+pyarrow

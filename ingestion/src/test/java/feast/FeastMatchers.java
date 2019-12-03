@@ -1,5 +1,6 @@
 /*
- * Copyright 2018 The Feast Authors
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,9 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
-
 package feast;
 
 import com.google.common.collect.Lists;
@@ -23,9 +22,7 @@ import org.junit.Assert;
 
 public class FeastMatchers {
 
-  /**
-   * Can be used with the PAssert.that(..).satisfies(fn) method.
-   */
+  /** Can be used with the PAssert.that(..).satisfies(fn) method. */
   public static <T> SerializableFunction<Iterable<T>, Void> hasCount(long count) {
     return (Iterable<T> iterable) -> {
       Assert.assertEquals(count, Lists.newArrayList(iterable).size());

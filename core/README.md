@@ -28,5 +28,5 @@ If you have [grpc_cli](https://github.com/grpc/grpc/blob/master/doc/command_line
 ```
 grpc_cli ls localhost:6565
 grpc_cli call localhost:6565 GetFeastCoreVersion ""
-grpc_cli call localhost:6565 GetStores ""
+grpc_cli call localhost:6565 ListStores ""
 ```

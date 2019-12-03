@@ -18,6 +18,13 @@ spec:
       release: {{ .Release.Name }}
   template:
     metadata:
+      annotations:
+      {{- if .Values.prometheus.enabled }}
+      {{ $config := index .Values "application.yaml" }}
+        prometheus.io/path: /metrics
+        prometheus.io/port: "{{ $config.server.port }}"
+        prometheus.io/scrape: "true"
+      {{- end }}
       labels:
         app: {{ template "feast-serving.name" . }}
         component: serving

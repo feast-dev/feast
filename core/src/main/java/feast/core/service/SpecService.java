@@ -1,5 +1,6 @@
 /*
- * Copyright 2018 The Feast Authors
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,20 +13,23 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
-
 package feast.core.service;
+
+import static feast.core.validators.Matchers.checkValidCharacters;
+import static feast.core.validators.Matchers.checkValidFeatureSetFilterName;
 
 import com.google.common.collect.Ordering;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
-import feast.core.CoreServiceProto.GetFeatureSetsRequest;
-import feast.core.CoreServiceProto.GetFeatureSetsResponse;
-import feast.core.CoreServiceProto.GetStoresRequest;
-import feast.core.CoreServiceProto.GetStoresResponse;
-import feast.core.CoreServiceProto.GetStoresResponse.Builder;
+import feast.core.CoreServiceProto.GetFeatureSetRequest;
+import feast.core.CoreServiceProto.GetFeatureSetResponse;
+import feast.core.CoreServiceProto.ListFeatureSetsRequest;
+import feast.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.core.CoreServiceProto.ListStoresRequest;
+import feast.core.CoreServiceProto.ListStoresResponse;
+import feast.core.CoreServiceProto.ListStoresResponse.Builder;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto.FeatureSetSpec;
@@ -59,8 +63,8 @@ public class SpecService {
   private final StoreRepository storeRepository;
   private final Source defaultSource;
 
-  private final Pattern versionPattern = Pattern
-      .compile("^(?<comparator>[\\>\\<\\=]{0,2})(?<version>\\d*)$");
+  private final Pattern versionPattern =
+      Pattern.compile("^(?<comparator>[\\>\\<\\=]{0,2})(?<version>\\d*)$");
 
   @Autowired
   public SpecService(
@@ -73,36 +77,80 @@ public class SpecService {
   }
 
   /**
+   * Get a feature set matching the feature name and version provided in the filter. The name is
+   * required. If the version is provided then it will be used for the lookup. If the version is
+   * omitted then the latest version will be returned.
+   *
+   * @param GetFeatureSetRequest containing the name and version of the feature set
+   * @return GetFeatureSetResponse containing a single feature set
+   */
+  public GetFeatureSetResponse getFeatureSet(GetFeatureSetRequest request)
+      throws InvalidProtocolBufferException {
+
+    // Validate input arguments
+    checkValidCharacters(request.getName(), "featureSetName");
+    if (request.getName().isEmpty()) {
+      throw io.grpc.Status.INVALID_ARGUMENT
+          .withDescription("No feature set name provided")
+          .asRuntimeException();
+    }
+    if (request.getVersion() < 0) {
+      throw io.grpc.Status.INVALID_ARGUMENT
+          .withDescription("Version number cannot be less than 0")
+          .asRuntimeException();
+    }
+
+    FeatureSet featureSet;
+
+    // Filter the list based on version
+    if (request.getVersion() == 0) {
+      featureSet =
+          featureSetRepository.findFirstFeatureSetByNameOrderByVersionDesc(request.getName());
+    } else {
+      featureSet =
+          featureSetRepository.findFeatureSetByNameAndVersion(
+              request.getName(), request.getVersion());
+    }
+
+    if (featureSet == null) {
+      throw io.grpc.Status.NOT_FOUND
+          .withDescription("Feature set could not be found")
+          .asRuntimeException();
+    }
+
+    // Only a single item in list, return successfully
+    return GetFeatureSetResponse.newBuilder().setFeatureSet(featureSet.toProto()).build();
+  }
+
+  /**
    * Get featureSets matching the feature name and version provided in the filter. If the feature
    * name is not provided, the method will return all featureSets currently registered to Feast.
    *
-   * The feature set name in the filter accepts any valid regex string. All matching featureSets
+   * <p>The feature set name in the filter accepts any valid regex string. All matching featureSets
    * will be returned.
    *
-   * The version filter is optional; If not provided, this method will return all featureSet
+   * <p>The version filter is optional; If not provided, this method will return all featureSet
    * versions of the featureSet name provided. Valid version filters should optionally contain a
    * comparator (<, <=, >, etc) and a version number, e.g. 10, <10, >=1
    *
    * @param filter filter containing the desired featureSet name and version filter
-   * @return GetFeatureSetsResponse with list of featureSets found matching the filter
+   * @return ListFeatureSetsResponse with list of featureSets found matching the filter
    */
-  public GetFeatureSetsResponse getFeatureSets(GetFeatureSetsRequest.Filter filter)
+  public ListFeatureSetsResponse listFeatureSets(ListFeatureSetsRequest.Filter filter)
       throws InvalidProtocolBufferException {
     String name = filter.getFeatureSetName();
+    checkValidFeatureSetFilterName(name, "featureSetName");
     List<FeatureSet> featureSets;
     if (name.equals("")) {
       featureSets = featureSetRepository.findAll();
     } else {
-      featureSets = featureSetRepository.findByNameRegex(name);
-      if (filter.getFeatureSetVersion().equals("latest")) {
-        featureSets = Ordering.natural().reverse()
-            .sortedCopy(featureSets).subList(0, featureSets.size() == 0 ? 0 : 1);
-      } else {
-        featureSets = featureSets.stream().filter(getVersionFilter(filter.getFeatureSetVersion()))
-            .collect(Collectors.toList());
-      }
+      featureSets = featureSetRepository.findByNameWithWildcard(name.replace('*', '%'));
+      featureSets =
+          featureSets.stream()
+              .filter(getVersionFilter(filter.getFeatureSetVersion()))
+              .collect(Collectors.toList());
     }
-    GetFeatureSetsResponse.Builder response = GetFeatureSetsResponse.newBuilder();
+    ListFeatureSetsResponse.Builder response = ListFeatureSetsResponse.newBuilder();
     for (FeatureSet featureSet : featureSets) {
       response.addFeatureSets(featureSet.toProto());
     }
@@ -114,24 +162,26 @@ public class SpecService {
    * the method will return all stores currently registered to Feast.
    *
    * @param filter filter containing the desired store name
-   * @return GetStoresResponse containing list of stores found matching the filter
+   * @return ListStoresResponse containing list of stores found matching the filter
    */
-  public GetStoresResponse getStores(GetStoresRequest.Filter filter) {
+  public ListStoresResponse listStores(ListStoresRequest.Filter filter) {
     try {
       String name = filter.getName();
       if (name.equals("")) {
-        Builder responseBuilder = GetStoresResponse.newBuilder();
+        Builder responseBuilder = ListStoresResponse.newBuilder();
         for (Store store : storeRepository.findAll()) {
           responseBuilder.addStore(store.toProto());
         }
         return responseBuilder.build();
       }
-      Store store = storeRepository.findById(name)
-          .orElseThrow(() -> new RetrievalException(String.format("Store with name '%s' not found",
-              name)));
-      return GetStoresResponse.newBuilder()
-          .addStore(store.toProto())
-          .build();
+      Store store =
+          storeRepository
+              .findById(name)
+              .orElseThrow(
+                  () ->
+                      new RetrievalException(
+                          String.format("Store with name '%s' not found", name)));
+      return ListStoresResponse.newBuilder().addStore(store.toProto()).build();
     } catch (InvalidProtocolBufferException e) {
       throw io.grpc.Status.NOT_FOUND
           .withDescription("Unable to retrieve stores")
@@ -145,7 +195,7 @@ public class SpecService {
    * to. If there is a change in the featureSet's schema or source, the featureSet version will be
    * incremented.
    *
-   * This function is idempotent. If no changes are detected in the incoming featureSet's schema,
+   * <p>This function is idempotent. If no changes are detected in the incoming featureSet's schema,
    * this method will update the incoming featureSet spec with the latest version stored in the
    * repository, and return that.
    *
@@ -154,11 +204,10 @@ public class SpecService {
   public ApplyFeatureSetResponse applyFeatureSet(FeatureSetSpec newFeatureSetSpec)
       throws InvalidProtocolBufferException {
     FeatureSetValidator.validateSpec(newFeatureSetSpec);
-    List<FeatureSet> existingFeatureSets = featureSetRepository
-        .findByName(newFeatureSetSpec.getName());
+    List<FeatureSet> existingFeatureSets =
+        featureSetRepository.findByName(newFeatureSetSpec.getName());
     if (existingFeatureSets.size() == 0) {
       newFeatureSetSpec = newFeatureSetSpec.toBuilder().setVersion(1).build();
-
     } else {
       existingFeatureSets = Ordering.natural().reverse().sortedCopy(existingFeatureSets);
       FeatureSet latest = existingFeatureSets.get(0);
@@ -166,17 +215,12 @@ public class SpecService {
 
       // If the featureSet remains unchanged, we do nothing.
       if (featureSet.equalTo(latest)) {
-        newFeatureSetSpec = newFeatureSetSpec.toBuilder()
-            .setVersion(latest.getVersion())
-            .build();
         return ApplyFeatureSetResponse.newBuilder()
-            .setFeatureSet(newFeatureSetSpec)
+            .setFeatureSet(latest.toProto())
             .setStatus(Status.NO_CHANGE)
             .build();
       }
-      newFeatureSetSpec = newFeatureSetSpec.toBuilder()
-          .setVersion(latest.getVersion() + 1)
-          .build();
+      newFeatureSetSpec = newFeatureSetSpec.toBuilder().setVersion(latest.getVersion() + 1).build();
     }
     FeatureSet featureSet = FeatureSet.fromProto(newFeatureSetSpec);
     if (newFeatureSetSpec.getSource() == SourceProto.Source.getDefaultInstance()) {
@@ -227,10 +271,11 @@ public class SpecService {
 
     if (!match.matches()) {
       throw io.grpc.Status.INVALID_ARGUMENT
-          .withDescription(String.format(
-              "Invalid version string '%s' provided. Version string may either "
-                  + "be a fixed version, e.g. 10, or contain a comparator, e.g. >10.",
-              versionFilter))
+          .withDescription(
+              String.format(
+                  "Invalid version string '%s' provided. Version string may either "
+                      + "be a fixed version, e.g. 10, or contain a comparator, e.g. >10.",
+                  versionFilter))
           .asRuntimeException();
     }
 
@@ -249,12 +294,12 @@ public class SpecService {
         return v -> v.getVersion() == versionNumber;
       default:
         throw io.grpc.Status.INVALID_ARGUMENT
-            .withDescription(String.format(
-                "Invalid comparator '%s' provided. Version string may either "
-                    + "be a fixed version, e.g. 10, or contain a comparator, e.g. >10.",
-                comparator))
+            .withDescription(
+                String.format(
+                    "Invalid comparator '%s' provided. Version string may either "
+                        + "be a fixed version, e.g. 10, or contain a comparator, e.g. >10.",
+                    comparator))
             .asRuntimeException();
     }
   }
-
 }

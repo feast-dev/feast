@@ -21,7 +21,7 @@ from feast.resource import ResourceFactory
 from feast.feature_set import FeatureSet
 import toml
 import pkg_resources
-from feast.utils import loaders
+from feast.loaders.yaml import yaml_loader
 import yaml
 import json
 
@@ -225,7 +225,7 @@ def apply(filename):
 
     resources = [
         ResourceFactory.get_resource(res_dict["kind"]).from_dict(res_dict)
-        for res_dict in loaders.yaml_loader(filename)
+        for res_dict in yaml_loader(filename)
     ]
 
     feast_client = Client(

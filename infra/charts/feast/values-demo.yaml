@@ -63,7 +63,7 @@ feast-serving-online:
     name: redis
     type: REDIS
     subscriptions:
-      - name: ".*"
+      - name: "*"
         version: ">0"
 
 feast-serving-batch:

@@ -391,7 +391,9 @@ func (m *Store_CassandraConfig) GetPort() int32 {
 }
 
 type Store_Subscription struct {
-	// Name of featureSet to subscribe to.
+	// Name of featureSet to subscribe to. This field supports any valid basic POSIX regex,
+	// e.g. customer_.* or .*
+	// https://www.regular-expressions.info/posix.html
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Versions of the given featureSet that will be ingested into this store.
 	// Valid options for version:

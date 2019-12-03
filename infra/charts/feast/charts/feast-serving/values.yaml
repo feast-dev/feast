@@ -29,7 +29,7 @@ replicaCount: 1
 # image configures the Docker image for Feast Serving
 image:
   repository: gcr.io/kf-feast/feast-serving
-  tag: 0.3.0-alpha.1
+  tag: 0.3.2
   pullPolicy: IfNotPresent
 
 # application.yaml is the main configuration for Feast Serving application.
@@ -63,9 +63,8 @@ application.yaml:
   grpc:
     port: 6566
     enable-reflection: true
-  spring:
-    main:
-      web-application-type: none
+  server:
+    port: 8080
 
 # store.yaml is the configuration for Feast Store.
 # 
@@ -91,7 +90,7 @@ application.yaml:
 #     host: localhost
 #     port: 6379
 #   subscriptions:
-#   - name: ".*"
+#   - name: "*"
 #     version: ">0"
 #
 # store.yaml:
@@ -101,7 +100,7 @@ application.yaml:
 #     project_id: PROJECT_ID
 #     dataset_id: DATASET_ID
 #   subscriptions:
-#   - name: ".*"
+#   - name: "*"
 #     version: ">0"
 
 # springConfigMountPath is the directory path where application.yaml and 
@@ -176,6 +175,9 @@ ingress:
   hosts:
   # - host: chart-example.local
   #   port: http
+
+prometheus:
+  enabled: true
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious

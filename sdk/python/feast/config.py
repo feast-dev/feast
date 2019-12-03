@@ -39,7 +39,7 @@ def get_or_create_config() -> Dict:
     """
 
     user_config_file_dir, user_config_file_path = _get_config_file_locations()
-
+    user_config_file_dir = user_config_file_dir.rstrip("/") + "/"
     if not os.path.exists(os.path.dirname(user_config_file_dir)):
         os.makedirs(os.path.dirname(user_config_file_dir))
 

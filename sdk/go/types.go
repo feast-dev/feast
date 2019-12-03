@@ -19,6 +19,11 @@ func Int64Val(val int64) *types.Value {
 	return &types.Value{Val: &types.Value_Int64Val{Int64Val: val}}
 }
 
+// FloatVal is a float32 type feast value
+func FloatVal(val float32) *types.Value {
+	return &types.Value{Val: &types.Value_FloatVal{FloatVal: val}}
+}
+
 // DoubleVal is a float64 type feast value
 func DoubleVal(val float64) *types.Value {
 	return &types.Value{Val: &types.Value_DoubleVal{DoubleVal: val}}

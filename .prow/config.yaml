@@ -57,6 +57,12 @@ presubmits:
       containers:
       - image: maven:3.6-jdk-8
         command: [".prow/scripts/test-core-ingestion.sh"]
+        resources:
+          requests:
+            cpu: "1000m"
+            memory: "512Mi"
+          limit:
+            memory: "4096Mi"
 
   - name: test-serving
     decorate: true
@@ -97,6 +103,12 @@ presubmits:
       containers:
       - image: maven:3.6-jdk-8
         command: [".prow/scripts/test-end-to-end.sh"]
+        resources:
+          requests:
+            cpu: "1000m"
+            memory: "1024Mi"
+          limit:
+            memory: "4096Mi"
 
 # TODO: do a release when a git tag is pushed
 #

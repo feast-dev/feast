@@ -1,3 +1,19 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package feast.serving.util;
 
 import com.google.protobuf.Duration;
@@ -31,8 +47,8 @@ public class BigQueryUtil {
     List<String> features;
   }
 
-  public static String getTimestampLimitQuery(String projectId, String datasetId,
-      String leftTableName) {
+  public static String getTimestampLimitQuery(
+      String projectId, String datasetId, String leftTableName) {
     return String.format(
         "SELECT DATETIME(MAX(event_timestamp)) as max, DATETIME(MIN(event_timestamp)) as min FROM `%s.%s.%s`",
         projectId, datasetId, leftTableName);
@@ -46,11 +62,10 @@ public class BigQueryUtil {
       String bigqueryDataset,
       String leftTableName,
       String minTimestamp,
-      String maxTimestamp) throws IOException {
+      String maxTimestamp)
+      throws IOException {
 
-    if (featureSets == null
-        || featureSetSpecs == null
-        || bigqueryDataset.isEmpty()) {
+    if (featureSets == null || featureSetSpecs == null || bigqueryDataset.isEmpty()) {
       return "";
     }
 
@@ -63,12 +78,26 @@ public class BigQueryUtil {
       FeatureSetSpec spec = featureSetSpecs.get(i);
       FeatureSetRequest request = featureSets.get(i);
       Duration maxAge = getMaxAge(request, spec);
-      List<String> fsEntities = spec.getEntitiesList().stream().map(EntitySpec::getName)
-          .collect(Collectors.toList());
+      List<String> fsEntities =
+          spec.getEntitiesList().stream().map(EntitySpec::getName).collect(Collectors.toList());
       String id = String.format("%s:%s", spec.getName(), spec.getVersion());
-      featureSetInfos.add(new FeatureSetInfo(id, spec.getName(), spec.getVersion(), maxAge.getSeconds(), fsEntities, request.getFeatureNamesList()));
+      featureSetInfos.add(
+          new FeatureSetInfo(
+              id,
+              spec.getName(),
+              spec.getVersion(),
+              maxAge.getSeconds(),
+              fsEntities,
+              request.getFeatureNamesList()));
     }
-    return createQueryForFeatureSets(featureSetInfos, entities, projectId, bigqueryDataset, leftTableName, minTimestamp, maxTimestamp);
+    return createQueryForFeatureSets(
+        featureSetInfos,
+        entities,
+        projectId,
+        bigqueryDataset,
+        leftTableName,
+        minTimestamp,
+        maxTimestamp);
   }
 
   public static String createQueryForFeatureSets(
@@ -78,7 +107,8 @@ public class BigQueryUtil {
       String datasetId,
       String leftTableName,
       String minTimestamp,
-      String maxTimestamp) throws IOException {
+      String maxTimestamp)
+      throws IOException {
 
     PebbleTemplate template = engine.getTemplate(FEATURESET_TEMPLATE_NAME);
     Map<String, Object> context = new HashMap<>();

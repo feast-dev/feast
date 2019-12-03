@@ -1,15 +1,17 @@
 ### Getting Started Guide for Feast Serving Developers
 
 Pre-requisites:
+
 - [Maven](https://maven.apache.org/install.html) build tool version 3.6.x
 - A running Feast Core instance
 - A running Store instance e.g. local Redis Store instance
 
-Run the following maven command to start Feast Serving GRPC service running on port 6566 locally
+From the Feast project root directory, run the following Maven command to start Feast Serving gRPC service running on port 6566 locally:
+
 ```bash
 # Assumptions: 
 # - Local Feast Core is running on localhost:6565
-mvn spring-boot:run -Dspring-boot.run.arguments=\
+mvn -pl serving spring-boot:run -Dspring-boot.run.arguments=\
 --feast.store.config-path=./sample_redis_config.yml,\
 --feast.core-host=localhost,\
 --feast.core-port=6565

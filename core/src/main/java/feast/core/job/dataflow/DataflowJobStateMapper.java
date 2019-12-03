@@ -1,5 +1,6 @@
 /*
- * Copyright 2018 The Feast Authors
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,9 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
-
 package feast.core.job.dataflow;
 
 import static feast.core.job.dataflow.DataflowJobState.JOB_STATE_CANCELLED;
@@ -52,9 +51,9 @@ public class DataflowJobStateMapper {
     DATAFLOW_TO_FEAST_JOB_STATUS.put(JOB_STATE_DONE, JobStatus.COMPLETED);
   }
 
-
   /**
    * Map a string containing Dataflow's JobState into Feast's JobStatus
+   *
    * @param jobState Dataflow JobState
    * @return JobStatus.
    * @throws IllegalArgumentException if jobState is invalid.

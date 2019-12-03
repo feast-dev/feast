@@ -42,7 +42,7 @@ replicaCount: 1
 # image configures the Docker image for Feast Core
 image:
   repository: gcr.io/kf-feast/feast-core
-  tag: 0.3.0-alpha.1
+  tag: 0.3.2
   pullPolicy: IfNotPresent
 
 # application.yaml is the main configuration for Feast Core application.
@@ -64,9 +64,9 @@ application.yaml:
       options: {}
       metrics:
         enabled: false
-        type: prometheus
+        type: statsd
         host: localhost
-        port: 9091
+        port: 9125
     stream:
       type: kafka
       options:

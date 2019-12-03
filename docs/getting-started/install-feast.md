@@ -5,7 +5,7 @@
 This installation guide will demonstrate two ways of installing Feast:
 
 * [**Minikube \(Minimal\)**](install-feast.md#minikube)**:** This installation has no external dependencies, but does not have a historical feature store installed. It allows users to quickly get a feel for Feast.
-* \*\*\*\*[**Google Kubernetes Engine \(Recommended\):**](install-feast.md#google-kubernetes-engine) ****The guide that follows is a single cluster Feast installation on Google's GKE. It has Google Cloud specific dependencies like BigQuery, Dataflow, and Google Cloud Storage.
+* \*\*\*\*[**Google Kubernetes Engine \(Recommended\):**](install-feast.md#google-kubernetes-engine) _\*\*_The guide that follows is a single cluster Feast installation on Google's GKE. It has Google Cloud specific dependencies like BigQuery, Dataflow, and Google Cloud Storage.
 
 ## Minikube
 
@@ -61,7 +61,7 @@ Copy the `values-demo.yaml` file for your installation:
 cp values-demo.yaml my-feast-values.yaml
 ```
 
-Update all occurrences of the domain `feast.example.com` inside of  `my-feast-values.yaml` with your Minikube IP. This is to allow external access to the services in the cluster. You can find your Minikube IP by running the following command `minikube ip`, or simply replace the text from the command line:
+Update all occurrences of the domain `feast.example.com` inside of `my-feast-values.yaml` with your Minikube IP. This is to allow external access to the services in the cluster. You can find your Minikube IP by running the following command `minikube ip`, or simply replace the text from the command line:
 
 ```bash
 sed -i "s/feast.example.com/${FEAST_IP}/g" my-feast-values.yaml
@@ -123,7 +123,7 @@ feast version
 ```javascript
 {
   "sdk": {
-    "version": "feast 0.3.0"
+    "version": "feast 0.3.2"
   },
   "core": {
     "url": "192.168.99.100:32090",
@@ -201,7 +201,7 @@ gcloud projects add-iam-policy-binding ${FEAST_GCP_PROJECT_ID} \
   --role roles/editor
 
 gcloud iam service-accounts keys create key.json --iam-account \
-${FEAST_S_ACCOUNT_NAME}@${FEAST_GCP_PROJECT_ID}.iam.gserviceaccount.com 
+${FEAST_S_ACCOUNT_NAME}@${FEAST_GCP_PROJECT_ID}.iam.gserviceaccount.com
 ```
 
 Ensure that [Dataflow API is enabled](https://console.cloud.google.com/apis/api/dataflow.googleapis.com/overview):
@@ -229,7 +229,7 @@ Create a secret in the GKE cluster based on your local key `key.json`:
 kubectl create secret generic feast-gcp-service-account --from-file=key.json
 ```
 
-For this guide we will use `NodePort` for exposing Feast services. In order to do so, we must find an internal IP of at least one GKE node. 
+For this guide we will use `NodePort` for exposing Feast services. In order to do so, we must find an internal IP of at least one GKE node.
 
 ```bash
 export FEAST_IP=$(kubectl describe nodes | grep InternalIP | awk '{print $2}' | head -n 1)
@@ -280,7 +280,7 @@ EOF
 Install Tiller:
 
 ```bash
-helm init --service-account tiller 
+helm init --service-account tiller
 ```
 
 ### 4. Install Feast with Helm
@@ -300,7 +300,7 @@ Make a copy of the Helm `values.yaml` so that it can be customized for your Feas
 cp values.yaml my-feast-values.yaml
 ```
 
-Update `my-feast-values.yaml` based on your GCP and GKE environment. 
+Update `my-feast-values.yaml` based on your GCP and GKE environment.
 
 * Required fields are paired with comments which indicate whether they need to be replaced.
 * All occurrences of `feast.example.com` should be replaced with either your domain name or the IP stored in `$FEAST_IP`.
@@ -355,7 +355,7 @@ feast version
 ```javascript
 {
   "sdk": {
-    "version": "feast 0.3.0"
+    "version": "feast 0.3.2"
   },
   "core": {
     "url": "192.168.99.100:32090",

@@ -1,5 +1,6 @@
 /*
- * Copyright 2018 The Feast Authors
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,9 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
-
 package feast.core.dao;
 
 import feast.core.model.JobInfo;
@@ -28,5 +27,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface JobInfoRepository extends JpaRepository<JobInfo, String> {
   List<JobInfo> findByStatusNotIn(Collection<JobStatus> statuses);
+
   List<JobInfo> findBySourceIdAndStoreName(String sourceId, String storeName);
 }

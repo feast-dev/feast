@@ -29,20 +29,23 @@ service CoreService {
     // Retrieve version information about this Feast deployment
     rpc GetFeastCoreVersion (GetFeastCoreVersionRequest) returns (GetFeastCoreVersionResponse);
 
+    // Returns a specific feature set
+    rpc GetFeatureSet (GetFeatureSetRequest) returns (GetFeatureSetResponse);
+
     // Retrieve feature set details given a filter.
     //
     // Returns all feature sets matching that filter. If none are found,
     // an empty list will be returned.
     // If no filter is provided in the request, the response will contain all the feature
     // sets currently stored in the registry.
-    rpc GetFeatureSets (GetFeatureSetsRequest) returns (GetFeatureSetsResponse);
+    rpc ListFeatureSets (ListFeatureSetsRequest) returns (ListFeatureSetsResponse);
 
     // Retrieve store details given a filter.
     //
     // Returns all stores matching that filter. If none are found, an empty list will be returned.
     // If no filter is provided in the request, the response will contain all the stores currently
     // stored in the registry.
-    rpc GetStores (GetStoresRequest) returns (GetStoresResponse);
+    rpc ListStores (ListStoresRequest) returns (ListStoresResponse);
 
     // Create or update and existing feature set.
     //
@@ -58,8 +61,22 @@ service CoreService {
     rpc UpdateStore(UpdateStoreRequest) returns (UpdateStoreResponse);
 }
 
+// Request for a single feature set
+message GetFeatureSetRequest {
+    // Name of feature set (required).
+    string name = 1;
+
+    // Version of feature set (optional). If omitted then latest feature set will be returned.
+    int32 version = 2;
+}
+
+// Response containing a single feature set
+message GetFeatureSetResponse {
+    feast.core.FeatureSetSpec feature_set = 1;
+}
+
 // Retrieves details for all versions of a specific feature set
-message GetFeatureSetsRequest {
+message ListFeatureSetsRequest {
     message Filter {
         // Name of the desired feature set. Valid regex strings are allowed.
         // e.g.
@@ -77,11 +94,11 @@ message GetFeatureSetsRequest {
     Filter filter = 1;
 }
 
-message GetFeatureSetsResponse {
+message ListFeatureSetsResponse {
     repeated feast.core.FeatureSetSpec feature_sets = 1;
 }
 
-message GetStoresRequest {
+message ListStoresRequest {
     message Filter {
         // Name of desired store. Regex is not supported in this query.
         string name = 1;
@@ -90,7 +107,7 @@ message GetStoresRequest {
     Filter filter = 1;
 }
 
-message GetStoresResponse {
+message ListStoresResponse {
     repeated feast.core.Store store = 1;
 }
 

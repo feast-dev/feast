@@ -18,7 +18,7 @@ User data is typically in the form of dataframes, tables in data warehouses, or 
 
 Feature sets allow for groups of fields in these data sources to be ingested and stored together. This allows for efficient storage and logical namespacing of data.
 
-When data is loaded from these sources, each field in the feature set must be found in every record of the data source. Fields from these data sources must be either a timestamp, an entity, or a feature. 
+When data is loaded from these sources, each field in the feature set must be found in every record of the data source. Fields from these data sources must be either a timestamp, an entity, or a feature.
 
 {% hint style="info" %}
 Feature sets are a grouping of feature sets based on how they are loaded into Feast. They ensure that data is efficiently stored during ingestion. Feature sets are not a grouping of features for retrieval of features. During retrieval it is possible to retrieve feature values from any number of feature sets.
@@ -65,14 +65,14 @@ customer_df = pd.read_csv("customer_data.csv")
 cust_trans_fs = FeatureSet.from_yaml("customer_transactions_feature_set.yaml")
 
 # Load feature data into Feast for this specific feature set
-cust_trans_fs.ingest(dataframe=customer_data)
+client.ingest(cust_trans_fs, customer_data)
 ```
 
 ### Feature
 
 A feature is an individual measurable property or characteristic of a phenomenon being observed. Features are the most important concepts within a feature store. Feature data is used both as input to models during training and when models are served in production.
 
-In the context of Feast, features are values that are associated with either one or more entities over time. In Feast, these values are either primitives or lists of primitives. Each feature can also have additional information attached to it. For example whether it is a categorical feature or numerical. 
+In the context of Feast, features are values that are associated with either one or more entities over time. In Feast, these values are either primitives or lists of primitives. Each feature can also have additional information attached to it. For example whether it is a categorical feature or numerical.
 
 {% hint style="info" %}
 Features in Feast are defined within Feature Sets and are not treated as standalone concepts.
@@ -87,7 +87,7 @@ An entity is an instance of an entity type.
 * Examples of entity types in the context of ride-hailing and food delivery: `customer`, `order`, `driver`, `restaurant`, `dish`, `area`.
 * A specific driver, for example a driver with ID `D011234` would be an entity of the entity type `driver`
 
-An entity is the object on which features are observed. For example we could have a feature `total_trips_24h` on the driver `D01123`  with a feature value of `11`.
+An entity is the object on which features are observed. For example we could have a feature `total_trips_24h` on the driver `D01123` with a feature value of `11`.
 
 In the context of Feast, entities are important because they are used as keys when looking up feature values. Entities are also used when joining feature values between different feature sets in order to build one large data set to train a model, or to serve a model.
 
@@ -120,5 +120,5 @@ Feast supports the following types for feature values
 | :--- | :--- |
 | Feast deployment | A complete Feast system as it is deployed. Consists out of a single Feast Core deployment and one or more Feast Serving deployments. |
 | Feast Core | The centralized service which acts as a registry and authority of features. Organizations should only deploy a single Feast Core instance. Feast Core also manages the ingestion of feature data and population of Feast Serving data stores. |
-| Feast Serving | Feast Serving is a service used to access both online and batch feature data. Feast Serving deployments are backed by one or more databases.  |
+| Feast Serving | Feast Serving is a service used to access both online and batch feature data. Feast Serving deployments are backed by one or more databases. |
 

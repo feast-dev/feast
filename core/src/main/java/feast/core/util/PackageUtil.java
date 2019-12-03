@@ -1,3 +1,19 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package feast.core.util;
 
 import java.io.File;
@@ -61,7 +77,8 @@ public class PackageUtil {
       if (Files.notExists(Paths.get(extractedJarPath))) {
         LOG.info(
             "Extracting '{}' to '{}' so we can get a local file path for the resource.",
-            jarPath, extractedJarPath);
+            jarPath,
+            extractedJarPath);
         extractJar(jarPath, extractedJarPath);
       }
       path = path.replace(".jar/BOOT-INF/", "/BOOT-INF/");
@@ -71,7 +88,8 @@ public class PackageUtil {
   }
 
   // TODO: extractJar() currently is quite slow because it only uses a single core to extract the
-  //       jar. Extracting a jar packaged by Spring boot, for example, can take more than 5 minutes. One
+  //       jar. Extracting a jar packaged by Spring boot, for example, can take more than 5 minutes.
+  // One
   //       way to speed it up is to parallelize the extraction.
 
   /**
@@ -79,9 +97,9 @@ public class PackageUtil {
    *
    * <p>Adapted from: https://stackoverflow.com/a/1529707/3949303
    *
-   * @param jarPath     File path of the jar file to extract.
+   * @param jarPath File path of the jar file to extract.
    * @param destDirPath Destination directory to extract the jar content, will be created if not
-   *                    exists.
+   *     exists.
    * @throws IOException If error occured when reading or writing files.
    */
   public static void extractJar(String jarPath, String destDirPath) throws IOException {

@@ -11,5 +11,3 @@
 
 ## Reference
 
-* [Core API](reference/proto.md)
-

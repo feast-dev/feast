@@ -7,8 +7,8 @@ from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
     ApplyFeatureSetResponse,
     ApplyFeatureSetRequest,
-    GetFeatureSetsResponse,
-    GetFeatureSetsRequest,
+    ListFeatureSetsResponse,
+    ListFeatureSetsRequest,
 )
 from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpec
 from feast.core.Source_pb2 import (
@@ -27,9 +27,9 @@ class CoreServicer(Core.CoreServiceServicer):
         self._feature_sets = dict()
 
     def GetFeastCoreVersion(self, request, context):
-        return GetFeastCoreVersionResponse(version="0.3.0")
+        return GetFeastCoreVersionResponse(version="0.3.2")
 
-    def GetFeatureSets(self, request: GetFeatureSetsRequest, context):
+    def ListFeatureSets(self, request: ListFeatureSetsRequest, context):
 
         filtered_feature_set_response = [
             fs
@@ -44,7 +44,7 @@ class CoreServicer(Core.CoreServiceServicer):
             )
         ]
 
-        return GetFeatureSetsResponse(feature_sets=filtered_feature_set_response)
+        return ListFeatureSetsResponse(feature_sets=filtered_feature_set_response)
 
     def ApplyFeatureSet(self, request: ApplyFeatureSetRequest, context):
         feature_set = request.feature_set

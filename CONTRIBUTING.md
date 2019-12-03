@@ -46,13 +46,11 @@ cd feast
 #### Starting Feast Core
 
 ```
-cd $FEAST_HOME/core
-
 # Please check the default configuration for Feast Core in 
 # "$FEAST_HOME/core/src/main/resources/application.yml" and update it accordingly.
 # 
 # Start Feast Core GRPC server on localhost:6565
-mvn spring-boot:run
+mvn --projects core spring-boot:run
 
 # If Feast Core starts successfully, verify the correct Stores are registered
 # correctly, for example by using grpc_cli.
@@ -66,7 +64,7 @@ store {
   name: "SERVING"
   type: REDIS
   subscriptions {
-    name: ".*"
+    name: "*"
     version: ">0"
   }
   redis_config {
@@ -78,7 +76,7 @@ store {
   name: "WAREHOUSE"
   type: BIGQUERY
   subscriptions {
-    name: ".*"
+    name: "*"
     version: ">0"
   }
   bigquery_config {
@@ -97,10 +95,8 @@ instances of Feast serving. If you start multiple Feast serving on a single host
 make sure that they are listening on different ports.
 
 ```
-cd $FEAST_HOME/serving
-
 # Start Feast Serving GRPC server on localhost:6566 with store name "SERVING"
-mvn spring-boot:run -Dspring-boot.run.arguments='--feast.store-name=SERVING'
+mvn --projects serving spring-boot:run -Dspring-boot.run.arguments='--feast.store-name=SERVING'
 
 # To verify Feast Serving starts successfully
 grpc_cli call localhost:6566 GetFeastServingType ''
@@ -245,30 +241,30 @@ _Note: integration suite isn't yet separated from unit._
 
 The `core` and `serving` modules are Spring Boot applications. These may be run as usual for [the Spring Boot Maven plugin][boot-maven]:
 
-    $ mvn --also-make --projects core sprint-boot:run
+    $ mvn --projects core spring-boot:run
 
     # Or for short:
-    $ mvn -am -pl core spring-boot:run
+    $ mvn -pl core spring-boot:run
 
-Note the use of `--also-make` since some components depend on library modules from within the project.
+Note that you should execute `mvn` from the Feast repository root directory, as there are intermodule dependencies that Maven will not resolve if you `cd` to subdirectories to run.
 
 [boot-maven]: https://docs.spring.io/spring-boot/docs/current/maven-plugin/index.html
 
 #### Running From IntelliJ
 
-IntelliJ IDEA Ultimate has built-in support for Spring Boot projects, so everything may work out of the box. The Community Edition needs help with two matters:
+Compiling and running tests in IntelliJ should work as usual.
 
-1. The IDE is [not clever enough][idea-also-make] to apply `--also-make` for Maven when it should.
-1. The Spring Boot Maven plugin automatically puts dependencies with `provided` scope on the runtime classpath when using `spring-boot:run`, such as its embedded Tomcat server. The "Play" buttons in the gutter or right-click menu of a `main()` method [do not do this][idea-boot-main].
+Running the Spring Boot apps may work out of the box in IDEA Ultimate, which has built-in support for Spring Boot projects, but the Community Edition needs a bit of help:
 
-Fortunately there is one simple way to address both:
+The Spring Boot Maven plugin automatically puts dependencies with `provided` scope on the runtime classpath when using `spring-boot:run`, such as its embedded Tomcat server. The "Play" buttons in the gutter or right-click menu of a `main()` method [do not do this][idea-boot-main].
+
+A solution to this is:
 
 1. Open `View > Tool Windows > Maven`
 1. Drill down to e.g. `Feast Core > Plugins > spring-boot:run`, right-click and `Create 'feast-core [spring-boot'…`
 1. In the dialog that pops up, check the `Resolve Workspace artifacts` box
 1. Click `OK`. You should now be able to select this run configuration for the Play button in the main toolbar, keyboard shortcuts, etc.
 
-[idea-also-make]: https://stackoverflow.com/questions/15073877/using-mavens-also-make-option-in-intellij
 [idea-boot-main]: https://stackoverflow.com/questions/30237768/run-spring-boots-main-using-ide
 
 #### Tips for Running Postgres, Redis and Kafka with Docker
@@ -314,11 +310,23 @@ Please submit a **pull request** to initiate the code review process. We use [pr
 
 ### Java
 
-We conform to the [java google style guide](https://google.github.io/styleguide/javaguide.html)
+We conform to the [Google Java Style Guide]. Maven can helpfully take care of
+that for you before you commit:
 
-If using Intellij please import the code styles:
-https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xml
+    $ mvn spotless:apply
+
+Formatting will be checked automatically during the `verify` phase. This can be
+skipped temporarily:
+
+    $ mvn spotless:check  # Check is automatic upon `mvn verify`
+    $ mvn verify -Dspotless.check.skip
+
+If you're using IntelliJ, you can import [these code style settings][G
+IntelliJ] if you'd like to use the IDE's reformat function as you work.
 
 ### Go
 
 Make sure you apply `go fmt`.
+
+[Google Java Style Guide]: https://google.github.io/styleguide/javaguide.html
+[G IntelliJ]: https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xml
