@@ -34,6 +34,9 @@ _common_options = [
 
 
 def common_options(func):
+    """
+    Options that are available for most CLI commands
+    """
     for option in reversed(_common_options):
         func = option(func)
     return func
@@ -62,10 +65,10 @@ def version(client_only: bool, **kwargs):
         if not client_only:
             feast_client = Client(
                 core_url=feast_config.get_config_property_or_fail(
-                    "core_url", cli_config=kwargs
+                    "core_url", force_config=kwargs
                 ),
                 serving_url=feast_config.get_config_property_or_fail(
-                    "serving_url", cli_config=kwargs
+                    "serving_url", force_config=kwargs
                 ),
             )
             feast_versions_dict.update(feast_client.version())
@@ -92,7 +95,7 @@ def config_list():
     """
 
     try:
-        feast_config_string = toml.dumps(feast_config.get_or_create_config())
+        feast_config_string = toml.dumps(feast_config._get_or_create_config())
         if not feast_config_string.strip():
             print("Configuration has not been set")
         else:

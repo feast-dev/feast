@@ -14,12 +14,18 @@ def export_dataframe_to_staging_location(
 ) -> str:
     """
     Uploads a dataframe to a remote staging location
-    :param df: Pandas dataframe
-    :param staging_location_uri: Remote staging location where dataframe should be written
-        Examples: gs://bucket/path/
-                  file:///data/subfolder/
-    :return: Returns the full path to the file in the remote staging location
+
+    Args:
+        df: Pandas dataframe
+        staging_location_uri: Remote staging location where dataframe should be written
+            Examples:
+                gs://bucket/path/
+                file:///data/subfolder/
+
+    Returns:
+        Returns the full path to the file in the remote staging location
     """
+
     # Validate staging location
     uri = urlparse(staging_location_uri)
     if uri.scheme == "gs":
@@ -43,10 +49,12 @@ def export_dataframe_to_staging_location(
 def export_dataframe_to_local(df: pd.DataFrame, dir_path: Optional[str] = None):
     """
     Exports a pandas dataframe to the local filesystem
-    :param df: Pandas dataframe to save
-    :param dir_path: (optional) Absolute directory path '/data/project/subfolder/'
-    :return:
+
+    Args:
+        df: Pandas dataframe to save
+        dir_path: (optional) Absolute directory path '/data/project/subfolder/'
     """
+
     # Create local staging location if not provided
     if dir_path is None:
         dir_path = tempfile.mkdtemp()
@@ -62,10 +70,13 @@ def export_dataframe_to_local(df: pd.DataFrame, dir_path: Optional[str] = None):
 def upload_file_to_gcs(local_path: str, bucket: str, remote_path: str):
     """
     Upload a file from the local file system to Google Cloud Storage (GCS)
-    :param local_path: Local filesystem path of file to upload
-    :param bucket: GCS bucket to upload to
-    :param remote_path: Path within GCS bucket to upload file to, includes file name
+
+    Args:
+        local_path: Local filesystem path of file to upload
+        bucket: GCS bucket to upload to
+        remote_path: Path within GCS bucket to upload file to, includes file name
     """
+
     storage_client = storage.Client(project=None)
     bucket = storage_client.get_bucket(bucket)
     blob = bucket.blob(remote_path)
