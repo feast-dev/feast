@@ -14,12 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.dao;
+package feast.core.metrics;
 
-import feast.core.model.Store;
-import org.springframework.data.jpa.repository.JpaRepository;
+import io.prometheus.client.Histogram;
 
-/** JPA repository supplying Store objects keyed by id. */
-public interface StoreRepository extends JpaRepository<Store, String> {
-  long count();
+public class GrpcMetrics {
+
+  public static final Histogram requestLatency =
+      Histogram.build()
+          .name("feast_core_request_latency_seconds")
+          .labelNames("service", "method", "status_code")
+          .help("Request latency in seconds")
+          .register();
 }

@@ -38,6 +38,7 @@ import feast.core.SourceProto;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Subscription;
 import feast.core.exception.RetrievalException;
+import feast.core.grpc.interceptors.MonitoringInterceptor;
 import feast.core.service.JobCoordinatorService;
 import feast.core.service.SpecService;
 import io.grpc.stub.StreamObserver;
@@ -51,7 +52,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /** Implementation of the feast core GRPC service. */
 @Slf4j
-@GRpcService
+@GRpcService(interceptors = {MonitoringInterceptor.class})
 public class CoreServiceImpl extends CoreServiceImplBase {
 
   private SpecService specService;

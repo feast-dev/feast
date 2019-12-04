@@ -167,6 +167,16 @@
             <artifactId>hamcrest-library</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>io.prometheus</groupId>
+            <artifactId>simpleclient</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.prometheus</groupId>
+            <artifactId>simpleclient_servlet</artifactId>
+        </dependency>
+
         <!--testCompile 'com.jayway.jsonpath:json-path-assert:2.2.0'-->
         <dependency>
             <groupId>com.jayway.jsonpath</groupId>
