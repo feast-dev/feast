@@ -24,6 +24,8 @@ import org.springframework.data.jpa.repository.Query;
 /** JPA repository supplying FeatureSet objects keyed by id. */
 public interface FeatureSetRepository extends JpaRepository<FeatureSet, String> {
 
+  long count();
+
   // Find feature set by name and version
   FeatureSet findFeatureSetByNameAndVersion(String name, Integer version);
 
