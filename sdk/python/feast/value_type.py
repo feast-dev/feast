@@ -17,7 +17,7 @@ import enum
 
 class ValueType(enum.Enum):
     """
-    Feature value type
+    Feature value type. Used to define data types in Feature Sets.
     """
 
     UNKNOWN = 0

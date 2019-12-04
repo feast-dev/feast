@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+
 import logging
 import os
 import sys
@@ -61,7 +63,7 @@ CPU_COUNT = os.cpu_count()  # type: int
 
 class Client:
     """
-    Feast Client. Used for creating, managing, and retrieving features.
+    Feast Client: Used for creating, managing, and retrieving features.
     """
 
     def __init__(
@@ -85,7 +87,10 @@ class Client:
 
     @property
     def core_url(self) -> str:
-        """Retrieve Feast Core URL"""
+        """
+        Retrieve Feast Core URL
+        """
+
         if self._core_url is not None:
             return self._core_url
         if os.getenv(FEAST_CORE_URL_ENV_KEY) is not None:
@@ -104,7 +109,9 @@ class Client:
 
     @property
     def serving_url(self) -> str:
-        """Retrieve Serving Core URL"""
+        """
+        Retrieve Serving Core URL
+        """
         if self._serving_url is not None:
             return self._serving_url
         if os.getenv(FEAST_SERVING_URL_ENV_KEY) is not None:
@@ -122,7 +129,10 @@ class Client:
         self._serving_url = value
 
     def version(self):
-        """Returns version information from Feast Core and Feast Serving"""
+        """
+        Returns version information from Feast Core and Feast Serving
+        """
+
         self._connect_core()
         self._connect_serving()
 
@@ -410,17 +420,20 @@ class Client:
                     entity_rows["event_timestamp"]
                 ).tz_localize(None)
 
-            # Retrieve serving information to determine store type and staging location
+            # Retrieve serving information to determine store type and
+            # staging location
             serving_info = self._serving_service_stub.GetFeastServingInfo(
                 GetFeastServingInfoRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             )  # type: GetFeastServingInfoResponse
 
             if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
                 raise Exception(
-                    f'You are connected to a store "{self._serving_url}" which does not support batch retrieval'
+                    f'You are connected to a store "{self._serving_url}" which '
+                    f"does not support batch retrieval "
                 )
 
-            # Export and upload entity row dataframe to staging location provided by Feast
+            # Export and upload entity row dataframe to staging location
+            # provided by Feast
             staged_file = export_dataframe_to_staging_location(
                 entity_rows, serving_info.job_staging_location
             )  # type: str
@@ -445,7 +458,8 @@ class Client:
         self, entity_rows, feature_sets_request
     ):
         """
-        Validate whether an entity_row dataframe contains the correct information for batch retrieval
+        Validate whether an entity_row dataframe contains the correct
+        information for batch retrieval
 
         Args:
             entity_rows: Pandas dataframe containing entities and datetime
@@ -457,7 +471,8 @@ class Client:
         # Ensure datetime column exists
         if "datetime" not in entity_rows.columns:
             raise ValueError(
-                f'Entity rows does not contain "datetime" column in columns {entity_rows.columns}'
+                f'Entity rows does not contain "datetime" column in columns '
+                f"{entity_rows.columns}"
             )
 
         # Validate dataframe columns based on feature set entities
@@ -467,12 +482,14 @@ class Client:
             )
             if fs is None:
                 raise ValueError(
-                    f'Feature set "{feature_set.name}:{feature_set.version}" could not be found'
+                    f'Feature set "{feature_set.name}:{feature_set.version}" '
+                    f"could not be found"
                 )
             for entity_type in fs.entities:
                 if entity_type.name not in entity_rows.columns:
                     raise ValueError(
-                        f'Dataframe does not contain entity "{entity_type.name}" column in columns "{entity_rows.columns}"'
+                        f'Dataframe does not contain entity "{entity_type.name}"'
+                        f' column in columns "{entity_rows.columns}"'
                     )
 
     def get_online_features(

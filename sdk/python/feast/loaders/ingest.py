@@ -31,12 +31,14 @@ def _kafka_feature_row_producer(
     """
     Pushes Feature Rows to Kafka. Reads rows from a queue. Function will run
     until total row_count is reached.
-    :param feature_row_queue: Queue containing rows.
-    :param row_count: Total row count to process
-    :param brokers: Broker to push to
-    :param topic: Topic to push to
-    :param ctx: Context dict used to communicate with primary process
-    :param pbar: Progress bar object
+
+    Args:
+        feature_row_queue: Queue containing feature rows.
+        row_count: Total row count to process
+        brokers: Broker to push to
+        topic: Topic to push to
+        ctx: Context dict used to communicate with primary process
+        pbar: Progress bar object
     """
 
     # Callback for failed production to Kafka
@@ -101,19 +103,17 @@ def _encode_pa_chunks(
     Each batch will have its rows spread accross a pool of workers to be
     transformed into FeatureRow objects.
 
-    :param tbl: PyArrow table to be processed.
-    :type tbl: pa.lib.Table
-    :param fs: FeatureSet describing PyArrow table.
-    :type fs: FeatureSet
-    :param max_workers: Maximum number of workers.
-    :type max_workers: int
-    :param df_datetime_dtype: Pandas dtype of datetime column.
-    :type df_datetime_dtype: pd.DataFrame.dtypes
-    :param chunk_size: Maximum size of each chunk when PyArrow table is batched.
-    :type chunk_size: int
-    :return: Iterable FeatureRow object.
-    :rtype: Iterable[FeatureRow]
+    Args:
+        tbl: PyArrow table to be processed.
+        fs: FeatureSet describing PyArrow table.
+        max_workers: Maximum number of workers.
+        df_datetime_dtype: Pandas dtype of datetime column.
+        chunk_size: Maximum size of each chunk when PyArrow table is batched.
+
+    Returns:
+        Iterable FeatureRow object.
     """
+
     pool = Pool(max_workers)
 
     # Create a partial function with static non-iterable arguments
@@ -144,21 +144,15 @@ def ingest_table_to_kafka(
     """
     Ingest a PyArrow Table to a Kafka topic based for a Feature Set
 
-    :param feature_set: FeatureSet describing PyArrow table.
-    :type feature_set: FeatureSet
-    :param table: PyArrow table to be processed.
-    :type table: pa.lib.Table
-    :param max_workers: Maximum number of workers.
-    :type max_workers: int
-    :param chunk_size: Maximum size of each chunk when PyArrow table is batched.
-    :type chunk_size: int
-    :param disable_pbar: Flag to indicate if tqdm progress bar should be
-        disabled.
-    :type disable_pbar: bool
-    :param timeout: Maximum time before method times out.
-    :return: None
-    :rtype: None
+    Args:
+        feature_set: FeatureSet describing PyArrow table.
+        table: PyArrow table to be processed.
+        max_workers: Maximum number of workers.
+        chunk_size:  Maximum size of each chunk when PyArrow table is batched.
+        disable_pbar: Flag to indicate if tqdm progress bar should be disabled.
+        timeout: Maximum time before method times out
     """
+
     pbar = tqdm(unit="rows", total=table.num_rows, disable=disable_pbar)
 
     # Use a small DataFrame to validate feature set schema
@@ -236,8 +230,10 @@ def ingest_table_to_kafka(
 def _validate_dataframe(dataframe: pd.DataFrame, feature_set: FeatureSet):
     """
     Validates a Pandas dataframe based on a feature set
-    :param dataframe: Pandas dataframe
-    :param feature_set: Feature Set instance
+
+    Args:
+        dataframe:  Pandas dataframe
+        feature_set: Feature Set instance
     """
 
     if "datetime" not in dataframe.columns:

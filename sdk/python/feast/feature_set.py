@@ -370,14 +370,20 @@ class FeatureSet:
         print(output_log)
 
     def _update_from_feature_set(self, feature_set, is_dirty: bool = True):
-
+        """
+        Deep updates one feature set with another
+        Args:
+            feature_set: Feature set to use as a source of configuration
+            is_dirty: If true, will set this feature set to "dirty" after
+                this update. This is used to track whether the feature
+                set needs to be reapplied.
+        """
         self.name = feature_set.name
         self.version = feature_set.version
         self.source = feature_set.source
         self.max_age = feature_set.max_age
         self.features = feature_set.features
         self.entities = feature_set.entities
-
         self._is_dirty = is_dirty
 
     def get_kafka_source_brokers(self) -> str:

@@ -39,10 +39,13 @@ def python_type_to_feast_value_type(
     and Pandas types are supported. This function will recursively look
     for nested types when arrays are detected. All types must be homogenous.
 
-    :param name: Name of the value or field
-    :param value: Value that will be inspected
-    :param recurse: Whether to recursively look for nested types in arrays
-    :return: Feast Value Type
+    Args:
+        name: Name of the value or field
+        value: Value that will be inspected
+        recurse: Whether to recursively look for nested types in arrays
+
+    Returns:
+        Feast Value Type
     """
 
     type_name = type(value).__name__
@@ -113,17 +116,26 @@ def convert_df_to_feature_rows(dataframe: pd.DataFrame, feature_set):
     """
     Returns a function that converts a Pandas Series to a Feast FeatureRow
     for a given Feature Set and Pandas Dataframe
-    :param dataframe: Dataframe that will be converted
-    :param feature_set: Feature set used as schema for conversion
-    :return: Function that will do conversion
+
+    Args:
+        dataframe: Dataframe that will be converted
+        feature_set: Feature set used as schema for conversion
+
+    Returns:
+        Function that will do conversion
     """
 
     def convert_series_to_proto_values(row: pd.Series):
         """
         Converts a Pandas Series to a Feast FeatureRow
-        :param row: pd.Series The row that should be converted
-        :return: Feast FeatureRow
+
+        Args:
+            row: pd.Series The row that should be converted
+
+        Returns:
+            Feast FeatureRow
         """
+
         feature_row = FeatureRowProto.FeatureRow(
             event_timestamp=_pd_datetime_to_timestamp_proto(
                 dataframe[DATETIME_COLUMN].dtype, row[DATETIME_COLUMN]
@@ -153,15 +165,15 @@ def convert_dict_to_proto_values(
     """
     Encode a dictionary describing a feature row into a FeatureRows object.
 
-    :param row: Dictionary describing a feature row.
-    :type row: dict
-    :param df_datetime_dtype: Pandas dtype of datetime column.
-    :type df_datetime_dtype: pd.DataFrame.dtypes
-    :param feature_set: Feature set describing feature row.
-    :type feature_set: FeatureSet
-    :return: FeatureRow object.
-    :rtype: FeatureRowProto.FeatureRow
+    Args:
+        row: Dictionary describing a feature row.
+        df_datetime_dtype:  Pandas dtype of datetime column.
+        feature_set: Feature set describing feature row.
+
+    Returns:
+        FeatureRow
     """
+
     feature_row = FeatureRowProto.FeatureRow(
         event_timestamp=_pd_datetime_to_timestamp_proto(
             df_datetime_dtype, row[DATETIME_COLUMN]
@@ -184,9 +196,13 @@ def convert_dict_to_proto_values(
 def _pd_datetime_to_timestamp_proto(dtype, value) -> Timestamp:
     """
     Converts a Pandas datetime to a Timestamp Proto
-    :param dtype: Pandas datatype
-    :param value: Value of datetime
-    :return: Timestamp protobuf value
+
+    Args:
+        dtype: Pandas datatype
+        value: Value of datetime
+
+    Returns:
+        Timestamp protobuf value
     """
 
     if type(value) in [np.float64, np.float32, np.int32, np.int64]:
@@ -211,9 +227,13 @@ def _python_value_to_proto_value(feast_value_type, value) -> ProtoValue:
     """
     Converts a Python (native, pandas) value to a Feast Proto Value based
     on a provided value type
-    :param feast_value_type: The target value type
-    :param value: Value that will be converted
-    :return: Feast Value
+
+    Args:
+        feast_value_type: The target value type
+        value: Value that will be converted
+
+    Returns:
+        Feast Value Proto
     """
 
     # Detect list type and handle separately

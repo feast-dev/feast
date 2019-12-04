@@ -34,18 +34,26 @@ class Field:
 
     @property
     def name(self):
-        """Getter for name of this field"""
+        """
+        Getter for name of this field
+        """
         return self._name
 
     @property
     def dtype(self) -> ValueType:
-        """Getter for data type of this field"""
+        """
+        Getter for data type of this field
+        """
         return self._dtype
 
     def to_proto(self):
-        """Unimplemented to_proto method for a field."""
+        """
+        Unimplemented to_proto method for a field. This should be extended.
+        """
         pass
 
     def from_proto(self, proto):
-        """Unimplemented from_proto method for a field"""
+        """
+        Unimplemented from_proto method for a field. This should be extended.
+        """
         pass

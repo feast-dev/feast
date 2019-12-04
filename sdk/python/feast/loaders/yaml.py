@@ -5,10 +5,16 @@ def yaml_loader(yml, load_single=False):
     """
     Loads one or more Feast resources from a YAML path or string. Multiple resources
     can be divided by three hyphens '---'
-    :param yml: A path ending in .yaml or .yml, or a YAML string
-    :param load_single: Expect only a single YAML resource, fail otherwise
-    :return: Either a single YAML dictionary or a list of YAML dictionaries
+
+    Args:
+        yml: A path ending in .yaml or .yml, or a YAML string
+        load_single: Expect only a single YAML resource, fail otherwise
+
+    Returns:
+        Either a single YAML dictionary or a list of YAML dictionaries
+
     """
+
     yml_content = _get_yaml_contents(yml)
     yaml_strings = yml_content.strip("---").split("---")
 
@@ -27,7 +33,18 @@ def yaml_loader(yml, load_single=False):
     return resources
 
 
-def _get_yaml_contents(yml):
+def _get_yaml_contents(yml: str) -> str:
+    """
+    Returns the YAML contents from an object. If a path ending with .yaml or
+    .yml is passed, it will be read for its contents. If a string containing
+    YAML is passed, that will be returned.
+
+    Args:
+        yml: Path of YAML file or string containing YAML
+
+    Returns:
+        String object containing YAML
+    """
     if (
         isinstance(yml, str)
         and yml.count("\n") == 0
@@ -46,6 +63,16 @@ def _get_yaml_contents(yml):
 
 
 def _yaml_to_dict(yaml_string):
+    """
+    Converts a yaml string to dictionary
+
+    Args:
+        yaml_string: String containing YAML
+
+    Returns:
+        Dictionary containing the same object
+    """
+
     yaml_dict = yaml.safe_load(yaml_string)
     if not isinstance(yaml_dict, dict) or not "kind" in yaml_dict:
         raise Exception(f"Could not detect YAML kind from resource: ${yaml_string}")
