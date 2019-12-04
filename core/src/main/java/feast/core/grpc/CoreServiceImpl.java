@@ -72,7 +72,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   @Override
-  @Transactional
   public void getFeatureSet(
       GetFeatureSetRequest request, StreamObserver<GetFeatureSetResponse> responseObserver) {
     try {
@@ -86,7 +85,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   @Override
-  @Transactional
   public void listFeatureSets(
       ListFeatureSetsRequest request, StreamObserver<ListFeatureSetsResponse> responseObserver) {
     try {
@@ -100,7 +98,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   @Override
-  @Transactional
   public void listStores(
       ListStoresRequest request, StreamObserver<ListStoresResponse> responseObserver) {
     try {
@@ -114,7 +111,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   @Override
-  @Transactional
   public void applyFeatureSet(
       ApplyFeatureSetRequest request, StreamObserver<ApplyFeatureSetResponse> responseObserver) {
     try {
@@ -153,7 +149,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   @Override
-  @Transactional
   public void updateStore(
       UpdateStoreRequest request, StreamObserver<UpdateStoreResponse> responseObserver) {
     try {

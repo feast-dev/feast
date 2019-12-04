@@ -49,13 +49,13 @@ import io.opentracing.Tracer;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 
-@Slf4j
 public class RedisServingService implements ServingService {
 
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(RedisServingService.class);
   private final JedisPool jedisPool;
   private final CachedSpecService specService;
   private final Tracer tracer;

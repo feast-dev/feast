@@ -32,13 +32,15 @@ import io.grpc.stub.StreamObserver;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
-import lombok.extern.slf4j.Slf4j;
 import org.lognet.springboot.grpc.GRpcService;
+import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 
-@Slf4j
 @GRpcService
 public class ServingServiceGRpcController extends ServingServiceImplBase {
+
+  private static final Logger log =
+      org.slf4j.LoggerFactory.getLogger(ServingServiceGRpcController.class);
   private final ServingService servingService;
   private final String version;
   private final Tracer tracer;

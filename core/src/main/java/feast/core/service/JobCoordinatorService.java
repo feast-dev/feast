@@ -41,6 +41,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -60,6 +61,7 @@ public class JobCoordinatorService {
    * there has been no change in the featureSet, and there is a running job for the featureSet, this
    * method will do nothing.
    */
+  @Transactional
   public JobInfo startOrUpdateJob(
       List<FeatureSetSpec> featureSetSpecs, SourceProto.Source sourceSpec, StoreProto.Store store) {
     Source source = Source.fromProto(sourceSpec);
