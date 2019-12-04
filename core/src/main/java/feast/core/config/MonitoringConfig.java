@@ -3,6 +3,7 @@ package feast.core.config;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.StoreRepository;
 import feast.core.metrics.collector.FeastResourceCollector;
+import feast.core.metrics.collector.JVMResourceCollector;
 import io.prometheus.client.exporter.MetricsServlet;
 import javax.servlet.http.HttpServlet;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,5 +45,17 @@ public class MonitoringConfig {
         storeRepository);
     collector.register();
     return collector;
+  }
+
+  /**
+   * Register custom Prometheus collector that exports metrics about JVM resource usage.
+   *
+   * @return @{link {@link JVMResourceCollector}}
+   */
+  @Bean
+  public JVMResourceCollector jvmResourceCollector() {
+    JVMResourceCollector jvmResourceCollector = new JVMResourceCollector();
+    jvmResourceCollector.register();
+    return jvmResourceCollector;
   }
 }
