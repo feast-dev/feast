@@ -18,8 +18,9 @@ def export_dataframe_to_staging_location(
     Args:
         df: Pandas dataframe
         staging_location_uri: Remote staging location where dataframe should be written
-            Examples: gs://bucket/path/
-                      file:///data/subfolder/
+            Examples:
+                gs://bucket/path/
+                file:///data/subfolder/
 
     Returns:
         Returns the full path to the file in the remote staging location
