@@ -34,6 +34,9 @@ _common_options = [
 
 
 def common_options(func):
+    """
+    Options that are available for most CLI commands
+    """
     for option in reversed(_common_options):
         func = option(func)
     return func

@@ -453,6 +453,7 @@ class Client:
                 column in this dataframe.
             feature_sets_request: Feature sets that will be requested
         """
+
         # Ensure datetime column exists
         if "datetime" not in entity_rows.columns:
             raise ValueError(
@@ -481,7 +482,6 @@ class Client:
     ) -> GetOnlineFeaturesResponse:
         """
         Retrieves the latest online feature data from Feast Serving
-        :param feature_ids:
 
         Args:
             feature_ids: List of feature Ids in the following format
@@ -489,14 +489,15 @@ class Client:
                 example:
                     ["feature_set_1:6:my_feature_1",
                     "feature_set_1:6:my_feature_2",]
-            entity_rows: List of GetFeaturesRequest.EntityRow where each row contains
-                entities. Timestamp should not be set for online retrieval. All entity
-                types within a feature
+            entity_rows: List of GetFeaturesRequest.EntityRow where each row
+                contains entities. Timestamp should not be set for online
+                retrieval. All entity types within a feature
 
         Returns:
-            Returns a list of maps where each item in the list contains the latest
-            feature values for the provided entities
+            Returns a list of maps where each item in the list contains the
+            latest feature values for the provided entities
         """
+
         self._connect_serving()
 
         try:
@@ -587,7 +588,8 @@ def _build_feature_set_request(feature_ids: List[str]) -> List[FeatureSetRequest
     retrieve feature data from Feast Serving
 
     Args:
-        feature_ids: List of feature ids ("feature_set_name:version:feature_name")
+        feature_ids: List of feature ids
+            ("feature_set_name:version:feature_name")
     """
     feature_set_request = dict()  # type: Dict[str, FeatureSetRequest]
     for feature_id in feature_ids:
@@ -596,7 +598,7 @@ def _build_feature_set_request(feature_ids: List[str]) -> List[FeatureSetRequest
             feature_set, version, feature = fid_parts
         else:
             raise ValueError(
-                f"Could not parse feature id ${feature_id}, needs 3 colons"
+                f"Could not parse feature id ${feature_id}, needs 2 colons"
             )
 
         if feature_set not in feature_set_request:

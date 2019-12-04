@@ -32,7 +32,7 @@ from feast.loaders import yaml as feast_yaml
 
 class FeatureSet:
     """
-    Represents a collection of features.
+    Represents a collection of features and associated metadata.
     """
 
     def __init__(
@@ -92,6 +92,7 @@ class FeatureSet:
     def features(self, features: List[Feature]):
         """
         Sets the active features within this feature set
+
         Args:
             features: List of feature objects
         """
@@ -117,6 +118,7 @@ class FeatureSet:
     def entities(self, entities: List[Entity]):
         """
         Sets the active entities within this feature set
+
         Args:
             entities: List of entities objects
         """
@@ -133,39 +135,61 @@ class FeatureSet:
 
     @property
     def name(self):
+        """
+        Returns the name of this feature set
+        """
         return self._name
 
     @name.setter
     def name(self, name):
+        """
+        Sets the name of this feature set
+        """
         self._name = name
 
     @property
     def source(self):
+        """
+        Returns the source of this feature set
+        """
         return self._source
 
     @source.setter
     def source(self, source: Source):
+        """
+        Sets the source of this feature set
+        """
         self._source = source
 
     @property
     def version(self):
+        """
+        Returns the version of this feature set
+        """
         return self._version
 
     @version.setter
     def version(self, version):
+        """
+        Sets the version of this feature set
+        """
         self._version = version
 
     @property
     def max_age(self):
+        """
+        Returns the maximum age of this feature set. This is the total maximum
+        amount of staleness that will be allowed during feature retrieval for
+        each specific feature row that is looked up.
+        """
         return self._max_age
 
     @max_age.setter
     def max_age(self, max_age):
+        """
+        Set the maximum age for this feature set
+        """
         self._max_age = max_age
-
-    @property
-    def is_dirty(self):
-        return self._is_dirty
 
     def add(self, resource):
         """
@@ -195,7 +219,8 @@ class FeatureSet:
 
     def drop(self, name: str):
         """
-        Removes a Feature or Entity from a Feature Set
+        Removes a Feature or Entity from a Feature Set. This does not apply
+        any changes to Feast Core until the apply() method is called.
 
         Args:
             name: Name of Feature or Entity to be removed
@@ -209,7 +234,9 @@ class FeatureSet:
     def _add_fields(self, fields: List[Field]):
         """
         Adds multiple Fields to a Feature Set
-        :param fields: List of Feature or Entity Objects
+
+        Args:
+            fields: List of Field (Feature or Entity) Objects
         """
         for field in fields:
             self.add(field)
@@ -231,32 +258,26 @@ class FeatureSet:
         detected as features, so setting at least one entity manually is
         advised.
 
-        :param df:
-        :param entities: List of entities that will be set manually and not
-        inferred. These will take precedence over any existing entities or
-        entities found in the dataframe.
-        :param features: List of features that will be set manually and not
-        inferred. These will take precedence over any existing feature or
-        features found in the dataframe.
-        :param discard_unused_fields: Boolean flag. Setting this to True will
-        discard any existing fields that are not found in the dataset or
-        provided by the user
-        :param replace_existing_features: Boolean flag. If true, will replace
-        existing features in this feature set with features found in dataframe.
-        If false, will skip conflicting features
-        :param replace_existing_entities: Boolean flag. If true, will replace
-        existing entities in this feature set with features found in dataframe.
-        If false, will skip conflicting entities
-
-
         Args:
             df: Pandas dataframe to read schema from
-            entities:
-            features:
-            replace_existing_features:
-            replace_existing_entities:
-            discard_unused_fields:
-            rows_to_sample:
+            entities: List of entities that will be set manually and not
+                inferred. These will take precedence over any existing entities
+                or entities found in the dataframe.
+            features: List of features that will be set manually and not
+                inferred. These will take precedence over any existing feature
+                or features found in the dataframe.
+            replace_existing_features: If true, will replace
+                existing features in this feature set with features found in
+                dataframe. If false, will skip conflicting features.
+            replace_existing_entities: If true, will replace existing entities
+                in this feature set with features found in dataframe. If false,
+                will skip conflicting entities.
+            discard_unused_fields: Boolean flag. Setting this to True will
+                discard any existing fields that are not found in the dataset or
+                provided by the user
+            rows_to_sample: Number of rows to sample to infer types. All rows
+                must have consistent types, even values within list types must
+                be homogeneous
         """
         if entities is None:
             entities = list()
@@ -329,10 +350,10 @@ class FeatureSet:
             # Store this field as a feature
             new_fields[column] = Feature(
                 name=column,
-                dtype=self._infer_pd_column_type(column, df[column], rows_to_sample),
+                dtype=_infer_pd_column_type(column, df[column], rows_to_sample),
             )
 
-            output_log += f"{type(new_fields[column]).__name__} {new_fields[column].name} ({new_fields[column].dtype}) added from dataframe.\n"
+            output_log += f"{type(new_fields[column]).__name__} {new_fields[column].name} ({new_fields[column].dtype}) added from dataframe.\n "
 
         # Discard unused fields from feature set
         if discard_unused_fields:
@@ -348,34 +369,6 @@ class FeatureSet:
         self._fields = new_fields
         print(output_log)
 
-    def _infer_pd_column_type(self, column, series, rows_to_sample):
-        dtype = None
-        sample_count = 0
-
-        # Loop over all rows for this column to infer types
-        for key, value in series.iteritems():
-            sample_count += 1
-            # Stop sampling at the row limit
-            if sample_count > rows_to_sample:
-                continue
-
-            # Infer the specific type for this row
-            current_dtype = python_type_to_feast_value_type(name=column, value=value)
-
-            # Make sure the type is consistent for column
-            if dtype:
-                if dtype != current_dtype:
-                    raise ValueError(
-                        f"Type mismatch detected in column {column}. Both "
-                        f"the types {current_dtype} and {dtype} "
-                        f"have been found."
-                    )
-            else:
-                # Store dtype in field to type map if it isnt already
-                dtype = current_dtype
-
-        return dtype
-
     def _update_from_feature_set(self, feature_set, is_dirty: bool = True):
 
         self.name = feature_set.name
@@ -388,11 +381,17 @@ class FeatureSet:
         self._is_dirty = is_dirty
 
     def get_kafka_source_brokers(self) -> str:
+        """
+        Get the broker list for the source in this feature set
+        """
         if self.source and self.source.source_type is "Kafka":
             return self.source.brokers
         raise Exception("Source type could not be identified")
 
     def get_kafka_source_topic(self) -> str:
+        """
+        Get the topic that this feature set has been configured to use as source
+        """
         if self.source and self.source.source_type == "Kafka":
             return self.source.topic
         raise Exception("Source type could not be identified")
@@ -408,11 +407,31 @@ class FeatureSet:
         return True, ""
 
     @classmethod
-    def from_yaml(cls, yml):
+    def from_yaml(cls, yml: str):
+        """
+        Creates a feature set from a YAML string body or a file path
+
+        Args:
+            yml: Either a file path containing a yaml file or a YAML string
+
+        Returns:
+            Returns a FeatureSet object based on the YAML file
+        """
+
         return cls.from_dict(feast_yaml.yaml_loader(yml, load_single=True))
 
     @classmethod
     def from_dict(cls, fs_dict):
+        """
+        Creates a feature set from a dict
+
+        Args:
+            fs_dict: A dict representation of a feature set
+
+        Returns:
+            Returns a FeatureSet object based on the feature set dict
+        """
+
         if ("kind" not in fs_dict) and (fs_dict["kind"].strip() != "feature_set"):
             raise Exception(f"Resource kind is not a feature set {str(fs_dict)}")
         feature_set_proto = json_format.ParseDict(
@@ -422,6 +441,16 @@ class FeatureSet:
 
     @classmethod
     def from_proto(cls, feature_set_proto: FeatureSetSpecProto):
+        """
+        Creates a feature set from a protobuf representation of a feature set
+
+        Args:
+            from_proto: A protobuf representation of a feature set
+
+        Returns:
+            Returns a FeatureSet object based on the feature set protobuf
+        """
+
         feature_set = cls(
             name=feature_set_proto.name,
             features=[
@@ -442,6 +471,13 @@ class FeatureSet:
         return feature_set
 
     def to_proto(self) -> FeatureSetSpecProto:
+        """
+        Converts a feature set object to its protobuf representation
+
+        Returns:
+            FeatureSetSpec protobuf
+        """
+
         return FeatureSetSpecProto(
             name=self.name,
             version=self.version,
@@ -458,3 +494,32 @@ class FeatureSet:
                 if type(field) == Entity
             ],
         )
+
+
+def _infer_pd_column_type(column, series, rows_to_sample):
+    dtype = None
+    sample_count = 0
+
+    # Loop over all rows for this column to infer types
+    for key, value in series.iteritems():
+        sample_count += 1
+        # Stop sampling at the row limit
+        if sample_count > rows_to_sample:
+            continue
+
+        # Infer the specific type for this row
+        current_dtype = python_type_to_feast_value_type(name=column, value=value)
+
+        # Make sure the type is consistent for column
+        if dtype:
+            if dtype != current_dtype:
+                raise ValueError(
+                    f"Type mismatch detected in column {column}. Both "
+                    f"the types {current_dtype} and {dtype} "
+                    f"have been found."
+                )
+        else:
+            # Store dtype in field to type map if it isnt already
+            dtype = current_dtype
+
+    return dtype
