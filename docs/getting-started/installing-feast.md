@@ -2,10 +2,35 @@
 
 ## Overview
 
-This installation guide will demonstrate two ways of installing Feast:
+This installation guide will demonstrate three ways of installing Feast:
 
+* [**Docker Compose \(Quickstart\)**](install-feast.md#docker-compose)**:** Allow quick testing on Feast via a sample Jupyter notebook pre-installed with Feast Python SDK.
 * [**Minikube \(Minimal\)**](installing-feast.md#minikube)**:** This installation has no external dependencies, but does not have a historical feature store installed. It allows users to quickly get a feel for Feast.
 * [**Google Kubernetes Engine \(Recommended\):**](installing-feast.md#google-kubernetes-engine) This guide installs a single cluster Feast installation on Google's GKE. It has Google Cloud specific dependencies like BigQuery, Dataflow, and Google Cloud Storage.
+
+
+## Docker Compose
+
+### Overview
+
+A docker compose file is provided to quickly test Feast with official docker images. GCP dependency is optional.
+
+* Define and register feature set
+* Feature ingestion
+* Retrieve features for online serving
+* Updating the feature set
+
+### 0. Requirements
+
+1. [Docker compose](https://docs.docker.com/compose/install/) should be installed.
+2. Port 6565, 6566 and 8888 are not in used. Otherwise, modify the port mappings in  `infra/docker-compose/docker-compose.yml` to use unoccupied ports.
+
+### 1. Step-by-step guide
+1. Navigate to `infra/docker-compose`.
+2. Copy `.env.sample` to `.env`.
+3. `docker-compose up -d`
+4. A jupyter notebook server should be accessible via `localhost:8888`
+5. Please wait a minute or two for the Feast services to be ready before running the notebook. You will know that the services are ready when port `6565` and `6566` starts listening.
 
 ## Minikube
 

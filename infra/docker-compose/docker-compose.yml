@@ -53,8 +53,6 @@ services:
 
   redis:
     image: redis:5-alpine
-    ports:
-      - 6379:6379
 
   kafka:
     image: confluentinc/cp-kafka:5.2.1

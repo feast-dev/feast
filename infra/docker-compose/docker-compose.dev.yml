@@ -13,5 +13,5 @@ services:
 
   jupyter:
     build:
-      dockerfile: ../../infra/docker/jupyter/Dockerfile
+      dockerfile: ../../infra/docker/jupyter/Dockerfile.dev
       context: ../../sdk/python
