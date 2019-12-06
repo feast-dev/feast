@@ -20,17 +20,31 @@ A docker compose file is provided to quickly test Feast with official docker ima
 * Retrieve features for online serving
 * Updating the feature set
 
+The docker compose setup uses Direct Runner for the Apache Beam jobs.
+
 ### 0. Requirements
 
 1. [Docker compose](https://docs.docker.com/compose/install/) should be installed.
-2. Port 6565, 6566 and 8888 are not in used. Otherwise, modify the port mappings in  `infra/docker-compose/docker-compose.yml` to use unoccupied ports.
+2. Port 6565, 6566 and 8888, 9094 are not in used. Otherwise, modify the port mappings in  `infra/docker-compose/docker-compose.yml` to use unoccupied ports.
+3. For batch serving, you will also need a service account key that has access to GCS and BigQuery. Port 6567 will be used for the batch serving endpoint.
 
-### 1. Step-by-step guide
+### 1. Step-by-step guide (Online serving)
 1. Navigate to `infra/docker-compose`.
 2. Copy `.env.sample` to `.env`.
 3. `docker-compose up -d`
 4. A jupyter notebook server should be accessible via `localhost:8888`
 5. Please wait a minute or two for the Feast services to be ready before running the notebook. You will know that the services are ready when port `6565` and `6566` starts listening.
+
+### 2. Step-by-step guide (Batch serving)
+1. Navigate to `infra/docker-compose`.
+2. Copy `.env.sample` to `.env`.
+3. Copy your GCP account service key(s) to `infra/docker-compose/gcp-service-accounts`.
+4. Modify the value of `FEAST_<SERVICE_NAME>_GCP_SERVICE_ACCOUNT_KEY` in your `.env` file. It should be the json file name without extension.
+5. Modify the value of `infra/docker-compose/serving/bq-store.yml`. Alternatively, you can also point to a different store configuration file by modifying `FEAST_BATCH_STORE_CONFIG` in your `.env` file.
+5. `docker-compose -f docker-compose.yml -f docker-compose.batch.yml up -d`
+6. A jupyter notebook server should be accessible via `localhost:8888`
+7. Please wait a minute or two for the Feast services to be ready before running the notebook. You will know that the services are ready when port `6565` and `6567` starts listening.
+8. When you are done, run `docker-compose -f docker-compose.yml -f docker-compose.batch.yml down` to shutdown the services.
 
 ## Minikube
 
