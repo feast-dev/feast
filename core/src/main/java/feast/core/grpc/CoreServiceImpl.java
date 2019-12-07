@@ -41,6 +41,7 @@ import feast.core.exception.RetrievalException;
 import feast.core.grpc.interceptors.MonitoringInterceptor;
 import feast.core.service.JobCoordinatorService;
 import feast.core.service.SpecService;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.util.HashSet;
 import java.util.Set;
@@ -79,7 +80,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       GetFeatureSetResponse response = specService.getFeatureSet(request);
       responseObserver.onNext(response);
       responseObserver.onCompleted();
-    } catch (RetrievalException | InvalidProtocolBufferException e) {
+    } catch (RetrievalException | InvalidProtocolBufferException | StatusRuntimeException e) {
       log.error("Exception has occurred in GetFeatureSet method: ", e);
       responseObserver.onError(e);
     }

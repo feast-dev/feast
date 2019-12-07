@@ -100,9 +100,9 @@ public class SpecServiceTest {
     when(featureSetRepository.findByName("f1")).thenReturn(featureSets.subList(0, 3));
     when(featureSetRepository.findFirstFeatureSetByNameOrderByVersionDesc("f1"))
         .thenReturn(featureSet1v3);
-    when(featureSetRepository.findByNameWithWildcard("f1")).thenReturn(featureSets.subList(0, 3));
+    when(featureSetRepository.findByNameWithWildcardOrderByNameAscVersionAsc("f1")).thenReturn(featureSets.subList(0, 3));
     when(featureSetRepository.findByName("asd")).thenReturn(Lists.newArrayList());
-    when(featureSetRepository.findByNameWithWildcard("f%")).thenReturn(featureSets);
+    when(featureSetRepository.findByNameWithWildcardOrderByNameAscVersionAsc("f%")).thenReturn(featureSets);
 
     Store store1 = newDummyStore("SERVING");
     Store store2 = newDummyStore("WAREHOUSE");

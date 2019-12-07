@@ -106,17 +106,26 @@ public class SpecService {
     if (request.getVersion() == 0) {
       featureSet =
           featureSetRepository.findFirstFeatureSetByNameOrderByVersionDesc(request.getName());
+
+      if (featureSet == null) {
+        throw io.grpc.Status.NOT_FOUND
+            .withDescription(String.format("Feature set with name \"%s\" could not be found.",
+                request.getName()))
+            .asRuntimeException();
+      }
     } else {
       featureSet =
           featureSetRepository.findFeatureSetByNameAndVersion(
               request.getName(), request.getVersion());
+
+      if (featureSet == null) {
+        throw io.grpc.Status.NOT_FOUND
+            .withDescription(String.format("Feature set with name \"%s\" and version \"%s\" could "
+                + "not be found.", request.getName(), request.getVersion()))
+            .asRuntimeException();
+      }
     }
 
-    if (featureSet == null) {
-      throw io.grpc.Status.NOT_FOUND
-          .withDescription("Feature set could not be found")
-          .asRuntimeException();
-    }
 
     // Only a single item in list, return successfully
     return GetFeatureSetResponse.newBuilder().setFeatureSet(featureSet.toProto()).build();
@@ -142,9 +151,9 @@ public class SpecService {
     checkValidFeatureSetFilterName(name, "featureSetName");
     List<FeatureSet> featureSets;
     if (name.equals("")) {
-      featureSets = featureSetRepository.findAll();
+      featureSets = featureSetRepository.findAllByOrderByNameAscVersionAsc();
     } else {
-      featureSets = featureSetRepository.findByNameWithWildcard(name.replace('*', '%'));
+      featureSets = featureSetRepository.findByNameWithWildcardOrderByNameAscVersionAsc(name.replace('*', '%'));
       featureSets =
           featureSets.stream()
               .filter(getVersionFilter(filter.getFeatureSetVersion()))

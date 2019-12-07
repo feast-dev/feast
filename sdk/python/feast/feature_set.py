@@ -74,6 +74,12 @@ class FeatureSet:
     def __str__(self):
         return str(MessageToJson(self.to_proto()))
 
+    def __repr__(self):
+        shortname = "" + self._name
+        if self._version:
+            shortname += ":" + str(self._version).strip()
+        return shortname
+
     @property
     def fields(self) -> Dict[str, Field]:
         """

@@ -36,6 +36,11 @@ public interface FeatureSetRepository extends JpaRepository<FeatureSet, String> 
   List<FeatureSet> findByName(String name);
 
   // find all versions of featureSets with names matching the regex
-  @Query(nativeQuery = true, value = "SELECT * FROM feature_sets WHERE name LIKE ?1")
-  List<FeatureSet> findByNameWithWildcard(String name);
+  @Query(nativeQuery = true, value = "SELECT * FROM feature_sets "
+      + "WHERE name LIKE ?1 ORDER BY name ASC, version ASC")
+  List<FeatureSet> findByNameWithWildcardOrderByNameAscVersionAsc(String name);
+
+  // find all feature sets and order by name and version
+  List<FeatureSet> findAllByOrderByNameAscVersionAsc();
+
 }
