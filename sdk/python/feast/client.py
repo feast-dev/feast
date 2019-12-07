@@ -383,20 +383,12 @@ class Client:
             # Validate entity rows based on entities in Feast Core
             self._validate_entity_rows_for_batch_retrieval(entity_rows, fs_request)
 
-            # We want the timestamp column naming to be consistent with the
-            # rest of Feast
-            entity_rows.columns = [
-                "event_timestamp" if col == "datetime" else col
-                for col in entity_rows.columns
-            ]
-
             # Remove timezone from datetime column
             if isinstance(
-                entity_rows["event_timestamp"].dtype,
-                pd.core.dtypes.dtypes.DatetimeTZDtype,
+                entity_rows["datetime"].dtype, pd.core.dtypes.dtypes.DatetimeTZDtype
             ):
-                entity_rows["event_timestamp"] = pd.DatetimeIndex(
-                    entity_rows["event_timestamp"]
+                entity_rows["datetime"] = pd.DatetimeIndex(
+                    entity_rows["datetime"]
                 ).tz_localize(None)
 
             # Retrieve serving information to determine store type and
