@@ -132,22 +132,23 @@ class Client:
         """
         Returns version information from Feast Core and Feast Serving
         """
+        result = {}
 
-        self._connect_core()
-        self._connect_serving()
+        if self.serving_url:
+            self._connect_serving()
+            serving_version = self._serving_service_stub.GetFeastServingInfo(
+                GetFeastServingInfoRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+            ).version
+            result["serving"]: {"url": self.serving_url, "version": serving_version}
 
-        core_version = self._core_service_stub.GetFeastCoreVersion(
-            GetFeastCoreVersionRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
-        ).version
+        if self.core_url:
+            self._connect_core()
+            core_version = self._core_service_stub.GetFeastCoreVersion(
+                GetFeastCoreVersionRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+            ).version
+            result["core"]: {"url": self.core_url, "version": core_version}
 
-        serving_version = self._serving_service_stub.GetFeastServingInfo(
-            GetFeastServingInfoRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
-        ).version
-
-        return {
-            "core": {"url": self.core_url, "version": core_version},
-            "serving": {"url": self.serving_url, "version": serving_version},
-        }
+        return result
 
     def _connect_core(self, skip_if_connected: bool = True):
         """
@@ -267,15 +268,10 @@ class Client:
         """
         self._connect_core()
 
-        try:
-            # Get latest feature sets from Feast Core
-            feature_set_protos = self._core_service_stub.ListFeatureSets(
-                ListFeatureSetsRequest()
-            )  # type: ListFeatureSetsResponse
-        except grpc.RpcError as e:
-            raise Exception(
-                format_grpc_exception("ListFeatureSets", e.code(), e.details())
-            )
+        # Get latest feature sets from Feast Core
+        feature_set_protos = self._core_service_stub.ListFeatureSets(
+            ListFeatureSetsRequest()
+        )  # type: ListFeatureSetsResponse
 
         # Extract feature sets and return
         feature_sets = []
@@ -305,7 +301,7 @@ class Client:
         if version is None:
             version = 0
         get_feature_set_response = self._core_service_stub.GetFeatureSet(
-            GetFeatureSetRequest(name=name.strip(), version=version)
+            GetFeatureSetRequest(name=name.strip(), version=int(version))
         )  # type: GetFeatureSetResponse
         return FeatureSet.from_proto(get_feature_set_response.feature_set)
 
@@ -359,53 +355,49 @@ class Client:
 
         self._connect_serving()
 
-        try:
-            fs_request = _build_feature_set_request(feature_ids)
+        fs_request = _build_feature_set_request(feature_ids)
 
-            # Validate entity rows based on entities in Feast Core
-            self._validate_entity_rows_for_batch_retrieval(entity_rows, fs_request)
+        # Validate entity rows based on entities in Feast Core
+        self._validate_entity_rows_for_batch_retrieval(entity_rows, fs_request)
 
-            # Remove timezone from datetime column
-            if isinstance(
-                entity_rows["datetime"].dtype, pd.core.dtypes.dtypes.DatetimeTZDtype
-            ):
-                entity_rows["datetime"] = pd.DatetimeIndex(
-                    entity_rows["datetime"]
-                ).tz_localize(None)
+        # Remove timezone from datetime column
+        if isinstance(
+            entity_rows["datetime"].dtype, pd.core.dtypes.dtypes.DatetimeTZDtype
+        ):
+            entity_rows["datetime"] = pd.DatetimeIndex(
+                entity_rows["datetime"]
+            ).tz_localize(None)
 
-            # Retrieve serving information to determine store type and
-            # staging location
-            serving_info = self._serving_service_stub.GetFeastServingInfo(
-                GetFeastServingInfoRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
-            )  # type: GetFeastServingInfoResponse
+        # Retrieve serving information to determine store type and
+        # staging location
+        serving_info = self._serving_service_stub.GetFeastServingInfo(
+            GetFeastServingInfoRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+        )  # type: GetFeastServingInfoResponse
 
-            if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
-                raise Exception(
-                    f'You are connected to a store "{self._serving_url}" which '
-                    f"does not support batch retrieval "
-                )
-
-            # Export and upload entity row dataframe to staging location
-            # provided by Feast
-            staged_file = export_dataframe_to_staging_location(
-                entity_rows, serving_info.job_staging_location
-            )  # type: str
-
-            request = GetBatchFeaturesRequest(
-                feature_sets=fs_request,
-                dataset_source=DatasetSource(
-                    file_source=DatasetSource.FileSource(
-                        file_uris=[staged_file], data_format=DataFormat.DATA_FORMAT_AVRO
-                    )
-                ),
+        if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
+            raise Exception(
+                f'You are connected to a store "{self._serving_url}" which '
+                f"does not support batch retrieval "
             )
 
-            # Retrieve Feast Job object to manage life cycle of retrieval
-            response = self._serving_service_stub.GetBatchFeatures(request)
-            return Job(response.job, self._serving_service_stub)
+        # Export and upload entity row dataframe to staging location
+        # provided by Feast
+        staged_file = export_dataframe_to_staging_location(
+            entity_rows, serving_info.job_staging_location
+        )  # type: str
 
-        except grpc.RpcError as e:
-            print(format_grpc_exception("GetBatchFeatures", e.code(), e.details()))
+        request = GetBatchFeaturesRequest(
+            feature_sets=fs_request,
+            dataset_source=DatasetSource(
+                file_source=DatasetSource.FileSource(
+                    file_uris=[staged_file], data_format=DataFormat.DATA_FORMAT_AVRO
+                )
+            ),
+        )
+
+        # Retrieve Feast Job object to manage life cycle of retrieval
+        response = self._serving_service_stub.GetBatchFeatures(request)
+        return Job(response.job, self._serving_service_stub)
 
     def _validate_entity_rows_for_batch_retrieval(
         self, entity_rows, feature_sets_request
@@ -470,17 +462,12 @@ class Client:
 
         self._connect_serving()
 
-        try:
-            response = self._serving_service_stub.GetOnlineFeatures(
-                GetOnlineFeaturesRequest(
-                    feature_sets=_build_feature_set_request(feature_ids),
-                    entity_rows=entity_rows,
-                )
-            )  # type: GetOnlineFeaturesResponse
-        except grpc.RpcError as e:
-            print(format_grpc_exception("GetOnlineFeatures", e.code(), e.details()))
-        else:
-            return response
+        return self._serving_service_stub.GetOnlineFeatures(
+            GetOnlineFeaturesRequest(
+                feature_sets=_build_feature_set_request(feature_ids),
+                entity_rows=entity_rows,
+            )
+        )  # type: GetOnlineFeaturesResponse
 
     def ingest(
         self,

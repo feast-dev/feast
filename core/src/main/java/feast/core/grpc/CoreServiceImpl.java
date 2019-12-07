@@ -121,7 +121,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void applyFeatureSet(
       ApplyFeatureSetRequest request, StreamObserver<ApplyFeatureSetResponse> responseObserver) {
     try {
-       ApplyFeatureSetResponse response = specService.applyFeatureSet(request.getFeatureSet());
+      ApplyFeatureSetResponse response = specService.applyFeatureSet(request.getFeatureSet());
       ListStoresResponse stores = specService.listStores(Filter.newBuilder().build());
       for (Store store : stores.getStoreList()) {
         Set<FeatureSetSpec> featureSetSpecs = new HashSet<>();
