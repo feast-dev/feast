@@ -234,35 +234,29 @@ class Client:
         self._connect_core()
         feature_set._client = self
 
-        valid, message = feature_set.is_valid()
-        if not valid:
-            raise Exception(message)
-        try:
-            # Convert the feature set to a request and send to Feast Core
-            apply_fs_response = self._core_service_stub.ApplyFeatureSet(
-                ApplyFeatureSetRequest(feature_set=feature_set.to_proto()),
-                timeout=GRPC_CONNECTION_TIMEOUT_APPLY,
-            )  # type: ApplyFeatureSetResponse
+        feature_set.is_valid()
 
-            # Extract the returned feature set
-            applied_fs = FeatureSet.from_proto(apply_fs_response.feature_set)
+        # Convert the feature set to a request and send to Feast Core
+        apply_fs_response = self._core_service_stub.ApplyFeatureSet(
+            ApplyFeatureSetRequest(feature_set=feature_set.to_proto()),
+            timeout=GRPC_CONNECTION_TIMEOUT_APPLY,
+        )  # type: ApplyFeatureSetResponse
 
-            # If the feature set has changed, update the local copy
-            if apply_fs_response.status == ApplyFeatureSetResponse.Status.CREATED:
-                print(
-                    f'Feature set updated/created: "{applied_fs.name}:{applied_fs.version}".'
-                )
-                # Deep copy from the returned feature set to the local feature set
-                feature_set._update_from_feature_set(applied_fs, is_dirty=False)
-                return
+        # Extract the returned feature set
+        applied_fs = FeatureSet.from_proto(apply_fs_response.feature_set)
 
-            # If no change has been applied, do nothing
-            if apply_fs_response.status == ApplyFeatureSetResponse.Status.NO_CHANGE:
-                print(f"No change detected in feature set {feature_set.name}")
-                return
+        # If the feature set has changed, update the local copy
+        if apply_fs_response.status == ApplyFeatureSetResponse.Status.CREATED:
+            print(
+                f'Feature set updated/created: "{applied_fs.name}:{applied_fs.version}".'
+            )
 
-        except grpc.RpcError as e:
-            print(format_grpc_exception("ApplyFeatureSet", e.code(), e.details()))
+        # If no change has been applied, do nothing
+        if apply_fs_response.status == ApplyFeatureSetResponse.Status.NO_CHANGE:
+            print(f"No change detected in feature set {feature_set.name}.")
+
+        # Deep copy from the returned feature set to the local feature set
+        feature_set.update_from_feature_set(applied_fs)
 
     def list_feature_sets(self) -> List[FeatureSet]:
         """

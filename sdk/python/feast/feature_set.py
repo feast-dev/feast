@@ -56,8 +56,6 @@ class FeatureSet:
         self._max_age = max_age
         self._version = None
         self._client = None
-        self._busy_ingesting = False
-        self._is_dirty = True
 
     def __eq__(self, other):
         if not isinstance(other, FeatureSet):
@@ -375,22 +373,21 @@ class FeatureSet:
         self._fields = new_fields
         print(output_log)
 
-    def _update_from_feature_set(self, feature_set, is_dirty: bool = True):
+    def update_from_feature_set(self, feature_set):
         """
-        Deep updates one feature set with another
+        Deep replaces one feature set with another
+
         Args:
             feature_set: Feature set to use as a source of configuration
-            is_dirty: If true, will set this feature set to "dirty" after
-                this update. This is used to track whether the feature
-                set needs to be reapplied.
         """
+
         self.name = feature_set.name
         self.version = feature_set.version
         self.source = feature_set.source
         self.max_age = feature_set.max_age
         self.features = feature_set.features
         self.entities = feature_set.entities
-        self._is_dirty = is_dirty
+        self.source = feature_set.source
 
     def get_kafka_source_brokers(self) -> str:
         """
@@ -410,13 +407,12 @@ class FeatureSet:
 
     def is_valid(self):
         """
-        Validates the state of a feature set locally
-        :return: (bool, str) True if valid, false if invalid. Contains a message
-        string with a reason
+        Validates the state of a feature set locally. Raises an exception
+        if feature set is invalid.
         """
+
         if len(self.entities) == 0:
-            return False, f"No entities found in feature set {self.name}"
-        return True, ""
+            raise ValueError(f"No entities found in feature set {self.name}")
 
     @classmethod
     def from_yaml(cls, yml: str):
@@ -479,7 +475,6 @@ class FeatureSet:
             ),
         )
         feature_set._version = feature_set_proto.version
-        feature_set._is_dirty = False
         return feature_set
 
     def to_proto(self) -> FeatureSetSpecProto:
