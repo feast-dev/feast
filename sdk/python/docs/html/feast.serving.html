@@ -1,0 +1,629 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>feast.serving package &mdash; Feast 0.3.2 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Feast
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.3.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">feast.serving package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-feast.serving.ServingService_pb2">feast.serving.ServingService_pb2 module</a></li>
+<li><a class="reference internal" href="#module-feast.serving.ServingService_pb2_grpc">feast.serving.ServingService_pb2_grpc module</a></li>
+<li><a class="reference internal" href="#module-feast.serving">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Feast</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>feast.serving package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/feast.serving.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="feast-serving-package">
+<h1>feast.serving package<a class="headerlink" href="#feast-serving-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-feast.serving.ServingService_pb2">
+<span id="feast-serving-servingservice-pb2-module"></span><h2>feast.serving.ServingService_pb2 module<a class="headerlink" href="#module-feast.serving.ServingService_pb2" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="feast.serving.ServingService_pb2.DatasetSource">
+<em class="property">class </em><code class="sig-prename descclassname">feast.serving.ServingService_pb2.</code><code class="sig-name descname">DatasetSource</code><a class="headerlink" href="#feast.serving.ServingService_pb2.DatasetSource" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.pyext._message.CMessage</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.message.Message</span></code></p>
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.DatasetSource.DESCRIPTOR">
+<code class="sig-name descname">DESCRIPTOR</code><em class="property"> = &lt;google.protobuf.pyext._message.MessageDescriptor object&gt;</em><a class="headerlink" href="#feast.serving.ServingService_pb2.DatasetSource.DESCRIPTOR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="feast.serving.ServingService_pb2.DatasetSource.FileSource">
+<em class="property">class </em><code class="sig-name descname">FileSource</code><a class="headerlink" href="#feast.serving.ServingService_pb2.DatasetSource.FileSource" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.pyext._message.CMessage</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.message.Message</span></code></p>
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.DatasetSource.FileSource.DESCRIPTOR">
+<code class="sig-name descname">DESCRIPTOR</code><em class="property"> = &lt;google.protobuf.pyext._message.MessageDescriptor object&gt;</em><a class="headerlink" href="#feast.serving.ServingService_pb2.DatasetSource.FileSource.DESCRIPTOR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.DatasetSource.FileSource.data_format">
+<code class="sig-name descname">data_format</code><a class="headerlink" href="#feast.serving.ServingService_pb2.DatasetSource.FileSource.data_format" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.DatasetSource.FileSource.data_format</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.DatasetSource.FileSource.file_uris">
+<code class="sig-name descname">file_uris</code><a class="headerlink" href="#feast.serving.ServingService_pb2.DatasetSource.FileSource.file_uris" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.DatasetSource.FileSource.file_uris</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.DatasetSource.file_source">
+<code class="sig-name descname">file_source</code><a class="headerlink" href="#feast.serving.ServingService_pb2.DatasetSource.file_source" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.DatasetSource.file_source</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="feast.serving.ServingService_pb2.FeatureSetRequest">
+<em class="property">class </em><code class="sig-prename descclassname">feast.serving.ServingService_pb2.</code><code class="sig-name descname">FeatureSetRequest</code><a class="headerlink" href="#feast.serving.ServingService_pb2.FeatureSetRequest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.pyext._message.CMessage</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.message.Message</span></code></p>
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.FeatureSetRequest.DESCRIPTOR">
+<code class="sig-name descname">DESCRIPTOR</code><em class="property"> = &lt;google.protobuf.pyext._message.MessageDescriptor object&gt;</em><a class="headerlink" href="#feast.serving.ServingService_pb2.FeatureSetRequest.DESCRIPTOR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.FeatureSetRequest.feature_names">
+<code class="sig-name descname">feature_names</code><a class="headerlink" href="#feast.serving.ServingService_pb2.FeatureSetRequest.feature_names" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.FeatureSetRequest.feature_names</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.FeatureSetRequest.max_age">
+<code class="sig-name descname">max_age</code><a class="headerlink" href="#feast.serving.ServingService_pb2.FeatureSetRequest.max_age" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.FeatureSetRequest.max_age</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.FeatureSetRequest.name">
+<code class="sig-name descname">name</code><a class="headerlink" href="#feast.serving.ServingService_pb2.FeatureSetRequest.name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.FeatureSetRequest.name</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.FeatureSetRequest.version">
+<code class="sig-name descname">version</code><a class="headerlink" href="#feast.serving.ServingService_pb2.FeatureSetRequest.version" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.FeatureSetRequest.version</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="feast.serving.ServingService_pb2.GetBatchFeaturesRequest">
+<em class="property">class </em><code class="sig-prename descclassname">feast.serving.ServingService_pb2.</code><code class="sig-name descname">GetBatchFeaturesRequest</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetBatchFeaturesRequest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.pyext._message.CMessage</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.message.Message</span></code></p>
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetBatchFeaturesRequest.DESCRIPTOR">
+<code class="sig-name descname">DESCRIPTOR</code><em class="property"> = &lt;google.protobuf.pyext._message.MessageDescriptor object&gt;</em><a class="headerlink" href="#feast.serving.ServingService_pb2.GetBatchFeaturesRequest.DESCRIPTOR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetBatchFeaturesRequest.dataset_source">
+<code class="sig-name descname">dataset_source</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetBatchFeaturesRequest.dataset_source" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetBatchFeaturesRequest.dataset_source</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetBatchFeaturesRequest.feature_sets">
+<code class="sig-name descname">feature_sets</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetBatchFeaturesRequest.feature_sets" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetBatchFeaturesRequest.feature_sets</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="feast.serving.ServingService_pb2.GetBatchFeaturesResponse">
+<em class="property">class </em><code class="sig-prename descclassname">feast.serving.ServingService_pb2.</code><code class="sig-name descname">GetBatchFeaturesResponse</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetBatchFeaturesResponse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.pyext._message.CMessage</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.message.Message</span></code></p>
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetBatchFeaturesResponse.DESCRIPTOR">
+<code class="sig-name descname">DESCRIPTOR</code><em class="property"> = &lt;google.protobuf.pyext._message.MessageDescriptor object&gt;</em><a class="headerlink" href="#feast.serving.ServingService_pb2.GetBatchFeaturesResponse.DESCRIPTOR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetBatchFeaturesResponse.job">
+<code class="sig-name descname">job</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetBatchFeaturesResponse.job" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetBatchFeaturesResponse.job</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="feast.serving.ServingService_pb2.GetFeastServingInfoRequest">
+<em class="property">class </em><code class="sig-prename descclassname">feast.serving.ServingService_pb2.</code><code class="sig-name descname">GetFeastServingInfoRequest</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetFeastServingInfoRequest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.pyext._message.CMessage</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.message.Message</span></code></p>
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetFeastServingInfoRequest.DESCRIPTOR">
+<code class="sig-name descname">DESCRIPTOR</code><em class="property"> = &lt;google.protobuf.pyext._message.MessageDescriptor object&gt;</em><a class="headerlink" href="#feast.serving.ServingService_pb2.GetFeastServingInfoRequest.DESCRIPTOR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="feast.serving.ServingService_pb2.GetFeastServingInfoResponse">
+<em class="property">class </em><code class="sig-prename descclassname">feast.serving.ServingService_pb2.</code><code class="sig-name descname">GetFeastServingInfoResponse</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetFeastServingInfoResponse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.pyext._message.CMessage</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.message.Message</span></code></p>
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetFeastServingInfoResponse.DESCRIPTOR">
+<code class="sig-name descname">DESCRIPTOR</code><em class="property"> = &lt;google.protobuf.pyext._message.MessageDescriptor object&gt;</em><a class="headerlink" href="#feast.serving.ServingService_pb2.GetFeastServingInfoResponse.DESCRIPTOR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetFeastServingInfoResponse.job_staging_location">
+<code class="sig-name descname">job_staging_location</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetFeastServingInfoResponse.job_staging_location" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetFeastServingInfoResponse.job_staging_location</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetFeastServingInfoResponse.type">
+<code class="sig-name descname">type</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetFeastServingInfoResponse.type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetFeastServingInfoResponse.type</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetFeastServingInfoResponse.version">
+<code class="sig-name descname">version</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetFeastServingInfoResponse.version" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetFeastServingInfoResponse.version</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="feast.serving.ServingService_pb2.GetJobRequest">
+<em class="property">class </em><code class="sig-prename descclassname">feast.serving.ServingService_pb2.</code><code class="sig-name descname">GetJobRequest</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetJobRequest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.pyext._message.CMessage</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.message.Message</span></code></p>
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetJobRequest.DESCRIPTOR">
+<code class="sig-name descname">DESCRIPTOR</code><em class="property"> = &lt;google.protobuf.pyext._message.MessageDescriptor object&gt;</em><a class="headerlink" href="#feast.serving.ServingService_pb2.GetJobRequest.DESCRIPTOR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetJobRequest.job">
+<code class="sig-name descname">job</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetJobRequest.job" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetJobRequest.job</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="feast.serving.ServingService_pb2.GetJobResponse">
+<em class="property">class </em><code class="sig-prename descclassname">feast.serving.ServingService_pb2.</code><code class="sig-name descname">GetJobResponse</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetJobResponse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.pyext._message.CMessage</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.message.Message</span></code></p>
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetJobResponse.DESCRIPTOR">
+<code class="sig-name descname">DESCRIPTOR</code><em class="property"> = &lt;google.protobuf.pyext._message.MessageDescriptor object&gt;</em><a class="headerlink" href="#feast.serving.ServingService_pb2.GetJobResponse.DESCRIPTOR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetJobResponse.job">
+<code class="sig-name descname">job</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetJobResponse.job" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetJobResponse.job</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesRequest">
+<em class="property">class </em><code class="sig-prename descclassname">feast.serving.ServingService_pb2.</code><code class="sig-name descname">GetOnlineFeaturesRequest</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesRequest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.pyext._message.CMessage</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.message.Message</span></code></p>
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.DESCRIPTOR">
+<code class="sig-name descname">DESCRIPTOR</code><em class="property"> = &lt;google.protobuf.pyext._message.MessageDescriptor object&gt;</em><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.DESCRIPTOR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.EntityRow">
+<em class="property">class </em><code class="sig-name descname">EntityRow</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.EntityRow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.pyext._message.CMessage</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.message.Message</span></code></p>
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.EntityRow.DESCRIPTOR">
+<code class="sig-name descname">DESCRIPTOR</code><em class="property"> = &lt;google.protobuf.pyext._message.MessageDescriptor object&gt;</em><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.EntityRow.DESCRIPTOR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.EntityRow.FieldsEntry">
+<em class="property">class </em><code class="sig-name descname">FieldsEntry</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.EntityRow.FieldsEntry" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.pyext._message.CMessage</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.message.Message</span></code></p>
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.EntityRow.FieldsEntry.DESCRIPTOR">
+<code class="sig-name descname">DESCRIPTOR</code><em class="property"> = &lt;google.protobuf.pyext._message.MessageDescriptor object&gt;</em><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.EntityRow.FieldsEntry.DESCRIPTOR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.EntityRow.FieldsEntry.key">
+<code class="sig-name descname">key</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.EntityRow.FieldsEntry.key" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetOnlineFeaturesRequest.EntityRow.FieldsEntry.key</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.EntityRow.FieldsEntry.value">
+<code class="sig-name descname">value</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.EntityRow.FieldsEntry.value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetOnlineFeaturesRequest.EntityRow.FieldsEntry.value</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.EntityRow.entity_timestamp">
+<code class="sig-name descname">entity_timestamp</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.EntityRow.entity_timestamp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetOnlineFeaturesRequest.EntityRow.entity_timestamp</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.EntityRow.fields">
+<code class="sig-name descname">fields</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.EntityRow.fields" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetOnlineFeaturesRequest.EntityRow.fields</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.entity_rows">
+<code class="sig-name descname">entity_rows</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.entity_rows" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetOnlineFeaturesRequest.entity_rows</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.feature_sets">
+<code class="sig-name descname">feature_sets</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.feature_sets" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetOnlineFeaturesRequest.feature_sets</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.omit_entities_in_response">
+<code class="sig-name descname">omit_entities_in_response</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesRequest.omit_entities_in_response" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetOnlineFeaturesRequest.omit_entities_in_response</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesResponse">
+<em class="property">class </em><code class="sig-prename descclassname">feast.serving.ServingService_pb2.</code><code class="sig-name descname">GetOnlineFeaturesResponse</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesResponse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.pyext._message.CMessage</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.message.Message</span></code></p>
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesResponse.DESCRIPTOR">
+<code class="sig-name descname">DESCRIPTOR</code><em class="property"> = &lt;google.protobuf.pyext._message.MessageDescriptor object&gt;</em><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesResponse.DESCRIPTOR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesResponse.FieldValues">
+<em class="property">class </em><code class="sig-name descname">FieldValues</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesResponse.FieldValues" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.pyext._message.CMessage</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.message.Message</span></code></p>
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesResponse.FieldValues.DESCRIPTOR">
+<code class="sig-name descname">DESCRIPTOR</code><em class="property"> = &lt;google.protobuf.pyext._message.MessageDescriptor object&gt;</em><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesResponse.FieldValues.DESCRIPTOR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesResponse.FieldValues.FieldsEntry">
+<em class="property">class </em><code class="sig-name descname">FieldsEntry</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesResponse.FieldValues.FieldsEntry" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.pyext._message.CMessage</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.message.Message</span></code></p>
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesResponse.FieldValues.FieldsEntry.DESCRIPTOR">
+<code class="sig-name descname">DESCRIPTOR</code><em class="property"> = &lt;google.protobuf.pyext._message.MessageDescriptor object&gt;</em><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesResponse.FieldValues.FieldsEntry.DESCRIPTOR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesResponse.FieldValues.FieldsEntry.key">
+<code class="sig-name descname">key</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesResponse.FieldValues.FieldsEntry.key" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetOnlineFeaturesResponse.FieldValues.FieldsEntry.key</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesResponse.FieldValues.FieldsEntry.value">
+<code class="sig-name descname">value</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesResponse.FieldValues.FieldsEntry.value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetOnlineFeaturesResponse.FieldValues.FieldsEntry.value</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesResponse.FieldValues.fields">
+<code class="sig-name descname">fields</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesResponse.FieldValues.fields" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetOnlineFeaturesResponse.FieldValues.fields</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.GetOnlineFeaturesResponse.field_values">
+<code class="sig-name descname">field_values</code><a class="headerlink" href="#feast.serving.ServingService_pb2.GetOnlineFeaturesResponse.field_values" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.GetOnlineFeaturesResponse.field_values</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="feast.serving.ServingService_pb2.Job">
+<em class="property">class </em><code class="sig-prename descclassname">feast.serving.ServingService_pb2.</code><code class="sig-name descname">Job</code><a class="headerlink" href="#feast.serving.ServingService_pb2.Job" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.pyext._message.CMessage</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">google.protobuf.message.Message</span></code></p>
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.Job.DESCRIPTOR">
+<code class="sig-name descname">DESCRIPTOR</code><em class="property"> = &lt;google.protobuf.pyext._message.MessageDescriptor object&gt;</em><a class="headerlink" href="#feast.serving.ServingService_pb2.Job.DESCRIPTOR" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.Job.data_format">
+<code class="sig-name descname">data_format</code><a class="headerlink" href="#feast.serving.ServingService_pb2.Job.data_format" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.Job.data_format</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.Job.error">
+<code class="sig-name descname">error</code><a class="headerlink" href="#feast.serving.ServingService_pb2.Job.error" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.Job.error</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.Job.file_uris">
+<code class="sig-name descname">file_uris</code><a class="headerlink" href="#feast.serving.ServingService_pb2.Job.file_uris" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.Job.file_uris</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.Job.id">
+<code class="sig-name descname">id</code><a class="headerlink" href="#feast.serving.ServingService_pb2.Job.id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.Job.id</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.Job.status">
+<code class="sig-name descname">status</code><a class="headerlink" href="#feast.serving.ServingService_pb2.Job.status" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.Job.status</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="feast.serving.ServingService_pb2.Job.type">
+<code class="sig-name descname">type</code><a class="headerlink" href="#feast.serving.ServingService_pb2.Job.type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Field feast.serving.Job.type</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-feast.serving.ServingService_pb2_grpc">
+<span id="feast-serving-servingservice-pb2-grpc-module"></span><h2>feast.serving.ServingService_pb2_grpc module<a class="headerlink" href="#module-feast.serving.ServingService_pb2_grpc" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="feast.serving.ServingService_pb2_grpc.ServingServiceServicer">
+<em class="property">class </em><code class="sig-prename descclassname">feast.serving.ServingService_pb2_grpc.</code><code class="sig-name descname">ServingServiceServicer</code><a class="reference internal" href="_modules/feast/serving/ServingService_pb2_grpc.html#ServingServiceServicer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.serving.ServingService_pb2_grpc.ServingServiceServicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="method">
+<dt id="feast.serving.ServingService_pb2_grpc.ServingServiceServicer.GetBatchFeatures">
+<code class="sig-name descname">GetBatchFeatures</code><span class="sig-paren">(</span><em class="sig-param">request</em>, <em class="sig-param">context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/serving/ServingService_pb2_grpc.html#ServingServiceServicer.GetBatchFeatures"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.serving.ServingService_pb2_grpc.ServingServiceServicer.GetBatchFeatures" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get batch features asynchronously.</p>
+<p>The client should check the status of the returned job periodically by
+calling ReloadJob to determine if the job has completed successfully
+or with an error. If the job completes successfully i.e.
+status = JOB_STATUS_DONE with no error, then the client can check
+the file_uris for the location to download feature values data.
+The client is assumed to have access to these file URIs.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.serving.ServingService_pb2_grpc.ServingServiceServicer.GetFeastServingInfo">
+<code class="sig-name descname">GetFeastServingInfo</code><span class="sig-paren">(</span><em class="sig-param">request</em>, <em class="sig-param">context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/serving/ServingService_pb2_grpc.html#ServingServiceServicer.GetFeastServingInfo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.serving.ServingService_pb2_grpc.ServingServiceServicer.GetFeastServingInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get information about this Feast serving.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.serving.ServingService_pb2_grpc.ServingServiceServicer.GetJob">
+<code class="sig-name descname">GetJob</code><span class="sig-paren">(</span><em class="sig-param">request</em>, <em class="sig-param">context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/serving/ServingService_pb2_grpc.html#ServingServiceServicer.GetJob"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.serving.ServingService_pb2_grpc.ServingServiceServicer.GetJob" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the latest job status for batch feature retrieval.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.serving.ServingService_pb2_grpc.ServingServiceServicer.GetOnlineFeatures">
+<code class="sig-name descname">GetOnlineFeatures</code><span class="sig-paren">(</span><em class="sig-param">request</em>, <em class="sig-param">context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/serving/ServingService_pb2_grpc.html#ServingServiceServicer.GetOnlineFeatures"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.serving.ServingService_pb2_grpc.ServingServiceServicer.GetOnlineFeatures" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get online features synchronously.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="feast.serving.ServingService_pb2_grpc.ServingServiceStub">
+<em class="property">class </em><code class="sig-prename descclassname">feast.serving.ServingService_pb2_grpc.</code><code class="sig-name descname">ServingServiceStub</code><span class="sig-paren">(</span><em class="sig-param">channel</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/serving/ServingService_pb2_grpc.html#ServingServiceStub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.serving.ServingService_pb2_grpc.ServingServiceStub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="feast.serving.ServingService_pb2_grpc.add_ServingServiceServicer_to_server">
+<code class="sig-prename descclassname">feast.serving.ServingService_pb2_grpc.</code><code class="sig-name descname">add_ServingServiceServicer_to_server</code><span class="sig-paren">(</span><em class="sig-param">servicer</em>, <em class="sig-param">server</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/serving/ServingService_pb2_grpc.html#add_ServingServiceServicer_to_server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.serving.ServingService_pb2_grpc.add_ServingServiceServicer_to_server" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-feast.serving">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-feast.serving" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Feast Authors
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
