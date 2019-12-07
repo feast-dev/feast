@@ -84,6 +84,8 @@ class TestClient:
         client = Client(core_url=CORE_URL, serving_url=SERVING_URL)
         mocker.patch.object(client, "_connect_core")
         mocker.patch.object(client, "_connect_serving")
+        client._core_url = CORE_URL
+        client._serving_url = SERVING_URL
         return client
 
     @pytest.fixture

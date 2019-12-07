@@ -139,14 +139,14 @@ class Client:
             serving_version = self._serving_service_stub.GetFeastServingInfo(
                 GetFeastServingInfoRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             ).version
-            result["serving"]: {"url": self.serving_url, "version": serving_version}
+            result["serving"] = {"url": self.serving_url, "version": serving_version}
 
         if self.core_url:
             self._connect_core()
             core_version = self._core_service_stub.GetFeastCoreVersion(
                 GetFeastCoreVersionRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             ).version
-            result["core"]: {"url": self.core_url, "version": core_version}
+            result["core"] = {"url": self.core_url, "version": core_version}
 
         return result
 
