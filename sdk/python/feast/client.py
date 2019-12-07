@@ -292,7 +292,7 @@ class Client:
         return feature_sets
 
     def get_feature_set(
-        self, name: str, version: int = None, fail_if_missing: bool = False
+        self, name: str, version: int = None
     ) -> Union[FeatureSet, None]:
         """
         Retrieves a feature set. If no version is specified then the latest
@@ -301,31 +301,19 @@ class Client:
         Args:
             name: Name of feature set
             version: Version of feature set
-            fail_if_missing: Raise an error if feature set is not found
 
         Returns:
-            Returns either the specified feature set, or None if not found
+            Returns either the specified feature set, or raises an exception if
+            none is found
         """
         self._connect_core()
-        try:
-            name = name.strip()
-            if version is None:
-                version = 0
-            get_feature_set_response = self._core_service_stub.GetFeatureSet(
-                GetFeatureSetRequest(name=name, version=version)
-            )  # type: GetFeatureSetResponse
-            feature_set = get_feature_set_response.feature_set
-        except grpc.RpcError as e:
-            print(format_grpc_exception("GetFeatureSet", e.code(), e.details()))
-        else:
-            if feature_set is not None:
-                return FeatureSet.from_proto(feature_set)
 
-            if fail_if_missing:
-                raise Exception(
-                    f'Could not find feature set with name "{name}" and '
-                    f'version "{version}"'
-                )
+        if version is None:
+            version = 0
+        get_feature_set_response = self._core_service_stub.GetFeatureSet(
+            GetFeatureSetRequest(name=name.strip(), version=version)
+        )  # type: GetFeatureSetResponse
+        return FeatureSet.from_proto(get_feature_set_response.feature_set)
 
     def list_entities(self) -> Dict[str, Entity]:
         """
@@ -551,7 +539,7 @@ class Client:
             )
             self.apply(feature_set)
 
-        feature_set = self.get_feature_set(name, version, fail_if_missing=True)
+        feature_set = self.get_feature_set(name, version)
 
         if feature_set.source.source_type == "Kafka":
             ingest_table_to_kafka(
