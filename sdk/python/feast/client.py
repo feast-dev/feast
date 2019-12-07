@@ -136,38 +136,17 @@ class Client:
         self._connect_core()
         self._connect_serving()
 
-        core_version = ""
-        serving_version = ""
-        core_status = "not connected"
-        serving_status = "not connected"
+        core_version = self._core_service_stub.GetFeastCoreVersion(
+            GetFeastCoreVersionRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+        ).version
 
-        try:
-            core_version = self._core_service_stub.GetFeastCoreVersion(
-                GetFeastCoreVersionRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
-            ).version
-            core_status = "connected"
-        except grpc.RpcError as e:
-            print(format_grpc_exception("GetFeastCoreVersion", e.code(), e.details()))
-
-        try:
-            serving_version = self._serving_service_stub.GetFeastServingInfo(
-                GetFeastServingInfoRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
-            ).version
-            serving_status = "connected"
-        except grpc.RpcError as e:
-            print(format_grpc_exception("GetFeastServingInfo", e.code(), e.details()))
+        serving_version = self._serving_service_stub.GetFeastServingInfo(
+            GetFeastServingInfoRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+        ).version
 
         return {
-            "core": {
-                "url": self.core_url,
-                "version": core_version,
-                "status": core_status,
-            },
-            "serving": {
-                "url": self.serving_url,
-                "version": serving_version,
-                "status": serving_status,
-            },
+            "core": {"url": self.core_url, "version": core_version},
+            "serving": {"url": self.serving_url, "version": serving_version},
         }
 
     def _connect_core(self, skip_if_connected: bool = True):
@@ -191,10 +170,10 @@ class Client:
                 timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             )
         except grpc.FutureTimeoutError:
-            print(
-                f"Connection timed out while attempting to connect to Feast Core gRPC server {self.core_url}"
+            raise ConnectionError(
+                f"Connection timed out while attempting to connect to Feast "
+                f"Core gRPC server {self.core_url} "
             )
-            sys.exit(1)
         else:
             self._core_service_stub = CoreServiceStub(self.__core_channel)
 
@@ -220,10 +199,10 @@ class Client:
                 timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             )
         except grpc.FutureTimeoutError:
-            print(
-                f"Connection timed out while attempting to connect to Feast Serving gRPC server {self.serving_url} "
+            raise ConnectionError(
+                f"Connection timed out while attempting to connect to Feast "
+                f"Serving gRPC server {self.serving_url} "
             )
-            sys.exit(1)
         else:
             self._serving_service_stub = ServingServiceStub(self.__serving_channel)
 
