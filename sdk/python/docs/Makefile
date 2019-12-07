@@ -16,18 +16,14 @@ help:
 .PHONY: help Makefile source
 
 clean:
-	rm -rf $(PROJECT_ROOT)/sdk/python/feast/docs/source
-	rm -rf $(PROJECT_ROOT)/sdk/python/feast/docs/build
+	rm -rf $(PROJECT_ROOT)/sdk/python/docs/html
+	rm -rf $(PROJECT_ROOT)/sdk/python/docs/build
 
 build-api-source:
 	sphinx-apidoc -f -o source $(PROJECT_ROOT)/sdk/python/feast
 
-build-html-docs: build-api-source
-	sphinx-build -b html source build
-
-html: build-html-docs
-	mkdir -p $(PROJECT_ROOT)/dist/python
-	mv $(PROJECT_ROOT)/sdk/python/docs/build/html/* $(PROJECT_ROOT)/dist/python/
+html: clean build-api-source
+	sphinx-build -b html source html
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
