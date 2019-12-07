@@ -23,7 +23,9 @@ import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
 import feast.types.ValueProto.ValueType;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -152,12 +154,56 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
    * @param other FeatureSet to compare to
    * @return boolean denoting if the source or schema have changed.
    */
-  public boolean equalTo(FeatureSet other) throws InvalidProtocolBufferException {
-    return name.equals(other.getName())
-        && entities.equals(other.entities)
-        && features.equals(other.features)
-        && source.equalTo(other.getSource())
-        && maxAgeSeconds == other.maxAgeSeconds;
+  public boolean equalTo(FeatureSet other) {
+    if(!name.equals(other.getName())){
+      return false;
+    }
+
+    if (!source.equalTo(other.getSource())){
+      return false;
+    }
+
+    if (maxAgeSeconds != other.maxAgeSeconds){
+      return false;
+    }
+
+    // Test amount of fields
+    if (entities.size() != other.entities.size() || features.size() != other.features.size())
+    {
+      return false;
+    }
+
+    // Create a map of all fields in this feature set
+    Map<String, Field> fields = new HashMap<>();
+
+    for (Field e : entities){
+      if(fields.containsKey(e.getName())){
+        throw new IllegalArgumentException(String.format("Duplicate field detected: %s", e.getName()));
+      }
+      fields.put(e.getName(), e);
+    }
+
+    for (Field f : features){
+      if(fields.containsKey(f.getName())){
+        throw new IllegalArgumentException(String.format("Duplicate field detected: %s", f.getName()));
+      }
+      fields.put(f.getName(), f);
+    }
+
+    // Ensure the other entities and fields exist in the field map
+    for (Field e : other.entities){
+      if(!fields.containsKey(e.getName())){
+        return false;
+      }
+    }
+
+    for (Field f : features){
+      if(!fields.containsKey(f.getName())){
+        return false;
+      }
+    }
+
+    return true;
   }
 
   @Override

@@ -248,12 +248,12 @@ class Client:
         # If the feature set has changed, update the local copy
         if apply_fs_response.status == ApplyFeatureSetResponse.Status.CREATED:
             print(
-                f'Feature set updated/created: "{applied_fs.name}:{applied_fs.version}".'
+                f'Feature set updated/created: "{applied_fs.name}:{applied_fs.version}"'
             )
 
         # If no change has been applied, do nothing
         if apply_fs_response.status == ApplyFeatureSetResponse.Status.NO_CHANGE:
-            print(f"No change detected in feature set {feature_set.name}.")
+            print(f"No change detected or applied: {feature_set.name}")
 
         # Deep copy from the returned feature set to the local feature set
         feature_set.update_from_feature_set(applied_fs)

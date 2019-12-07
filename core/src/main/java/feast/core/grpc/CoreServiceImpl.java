@@ -51,7 +51,9 @@ import org.lognet.springboot.grpc.GRpcService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Implementation of the feast core GRPC service. */
+/**
+ * Implementation of the feast core GRPC service.
+ */
 @Slf4j
 @GRpcService(interceptors = {MonitoringInterceptor.class})
 public class CoreServiceImpl extends CoreServiceImplBase {
@@ -119,7 +121,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void applyFeatureSet(
       ApplyFeatureSetRequest request, StreamObserver<ApplyFeatureSetResponse> responseObserver) {
     try {
-      ApplyFeatureSetResponse response = specService.applyFeatureSet(request.getFeatureSet());
+       ApplyFeatureSetResponse response = specService.applyFeatureSet(request.getFeatureSet());
       ListStoresResponse stores = specService.listStores(Filter.newBuilder().build());
       for (Store store : stores.getStoreList()) {
         Set<FeatureSetSpec> featureSetSpecs = new HashSet<>();

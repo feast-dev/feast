@@ -215,6 +215,7 @@ public class SpecService {
     FeatureSetValidator.validateSpec(newFeatureSetSpec);
     List<FeatureSet> existingFeatureSets =
         featureSetRepository.findByName(newFeatureSetSpec.getName());
+
     if (existingFeatureSets.size() == 0) {
       newFeatureSetSpec = newFeatureSetSpec.toBuilder().setVersion(1).build();
     } else {
