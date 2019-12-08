@@ -60,13 +60,13 @@ def client(core_url, serving_url, allow_dirty):
 def basic_dataframe():
     offset = random.randint(1000, 100000)  # ensure a unique key space is used
     return pd.DataFrame(
-    {
-        "datetime": [datetime.utcnow().replace(tzinfo=pytz.utc) for _ in
-                     range(5)],
-        "customer_id": [offset + inc for inc in range(5)],
-        "daily_transactions": [np.random.rand() for _ in range(5)],
-        "total_transactions": [512 for _ in range(5)],
-    }
+        {
+            "datetime": [datetime.utcnow().replace(tzinfo=pytz.utc) for _ in
+                         range(5)],
+            "customer_id": [offset + inc for inc in range(5)],
+            "daily_transactions": [np.random.rand() for _ in range(5)],
+            "total_transactions": [512 for _ in range(5)],
+        }
     )
 
 
@@ -259,7 +259,6 @@ def test_all_types_ingest_success(client, all_types_dataframe):
 @pytest.mark.timeout(15)
 @pytest.mark.run(order=22)
 def test_all_types_retrieve_online_success(client, all_types_dataframe):
-
     # Poll serving for feature values until the correct values are returned
     while True:
         time.sleep(1)
@@ -335,7 +334,8 @@ def test_large_volume_register_feature_set_success(client):
     # Feast Core needs some time to fully commit the FeatureSet applied
     # when there is no existing job yet for the Featureset
     time.sleep(10)
-    cust_trans_fs_actual = client.get_feature_set(name="customer_transactions_large")
+    cust_trans_fs_actual = client.get_feature_set(
+        name="customer_transactions_large")
 
     assert cust_trans_fs_actual == cust_trans_fs_expected
 
@@ -351,7 +351,6 @@ def test_large_volume_register_feature_set_success(client):
 @pytest.mark.timeout(300)
 @pytest.mark.run(order=31)
 def test_large_volume_ingest_success(client, large_volume_dataframe):
-
     # Get large volume feature set
     cust_trans_fs = client.get_feature_set(name="customer_transactions_large")
 
@@ -409,33 +408,41 @@ def all_types_parquet_file():
     df = pd.DataFrame(
         {
             "datetime": [datetime.utcnow() for _ in range(COUNT)],
-            "customer_id": [np.int32(random.randint(0, 10000)) for _ in range(COUNT)],
+            "customer_id": [np.int32(random.randint(0, 10000)) for _ in
+                            range(COUNT)],
             "int32_feature": [np.int32(random.randint(0, 10000)) for _ in
                               range(COUNT)],
             "int64_feature": [np.int64(random.randint(0, 10000)) for _ in
                               range(COUNT)],
             "float_feature": [np.float(random.random()) for _ in range(COUNT)],
-            "double_feature": [np.float64(random.random()) for _ in range(COUNT)],
-            "string_feature": ["one" + str(random.random()) for _ in range(COUNT)],
+            "double_feature": [np.float64(random.random()) for _ in
+                               range(COUNT)],
+            "string_feature": ["one" + str(random.random()) for _ in
+                               range(COUNT)],
             "bytes_feature": [b"one" for _ in range(COUNT)],
             "int32_list_feature": [
-                np.array([1, 2, 3, random.randint(0, 10000)], dtype=np.int32) for _
+                np.array([1, 2, 3, random.randint(0, 10000)], dtype=np.int32)
+                for _
                 in range(COUNT)
             ],
             "int64_list_feature": [
-                np.array([1, random.randint(0, 10000), 3, 4], dtype=np.int64) for _
+                np.array([1, random.randint(0, 10000), 3, 4], dtype=np.int64)
+                for _
                 in range(COUNT)
             ],
             "float_list_feature": [
-                np.array([1.1, 1.2, 1.3, random.random()], dtype=np.float32) for _
+                np.array([1.1, 1.2, 1.3, random.random()], dtype=np.float32) for
+                _
                 in range(COUNT)
             ],
             "double_list_feature": [
-                np.array([1.1, 1.2, 1.3, random.random()], dtype=np.float64) for _
+                np.array([1.1, 1.2, 1.3, random.random()], dtype=np.float64) for
+                _
                 in range(COUNT)
             ],
             "string_list_feature": [
-                np.array(["one", "two" + str(random.random()), "three"]) for _ in
+                np.array(["one", "two" + str(random.random()), "three"]) for _
+                in
                 range(COUNT)
             ],
             "bytes_list_feature": [
@@ -452,12 +459,12 @@ def all_types_parquet_file():
     return file_path
 
 
-
 @pytest.mark.timeout(300)
 @pytest.mark.run(order=40)
 def test_all_types_parquet_register_feature_set_success(client):
     # Load feature set from file
-    all_types_parquet_expected = FeatureSet.from_yaml("all_types_parquet/all_types_parquet.yaml")
+    all_types_parquet_expected = FeatureSet.from_yaml(
+        "all_types_parquet/all_types_parquet.yaml")
 
     # Register feature set
     client.apply(all_types_parquet_expected)
@@ -481,10 +488,11 @@ def test_all_types_parquet_register_feature_set_success(client):
 
 @pytest.mark.timeout(600)
 @pytest.mark.run(order=41)
-def test_all_types_infer_register_ingest_file_success(client, all_types_parquet_file):
-
+def test_all_types_infer_register_ingest_file_success(client,
+    all_types_parquet_file):
     # Get feature set
     all_types_fs = client.get_feature_set(name="all_types_parquet")
 
     # Ingest user embedding data
-    client.ingest(feature_set=all_types_fs, source=all_types_parquet_file, force_update=True)
+    client.ingest(feature_set=all_types_fs, source=all_types_parquet_file,
+                  force_update=True)
