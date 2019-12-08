@@ -353,7 +353,7 @@ class FeatureSet:
                 dtype=_infer_pd_column_type(column, df[column], rows_to_sample),
             )
 
-            output_log += f"{type(new_fields[column]).__name__} {new_fields[column].name} ({new_fields[column].dtype}) added from dataframe.\n "
+            output_log += f"{type(new_fields[column]).__name__} {new_fields[column].name} ({new_fields[column].dtype}) added from dataframe.\n"
 
         # Discard unused fields from feature set
         if discard_unused_fields:
