@@ -48,6 +48,5 @@ clean-html:
 
 build-html:
 	mkdir -p $(PROJECT_ROOT)/dist/python
-	python3 -m pip install -r $(PROJECT_ROOT)/sdk/python/requirements-ci.txt
 	cd 	$(PROJECT_ROOT)/sdk/python/docs && $(MAKE) html
 	cp -r $(PROJECT_ROOT)/sdk/python/docs/html/* $(PROJECT_ROOT)/dist/python

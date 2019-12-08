@@ -23,6 +23,7 @@ build-api-source:
 	python3 -m sphinx-apidoc -f -o source $(PROJECT_ROOT)/sdk/python/feast
 
 html: clean build-api-source
+	pip3 install -r $(PROJECT_ROOT)/sdk/python/requirements-ci.txt
 	python3 -m sphinx-build -b html source html
 
 # Catch-all target: route all unknown targets to Sphinx using the new
