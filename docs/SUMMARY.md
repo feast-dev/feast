@@ -7,5 +7,10 @@
 
 ## Getting Started
 
-* [Install Feast](getting-started/install-feast.md)
+* [Installing Feast](getting-started/installing-feast.md)
+* [Using Feast](https://github.com/gojek/feast/blob/master/examples/basic/basic.ipynb)
+
+## Reference
+
+* [Python SDK](https://api.docs.feast.dev/python/)
 
