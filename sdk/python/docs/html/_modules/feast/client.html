@@ -1,0 +1,853 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>feast.client &mdash; Feast 0.3.2 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> Feast
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.3.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Feast</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>feast.client</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for feast.client</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2019 The Feast Authors</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     https://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">List</span>
+<span class="kn">import</span> <span class="nn">grpc</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">pyarrow</span> <span class="k">as</span> <span class="nn">pa</span>
+<span class="kn">import</span> <span class="nn">pyarrow.parquet</span> <span class="k">as</span> <span class="nn">pq</span>
+<span class="kn">from</span> <span class="nn">feast.core.CoreService_pb2</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">GetFeastCoreVersionRequest</span><span class="p">,</span>
+    <span class="n">ListFeatureSetsResponse</span><span class="p">,</span>
+    <span class="n">ApplyFeatureSetRequest</span><span class="p">,</span>
+    <span class="n">ListFeatureSetsRequest</span><span class="p">,</span>
+    <span class="n">ApplyFeatureSetResponse</span><span class="p">,</span>
+    <span class="n">GetFeatureSetRequest</span><span class="p">,</span>
+    <span class="n">GetFeatureSetResponse</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">feast.core.CoreService_pb2_grpc</span> <span class="k">import</span> <span class="n">CoreServiceStub</span>
+<span class="kn">from</span> <span class="nn">feast.exceptions</span> <span class="k">import</span> <span class="n">format_grpc_exception</span>
+<span class="kn">from</span> <span class="nn">feast.feature_set</span> <span class="k">import</span> <span class="n">FeatureSet</span><span class="p">,</span> <span class="n">Entity</span>
+<span class="kn">from</span> <span class="nn">feast.job</span> <span class="k">import</span> <span class="n">Job</span>
+<span class="kn">from</span> <span class="nn">feast.loaders.file</span> <span class="k">import</span> <span class="n">export_dataframe_to_staging_location</span>
+<span class="kn">from</span> <span class="nn">feast.loaders.ingest</span> <span class="k">import</span> <span class="n">ingest_table_to_kafka</span>
+<span class="kn">from</span> <span class="nn">feast.serving.ServingService_pb2</span> <span class="k">import</span> <span class="n">GetFeastServingInfoResponse</span>
+<span class="kn">from</span> <span class="nn">feast.serving.ServingService_pb2</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">GetOnlineFeaturesRequest</span><span class="p">,</span>
+    <span class="n">GetBatchFeaturesRequest</span><span class="p">,</span>
+    <span class="n">GetFeastServingInfoRequest</span><span class="p">,</span>
+    <span class="n">GetOnlineFeaturesResponse</span><span class="p">,</span>
+    <span class="n">DatasetSource</span><span class="p">,</span>
+    <span class="n">DataFormat</span><span class="p">,</span>
+    <span class="n">FeatureSetRequest</span><span class="p">,</span>
+    <span class="n">FeastServingType</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">feast.serving.ServingService_pb2_grpc</span> <span class="k">import</span> <span class="n">ServingServiceStub</span>
+
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">GRPC_CONNECTION_TIMEOUT_DEFAULT</span> <span class="o">=</span> <span class="mi">3</span>  <span class="c1"># type: int</span>
+<span class="n">GRPC_CONNECTION_TIMEOUT_APPLY</span> <span class="o">=</span> <span class="mi">600</span>  <span class="c1"># type: int</span>
+<span class="n">FEAST_SERVING_URL_ENV_KEY</span> <span class="o">=</span> <span class="s2">&quot;FEAST_SERVING_URL&quot;</span>  <span class="c1"># type: str</span>
+<span class="n">FEAST_CORE_URL_ENV_KEY</span> <span class="o">=</span> <span class="s2">&quot;FEAST_CORE_URL&quot;</span>  <span class="c1"># type: str</span>
+<span class="n">BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS</span> <span class="o">=</span> <span class="mi">300</span>
+<span class="n">CPU_COUNT</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span>  <span class="c1"># type: int</span>
+
+
+<div class="viewcode-block" id="Client"><a class="viewcode-back" href="../../index.html#feast.client.Client">[docs]</a><span class="k">class</span> <span class="nc">Client</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Feast Client: Used for creating, managing, and retrieving features.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">core_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">serving_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The Feast Client should be initialized with at least one service url</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            core_url: Feast Core URL. Used to manage features</span>
+<span class="sd">            serving_url: Feast Serving URL. Used to retrieve features</span>
+<span class="sd">            verbose: Enable verbose logging</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_core_url</span> <span class="o">=</span> <span class="n">core_url</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_serving_url</span> <span class="o">=</span> <span class="n">serving_url</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_verbose</span> <span class="o">=</span> <span class="n">verbose</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__core_channel</span><span class="p">:</span> <span class="n">grpc</span><span class="o">.</span><span class="n">Channel</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__serving_channel</span><span class="p">:</span> <span class="n">grpc</span><span class="o">.</span><span class="n">Channel</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_core_service_stub</span><span class="p">:</span> <span class="n">CoreServiceStub</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_serving_service_stub</span><span class="p">:</span> <span class="n">ServingServiceStub</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">core_url</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve Feast Core URL</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_core_url</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_core_url</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="n">FEAST_CORE_URL_ENV_KEY</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="n">FEAST_CORE_URL_ENV_KEY</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="nd">@core_url</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">core_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the Feast Core URL</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Feast Core URL string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_core_url</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">serving_url</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve Serving Core URL</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_serving_url</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_serving_url</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="n">FEAST_SERVING_URL_ENV_KEY</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="n">FEAST_SERVING_URL_ENV_KEY</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="nd">@serving_url</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">serving_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the Feast Serving URL</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Feast Serving URL string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_serving_url</span> <span class="o">=</span> <span class="n">value</span>
+
+<div class="viewcode-block" id="Client.version"><a class="viewcode-back" href="../../index.html#feast.client.Client.version">[docs]</a>    <span class="k">def</span> <span class="nf">version</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns version information from Feast Core and Feast Serving</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connect_core</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connect_serving</span><span class="p">()</span>
+
+        <span class="n">core_version</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">serving_version</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">core_status</span> <span class="o">=</span> <span class="s2">&quot;not connected&quot;</span>
+        <span class="n">serving_status</span> <span class="o">=</span> <span class="s2">&quot;not connected&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">core_version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_core_service_stub</span><span class="o">.</span><span class="n">GetFeastCoreVersion</span><span class="p">(</span>
+                <span class="n">GetFeastCoreVersionRequest</span><span class="p">(),</span> <span class="n">timeout</span><span class="o">=</span><span class="n">GRPC_CONNECTION_TIMEOUT_DEFAULT</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">version</span>
+            <span class="n">core_status</span> <span class="o">=</span> <span class="s2">&quot;connected&quot;</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">format_grpc_exception</span><span class="p">(</span><span class="s2">&quot;GetFeastCoreVersion&quot;</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">()))</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">serving_version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_serving_service_stub</span><span class="o">.</span><span class="n">GetFeastServingInfo</span><span class="p">(</span>
+                <span class="n">GetFeastServingInfoRequest</span><span class="p">(),</span> <span class="n">timeout</span><span class="o">=</span><span class="n">GRPC_CONNECTION_TIMEOUT_DEFAULT</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">version</span>
+            <span class="n">serving_status</span> <span class="o">=</span> <span class="s2">&quot;connected&quot;</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">format_grpc_exception</span><span class="p">(</span><span class="s2">&quot;GetFeastServingInfo&quot;</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">()))</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;core&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;url&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">core_url</span><span class="p">,</span>
+                <span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="n">core_version</span><span class="p">,</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">core_status</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;serving&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;url&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">serving_url</span><span class="p">,</span>
+                <span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="n">serving_version</span><span class="p">,</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">serving_status</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">}</span></div>
+
+    <span class="k">def</span> <span class="nf">_connect_core</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">skip_if_connected</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Connect to Core API</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            skip_if_connected: Do not attempt to connect if already connected</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">skip_if_connected</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_core_service_stub</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">core_url</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Please set Feast Core URL.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__core_channel</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__core_channel</span> <span class="o">=</span> <span class="n">grpc</span><span class="o">.</span><span class="n">insecure_channel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">core_url</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">grpc</span><span class="o">.</span><span class="n">channel_ready_future</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__core_channel</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">(</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">GRPC_CONNECTION_TIMEOUT_DEFAULT</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">FutureTimeoutError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="n">f</span><span class="s2">&quot;Connection timed out while attempting to connect to Feast Core gRPC server </span><span class="si">{self.core_url}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_core_service_stub</span> <span class="o">=</span> <span class="n">CoreServiceStub</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__core_channel</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_connect_serving</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">skip_if_connected</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Connect to Serving API</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            skip_if_connected: Do not attempt to connect if already connected</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">skip_if_connected</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_serving_service_stub</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">serving_url</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Please set Feast Serving URL.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__serving_channel</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__serving_channel</span> <span class="o">=</span> <span class="n">grpc</span><span class="o">.</span><span class="n">insecure_channel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">serving_url</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">grpc</span><span class="o">.</span><span class="n">channel_ready_future</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__serving_channel</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">(</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">GRPC_CONNECTION_TIMEOUT_DEFAULT</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">FutureTimeoutError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="n">f</span><span class="s2">&quot;Connection timed out while attempting to connect to Feast Serving gRPC server </span><span class="si">{self.serving_url}</span><span class="s2"> &quot;</span>
+            <span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_serving_service_stub</span> <span class="o">=</span> <span class="n">ServingServiceStub</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__serving_channel</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Client.apply"><a class="viewcode-back" href="../../index.html#feast.client.Client.apply">[docs]</a>    <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">feature_sets</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">FeatureSet</span><span class="p">],</span> <span class="n">FeatureSet</span><span class="p">]):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Idempotently registers feature set(s) with Feast Core. Either a single</span>
+<span class="sd">        feature set or a list can be provided.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            feature_sets: List of feature sets that will be registered</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">feature_sets</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">feature_sets</span> <span class="o">=</span> <span class="p">[</span><span class="n">feature_sets</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">feature_set</span> <span class="ow">in</span> <span class="n">feature_sets</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">feature_set</span><span class="p">,</span> <span class="n">FeatureSet</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_apply_feature_set</span><span class="p">(</span><span class="n">feature_set</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="n">f</span><span class="s2">&quot;Could not determine feature set type to apply </span><span class="si">{feature_set}</span><span class="s2">&quot;</span>
+            <span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_apply_feature_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">feature_set</span><span class="p">:</span> <span class="n">FeatureSet</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Registers a single feature set with Feast</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            feature_set: Feature set that will be registered</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connect_core</span><span class="p">()</span>
+        <span class="n">feature_set</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="bp">self</span>
+
+        <span class="n">valid</span><span class="p">,</span> <span class="n">message</span> <span class="o">=</span> <span class="n">feature_set</span><span class="o">.</span><span class="n">is_valid</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">valid</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Convert the feature set to a request and send to Feast Core</span>
+            <span class="n">apply_fs_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_core_service_stub</span><span class="o">.</span><span class="n">ApplyFeatureSet</span><span class="p">(</span>
+                <span class="n">ApplyFeatureSetRequest</span><span class="p">(</span><span class="n">feature_set</span><span class="o">=</span><span class="n">feature_set</span><span class="o">.</span><span class="n">to_proto</span><span class="p">()),</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">GRPC_CONNECTION_TIMEOUT_APPLY</span><span class="p">,</span>
+            <span class="p">)</span>  <span class="c1"># type: ApplyFeatureSetResponse</span>
+
+            <span class="c1"># Extract the returned feature set</span>
+            <span class="n">applied_fs</span> <span class="o">=</span> <span class="n">FeatureSet</span><span class="o">.</span><span class="n">from_proto</span><span class="p">(</span><span class="n">apply_fs_response</span><span class="o">.</span><span class="n">feature_set</span><span class="p">)</span>
+
+            <span class="c1"># If the feature set has changed, update the local copy</span>
+            <span class="k">if</span> <span class="n">apply_fs_response</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">ApplyFeatureSetResponse</span><span class="o">.</span><span class="n">Status</span><span class="o">.</span><span class="n">CREATED</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span>
+                    <span class="n">f</span><span class="s1">&#39;Feature set updated/created: &quot;</span><span class="si">{applied_fs.name}</span><span class="s1">:</span><span class="si">{applied_fs.version}</span><span class="s1">&quot;.&#39;</span>
+                <span class="p">)</span>
+                <span class="c1"># Deep copy from the returned feature set to the local feature set</span>
+                <span class="n">feature_set</span><span class="o">.</span><span class="n">_update_from_feature_set</span><span class="p">(</span><span class="n">applied_fs</span><span class="p">,</span> <span class="n">is_dirty</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="k">return</span>
+
+            <span class="c1"># If no change has been applied, do nothing</span>
+            <span class="k">if</span> <span class="n">apply_fs_response</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">ApplyFeatureSetResponse</span><span class="o">.</span><span class="n">Status</span><span class="o">.</span><span class="n">NO_CHANGE</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;No change detected in feature set </span><span class="si">{feature_set.name}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span>
+
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">format_grpc_exception</span><span class="p">(</span><span class="s2">&quot;ApplyFeatureSet&quot;</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">()))</span>
+
+<div class="viewcode-block" id="Client.list_feature_sets"><a class="viewcode-back" href="../../index.html#feast.client.Client.list_feature_sets">[docs]</a>    <span class="k">def</span> <span class="nf">list_feature_sets</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">FeatureSet</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve a list of feature sets from Feast Core</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of feature sets</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connect_core</span><span class="p">()</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Get latest feature sets from Feast Core</span>
+            <span class="n">feature_set_protos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_core_service_stub</span><span class="o">.</span><span class="n">ListFeatureSets</span><span class="p">(</span>
+                <span class="n">ListFeatureSetsRequest</span><span class="p">()</span>
+            <span class="p">)</span>  <span class="c1"># type: ListFeatureSetsResponse</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="n">format_grpc_exception</span><span class="p">(</span><span class="s2">&quot;ListFeatureSets&quot;</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">())</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Extract feature sets and return</span>
+        <span class="n">feature_sets</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">feature_set_proto</span> <span class="ow">in</span> <span class="n">feature_set_protos</span><span class="o">.</span><span class="n">feature_sets</span><span class="p">:</span>
+            <span class="n">feature_set</span> <span class="o">=</span> <span class="n">FeatureSet</span><span class="o">.</span><span class="n">from_proto</span><span class="p">(</span><span class="n">feature_set_proto</span><span class="p">)</span>
+            <span class="n">feature_set</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="bp">self</span>
+            <span class="n">feature_sets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">feature_set</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">feature_sets</span></div>
+
+<div class="viewcode-block" id="Client.get_feature_set"><a class="viewcode-back" href="../../index.html#feast.client.Client.get_feature_set">[docs]</a>    <span class="k">def</span> <span class="nf">get_feature_set</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">fail_if_missing</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">FeatureSet</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieves a feature set. If no version is specified then the latest</span>
+<span class="sd">        version will be returned.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: Name of feature set</span>
+<span class="sd">            version: Version of feature set</span>
+<span class="sd">            fail_if_missing: Raise an error if feature set is not found</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Returns either the specified feature set, or None if not found</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connect_core</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">version</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">version</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">get_feature_set_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_core_service_stub</span><span class="o">.</span><span class="n">GetFeatureSet</span><span class="p">(</span>
+                <span class="n">GetFeatureSetRequest</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">version</span><span class="p">)</span>
+            <span class="p">)</span>  <span class="c1"># type: GetFeatureSetResponse</span>
+            <span class="n">feature_set</span> <span class="o">=</span> <span class="n">get_feature_set_response</span><span class="o">.</span><span class="n">feature_set</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">format_grpc_exception</span><span class="p">(</span><span class="s2">&quot;GetFeatureSet&quot;</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">()))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">feature_set</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">FeatureSet</span><span class="o">.</span><span class="n">from_proto</span><span class="p">(</span><span class="n">feature_set</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">fail_if_missing</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="n">f</span><span class="s1">&#39;Could not find feature set with name &quot;</span><span class="si">{name}</span><span class="s1">&quot; and &#39;</span>
+                    <span class="n">f</span><span class="s1">&#39;version &quot;</span><span class="si">{version}</span><span class="s1">&quot;&#39;</span>
+                <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Client.list_entities"><a class="viewcode-back" href="../../index.html#feast.client.Client.list_entities">[docs]</a>    <span class="k">def</span> <span class="nf">list_entities</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Entity</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a dictionary of entities across all feature sets</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dictionary of entities, indexed by name</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">entities_dict</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">fs</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_feature_sets</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">fs</span><span class="o">.</span><span class="n">entities</span><span class="p">:</span>
+                <span class="n">entities_dict</span><span class="p">[</span><span class="n">entity</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">entity</span>
+        <span class="k">return</span> <span class="n">entities_dict</span></div>
+
+<div class="viewcode-block" id="Client.get_batch_features"><a class="viewcode-back" href="../../index.html#feast.client.Client.get_batch_features">[docs]</a>    <span class="k">def</span> <span class="nf">get_batch_features</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">feature_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">entity_rows</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Job</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieves historical features from a Feast Serving deployment.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            feature_ids: List of feature ids that will be returned for each</span>
+<span class="sd">                entity. Each feature id should have the following format</span>
+<span class="sd">                &quot;feature_set_name:version:feature_name&quot;.</span>
+<span class="sd">            entity_rows: Pandas dataframe containing entities and a &#39;datetime&#39;</span>
+<span class="sd">                column. Each entity in a feature set must be present as a column</span>
+<span class="sd">                in this dataframe. The datetime column must</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Returns a job object that can be used to monitor retrieval progress</span>
+<span class="sd">            asynchronously, and can be used to materialize the results</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            &gt;&gt;&gt; from feast import Client</span>
+<span class="sd">            &gt;&gt;&gt; from datetime import datetime</span>
+<span class="sd">            &gt;&gt;&gt;</span>
+<span class="sd">            &gt;&gt;&gt; feast_client = Client(core_url=&quot;localhost:6565&quot;, serving_url=&quot;localhost:6566&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; feature_ids = [&quot;customer:1:bookings_7d&quot;]</span>
+<span class="sd">            &gt;&gt;&gt; entity_rows = pd.DataFrame(</span>
+<span class="sd">            &gt;&gt;&gt;         {</span>
+<span class="sd">            &gt;&gt;&gt;            &quot;datetime&quot;: [pd.datetime.now() for _ in range(3)],</span>
+<span class="sd">            &gt;&gt;&gt;            &quot;customer&quot;: [1001, 1002, 1003],</span>
+<span class="sd">            &gt;&gt;&gt;         }</span>
+<span class="sd">            &gt;&gt;&gt;     )</span>
+<span class="sd">            &gt;&gt;&gt; feature_retrieval_job = feast_client.get_batch_features(feature_ids, entity_rows)</span>
+<span class="sd">            &gt;&gt;&gt; df = feature_retrieval_job.to_dataframe()</span>
+<span class="sd">            &gt;&gt;&gt; print(df)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connect_serving</span><span class="p">()</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">fs_request</span> <span class="o">=</span> <span class="n">_build_feature_set_request</span><span class="p">(</span><span class="n">feature_ids</span><span class="p">)</span>
+
+            <span class="c1"># Validate entity rows based on entities in Feast Core</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_validate_entity_rows_for_batch_retrieval</span><span class="p">(</span><span class="n">entity_rows</span><span class="p">,</span> <span class="n">fs_request</span><span class="p">)</span>
+
+            <span class="c1"># We want the timestamp column naming to be consistent with the</span>
+            <span class="c1"># rest of Feast</span>
+            <span class="n">entity_rows</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="s2">&quot;event_timestamp&quot;</span> <span class="k">if</span> <span class="n">col</span> <span class="o">==</span> <span class="s2">&quot;datetime&quot;</span> <span class="k">else</span> <span class="n">col</span>
+                <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">entity_rows</span><span class="o">.</span><span class="n">columns</span>
+            <span class="p">]</span>
+
+            <span class="c1"># Remove timezone from datetime column</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span>
+                <span class="n">entity_rows</span><span class="p">[</span><span class="s2">&quot;event_timestamp&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
+                <span class="n">pd</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">dtypes</span><span class="o">.</span><span class="n">dtypes</span><span class="o">.</span><span class="n">DatetimeTZDtype</span><span class="p">,</span>
+            <span class="p">):</span>
+                <span class="n">entity_rows</span><span class="p">[</span><span class="s2">&quot;event_timestamp&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DatetimeIndex</span><span class="p">(</span>
+                    <span class="n">entity_rows</span><span class="p">[</span><span class="s2">&quot;event_timestamp&quot;</span><span class="p">]</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">tz_localize</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+            <span class="c1"># Retrieve serving information to determine store type and</span>
+            <span class="c1"># staging location</span>
+            <span class="n">serving_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_serving_service_stub</span><span class="o">.</span><span class="n">GetFeastServingInfo</span><span class="p">(</span>
+                <span class="n">GetFeastServingInfoRequest</span><span class="p">(),</span> <span class="n">timeout</span><span class="o">=</span><span class="n">GRPC_CONNECTION_TIMEOUT_DEFAULT</span>
+            <span class="p">)</span>  <span class="c1"># type: GetFeastServingInfoResponse</span>
+
+            <span class="k">if</span> <span class="n">serving_info</span><span class="o">.</span><span class="n">type</span> <span class="o">!=</span> <span class="n">FeastServingType</span><span class="o">.</span><span class="n">FEAST_SERVING_TYPE_BATCH</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="n">f</span><span class="s1">&#39;You are connected to a store &quot;</span><span class="si">{self._serving_url}</span><span class="s1">&quot; which &#39;</span>
+                    <span class="n">f</span><span class="s2">&quot;does not support batch retrieval &quot;</span>
+                <span class="p">)</span>
+
+            <span class="c1"># Export and upload entity row dataframe to staging location</span>
+            <span class="c1"># provided by Feast</span>
+            <span class="n">staged_file</span> <span class="o">=</span> <span class="n">export_dataframe_to_staging_location</span><span class="p">(</span>
+                <span class="n">entity_rows</span><span class="p">,</span> <span class="n">serving_info</span><span class="o">.</span><span class="n">job_staging_location</span>
+            <span class="p">)</span>  <span class="c1"># type: str</span>
+
+            <span class="n">request</span> <span class="o">=</span> <span class="n">GetBatchFeaturesRequest</span><span class="p">(</span>
+                <span class="n">feature_sets</span><span class="o">=</span><span class="n">fs_request</span><span class="p">,</span>
+                <span class="n">dataset_source</span><span class="o">=</span><span class="n">DatasetSource</span><span class="p">(</span>
+                    <span class="n">file_source</span><span class="o">=</span><span class="n">DatasetSource</span><span class="o">.</span><span class="n">FileSource</span><span class="p">(</span>
+                        <span class="n">file_uris</span><span class="o">=</span><span class="p">[</span><span class="n">staged_file</span><span class="p">],</span> <span class="n">data_format</span><span class="o">=</span><span class="n">DataFormat</span><span class="o">.</span><span class="n">DATA_FORMAT_AVRO</span>
+                    <span class="p">)</span>
+                <span class="p">),</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Retrieve Feast Job object to manage life cycle of retrieval</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_serving_service_stub</span><span class="o">.</span><span class="n">GetBatchFeatures</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Job</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">job</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_serving_service_stub</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">format_grpc_exception</span><span class="p">(</span><span class="s2">&quot;GetBatchFeatures&quot;</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">()))</span></div>
+
+    <span class="k">def</span> <span class="nf">_validate_entity_rows_for_batch_retrieval</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">entity_rows</span><span class="p">,</span> <span class="n">feature_sets_request</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Validate whether an entity_row dataframe contains the correct</span>
+<span class="sd">        information for batch retrieval</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            entity_rows: Pandas dataframe containing entities and datetime</span>
+<span class="sd">                column. Each entity in a feature set must be present as a</span>
+<span class="sd">                column in this dataframe.</span>
+<span class="sd">            feature_sets_request: Feature sets that will be requested</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Ensure datetime column exists</span>
+        <span class="k">if</span> <span class="s2">&quot;datetime&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">entity_rows</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="n">f</span><span class="s1">&#39;Entity rows does not contain &quot;datetime&quot; column in columns &#39;</span>
+                <span class="n">f</span><span class="s2">&quot;</span><span class="si">{entity_rows.columns}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Validate dataframe columns based on feature set entities</span>
+        <span class="k">for</span> <span class="n">feature_set</span> <span class="ow">in</span> <span class="n">feature_sets_request</span><span class="p">:</span>
+            <span class="n">fs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_feature_set</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">feature_set</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">feature_set</span><span class="o">.</span><span class="n">version</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">fs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="n">f</span><span class="s1">&#39;Feature set &quot;</span><span class="si">{feature_set.name}</span><span class="s1">:</span><span class="si">{feature_set.version}</span><span class="s1">&quot; &#39;</span>
+                    <span class="n">f</span><span class="s2">&quot;could not be found&quot;</span>
+                <span class="p">)</span>
+            <span class="k">for</span> <span class="n">entity_type</span> <span class="ow">in</span> <span class="n">fs</span><span class="o">.</span><span class="n">entities</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">entity_type</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">entity_rows</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="n">f</span><span class="s1">&#39;Dataframe does not contain entity &quot;</span><span class="si">{entity_type.name}</span><span class="s1">&quot;&#39;</span>
+                        <span class="n">f</span><span class="s1">&#39; column in columns &quot;</span><span class="si">{entity_rows.columns}</span><span class="s1">&quot;&#39;</span>
+                    <span class="p">)</span>
+
+<div class="viewcode-block" id="Client.get_online_features"><a class="viewcode-back" href="../../index.html#feast.client.Client.get_online_features">[docs]</a>    <span class="k">def</span> <span class="nf">get_online_features</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">feature_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">entity_rows</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">GetOnlineFeaturesRequest</span><span class="o">.</span><span class="n">EntityRow</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GetOnlineFeaturesResponse</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieves the latest online feature data from Feast Serving</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            feature_ids: List of feature Ids in the following format</span>
+<span class="sd">                [feature_set_name]:[version]:[feature_name]</span>
+<span class="sd">                example:</span>
+<span class="sd">                    [&quot;feature_set_1:6:my_feature_1&quot;,</span>
+<span class="sd">                    &quot;feature_set_1:6:my_feature_2&quot;,]</span>
+<span class="sd">            entity_rows: List of GetFeaturesRequest.EntityRow where each row</span>
+<span class="sd">                contains entities. Timestamp should not be set for online</span>
+<span class="sd">                retrieval. All entity types within a feature</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Returns a list of maps where each item in the list contains the</span>
+<span class="sd">            latest feature values for the provided entities</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connect_serving</span><span class="p">()</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_serving_service_stub</span><span class="o">.</span><span class="n">GetOnlineFeatures</span><span class="p">(</span>
+                <span class="n">GetOnlineFeaturesRequest</span><span class="p">(</span>
+                    <span class="n">feature_sets</span><span class="o">=</span><span class="n">_build_feature_set_request</span><span class="p">(</span><span class="n">feature_ids</span><span class="p">),</span>
+                    <span class="n">entity_rows</span><span class="o">=</span><span class="n">entity_rows</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>  <span class="c1"># type: GetOnlineFeaturesResponse</span>
+        <span class="k">except</span> <span class="n">grpc</span><span class="o">.</span><span class="n">RpcError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">format_grpc_exception</span><span class="p">(</span><span class="s2">&quot;GetOnlineFeatures&quot;</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">code</span><span class="p">(),</span> <span class="n">e</span><span class="o">.</span><span class="n">details</span><span class="p">()))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">response</span></div>
+
+<div class="viewcode-block" id="Client.ingest"><a class="viewcode-back" href="../../index.html#feast.client.Client.ingest">[docs]</a>    <span class="k">def</span> <span class="nf">ingest</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">feature_set</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">FeatureSet</span><span class="p">],</span>
+        <span class="n">source</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">force_update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">max_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">CPU_COUNT</span><span class="p">,</span>
+        <span class="n">disable_progress_bar</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5000</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads feature data into Feast for a specific feature set.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            feature_set: Name of feature set or a feature set object</span>
+<span class="sd">            source: Either a file path or Pandas Dataframe to ingest into Feast</span>
+<span class="sd">                Files that are currently supported:</span>
+<span class="sd">                * parquet</span>
+<span class="sd">                * csv</span>
+<span class="sd">                * json</span>
+<span class="sd">            version: Feature set version</span>
+<span class="sd">            force_update: Automatically update feature set based on source data</span>
+<span class="sd">                prior to ingesting. This will also register changes to Feast</span>
+<span class="sd">            max_workers: Number of worker processes to use to encode values</span>
+<span class="sd">            disable_progress_bar: Disable printing of progress statistics</span>
+<span class="sd">            chunk_size: Maximum amount of rows to load into memory and ingest at</span>
+<span class="sd">                a time</span>
+<span class="sd">            timeout: Seconds to wait before ingestion times out</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">feature_set</span><span class="p">,</span> <span class="n">FeatureSet</span><span class="p">):</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">feature_set</span><span class="o">.</span><span class="n">name</span>
+            <span class="k">if</span> <span class="n">version</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">version</span> <span class="o">=</span> <span class="n">feature_set</span><span class="o">.</span><span class="n">version</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">feature_set</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">feature_set</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Feature set name must be provided&quot;</span><span class="p">)</span>
+
+        <span class="n">table</span> <span class="o">=</span> <span class="n">_read_table_from_source</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
+
+        <span class="c1"># Update the feature set based on DataFrame schema</span>
+        <span class="k">if</span> <span class="n">force_update</span><span class="p">:</span>
+            <span class="c1"># Use a small as reference DataFrame to infer fields</span>
+            <span class="n">ref_df</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">to_batches</span><span class="p">(</span><span class="n">max_chunksize</span><span class="o">=</span><span class="mi">20</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">to_pandas</span><span class="p">()</span>
+
+            <span class="n">feature_set</span><span class="o">.</span><span class="n">infer_fields_from_df</span><span class="p">(</span>
+                <span class="n">ref_df</span><span class="p">,</span> <span class="n">discard_unused_fields</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">replace_existing_features</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">feature_set</span><span class="p">)</span>
+
+        <span class="n">feature_set</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_feature_set</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">fail_if_missing</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">feature_set</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">source_type</span> <span class="o">==</span> <span class="s2">&quot;Kafka&quot;</span><span class="p">:</span>
+            <span class="n">ingest_table_to_kafka</span><span class="p">(</span>
+                <span class="n">feature_set</span><span class="o">=</span><span class="n">feature_set</span><span class="p">,</span>
+                <span class="n">table</span><span class="o">=</span><span class="n">table</span><span class="p">,</span>
+                <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">,</span>
+                <span class="n">disable_pbar</span><span class="o">=</span><span class="n">disable_progress_bar</span><span class="p">,</span>
+                <span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">,</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="n">f</span><span class="s2">&quot;Could not determine source type for feature set &quot;</span>
+                <span class="n">f</span><span class="s1">&#39;&quot;</span><span class="si">{feature_set.name}</span><span class="s1">&quot; with source type &#39;</span>
+                <span class="n">f</span><span class="s1">&#39;&quot;</span><span class="si">{feature_set.source.source_type}</span><span class="s1">&quot;&#39;</span>
+            <span class="p">)</span></div></div>
+
+
+<span class="k">def</span> <span class="nf">_build_feature_set_request</span><span class="p">(</span><span class="n">feature_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">FeatureSetRequest</span><span class="p">]:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Builds a list of FeatureSet objects from feature set ids in order to</span>
+<span class="sd">    retrieve feature data from Feast Serving</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        feature_ids: List of feature ids</span>
+<span class="sd">            (&quot;feature_set_name:version:feature_name&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">feature_set_request</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>  <span class="c1"># type: Dict[str, FeatureSetRequest]</span>
+    <span class="k">for</span> <span class="n">feature_id</span> <span class="ow">in</span> <span class="n">feature_ids</span><span class="p">:</span>
+        <span class="n">fid_parts</span> <span class="o">=</span> <span class="n">feature_id</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fid_parts</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">feature_set</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">feature</span> <span class="o">=</span> <span class="n">fid_parts</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="n">f</span><span class="s2">&quot;Could not parse feature id $</span><span class="si">{feature_id}</span><span class="s2">, needs 2 colons&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">feature_set</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">feature_set_request</span><span class="p">:</span>
+            <span class="n">feature_set_request</span><span class="p">[</span><span class="n">feature_set</span><span class="p">]</span> <span class="o">=</span> <span class="n">FeatureSetRequest</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">feature_set</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">version</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="n">feature_set_request</span><span class="p">[</span><span class="n">feature_set</span><span class="p">]</span><span class="o">.</span><span class="n">feature_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">feature_set_request</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+
+<span class="k">def</span> <span class="nf">_read_table_from_source</span><span class="p">(</span><span class="n">source</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pa</span><span class="o">.</span><span class="n">lib</span><span class="o">.</span><span class="n">Table</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Infers a data source type (path or Pandas Dataframe) and reads it in as</span>
+<span class="sd">    a PyArrow Table.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        source: Either a string path or Pandas Dataframe</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        PyArrow table</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Pandas dataframe detected</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+        <span class="n">table</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Table</span><span class="o">.</span><span class="n">from_pandas</span><span class="p">(</span><span class="n">df</span><span class="o">=</span><span class="n">source</span><span class="p">)</span>
+
+    <span class="c1"># Inferring a string path</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">file_path</span> <span class="o">=</span> <span class="n">source</span>
+        <span class="n">filename</span><span class="p">,</span> <span class="n">file_ext</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">&quot;.csv&quot;</span> <span class="ow">in</span> <span class="n">file_ext</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">pyarrow</span> <span class="k">import</span> <span class="n">csv</span>
+
+            <span class="n">table</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="s2">&quot;.json&quot;</span> <span class="ow">in</span> <span class="n">file_ext</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">pyarrow</span> <span class="k">import</span> <span class="n">json</span>
+
+            <span class="n">table</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">read_json</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">table</span> <span class="o">=</span> <span class="n">pq</span><span class="o">.</span><span class="n">read_table</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Unknown data source provided for ingestion: </span><span class="si">{source}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Ensure that PyArrow table is initialised</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">pa</span><span class="o">.</span><span class="n">lib</span><span class="o">.</span><span class="n">Table</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">table</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Feast Authors
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

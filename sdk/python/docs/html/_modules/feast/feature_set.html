@@ -1,0 +1,720 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>feast.feature_set &mdash; Feast 0.3.2 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> Feast
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.3.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Feast</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>feast.feature_set</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for feast.feature_set</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2019 The Feast Authors</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     https://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+
+
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Dict</span>
+<span class="kn">from</span> <span class="nn">feast.source</span> <span class="k">import</span> <span class="n">Source</span>
+<span class="kn">from</span> <span class="nn">pandas.api.types</span> <span class="k">import</span> <span class="n">is_datetime64_ns_dtype</span>
+<span class="kn">from</span> <span class="nn">feast.entity</span> <span class="k">import</span> <span class="n">Entity</span>
+<span class="kn">from</span> <span class="nn">feast.feature</span> <span class="k">import</span> <span class="n">Feature</span><span class="p">,</span> <span class="n">Field</span>
+<span class="kn">from</span> <span class="nn">feast.core.FeatureSet_pb2</span> <span class="k">import</span> <span class="n">FeatureSetSpec</span> <span class="k">as</span> <span class="n">FeatureSetSpecProto</span>
+<span class="kn">from</span> <span class="nn">google.protobuf.duration_pb2</span> <span class="k">import</span> <span class="n">Duration</span>
+<span class="kn">from</span> <span class="nn">feast.type_map</span> <span class="k">import</span> <span class="n">python_type_to_feast_value_type</span>
+<span class="kn">from</span> <span class="nn">google.protobuf.json_format</span> <span class="k">import</span> <span class="n">MessageToJson</span>
+<span class="kn">from</span> <span class="nn">google.protobuf</span> <span class="k">import</span> <span class="n">json_format</span>
+<span class="kn">from</span> <span class="nn">feast.type_map</span> <span class="k">import</span> <span class="n">DATETIME_COLUMN</span>
+<span class="kn">from</span> <span class="nn">feast.loaders</span> <span class="k">import</span> <span class="n">yaml</span> <span class="k">as</span> <span class="n">feast_yaml</span>
+
+
+<div class="viewcode-block" id="FeatureSet"><a class="viewcode-back" href="../../index.html#feast.feature_set.FeatureSet">[docs]</a><span class="k">class</span> <span class="nc">FeatureSet</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Represents a collection of features and associated metadata.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">features</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Feature</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">entities</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Entity</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">source</span><span class="p">:</span> <span class="n">Source</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">max_age</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Duration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>  <span class="c1"># type: Dict[str, Field]</span>
+        <span class="k">if</span> <span class="n">features</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">features</span> <span class="o">=</span> <span class="n">features</span>
+        <span class="k">if</span> <span class="n">entities</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">entities</span> <span class="o">=</span> <span class="n">entities</span>
+        <span class="k">if</span> <span class="n">source</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_source</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_source</span> <span class="o">=</span> <span class="n">source</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_age</span> <span class="o">=</span> <span class="n">max_age</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_version</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_busy_ingesting</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_dirty</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">FeatureSet</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">NotImplemented</span>
+
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">other</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">fields</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">!=</span> <span class="n">other</span><span class="o">.</span><span class="n">fields</span><span class="p">[</span><span class="n">key</span><span class="p">]:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">!=</span> <span class="n">other</span><span class="o">.</span><span class="n">name</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_age</span> <span class="o">!=</span> <span class="n">other</span><span class="o">.</span><span class="n">max_age</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">MessageToJson</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_proto</span><span class="p">()))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">fields</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Field</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a dict of fields from this feature set</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">features</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Feature</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a list of features from this feature set</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">field</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">Feature</span><span class="p">)]</span>
+
+    <span class="nd">@features</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">features</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">features</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Feature</span><span class="p">]):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets the active features within this feature set</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            features: List of feature objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">feature</span> <span class="ow">in</span> <span class="n">features</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">feature</span><span class="p">,</span> <span class="n">Feature</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;object type is not a Feature: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">feature</span><span class="p">)))</span>
+
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">Feature</span><span class="p">):</span>
+                <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">features</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_add_fields</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">entities</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Entity</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns list of entities from this feature set</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">field</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">Entity</span><span class="p">)]</span>
+
+    <span class="nd">@entities</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">entities</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entities</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Entity</span><span class="p">]):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets the active entities within this feature set</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            entities: List of entities objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">entities</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="n">Entity</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;object type is not na Entity: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">entity</span><span class="p">)))</span>
+
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">Entity</span><span class="p">):</span>
+                <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">entities</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_add_fields</span><span class="p">(</span><span class="n">entities</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the name of this feature set</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_name</span>
+
+    <span class="nd">@name</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets the name of this feature set</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="n">name</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">source</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the source of this feature set</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source</span>
+
+    <span class="nd">@source</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">source</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="n">Source</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets the source of this feature set</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_source</span> <span class="o">=</span> <span class="n">source</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">version</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the version of this feature set</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_version</span>
+
+    <span class="nd">@version</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">version</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">version</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets the version of this feature set</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_version</span> <span class="o">=</span> <span class="n">version</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">max_age</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the maximum age of this feature set. This is the total maximum</span>
+<span class="sd">        amount of staleness that will be allowed during feature retrieval for</span>
+<span class="sd">        each specific feature row that is looked up.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_age</span>
+
+    <span class="nd">@max_age</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">max_age</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_age</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the maximum age for this feature set</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_age</span> <span class="o">=</span> <span class="n">max_age</span>
+
+<div class="viewcode-block" id="FeatureSet.add"><a class="viewcode-back" href="../../index.html#feast.feature_set.FeatureSet.add">[docs]</a>    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds a resource (Feature, Entity) to this Feature Set.</span>
+<span class="sd">        Does not register the updated Feature Set with Feast Core</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            resource: A resource can be either a Feature or an Entity object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">resource</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s1">&#39;could not add field &quot;&#39;</span>
+                <span class="o">+</span> <span class="n">resource</span><span class="o">.</span><span class="n">name</span>
+                <span class="o">+</span> <span class="s1">&#39;&quot; since it already exists in feature set &quot;&#39;</span>
+                <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_name</span>
+                <span class="o">+</span> <span class="s1">&#39;&quot;&#39;</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">issubclass</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">resource</span><span class="p">),</span> <span class="n">Field</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_set_field</span><span class="p">(</span><span class="n">resource</span><span class="p">)</span>
+
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Could not identify the resource being added&quot;</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_set_field</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="p">:</span> <span class="n">Field</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span>
+        <span class="k">return</span>
+
+<div class="viewcode-block" id="FeatureSet.drop"><a class="viewcode-back" href="../../index.html#feast.feature_set.FeatureSet.drop">[docs]</a>    <span class="k">def</span> <span class="nf">drop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Removes a Feature or Entity from a Feature Set. This does not apply</span>
+<span class="sd">        any changes to Feast Core until the apply() method is called.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: Name of Feature or Entity to be removed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Could not find field &quot;</span> <span class="o">+</span> <span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;, no action taken&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+            <span class="k">return</span></div>
+
+    <span class="k">def</span> <span class="nf">_add_fields</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fields</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Field</span><span class="p">]):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds multiple Fields to a Feature Set</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            fields: List of Field (Feature or Entity) Objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FeatureSet.infer_fields_from_df"><a class="viewcode-back" href="../../index.html#feast.feature_set.FeatureSet.infer_fields_from_df">[docs]</a>    <span class="k">def</span> <span class="nf">infer_fields_from_df</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+        <span class="n">entities</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Entity</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">features</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Feature</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">replace_existing_features</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">replace_existing_entities</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">discard_unused_fields</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">rows_to_sample</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Adds fields (Features or Entities) to a feature set based on the schema</span>
+<span class="sd">        of a Datatframe. Only Pandas dataframes are supported. All columns are</span>
+<span class="sd">        detected as features, so setting at least one entity manually is</span>
+<span class="sd">        advised.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            df: Pandas dataframe to read schema from</span>
+<span class="sd">            entities: List of entities that will be set manually and not</span>
+<span class="sd">                inferred. These will take precedence over any existing entities</span>
+<span class="sd">                or entities found in the dataframe.</span>
+<span class="sd">            features: List of features that will be set manually and not</span>
+<span class="sd">                inferred. These will take precedence over any existing feature</span>
+<span class="sd">                or features found in the dataframe.</span>
+<span class="sd">            replace_existing_features: If true, will replace</span>
+<span class="sd">                existing features in this feature set with features found in</span>
+<span class="sd">                dataframe. If false, will skip conflicting features.</span>
+<span class="sd">            replace_existing_entities: If true, will replace existing entities</span>
+<span class="sd">                in this feature set with features found in dataframe. If false,</span>
+<span class="sd">                will skip conflicting entities.</span>
+<span class="sd">            discard_unused_fields: Boolean flag. Setting this to True will</span>
+<span class="sd">                discard any existing fields that are not found in the dataset or</span>
+<span class="sd">                provided by the user</span>
+<span class="sd">            rows_to_sample: Number of rows to sample to infer types. All rows</span>
+<span class="sd">                must have consistent types, even values within list types must</span>
+<span class="sd">                be homogeneous</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">entities</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">entities</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">features</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">features</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+
+        <span class="c1"># Validate whether the datetime column exists with the right name</span>
+        <span class="k">if</span> <span class="n">DATETIME_COLUMN</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;No column &#39;datetime&#39;&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Validate the data type for the datetime column</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_datetime64_ns_dtype</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">dtypes</span><span class="p">[</span><span class="n">DATETIME_COLUMN</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Column &#39;datetime&#39; does not have the correct type: datetime64[ns]&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Create dictionary of fields that will not be inferred (manually set)</span>
+        <span class="n">provided_fields</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">entities</span> <span class="o">+</span> <span class="n">features</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">Field</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Invalid field object type provided {type(field)}&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">provided_fields</span><span class="p">:</span>
+                <span class="n">provided_fields</span><span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Duplicate field name detected </span><span class="si">{field.name}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+        <span class="n">new_fields</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">output_log</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+        <span class="c1"># Add in provided fields</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">provided_fields</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">new_fields</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">upsert_message</span> <span class="o">=</span> <span class="s2">&quot;created&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">upsert_message</span> <span class="o">=</span> <span class="s2">&quot;updated (replacing an existing field)&quot;</span>
+
+            <span class="n">output_log</span> <span class="o">+=</span> <span class="p">(</span>
+                <span class="n">f</span><span class="s2">&quot;{type(field).__name__} </span><span class="si">{field.name}</span><span class="s2">&quot;</span>
+                <span class="n">f</span><span class="s2">&quot;(</span><span class="si">{field.dtype}</span><span class="s2">) manually </span><span class="si">{upsert_message}</span><span class="s2">.</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="n">new_fields</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span>
+
+        <span class="c1"># Iterate over all of the columns and create features</span>
+        <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">column</span> <span class="o">=</span> <span class="n">column</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+            <span class="c1"># Skip datetime column</span>
+            <span class="k">if</span> <span class="n">DATETIME_COLUMN</span> <span class="ow">in</span> <span class="n">column</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Skip user provided fields</span>
+            <span class="k">if</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">provided_fields</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Only overwrite conflicting fields if replacement is allowed</span>
+            <span class="k">if</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">new_fields</span><span class="p">:</span>
+                <span class="k">if</span> <span class="p">(</span>
+                    <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">column</span><span class="p">],</span> <span class="n">Feature</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="ow">not</span> <span class="n">replace_existing_features</span>
+                <span class="p">):</span>
+                    <span class="k">continue</span>
+
+                <span class="k">if</span> <span class="p">(</span>
+                    <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">column</span><span class="p">],</span> <span class="n">Entity</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="ow">not</span> <span class="n">replace_existing_entities</span>
+                <span class="p">):</span>
+                    <span class="k">continue</span>
+
+            <span class="c1"># Store this field as a feature</span>
+            <span class="n">new_fields</span><span class="p">[</span><span class="n">column</span><span class="p">]</span> <span class="o">=</span> <span class="n">Feature</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">column</span><span class="p">,</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">_infer_pd_column_type</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">df</span><span class="p">[</span><span class="n">column</span><span class="p">],</span> <span class="n">rows_to_sample</span><span class="p">),</span>
+            <span class="p">)</span>
+
+            <span class="n">output_log</span> <span class="o">+=</span> <span class="n">f</span><span class="s2">&quot;{type(new_fields[column]).__name__} </span><span class="si">{new_fields[column].name}</span><span class="s2"> (</span><span class="si">{new_fields[column].dtype}</span><span class="s2">) added from dataframe.</span><span class="se">\n</span><span class="s2"> &quot;</span>
+
+        <span class="c1"># Discard unused fields from feature set</span>
+        <span class="k">if</span> <span class="n">discard_unused_fields</span><span class="p">:</span>
+            <span class="n">keys_to_remove</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">new_fields</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">key</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="ow">or</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">provided_fields</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                    <span class="n">output_log</span> <span class="o">+=</span> <span class="n">f</span><span class="s2">&quot;{type(new_fields[key]).__name__} </span><span class="si">{new_fields[key].name}</span><span class="s2"> (</span><span class="si">{new_fields[key].dtype}</span><span class="s2">) removed because it is unused.</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="n">keys_to_remove</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">keys_to_remove</span><span class="p">:</span>
+                <span class="k">del</span> <span class="n">new_fields</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="c1"># Update feature set</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span> <span class="o">=</span> <span class="n">new_fields</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">output_log</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_update_from_feature_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">feature_set</span><span class="p">,</span> <span class="n">is_dirty</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Deep updates one feature set with another</span>
+<span class="sd">        Args:</span>
+<span class="sd">            feature_set: Feature set to use as a source of configuration</span>
+<span class="sd">            is_dirty: If true, will set this feature set to &quot;dirty&quot; after</span>
+<span class="sd">                this update. This is used to track whether the feature</span>
+<span class="sd">                set needs to be reapplied.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">feature_set</span><span class="o">.</span><span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">=</span> <span class="n">feature_set</span><span class="o">.</span><span class="n">version</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="n">feature_set</span><span class="o">.</span><span class="n">source</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_age</span> <span class="o">=</span> <span class="n">feature_set</span><span class="o">.</span><span class="n">max_age</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">features</span> <span class="o">=</span> <span class="n">feature_set</span><span class="o">.</span><span class="n">features</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">entities</span> <span class="o">=</span> <span class="n">feature_set</span><span class="o">.</span><span class="n">entities</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_dirty</span> <span class="o">=</span> <span class="n">is_dirty</span>
+
+<div class="viewcode-block" id="FeatureSet.get_kafka_source_brokers"><a class="viewcode-back" href="../../index.html#feast.feature_set.FeatureSet.get_kafka_source_brokers">[docs]</a>    <span class="k">def</span> <span class="nf">get_kafka_source_brokers</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the broker list for the source in this feature set</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">source_type</span> <span class="ow">is</span> <span class="s2">&quot;Kafka&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">brokers</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Source type could not be identified&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FeatureSet.get_kafka_source_topic"><a class="viewcode-back" href="../../index.html#feast.feature_set.FeatureSet.get_kafka_source_topic">[docs]</a>    <span class="k">def</span> <span class="nf">get_kafka_source_topic</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the topic that this feature set has been configured to use as source</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">source_type</span> <span class="o">==</span> <span class="s2">&quot;Kafka&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">topic</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Source type could not be identified&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FeatureSet.is_valid"><a class="viewcode-back" href="../../index.html#feast.feature_set.FeatureSet.is_valid">[docs]</a>    <span class="k">def</span> <span class="nf">is_valid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Validates the state of a feature set locally</span>
+<span class="sd">        :return: (bool, str) True if valid, false if invalid. Contains a message</span>
+<span class="sd">        string with a reason</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">entities</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span><span class="p">,</span> <span class="n">f</span><span class="s2">&quot;No entities found in feature set </span><span class="si">{self.name}</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="FeatureSet.from_yaml"><a class="viewcode-back" href="../../index.html#feast.feature_set.FeatureSet.from_yaml">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_yaml</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">yml</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates a feature set from a YAML string body or a file path</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            yml: Either a file path containing a yaml file or a YAML string</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Returns a FeatureSet object based on the YAML file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">feast_yaml</span><span class="o">.</span><span class="n">yaml_loader</span><span class="p">(</span><span class="n">yml</span><span class="p">,</span> <span class="n">load_single</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FeatureSet.from_dict"><a class="viewcode-back" href="../../index.html#feast.feature_set.FeatureSet.from_dict">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fs_dict</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates a feature set from a dict</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            fs_dict: A dict representation of a feature set</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Returns a FeatureSet object based on the feature set dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="s2">&quot;kind&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">fs_dict</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">fs_dict</span><span class="p">[</span><span class="s2">&quot;kind&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">&quot;feature_set&quot;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Resource kind is not a feature set {str(fs_dict)}&quot;</span><span class="p">)</span>
+        <span class="n">feature_set_proto</span> <span class="o">=</span> <span class="n">json_format</span><span class="o">.</span><span class="n">ParseDict</span><span class="p">(</span>
+            <span class="n">fs_dict</span><span class="p">,</span> <span class="n">FeatureSetSpecProto</span><span class="p">(),</span> <span class="n">ignore_unknown_fields</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_proto</span><span class="p">(</span><span class="n">feature_set_proto</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FeatureSet.from_proto"><a class="viewcode-back" href="../../index.html#feast.feature_set.FeatureSet.from_proto">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_proto</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">feature_set_proto</span><span class="p">:</span> <span class="n">FeatureSetSpecProto</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates a feature set from a protobuf representation of a feature set</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            from_proto: A protobuf representation of a feature set</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Returns a FeatureSet object based on the feature set protobuf</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">feature_set</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">feature_set_proto</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">features</span><span class="o">=</span><span class="p">[</span>
+                <span class="n">Feature</span><span class="o">.</span><span class="n">from_proto</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span> <span class="k">for</span> <span class="n">feature</span> <span class="ow">in</span> <span class="n">feature_set_proto</span><span class="o">.</span><span class="n">features</span>
+            <span class="p">],</span>
+            <span class="n">entities</span><span class="o">=</span><span class="p">[</span>
+                <span class="n">Entity</span><span class="o">.</span><span class="n">from_proto</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span> <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">feature_set_proto</span><span class="o">.</span><span class="n">entities</span>
+            <span class="p">],</span>
+            <span class="n">max_age</span><span class="o">=</span><span class="n">feature_set_proto</span><span class="o">.</span><span class="n">max_age</span><span class="p">,</span>
+            <span class="n">source</span><span class="o">=</span><span class="p">(</span>
+                <span class="kc">None</span>
+                <span class="k">if</span> <span class="n">feature_set_proto</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="mi">0</span>
+                <span class="k">else</span> <span class="n">Source</span><span class="o">.</span><span class="n">from_proto</span><span class="p">(</span><span class="n">feature_set_proto</span><span class="o">.</span><span class="n">source</span><span class="p">)</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">feature_set</span><span class="o">.</span><span class="n">_version</span> <span class="o">=</span> <span class="n">feature_set_proto</span><span class="o">.</span><span class="n">version</span>
+        <span class="n">feature_set</span><span class="o">.</span><span class="n">_is_dirty</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="n">feature_set</span></div>
+
+<div class="viewcode-block" id="FeatureSet.to_proto"><a class="viewcode-back" href="../../index.html#feast.feature_set.FeatureSet.to_proto">[docs]</a>    <span class="k">def</span> <span class="nf">to_proto</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FeatureSetSpecProto</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Converts a feature set object to its protobuf representation</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            FeatureSetSpec protobuf</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="n">FeatureSetSpecProto</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="p">,</span>
+            <span class="n">max_age</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_age</span><span class="p">,</span>
+            <span class="n">source</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">to_proto</span><span class="p">()</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">features</span><span class="o">=</span><span class="p">[</span>
+                <span class="n">field</span><span class="o">.</span><span class="n">to_proto</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+                <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">field</span><span class="p">)</span> <span class="o">==</span> <span class="n">Feature</span>
+            <span class="p">],</span>
+            <span class="n">entities</span><span class="o">=</span><span class="p">[</span>
+                <span class="n">field</span><span class="o">.</span><span class="n">to_proto</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+                <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">field</span><span class="p">)</span> <span class="o">==</span> <span class="n">Entity</span>
+            <span class="p">],</span>
+        <span class="p">)</span></div></div>
+
+
+<span class="k">def</span> <span class="nf">_infer_pd_column_type</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">series</span><span class="p">,</span> <span class="n">rows_to_sample</span><span class="p">):</span>
+    <span class="n">dtype</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">sample_count</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="c1"># Loop over all rows for this column to infer types</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">series</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+        <span class="n">sample_count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="c1"># Stop sampling at the row limit</span>
+        <span class="k">if</span> <span class="n">sample_count</span> <span class="o">&gt;</span> <span class="n">rows_to_sample</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># Infer the specific type for this row</span>
+        <span class="n">current_dtype</span> <span class="o">=</span> <span class="n">python_type_to_feast_value_type</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">column</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">)</span>
+
+        <span class="c1"># Make sure the type is consistent for column</span>
+        <span class="k">if</span> <span class="n">dtype</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">dtype</span> <span class="o">!=</span> <span class="n">current_dtype</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="n">f</span><span class="s2">&quot;Type mismatch detected in column </span><span class="si">{column}</span><span class="s2">. Both &quot;</span>
+                    <span class="n">f</span><span class="s2">&quot;the types </span><span class="si">{current_dtype}</span><span class="s2"> and </span><span class="si">{dtype}</span><span class="s2"> &quot;</span>
+                    <span class="n">f</span><span class="s2">&quot;have been found.&quot;</span>
+                <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Store dtype in field to type map if it isnt already</span>
+            <span class="n">dtype</span> <span class="o">=</span> <span class="n">current_dtype</span>
+
+    <span class="k">return</span> <span class="n">dtype</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Feast Authors
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

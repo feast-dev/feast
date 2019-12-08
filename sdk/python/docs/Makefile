@@ -19,14 +19,11 @@ clean:
 	rm -rf $(PROJECT_ROOT)/sdk/python/docs/html
 	rm -rf $(PROJECT_ROOT)/sdk/python/docs/build
 
-install-dependencies:
-	pip3 install -r $(PROJECT_ROOT)/sdk/python/requirements-ci.txt
-
 build-api-source:
-	python3 -m sphinx-apidoc -f -o source $(PROJECT_ROOT)/sdk/python/feast
+	sphinx-apidoc -f -o source $(PROJECT_ROOT)/sdk/python/feast
 
-html: clean install-dependencies build-api-source
-	python3 -m sphinx-build -b html source html
+html: clean build-api-source
+	sphinx-build -b html source html
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
