@@ -18,3 +18,5 @@ fastavro==0.21.*
 grpcio-testing==1.*
 pytest-ordering==0.6.*
 pyarrow
+Sphinx==2.*
+sphinx-rtd-theme
