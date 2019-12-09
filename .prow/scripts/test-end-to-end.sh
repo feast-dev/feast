@@ -191,7 +191,7 @@ spring:
     web-environment: false
 EOF
 
-nohup java -jar serving/target/feast-serving-0.3.0-SNAPSHOT.jar \
+nohup java -jar serving/target/feast-serving-0.3.2-SNAPSHOT.jar \
   --spring.config.location=file:///tmp/serving.warehouse.application.yml \
   &> /var/log/feast-serving-warehouse.log &
 sleep 15
