@@ -50,6 +50,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Facilitates management of specs within the Feast registry. This includes getting existing specs
@@ -164,6 +165,7 @@ public class SpecService {
    * @param filter filter containing the desired store name
    * @return ListStoresResponse containing list of stores found matching the filter
    */
+  @Transactional
   public ListStoresResponse listStores(ListStoresRequest.Filter filter) {
     try {
       String name = filter.getName();
@@ -241,6 +243,7 @@ public class SpecService {
    * @return UpdateStoreResponse containing the new store definition
    * @throws InvalidProtocolBufferException
    */
+  @Transactional
   public UpdateStoreResponse updateStore(UpdateStoreRequest updateStoreRequest)
       throws InvalidProtocolBufferException {
     StoreProto.Store newStoreProto = updateStoreRequest.getStore();

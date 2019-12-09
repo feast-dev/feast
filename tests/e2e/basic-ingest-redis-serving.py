@@ -24,23 +24,23 @@ from feast.feature import Feature
 FLOAT_TOLERANCE = 0.00001
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def core_url(pytestconfig):
     return pytestconfig.getoption("core_url")
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def serving_url(pytestconfig):
     return pytestconfig.getoption("serving_url")
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def allow_dirty(pytestconfig):
     return True if pytestconfig.getoption(
         "allow_dirty").lower() == "true" else False
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def client(core_url, serving_url, allow_dirty):
     # Get client for core and serving
     client = Client(core_url=core_url, serving_url=serving_url)
@@ -56,7 +56,7 @@ def client(core_url, serving_url, allow_dirty):
     return client
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def basic_dataframe():
     offset = random.randint(1000, 100000)  # ensure a unique key space is used
     return pd.DataFrame(
@@ -147,7 +147,7 @@ def test_basic_retrieve_online_success(client, basic_dataframe):
             break
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def all_types_dataframe():
     return pd.DataFrame(
         {
@@ -304,7 +304,7 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
             break
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def large_volume_dataframe():
     ROW_COUNT = 100000
     offset = random.randint(1000000, 10000000)  # ensure a unique key space
@@ -401,7 +401,7 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
             break
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def all_types_parquet_file():
     COUNT = 20000
 
