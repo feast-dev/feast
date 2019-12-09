@@ -110,6 +110,27 @@ presubmits:
           limit:
             memory: "4096Mi"
 
+  - name: test-end-to-end-batch
+    decorate: true
+    always_run: true
+    spec:
+      volumes:
+      - name: service-account
+        secret:
+          secretName: feast-service-account
+      containers:
+      - image: maven:3.6-jdk-8
+        command: [".prow/scripts/test-end-to-end-batch.sh"]
+        resources:
+          requests:
+            cpu: "1000m"
+            memory: "1024Mi"
+          limit:
+            memory: "4096Mi"
+        volumeMounts:
+        - name: service-account
+          mountPath: "/etc/service-account"
+
 # TODO: do a release when a git tag is pushed
 #
 # postsubmits list Prow jobs that run on every push 
