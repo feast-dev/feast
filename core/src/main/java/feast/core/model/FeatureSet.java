@@ -167,27 +167,21 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
       return false;
     }
 
-    // Test amount of fields
-    if (entities.size() != other.entities.size() || features.size() != other.features.size())
-    {
-      return false;
-    }
-
     // Create a map of all fields in this feature set
     Map<String, Field> fields = new HashMap<>();
 
     for (Field e : entities){
-      if(fields.containsKey(e.getName())){
-        throw new IllegalArgumentException(String.format("Duplicate field detected: %s", e.getName()));
-      }
-      fields.put(e.getName(), e);
+      fields.putIfAbsent(e.getName(), e);
     }
 
     for (Field f : features){
-      if(fields.containsKey(f.getName())){
-        throw new IllegalArgumentException(String.format("Duplicate field detected: %s", f.getName()));
-      }
-      fields.put(f.getName(), f);
+      fields.putIfAbsent(f.getName(), f);
+    }
+
+    // Ensure map size is consistent with existing fields
+    if (fields.size() != other.features.size() + other.entities.size())
+    {
+      return false;
     }
 
     // Ensure the other entities and fields exist in the field map
@@ -195,10 +189,16 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
       if(!fields.containsKey(e.getName())){
         return false;
       }
+      if (!e.equals(fields.get(e.getName()))){
+        return false;
+      }
     }
 
     for (Field f : features){
       if(!fields.containsKey(f.getName())){
+        return false;
+      }
+      if (!f.equals(fields.get(f.getName()))){
         return false;
       }
     }
