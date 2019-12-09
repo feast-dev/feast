@@ -41,11 +41,17 @@ import io.grpc.Status;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @AutoValue
 public abstract class BatchRetrievalQueryRunnable implements Runnable {
 
-  private static final long POLL_TIME_MILLIS = 5000; // 5s
+  private static final long SUBQUERY_TIMEOUT_SECS = 900; // 15 minutes
 
   public abstract JobService jobService();
 
@@ -165,29 +171,49 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
   Job runBatchQuery(List<String> featureSetQueries)
       throws BigQueryException, InterruptedException, IOException {
     Job queryJob;
-    SubqueryJobListener queryJobListener =
-        SubqueryJobListener.builder()
-            .setJobService(jobService())
-            .setFeastJobId(feastJobId())
-            .build();
+    ExecutorService executorService = Executors.newFixedThreadPool(featureSetQueries.size());
+    ExecutorCompletionService<FeatureSetInfo> executorCompletionService =
+        new ExecutorCompletionService<>(executorService);
+
+
+    List<FeatureSetInfo> featureSetInfos = new ArrayList<>();
+
     for (int i = 0; i < featureSetQueries.size(); i++) {
       QueryJobConfiguration queryJobConfig =
           QueryJobConfiguration.newBuilder(featureSetQueries.get(i)).build();
       Job subqueryJob = bigquery().create(JobInfo.of(queryJobConfig));
-      new Thread(
-              SubqueryRunnable.builder()
-                  .setFeatureSetInfo(featureSetInfos().get(i))
-                  .setSubqueryJob(subqueryJob)
-                  .setSubqueryJobListener(queryJobListener)
-                  .build())
-          .start();
+      executorCompletionService.submit(
+          SubqueryCallable.builder()
+              .setFeatureSetInfo(featureSetInfos().get(i))
+              .setSubqueryJob(subqueryJob)
+              .build());
     }
-    while (queryJobListener.subqueriesComplete() < featureSetQueries.size()) {
-      Thread.sleep(POLL_TIME_MILLIS);
+
+    for (int i = 0; i < featureSetQueries.size(); i++) {
+      try {
+        FeatureSetInfo featureSetInfo = executorCompletionService.take().get(SUBQUERY_TIMEOUT_SECS, TimeUnit.SECONDS);
+        featureSetInfos.add(featureSetInfo);
+      } catch (InterruptedException | ExecutionException | TimeoutException e) {
+        jobService()
+            .upsert(
+                ServingAPIProto.Job.newBuilder()
+                    .setId(feastJobId())
+                    .setType(JobType.JOB_TYPE_DOWNLOAD)
+                    .setStatus(JobStatus.JOB_STATUS_DONE)
+                    .setError(e.getMessage())
+                    .build());
+
+        executorService.shutdownNow();
+        throw Status.INTERNAL
+            .withDescription("Error running batch query")
+            .withCause(e)
+            .asRuntimeException();
+      }
     }
+
     String joinQuery =
         QueryTemplater.createJoinQuery(
-            queryJobListener.updatedFeatureSetInfos(), entityTableColumnNames(), entityTableName());
+            featureSetInfos, entityTableColumnNames(), entityTableName());
     QueryJobConfiguration queryJobConfig = QueryJobConfiguration.newBuilder(joinQuery).build();
     queryJob = bigquery().create(JobInfo.of(queryJobConfig));
     queryJob.waitFor();

@@ -143,7 +143,10 @@ public class QueryTemplater {
    * @param leftTableName entity dataset name
    * @return query to join temporary feature set tables to the entity table
    */
-  public static String createJoinQuery(List<FeatureSetInfo> featureSetInfos, List<String> entityTableColumnNames, String leftTableName)
+  public static String createJoinQuery(
+      List<FeatureSetInfo> featureSetInfos,
+      List<String> entityTableColumnNames,
+      String leftTableName)
       throws IOException {
     PebbleTemplate template = engine.getTemplate(JOIN_TEMPLATE_NAME);
     Map<String, Object> context = new HashMap<>();

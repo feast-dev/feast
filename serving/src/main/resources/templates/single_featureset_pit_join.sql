@@ -28,11 +28,11 @@ SELECT
   uuid,
   event_timestamp,
   {{ featureSet.entities | join(', ')}},
-  LAST_VALUE(created_timestamp IGNORE NULLS) over w AS created_timestamp,
-  LAST_VALUE({{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp IGNORE NULLS) over w AS {{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp,
+  FIRST_VALUE(created_timestamp IGNORE NULLS) over w AS created_timestamp,
+  FIRST_VALUE({{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp IGNORE NULLS) over w AS {{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp,
   is_entity_table
 FROM union_features
-WINDOW w AS (PARTITION BY {{ featureSet.entities | join(', ') }} ORDER BY is_entity_table DESC, event_timestamp, created_timestamp ASC ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+WINDOW w AS (PARTITION BY {{ featureSet.entities | join(', ') }} ORDER BY event_timestamp DESC, is_entity_table DESC, created_timestamp DESC ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
 )
 LEFT JOIN (
 SELECT
@@ -44,3 +44,4 @@ SELECT
   {% endfor %}
 FROM `{{projectId}}.{{datasetId}}.{{ featureSet.name }}_v{{ featureSet.version }}` WHERE event_timestamp <= '{{maxTimestamp}}' AND event_timestamp >= Timestamp_sub(TIMESTAMP '{{ minTimestamp }}', interval {{ featureSet.maxAge }} second)
 ) USING ({{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp, created_timestamp, {{ featureSet.entities | join(', ')}})
+WHERE is_entity_table

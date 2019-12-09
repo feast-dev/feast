@@ -24,22 +24,21 @@ import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.TableId;
 import feast.serving.store.bigquery.model.FeatureSetInfo;
+import java.util.concurrent.Callable;
 
 /**
  * Waits for a bigquery job to complete; when complete, it updates the feature set info with the
  * output table name, as well as increments the completed jobs counter in the query job listener.
  */
 @AutoValue
-public abstract class SubqueryRunnable implements Runnable {
+public abstract class SubqueryCallable implements Callable<FeatureSetInfo> {
 
   public abstract FeatureSetInfo featureSetInfo();
 
   public abstract Job subqueryJob();
 
-  public abstract SubqueryJobListener subqueryJobListener();
-
   public static Builder builder() {
-    return new AutoValue_SubqueryRunnable.Builder();
+    return new AutoValue_SubqueryCallable.Builder();
   }
 
   @AutoValue.Builder
@@ -49,23 +48,17 @@ public abstract class SubqueryRunnable implements Runnable {
 
     public abstract Builder setSubqueryJob(Job subqueryJob);
 
-    public abstract Builder setSubqueryJobListener(SubqueryJobListener subqueryJobListener);
-
-    public abstract SubqueryRunnable build();
+    public abstract SubqueryCallable build();
   }
 
   @Override
-  public void run() {
+  public FeatureSetInfo call() throws BigQueryException, InterruptedException {
     QueryJobConfiguration subqueryConfig;
-    try {
-      subqueryJob().waitFor();
-      subqueryConfig = subqueryJob().getConfiguration();
-      TableId destinationTable = subqueryConfig.getDestinationTable();
-      String fullTablePath = generateFullTableName(destinationTable);
+    subqueryJob().waitFor();
+    subqueryConfig = subqueryJob().getConfiguration();
+    TableId destinationTable = subqueryConfig.getDestinationTable();
+    String fullTablePath = generateFullTableName(destinationTable);
 
-      subqueryJobListener().callbackJobSuccess(new FeatureSetInfo(featureSetInfo(), fullTablePath));
-    } catch (BigQueryException | InterruptedException e) {
-      subqueryJobListener().callbackError(e);
-    }
+    return new FeatureSetInfo(featureSetInfo(), fullTablePath);
   }
 }

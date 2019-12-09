@@ -200,7 +200,8 @@ public class BigQueryServingService implements ServingService {
           job.waitFor();
           loadedEntityTable = bigquery.getTable(tableId);
           if (!loadedEntityTable.exists()) {
-            throw new RuntimeException("Unable to create entity dataset table, table already exists");
+            throw new RuntimeException(
+                "Unable to create entity dataset table, table already exists");
           }
           return loadedEntityTable;
         } catch (Exception e) {
