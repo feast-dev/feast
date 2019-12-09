@@ -164,7 +164,7 @@ bigquery_config:
   projectId: kf-feast
   datasetId: $DATASET_NAME
 subscriptions:
-  - name: *
+  - name: "*"
     version: ">0"
 EOF
 
