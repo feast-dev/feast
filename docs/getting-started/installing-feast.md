@@ -4,16 +4,15 @@
 
 This installation guide will demonstrate three ways of installing Feast:
 
-* [**Docker Compose \(Quickstart\)**](install-feast.md#docker-compose)**:** Allow quick testing on Feast via a sample Jupyter notebook pre-installed with Feast Python SDK.
-* [**Minikube \(Minimal\)**](installing-feast.md#minikube)**:** This installation has no external dependencies, but does not have a historical feature store installed. It allows users to quickly get a feel for Feast.
-* [**Google Kubernetes Engine \(Recommended\):**](installing-feast.md#google-kubernetes-engine) This guide installs a single cluster Feast installation on Google's GKE. It has Google Cloud specific dependencies like BigQuery, Dataflow, and Google Cloud Storage.
-
+* [**Docker Compose \(Quickstart\)**](https://github.com/gojek/feast/tree/4d1b4f98888f193c921c6e3230cf46bbd59f4d06/docs/getting-started/install-feast.md#docker-compose)**:** Fastest way to get Feast up and running. Provides a pre-installed Jupyter Notebook with the Feast Python SDK and sample code.
+* [**Minikube**](installing-feast.md#minikube)**:** This installation has no external dependencies, but does not have a historical feature store installed. It allows users to quickly get a feel for Feast.
+* [**Google Kubernetes Engine:**](installing-feast.md#google-kubernetes-engine) This guide installs a single cluster Feast installation on Google's GKE. It has Google Cloud specific dependencies like BigQuery, Dataflow, and Google Cloud Storage.
 
 ## Docker Compose
 
 ### Overview
 
-A docker compose file is provided to quickly test Feast with official docker images. GCP dependency is optional.
+A docker compose file is provided to quickly test Feast with the official docker images. There is no hard dependency on GCP, unless batch serving is required. 
 
 * Define and register feature set
 * Feature ingestion
@@ -25,26 +24,28 @@ The docker compose setup uses Direct Runner for the Apache Beam jobs.
 ### 0. Requirements
 
 1. [Docker compose](https://docs.docker.com/compose/install/) should be installed.
-2. Port 6565, 6566 and 8888, 9094 are not in used. Otherwise, modify the port mappings in  `infra/docker-compose/docker-compose.yml` to use unoccupied ports.
-3. For batch serving, you will also need a service account key that has access to GCS and BigQuery. Port 6567 will be used for the batch serving endpoint.
+2. TCP ports 6565, 6566, 8888, and 9094 are not in use. Otherwise, modify the port mappings in  `infra/docker-compose/docker-compose.yml` to use unoccupied ports.
+3. \(optional\) For batch serving you will also need a [GCP service account key](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) that has access to GCS and BigQuery. Port 6567 will be used for the batch serving endpoint.
 
-### 1. Step-by-step guide (Online serving)
+### 1. Step-by-step guide \(Online serving\)
+
 1. Navigate to `infra/docker-compose`.
 2. Copy `.env.sample` to `.env`.
 3. `docker-compose up -d`
-4. A jupyter notebook server should be accessible via `localhost:8888`
+4. A Jupyter Notebook server should be accessible via `localhost:8888`
 5. Please wait a minute or two for the Feast services to be ready before running the notebook. You will know that the services are ready when port `6565` and `6566` starts listening.
 
-### 2. Step-by-step guide (Batch serving)
+### 2. Step-by-step guide \(Batch serving\)
+
 1. Navigate to `infra/docker-compose`.
 2. Copy `.env.sample` to `.env`.
-3. Copy your GCP account service key(s) to `infra/docker-compose/gcp-service-accounts`.
+3. Copy your GCP account service key\(s\) to `infra/docker-compose/gcp-service-accounts`.
 4. Modify the value of `FEAST_<SERVICE_NAME>_GCP_SERVICE_ACCOUNT_KEY` in your `.env` file. It should be the json file name without extension.
 5. Modify the value of `infra/docker-compose/serving/bq-store.yml`. Alternatively, you can also point to a different store configuration file by modifying `FEAST_BATCH_STORE_CONFIG` in your `.env` file.
-5. `docker-compose -f docker-compose.yml -f docker-compose.batch.yml up -d`
-6. A jupyter notebook server should be accessible via `localhost:8888`
-7. Please wait a minute or two for the Feast services to be ready before running the notebook. You will know that the services are ready when port `6565` and `6567` starts listening.
-8. When you are done, run `docker-compose -f docker-compose.yml -f docker-compose.batch.yml down` to shutdown the services.
+6. `docker-compose -f docker-compose.yml -f docker-compose.batch.yml up -d`
+7. A jupyter notebook server should be accessible via `localhost:8888`
+8. Please wait a minute or two for the Feast services to be ready before running the notebook. You will know that the services are ready when port `6565` and `6567` starts listening.
+9. When you are done, run `docker-compose -f docker-compose.yml -f docker-compose.batch.yml down` to shutdown the services.
 
 ## Minikube
 
