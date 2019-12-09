@@ -4,7 +4,7 @@
 
 This installation guide will demonstrate three ways of installing Feast:
 
-* [**Docker Compose \(Quickstart\)**](https://github.com/gojek/feast/tree/4d1b4f98888f193c921c6e3230cf46bbd59f4d06/docs/getting-started/install-feast.md#docker-compose)**:** Fastest way to get Feast up and running. Provides a pre-installed Jupyter Notebook with the Feast Python SDK and sample code.
+* \*\*\*\*[**Docker Compose \(Quickstart\):**](installing-feast.md#docker-compose) Fastest way to get Feast up and running. Provides a pre-installed Jupyter Notebook with the Feast Python SDK and sample code.
 * [**Minikube**](installing-feast.md#minikube)**:** This installation has no external dependencies, but does not have a historical feature store installed. It allows users to quickly get a feel for Feast.
 * [**Google Kubernetes Engine:**](installing-feast.md#google-kubernetes-engine) This guide installs a single cluster Feast installation on Google's GKE. It has Google Cloud specific dependencies like BigQuery, Dataflow, and Google Cloud Storage.
 
