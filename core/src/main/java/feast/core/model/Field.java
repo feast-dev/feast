@@ -57,6 +57,7 @@ public class Field {
   }
 
   public Field(String featureSetId, String name, ValueType.Enum type) {
+    // TODO: Remove all mention of feature sets inside of this class!
     FeatureSet featureSet = new FeatureSet();
     featureSet.setId(featureSetId);
     this.featureSet = featureSet;
