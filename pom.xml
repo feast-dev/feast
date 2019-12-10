@@ -47,6 +47,7 @@
         <springBootVersion>2.0.9.RELEASE</springBootVersion>
         <org.apache.beam.version>2.16.0</org.apache.beam.version>
         <com.google.cloud.version>1.91.0</com.google.cloud.version>
+        <io.prometheus.version>0.8.0</io.prometheus.version>
 
         <byte-buddy.version>1.9.10</byte-buddy.version>
         <hamcrest.version>1.3</hamcrest.version>
@@ -168,6 +169,18 @@
                 <groupId>io.github.lognet</groupId>
                 <artifactId>grpc-spring-boot-starter</artifactId>
                 <version>3.0.2</version>
+            </dependency>
+
+            <!-- Prometheus Client -->
+            <dependency>
+                <groupId>io.prometheus</groupId>
+                <artifactId>simpleclient</artifactId>
+                <version>${io.prometheus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.prometheus</groupId>
+                <artifactId>simpleclient_servlet</artifactId>
+                <version>${io.prometheus.version}</version>
             </dependency>
 
             <!-- Other Stuff -->

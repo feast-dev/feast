@@ -1,4 +1,0 @@
-pandas==0.24.*
-numpy==1.16.*
-kafka-python==1.4.*
-grpcio==1.20.*

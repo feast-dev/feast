@@ -1,7 +1,0 @@
-id: entity_2.feature_4
-name: feature_4
-entity: entity_2
-owner: bob@example.com
-description: test entity with 64-bit integer value
-valueType:  INT64
-uri: https://github.com/bob/example

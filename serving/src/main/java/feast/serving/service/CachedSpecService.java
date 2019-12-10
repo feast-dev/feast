@@ -40,13 +40,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
 
 /** In-memory cache of specs. */
-@Slf4j
 public class CachedSpecService {
 
   private static final int MAX_SPEC_COUNT = 1000;
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(CachedSpecService.class);
 
   private final CoreSpecService coreService;
   private final Path configPath;

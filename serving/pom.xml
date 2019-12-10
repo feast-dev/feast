@@ -203,11 +203,18 @@
       <artifactId>google-cloud-storage</artifactId>
     </dependency>
 
-    <!--compileOnly 'org.projectlombok:lombok:1.18.2'-->
     <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value-annotations</artifactId>
+      <version>1.6.6</version>
     </dependency>
+    <dependency>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value</artifactId>
+      <version>1.6.6</version>
+      <scope>provided</scope>
+    </dependency>
+
 
     <!--testCompile "io.grpc:grpc-testing:${grpcVersion}"-->
     <dependency>

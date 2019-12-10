@@ -24,15 +24,15 @@ import java.nio.file.Paths;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-@Slf4j
 @Configuration
 public class SpecServiceConfig {
 
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(SpecServiceConfig.class);
   private String feastCoreHost;
   private int feastCorePort;
   private static final int CACHE_REFRESH_RATE_MINUTES = 1;

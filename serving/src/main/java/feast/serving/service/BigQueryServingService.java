@@ -16,16 +16,14 @@
  */
 package feast.serving.service;
 
-import static feast.serving.util.BigQueryUtil.getTimestampLimitQuery;
+import static feast.serving.store.bigquery.QueryTemplater.createEntityTableUUIDQuery;
+import static feast.serving.store.bigquery.QueryTemplater.generateFullTableName;
 import static feast.serving.util.Metrics.requestCount;
 import static feast.serving.util.Metrics.requestLatency;
 
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
-import com.google.cloud.bigquery.DatasetId;
-import com.google.cloud.bigquery.ExtractJobConfiguration;
 import com.google.cloud.bigquery.Field;
-import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.FormatOptions;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobInfo;
@@ -34,10 +32,7 @@ import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
-import com.google.cloud.bigquery.TableResult;
-import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.Storage.BlobListOption;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.serving.ServingAPIProto;
 import feast.serving.ServingAPIProto.DataFormat;
@@ -53,20 +48,19 @@ import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.JobStatus;
 import feast.serving.ServingAPIProto.JobType;
-import feast.serving.util.BigQueryUtil;
+import feast.serving.store.bigquery.BatchRetrievalQueryRunnable;
+import feast.serving.store.bigquery.QueryTemplater;
+import feast.serving.store.bigquery.model.FeatureSetInfo;
 import io.grpc.Status;
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
 
-@Slf4j
 public class BigQueryServingService implements ServingService {
 
-  private static final Long TABLE_EXPIRATION_TIME = 172800000L;
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(BigQueryServingService.class);
 
   private final BigQuery bigquery;
   private final String projectId;
@@ -130,12 +124,6 @@ public class BigQueryServingService implements ServingService {
     }
 
     Table entityTable = loadEntities(getFeaturesRequest.getDatasetSource());
-    String entityTableName = entityTable.getTableId().getTable();
-    // TODO: add expiration to temp tables
-    //    entityTable = entityTable.toBuilder().setExpirationTime(TABLE_EXPIRATION_TIME).build();
-    //    entityTable.update(TableOption.fields(TableField.EXPIRATION_TIME));
-    FieldValueList timestampLimits = getTimestampLimits(entityTableName);
-
     Schema entityTableSchema = entityTable.getDefinition().getSchema();
     List<String> entityNames =
         entityTableSchema.getFields().stream()
@@ -143,22 +131,11 @@ public class BigQueryServingService implements ServingService {
             .filter(name -> !name.equals("event_timestamp"))
             .collect(Collectors.toList());
 
-    String query;
-    try {
-      query =
-          BigQueryUtil.createQuery(
-              getFeaturesRequest.getFeatureSetsList(),
-              featureSetSpecs,
-              entityNames,
-              projectId,
-              datasetId,
-              entityTableName,
-              timestampLimits.get("min").getStringValue(),
-              timestampLimits.get("max").getStringValue());
-      log.info("Running BigQuery query: {}", query);
-    } catch (IOException e) {
-      throw new RuntimeException("Unable to generate query for batch retrieval");
-    }
+    TableId entityTableWithUUIDs = generateUUIDs(entityTable);
+    String entityTableName = generateFullTableName(entityTableWithUUIDs);
+
+    List<FeatureSetInfo> featureSetInfos =
+        QueryTemplater.getFeatureSetInfos(featureSetSpecs, getFeaturesRequest.getFeatureSetsList());
 
     String feastJobId = UUID.randomUUID().toString();
     ServingAPIProto.Job feastJob =
@@ -170,111 +147,22 @@ public class BigQueryServingService implements ServingService {
     jobService.upsert(feastJob);
 
     new Thread(
-            () -> {
-              QueryJobConfiguration queryConfig;
-              Job queryJob;
-
-              try {
-                queryConfig =
-                    QueryJobConfiguration.newBuilder(query)
-                        .setDefaultDataset(DatasetId.of(projectId, datasetId))
-                        .build();
-                queryJob = bigquery.create(JobInfo.of(queryConfig));
-                jobService.upsert(
-                    ServingAPIProto.Job.newBuilder()
-                        .setId(feastJobId)
-                        .setType(JobType.JOB_TYPE_DOWNLOAD)
-                        .setStatus(JobStatus.JOB_STATUS_RUNNING)
-                        .build());
-                queryJob.waitFor();
-              } catch (BigQueryException | InterruptedException e) {
-                jobService.upsert(
-                    ServingAPIProto.Job.newBuilder()
-                        .setId(feastJobId)
-                        .setType(JobType.JOB_TYPE_DOWNLOAD)
-                        .setStatus(JobStatus.JOB_STATUS_DONE)
-                        .setError(e.getMessage())
-                        .build());
-                return;
-              }
-
-              try {
-                queryConfig = queryJob.getConfiguration();
-                String exportTableDestinationUri =
-                    String.format("%s/%s/*.avro", jobStagingLocation, feastJobId);
-
-                // Hardcode the format to Avro for now
-                ExtractJobConfiguration extractConfig =
-                    ExtractJobConfiguration.of(
-                        queryConfig.getDestinationTable(), exportTableDestinationUri, "Avro");
-                Job extractJob = bigquery.create(JobInfo.of(extractConfig));
-                extractJob.waitFor();
-              } catch (BigQueryException | InterruptedException e) {
-                jobService.upsert(
-                    ServingAPIProto.Job.newBuilder()
-                        .setId(feastJobId)
-                        .setType(JobType.JOB_TYPE_DOWNLOAD)
-                        .setStatus(JobStatus.JOB_STATUS_DONE)
-                        .setError(e.getMessage())
-                        .build());
-                return;
-              }
-
-              String scheme = jobStagingLocation.substring(0, jobStagingLocation.indexOf("://"));
-              String stagingLocationNoScheme =
-                  jobStagingLocation.substring(jobStagingLocation.indexOf("://") + 3);
-              String bucket = stagingLocationNoScheme.split("/")[0];
-              List<String> prefixParts = new ArrayList<>();
-              prefixParts.add(
-                  stagingLocationNoScheme.contains("/") && !stagingLocationNoScheme.endsWith("/")
-                      ? stagingLocationNoScheme.substring(stagingLocationNoScheme.indexOf("/") + 1)
-                      : "");
-              prefixParts.add(feastJobId);
-              String prefix = String.join("/", prefixParts) + "/";
-
-              List<String> fileUris = new ArrayList<>();
-              for (Blob blob : storage.list(bucket, BlobListOption.prefix(prefix)).iterateAll()) {
-                fileUris.add(String.format("%s://%s/%s", scheme, blob.getBucket(), blob.getName()));
-              }
-
-              jobService.upsert(
-                  ServingAPIProto.Job.newBuilder()
-                      .setId(feastJobId)
-                      .setType(JobType.JOB_TYPE_DOWNLOAD)
-                      .setStatus(JobStatus.JOB_STATUS_DONE)
-                      .addAllFileUris(fileUris)
-                      .setDataFormat(DataFormat.DATA_FORMAT_AVRO)
-                      .build());
-            })
+            BatchRetrievalQueryRunnable.builder()
+                .setEntityTableName(entityTableName)
+                .setBigquery(bigquery)
+                .setStorage(storage)
+                .setJobService(jobService)
+                .setProjectId(projectId)
+                .setDatasetId(datasetId)
+                .setFeastJobId(feastJobId)
+                .setEntityTableColumnNames(entityNames)
+                .setFeatureSetInfos(featureSetInfos)
+                .setJobStagingLocation(jobStagingLocation)
+                .build())
         .start();
 
     requestLatency.labels("getBatchFeatures").observe(System.currentTimeMillis() - startTime);
     return GetBatchFeaturesResponse.newBuilder().setJob(feastJob).build();
-  }
-
-  private FieldValueList getTimestampLimits(String entityTableName) {
-    QueryJobConfiguration getTimestampLimitsQuery =
-        QueryJobConfiguration.newBuilder(
-                getTimestampLimitQuery(projectId, datasetId, entityTableName))
-            .setDefaultDataset(DatasetId.of(projectId, datasetId))
-            .build();
-    try {
-      Job job = bigquery.create(JobInfo.of(getTimestampLimitsQuery));
-      TableResult getTimestampLimitsQueryResult = job.waitFor().getQueryResults();
-      FieldValueList result = null;
-      for (FieldValueList fields : getTimestampLimitsQueryResult.getValues()) {
-        result = fields;
-      }
-      if (result == null || result.get("min").isNull() || result.get("max").isNull()) {
-        throw new RuntimeException("query returned insufficient values");
-      }
-      return result;
-    } catch (InterruptedException e) {
-      throw Status.INTERNAL
-          .withDescription("Unable to extract min and max timestamps from query")
-          .withCause(e)
-          .asRuntimeException();
-    }
   }
 
   /** {@inheritDoc} */
@@ -290,6 +178,7 @@ public class BigQueryServingService implements ServingService {
   }
 
   private Table loadEntities(DatasetSource datasetSource) {
+    Table loadedEntityTable;
     switch (datasetSource.getDatasetSourceCase()) {
       case FILE_SOURCE:
         try {
@@ -309,11 +198,12 @@ public class BigQueryServingService implements ServingService {
               loadJobConfiguration.toBuilder().setUseAvroLogicalTypes(true).build();
           Job job = bigquery.create(JobInfo.of(loadJobConfiguration));
           job.waitFor();
-          Table entityTable = bigquery.getTable(tableId);
-          if (!entityTable.exists()) {
-            throw new RuntimeException("Unable to create entity dataset table");
+          loadedEntityTable = bigquery.getTable(tableId);
+          if (!loadedEntityTable.exists()) {
+            throw new RuntimeException(
+                "Unable to create entity dataset table, table already exists");
           }
-          return entityTable;
+          return loadedEntityTable;
         } catch (Exception e) {
           log.error("Exception has occurred in loadEntities method: ", e);
           throw Status.INTERNAL
@@ -334,5 +224,22 @@ public class BigQueryServingService implements ServingService {
     String guid = UUID.nameUUIDFromBytes(source.getBytes()).toString();
     String suffix = guid.substring(0, Math.min(guid.length(), 10)).replaceAll("-", "");
     return String.format("temp_%s", suffix);
+  }
+
+  private TableId generateUUIDs(Table loadedEntityTable) {
+    try {
+      String uuidQuery =
+          createEntityTableUUIDQuery(generateFullTableName(loadedEntityTable.getTableId()));
+      QueryJobConfiguration queryJobConfig = QueryJobConfiguration.newBuilder(uuidQuery).build();
+      Job queryJob = bigquery.create(JobInfo.of(queryJobConfig));
+      queryJob.waitFor();
+      queryJobConfig = queryJob.getConfiguration();
+      return queryJobConfig.getDestinationTable();
+    } catch (InterruptedException | BigQueryException e) {
+      throw Status.INTERNAL
+          .withDescription("Failed to load entity dataset into store")
+          .withCause(e)
+          .asRuntimeException();
+    }
   }
 }

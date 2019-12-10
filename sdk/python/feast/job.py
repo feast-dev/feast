@@ -43,10 +43,16 @@ class Job:
 
     @property
     def id(self):
+        """
+        Getter for the Job Id
+        """
         return self.job_proto.id
 
     @property
     def status(self):
+        """
+        Getter for the Job status from Feast Core
+        """
         return self.job_proto.status
 
     def reload(self):
@@ -65,7 +71,6 @@ class Job:
             timeout_sec: max no of seconds to wait until job is done. If "timeout_sec" is exceeded, an exception will be raised.
 
         Returns: Iterable of Avro rows
-
         """
         max_wait_datetime = datetime.now() + timedelta(seconds=timeout_sec)
         wait_duration_sec = 2
@@ -111,6 +116,7 @@ class Job:
     def to_dataframe(self, timeout_sec: int = DEFAULT_TIMEOUT_SEC):
         """
         Wait until job is done to get an interable rows of result
+
         Args:
             timeout_sec: max no of seconds to wait until job is done. If "timeout_sec" is exceeded, an exception will be raised.
         Returns: pandas Dataframe of the feature values

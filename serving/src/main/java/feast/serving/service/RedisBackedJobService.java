@@ -20,16 +20,17 @@ import com.google.protobuf.util.JsonFormat;
 import feast.serving.ServingAPIProto.Job;
 import feast.serving.ServingAPIProto.Job.Builder;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
 import redis.clients.jedis.Jedis;
 
 // TODO: Do rate limiting, currently if clients call get() or upsert()
 //       and an exceedingly high rate e.g. they wrap job reload in a while loop with almost no wait
 //       Redis connection may break and need to restart Feast serving. Need to handle this.
 
-@Slf4j
 public class RedisBackedJobService implements JobService {
+
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(RedisBackedJobService.class);
   private final Jedis jedis;
   // Remove job state info after "defaultExpirySeconds" to prevent filling up Redis memory
   // and since users normally don't require info about relatively old jobs.

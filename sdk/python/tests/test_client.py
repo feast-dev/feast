@@ -84,6 +84,8 @@ class TestClient:
         client = Client(core_url=CORE_URL, serving_url=SERVING_URL)
         mocker.patch.object(client, "_connect_core")
         mocker.patch.object(client, "_connect_serving")
+        client._core_url = CORE_URL
+        client._serving_url = SERVING_URL
         return client
 
     @pytest.fixture
@@ -442,5 +444,7 @@ class TestClient:
             return_value=GetFeatureSetResponse(feature_set=all_types_fs.to_proto()),
         )
 
-        # Ingest data into Feast
-        client.ingest(all_types_fs, dataframe)
+        # Need to create a mock producer
+        with patch("feast.loaders.ingest.KafkaProducer") as mocked_queue:
+            # Ingest data into Feast
+            client.ingest(all_types_fs, dataframe)

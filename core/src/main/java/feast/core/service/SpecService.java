@@ -50,6 +50,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Facilitates management of specs within the Feast registry. This includes getting existing specs
@@ -106,17 +107,26 @@ public class SpecService {
     if (request.getVersion() == 0) {
       featureSet =
           featureSetRepository.findFirstFeatureSetByNameOrderByVersionDesc(request.getName());
+
+      if (featureSet == null) {
+        throw io.grpc.Status.NOT_FOUND
+            .withDescription(String.format("Feature set with name \"%s\" could not be found.",
+                request.getName()))
+            .asRuntimeException();
+      }
     } else {
       featureSet =
           featureSetRepository.findFeatureSetByNameAndVersion(
               request.getName(), request.getVersion());
+
+      if (featureSet == null) {
+        throw io.grpc.Status.NOT_FOUND
+            .withDescription(String.format("Feature set with name \"%s\" and version \"%s\" could "
+                + "not be found.", request.getName(), request.getVersion()))
+            .asRuntimeException();
+      }
     }
 
-    if (featureSet == null) {
-      throw io.grpc.Status.NOT_FOUND
-          .withDescription("Feature set could not be found")
-          .asRuntimeException();
-    }
 
     // Only a single item in list, return successfully
     return GetFeatureSetResponse.newBuilder().setFeatureSet(featureSet.toProto()).build();
@@ -142,9 +152,9 @@ public class SpecService {
     checkValidFeatureSetFilterName(name, "featureSetName");
     List<FeatureSet> featureSets;
     if (name.equals("")) {
-      featureSets = featureSetRepository.findAll();
+      featureSets = featureSetRepository.findAllByOrderByNameAscVersionAsc();
     } else {
-      featureSets = featureSetRepository.findByNameWithWildcard(name.replace('*', '%'));
+      featureSets = featureSetRepository.findByNameWithWildcardOrderByNameAscVersionAsc(name.replace('*', '%'));
       featureSets =
           featureSets.stream()
               .filter(getVersionFilter(filter.getFeatureSetVersion()))
@@ -164,6 +174,7 @@ public class SpecService {
    * @param filter filter containing the desired store name
    * @return ListStoresResponse containing list of stores found matching the filter
    */
+  @Transactional
   public ListStoresResponse listStores(ListStoresRequest.Filter filter) {
     try {
       String name = filter.getName();
@@ -206,6 +217,7 @@ public class SpecService {
     FeatureSetValidator.validateSpec(newFeatureSetSpec);
     List<FeatureSet> existingFeatureSets =
         featureSetRepository.findByName(newFeatureSetSpec.getName());
+
     if (existingFeatureSets.size() == 0) {
       newFeatureSetSpec = newFeatureSetSpec.toBuilder().setVersion(1).build();
     } else {
@@ -241,6 +253,7 @@ public class SpecService {
    * @return UpdateStoreResponse containing the new store definition
    * @throws InvalidProtocolBufferException
    */
+  @Transactional
   public UpdateStoreResponse updateStore(UpdateStoreRequest updateStoreRequest)
       throws InvalidProtocolBufferException {
     StoreProto.Store newStoreProto = updateStoreRequest.getStore();

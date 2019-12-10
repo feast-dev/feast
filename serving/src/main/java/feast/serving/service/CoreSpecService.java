@@ -23,11 +23,12 @@ import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
 
 /** Client for spec retrieval from core. */
-@Slf4j
 public class CoreSpecService {
+
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(CoreSpecService.class);
   private final CoreServiceGrpc.CoreServiceBlockingStub blockingStub;
 
   public CoreSpecService(String feastCoreHost, int feastCorePort) {
