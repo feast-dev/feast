@@ -62,8 +62,21 @@ def export_dataframe_to_local(df: pd.DataFrame, dir_path: Optional[str] = None):
     file_name = f'{datetime.now().strftime("%d-%m-%Y_%I-%M-%S_%p")}_{str(uuid.uuid4())[:8]}.avro'
     dest_path = f"{dir_path}/{file_name}"
 
-    # Export dataset to file in local path
-    to_avro(df=df, file_path_or_buffer=dest_path)
+    # Temporarily rename datetime column to event_timestamp. Ideally we would
+    # force the schema with our avro writer instead.
+    df.columns = ["event_timestamp" if col == "datetime" else col for col in df.columns]
+
+    try:
+        # Export dataset to file in local path
+        to_avro(df=df, file_path_or_buffer=dest_path)
+    except Exception:
+        raise
+    finally:
+        # Revert event_timestamp column to datetime
+        df.columns = [
+            "datetime" if col == "event_timestamp" else col for col in df.columns
+        ]
+
     return dir_path, file_name, dest_path
 
 

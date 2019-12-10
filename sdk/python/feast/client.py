@@ -132,43 +132,23 @@ class Client:
         """
         Returns version information from Feast Core and Feast Serving
         """
+        result = {}
 
-        self._connect_core()
-        self._connect_serving()
-
-        core_version = ""
-        serving_version = ""
-        core_status = "not connected"
-        serving_status = "not connected"
-
-        try:
-            core_version = self._core_service_stub.GetFeastCoreVersion(
-                GetFeastCoreVersionRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
-            ).version
-            core_status = "connected"
-        except grpc.RpcError as e:
-            print(format_grpc_exception("GetFeastCoreVersion", e.code(), e.details()))
-
-        try:
+        if self.serving_url:
+            self._connect_serving()
             serving_version = self._serving_service_stub.GetFeastServingInfo(
                 GetFeastServingInfoRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             ).version
-            serving_status = "connected"
-        except grpc.RpcError as e:
-            print(format_grpc_exception("GetFeastServingInfo", e.code(), e.details()))
+            result["serving"] = {"url": self.serving_url, "version": serving_version}
 
-        return {
-            "core": {
-                "url": self.core_url,
-                "version": core_version,
-                "status": core_status,
-            },
-            "serving": {
-                "url": self.serving_url,
-                "version": serving_version,
-                "status": serving_status,
-            },
-        }
+        if self.core_url:
+            self._connect_core()
+            core_version = self._core_service_stub.GetFeastCoreVersion(
+                GetFeastCoreVersionRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+            ).version
+            result["core"] = {"url": self.core_url, "version": core_version}
+
+        return result
 
     def _connect_core(self, skip_if_connected: bool = True):
         """
@@ -191,10 +171,10 @@ class Client:
                 timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             )
         except grpc.FutureTimeoutError:
-            print(
-                f"Connection timed out while attempting to connect to Feast Core gRPC server {self.core_url}"
+            raise ConnectionError(
+                f"Connection timed out while attempting to connect to Feast "
+                f"Core gRPC server {self.core_url} "
             )
-            sys.exit(1)
         else:
             self._core_service_stub = CoreServiceStub(self.__core_channel)
 
@@ -220,10 +200,10 @@ class Client:
                 timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
             )
         except grpc.FutureTimeoutError:
-            print(
-                f"Connection timed out while attempting to connect to Feast Serving gRPC server {self.serving_url} "
+            raise ConnectionError(
+                f"Connection timed out while attempting to connect to Feast "
+                f"Serving gRPC server {self.serving_url} "
             )
-            sys.exit(1)
         else:
             self._serving_service_stub = ServingServiceStub(self.__serving_channel)
 
@@ -255,35 +235,29 @@ class Client:
         self._connect_core()
         feature_set._client = self
 
-        valid, message = feature_set.is_valid()
-        if not valid:
-            raise Exception(message)
-        try:
-            # Convert the feature set to a request and send to Feast Core
-            apply_fs_response = self._core_service_stub.ApplyFeatureSet(
-                ApplyFeatureSetRequest(feature_set=feature_set.to_proto()),
-                timeout=GRPC_CONNECTION_TIMEOUT_APPLY,
-            )  # type: ApplyFeatureSetResponse
+        feature_set.is_valid()
 
-            # Extract the returned feature set
-            applied_fs = FeatureSet.from_proto(apply_fs_response.feature_set)
+        # Convert the feature set to a request and send to Feast Core
+        apply_fs_response = self._core_service_stub.ApplyFeatureSet(
+            ApplyFeatureSetRequest(feature_set=feature_set.to_proto()),
+            timeout=GRPC_CONNECTION_TIMEOUT_APPLY,
+        )  # type: ApplyFeatureSetResponse
 
-            # If the feature set has changed, update the local copy
-            if apply_fs_response.status == ApplyFeatureSetResponse.Status.CREATED:
-                print(
-                    f'Feature set updated/created: "{applied_fs.name}:{applied_fs.version}".'
-                )
-                # Deep copy from the returned feature set to the local feature set
-                feature_set._update_from_feature_set(applied_fs, is_dirty=False)
-                return
+        # Extract the returned feature set
+        applied_fs = FeatureSet.from_proto(apply_fs_response.feature_set)
 
-            # If no change has been applied, do nothing
-            if apply_fs_response.status == ApplyFeatureSetResponse.Status.NO_CHANGE:
-                print(f"No change detected in feature set {feature_set.name}")
-                return
+        # If the feature set has changed, update the local copy
+        if apply_fs_response.status == ApplyFeatureSetResponse.Status.CREATED:
+            print(
+                f'Feature set updated/created: "{applied_fs.name}:{applied_fs.version}"'
+            )
 
-        except grpc.RpcError as e:
-            print(format_grpc_exception("ApplyFeatureSet", e.code(), e.details()))
+        # If no change has been applied, do nothing
+        if apply_fs_response.status == ApplyFeatureSetResponse.Status.NO_CHANGE:
+            print(f"No change detected or applied: {feature_set.name}")
+
+        # Deep copy from the returned feature set to the local feature set
+        feature_set.update_from_feature_set(applied_fs)
 
     def list_feature_sets(self) -> List[FeatureSet]:
         """
@@ -294,15 +268,10 @@ class Client:
         """
         self._connect_core()
 
-        try:
-            # Get latest feature sets from Feast Core
-            feature_set_protos = self._core_service_stub.ListFeatureSets(
-                ListFeatureSetsRequest()
-            )  # type: ListFeatureSetsResponse
-        except grpc.RpcError as e:
-            raise Exception(
-                format_grpc_exception("ListFeatureSets", e.code(), e.details())
-            )
+        # Get latest feature sets from Feast Core
+        feature_set_protos = self._core_service_stub.ListFeatureSets(
+            ListFeatureSetsRequest()
+        )  # type: ListFeatureSetsResponse
 
         # Extract feature sets and return
         feature_sets = []
@@ -313,7 +282,7 @@ class Client:
         return feature_sets
 
     def get_feature_set(
-        self, name: str, version: int = None, fail_if_missing: bool = False
+        self, name: str, version: int = None
     ) -> Union[FeatureSet, None]:
         """
         Retrieves a feature set. If no version is specified then the latest
@@ -322,31 +291,19 @@ class Client:
         Args:
             name: Name of feature set
             version: Version of feature set
-            fail_if_missing: Raise an error if feature set is not found
 
         Returns:
-            Returns either the specified feature set, or None if not found
+            Returns either the specified feature set, or raises an exception if
+            none is found
         """
         self._connect_core()
-        try:
-            name = name.strip()
-            if version is None:
-                version = 0
-            get_feature_set_response = self._core_service_stub.GetFeatureSet(
-                GetFeatureSetRequest(name=name, version=version)
-            )  # type: GetFeatureSetResponse
-            feature_set = get_feature_set_response.feature_set
-        except grpc.RpcError as e:
-            print(format_grpc_exception("GetFeatureSet", e.code(), e.details()))
-        else:
-            if feature_set is not None:
-                return FeatureSet.from_proto(feature_set)
 
-            if fail_if_missing:
-                raise Exception(
-                    f'Could not find feature set with name "{name}" and '
-                    f'version "{version}"'
-                )
+        if version is None:
+            version = 0
+        get_feature_set_response = self._core_service_stub.GetFeatureSet(
+            GetFeatureSetRequest(name=name.strip(), version=int(version))
+        )  # type: GetFeatureSetResponse
+        return FeatureSet.from_proto(get_feature_set_response.feature_set)
 
     def list_entities(self) -> Dict[str, Entity]:
         """
@@ -398,61 +355,49 @@ class Client:
 
         self._connect_serving()
 
-        try:
-            fs_request = _build_feature_set_request(feature_ids)
+        fs_request = _build_feature_set_request(feature_ids)
 
-            # Validate entity rows based on entities in Feast Core
-            self._validate_entity_rows_for_batch_retrieval(entity_rows, fs_request)
+        # Validate entity rows based on entities in Feast Core
+        self._validate_entity_rows_for_batch_retrieval(entity_rows, fs_request)
 
-            # We want the timestamp column naming to be consistent with the
-            # rest of Feast
-            entity_rows.columns = [
-                "event_timestamp" if col == "datetime" else col
-                for col in entity_rows.columns
-            ]
+        # Remove timezone from datetime column
+        if isinstance(
+            entity_rows["datetime"].dtype, pd.core.dtypes.dtypes.DatetimeTZDtype
+        ):
+            entity_rows["datetime"] = pd.DatetimeIndex(
+                entity_rows["datetime"]
+            ).tz_localize(None)
 
-            # Remove timezone from datetime column
-            if isinstance(
-                entity_rows["event_timestamp"].dtype,
-                pd.core.dtypes.dtypes.DatetimeTZDtype,
-            ):
-                entity_rows["event_timestamp"] = pd.DatetimeIndex(
-                    entity_rows["event_timestamp"]
-                ).tz_localize(None)
+        # Retrieve serving information to determine store type and
+        # staging location
+        serving_info = self._serving_service_stub.GetFeastServingInfo(
+            GetFeastServingInfoRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+        )  # type: GetFeastServingInfoResponse
 
-            # Retrieve serving information to determine store type and
-            # staging location
-            serving_info = self._serving_service_stub.GetFeastServingInfo(
-                GetFeastServingInfoRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
-            )  # type: GetFeastServingInfoResponse
-
-            if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
-                raise Exception(
-                    f'You are connected to a store "{self._serving_url}" which '
-                    f"does not support batch retrieval "
-                )
-
-            # Export and upload entity row dataframe to staging location
-            # provided by Feast
-            staged_file = export_dataframe_to_staging_location(
-                entity_rows, serving_info.job_staging_location
-            )  # type: str
-
-            request = GetBatchFeaturesRequest(
-                feature_sets=fs_request,
-                dataset_source=DatasetSource(
-                    file_source=DatasetSource.FileSource(
-                        file_uris=[staged_file], data_format=DataFormat.DATA_FORMAT_AVRO
-                    )
-                ),
+        if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
+            raise Exception(
+                f'You are connected to a store "{self._serving_url}" which '
+                f"does not support batch retrieval "
             )
 
-            # Retrieve Feast Job object to manage life cycle of retrieval
-            response = self._serving_service_stub.GetBatchFeatures(request)
-            return Job(response.job, self._serving_service_stub)
+        # Export and upload entity row dataframe to staging location
+        # provided by Feast
+        staged_file = export_dataframe_to_staging_location(
+            entity_rows, serving_info.job_staging_location
+        )  # type: str
 
-        except grpc.RpcError as e:
-            print(format_grpc_exception("GetBatchFeatures", e.code(), e.details()))
+        request = GetBatchFeaturesRequest(
+            feature_sets=fs_request,
+            dataset_source=DatasetSource(
+                file_source=DatasetSource.FileSource(
+                    file_uris=[staged_file], data_format=DataFormat.DATA_FORMAT_AVRO
+                )
+            ),
+        )
+
+        # Retrieve Feast Job object to manage life cycle of retrieval
+        response = self._serving_service_stub.GetBatchFeatures(request)
+        return Job(response.job, self._serving_service_stub)
 
     def _validate_entity_rows_for_batch_retrieval(
         self, entity_rows, feature_sets_request
@@ -517,17 +462,12 @@ class Client:
 
         self._connect_serving()
 
-        try:
-            response = self._serving_service_stub.GetOnlineFeatures(
-                GetOnlineFeaturesRequest(
-                    feature_sets=_build_feature_set_request(feature_ids),
-                    entity_rows=entity_rows,
-                )
-            )  # type: GetOnlineFeaturesResponse
-        except grpc.RpcError as e:
-            print(format_grpc_exception("GetOnlineFeatures", e.code(), e.details()))
-        else:
-            return response
+        return self._serving_service_stub.GetOnlineFeatures(
+            GetOnlineFeaturesRequest(
+                feature_sets=_build_feature_set_request(feature_ids),
+                entity_rows=entity_rows,
+            )
+        )  # type: GetOnlineFeaturesResponse
 
     def ingest(
         self,
@@ -580,7 +520,7 @@ class Client:
             )
             self.apply(feature_set)
 
-        feature_set = self.get_feature_set(name, version, fail_if_missing=True)
+        feature_set = self.get_feature_set(name, version)
 
         if feature_set.source.source_type == "Kafka":
             ingest_table_to_kafka(

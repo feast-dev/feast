@@ -206,7 +206,7 @@ ORIGINAL_DIR=$(pwd)
 cd tests/e2e
 
 set +e
-pytest --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+pytest basic-ingest-redis-serving.py --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
 cd ${ORIGINAL_DIR}

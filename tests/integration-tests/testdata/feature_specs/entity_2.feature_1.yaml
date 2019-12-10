@@ -1,7 +1,0 @@
-id: entity_2.feature_1
-name: feature_1
-entity: entity_2
-owner: bob@example.com
-description: feature with double value
-valueType: DOUBLE
-uri: https://github.com/bob/example

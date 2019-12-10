@@ -173,11 +173,11 @@ public class Source {
    * @return boolean equal
    */
   public boolean equalTo(Source other) {
-    if (other.isDefault && isDefault) {
+    if (other.isDefault && isDefault || (type == null && other.type == null)) {
       return true;
     }
 
-    if (!type.equals(other.type)) {
+    if ((type == null || !type.equals(other.type))) {
       return false;
     }
 

@@ -1,7 +1,0 @@
-id: entity_1.feature_3
-name: feature_3
-entity: entity_1
-owner: bob@example.com
-description: feature with 32-bit integer value
-valueType:  INT32
-uri: https://github.com/bob/example

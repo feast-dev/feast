@@ -1,0 +1,1050 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>feast package &mdash; Feast 0.3.2 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Feast
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.3.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">feast package</a><ul>
+<li><a class="reference internal" href="#subpackages">Subpackages</a></li>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-feast.client">feast.client module</a></li>
+<li><a class="reference internal" href="#module-feast.config">feast.config module</a></li>
+<li><a class="reference internal" href="#module-feast.constants">feast.constants module</a></li>
+<li><a class="reference internal" href="#module-feast.entity">feast.entity module</a></li>
+<li><a class="reference internal" href="#module-feast.exceptions">feast.exceptions module</a></li>
+<li><a class="reference internal" href="#module-feast.feature">feast.feature module</a></li>
+<li><a class="reference internal" href="#module-feast.feature_set">feast.feature_set module</a></li>
+<li><a class="reference internal" href="#module-feast.field">feast.field module</a></li>
+<li><a class="reference internal" href="#module-feast.job">feast.job module</a></li>
+<li><a class="reference internal" href="#module-feast.resource">feast.resource module</a></li>
+<li><a class="reference internal" href="#module-feast.source">feast.source module</a></li>
+<li><a class="reference internal" href="#module-feast.type_map">feast.type_map module</a></li>
+<li><a class="reference internal" href="#module-feast.value_type">feast.value_type module</a></li>
+<li><a class="reference internal" href="#module-feast">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Feast</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>feast package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/feast.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="feast-package">
+<h1>feast package<a class="headerlink" href="#feast-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="feast.core.html">feast.core package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="feast.core.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.core.html#module-feast.core.CoreService_pb2">feast.core.CoreService_pb2 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.core.html#module-feast.core.CoreService_pb2_grpc">feast.core.CoreService_pb2_grpc module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.core.html#module-feast.core.FeatureSet_pb2">feast.core.FeatureSet_pb2 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.core.html#module-feast.core.FeatureSet_pb2_grpc">feast.core.FeatureSet_pb2_grpc module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.core.html#module-feast.core.Source_pb2">feast.core.Source_pb2 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.core.html#module-feast.core.Source_pb2_grpc">feast.core.Source_pb2_grpc module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.core.html#module-feast.core.Store_pb2">feast.core.Store_pb2 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.core.html#module-feast.core.Store_pb2_grpc">feast.core.Store_pb2_grpc module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.core.html#module-feast.core">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="feast.loaders.html">feast.loaders package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="feast.loaders.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.loaders.html#module-feast.loaders.file">feast.loaders.file module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.loaders.html#module-feast.loaders.ingest">feast.loaders.ingest module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.loaders.html#module-feast.loaders.yaml">feast.loaders.yaml module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.loaders.html#module-feast.loaders">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="feast.serving.html">feast.serving package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="feast.serving.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.serving.html#module-feast.serving.ServingService_pb2">feast.serving.ServingService_pb2 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.serving.html#module-feast.serving.ServingService_pb2_grpc">feast.serving.ServingService_pb2_grpc module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.serving.html#module-feast.serving">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="feast.storage.html">feast.storage package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="feast.storage.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.storage.html#module-feast.storage.Redis_pb2">feast.storage.Redis_pb2 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.storage.html#module-feast.storage">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="feast.types.html">feast.types package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="feast.types.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.types.html#module-feast.types.FeatureRowExtended_pb2">feast.types.FeatureRowExtended_pb2 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.types.html#module-feast.types.FeatureRow_pb2">feast.types.FeatureRow_pb2 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.types.html#module-feast.types.Feature_pb2">feast.types.Feature_pb2 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.types.html#module-feast.types.Field_pb2">feast.types.Field_pb2 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.types.html#module-feast.types.Value_pb2">feast.types.Value_pb2 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="feast.types.html#module-feast.types">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-feast.client">
+<span id="feast-client-module"></span><h2>feast.client module<a class="headerlink" href="#module-feast.client" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="feast.client.Client">
+<em class="property">class </em><code class="sig-prename descclassname">feast.client.</code><code class="sig-name descname">Client</code><span class="sig-paren">(</span><em class="sig-param">core_url: str = None</em>, <em class="sig-param">serving_url: str = None</em>, <em class="sig-param">verbose: bool = False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/client.html#Client"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.client.Client" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Feast Client: Used for creating, managing, and retrieving features.</p>
+<dl class="method">
+<dt id="feast.client.Client.apply">
+<code class="sig-name descname">apply</code><span class="sig-paren">(</span><em class="sig-param">feature_sets: Union[List[feast.feature_set.FeatureSet], feast.feature_set.FeatureSet]</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/client.html#Client.apply"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.client.Client.apply" title="Permalink to this definition">¶</a></dt>
+<dd><p>Idempotently registers feature set(s) with Feast Core. Either a single
+feature set or a list can be provided.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>feature_sets</strong> – List of feature sets that will be registered</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.client.Client.core_url">
+<em class="property">property </em><code class="sig-name descname">core_url</code><a class="headerlink" href="#feast.client.Client.core_url" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve Feast Core URL</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.client.Client.get_batch_features">
+<code class="sig-name descname">get_batch_features</code><span class="sig-paren">(</span><em class="sig-param">feature_ids: List[str], entity_rows: pandas.core.frame.DataFrame</em><span class="sig-paren">)</span> &#x2192; feast.job.Job<a class="reference internal" href="_modules/feast/client.html#Client.get_batch_features"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.client.Client.get_batch_features" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieves historical features from a Feast Serving deployment.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>feature_ids</strong> – List of feature ids that will be returned for each
+entity. Each feature id should have the following format
+“feature_set_name:version:feature_name”.</p></li>
+<li><p><strong>entity_rows</strong> – Pandas dataframe containing entities and a ‘datetime’
+column. Each entity in a feature set must be present as a column
+in this dataframe. The datetime column must</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Returns a job object that can be used to monitor retrieval progress
+asynchronously, and can be used to materialize the results</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">feast</span> <span class="k">import</span> <span class="n">Client</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">feast_client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">core_url</span><span class="o">=</span><span class="s2">&quot;localhost:6565&quot;</span><span class="p">,</span> <span class="n">serving_url</span><span class="o">=</span><span class="s2">&quot;localhost:6566&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">feature_ids</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;customer:1:bookings_7d&quot;</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">entity_rows</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="p">{</span>
+<span class="gp">&gt;&gt;&gt; </span>           <span class="s2">&quot;datetime&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)],</span>
+<span class="gp">&gt;&gt;&gt; </span>           <span class="s2">&quot;customer&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1001</span><span class="p">,</span> <span class="mi">1002</span><span class="p">,</span> <span class="mi">1003</span><span class="p">],</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="p">}</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">feature_retrieval_job</span> <span class="o">=</span> <span class="n">feast_client</span><span class="o">.</span><span class="n">get_batch_features</span><span class="p">(</span><span class="n">feature_ids</span><span class="p">,</span> <span class="n">entity_rows</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">df</span> <span class="o">=</span> <span class="n">feature_retrieval_job</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.client.Client.get_feature_set">
+<code class="sig-name descname">get_feature_set</code><span class="sig-paren">(</span><em class="sig-param">name: str</em>, <em class="sig-param">version: int = None</em>, <em class="sig-param">fail_if_missing: bool = False</em><span class="sig-paren">)</span> &#x2192; Optional[feast.feature_set.FeatureSet]<a class="reference internal" href="_modules/feast/client.html#Client.get_feature_set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.client.Client.get_feature_set" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieves a feature set. If no version is specified then the latest
+version will be returned.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – Name of feature set</p></li>
+<li><p><strong>version</strong> – Version of feature set</p></li>
+<li><p><strong>fail_if_missing</strong> – Raise an error if feature set is not found</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Returns either the specified feature set, or None if not found</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.client.Client.get_online_features">
+<code class="sig-name descname">get_online_features</code><span class="sig-paren">(</span><em class="sig-param">feature_ids: List[str], entity_rows: List[feast.serving.ServingService_pb2.EntityRow]</em><span class="sig-paren">)</span> &#x2192; feast.serving.ServingService_pb2.GetOnlineFeaturesResponse<a class="reference internal" href="_modules/feast/client.html#Client.get_online_features"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.client.Client.get_online_features" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieves the latest online feature data from Feast Serving</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>feature_ids</strong> – <p>List of feature Ids in the following format
+[feature_set_name]:[version]:[feature_name]
+.. rubric:: Example</p>
+<p>[“feature_set_1:6:my_feature_1”,
+“feature_set_1:6:my_feature_2”,]</p>
+</p></li>
+<li><p><strong>entity_rows</strong> – List of GetFeaturesRequest.EntityRow where each row
+contains entities. Timestamp should not be set for online
+retrieval. All entity types within a feature</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Returns a list of maps where each item in the list contains the
+latest feature values for the provided entities</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.client.Client.ingest">
+<code class="sig-name descname">ingest</code><span class="sig-paren">(</span><em class="sig-param">feature_set: Union[str, feast.feature_set.FeatureSet], source: Union[pandas.core.frame.DataFrame, str], version: int = None, force_update: bool = False, max_workers: int = 4, disable_progress_bar: bool = False, chunk_size: int = 5000, timeout: int = None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/client.html#Client.ingest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.client.Client.ingest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads feature data into Feast for a specific feature set.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>feature_set</strong> – Name of feature set or a feature set object</p></li>
+<li><p><strong>source</strong> – Either a file path or Pandas Dataframe to ingest into Feast
+Files that are currently supported:
+* parquet
+* csv
+* json</p></li>
+<li><p><strong>version</strong> – Feature set version</p></li>
+<li><p><strong>force_update</strong> – Automatically update feature set based on source data
+prior to ingesting. This will also register changes to Feast</p></li>
+<li><p><strong>max_workers</strong> – Number of worker processes to use to encode values</p></li>
+<li><p><strong>disable_progress_bar</strong> – Disable printing of progress statistics</p></li>
+<li><p><strong>chunk_size</strong> – Maximum amount of rows to load into memory and ingest at
+a time</p></li>
+<li><p><strong>timeout</strong> – Seconds to wait before ingestion times out</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.client.Client.list_entities">
+<code class="sig-name descname">list_entities</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; Dict[str, feast.entity.Entity]<a class="reference internal" href="_modules/feast/client.html#Client.list_entities"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.client.Client.list_entities" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a dictionary of entities across all feature sets</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Dictionary of entities, indexed by name</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.client.Client.list_feature_sets">
+<code class="sig-name descname">list_feature_sets</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; List[feast.feature_set.FeatureSet]<a class="reference internal" href="_modules/feast/client.html#Client.list_feature_sets"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.client.Client.list_feature_sets" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve a list of feature sets from Feast Core</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>List of feature sets</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.client.Client.serving_url">
+<em class="property">property </em><code class="sig-name descname">serving_url</code><a class="headerlink" href="#feast.client.Client.serving_url" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve Serving Core URL</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.client.Client.version">
+<code class="sig-name descname">version</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/client.html#Client.version"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.client.Client.version" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns version information from Feast Core and Feast Serving</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-feast.config">
+<span id="feast-config-module"></span><h2>feast.config module<a class="headerlink" href="#module-feast.config" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="feast.config.get_config_property_or_fail">
+<code class="sig-prename descclassname">feast.config.</code><code class="sig-name descname">get_config_property_or_fail</code><span class="sig-paren">(</span><em class="sig-param">prop: str</em>, <em class="sig-param">force_config: Dict[str</em>, <em class="sig-param">str] = None</em><span class="sig-paren">)</span> &#x2192; str<a class="reference internal" href="_modules/feast/config.html#get_config_property_or_fail"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.config.get_config_property_or_fail" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets a single property in the users configuration</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>prop</strong> – Property to retrieve</p></li>
+<li><p><strong>force_config</strong> – Configuration dictionary containing properties that should
+be overridden. This will take precedence over file based properties.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Returns a string property</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="feast.config.set_property">
+<code class="sig-prename descclassname">feast.config.</code><code class="sig-name descname">set_property</code><span class="sig-paren">(</span><em class="sig-param">prop: str</em>, <em class="sig-param">value: str</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/config.html#set_property"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.config.set_property" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets a single property in the Feast users local configuration file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>prop</strong> – Feast property name</p></li>
+<li><p><strong>value</strong> – Feast property value</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-feast.constants">
+<span id="feast-constants-module"></span><h2>feast.constants module<a class="headerlink" href="#module-feast.constants" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-feast.entity">
+<span id="feast-entity-module"></span><h2>feast.entity module<a class="headerlink" href="#module-feast.entity" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="feast.entity.Entity">
+<em class="property">class </em><code class="sig-prename descclassname">feast.entity.</code><code class="sig-name descname">Entity</code><span class="sig-paren">(</span><em class="sig-param">name: str</em>, <em class="sig-param">dtype: feast.value_type.ValueType</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/entity.html#Entity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.entity.Entity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#feast.field.Field" title="feast.field.Field"><code class="xref py py-class docutils literal notranslate"><span class="pre">feast.field.Field</span></code></a></p>
+<p>Entity field type</p>
+<dl class="method">
+<dt id="feast.entity.Entity.from_proto">
+<em class="property">classmethod </em><code class="sig-name descname">from_proto</code><span class="sig-paren">(</span><em class="sig-param">entity_proto: feast.core.FeatureSet_pb2.EntitySpec</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/entity.html#Entity.from_proto"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.entity.Entity.from_proto" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a Feast Entity object from its Protocol Buffer representation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>entity_proto</strong> – EntitySpec protobuf object</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Entity object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.entity.Entity.to_proto">
+<code class="sig-name descname">to_proto</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; feast.core.FeatureSet_pb2.EntitySpec<a class="reference internal" href="_modules/feast/entity.html#Entity.to_proto"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.entity.Entity.to_proto" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts Entity to its Protocol Buffer representation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Returns EntitySpec object</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-feast.exceptions">
+<span id="feast-exceptions-module"></span><h2>feast.exceptions module<a class="headerlink" href="#module-feast.exceptions" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="feast.exceptions.format_grpc_exception">
+<code class="sig-prename descclassname">feast.exceptions.</code><code class="sig-name descname">format_grpc_exception</code><span class="sig-paren">(</span><em class="sig-param">method: str</em>, <em class="sig-param">code: str</em>, <em class="sig-param">details: str</em><span class="sig-paren">)</span> &#x2192; str<a class="reference internal" href="_modules/feast/exceptions.html#format_grpc_exception"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.exceptions.format_grpc_exception" title="Permalink to this definition">¶</a></dt>
+<dd><p>Consistent format for use in printing gRPC exceptions</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-feast.feature">
+<span id="feast-feature-module"></span><h2>feast.feature module<a class="headerlink" href="#module-feast.feature" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="feast.feature.Feature">
+<em class="property">class </em><code class="sig-prename descclassname">feast.feature.</code><code class="sig-name descname">Feature</code><span class="sig-paren">(</span><em class="sig-param">name: str</em>, <em class="sig-param">dtype: feast.value_type.ValueType</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/feature.html#Feature"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.feature.Feature" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#feast.field.Field" title="feast.field.Field"><code class="xref py py-class docutils literal notranslate"><span class="pre">feast.field.Field</span></code></a></p>
+<p>Feature field type</p>
+<dl class="method">
+<dt id="feast.feature.Feature.from_proto">
+<em class="property">classmethod </em><code class="sig-name descname">from_proto</code><span class="sig-paren">(</span><em class="sig-param">feature_proto: feast.core.FeatureSet_pb2.FeatureSpec</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/feature.html#Feature.from_proto"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.feature.Feature.from_proto" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts Protobuf Feature to its SDK equivalent</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.feature.Feature.to_proto">
+<code class="sig-name descname">to_proto</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; feast.core.FeatureSet_pb2.FeatureSpec<a class="reference internal" href="_modules/feast/feature.html#Feature.to_proto"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.feature.Feature.to_proto" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts Feature object to its Protocol Buffer representation</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-feast.feature_set">
+<span id="feast-feature-set-module"></span><h2>feast.feature_set module<a class="headerlink" href="#module-feast.feature_set" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="feast.feature_set.FeatureSet">
+<em class="property">class </em><code class="sig-prename descclassname">feast.feature_set.</code><code class="sig-name descname">FeatureSet</code><span class="sig-paren">(</span><em class="sig-param">name: str</em>, <em class="sig-param">features: List[feast.feature.Feature] = None</em>, <em class="sig-param">entities: List[feast.entity.Entity] = None</em>, <em class="sig-param">source: feast.source.Source = None</em>, <em class="sig-param">max_age: Optional[google.protobuf.duration_pb2.Duration] = None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/feature_set.html#FeatureSet"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.feature_set.FeatureSet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Represents a collection of features and associated metadata.</p>
+<dl class="method">
+<dt id="feast.feature_set.FeatureSet.add">
+<code class="sig-name descname">add</code><span class="sig-paren">(</span><em class="sig-param">resource</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/feature_set.html#FeatureSet.add"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.feature_set.FeatureSet.add" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds a resource (Feature, Entity) to this Feature Set.
+Does not register the updated Feature Set with Feast Core</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>resource</strong> – A resource can be either a Feature or an Entity object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.feature_set.FeatureSet.drop">
+<code class="sig-name descname">drop</code><span class="sig-paren">(</span><em class="sig-param">name: str</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/feature_set.html#FeatureSet.drop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.feature_set.FeatureSet.drop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes a Feature or Entity from a Feature Set. This does not apply
+any changes to Feast Core until the apply() method is called.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>name</strong> – Name of Feature or Entity to be removed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.feature_set.FeatureSet.entities">
+<em class="property">property </em><code class="sig-name descname">entities</code><a class="headerlink" href="#feast.feature_set.FeatureSet.entities" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns list of entities from this feature set</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.feature_set.FeatureSet.features">
+<em class="property">property </em><code class="sig-name descname">features</code><a class="headerlink" href="#feast.feature_set.FeatureSet.features" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list of features from this feature set</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.feature_set.FeatureSet.fields">
+<em class="property">property </em><code class="sig-name descname">fields</code><a class="headerlink" href="#feast.feature_set.FeatureSet.fields" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a dict of fields from this feature set</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.feature_set.FeatureSet.from_dict">
+<em class="property">classmethod </em><code class="sig-name descname">from_dict</code><span class="sig-paren">(</span><em class="sig-param">fs_dict</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/feature_set.html#FeatureSet.from_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.feature_set.FeatureSet.from_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a feature set from a dict</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>fs_dict</strong> – A dict representation of a feature set</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Returns a FeatureSet object based on the feature set dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.feature_set.FeatureSet.from_proto">
+<em class="property">classmethod </em><code class="sig-name descname">from_proto</code><span class="sig-paren">(</span><em class="sig-param">feature_set_proto: feast.core.FeatureSet_pb2.FeatureSetSpec</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/feature_set.html#FeatureSet.from_proto"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.feature_set.FeatureSet.from_proto" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a feature set from a protobuf representation of a feature set</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>from_proto</strong> – A protobuf representation of a feature set</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Returns a FeatureSet object based on the feature set protobuf</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.feature_set.FeatureSet.from_yaml">
+<em class="property">classmethod </em><code class="sig-name descname">from_yaml</code><span class="sig-paren">(</span><em class="sig-param">yml: str</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/feature_set.html#FeatureSet.from_yaml"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.feature_set.FeatureSet.from_yaml" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a feature set from a YAML string body or a file path</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>yml</strong> – Either a file path containing a yaml file or a YAML string</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Returns a FeatureSet object based on the YAML file</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.feature_set.FeatureSet.get_kafka_source_brokers">
+<code class="sig-name descname">get_kafka_source_brokers</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; str<a class="reference internal" href="_modules/feast/feature_set.html#FeatureSet.get_kafka_source_brokers"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.feature_set.FeatureSet.get_kafka_source_brokers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the broker list for the source in this feature set</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.feature_set.FeatureSet.get_kafka_source_topic">
+<code class="sig-name descname">get_kafka_source_topic</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; str<a class="reference internal" href="_modules/feast/feature_set.html#FeatureSet.get_kafka_source_topic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.feature_set.FeatureSet.get_kafka_source_topic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the topic that this feature set has been configured to use as source</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.feature_set.FeatureSet.infer_fields_from_df">
+<code class="sig-name descname">infer_fields_from_df</code><span class="sig-paren">(</span><em class="sig-param">df: pandas.core.frame.DataFrame</em>, <em class="sig-param">entities: Optional[List[feast.entity.Entity]] = None</em>, <em class="sig-param">features: Optional[List[feast.feature.Feature]] = None</em>, <em class="sig-param">replace_existing_features: bool = False</em>, <em class="sig-param">replace_existing_entities: bool = False</em>, <em class="sig-param">discard_unused_fields: bool = False</em>, <em class="sig-param">rows_to_sample: int = 100</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/feature_set.html#FeatureSet.infer_fields_from_df"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.feature_set.FeatureSet.infer_fields_from_df" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds fields (Features or Entities) to a feature set based on the schema
+of a Datatframe. Only Pandas dataframes are supported. All columns are
+detected as features, so setting at least one entity manually is
+advised.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df</strong> – Pandas dataframe to read schema from</p></li>
+<li><p><strong>entities</strong> – List of entities that will be set manually and not
+inferred. These will take precedence over any existing entities
+or entities found in the dataframe.</p></li>
+<li><p><strong>features</strong> – List of features that will be set manually and not
+inferred. These will take precedence over any existing feature
+or features found in the dataframe.</p></li>
+<li><p><strong>replace_existing_features</strong> – If true, will replace
+existing features in this feature set with features found in
+dataframe. If false, will skip conflicting features.</p></li>
+<li><p><strong>replace_existing_entities</strong> – If true, will replace existing entities
+in this feature set with features found in dataframe. If false,
+will skip conflicting entities.</p></li>
+<li><p><strong>discard_unused_fields</strong> – Boolean flag. Setting this to True will
+discard any existing fields that are not found in the dataset or
+provided by the user</p></li>
+<li><p><strong>rows_to_sample</strong> – Number of rows to sample to infer types. All rows
+must have consistent types, even values within list types must
+be homogeneous</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.feature_set.FeatureSet.is_valid">
+<code class="sig-name descname">is_valid</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/feature_set.html#FeatureSet.is_valid"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.feature_set.FeatureSet.is_valid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validates the state of a feature set locally
+:return: (bool, str) True if valid, false if invalid. Contains a message
+string with a reason</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.feature_set.FeatureSet.max_age">
+<em class="property">property </em><code class="sig-name descname">max_age</code><a class="headerlink" href="#feast.feature_set.FeatureSet.max_age" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the maximum age of this feature set. This is the total maximum
+amount of staleness that will be allowed during feature retrieval for
+each specific feature row that is looked up.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.feature_set.FeatureSet.name">
+<em class="property">property </em><code class="sig-name descname">name</code><a class="headerlink" href="#feast.feature_set.FeatureSet.name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the name of this feature set</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.feature_set.FeatureSet.source">
+<em class="property">property </em><code class="sig-name descname">source</code><a class="headerlink" href="#feast.feature_set.FeatureSet.source" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the source of this feature set</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.feature_set.FeatureSet.to_proto">
+<code class="sig-name descname">to_proto</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; feast.core.FeatureSet_pb2.FeatureSetSpec<a class="reference internal" href="_modules/feast/feature_set.html#FeatureSet.to_proto"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.feature_set.FeatureSet.to_proto" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts a feature set object to its protobuf representation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>FeatureSetSpec protobuf</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.feature_set.FeatureSet.version">
+<em class="property">property </em><code class="sig-name descname">version</code><a class="headerlink" href="#feast.feature_set.FeatureSet.version" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the version of this feature set</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-feast.field">
+<span id="feast-field-module"></span><h2>feast.field module<a class="headerlink" href="#module-feast.field" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="feast.field.Field">
+<em class="property">class </em><code class="sig-prename descclassname">feast.field.</code><code class="sig-name descname">Field</code><span class="sig-paren">(</span><em class="sig-param">name: str</em>, <em class="sig-param">dtype: feast.value_type.ValueType</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/field.html#Field"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.field.Field" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>High level field type. This is the parent type to both entities and
+features.</p>
+<dl class="method">
+<dt id="feast.field.Field.dtype">
+<em class="property">property </em><code class="sig-name descname">dtype</code><a class="headerlink" href="#feast.field.Field.dtype" title="Permalink to this definition">¶</a></dt>
+<dd><p>Getter for data type of this field</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.field.Field.from_proto">
+<code class="sig-name descname">from_proto</code><span class="sig-paren">(</span><em class="sig-param">proto</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/field.html#Field.from_proto"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.field.Field.from_proto" title="Permalink to this definition">¶</a></dt>
+<dd><p>Unimplemented from_proto method for a field. This should be extended.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.field.Field.name">
+<em class="property">property </em><code class="sig-name descname">name</code><a class="headerlink" href="#feast.field.Field.name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Getter for name of this field</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.field.Field.to_proto">
+<code class="sig-name descname">to_proto</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/field.html#Field.to_proto"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.field.Field.to_proto" title="Permalink to this definition">¶</a></dt>
+<dd><p>Unimplemented to_proto method for a field. This should be extended.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-feast.job">
+<span id="feast-job-module"></span><h2>feast.job module<a class="headerlink" href="#module-feast.job" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="feast.job.Job">
+<em class="property">class </em><code class="sig-prename descclassname">feast.job.</code><code class="sig-name descname">Job</code><span class="sig-paren">(</span><em class="sig-param">job_proto: feast.serving.ServingService_pb2.Job</em>, <em class="sig-param">serving_stub: feast.serving.ServingService_pb2_grpc.ServingServiceStub</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/job.html#Job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.job.Job" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>A class representing a job for feature retrieval in Feast.</p>
+<dl class="method">
+<dt id="feast.job.Job.id">
+<em class="property">property </em><code class="sig-name descname">id</code><a class="headerlink" href="#feast.job.Job.id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Getter for the Job Id</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.job.Job.reload">
+<code class="sig-name descname">reload</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/job.html#Job.reload"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.job.Job.reload" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reload the latest job status
+Returns: None</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.job.Job.result">
+<code class="sig-name descname">result</code><span class="sig-paren">(</span><em class="sig-param">timeout_sec: int = 21600</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/job.html#Job.result"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.job.Job.result" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wait until job is done to get an iterable rows of result.
+The row can only represent an Avro row in Feast 0.3.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>timeout_sec</strong> – max no of seconds to wait until job is done. If “timeout_sec” is exceeded, an exception will be raised.</p>
+</dd>
+</dl>
+<p>Returns: Iterable of Avro rows</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.job.Job.status">
+<em class="property">property </em><code class="sig-name descname">status</code><a class="headerlink" href="#feast.job.Job.status" title="Permalink to this definition">¶</a></dt>
+<dd><p>Getter for the Job status from Feast Core</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.job.Job.to_dataframe">
+<code class="sig-name descname">to_dataframe</code><span class="sig-paren">(</span><em class="sig-param">timeout_sec: int = 21600</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/job.html#Job.to_dataframe"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.job.Job.to_dataframe" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wait until job is done to get an interable rows of result</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>timeout_sec</strong> – max no of seconds to wait until job is done. If “timeout_sec” is exceeded, an exception will be raised.</p>
+</dd>
+</dl>
+<p>Returns: pandas Dataframe of the feature values</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-feast.resource">
+<span id="feast-resource-module"></span><h2>feast.resource module<a class="headerlink" href="#module-feast.resource" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="feast.resource.ResourceFactory">
+<em class="property">class </em><code class="sig-prename descclassname">feast.resource.</code><code class="sig-name descname">ResourceFactory</code><a class="reference internal" href="_modules/feast/resource.html#ResourceFactory"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.resource.ResourceFactory" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="method">
+<dt id="feast.resource.ResourceFactory.get_resource">
+<em class="property">static </em><code class="sig-name descname">get_resource</code><span class="sig-paren">(</span><em class="sig-param">kind</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/resource.html#ResourceFactory.get_resource"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.resource.ResourceFactory.get_resource" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-feast.source">
+<span id="feast-source-module"></span><h2>feast.source module<a class="headerlink" href="#module-feast.source" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="feast.source.KafkaSource">
+<em class="property">class </em><code class="sig-prename descclassname">feast.source.</code><code class="sig-name descname">KafkaSource</code><span class="sig-paren">(</span><em class="sig-param">brokers: str = ''</em>, <em class="sig-param">topic: str = ''</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/source.html#KafkaSource"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.source.KafkaSource" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="index.html#feast.source.Source" title="feast.source.Source"><code class="xref py py-class docutils literal notranslate"><span class="pre">feast.source.Source</span></code></a></p>
+<p>Kafka feature set source type.</p>
+<dl class="method">
+<dt id="feast.source.KafkaSource.brokers">
+<em class="property">property </em><code class="sig-name descname">brokers</code><a class="headerlink" href="#feast.source.KafkaSource.brokers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the list of broker addresses for this Kafka source</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.source.KafkaSource.source_type">
+<em class="property">property </em><code class="sig-name descname">source_type</code><a class="headerlink" href="#feast.source.KafkaSource.source_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the type of source. For a Kafka source this will always return
+“kafka”</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.source.KafkaSource.to_proto">
+<code class="sig-name descname">to_proto</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; feast.core.Source_pb2.Source<a class="reference internal" href="_modules/feast/source.html#KafkaSource.to_proto"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.source.KafkaSource.to_proto" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts this Source into its protobuf representation</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.source.KafkaSource.topic">
+<em class="property">property </em><code class="sig-name descname">topic</code><a class="headerlink" href="#feast.source.KafkaSource.topic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the topic for this feature set</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="feast.source.Source">
+<em class="property">class </em><code class="sig-prename descclassname">feast.source.</code><code class="sig-name descname">Source</code><a class="reference internal" href="_modules/feast/source.html#Source"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.source.Source" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Source is the top level class that represents a data source for finding
+feature data. Source must be extended with specific implementations to
+be useful</p>
+<dl class="method">
+<dt id="feast.source.Source.from_proto">
+<em class="property">classmethod </em><code class="sig-name descname">from_proto</code><span class="sig-paren">(</span><em class="sig-param">source_proto: feast.core.Source_pb2.Source</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/source.html#Source.from_proto"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.source.Source.from_proto" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a source from a protobuf representation. This will instantiate
+and return a specific source type, depending on the protobuf that is
+passed in.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>source_proto</strong> – SourceProto python object</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Source object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.source.Source.source_type">
+<em class="property">property </em><code class="sig-name descname">source_type</code><a class="headerlink" href="#feast.source.Source.source_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>The type of source. If not implemented, this will return “None”</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="feast.source.Source.to_proto">
+<code class="sig-name descname">to_proto</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/source.html#Source.to_proto"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.source.Source.to_proto" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts this source object to its protobuf representation.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-feast.type_map">
+<span id="feast-type-map-module"></span><h2>feast.type_map module<a class="headerlink" href="#module-feast.type_map" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="feast.type_map.convert_df_to_feature_rows">
+<code class="sig-prename descclassname">feast.type_map.</code><code class="sig-name descname">convert_df_to_feature_rows</code><span class="sig-paren">(</span><em class="sig-param">dataframe: pandas.core.frame.DataFrame</em>, <em class="sig-param">feature_set</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/type_map.html#convert_df_to_feature_rows"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.type_map.convert_df_to_feature_rows" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a function that converts a Pandas Series to a Feast FeatureRow
+for a given Feature Set and Pandas Dataframe</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataframe</strong> – Dataframe that will be converted</p></li>
+<li><p><strong>feature_set</strong> – Feature set used as schema for conversion</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Function that will do conversion</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="feast.type_map.convert_dict_to_proto_values">
+<code class="sig-prename descclassname">feast.type_map.</code><code class="sig-name descname">convert_dict_to_proto_values</code><span class="sig-paren">(</span><em class="sig-param">row: dict</em>, <em class="sig-param">df_datetime_dtype: &lt;property object at 0x7f1d51582d18&gt;</em>, <em class="sig-param">feature_set</em><span class="sig-paren">)</span> &#x2192; feast.types.FeatureRow_pb2.FeatureRow<a class="reference internal" href="_modules/feast/type_map.html#convert_dict_to_proto_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.type_map.convert_dict_to_proto_values" title="Permalink to this definition">¶</a></dt>
+<dd><p>Encode a dictionary describing a feature row into a FeatureRows object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>row</strong> – Dictionary describing a feature row.</p></li>
+<li><p><strong>df_datetime_dtype</strong> – Pandas dtype of datetime column.</p></li>
+<li><p><strong>feature_set</strong> – Feature set describing feature row.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>FeatureRow</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="feast.type_map.python_type_to_feast_value_type">
+<code class="sig-prename descclassname">feast.type_map.</code><code class="sig-name descname">python_type_to_feast_value_type</code><span class="sig-paren">(</span><em class="sig-param">name: str</em>, <em class="sig-param">value</em>, <em class="sig-param">recurse: bool = True</em><span class="sig-paren">)</span> &#x2192; feast.value_type.ValueType<a class="reference internal" href="_modules/feast/type_map.html#python_type_to_feast_value_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.type_map.python_type_to_feast_value_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finds the equivalent Feast Value Type for a Python value. Both native
+and Pandas types are supported. This function will recursively look
+for nested types when arrays are detected. All types must be homogenous.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – Name of the value or field</p></li>
+<li><p><strong>value</strong> – Value that will be inspected</p></li>
+<li><p><strong>recurse</strong> – Whether to recursively look for nested types in arrays</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Feast Value Type</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-feast.value_type">
+<span id="feast-value-type-module"></span><h2>feast.value_type module<a class="headerlink" href="#module-feast.value_type" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="feast.value_type.ValueType">
+<em class="property">class </em><code class="sig-prename descclassname">feast.value_type.</code><code class="sig-name descname">ValueType</code><a class="reference internal" href="_modules/feast/value_type.html#ValueType"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.value_type.ValueType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/enum.html#enum.Enum" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">enum.Enum</span></code></a></p>
+<p>Feature value type. Used to define data types in Feature Sets.</p>
+<dl class="attribute">
+<dt id="feast.value_type.ValueType.BOOL">
+<code class="sig-name descname">BOOL</code><em class="property"> = 7</em><a class="headerlink" href="#feast.value_type.ValueType.BOOL" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.value_type.ValueType.BOOL_LIST">
+<code class="sig-name descname">BOOL_LIST</code><em class="property"> = 17</em><a class="headerlink" href="#feast.value_type.ValueType.BOOL_LIST" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.value_type.ValueType.BYTES">
+<code class="sig-name descname">BYTES</code><em class="property"> = 1</em><a class="headerlink" href="#feast.value_type.ValueType.BYTES" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.value_type.ValueType.BYTES_LIST">
+<code class="sig-name descname">BYTES_LIST</code><em class="property"> = 11</em><a class="headerlink" href="#feast.value_type.ValueType.BYTES_LIST" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.value_type.ValueType.DOUBLE">
+<code class="sig-name descname">DOUBLE</code><em class="property"> = 5</em><a class="headerlink" href="#feast.value_type.ValueType.DOUBLE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.value_type.ValueType.DOUBLE_LIST">
+<code class="sig-name descname">DOUBLE_LIST</code><em class="property"> = 15</em><a class="headerlink" href="#feast.value_type.ValueType.DOUBLE_LIST" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.value_type.ValueType.FLOAT">
+<code class="sig-name descname">FLOAT</code><em class="property"> = 6</em><a class="headerlink" href="#feast.value_type.ValueType.FLOAT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.value_type.ValueType.FLOAT_LIST">
+<code class="sig-name descname">FLOAT_LIST</code><em class="property"> = 16</em><a class="headerlink" href="#feast.value_type.ValueType.FLOAT_LIST" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.value_type.ValueType.INT32">
+<code class="sig-name descname">INT32</code><em class="property"> = 3</em><a class="headerlink" href="#feast.value_type.ValueType.INT32" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.value_type.ValueType.INT32_LIST">
+<code class="sig-name descname">INT32_LIST</code><em class="property"> = 13</em><a class="headerlink" href="#feast.value_type.ValueType.INT32_LIST" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.value_type.ValueType.INT64">
+<code class="sig-name descname">INT64</code><em class="property"> = 4</em><a class="headerlink" href="#feast.value_type.ValueType.INT64" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.value_type.ValueType.INT64_LIST">
+<code class="sig-name descname">INT64_LIST</code><em class="property"> = 14</em><a class="headerlink" href="#feast.value_type.ValueType.INT64_LIST" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.value_type.ValueType.STRING">
+<code class="sig-name descname">STRING</code><em class="property"> = 2</em><a class="headerlink" href="#feast.value_type.ValueType.STRING" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.value_type.ValueType.STRING_LIST">
+<code class="sig-name descname">STRING_LIST</code><em class="property"> = 12</em><a class="headerlink" href="#feast.value_type.ValueType.STRING_LIST" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="feast.value_type.ValueType.UNKNOWN">
+<code class="sig-name descname">UNKNOWN</code><em class="property"> = 0</em><a class="headerlink" href="#feast.value_type.ValueType.UNKNOWN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-feast">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-feast" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Feast Authors
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

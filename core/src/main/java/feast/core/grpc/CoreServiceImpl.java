@@ -41,6 +41,7 @@ import feast.core.exception.RetrievalException;
 import feast.core.grpc.interceptors.MonitoringInterceptor;
 import feast.core.service.JobCoordinatorService;
 import feast.core.service.SpecService;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.util.HashSet;
 import java.util.Set;
@@ -50,7 +51,9 @@ import org.lognet.springboot.grpc.GRpcService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Implementation of the feast core GRPC service. */
+/**
+ * Implementation of the feast core GRPC service.
+ */
 @Slf4j
 @GRpcService(interceptors = {MonitoringInterceptor.class})
 public class CoreServiceImpl extends CoreServiceImplBase {
@@ -72,21 +75,19 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   @Override
-  @Transactional
   public void getFeatureSet(
       GetFeatureSetRequest request, StreamObserver<GetFeatureSetResponse> responseObserver) {
     try {
       GetFeatureSetResponse response = specService.getFeatureSet(request);
       responseObserver.onNext(response);
       responseObserver.onCompleted();
-    } catch (RetrievalException | InvalidProtocolBufferException e) {
+    } catch (RetrievalException | InvalidProtocolBufferException | StatusRuntimeException e) {
       log.error("Exception has occurred in GetFeatureSet method: ", e);
       responseObserver.onError(e);
     }
   }
 
   @Override
-  @Transactional
   public void listFeatureSets(
       ListFeatureSetsRequest request, StreamObserver<ListFeatureSetsResponse> responseObserver) {
     try {
@@ -100,7 +101,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   @Override
-  @Transactional
   public void listStores(
       ListStoresRequest request, StreamObserver<ListStoresResponse> responseObserver) {
     try {
@@ -114,7 +114,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   @Override
-  @Transactional
   public void applyFeatureSet(
       ApplyFeatureSetRequest request, StreamObserver<ApplyFeatureSetResponse> responseObserver) {
     try {
@@ -153,7 +152,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   }
 
   @Override
-  @Transactional
   public void updateStore(
       UpdateStoreRequest request, StreamObserver<UpdateStoreResponse> responseObserver) {
     try {

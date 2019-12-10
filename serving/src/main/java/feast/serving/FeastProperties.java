@@ -22,12 +22,8 @@ package feast.serving;
 // https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-external-config.html#boot-features-external-config-typesafe-configuration-properties
 
 import java.util.Map;
-import lombok.Getter;
-import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@Getter
-@Setter
 @ConfigurationProperties(prefix = "feast")
 public class FeastProperties {
   private String version;
@@ -37,27 +33,141 @@ public class FeastProperties {
   private JobProperties jobs;
   private TracingProperties tracing;
 
-  @Setter
-  @Getter
+  public String getVersion() {
+    return this.version;
+  }
+
+  public String getCoreHost() {
+    return this.coreHost;
+  }
+
+  public int getCoreGrpcPort() {
+    return this.coreGrpcPort;
+  }
+
+  public StoreProperties getStore() {
+    return this.store;
+  }
+
+  public JobProperties getJobs() {
+    return this.jobs;
+  }
+
+  public TracingProperties getTracing() {
+    return this.tracing;
+  }
+
+  public void setVersion(String version) {
+    this.version = version;
+  }
+
+  public void setCoreHost(String coreHost) {
+    this.coreHost = coreHost;
+  }
+
+  public void setCoreGrpcPort(int coreGrpcPort) {
+    this.coreGrpcPort = coreGrpcPort;
+  }
+
+  public void setStore(StoreProperties store) {
+    this.store = store;
+  }
+
+  public void setJobs(JobProperties jobs) {
+    this.jobs = jobs;
+  }
+
+  public void setTracing(TracingProperties tracing) {
+    this.tracing = tracing;
+  }
+
   public static class StoreProperties {
     private String configPath;
     private int redisPoolMaxSize;
     private int redisPoolMaxIdle;
+
+    public String getConfigPath() {
+      return this.configPath;
+    }
+
+    public int getRedisPoolMaxSize() {
+      return this.redisPoolMaxSize;
+    }
+
+    public int getRedisPoolMaxIdle() {
+      return this.redisPoolMaxIdle;
+    }
+
+    public void setConfigPath(String configPath) {
+      this.configPath = configPath;
+    }
+
+    public void setRedisPoolMaxSize(int redisPoolMaxSize) {
+      this.redisPoolMaxSize = redisPoolMaxSize;
+    }
+
+    public void setRedisPoolMaxIdle(int redisPoolMaxIdle) {
+      this.redisPoolMaxIdle = redisPoolMaxIdle;
+    }
   }
 
-  @Setter
-  @Getter
   public static class JobProperties {
     private String stagingLocation;
     private String storeType;
     private Map<String, String> storeOptions;
+
+    public String getStagingLocation() {
+      return this.stagingLocation;
+    }
+
+    public String getStoreType() {
+      return this.storeType;
+    }
+
+    public Map<String, String> getStoreOptions() {
+      return this.storeOptions;
+    }
+
+    public void setStagingLocation(String stagingLocation) {
+      this.stagingLocation = stagingLocation;
+    }
+
+    public void setStoreType(String storeType) {
+      this.storeType = storeType;
+    }
+
+    public void setStoreOptions(Map<String, String> storeOptions) {
+      this.storeOptions = storeOptions;
+    }
   }
 
-  @Setter
-  @Getter
   public static class TracingProperties {
     private boolean enabled;
     private String tracerName;
     private String serviceName;
+
+    public boolean isEnabled() {
+      return this.enabled;
+    }
+
+    public String getTracerName() {
+      return this.tracerName;
+    }
+
+    public String getServiceName() {
+      return this.serviceName;
+    }
+
+    public void setEnabled(boolean enabled) {
+      this.enabled = enabled;
+    }
+
+    public void setTracerName(String tracerName) {
+      this.tracerName = tracerName;
+    }
+
+    public void setServiceName(String serviceName) {
+      this.serviceName = serviceName;
+    }
   }
 }

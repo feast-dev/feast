@@ -36,15 +36,16 @@ import feast.serving.service.RedisServingService;
 import feast.serving.service.ServingService;
 import io.opentracing.Tracer;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
-@Slf4j
 @Configuration
 public class ServingServiceConfig {
+
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(ServingServiceConfig.class);
 
   @Bean(name = "JobStore")
   public Store jobStoreDefinition(FeastProperties feastProperties) {
