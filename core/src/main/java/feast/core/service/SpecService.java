@@ -136,8 +136,8 @@ public class SpecService {
    * Get featureSets matching the feature name and version provided in the filter. If the feature
    * name is not provided, the method will return all featureSets currently registered to Feast.
    *
-   * <p>The feature set name in the filter accepts any valid regex string. All matching featureSets
-   * will be returned.
+   * <p>The feature set name in the filter accepts an asterisk as a wildcard. All matching
+   * featureSets will be returned.
    *
    * <p>The version filter is optional; If not provided, this method will return all featureSet
    * versions of the featureSet name provided. Valid version filters should optionally contain a

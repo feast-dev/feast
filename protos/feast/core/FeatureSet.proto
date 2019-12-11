@@ -27,10 +27,13 @@ import "feast/core/Source.proto";
 import "google/protobuf/duration.proto";
 
 message FeatureSetSpec {
+    // Name of project that this feature set belongs to (read-only).
+    string project = 7;
+
     // Name of the featureSet. Must be unique.
     string name = 1;
 
-    // FeatureSet version.
+    // FeatureSet version (read-only).
     int32 version = 2;
 
     // List of entities contained within this featureSet.
