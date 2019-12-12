@@ -13,12 +13,14 @@
 # limitations under the License.
 
 
+import json
 import logging
 import os
-import sys
 from collections import OrderedDict
 from typing import Dict, Union
 from typing import List
+
+import fastavro
 import grpc
 import pandas as pd
 import pyarrow as pa
@@ -33,10 +35,9 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.exceptions import format_grpc_exception
 from feast.feature_set import FeatureSet, Entity
 from feast.job import Job
-from feast.loaders.file import export_dataframe_to_staging_location
+from feast.loaders.file import export_source_to_staging_location
 from feast.loaders.ingest import ingest_table_to_kafka
 from feast.serving.ServingService_pb2 import GetFeastServingInfoResponse
 from feast.serving.ServingService_pb2 import (
@@ -319,22 +320,28 @@ class Client:
         return entities_dict
 
     def get_batch_features(
-        self, feature_ids: List[str], entity_rows: pd.DataFrame
+        self, feature_ids: List[str], entity_rows: Union[pd.DataFrame, str]
     ) -> Job:
         """
         Retrieves historical features from a Feast Serving deployment.
 
         Args:
-            feature_ids: List of feature ids that will be returned for each
-                entity. Each feature id should have the following format
+            feature_ids (List[str]):
+                List of feature ids that will be returned for each entity.
+                Each feature id should have the following format
                 "feature_set_name:version:feature_name".
-            entity_rows: Pandas dataframe containing entities and a 'datetime'
-                column. Each entity in a feature set must be present as a column
-                in this dataframe. The datetime column must
+
+            entity_rows (Union[pd.DataFrame, str]):
+                Pandas dataframe containing entities and a 'datetime' column.
+                Each entity in a feature set must be present as a column in this
+                dataframe. The datetime column must contain timestamps in
+                datetime64 format.
 
         Returns:
-            Returns a job object that can be used to monitor retrieval progress
-            asynchronously, and can be used to materialize the results
+            feast.job.Job:
+                Returns a job object that can be used to monitor retrieval
+                progress asynchronously, and can be used to materialize the
+                results.
 
         Examples:
             >>> from feast import Client
@@ -360,18 +367,11 @@ class Client:
         # Validate entity rows based on entities in Feast Core
         self._validate_entity_rows_for_batch_retrieval(entity_rows, fs_request)
 
-        # Remove timezone from datetime column
-        if isinstance(
-            entity_rows["datetime"].dtype, pd.core.dtypes.dtypes.DatetimeTZDtype
-        ):
-            entity_rows["datetime"] = pd.DatetimeIndex(
-                entity_rows["datetime"]
-            ).tz_localize(None)
-
         # Retrieve serving information to determine store type and
         # staging location
         serving_info = self._serving_service_stub.GetFeastServingInfo(
-            GetFeastServingInfoRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+            GetFeastServingInfoRequest(),
+            timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
         )  # type: GetFeastServingInfoResponse
 
         if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
@@ -380,17 +380,47 @@ class Client:
                 f"does not support batch retrieval "
             )
 
-        # Export and upload entity row dataframe to staging location
+        # Pandas DataFrame detected
+        if isinstance(entity_rows, pd.DataFrame):
+            # Validate entity rows to based on entities in Feast Core
+            self._validate_entity_rows_for_batch_retrieval(
+                entity_rows=entity_rows,
+                feature_sets_request=fs_request
+            )
+
+            # Remove timezone from datetime column
+            if isinstance(
+                    entity_rows["datetime"].dtype,
+                    pd.core.dtypes.dtypes.DatetimeTZDtype
+            ):
+                entity_rows["datetime"] = pd.DatetimeIndex(
+                    entity_rows["datetime"]
+                ).tz_localize(None)
+        elif isinstance(entity_rows, str):
+            if entity_rows.endswith(".avro"):
+                # Validate Avro entity rows to based on entities in Feast Core
+                self._validate_avro_for_batch_retrieval(
+                    source=entity_rows,
+                    feature_sets_request=fs_request
+                )
+            else:
+                raise Exception(
+                    f"Other file formats other than .avro not accepted for "
+                    f"entity rows"
+                )
+
+        # Export and upload entity row DataFrame to staging location
         # provided by Feast
-        staged_file = export_dataframe_to_staging_location(
+        staged_files = export_source_to_staging_location(
             entity_rows, serving_info.job_staging_location
-        )  # type: str
+        )  # type: List[str]
 
         request = GetBatchFeaturesRequest(
             feature_sets=fs_request,
             dataset_source=DatasetSource(
                 file_source=DatasetSource.FileSource(
-                    file_uris=[staged_file], data_format=DataFormat.DATA_FORMAT_AVRO
+                    file_uris=staged_files,
+                    data_format=DataFormat.DATA_FORMAT_AVRO
                 )
             ),
         )
@@ -400,27 +430,74 @@ class Client:
         return Job(response.job, self._serving_service_stub)
 
     def _validate_entity_rows_for_batch_retrieval(
-        self, entity_rows, feature_sets_request
+        self, entity_rows: pd.DataFrame, feature_sets_request
     ):
         """
-        Validate whether an entity_row dataframe contains the correct
-        information for batch retrieval
+        Validate whether an entity_row DataFrame contains the correct
+        information for batch retrieval.
 
         Args:
-            entity_rows: Pandas dataframe containing entities and datetime
-                column. Each entity in a feature set must be present as a
-                column in this dataframe.
-            feature_sets_request: Feature sets that will be requested
+            entity_rows (pd.DataFrame):
+                Pandas DataFrame containing entities and datetime column. Each
+                entity in a feature set must be present as a column in this
+                DataFrame.
+
+            feature_sets_request:
+                Feature sets that will be requested.
         """
 
-        # Ensure datetime column exists
-        if "datetime" not in entity_rows.columns:
-            raise ValueError(
-                f'Entity rows does not contain "datetime" column in columns '
-                f"{entity_rows.columns}"
+        self._validate_columns(
+            columns=entity_rows.columns,
+            feature_sets_request=feature_sets_request
+        )
+
+    def _validate_avro_for_batch_retrieval(
+            self, source: str, feature_sets_request
+    ):
+        """
+        Validate whether an Avro source file contains the correct information
+        for batch retrieval.
+
+        Args:
+            source (str):
+                File path to Avro.
+
+            feature_sets_request:
+                Feature sets that will be requested.
+        """
+
+        with open(source, "rb") as f:
+            reader = fastavro.reader(f)
+            schema = json.loads(reader.metadata["avro.schema"])
+            columns = [x["name"] for x in schema["fields"]]
+            self._validate_columns(
+                columns=columns,
+                feature_sets_request=feature_sets_request
             )
 
-        # Validate dataframe columns based on feature set entities
+    def _validate_columns(self, columns: List[str], feature_sets_request):
+        """
+        Check if the required column contains the correct values for batch
+        retrieval.
+
+        Args:
+            columns (List[str]):
+                List of columns to validate against feature_sets_request.
+
+            feature_sets_request ():
+                Feature sets that will be requested.
+
+        Returns:
+
+        """
+        # Ensure datetime column exists
+        if "datetime" not in columns:
+            raise ValueError(
+                f'Entity rows does not contain "datetime" column in columns '
+                f"{columns}"
+            )
+
+        # Validate Avro columns based on feature set entities
         for feature_set in feature_sets_request:
             fs = self.get_feature_set(
                 name=feature_set.name, version=feature_set.version
@@ -431,10 +508,10 @@ class Client:
                     f"could not be found"
                 )
             for entity_type in fs.entities:
-                if entity_type.name not in entity_rows.columns:
+                if entity_type.name not in columns:
                     raise ValueError(
-                        f'Dataframe does not contain entity "{entity_type.name}"'
-                        f' column in columns "{entity_rows.columns}"'
+                        f'Input does not contain entity'
+                        f' "{entity_type.name}" column in columns "{columns}"'
                     )
 
     def get_online_features(
@@ -577,7 +654,7 @@ def _read_table_from_source(source: Union[pd.DataFrame, str]) -> pa.lib.Table:
     Returns:
         PyArrow table
     """
-    # Pandas dataframe detected
+    # Pandas DataFrame detected
     if isinstance(source, pd.DataFrame):
         table = pa.Table.from_pandas(df=source)
 
