@@ -22,7 +22,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.core',
   syntax='proto3',
   serialized_options=_b('\n\nfeast.coreB\020CoreServiceProtoZ/github.com/gojek/feast/sdk/go/protos/feast/core'),
-  serialized_pb=_b('\n\x1c\x66\x65\x61st/core/CoreService.proto\x12\nfeast.core\x1a\x1b\x66\x65\x61st/core/FeatureSet.proto\x1a\x16\x66\x65\x61st/core/Store.proto\"5\n\x14GetFeatureSetRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\x05\"H\n\x15GetFeatureSetResponse\x12/\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x1a.feast.core.FeatureSetSpec\"\x94\x01\n\x16ListFeatureSetsRequest\x12\x39\n\x06\x66ilter\x18\x01 \x01(\x0b\x32).feast.core.ListFeatureSetsRequest.Filter\x1a?\n\x06\x46ilter\x12\x18\n\x10\x66\x65\x61ture_set_name\x18\x01 \x01(\t\x12\x1b\n\x13\x66\x65\x61ture_set_version\x18\x02 \x01(\t\"K\n\x17ListFeatureSetsResponse\x12\x30\n\x0c\x66\x65\x61ture_sets\x18\x01 \x03(\x0b\x32\x1a.feast.core.FeatureSetSpec\"a\n\x11ListStoresRequest\x12\x34\n\x06\x66ilter\x18\x01 \x01(\x0b\x32$.feast.core.ListStoresRequest.Filter\x1a\x16\n\x06\x46ilter\x12\x0c\n\x04name\x18\x01 \x01(\t\"6\n\x12ListStoresResponse\x12 \n\x05store\x18\x01 \x03(\x0b\x32\x11.feast.core.Store\"I\n\x16\x41pplyFeatureSetRequest\x12/\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x1a.feast.core.FeatureSetSpec\"\xb7\x01\n\x17\x41pplyFeatureSetResponse\x12/\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x1a.feast.core.FeatureSetSpec\x12:\n\x06status\x18\x02 \x01(\x0e\x32*.feast.core.ApplyFeatureSetResponse.Status\"/\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0b\n\x07\x43REATED\x10\x01\x12\t\n\x05\x45RROR\x10\x02\"\x1c\n\x1aGetFeastCoreVersionRequest\".\n\x1bGetFeastCoreVersionResponse\x12\x0f\n\x07version\x18\x01 \x01(\t\"6\n\x12UpdateStoreRequest\x12 \n\x05store\x18\x01 \x01(\x0b\x32\x11.feast.core.Store\"\x95\x01\n\x13UpdateStoreResponse\x12 \n\x05store\x18\x01 \x01(\x0b\x32\x11.feast.core.Store\x12\x36\n\x06status\x18\x02 \x01(\x0e\x32&.feast.core.UpdateStoreResponse.Status\"$\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0b\n\x07UPDATED\x10\x01\x32\xa0\x04\n\x0b\x43oreService\x12\x66\n\x13GetFeastCoreVersion\x12&.feast.core.GetFeastCoreVersionRequest\x1a\'.feast.core.GetFeastCoreVersionResponse\x12T\n\rGetFeatureSet\x12 .feast.core.GetFeatureSetRequest\x1a!.feast.core.GetFeatureSetResponse\x12Z\n\x0fListFeatureSets\x12\".feast.core.ListFeatureSetsRequest\x1a#.feast.core.ListFeatureSetsResponse\x12K\n\nListStores\x12\x1d.feast.core.ListStoresRequest\x1a\x1e.feast.core.ListStoresResponse\x12Z\n\x0f\x41pplyFeatureSet\x12\".feast.core.ApplyFeatureSetRequest\x1a#.feast.core.ApplyFeatureSetResponse\x12N\n\x0bUpdateStore\x12\x1e.feast.core.UpdateStoreRequest\x1a\x1f.feast.core.UpdateStoreResponseBO\n\nfeast.coreB\x10\x43oreServiceProtoZ/github.com/gojek/feast/sdk/go/protos/feast/coreb\x06proto3')
+  serialized_pb=_b('\n\x1c\x66\x65\x61st/core/CoreService.proto\x12\nfeast.core\x1a\x1b\x66\x65\x61st/core/FeatureSet.proto\x1a\x16\x66\x65\x61st/core/Store.proto\"F\n\x14GetFeatureSetRequest\x12\x0f\n\x07project\x18\x03 \x01(\t\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\x05\"H\n\x15GetFeatureSetResponse\x12/\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x1a.feast.core.FeatureSetSpec\"\xa5\x01\n\x16ListFeatureSetsRequest\x12\x0f\n\x07project\x18\x02 \x01(\t\x12\x39\n\x06\x66ilter\x18\x01 \x01(\x0b\x32).feast.core.ListFeatureSetsRequest.Filter\x1a?\n\x06\x46ilter\x12\x18\n\x10\x66\x65\x61ture_set_name\x18\x01 \x01(\t\x12\x1b\n\x13\x66\x65\x61ture_set_version\x18\x02 \x01(\t\"K\n\x17ListFeatureSetsResponse\x12\x30\n\x0c\x66\x65\x61ture_sets\x18\x01 \x03(\x0b\x32\x1a.feast.core.FeatureSetSpec\"a\n\x11ListStoresRequest\x12\x34\n\x06\x66ilter\x18\x01 \x01(\x0b\x32$.feast.core.ListStoresRequest.Filter\x1a\x16\n\x06\x46ilter\x12\x0c\n\x04name\x18\x01 \x01(\t\"6\n\x12ListStoresResponse\x12 \n\x05store\x18\x01 \x03(\x0b\x32\x11.feast.core.Store\"Z\n\x16\x41pplyFeatureSetRequest\x12\x0f\n\x07project\x18\x02 \x01(\t\x12/\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x1a.feast.core.FeatureSetSpec\"\xb7\x01\n\x17\x41pplyFeatureSetResponse\x12/\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x1a.feast.core.FeatureSetSpec\x12:\n\x06status\x18\x02 \x01(\x0e\x32*.feast.core.ApplyFeatureSetResponse.Status\"/\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0b\n\x07\x43REATED\x10\x01\x12\t\n\x05\x45RROR\x10\x02\"\x1c\n\x1aGetFeastCoreVersionRequest\".\n\x1bGetFeastCoreVersionResponse\x12\x0f\n\x07version\x18\x01 \x01(\t\"6\n\x12UpdateStoreRequest\x12 \n\x05store\x18\x01 \x01(\x0b\x32\x11.feast.core.Store\"\x95\x01\n\x13UpdateStoreResponse\x12 \n\x05store\x18\x01 \x01(\x0b\x32\x11.feast.core.Store\x12\x36\n\x06status\x18\x02 \x01(\x0e\x32&.feast.core.UpdateStoreResponse.Status\"$\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0b\n\x07UPDATED\x10\x01\"$\n\x14\x43reateProjectRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x17\n\x15\x43reateProjectResponse\"%\n\x15\x41rchiveProjectRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x18\n\x16\x41rchiveProjectResponse\"\x15\n\x13ListProjectsRequest\"(\n\x14ListProjectsResponse\x12\x10\n\x08projects\x18\x01 \x03(\t2\xa2\x06\n\x0b\x43oreService\x12\x66\n\x13GetFeastCoreVersion\x12&.feast.core.GetFeastCoreVersionRequest\x1a\'.feast.core.GetFeastCoreVersionResponse\x12T\n\rGetFeatureSet\x12 .feast.core.GetFeatureSetRequest\x1a!.feast.core.GetFeatureSetResponse\x12Z\n\x0fListFeatureSets\x12\".feast.core.ListFeatureSetsRequest\x1a#.feast.core.ListFeatureSetsResponse\x12K\n\nListStores\x12\x1d.feast.core.ListStoresRequest\x1a\x1e.feast.core.ListStoresResponse\x12Z\n\x0f\x41pplyFeatureSet\x12\".feast.core.ApplyFeatureSetRequest\x1a#.feast.core.ApplyFeatureSetResponse\x12N\n\x0bUpdateStore\x12\x1e.feast.core.UpdateStoreRequest\x1a\x1f.feast.core.UpdateStoreResponse\x12T\n\rCreateProject\x12 .feast.core.CreateProjectRequest\x1a!.feast.core.CreateProjectResponse\x12W\n\x0e\x41rchiveProject\x12!.feast.core.ArchiveProjectRequest\x1a\".feast.core.ArchiveProjectResponse\x12Q\n\x0cListProjects\x12\x1f.feast.core.ListProjectsRequest\x1a .feast.core.ListProjectsResponseBO\n\nfeast.coreB\x10\x43oreServiceProtoZ/github.com/gojek/feast/sdk/go/protos/feast/coreb\x06proto3')
   ,
   dependencies=[feast_dot_core_dot_FeatureSet__pb2.DESCRIPTOR,feast_dot_core_dot_Store__pb2.DESCRIPTOR,])
 
@@ -49,8 +49,8 @@ _APPLYFEATURESETRESPONSE_STATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=821,
-  serialized_end=868,
+  serialized_start=872,
+  serialized_end=919,
 )
 _sym_db.RegisterEnumDescriptor(_APPLYFEATURESETRESPONSE_STATUS)
 
@@ -71,8 +71,8 @@ _UPDATESTORERESPONSE_STATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1118,
-  serialized_end=1154,
+  serialized_start=1169,
+  serialized_end=1205,
 )
 _sym_db.RegisterEnumDescriptor(_UPDATESTORERESPONSE_STATUS)
 
@@ -85,14 +85,21 @@ _GETFEATURESETREQUEST = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='name', full_name='feast.core.GetFeatureSetRequest.name', index=0,
+      name='project', full_name='feast.core.GetFeatureSetRequest.project', index=0,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='name', full_name='feast.core.GetFeatureSetRequest.name', index=1,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='version', full_name='feast.core.GetFeatureSetRequest.version', index=1,
+      name='version', full_name='feast.core.GetFeatureSetRequest.version', index=2,
       number=2, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -111,7 +118,7 @@ _GETFEATURESETREQUEST = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=97,
-  serialized_end=150,
+  serialized_end=167,
 )
 
 
@@ -141,8 +148,8 @@ _GETFEATURESETRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=152,
-  serialized_end=224,
+  serialized_start=169,
+  serialized_end=241,
 )
 
 
@@ -179,8 +186,8 @@ _LISTFEATURESETSREQUEST_FILTER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=312,
-  serialized_end=375,
+  serialized_start=346,
+  serialized_end=409,
 )
 
 _LISTFEATURESETSREQUEST = _descriptor.Descriptor(
@@ -191,7 +198,14 @@ _LISTFEATURESETSREQUEST = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='filter', full_name='feast.core.ListFeatureSetsRequest.filter', index=0,
+      name='project', full_name='feast.core.ListFeatureSetsRequest.project', index=0,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='filter', full_name='feast.core.ListFeatureSetsRequest.filter', index=1,
       number=1, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
@@ -209,8 +223,8 @@ _LISTFEATURESETSREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=227,
-  serialized_end=375,
+  serialized_start=244,
+  serialized_end=409,
 )
 
 
@@ -240,8 +254,8 @@ _LISTFEATURESETSRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=377,
-  serialized_end=452,
+  serialized_start=411,
+  serialized_end=486,
 )
 
 
@@ -271,8 +285,8 @@ _LISTSTORESREQUEST_FILTER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=529,
-  serialized_end=551,
+  serialized_start=563,
+  serialized_end=585,
 )
 
 _LISTSTORESREQUEST = _descriptor.Descriptor(
@@ -301,8 +315,8 @@ _LISTSTORESREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=454,
-  serialized_end=551,
+  serialized_start=488,
+  serialized_end=585,
 )
 
 
@@ -332,8 +346,8 @@ _LISTSTORESRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=553,
-  serialized_end=607,
+  serialized_start=587,
+  serialized_end=641,
 )
 
 
@@ -345,7 +359,14 @@ _APPLYFEATURESETREQUEST = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='feature_set', full_name='feast.core.ApplyFeatureSetRequest.feature_set', index=0,
+      name='project', full_name='feast.core.ApplyFeatureSetRequest.project', index=0,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='feature_set', full_name='feast.core.ApplyFeatureSetRequest.feature_set', index=1,
       number=1, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
@@ -363,8 +384,8 @@ _APPLYFEATURESETREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=609,
-  serialized_end=682,
+  serialized_start=643,
+  serialized_end=733,
 )
 
 
@@ -402,8 +423,8 @@ _APPLYFEATURESETRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=685,
-  serialized_end=868,
+  serialized_start=736,
+  serialized_end=919,
 )
 
 
@@ -426,8 +447,8 @@ _GETFEASTCOREVERSIONREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=870,
-  serialized_end=898,
+  serialized_start=921,
+  serialized_end=949,
 )
 
 
@@ -457,8 +478,8 @@ _GETFEASTCOREVERSIONRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=900,
-  serialized_end=946,
+  serialized_start=951,
+  serialized_end=997,
 )
 
 
@@ -488,8 +509,8 @@ _UPDATESTOREREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=948,
-  serialized_end=1002,
+  serialized_start=999,
+  serialized_end=1053,
 )
 
 
@@ -527,8 +548,173 @@ _UPDATESTORERESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1005,
-  serialized_end=1154,
+  serialized_start=1056,
+  serialized_end=1205,
+)
+
+
+_CREATEPROJECTREQUEST = _descriptor.Descriptor(
+  name='CreateProjectRequest',
+  full_name='feast.core.CreateProjectRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='name', full_name='feast.core.CreateProjectRequest.name', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1207,
+  serialized_end=1243,
+)
+
+
+_CREATEPROJECTRESPONSE = _descriptor.Descriptor(
+  name='CreateProjectResponse',
+  full_name='feast.core.CreateProjectResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1245,
+  serialized_end=1268,
+)
+
+
+_ARCHIVEPROJECTREQUEST = _descriptor.Descriptor(
+  name='ArchiveProjectRequest',
+  full_name='feast.core.ArchiveProjectRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='name', full_name='feast.core.ArchiveProjectRequest.name', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1270,
+  serialized_end=1307,
+)
+
+
+_ARCHIVEPROJECTRESPONSE = _descriptor.Descriptor(
+  name='ArchiveProjectResponse',
+  full_name='feast.core.ArchiveProjectResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1309,
+  serialized_end=1333,
+)
+
+
+_LISTPROJECTSREQUEST = _descriptor.Descriptor(
+  name='ListProjectsRequest',
+  full_name='feast.core.ListProjectsRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1335,
+  serialized_end=1356,
+)
+
+
+_LISTPROJECTSRESPONSE = _descriptor.Descriptor(
+  name='ListProjectsResponse',
+  full_name='feast.core.ListProjectsResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='projects', full_name='feast.core.ListProjectsResponse.projects', index=0,
+      number=1, type=9, cpp_type=9, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1358,
+  serialized_end=1398,
 )
 
 _GETFEATURESETRESPONSE.fields_by_name['feature_set'].message_type = feast_dot_core_dot_FeatureSet__pb2._FEATURESETSPEC
@@ -558,6 +744,12 @@ DESCRIPTOR.message_types_by_name['GetFeastCoreVersionRequest'] = _GETFEASTCOREVE
 DESCRIPTOR.message_types_by_name['GetFeastCoreVersionResponse'] = _GETFEASTCOREVERSIONRESPONSE
 DESCRIPTOR.message_types_by_name['UpdateStoreRequest'] = _UPDATESTOREREQUEST
 DESCRIPTOR.message_types_by_name['UpdateStoreResponse'] = _UPDATESTORERESPONSE
+DESCRIPTOR.message_types_by_name['CreateProjectRequest'] = _CREATEPROJECTREQUEST
+DESCRIPTOR.message_types_by_name['CreateProjectResponse'] = _CREATEPROJECTRESPONSE
+DESCRIPTOR.message_types_by_name['ArchiveProjectRequest'] = _ARCHIVEPROJECTREQUEST
+DESCRIPTOR.message_types_by_name['ArchiveProjectResponse'] = _ARCHIVEPROJECTRESPONSE
+DESCRIPTOR.message_types_by_name['ListProjectsRequest'] = _LISTPROJECTSREQUEST
+DESCRIPTOR.message_types_by_name['ListProjectsResponse'] = _LISTPROJECTSRESPONSE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 GetFeatureSetRequest = _reflection.GeneratedProtocolMessageType('GetFeatureSetRequest', (_message.Message,), {
@@ -660,6 +852,48 @@ UpdateStoreResponse = _reflection.GeneratedProtocolMessageType('UpdateStoreRespo
   })
 _sym_db.RegisterMessage(UpdateStoreResponse)
 
+CreateProjectRequest = _reflection.GeneratedProtocolMessageType('CreateProjectRequest', (_message.Message,), {
+  'DESCRIPTOR' : _CREATEPROJECTREQUEST,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.CreateProjectRequest)
+  })
+_sym_db.RegisterMessage(CreateProjectRequest)
+
+CreateProjectResponse = _reflection.GeneratedProtocolMessageType('CreateProjectResponse', (_message.Message,), {
+  'DESCRIPTOR' : _CREATEPROJECTRESPONSE,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.CreateProjectResponse)
+  })
+_sym_db.RegisterMessage(CreateProjectResponse)
+
+ArchiveProjectRequest = _reflection.GeneratedProtocolMessageType('ArchiveProjectRequest', (_message.Message,), {
+  'DESCRIPTOR' : _ARCHIVEPROJECTREQUEST,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.ArchiveProjectRequest)
+  })
+_sym_db.RegisterMessage(ArchiveProjectRequest)
+
+ArchiveProjectResponse = _reflection.GeneratedProtocolMessageType('ArchiveProjectResponse', (_message.Message,), {
+  'DESCRIPTOR' : _ARCHIVEPROJECTRESPONSE,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.ArchiveProjectResponse)
+  })
+_sym_db.RegisterMessage(ArchiveProjectResponse)
+
+ListProjectsRequest = _reflection.GeneratedProtocolMessageType('ListProjectsRequest', (_message.Message,), {
+  'DESCRIPTOR' : _LISTPROJECTSREQUEST,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.ListProjectsRequest)
+  })
+_sym_db.RegisterMessage(ListProjectsRequest)
+
+ListProjectsResponse = _reflection.GeneratedProtocolMessageType('ListProjectsResponse', (_message.Message,), {
+  'DESCRIPTOR' : _LISTPROJECTSRESPONSE,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.ListProjectsResponse)
+  })
+_sym_db.RegisterMessage(ListProjectsResponse)
+
 
 DESCRIPTOR._options = None
 
@@ -669,8 +903,8 @@ _CORESERVICE = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=1157,
-  serialized_end=1701,
+  serialized_start=1401,
+  serialized_end=2203,
   methods=[
   _descriptor.MethodDescriptor(
     name='GetFeastCoreVersion',
@@ -724,6 +958,33 @@ _CORESERVICE = _descriptor.ServiceDescriptor(
     containing_service=None,
     input_type=_UPDATESTOREREQUEST,
     output_type=_UPDATESTORERESPONSE,
+    serialized_options=None,
+  ),
+  _descriptor.MethodDescriptor(
+    name='CreateProject',
+    full_name='feast.core.CoreService.CreateProject',
+    index=6,
+    containing_service=None,
+    input_type=_CREATEPROJECTREQUEST,
+    output_type=_CREATEPROJECTRESPONSE,
+    serialized_options=None,
+  ),
+  _descriptor.MethodDescriptor(
+    name='ArchiveProject',
+    full_name='feast.core.CoreService.ArchiveProject',
+    index=7,
+    containing_service=None,
+    input_type=_ARCHIVEPROJECTREQUEST,
+    output_type=_ARCHIVEPROJECTRESPONSE,
+    serialized_options=None,
+  ),
+  _descriptor.MethodDescriptor(
+    name='ListProjects',
+    full_name='feast.core.CoreService.ListProjects',
+    index=8,
+    containing_service=None,
+    input_type=_LISTPROJECTSREQUEST,
+    output_type=_LISTPROJECTSRESPONSE,
     serialized_options=None,
   ),
 ])
