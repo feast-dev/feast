@@ -28,6 +28,7 @@ import feast.core.job.JobManager;
 import feast.core.job.Runner;
 import feast.core.model.FeatureSet;
 import feast.core.model.JobInfo;
+import feast.core.model.JobStatus;
 import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
 import feast.ingestion.options.ImportOptions;
@@ -156,5 +157,21 @@ public class DirectRunnerJobManager implements JobManager {
 
   public PipelineResult runPipeline(ImportOptions pipelineOptions) throws IOException {
     return ImportJob.runPipeline(pipelineOptions);
+  }
+
+  /**
+   * Gets the state of the direct runner job. Direct runner jobs only have 2 states: RUNNING and
+   * ABORTED.
+   *
+   * @param job JobInfo of the desired job.
+   * @return JobStatus of the job.
+   */
+  @Override
+  public JobStatus getJobStatus(JobInfo job) {
+    DirectJob directJob = jobs.get(job.getId());
+    if (directJob == null) {
+      return JobStatus.ABORTED;
+    }
+    return DirectJobStateMapper.map(directJob.getPipelineResult().getState());
   }
 }

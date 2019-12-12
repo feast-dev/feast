@@ -28,5 +28,5 @@ import org.springframework.stereotype.Repository;
 public interface JobInfoRepository extends JpaRepository<JobInfo, String> {
   List<JobInfo> findByStatusNotIn(Collection<JobStatus> statuses);
 
-  List<JobInfo> findBySourceIdAndStoreName(String sourceId, String storeName);
+  List<JobInfo> findBySourceIdAndStoreNameOrderByLastUpdatedDesc(String sourceId, String storeName);
 }

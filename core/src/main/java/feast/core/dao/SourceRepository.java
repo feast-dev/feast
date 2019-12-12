@@ -14,18 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.job;
+package feast.core.dao;
 
-import feast.core.model.JobInfo;
-import feast.core.model.JobStatus;
+import feast.core.model.Source;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface JobMonitor {
-
-  /**
-   * Get status of a job given runner-specific job ID.
-   *
-   * @param job job.
-   * @return job status.
-   */
-  JobStatus getJobStatus(JobInfo job);
-}
+/** JPA repository supplying Source objects keyed by id. */
+public interface SourceRepository extends JpaRepository<Source, String> {}

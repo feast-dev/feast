@@ -155,50 +155,49 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
    * @return boolean denoting if the source or schema have changed.
    */
   public boolean equalTo(FeatureSet other) {
-    if(!name.equals(other.getName())){
+    if (!name.equals(other.getName())) {
       return false;
     }
 
-    if (!source.equalTo(other.getSource())){
+    if (!source.equalTo(other.getSource())) {
       return false;
     }
 
-    if (maxAgeSeconds != other.maxAgeSeconds){
+    if (maxAgeSeconds != other.maxAgeSeconds) {
       return false;
     }
 
     // Create a map of all fields in this feature set
     Map<String, Field> fields = new HashMap<>();
 
-    for (Field e : entities){
+    for (Field e : entities) {
       fields.putIfAbsent(e.getName(), e);
     }
 
-    for (Field f : features){
+    for (Field f : features) {
       fields.putIfAbsent(f.getName(), f);
     }
 
     // Ensure map size is consistent with existing fields
-    if (fields.size() != other.features.size() + other.entities.size())
-    {
+    if (fields.size() != other.features.size() + other.entities.size()) {
       return false;
     }
 
     // Ensure the other entities and fields exist in the field map
-    for (Field e : other.entities){
-      if(!fields.containsKey(e.getName())){
+    for (Field e : other.entities) {
+      if (!fields.containsKey(e.getName())) {
         return false;
       }
-      if (!e.equals(fields.get(e.getName()))){
+      if (!e.equals(fields.get(e.getName()))) {
         return false;
       }
     }
 
-    for (Field f : features){
-      if(!fields.containsKey(f.getName())){
+    for (Field f : features) {
+      if (!fields.containsKey(f.getName())) {
         return false;
       }
-      if (!f.equals(fields.get(f.getName()))){
+      if (!f.equals(fields.get(f.getName()))) {
         return false;
       }
     }

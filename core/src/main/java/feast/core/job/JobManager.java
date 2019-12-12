@@ -19,6 +19,7 @@ package feast.core.job;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
 import feast.core.model.JobInfo;
+import feast.core.model.JobStatus;
 import java.util.List;
 
 public interface JobManager {
@@ -54,4 +55,12 @@ public interface JobManager {
    * @param extId runner specific job id.
    */
   void abortJob(String extId);
+
+  /**
+   * Get status of a job given runner-specific job ID.
+   *
+   * @param job job.
+   * @return job status.
+   */
+  JobStatus getJobStatus(JobInfo job);
 }

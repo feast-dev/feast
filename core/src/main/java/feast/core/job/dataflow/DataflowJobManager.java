@@ -32,6 +32,7 @@ import feast.core.job.JobManager;
 import feast.core.job.Runner;
 import feast.core.model.FeatureSet;
 import feast.core.model.JobInfo;
+import feast.core.model.JobStatus;
 import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
 import feast.ingestion.options.ImportOptions;
@@ -123,6 +124,36 @@ public class DataflowJobManager implements JobManager {
       throw new RuntimeException(
           Strings.lenientFormat("Unable to drain job with id: %s", dataflowJobId), e);
     }
+  }
+
+  /**
+   * Get status of a dataflow job with given id and try to map it into Feast's JobStatus.
+   *
+   * @param jobInfo JobInfo containing dataflow job id
+   * @return status of the job, or return {@link JobStatus#UNKNOWN} if error happens.
+   */
+  @Override
+  public JobStatus getJobStatus(JobInfo jobInfo) {
+    if (!Runner.DATAFLOW.getName().equals(jobInfo.getRunner())) {
+      return jobInfo.getStatus();
+    }
+
+    try {
+      Job job =
+          dataflow
+              .projects()
+              .locations()
+              .jobs()
+              .get(projectId, location, jobInfo.getExtId())
+              .execute();
+      return DataflowJobStateMapper.map(job.getCurrentState());
+    } catch (Exception e) {
+      log.error(
+          "Unable to retrieve status of a dataflow job with id : {}\ncause: {}",
+          jobInfo.getExtId(),
+          e.getMessage());
+    }
+    return JobStatus.UNKNOWN;
   }
 
   private String submitDataflowJob(
