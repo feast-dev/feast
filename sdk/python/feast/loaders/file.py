@@ -47,7 +47,7 @@ def export_source_to_staging_location(
         elif urlparse(source).scheme == "gs":
             input_source_url = urlparse(source)
             if "*" in source:
-                return get_files(
+                return _get_files(
                     bucket=input_source_url.hostname,
                     path=input_source_url.path
                 )
