@@ -155,7 +155,7 @@ def upload_file_to_gcs(local_path: str, bucket: str, remote_path: str) -> None:
     blob.upload_from_filename(local_path)
 
 
-def get_files(bucket: str, path: str) -> List[str]:
+def _get_files(bucket: str, path: str) -> List[str]:
     """
     List all available files within a Google storage bucket that matches a wild
     card path.
