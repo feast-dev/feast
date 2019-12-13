@@ -5,7 +5,7 @@ import tempfile
 import uuid
 from datetime import datetime
 from typing import List, Optional, Tuple, Union
-from urllib.parse import urlparse
+from urllib.parse import urlparse, ParseResult
 
 import pandas as pd
 from google.cloud import storage
@@ -54,7 +54,7 @@ def export_source_to_staging_location(
                 # Wildcard path
                 return _get_files(
                     bucket=input_source_uri.hostname,
-                    path=input_source_uri.path
+                    uri=input_source_uri
                 )
             else:
                 return [source]
@@ -162,7 +162,7 @@ def upload_file_to_gcs(local_path: str, bucket: str, remote_path: str) -> None:
     blob.upload_from_filename(local_path)
 
 
-def _get_files(bucket: str, path: str) -> List[str]:
+def _get_files(bucket: str, uri: ParseResult) -> List[str]:
     """
     List all available files within a Google storage bucket that matches a wild
     card path.
@@ -171,10 +171,11 @@ def _get_files(bucket: str, path: str) -> List[str]:
         bucket (str):
             Google Storage bucket to reference.
 
-        path (str):
-            Wild card path containing the "*" character.
+        uri (urllib.parse.ParseResult):
+            Wild card uri path containing the "*" character.
             Example:
-                * /staginglocation/*.avro
+                * gs://feast/staging_location/*
+                * gs://feast/staging_location/file_*.avro
 
     Returns:
         List[str]:
@@ -183,14 +184,18 @@ def _get_files(bucket: str, path: str) -> List[str]:
 
     storage_client = storage.Client(project=None)
     bucket = storage_client.get_bucket(bucket)
+    path = uri.path
+
     if "*" in path:
         regex = re.compile(path.replace("*", ".*?").strip("/"))
         blob_list = bucket.list_blobs(
             prefix=path.strip("/").split("*")[0],
             delimiter="/"
         )
-        blob_list = [x.name for x in blob_list]
-        return [file for file in blob_list if re.match(regex, file)]
+        # File path should not be in path (file path must be longer than path)
+        return [f"{uri.scheme}://{uri.hostname}/{file}"
+                for file in [x.name for x in blob_list]
+                if re.match(regex, file) and file not in path]
     else:
         raise Exception(f"{path} is not a wildcard path")
 

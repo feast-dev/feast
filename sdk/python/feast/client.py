@@ -395,7 +395,7 @@ class Client:
                     entity_rows["datetime"]
                 ).tz_localize(None)
         elif isinstance(entity_rows, str):
-            if entity_rows.endswith(".avro"):
+            if entity_rows.endswith((".avro", "*")):
                 # Validate Avro entity rows to based on entities in Feast Core
                 self._validate_avro_for_batch_retrieval(
                     source=entity_rows,
