@@ -41,12 +41,15 @@ def export_source_to_staging_location(
         if isinstance(source, pd.DataFrame):
             # DataFrame provided as a source
             dir_path, file_name, source_path = export_dataframe_to_local(source)
-        elif not urlparse(source).scheme or urlparse(source).scheme == "file":
-            # Local file provided as a source
-            dir_path = None
-            file_name = os.path.basename(source)
-            source_path = os.path.abspath(os.path.join(
-                urlparse(source).netloc, urlparse(source).path))
+
+            # Handle for none type
+            if len(str(dir_path)) < 5:
+                raise Exception(
+                    f"Export location {dir_path} dangerous. Stopping.")
+
+            # Clean up
+            shutil.rmtree(dir_path)
+            return [staging_location_uri.rstrip("/") + "/" + file_name]
         elif urlparse(source).scheme == "gs":
             # Google Cloud Storage path provided
             input_source_uri = urlparse(source)
@@ -58,31 +61,34 @@ def export_source_to_staging_location(
                 )
             else:
                 return [source]
+        elif urlparse(source).scheme in ["", "file"]:
+            # Local file provided as a source
+            file_name = os.path.basename(source)
+            source_path = os.path.abspath(os.path.join(
+                urlparse(source).netloc, urlparse(source).path))
+
+            upload_file_to_gcs(
+                source_path,
+                uri.hostname,
+                str(uri.path).strip("/") + "/" + file_name
+            )
+            return [staging_location_uri.rstrip("/") + "/" + file_name]
         else:
             raise Exception(f"Only DataFrame, gs:// string or file:// string "
                             f"are allowed")
+    elif uri.scheme == "file":
+        if not isinstance(source, pd.DataFrame):
+            raise Exception("Only DataFrame types are allowed when exporting "
+                            "to a local file system as a staging location.")
+        dir_path, file_name, source_path = export_dataframe_to_local(
+            source, uri.path)
 
-        upload_file_to_gcs(
-            source_path,
-            uri.hostname,
-            str(uri.path).strip("/") + "/" + file_name
-        )
-
-        # Cleanup staging file on local file system
-        if isinstance(source, pd.DataFrame):
-            # Handle for none type
-            if len(str(dir_path)) < 5:
-                raise Exception(
-                    f"Export location {dir_path} dangerous. Stopping.")
-
-            shutil.rmtree(dir_path)
+        return [staging_location_uri.rstrip("/") + "/" + file_name]
     else:
         raise Exception(
             f"Staging location {staging_location_uri} does not have a valid "
-            f"URI. Only gs:// uri scheme is allowed."
+            f"URI. Only gs:// and file:// uri scheme are supported."
         )
-
-    return [staging_location_uri.rstrip("/") + "/" + file_name]
 
 
 def export_dataframe_to_local(
