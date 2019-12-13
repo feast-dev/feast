@@ -16,7 +16,7 @@
  */
 package com.gojek.feast.v1alpha1;
 
-import feast.serving.ServingAPIProto.FeatureSetRequest;
+import feast.serving.ServingAPIProto.FeatureReference;
 import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.serving.ServingAPIProto.GetFeastServingInfoResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
@@ -61,13 +61,13 @@ public class FeastClient implements AutoCloseable {
    *
    * <p>See {@link #getOnlineFeatures(List, List, boolean)}
    *
-   * @param featureIds list of feature id to retrieve, feature id follows this format
-   *     [feature_set_name]:[version]:[feature_name]
+   * @param features list of string feature references to retrieve, feature reference follows this format
+   *     [project]/[name]:[version]
    * @param rows list of {@link Row} to select the entities to retrieve the features for
    * @return list of {@link Row} containing features
    */
-  public List<Row> getOnlineFeatures(List<String> featureIds, List<Row> rows) {
-    return getOnlineFeatures(featureIds, rows, false);
+  public List<Row> getOnlineFeatures(List<String> features, List<Row> rows, String defaultProject) {
+    return getOnlineFeatures(features, rows, defaultProject, false);
   }
 
   /**
@@ -93,8 +93,8 @@ public class FeastClient implements AutoCloseable {
    * @return list of {@link Row} containing features
    */
   public List<Row> getOnlineFeatures(
-      List<String> featureIds, List<Row> rows, boolean omitEntitiesInResponse) {
-    List<FeatureSetRequest> featureSets = RequestUtil.createFeatureSets(featureIds);
+      List<String> featureRefStrings, List<Row> rows, String defaultProject, boolean omitEntitiesInResponse) {
+    List<FeatureReference> features = RequestUtil.createFeatureRefs(featureRefStrings, defaultProject);
     List<EntityRow> entityRows =
         rows.stream()
             .map(
@@ -108,7 +108,7 @@ public class FeastClient implements AutoCloseable {
     GetOnlineFeaturesResponse response =
         stub.getOnlineFeatures(
             GetOnlineFeaturesRequest.newBuilder()
-                .addAllFeatureSets(featureSets)
+                .addAllFeatures(features)
                 .addAllEntityRows(entityRows)
                 .setOmitEntitiesInResponse(omitEntitiesInResponse)
                 .build());
