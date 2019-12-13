@@ -18,6 +18,9 @@ def export_source_to_staging_location(
     """
     Uploads a DataFrame as an Avro file to a remote staging location.
 
+    The local staging location specified in this function is used for E2E
+    tests, please do not use it.
+
     Args:
         source (Union[pd.DataFrame, str]:
             Source of data to be staged. Can be a pandas DataFrame or a file
@@ -37,10 +40,17 @@ def export_source_to_staging_location(
 
     # Validate staging location (Only GCS staging location is allowed)
     uri = urlparse(staging_location_uri)
-    if uri.scheme == "gs":
-        if isinstance(source, pd.DataFrame):
-            # DataFrame provided as a source
+    if isinstance(source, pd.DataFrame):
+        # DataFrame provided as a source
+        if uri.scheme == "gs":
+            # Remote gs staging location provided by serving
             dir_path, file_name, source_path = export_dataframe_to_local(source)
+
+            upload_file_to_gcs(
+                source_path,
+                uri.hostname,
+                str(uri.path).strip("/") + "/" + file_name
+            )
 
             # Handle for none type
             if len(str(dir_path)) < 5:
@@ -49,46 +59,43 @@ def export_source_to_staging_location(
 
             # Clean up
             shutil.rmtree(dir_path)
-            return [staging_location_uri.rstrip("/") + "/" + file_name]
-        elif urlparse(source).scheme == "gs":
-            # Google Cloud Storage path provided
-            input_source_uri = urlparse(source)
-            if "*" in source:
-                # Wildcard path
-                return _get_files(
-                    bucket=input_source_uri.hostname,
-                    uri=input_source_uri
-                )
-            else:
-                return [source]
-        elif urlparse(source).scheme in ["", "file"]:
-            # Local file provided as a source
-            file_name = os.path.basename(source)
-            source_path = os.path.abspath(os.path.join(
-                urlparse(source).netloc, urlparse(source).path))
-
-            upload_file_to_gcs(
-                source_path,
-                uri.hostname,
-                str(uri.path).strip("/") + "/" + file_name
-            )
-            return [staging_location_uri.rstrip("/") + "/" + file_name]
+        elif uri.scheme == "file":
+            # Local staging location provided by serving (Used for E2E tests)
+            dir_path, file_name, source_path = export_dataframe_to_local(
+                source, uri.path)
         else:
-            raise Exception(f"Only DataFrame, gs:// string or file:// string "
-                            f"are allowed")
-    elif uri.scheme == "file":
-        if not isinstance(source, pd.DataFrame):
-            raise Exception("Only DataFrame types are allowed when exporting "
-                            "to a local file system as a staging location.")
-        dir_path, file_name, source_path = export_dataframe_to_local(
-            source, uri.path)
+            raise Exception(
+                f"Staging location {staging_location_uri} does not have a "
+                f"valid URI. Only gs:// and file:// uri scheme are supported."
+            )
 
         return [staging_location_uri.rstrip("/") + "/" + file_name]
-    else:
-        raise Exception(
-            f"Staging location {staging_location_uri} does not have a valid "
-            f"URI. Only gs:// and file:// uri scheme are supported."
+    elif urlparse(source).scheme == "gs":
+        # Google Cloud Storage path provided
+        input_source_uri = urlparse(source)
+        if "*" in source:
+            # Wildcard path
+            return _get_files(
+                bucket=input_source_uri.hostname,
+                uri=input_source_uri
+            )
+        else:
+            return [source]
+    elif urlparse(source).scheme in ["", "file"]:
+        # Local file provided as a source
+        file_name = os.path.basename(source)
+        source_path = os.path.abspath(os.path.join(
+            urlparse(source).netloc, urlparse(source).path))
+
+        upload_file_to_gcs(
+            source_path,
+            uri.hostname,
+            str(uri.path).strip("/") + "/" + file_name
         )
+        return [staging_location_uri.rstrip("/") + "/" + file_name]
+    else:
+        raise Exception(f"Only DataFrame, gs:// or file:// references are "
+                        f"allowed.")
 
 
 def export_dataframe_to_local(

@@ -381,7 +381,7 @@ class Client:
         # Pandas DataFrame detected
         if isinstance(entity_rows, pd.DataFrame):
             # Validate entity rows to based on entities in Feast Core
-            self._validate_entity_rows_for_batch_retrieval(
+            self._validate_dataframe_for_batch_retrieval(
                 entity_rows=entity_rows,
                 feature_sets_request=fs_request
             )
@@ -427,11 +427,11 @@ class Client:
         response = self._serving_service_stub.GetBatchFeatures(request)
         return Job(response.job, self._serving_service_stub)
 
-    def _validate_entity_rows_for_batch_retrieval(
+    def _validate_dataframe_for_batch_retrieval(
         self, entity_rows: pd.DataFrame, feature_sets_request
     ):
         """
-        Validate whether an entity_row DataFrame contains the correct
+        Validate whether an the entity rows in a DataFrame contains the correct
         information for batch retrieval.
 
         Datetime column must be present in the DataFrame.
@@ -456,9 +456,10 @@ class Client:
             self, source: str, feature_sets_request
     ):
         """
-        Validate whether an Avro source file contains the correct information
-        for batch retrieval. Only gs:// and local files (file://) uri schemes
-        are allowed.
+        Validate whether the entity rows in an Avro source file contains the
+        correct information for batch retrieval.
+
+        Only gs:// and local files (file://) uri schemes are allowed.
 
         Avro file must have a column named "event_timestamp".
 
