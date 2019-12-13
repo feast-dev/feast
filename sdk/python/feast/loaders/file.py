@@ -16,7 +16,7 @@ def export_source_to_staging_location(
         source: Union[pd.DataFrame, str], staging_location_uri: str
 ) -> List[str]:
     """
-    Uploads a DataFrame as an avro file to a remote staging location.
+    Uploads a DataFrame as an Avro file to a remote staging location.
 
     Args:
         source (Union[pd.DataFrame, str]:
@@ -35,21 +35,26 @@ def export_source_to_staging_location(
             remote staging location.
     """
 
-    # Validate staging location
+    # Validate staging location (Only GCS staging location is allowed)
     uri = urlparse(staging_location_uri)
     if uri.scheme == "gs":
         if isinstance(source, pd.DataFrame):
+            # DataFrame provided as a source
             dir_path, file_name, source_path = export_dataframe_to_local(source)
-        elif urlparse(source).scheme == "file":
+        elif not urlparse(source).scheme or urlparse(source).scheme == "file":
+            # Local file provided as a source
             dir_path = None
             file_name = os.path.basename(source)
-            source_path = source
+            source_path = os.path.abspath(os.path.join(
+                urlparse(source).netloc, urlparse(source).path))
         elif urlparse(source).scheme == "gs":
-            input_source_url = urlparse(source)
+            # Google Cloud Storage path provided
+            input_source_uri = urlparse(source)
             if "*" in source:
+                # Wildcard path
                 return _get_files(
-                    bucket=input_source_url.hostname,
-                    path=input_source_url.path
+                    bucket=input_source_uri.hostname,
+                    path=input_source_uri.path
                 )
             else:
                 return [source]
@@ -63,12 +68,14 @@ def export_source_to_staging_location(
             str(uri.path).strip("/") + "/" + file_name
         )
 
-        # Handle for none type
-        if len(str(dir_path)) < 5:
-            raise Exception(
-                f"Export location {dir_path} dangerous. Stopping.")
+        # Cleanup staging file on local file system
+        if isinstance(source, pd.DataFrame):
+            # Handle for none type
+            if len(str(dir_path)) < 5:
+                raise Exception(
+                    f"Export location {dir_path} dangerous. Stopping.")
 
-        shutil.rmtree(dir_path)
+            shutil.rmtree(dir_path)
     else:
         raise Exception(
             f"Staging location {staging_location_uri} does not have a valid "
@@ -171,7 +178,7 @@ def _get_files(bucket: str, path: str) -> List[str]:
 
     Returns:
         List[str]:
-            List of all available files
+            List of all available files matching the wildcard path.
     """
 
     storage_client = storage.Client(project=None)

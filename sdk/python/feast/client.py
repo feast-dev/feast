@@ -19,6 +19,7 @@ import os
 from collections import OrderedDict
 from typing import Dict, Union
 from typing import List
+from urllib.parse import urlparse
 
 import fastavro
 import grpc
@@ -364,9 +365,6 @@ class Client:
 
         fs_request = _build_feature_set_request(feature_ids)
 
-        # Validate entity rows based on entities in Feast Core
-        self._validate_entity_rows_for_batch_retrieval(entity_rows, fs_request)
-
         # Retrieve serving information to determine store type and
         # staging location
         serving_info = self._serving_service_stub.GetFeastServingInfo(
@@ -436,6 +434,8 @@ class Client:
         Validate whether an entity_row DataFrame contains the correct
         information for batch retrieval.
 
+        Datetime column must be present in the DataFrame.
+
         Args:
             entity_rows (pd.DataFrame):
                 Pandas DataFrame containing entities and datetime column. Each
@@ -448,7 +448,8 @@ class Client:
 
         self._validate_columns(
             columns=entity_rows.columns,
-            feature_sets_request=feature_sets_request
+            feature_sets_request=feature_sets_request,
+            datetime_field="datetime"
         )
 
     def _validate_avro_for_batch_retrieval(
@@ -456,7 +457,12 @@ class Client:
     ):
         """
         Validate whether an Avro source file contains the correct information
-        for batch retrieval.
+        for batch retrieval. Only gs:// and local files (file://) uri schemes
+        are allowed.
+
+        Avro file must have a column named "event_timestamp".
+
+        No checks will be done if a GCS path is provided.
 
         Args:
             source (str):
@@ -465,17 +471,35 @@ class Client:
             feature_sets_request:
                 Feature sets that will be requested.
         """
+        p = urlparse(source)
 
-        with open(source, "rb") as f:
+        if p.scheme == "gs":
+            # GCS path provided (Risk is delegated to user)
+            # No validation if GCS path is provided
+            return
+        elif p.scheme == "file" or not p.scheme:
+            # Local file (file://) provided
+            file_path = os.path.abspath(os.path.join(p.netloc, p.path))
+        else:
+            raise Exception(f"Unsupported uri scheme provided {p.scheme}, only "
+                            f"local files (file://), and gs:// schemes are "
+                            f"allowed")
+
+        with open(file_path, "rb") as f:
             reader = fastavro.reader(f)
             schema = json.loads(reader.metadata["avro.schema"])
             columns = [x["name"] for x in schema["fields"]]
             self._validate_columns(
                 columns=columns,
-                feature_sets_request=feature_sets_request
+                feature_sets_request=feature_sets_request,
+                datetime_field="event_timestamp"
             )
 
-    def _validate_columns(self, columns: List[str], feature_sets_request):
+    def _validate_columns(
+            self, columns: List[str],
+            feature_sets_request,
+            datetime_field: str
+    ) -> None:
         """
         Check if the required column contains the correct values for batch
         retrieval.
@@ -487,11 +511,16 @@ class Client:
             feature_sets_request ():
                 Feature sets that will be requested.
 
-        Returns:
+            datetime_field (str):
+                Name of the datetime field that must be enforced and present as
+                a column in the data source.
 
+        Returns:
+            None:
+                None
         """
         # Ensure datetime column exists
-        if "datetime" not in columns:
+        if datetime_field not in columns:
             raise ValueError(
                 f'Entity rows does not contain "datetime" column in columns '
                 f"{columns}"
@@ -593,7 +622,8 @@ class Client:
             ref_df = table.to_batches(max_chunksize=20)[0].to_pandas()
 
             feature_set.infer_fields_from_df(
-                ref_df, discard_unused_fields=True, replace_existing_features=True
+                ref_df, discard_unused_fields=True,
+                replace_existing_features=True
             )
             self.apply(feature_set)
 
@@ -616,7 +646,9 @@ class Client:
             )
 
 
-def _build_feature_set_request(feature_ids: List[str]) -> List[FeatureSetRequest]:
+def _build_feature_set_request(
+        feature_ids: List[str]
+) -> List[FeatureSetRequest]:
     """
     Builds a list of FeatureSet objects from feature set ids in order to
     retrieve feature data from Feast Serving
@@ -674,7 +706,8 @@ def _read_table_from_source(source: Union[pd.DataFrame, str]) -> pa.lib.Table:
         else:
             table = pq.read_table(file_path)
     else:
-        raise ValueError(f"Unknown data source provided for ingestion: {source}")
+        raise ValueError(
+            f"Unknown data source provided for ingestion: {source}")
 
     # Ensure that PyArrow table is initialised
     assert isinstance(table, pa.lib.Table)
