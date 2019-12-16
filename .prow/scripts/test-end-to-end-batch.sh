@@ -28,7 +28,7 @@ Installing gcloud SDK
 "
 if [[ ! $(command -v gsutil) ]]; then
   CURRENT_DIR=$(dirname "$BASH_SOURCE")
-  . "${CURRENT_DIR}"/install_google_cloud_sdk.sh
+  . "${CURRENT_DIR}"/install-google-cloud-sdk.sh
 fi
 
 export GOOGLE_APPLICATION_CREDENTIALS=/etc/service-account/service-account.json
@@ -210,7 +210,7 @@ bash /tmp/miniconda.sh -b -p /root/miniconda -f
 source ~/.bashrc
 
 # Install Feast Python SDK and test requirements
-pip install -q sdk/python
+pip install -qe sdk/python
 pip install -qr tests/e2e/requirements.txt
 
 echo "

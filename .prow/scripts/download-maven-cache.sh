@@ -26,7 +26,7 @@ if [[ ! ${OUTPUT_DIR}  ]]; then usage; exit 1; fi
 # Install Google Cloud SDK if gsutil command not exists
 if [[ ! $(command -v gsutil) ]]; then 
   CURRENT_DIR=$(dirname "$BASH_SOURCE")
-  . "${CURRENT_DIR}"/install_google_cloud_sdk.sh
+  . "${CURRENT_DIR}"/install-google-cloud-sdk.sh
 fi  
 
 gsutil -q cp ${ARCHIVE_URI} /tmp/.m2.tar

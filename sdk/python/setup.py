@@ -12,14 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+
 from setuptools import find_packages, setup
 
 NAME = "feast"
-DESCRIPTION = "Python sdk for Feast"
+DESCRIPTION = "Python SDK for Feast"
 URL = "https://github.com/gojek/feast"
 AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.6.0"
-VERSION = "0.3.2"
 
 REQUIRED = [
     "Click==7.*",
@@ -45,11 +46,17 @@ REQUIRED = [
     "google",
 ]
 
+# README file from Feast repo root directory
+README_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "README.md")
+with open(os.path.join(README_FILE), "r") as f:
+    LONG_DESCRIPTION = f.read()
+
 setup(
     name=NAME,
-    version=VERSION,
-    description=DESCRIPTION,
     author=AUTHOR,
+    description=DESCRIPTION,
+    long_description=LONG_DESCRIPTION,
+    long_description_content_type="text/markdown",
     python_requires=REQUIRES_PYTHON,
     url=URL,
     packages=find_packages(exclude=("tests",)),
@@ -68,4 +75,6 @@ setup(
         "Programming Language :: Python :: 3.6",
     ],
     entry_points={"console_scripts": ["feast=cli:cli"]},
+    use_scm_version={"root": "../..", "relative_to": __file__},
+    setup_requires=["setuptools_scm"],
 )
