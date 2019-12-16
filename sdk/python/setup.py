@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+
 from setuptools import find_packages, setup
 
 NAME = "feast"
@@ -44,7 +46,9 @@ REQUIRED = [
     "google",
 ]
 
-with open("README.md", "r") as f:
+# README file from Feast repo root directory
+README_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "README.md")
+with open(os.path.join(README_FILE), "r") as f:
     LONG_DESCRIPTION = f.read()
 
 setup(
