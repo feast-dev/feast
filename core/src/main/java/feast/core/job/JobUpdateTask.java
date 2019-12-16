@@ -51,26 +51,27 @@ import lombok.extern.slf4j.Slf4j;
 @Getter
 public class JobUpdateTask implements Callable<JobInfo> {
 
-  private final long JOB_UPDATE_TIMEOUT_SECONDS = 240; // 4 minutes
-
   private final List<FeatureSetSpec> featureSetSpecs;
   private final SourceProto.Source sourceSpec;
   private final StoreProto.Store store;
   private final Optional<JobInfo> originalJob;
   private JobManager jobManager;
+  private long jobUpdateTimeoutSeconds;
 
   public JobUpdateTask(
       List<FeatureSetSpec> featureSetSpecs,
       SourceProto.Source sourceSpec,
       StoreProto.Store store,
       Optional<JobInfo> originalJob,
-      JobManager jobManager) {
+      JobManager jobManager,
+      long jobUpdateTimeoutSeconds) {
 
     this.featureSetSpecs = featureSetSpecs;
     this.sourceSpec = sourceSpec;
     this.store = store;
     this.originalJob = originalJob;
     this.jobManager = jobManager;
+    this.jobUpdateTimeoutSeconds = jobUpdateTimeoutSeconds;
   }
 
   @Override
@@ -213,9 +214,5 @@ public class JobUpdateTask implements Callable<JobInfo> {
     String sourceIdTrunc = sourceId.split("/")[0].toLowerCase();
     String jobId = String.format("%s-to-%s", sourceIdTrunc, storeName) + dateSuffix;
     return jobId.replaceAll("_", "-");
-  }
-
-  long getJobUpdateTimeoutSeconds() {
-    return JOB_UPDATE_TIMEOUT_SECONDS;
   }
 }

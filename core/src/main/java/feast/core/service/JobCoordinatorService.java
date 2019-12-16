@@ -25,6 +25,7 @@ import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.Subscription;
+import feast.core.config.FeastProperties.JobUpdatesProperties;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobInfoRepository;
 import feast.core.job.JobManager;
@@ -59,17 +60,20 @@ public class JobCoordinatorService {
   private FeatureSetRepository featureSetRepository;
   private SpecService specService;
   private JobManager jobManager;
+  private JobUpdatesProperties jobUpdatesProperties;
 
   @Autowired
   public JobCoordinatorService(
       JobInfoRepository jobInfoRepository,
       FeatureSetRepository featureSetRepository,
       SpecService specService,
-      JobManager jobManager) {
+      JobManager jobManager,
+      JobUpdatesProperties jobUpdatesProperties) {
     this.jobInfoRepository = jobInfoRepository;
     this.featureSetRepository = featureSetRepository;
     this.specService = specService;
     this.jobManager = jobManager;
+    this.jobUpdatesProperties = jobUpdatesProperties;
   }
 
   /**
@@ -115,7 +119,7 @@ public class JobCoordinatorService {
                         getJob(Source.fromProto(kv.getKey()), Store.fromProto(store));
                     jobUpdateTasks.add(
                         new JobUpdateTask(
-                            kv.getValue(), kv.getKey(), store, originalJob, jobManager));
+                            kv.getValue(), kv.getKey(), store, originalJob, jobManager, jobUpdatesProperties.getTimeoutSeconds()));
                   });
         }
       } catch (InvalidProtocolBufferException e) {

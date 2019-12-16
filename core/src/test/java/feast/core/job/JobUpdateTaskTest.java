@@ -94,7 +94,7 @@ public class JobUpdateTaskTest {
             source,
             store,
             Optional.of(originalJob),
-            jobManager);
+            jobManager, 100L);
     JobInfo submittedJob =
         new JobInfo(
             "job",
@@ -128,7 +128,7 @@ public class JobUpdateTaskTest {
     JobUpdateTask jobUpdateTask =
         spy(
             new JobUpdateTask(
-                Arrays.asList(featureSet1), source, store, Optional.empty(), jobManager));
+                Arrays.asList(featureSet1), source, store, Optional.empty(), jobManager, 100L));
     doReturn("job").when(jobUpdateTask).createJobId("KAFKA/servers:9092/topic", "test");
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
     when(jobManager.startJob("job", Arrays.asList(featureSet1), store)).thenReturn("new_ext");
@@ -161,7 +161,7 @@ public class JobUpdateTaskTest {
             JobStatus.RUNNING);
     JobUpdateTask jobUpdateTask =
         new JobUpdateTask(
-            Arrays.asList(featureSet1), source, store, Optional.of(originalJob), jobManager);
+            Arrays.asList(featureSet1), source, store, Optional.of(originalJob), jobManager, 100L);
 
     when(jobManager.getJobStatus(originalJob)).thenReturn(JobStatus.ABORTING);
     JobInfo expected =
@@ -185,7 +185,7 @@ public class JobUpdateTaskTest {
     JobUpdateTask jobUpdateTask =
         spy(
             new JobUpdateTask(
-                Arrays.asList(featureSet1), source, store, Optional.empty(), jobManager));
+                Arrays.asList(featureSet1), source, store, Optional.empty(), jobManager, 100L));
     doReturn("job").when(jobUpdateTask).createJobId("KAFKA/servers:9092/topic", "test");
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
     when(jobManager.startJob("job", Arrays.asList(featureSet1), store))
@@ -211,8 +211,7 @@ public class JobUpdateTaskTest {
     JobUpdateTask jobUpdateTask =
         spy(
             new JobUpdateTask(
-                Arrays.asList(featureSet1), source, store, Optional.empty(), jobManager));
-    doReturn(0L).when(jobUpdateTask).getJobUpdateTimeoutSeconds();
+                Arrays.asList(featureSet1), source, store, Optional.empty(), jobManager, 0L));
     JobInfo actual = jobUpdateTask.call();
     assertThat(actual, is(IsNull.nullValue()));
   }

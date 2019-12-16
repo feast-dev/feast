@@ -23,6 +23,7 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.DataflowScopes;
 import com.google.common.base.Strings;
 import feast.core.config.FeastProperties.JobProperties;
+import feast.core.config.FeastProperties.JobUpdatesProperties;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
 import feast.core.job.dataflow.DataflowJobManager;
@@ -97,5 +98,13 @@ public class JobConfig {
   @Bean
   public DirectJobRegistry directJobRegistry() {
     return new DirectJobRegistry();
+  }
+
+  /**
+   * Extracts job update options from feast core options.
+   */
+  @Bean
+  public JobUpdatesProperties jobUpdatesProperties(FeastProperties feastProperties) {
+    return feastProperties.getJobs().getUpdates();
   }
 }

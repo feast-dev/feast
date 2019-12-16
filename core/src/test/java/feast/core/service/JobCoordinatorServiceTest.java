@@ -38,6 +38,7 @@ import feast.core.StoreProto;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.core.StoreProto.Store.Subscription;
+import feast.core.config.FeastProperties.JobUpdatesProperties;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobInfoRepository;
 import feast.core.job.JobManager;
@@ -62,16 +63,20 @@ public class JobCoordinatorServiceTest {
   @Mock SpecService specService;
   @Mock FeatureSetRepository featureSetRepository;
 
+  private JobUpdatesProperties jobUpdatesProperties;
+
   @Before
   public void setUp() {
     initMocks(this);
+    jobUpdatesProperties = new JobUpdatesProperties();
+    jobUpdatesProperties.setTimeoutSeconds(5);
   }
 
   @Test
   public void shouldDoNothingIfNoStoresFound() {
     when(specService.listStores(any())).thenReturn(ListStoresResponse.newBuilder().build());
     JobCoordinatorService jcs =
-        new JobCoordinatorService(jobInfoRepository, featureSetRepository, specService, jobManager);
+        new JobCoordinatorService(jobInfoRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
     jcs.Poll();
     verify(jobInfoRepository, times(0)).saveAndFlush(any());
   }
@@ -91,7 +96,7 @@ public class JobCoordinatorServiceTest {
             Filter.newBuilder().setFeatureSetName("*").setFeatureSetVersion(">0").build()))
         .thenReturn(ListFeatureSetsResponse.newBuilder().build());
     JobCoordinatorService jcs =
-        new JobCoordinatorService(jobInfoRepository, featureSetRepository, specService, jobManager);
+        new JobCoordinatorService(jobInfoRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
     jcs.Poll();
     verify(jobInfoRepository, times(0)).saveAndFlush(any());
   }
@@ -138,7 +143,7 @@ public class JobCoordinatorServiceTest {
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
 
     JobCoordinatorService jcs =
-        new JobCoordinatorService(jobInfoRepository, featureSetRepository, specService, jobManager);
+        new JobCoordinatorService(jobInfoRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
     jcs.Poll();
     verify(jobInfoRepository, times(1)).saveAndFlush(jobInfoArgCaptor.capture());
     JobInfo actual = jobInfoArgCaptor.getValue();
@@ -206,7 +211,7 @@ public class JobCoordinatorServiceTest {
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
 
     JobCoordinatorService jcs =
-        new JobCoordinatorService(jobInfoRepository, featureSetRepository, specService, jobManager);
+        new JobCoordinatorService(jobInfoRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
     jcs.Poll();
 
     verify(jobInfoRepository, times(2)).saveAndFlush(jobInfoArgCaptor.capture());
