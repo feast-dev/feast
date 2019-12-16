@@ -210,7 +210,7 @@ bash /tmp/miniconda.sh -b -p /root/miniconda -f
 source ~/.bashrc
 
 # Install Feast Python SDK and test requirements
-pip install -q sdk/python
+pip install -qe sdk/python
 pip install -qr tests/e2e/requirements.txt
 
 echo "
