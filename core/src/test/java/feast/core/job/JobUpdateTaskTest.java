@@ -86,7 +86,7 @@ public class JobUpdateTaskTest {
             Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet1)),
+            Arrays.asList(FeatureSet.fromSpec(featureSet1)),
             JobStatus.RUNNING);
     JobUpdateTask jobUpdateTask =
         new JobUpdateTask(
@@ -102,7 +102,7 @@ public class JobUpdateTaskTest {
             Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2)),
+            Arrays.asList(FeatureSet.fromSpec(featureSet1), FeatureSet.fromSpec(featureSet2)),
             JobStatus.RUNNING);
 
     when(jobManager.updateJob(submittedJob)).thenReturn("new_ext");
@@ -114,7 +114,7 @@ public class JobUpdateTaskTest {
             Runner.DATAFLOW.getName(),
             Source.fromProto(source),
             Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2)),
+            Arrays.asList(FeatureSet.fromSpec(featureSet1), FeatureSet.fromSpec(featureSet2)),
             JobStatus.RUNNING);
     JobInfo actual = jobUpdateTask.call();
 
@@ -140,7 +140,7 @@ public class JobUpdateTaskTest {
             Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet1)),
+            Arrays.asList(FeatureSet.fromSpec(featureSet1)),
             JobStatus.RUNNING);
     JobInfo actual = jobUpdateTask.call();
     assertThat(actual, equalTo(expected));
@@ -157,7 +157,7 @@ public class JobUpdateTaskTest {
             Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet1)),
+            Arrays.asList(FeatureSet.fromSpec(featureSet1)),
             JobStatus.RUNNING);
     JobUpdateTask jobUpdateTask =
         new JobUpdateTask(
@@ -171,7 +171,7 @@ public class JobUpdateTaskTest {
             Runner.DATAFLOW.getName(),
             Source.fromProto(source),
             Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet1)),
+            Arrays.asList(FeatureSet.fromSpec(featureSet1)),
             JobStatus.ABORTING);
     JobInfo actual = jobUpdateTask.call();
 
@@ -198,7 +198,7 @@ public class JobUpdateTaskTest {
             Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet1)),
+            Arrays.asList(FeatureSet.fromSpec(featureSet1)),
             JobStatus.ERROR);
     JobInfo actual = jobUpdateTask.call();
     assertThat(actual, equalTo(expected));

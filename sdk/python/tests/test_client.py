@@ -26,7 +26,14 @@ from feast.feature_set import FeatureSet
 from feast.entity import Entity
 from feast.feature_set import Feature
 from feast.source import KafkaSource
-from feast.core.FeatureSet_pb2 import FeatureSetSpec, FeatureSpec, EntitySpec
+from feast.core.FeatureSet_pb2 import (
+    FeatureSetSpec,
+    FeatureSpec,
+    EntitySpec,
+    FeatureSetMeta,
+    FeatureSetStatus,
+)
+from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from feast.core.Source_pb2 import SourceType, KafkaSourceConfig, Source
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
@@ -178,29 +185,34 @@ class TestClient:
             mock_client._core_service_stub,
             "GetFeatureSet",
             return_value=GetFeatureSetResponse(
-                feature_set=FeatureSetSpec(
-                    name="my_feature_set",
-                    version=2,
-                    max_age=Duration(seconds=3600),
-                    features=[
-                        FeatureSpec(
-                            name="my_feature_1", value_type=ValueProto.ValueType.FLOAT
+                feature_set=FeatureSetProto(
+                    spec=FeatureSetSpec(
+                        name="my_feature_set",
+                        version=2,
+                        max_age=Duration(seconds=3600),
+                        features=[
+                            FeatureSpec(
+                                name="my_feature_1",
+                                value_type=ValueProto.ValueType.FLOAT,
+                            ),
+                            FeatureSpec(
+                                name="my_feature_2",
+                                value_type=ValueProto.ValueType.FLOAT,
+                            ),
+                        ],
+                        entities=[
+                            EntitySpec(
+                                name="my_entity_1",
+                                value_type=ValueProto.ValueType.INT64,
+                            )
+                        ],
+                        source=Source(
+                            type=SourceType.KAFKA,
+                            kafka_source_config=KafkaSourceConfig(
+                                bootstrap_servers="localhost:9092", topic="topic"
+                            ),
                         ),
-                        FeatureSpec(
-                            name="my_feature_2", value_type=ValueProto.ValueType.FLOAT
-                        ),
-                    ],
-                    entities=[
-                        EntitySpec(
-                            name="my_entity_1", value_type=ValueProto.ValueType.INT64
-                        )
-                    ],
-                    source=Source(
-                        type=SourceType.KAFKA,
-                        kafka_source_config=KafkaSourceConfig(
-                            bootstrap_servers="localhost:9092", topic="topic"
-                        ),
-                    ),
+                    )
                 )
             ),
         )
@@ -229,27 +241,31 @@ class TestClient:
             mock_client._core_service_stub,
             "GetFeatureSet",
             return_value=GetFeatureSetResponse(
-                feature_set=FeatureSetSpec(
-                    name="customer_fs",
-                    version=1,
-                    entities=[
-                        EntitySpec(
-                            name="customer", value_type=ValueProto.ValueType.INT64
-                        ),
-                        EntitySpec(
-                            name="transaction", value_type=ValueProto.ValueType.INT64
-                        ),
-                    ],
-                    features=[
-                        FeatureSpec(
-                            name="customer_feature_1",
-                            value_type=ValueProto.ValueType.FLOAT,
-                        ),
-                        FeatureSpec(
-                            name="customer_feature_2",
-                            value_type=ValueProto.ValueType.STRING,
-                        ),
-                    ],
+                feature_set=FeatureSetProto(
+                    spec=FeatureSetSpec(
+                        name="customer_fs",
+                        version=1,
+                        entities=[
+                            EntitySpec(
+                                name="customer", value_type=ValueProto.ValueType.INT64
+                            ),
+                            EntitySpec(
+                                name="transaction",
+                                value_type=ValueProto.ValueType.INT64,
+                            ),
+                        ],
+                        features=[
+                            FeatureSpec(
+                                name="customer_feature_1",
+                                value_type=ValueProto.ValueType.FLOAT,
+                            ),
+                            FeatureSpec(
+                                name="customer_feature_2",
+                                value_type=ValueProto.ValueType.STRING,
+                            ),
+                        ],
+                    ),
+                    meta=FeatureSetMeta(status=FeatureSetStatus.STATUS_READY),
                 )
             ),
         )
@@ -373,17 +389,49 @@ class TestClient:
 
         # Register with Feast core
         client.apply(driver_fs)
+        driver_fs = driver_fs.to_proto()
+        driver_fs.meta.status = FeatureSetStatus.STATUS_READY
 
         mocker.patch.object(
             client._core_service_stub,
             "GetFeatureSet",
-            return_value=GetFeatureSetResponse(feature_set=driver_fs.to_proto()),
+            return_value=GetFeatureSetResponse(feature_set=driver_fs),
         )
 
         # Need to create a mock producer
         with patch("feast.loaders.ingest.KafkaProducer") as mocked_queue:
             # Ingest data into Feast
             client.ingest("driver-feature-set", dataframe)
+
+    @pytest.mark.parametrize("dataframe,exception", [(dataframes.GOOD, TimeoutError)])
+    def test_feature_set_ingest_fail_if_pending(
+        self, dataframe, exception, client, mocker
+    ):
+        with pytest.raises(exception):
+            driver_fs = FeatureSet(
+                "driver-feature-set",
+                source=KafkaSource(brokers="kafka:9092", topic="test"),
+            )
+            driver_fs.add(Feature(name="feature_1", dtype=ValueType.FLOAT))
+            driver_fs.add(Feature(name="feature_2", dtype=ValueType.STRING))
+            driver_fs.add(Feature(name="feature_3", dtype=ValueType.INT64))
+            driver_fs.add(Entity(name="entity_id", dtype=ValueType.INT64))
+
+            # Register with Feast core
+            client.apply(driver_fs)
+            driver_fs = driver_fs.to_proto()
+            driver_fs.meta.status = FeatureSetStatus.STATUS_PENDING
+
+            mocker.patch.object(
+                client._core_service_stub,
+                "GetFeatureSet",
+                return_value=GetFeatureSetResponse(feature_set=driver_fs),
+            )
+
+            # Need to create a mock producer
+            with patch("feast.loaders.ingest.KafkaProducer") as mocked_queue:
+                # Ingest data into Feast
+                client.ingest("driver-feature-set", dataframe, timeout=1)
 
     @pytest.mark.parametrize(
         "dataframe,exception",

@@ -175,7 +175,6 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
     ExecutorCompletionService<FeatureSetInfo> executorCompletionService =
         new ExecutorCompletionService<>(executorService);
 
-
     List<FeatureSetInfo> featureSetInfos = new ArrayList<>();
 
     for (int i = 0; i < featureSetQueries.size(); i++) {
@@ -191,7 +190,8 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
 
     for (int i = 0; i < featureSetQueries.size(); i++) {
       try {
-        FeatureSetInfo featureSetInfo = executorCompletionService.take().get(SUBQUERY_TIMEOUT_SECS, TimeUnit.SECONDS);
+        FeatureSetInfo featureSetInfo =
+            executorCompletionService.take().get(SUBQUERY_TIMEOUT_SECS, TimeUnit.SECONDS);
         featureSetInfos.add(featureSetInfo);
       } catch (InterruptedException | ExecutionException | TimeoutException e) {
         jobService()

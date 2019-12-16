@@ -26,6 +26,7 @@ import feast.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
+import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.RedisConfig;
@@ -94,9 +95,13 @@ public class CachedSpecServiceTest {
     featureSetSpecs.put("fs1:2", FeatureSetSpec.newBuilder().setName("fs1").setVersion(2).build());
     featureSetSpecs.put("fs2:1", FeatureSetSpec.newBuilder().setName("fs2").setVersion(1).build());
 
-    List<FeatureSetSpec> fs1FeatureSets =
-        Lists.newArrayList(featureSetSpecs.get("fs1:1"), featureSetSpecs.get("fs1:2"));
-    List<FeatureSetSpec> fs2FeatureSets = Lists.newArrayList(featureSetSpecs.get("fs2:1"));
+    List<FeatureSetProto.FeatureSet> fs1FeatureSets =
+        Lists.newArrayList(
+            FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSetSpecs.get("fs1:1")).build(),
+            FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSetSpecs.get("fs1:2")).build());
+    List<FeatureSetProto.FeatureSet> fs2FeatureSets =
+        Lists.newArrayList(
+            FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSetSpecs.get("fs2:1")).build());
     when(coreService.listFeatureSets(
             ListFeatureSetsRequest.newBuilder()
                 .setFilter(

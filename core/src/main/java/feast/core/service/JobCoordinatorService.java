@@ -20,12 +20,16 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.core.CoreServiceProto.ListStoresRequest.Filter;
 import feast.core.CoreServiceProto.ListStoresResponse;
+import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.Subscription;
+import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobInfoRepository;
 import feast.core.job.JobManager;
 import feast.core.job.JobUpdateTask;
+import feast.core.model.FeatureSet;
 import feast.core.model.JobInfo;
 import feast.core.model.JobStatus;
 import feast.core.model.Source;
@@ -52,13 +56,18 @@ public class JobCoordinatorService {
 
   private final long POLLING_INTERVAL_MILLISECONDS = 60000; // 1 min
   private JobInfoRepository jobInfoRepository;
+  private FeatureSetRepository featureSetRepository;
   private SpecService specService;
   private JobManager jobManager;
 
   @Autowired
   public JobCoordinatorService(
-      JobInfoRepository jobInfoRepository, SpecService specService, JobManager jobManager) {
+      JobInfoRepository jobInfoRepository,
+      FeatureSetRepository featureSetRepository,
+      SpecService specService,
+      JobManager jobManager) {
     this.jobInfoRepository = jobInfoRepository;
+    this.featureSetRepository = featureSetRepository;
     this.specService = specService;
     this.jobManager = jobManager;
   }
@@ -70,7 +79,9 @@ public class JobCoordinatorService {
    *
    * <p>2) Does a diff with the current set of jobs, starts/updates job(s) if necessary
    *
-   * <p>3) Updates job object in DB with status, feature sets
+   * <p>3) Updates job object in DB with status, feature sets\
+   *
+   * <p>4) Updates Feature set statuses
    */
   @Transactional
   @Scheduled(fixedDelay = POLLING_INTERVAL_MILLISECONDS)
@@ -89,7 +100,9 @@ public class JobCoordinatorService {
                           .setFeatureSetName(subscription.getName())
                           .setFeatureSetVersion(subscription.getVersion())
                           .build())
-                  .getFeatureSetsList());
+                  .getFeatureSetsList().stream()
+                  .map(FeatureSetProto.FeatureSet::getSpec)
+                  .collect(Collectors.toList()));
         }
         if (!featureSetSpecs.isEmpty()) {
           featureSetSpecs.stream()
@@ -131,6 +144,40 @@ public class JobCoordinatorService {
       }
       completedTasks++;
     }
+
+    log.info("Updating feature set status");
+    updateFeatureSetStatuses(jobUpdateTasks);
+  }
+
+  // TODO: make this more efficient
+  private void updateFeatureSetStatuses(List<JobUpdateTask> jobUpdateTasks) {
+    Set<FeatureSet> ready = new HashSet<>();
+    Set<FeatureSet> pending = new HashSet<>();
+    for (JobUpdateTask jobUpdateTask : jobUpdateTasks) {
+      Optional<JobInfo> job =
+          getJob(
+              Source.fromProto(jobUpdateTask.getSourceSpec()),
+              Store.fromProto(jobUpdateTask.getStore()));
+      if (job.isPresent()) {
+        if (job.get().getStatus() == JobStatus.RUNNING) {
+          ready.addAll(job.get().getFeatureSets());
+        } else {
+          pending.addAll(job.get().getFeatureSets());
+        }
+      }
+    }
+    ready.removeAll(pending);
+    ready.forEach(
+        fs -> {
+          fs.setStatus(FeatureSetStatus.STATUS_READY.toString());
+          featureSetRepository.save(fs);
+        });
+    pending.forEach(
+        fs -> {
+          fs.setStatus(FeatureSetStatus.STATUS_PENDING.toString());
+          featureSetRepository.save(fs);
+        });
+    featureSetRepository.flush();
   }
 
   @Transactional

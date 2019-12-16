@@ -72,7 +72,7 @@ message GetFeatureSetRequest {
 
 // Response containing a single feature set
 message GetFeatureSetResponse {
-    feast.core.FeatureSetSpec feature_set = 1;
+    feast.core.FeatureSet feature_set = 1;
 }
 
 // Retrieves details for all versions of a specific feature set
@@ -95,7 +95,7 @@ message ListFeatureSetsRequest {
 }
 
 message ListFeatureSetsResponse {
-    repeated feast.core.FeatureSetSpec feature_sets = 1;
+    repeated feast.core.FeatureSet feature_sets = 1;
 }
 
 message ListStoresRequest {
@@ -129,7 +129,7 @@ message ApplyFeatureSetResponse {
     }
 
     // Feature set response has been enriched with version and source information
-    feast.core.FeatureSetSpec feature_set = 1;
+    feast.core.FeatureSet feature_set = 1;
     Status status = 2;
 }
 

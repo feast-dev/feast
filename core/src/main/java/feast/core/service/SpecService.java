@@ -227,7 +227,7 @@ public class SpecService {
     } else {
       existingFeatureSets = Ordering.natural().reverse().sortedCopy(existingFeatureSets);
       FeatureSet latest = existingFeatureSets.get(0);
-      FeatureSet featureSet = FeatureSet.fromProto(newFeatureSetSpec);
+      FeatureSet featureSet = FeatureSet.fromSpec(newFeatureSetSpec);
 
       // If the featureSet remains unchanged, we do nothing.
       if (featureSet.equalTo(latest)) {
@@ -238,7 +238,7 @@ public class SpecService {
       }
       newFeatureSetSpec = newFeatureSetSpec.toBuilder().setVersion(latest.getVersion() + 1).build();
     }
-    FeatureSet featureSet = FeatureSet.fromProto(newFeatureSetSpec);
+    FeatureSet featureSet = FeatureSet.fromSpec(newFeatureSetSpec);
     if (newFeatureSetSpec.getSource() == SourceProto.Source.getDefaultInstance()) {
       featureSet.setSource(defaultSource);
     }

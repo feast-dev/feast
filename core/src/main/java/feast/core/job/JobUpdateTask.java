@@ -38,6 +38,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -47,6 +48,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p>When complete, the JobUpdateTask returns the updated JobInfo object to be pushed to the db.
  */
 @Slf4j
+@Getter
 public class JobUpdateTask implements Callable<JobInfo> {
 
   private final long JOB_UPDATE_TIMEOUT_SECONDS = 240; // 4 minutes
@@ -191,7 +193,7 @@ public class JobUpdateTask implements Callable<JobInfo> {
       JobInfo jobInfo, List<FeatureSetSpec> featureSetSpecs, StoreProto.Store store) {
     jobInfo.setFeatureSets(
         featureSetSpecs.stream()
-            .map(spec -> FeatureSet.fromProto(spec))
+            .map(spec -> FeatureSet.fromSpec(spec))
             .collect(Collectors.toList()));
     jobInfo.setStore(feast.core.model.Store.fromProto(store));
     AuditLogger.log(

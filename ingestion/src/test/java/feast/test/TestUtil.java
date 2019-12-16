@@ -352,15 +352,16 @@ public class TestUtil {
 
   /**
    * This blocking method waits until an ImportJob pipeline has written all elements to the store.
-   * <p>
-   * The pipeline must be in the RUNNING state before calling this method.
    *
-   * @param pipelineResult  result of running the Pipeline
+   * <p>The pipeline must be in the RUNNING state before calling this method.
+   *
+   * @param pipelineResult result of running the Pipeline
    * @param maxWaitDuration wait until this max amount of duration
    * @throws InterruptedException if the thread is interruped while waiting
    */
-  public static void waitUntilAllElementsAreWrittenToStore(PipelineResult pipelineResult,
-      Duration maxWaitDuration, Duration checkInterval) throws InterruptedException {
+  public static void waitUntilAllElementsAreWrittenToStore(
+      PipelineResult pipelineResult, Duration maxWaitDuration, Duration checkInterval)
+      throws InterruptedException {
     if (pipelineResult.getState().isTerminal()) {
       return;
     }

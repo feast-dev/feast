@@ -29,6 +29,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.core.CoreServiceProto.ListStoresResponse;
+import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto.KafkaSourceConfig;
 import feast.core.SourceProto.Source;
@@ -37,6 +38,7 @@ import feast.core.StoreProto;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.core.StoreProto.Store.Subscription;
+import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobInfoRepository;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
@@ -58,6 +60,7 @@ public class JobCoordinatorServiceTest {
   @Mock JobInfoRepository jobInfoRepository;
   @Mock JobManager jobManager;
   @Mock SpecService specService;
+  @Mock FeatureSetRepository featureSetRepository;
 
   @Before
   public void setUp() {
@@ -68,7 +71,7 @@ public class JobCoordinatorServiceTest {
   public void shouldDoNothingIfNoStoresFound() {
     when(specService.listStores(any())).thenReturn(ListStoresResponse.newBuilder().build());
     JobCoordinatorService jcs =
-        new JobCoordinatorService(jobInfoRepository, specService, jobManager);
+        new JobCoordinatorService(jobInfoRepository, featureSetRepository, specService, jobManager);
     jcs.Poll();
     verify(jobInfoRepository, times(0)).saveAndFlush(any());
   }
@@ -88,7 +91,7 @@ public class JobCoordinatorServiceTest {
             Filter.newBuilder().setFeatureSetName("*").setFeatureSetVersion(">0").build()))
         .thenReturn(ListFeatureSetsResponse.newBuilder().build());
     JobCoordinatorService jcs =
-        new JobCoordinatorService(jobInfoRepository, specService, jobManager);
+        new JobCoordinatorService(jobInfoRepository, featureSetRepository, specService, jobManager);
     jcs.Poll();
     verify(jobInfoRepository, times(0)).saveAndFlush(any());
   }
@@ -124,8 +127,8 @@ public class JobCoordinatorServiceTest {
             Filter.newBuilder().setFeatureSetName("features").setFeatureSetVersion(">0").build()))
         .thenReturn(
             ListFeatureSetsResponse.newBuilder()
-                .addFeatureSets(featureSet1)
-                .addFeatureSets(featureSet2)
+                .addFeatureSets(FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSet1))
+                .addFeatureSets(FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSet2))
                 .build());
     when(specService.listStores(any()))
         .thenReturn(ListStoresResponse.newBuilder().addStore(store).build());
@@ -135,7 +138,7 @@ public class JobCoordinatorServiceTest {
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
 
     JobCoordinatorService jcs =
-        new JobCoordinatorService(jobInfoRepository, specService, jobManager);
+        new JobCoordinatorService(jobInfoRepository, featureSetRepository, specService, jobManager);
     jcs.Poll();
     verify(jobInfoRepository, times(1)).saveAndFlush(jobInfoArgCaptor.capture());
     JobInfo actual = jobInfoArgCaptor.getValue();
@@ -146,7 +149,7 @@ public class JobCoordinatorServiceTest {
             Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2)),
+            Arrays.asList(FeatureSet.fromSpec(featureSet1), FeatureSet.fromSpec(featureSet2)),
             JobStatus.RUNNING);
     assertThat(actual, equalTo(expected));
   }
@@ -189,23 +192,21 @@ public class JobCoordinatorServiceTest {
     ArgumentCaptor<JobInfo> jobInfoArgCaptor = ArgumentCaptor.forClass(JobInfo.class);
 
     when(specService.listFeatureSets(
-        Filter.newBuilder().setFeatureSetName("features").setFeatureSetVersion(">0").build()))
+            Filter.newBuilder().setFeatureSetName("features").setFeatureSetVersion(">0").build()))
         .thenReturn(
             ListFeatureSetsResponse.newBuilder()
-                .addFeatureSets(featureSet1)
-                .addFeatureSets(featureSet2)
+                .addFeatureSets(FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSet1))
+                .addFeatureSets(FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSet2))
                 .build());
     when(specService.listStores(any()))
         .thenReturn(ListStoresResponse.newBuilder().addStore(store).build());
 
-    when(jobManager.startJob(any(), eq(Arrays.asList(featureSet1)), eq(store)))
-        .thenReturn(extId1);
-    when(jobManager.startJob(any(), eq(Arrays.asList(featureSet2)), eq(store)))
-        .thenReturn(extId2);
+    when(jobManager.startJob(any(), eq(Arrays.asList(featureSet1)), eq(store))).thenReturn(extId1);
+    when(jobManager.startJob(any(), eq(Arrays.asList(featureSet2)), eq(store))).thenReturn(extId2);
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
 
     JobCoordinatorService jcs =
-        new JobCoordinatorService(jobInfoRepository, specService, jobManager);
+        new JobCoordinatorService(jobInfoRepository, featureSetRepository, specService, jobManager);
     jcs.Poll();
 
     verify(jobInfoRepository, times(2)).saveAndFlush(jobInfoArgCaptor.capture());
@@ -217,7 +218,7 @@ public class JobCoordinatorServiceTest {
             Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source1),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet1)),
+            Arrays.asList(FeatureSet.fromSpec(featureSet1)),
             JobStatus.RUNNING);
     assertThat(actual.get(0), equalTo(expected1));
 
@@ -228,7 +229,7 @@ public class JobCoordinatorServiceTest {
             Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source2),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet2)),
+            Arrays.asList(FeatureSet.fromSpec(featureSet2)),
             JobStatus.RUNNING);
     assertThat(actual.get(1), equalTo(expected2));
   }

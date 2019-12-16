@@ -10,11 +10,17 @@ from feast.core.CoreService_pb2 import (
     ListFeatureSetsResponse,
     ListFeatureSetsRequest,
 )
-from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpec
+from google.protobuf.timestamp_pb2 import Timestamp
+from feast.core.FeatureSet_pb2 import (
+    FeatureSetSpec as FeatureSetSpec,
+    FeatureSetMeta,
+    FeatureSetStatus,
+)
 from feast.core.Source_pb2 import (
     SourceType as SourceTypeProto,
     KafkaSourceConfig as KafkaSourceConfigProto,
 )
+from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from typing import List
 
 _logger = logging.getLogger(__name__)
@@ -60,7 +66,12 @@ class CoreServicer(Core.CoreServiceServicer):
             )
             feature_set.source.type = SourceTypeProto.KAFKA
 
-        self._feature_sets[feature_set.name] = feature_set
+        feature_set_meta = FeatureSetMeta(
+            status=FeatureSetStatus.STATUS_READY,
+            created_timestamp=Timestamp(seconds=10),
+        )
+        applied_feature_set = FeatureSetProto(spec=feature_set, meta=feature_set_meta)
+        self._feature_sets[feature_set.name] = applied_feature_set
 
         _logger.info(
             "registered feature set "
@@ -73,7 +84,8 @@ class CoreServicer(Core.CoreServiceServicer):
         )
 
         return ApplyFeatureSetResponse(
-            feature_set=feature_set, status=ApplyFeatureSetResponse.Status.CREATED
+            feature_set=applied_feature_set,
+            status=ApplyFeatureSetResponse.Status.CREATED,
         )
 
 

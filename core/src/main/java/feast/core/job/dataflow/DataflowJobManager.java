@@ -88,7 +88,7 @@ public class DataflowJobManager implements JobManager {
     try {
       List<FeatureSetSpec> featureSetSpecs = new ArrayList<>();
       for (FeatureSet featureSet : jobInfo.getFeatureSets()) {
-        featureSetSpecs.add(featureSet.toProto());
+        featureSetSpecs.add(featureSet.toProto().getSpec());
       }
       return submitDataflowJob(
           jobInfo.getId(), featureSetSpecs, jobInfo.getStore().toProto(), true);

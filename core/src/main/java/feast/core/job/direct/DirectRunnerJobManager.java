@@ -129,7 +129,7 @@ public class DirectRunnerJobManager implements JobManager {
     try {
       List<FeatureSetSpec> featureSetSpecs = new ArrayList<>();
       for (FeatureSet featureSet : jobInfo.getFeatureSets()) {
-        featureSetSpecs.add(featureSet.toProto());
+        featureSetSpecs.add(featureSet.toProto().getSpec());
       }
       startJob(jobId, featureSetSpecs, jobInfo.getStore().toProto());
     } catch (JobExecutionException | InvalidProtocolBufferException e) {

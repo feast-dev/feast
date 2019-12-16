@@ -17,9 +17,12 @@
 package feast.core.model;
 
 import com.google.protobuf.Duration;
-import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Timestamp;
+import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.EntitySpec;
+import feast.core.FeatureSetProto.FeatureSetMeta;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.FeatureSetProto.FeatureSpec;
 import feast.types.ValueProto.ValueType;
 import java.util.ArrayList;
@@ -79,6 +82,10 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   @JoinColumn(name = "source")
   private Source source;
 
+  // Status of the feature set
+  @Column(name = "status")
+  private String status;
+
   public FeatureSet() {
     super();
   }
@@ -97,9 +104,10 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     this.entities = entities;
     this.features = features;
     this.source = source;
+    this.status = FeatureSetStatus.STATUS_PENDING.toString();
   }
 
-  public static FeatureSet fromProto(FeatureSetSpec featureSetSpec) {
+  public static FeatureSet fromSpec(FeatureSetSpec featureSetSpec) {
     Source source = Source.fromProto(featureSetSpec.getSource());
     String id = String.format("%s:%d", featureSetSpec.getName(), featureSetSpec.getVersion());
     List<Field> features = new ArrayList<>();
@@ -120,7 +128,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
         source);
   }
 
-  public FeatureSetSpec toProto() throws InvalidProtocolBufferException {
+  public FeatureSetProto.FeatureSet toProto() {
     List<EntitySpec> entitySpecs = new ArrayList<>();
     for (Field entity : entities) {
       entitySpecs.add(
@@ -138,14 +146,22 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
               .setValueType(ValueType.Enum.valueOf(feature.getType()))
               .build());
     }
-    return FeatureSetSpec.newBuilder()
-        .setName(name)
-        .setVersion(version)
-        .setMaxAge(Duration.newBuilder().setSeconds(maxAgeSeconds))
-        .addAllEntities(entitySpecs)
-        .addAllFeatures(featureSpecs)
-        .setSource(source.toProto())
-        .build();
+    FeatureSetMeta.Builder meta =
+        FeatureSetMeta.newBuilder()
+            .setCreatedTimestamp(
+                Timestamp.newBuilder().setSeconds(super.getCreated().getTime() / 1000L))
+            .setStatus(FeatureSetStatus.valueOf(status));
+
+    FeatureSetSpec.Builder spec =
+        FeatureSetSpec.newBuilder()
+            .setName(name)
+            .setVersion(version)
+            .setMaxAge(Duration.newBuilder().setSeconds(maxAgeSeconds))
+            .addAllEntities(entitySpecs)
+            .addAllFeatures(featureSpecs)
+            .setSource(source.toProto());
+
+    return FeatureSetProto.FeatureSet.newBuilder().setMeta(meta).setSpec(spec).build();
   }
 
   /**
