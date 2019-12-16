@@ -196,6 +196,12 @@ postsubmits:
             --file infra/docker/serving/Dockerfile \
             --google-service-account-file /etc/gcloud/service-account.json
 
+          docker tag gcr.io/kf-feast/feast-core:dev gcr.io/kf-feast/feast-core:${PULL_BASE_SHA}
+          docker push gcr.io/kf-feast/feast-core:${PULL_BASE_SHA}
+
+          docker tag gcr.io/kf-feast/feast-serving:dev gcr.io/kf-feast/feast-serving:${PULL_BASE_SHA}
+          docker push gcr.io/kf-feast/feast-serving:${PULL_BASE_SHA}
+
           else
           
           .prow/scripts/publish-docker-image.sh \
