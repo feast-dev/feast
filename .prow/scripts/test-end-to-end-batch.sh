@@ -28,7 +28,7 @@ Installing gcloud SDK
 "
 if [[ ! $(command -v gsutil) ]]; then
   CURRENT_DIR=$(dirname "$BASH_SOURCE")
-  . "${CURRENT_DIR}"/install_google_cloud_sdk.sh
+  . "${CURRENT_DIR}"/install-google-cloud-sdk.sh
 fi
 
 export GOOGLE_APPLICATION_CREDENTIALS=/etc/service-account/service-account.json

@@ -5,9 +5,9 @@ set -o pipefail
 
 usage()
 {
-    echo "usage: publish_python_sdk.sh
+    echo "usage: publish-python-sdk.sh
 
-    --directory_path  absolute path to the python package, this directory 
+    --directory-path  absolute path to the python package, this directory 
                       should contain 'setup.py' file
 
     --repository      the repository name where the package will be uploaded,
@@ -18,7 +18,7 @@ usage()
 
 while [ "$1" != "" ]; do
   case "$1" in
-      --directory_path )       DIRECTORY_PATH="$2";     shift;;
+      --directory-path )       DIRECTORY_PATH="$2";     shift;;
       --repository )           REPOSITORY="$2";         shift;;
       -h | --help )            usage;                   exit;; 
       * )                      usage;                   exit 1

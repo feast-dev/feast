@@ -3,10 +3,10 @@ set -e
 
 usage()
 {
-    echo "usage: . install_google_cloud_sdk.sh
+    echo "usage: . install-google-cloud-sdk.sh
     [--with-key-file   local file path to service account json]
 
-NOTE: requires 'dot' before install_google_cloud_sdk.sh
+NOTE: requires 'dot' before install-google-cloud-sdk.sh
       so that the PATH variable  is exported succesfully to 
       the calling process, i.e. you don't need to provide
       full path to gcloud command after installation

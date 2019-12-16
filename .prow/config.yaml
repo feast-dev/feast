@@ -153,8 +153,8 @@ postsubmits:
         - sh
         - -c 
         - |
-          .prow/scripts/publish_python_sdk.sh \
-            --directory_path sdk/python --repository pypi
+          .prow/scripts/publish-python-sdk.sh \
+            --directory-path sdk/python --repository pypi
         volumeMounts:
         - name: pypirc 
           mountPath: /root/.pypirc
@@ -184,31 +184,31 @@ postsubmits:
 
           if [ $PULL_BASE_REF == "master" ]; then 
           
-          .prow/scripts/publish_docker_image.sh \
+          .prow/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-core \
             --tag dev \
             --file infra/docker/core/Dockerfile \
-            --google_service_account_file /etc/gcloud/service-account.json
+            --google-service-account-file /etc/gcloud/service-account.json
           
-          .prow/scripts/publish_docker_image.sh \
+          .prow/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-serving \
             --tag dev \
             --file infra/docker/serving/Dockerfile \
-            --google_service_account_file /etc/gcloud/service-account.json
+            --google-service-account-file /etc/gcloud/service-account.json
 
           else
           
-          .prow/scripts/publish_docker_image.sh \
+          .prow/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-core \
             --tag ${PULL_BASE_REF:1} \
             --file infra/docker/core/Dockerfile \
-            --google_service_account_file /etc/gcloud/service-account.json
+            --google-service-account-file /etc/gcloud/service-account.json
           
-          .prow/scripts/publish_docker_image.sh \
+          .prow/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-serving \
             --tag ${PULL_BASE_REF:1} \
             --file infra/docker/serving/Dockerfile \
-            --google_service_account_file /etc/gcloud/service-account.json
+            --google-service-account-file /etc/gcloud/service-account.json
 
           docker tag gcr.io/kf-feast/feast-core:${PULL_BASE_REF:1} gcr.io/kf-feast/feast-core:latest
           docker push gcr.io/kf-feast/feast-core:latest

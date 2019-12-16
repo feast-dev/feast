@@ -5,7 +5,7 @@ set -o pipefail
 
 usage()
 {
-    echo "usage: publish_docker_images.sh
+    echo "usage: publish-docker-image.sh
 
     --repository  the target repository to upload the Docker image, example:
                   gcr.io/kf-feast/feast-core
@@ -14,7 +14,7 @@ usage()
 
     --file        path to the Dockerfile
 
-    [--google_service_account_file  
+    [--google-service-account-file  
     path to Google Cloud service account JSON key file]
 "
 }
@@ -24,7 +24,7 @@ while [ "$1" != "" ]; do
       --repository )           REPOSITORY="$2";         shift;;
       --tag        )           TAG="$2";                shift;;
       --file       )           FILE="$2";               shift;;
-      --google_service_account_file ) GOOGLE_SERVICE_ACCOUNT_FILE="$2";        shift;;
+      --google-service-account-file ) GOOGLE_SERVICE_ACCOUNT_FILE="$2";        shift;;
       -h | --help )            usage;                   exit;; 
       * )                      usage;                   exit 1
   esac
