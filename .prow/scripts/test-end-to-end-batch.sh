@@ -108,6 +108,8 @@ feast:
   jobs:
     runner: DirectRunner
     options: {}
+    updates:
+      timeoutSeconds: 240
     metrics:
       enabled: false
 
