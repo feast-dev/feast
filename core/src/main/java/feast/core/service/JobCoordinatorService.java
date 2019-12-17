@@ -83,7 +83,7 @@ public class JobCoordinatorService {
    *
    * <p>2) Does a diff with the current set of jobs, starts/updates job(s) if necessary
    *
-   * <p>3) Updates job object in DB with status, feature sets\
+   * <p>3) Updates job object in DB with status, feature sets
    *
    * <p>4) Updates Feature set statuses
    */

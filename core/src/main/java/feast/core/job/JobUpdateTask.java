@@ -16,6 +16,7 @@
  */
 package feast.core.job;
 
+import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto;
 import feast.core.StoreProto;
@@ -26,6 +27,7 @@ import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import feast.core.model.Source;
+import feast.core.model.Store;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -130,7 +132,22 @@ public class JobUpdateTask implements Callable<Job> {
       SourceProto.Source source,
       StoreProto.Store sinkSpec) {
 
-    String extId = "";
+    List<FeatureSet> featureSets =
+        featureSetSpecs.stream()
+            .map(
+                spec ->
+                    FeatureSet.fromProto(
+                        FeatureSetProto.FeatureSet.newBuilder().setSpec(spec).build()))
+            .collect(Collectors.toList());
+    Job job =
+        new Job(
+            jobId,
+            "",
+            jobManager.getRunnerType().toString(),
+            Source.fromProto(source),
+            Store.fromProto(sinkSpec),
+            featureSets,
+            JobStatus.PENDING);
     try {
       AuditLogger.log(
           Resource.JOB,
@@ -139,7 +156,7 @@ public class JobUpdateTask implements Callable<Job> {
           "Building graph and submitting to %s",
           jobManager.getRunnerType().getName());
 
-      Job job = jobManager.startJob(jobId, featureSetSpecs, sourceSpec, sinkSpec);
+      job = jobManager.startJob(job);
       if (job.getExtId().isEmpty()) {
         throw new RuntimeException(
             String.format("Could not submit job: \n%s", "unable to retrieve job external id"));
@@ -151,7 +168,7 @@ public class JobUpdateTask implements Callable<Job> {
           Action.STATUS_CHANGE,
           "Job submitted to runner %s with ext id %s.",
           jobManager.getRunnerType().getName(),
-          extId);
+          job.getExtId());
 
       return job;
     } catch (Exception e) {
@@ -162,24 +179,8 @@ public class JobUpdateTask implements Callable<Job> {
           "Job failed to be submitted to runner %s. Job status changed to ERROR.",
           jobManager.getRunnerType().getName());
 
-      List<FeatureSet> featureSets =
-          featureSetSpecs.stream()
-              .map(
-                  spec -> {
-                    FeatureSet featureSet = new FeatureSet();
-                    featureSet.setId(spec.getName() + ":" + spec.getVersion());
-                    return featureSet;
-                  })
-              .collect(Collectors.toList());
-
-      return new Job(
-          jobId,
-          extId,
-          jobManager.getRunnerType().getName(),
-          feast.core.model.Source.fromProto(source),
-          feast.core.model.Store.fromProto(sinkSpec),
-          featureSets,
-          JobStatus.ERROR);
+      job.setStatus(JobStatus.ERROR);
+      return job;
     }
   }
 
@@ -187,7 +188,10 @@ public class JobUpdateTask implements Callable<Job> {
   private Job updateJob(Job job, List<FeatureSetSpec> featureSetSpecs, StoreProto.Store store) {
     job.setFeatureSets(
         featureSetSpecs.stream()
-            .map(spec -> FeatureSet.fromSpec(spec))
+            .map(
+                spec ->
+                    FeatureSet.fromProto(
+                        FeatureSetProto.FeatureSet.newBuilder().setSpec(spec).build()))
             .collect(Collectors.toList()));
     job.setStore(feast.core.model.Store.fromProto(store));
     AuditLogger.log(

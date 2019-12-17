@@ -96,7 +96,8 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
       long maxAgeSeconds,
       List<Field> entities,
       List<Field> features,
-      Source source) {
+      Source source,
+      FeatureSetStatus status) {
     this.id = String.format("%s:%s", name, version);
     this.name = name;
     this.version = version;
@@ -104,10 +105,11 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     this.entities = entities;
     this.features = features;
     this.source = source;
-    this.status = FeatureSetStatus.STATUS_PENDING.toString();
+    this.status = status.toString();
   }
 
-  public static FeatureSet fromSpec(FeatureSetSpec featureSetSpec) {
+  public static FeatureSet fromProto(FeatureSetProto.FeatureSet featureSetProto) {
+    FeatureSetSpec featureSetSpec = featureSetProto.getSpec();
     Source source = Source.fromProto(featureSetSpec.getSource());
     String id = String.format("%s:%d", featureSetSpec.getName(), featureSetSpec.getVersion());
     List<Field> features = new ArrayList<>();
@@ -125,7 +127,8 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
         featureSetSpec.getMaxAge().getSeconds(),
         entities,
         features,
-        source);
+        source,
+        featureSetProto.getMeta().getStatus());
   }
 
   public FeatureSetProto.FeatureSet toProto() {

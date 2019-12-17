@@ -55,31 +55,31 @@ class CoreServicer(Core.CoreServiceServicer):
     def ApplyFeatureSet(self, request: ApplyFeatureSetRequest, context):
         feature_set = request.feature_set
 
-        if feature_set.version is None:
-            feature_set.version = 1
+        if feature_set.spec.version is None:
+            feature_set.spec.version = 1
         else:
-            feature_set.version = feature_set.version + 1
+            feature_set.spec.version = feature_set.spec.version + 1
 
-        if feature_set.source.type == SourceTypeProto.INVALID:
-            feature_set.source.kafka_source_config.CopyFrom(
+        if feature_set.spec.source.type == SourceTypeProto.INVALID:
+            feature_set.spec.source.kafka_source_config.CopyFrom(
                 KafkaSourceConfigProto(bootstrap_servers="server.com", topic="topic1")
             )
-            feature_set.source.type = SourceTypeProto.KAFKA
+            feature_set.spec.source.type = SourceTypeProto.KAFKA
 
         feature_set_meta = FeatureSetMeta(
             status=FeatureSetStatus.STATUS_READY,
             created_timestamp=Timestamp(seconds=10),
         )
-        applied_feature_set = FeatureSetProto(spec=feature_set, meta=feature_set_meta)
-        self._feature_sets[feature_set.name] = applied_feature_set
+        applied_feature_set = FeatureSetProto(spec=feature_set.spec, meta=feature_set_meta)
+        self._feature_sets[feature_set.spec.name] = applied_feature_set
 
         _logger.info(
             "registered feature set "
-            + feature_set.name
+            + feature_set.spec.name
             + " with "
-            + str(len(feature_set.entities))
+            + str(len(feature_set.spec.entities))
             + " entities and "
-            + str(len(feature_set.features))
+            + str(len(feature_set.spec.features))
             + " features"
         )
 

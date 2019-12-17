@@ -2,7 +2,6 @@
 import sys
 from feast.core.FeatureSet_pb2 import (
     FeatureSet as feast___core___FeatureSet_pb2___FeatureSet,
-    FeatureSetSpec as feast___core___FeatureSet_pb2___FeatureSetSpec,
 )
 
 from feast.core.Store_pb2 import (
@@ -196,11 +195,11 @@ class ApplyFeatureSetRequest(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
 
     @property
-    def feature_set(self) -> feast___core___FeatureSet_pb2___FeatureSetSpec: ...
+    def feature_set(self) -> feast___core___FeatureSet_pb2___FeatureSet: ...
 
     def __init__(self,
         *,
-        feature_set : typing___Optional[feast___core___FeatureSet_pb2___FeatureSetSpec] = None,
+        feature_set : typing___Optional[feast___core___FeatureSet_pb2___FeatureSet] = None,
         ) -> None: ...
     @classmethod
     def FromString(cls, s: bytes) -> ApplyFeatureSetRequest: ...

@@ -24,6 +24,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto;
 import feast.core.SourceProto.KafkaSourceConfig;
@@ -75,10 +76,16 @@ public class JobUpdateTaskTest {
 
   @Test
   public void shouldUpdateJobIfPresent() {
-    FeatureSetSpec featureSet1 =
-        FeatureSetSpec.newBuilder().setName("featureSet1").setVersion(1).setSource(source).build();
-    FeatureSetSpec featureSet2 =
-        FeatureSetSpec.newBuilder().setName("featureSet2").setVersion(1).setSource(source).build();
+    FeatureSetProto.FeatureSet featureSet1 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                FeatureSetSpec.newBuilder().setName("featureSet1").setVersion(1).setSource(source))
+            .build();
+    FeatureSetProto.FeatureSet featureSet2 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                FeatureSetSpec.newBuilder().setName("featureSet2").setVersion(1).setSource(source))
+            .build();
     Job originalJob =
         new Job(
             "job",
@@ -86,11 +93,11 @@ public class JobUpdateTaskTest {
             Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromSpec(featureSet1)),
+            Arrays.asList(FeatureSet.fromProto(featureSet1)),
             JobStatus.RUNNING);
     JobUpdateTask jobUpdateTask =
         new JobUpdateTask(
-            Arrays.asList(featureSet1, featureSet2),
+            Arrays.asList(featureSet1.getSpec(), featureSet2.getSpec()),
             source,
             store,
             Optional.of(originalJob),
@@ -103,7 +110,7 @@ public class JobUpdateTaskTest {
             Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromSpec(featureSet1), FeatureSet.fromSpec(featureSet2)),
+            Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2)),
             JobStatus.RUNNING);
 
     Job expected =
@@ -113,7 +120,7 @@ public class JobUpdateTaskTest {
             Runner.DATAFLOW.getName(),
             Source.fromProto(source),
             Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromSpec(featureSet1), FeatureSet.fromSpec(featureSet2)),
+            Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2)),
             JobStatus.PENDING);
     when(jobManager.updateJob(submittedJob)).thenReturn(expected);
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
@@ -124,13 +131,31 @@ public class JobUpdateTaskTest {
 
   @Test
   public void shouldCreateJobIfNotPresent() {
-    FeatureSetSpec featureSet1 =
-        FeatureSetSpec.newBuilder().setName("featureSet1").setVersion(1).setSource(source).build();
+    FeatureSetProto.FeatureSet featureSet1 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                FeatureSetSpec.newBuilder().setName("featureSet1").setVersion(1).setSource(source))
+            .build();
     JobUpdateTask jobUpdateTask =
         spy(
             new JobUpdateTask(
-                Arrays.asList(featureSet1), source, store, Optional.empty(), jobManager, 100L));
+                Arrays.asList(featureSet1.getSpec()),
+                source,
+                store,
+                Optional.empty(),
+                jobManager,
+                100L));
     doReturn("job").when(jobUpdateTask).createJobId("KAFKA/servers:9092/topic", "test");
+
+    Job expectedInput =
+        new Job(
+            "job",
+            "",
+            Runner.DATAFLOW.getName(),
+            feast.core.model.Source.fromProto(source),
+            feast.core.model.Store.fromProto(store),
+            Arrays.asList(FeatureSet.fromProto(featureSet1)),
+            JobStatus.PENDING);
 
     Job expected =
         new Job(
@@ -139,12 +164,11 @@ public class JobUpdateTaskTest {
             Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromSpec(featureSet1)),
+            Arrays.asList(FeatureSet.fromProto(featureSet1)),
             JobStatus.RUNNING);
 
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
-    when(jobManager.startJob("job", Arrays.asList(featureSet1), source, store))
-        .thenReturn(expected);
+    when(jobManager.startJob(expectedInput)).thenReturn(expected);
 
     Job actual = jobUpdateTask.call();
     assertThat(actual, equalTo(expected));
@@ -152,8 +176,11 @@ public class JobUpdateTaskTest {
 
   @Test
   public void shouldUpdateJobStatusIfNotCreateOrUpdate() {
-    FeatureSetSpec featureSet1 =
-        FeatureSetSpec.newBuilder().setName("featureSet1").setVersion(1).setSource(source).build();
+    FeatureSetProto.FeatureSet featureSet1 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                FeatureSetSpec.newBuilder().setName("featureSet1").setVersion(1).setSource(source))
+            .build();
     Job originalJob =
         new Job(
             "job",
@@ -161,11 +188,16 @@ public class JobUpdateTaskTest {
             Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromSpec(featureSet1)),
+            Arrays.asList(FeatureSet.fromProto(featureSet1)),
             JobStatus.RUNNING);
     JobUpdateTask jobUpdateTask =
         new JobUpdateTask(
-            Arrays.asList(featureSet1), source, store, Optional.of(originalJob), jobManager, 100L);
+            Arrays.asList(featureSet1.getSpec()),
+            source,
+            store,
+            Optional.of(originalJob),
+            jobManager,
+            100L);
 
     when(jobManager.getJobStatus(originalJob)).thenReturn(JobStatus.ABORTING);
     Job expected =
@@ -175,7 +207,7 @@ public class JobUpdateTaskTest {
             Runner.DATAFLOW.getName(),
             Source.fromProto(source),
             Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromSpec(featureSet1)),
+            Arrays.asList(FeatureSet.fromProto(featureSet1)),
             JobStatus.ABORTING);
     Job actual = jobUpdateTask.call();
 
@@ -184,13 +216,31 @@ public class JobUpdateTaskTest {
 
   @Test
   public void shouldReturnJobWithErrorStatusIfFailedToSubmit() {
-    FeatureSetSpec featureSet1 =
-        FeatureSetSpec.newBuilder().setName("featureSet1").setVersion(1).setSource(source).build();
+    FeatureSetProto.FeatureSet featureSet1 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                FeatureSetSpec.newBuilder().setName("featureSet1").setVersion(1).setSource(source))
+            .build();
     JobUpdateTask jobUpdateTask =
         spy(
             new JobUpdateTask(
-                Arrays.asList(featureSet1), source, store, Optional.empty(), jobManager, 100L));
+                Arrays.asList(featureSet1.getSpec()),
+                source,
+                store,
+                Optional.empty(),
+                jobManager,
+                100L));
     doReturn("job").when(jobUpdateTask).createJobId("KAFKA/servers:9092/topic", "test");
+
+    Job expectedInput =
+        new Job(
+            "job",
+            "",
+            Runner.DATAFLOW.getName(),
+            feast.core.model.Source.fromProto(source),
+            feast.core.model.Store.fromProto(store),
+            Arrays.asList(FeatureSet.fromProto(featureSet1)),
+            JobStatus.PENDING);
 
     Job expected =
         new Job(
@@ -199,11 +249,11 @@ public class JobUpdateTaskTest {
             Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromSpec(featureSet1)),
+            Arrays.asList(FeatureSet.fromProto(featureSet1)),
             JobStatus.ERROR);
 
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
-    when(jobManager.startJob("job", Arrays.asList(featureSet1), source, store))
+    when(jobManager.startJob(expectedInput))
         .thenThrow(new RuntimeException("Something went wrong"));
 
     Job actual = jobUpdateTask.call();

@@ -76,12 +76,17 @@ public class DataflowJobManager implements JobManager {
   }
 
   @Override
-  public Job startJob(
-      String name,
-      List<FeatureSetSpec> featureSets,
-      SourceProto.Source source,
-      StoreProto.Store sink) {
-    return submitDataflowJob(name, featureSets, source, sink, false);
+  public Job startJob(Job job) {
+    List<FeatureSetSpec> featureSetSpecs =
+        job.getFeatureSets().stream()
+            .map(fs -> fs.toProto().getSpec())
+            .collect(Collectors.toList());
+    try {
+      return submitDataflowJob(
+          job.getId(), featureSetSpecs, job.getSource().toProto(), job.getStore().toProto(), false);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(String.format("Unable to start job %s", job.getId()), e);
+    }
   }
 
   /**
@@ -93,10 +98,11 @@ public class DataflowJobManager implements JobManager {
   @Override
   public Job updateJob(Job job) {
     try {
-      List<FeatureSetSpec> featureSetSpecs = new ArrayList<>();
-      for (FeatureSet featureSet : job.getFeatureSets()) {
-        featureSetSpecs.add(featureSet.toProto().getSpec());
-      }
+      List<FeatureSetSpec> featureSetSpecs =
+          job.getFeatureSets().stream()
+              .map(fs -> fs.toProto().getSpec())
+              .collect(Collectors.toList());
+
       return submitDataflowJob(
           job.getId(), featureSetSpecs, job.getSource().toProto(), job.getStore().toProto(), true);
 

@@ -241,7 +241,7 @@ class Client:
 
         # Convert the feature set to a request and send to Feast Core
         apply_fs_response = self._core_service_stub.ApplyFeatureSet(
-            ApplyFeatureSetRequest(feature_set=feature_set.to_proto().spec),
+            ApplyFeatureSetRequest(feature_set=feature_set.to_proto()),
             timeout=GRPC_CONNECTION_TIMEOUT_APPLY,
         )  # type: ApplyFeatureSetResponse
 

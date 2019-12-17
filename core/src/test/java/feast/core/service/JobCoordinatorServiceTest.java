@@ -19,7 +19,7 @@ package feast.core.service;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,6 +42,7 @@ import feast.core.config.FeastProperties.JobUpdatesProperties;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobInfoRepository;
 import feast.core.job.JobManager;
+import feast.core.job.JobMatcher;
 import feast.core.job.Runner;
 import feast.core.model.FeatureSet;
 import feast.core.model.Job;
@@ -123,12 +124,28 @@ public class JobCoordinatorServiceTest {
                     .build())
             .build();
 
-    FeatureSetSpec featureSet1 =
-        FeatureSetSpec.newBuilder().setName("features").setVersion(1).setSource(source).build();
-    FeatureSetSpec featureSet2 =
-        FeatureSetSpec.newBuilder().setName("features").setVersion(2).setSource(source).build();
+    FeatureSetProto.FeatureSet featureSet1 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                FeatureSetSpec.newBuilder().setName("features").setVersion(1).setSource(source))
+            .build();
+    FeatureSetProto.FeatureSet featureSet2 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                FeatureSetSpec.newBuilder().setName("features").setVersion(2).setSource(source))
+            .build();
     String extId = "ext";
     ArgumentCaptor<Job> jobInfoArgCaptor = ArgumentCaptor.forClass(Job.class);
+
+    Job expectedInput =
+        new Job(
+            "",
+            "",
+            Runner.DATAFLOW.getName(),
+            feast.core.model.Source.fromProto(source),
+            feast.core.model.Store.fromProto(store),
+            Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2)),
+            JobStatus.PENDING);
 
     Job expected =
         new Job(
@@ -137,22 +154,20 @@ public class JobCoordinatorServiceTest {
             Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromSpec(featureSet1), FeatureSet.fromSpec(featureSet2)),
+            Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2)),
             JobStatus.RUNNING);
 
     when(specService.listFeatureSets(
             Filter.newBuilder().setFeatureSetName("features").setFeatureSetVersion(">0").build()))
         .thenReturn(
             ListFeatureSetsResponse.newBuilder()
-                .addFeatureSets(FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSet1))
-                .addFeatureSets(FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSet2))
+                .addFeatureSets(featureSet1)
+                .addFeatureSets(featureSet2)
                 .build());
     when(specService.listStores(any()))
         .thenReturn(ListStoresResponse.newBuilder().addStore(store).build());
 
-    when(jobManager.startJob(
-            any(), eq(Arrays.asList(featureSet1, featureSet2)), eq(source), eq(store)))
-        .thenReturn(expected);
+    when(jobManager.startJob(argThat(new JobMatcher(expectedInput)))).thenReturn(expected);
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
 
     JobCoordinatorService jcs =
@@ -193,10 +208,27 @@ public class JobCoordinatorServiceTest {
                     .build())
             .build();
 
-    FeatureSetSpec featureSet1 =
-        FeatureSetSpec.newBuilder().setName("features").setVersion(1).setSource(source1).build();
-    FeatureSetSpec featureSet2 =
-        FeatureSetSpec.newBuilder().setName("features").setVersion(2).setSource(source2).build();
+    FeatureSetProto.FeatureSet featureSet1 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                FeatureSetSpec.newBuilder().setName("features").setVersion(1).setSource(source1))
+            .build();
+    FeatureSetProto.FeatureSet featureSet2 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                FeatureSetSpec.newBuilder().setName("features").setVersion(2).setSource(source2))
+            .build();
+
+    Job expectedInput1 =
+        new Job(
+            "name1",
+            "",
+            Runner.DATAFLOW.getName(),
+            feast.core.model.Source.fromProto(source1),
+            feast.core.model.Store.fromProto(store),
+            Arrays.asList(FeatureSet.fromProto(featureSet1)),
+            JobStatus.PENDING);
+
     Job expected1 =
         new Job(
             "name1",
@@ -204,8 +236,18 @@ public class JobCoordinatorServiceTest {
             Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source1),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromSpec(featureSet1)),
+            Arrays.asList(FeatureSet.fromProto(featureSet1)),
             JobStatus.RUNNING);
+
+    Job expectedInput2 =
+        new Job(
+            "",
+            "extId2",
+            Runner.DATAFLOW.getName(),
+            feast.core.model.Source.fromProto(source2),
+            feast.core.model.Store.fromProto(store),
+            Arrays.asList(FeatureSet.fromProto(featureSet2)),
+            JobStatus.PENDING);
 
     Job expected2 =
         new Job(
@@ -214,7 +256,7 @@ public class JobCoordinatorServiceTest {
             Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source2),
             feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromSpec(featureSet2)),
+            Arrays.asList(FeatureSet.fromProto(featureSet2)),
             JobStatus.RUNNING);
     ArgumentCaptor<Job> jobInfoArgCaptor = ArgumentCaptor.forClass(Job.class);
 
@@ -222,16 +264,14 @@ public class JobCoordinatorServiceTest {
             Filter.newBuilder().setFeatureSetName("features").setFeatureSetVersion(">0").build()))
         .thenReturn(
             ListFeatureSetsResponse.newBuilder()
-                .addFeatureSets(FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSet1))
-                .addFeatureSets(FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSet2))
+                .addFeatureSets(featureSet1)
+                .addFeatureSets(featureSet2)
                 .build());
     when(specService.listStores(any()))
         .thenReturn(ListStoresResponse.newBuilder().addStore(store).build());
 
-    when(jobManager.startJob(any(), eq(Arrays.asList(featureSet1)), eq(source1), eq(store)))
-        .thenReturn(expected1);
-    when(jobManager.startJob(any(), eq(Arrays.asList(featureSet2)), eq(source2), eq(store)))
-        .thenReturn(expected2);
+    when(jobManager.startJob(argThat(new JobMatcher(expectedInput1)))).thenReturn(expected1);
+    when(jobManager.startJob(argThat(new JobMatcher(expectedInput2)))).thenReturn(expected2);
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
 
     JobCoordinatorService jcs =

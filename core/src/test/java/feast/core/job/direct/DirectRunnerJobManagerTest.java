@@ -26,18 +26,25 @@ import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.common.collect.Lists;
+import com.google.protobuf.Duration;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
+import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto;
 import feast.core.SourceProto.KafkaSourceConfig;
-import feast.core.SourceProto.Source;
 import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
+import feast.core.StoreProto.Store.Subscription;
 import feast.core.config.FeastProperties.MetricsProperties;
+import feast.core.job.Runner;
+import feast.core.model.FeatureSet;
 import feast.core.model.Job;
+import feast.core.model.JobStatus;
+import feast.core.model.Source;
+import feast.core.model.Store;
 import feast.ingestion.options.ImportOptions;
 import java.io.IOException;
 import java.util.HashMap;
@@ -79,10 +86,11 @@ public class DirectRunnerJobManagerTest {
             .setName("SERVING")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
+            .addSubscriptions(Subscription.newBuilder().setName("*").setVersion(">0").build())
             .build();
 
     SourceProto.Source source =
-        Source.newBuilder()
+        SourceProto.Source.newBuilder()
             .setType(SourceType.KAFKA)
             .setKafkaSourceConfig(
                 KafkaSourceConfig.newBuilder()
@@ -92,7 +100,12 @@ public class DirectRunnerJobManagerTest {
             .build();
 
     FeatureSetSpec featureSetSpec =
-        FeatureSetSpec.newBuilder().setName("featureSet").setVersion(1).build();
+        FeatureSetSpec.newBuilder()
+            .setName("featureSet")
+            .setVersion(1)
+            .setMaxAge(Duration.newBuilder())
+            .setSource(source)
+            .build();
 
     Printer printer = JsonFormat.printer();
 
@@ -116,7 +129,17 @@ public class DirectRunnerJobManagerTest {
     doReturn(mockPipelineResult).when(drJobManager).runPipeline(any());
 
     Job job =
-        drJobManager.startJob(expectedJobId, Lists.newArrayList(featureSetSpec), source, store);
+        new Job(
+            expectedJobId,
+            "",
+            Runner.DIRECT.getName(),
+            Source.fromProto(source),
+            Store.fromProto(store),
+            Lists.newArrayList(
+                FeatureSet.fromProto(
+                    FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSetSpec).build())),
+            JobStatus.PENDING);
+    Job actual = drJobManager.startJob(job);
     verify(drJobManager, times(1)).runPipeline(pipelineOptionsCaptor.capture());
     verify(directJobRegistry, times(1)).add(directJobCaptor.capture());
 
@@ -128,7 +151,7 @@ public class DirectRunnerJobManagerTest {
     assertThat(actualPipelineOptions.toString(), equalTo(expectedPipelineOptions.toString()));
     assertThat(jobStarted.getPipelineResult(), equalTo(mockPipelineResult));
     assertThat(jobStarted.getJobId(), equalTo(expectedJobId));
-    assertThat(job.getExtId(), equalTo(expectedJobId));
+    assertThat(actual.getExtId(), equalTo(expectedJobId));
   }
 
   @Test

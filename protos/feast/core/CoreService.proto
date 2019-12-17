@@ -113,7 +113,7 @@ message ListStoresResponse {
 
 message ApplyFeatureSetRequest {
     // Feature set version and source will be ignored
-    feast.core.FeatureSetSpec feature_set = 1;
+    feast.core.FeatureSet feature_set = 1;
 }
 
 message ApplyFeatureSetResponse {

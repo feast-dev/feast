@@ -32,6 +32,7 @@ import feast.core.CoreServiceProto.ListStoresResponse;
 import feast.core.CoreServiceProto.ListStoresResponse.Builder;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
+import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto;
 import feast.core.StoreProto;
@@ -214,10 +215,11 @@ public class SpecService {
    * this method will update the incoming featureSet spec with the latest version stored in the
    * repository, and return that.
    *
-   * @param newFeatureSetSpec featureSet to add.
+   * @param newFeatureSet featureSet to add.
    */
-  public ApplyFeatureSetResponse applyFeatureSet(FeatureSetSpec newFeatureSetSpec)
+  public ApplyFeatureSetResponse applyFeatureSet(FeatureSetProto.FeatureSet newFeatureSet)
       throws InvalidProtocolBufferException {
+    FeatureSetSpec newFeatureSetSpec = newFeatureSet.getSpec();
     FeatureSetValidator.validateSpec(newFeatureSetSpec);
     List<FeatureSet> existingFeatureSets =
         featureSetRepository.findByName(newFeatureSetSpec.getName());
@@ -227,7 +229,7 @@ public class SpecService {
     } else {
       existingFeatureSets = Ordering.natural().reverse().sortedCopy(existingFeatureSets);
       FeatureSet latest = existingFeatureSets.get(0);
-      FeatureSet featureSet = FeatureSet.fromSpec(newFeatureSetSpec);
+      FeatureSet featureSet = FeatureSet.fromProto(newFeatureSet);
 
       // If the featureSet remains unchanged, we do nothing.
       if (featureSet.equalTo(latest)) {
@@ -238,7 +240,8 @@ public class SpecService {
       }
       newFeatureSetSpec = newFeatureSetSpec.toBuilder().setVersion(latest.getVersion() + 1).build();
     }
-    FeatureSet featureSet = FeatureSet.fromSpec(newFeatureSetSpec);
+    newFeatureSet = newFeatureSet.toBuilder().setSpec(newFeatureSetSpec).build();
+    FeatureSet featureSet = FeatureSet.fromProto(newFeatureSet);
     if (newFeatureSetSpec.getSource() == SourceProto.Source.getDefaultInstance()) {
       featureSet.setSource(defaultSource);
     }

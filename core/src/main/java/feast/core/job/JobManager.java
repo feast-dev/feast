@@ -16,12 +16,8 @@
  */
 package feast.core.job;
 
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.SourceProto.Source;
-import feast.core.StoreProto.Store;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
-import java.util.List;
 
 public interface JobManager {
 
@@ -35,13 +31,10 @@ public interface JobManager {
   /**
    * Start an import job.
    *
-   * @param name of job to run
-   * @param featureSets list of featureSets to be populated by the job
-   * @param source Source to retrieve features from
-   * @param sink Store to sink features to
+   * @param job job to start
    * @return Job
    */
-  Job startJob(String name, List<FeatureSetSpec> featureSets, Source source, Store sink);
+  Job startJob(Job job);
 
   /**
    * Update already running job with new set of features to ingest.
