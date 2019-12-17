@@ -87,7 +87,9 @@ public class BigQueryServingService implements ServingService {
     this.storage = storage;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public GetFeastServingInfoResponse getFeastServingInfo(
       GetFeastServingInfoRequest getFeastServingInfoRequest) {
@@ -97,13 +99,17 @@ public class BigQueryServingService implements ServingService {
         .build();
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest getFeaturesRequest) {
     throw Status.UNIMPLEMENTED.withDescription("Method not implemented").asRuntimeException();
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public GetBatchFeaturesResponse getBatchFeatures(GetBatchFeaturesRequest getFeaturesRequest) {
     long startTime = System.currentTimeMillis();
@@ -123,7 +129,19 @@ public class BigQueryServingService implements ServingService {
           .asRuntimeException();
     }
 
-    Table entityTable = loadEntities(getFeaturesRequest.getDatasetSource());
+    Table entityTable;
+    String entityTableName;
+    try {
+      entityTable = loadEntities(getFeaturesRequest.getDatasetSource());
+
+      TableId entityTableWithUUIDs = generateUUIDs(entityTable);
+      entityTableName = generateFullTableName(entityTableWithUUIDs);
+    } catch (Exception e) {
+      throw Status.INTERNAL
+          .withDescription("Unable to load entity dataset to Bigquery")
+          .asRuntimeException();
+    }
+
     Schema entityTableSchema = entityTable.getDefinition().getSchema();
     List<String> entityNames =
         entityTableSchema.getFields().stream()
@@ -131,11 +149,9 @@ public class BigQueryServingService implements ServingService {
             .filter(name -> !name.equals("event_timestamp"))
             .collect(Collectors.toList());
 
-    TableId entityTableWithUUIDs = generateUUIDs(entityTable);
-    String entityTableName = generateFullTableName(entityTableWithUUIDs);
-
     List<FeatureSetInfo> featureSetInfos =
-        QueryTemplater.getFeatureSetInfos(featureSetSpecs, getFeaturesRequest.getFeatureSetsList());
+        QueryTemplater
+            .getFeatureSetInfos(featureSetSpecs, getFeaturesRequest.getFeatureSetsList());
 
     String feastJobId = UUID.randomUUID().toString();
     ServingAPIProto.Job feastJob =
@@ -147,25 +163,27 @@ public class BigQueryServingService implements ServingService {
     jobService.upsert(feastJob);
 
     new Thread(
-            BatchRetrievalQueryRunnable.builder()
-                .setEntityTableName(entityTableName)
-                .setBigquery(bigquery)
-                .setStorage(storage)
-                .setJobService(jobService)
-                .setProjectId(projectId)
-                .setDatasetId(datasetId)
-                .setFeastJobId(feastJobId)
-                .setEntityTableColumnNames(entityNames)
-                .setFeatureSetInfos(featureSetInfos)
-                .setJobStagingLocation(jobStagingLocation)
-                .build())
+        BatchRetrievalQueryRunnable.builder()
+            .setEntityTableName(entityTableName)
+            .setBigquery(bigquery)
+            .setStorage(storage)
+            .setJobService(jobService)
+            .setProjectId(projectId)
+            .setDatasetId(datasetId)
+            .setFeastJobId(feastJobId)
+            .setEntityTableColumnNames(entityNames)
+            .setFeatureSetInfos(featureSetInfos)
+            .setJobStagingLocation(jobStagingLocation)
+            .build())
         .start();
 
     requestLatency.labels("getBatchFeatures").observe(System.currentTimeMillis() - startTime);
     return GetBatchFeaturesResponse.newBuilder().setJob(feastJob).build();
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public GetJobResponse getJob(GetJobRequest getJobRequest) {
     Optional<ServingAPIProto.Job> job = jobService.get(getJobRequest.getJob().getId());
