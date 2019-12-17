@@ -59,7 +59,7 @@ nohup /tmp/kafka/bin/zookeeper-server-start.sh /tmp/kafka/config/zookeeper.prope
 sleep 5
 tail -n10 /var/log/zookeeper.log
 nohup /tmp/kafka/bin/kafka-server-start.sh /tmp/kafka/config/server.properties &> /var/log/kafka.log 2>&1 &
-sleep 10
+sleep 15
 tail -n10 /var/log/kafka.log
 
 echo "
