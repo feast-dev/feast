@@ -31,7 +31,7 @@ import feast.core.dao.JobInfoRepository;
 import feast.core.job.JobManager;
 import feast.core.job.JobUpdateTask;
 import feast.core.model.FeatureSet;
-import feast.core.model.JobInfo;
+import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import feast.core.model.Source;
 import feast.core.model.Store;
@@ -115,11 +115,16 @@ public class JobCoordinatorService {
               .stream()
               .forEach(
                   kv -> {
-                    Optional<JobInfo> originalJob =
+                    Optional<Job> originalJob =
                         getJob(Source.fromProto(kv.getKey()), Store.fromProto(store));
                     jobUpdateTasks.add(
                         new JobUpdateTask(
-                            kv.getValue(), kv.getKey(), store, originalJob, jobManager, jobUpdatesProperties.getTimeoutSeconds()));
+                            kv.getValue(),
+                            kv.getKey(),
+                            store,
+                            originalJob,
+                            jobManager,
+                            jobUpdatesProperties.getTimeoutSeconds()));
                   });
         }
       } catch (InvalidProtocolBufferException e) {
@@ -133,15 +138,15 @@ public class JobCoordinatorService {
 
     log.info("Creating/Updating {} jobs...", jobUpdateTasks.size());
     ExecutorService executorService = Executors.newFixedThreadPool(jobUpdateTasks.size());
-    ExecutorCompletionService<JobInfo> ecs = new ExecutorCompletionService<>(executorService);
+    ExecutorCompletionService<Job> ecs = new ExecutorCompletionService<>(executorService);
     jobUpdateTasks.forEach(ecs::submit);
 
     int completedTasks = 0;
     while (completedTasks < jobUpdateTasks.size()) {
       try {
-        JobInfo jobInfo = ecs.take().get();
-        if (jobInfo != null) {
-          jobInfoRepository.saveAndFlush(jobInfo);
+        Job job = ecs.take().get();
+        if (job != null) {
+          jobInfoRepository.saveAndFlush(job);
         }
       } catch (ExecutionException | InterruptedException e) {
         log.warn("Unable to start or update job: {}", e.getMessage());
@@ -158,7 +163,7 @@ public class JobCoordinatorService {
     Set<FeatureSet> ready = new HashSet<>();
     Set<FeatureSet> pending = new HashSet<>();
     for (JobUpdateTask jobUpdateTask : jobUpdateTasks) {
-      Optional<JobInfo> job =
+      Optional<Job> job =
           getJob(
               Source.fromProto(jobUpdateTask.getSourceSpec()),
               Store.fromProto(jobUpdateTask.getStore()));
@@ -185,8 +190,8 @@ public class JobCoordinatorService {
   }
 
   @Transactional
-  public Optional<JobInfo> getJob(Source source, Store store) {
-    List<JobInfo> jobs =
+  public Optional<Job> getJob(Source source, Store store) {
+    List<Job> jobs =
         jobInfoRepository.findBySourceIdAndStoreNameOrderByLastUpdatedDesc(
             source.getId(), store.getName());
     jobs =

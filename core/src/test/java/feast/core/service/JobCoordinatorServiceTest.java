@@ -44,7 +44,7 @@ import feast.core.dao.JobInfoRepository;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
 import feast.core.model.FeatureSet;
-import feast.core.model.JobInfo;
+import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import java.util.Arrays;
 import java.util.List;
@@ -76,7 +76,8 @@ public class JobCoordinatorServiceTest {
   public void shouldDoNothingIfNoStoresFound() {
     when(specService.listStores(any())).thenReturn(ListStoresResponse.newBuilder().build());
     JobCoordinatorService jcs =
-        new JobCoordinatorService(jobInfoRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+        new JobCoordinatorService(
+            jobInfoRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
     jcs.Poll();
     verify(jobInfoRepository, times(0)).saveAndFlush(any());
   }
@@ -96,7 +97,8 @@ public class JobCoordinatorServiceTest {
             Filter.newBuilder().setFeatureSetName("*").setFeatureSetVersion(">0").build()))
         .thenReturn(ListFeatureSetsResponse.newBuilder().build());
     JobCoordinatorService jcs =
-        new JobCoordinatorService(jobInfoRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+        new JobCoordinatorService(
+            jobInfoRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
     jcs.Poll();
     verify(jobInfoRepository, times(0)).saveAndFlush(any());
   }
@@ -126,7 +128,17 @@ public class JobCoordinatorServiceTest {
     FeatureSetSpec featureSet2 =
         FeatureSetSpec.newBuilder().setName("features").setVersion(2).setSource(source).build();
     String extId = "ext";
-    ArgumentCaptor<JobInfo> jobInfoArgCaptor = ArgumentCaptor.forClass(JobInfo.class);
+    ArgumentCaptor<Job> jobInfoArgCaptor = ArgumentCaptor.forClass(Job.class);
+
+    Job expected =
+        new Job(
+            "some_id",
+            extId,
+            Runner.DATAFLOW.getName(),
+            feast.core.model.Source.fromProto(source),
+            feast.core.model.Store.fromProto(store),
+            Arrays.asList(FeatureSet.fromSpec(featureSet1), FeatureSet.fromSpec(featureSet2)),
+            JobStatus.RUNNING);
 
     when(specService.listFeatureSets(
             Filter.newBuilder().setFeatureSetName("features").setFeatureSetVersion(">0").build()))
@@ -138,24 +150,17 @@ public class JobCoordinatorServiceTest {
     when(specService.listStores(any()))
         .thenReturn(ListStoresResponse.newBuilder().addStore(store).build());
 
-    when(jobManager.startJob(any(), eq(Arrays.asList(featureSet1, featureSet2)), eq(store)))
-        .thenReturn(extId);
+    when(jobManager.startJob(
+            any(), eq(Arrays.asList(featureSet1, featureSet2)), eq(source), eq(store)))
+        .thenReturn(expected);
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
 
     JobCoordinatorService jcs =
-        new JobCoordinatorService(jobInfoRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+        new JobCoordinatorService(
+            jobInfoRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
     jcs.Poll();
     verify(jobInfoRepository, times(1)).saveAndFlush(jobInfoArgCaptor.capture());
-    JobInfo actual = jobInfoArgCaptor.getValue();
-    JobInfo expected =
-        new JobInfo(
-            actual.getId(),
-            extId,
-            Runner.DATAFLOW.getName(),
-            feast.core.model.Source.fromProto(source),
-            feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromSpec(featureSet1), FeatureSet.fromSpec(featureSet2)),
-            JobStatus.RUNNING);
+    Job actual = jobInfoArgCaptor.getValue();
     assertThat(actual, equalTo(expected));
   }
 
@@ -192,9 +197,26 @@ public class JobCoordinatorServiceTest {
         FeatureSetSpec.newBuilder().setName("features").setVersion(1).setSource(source1).build();
     FeatureSetSpec featureSet2 =
         FeatureSetSpec.newBuilder().setName("features").setVersion(2).setSource(source2).build();
-    String extId1 = "ext1";
-    String extId2 = "ext2";
-    ArgumentCaptor<JobInfo> jobInfoArgCaptor = ArgumentCaptor.forClass(JobInfo.class);
+    Job expected1 =
+        new Job(
+            "name1",
+            "extId1",
+            Runner.DATAFLOW.getName(),
+            feast.core.model.Source.fromProto(source1),
+            feast.core.model.Store.fromProto(store),
+            Arrays.asList(FeatureSet.fromSpec(featureSet1)),
+            JobStatus.RUNNING);
+
+    Job expected2 =
+        new Job(
+            "name2",
+            "extId2",
+            Runner.DATAFLOW.getName(),
+            feast.core.model.Source.fromProto(source2),
+            feast.core.model.Store.fromProto(store),
+            Arrays.asList(FeatureSet.fromSpec(featureSet2)),
+            JobStatus.RUNNING);
+    ArgumentCaptor<Job> jobInfoArgCaptor = ArgumentCaptor.forClass(Job.class);
 
     when(specService.listFeatureSets(
             Filter.newBuilder().setFeatureSetName("features").setFeatureSetVersion(">0").build()))
@@ -206,36 +228,21 @@ public class JobCoordinatorServiceTest {
     when(specService.listStores(any()))
         .thenReturn(ListStoresResponse.newBuilder().addStore(store).build());
 
-    when(jobManager.startJob(any(), eq(Arrays.asList(featureSet1)), eq(store))).thenReturn(extId1);
-    when(jobManager.startJob(any(), eq(Arrays.asList(featureSet2)), eq(store))).thenReturn(extId2);
+    when(jobManager.startJob(any(), eq(Arrays.asList(featureSet1)), eq(source1), eq(store)))
+        .thenReturn(expected1);
+    when(jobManager.startJob(any(), eq(Arrays.asList(featureSet2)), eq(source2), eq(store)))
+        .thenReturn(expected2);
     when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
 
     JobCoordinatorService jcs =
-        new JobCoordinatorService(jobInfoRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+        new JobCoordinatorService(
+            jobInfoRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
     jcs.Poll();
 
     verify(jobInfoRepository, times(2)).saveAndFlush(jobInfoArgCaptor.capture());
-    List<JobInfo> actual = jobInfoArgCaptor.getAllValues();
-    JobInfo expected1 =
-        new JobInfo(
-            actual.get(0).getId(),
-            extId1,
-            Runner.DATAFLOW.getName(),
-            feast.core.model.Source.fromProto(source1),
-            feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromSpec(featureSet1)),
-            JobStatus.RUNNING);
-    assertThat(actual.get(0), equalTo(expected1));
+    List<Job> actual = jobInfoArgCaptor.getAllValues();
 
-    JobInfo expected2 =
-        new JobInfo(
-            actual.get(1).getId(),
-            extId2,
-            Runner.DATAFLOW.getName(),
-            feast.core.model.Source.fromProto(source2),
-            feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromSpec(featureSet2)),
-            JobStatus.RUNNING);
+    assertThat(actual.get(0), equalTo(expected1));
     assertThat(actual.get(1), equalTo(expected2));
   }
 }

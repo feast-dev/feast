@@ -33,7 +33,7 @@ import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.core.StoreProto.Store.Subscription;
 import feast.core.model.FeatureSet;
-import feast.core.model.JobInfo;
+import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import feast.core.model.Source;
 import feast.core.model.Store;
@@ -79,8 +79,8 @@ public class JobUpdateTaskTest {
         FeatureSetSpec.newBuilder().setName("featureSet1").setVersion(1).setSource(source).build();
     FeatureSetSpec featureSet2 =
         FeatureSetSpec.newBuilder().setName("featureSet2").setVersion(1).setSource(source).build();
-    JobInfo originalJob =
-        new JobInfo(
+    Job originalJob =
+        new Job(
             "job",
             "old_ext",
             Runner.DATAFLOW.getName(),
@@ -94,9 +94,10 @@ public class JobUpdateTaskTest {
             source,
             store,
             Optional.of(originalJob),
-            jobManager, 100L);
-    JobInfo submittedJob =
-        new JobInfo(
+            jobManager,
+            100L);
+    Job submittedJob =
+        new Job(
             "job",
             "old_ext",
             Runner.DATAFLOW.getName(),
@@ -105,18 +106,18 @@ public class JobUpdateTaskTest {
             Arrays.asList(FeatureSet.fromSpec(featureSet1), FeatureSet.fromSpec(featureSet2)),
             JobStatus.RUNNING);
 
-    when(jobManager.updateJob(submittedJob)).thenReturn("new_ext");
-    when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
-    JobInfo expected =
-        new JobInfo(
+    Job expected =
+        new Job(
             "job",
             "new_ext",
             Runner.DATAFLOW.getName(),
             Source.fromProto(source),
             Store.fromProto(store),
             Arrays.asList(FeatureSet.fromSpec(featureSet1), FeatureSet.fromSpec(featureSet2)),
-            JobStatus.RUNNING);
-    JobInfo actual = jobUpdateTask.call();
+            JobStatus.PENDING);
+    when(jobManager.updateJob(submittedJob)).thenReturn(expected);
+    when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
+    Job actual = jobUpdateTask.call();
 
     assertThat(actual, equalTo(expected));
   }
@@ -130,11 +131,9 @@ public class JobUpdateTaskTest {
             new JobUpdateTask(
                 Arrays.asList(featureSet1), source, store, Optional.empty(), jobManager, 100L));
     doReturn("job").when(jobUpdateTask).createJobId("KAFKA/servers:9092/topic", "test");
-    when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
-    when(jobManager.startJob("job", Arrays.asList(featureSet1), store)).thenReturn("new_ext");
 
-    JobInfo expected =
-        new JobInfo(
+    Job expected =
+        new Job(
             "job",
             "ext",
             Runner.DATAFLOW.getName(),
@@ -142,7 +141,12 @@ public class JobUpdateTaskTest {
             feast.core.model.Store.fromProto(store),
             Arrays.asList(FeatureSet.fromSpec(featureSet1)),
             JobStatus.RUNNING);
-    JobInfo actual = jobUpdateTask.call();
+
+    when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
+    when(jobManager.startJob("job", Arrays.asList(featureSet1), source, store))
+        .thenReturn(expected);
+
+    Job actual = jobUpdateTask.call();
     assertThat(actual, equalTo(expected));
   }
 
@@ -150,8 +154,8 @@ public class JobUpdateTaskTest {
   public void shouldUpdateJobStatusIfNotCreateOrUpdate() {
     FeatureSetSpec featureSet1 =
         FeatureSetSpec.newBuilder().setName("featureSet1").setVersion(1).setSource(source).build();
-    JobInfo originalJob =
-        new JobInfo(
+    Job originalJob =
+        new Job(
             "job",
             "ext",
             Runner.DATAFLOW.getName(),
@@ -164,8 +168,8 @@ public class JobUpdateTaskTest {
             Arrays.asList(featureSet1), source, store, Optional.of(originalJob), jobManager, 100L);
 
     when(jobManager.getJobStatus(originalJob)).thenReturn(JobStatus.ABORTING);
-    JobInfo expected =
-        new JobInfo(
+    Job expected =
+        new Job(
             "job",
             "ext",
             Runner.DATAFLOW.getName(),
@@ -173,7 +177,7 @@ public class JobUpdateTaskTest {
             Store.fromProto(store),
             Arrays.asList(FeatureSet.fromSpec(featureSet1)),
             JobStatus.ABORTING);
-    JobInfo actual = jobUpdateTask.call();
+    Job actual = jobUpdateTask.call();
 
     assertThat(actual, equalTo(expected));
   }
@@ -187,12 +191,9 @@ public class JobUpdateTaskTest {
             new JobUpdateTask(
                 Arrays.asList(featureSet1), source, store, Optional.empty(), jobManager, 100L));
     doReturn("job").when(jobUpdateTask).createJobId("KAFKA/servers:9092/topic", "test");
-    when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
-    when(jobManager.startJob("job", Arrays.asList(featureSet1), store))
-        .thenThrow(new RuntimeException("Something went wrong"));
 
-    JobInfo expected =
-        new JobInfo(
+    Job expected =
+        new Job(
             "job",
             "",
             Runner.DATAFLOW.getName(),
@@ -200,7 +201,12 @@ public class JobUpdateTaskTest {
             feast.core.model.Store.fromProto(store),
             Arrays.asList(FeatureSet.fromSpec(featureSet1)),
             JobStatus.ERROR);
-    JobInfo actual = jobUpdateTask.call();
+
+    when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
+    when(jobManager.startJob("job", Arrays.asList(featureSet1), source, store))
+        .thenThrow(new RuntimeException("Something went wrong"));
+
+    Job actual = jobUpdateTask.call();
     assertThat(actual, equalTo(expected));
   }
 
@@ -212,7 +218,7 @@ public class JobUpdateTaskTest {
         spy(
             new JobUpdateTask(
                 Arrays.asList(featureSet1), source, store, Optional.empty(), jobManager, 0L));
-    JobInfo actual = jobUpdateTask.call();
+    Job actual = jobUpdateTask.call();
     assertThat(actual, is(IsNull.nullValue()));
   }
 }

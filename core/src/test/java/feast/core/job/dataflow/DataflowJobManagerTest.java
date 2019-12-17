@@ -31,11 +31,15 @@ import com.google.common.collect.Lists;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.SourceProto;
+import feast.core.SourceProto.KafkaSourceConfig;
+import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
+import feast.core.model.Job;
 import feast.ingestion.options.ImportOptions;
 import java.io.IOException;
 import java.util.HashMap;
@@ -82,6 +86,16 @@ public class DataflowJobManagerTest {
             .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
             .build();
 
+    SourceProto.Source source =
+        SourceProto.Source.newBuilder()
+            .setType(SourceType.KAFKA)
+            .setKafkaSourceConfig(
+                KafkaSourceConfig.newBuilder()
+                    .setTopic("topic")
+                    .setBootstrapServers("servers:9092")
+                    .build())
+            .build();
+
     FeatureSetSpec featureSetSpec =
         FeatureSetSpec.newBuilder().setName("featureSet").setVersion(1).build();
 
@@ -108,7 +122,7 @@ public class DataflowJobManagerTest {
     when(mockPipelineResult.getJobId()).thenReturn(expectedExtJobId);
 
     doReturn(mockPipelineResult).when(dfJobManager).runPipeline(any());
-    String jobId = dfJobManager.startJob(jobName, Lists.newArrayList(featureSetSpec), store);
+    Job job = dfJobManager.startJob(jobName, Lists.newArrayList(featureSetSpec), source, store);
 
     verify(dfJobManager, times(1)).runPipeline(captor.capture());
     ImportOptions actualPipelineOptions = captor.getValue();
@@ -129,7 +143,7 @@ public class DataflowJobManagerTest {
     expectedPipelineOptions.setFilesToStage(actualPipelineOptions.getFilesToStage());
 
     assertThat(actualPipelineOptions.toString(), equalTo(expectedPipelineOptions.toString()));
-    assertThat(jobId, equalTo(expectedExtJobId));
+    assertThat(job.getExtId(), equalTo(expectedExtJobId));
   }
 
   @Test
@@ -139,6 +153,16 @@ public class DataflowJobManagerTest {
             .setName("SERVING")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
+            .build();
+
+    SourceProto.Source source =
+        SourceProto.Source.newBuilder()
+            .setType(SourceType.KAFKA)
+            .setKafkaSourceConfig(
+                KafkaSourceConfig.newBuilder()
+                    .setTopic("topic")
+                    .setBootstrapServers("servers:9092")
+                    .build())
             .build();
 
     FeatureSetSpec featureSetSpec =
@@ -152,6 +176,6 @@ public class DataflowJobManagerTest {
     doReturn(mockPipelineResult).when(dfJobManager).runPipeline(any());
 
     expectedException.expect(JobExecutionException.class);
-    dfJobManager.startJob("job", Lists.newArrayList(featureSetSpec), store);
+    dfJobManager.startJob("job", Lists.newArrayList(featureSetSpec), source, store);
   }
 }

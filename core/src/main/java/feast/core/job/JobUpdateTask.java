@@ -23,7 +23,7 @@ import feast.core.log.Action;
 import feast.core.log.AuditLogger;
 import feast.core.log.Resource;
 import feast.core.model.FeatureSet;
-import feast.core.model.JobInfo;
+import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import feast.core.model.Source;
 import java.time.Instant;
@@ -45,16 +45,16 @@ import lombok.extern.slf4j.Slf4j;
  * JobUpdateTask is a callable that starts or updates a job given a set of featureSetSpecs, as well
  * as their source and sink.
  *
- * <p>When complete, the JobUpdateTask returns the updated JobInfo object to be pushed to the db.
+ * <p>When complete, the JobUpdateTask returns the updated Job object to be pushed to the db.
  */
 @Slf4j
 @Getter
-public class JobUpdateTask implements Callable<JobInfo> {
+public class JobUpdateTask implements Callable<Job> {
 
   private final List<FeatureSetSpec> featureSetSpecs;
   private final SourceProto.Source sourceSpec;
   private final StoreProto.Store store;
-  private final Optional<JobInfo> originalJob;
+  private final Optional<Job> currentJob;
   private JobManager jobManager;
   private long jobUpdateTimeoutSeconds;
 
@@ -62,26 +62,26 @@ public class JobUpdateTask implements Callable<JobInfo> {
       List<FeatureSetSpec> featureSetSpecs,
       SourceProto.Source sourceSpec,
       StoreProto.Store store,
-      Optional<JobInfo> originalJob,
+      Optional<Job> currentJob,
       JobManager jobManager,
       long jobUpdateTimeoutSeconds) {
 
     this.featureSetSpecs = featureSetSpecs;
     this.sourceSpec = sourceSpec;
     this.store = store;
-    this.originalJob = originalJob;
+    this.currentJob = currentJob;
     this.jobManager = jobManager;
     this.jobUpdateTimeoutSeconds = jobUpdateTimeoutSeconds;
   }
 
   @Override
-  public JobInfo call() {
+  public Job call() {
     ExecutorService executorService = Executors.newSingleThreadExecutor();
     Source source = Source.fromProto(sourceSpec);
-    Future<JobInfo> submittedJob;
-    if (originalJob.isPresent()) {
+    Future<Job> submittedJob;
+    if (currentJob.isPresent()) {
       Set<String> existingFeatureSetsPopulatedByJob =
-          originalJob.get().getFeatureSets().stream()
+          currentJob.get().getFeatureSets().stream()
               .map(FeatureSet::getId)
               .collect(Collectors.toSet());
       Set<String> newFeatureSetsPopulatedByJob =
@@ -90,7 +90,7 @@ public class JobUpdateTask implements Callable<JobInfo> {
               .collect(Collectors.toSet());
       if (existingFeatureSetsPopulatedByJob.size() == newFeatureSetsPopulatedByJob.size()
           && existingFeatureSetsPopulatedByJob.containsAll(newFeatureSetsPopulatedByJob)) {
-        JobInfo job = originalJob.get();
+        Job job = currentJob.get();
         JobStatus newJobStatus = jobManager.getJobStatus(job);
         if (newJobStatus != job.getStatus()) {
           AuditLogger.log(
@@ -105,7 +105,7 @@ public class JobUpdateTask implements Callable<JobInfo> {
         return job;
       } else {
         submittedJob =
-            executorService.submit(() -> updateJob(originalJob.get(), featureSetSpecs, store));
+            executorService.submit(() -> updateJob(currentJob.get(), featureSetSpecs, store));
       }
     } else {
       String jobId = createJobId(source.getId(), store.getName());
@@ -113,7 +113,7 @@ public class JobUpdateTask implements Callable<JobInfo> {
           executorService.submit(() -> startJob(jobId, featureSetSpecs, sourceSpec, store));
     }
 
-    JobInfo job = null;
+    Job job = null;
     try {
       job = submittedJob.get(getJobUpdateTimeoutSeconds(), TimeUnit.SECONDS);
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
@@ -124,21 +124,12 @@ public class JobUpdateTask implements Callable<JobInfo> {
   }
 
   /** Start or update the job to ingest data to the sink. */
-  private JobInfo startJob(
+  private Job startJob(
       String jobId,
       List<FeatureSetSpec> featureSetSpecs,
       SourceProto.Source source,
       StoreProto.Store sinkSpec) {
 
-    List<FeatureSet> featureSets =
-        featureSetSpecs.stream()
-            .map(
-                spec -> {
-                  FeatureSet featureSet = new FeatureSet();
-                  featureSet.setId(spec.getName() + ":" + spec.getVersion());
-                  return featureSet;
-                })
-            .collect(Collectors.toList());
     String extId = "";
     try {
       AuditLogger.log(
@@ -148,8 +139,8 @@ public class JobUpdateTask implements Callable<JobInfo> {
           "Building graph and submitting to %s",
           jobManager.getRunnerType().getName());
 
-      extId = jobManager.startJob(jobId, featureSetSpecs, sinkSpec);
-      if (extId.isEmpty()) {
+      Job job = jobManager.startJob(jobId, featureSetSpecs, sourceSpec, sinkSpec);
+      if (job.getExtId().isEmpty()) {
         throw new RuntimeException(
             String.format("Could not submit job: \n%s", "unable to retrieve job external id"));
       }
@@ -162,14 +153,7 @@ public class JobUpdateTask implements Callable<JobInfo> {
           jobManager.getRunnerType().getName(),
           extId);
 
-      return new JobInfo(
-          jobId,
-          extId,
-          jobManager.getRunnerType().getName(),
-          feast.core.model.Source.fromProto(source),
-          feast.core.model.Store.fromProto(sinkSpec),
-          featureSets,
-          JobStatus.RUNNING);
+      return job;
     } catch (Exception e) {
       AuditLogger.log(
           Resource.JOB,
@@ -178,7 +162,17 @@ public class JobUpdateTask implements Callable<JobInfo> {
           "Job failed to be submitted to runner %s. Job status changed to ERROR.",
           jobManager.getRunnerType().getName());
 
-      return new JobInfo(
+      List<FeatureSet> featureSets =
+          featureSetSpecs.stream()
+              .map(
+                  spec -> {
+                    FeatureSet featureSet = new FeatureSet();
+                    featureSet.setId(spec.getName() + ":" + spec.getVersion());
+                    return featureSet;
+                  })
+              .collect(Collectors.toList());
+
+      return new Job(
           jobId,
           extId,
           jobManager.getRunnerType().getName(),
@@ -190,23 +184,20 @@ public class JobUpdateTask implements Callable<JobInfo> {
   }
 
   /** Update the given job */
-  private JobInfo updateJob(
-      JobInfo jobInfo, List<FeatureSetSpec> featureSetSpecs, StoreProto.Store store) {
-    jobInfo.setFeatureSets(
+  private Job updateJob(Job job, List<FeatureSetSpec> featureSetSpecs, StoreProto.Store store) {
+    job.setFeatureSets(
         featureSetSpecs.stream()
             .map(spec -> FeatureSet.fromSpec(spec))
             .collect(Collectors.toList()));
-    jobInfo.setStore(feast.core.model.Store.fromProto(store));
+    job.setStore(feast.core.model.Store.fromProto(store));
     AuditLogger.log(
         Resource.JOB,
-        jobInfo.getId(),
+        job.getId(),
         Action.UPDATE,
         "Updating job %s for runner %s",
-        jobInfo.getId(),
+        job.getId(),
         jobManager.getRunnerType().getName());
-    String extId = jobManager.updateJob(jobInfo);
-    jobInfo.setExtId(extId);
-    return jobInfo;
+    return jobManager.updateJob(job);
   }
 
   String createJobId(String sourceId, String storeName) {

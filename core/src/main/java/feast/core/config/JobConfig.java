@@ -100,9 +100,7 @@ public class JobConfig {
     return new DirectJobRegistry();
   }
 
-  /**
-   * Extracts job update options from feast core options.
-   */
+  /** Extracts job update options from feast core options. */
   @Bean
   public JobUpdatesProperties jobUpdatesProperties(FeastProperties feastProperties) {
     return feastProperties.getJobs().getUpdates();

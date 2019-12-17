@@ -21,14 +21,17 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.SourceProto;
 import feast.core.StoreProto;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
 import feast.core.model.FeatureSet;
-import feast.core.model.JobInfo;
+import feast.core.model.Job;
 import feast.core.model.JobStatus;
+import feast.core.model.Source;
+import feast.core.model.Store;
 import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
 import feast.ingestion.options.ImportOptions;
@@ -37,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.PipelineResult;
@@ -68,19 +72,39 @@ public class DirectRunnerJobManager implements JobManager {
   /**
    * Start a direct runner job.
    *
-   * @param name of job to run
+   * @param jobName of job to run
    * @param featureSetSpecs list of specs for featureSets to be populated by the job
-   * @param sinkSpec Store to sink features to
+   * @param source Source to retrieve features from
+   * @param sink Store to sink features to
    */
   @Override
-  public String startJob(
-      String name, List<FeatureSetSpec> featureSetSpecs, StoreProto.Store sinkSpec) {
+  public Job startJob(
+      String jobName,
+      List<FeatureSetSpec> featureSetSpecs,
+      SourceProto.Source source,
+      StoreProto.Store sink) {
+    List<FeatureSet> featureSets =
+        featureSetSpecs.stream()
+            .map(
+                spec -> {
+                  FeatureSet featureSet = new FeatureSet();
+                  featureSet.setId(spec.getName() + ":" + spec.getVersion());
+                  return featureSet;
+                })
+            .collect(Collectors.toList());
     try {
-      ImportOptions pipelineOptions = getPipelineOptions(featureSetSpecs, sinkSpec);
+      ImportOptions pipelineOptions = getPipelineOptions(featureSetSpecs, sink);
       PipelineResult pipelineResult = runPipeline(pipelineOptions);
-      DirectJob directJob = new DirectJob(name, pipelineResult);
+      DirectJob directJob = new DirectJob(jobName, pipelineResult);
       jobs.add(directJob);
-      return name;
+      return new Job(
+          jobName,
+          jobName,
+          getRunnerType().getName(),
+          Source.fromProto(source),
+          Store.fromProto(sink),
+          featureSets,
+          JobStatus.RUNNING);
     } catch (Exception e) {
       log.error("Error submitting job", e);
       throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
@@ -119,23 +143,22 @@ public class DirectRunnerJobManager implements JobManager {
    *
    * <p>As a rule of thumb, direct jobs in feast should only be used for testing.
    *
-   * @param jobInfo jobInfo of target job to change
+   * @param job job of target job to change
    * @return jobId of the job
    */
   @Override
-  public String updateJob(JobInfo jobInfo) {
-    String jobId = jobInfo.getExtId();
+  public Job updateJob(Job job) {
+    String jobId = job.getExtId();
     abortJob(jobId);
     try {
       List<FeatureSetSpec> featureSetSpecs = new ArrayList<>();
-      for (FeatureSet featureSet : jobInfo.getFeatureSets()) {
+      for (FeatureSet featureSet : job.getFeatureSets()) {
         featureSetSpecs.add(featureSet.toProto().getSpec());
       }
-      startJob(jobId, featureSetSpecs, jobInfo.getStore().toProto());
+      return startJob(jobId, featureSetSpecs, job.getSource().toProto(), job.getStore().toProto());
     } catch (JobExecutionException | InvalidProtocolBufferException e) {
       throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
     }
-    return jobId;
   }
 
   /**
@@ -163,11 +186,11 @@ public class DirectRunnerJobManager implements JobManager {
    * Gets the state of the direct runner job. Direct runner jobs only have 2 states: RUNNING and
    * ABORTED.
    *
-   * @param job JobInfo of the desired job.
+   * @param job Job of the desired job.
    * @return JobStatus of the job.
    */
   @Override
-  public JobStatus getJobStatus(JobInfo job) {
+  public JobStatus getJobStatus(Job job) {
     DirectJob directJob = jobs.get(job.getId());
     if (directJob == null) {
       return JobStatus.ABORTED;

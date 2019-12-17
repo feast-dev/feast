@@ -16,17 +16,17 @@
  */
 package feast.core.dao;
 
-import feast.core.model.JobInfo;
+import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-/** JPA repository supplying JobInfo objects keyed by ID. */
+/** JPA repository supplying Job objects keyed by ID. */
 @Repository
-public interface JobInfoRepository extends JpaRepository<JobInfo, String> {
-  List<JobInfo> findByStatusNotIn(Collection<JobStatus> statuses);
+public interface JobInfoRepository extends JpaRepository<Job, String> {
+  List<Job> findByStatusNotIn(Collection<JobStatus> statuses);
 
-  List<JobInfo> findBySourceIdAndStoreNameOrderByLastUpdatedDesc(String sourceId, String storeName);
+  List<Job> findBySourceIdAndStoreNameOrderByLastUpdatedDesc(String sourceId, String storeName);
 }
