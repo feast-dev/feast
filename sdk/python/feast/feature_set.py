@@ -45,9 +45,7 @@ class FeatureSet:
         features: List[Feature] = None,
         entities: List[Entity] = None,
         source: Source = None,
-        max_age: Optional[Duration] = None,
-        status: FeatureSetStatus = None,
-        created_timestamp: Optional[Timestamp] = None,
+        max_age: Optional[Duration] = None
     ):
         self._name = name
         self._fields = OrderedDict()  # type: Dict[str, Field]
@@ -62,8 +60,8 @@ class FeatureSet:
         self._max_age = max_age
         self._version = None
         self._client = None
-        self._status = status
-        self._created_timestamp = created_timestamp
+        self._status = None
+        self._created_timestamp = None
 
     def __eq__(self, other):
         if not isinstance(other, FeatureSet):
@@ -511,15 +509,11 @@ class FeatureSet:
                 None
                 if feature_set_proto.spec.source.type == 0
                 else Source.from_proto(feature_set_proto.spec.source)
-            ),
-            status=(
-                None
-                if feature_set_proto.meta.status == 0
-                else feature_set_proto.meta.status
-            ),
-            created_timestamp=feature_set_proto.meta.created_timestamp,
+            )
         )
         feature_set._version = feature_set_proto.spec.version
+        feature_set._status = feature_set_proto.meta.status
+        feature_set._created_timestamp = feature_set_proto.meta.created_timestamp
         return feature_set
 
     def to_proto(self) -> FeatureSetProto:

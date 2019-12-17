@@ -70,7 +70,7 @@ def basic_dataframe():
     )
 
 
-@pytest.mark.timeout(300)
+@pytest.mark.timeout(45)
 @pytest.mark.run(order=10)
 def test_basic_register_feature_set_success(client):
     # Load feature set from file
@@ -96,7 +96,7 @@ def test_basic_register_feature_set_success(client):
         )
 
 
-@pytest.mark.timeout(45)
+@pytest.mark.timeout(300)
 @pytest.mark.run(order=11)
 def test_basic_ingest_success(client, basic_dataframe):
     cust_trans_fs = client.get_feature_set(name="customer_transactions")
@@ -202,7 +202,7 @@ def all_types_dataframe():
     )
 
 
-@pytest.mark.timeout(300)
+@pytest.mark.timeout(45)
 @pytest.mark.run(order=20)
 def test_all_types_register_feature_set_success(client):
     all_types_fs_expected = FeatureSet(
@@ -246,7 +246,7 @@ def test_all_types_register_feature_set_success(client):
         )
 
 
-@pytest.mark.timeout(45)
+@pytest.mark.timeout(300)
 @pytest.mark.run(order=21)
 def test_all_types_ingest_success(client, all_types_dataframe):
     # Get all_types feature set
@@ -322,7 +322,7 @@ def large_volume_dataframe():
     return customer_data
 
 
-@pytest.mark.timeout(300)
+@pytest.mark.timeout(45)
 @pytest.mark.run(order=30)
 def test_large_volume_register_feature_set_success(client):
     cust_trans_fs_expected = FeatureSet.from_yaml(

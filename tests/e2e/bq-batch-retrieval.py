@@ -174,11 +174,9 @@ def test_multiple_featureset_joins(client):
     )
 
     client.apply(fs1)
-    time.sleep(10)
     fs1 = client.get_feature_set(name="feature_set_1", version=1)
 
     client.apply(fs2)
-    time.sleep(10)
     fs2 = client.get_feature_set(name="feature_set_2", version=1)
 
     N_ROWS = 10
