@@ -44,6 +44,21 @@ class CoreServiceStub(object):
         request_serializer=feast_dot_core_dot_CoreService__pb2.UpdateStoreRequest.SerializeToString,
         response_deserializer=feast_dot_core_dot_CoreService__pb2.UpdateStoreResponse.FromString,
         )
+    self.CreateProject = channel.unary_unary(
+        '/feast.core.CoreService/CreateProject',
+        request_serializer=feast_dot_core_dot_CoreService__pb2.CreateProjectRequest.SerializeToString,
+        response_deserializer=feast_dot_core_dot_CoreService__pb2.CreateProjectResponse.FromString,
+        )
+    self.ArchiveProject = channel.unary_unary(
+        '/feast.core.CoreService/ArchiveProject',
+        request_serializer=feast_dot_core_dot_CoreService__pb2.ArchiveProjectRequest.SerializeToString,
+        response_deserializer=feast_dot_core_dot_CoreService__pb2.ArchiveProjectResponse.FromString,
+        )
+    self.ListProjects = channel.unary_unary(
+        '/feast.core.CoreService/ListProjects',
+        request_serializer=feast_dot_core_dot_CoreService__pb2.ListProjectsRequest.SerializeToString,
+        response_deserializer=feast_dot_core_dot_CoreService__pb2.ListProjectsResponse.FromString,
+        )
 
 
 class CoreServiceServicer(object):
@@ -108,6 +123,32 @@ class CoreServiceServicer(object):
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
+  def CreateProject(self, request, context):
+    """Creates a project. Projects serve as namespaces within which resources like features will be
+    created. Both feature set names as well as field names must be unique within a project. Project
+    names themselves must be globally unique.
+    """
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
+  def ArchiveProject(self, request, context):
+    """Archives a project. Archived projects will continue to exist and function, but won't be visible
+    through the Core API. Any existing ingestion or serving requests will continue to function,
+    but will result in warning messages being logged. It is not possible to unarchive a project
+    through the Core API
+    """
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
+  def ListProjects(self, request, context):
+    """Lists all projects active projects.
+    """
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
 
 def add_CoreServiceServicer_to_server(servicer, server):
   rpc_method_handlers = {
@@ -140,6 +181,21 @@ def add_CoreServiceServicer_to_server(servicer, server):
           servicer.UpdateStore,
           request_deserializer=feast_dot_core_dot_CoreService__pb2.UpdateStoreRequest.FromString,
           response_serializer=feast_dot_core_dot_CoreService__pb2.UpdateStoreResponse.SerializeToString,
+      ),
+      'CreateProject': grpc.unary_unary_rpc_method_handler(
+          servicer.CreateProject,
+          request_deserializer=feast_dot_core_dot_CoreService__pb2.CreateProjectRequest.FromString,
+          response_serializer=feast_dot_core_dot_CoreService__pb2.CreateProjectResponse.SerializeToString,
+      ),
+      'ArchiveProject': grpc.unary_unary_rpc_method_handler(
+          servicer.ArchiveProject,
+          request_deserializer=feast_dot_core_dot_CoreService__pb2.ArchiveProjectRequest.FromString,
+          response_serializer=feast_dot_core_dot_CoreService__pb2.ArchiveProjectResponse.SerializeToString,
+      ),
+      'ListProjects': grpc.unary_unary_rpc_method_handler(
+          servicer.ListProjects,
+          request_deserializer=feast_dot_core_dot_CoreService__pb2.ListProjectsRequest.FromString,
+          response_serializer=feast_dot_core_dot_CoreService__pb2.ListProjectsResponse.SerializeToString,
       ),
   }
   generic_handler = grpc.method_handlers_generic_handler(

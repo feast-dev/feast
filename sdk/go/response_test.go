@@ -13,14 +13,14 @@ RawResponse: &serving.GetOnlineFeaturesResponse{
 	FieldValues: []*serving.GetOnlineFeaturesResponse_FieldValues{
 		{
 			Fields: map[string]*types.Value{
-				"fs:1:feature1": Int64Val(1),
-				"fs:1:feature2": &types.Value{},
+				"project1/feature1": Int64Val(1),
+				"project1/feature2": &types.Value{},
 			},
 		},
 		{
 			Fields: map[string]*types.Value{
-				"fs:1:feature1": Int64Val(2),
-				"fs:1:feature2": Int64Val(2),
+				"project1/feature1": Int64Val(2),
+				"project1/feature2": Int64Val(2),
 			},
 		},
 	},
@@ -30,8 +30,8 @@ RawResponse: &serving.GetOnlineFeaturesResponse{
 func TestOnlineFeaturesResponseToRow(t *testing.T) {
 	actual := response.Rows()
 	expected := []Row{
-		{"fs:1:feature1": Int64Val(1), "fs:1:feature2": &types.Value{}},
-		{"fs:1:feature1": Int64Val(2), "fs:1:feature2": Int64Val(2)},
+		{"project1/feature1": Int64Val(1), "project1/feature2": &types.Value{}},
+		{"project1/feature1": Int64Val(2), "project1/feature2": Int64Val(2)},
 	}
 	if !cmp.Equal(actual, expected) {
 		t.Errorf("expected: %v, got: %v", expected, actual)
@@ -53,7 +53,7 @@ func TestOnlineFeaturesResponseToInt64Array(t *testing.T) {
 		{
 			name: "valid",
 			args: args{
-				order: []string{"fs:1:feature2", "fs:1:feature1"},
+				order: []string{"project1/feature2", "project1/feature1" },
 				fillNa: []int64{-1, -1},
 			},
 			want: [][]int64{{-1, 1}, {2, 2}},
@@ -72,12 +72,12 @@ func TestOnlineFeaturesResponseToInt64Array(t *testing.T) {
 		{
 			name: "length mismatch",
 			args: args{
-				order: []string{"fs:1:feature2", "fs:1:feature3"},
+				order: []string{"project1/feature2", "project1/feature3" },
 				fillNa: []int64{-1, -1},
 			},
 			want: nil,
 			wantErr: true,
-			err: fmt.Errorf(ErrFeatureNotFound, "fs:1:feature3"),
+			err: fmt.Errorf(ErrFeatureNotFound, "project1/feature3"),
 		},
 	}
 	for _, tc := range tt {

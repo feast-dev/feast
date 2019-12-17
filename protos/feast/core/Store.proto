@@ -123,6 +123,10 @@ message Store {
   }
 
   message Subscription {
+    // Name of project where subscribed feature sets can be found. All feature sets must be located
+    // within this project. Wildcards are not supported.
+    string project = 3;
+    
     // Name of featureSet to subscribe to. This field supports any valid basic POSIX regex,
     // e.g. customer_.* or .*
     // https://www.regular-expressions.info/posix.html
