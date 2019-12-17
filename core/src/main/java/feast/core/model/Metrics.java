@@ -41,7 +41,7 @@ public class Metrics extends AbstractTimestampEntity {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "job_id")
-  private JobInfo jobInfo;
+  private Job job;
 
   /** Metrics name */
   private String name;
@@ -56,8 +56,8 @@ public class Metrics extends AbstractTimestampEntity {
    * @param metricsName metrics name.
    * @param value metrics value.
    */
-  public Metrics(JobInfo job, String metricsName, double value) {
-    this.jobInfo = job;
+  public Metrics(Job job, String metricsName, double value) {
+    this.job = job;
     this.name = metricsName;
     this.value = value;
   }

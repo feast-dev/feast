@@ -20,6 +20,7 @@ from collections import OrderedDict
 from typing import Dict, Union
 from typing import List
 import grpc
+import time
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -33,6 +34,7 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
+from feast.core.FeatureSet_pb2 import FeatureSetStatus
 from feast.exceptions import format_grpc_exception
 from feast.feature_set import FeatureSet, Entity
 from feast.job import Job
@@ -519,10 +521,25 @@ class Client:
                 ref_df, discard_unused_fields=True, replace_existing_features=True
             )
             self.apply(feature_set)
+        current_time = time.time()
 
-        feature_set = self.get_feature_set(name, version)
+        print("Waiting for feature set to be ready for ingestion...")
+        while True:
+            if timeout is not None and time.time() - current_time >= timeout:
+                raise TimeoutError("Timed out waiting for feature set to be ready")
+            feature_set = self.get_feature_set(name, version)
+            if (
+                feature_set is not None
+                and feature_set.status == FeatureSetStatus.STATUS_READY
+            ):
+                break
+            time.sleep(3)
+
+        if timeout is not None:
+            timeout = timeout - int(time.time() - current_time)
 
         if feature_set.source.source_type == "Kafka":
+            print("Ingesting to kafka...")
             ingest_table_to_kafka(
                 feature_set=feature_set,
                 table=table,

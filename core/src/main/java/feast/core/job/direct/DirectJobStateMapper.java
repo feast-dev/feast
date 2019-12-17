@@ -42,7 +42,7 @@ public class DirectJobStateMapper {
    * @param jobState beam PipelineResult State
    * @return JobStatus
    */
-  public JobStatus map(State jobState) {
+  public static JobStatus map(State jobState) {
     return BEAM_TO_FEAT_JOB_STATUS.get(jobState);
   }
 }

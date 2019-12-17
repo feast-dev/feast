@@ -37,6 +37,14 @@ public class FeastProperties {
     private String runner;
     private Map<String, String> options;
     private MetricsProperties metrics;
+    private JobUpdatesProperties updates;
+  }
+
+  @Getter
+  @Setter
+  public static class JobUpdatesProperties {
+
+    private long timeoutSeconds;
   }
 
   @Getter

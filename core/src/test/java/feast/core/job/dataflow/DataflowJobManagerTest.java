@@ -28,14 +28,26 @@ import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.api.services.dataflow.Dataflow;
 import com.google.common.collect.Lists;
+import com.google.protobuf.Duration;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
+import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.SourceProto;
+import feast.core.SourceProto.KafkaSourceConfig;
+import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
+import feast.core.StoreProto.Store.Subscription;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
+import feast.core.job.Runner;
+import feast.core.model.FeatureSet;
+import feast.core.model.Job;
+import feast.core.model.JobStatus;
+import feast.core.model.Source;
+import feast.core.model.Store;
 import feast.ingestion.options.ImportOptions;
 import java.io.IOException;
 import java.util.HashMap;
@@ -80,10 +92,26 @@ public class DataflowJobManagerTest {
             .setName("SERVING")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
+            .addSubscriptions(Subscription.newBuilder().setName("*").setVersion(">0").build())
+            .build();
+
+    SourceProto.Source source =
+        SourceProto.Source.newBuilder()
+            .setType(SourceType.KAFKA)
+            .setKafkaSourceConfig(
+                KafkaSourceConfig.newBuilder()
+                    .setTopic("topic")
+                    .setBootstrapServers("servers:9092")
+                    .build())
             .build();
 
     FeatureSetSpec featureSetSpec =
-        FeatureSetSpec.newBuilder().setName("featureSet").setVersion(1).build();
+        FeatureSetSpec.newBuilder()
+            .setName("featureSet")
+            .setVersion(1)
+            .setSource(source)
+            .setMaxAge(Duration.newBuilder().build())
+            .build();
 
     Printer printer = JsonFormat.printer();
     String expectedExtJobId = "feast-job-0";
@@ -108,7 +136,18 @@ public class DataflowJobManagerTest {
     when(mockPipelineResult.getJobId()).thenReturn(expectedExtJobId);
 
     doReturn(mockPipelineResult).when(dfJobManager).runPipeline(any());
-    String jobId = dfJobManager.startJob(jobName, Lists.newArrayList(featureSetSpec), store);
+    Job job =
+        new Job(
+            jobName,
+            "",
+            Runner.DATAFLOW.getName(),
+            Source.fromProto(source),
+            Store.fromProto(store),
+            Lists.newArrayList(
+                FeatureSet.fromProto(
+                    FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSetSpec).build())),
+            JobStatus.PENDING);
+    Job actual = dfJobManager.startJob(job);
 
     verify(dfJobManager, times(1)).runPipeline(captor.capture());
     ImportOptions actualPipelineOptions = captor.getValue();
@@ -129,7 +168,7 @@ public class DataflowJobManagerTest {
     expectedPipelineOptions.setFilesToStage(actualPipelineOptions.getFilesToStage());
 
     assertThat(actualPipelineOptions.toString(), equalTo(expectedPipelineOptions.toString()));
-    assertThat(jobId, equalTo(expectedExtJobId));
+    assertThat(actual.getExtId(), equalTo(expectedExtJobId));
   }
 
   @Test
@@ -141,8 +180,18 @@ public class DataflowJobManagerTest {
             .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
             .build();
 
+    SourceProto.Source source =
+        SourceProto.Source.newBuilder()
+            .setType(SourceType.KAFKA)
+            .setKafkaSourceConfig(
+                KafkaSourceConfig.newBuilder()
+                    .setTopic("topic")
+                    .setBootstrapServers("servers:9092")
+                    .build())
+            .build();
+
     FeatureSetSpec featureSetSpec =
-        FeatureSetSpec.newBuilder().setName("featureSet").setVersion(1).build();
+        FeatureSetSpec.newBuilder().setName("featureSet").setVersion(1).setSource(source).build();
 
     dfJobManager = Mockito.spy(dfJobManager);
 
@@ -151,7 +200,19 @@ public class DataflowJobManagerTest {
 
     doReturn(mockPipelineResult).when(dfJobManager).runPipeline(any());
 
+    Job job =
+        new Job(
+            "job",
+            "",
+            Runner.DATAFLOW.getName(),
+            Source.fromProto(source),
+            Store.fromProto(store),
+            Lists.newArrayList(
+                FeatureSet.fromProto(
+                    FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSetSpec).build())),
+            JobStatus.PENDING);
+
     expectedException.expect(JobExecutionException.class);
-    dfJobManager.startJob("job", Lists.newArrayList(featureSetSpec), store);
+    dfJobManager.startJob(job);
   }
 }

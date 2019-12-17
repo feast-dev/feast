@@ -27,6 +27,7 @@ import feast.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
+import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Subscription;
@@ -115,7 +116,7 @@ public class CachedSpecService {
                 "Unable to retrieve featureSet with id %s from core, featureSet does not exist",
                 id));
       }
-      return featureSets.getFeatureSets(0);
+      return featureSets.getFeatureSets(0).getSpec();
     } catch (ExecutionException e) {
       throw new SpecRetrievalException(
           String.format("Unable to retrieve featureSet with id %s", id), e);
@@ -157,7 +158,8 @@ public class CachedSpecService {
                             .setFeatureSetVersion(subscription.getVersion()))
                     .build());
 
-        for (FeatureSetSpec featureSetSpec : featureSetsResponse.getFeatureSetsList()) {
+        for (FeatureSet featureSet : featureSetsResponse.getFeatureSetsList()) {
+          FeatureSetSpec featureSetSpec = featureSet.getSpec();
           featureSetSpecs.put(
               String.format("%s:%s", featureSetSpec.getName(), featureSetSpec.getVersion()),
               featureSetSpec);

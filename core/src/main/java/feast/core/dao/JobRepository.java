@@ -14,30 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.job.direct;
+package feast.core.dao;
 
-import feast.core.job.JobMonitor;
-import feast.core.model.JobInfo;
+import feast.core.model.Job;
 import feast.core.model.JobStatus;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Collection;
+import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
-@Slf4j
-public class DirectRunnerJobMonitor implements JobMonitor {
+/** JPA repository supplying Job objects keyed by ID. */
+@Repository
+public interface JobRepository extends JpaRepository<Job, String> {
+  List<Job> findByStatusNotIn(Collection<JobStatus> statuses);
 
-  private final DirectJobRegistry jobs;
-  private final DirectJobStateMapper jobStateMapper;
-
-  public DirectRunnerJobMonitor(DirectJobRegistry jobs) {
-    this.jobs = jobs;
-    jobStateMapper = new DirectJobStateMapper();
-  }
-
-  @Override
-  public JobStatus getJobStatus(JobInfo job) {
-    DirectJob directJob = jobs.get(job.getId());
-    if (directJob == null) {
-      return JobStatus.ABORTED;
-    }
-    return jobStateMapper.map(directJob.getPipelineResult().getState());
-  }
+  List<Job> findBySourceIdAndStoreNameOrderByLastUpdatedDesc(String sourceId, String storeName);
 }

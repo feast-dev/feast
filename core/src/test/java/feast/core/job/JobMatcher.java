@@ -16,16 +16,23 @@
  */
 package feast.core.job;
 
-import feast.core.model.JobInfo;
-import feast.core.model.JobStatus;
+import feast.core.model.Job;
+import org.mockito.ArgumentMatcher;
 
-public interface JobMonitor {
+public class JobMatcher implements ArgumentMatcher<Job> {
 
-  /**
-   * Get status of a job given runner-specific job ID.
-   *
-   * @param job job.
-   * @return job status.
-   */
-  JobStatus getJobStatus(JobInfo job);
+  private Job left;
+
+  public JobMatcher(Job job) {
+    this.left = job;
+  }
+
+  @Override
+  public boolean matches(Job right) {
+    if (right == null) {
+      return false;
+    }
+    left.setId(right.getId());
+    return left.equals(right);
+  }
 }

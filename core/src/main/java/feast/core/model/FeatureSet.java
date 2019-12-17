@@ -17,9 +17,12 @@
 package feast.core.model;
 
 import com.google.protobuf.Duration;
-import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Timestamp;
+import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.EntitySpec;
+import feast.core.FeatureSetProto.FeatureSetMeta;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.FeatureSetProto.FeatureSpec;
 import feast.types.ValueProto.ValueType;
 import java.util.ArrayList;
@@ -79,6 +82,10 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   @JoinColumn(name = "source")
   private Source source;
 
+  // Status of the feature set
+  @Column(name = "status")
+  private String status;
+
   public FeatureSet() {
     super();
   }
@@ -89,7 +96,8 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
       long maxAgeSeconds,
       List<Field> entities,
       List<Field> features,
-      Source source) {
+      Source source,
+      FeatureSetStatus status) {
     this.id = String.format("%s:%s", name, version);
     this.name = name;
     this.version = version;
@@ -97,9 +105,11 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     this.entities = entities;
     this.features = features;
     this.source = source;
+    this.status = status.toString();
   }
 
-  public static FeatureSet fromProto(FeatureSetSpec featureSetSpec) {
+  public static FeatureSet fromProto(FeatureSetProto.FeatureSet featureSetProto) {
+    FeatureSetSpec featureSetSpec = featureSetProto.getSpec();
     Source source = Source.fromProto(featureSetSpec.getSource());
     String id = String.format("%s:%d", featureSetSpec.getName(), featureSetSpec.getVersion());
     List<Field> features = new ArrayList<>();
@@ -117,10 +127,11 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
         featureSetSpec.getMaxAge().getSeconds(),
         entities,
         features,
-        source);
+        source,
+        featureSetProto.getMeta().getStatus());
   }
 
-  public FeatureSetSpec toProto() throws InvalidProtocolBufferException {
+  public FeatureSetProto.FeatureSet toProto() {
     List<EntitySpec> entitySpecs = new ArrayList<>();
     for (Field entity : entities) {
       entitySpecs.add(
@@ -138,14 +149,22 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
               .setValueType(ValueType.Enum.valueOf(feature.getType()))
               .build());
     }
-    return FeatureSetSpec.newBuilder()
-        .setName(name)
-        .setVersion(version)
-        .setMaxAge(Duration.newBuilder().setSeconds(maxAgeSeconds))
-        .addAllEntities(entitySpecs)
-        .addAllFeatures(featureSpecs)
-        .setSource(source.toProto())
-        .build();
+    FeatureSetMeta.Builder meta =
+        FeatureSetMeta.newBuilder()
+            .setCreatedTimestamp(
+                Timestamp.newBuilder().setSeconds(super.getCreated().getTime() / 1000L))
+            .setStatus(FeatureSetStatus.valueOf(status));
+
+    FeatureSetSpec.Builder spec =
+        FeatureSetSpec.newBuilder()
+            .setName(name)
+            .setVersion(version)
+            .setMaxAge(Duration.newBuilder().setSeconds(maxAgeSeconds))
+            .addAllEntities(entitySpecs)
+            .addAllFeatures(featureSpecs)
+            .setSource(source.toProto());
+
+    return FeatureSetProto.FeatureSet.newBuilder().setMeta(meta).setSpec(spec).build();
   }
 
   /**
@@ -155,50 +174,49 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
    * @return boolean denoting if the source or schema have changed.
    */
   public boolean equalTo(FeatureSet other) {
-    if(!name.equals(other.getName())){
+    if (!name.equals(other.getName())) {
       return false;
     }
 
-    if (!source.equalTo(other.getSource())){
+    if (!source.equalTo(other.getSource())) {
       return false;
     }
 
-    if (maxAgeSeconds != other.maxAgeSeconds){
+    if (maxAgeSeconds != other.maxAgeSeconds) {
       return false;
     }
 
     // Create a map of all fields in this feature set
     Map<String, Field> fields = new HashMap<>();
 
-    for (Field e : entities){
+    for (Field e : entities) {
       fields.putIfAbsent(e.getName(), e);
     }
 
-    for (Field f : features){
+    for (Field f : features) {
       fields.putIfAbsent(f.getName(), f);
     }
 
     // Ensure map size is consistent with existing fields
-    if (fields.size() != other.features.size() + other.entities.size())
-    {
+    if (fields.size() != other.features.size() + other.entities.size()) {
       return false;
     }
 
     // Ensure the other entities and fields exist in the field map
-    for (Field e : other.entities){
-      if(!fields.containsKey(e.getName())){
+    for (Field e : other.entities) {
+      if (!fields.containsKey(e.getName())) {
         return false;
       }
-      if (!e.equals(fields.get(e.getName()))){
+      if (!e.equals(fields.get(e.getName()))) {
         return false;
       }
     }
 
-    for (Field f : features){
-      if(!fields.containsKey(f.getName())){
+    for (Field f : features) {
+      if (!fields.containsKey(f.getName())) {
         return false;
       }
-      if (!f.equals(fields.get(f.getName()))){
+      if (!f.equals(fields.get(f.getName()))) {
         return false;
       }
     }

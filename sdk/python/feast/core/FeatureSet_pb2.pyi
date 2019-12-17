@@ -10,6 +10,7 @@ from feast.types.Value_pb2 import (
 
 from google.protobuf.descriptor import (
     Descriptor as google___protobuf___descriptor___Descriptor,
+    EnumDescriptor as google___protobuf___descriptor___EnumDescriptor,
 )
 
 from google.protobuf.duration_pb2 import (
@@ -24,16 +25,67 @@ from google.protobuf.message import (
     Message as google___protobuf___message___Message,
 )
 
+from google.protobuf.timestamp_pb2 import (
+    Timestamp as google___protobuf___timestamp_pb2___Timestamp,
+)
+
 from typing import (
     Iterable as typing___Iterable,
+    List as typing___List,
     Optional as typing___Optional,
     Text as typing___Text,
+    Tuple as typing___Tuple,
+    cast as typing___cast,
 )
 
 from typing_extensions import (
     Literal as typing_extensions___Literal,
 )
 
+
+class FeatureSetStatus(int):
+    DESCRIPTOR: google___protobuf___descriptor___EnumDescriptor = ...
+    @classmethod
+    def Name(cls, number: int) -> str: ...
+    @classmethod
+    def Value(cls, name: str) -> FeatureSetStatus: ...
+    @classmethod
+    def keys(cls) -> typing___List[str]: ...
+    @classmethod
+    def values(cls) -> typing___List[FeatureSetStatus]: ...
+    @classmethod
+    def items(cls) -> typing___List[typing___Tuple[str, FeatureSetStatus]]: ...
+    STATUS_INVALID = typing___cast(FeatureSetStatus, 0)
+    STATUS_PENDING = typing___cast(FeatureSetStatus, 1)
+    STATUS_READY = typing___cast(FeatureSetStatus, 2)
+STATUS_INVALID = typing___cast(FeatureSetStatus, 0)
+STATUS_PENDING = typing___cast(FeatureSetStatus, 1)
+STATUS_READY = typing___cast(FeatureSetStatus, 2)
+
+class FeatureSet(google___protobuf___message___Message):
+    DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
+
+    @property
+    def spec(self) -> FeatureSetSpec: ...
+
+    @property
+    def meta(self) -> FeatureSetMeta: ...
+
+    def __init__(self,
+        *,
+        spec : typing___Optional[FeatureSetSpec] = None,
+        meta : typing___Optional[FeatureSetMeta] = None,
+        ) -> None: ...
+    @classmethod
+    def FromString(cls, s: bytes) -> FeatureSet: ...
+    def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
+    def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
+    if sys.version_info >= (3,):
+        def HasField(self, field_name: typing_extensions___Literal[u"meta",u"spec"]) -> bool: ...
+        def ClearField(self, field_name: typing_extensions___Literal[u"meta",u"spec"]) -> None: ...
+    else:
+        def HasField(self, field_name: typing_extensions___Literal[u"meta",b"meta",u"spec",b"spec"]) -> bool: ...
+        def ClearField(self, field_name: typing_extensions___Literal[u"meta",b"meta",u"spec",b"spec"]) -> None: ...
 
 class FeatureSetSpec(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
@@ -109,3 +161,26 @@ class FeatureSpec(google___protobuf___message___Message):
         def ClearField(self, field_name: typing_extensions___Literal[u"name",u"value_type"]) -> None: ...
     else:
         def ClearField(self, field_name: typing_extensions___Literal[u"name",b"name",u"value_type",b"value_type"]) -> None: ...
+
+class FeatureSetMeta(google___protobuf___message___Message):
+    DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
+    status = ... # type: FeatureSetStatus
+
+    @property
+    def created_timestamp(self) -> google___protobuf___timestamp_pb2___Timestamp: ...
+
+    def __init__(self,
+        *,
+        created_timestamp : typing___Optional[google___protobuf___timestamp_pb2___Timestamp] = None,
+        status : typing___Optional[FeatureSetStatus] = None,
+        ) -> None: ...
+    @classmethod
+    def FromString(cls, s: bytes) -> FeatureSetMeta: ...
+    def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
+    def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
+    if sys.version_info >= (3,):
+        def HasField(self, field_name: typing_extensions___Literal[u"created_timestamp"]) -> bool: ...
+        def ClearField(self, field_name: typing_extensions___Literal[u"created_timestamp",u"status"]) -> None: ...
+    else:
+        def HasField(self, field_name: typing_extensions___Literal[u"created_timestamp",b"created_timestamp"]) -> bool: ...
+        def ClearField(self, field_name: typing_extensions___Literal[u"created_timestamp",b"created_timestamp",u"status",b"status"]) -> None: ...

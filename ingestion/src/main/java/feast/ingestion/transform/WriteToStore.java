@@ -50,7 +50,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.slf4j.Logger;
 
 @AutoValue
@@ -61,8 +60,8 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
   public static final String METRIC_NAMESPACE = "WriteToStore";
   public static final String ELEMENTS_WRITTEN_METRIC = "elements_written";
 
-  private static final Counter elementsWritten = Metrics
-      .counter(METRIC_NAMESPACE, ELEMENTS_WRITTEN_METRIC);
+  private static final Counter elementsWritten =
+      Metrics.counter(METRIC_NAMESPACE, ELEMENTS_WRITTEN_METRIC);
 
   public abstract Store getStore();
 
@@ -151,11 +150,14 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
         break;
     }
 
-    input.apply("IncrementWriteToStoreElementsWrittenCounter",
-        MapElements.into(TypeDescriptors.booleans()).via((FeatureRow row) -> {
-          elementsWritten.inc();
-          return true;
-        }));
+    input.apply(
+        "IncrementWriteToStoreElementsWrittenCounter",
+        MapElements.into(TypeDescriptors.booleans())
+            .via(
+                (FeatureRow row) -> {
+                  elementsWritten.inc();
+                  return true;
+                }));
 
     return PDone.in(input.getPipeline());
   }

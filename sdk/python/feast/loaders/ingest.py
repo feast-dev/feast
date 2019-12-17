@@ -200,8 +200,8 @@ def ingest_table_to_kafka(
         ):
             # Push rows onto a queue for the production process to pick up
             row_queue.put(row)
-            while row_queue.qsize() > chunk_size:
-                time.sleep(0.1)
+            # while row_queue.qsize() > chunk_size:
+            #     time.sleep(0.1)
         row_queue.put(None)
     except Exception as ex:
         _logger.error(f"Exception occurred: {ex}")

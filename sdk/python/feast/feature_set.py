@@ -22,7 +22,11 @@ from pandas.api.types import is_datetime64_ns_dtype
 from feast.entity import Entity
 from feast.feature import Feature, Field
 from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
+from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
+from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
+from feast.core.FeatureSet_pb2 import FeatureSetStatus
 from google.protobuf.duration_pb2 import Duration
+from google.protobuf.timestamp_pb2 import Timestamp
 from feast.type_map import python_type_to_feast_value_type
 from google.protobuf.json_format import MessageToJson
 from google.protobuf import json_format
@@ -41,7 +45,7 @@ class FeatureSet:
         features: List[Feature] = None,
         entities: List[Entity] = None,
         source: Source = None,
-        max_age: Optional[Duration] = None,
+        max_age: Optional[Duration] = None
     ):
         self._name = name
         self._fields = OrderedDict()  # type: Dict[str, Field]
@@ -56,6 +60,8 @@ class FeatureSet:
         self._max_age = max_age
         self._version = None
         self._client = None
+        self._status = None
+        self._created_timestamp = None
 
     def __eq__(self, other):
         if not isinstance(other, FeatureSet):
@@ -194,6 +200,34 @@ class FeatureSet:
         Set the maximum age for this feature set
         """
         self._max_age = max_age
+
+    @property
+    def status(self):
+        """
+        Returns the status of this feature set
+        """
+        return self._status
+
+    @status.setter
+    def status(self, status):
+        """
+        Sets the status of this feature set
+        """
+        self._status = status
+
+    @property
+    def created_timestamp(self):
+        """
+        Returns the created_timestamp of this feature set
+        """
+        return self._created_timestamp
+
+    @created_timestamp.setter
+    def created_timestamp(self, created_timestamp):
+        """
+        Sets the status of this feature set
+        """
+        self._created_timestamp = created_timestamp
 
     def add(self, resource):
         """
@@ -388,6 +422,8 @@ class FeatureSet:
         self.features = feature_set.features
         self.entities = feature_set.entities
         self.source = feature_set.source
+        self.status = feature_set.status
+        self.created_timestamp = feature_set.created_timestamp
 
     def get_kafka_source_brokers(self) -> str:
         """
@@ -443,49 +479,56 @@ class FeatureSet:
         if ("kind" not in fs_dict) and (fs_dict["kind"].strip() != "feature_set"):
             raise Exception(f"Resource kind is not a feature set {str(fs_dict)}")
         feature_set_proto = json_format.ParseDict(
-            fs_dict, FeatureSetSpecProto(), ignore_unknown_fields=True
+            fs_dict, FeatureSetProto(), ignore_unknown_fields=True
         )
         return cls.from_proto(feature_set_proto)
 
     @classmethod
-    def from_proto(cls, feature_set_proto: FeatureSetSpecProto):
+    def from_proto(cls, feature_set_proto: FeatureSetProto):
         """
         Creates a feature set from a protobuf representation of a feature set
 
         Args:
-            from_proto: A protobuf representation of a feature set
+            feature_set_proto: A protobuf representation of a feature set
 
         Returns:
             Returns a FeatureSet object based on the feature set protobuf
         """
 
         feature_set = cls(
-            name=feature_set_proto.name,
+            name=feature_set_proto.spec.name,
             features=[
-                Feature.from_proto(feature) for feature in feature_set_proto.features
+                Feature.from_proto(feature)
+                for feature in feature_set_proto.spec.features
             ],
             entities=[
-                Entity.from_proto(entity) for entity in feature_set_proto.entities
+                Entity.from_proto(entity) for entity in feature_set_proto.spec.entities
             ],
-            max_age=feature_set_proto.max_age,
+            max_age=feature_set_proto.spec.max_age,
             source=(
                 None
-                if feature_set_proto.source.type == 0
-                else Source.from_proto(feature_set_proto.source)
-            ),
+                if feature_set_proto.spec.source.type == 0
+                else Source.from_proto(feature_set_proto.spec.source)
+            )
         )
-        feature_set._version = feature_set_proto.version
+        feature_set._version = feature_set_proto.spec.version
+        feature_set._status = feature_set_proto.meta.status
+        feature_set._created_timestamp = feature_set_proto.meta.created_timestamp
         return feature_set
 
-    def to_proto(self) -> FeatureSetSpecProto:
+    def to_proto(self) -> FeatureSetProto:
         """
         Converts a feature set object to its protobuf representation
 
         Returns:
-            FeatureSetSpec protobuf
+            FeatureSetProto protobuf
         """
 
-        return FeatureSetSpecProto(
+        meta = FeatureSetMetaProto(
+            created_timestamp=self.created_timestamp, status=self.status
+        )
+
+        spec = FeatureSetSpecProto(
             name=self.name,
             version=self.version,
             max_age=self.max_age,
@@ -501,6 +544,8 @@ class FeatureSet:
                 if type(field) == Entity
             ],
         )
+
+        return FeatureSetProto(spec=spec, meta=meta)
 
 
 def _infer_pd_column_type(column, series, rows_to_sample):

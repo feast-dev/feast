@@ -25,6 +25,15 @@ option go_package = "github.com/gojek/feast/sdk/go/protos/feast/core";
 import "feast/types/Value.proto";
 import "feast/core/Source.proto";
 import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+message FeatureSet {
+    // User-specified specifications of this feature set.
+    FeatureSetSpec spec = 1;
+
+    // System-populated metadata for this feature set.
+    FeatureSetMeta meta = 2;
+}
 
 message FeatureSetSpec {
     // Name of the featureSet. Must be unique.
@@ -66,4 +75,24 @@ message FeatureSpec {
 
     // Value type of the feature.
     feast.types.ValueType.Enum value_type = 2;
+}
+
+
+message FeatureSetMeta {
+    // Created timestamp of this specific feature set.
+    google.protobuf.Timestamp created_timestamp = 1;
+
+    // Status of the feature set.
+    // Used to indicate whether the feature set is ready for consumption or ingestion.
+    // Currently supports 2 states:
+    // 1) STATUS_PENDING - A feature set is in pending state if Feast has not spun up the jobs
+    // necessary to push rows for this feature set to stores subscribing to this feature set.
+    // 2) STATUS_READY - Feature set is ready for consumption or ingestion
+    FeatureSetStatus status = 2;
+}
+
+enum FeatureSetStatus {
+    STATUS_INVALID = 0;
+    STATUS_PENDING = 1;
+    STATUS_READY = 2;
 }
