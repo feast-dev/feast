@@ -70,7 +70,9 @@ class CoreServicer(Core.CoreServiceServicer):
             status=FeatureSetStatus.STATUS_READY,
             created_timestamp=Timestamp(seconds=10),
         )
-        applied_feature_set = FeatureSetProto(spec=feature_set.spec, meta=feature_set_meta)
+        applied_feature_set = FeatureSetProto(
+            spec=feature_set.spec, meta=feature_set_meta
+        )
         self._feature_sets[feature_set.spec.name] = applied_feature_set
 
         _logger.info(

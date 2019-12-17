@@ -45,7 +45,7 @@ class FeatureSet:
         features: List[Feature] = None,
         entities: List[Entity] = None,
         source: Source = None,
-        max_age: Optional[Duration] = None
+        max_age: Optional[Duration] = None,
     ):
         self._name = name
         self._fields = OrderedDict()  # type: Dict[str, Field]
@@ -509,7 +509,7 @@ class FeatureSet:
                 None
                 if feature_set_proto.spec.source.type == 0
                 else Source.from_proto(feature_set_proto.spec.source)
-            )
+            ),
         )
         feature_set._version = feature_set_proto.spec.version
         feature_set._status = feature_set_proto.meta.status

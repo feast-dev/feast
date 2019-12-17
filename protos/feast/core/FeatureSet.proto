@@ -15,9 +15,7 @@
 //
 
 syntax = "proto3";
-
 package feast.core;
-
 option java_package = "feast.core";
 option java_outer_classname = "FeatureSetProto";
 option go_package = "github.com/gojek/feast/sdk/go/protos/feast/core";
@@ -30,18 +28,11 @@ import "google/protobuf/timestamp.proto";
 message FeatureSet {
     // User-specified specifications of this feature set.
     FeatureSetSpec spec = 1;
-
     // System-populated metadata for this feature set.
     FeatureSetMeta meta = 2;
 }
 
 message FeatureSetSpec {
-    // Name of the featureSet. Must be unique.
-    string name = 1;
-
-    // FeatureSet version.
-    int32 version = 2;
-
     // List of entities contained within this featureSet.
     // This allows the feature to be used during joins between feature sets.
     // If the featureSet is ingested into a store that supports keys, this value
@@ -77,8 +68,16 @@ message FeatureSpec {
     feast.types.ValueType.Enum value_type = 2;
 }
 
-
 message FeatureSetMeta {
+    // Name of project that this feature set belongs to.
+    string project = 3;
+
+    // Name of the feature set. Must be unique.
+    string name = 4;
+
+    // Feature set version.
+    int32 version = 5;
+
     // Created timestamp of this specific feature set.
     google.protobuf.Timestamp created_timestamp = 1;
 

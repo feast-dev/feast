@@ -37,9 +37,7 @@ from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from feast.core.Source_pb2 import SourceType, KafkaSourceConfig, Source
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
-    ListFeatureSetsResponse,
     GetFeatureSetResponse,
-    GetFeatureSetRequest,
 )
 from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoResponse,
@@ -134,7 +132,7 @@ class TestClient:
 
         fields = dict()
         for feature_num in range(1, 10):
-            fields["feature_set_1:1:feature_" + str(feature_num)] = ValueProto.Value(
+            fields[f"my_project/feature_{str(feature_num)}:1"] = ValueProto.Value(
                 int64_val=feature_num
             )
         field_values = GetOnlineFeaturesResponse.FieldValues(fields=fields)
@@ -158,22 +156,21 @@ class TestClient:
         response = mock_client.get_online_features(
             entity_rows=entity_rows,
             feature_ids=[
-                "feature_set_1:1:feature_1",
-                "feature_set_1:1:feature_2",
-                "feature_set_1:1:feature_3",
-                "feature_set_1:1:feature_4",
-                "feature_set_1:1:feature_5",
-                "feature_set_1:1:feature_6",
-                "feature_set_1:1:feature_7",
-                "feature_set_1:1:feature_8",
-                "feature_set_1:1:feature_9",
+                "my_project/feature_1:1",
+                "my_project/feature_2:1",
+                "my_project/feature_3:1",
+                "my_project/feature_4:1",
+                "my_project/feature_5:1",
+                "my_project/feature_6:1",
+                "my_project/feature_7:1",
+                "my_project/feature_8:1",
+                "my_project/feature_9:1",
             ],
         )  # type: GetOnlineFeaturesResponse
 
         assert (
-            response.field_values[0].fields["feature_set_1:1:feature_1"].int64_val == 1
-            and response.field_values[0].fields["feature_set_1:1:feature_9"].int64_val
-            == 9
+            response.field_values[0].fields["my_project/feature_1:1"].int64_val == 1
+            and response.field_values[0].fields["my_project/feature_9:1"].int64_val == 9
         )
 
     def test_get_feature_set(self, mock_client, mocker):

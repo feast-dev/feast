@@ -25,7 +25,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.core',
   syntax='proto3',
   serialized_options=_b('\n\nfeast.coreB\017FeatureSetProtoZ/github.com/gojek/feast/sdk/go/protos/feast/core'),
-  serialized_pb=_b('\n\x1b\x66\x65\x61st/core/FeatureSet.proto\x12\nfeast.core\x1a\x17\x66\x65\x61st/types/Value.proto\x1a\x17\x66\x65\x61st/core/Source.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"`\n\nFeatureSet\x12(\n\x04spec\x18\x01 \x01(\x0b\x32\x1a.feast.core.FeatureSetSpec\x12(\n\x04meta\x18\x02 \x01(\x0b\x32\x1a.feast.core.FeatureSetMeta\"\xd4\x01\n\x0e\x46\x65\x61tureSetSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\x05\x12(\n\x08\x65ntities\x18\x03 \x03(\x0b\x32\x16.feast.core.EntitySpec\x12)\n\x08\x66\x65\x61tures\x18\x04 \x03(\x0b\x32\x17.feast.core.FeatureSpec\x12*\n\x07max_age\x18\x05 \x01(\x0b\x32\x19.google.protobuf.Duration\x12\"\n\x06source\x18\x06 \x01(\x0b\x32\x12.feast.core.Source\"K\n\nEntitySpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12/\n\nvalue_type\x18\x02 \x01(\x0e\x32\x1b.feast.types.ValueType.Enum\"L\n\x0b\x46\x65\x61tureSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12/\n\nvalue_type\x18\x02 \x01(\x0e\x32\x1b.feast.types.ValueType.Enum\"u\n\x0e\x46\x65\x61tureSetMeta\x12\x35\n\x11\x63reated_timestamp\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12,\n\x06status\x18\x02 \x01(\x0e\x32\x1c.feast.core.FeatureSetStatus*L\n\x10\x46\x65\x61tureSetStatus\x12\x12\n\x0eSTATUS_INVALID\x10\x00\x12\x12\n\x0eSTATUS_PENDING\x10\x01\x12\x10\n\x0cSTATUS_READY\x10\x02\x42N\n\nfeast.coreB\x0f\x46\x65\x61tureSetProtoZ/github.com/gojek/feast/sdk/go/protos/feast/coreb\x06proto3')
+  serialized_pb=_b('\n\x1b\x66\x65\x61st/core/FeatureSet.proto\x12\nfeast.core\x1a\x17\x66\x65\x61st/types/Value.proto\x1a\x17\x66\x65\x61st/core/Source.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"`\n\nFeatureSet\x12(\n\x04spec\x18\x01 \x01(\x0b\x32\x1a.feast.core.FeatureSetSpec\x12(\n\x04meta\x18\x02 \x01(\x0b\x32\x1a.feast.core.FeatureSetMeta\"\xb5\x01\n\x0e\x46\x65\x61tureSetSpec\x12(\n\x08\x65ntities\x18\x03 \x03(\x0b\x32\x16.feast.core.EntitySpec\x12)\n\x08\x66\x65\x61tures\x18\x04 \x03(\x0b\x32\x17.feast.core.FeatureSpec\x12*\n\x07max_age\x18\x05 \x01(\x0b\x32\x19.google.protobuf.Duration\x12\"\n\x06source\x18\x06 \x01(\x0b\x32\x12.feast.core.Source\"K\n\nEntitySpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12/\n\nvalue_type\x18\x02 \x01(\x0e\x32\x1b.feast.types.ValueType.Enum\"L\n\x0b\x46\x65\x61tureSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12/\n\nvalue_type\x18\x02 \x01(\x0e\x32\x1b.feast.types.ValueType.Enum\"\xa5\x01\n\x0e\x46\x65\x61tureSetMeta\x12\x0f\n\x07project\x18\x03 \x01(\t\x12\x0c\n\x04name\x18\x04 \x01(\t\x12\x0f\n\x07version\x18\x05 \x01(\x05\x12\x35\n\x11\x63reated_timestamp\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12,\n\x06status\x18\x02 \x01(\x0e\x32\x1c.feast.core.FeatureSetStatus*L\n\x10\x46\x65\x61tureSetStatus\x12\x12\n\x0eSTATUS_INVALID\x10\x00\x12\x12\n\x0eSTATUS_PENDING\x10\x01\x12\x10\n\x0cSTATUS_READY\x10\x02\x42N\n\nfeast.coreB\x0f\x46\x65\x61tureSetProtoZ/github.com/gojek/feast/sdk/go/protos/feast/coreb\x06proto3')
   ,
   dependencies=[feast_dot_types_dot_Value__pb2.DESCRIPTOR,feast_dot_core_dot_Source__pb2.DESCRIPTOR,google_dot_protobuf_dot_duration__pb2.DESCRIPTOR,google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,])
 
@@ -50,8 +50,8 @@ _FEATURESETSTATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=745,
-  serialized_end=821,
+  serialized_start=763,
+  serialized_end=839,
 )
 _sym_db.RegisterEnumDescriptor(_FEATURESETSTATUS)
 
@@ -108,42 +108,28 @@ _FEATURESETSPEC = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='name', full_name='feast.core.FeatureSetSpec.name', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='version', full_name='feast.core.FeatureSetSpec.version', index=1,
-      number=2, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='entities', full_name='feast.core.FeatureSetSpec.entities', index=2,
+      name='entities', full_name='feast.core.FeatureSetSpec.entities', index=0,
       number=3, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='features', full_name='feast.core.FeatureSetSpec.features', index=3,
+      name='features', full_name='feast.core.FeatureSetSpec.features', index=1,
       number=4, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='max_age', full_name='feast.core.FeatureSetSpec.max_age', index=4,
+      name='max_age', full_name='feast.core.FeatureSetSpec.max_age', index=2,
       number=5, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='source', full_name='feast.core.FeatureSetSpec.source', index=5,
+      name='source', full_name='feast.core.FeatureSetSpec.source', index=3,
       number=6, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
@@ -162,7 +148,7 @@ _FEATURESETSPEC = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=257,
-  serialized_end=469,
+  serialized_end=438,
 )
 
 
@@ -199,8 +185,8 @@ _ENTITYSPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=471,
-  serialized_end=546,
+  serialized_start=440,
+  serialized_end=515,
 )
 
 
@@ -237,8 +223,8 @@ _FEATURESPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=548,
-  serialized_end=624,
+  serialized_start=517,
+  serialized_end=593,
 )
 
 
@@ -250,14 +236,35 @@ _FEATURESETMETA = _descriptor.Descriptor(
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='created_timestamp', full_name='feast.core.FeatureSetMeta.created_timestamp', index=0,
+      name='project', full_name='feast.core.FeatureSetMeta.project', index=0,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='name', full_name='feast.core.FeatureSetMeta.name', index=1,
+      number=4, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='version', full_name='feast.core.FeatureSetMeta.version', index=2,
+      number=5, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='created_timestamp', full_name='feast.core.FeatureSetMeta.created_timestamp', index=3,
       number=1, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='status', full_name='feast.core.FeatureSetMeta.status', index=1,
+      name='status', full_name='feast.core.FeatureSetMeta.status', index=4,
       number=2, type=14, cpp_type=8, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
@@ -275,8 +282,8 @@ _FEATURESETMETA = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=626,
-  serialized_end=743,
+  serialized_start=596,
+  serialized_end=761,
 )
 
 _FEATURESET.fields_by_name['spec'].message_type = _FEATURESETSPEC
