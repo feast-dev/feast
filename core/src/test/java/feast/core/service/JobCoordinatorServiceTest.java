@@ -40,7 +40,7 @@ import feast.core.StoreProto.Store.StoreType;
 import feast.core.StoreProto.Store.Subscription;
 import feast.core.config.FeastProperties.JobUpdatesProperties;
 import feast.core.dao.FeatureSetRepository;
-import feast.core.dao.JobInfoRepository;
+import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
 import feast.core.job.JobMatcher;
 import feast.core.job.Runner;
@@ -59,7 +59,8 @@ import org.mockito.Mock;
 public class JobCoordinatorServiceTest {
 
   @Rule public final ExpectedException exception = ExpectedException.none();
-  @Mock JobInfoRepository jobInfoRepository;
+  @Mock
+  JobRepository jobRepository;
   @Mock JobManager jobManager;
   @Mock SpecService specService;
   @Mock FeatureSetRepository featureSetRepository;
@@ -78,9 +79,9 @@ public class JobCoordinatorServiceTest {
     when(specService.listStores(any())).thenReturn(ListStoresResponse.newBuilder().build());
     JobCoordinatorService jcs =
         new JobCoordinatorService(
-            jobInfoRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+            jobRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
     jcs.Poll();
-    verify(jobInfoRepository, times(0)).saveAndFlush(any());
+    verify(jobRepository, times(0)).saveAndFlush(any());
   }
 
   @Test
@@ -99,9 +100,9 @@ public class JobCoordinatorServiceTest {
         .thenReturn(ListFeatureSetsResponse.newBuilder().build());
     JobCoordinatorService jcs =
         new JobCoordinatorService(
-            jobInfoRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+            jobRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
     jcs.Poll();
-    verify(jobInfoRepository, times(0)).saveAndFlush(any());
+    verify(jobRepository, times(0)).saveAndFlush(any());
   }
 
   @Test
@@ -135,7 +136,7 @@ public class JobCoordinatorServiceTest {
                 FeatureSetSpec.newBuilder().setName("features").setVersion(2).setSource(source))
             .build();
     String extId = "ext";
-    ArgumentCaptor<Job> jobInfoArgCaptor = ArgumentCaptor.forClass(Job.class);
+    ArgumentCaptor<Job> jobArgCaptor = ArgumentCaptor.forClass(Job.class);
 
     Job expectedInput =
         new Job(
@@ -172,10 +173,10 @@ public class JobCoordinatorServiceTest {
 
     JobCoordinatorService jcs =
         new JobCoordinatorService(
-            jobInfoRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+            jobRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
     jcs.Poll();
-    verify(jobInfoRepository, times(1)).saveAndFlush(jobInfoArgCaptor.capture());
-    Job actual = jobInfoArgCaptor.getValue();
+    verify(jobRepository, times(1)).saveAndFlush(jobArgCaptor.capture());
+    Job actual = jobArgCaptor.getValue();
     assertThat(actual, equalTo(expected));
   }
 
@@ -258,7 +259,7 @@ public class JobCoordinatorServiceTest {
             feast.core.model.Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet2)),
             JobStatus.RUNNING);
-    ArgumentCaptor<Job> jobInfoArgCaptor = ArgumentCaptor.forClass(Job.class);
+    ArgumentCaptor<Job> jobArgCaptor = ArgumentCaptor.forClass(Job.class);
 
     when(specService.listFeatureSets(
             Filter.newBuilder().setFeatureSetName("features").setFeatureSetVersion(">0").build()))
@@ -276,11 +277,11 @@ public class JobCoordinatorServiceTest {
 
     JobCoordinatorService jcs =
         new JobCoordinatorService(
-            jobInfoRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+            jobRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
     jcs.Poll();
 
-    verify(jobInfoRepository, times(2)).saveAndFlush(jobInfoArgCaptor.capture());
-    List<Job> actual = jobInfoArgCaptor.getAllValues();
+    verify(jobRepository, times(2)).saveAndFlush(jobArgCaptor.capture());
+    List<Job> actual = jobArgCaptor.getAllValues();
 
     assertThat(actual.get(0), equalTo(expected1));
     assertThat(actual.get(1), equalTo(expected2));

@@ -27,7 +27,7 @@ import feast.core.StoreProto;
 import feast.core.StoreProto.Store.Subscription;
 import feast.core.config.FeastProperties.JobUpdatesProperties;
 import feast.core.dao.FeatureSetRepository;
-import feast.core.dao.JobInfoRepository;
+import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
 import feast.core.job.JobUpdateTask;
 import feast.core.model.FeatureSet;
@@ -56,7 +56,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class JobCoordinatorService {
 
   private final long POLLING_INTERVAL_MILLISECONDS = 60000; // 1 min
-  private JobInfoRepository jobInfoRepository;
+  private JobRepository jobRepository;
   private FeatureSetRepository featureSetRepository;
   private SpecService specService;
   private JobManager jobManager;
@@ -64,12 +64,12 @@ public class JobCoordinatorService {
 
   @Autowired
   public JobCoordinatorService(
-      JobInfoRepository jobInfoRepository,
+      JobRepository jobRepository,
       FeatureSetRepository featureSetRepository,
       SpecService specService,
       JobManager jobManager,
       JobUpdatesProperties jobUpdatesProperties) {
-    this.jobInfoRepository = jobInfoRepository;
+    this.jobRepository = jobRepository;
     this.featureSetRepository = featureSetRepository;
     this.specService = specService;
     this.jobManager = jobManager;
@@ -146,7 +146,7 @@ public class JobCoordinatorService {
       try {
         Job job = ecs.take().get();
         if (job != null) {
-          jobInfoRepository.saveAndFlush(job);
+          jobRepository.saveAndFlush(job);
         }
       } catch (ExecutionException | InterruptedException e) {
         log.warn("Unable to start or update job: {}", e.getMessage());
@@ -192,7 +192,7 @@ public class JobCoordinatorService {
   @Transactional
   public Optional<Job> getJob(Source source, Store store) {
     List<Job> jobs =
-        jobInfoRepository.findBySourceIdAndStoreNameOrderByLastUpdatedDesc(
+        jobRepository.findBySourceIdAndStoreNameOrderByLastUpdatedDesc(
             source.getId(), store.getName());
     jobs =
         jobs.stream()

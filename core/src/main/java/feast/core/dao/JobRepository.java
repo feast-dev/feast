@@ -25,7 +25,7 @@ import org.springframework.stereotype.Repository;
 
 /** JPA repository supplying Job objects keyed by ID. */
 @Repository
-public interface JobInfoRepository extends JpaRepository<Job, String> {
+public interface JobRepository extends JpaRepository<Job, String> {
   List<Job> findByStatusNotIn(Collection<JobStatus> statuses);
 
   List<Job> findBySourceIdAndStoreNameOrderByLastUpdatedDesc(String sourceId, String storeName);

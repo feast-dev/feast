@@ -144,28 +144,28 @@ public class DataflowJobManager implements JobManager {
   /**
    * Get status of a dataflow job with given id and try to map it into Feast's JobStatus.
    *
-   * @param jobInfo Job containing dataflow job id
+   * @param job Job containing dataflow job id
    * @return status of the job, or return {@link JobStatus#UNKNOWN} if error happens.
    */
   @Override
-  public JobStatus getJobStatus(Job jobInfo) {
-    if (!Runner.DATAFLOW.getName().equals(jobInfo.getRunner())) {
-      return jobInfo.getStatus();
+  public JobStatus getJobStatus(Job job) {
+    if (!Runner.DATAFLOW.getName().equals(job.getRunner())) {
+      return job.getStatus();
     }
 
     try {
-      com.google.api.services.dataflow.model.Job job =
+      com.google.api.services.dataflow.model.Job dataflowJob =
           dataflow
               .projects()
               .locations()
               .jobs()
-              .get(projectId, location, jobInfo.getExtId())
+              .get(projectId, location, job.getExtId())
               .execute();
-      return DataflowJobStateMapper.map(job.getCurrentState());
+      return DataflowJobStateMapper.map(dataflowJob.getCurrentState());
     } catch (Exception e) {
       log.error(
           "Unable to retrieve status of a dataflow job with id : {}\ncause: {}",
-          jobInfo.getExtId(),
+          job.getExtId(),
           e.getMessage());
     }
     return JobStatus.UNKNOWN;
