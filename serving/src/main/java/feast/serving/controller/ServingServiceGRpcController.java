@@ -74,6 +74,7 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       responseObserver.onNext(onlineFeatures);
       responseObserver.onCompleted();
     } catch (Exception e) {
+      log.warn("Failed to get Online Features", e);
       responseObserver.onError(e);
     }
     span.finish();
@@ -88,6 +89,7 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       responseObserver.onNext(batchFeatures);
       responseObserver.onCompleted();
     } catch (Exception e) {
+      log.warn("Failed to get Batch Features", e);
       responseObserver.onError(e);
     }
   }
@@ -99,6 +101,7 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (Exception e) {
+      log.warn("Failed to get Job", e);
       responseObserver.onError(e);
     }
   }

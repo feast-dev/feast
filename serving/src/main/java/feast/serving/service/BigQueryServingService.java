@@ -123,16 +123,25 @@ public class BigQueryServingService implements ServingService {
           .asRuntimeException();
     }
 
-    Table entityTable = loadEntities(getFeaturesRequest.getDatasetSource());
+    Table entityTable;
+    String entityTableName;
+    try {
+      entityTable = loadEntities(getFeaturesRequest.getDatasetSource());
+
+      TableId entityTableWithUUIDs = generateUUIDs(entityTable);
+      entityTableName = generateFullTableName(entityTableWithUUIDs);
+    } catch (Exception e) {
+      throw Status.INTERNAL
+          .withDescription("Unable to load entity dataset to Bigquery")
+          .asRuntimeException();
+    }
+
     Schema entityTableSchema = entityTable.getDefinition().getSchema();
     List<String> entityNames =
         entityTableSchema.getFields().stream()
             .map(Field::getName)
             .filter(name -> !name.equals("event_timestamp"))
             .collect(Collectors.toList());
-
-    TableId entityTableWithUUIDs = generateUUIDs(entityTable);
-    String entityTableName = generateFullTableName(entityTableWithUUIDs);
 
     List<FeatureSetInfo> featureSetInfos =
         QueryTemplater.getFeatureSetInfos(featureSetSpecs, getFeaturesRequest.getFeatureSetsList());
