@@ -425,7 +425,7 @@ class FeatureSet:
         self.entities = feature_set.entities
         self.source = feature_set.source
         self.status = feature_set.status
-        self._created_timestamp = feature_set.created_timestamp
+        self.created_timestamp = feature_set.created_timestamp
 
     def get_kafka_source_brokers(self) -> str:
         """
@@ -481,7 +481,7 @@ class FeatureSet:
         if ("kind" not in fs_dict) and (fs_dict["kind"].strip() != "feature_set"):
             raise Exception(f"Resource kind is not a feature set {str(fs_dict)}")
         feature_set_proto = json_format.ParseDict(
-            fs_dict, FeatureSetSpecProto(), ignore_unknown_fields=True
+            fs_dict, FeatureSetProto(), ignore_unknown_fields=True
         )
         return cls.from_proto(feature_set_proto)
 
