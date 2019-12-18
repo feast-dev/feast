@@ -16,9 +16,11 @@
  */
 package feast.test;
 
+import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.util.Timestamps;
-import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.FeatureSetProto.FeatureSet;
 import feast.ingestion.transform.WriteToStore;
 import feast.storage.RedisProto.RedisKey;
 import feast.types.FeatureRowProto.FeatureRow;
@@ -166,31 +168,33 @@ public class TestUtil {
   /**
    * Create a Feature Row with random value according to the FeatureSetSpec
    *
-   * <p>See {@link #createRandomFeatureRow(FeatureSetSpec, int)}
+   * <p>See {@link #createRandomFeatureRow(FeatureSet, int)}
    */
-  public static FeatureRow createRandomFeatureRow(FeatureSetSpec spec) {
+  public static FeatureRow createRandomFeatureRow(FeatureSet featureSet) {
     ThreadLocalRandom random = ThreadLocalRandom.current();
     int randomStringSizeMaxSize = 12;
-    return createRandomFeatureRow(spec, random.nextInt(0, randomStringSizeMaxSize) + 4);
+    return createRandomFeatureRow(featureSet, random.nextInt(0, randomStringSizeMaxSize) + 4);
   }
 
   /**
-   * Create a Feature Row with random value according to the FeatureSetSpec.
+   * Create a Feature Row with random value according to the FeatureSet.
    *
    * <p>The Feature Row created contains fields according to the entities and features defined in
-   * FeatureSetSpec, matching the value type of the field, with randomized value for testing.
+   * FeatureSet, matching the value type of the field, with randomized value for testing.
    *
-   * @param spec {@link FeatureSetSpec}
+   * @param featureSet {@link FeatureSet}
    * @param randomStringSize number of characters for the generated random string
    * @return {@link FeatureRow}
    */
-  public static FeatureRow createRandomFeatureRow(FeatureSetSpec spec, int randomStringSize) {
+  public static FeatureRow createRandomFeatureRow(FeatureSet featureSet, int randomStringSize) {
     Builder builder =
         FeatureRow.newBuilder()
-            .setFeatureSet(spec.getName() + ":" + spec.getVersion())
+            .setFeatureSet(getFeatureSetReference(featureSet))
             .setEventTimestamp(Timestamps.fromMillis(System.currentTimeMillis()));
 
-    spec.getEntitiesList()
+    featureSet
+        .getSpec()
+        .getEntitiesList()
         .forEach(
             field -> {
               builder.addFields(
@@ -200,7 +204,9 @@ public class TestUtil {
                       .build());
             });
 
-    spec.getFeaturesList()
+    featureSet
+        .getSpec()
+        .getFeaturesList()
         .forEach(
             field -> {
               builder.addFields(
@@ -284,19 +290,21 @@ public class TestUtil {
   }
 
   /**
-   * Create {@link RedisKey} from {@link FeatureSetSpec} and {@link FeatureRow}.
+   * Create {@link RedisKey} from {@link FeatureSet} and {@link FeatureRow}.
    *
    * <p>The entities in the created {@link RedisKey} will contain the value with matching field name
    * in the {@link FeatureRow}
    *
-   * @param spec {@link FeatureSetSpec}
-   * @param row {@link FeatureSetSpec}
+   * @param featureSet {@link FeatureSet}
+   * @param row {@link FeatureSet}
    * @return {@link RedisKey}
    */
-  public static RedisKey createRedisKey(FeatureSetSpec spec, FeatureRow row) {
+  public static RedisKey createRedisKey(FeatureSet featureSet, FeatureRow row) {
     RedisKey.Builder builder =
-        RedisKey.newBuilder().setFeatureSet(spec.getName() + ":" + spec.getVersion());
-    spec.getEntitiesList()
+        RedisKey.newBuilder().setFeatureSet(getFeatureSetReference(featureSet));
+    featureSet
+        .getSpec()
+        .getEntitiesList()
         .forEach(
             entityField ->
                 row.getFieldsList().stream()

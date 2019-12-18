@@ -17,7 +17,7 @@
 package feast.store.serving.redis;
 
 import feast.core.FeatureSetProto.EntitySpec;
-import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.FeatureSetProto.FeatureSet;
 import feast.storage.RedisProto.RedisKey;
 import feast.storage.RedisProto.RedisKey.Builder;
 import feast.store.serving.redis.RedisCustomIO.Method;
@@ -34,16 +34,16 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRow, RedisMutatio
 
   private static final Logger log =
       org.slf4j.LoggerFactory.getLogger(FeatureRowToRedisMutationDoFn.class);
-  private Map<String, FeatureSetSpec> featureSetSpecs;
+  private Map<String, FeatureSet> featureSets;
 
-  public FeatureRowToRedisMutationDoFn(Map<String, FeatureSetSpec> featureSetSpecs) {
-    this.featureSetSpecs = featureSetSpecs;
+  public FeatureRowToRedisMutationDoFn(Map<String, FeatureSet> featureSets) {
+    this.featureSets = featureSets;
   }
 
   private RedisKey getKey(FeatureRow featureRow) {
-    FeatureSetSpec featureSetSpec = featureSetSpecs.get(featureRow.getFeatureSet());
+    FeatureSet featureSet = featureSets.get(featureRow.getFeatureSet());
     Set<String> entityNames =
-        featureSetSpec.getEntitiesList().stream()
+        featureSet.getSpec().getEntitiesList().stream()
             .map(EntitySpec::getName)
             .collect(Collectors.toSet());
 

@@ -36,6 +36,7 @@ public class GetTableDestination
   @Override
   public TableDestination apply(ValueInSingleWindow<FeatureRow> input) {
     String[] split = input.getValue().getFeatureSet().split(":");
+    String[] splitName = split[0].split("/");
 
     TimePartitioning timePartitioning =
         new TimePartitioning()
@@ -43,7 +44,8 @@ public class GetTableDestination
             .setField(FeatureRowToTableRow.getEventTimestampColumn());
 
     return new TableDestination(
-        String.format("%s:%s.%s_v%s", projectId, datasetId, split[0], split[1]),
+        String.format(
+            "%s:%s.%s_%s_v%s", projectId, datasetId, splitName[0], splitName[1], split[1]),
         String.format("Feast table for %s", input.getValue().getFeatureSet()),
         timePartitioning);
   }

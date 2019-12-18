@@ -19,7 +19,7 @@ package feast.ingestion.transform;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse.InsertErrors;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
-import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.BigQueryConfig;
 import feast.core.StoreProto.Store.RedisConfig;
@@ -65,7 +65,7 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
 
   public abstract Store getStore();
 
-  public abstract Map<String, FeatureSetSpec> getFeatureSetSpecs();
+  public abstract Map<String, FeatureSet> getFeatureSets();
 
   public static Builder newBuilder() {
     return new AutoValue_WriteToStore.Builder();
@@ -76,7 +76,7 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
 
     public abstract Builder setStore(Store store);
 
-    public abstract Builder setFeatureSetSpecs(Map<String, FeatureSetSpec> featureSetSpecs);
+    public abstract Builder setFeatureSets(Map<String, FeatureSet> featureSets);
 
     public abstract WriteToStore build();
   }
@@ -92,7 +92,7 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
         input
             .apply(
                 "FeatureRowToRedisMutation",
-                ParDo.of(new FeatureRowToRedisMutationDoFn(getFeatureSetSpecs())))
+                ParDo.of(new FeatureRowToRedisMutationDoFn(getFeatureSets())))
             .apply(
                 "WriteRedisMutationToRedis",
                 RedisCustomIO.write(redisConfig.getHost(), redisConfig.getPort()));

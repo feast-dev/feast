@@ -19,6 +19,8 @@ package feast.ingestion.transform;
 import static org.junit.Assert.*;
 
 import feast.core.FeatureSetProto.EntitySpec;
+import feast.core.FeatureSetProto.FeatureSet;
+import feast.core.FeatureSetProto.FeatureSetMeta;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
 import feast.ingestion.values.FailedElement;
@@ -40,6 +42,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class ValidateFeatureRowsTest {
+
   @Rule public transient TestPipeline p = TestPipeline.create();
 
   private static final TupleTag<FeatureRow> SUCCESS_TAG = new TupleTag<FeatureRow>() {};
@@ -48,55 +51,77 @@ public class ValidateFeatureRowsTest {
 
   @Test
   public void shouldWriteSuccessAndFailureTagsCorrectly() {
-    FeatureSetSpec fs1 =
-        FeatureSetSpec.newBuilder()
-            .setName("feature_set")
-            .setVersion(1)
-            .addEntities(
-                EntitySpec.newBuilder()
-                    .setName("entity_id_primary")
-                    .setValueType(Enum.INT32)
-                    .build())
-            .addEntities(
-                EntitySpec.newBuilder()
-                    .setName("entity_id_secondary")
-                    .setValueType(Enum.STRING)
-                    .build())
-            .addFeatures(
-                FeatureSpec.newBuilder().setName("feature_1").setValueType(Enum.STRING).build())
-            .addFeatures(
-                FeatureSpec.newBuilder().setName("feature_2").setValueType(Enum.INT64).build())
+    FeatureSet fs1 =
+        FeatureSet.newBuilder()
+            .setSpec(
+                FeatureSetSpec.newBuilder()
+                    .addEntities(
+                        EntitySpec.newBuilder()
+                            .setName("entity_id_primary")
+                            .setValueType(Enum.INT32)
+                            .build())
+                    .addEntities(
+                        EntitySpec.newBuilder()
+                            .setName("entity_id_secondary")
+                            .setValueType(Enum.STRING)
+                            .build())
+                    .addFeatures(
+                        FeatureSpec.newBuilder()
+                            .setName("feature_1")
+                            .setValueType(Enum.STRING)
+                            .build())
+                    .addFeatures(
+                        FeatureSpec.newBuilder()
+                            .setName("feature_2")
+                            .setValueType(Enum.INT64)
+                            .build()))
+            .setMeta(
+                FeatureSetMeta.newBuilder()
+                    .setName("feature_set")
+                    .setVersion(1)
+                    .setProject("myproject"))
             .build();
 
-    FeatureSetSpec fs2 =
-        FeatureSetSpec.newBuilder()
-            .setName("feature_set")
-            .setVersion(2)
-            .addEntities(
-                EntitySpec.newBuilder()
-                    .setName("entity_id_primary")
-                    .setValueType(Enum.INT32)
-                    .build())
-            .addEntities(
-                EntitySpec.newBuilder()
-                    .setName("entity_id_secondary")
-                    .setValueType(Enum.STRING)
-                    .build())
-            .addFeatures(
-                FeatureSpec.newBuilder().setName("feature_1").setValueType(Enum.STRING).build())
-            .addFeatures(
-                FeatureSpec.newBuilder().setName("feature_2").setValueType(Enum.INT64).build())
+    FeatureSet fs2 =
+        FeatureSet.newBuilder()
+            .setSpec(
+                FeatureSetSpec.newBuilder()
+                    .addEntities(
+                        EntitySpec.newBuilder()
+                            .setName("entity_id_primary")
+                            .setValueType(Enum.INT32)
+                            .build())
+                    .addEntities(
+                        EntitySpec.newBuilder()
+                            .setName("entity_id_secondary")
+                            .setValueType(Enum.STRING)
+                            .build())
+                    .addFeatures(
+                        FeatureSpec.newBuilder()
+                            .setName("feature_1")
+                            .setValueType(Enum.STRING)
+                            .build())
+                    .addFeatures(
+                        FeatureSpec.newBuilder()
+                            .setName("feature_2")
+                            .setValueType(Enum.INT64)
+                            .build()))
+            .setMeta(
+                FeatureSetMeta.newBuilder()
+                    .setName("feature_set")
+                    .setVersion(2)
+                    .setProject("myproject"))
             .build();
 
-    Map<String, FeatureSetSpec> featureSetSpecs = new HashMap<>();
-    featureSetSpecs.put("feature_set:1", fs1);
-    featureSetSpecs.put("feature_set:2", fs2);
+    Map<String, FeatureSet> featureSets = new HashMap<>();
+    featureSets.put("myproject/feature_set:1", fs1);
+    featureSets.put("myproject/feature_set:2", fs2);
 
     List<FeatureRow> input = new ArrayList<>();
     List<FeatureRow> expected = new ArrayList<>();
 
-    for (FeatureSetSpec featureSetSpec : featureSetSpecs.values()) {
-      FeatureRow randomRow = TestUtil.createRandomFeatureRow(featureSetSpec);
+    for (FeatureSet featureSet : featureSets.values()) {
+      FeatureRow randomRow = TestUtil.createRandomFeatureRow(featureSet);
       input.add(randomRow);
       expected.add(randomRow);
     }
@@ -110,7 +135,7 @@ public class ValidateFeatureRowsTest {
                 ValidateFeatureRows.newBuilder()
                     .setFailureTag(FAILURE_TAG)
                     .setSuccessTag(SUCCESS_TAG)
-                    .setFeatureSetSpecs(featureSetSpecs)
+                    .setFeatureSets(featureSets)
                     .build());
 
     PAssert.that(output.get(SUCCESS_TAG)).containsInAnyOrder(expected);
