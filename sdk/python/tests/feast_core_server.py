@@ -55,10 +55,10 @@ class CoreServicer(Core.CoreServiceServicer):
     def ApplyFeatureSet(self, request: ApplyFeatureSetRequest, context):
         feature_set = request.feature_set
 
-        if feature_set.spec.version is None:
-            feature_set.spec.version = 1
+        if feature_set.meta.version is None:
+            feature_set.meta.version = 1
         else:
-            feature_set.spec.version = feature_set.spec.version + 1
+            feature_set.meta.version = feature_set.meta.version + 1
 
         if feature_set.spec.source.type == SourceTypeProto.INVALID:
             feature_set.spec.source.kafka_source_config.CopyFrom(
@@ -67,17 +67,19 @@ class CoreServicer(Core.CoreServiceServicer):
             feature_set.spec.source.type = SourceTypeProto.KAFKA
 
         feature_set_meta = FeatureSetMeta(
+            name=request.feature_set.meta.name,
+            project=request.feature_set.meta.project,
             status=FeatureSetStatus.STATUS_READY,
             created_timestamp=Timestamp(seconds=10),
         )
         applied_feature_set = FeatureSetProto(
             spec=feature_set.spec, meta=feature_set_meta
         )
-        self._feature_sets[feature_set.spec.name] = applied_feature_set
+        self._feature_sets[feature_set.meta.name] = applied_feature_set
 
         _logger.info(
             "registered feature set "
-            + feature_set.spec.name
+            + feature_set.meta.name
             + " with "
             + str(len(feature_set.spec.entities))
             + " entities and "
