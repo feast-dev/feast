@@ -15,9 +15,8 @@
 
 import logging
 import os
-import sys
 from collections import OrderedDict
-from typing import Dict, Union
+from typing import Dict, Union, Optional
 from typing import List
 import grpc
 import time
@@ -35,12 +34,14 @@ from feast.core.CoreService_pb2 import (
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
-from feast.exceptions import format_grpc_exception
 from feast.feature_set import FeatureSet, Entity
 from feast.job import Job
 from feast.loaders.file import export_dataframe_to_staging_location
 from feast.loaders.ingest import ingest_table_to_kafka
-from feast.serving.ServingService_pb2 import GetFeastServingInfoResponse
+from feast.serving.ServingService_pb2 import (
+    GetFeastServingInfoResponse,
+    FeatureReference,
+)
 from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequest,
     GetBatchFeaturesRequest,
@@ -48,7 +49,6 @@ from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesResponse,
     DatasetSource,
     DataFormat,
-    FeatureSetRequest,
     FeastServingType,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
@@ -321,18 +321,23 @@ class Client:
         return entities_dict
 
     def get_batch_features(
-        self, feature_ids: List[str], entity_rows: pd.DataFrame
+        self,
+        feature_refs: List[str],
+        entity_rows: pd.DataFrame,
+        default_project: Optional[str] = None,
     ) -> Job:
         """
         Retrieves historical features from a Feast Serving deployment.
 
         Args:
-            feature_ids: List of feature ids that will be returned for each
-                entity. Each feature id should have the following format
-                "feature_set_name:version:feature_name".
+            feature_refs: List of feature references that will be returned for each
+                entity. Each feature ref should have the following format
+                "[Project]/[feature]:[name]".
             entity_rows: Pandas dataframe containing entities and a 'datetime'
                 column. Each entity in a feature set must be present as a column
                 in this dataframe. The datetime column must
+            default_project: Default project that will be used to build feature
+                references if a reference does not contain a project already.
 
         Returns:
             Returns a job object that can be used to monitor retrieval progress
@@ -343,24 +348,27 @@ class Client:
             >>> from datetime import datetime
             >>>
             >>> feast_client = Client(core_url="localhost:6565", serving_url="localhost:6566")
-            >>> feature_ids = ["customer:1:bookings_7d"]
+            >>> feature_refs = ["my_project/bookings_7d:1", "booking_14d"]
             >>> entity_rows = pd.DataFrame(
             >>>         {
             >>>            "datetime": [pd.datetime.now() for _ in range(3)],
             >>>            "customer": [1001, 1002, 1003],
             >>>         }
             >>>     )
-            >>> feature_retrieval_job = feast_client.get_batch_features(feature_ids, entity_rows)
+            >>> feature_retrieval_job = feast_client.get_batch_features(
+            >>>     feature_refs, entity_rows, default_project="my_project")
             >>> df = feature_retrieval_job.to_dataframe()
             >>> print(df)
         """
 
         self._connect_serving()
 
-        fs_request = _build_feature_set_request(feature_ids)
+        feature_references = _build_feature_references(
+            feature_refs=feature_refs, default_project=default_project
+        )
 
         # Validate entity rows based on entities in Feast Core
-        self._validate_entity_rows_for_batch_retrieval(entity_rows, fs_request)
+        self._validate_entity_rows_for_batch_retrieval(entity_rows, feature_references)
 
         # Remove timezone from datetime column
         if isinstance(
@@ -389,7 +397,7 @@ class Client:
         )  # type: str
 
         request = GetBatchFeaturesRequest(
-            feature_sets=fs_request,
+            features=feature_references,
             dataset_source=DatasetSource(
                 file_source=DatasetSource.FileSource(
                     file_uris=[staged_file], data_format=DataFormat.DATA_FORMAT_AVRO
@@ -441,21 +449,25 @@ class Client:
 
     def get_online_features(
         self,
-        feature_ids: List[str],
+        feature_refs: List[str],
         entity_rows: List[GetOnlineFeaturesRequest.EntityRow],
+        default_project: Optional[str] = None,
     ) -> GetOnlineFeaturesResponse:
         """
         Retrieves the latest online feature data from Feast Serving
 
         Args:
-            feature_ids: List of feature Ids in the following format
-                [feature_set_name]:[version]:[feature_name]
+            feature_refs: List of feature references in the following format
+                [project]/[feature_name]:[version]. Only the feature name
+                is a required component in the reference.
                 example:
-                    ["feature_set_1:6:my_feature_1",
-                    "feature_set_1:6:my_feature_2",]
+                    ["my_project/my_feature_1:3",
+                    "my_project3/my_feature_4:1",]
             entity_rows: List of GetFeaturesRequest.EntityRow where each row
                 contains entities. Timestamp should not be set for online
                 retrieval. All entity types within a feature
+            default_project: This project will be used if the project name is
+                not provided in the feature reference
 
         Returns:
             Returns a list of maps where each item in the list contains the
@@ -466,7 +478,9 @@ class Client:
 
         return self._serving_service_stub.GetOnlineFeatures(
             GetOnlineFeaturesRequest(
-                feature_sets=_build_feature_set_request(feature_ids),
+                features=_build_feature_references(
+                    feature_refs=feature_refs, default_project=default_project
+                ),
                 entity_rows=entity_rows,
             )
         )  # type: GetOnlineFeaturesResponse
@@ -556,31 +570,58 @@ class Client:
             )
 
 
-def _build_feature_set_request(feature_ids: List[str]) -> List[FeatureSetRequest]:
+def _build_feature_references(
+    feature_refs: List[str], default_project: Optional[str] = None
+) -> List[FeatureReference]:
     """
     Builds a list of FeatureSet objects from feature set ids in order to
     retrieve feature data from Feast Serving
 
     Args:
-        feature_ids: List of feature ids
-            ("feature_set_name:version:feature_name")
+        feature_refs: List of feature reference strings
+            ("project/feature:version")
+        default_project: This project will be used if the project name is
+            not provided in the feature reference
     """
-    feature_set_request = dict()  # type: Dict[str, FeatureSetRequest]
-    for feature_id in feature_ids:
-        fid_parts = feature_id.split(":")
-        if len(fid_parts) == 3:
-            feature_set, version, feature = fid_parts
+
+    features = []
+
+    for feature_ref in feature_refs:
+        project_split = feature_ref.split("/")
+        version = 0
+
+        if len(project_split) == 2:
+            project, feature_version = project_split
+        elif len(project_split) == 1:
+            feature_version = project_split[0]
+            if default_project is None:
+                raise ValueError(
+                    f"No project specified in {feature_ref} and no default project provided"
+                )
+            project = default_project
         else:
             raise ValueError(
-                f"Could not parse feature id ${feature_id}, needs 2 colons"
+                f'Could not parse feature ref {feature_ref}, expecting "project/feature:version"'
             )
 
-        if feature_set not in feature_set_request:
-            feature_set_request[feature_set] = FeatureSetRequest(
-                name=feature_set, version=int(version)
+        feature_split = feature_version.split(":")
+        if len(feature_split) == 2:
+            name, version = feature_split
+            version = int(version)
+        elif len(feature_split) == 1:
+            name = feature_split[0]
+        else:
+            raise ValueError(
+                f'Could not parse feature ref {feature_ref}, expecting "project/feature:version"'
             )
-        feature_set_request[feature_set].feature_names.append(feature)
-    return list(feature_set_request.values())
+
+        if len(project) == 0 or len(name) == 0 or version < 0:
+            raise ValueError(
+                f'Could not parse feature ref {feature_ref}, expecting "project/feature:version"'
+            )
+
+        features.append(FeatureReference(project=project, name=name, version=version))
+    return features
 
 
 def _read_table_from_source(source: Union[pd.DataFrame, str]) -> pa.lib.Table:

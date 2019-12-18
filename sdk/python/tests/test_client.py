@@ -27,13 +27,13 @@ from feast.entity import Entity
 from feast.feature_set import Feature
 from feast.source import KafkaSource
 from feast.core.FeatureSet_pb2 import (
-    FeatureSetSpec,
-    FeatureSpec,
-    EntitySpec,
-    FeatureSetMeta,
-    FeatureSetStatus,
+    FeatureSetSpec as FeatureSetSpecProto,
+    FeatureSpec as FeatureSpecProto,
+    EntitySpec as EntitySpecProto,
+    FeatureSetMeta as FeatureSetMetaProto,
+    FeatureSetStatus as FeatureSetStatusProto,
+    FeatureSet as FeatureSetProto,
 )
-from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from feast.core.Source_pb2 import SourceType, KafkaSourceConfig, Source
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
@@ -155,7 +155,7 @@ class TestClient:
 
         response = mock_client.get_online_features(
             entity_rows=entity_rows,
-            feature_ids=[
+            feature_refs=[
                 "my_project/feature_1:1",
                 "my_project/feature_2:1",
                 "my_project/feature_3:1",
@@ -183,22 +183,20 @@ class TestClient:
             "GetFeatureSet",
             return_value=GetFeatureSetResponse(
                 feature_set=FeatureSetProto(
-                    spec=FeatureSetSpec(
-                        name="my_feature_set",
-                        version=2,
+                    spec=FeatureSetSpecProto(
                         max_age=Duration(seconds=3600),
                         features=[
-                            FeatureSpec(
+                            FeatureSpecProto(
                                 name="my_feature_1",
                                 value_type=ValueProto.ValueType.FLOAT,
                             ),
-                            FeatureSpec(
+                            FeatureSpecProto(
                                 name="my_feature_2",
                                 value_type=ValueProto.ValueType.FLOAT,
                             ),
                         ],
                         entities=[
-                            EntitySpec(
+                            EntitySpecProto(
                                 name="my_entity_1",
                                 value_type=ValueProto.ValueType.INT64,
                             )
@@ -209,7 +207,8 @@ class TestClient:
                                 bootstrap_servers="localhost:9092", topic="topic"
                             ),
                         ),
-                    )
+                    ),
+                    meta=FeatureSetMetaProto(name="my_feature_set", version=2),
                 )
             ),
         )
@@ -239,30 +238,33 @@ class TestClient:
             "GetFeatureSet",
             return_value=GetFeatureSetResponse(
                 feature_set=FeatureSetProto(
-                    spec=FeatureSetSpec(
-                        name="customer_fs",
-                        version=1,
+                    spec=FeatureSetSpecProto(
                         entities=[
-                            EntitySpec(
+                            EntitySpecProto(
                                 name="customer", value_type=ValueProto.ValueType.INT64
                             ),
-                            EntitySpec(
+                            EntitySpecProto(
                                 name="transaction",
                                 value_type=ValueProto.ValueType.INT64,
                             ),
                         ],
                         features=[
-                            FeatureSpec(
+                            FeatureSpecProto(
                                 name="customer_feature_1",
                                 value_type=ValueProto.ValueType.FLOAT,
                             ),
-                            FeatureSpec(
+                            FeatureSpecProto(
                                 name="customer_feature_2",
                                 value_type=ValueProto.ValueType.STRING,
                             ),
                         ],
                     ),
-                    meta=FeatureSetMeta(status=FeatureSetStatus.STATUS_READY),
+                    meta=FeatureSetMetaProto(
+                        status=FeatureSetStatusProto.STATUS_READY,
+                        name="customer_fs",
+                        version=1,
+                        project="my_project",
+                    ),
                 )
             ),
         )
@@ -272,8 +274,8 @@ class TestClient:
                 "datetime": [datetime.utcnow() for _ in range(3)],
                 "customer": [1001, 1002, 1003],
                 "transaction": [1001, 1002, 1003],
-                "customer_fs:1:customer_feature_1": [1001, 1002, 1003],
-                "customer_fs:1:customer_feature_2": [1001, 1002, 1003],
+                "my_project/customer_feature_1:1": [1001, 1002, 1003],
+                "my_project/customer_feature_2:1": [1001, 1002, 1003],
             }
         )
 
@@ -327,9 +329,9 @@ class TestClient:
                     "transaction": [1001, 1002, 1003],
                 }
             ),
-            feature_ids=[
-                "customer_fs:1:customer_feature_1",
-                "customer_fs:1:customer_feature_2",
+            feature_refs=[
+                "my_project/customer_feature_1:1",
+                "my_project/customer_feature_2:1",
             ],
         )  # type: Job
 
@@ -338,10 +340,10 @@ class TestClient:
         actual_dataframe = response.to_dataframe()
 
         assert actual_dataframe[
-            ["customer_fs:1:customer_feature_1", "customer_fs:1:customer_feature_2"]
+            ["my_project/customer_feature_1:1", "my_project/customer_feature_2:1"]
         ].equals(
             expected_dataframe[
-                ["customer_fs:1:customer_feature_1", "customer_fs:1:customer_feature_2"]
+                ["my_project/customer_feature_1:1", "my_project/customer_feature_2:1"]
             ]
         )
 
@@ -387,7 +389,7 @@ class TestClient:
         # Register with Feast core
         client.apply(driver_fs)
         driver_fs = driver_fs.to_proto()
-        driver_fs.meta.status = FeatureSetStatus.STATUS_READY
+        driver_fs.meta.status = FeatureSetStatusProto.STATUS_READY
 
         mocker.patch.object(
             client._core_service_stub,
@@ -417,7 +419,7 @@ class TestClient:
             # Register with Feast core
             client.apply(driver_fs)
             driver_fs = driver_fs.to_proto()
-            driver_fs.meta.status = FeatureSetStatus.STATUS_PENDING
+            driver_fs.meta.status = FeatureSetStatusProto.STATUS_PENDING
 
             mocker.patch.object(
                 client._core_service_stub,

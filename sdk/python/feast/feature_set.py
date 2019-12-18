@@ -24,9 +24,7 @@ from feast.feature import Feature, Field
 from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
 from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
 from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
-from feast.core.FeatureSet_pb2 import FeatureSetStatus
 from google.protobuf.duration_pb2 import Duration
-from google.protobuf.timestamp_pb2 import Timestamp
 from feast.type_map import python_type_to_feast_value_type
 from google.protobuf.json_format import MessageToJson
 from google.protobuf import json_format
@@ -496,7 +494,7 @@ class FeatureSet:
         """
 
         feature_set = cls(
-            name=feature_set_proto.spec.name,
+            name=feature_set_proto.meta.name,
             features=[
                 Feature.from_proto(feature)
                 for feature in feature_set_proto.spec.features
@@ -511,7 +509,7 @@ class FeatureSet:
                 else Source.from_proto(feature_set_proto.spec.source)
             ),
         )
-        feature_set._version = feature_set_proto.spec.version
+        feature_set._version = feature_set_proto.meta.version
         feature_set._status = feature_set_proto.meta.status
         feature_set._created_timestamp = feature_set_proto.meta.created_timestamp
         return feature_set
@@ -525,12 +523,13 @@ class FeatureSet:
         """
 
         meta = FeatureSetMetaProto(
-            created_timestamp=self.created_timestamp, status=self.status
+            name=self.name,
+            version=self.version,
+            created_timestamp=self.created_timestamp,
+            status=self.status,
         )
 
         spec = FeatureSetSpecProto(
-            name=self.name,
-            version=self.version,
             max_age=self.max_age,
             source=self.source.to_proto() if self.source is not None else None,
             features=[
