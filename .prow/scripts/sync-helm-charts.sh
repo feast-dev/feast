@@ -31,7 +31,7 @@ fi
 exit_code=0
 
 for dir in "$repo_dir"/*; do
-    if helm dependency build "$dir"; then
+    if  helm dep update "$dir" && helm dep build "$dir"; then
         helm package --destination "$sync_dir" "$dir"
     else
         log_error "Problem building dependencies. Skipping packaging of '$dir'."
