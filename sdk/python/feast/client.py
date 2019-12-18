@@ -31,6 +31,12 @@ from feast.core.CoreService_pb2 import (
     ApplyFeatureSetResponse,
     GetFeatureSetRequest,
     GetFeatureSetResponse,
+    CreateProjectRequest,
+    CreateProjectResponse,
+    ArchiveProjectRequest,
+    ArchiveProjectResponse,
+    ListProjectsRequest,
+    ListProjectsResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
@@ -59,6 +65,7 @@ GRPC_CONNECTION_TIMEOUT_DEFAULT = 3  # type: int
 GRPC_CONNECTION_TIMEOUT_APPLY = 600  # type: int
 FEAST_SERVING_URL_ENV_KEY = "FEAST_SERVING_URL"  # type: str
 FEAST_CORE_URL_ENV_KEY = "FEAST_CORE_URL"  # type: str
+FEAST_PROJECT_ENV_KEY = "FEAST_PROJECT"  # type: str
 BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS = 300
 CPU_COUNT = os.cpu_count()  # type: int
 
@@ -69,7 +76,7 @@ class Client:
     """
 
     def __init__(
-        self, core_url: str = None, serving_url: str = None, verbose: bool = False
+        self, core_url: str = None, serving_url: str = None, project: str = None
     ):
         """
         The Feast Client should be initialized with at least one service url
@@ -77,11 +84,11 @@ class Client:
         Args:
             core_url: Feast Core URL. Used to manage features
             serving_url: Feast Serving URL. Used to retrieve features
-            verbose: Enable verbose logging
+            project: Sets the active project. This field is optional.
         """
         self._core_url = core_url
         self._serving_url = serving_url
-        self._verbose = verbose
+        self._project = project
         self.__core_channel: grpc.Channel = None
         self.__serving_channel: grpc.Channel = None
         self._core_service_stub: CoreServiceStub = None
@@ -91,6 +98,9 @@ class Client:
     def core_url(self) -> str:
         """
         Retrieve Feast Core URL
+
+        Returns:
+            Feast Core URL string
         """
 
         if self._core_url is not None:
@@ -104,8 +114,8 @@ class Client:
         """
         Set the Feast Core URL
 
-        Returns:
-            Feast Core URL string
+        Args:
+            value: Feast Core URL
         """
         self._core_url = value
 
@@ -113,6 +123,9 @@ class Client:
     def serving_url(self) -> str:
         """
         Retrieve Serving Core URL
+
+        Returns:
+            Feast Serving URL string
         """
         if self._serving_url is not None:
             return self._serving_url
@@ -125,8 +138,8 @@ class Client:
         """
         Set the Feast Serving URL
 
-        Returns:
-            Feast Serving URL string
+        Args:
+            value: Feast Serving URL
         """
         self._serving_url = value
 
@@ -209,6 +222,74 @@ class Client:
         else:
             self._serving_service_stub = ServingServiceStub(self.__serving_channel)
 
+    @property
+    def project(self) -> str:
+        """
+        Retrieve currently active project
+
+        Returns:
+            Project name
+        """
+        if self._project is not None:
+            return self._project
+        if os.getenv(FEAST_PROJECT_ENV_KEY) is not None:
+            return os.getenv(FEAST_PROJECT_ENV_KEY)
+        return ""
+
+    def set_project(self, project: str):
+        """
+        Set currently active Feast project
+
+        Args:
+            project: Project to set as active
+        """
+        self._project = project
+
+    def list_projects(self) -> List[str]:
+        """
+        List all active Feast projects
+
+        Returns:
+            List of project names
+
+        """
+        self._connect_core()
+        self._core_service_stub.ListProjects(
+            ListProjectsRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+        )  # type: ListProjectsResponse
+        return list(ListProjectsResponse.projects)
+
+    def create_project(self, project):
+        """
+        Creates a Feast project
+
+        Args:
+            project: Name of project
+        """
+
+        self._connect_core()
+        self._core_service_stub.CreateProject(
+            CreateProjectRequest(name=project), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+        )  # type: CreateProjectResponse
+
+    def archive_project(self, project):
+        """
+        Archives a project. Project will still continue to function for
+        ingestion and retrieval, but will be in a read-only state. It will
+        also not be visible from the Core API for management purposes.
+
+        Args:
+            project: Name of project to archive
+        """
+
+        self._connect_core()
+        self._core_service_stub.ArchiveProject(
+            ArchiveProjectRequest(name=project), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+        )  # type: ArchiveProjectResponse
+
+        if self._project == project:
+            self._project = ""
+
     def apply(self, feature_sets: Union[List[FeatureSet], FeatureSet]):
         """
         Idempotently registers feature set(s) with Feast Core. Either a single
@@ -261,18 +342,32 @@ class Client:
         # Deep copy from the returned feature set to the local feature set
         feature_set.update_from_feature_set(applied_fs)
 
-    def list_feature_sets(self) -> List[FeatureSet]:
+    def list_feature_sets(
+        self, project: str = None, name: str = None, version: str = None
+    ) -> List[FeatureSet]:
         """
         Retrieve a list of feature sets from Feast Core
+
+        Args:
+            project: Filter feature sets based on project name
+            name: Filter feature sets based on feature set name
+            version: Filter feature sets based on version number
 
         Returns:
             List of feature sets
         """
         self._connect_core()
 
+        if project is None:
+            project = self.project
+
+        filter = ListFeatureSetsRequest.Filter(
+            project=project, feature_set_name=name, feature_set_version=version
+        )
+
         # Get latest feature sets from Feast Core
         feature_set_protos = self._core_service_stub.ListFeatureSets(
-            ListFeatureSetsRequest()
+            ListFeatureSetsRequest(filter=filter)
         )  # type: ListFeatureSetsResponse
 
         # Extract feature sets and return
@@ -284,13 +379,14 @@ class Client:
         return feature_sets
 
     def get_feature_set(
-        self, name: str, version: int = None
+        self, name: str, version: int = None, project: str = None
     ) -> Union[FeatureSet, None]:
         """
         Retrieves a feature set. If no version is specified then the latest
         version will be returned.
 
         Args:
+            project: Feast project that this feature set belongs to
             name: Name of feature set
             version: Version of feature set
 
@@ -300,10 +396,16 @@ class Client:
         """
         self._connect_core()
 
+        if project is None:
+            project = self.project
+
         if version is None:
             version = 0
+
         get_feature_set_response = self._core_service_stub.GetFeatureSet(
-            GetFeatureSetRequest(name=name.strip(), version=int(version))
+            GetFeatureSetRequest(
+                project=project, name=name.strip(), version=int(version)
+            )
         )  # type: GetFeatureSetResponse
         return FeatureSet.from_proto(get_feature_set_response.feature_set)
 

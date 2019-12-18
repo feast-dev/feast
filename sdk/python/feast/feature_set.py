@@ -40,12 +40,14 @@ class FeatureSet:
     def __init__(
         self,
         name: str,
+        project: str = None,
         features: List[Feature] = None,
         entities: List[Entity] = None,
         source: Source = None,
         max_age: Optional[Duration] = None,
     ):
         self._name = name
+        self._project = project
         self._fields = OrderedDict()  # type: Dict[str, Field]
         if features is not None:
             self.features = features
@@ -69,7 +71,11 @@ class FeatureSet:
             if key not in other.fields.keys() or self.fields[key] != other.fields[key]:
                 return False
 
-        if self.name != other.name or self.max_age != other.max_age:
+        if (
+            self.name != other.name
+            or self.project != other.project
+            or self.max_age != other.max_age
+        ):
             return False
         return True
 
@@ -77,10 +83,12 @@ class FeatureSet:
         return str(MessageToJson(self.to_proto()))
 
     def __repr__(self):
-        shortname = "" + self._name
+        ref = self._name
+        if self._project:
+            ref += self._project + "/" + ref
         if self._version:
-            shortname += ":" + str(self._version).strip()
-        return shortname
+            ref += ":" + str(self._version).strip()
+        return ref
 
     @property
     def fields(self) -> Dict[str, Field]:
@@ -154,6 +162,20 @@ class FeatureSet:
         Sets the name of this feature set
         """
         self._name = name
+
+    @property
+    def project(self):
+        """
+        Returns the project that this feature set belongs to
+        """
+        return self._project
+
+    @project.setter
+    def project(self, project):
+        """
+        Sets the project that this feature set belongs to
+        """
+        self._project = project
 
     @property
     def source(self):
@@ -508,6 +530,9 @@ class FeatureSet:
                 if feature_set_proto.spec.source.type == 0
                 else Source.from_proto(feature_set_proto.spec.source)
             ),
+            project=None
+            if len(feature_set_proto.meta.project) == 0
+            else feature_set_proto.meta.project,
         )
         feature_set._version = feature_set_proto.meta.version
         feature_set._status = feature_set_proto.meta.status
@@ -527,6 +552,7 @@ class FeatureSet:
             version=self.version,
             created_timestamp=self.created_timestamp,
             status=self.status,
+            project=self.project,
         )
 
         spec = FeatureSetSpecProto(
