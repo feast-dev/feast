@@ -33,6 +33,7 @@ public abstract class WriteDeadletterRowMetricsDoFn extends DoFn<FailedElement, 
   private final String INGESTION_JOB_NAME_KEY = "ingestion_job_name";
   private final String METRIC_PREFIX = "feast_ingestion";
   private final String STORE_TAG_KEY = "feast_store";
+  private final String PROJECT_TAG_KEY = "feast_project_name";
   private final String FEATURE_SET_NAME_TAG_KEY = "feast_featureSet_name";
   private final String FEATURE_SET_VERSION_TAG_KEY = "feast_featureSet_version";
 
@@ -73,6 +74,7 @@ public abstract class WriteDeadletterRowMetricsDoFn extends DoFn<FailedElement, 
           "deadletter_row_count",
           1,
           STORE_TAG_KEY + ":" + getStoreName(),
+          PROJECT_TAG_KEY + ":" + ignored.getProjectName(),
           FEATURE_SET_NAME_TAG_KEY + ":" + ignored.getFeatureSetName(),
           FEATURE_SET_VERSION_TAG_KEY + ":" + ignored.getFeatureSetVersion(),
           INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
