@@ -13,25 +13,27 @@
 # limitations under the License.
 
 
-import pandas as pd
-from typing import List, Optional
 from collections import OrderedDict
 from typing import Dict
-from feast.source import Source
-from pandas.api.types import is_datetime64_ns_dtype
+from typing import List, Optional
+
+import pandas as pd
+import pyarrow as pa
+from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
+from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
+from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
 from feast.entity import Entity
 from feast.feature import Feature, Field
-from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
-from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
-from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
-from feast.core.FeatureSet_pb2 import FeatureSetStatus
-from google.protobuf.duration_pb2 import Duration
-from google.protobuf.timestamp_pb2 import Timestamp
-from feast.type_map import python_type_to_feast_value_type
-from google.protobuf.json_format import MessageToJson
-from google.protobuf import json_format
-from feast.type_map import DATETIME_COLUMN
 from feast.loaders import yaml as feast_yaml
+from feast.source import Source
+from feast.type_map import DATETIME_COLUMN
+from feast.type_map import pa_to_feast_value_type
+from feast.type_map import python_type_to_feast_value_type
+from google.protobuf import json_format
+from google.protobuf.duration_pb2 import Duration
+from google.protobuf.json_format import MessageToJson
+from pandas.api.types import is_datetime64_ns_dtype
+from pyarrow.lib import TimestampType
 
 
 class FeatureSet:
@@ -290,7 +292,6 @@ class FeatureSet:
         rows_to_sample: int = 100,
     ):
         """
-
         Adds fields (Features or Entities) to a feature set based on the schema
         of a Datatframe. Only Pandas dataframes are supported. All columns are
         detected as features, so setting at least one entity manually is
@@ -317,6 +318,7 @@ class FeatureSet:
                 must have consistent types, even values within list types must
                 be homogeneous
         """
+
         if entities is None:
             entities = list()
         if features is None:
@@ -407,7 +409,187 @@ class FeatureSet:
         self._fields = new_fields
         print(output_log)
 
-    def update_from_feature_set(self, feature_set):
+    def infer_fields_from_pa(
+            self, table: pa.lib.Table,
+            entities: Optional[List[Entity]] = None,
+            features: Optional[List[Feature]] = None,
+            replace_existing_features: bool = False,
+            replace_existing_entities: bool = False,
+            discard_unused_fields: bool = False
+    ) -> None:
+        """
+        Adds fields (Features or Entities) to a feature set based on the schema
+        of a PyArrow table. Only PyArrow tables are supported. All columns are
+        detected as features, so setting at least one entity manually is
+        advised.
+
+
+        Args:
+            table (pyarrow.lib.Table):
+                PyArrow table to read schema from.
+
+            entities (Optional[List[Entity]]):
+                List of entities that will be set manually and not inferred.
+                These will take precedence over any existing entities or
+                entities found in the PyArrow table.
+
+            features (Optional[List[Feature]]):
+                List of features that will be set manually and not inferred.
+                These will take precedence over any existing feature or features
+                found in the PyArrow table.
+
+            replace_existing_features (bool):
+                Boolean flag. If true, will replace existing features in this
+                feature set with features found in dataframe. If false, will
+                skip conflicting features.
+
+            replace_existing_entities (bool):
+                Boolean flag. If true, will replace existing entities in this
+                feature set with features found in dataframe. If false, will
+                skip conflicting entities.
+
+            discard_unused_fields (bool):
+                Boolean flag. Setting this to True will discard any existing
+                fields that are not found in the dataset or provided by the
+                user.
+
+        Returns:
+            None:
+                None
+        """
+        if entities is None:
+            entities = list()
+        if features is None:
+            features = list()
+
+        # Validate whether the datetime column exists with the right name
+        if DATETIME_COLUMN not in table.column_names:
+            raise Exception("No column 'datetime'")
+
+        # Validate the date type for the datetime column
+        if not isinstance(table.column(DATETIME_COLUMN).type, TimestampType):
+            raise Exception(
+                "Column 'datetime' does not have the correct type: datetime64[ms]"
+            )
+
+        # Create dictionary of fields that will not be inferred (manually set)
+        provided_fields = OrderedDict()
+
+        for field in entities + features:
+            if not isinstance(field, Field):
+                raise Exception(f"Invalid field object type provided {type(field)}")
+            if field.name not in provided_fields:
+                provided_fields[field.name] = field
+            else:
+                raise Exception(f"Duplicate field name detected {field.name}.")
+
+        new_fields = self._fields.copy()
+        output_log = ""
+
+        # Add in provided fields
+        for name, field in provided_fields.items():
+            if name in new_fields.keys():
+                upsert_message = "created"
+            else:
+                upsert_message = "updated (replacing an existing field)"
+
+            output_log += (
+                f"{type(field).__name__} {field.name}"
+                f"({field.dtype}) manually {upsert_message}.\n"
+            )
+            new_fields[name] = field
+
+        # Iterate over all of the column names and create features
+        for column in table.column_names:
+            column = column.strip()
+
+            # Skip datetime column
+            if DATETIME_COLUMN in column:
+                continue
+
+            # Skip user provided fields
+            if column in provided_fields.keys():
+                continue
+
+            # Only overwrite conflicting fields if replacement is allowed
+            if column in new_fields:
+                if (
+                        isinstance(self._fields[column], Feature)
+                        and not replace_existing_features
+                ):
+                    continue
+
+                if (
+                        isinstance(self._fields[column], Entity)
+                        and not replace_existing_entities
+                ):
+                    continue
+
+            # Store this fields as a feature
+            # TODO: (Minor) Change the parameter name from dtype to patype
+            new_fields[column] = Feature(
+                name=column,
+                dtype=self._infer_pa_column_type(table.column(column))
+            )
+
+            output_log += f"{type(new_fields[column]).__name__} {new_fields[column].name} ({new_fields[column].dtype}) added from PyArrow Table.\n"
+
+        # Discard unused fields from feature set
+        if discard_unused_fields:
+            keys_to_remove = []
+            for key in new_fields.keys():
+                if not (key in table.column_names or key in provided_fields.keys()):
+                    output_log += f"{type(new_fields[key]).__name__} {new_fields[key].name} ({new_fields[key].dtype}) removed because it is unused.\n"
+                    keys_to_remove.append(key)
+            for key in keys_to_remove:
+                del new_fields[key]
+
+        # Update feature set
+        self._fields = new_fields
+        print(output_log)
+
+    def _infer_pd_column_type(self, column, series, rows_to_sample):
+        dtype = None
+        sample_count = 0
+
+        # Loop over all rows for this column to infer types
+        for key, value in series.iteritems():
+            sample_count += 1
+            # Stop sampling at the row limit
+            if sample_count > rows_to_sample:
+                continue
+
+            # Infer the specific type for this row
+            current_dtype = python_type_to_feast_value_type(name=column, value=value)
+
+            # Make sure the type is consistent for column
+            if dtype:
+                if dtype != current_dtype:
+                    raise ValueError(
+                        f"Type mismatch detected in column {column}. Both "
+                        f"the types {current_dtype} and {dtype} "
+                        f"have been found."
+                    )
+            else:
+                # Store dtype in field to type map if it isnt already
+                dtype = current_dtype
+
+        return dtype
+
+    def _infer_pa_column_type(self, column: pa.lib.ChunkedArray):
+        """
+        Infers the PyArrow column type.
+
+        :param column: Column from a PyArrow table
+        :type column: pa.lib.ChunkedArray
+        :return:
+        :rtype:
+        """
+        # Validates the column to ensure that value types are consistent
+        column.validate()
+        return pa_to_feast_value_type(column)
+
+    def _update_from_feature_set(self, feature_set):
         """
         Deep replaces one feature set with another
 

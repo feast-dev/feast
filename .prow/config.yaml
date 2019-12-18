@@ -145,18 +145,18 @@ presubmits:
 postsubmits:
   gojek/feast:
   - name: publish-python-sdk
-    decorate: true        
+    decorate: true
     spec:
       containers:
       - image: python:3
         command:
         - sh
-        - -c 
+        - -c
         - |
           .prow/scripts/publish-python-sdk.sh \
             --directory-path sdk/python --repository pypi
         volumeMounts:
-        - name: pypirc 
+        - name: pypirc
           mountPath: /root/.pypirc
           subPath: .pypirc
           readOnly: true
@@ -170,7 +170,7 @@ postsubmits:
     - ^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$
 
   - name: publish-docker-images
-    decorate: true 
+    decorate: true
     spec:
       containers:
       - image: google/cloud-sdk:273.0.0
@@ -182,14 +182,14 @@ postsubmits:
             --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
             --output-dir $PWD/
 
-          if [ $PULL_BASE_REF == "master" ]; then 
-          
+          if [ $PULL_BASE_REF == "master" ]; then
+
           .prow/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-core \
             --tag dev \
             --file infra/docker/core/Dockerfile \
             --google-service-account-file /etc/gcloud/service-account.json
-          
+
           .prow/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-serving \
             --tag dev \
@@ -203,13 +203,13 @@ postsubmits:
           docker push gcr.io/kf-feast/feast-serving:${PULL_BASE_SHA}
 
           else
-          
+
           .prow/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-core \
             --tag ${PULL_BASE_REF:1} \
             --file infra/docker/core/Dockerfile \
             --google-service-account-file /etc/gcloud/service-account.json
-          
+
           .prow/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-serving \
             --tag ${PULL_BASE_REF:1} \
@@ -244,7 +244,7 @@ postsubmits:
     - ^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$
 
   - name: publish-helm-chart
-    decorate: true 
+    decorate: true
     spec:
       containers:
       - image: google/cloud-sdk:273.0.0-slim
@@ -253,7 +253,7 @@ postsubmits:
         - -c
         - |
           gcloud auth activate-service-account --key-file /etc/gcloud/service-account.json
-          
+
           curl -s https://get.helm.sh/helm-v2.16.1-linux-amd64.tar.gz | tar -C /tmp -xz
           mv /tmp/linux-amd64/helm /usr/bin/helm
           helm init --client-only
