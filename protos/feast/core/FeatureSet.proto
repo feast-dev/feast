@@ -33,6 +33,15 @@ message FeatureSet {
 }
 
 message FeatureSetSpec {
+    // Name of project that this feature set belongs to.
+    string project = 7;
+
+    // Name of the feature set. Must be unique.
+    string name = 1;
+
+    // Feature set version.
+    int32 version = 2;
+
     // List of entities contained within this featureSet.
     // This allows the feature to be used during joins between feature sets.
     // If the featureSet is ingested into a store that supports keys, this value
@@ -42,8 +51,8 @@ message FeatureSetSpec {
     // List of features contained within this featureSet.
     repeated FeatureSpec features = 4;
 
-    // Features in this feature set will only be retrieved if they are found 
-    // after [time - max_age]. Missing or older feature values will be returned 
+    // Features in this feature set will only be retrieved if they are found
+    // after [time - max_age]. Missing or older feature values will be returned
     // as nulls and indicated to end user
     google.protobuf.Duration max_age = 5;
 
@@ -69,15 +78,6 @@ message FeatureSpec {
 }
 
 message FeatureSetMeta {
-    // Name of project that this feature set belongs to.
-    string project = 3;
-
-    // Name of the feature set. Must be unique.
-    string name = 4;
-
-    // Feature set version.
-    int32 version = 5;
-
     // Created timestamp of this specific feature set.
     google.protobuf.Timestamp created_timestamp = 1;
 
