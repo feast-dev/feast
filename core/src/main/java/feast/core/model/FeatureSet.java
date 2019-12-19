@@ -58,6 +58,11 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   @Column(name = "name", nullable = false)
   private String name;
 
+  // Project that this featureSet belongs to
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "project_name")
+  private Project project;
+
   // Version of the featureSet
   @Column(name = "version")
   private int version;
@@ -111,19 +116,24 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   public static FeatureSet fromProto(FeatureSetProto.FeatureSet featureSetProto) {
     FeatureSetSpec featureSetSpec = featureSetProto.getSpec();
     Source source = Source.fromProto(featureSetSpec.getSource());
-    String id = String.format("%s:%d", featureSetSpec.getName(), featureSetSpec.getVersion());
+    String id = String.format("%s/%s:%d",
+        featureSetProto.getMeta().getProject(),
+        featureSetProto.getMeta().getName(),
+        featureSetProto.getMeta().getVersion());
+
     List<Field> features = new ArrayList<>();
     for (FeatureSpec feature : featureSetSpec.getFeaturesList()) {
       features.add(new Field(id, feature.getName(), feature.getValueType()));
     }
+
     List<Field> entities = new ArrayList<>();
     for (EntitySpec entity : featureSetSpec.getEntitiesList()) {
       entities.add(new Field(id, entity.getName(), entity.getValueType()));
     }
 
     return new FeatureSet(
-        featureSetSpec.getName(),
-        featureSetSpec.getVersion(),
+        featureSetProto.getMeta().getName(),
+        featureSetProto.getMeta().getVersion(),
         featureSetSpec.getMaxAge().getSeconds(),
         entities,
         features,
@@ -151,14 +161,15 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     }
     FeatureSetMeta.Builder meta =
         FeatureSetMeta.newBuilder()
+            .setName(name)
+            .setVersion(version)
+            .setProject(project.getName())
             .setCreatedTimestamp(
                 Timestamp.newBuilder().setSeconds(super.getCreated().getTime() / 1000L))
             .setStatus(FeatureSetStatus.valueOf(status));
 
     FeatureSetSpec.Builder spec =
         FeatureSetSpec.newBuilder()
-            .setName(name)
-            .setVersion(version)
             .setMaxAge(Duration.newBuilder().setSeconds(maxAgeSeconds))
             .addAllEntities(entitySpecs)
             .addAllFeatures(featureSpecs)

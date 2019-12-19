@@ -21,7 +21,6 @@ import feast.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.core.CoreServiceProto.ListStoresRequest.Filter;
 import feast.core.CoreServiceProto.ListStoresResponse;
 import feast.core.FeatureSetProto;
-import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.Subscription;
@@ -94,23 +93,21 @@ public class JobCoordinatorService {
     List<JobUpdateTask> jobUpdateTasks = new ArrayList<>();
     ListStoresResponse listStoresResponse = specService.listStores(Filter.newBuilder().build());
     for (StoreProto.Store store : listStoresResponse.getStoreList()) {
-      Set<FeatureSetSpec> featureSetSpecs = new HashSet<>();
+      Set<FeatureSetProto.FeatureSet> featureSets = new HashSet<>();
       try {
         for (Subscription subscription : store.getSubscriptionsList()) {
-          featureSetSpecs.addAll(
-              specService
+          featureSets.addAll(
+              new ArrayList<>(specService
                   .listFeatureSets(
                       ListFeatureSetsRequest.Filter.newBuilder()
                           .setFeatureSetName(subscription.getName())
                           .setFeatureSetVersion(subscription.getVersion())
                           .build())
-                  .getFeatureSetsList().stream()
-                  .map(FeatureSetProto.FeatureSet::getSpec)
-                  .collect(Collectors.toList()));
+                  .getFeatureSetsList()));
         }
-        if (!featureSetSpecs.isEmpty()) {
-          featureSetSpecs.stream()
-              .collect(Collectors.groupingBy(FeatureSetSpec::getSource))
+        if (!featureSets.isEmpty()) {
+          featureSets.stream()
+              .collect(Collectors.groupingBy(fs -> fs.getSpec().getSource()))
               .entrySet()
               .stream()
               .forEach(

@@ -30,6 +30,7 @@ import com.google.protobuf.Duration;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
 import feast.core.FeatureSetProto;
+import feast.core.FeatureSetProto.FeatureSetMeta;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto;
 import feast.core.SourceProto.KafkaSourceConfig;
@@ -99,12 +100,10 @@ public class DirectRunnerJobManagerTest {
                     .build())
             .build();
 
-    FeatureSetSpec featureSetSpec =
-        FeatureSetSpec.newBuilder()
-            .setName("featureSet")
-            .setVersion(1)
-            .setMaxAge(Duration.newBuilder())
-            .setSource(source)
+    FeatureSetProto.FeatureSet featureSet =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setMeta(FeatureSetMeta.newBuilder().setName("featureSet").setVersion(1).build())
+            .setSpec(FeatureSetSpec.newBuilder().setMaxAge(Duration.newBuilder()).setSource(source).build())
             .build();
 
     Printer printer = JsonFormat.printer();
@@ -117,8 +116,8 @@ public class DirectRunnerJobManagerTest {
     expectedPipelineOptions.setProject("");
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
     expectedPipelineOptions.setProject("");
-    expectedPipelineOptions.setFeatureSetSpecJson(
-        Lists.newArrayList(printer.print(featureSetSpec)));
+    expectedPipelineOptions.setFeatureSetJson(
+        Lists.newArrayList(printer.print(featureSet)));
 
     String expectedJobId = "feast-job-0";
     ArgumentCaptor<ImportOptions> pipelineOptionsCaptor =
@@ -136,8 +135,7 @@ public class DirectRunnerJobManagerTest {
             Source.fromProto(source),
             Store.fromProto(store),
             Lists.newArrayList(
-                FeatureSet.fromProto(
-                    FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSetSpec).build())),
+                FeatureSet.fromProto(featureSet)),
             JobStatus.PENDING);
     Job actual = drJobManager.startJob(job);
     verify(drJobManager, times(1)).runPipeline(pipelineOptionsCaptor.capture());

@@ -30,6 +30,7 @@ import feast.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.core.CoreServiceProto.ListStoresResponse;
 import feast.core.FeatureSetProto;
+import feast.core.FeatureSetProto.FeatureSetMeta;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto.KafkaSourceConfig;
 import feast.core.SourceProto.Source;
@@ -128,12 +129,17 @@ public class JobCoordinatorServiceTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setName("features").setVersion(1).setSource(source))
+                FeatureSetSpec.newBuilder().setSource(source))
+            .setMeta(
+                FeatureSetMeta.newBuilder().setName("features").setVersion(1)
+            )
             .build();
     FeatureSetProto.FeatureSet featureSet2 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setName("features").setVersion(2).setSource(source))
+                FeatureSetSpec.newBuilder().setSource(source))
+            .setMeta(
+                FeatureSetMeta.newBuilder().setName("features").setVersion(2))
             .build();
     String extId = "ext";
     ArgumentCaptor<Job> jobArgCaptor = ArgumentCaptor.forClass(Job.class);
@@ -212,12 +218,16 @@ public class JobCoordinatorServiceTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setName("features").setVersion(1).setSource(source1))
+                FeatureSetSpec.newBuilder().setSource(source1))
+            .setMeta(
+                FeatureSetMeta.newBuilder().setName("features").setVersion(1))
             .build();
     FeatureSetProto.FeatureSet featureSet2 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setName("features").setVersion(2).setSource(source2))
+                FeatureSetSpec.newBuilder().setSource(source2))
+            .setMeta(
+                FeatureSetMeta.newBuilder().setName("features").setVersion(2))
             .build();
 
     Job expectedInput1 =
