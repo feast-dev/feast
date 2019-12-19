@@ -21,7 +21,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSet;
-import feast.core.FeatureSetProto.FeatureSetMeta;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
 import feast.core.SourceProto.KafkaSourceConfig;
@@ -113,6 +112,9 @@ public class ImportJobTest {
       throws IOException, InterruptedException {
     FeatureSetSpec spec =
         FeatureSetSpec.newBuilder()
+            .setName("feature_set")
+            .setVersion(3)
+            .setProject("myproject")
             .addEntities(
                 EntitySpec.newBuilder()
                     .setName("entity_id_primary")
@@ -143,14 +145,7 @@ public class ImportJobTest {
                     .build())
             .build();
 
-    FeatureSetMeta meta =
-        FeatureSetMeta.newBuilder()
-            .setName("feature_set")
-            .setVersion(3)
-            .setProject("myproject")
-            .build();
-
-    FeatureSet featureSet = FeatureSet.newBuilder().setSpec(spec).setMeta(meta).build();
+    FeatureSet featureSet = FeatureSet.newBuilder().setSpec(spec).build();
 
     Store redis =
         Store.newBuilder()
@@ -160,9 +155,9 @@ public class ImportJobTest {
                 RedisConfig.newBuilder().setHost(REDIS_HOST).setPort(REDIS_PORT).build())
             .addSubscriptions(
                 Subscription.newBuilder()
-                    .setProject(meta.getProject())
-                    .setName(meta.getName())
-                    .setVersion(String.valueOf(meta.getVersion()))
+                    .setProject(spec.getProject())
+                    .setName(spec.getName())
+                    .setVersion(String.valueOf(spec.getVersion()))
                     .build())
             .build();
 

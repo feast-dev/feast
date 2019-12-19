@@ -38,7 +38,6 @@ import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSet;
-import feast.core.FeatureSetProto.FeatureSetMeta;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
 import feast.ingestion.utils.StoreUtil;
@@ -55,15 +54,13 @@ public class StoreUtilTest {
         FeatureSet.newBuilder()
             .setSpec(
                 FeatureSetSpec.newBuilder()
+                    .setName("feature_set_1")
+                    .setVersion(1)
+                    .setProject("feast-project")
                     .addEntities(EntitySpec.newBuilder().setName("entity_1").setValueType(INT32))
                     .addFeatures(FeatureSpec.newBuilder().setName("feature_1").setValueType(INT32))
                     .addFeatures(
                         FeatureSpec.newBuilder().setName("feature_2").setValueType(STRING_LIST)))
-            .setMeta(
-                FeatureSetMeta.newBuilder()
-                    .setName("feature_set_1")
-                    .setVersion(1)
-                    .setProject("feast-project"))
             .build();
     BigQuery mockedBigquery = Mockito.mock(BigQuery.class);
     StoreUtil.setupBigQuery(featureSet, "project-1", "dataset_1", mockedBigquery);

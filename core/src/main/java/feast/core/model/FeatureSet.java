@@ -97,6 +97,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
 
   public FeatureSet(
       String name,
+      String project,
       int version,
       long maxAgeSeconds,
       List<Field> entities,
@@ -111,15 +112,16 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     this.features = features;
     this.source = source;
     this.status = status.toString();
+    this.project = new Project(project);
   }
 
   public static FeatureSet fromProto(FeatureSetProto.FeatureSet featureSetProto) {
     FeatureSetSpec featureSetSpec = featureSetProto.getSpec();
     Source source = Source.fromProto(featureSetSpec.getSource());
     String id = String.format("%s/%s:%d",
-        featureSetProto.getMeta().getProject(),
-        featureSetProto.getMeta().getName(),
-        featureSetProto.getMeta().getVersion());
+        featureSetProto.getSpec().getProject(),
+        featureSetProto.getSpec().getName(),
+        featureSetProto.getSpec().getVersion());
 
     List<Field> features = new ArrayList<>();
     for (FeatureSpec feature : featureSetSpec.getFeaturesList()) {
@@ -132,8 +134,9 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     }
 
     return new FeatureSet(
-        featureSetProto.getMeta().getName(),
-        featureSetProto.getMeta().getVersion(),
+        featureSetProto.getSpec().getName(),
+        featureSetProto.getSpec().getProject(),
+        featureSetProto.getSpec().getVersion(),
         featureSetSpec.getMaxAge().getSeconds(),
         entities,
         features,
@@ -161,15 +164,15 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     }
     FeatureSetMeta.Builder meta =
         FeatureSetMeta.newBuilder()
-            .setName(name)
-            .setVersion(version)
-            .setProject(project.getName())
             .setCreatedTimestamp(
                 Timestamp.newBuilder().setSeconds(super.getCreated().getTime() / 1000L))
             .setStatus(FeatureSetStatus.valueOf(status));
 
     FeatureSetSpec.Builder spec =
         FeatureSetSpec.newBuilder()
+            .setName(name)
+            .setVersion(version)
+            .setProject(project.getName())
             .setMaxAge(Duration.newBuilder().setSeconds(maxAgeSeconds))
             .addAllEntities(entitySpecs)
             .addAllFeatures(featureSpecs)
@@ -186,6 +189,10 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
    */
   public boolean equalTo(FeatureSet other) {
     if (!name.equals(other.getName())) {
+      return false;
+    }
+
+    if (!project.getName().equals(other.project.getName())) {
       return false;
     }
 

@@ -129,17 +129,17 @@ public class JobCoordinatorServiceTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source))
+                FeatureSetSpec.newBuilder().setSource(source).setName("features").setVersion(1))
             .setMeta(
-                FeatureSetMeta.newBuilder().setName("features").setVersion(1)
+                FeatureSetMeta.newBuilder()
             )
             .build();
     FeatureSetProto.FeatureSet featureSet2 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source))
+                FeatureSetSpec.newBuilder().setSource(source).setName("features").setVersion(2))
             .setMeta(
-                FeatureSetMeta.newBuilder().setName("features").setVersion(2))
+                FeatureSetMeta.newBuilder())
             .build();
     String extId = "ext";
     ArgumentCaptor<Job> jobArgCaptor = ArgumentCaptor.forClass(Job.class);
@@ -218,16 +218,16 @@ public class JobCoordinatorServiceTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source1))
+                FeatureSetSpec.newBuilder().setSource(source1).setName("features").setVersion(1))
             .setMeta(
-                FeatureSetMeta.newBuilder().setName("features").setVersion(1))
+                FeatureSetMeta.newBuilder())
             .build();
     FeatureSetProto.FeatureSet featureSet2 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source2))
+                FeatureSetSpec.newBuilder().setSource(source2).setName("features").setVersion(2))
             .setMeta(
-                FeatureSetMeta.newBuilder().setName("features").setVersion(2))
+                FeatureSetMeta.newBuilder())
             .build();
 
     Job expectedInput1 =

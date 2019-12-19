@@ -110,9 +110,9 @@ public class DataflowJobManagerTest {
 
     FeatureSetProto.FeatureSet featureSet =
         FeatureSetProto.FeatureSet.newBuilder()
-            .setMeta(FeatureSetMeta.newBuilder().setName("featureSet")
-                .setVersion(1))
-            .setSpec(FeatureSetSpec.newBuilder().setSource(source)
+            .setMeta(FeatureSetMeta.newBuilder())
+            .setSpec(FeatureSetSpec.newBuilder().setSource(source).setName("featureSet")
+                .setVersion(1)
                 .setMaxAge(Duration.newBuilder().build()))
             .build();
 
@@ -130,7 +130,7 @@ public class DataflowJobManagerTest {
     expectedPipelineOptions.setJobName(jobName);
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
     expectedPipelineOptions.setFeatureSetJson(
-        Lists.newArrayList(printer.print(featureSet)));
+        Lists.newArrayList(printer.print(featureSet.getSpec())));
 
     ArgumentCaptor<ImportOptions> captor = ArgumentCaptor.forClass(ImportOptions.class);
 
@@ -195,8 +195,9 @@ public class DataflowJobManagerTest {
 
     FeatureSetProto.FeatureSet featureSet =
         FeatureSetProto.FeatureSet.newBuilder()
-            .setMeta(FeatureSetMeta.newBuilder().setName("featureSet").setVersion(1).build())
-            .setSpec(FeatureSetSpec.newBuilder().setSource(source).build()).build();
+            .setSpec(
+                FeatureSetSpec.newBuilder().setName("featureSet").setVersion(1).setSource(source)
+                    .build()).build();
 
     dfJobManager = Mockito.spy(dfJobManager);
 

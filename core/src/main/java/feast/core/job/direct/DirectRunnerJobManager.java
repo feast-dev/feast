@@ -100,7 +100,7 @@ public class DirectRunnerJobManager implements JobManager {
     Printer printer = JsonFormat.printer();
     List<String> featureSetsJson = new ArrayList<>();
     for (FeatureSetProto.FeatureSet featureSet : featureSets) {
-      featureSetsJson.add(printer.print(featureSet));
+      featureSetsJson.add(printer.print(featureSet.getSpec()));
     }
     pipelineOptions.setFeatureSetJson(featureSetsJson);
     pipelineOptions.setStoreJson(Collections.singletonList(printer.print(sink)));

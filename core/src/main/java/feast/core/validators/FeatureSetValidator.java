@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 
 public class FeatureSetValidator {
   public static void validateSpec(FeatureSet featureSet) {
-    checkValidCharacters(featureSet.getMeta().getName(), "name");
+    checkValidCharacters(featureSet.getSpec().getName(), "name");
     checkUniqueColumns(featureSet.getSpec().getEntitiesList(), featureSet.getSpec().getFeaturesList());
     for (EntitySpec entitySpec : featureSet.getSpec().getEntitiesList()) {
       checkValidCharacters(entitySpec.getName(), "entities::name");

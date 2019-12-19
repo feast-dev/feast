@@ -185,7 +185,7 @@ public class DataflowJobManager implements JobManager {
               .map(
                   fsp -> {
                     FeatureSet featureSet = new FeatureSet();
-                    featureSet.setId(fsp.getMeta().getName() + ":" + fsp.getMeta().getVersion());
+                    featureSet.setId(fsp.getSpec().getName() + ":" + fsp.getSpec().getVersion());
                     return featureSet;
                   })
               .collect(Collectors.toList());
@@ -212,7 +212,7 @@ public class DataflowJobManager implements JobManager {
     Printer printer = JsonFormat.printer();
     List<String> featureSetsJson = new ArrayList<>();
     for (FeatureSetProto.FeatureSet featureSet : featureSets) {
-      featureSetsJson.add(printer.print(featureSet));
+      featureSetsJson.add(printer.print(featureSet.getSpec()));
     }
     pipelineOptions.setFeatureSetJson(featureSetsJson);
     pipelineOptions.setStoreJson(Collections.singletonList(printer.print(sink)));

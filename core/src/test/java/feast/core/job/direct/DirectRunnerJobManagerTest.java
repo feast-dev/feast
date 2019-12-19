@@ -30,7 +30,6 @@ import com.google.protobuf.Duration;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
 import feast.core.FeatureSetProto;
-import feast.core.FeatureSetProto.FeatureSetMeta;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto;
 import feast.core.SourceProto.KafkaSourceConfig;
@@ -102,8 +101,7 @@ public class DirectRunnerJobManagerTest {
 
     FeatureSetProto.FeatureSet featureSet =
         FeatureSetProto.FeatureSet.newBuilder()
-            .setMeta(FeatureSetMeta.newBuilder().setName("featureSet").setVersion(1).build())
-            .setSpec(FeatureSetSpec.newBuilder().setMaxAge(Duration.newBuilder()).setSource(source).build())
+            .setSpec(FeatureSetSpec.newBuilder().setName("featureSet").setVersion(1).setMaxAge(Duration.newBuilder()).setSource(source).build())
             .build();
 
     Printer printer = JsonFormat.printer();
@@ -117,7 +115,7 @@ public class DirectRunnerJobManagerTest {
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
     expectedPipelineOptions.setProject("");
     expectedPipelineOptions.setFeatureSetJson(
-        Lists.newArrayList(printer.print(featureSet)));
+        Lists.newArrayList(printer.print(featureSet.getSpec())));
 
     String expectedJobId = "feast-job-0";
     ArgumentCaptor<ImportOptions> pipelineOptionsCaptor =

@@ -80,14 +80,14 @@ public class JobUpdateTaskTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source))
-            .setMeta(FeatureSetMeta.newBuilder().setName("featureSet1").setVersion(1))
+                FeatureSetSpec.newBuilder().setSource(source).setName("featureSet1").setVersion(1))
+            .setMeta(FeatureSetMeta.newBuilder())
             .build();
     FeatureSetProto.FeatureSet featureSet2 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source))
-            .setMeta(FeatureSetMeta.newBuilder().setName("featureSet2").setVersion(1))
+                FeatureSetSpec.newBuilder().setSource(source).setName("featureSet2").setVersion(1))
+            .setMeta(FeatureSetMeta.newBuilder())
             .build();
     Job originalJob =
         new Job(
@@ -137,8 +137,8 @@ public class JobUpdateTaskTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source))
-            .setMeta(FeatureSetMeta.newBuilder().setName("featureSet1").setVersion(1))
+                FeatureSetSpec.newBuilder().setSource(source).setName("featureSet1").setVersion(1))
+            .setMeta(FeatureSetMeta.newBuilder())
             .build();
     JobUpdateTask jobUpdateTask =
         spy(
@@ -183,8 +183,8 @@ public class JobUpdateTaskTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source))
-            .setMeta(FeatureSetMeta.newBuilder().setName("featureSet1").setVersion(1))
+                FeatureSetSpec.newBuilder().setSource(source).setName("featureSet1").setVersion(1))
+            .setMeta(FeatureSetMeta.newBuilder())
             .build();
     Job originalJob =
         new Job(
@@ -224,8 +224,8 @@ public class JobUpdateTaskTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source))
-            .setMeta(FeatureSetMeta.newBuilder().setName("featureSet1").setVersion(1))
+                FeatureSetSpec.newBuilder().setSource(source).setName("featureSet1").setVersion(1))
+            .setMeta(FeatureSetMeta.newBuilder())
             .build();
     JobUpdateTask jobUpdateTask =
         spy(
@@ -271,8 +271,8 @@ public class JobUpdateTaskTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source))
-            .setMeta(FeatureSetMeta.newBuilder().setName("featureSet1").setVersion(1)).build();
+                FeatureSetSpec.newBuilder().setSource(source).setName("featureSet1").setVersion(1))
+            .setMeta(FeatureSetMeta.newBuilder()).build();
 
     JobUpdateTask jobUpdateTask =
         spy(

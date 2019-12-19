@@ -221,10 +221,10 @@ public class SpecService {
 
     FeatureSetValidator.validateSpec(newFeatureSet);
     List<FeatureSet> existingFeatureSets =
-        featureSetRepository.findByName(newFeatureSet.getMeta().getName());
+        featureSetRepository.findByName(newFeatureSet.getSpec().getName());
 
     if (existingFeatureSets.size() == 0) {
-      newFeatureSet = newFeatureSet.toBuilder().setMeta(newFeatureSet.getMeta().toBuilder().setVersion(1)).build();
+      newFeatureSet = newFeatureSet.toBuilder().setSpec(newFeatureSet.getSpec().toBuilder().setVersion(1)).build();
     } else {
       existingFeatureSets = Ordering.natural().reverse().sortedCopy(existingFeatureSets);
       FeatureSet latest = existingFeatureSets.get(0);
@@ -238,7 +238,7 @@ public class SpecService {
             .build();
       }
       // TODO: There is a race condition here with incrementing the version
-      newFeatureSet = newFeatureSet.toBuilder().setMeta(newFeatureSet.getMeta().toBuilder().setVersion(latest.getVersion() + 1)).build();
+      newFeatureSet = newFeatureSet.toBuilder().setSpec(newFeatureSet.getSpec().toBuilder().setVersion(latest.getVersion() + 1)).build();
     }
     FeatureSet featureSet = FeatureSet.fromProto(newFeatureSet);
     if (newFeatureSet.getSpec().getSource() == SourceProto.Source.getDefaultInstance()) {

@@ -55,6 +55,9 @@ public class ValidateFeatureRowsTest {
         FeatureSet.newBuilder()
             .setSpec(
                 FeatureSetSpec.newBuilder()
+                    .setName("feature_set")
+                    .setVersion(1)
+                    .setProject("myproject")
                     .addEntities(
                         EntitySpec.newBuilder()
                             .setName("entity_id_primary")
@@ -75,17 +78,15 @@ public class ValidateFeatureRowsTest {
                             .setName("feature_2")
                             .setValueType(Enum.INT64)
                             .build()))
-            .setMeta(
-                FeatureSetMeta.newBuilder()
-                    .setName("feature_set")
-                    .setVersion(1)
-                    .setProject("myproject"))
             .build();
 
     FeatureSet fs2 =
         FeatureSet.newBuilder()
             .setSpec(
                 FeatureSetSpec.newBuilder()
+                    .setName("feature_set")
+                    .setVersion(2)
+                    .setProject("myproject")
                     .addEntities(
                         EntitySpec.newBuilder()
                             .setName("entity_id_primary")
@@ -106,11 +107,6 @@ public class ValidateFeatureRowsTest {
                             .setName("feature_2")
                             .setValueType(Enum.INT64)
                             .build()))
-            .setMeta(
-                FeatureSetMeta.newBuilder()
-                    .setName("feature_set")
-                    .setVersion(2)
-                    .setProject("myproject"))
             .build();
 
     Map<String, FeatureSet> featureSets = new HashMap<>();

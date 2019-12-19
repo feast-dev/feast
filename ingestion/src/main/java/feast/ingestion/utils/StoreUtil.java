@@ -37,7 +37,6 @@ import com.google.cloud.bigquery.TimePartitioning.Type;
 import com.google.common.collect.ImmutableMap;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSet;
-import feast.core.FeatureSetProto.FeatureSetMeta;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
 import feast.core.StoreProto.Store;
@@ -198,7 +197,7 @@ public class StoreUtil {
       String bigqueryDatasetId,
       BigQuery bigquery) {
 
-    FeatureSetMeta featureSetMeta = featureSet.getMeta();
+    FeatureSetSpec featureSetSpec = featureSet.getSpec();
     // Ensure BigQuery dataset exists.
     DatasetId datasetId = DatasetId.of(bigqueryProjectId, bigqueryDatasetId);
     if (bigquery.getDataset(datasetId) == null) {
@@ -209,7 +208,7 @@ public class StoreUtil {
     String tableName =
         String.format(
                 "%s_%s_v%d",
-                featureSetMeta.getProject(), featureSetMeta.getName(), featureSetMeta.getVersion())
+            featureSetSpec.getProject(), featureSetSpec.getName(), featureSetSpec.getVersion())
             .replaceAll("-", "_");
     TableId tableId = TableId.of(bigqueryProjectId, datasetId.getDataset(), tableName);
 
