@@ -132,7 +132,7 @@ management:
         enabled: false
 EOF
 
-nohup java -jar core/target/feast-core-$REVISION-SNAPSHOT.jar \
+nohup java -jar core/target/feast-core-$REVISION.jar \
   --spring.config.location=file:///tmp/core.application.yml \
   &> /var/log/feast-core.log &
 sleep 35
@@ -184,7 +184,7 @@ spring:
     web-environment: false
 EOF
 
-nohup java -jar serving/target/feast-serving-$REVISION-SNAPSHOT.jar \
+nohup java -jar serving/target/feast-serving-$REVISION.jar \
   --spring.config.location=file:///tmp/serving.online.application.yml \
   &> /var/log/feast-serving-online.log &
 sleep 15
