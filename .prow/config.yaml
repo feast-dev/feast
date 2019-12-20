@@ -70,8 +70,8 @@ presubmits:
         command: [".prow/scripts/test-core-ingestion.sh"]
         resources:
           requests:
-            cpu: "1000m"
-            memory: "512Mi"
+            cpu: "1500m"
+            memory: "1536Mi"
           limit:
             memory: "4096Mi"
 
@@ -116,8 +116,8 @@ presubmits:
         command: [".prow/scripts/test-end-to-end.sh"]
         resources:
           requests:
-            cpu: "1000m"
-            memory: "1024Mi"
+            cpu: "2000m"
+            memory: "2048Mi"
           limit:
             memory: "4096Mi"
 
