@@ -39,61 +39,164 @@
 #   --from-file=/home/user/key.json
 #
 
+# ============================================================
+# Feast Core
+# ============================================================
+
 feast-core:
+  # enabled specifies whether to install Feast Core component.
+  #
+  # Normally, this is set to "false" when Feast users need access to low latency
+  # Feast Serving, by deploying multiple instances of Feast Serving closest
+  # to the client. These instances of Feast Serving however can still use
+  # the same shared Feast Core.
   enabled: true
+  # jvmOptions are options that will be passed to the Java Virtual Machine (JVM) 
+  # running Feast Core.
+  #
+  # For example, it is good practice to set min and max heap size in JVM.
+  # https://stackoverflow.com/questions/6902135/side-effect-for-increasing-maxpermsize-and-max-heap-size
   jvmOptions: 
   - -Xms1024m
   - -Xmx1024m
+  # resources that should be allocated to Feast Core.
   resources:
     requests:
       cpu: 1000m
       memory: 1024Mi
+    limits:
+      memory: 2048Mi
+  # gcpServiceAccount is the Google service account that Feast Core will use.
   gcpServiceAccount:
+    # useExistingSecret specifies Feast to use an existing secret containing 
+    # Google Cloud service account JSON key file.
+    # 
+    # This is the only supported option for now to use a service account JSON.
+    # Feast admin is expected to create this secret before deploying Feast.
     useExistingSecret: true
+    existingSecret:
+      # name is the secret name of the existing secret for the service account.
+      name: feast-gcp-service-account 
+      # key is the secret key of the existing secret for the service account.
+      # key is normally derived from the file name of the JSON key file.
+      key: key.json
+
+# ============================================================
+# Feast Serving Online
+# ============================================================
 
 feast-serving-online:
+  # enabled specifies whether to install Feast Serving Online component.
   enabled: true
+  # redis.enabled specifies whether Redis should be installed as part of Feast Serving.
+  # 
+  # If enabled is set to "false", Feast admin has to ensure there is an
+  # existing Redis running outside Feast, that Feast Serving can connect to.
   redis:
     enabled: true
+  # jvmOptions are options that will be passed to the Feast Serving JVM.
   jvmOptions: 
   - -Xms1024m
   - -Xmx1024m
+  # resources that should be allocated to Feast Serving.
   resources:
     requests:
       cpu: 500m
       memory: 1024Mi
+    limits:
+      memory: 2048Mi
+  # store.yaml is the configuration for Feast Store.
+  # 
+  # Refer to this link for more description:
+  # https://github.com/gojek/feast/blob/79eb4ab5fa3d37102c1dca9968162a98690526ba/protos/feast/core/Store.proto
   store.yaml:
     name: redis
     type: REDIS
     redis_config:
+      # If redis.enabled is set to false, Feast admin should uncomment and 
+      # set the host value to an "existing" Redis instance Feast will use as 
+      # online Store. 
+      # 
+      # Else, if redis.enabled is set to true, no additional configuration is
+      # required.
+      #
+      # host: redis-host
       port: 6379
     subscriptions:
     - name: "*"
       version: ">0"
 
+# ============================================================
+# Feast Serving Batch
+# ============================================================
+
 feast-serving-batch:
+  # enabled specifies whether to install Feast Serving Batch component.
   enabled: true
+  # redis.enabled specifies whether Redis should be installed as part of Feast Serving.
+  # 
+  # This is usually set to "false" for Feast Serving Batch because the default
+  # store is BigQuery.
   redis:
     enabled: false
+  # jvmOptions are options that will be passed to the Feast Serving JVM.
   jvmOptions: 
   - -Xms1024m
   - -Xmx1024m
+  # resources that should be allocated to Feast Serving.
   resources:
     requests:
       cpu: 500m
       memory: 1024Mi
+    limits:
+      memory: 2048Mi
+  # gcpServiceAccount is the service account that Feast Serving will use.
   gcpServiceAccount:
+    # useExistingSecret specifies Feast to use an existing secret containing 
+    # Google Cloud service account JSON key file.
+    # 
+    # This is the only supported option for now to use a service account JSON.
+    # Feast admin is expected to create this secret before deploying Feast.
     useExistingSecret: true
+    existingSecret:
+      # name is the secret name of the existing secret for the service account.
+      name: feast-gcp-service-account 
+      # key is the secret key of the existing secret for the service account.
+      # key is normally derived from the file name of the JSON key file.
+      key: key.json
+  # application.yaml is the main configuration for Feast Serving application.
+  #
+  # Feast Core is a Spring Boot app which uses this yaml configuration file.
+  # Refer to https://github.com/gojek/feast/blob/79eb4ab5fa3d37102c1dca9968162a98690526ba/serving/src/main/resources/application.yml
+  # for a complete list and description of the configuration.
   application.yaml:
     feast:
       jobs: 
+        # staging-location specifies the URI to store intermediate files for 
+        # batch serving (required if using BigQuery as Store).
+        # 
+        # Please set the value to an "existing" Google Cloud Storage URI that 
+        # Feast serving has write access to.
         staging-location: gs://bucket/path
+        # Type of store to store job metadata. 
+        #
+        # This default configuration assumes that Feast Serving Online is 
+        # enabled as well. So Feast Serving Batch will share the same
+        # Redis instance to store job statuses.
         store-type: REDIS
+  # store.yaml is the configuration for Feast Store.
+  # 
+  # Refer to this link for more description:
+  # https://github.com/gojek/feast/blob/79eb4ab5fa3d37102c1dca9968162a98690526ba/protos/feast/core/Store.proto
   store.yaml:
     name: bigquery
     type: BIGQUERY
     bigquery_config:
+      # project_id specifies the Google Cloud Project. Please set this to the 
+      # project id you are using BigQuery in.
       project_id: PROJECT_ID
+      # dataset_id specifies an "existing" BigQuery dataset Feast Serving Batch
+      # will use. Please ensure this dataset is created beforehand.
       dataset_id: DATASET_ID
     subscriptions:
     - name: "*"
