@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	ErrInvalidFeatureName       = "Invalid feature name %s provided, feature names must be in the format featureSet:version:featureName."
+	ErrInvalidFeatureName       = "invalid feature name %s provided, feature names must be in the format featureSet:version:featureName"
 )
 
 // OnlineFeaturesRequest wrapper on feast.serving.GetOnlineFeaturesRequest.
@@ -42,32 +42,46 @@ func (r OnlineFeaturesRequest) buildRequest() (*serving.GetOnlineFeaturesRequest
 	}, nil
 }
 
+// buildFeatureSets create a slice of FeatureSetRequest object from
+// a slice of "feature_set:version:feature_name" string.
+//
+// It returns an error when "feature_set:version:feature_name" string
+// has an invalid format.
 func buildFeatureSets(features []string) ([]*serving.FeatureSetRequest, error) {
-	featureSetMap := map[string]*serving.FeatureSetRequest{}
+	var requests []*serving.FeatureSetRequest
+
+	// Map of "feature_set_name:version" to "FeatureSetRequest" pointer
+	// to reference existing FeatureSetRequest, if any.
+	fsNameVersionToRequest := make(map[string]*serving.FeatureSetRequest)
+
 	for _, feature := range features {
-		split := strings.Split(feature, ":")
-		if len(split) != 3 {
+		splits := strings.Split(feature, ":")
+		if len(splits) != 3 {
 			return nil, fmt.Errorf(ErrInvalidFeatureName, feature)
 		}
-		featureSetName, featureSetVersion, featureName := split[0], split[1], split[2]
-		key := featureSetName + ":" + featureSetVersion
-		if fs, ok := featureSetMap[key]; !ok {
-			version, err := strconv.Atoi(featureSetVersion)
-			if err != nil {
-				return nil, fmt.Errorf(ErrInvalidFeatureName, feature)
-			}
-			featureSetMap[key] = &serving.FeatureSetRequest{
+
+		featureSetName, featureSetVersionString, featureName := splits[0], splits[1], splits[2]
+		featureSetVersion, err := strconv.Atoi(featureSetVersionString)
+		if err != nil {
+			return nil, fmt.Errorf(ErrInvalidFeatureName, feature)
+		}
+
+		fsNameVersion := featureSetName + ":" + featureSetVersionString
+		if request, ok := fsNameVersionToRequest[fsNameVersion]; !ok {
+			request = &serving.FeatureSetRequest{
 				Name:         featureSetName,
-				Version:      int32(version),
+				Version:      int32(featureSetVersion),
 				FeatureNames: []string{featureName},
 			}
+			fsNameVersionToRequest[fsNameVersion] = request
+			// Adding FeatureSetRequest in this step ensures the order of
+			// FeatureSetRequest in the slice follows the order of feature sets
+			// in the "features" argument in buildFeatureSets method.
+			requests = append(requests, request)
 		} else {
-			fs.FeatureNames = append(fs.GetFeatureNames(), featureName)
+			request.FeatureNames = append(request.FeatureNames, featureName)
 		}
 	}
-	var featureSets []*serving.FeatureSetRequest
-	for _, featureSet := range featureSetMap {
-		featureSets = append(featureSets, featureSet)
-	}
-	return featureSets, nil
+
+	return requests, nil
 }

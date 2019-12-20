@@ -1,0 +1,317 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>feast.job &mdash; Feast 0.3.2 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> Feast
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.3.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Feast</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>feast.job</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for feast.job</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">List</span>
+<span class="kn">from</span> <span class="nn">urllib.parse</span> <span class="k">import</span> <span class="n">urlparse</span>
+
+<span class="kn">import</span> <span class="nn">fastavro</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">fastavro</span> <span class="k">import</span> <span class="n">reader</span> <span class="k">as</span> <span class="n">fastavro_reader</span>
+<span class="kn">from</span> <span class="nn">google.cloud</span> <span class="k">import</span> <span class="n">storage</span>
+
+<span class="kn">from</span> <span class="nn">feast.serving.ServingService_pb2</span> <span class="k">import</span> <span class="n">GetJobRequest</span>
+<span class="kn">from</span> <span class="nn">feast.serving.ServingService_pb2</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">Job</span> <span class="k">as</span> <span class="n">JobProto</span><span class="p">,</span>
+    <span class="n">JOB_STATUS_DONE</span><span class="p">,</span>
+    <span class="n">DATA_FORMAT_AVRO</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">feast.serving.ServingService_pb2_grpc</span> <span class="k">import</span> <span class="n">ServingServiceStub</span>
+
+<span class="c1"># Maximum no of seconds to wait until the jobs status is DONE in Feast</span>
+<span class="c1"># Currently set to the maximum query execution time limit in BigQuery</span>
+<span class="n">DEFAULT_TIMEOUT_SEC</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">21600</span>
+
+<span class="c1"># Maximum no of seconds to wait before reloading the job status in Feast</span>
+<span class="n">MAX_WAIT_INTERVAL_SEC</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span>
+
+
+<div class="viewcode-block" id="Job"><a class="viewcode-back" href="../../index.html#feast.job.Job">[docs]</a><span class="k">class</span> <span class="nc">Job</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A class representing a job for feature retrieval in Feast.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_proto</span><span class="p">:</span> <span class="n">JobProto</span><span class="p">,</span> <span class="n">serving_stub</span><span class="p">:</span> <span class="n">ServingServiceStub</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            job_proto: Job proto object (wrapped by this job object)</span>
+<span class="sd">            serving_stub: Stub for Feast serving service</span>
+<span class="sd">            storage_client: Google Cloud Storage client</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_proto</span> <span class="o">=</span> <span class="n">job_proto</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">serving_stub</span> <span class="o">=</span> <span class="n">serving_stub</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage_client</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="n">project</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Getter for the Job Id</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_proto</span><span class="o">.</span><span class="n">id</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Getter for the Job status from Feast Core</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_proto</span><span class="o">.</span><span class="n">status</span>
+
+<div class="viewcode-block" id="Job.reload"><a class="viewcode-back" href="../../index.html#feast.job.Job.reload">[docs]</a>    <span class="k">def</span> <span class="nf">reload</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reload the latest job status</span>
+<span class="sd">        Returns: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_proto</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">serving_stub</span><span class="o">.</span><span class="n">GetJob</span><span class="p">(</span><span class="n">GetJobRequest</span><span class="p">(</span><span class="n">job</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">job_proto</span><span class="p">))</span><span class="o">.</span><span class="n">job</span></div>
+
+<div class="viewcode-block" id="Job.result"><a class="viewcode-back" href="../../index.html#feast.job.Job.result">[docs]</a>    <span class="k">def</span> <span class="nf">result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout_sec</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_TIMEOUT_SEC</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Wait until job is done to get an iterable rows of result.</span>
+<span class="sd">        The row can only represent an Avro row in Feast 0.3.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            timeout_sec: max no of seconds to wait until job is done. If &quot;timeout_sec&quot; is exceeded, an exception will be raised.</span>
+
+<span class="sd">        Returns: Iterable of Avro rows</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">max_wait_datetime</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">timeout_sec</span><span class="p">)</span>
+        <span class="n">wait_duration_sec</span> <span class="o">=</span> <span class="mi">2</span>
+
+        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">JOB_STATUS_DONE</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">max_wait_datetime</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;Timeout exceeded while waiting for result. Please retry this method or use a longer timeout value.&quot;</span>
+                <span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">reload</span><span class="p">()</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">wait_duration_sec</span><span class="p">)</span>
+            <span class="c1"># Backoff the wait duration exponentially up till MAX_WAIT_INTERVAL_SEC</span>
+            <span class="n">wait_duration_sec</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">wait_duration_sec</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">MAX_WAIT_INTERVAL_SEC</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_proto</span><span class="o">.</span><span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_proto</span><span class="o">.</span><span class="n">error</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_proto</span><span class="o">.</span><span class="n">data_format</span> <span class="o">!=</span> <span class="n">DATA_FORMAT_AVRO</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Feast only supports Avro data format for now. Please check &quot;</span>
+                <span class="s2">&quot;your Feast Serving deployment.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">uris</span> <span class="o">=</span> <span class="p">[</span><span class="n">urlparse</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span> <span class="k">for</span> <span class="n">uri</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_proto</span><span class="o">.</span><span class="n">file_uris</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">file_uri</span> <span class="ow">in</span> <span class="n">uris</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">file_uri</span><span class="o">.</span><span class="n">scheme</span> <span class="o">==</span> <span class="s2">&quot;gs&quot;</span><span class="p">:</span>
+                <span class="n">file_obj</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryFile</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">storage_client</span><span class="o">.</span><span class="n">download_blob_to_file</span><span class="p">(</span><span class="n">file_uri</span><span class="o">.</span><span class="n">geturl</span><span class="p">(),</span> <span class="n">file_obj</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">file_uri</span><span class="o">.</span><span class="n">scheme</span> <span class="o">==</span> <span class="s2">&quot;file&quot;</span><span class="p">:</span>
+                <span class="n">file_obj</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_uri</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="n">f</span><span class="s2">&quot;Could not identify file URI </span><span class="si">{file_uri}</span><span class="s2">. Only gs:// and file:// supported&quot;</span>
+                <span class="p">)</span>
+
+            <span class="n">file_obj</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">avro_reader</span> <span class="o">=</span> <span class="n">fastavro</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">file_obj</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">avro_reader</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="n">record</span></div>
+
+<div class="viewcode-block" id="Job.to_dataframe"><a class="viewcode-back" href="../../index.html#feast.job.Job.to_dataframe">[docs]</a>    <span class="k">def</span> <span class="nf">to_dataframe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout_sec</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_TIMEOUT_SEC</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Wait until job is done to get an interable rows of result</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            timeout_sec: max no of seconds to wait until job is done. If &quot;timeout_sec&quot; is exceeded, an exception will be raised.</span>
+<span class="sd">        Returns: pandas Dataframe of the feature values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="p">[</span><span class="n">r</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">timeout_sec</span><span class="o">=</span><span class="n">timeout_sec</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_records</span><span class="p">(</span><span class="n">records</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">())</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Feast Authors
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

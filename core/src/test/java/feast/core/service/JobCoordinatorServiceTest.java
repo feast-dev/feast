@@ -16,179 +16,274 @@
  */
 package feast.core.service;
 
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.mockito.Mockito.spy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import com.google.common.collect.Lists;
+import com.google.protobuf.InvalidProtocolBufferException;
+import feast.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
+import feast.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.core.CoreServiceProto.ListStoresResponse;
+import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto.KafkaSourceConfig;
+import feast.core.SourceProto.Source;
 import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
-import feast.core.dao.JobInfoRepository;
+import feast.core.StoreProto.Store.Subscription;
+import feast.core.config.FeastProperties.JobUpdatesProperties;
+import feast.core.dao.FeatureSetRepository;
+import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
+import feast.core.job.JobMatcher;
 import feast.core.job.Runner;
 import feast.core.model.FeatureSet;
-import feast.core.model.JobInfo;
+import feast.core.model.Job;
 import feast.core.model.JobStatus;
-import feast.core.model.Source;
-import feast.core.model.Store;
+import java.util.Arrays;
+import java.util.List;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
 public class JobCoordinatorServiceTest {
 
   @Rule public final ExpectedException exception = ExpectedException.none();
-  @Mock JobInfoRepository jobInfoRepository;
+  @Mock
+  JobRepository jobRepository;
   @Mock JobManager jobManager;
+  @Mock SpecService specService;
+  @Mock FeatureSetRepository featureSetRepository;
 
-  private JobCoordinatorService jobCoordinatorService;
-  private JobInfo existingJob;
-  private Source defaultSource;
+  private JobUpdatesProperties jobUpdatesProperties;
 
   @Before
   public void setUp() {
     initMocks(this);
+    jobUpdatesProperties = new JobUpdatesProperties();
+    jobUpdatesProperties.setTimeoutSeconds(5);
+  }
 
-    Store store =
-        Store.fromProto(
-            StoreProto.Store.newBuilder()
-                .setName("SERVING")
-                .setType(StoreType.REDIS)
-                .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379))
+  @Test
+  public void shouldDoNothingIfNoStoresFound() {
+    when(specService.listStores(any())).thenReturn(ListStoresResponse.newBuilder().build());
+    JobCoordinatorService jcs =
+        new JobCoordinatorService(
+            jobRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+    jcs.Poll();
+    verify(jobRepository, times(0)).saveAndFlush(any());
+  }
+
+  @Test
+  public void shouldDoNothingIfNoMatchingFeatureSetsFound() throws InvalidProtocolBufferException {
+    StoreProto.Store store =
+        StoreProto.Store.newBuilder()
+            .setName("test")
+            .setType(StoreType.REDIS)
+            .setRedisConfig(RedisConfig.newBuilder().build())
+            .addSubscriptions(Subscription.newBuilder().setName("*").setVersion(">0").build())
+            .build();
+    when(specService.listStores(any()))
+        .thenReturn(ListStoresResponse.newBuilder().addStore(store).build());
+    when(specService.listFeatureSets(
+            Filter.newBuilder().setFeatureSetName("*").setFeatureSetVersion(">0").build()))
+        .thenReturn(ListFeatureSetsResponse.newBuilder().build());
+    JobCoordinatorService jcs =
+        new JobCoordinatorService(
+            jobRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+    jcs.Poll();
+    verify(jobRepository, times(0)).saveAndFlush(any());
+  }
+
+  @Test
+  public void shouldGenerateAndSubmitJobsIfAny() throws InvalidProtocolBufferException {
+    StoreProto.Store store =
+        StoreProto.Store.newBuilder()
+            .setName("test")
+            .setType(StoreType.REDIS)
+            .setRedisConfig(RedisConfig.newBuilder().build())
+            .addSubscriptions(
+                Subscription.newBuilder().setName("features").setVersion(">0").build())
+            .build();
+    Source source =
+        Source.newBuilder()
+            .setType(SourceType.KAFKA)
+            .setKafkaSourceConfig(
+                KafkaSourceConfig.newBuilder()
+                    .setTopic("topic")
+                    .setBootstrapServers("servers:9092")
+                    .build())
+            .build();
+
+    FeatureSetProto.FeatureSet featureSet1 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                FeatureSetSpec.newBuilder().setName("features").setVersion(1).setSource(source))
+            .build();
+    FeatureSetProto.FeatureSet featureSet2 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                FeatureSetSpec.newBuilder().setName("features").setVersion(2).setSource(source))
+            .build();
+    String extId = "ext";
+    ArgumentCaptor<Job> jobArgCaptor = ArgumentCaptor.forClass(Job.class);
+
+    Job expectedInput =
+        new Job(
+            "",
+            "",
+            Runner.DATAFLOW.getName(),
+            feast.core.model.Source.fromProto(source),
+            feast.core.model.Store.fromProto(store),
+            Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2)),
+            JobStatus.PENDING);
+
+    Job expected =
+        new Job(
+            "some_id",
+            extId,
+            Runner.DATAFLOW.getName(),
+            feast.core.model.Source.fromProto(source),
+            feast.core.model.Store.fromProto(store),
+            Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2)),
+            JobStatus.RUNNING);
+
+    when(specService.listFeatureSets(
+            Filter.newBuilder().setFeatureSetName("features").setFeatureSetVersion(">0").build()))
+        .thenReturn(
+            ListFeatureSetsResponse.newBuilder()
+                .addFeatureSets(featureSet1)
+                .addFeatureSets(featureSet2)
                 .build());
-    defaultSource =
-        new Source(
-            SourceType.KAFKA,
-            KafkaSourceConfig.newBuilder()
-                .setBootstrapServers("kafka:9092")
-                .setTopic("feast-topic")
-                .build(),
-            true);
-    FeatureSet featureSet1 = new FeatureSet();
-    featureSet1.setId("featureSet1:1");
-    featureSet1.setSource(defaultSource);
-    FeatureSet featureSet2 = new FeatureSet();
-    featureSet2.setId("featureSet2:1");
-    featureSet2.setSource(defaultSource);
-    existingJob =
-        new JobInfo(
-            "extid",
-            "name",
-            "DirectRunner",
-            defaultSource,
-            store,
-            Lists.newArrayList(featureSet1, featureSet2),
-            Lists.newArrayList(),
-            JobStatus.RUNNING);
-    when(jobInfoRepository.findBySourceIdAndStoreName(defaultSource.getId(), "SERVING"))
-        .thenReturn(Lists.newArrayList(existingJob));
+    when(specService.listStores(any()))
+        .thenReturn(ListStoresResponse.newBuilder().addStore(store).build());
 
-    jobCoordinatorService = new JobCoordinatorService(jobInfoRepository, jobManager);
-    jobCoordinatorService = spy(jobCoordinatorService);
+    when(jobManager.startJob(argThat(new JobMatcher(expectedInput)))).thenReturn(expected);
+    when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
+
+    JobCoordinatorService jcs =
+        new JobCoordinatorService(
+            jobRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+    jcs.Poll();
+    verify(jobRepository, times(1)).saveAndFlush(jobArgCaptor.capture());
+    Job actual = jobArgCaptor.getValue();
+    assertThat(actual, equalTo(expected));
   }
 
   @Test
-  public void shouldNotStartOrUpdateJobIfNoChanges() {
-    FeatureSetSpec featureSet1 =
-        FeatureSetSpec.newBuilder()
-            .setName("featureSet1")
-            .setVersion(1)
-            .setSource(defaultSource.toProto())
-            .build();
-    FeatureSetSpec featureSet2 =
-        FeatureSetSpec.newBuilder()
-            .setName("featureSet2")
-            .setVersion(1)
-            .setSource(defaultSource.toProto())
-            .build();
+  public void shouldGroupJobsBySource() throws InvalidProtocolBufferException {
     StoreProto.Store store =
         StoreProto.Store.newBuilder()
-            .setName("SERVING")
+            .setName("test")
             .setType(StoreType.REDIS)
-            .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379))
+            .setRedisConfig(RedisConfig.newBuilder().build())
+            .addSubscriptions(
+                Subscription.newBuilder().setName("features").setVersion(">0").build())
             .build();
-    JobInfo jobInfo =
-        jobCoordinatorService.startOrUpdateJob(
-            Lists.newArrayList(featureSet1, featureSet2), defaultSource.toProto(), store);
-    assertThat(jobInfo, equalTo(existingJob));
-  }
+    Source source1 =
+        Source.newBuilder()
+            .setType(SourceType.KAFKA)
+            .setKafkaSourceConfig(
+                KafkaSourceConfig.newBuilder()
+                    .setTopic("topic")
+                    .setBootstrapServers("servers:9092")
+                    .build())
+            .build();
+    Source source2 =
+        Source.newBuilder()
+            .setType(SourceType.KAFKA)
+            .setKafkaSourceConfig(
+                KafkaSourceConfig.newBuilder()
+                    .setTopic("topic")
+                    .setBootstrapServers("other.servers:9092")
+                    .build())
+            .build();
 
-  @Test
-  public void shouldStartJobIfNotExists() {
-    FeatureSetSpec featureSet =
-        FeatureSetSpec.newBuilder()
-            .setName("featureSet")
-            .setVersion(1)
-            .setSource(defaultSource.toProto())
+    FeatureSetProto.FeatureSet featureSet1 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                FeatureSetSpec.newBuilder().setName("features").setVersion(1).setSource(source1))
             .build();
-    StoreProto.Store store =
-        StoreProto.Store.newBuilder()
-            .setName("SERVING")
-            .setType(StoreType.REDIS)
-            .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379))
+    FeatureSetProto.FeatureSet featureSet2 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                FeatureSetSpec.newBuilder().setName("features").setVersion(2).setSource(source2))
             .build();
-    String jobId = "featureSet-to-SERVING";
-    String extJobId = "extId123";
-    when(jobCoordinatorService.createJobId("featureSet", "SERVING")).thenReturn(jobId);
-    when(jobManager.startJob(jobId, Lists.newArrayList(featureSet), store)).thenReturn(extJobId);
-    when(jobManager.getRunnerType()).thenReturn(Runner.DIRECT);
-    FeatureSet expectedFeatureSet = new FeatureSet();
-    expectedFeatureSet.setId("featureSet:1");
-    JobInfo expectedJobInfo =
-        new JobInfo(
-            jobId,
-            extJobId,
-            "DirectRunner",
-            defaultSource,
-            Store.fromProto(store),
-            Lists.newArrayList(expectedFeatureSet),
-            JobStatus.RUNNING);
-    when(jobInfoRepository.save(expectedJobInfo)).thenReturn(expectedJobInfo);
-    JobInfo jobInfo =
-        jobCoordinatorService.startOrUpdateJob(
-            Lists.newArrayList(featureSet), defaultSource.toProto(), store);
-    assertThat(jobInfo, equalTo(expectedJobInfo));
-  }
 
-  @Test
-  public void shouldUpdateJobIfAlreadyExistsButThereIsAChange() {
-    FeatureSetSpec featureSet =
-        FeatureSetSpec.newBuilder()
-            .setName("featureSet1")
-            .setVersion(1)
-            .setSource(defaultSource.toProto())
-            .build();
-    StoreProto.Store store =
-        StoreProto.Store.newBuilder()
-            .setName("SERVING")
-            .setType(StoreType.REDIS)
-            .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379))
-            .build();
-    String extId = "extId123";
-    JobInfo modifiedJob =
-        new JobInfo(
-            existingJob.getId(),
-            existingJob.getExtId(),
-            existingJob.getRunner(),
-            defaultSource,
-            Store.fromProto(store),
-            Lists.newArrayList(FeatureSet.fromProto(featureSet)),
+    Job expectedInput1 =
+        new Job(
+            "name1",
+            "",
+            Runner.DATAFLOW.getName(),
+            feast.core.model.Source.fromProto(source1),
+            feast.core.model.Store.fromProto(store),
+            Arrays.asList(FeatureSet.fromProto(featureSet1)),
+            JobStatus.PENDING);
+
+    Job expected1 =
+        new Job(
+            "name1",
+            "extId1",
+            Runner.DATAFLOW.getName(),
+            feast.core.model.Source.fromProto(source1),
+            feast.core.model.Store.fromProto(store),
+            Arrays.asList(FeatureSet.fromProto(featureSet1)),
             JobStatus.RUNNING);
-    when(jobManager.updateJob(modifiedJob)).thenReturn(extId);
-    JobInfo expectedJobInfo = modifiedJob;
-    expectedJobInfo.setExtId(extId);
-    when(jobInfoRepository.save(expectedJobInfo)).thenReturn(expectedJobInfo);
-    JobInfo jobInfo =
-        jobCoordinatorService.startOrUpdateJob(
-            Lists.newArrayList(featureSet), defaultSource.toProto(), store);
-    assertThat(jobInfo, equalTo(expectedJobInfo));
+
+    Job expectedInput2 =
+        new Job(
+            "",
+            "extId2",
+            Runner.DATAFLOW.getName(),
+            feast.core.model.Source.fromProto(source2),
+            feast.core.model.Store.fromProto(store),
+            Arrays.asList(FeatureSet.fromProto(featureSet2)),
+            JobStatus.PENDING);
+
+    Job expected2 =
+        new Job(
+            "name2",
+            "extId2",
+            Runner.DATAFLOW.getName(),
+            feast.core.model.Source.fromProto(source2),
+            feast.core.model.Store.fromProto(store),
+            Arrays.asList(FeatureSet.fromProto(featureSet2)),
+            JobStatus.RUNNING);
+    ArgumentCaptor<Job> jobArgCaptor = ArgumentCaptor.forClass(Job.class);
+
+    when(specService.listFeatureSets(
+            Filter.newBuilder().setFeatureSetName("features").setFeatureSetVersion(">0").build()))
+        .thenReturn(
+            ListFeatureSetsResponse.newBuilder()
+                .addFeatureSets(featureSet1)
+                .addFeatureSets(featureSet2)
+                .build());
+    when(specService.listStores(any()))
+        .thenReturn(ListStoresResponse.newBuilder().addStore(store).build());
+
+    when(jobManager.startJob(argThat(new JobMatcher(expectedInput1)))).thenReturn(expected1);
+    when(jobManager.startJob(argThat(new JobMatcher(expectedInput2)))).thenReturn(expected2);
+    when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
+
+    JobCoordinatorService jcs =
+        new JobCoordinatorService(
+            jobRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+    jcs.Poll();
+
+    verify(jobRepository, times(2)).saveAndFlush(jobArgCaptor.capture());
+    List<Job> actual = jobArgCaptor.getAllValues();
+
+    assertThat(actual.get(0), equalTo(expected1));
+    assertThat(actual.get(1), equalTo(expected2));
   }
 }

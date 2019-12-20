@@ -1,0 +1,272 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>feast.loaders.file &mdash; Feast 0.3.2 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Feast
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.3.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Feast</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>feast.loaders.file</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for feast.loaders.file</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Optional</span>
+<span class="kn">from</span> <span class="nn">urllib.parse</span> <span class="k">import</span> <span class="n">urlparse</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">google.cloud</span> <span class="k">import</span> <span class="n">storage</span>
+<span class="kn">from</span> <span class="nn">pandavro</span> <span class="k">import</span> <span class="n">to_avro</span>
+
+
+<div class="viewcode-block" id="export_dataframe_to_staging_location"><a class="viewcode-back" href="../../../feast.loaders.html#feast.loaders.file.export_dataframe_to_staging_location">[docs]</a><span class="k">def</span> <span class="nf">export_dataframe_to_staging_location</span><span class="p">(</span>
+    <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">staging_location_uri</span><span class="p">:</span> <span class="nb">str</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Uploads a dataframe to a remote staging location</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        df: Pandas dataframe</span>
+<span class="sd">        staging_location_uri: Remote staging location where dataframe should be written</span>
+<span class="sd">            Examples:</span>
+<span class="sd">                gs://bucket/path/</span>
+<span class="sd">                file:///data/subfolder/</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Returns the full path to the file in the remote staging location</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Validate staging location</span>
+    <span class="n">uri</span> <span class="o">=</span> <span class="n">urlparse</span><span class="p">(</span><span class="n">staging_location_uri</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">uri</span><span class="o">.</span><span class="n">scheme</span> <span class="o">==</span> <span class="s2">&quot;gs&quot;</span><span class="p">:</span>
+        <span class="n">dir_path</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">source_path</span> <span class="o">=</span> <span class="n">export_dataframe_to_local</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+        <span class="n">upload_file_to_gcs</span><span class="p">(</span>
+            <span class="n">source_path</span><span class="p">,</span> <span class="n">uri</span><span class="o">.</span><span class="n">hostname</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">uri</span><span class="o">.</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">file_name</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">dir_path</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mi">5</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Export location </span><span class="si">{dir_path}</span><span class="s2"> dangerous. Stopping.&quot;</span><span class="p">)</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">dir_path</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">uri</span><span class="o">.</span><span class="n">scheme</span> <span class="o">==</span> <span class="s2">&quot;file&quot;</span><span class="p">:</span>
+        <span class="n">dir_path</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">source_path</span> <span class="o">=</span> <span class="n">export_dataframe_to_local</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">uri</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+            <span class="n">f</span><span class="s2">&quot;Staging location </span><span class="si">{staging_location_uri}</span><span class="s2"> does not have a valid URI. Only gs:// and file:// are supported&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">staging_location_uri</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">file_name</span></div>
+
+
+<div class="viewcode-block" id="export_dataframe_to_local"><a class="viewcode-back" href="../../../feast.loaders.html#feast.loaders.file.export_dataframe_to_local">[docs]</a><span class="k">def</span> <span class="nf">export_dataframe_to_local</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">dir_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Exports a pandas dataframe to the local filesystem</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        df: Pandas dataframe to save</span>
+<span class="sd">        dir_path: (optional) Absolute directory path &#39;/data/project/subfolder/&#39;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Create local staging location if not provided</span>
+    <span class="k">if</span> <span class="n">dir_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">dir_path</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+
+    <span class="n">file_name</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;{datetime.now().strftime(&quot;</span><span class="si">%d</span><span class="s1">-%m-%Y_%I-%M-%S_%p&quot;)}_{str(uuid.uuid4())[:8]}.avro&#39;</span>
+    <span class="n">dest_path</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{dir_path}</span><span class="s2">/</span><span class="si">{file_name}</span><span class="s2">&quot;</span>
+
+    <span class="c1"># Export dataset to file in local path</span>
+    <span class="n">to_avro</span><span class="p">(</span><span class="n">df</span><span class="o">=</span><span class="n">df</span><span class="p">,</span> <span class="n">file_path_or_buffer</span><span class="o">=</span><span class="n">dest_path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">dir_path</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">dest_path</span></div>
+
+
+<div class="viewcode-block" id="upload_file_to_gcs"><a class="viewcode-back" href="../../../feast.loaders.html#feast.loaders.file.upload_file_to_gcs">[docs]</a><span class="k">def</span> <span class="nf">upload_file_to_gcs</span><span class="p">(</span><span class="n">local_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">bucket</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">remote_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Upload a file from the local file system to Google Cloud Storage (GCS)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        local_path: Local filesystem path of file to upload</span>
+<span class="sd">        bucket: GCS bucket to upload to</span>
+<span class="sd">        remote_path: Path within GCS bucket to upload file to, includes file name</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">storage_client</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="n">project</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="n">bucket</span> <span class="o">=</span> <span class="n">storage_client</span><span class="o">.</span><span class="n">get_bucket</span><span class="p">(</span><span class="n">bucket</span><span class="p">)</span>
+    <span class="n">blob</span> <span class="o">=</span> <span class="n">bucket</span><span class="o">.</span><span class="n">blob</span><span class="p">(</span><span class="n">remote_path</span><span class="p">)</span>
+    <span class="n">blob</span><span class="o">.</span><span class="n">upload_from_filename</span><span class="p">(</span><span class="n">local_path</span><span class="p">)</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Feast Authors
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

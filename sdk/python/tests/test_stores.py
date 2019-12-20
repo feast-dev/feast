@@ -38,9 +38,9 @@ class TestStores:
         fs.add(Feature(name="my-feature-2", dtype=ValueType.INT64))
         fs.add(Entity(name="my-entity-1", dtype=ValueType.INT64))
         fs._version = 1
-        feature_set_proto = fs.to_proto()
+        feature_set_spec_proto = fs.to_proto().spec
 
-        sqlite_store.register_feature_set(feature_set_proto)
+        sqlite_store.register_feature_set(feature_set_spec_proto)
         feature_row = FeatureRowProto.FeatureRow(
             feature_set="feature_set_1",
             event_timestamp=Timestamp(),

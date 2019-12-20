@@ -4,6 +4,7 @@
 
 import sys
 _b=sys.version_info[0]<3 and (lambda x:x) or (lambda x:x.encode('latin1'))
+from google.protobuf.internal import enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
@@ -16,6 +17,7 @@ _sym_db = _symbol_database.Default()
 from feast.types import Value_pb2 as feast_dot_types_dot_Value__pb2
 from feast.core import Source_pb2 as feast_dot_core_dot_Source__pb2
 from google.protobuf import duration_pb2 as google_dot_protobuf_dot_duration__pb2
+from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(
@@ -23,11 +25,79 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.core',
   syntax='proto3',
   serialized_options=_b('\n\nfeast.coreB\017FeatureSetProtoZ/github.com/gojek/feast/sdk/go/protos/feast/core'),
-  serialized_pb=_b('\n\x1b\x66\x65\x61st/core/FeatureSet.proto\x12\nfeast.core\x1a\x17\x66\x65\x61st/types/Value.proto\x1a\x17\x66\x65\x61st/core/Source.proto\x1a\x1egoogle/protobuf/duration.proto\"\xd4\x01\n\x0e\x46\x65\x61tureSetSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\x05\x12(\n\x08\x65ntities\x18\x03 \x03(\x0b\x32\x16.feast.core.EntitySpec\x12)\n\x08\x66\x65\x61tures\x18\x04 \x03(\x0b\x32\x17.feast.core.FeatureSpec\x12*\n\x07max_age\x18\x05 \x01(\x0b\x32\x19.google.protobuf.Duration\x12\"\n\x06source\x18\x06 \x01(\x0b\x32\x12.feast.core.Source\"K\n\nEntitySpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12/\n\nvalue_type\x18\x02 \x01(\x0e\x32\x1b.feast.types.ValueType.Enum\"L\n\x0b\x46\x65\x61tureSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12/\n\nvalue_type\x18\x02 \x01(\x0e\x32\x1b.feast.types.ValueType.EnumBN\n\nfeast.coreB\x0f\x46\x65\x61tureSetProtoZ/github.com/gojek/feast/sdk/go/protos/feast/coreb\x06proto3')
+  serialized_pb=_b('\n\x1b\x66\x65\x61st/core/FeatureSet.proto\x12\nfeast.core\x1a\x17\x66\x65\x61st/types/Value.proto\x1a\x17\x66\x65\x61st/core/Source.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"`\n\nFeatureSet\x12(\n\x04spec\x18\x01 \x01(\x0b\x32\x1a.feast.core.FeatureSetSpec\x12(\n\x04meta\x18\x02 \x01(\x0b\x32\x1a.feast.core.FeatureSetMeta\"\xd4\x01\n\x0e\x46\x65\x61tureSetSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\x05\x12(\n\x08\x65ntities\x18\x03 \x03(\x0b\x32\x16.feast.core.EntitySpec\x12)\n\x08\x66\x65\x61tures\x18\x04 \x03(\x0b\x32\x17.feast.core.FeatureSpec\x12*\n\x07max_age\x18\x05 \x01(\x0b\x32\x19.google.protobuf.Duration\x12\"\n\x06source\x18\x06 \x01(\x0b\x32\x12.feast.core.Source\"K\n\nEntitySpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12/\n\nvalue_type\x18\x02 \x01(\x0e\x32\x1b.feast.types.ValueType.Enum\"L\n\x0b\x46\x65\x61tureSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12/\n\nvalue_type\x18\x02 \x01(\x0e\x32\x1b.feast.types.ValueType.Enum\"u\n\x0e\x46\x65\x61tureSetMeta\x12\x35\n\x11\x63reated_timestamp\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12,\n\x06status\x18\x02 \x01(\x0e\x32\x1c.feast.core.FeatureSetStatus*L\n\x10\x46\x65\x61tureSetStatus\x12\x12\n\x0eSTATUS_INVALID\x10\x00\x12\x12\n\x0eSTATUS_PENDING\x10\x01\x12\x10\n\x0cSTATUS_READY\x10\x02\x42N\n\nfeast.coreB\x0f\x46\x65\x61tureSetProtoZ/github.com/gojek/feast/sdk/go/protos/feast/coreb\x06proto3')
   ,
-  dependencies=[feast_dot_types_dot_Value__pb2.DESCRIPTOR,feast_dot_core_dot_Source__pb2.DESCRIPTOR,google_dot_protobuf_dot_duration__pb2.DESCRIPTOR,])
+  dependencies=[feast_dot_types_dot_Value__pb2.DESCRIPTOR,feast_dot_core_dot_Source__pb2.DESCRIPTOR,google_dot_protobuf_dot_duration__pb2.DESCRIPTOR,google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,])
+
+_FEATURESETSTATUS = _descriptor.EnumDescriptor(
+  name='FeatureSetStatus',
+  full_name='feast.core.FeatureSetStatus',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='STATUS_INVALID', index=0, number=0,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='STATUS_PENDING', index=1, number=1,
+      serialized_options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='STATUS_READY', index=2, number=2,
+      serialized_options=None,
+      type=None),
+  ],
+  containing_type=None,
+  serialized_options=None,
+  serialized_start=745,
+  serialized_end=821,
+)
+_sym_db.RegisterEnumDescriptor(_FEATURESETSTATUS)
+
+FeatureSetStatus = enum_type_wrapper.EnumTypeWrapper(_FEATURESETSTATUS)
+STATUS_INVALID = 0
+STATUS_PENDING = 1
+STATUS_READY = 2
 
 
+
+_FEATURESET = _descriptor.Descriptor(
+  name='FeatureSet',
+  full_name='feast.core.FeatureSet',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='spec', full_name='feast.core.FeatureSet.spec', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='meta', full_name='feast.core.FeatureSet.meta', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=158,
+  serialized_end=254,
+)
 
 
 _FEATURESETSPEC = _descriptor.Descriptor(
@@ -91,8 +161,8 @@ _FEATURESETSPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=126,
-  serialized_end=338,
+  serialized_start=257,
+  serialized_end=469,
 )
 
 
@@ -129,8 +199,8 @@ _ENTITYSPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=340,
-  serialized_end=415,
+  serialized_start=471,
+  serialized_end=546,
 )
 
 
@@ -167,20 +237,72 @@ _FEATURESPEC = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=417,
-  serialized_end=493,
+  serialized_start=548,
+  serialized_end=624,
 )
 
+
+_FEATURESETMETA = _descriptor.Descriptor(
+  name='FeatureSetMeta',
+  full_name='feast.core.FeatureSetMeta',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='created_timestamp', full_name='feast.core.FeatureSetMeta.created_timestamp', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='status', full_name='feast.core.FeatureSetMeta.status', index=1,
+      number=2, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=626,
+  serialized_end=743,
+)
+
+_FEATURESET.fields_by_name['spec'].message_type = _FEATURESETSPEC
+_FEATURESET.fields_by_name['meta'].message_type = _FEATURESETMETA
 _FEATURESETSPEC.fields_by_name['entities'].message_type = _ENTITYSPEC
 _FEATURESETSPEC.fields_by_name['features'].message_type = _FEATURESPEC
 _FEATURESETSPEC.fields_by_name['max_age'].message_type = google_dot_protobuf_dot_duration__pb2._DURATION
 _FEATURESETSPEC.fields_by_name['source'].message_type = feast_dot_core_dot_Source__pb2._SOURCE
 _ENTITYSPEC.fields_by_name['value_type'].enum_type = feast_dot_types_dot_Value__pb2._VALUETYPE_ENUM
 _FEATURESPEC.fields_by_name['value_type'].enum_type = feast_dot_types_dot_Value__pb2._VALUETYPE_ENUM
+_FEATURESETMETA.fields_by_name['created_timestamp'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
+_FEATURESETMETA.fields_by_name['status'].enum_type = _FEATURESETSTATUS
+DESCRIPTOR.message_types_by_name['FeatureSet'] = _FEATURESET
 DESCRIPTOR.message_types_by_name['FeatureSetSpec'] = _FEATURESETSPEC
 DESCRIPTOR.message_types_by_name['EntitySpec'] = _ENTITYSPEC
 DESCRIPTOR.message_types_by_name['FeatureSpec'] = _FEATURESPEC
+DESCRIPTOR.message_types_by_name['FeatureSetMeta'] = _FEATURESETMETA
+DESCRIPTOR.enum_types_by_name['FeatureSetStatus'] = _FEATURESETSTATUS
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
+
+FeatureSet = _reflection.GeneratedProtocolMessageType('FeatureSet', (_message.Message,), {
+  'DESCRIPTOR' : _FEATURESET,
+  '__module__' : 'feast.core.FeatureSet_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.FeatureSet)
+  })
+_sym_db.RegisterMessage(FeatureSet)
 
 FeatureSetSpec = _reflection.GeneratedProtocolMessageType('FeatureSetSpec', (_message.Message,), {
   'DESCRIPTOR' : _FEATURESETSPEC,
@@ -202,6 +324,13 @@ FeatureSpec = _reflection.GeneratedProtocolMessageType('FeatureSpec', (_message.
   # @@protoc_insertion_point(class_scope:feast.core.FeatureSpec)
   })
 _sym_db.RegisterMessage(FeatureSpec)
+
+FeatureSetMeta = _reflection.GeneratedProtocolMessageType('FeatureSetMeta', (_message.Message,), {
+  'DESCRIPTOR' : _FEATURESETMETA,
+  '__module__' : 'feast.core.FeatureSet_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.FeatureSetMeta)
+  })
+_sym_db.RegisterMessage(FeatureSetMeta)
 
 
 DESCRIPTOR._options = None

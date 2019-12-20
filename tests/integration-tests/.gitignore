@@ -1,8 +1,0 @@
-# Ignore yaml rendered from *.template files
-# because they are different on different environments
-feast-helm-values.yaml
-testdata/import_specs/batch_from_gcs.yaml
-testdata/import_specs/stream_from_kafka.yaml
-
-# local files not meant to be pushed
-*.local

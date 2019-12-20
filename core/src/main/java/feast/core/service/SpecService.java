@@ -32,6 +32,7 @@ import feast.core.CoreServiceProto.ListStoresResponse;
 import feast.core.CoreServiceProto.ListStoresResponse.Builder;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
+import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto;
 import feast.core.StoreProto;
@@ -50,6 +51,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Facilitates management of specs within the Feast registry. This includes getting existing specs
@@ -106,16 +108,27 @@ public class SpecService {
     if (request.getVersion() == 0) {
       featureSet =
           featureSetRepository.findFirstFeatureSetByNameOrderByVersionDesc(request.getName());
+
+      if (featureSet == null) {
+        throw io.grpc.Status.NOT_FOUND
+            .withDescription(
+                String.format(
+                    "Feature set with name \"%s\" could not be found.", request.getName()))
+            .asRuntimeException();
+      }
     } else {
       featureSet =
           featureSetRepository.findFeatureSetByNameAndVersion(
               request.getName(), request.getVersion());
-    }
 
-    if (featureSet == null) {
-      throw io.grpc.Status.NOT_FOUND
-          .withDescription("Feature set could not be found")
-          .asRuntimeException();
+      if (featureSet == null) {
+        throw io.grpc.Status.NOT_FOUND
+            .withDescription(
+                String.format(
+                    "Feature set with name \"%s\" and version \"%s\" could " + "not be found.",
+                    request.getName(), request.getVersion()))
+            .asRuntimeException();
+      }
     }
 
     // Only a single item in list, return successfully
@@ -142,9 +155,11 @@ public class SpecService {
     checkValidFeatureSetFilterName(name, "featureSetName");
     List<FeatureSet> featureSets;
     if (name.equals("")) {
-      featureSets = featureSetRepository.findAll();
+      featureSets = featureSetRepository.findAllByOrderByNameAscVersionAsc();
     } else {
-      featureSets = featureSetRepository.findByNameWithWildcard(name.replace('*', '%'));
+      featureSets =
+          featureSetRepository.findByNameWithWildcardOrderByNameAscVersionAsc(
+              name.replace('*', '%'));
       featureSets =
           featureSets.stream()
               .filter(getVersionFilter(filter.getFeatureSetVersion()))
@@ -164,6 +179,7 @@ public class SpecService {
    * @param filter filter containing the desired store name
    * @return ListStoresResponse containing list of stores found matching the filter
    */
+  @Transactional
   public ListStoresResponse listStores(ListStoresRequest.Filter filter) {
     try {
       String name = filter.getName();
@@ -199,19 +215,21 @@ public class SpecService {
    * this method will update the incoming featureSet spec with the latest version stored in the
    * repository, and return that.
    *
-   * @param newFeatureSetSpec featureSet to add.
+   * @param newFeatureSet featureSet to add.
    */
-  public ApplyFeatureSetResponse applyFeatureSet(FeatureSetSpec newFeatureSetSpec)
+  public ApplyFeatureSetResponse applyFeatureSet(FeatureSetProto.FeatureSet newFeatureSet)
       throws InvalidProtocolBufferException {
+    FeatureSetSpec newFeatureSetSpec = newFeatureSet.getSpec();
     FeatureSetValidator.validateSpec(newFeatureSetSpec);
     List<FeatureSet> existingFeatureSets =
         featureSetRepository.findByName(newFeatureSetSpec.getName());
+
     if (existingFeatureSets.size() == 0) {
       newFeatureSetSpec = newFeatureSetSpec.toBuilder().setVersion(1).build();
     } else {
       existingFeatureSets = Ordering.natural().reverse().sortedCopy(existingFeatureSets);
       FeatureSet latest = existingFeatureSets.get(0);
-      FeatureSet featureSet = FeatureSet.fromProto(newFeatureSetSpec);
+      FeatureSet featureSet = FeatureSet.fromProto(newFeatureSet);
 
       // If the featureSet remains unchanged, we do nothing.
       if (featureSet.equalTo(latest)) {
@@ -222,7 +240,8 @@ public class SpecService {
       }
       newFeatureSetSpec = newFeatureSetSpec.toBuilder().setVersion(latest.getVersion() + 1).build();
     }
-    FeatureSet featureSet = FeatureSet.fromProto(newFeatureSetSpec);
+    newFeatureSet = newFeatureSet.toBuilder().setSpec(newFeatureSetSpec).build();
+    FeatureSet featureSet = FeatureSet.fromProto(newFeatureSet);
     if (newFeatureSetSpec.getSource() == SourceProto.Source.getDefaultInstance()) {
       featureSet.setSource(defaultSource);
     }
@@ -241,6 +260,7 @@ public class SpecService {
    * @return UpdateStoreResponse containing the new store definition
    * @throws InvalidProtocolBufferException
    */
+  @Transactional
   public UpdateStoreResponse updateStore(UpdateStoreRequest updateStoreRequest)
       throws InvalidProtocolBufferException {
     StoreProto.Store newStoreProto = updateStoreRequest.getStore();

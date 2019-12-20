@@ -1,0 +1,443 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>feast.loaders.ingest &mdash; Feast 0.3.2 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Feast
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.3.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Feast</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>feast.loaders.ingest</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for feast.loaders.ingest</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">multiprocessing</span> <span class="k">import</span> <span class="n">Process</span><span class="p">,</span> <span class="n">Queue</span><span class="p">,</span> <span class="n">Pool</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Iterable</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">pyarrow</span> <span class="k">as</span> <span class="nn">pa</span>
+<span class="kn">from</span> <span class="nn">feast.feature_set</span> <span class="k">import</span> <span class="n">FeatureSet</span>
+<span class="kn">from</span> <span class="nn">feast.type_map</span> <span class="k">import</span> <span class="n">convert_dict_to_proto_values</span>
+<span class="kn">from</span> <span class="nn">feast.types.FeatureRow_pb2</span> <span class="k">import</span> <span class="n">FeatureRow</span>
+<span class="kn">from</span> <span class="nn">kafka</span> <span class="k">import</span> <span class="n">KafkaProducer</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="k">import</span> <span class="n">tqdm</span>
+<span class="kn">from</span> <span class="nn">feast.constants</span> <span class="k">import</span> <span class="n">DATETIME_COLUMN</span>
+
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">GRPC_CONNECTION_TIMEOUT_DEFAULT</span> <span class="o">=</span> <span class="mi">3</span>  <span class="c1"># type: int</span>
+<span class="n">GRPC_CONNECTION_TIMEOUT_APPLY</span> <span class="o">=</span> <span class="mi">300</span>  <span class="c1"># type: int</span>
+<span class="n">FEAST_SERVING_URL_ENV_KEY</span> <span class="o">=</span> <span class="s2">&quot;FEAST_SERVING_URL&quot;</span>  <span class="c1"># type: str</span>
+<span class="n">FEAST_CORE_URL_ENV_KEY</span> <span class="o">=</span> <span class="s2">&quot;FEAST_CORE_URL&quot;</span>  <span class="c1"># type: str</span>
+<span class="n">BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS</span> <span class="o">=</span> <span class="mi">300</span>
+<span class="n">CPU_COUNT</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span>  <span class="c1"># type: int</span>
+<span class="n">KAFKA_CHUNK_PRODUCTION_TIMEOUT</span> <span class="o">=</span> <span class="mi">120</span>  <span class="c1"># type: int</span>
+
+
+<span class="k">def</span> <span class="nf">_kafka_feature_row_producer</span><span class="p">(</span>
+    <span class="n">feature_row_queue</span><span class="p">:</span> <span class="n">Queue</span><span class="p">,</span> <span class="n">row_count</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">brokers</span><span class="p">,</span> <span class="n">topic</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">pbar</span><span class="p">:</span> <span class="n">tqdm</span>
+<span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Pushes Feature Rows to Kafka. Reads rows from a queue. Function will run</span>
+<span class="sd">    until total row_count is reached.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        feature_row_queue: Queue containing feature rows.</span>
+<span class="sd">        row_count: Total row count to process</span>
+<span class="sd">        brokers: Broker to push to</span>
+<span class="sd">        topic: Topic to push to</span>
+<span class="sd">        ctx: Context dict used to communicate with primary process</span>
+<span class="sd">        pbar: Progress bar object</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Callback for failed production to Kafka</span>
+    <span class="k">def</span> <span class="nf">on_error</span><span class="p">(</span><span class="n">e</span><span class="p">):</span>
+        <span class="c1"># Save last exception</span>
+        <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;last_exception&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">e</span>
+
+        <span class="c1"># Increment error count</span>
+        <span class="k">if</span> <span class="s2">&quot;error_count&quot;</span> <span class="ow">in</span> <span class="n">ctx</span><span class="p">:</span>
+            <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;error_count&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;error_count&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="c1"># Callback for succeeded production to Kafka</span>
+    <span class="k">def</span> <span class="nf">on_success</span><span class="p">(</span><span class="n">meta</span><span class="p">):</span>
+        <span class="n">pbar</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+
+    <span class="n">producer</span> <span class="o">=</span> <span class="n">KafkaProducer</span><span class="p">(</span><span class="n">bootstrap_servers</span><span class="o">=</span><span class="n">brokers</span><span class="p">)</span>
+    <span class="n">processed_rows</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="c1"># Loop through feature rows until all rows are processed</span>
+    <span class="k">while</span> <span class="n">processed_rows</span> <span class="o">&lt;</span> <span class="n">row_count</span><span class="p">:</span>
+        <span class="c1"># Wait if queue is empty</span>
+        <span class="k">if</span> <span class="n">feature_row_queue</span><span class="o">.</span><span class="n">empty</span><span class="p">():</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">producer</span><span class="o">.</span><span class="n">flush</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">KAFKA_CHUNK_PRODUCTION_TIMEOUT</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">while</span> <span class="ow">not</span> <span class="n">feature_row_queue</span><span class="o">.</span><span class="n">empty</span><span class="p">():</span>
+                <span class="n">row</span> <span class="o">=</span> <span class="n">feature_row_queue</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">row</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="c1"># Push row to Kafka</span>
+                    <span class="n">producer</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">())</span><span class="o">.</span><span class="n">add_callback</span><span class="p">(</span>
+                        <span class="n">on_success</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">add_errback</span><span class="p">(</span><span class="n">on_error</span><span class="p">)</span>
+                <span class="n">processed_rows</span> <span class="o">+=</span> <span class="mi">1</span>
+
+                <span class="c1"># Force an occasional flush</span>
+                <span class="k">if</span> <span class="n">processed_rows</span> <span class="o">%</span> <span class="mi">10000</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">producer</span><span class="o">.</span><span class="n">flush</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">KAFKA_CHUNK_PRODUCTION_TIMEOUT</span><span class="p">)</span>
+                <span class="k">del</span> <span class="n">row</span>
+            <span class="n">pbar</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+
+    <span class="c1"># Ensure that all rows are pushed</span>
+    <span class="n">producer</span><span class="o">.</span><span class="n">flush</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">KAFKA_CHUNK_PRODUCTION_TIMEOUT</span><span class="p">)</span>
+
+    <span class="c1"># Using progress bar as counter is much faster than incrementing dict</span>
+    <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;success_count&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pbar</span><span class="o">.</span><span class="n">n</span>
+    <span class="n">pbar</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">_encode_pa_chunks</span><span class="p">(</span>
+    <span class="n">tbl</span><span class="p">:</span> <span class="n">pa</span><span class="o">.</span><span class="n">lib</span><span class="o">.</span><span class="n">Table</span><span class="p">,</span>
+    <span class="n">fs</span><span class="p">:</span> <span class="n">FeatureSet</span><span class="p">,</span>
+    <span class="n">max_workers</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">df_datetime_dtype</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">dtypes</span><span class="p">,</span>
+    <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5000</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">FeatureRow</span><span class="p">]:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generator function to encode rows in PyArrow table to FeatureRows by</span>
+<span class="sd">    breaking up the table into batches.</span>
+
+<span class="sd">    Each batch will have its rows spread accross a pool of workers to be</span>
+<span class="sd">    transformed into FeatureRow objects.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        tbl: PyArrow table to be processed.</span>
+<span class="sd">        fs: FeatureSet describing PyArrow table.</span>
+<span class="sd">        max_workers: Maximum number of workers.</span>
+<span class="sd">        df_datetime_dtype: Pandas dtype of datetime column.</span>
+<span class="sd">        chunk_size: Maximum size of each chunk when PyArrow table is batched.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Iterable FeatureRow object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">pool</span> <span class="o">=</span> <span class="n">Pool</span><span class="p">(</span><span class="n">max_workers</span><span class="p">)</span>
+
+    <span class="c1"># Create a partial function with static non-iterable arguments</span>
+    <span class="n">func</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span>
+        <span class="n">convert_dict_to_proto_values</span><span class="p">,</span>
+        <span class="n">df_datetime_dtype</span><span class="o">=</span><span class="n">df_datetime_dtype</span><span class="p">,</span>
+        <span class="n">feature_set</span><span class="o">=</span><span class="n">fs</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">tbl</span><span class="o">.</span><span class="n">to_batches</span><span class="p">(</span><span class="n">max_chunksize</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">):</span>
+        <span class="n">m_df</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">to_pandas</span><span class="p">()</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">map_async</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">m_df</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="s2">&quot;records&quot;</span><span class="p">))</span>
+        <span class="k">yield from</span> <span class="n">results</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+    <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">pool</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+    <span class="k">return</span>
+
+
+<div class="viewcode-block" id="ingest_table_to_kafka"><a class="viewcode-back" href="../../../feast.loaders.html#feast.loaders.ingest.ingest_table_to_kafka">[docs]</a><span class="k">def</span> <span class="nf">ingest_table_to_kafka</span><span class="p">(</span>
+    <span class="n">feature_set</span><span class="p">:</span> <span class="n">FeatureSet</span><span class="p">,</span>
+    <span class="n">table</span><span class="p">:</span> <span class="n">pa</span><span class="o">.</span><span class="n">lib</span><span class="o">.</span><span class="n">Table</span><span class="p">,</span>
+    <span class="n">max_workers</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5000</span><span class="p">,</span>
+    <span class="n">disable_pbar</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Ingest a PyArrow Table to a Kafka topic based for a Feature Set</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        feature_set: FeatureSet describing PyArrow table.</span>
+<span class="sd">        table: PyArrow table to be processed.</span>
+<span class="sd">        max_workers: Maximum number of workers.</span>
+<span class="sd">        chunk_size:  Maximum size of each chunk when PyArrow table is batched.</span>
+<span class="sd">        disable_pbar: Flag to indicate if tqdm progress bar should be disabled.</span>
+<span class="sd">        timeout: Maximum time before method times out</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">pbar</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">unit</span><span class="o">=</span><span class="s2">&quot;rows&quot;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="n">table</span><span class="o">.</span><span class="n">num_rows</span><span class="p">,</span> <span class="n">disable</span><span class="o">=</span><span class="n">disable_pbar</span><span class="p">)</span>
+
+    <span class="c1"># Use a small DataFrame to validate feature set schema</span>
+    <span class="n">ref_df</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">to_batches</span><span class="p">(</span><span class="n">max_chunksize</span><span class="o">=</span><span class="mi">100</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">to_pandas</span><span class="p">()</span>
+    <span class="n">df_datetime_dtype</span> <span class="o">=</span> <span class="n">ref_df</span><span class="p">[</span><span class="n">DATETIME_COLUMN</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span>
+
+    <span class="c1"># Validate feature set schema</span>
+    <span class="n">_validate_dataframe</span><span class="p">(</span><span class="n">ref_df</span><span class="p">,</span> <span class="n">feature_set</span><span class="p">)</span>
+
+    <span class="c1"># Create queue through which encoding and production will coordinate</span>
+    <span class="n">row_queue</span> <span class="o">=</span> <span class="n">Queue</span><span class="p">()</span>
+
+    <span class="c1"># Create a context object to send and receive information across processes</span>
+    <span class="n">ctx</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Manager</span><span class="p">()</span><span class="o">.</span><span class="n">dict</span><span class="p">(</span>
+        <span class="p">{</span><span class="s2">&quot;success_count&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;error_count&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;last_exception&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">}</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Create producer to push feature rows to Kafka</span>
+    <span class="n">ingestion_process</span> <span class="o">=</span> <span class="n">Process</span><span class="p">(</span>
+        <span class="n">target</span><span class="o">=</span><span class="n">_kafka_feature_row_producer</span><span class="p">,</span>
+        <span class="n">args</span><span class="o">=</span><span class="p">(</span>
+            <span class="n">row_queue</span><span class="p">,</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">num_rows</span><span class="p">,</span>
+            <span class="n">feature_set</span><span class="o">.</span><span class="n">get_kafka_source_brokers</span><span class="p">(),</span>
+            <span class="n">feature_set</span><span class="o">.</span><span class="n">get_kafka_source_topic</span><span class="p">(),</span>
+            <span class="n">ctx</span><span class="p">,</span>
+            <span class="n">pbar</span><span class="p">,</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># Start ingestion process</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="n">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">(ingest table to kafka) Ingestion started for </span><span class="si">{feature_set.name}</span><span class="s2">:</span><span class="si">{feature_set.version}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+        <span class="n">ingestion_process</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+        <span class="c1"># Iterate over chunks in the table and return feature rows</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">_encode_pa_chunks</span><span class="p">(</span>
+            <span class="n">tbl</span><span class="o">=</span><span class="n">table</span><span class="p">,</span>
+            <span class="n">fs</span><span class="o">=</span><span class="n">feature_set</span><span class="p">,</span>
+            <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">,</span>
+            <span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">,</span>
+            <span class="n">df_datetime_dtype</span><span class="o">=</span><span class="n">df_datetime_dtype</span><span class="p">,</span>
+        <span class="p">):</span>
+            <span class="c1"># Push rows onto a queue for the production process to pick up</span>
+            <span class="n">row_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+            <span class="k">while</span> <span class="n">row_queue</span><span class="o">.</span><span class="n">qsize</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">chunk_size</span><span class="p">:</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+        <span class="n">row_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Exception occurred: </span><span class="si">{ex}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="c1"># Wait for the Kafka production to complete</span>
+        <span class="n">ingestion_process</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+        <span class="n">failed_message</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s2">&quot;&quot;</span>
+            <span class="k">if</span> <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;error_count&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span>
+            <span class="k">else</span> <span class="n">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Fail: </span><span class="si">{ctx[&#39;error_count&#39;]}</span><span class="s2">/</span><span class="si">{table.num_rows}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+        <span class="n">last_exception_message</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s2">&quot;&quot;</span>
+            <span class="k">if</span> <span class="n">ctx</span><span class="p">[</span><span class="s2">&quot;last_exception&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span>
+            <span class="k">else</span> <span class="n">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Last exception:</span><span class="se">\n</span><span class="si">{ctx[&#39;last_exception&#39;]}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="n">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Ingestion statistics:&quot;</span>
+            <span class="n">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Success: </span><span class="si">{ctx[&#39;success_count&#39;]}</span><span class="s2">/</span><span class="si">{table.num_rows}</span><span class="s2">&quot;</span>
+            <span class="n">f</span><span class="s2">&quot;</span><span class="si">{failed_message}</span><span class="s2">&quot;</span>
+            <span class="n">f</span><span class="s2">&quot;</span><span class="si">{last_exception_message}</span><span class="s2">&quot;</span>
+        <span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">_validate_dataframe</span><span class="p">(</span><span class="n">dataframe</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">feature_set</span><span class="p">:</span> <span class="n">FeatureSet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Validates a Pandas dataframe based on a feature set</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        dataframe:  Pandas dataframe</span>
+<span class="sd">        feature_set: Feature Set instance</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="s2">&quot;datetime&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dataframe</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="n">f</span><span class="s1">&#39;Dataframe does not contain entity &quot;datetime&quot; in columns </span><span class="si">{dataframe.columns}</span><span class="s1">&#39;</span>
+        <span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">feature_set</span><span class="o">.</span><span class="n">entities</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">entity</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dataframe</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="n">f</span><span class="s2">&quot;Dataframe does not contain entity </span><span class="si">{entity.name}</span><span class="s2"> in columns </span><span class="si">{dataframe.columns}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">feature</span> <span class="ow">in</span> <span class="n">feature_set</span><span class="o">.</span><span class="n">features</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">feature</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dataframe</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="n">f</span><span class="s2">&quot;Dataframe does not contain feature </span><span class="si">{feature.name}</span><span class="s2"> in columns </span><span class="si">{dataframe.columns}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Feast Authors
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -30,6 +30,9 @@ feast:
     runner: DirectRunner
     # Key-value dict of job options to be passed to the population jobs.
     options: {}
+    updates:
+      # Timeout in seconds for each attempt to update or submit a new job to the runner.
+      timeoutSeconds: 240
     metrics:
       # Enable metrics pushing for all ingestion jobs.
       enabled: false

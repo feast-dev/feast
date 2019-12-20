@@ -1,0 +1,14 @@
+feast:
+  core-host: core
+  core-grpc-port: 6565
+  store:
+    config-path: /etc/feast/store.yml
+
+  jobs:
+    store-type: REDIS
+    store-options:
+      host: redis
+      port: 6379
+
+grpc:
+  port: 6567

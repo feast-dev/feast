@@ -1,0 +1,304 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>feast.loaders package &mdash; Feast 0.3.2 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Feast
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.3.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">feast.loaders package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-feast.loaders.file">feast.loaders.file module</a></li>
+<li><a class="reference internal" href="#module-feast.loaders.ingest">feast.loaders.ingest module</a></li>
+<li><a class="reference internal" href="#module-feast.loaders.yaml">feast.loaders.yaml module</a></li>
+<li><a class="reference internal" href="#module-feast.loaders">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Feast</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>feast.loaders package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/feast.loaders.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="feast-loaders-package">
+<h1>feast.loaders package<a class="headerlink" href="#feast-loaders-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-feast.loaders.file">
+<span id="feast-loaders-file-module"></span><h2>feast.loaders.file module<a class="headerlink" href="#module-feast.loaders.file" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="feast.loaders.file.export_dataframe_to_local">
+<code class="sig-prename descclassname">feast.loaders.file.</code><code class="sig-name descname">export_dataframe_to_local</code><span class="sig-paren">(</span><em class="sig-param">df: pandas.core.frame.DataFrame</em>, <em class="sig-param">dir_path: Optional[str] = None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/loaders/file.html#export_dataframe_to_local"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.loaders.file.export_dataframe_to_local" title="Permalink to this definition">¶</a></dt>
+<dd><p>Exports a pandas dataframe to the local filesystem</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df</strong> – Pandas dataframe to save</p></li>
+<li><p><strong>dir_path</strong> – (optional) Absolute directory path ‘/data/project/subfolder/’</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="feast.loaders.file.export_dataframe_to_staging_location">
+<code class="sig-prename descclassname">feast.loaders.file.</code><code class="sig-name descname">export_dataframe_to_staging_location</code><span class="sig-paren">(</span><em class="sig-param">df: pandas.core.frame.DataFrame</em>, <em class="sig-param">staging_location_uri: str</em><span class="sig-paren">)</span> &#x2192; str<a class="reference internal" href="_modules/feast/loaders/file.html#export_dataframe_to_staging_location"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.loaders.file.export_dataframe_to_staging_location" title="Permalink to this definition">¶</a></dt>
+<dd><p>Uploads a dataframe to a remote staging location</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df</strong> – Pandas dataframe</p></li>
+<li><p><strong>staging_location_uri</strong> – <p>Remote staging location where dataframe should be written
+.. rubric:: Examples</p>
+<p>gs://bucket/path/
+file:///data/subfolder/</p>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Returns the full path to the file in the remote staging location</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="feast.loaders.file.upload_file_to_gcs">
+<code class="sig-prename descclassname">feast.loaders.file.</code><code class="sig-name descname">upload_file_to_gcs</code><span class="sig-paren">(</span><em class="sig-param">local_path: str</em>, <em class="sig-param">bucket: str</em>, <em class="sig-param">remote_path: str</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/loaders/file.html#upload_file_to_gcs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.loaders.file.upload_file_to_gcs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Upload a file from the local file system to Google Cloud Storage (GCS)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>local_path</strong> – Local filesystem path of file to upload</p></li>
+<li><p><strong>bucket</strong> – GCS bucket to upload to</p></li>
+<li><p><strong>remote_path</strong> – Path within GCS bucket to upload file to, includes file name</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-feast.loaders.ingest">
+<span id="feast-loaders-ingest-module"></span><h2>feast.loaders.ingest module<a class="headerlink" href="#module-feast.loaders.ingest" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="feast.loaders.ingest.ingest_table_to_kafka">
+<code class="sig-prename descclassname">feast.loaders.ingest.</code><code class="sig-name descname">ingest_table_to_kafka</code><span class="sig-paren">(</span><em class="sig-param">feature_set: feast.feature_set.FeatureSet</em>, <em class="sig-param">table: pyarrow.lib.Table</em>, <em class="sig-param">max_workers: int</em>, <em class="sig-param">chunk_size: int = 5000</em>, <em class="sig-param">disable_pbar: bool = False</em>, <em class="sig-param">timeout: int = None</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="_modules/feast/loaders/ingest.html#ingest_table_to_kafka"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.loaders.ingest.ingest_table_to_kafka" title="Permalink to this definition">¶</a></dt>
+<dd><p>Ingest a PyArrow Table to a Kafka topic based for a Feature Set</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>feature_set</strong> – FeatureSet describing PyArrow table.</p></li>
+<li><p><strong>table</strong> – PyArrow table to be processed.</p></li>
+<li><p><strong>max_workers</strong> – Maximum number of workers.</p></li>
+<li><p><strong>chunk_size</strong> – Maximum size of each chunk when PyArrow table is batched.</p></li>
+<li><p><strong>disable_pbar</strong> – Flag to indicate if tqdm progress bar should be disabled.</p></li>
+<li><p><strong>timeout</strong> – Maximum time before method times out</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-feast.loaders.yaml">
+<span id="feast-loaders-yaml-module"></span><h2>feast.loaders.yaml module<a class="headerlink" href="#module-feast.loaders.yaml" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="feast.loaders.yaml.yaml_loader">
+<code class="sig-prename descclassname">feast.loaders.yaml.</code><code class="sig-name descname">yaml_loader</code><span class="sig-paren">(</span><em class="sig-param">yml</em>, <em class="sig-param">load_single=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/feast/loaders/yaml.html#yaml_loader"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#feast.loaders.yaml.yaml_loader" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads one or more Feast resources from a YAML path or string. Multiple resources
+can be divided by three hyphens ‘—’</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>yml</strong> – A path ending in .yaml or .yml, or a YAML string</p></li>
+<li><p><strong>load_single</strong> – Expect only a single YAML resource, fail otherwise</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Either a single YAML dictionary or a list of YAML dictionaries</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-feast.loaders">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-feast.loaders" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Feast Authors
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

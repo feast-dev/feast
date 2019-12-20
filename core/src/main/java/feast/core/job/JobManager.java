@@ -16,10 +16,8 @@
  */
 package feast.core.job;
 
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.StoreProto.Store;
-import feast.core.model.JobInfo;
-import java.util.List;
+import feast.core.model.Job;
+import feast.core.model.JobStatus;
 
 public interface JobManager {
 
@@ -33,20 +31,18 @@ public interface JobManager {
   /**
    * Start an import job.
    *
-   * @param name of job to run
-   * @param featureSets list of featureSets to be populated by the job
-   * @param sink Store to sink features to
-   * @return runner specific job id
+   * @param job job to start
+   * @return Job
    */
-  String startJob(String name, List<FeatureSetSpec> featureSets, Store sink);
+  Job startJob(Job job);
 
   /**
    * Update already running job with new set of features to ingest.
    *
-   * @param jobInfo jobInfo of target job to change
-   * @return job runner specific job id
+   * @param job job of target job to change
+   * @return Job
    */
-  String updateJob(JobInfo jobInfo);
+  Job updateJob(Job job);
 
   /**
    * Abort a job given runner-specific job ID.
@@ -54,4 +50,12 @@ public interface JobManager {
    * @param extId runner specific job id.
    */
   void abortJob(String extId);
+
+  /**
+   * Get status of a job given runner-specific job ID.
+   *
+   * @param job job.
+   * @return job status.
+   */
+  JobStatus getJobStatus(Job job);
 }

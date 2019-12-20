@@ -16,6 +16,7 @@
  */
 package feast.core.model;
 
+import java.time.Instant;
 import java.util.Date;
 import javax.persistence.*;
 import lombok.Data;
@@ -43,5 +44,11 @@ public abstract class AbstractTimestampEntity {
   @PreUpdate
   protected void onUpdate() {
     lastUpdated = new Date();
+  }
+
+  // This constructor is used for testing.
+  public AbstractTimestampEntity() {
+    this.created = Date.from(Instant.ofEpochMilli(0L));
+    this.lastUpdated = Date.from(Instant.ofEpochMilli(0L));
   }
 }

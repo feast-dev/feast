@@ -19,10 +19,14 @@ from feast.field import Field
 
 
 class Feature(Field):
+    """Feature field type"""
+
     def to_proto(self) -> FeatureProto:
+        """Converts Feature object to its Protocol Buffer representation"""
         value_type = ValueTypeProto.ValueType.Enum.Value(self.dtype.name)
         return FeatureProto(name=self.name, value_type=value_type)
 
     @classmethod
     def from_proto(cls, feature_proto: FeatureProto):
+        """Converts Protobuf Feature to its SDK equivalent"""
         return cls(name=feature_proto.name, dtype=ValueType(feature_proto.value_type))

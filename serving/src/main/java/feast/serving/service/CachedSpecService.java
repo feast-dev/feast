@@ -27,6 +27,7 @@ import feast.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
+import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Subscription;
@@ -40,13 +41,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
 
 /** In-memory cache of specs. */
-@Slf4j
 public class CachedSpecService {
 
   private static final int MAX_SPEC_COUNT = 1000;
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(CachedSpecService.class);
 
   private final CoreSpecService coreService;
   private final Path configPath;
@@ -115,7 +116,7 @@ public class CachedSpecService {
                 "Unable to retrieve featureSet with id %s from core, featureSet does not exist",
                 id));
       }
-      return featureSets.getFeatureSets(0);
+      return featureSets.getFeatureSets(0).getSpec();
     } catch (ExecutionException e) {
       throw new SpecRetrievalException(
           String.format("Unable to retrieve featureSet with id %s", id), e);
@@ -157,7 +158,8 @@ public class CachedSpecService {
                             .setFeatureSetVersion(subscription.getVersion()))
                     .build());
 
-        for (FeatureSetSpec featureSetSpec : featureSetsResponse.getFeatureSetsList()) {
+        for (FeatureSet featureSet : featureSetsResponse.getFeatureSetsList()) {
+          FeatureSetSpec featureSetSpec = featureSet.getSpec();
           featureSetSpecs.put(
               String.format("%s:%s", featureSetSpec.getName(), featureSetSpec.getVersion()),
               featureSetSpec);

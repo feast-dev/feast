@@ -23,15 +23,12 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.DataflowScopes;
 import com.google.common.base.Strings;
 import feast.core.config.FeastProperties.JobProperties;
+import feast.core.config.FeastProperties.JobUpdatesProperties;
 import feast.core.job.JobManager;
-import feast.core.job.JobMonitor;
-import feast.core.job.NoopJobMonitor;
 import feast.core.job.Runner;
 import feast.core.job.dataflow.DataflowJobManager;
-import feast.core.job.dataflow.DataflowJobMonitor;
 import feast.core.job.direct.DirectJobRegistry;
 import feast.core.job.direct.DirectRunnerJobManager;
-import feast.core.job.direct.DirectRunnerJobMonitor;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.HashMap;
@@ -54,7 +51,7 @@ public class JobConfig {
   @Bean
   @Autowired
   public JobManager getJobManager(
-      FeastProperties feastProperties, DirectJobRegistry directJobRegistry) throws Exception {
+      FeastProperties feastProperties, DirectJobRegistry directJobRegistry) {
 
     JobProperties jobProperties = feastProperties.getJobs();
     Runner runner = Runner.fromString(jobProperties.getRunner());
@@ -97,52 +94,15 @@ public class JobConfig {
     }
   }
 
-  /** Get a Job Monitor given the runner type and dataflow configuration. */
-  @Bean
-  public JobMonitor getJobMonitor(
-      FeastProperties feastProperties, DirectJobRegistry directJobRegistry) throws Exception {
-
-    JobProperties jobProperties = feastProperties.getJobs();
-    Runner runner = Runner.fromString(jobProperties.getRunner());
-    Map<String, String> jobOptions = jobProperties.getOptions();
-
-    switch (runner) {
-      case DATAFLOW:
-        if (Strings.isNullOrEmpty(jobOptions.getOrDefault("region", null))
-            || Strings.isNullOrEmpty(jobOptions.getOrDefault("project", null))) {
-          log.warn(
-              "Project and location of the Dataflow runner is not configured, will not do job monitoring");
-          return new NoopJobMonitor();
-        }
-        try {
-          GoogleCredential credential =
-              GoogleCredential.getApplicationDefault().createScoped(DataflowScopes.all());
-          Dataflow dataflow =
-              new Dataflow(
-                  GoogleNetHttpTransport.newTrustedTransport(),
-                  JacksonFactory.getDefaultInstance(),
-                  credential);
-
-          return new DataflowJobMonitor(
-              dataflow, jobOptions.get("project"), jobOptions.get("region"));
-        } catch (IOException e) {
-          log.error(
-              "Unable to find credential required for Dataflow monitoring API: {}", e.getMessage());
-        } catch (GeneralSecurityException e) {
-          log.error("Security exception while ");
-        } catch (Exception e) {
-          log.error("Unable to initialize DataflowJobMonitor", e);
-        }
-      case DIRECT:
-        return new DirectRunnerJobMonitor(directJobRegistry);
-      default:
-        return new NoopJobMonitor();
-    }
-  }
-
   /** Get a direct job registry */
   @Bean
   public DirectJobRegistry directJobRegistry() {
     return new DirectJobRegistry();
+  }
+
+  /** Extracts job update options from feast core options. */
+  @Bean
+  public JobUpdatesProperties jobUpdatesProperties(FeastProperties feastProperties) {
+    return feastProperties.getJobs().getUpdates();
   }
 }

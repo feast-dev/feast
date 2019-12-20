@@ -14,4 +14,7 @@
 
 
 def format_grpc_exception(method: str, code: str, details: str) -> str:
+    """
+    Consistent format for use in printing gRPC exceptions
+    """
     return f'{method} failed with code "{code}"\n{details}'
