@@ -79,6 +79,9 @@ Building jars for Feast
 # Build jars for Feast
 mvn --quiet --batch-mode --define skipTests=true clean package
 
+ls -lh core/target/*jar
+ls -lh serving/target/*jar
+
 echo "
 ============================================================
 Starting Feast Core
