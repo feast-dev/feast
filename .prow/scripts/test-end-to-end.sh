@@ -135,7 +135,7 @@ nohup java -jar core/target/feast-core-0.3.2-SNAPSHOT.jar \
   &> /var/log/feast-core.log &
 sleep 35
 tail -n10 /var/log/feast-core.log
-nc localhost 6565 < /dev/null
+nc -w2 localhost 6565 < /dev/null
 
 echo "
 ============================================================
@@ -187,7 +187,7 @@ nohup java -jar serving/target/feast-serving-0.3.2-SNAPSHOT.jar \
   &> /var/log/feast-serving-online.log &
 sleep 15
 tail -n10 /var/log/feast-serving-online.log
-nc localhost 6566 < /dev/null
+nc -w2 localhost 6566 < /dev/null
 
 echo "
 ============================================================
