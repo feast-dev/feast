@@ -48,6 +48,7 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRow, RedisMutatio
     List<String> entityNames =
         featureSetSpec.getEntitiesList().stream()
             .map(EntitySpec::getName)
+            .sorted()
             .collect(Collectors.toList());
 
     Map<String, Field> entityFields = new HashMap<>();
