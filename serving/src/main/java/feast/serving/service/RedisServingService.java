@@ -170,6 +170,7 @@ public class RedisServingService implements ServingService {
       String featureSet, List<String> featureSetEntityNames, EntityRow entityRow) {
     RedisKey.Builder builder = RedisKey.newBuilder().setFeatureSet(featureSet);
     Map<String, Value> fieldsMap = entityRow.getFieldsMap();
+    featureSetEntityNames.sort(String::compareTo);
     for (int i = 0; i < featureSetEntityNames.size(); i++) {
       String entityName = featureSetEntityNames.get(i);
 
