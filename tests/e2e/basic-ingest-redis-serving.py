@@ -138,7 +138,7 @@ def test_basic_retrieve_online_success(client, basic_dataframe):
 
         returned_daily_transactions = float(
             response.field_values[0]
-                .fields["customer_transactions:1:daily_transactions"]
+                .fields[PROJECT_NAME + "/daily_transactions:1"]
                 .float_val
         )
         sent_daily_transactions = float(
@@ -275,20 +275,20 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
                         int64_val=all_types_dataframe.iloc[0]["user_id"])}
                 )
             ],
-            feature_ids=[
-                "all_types:1:float_feature",
-                "all_types:1:int64_feature",
-                "all_types:1:int32_feature",
-                "all_types:1:string_feature",
-                "all_types:1:bytes_feature",
-                "all_types:1:bool_feature",
-                "all_types:1:double_feature",
-                "all_types:1:float_list_feature",
-                "all_types:1:int64_list_feature",
-                "all_types:1:int32_list_feature",
-                "all_types:1:string_list_feature",
-                "all_types:1:bytes_list_feature",
-                "all_types:1:double_list_feature",
+            feature_refs=[
+                "float_feature",
+                "int64_feature",
+                "int32_feature",
+                "string_feature",
+                "bytes_feature",
+                "bool_feature",
+                "double_feature",
+                "float_list_feature",
+                "int64_list_feature",
+                "int32_list_feature",
+                "string_list_feature",
+                "bytes_list_feature",
+                "double_list_feature",
             ],
         )  # type: GetOnlineFeaturesResponse
 
@@ -297,7 +297,7 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
 
         returned_float_list = (
             response.field_values[0]
-                .fields["all_types:1:float_list_feature"]
+                .fields[PROJECT_NAME+"/float_list_feature:1"]
                 .float_list_val.val
         )
 
@@ -320,8 +320,8 @@ def large_volume_dataframe():
                 range(ROW_COUNT)
             ],
             "customer_id": [offset + inc for inc in range(ROW_COUNT)],
-            "daily_transactions": [np.random.rand() for _ in range(ROW_COUNT)],
-            "total_transactions": [256 for _ in range(ROW_COUNT)],
+            "daily_transactions_large": [np.random.rand() for _ in range(ROW_COUNT)],
+            "total_transactions_large": [256 for _ in range(ROW_COUNT)],
         }
     )
     return customer_data
@@ -381,9 +381,9 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
                     }
                 )
             ],
-            feature_ids=[
-                "customer_transactions_large:1:daily_transactions",
-                "customer_transactions_large:1:total_transactions",
+            feature_refs=[
+                "daily_transactions_large",
+                "total_transactions_large",
             ],
         )  # type: GetOnlineFeaturesResponse
 
@@ -392,7 +392,7 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
 
         returned_daily_transactions = float(
             response.field_values[0]
-                .fields["customer_transactions_large:1:daily_transactions"]
+                .fields[PROJECT_NAME + "/daily_transactions:1"]
                 .float_val
         )
         sent_daily_transactions = float(

@@ -20,14 +20,12 @@ import feast.types.ValueProto.ValueType;
 import java.util.Objects;
 import javax.persistence.Column;
 import javax.persistence.Embeddable;
-import javax.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
 @Embeddable
-@Table(name = "fields")
 public class Field {
 
   // Name of the feature
@@ -38,9 +36,16 @@ public class Field {
   @Column(name = "type", nullable = false)
   private String type;
 
+  // Version of the featureSet
+  @Column(name = "version")
+  private int version;
+
+  // Project that this field belongs to
+  @Column(name = "project")
+  private String project;
+
   public Field() {
   }
-
 
   public Field(String name, ValueType.Enum type) {
     this.name = name;
@@ -61,6 +66,6 @@ public class Field {
 
   @Override
   public int hashCode() {
-    return Objects.hash(super.hashCode(),  name, type);
+    return Objects.hash(super.hashCode(), name, type);
   }
 }

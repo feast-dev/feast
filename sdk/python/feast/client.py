@@ -463,6 +463,7 @@ class Client:
                 Each entity in a feature set must be present as a column in this
                 dataframe. The datetime column must contain timestamps in
                 datetime64 format.
+            default_project: Default project where feature values will be found.
 
         Returns:
             feast.job.Job:

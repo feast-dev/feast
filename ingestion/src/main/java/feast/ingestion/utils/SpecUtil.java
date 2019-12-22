@@ -38,20 +38,23 @@ public class SpecUtil {
     return String.format("%s/%s:%d", spec.getProject(), spec.getName(), spec.getVersion());
   }
 
-  /** Get only feature set specs that matches the subscription */
+  /**
+   * Get only feature set specs that matches the subscription
+   */
   public static List<FeatureSet> getSubscribedFeatureSets(
       List<Subscription> subscriptions, List<FeatureSet> featureSets) {
     List<FeatureSet> subscribed = new ArrayList<>();
     for (FeatureSet featureSet : featureSets) {
       for (Subscription sub : subscriptions) {
         // If default subscription, then subscribe to everything
-        if (sub == Subscription.getDefaultInstance()){
+        if (sub.getProject().isEmpty() && sub.getName().isEmpty() && sub.getVersion().isEmpty()) {
           subscribed.add(featureSet);
           break;
         }
 
         // Do not allow a missing project value if feature set name or version is set
-        if (!sub.getProject().isEmpty() && !sub.getProject().equals(featureSet.getSpec().getProject())){
+        if (!sub.getProject().isEmpty() && !sub.getProject()
+            .equals(featureSet.getSpec().getProject())) {
           continue;
         }
 

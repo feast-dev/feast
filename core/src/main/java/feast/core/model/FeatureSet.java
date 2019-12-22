@@ -41,6 +41,7 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
@@ -53,7 +54,7 @@ import org.hibernate.annotations.FetchMode;
 @Table(name = "feature_sets")
 public class FeatureSet extends AbstractTimestampEntity implements Comparable<FeatureSet> {
 
-  // Id of the featureSet, defined as project:feature_set_name:feature_set_version
+  // Id of the featureSet, defined as project/feature_set_name:feature_set_version
   @Id
   @Column(name = "id", nullable = false, unique = true)
   private String id;
@@ -89,7 +90,9 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   @ElementCollection(fetch = FetchType.EAGER)
   @CollectionTable(
       name = "features",
-      joinColumns = @JoinColumn(name = "feature_set_id")
+      joinColumns = @JoinColumn(name = "feature_set_id"),
+      uniqueConstraints =
+      @UniqueConstraint(columnNames = {"name", "project", "version"})
   )
   @Fetch(FetchMode.SUBSELECT)
   private Set<Field> features;
@@ -180,6 +183,8 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   }
 
   public void addEntity(Field field) {
+    field.setProject(this.project.getName());
+    field.setVersion(this.getVersion());
     entities.add(field);
   }
 
@@ -190,6 +195,8 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   }
 
   public void addFeature(Field field) {
+    field.setProject(this.project.getName());
+    field.setVersion(this.getVersion());
     features.add(field);
   }
 
