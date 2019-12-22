@@ -226,7 +226,7 @@ class Client:
             self._serving_service_stub = ServingServiceStub(self.__serving_channel)
 
     @property
-    def project(self) -> str:
+    def project(self) -> Union[str, None]:
         """
         Retrieve currently active project
 
@@ -237,7 +237,7 @@ class Client:
             return self._project
         if os.getenv(FEAST_PROJECT_ENV_KEY) is not None:
             return os.getenv(FEAST_PROJECT_ENV_KEY)
-        return ""
+        return None
 
     def set_project(self, project: str):
         """
@@ -257,10 +257,10 @@ class Client:
 
         """
         self._connect_core()
-        self._core_service_stub.ListProjects(
+        response = self._core_service_stub.ListProjects(
             ListProjectsRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
         )  # type: ListProjectsResponse
-        return list(ListProjectsResponse.projects)
+        return list(response.projects)
 
     def create_project(self, project):
         """
@@ -319,15 +319,27 @@ class Client:
             feature_set: Feature set that will be registered
         """
         self._connect_core()
-        feature_set._client = self
 
         feature_set.is_valid()
+        feature_set_proto = feature_set.to_proto()
+        if len(feature_set_proto.spec.project) == 0:
+            if self.project is None:
+                raise ValueError(
+                    f"No project found in feature set {feature_set.name}. "
+                    f"Please set the project within the feature set or within "
+                    f"your Feast Client."
+                )
+            else:
+                feature_set_proto.spec.project = self.project
 
         # Convert the feature set to a request and send to Feast Core
-        apply_fs_response = self._core_service_stub.ApplyFeatureSet(
-            ApplyFeatureSetRequest(feature_set=feature_set.to_proto()),
-            timeout=GRPC_CONNECTION_TIMEOUT_APPLY,
-        )  # type: ApplyFeatureSetResponse
+        try:
+            apply_fs_response = self._core_service_stub.ApplyFeatureSet(
+                ApplyFeatureSetRequest(feature_set=feature_set_proto),
+                timeout=GRPC_CONNECTION_TIMEOUT_APPLY,
+            )  # type: ApplyFeatureSetResponse
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
 
         # Extract the returned feature set
         applied_fs = FeatureSet.from_proto(apply_fs_response.feature_set)
@@ -400,16 +412,22 @@ class Client:
         self._connect_core()
 
         if project is None:
-            project = self.project
+            if self.project is not None:
+                project = self.project
+            else:
+                raise ValueError("No project has been configured.")
 
         if version is None:
             version = 0
 
-        get_feature_set_response = self._core_service_stub.GetFeatureSet(
-            GetFeatureSetRequest(
-                project=project, name=name.strip(), version=int(version)
-            )
-        )  # type: GetFeatureSetResponse
+        try:
+            get_feature_set_response = self._core_service_stub.GetFeatureSet(
+                GetFeatureSetRequest(
+                    project=project, name=name.strip(), version=int(version)
+                )
+            )  # type: GetFeatureSetResponse
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
         return FeatureSet.from_proto(get_feature_set_response.feature_set)
 
     def list_entities(self) -> Dict[str, Entity]:

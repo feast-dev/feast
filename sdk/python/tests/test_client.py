@@ -214,7 +214,7 @@ class TestClient:
                 )
             ),
         )
-
+        mock_client.set_project("my_project")
         feature_set = mock_client.get_feature_set("my_feature_set", version=2)
 
         assert (
@@ -319,6 +319,7 @@ class TestClient:
             ),
         )
 
+        mock_client.set_project("project1")
         response = mock_client.get_batch_features(
             entity_rows=pd.DataFrame(
                 {
@@ -349,6 +350,8 @@ class TestClient:
 
     def test_apply_feature_set_success(self, client):
 
+        client.set_project("project1")
+
         # Create Feature Sets
         fs1 = FeatureSet("my-feature-set-1")
         fs1.add(Feature(name="fs1-my-feature-1", dtype=ValueType.INT64))
@@ -377,7 +380,7 @@ class TestClient:
 
     @pytest.mark.parametrize("dataframe", [dataframes.GOOD])
     def test_feature_set_ingest_success(self, dataframe, client, mocker):
-
+        client.set_project("project1")
         driver_fs = FeatureSet(
             "driver-feature-set", source=KafkaSource(brokers="kafka:9092", topic="test")
         )
@@ -407,6 +410,7 @@ class TestClient:
         self, dataframe, exception, client, mocker
     ):
         with pytest.raises(exception):
+            client.set_project("project1")
             driver_fs = FeatureSet(
                 "driver-feature-set",
                 source=KafkaSource(brokers="kafka:9092", topic="test"),
@@ -457,6 +461,8 @@ class TestClient:
 
     @pytest.mark.parametrize("dataframe", [dataframes.ALL_TYPES])
     def test_feature_set_types_success(self, client, dataframe, mocker):
+
+        client.set_project("project1")
 
         all_types_fs = FeatureSet(
             name="all_types",

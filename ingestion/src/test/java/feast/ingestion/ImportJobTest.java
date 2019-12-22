@@ -164,7 +164,7 @@ public class ImportJobTest {
     ImportOptions options = PipelineOptionsFactory.create().as(ImportOptions.class);
     options.setFeatureSetJson(
         Collections.singletonList(
-            JsonFormat.printer().omittingInsignificantWhitespace().print(featureSet)));
+            JsonFormat.printer().omittingInsignificantWhitespace().print(featureSet.getSpec())));
     options.setStoreJson(
         Collections.singletonList(
             JsonFormat.printer().omittingInsignificantWhitespace().print(redis)));

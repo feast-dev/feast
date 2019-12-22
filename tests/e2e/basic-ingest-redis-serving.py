@@ -20,9 +20,10 @@ import numpy as np
 import tempfile
 import os
 from feast.feature import Feature
+import uuid
 
 FLOAT_TOLERANCE = 0.00001
-
+PROJECT_NAME = 'basic_' + uuid.uuid4().hex.upper()[0:6]
 
 @pytest.fixture(scope='module')
 def core_url(pytestconfig):
@@ -44,6 +45,8 @@ def allow_dirty(pytestconfig):
 def client(core_url, serving_url, allow_dirty):
     # Get client for core and serving
     client = Client(core_url=core_url, serving_url=serving_url)
+    client.create_project(PROJECT_NAME)
+    client.set_project(PROJECT_NAME)
 
     # Ensure Feast core is active, but empty
     if not allow_dirty:
@@ -76,12 +79,10 @@ def test_basic_register_feature_set_success(client):
     # Load feature set from file
     cust_trans_fs_expected = FeatureSet.from_yaml("basic/cust_trans_fs.yaml")
 
+    client.set_project(PROJECT_NAME)
+
     # Register feature set
     client.apply(cust_trans_fs_expected)
-
-    # Feast Core needs some time to fully commit the FeatureSet applied
-    # when there is no existing job yet for the Featureset
-    time.sleep(15)
 
     cust_trans_fs_actual = client.get_feature_set(name="customer_transactions")
 
@@ -99,6 +100,8 @@ def test_basic_register_feature_set_success(client):
 @pytest.mark.timeout(300)
 @pytest.mark.run(order=11)
 def test_basic_ingest_success(client, basic_dataframe):
+    client.set_project(PROJECT_NAME)
+
     cust_trans_fs = client.get_feature_set(name="customer_transactions")
 
     # Ingest customer transaction data
@@ -112,6 +115,8 @@ def test_basic_retrieve_online_success(client, basic_dataframe):
     while True:
         time.sleep(1)
 
+        client.set_project(PROJECT_NAME)
+
         response = client.get_online_features(
             entity_rows=[
                 GetOnlineFeaturesRequest.EntityRow(
@@ -122,9 +127,9 @@ def test_basic_retrieve_online_success(client, basic_dataframe):
                     }
                 )
             ],
-            feature_ids=[
-                "customer_transactions:1:daily_transactions",
-                "customer_transactions:1:total_transactions",
+            feature_refs=[
+                "daily_transactions",
+                "total_transactions",
             ],
         )  # type: GetOnlineFeaturesResponse
 
