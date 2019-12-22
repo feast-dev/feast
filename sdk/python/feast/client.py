@@ -15,10 +15,11 @@
 
 import logging
 import os
-import sys
+import time
 from collections import OrderedDict
 from typing import Dict, Union
 from typing import List
+
 import grpc
 import pandas as pd
 import pyarrow as pa
@@ -33,11 +34,13 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.exceptions import format_grpc_exception
+from feast.core.FeatureSet_pb2 import FeatureSetStatus
 from feast.feature_set import FeatureSet, Entity
 from feast.job import Job
+from feast.loaders.abstract_producer import get_producer
 from feast.loaders.file import export_dataframe_to_staging_location
-from feast.loaders.ingest import ingest_table_to_kafka
+from feast.loaders.ingest import KAFKA_CHUNK_PRODUCTION_TIMEOUT
+from feast.loaders.ingest import get_feature_row_chunks
 from feast.serving.ServingService_pb2 import GetFeastServingInfoResponse
 from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequest,
@@ -257,7 +260,7 @@ class Client:
             print(f"No change detected or applied: {feature_set.name}")
 
         # Deep copy from the returned feature set to the local feature set
-        feature_set.update_from_feature_set(applied_fs)
+        feature_set._update_from_feature_set(applied_fs)
 
     def list_feature_sets(self) -> List[FeatureSet]:
         """
@@ -470,35 +473,55 @@ class Client:
         )  # type: GetOnlineFeaturesResponse
 
     def ingest(
-        self,
-        feature_set: Union[str, FeatureSet],
-        source: Union[pd.DataFrame, str],
-        version: int = None,
-        force_update: bool = False,
-        max_workers: int = CPU_COUNT,
-        disable_progress_bar: bool = False,
-        chunk_size: int = 5000,
-        timeout: int = None,
-    ):
+            self,
+            feature_set: Union[str, FeatureSet],
+            source: Union[pd.DataFrame, str],
+            chunk_size: int = 10000,
+            version: int = None,
+            force_update: bool = False,
+            max_workers: int = max(CPU_COUNT - 1, 1),
+            disable_progress_bar: bool = False,
+            timeout: int = KAFKA_CHUNK_PRODUCTION_TIMEOUT
+    ) -> None:
         """
         Loads feature data into Feast for a specific feature set.
 
         Args:
-            feature_set: Name of feature set or a feature set object
-            source: Either a file path or Pandas Dataframe to ingest into Feast
+            feature_set (typing.Union[str, FeatureSet]):
+                Feature set object or the string name of the feature set
+                (without a version).
+
+            source (typing.Union[pd.DataFrame, str]):
+                Either a file path or Pandas Dataframe to ingest into Feast
                 Files that are currently supported:
-                * parquet
-                * csv
-                * json
-            version: Feature set version
-            force_update: Automatically update feature set based on source data
-                prior to ingesting. This will also register changes to Feast
-            max_workers: Number of worker processes to use to encode values
-            disable_progress_bar: Disable printing of progress statistics
-            chunk_size: Maximum amount of rows to load into memory and ingest at
-                a time
-            timeout: Seconds to wait before ingestion times out
+                    * parquet
+                    * csv
+                    * json
+
+            chunk_size (int):
+                Amount of rows to load and ingest at a time.
+
+            version (int):
+                Feature set version.
+
+            force_update (bool):
+                Automatically update feature set based on source data prior to
+                ingesting. This will also register changes to Feast.
+
+            max_workers (int):
+                Number of worker processes to use to encode values.
+
+            disable_progress_bar (bool):
+                Disable printing of progress statistics.
+
+            timeout (int):
+                Timeout in seconds to wait for completion.
+
+        Returns:
+            None:
+                None
         """
+
         if isinstance(feature_set, FeatureSet):
             name = feature_set.name
             if version is None:
@@ -508,35 +531,69 @@ class Client:
         else:
             raise Exception(f"Feature set name must be provided")
 
-        table = _read_table_from_source(source)
+        # Read table and get row count
+        tmp_table_name = _read_table_from_source(
+            source, chunk_size, max_workers
+        )
 
-        # Update the feature set based on DataFrame schema
+        pq_file = pq.ParquetFile(tmp_table_name)
+
+        row_count = pq_file.metadata.num_rows
+
+        # Update the feature set based on PyArrow table of first row group
         if force_update:
-            # Use a small as reference DataFrame to infer fields
-            ref_df = table.to_batches(max_chunksize=20)[0].to_pandas()
-
-            feature_set.infer_fields_from_df(
-                ref_df, discard_unused_fields=True, replace_existing_features=True
+            feature_set.infer_fields_from_pa(
+                table=pq_file.read_row_group(0),
+                discard_unused_fields=True,
+                replace_existing_features=True
             )
             self.apply(feature_set)
 
         feature_set = self.get_feature_set(name, version)
 
-        if feature_set.source.source_type == "Kafka":
-            ingest_table_to_kafka(
-                feature_set=feature_set,
-                table=table,
-                max_workers=max_workers,
-                disable_pbar=disable_progress_bar,
-                chunk_size=chunk_size,
-                timeout=timeout,
-            )
-        else:
-            raise Exception(
-                f"Could not determine source type for feature set "
-                f'"{feature_set.name}" with source type '
-                f'"{feature_set.source.source_type}"'
-            )
+        try:
+            # Kafka configs
+            brokers = feature_set.get_kafka_source_brokers()
+            topic = feature_set.get_kafka_source_topic()
+            producer = get_producer(brokers, row_count, disable_progress_bar)
+
+            # Loop optimization declarations
+            produce = producer.produce
+            flush = producer.flush
+
+            # Transform and push data to Kafka
+            if feature_set.source.source_type == "Kafka":
+                for chunk in get_feature_row_chunks(
+                        file=tmp_table_name,
+                        row_groups=list(range(pq_file.num_row_groups)),
+                        fs=feature_set,
+                        max_workers=max_workers):
+
+                    # Push FeatureRow one chunk at a time to kafka
+                    for serialized_row in chunk:
+                        produce(topic=topic, value=serialized_row)
+
+                    # Force a flush after each chunk
+                    flush(timeout=timeout)
+
+                    # Remove chunk from memory
+                    del chunk
+
+            else:
+                raise Exception(
+                    f"Could not determine source type for feature set "
+                    f'"{feature_set.name}" with source type '
+                    f'"{feature_set.source.source_type}"'
+                )
+
+            # Print ingestion statistics
+            producer.print_results()
+        finally:
+            # Remove parquet file(s) that were created earlier
+            print("Removing temporary file(s)...")
+            os.remove(tmp_table_name)
+
+        return None
 
 
 def _build_feature_set_request(feature_ids: List[str]) -> List[FeatureSetRequest]:
@@ -566,18 +623,38 @@ def _build_feature_set_request(feature_ids: List[str]) -> List[FeatureSetRequest
     return list(feature_set_request.values())
 
 
-def _read_table_from_source(source: Union[pd.DataFrame, str]) -> pa.lib.Table:
+def _read_table_from_source(
+        source: Union[pd.DataFrame, str],
+        chunk_size: int,
+        max_workers: int
+) -> str:
     """
     Infers a data source type (path or Pandas Dataframe) and reads it in as
     a PyArrow Table.
 
+    The PyArrow Table that is read will be written to a parquet file with row
+    group size determined by the minimum of:
+        * (table.num_rows / max_workers)
+        * chunk_size
+
+    The parquet file that is created will be passed as file path to the
+    multiprocessing pool workers.
+
     Args:
-        source: Either a string path or Pandas Dataframe
+        source (Union[pd.DataFrame, str]):
+            Either a string path or Pandas DataFrame.
+
+        chunk_size (int):
+            Number of worker processes to use to encode values.
+
+        max_workers (int):
+            Amount of rows to load and ingest at a time.
 
     Returns:
-        PyArrow table
+        str: Path to parquet file that was created.
     """
-    # Pandas dataframe detected
+
+    # Pandas DataFrame detected
     if isinstance(source, pd.DataFrame):
         table = pa.Table.from_pandas(df=source)
 
@@ -601,4 +678,14 @@ def _read_table_from_source(source: Union[pd.DataFrame, str]) -> pa.lib.Table:
 
     # Ensure that PyArrow table is initialised
     assert isinstance(table, pa.lib.Table)
-    return table
+
+    # Write table as parquet file with a specified row_group_size
+    tmp_table_name = f"{int(time.time())}.parquet"
+    row_group_size = min(int(table.num_rows/max_workers), chunk_size)
+    pq.write_table(table=table, where=tmp_table_name,
+                   row_group_size=row_group_size)
+
+    # Remove table from memory
+    del table
+
+    return tmp_table_name
