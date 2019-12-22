@@ -3,6 +3,8 @@
 set -e
 set -o pipefail
 
+export REVISION=dev
+
 if ! cat /etc/*release | grep -q stretch; then
     echo ${BASH_SOURCE} only supports Debian stretch. 
     echo Please change your operating system to use this script.
@@ -19,15 +21,18 @@ This script will run end-to-end tests for Feast Core and Online Serving.
    tests/e2e via pytest.
 "
 
+apt-get -qq update
+apt-get -y install wget netcat kafkacat
+
 echo "
 ============================================================
 Installing Redis at localhost:6379
 ============================================================
 "
-apt-get -qq update
+
 # Allow starting serving in this Maven Docker image. Default set to not allowed.
 echo "exit 0" > /usr/sbin/policy-rc.d
-apt-get -y install redis-server wget > /var/log/redis.install.log
+apt-get -y install redis-server > /var/log/redis.install.log
 redis-server --daemonize yes
 redis-cli ping
 
@@ -61,6 +66,7 @@ tail -n10 /var/log/zookeeper.log
 nohup /tmp/kafka/bin/kafka-server-start.sh /tmp/kafka/config/server.properties &> /var/log/kafka.log 2>&1 &
 sleep 20
 tail -n10 /var/log/kafka.log
+kafkacat -b localhost:9092 -L
 
 echo "
 ============================================================
@@ -73,7 +79,10 @@ Building jars for Feast
     --output-dir /root/
 
 # Build jars for Feast
-mvn --quiet --batch-mode --define skipTests=true clean package
+mvn --quiet --batch-mode --define skipTests=true --define revision=$REVISION clean package
+
+ls -lh core/target/*jar
+ls -lh serving/target/*jar
 
 echo "
 ============================================================
@@ -123,11 +132,12 @@ management:
         enabled: false
 EOF
 
-nohup java -jar core/target/feast-core-0.3.2-SNAPSHOT.jar \
+nohup java -jar core/target/feast-core-$REVISION.jar \
   --spring.config.location=file:///tmp/core.application.yml \
   &> /var/log/feast-core.log &
 sleep 35
 tail -n10 /var/log/feast-core.log
+nc -w2 localhost 6565 < /dev/null
 
 echo "
 ============================================================
@@ -174,11 +184,12 @@ spring:
     web-environment: false
 EOF
 
-nohup java -jar serving/target/feast-serving-0.3.2-SNAPSHOT.jar \
+nohup java -jar serving/target/feast-serving-$REVISION.jar \
   --spring.config.location=file:///tmp/serving.online.application.yml \
   &> /var/log/feast-serving-online.log &
 sleep 15
 tail -n10 /var/log/feast-serving-online.log
+nc -w2 localhost 6566 < /dev/null
 
 echo "
 ============================================================

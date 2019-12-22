@@ -73,10 +73,10 @@ Installing Kafka at localhost:9092
 wget -qO- https://www-eu.apache.org/dist/kafka/2.3.0/kafka_2.12-2.3.0.tgz | tar xz
 mv kafka_2.12-2.3.0/ /tmp/kafka
 nohup /tmp/kafka/bin/zookeeper-server-start.sh /tmp/kafka/config/zookeeper.properties &> /var/log/zookeeper.log 2>&1 &
-sleep 5
+sleep 10
 tail -n10 /var/log/zookeeper.log
 nohup /tmp/kafka/bin/kafka-server-start.sh /tmp/kafka/config/server.properties &> /var/log/kafka.log 2>&1 &
-sleep 20
+sleep 30
 tail -n10 /var/log/kafka.log
 
 echo "
