@@ -399,7 +399,7 @@ class TestClient:
         )
 
         # Need to create a mock producer
-        with patch("feast.loaders.ingest.KafkaProducer") as mocked_queue:
+        with patch("feast.client.get_producer") as mocked_queue:
             # Ingest data into Feast
             client.ingest("driver-feature-set", dataframe)
 
@@ -429,7 +429,7 @@ class TestClient:
             )
 
             # Need to create a mock producer
-            with patch("feast.loaders.ingest.KafkaProducer") as mocked_queue:
+            with patch("feast.client.get_producer") as mocked_queue:
                 # Ingest data into Feast
                 client.ingest("driver-feature-set", dataframe, timeout=1)
 
@@ -493,6 +493,6 @@ class TestClient:
         )
 
         # Need to create a mock producer
-        with patch("feast.loaders.ingest.KafkaProducer") as mocked_queue:
+        with patch("feast.client.get_producer") as mocked_queue:
             # Ingest data into Feast
             client.ingest(all_types_fs, dataframe)
