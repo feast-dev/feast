@@ -24,7 +24,6 @@ import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
-import javax.persistence.JoinTable;
 import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
@@ -65,9 +64,6 @@ public class Job extends AbstractTimestampEntity {
 
   // FeatureSets populated by the job
   @ManyToMany
-  @JoinTable(
-      joinColumns = {@JoinColumn(name = "job_id")},
-      inverseJoinColumns = {@JoinColumn(name = "feature_set_id")})
   private List<FeatureSet> featureSets;
 
   // Job Metrics

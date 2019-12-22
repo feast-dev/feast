@@ -30,7 +30,11 @@ from feast.type_map import DATETIME_COLUMN
 from feast.type_map import pa_to_feast_value_type
 from feast.type_map import python_type_to_feast_value_type
 from google.protobuf import json_format
+from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
+from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
+from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from google.protobuf.duration_pb2 import Duration
+from feast.type_map import python_type_to_feast_value_type
 from google.protobuf.json_format import MessageToJson
 from pandas.api.types import is_datetime64_ns_dtype
 from pyarrow.lib import TimestampType
@@ -44,12 +48,14 @@ class FeatureSet:
     def __init__(
         self,
         name: str,
+        project: str = None,
         features: List[Feature] = None,
         entities: List[Entity] = None,
         source: Source = None,
-        max_age: Optional[Duration] = None
+        max_age: Optional[Duration] = None,
     ):
         self._name = name
+        self._project = project
         self._fields = OrderedDict()  # type: Dict[str, Field]
         if features is not None:
             self.features = features
@@ -61,7 +67,6 @@ class FeatureSet:
             self._source = source
         self._max_age = max_age
         self._version = None
-        self._client = None
         self._status = None
         self._created_timestamp = None
 
@@ -73,7 +78,11 @@ class FeatureSet:
             if key not in other.fields.keys() or self.fields[key] != other.fields[key]:
                 return False
 
-        if self.name != other.name or self.max_age != other.max_age:
+        if (
+            self.name != other.name
+            or self.project != other.project
+            or self.max_age != other.max_age
+        ):
             return False
         return True
 
@@ -81,10 +90,14 @@ class FeatureSet:
         return str(MessageToJson(self.to_proto()))
 
     def __repr__(self):
-        shortname = "" + self._name
-        if self._version:
-            shortname += ":" + str(self._version).strip()
-        return shortname
+        ref = ""
+        if self.project:
+            ref += self.project + "/"
+        if self.name:
+            ref += self.name
+        if self.version:
+            ref += ":" + str(self.version).strip()
+        return ref
 
     @property
     def fields(self) -> Dict[str, Field]:
@@ -158,6 +171,20 @@ class FeatureSet:
         Sets the name of this feature set
         """
         self._name = name
+
+    @property
+    def project(self):
+        """
+        Returns the project that this feature set belongs to
+        """
+        return self._project
+
+    @project.setter
+    def project(self, project):
+        """
+        Sets the project that this feature set belongs to
+        """
+        self._project = project
 
     @property
     def source(self):
@@ -410,12 +437,13 @@ class FeatureSet:
         print(output_log)
 
     def infer_fields_from_pa(
-            self, table: pa.lib.Table,
-            entities: Optional[List[Entity]] = None,
-            features: Optional[List[Feature]] = None,
-            replace_existing_features: bool = False,
-            replace_existing_entities: bool = False,
-            discard_unused_fields: bool = False
+        self,
+        table: pa.lib.Table,
+        entities: Optional[List[Entity]] = None,
+        features: Optional[List[Feature]] = None,
+        replace_existing_features: bool = False,
+        replace_existing_entities: bool = False,
+        discard_unused_fields: bool = False,
     ) -> None:
         """
         Adds fields (Features or Entities) to a feature set based on the schema
@@ -514,22 +542,21 @@ class FeatureSet:
             # Only overwrite conflicting fields if replacement is allowed
             if column in new_fields:
                 if (
-                        isinstance(self._fields[column], Feature)
-                        and not replace_existing_features
+                    isinstance(self._fields[column], Feature)
+                    and not replace_existing_features
                 ):
                     continue
 
                 if (
-                        isinstance(self._fields[column], Entity)
-                        and not replace_existing_entities
+                    isinstance(self._fields[column], Entity)
+                    and not replace_existing_entities
                 ):
                     continue
 
             # Store this fields as a feature
             # TODO: (Minor) Change the parameter name from dtype to patype
             new_fields[column] = Feature(
-                name=column,
-                dtype=self._infer_pa_column_type(table.column(column))
+                name=column, dtype=self._infer_pa_column_type(table.column(column))
             )
 
             output_log += f"{type(new_fields[column]).__name__} {new_fields[column].name} ({new_fields[column].dtype}) added from PyArrow Table.\n"
@@ -598,6 +625,7 @@ class FeatureSet:
         """
 
         self.name = feature_set.name
+        self.project = feature_set.project
         self.version = feature_set.version
         self.source = feature_set.source
         self.max_age = feature_set.max_age
@@ -628,6 +656,9 @@ class FeatureSet:
         Validates the state of a feature set locally. Raises an exception
         if feature set is invalid.
         """
+
+        if not self.name:
+            raise ValueError(f"No name found in feature set.")
 
         if len(self.entities) == 0:
             raise ValueError(f"No entities found in feature set {self.name}")
@@ -691,7 +722,10 @@ class FeatureSet:
                 None
                 if feature_set_proto.spec.source.type == 0
                 else Source.from_proto(feature_set_proto.spec.source)
-            )
+            ),
+            project=feature_set_proto.spec.project
+            if len(feature_set_proto.spec.project) == 0
+            else feature_set_proto.spec.project,
         )
         feature_set._version = feature_set_proto.spec.version
         feature_set._status = feature_set_proto.meta.status
@@ -713,6 +747,7 @@ class FeatureSet:
         spec = FeatureSetSpecProto(
             name=self.name,
             version=self.version,
+            project=self.project,
             max_age=self.max_age,
             source=self.source.to_proto() if self.source is not None else None,
             features=[

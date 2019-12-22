@@ -5,28 +5,28 @@ spec:
     - name: customer_id
       valueType: INT64
   features:
-    - name: int32_feature
+    - name: int32_feature_parquet
       valueType: INT64
-    - name: int64_feature
+    - name: int64_feature_parquet
       valueType: INT64
-    - name: float_feature
+    - name: float_feature_parquet
       valueType: DOUBLE
-    - name: double_feature
+    - name: double_feature_parquet
       valueType: DOUBLE
-    - name: string_feature
+    - name: string_feature_parquet
       valueType: STRING
-    - name: bytes_feature
+    - name: bytes_feature_parquet
       valueType: BYTES
-    - name: int32_list_feature
+    - name: int32_list_feature_parquet
       valueType: INT64_LIST
-    - name: int64_list_feature
+    - name: int64_list_feature_parquet
       valueType: INT64_LIST
-    - name: float_list_feature
+    - name: float_list_feature_parquet
       valueType: DOUBLE_LIST
-    - name: double_list_feature
+    - name: double_list_feature_parquet
       valueType: DOUBLE_LIST
-    - name: string_list_feature
+    - name: string_list_feature_parquet
       valueType: STRING_LIST
-    - name: bytes_list_feature
+    - name: bytes_list_feature_parquet
       valueType: BYTES_LIST
   maxAge: 0s

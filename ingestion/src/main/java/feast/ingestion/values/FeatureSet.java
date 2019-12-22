@@ -16,6 +16,7 @@
  */
 package feast.ingestion.values;
 
+import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
 import static feast.ingestion.utils.SpecUtil.getFieldsByName;
 
 import feast.core.FeatureSetProto;
@@ -28,18 +29,18 @@ import java.util.Map;
  *
  * <p>The use for this class is mainly for validating the Fields in FeatureRow.
  */
-public class FeatureSetSpec implements Serializable {
-  private final String id;
+public class FeatureSet implements Serializable {
+  private final String reference;
 
   private final Map<String, Field> fields;
 
-  public FeatureSetSpec(FeatureSetProto.FeatureSetSpec featureSetSpec) {
-    this.id = String.format("%s:%d", featureSetSpec.getName(), featureSetSpec.getVersion());
-    this.fields = getFieldsByName(featureSetSpec);
+  public FeatureSet(FeatureSetProto.FeatureSet featureSet) {
+    this.reference = getFeatureSetReference(featureSet);
+    this.fields = getFieldsByName(featureSet.getSpec());
   }
 
-  public String getId() {
-    return id;
+  public String getReference() {
+    return reference;
   }
 
   public Field getField(String fieldName) {

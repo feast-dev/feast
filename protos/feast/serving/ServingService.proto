@@ -62,15 +62,15 @@ message GetFeastServingInfoResponse {
     string job_staging_location = 10;
 }
 
-message FeatureSetRequest {
-    // Feature set name
-    string name = 1;
+message FeatureReference {
+    // Project name
+    string project = 1;
 
-    // Feature set version
-    int32 version = 2;
+    // Feature name
+    string name = 2;
 
-    // Features that should be retrieved from this feature set
-    repeated string feature_names = 3;
+    // Feature version
+    int32 version = 3;
 
     // The features will be retrieved if:
     // entity_timestamp - max_age  <= event_timestamp <= entity_timestamp
@@ -81,8 +81,8 @@ message FeatureSetRequest {
 }
 
 message GetOnlineFeaturesRequest {
-    // List of feature sets and their features that are being retrieved
-    repeated FeatureSetRequest feature_sets = 1;
+    // List of features that are being retrieved
+    repeated FeatureReference features = 4;
 
     // List of entity rows, containing entity id and timestamp data.
     // Used during retrieval of feature rows and for joining feature
@@ -104,8 +104,8 @@ message GetOnlineFeaturesRequest {
 }
 
 message GetBatchFeaturesRequest {
-    // List of feature sets and their features that are being retrieved.
-    repeated FeatureSetRequest feature_sets = 1;
+    // List of features that are being retrieved
+    repeated FeatureReference features = 3;
 
     // Source of the entity dataset containing the timestamps and entity keys to retrieve
     // features for.

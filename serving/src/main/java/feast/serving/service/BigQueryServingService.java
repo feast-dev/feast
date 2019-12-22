@@ -18,7 +18,6 @@ package feast.serving.service;
 
 import static feast.serving.store.bigquery.QueryTemplater.createEntityTableUUIDQuery;
 import static feast.serving.store.bigquery.QueryTemplater.generateFullTableName;
-import static feast.serving.util.Metrics.requestCount;
 import static feast.serving.util.Metrics.requestLatency;
 
 import com.google.cloud.bigquery.BigQuery;
@@ -33,7 +32,6 @@ import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.storage.Storage;
-import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.serving.ServingAPIProto;
 import feast.serving.ServingAPIProto.DataFormat;
 import feast.serving.ServingAPIProto.DatasetSource;
@@ -48,6 +46,8 @@ import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.JobStatus;
 import feast.serving.ServingAPIProto.JobType;
+import feast.serving.specs.CachedSpecService;
+import feast.serving.specs.FeatureSetRequest;
 import feast.serving.store.bigquery.BatchRetrievalQueryRunnable;
 import feast.serving.store.bigquery.QueryTemplater;
 import feast.serving.store.bigquery.model.FeatureSetInfo;
@@ -107,21 +107,8 @@ public class BigQueryServingService implements ServingService {
   @Override
   public GetBatchFeaturesResponse getBatchFeatures(GetBatchFeaturesRequest getFeaturesRequest) {
     long startTime = System.currentTimeMillis();
-    List<FeatureSetSpec> featureSetSpecs =
-        getFeaturesRequest.getFeatureSetsList().stream()
-            .map(
-                featureSet -> {
-                  requestCount.labels(featureSet.getName()).inc();
-                  return specService.getFeatureSet(featureSet.getName(), featureSet.getVersion());
-                })
-            .collect(Collectors.toList());
-
-    if (getFeaturesRequest.getFeatureSetsList().size() != featureSetSpecs.size()) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription(
-              "Some of the feature sets requested do not exist in Feast. Please check your request payload.")
-          .asRuntimeException();
-    }
+    List<FeatureSetRequest> featureSetRequests =
+        specService.getFeatureSets(getFeaturesRequest.getFeaturesList());
 
     Table entityTable;
     String entityTableName;
@@ -143,8 +130,7 @@ public class BigQueryServingService implements ServingService {
             .filter(name -> !name.equals("event_timestamp"))
             .collect(Collectors.toList());
 
-    List<FeatureSetInfo> featureSetInfos =
-        QueryTemplater.getFeatureSetInfos(featureSetSpecs, getFeaturesRequest.getFeatureSetsList());
+    List<FeatureSetInfo> featureSetInfos = QueryTemplater.getFeatureSetInfos(featureSetRequests);
 
     String feastJobId = UUID.randomUUID().toString();
     ServingAPIProto.Job feastJob =
@@ -170,7 +156,9 @@ public class BigQueryServingService implements ServingService {
                 .build())
         .start();
 
-    requestLatency.labels("getBatchFeatures").observe(System.currentTimeMillis() - startTime);
+    requestLatency
+        .labels("getBatchFeatures")
+        .observe((System.currentTimeMillis() - startTime) / 1000);
     return GetBatchFeaturesResponse.newBuilder().setJob(feastJob).build();
   }
 

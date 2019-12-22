@@ -64,7 +64,8 @@ feast-serving-online:
     type: REDIS
     subscriptions:
       - name: "*"
-        version: ">0"
+        project: "*"
+        version: "*"
 
 feast-serving-batch:
   enabled: false

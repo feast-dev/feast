@@ -115,9 +115,12 @@ feast:
 
 spring:
   jpa:
-    properties.hibernate.format_sql: true
+    properties.hibernate:
+      format_sql: true
+      event.merge.entity_copy_observer: allow
     hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
     hibernate.ddl-auto: update
+
   datasource:
     url: jdbc:postgresql://localhost:5432/postgres
     username: postgres
@@ -153,7 +156,8 @@ redis_config:
   port: 6379
 subscriptions:
   - name: "*"
-    version: ">0"
+    version: "*"
+    project: "*"
 EOF
 
 cat <<EOF > /tmp/serving.online.application.yml
@@ -182,6 +186,7 @@ grpc:
 spring:
   main:
     web-environment: false
+
 EOF
 
 nohup java -jar serving/target/feast-serving-$REVISION.jar \

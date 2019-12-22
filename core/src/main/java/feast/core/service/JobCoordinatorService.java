@@ -16,12 +16,10 @@
  */
 package feast.core.service;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.core.CoreServiceProto.ListStoresRequest.Filter;
 import feast.core.CoreServiceProto.ListStoresResponse;
 import feast.core.FeatureSetProto;
-import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.Subscription;
@@ -94,41 +92,36 @@ public class JobCoordinatorService {
     List<JobUpdateTask> jobUpdateTasks = new ArrayList<>();
     ListStoresResponse listStoresResponse = specService.listStores(Filter.newBuilder().build());
     for (StoreProto.Store store : listStoresResponse.getStoreList()) {
-      Set<FeatureSetSpec> featureSetSpecs = new HashSet<>();
-      try {
-        for (Subscription subscription : store.getSubscriptionsList()) {
-          featureSetSpecs.addAll(
-              specService
-                  .listFeatureSets(
-                      ListFeatureSetsRequest.Filter.newBuilder()
-                          .setFeatureSetName(subscription.getName())
-                          .setFeatureSetVersion(subscription.getVersion())
-                          .build())
-                  .getFeatureSetsList().stream()
-                  .map(FeatureSetProto.FeatureSet::getSpec)
-                  .collect(Collectors.toList()));
-        }
-        if (!featureSetSpecs.isEmpty()) {
-          featureSetSpecs.stream()
-              .collect(Collectors.groupingBy(FeatureSetSpec::getSource))
-              .entrySet()
-              .stream()
-              .forEach(
-                  kv -> {
-                    Optional<Job> originalJob =
-                        getJob(Source.fromProto(kv.getKey()), Store.fromProto(store));
-                    jobUpdateTasks.add(
-                        new JobUpdateTask(
-                            kv.getValue(),
-                            kv.getKey(),
-                            store,
-                            originalJob,
-                            jobManager,
-                            jobUpdatesProperties.getTimeoutSeconds()));
-                  });
-        }
-      } catch (InvalidProtocolBufferException e) {
-        log.warn("Unable to retrieve feature sets for store {}: {}", store, e.getMessage());
+      Set<FeatureSetProto.FeatureSet> featureSets = new HashSet<>();
+      for (Subscription subscription : store.getSubscriptionsList()) {
+        featureSets.addAll(
+            new ArrayList<>(specService
+                .listFeatureSets(
+                    ListFeatureSetsRequest.Filter.newBuilder()
+                        .setFeatureSetName(subscription.getName())
+                        .setFeatureSetVersion(subscription.getVersion())
+                        .setProject(subscription.getProject())
+                        .build())
+                .getFeatureSetsList()));
+      }
+      if (!featureSets.isEmpty()) {
+        featureSets.stream()
+            .collect(Collectors.groupingBy(fs -> fs.getSpec().getSource()))
+            .entrySet()
+            .stream()
+            .forEach(
+                kv -> {
+                  Optional<Job> originalJob =
+                      getJob(Source.fromProto(kv.getKey()), Store.fromProto(store));
+                  jobUpdateTasks.add(
+                      new JobUpdateTask(
+                          kv.getValue(),
+                          kv.getKey(),
+                          store,
+                          originalJob,
+                          jobManager,
+                          jobUpdatesProperties.getTimeoutSeconds()));
+                });
       }
     }
     if (jobUpdateTasks.size() == 0) {

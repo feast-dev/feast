@@ -86,7 +86,7 @@ public class DirectRunnerJobManagerTest {
             .setName("SERVING")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
-            .addSubscriptions(Subscription.newBuilder().setName("*").setVersion(">0").build())
+            .addSubscriptions(Subscription.newBuilder().setProject("*").setName("*").setVersion("*").build())
             .build();
 
     SourceProto.Source source =
@@ -99,12 +99,9 @@ public class DirectRunnerJobManagerTest {
                     .build())
             .build();
 
-    FeatureSetSpec featureSetSpec =
-        FeatureSetSpec.newBuilder()
-            .setName("featureSet")
-            .setVersion(1)
-            .setMaxAge(Duration.newBuilder())
-            .setSource(source)
+    FeatureSetProto.FeatureSet featureSet =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(FeatureSetSpec.newBuilder().setName("featureSet").setVersion(1).setMaxAge(Duration.newBuilder()).setSource(source).build())
             .build();
 
     Printer printer = JsonFormat.printer();
@@ -117,8 +114,8 @@ public class DirectRunnerJobManagerTest {
     expectedPipelineOptions.setProject("");
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
     expectedPipelineOptions.setProject("");
-    expectedPipelineOptions.setFeatureSetSpecJson(
-        Lists.newArrayList(printer.print(featureSetSpec)));
+    expectedPipelineOptions.setFeatureSetJson(
+        Lists.newArrayList(printer.print(featureSet.getSpec())));
 
     String expectedJobId = "feast-job-0";
     ArgumentCaptor<ImportOptions> pipelineOptionsCaptor =
@@ -136,8 +133,7 @@ public class DirectRunnerJobManagerTest {
             Source.fromProto(source),
             Store.fromProto(store),
             Lists.newArrayList(
-                FeatureSet.fromProto(
-                    FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSetSpec).build())),
+                FeatureSet.fromProto(featureSet)),
             JobStatus.PENDING);
     Job actual = drJobManager.startJob(job);
     verify(drJobManager, times(1)).runPipeline(pipelineOptionsCaptor.capture());

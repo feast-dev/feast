@@ -19,28 +19,33 @@ package feast.core.dao;
 import feast.core.model.FeatureSet;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
 
-/** JPA repository supplying FeatureSet objects keyed by id. */
+/**
+ * JPA repository supplying FeatureSet objects keyed by id.
+ */
 public interface FeatureSetRepository extends JpaRepository<FeatureSet, String> {
 
   long count();
 
-  // Find feature set by name and version
-  FeatureSet findFeatureSetByNameAndVersion(String name, Integer version);
+  // Find single feature set by project, name, and version
+  FeatureSet findFeatureSetByNameAndProject_NameAndVersion(String name, String project,
+      Integer version);
 
-  // Find latest version of a feature set by name
-  FeatureSet findFirstFeatureSetByNameOrderByVersionDesc(String name);
-
-  // find all versions of featureSets matching the given name.
-  List<FeatureSet> findByName(String name);
-
-  // find all versions of featureSets with names matching the regex
-  @Query(
-      nativeQuery = true,
-      value = "SELECT * FROM feature_sets " + "WHERE name LIKE ?1 ORDER BY name ASC, version ASC")
-  List<FeatureSet> findByNameWithWildcardOrderByNameAscVersionAsc(String name);
+  // Find single latest version of a feature set by project and name (LIKE)
+  FeatureSet findFirstFeatureSetByNameLikeAndProject_NameOrderByVersionDesc(String name,
+      String project);
 
   // find all feature sets and order by name and version
   List<FeatureSet> findAllByOrderByNameAscVersionAsc();
+
+  // find all feature sets within a project and order by name and version
+  List<FeatureSet> findAllByProject_NameOrderByNameAscVersionAsc(String project_name);
+
+  // find all versions of feature sets matching the given name pattern with a specific project.
+  List<FeatureSet> findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(String name,
+      String project_name);
+
+  // find all versions of feature sets matching the given name pattern and project pattern
+  List<FeatureSet> findAllByNameLikeAndProject_NameLikeOrderByNameAscVersionAsc(String name,
+      String project_name);
 }

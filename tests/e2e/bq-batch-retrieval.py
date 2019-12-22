@@ -4,6 +4,7 @@ from datetime import datetime
 from datetime import timedelta
 from urllib.parse import urlparse
 
+import uuid
 import numpy as np
 import pandas as pd
 import pytest
@@ -17,6 +18,7 @@ from google.cloud import storage
 from google.protobuf.duration_pb2 import Duration
 from pandavro import to_avro
 
+PROJECT_NAME = 'batch_' + uuid.uuid4().hex.upper()[0:6]
 
 @pytest.fixture(scope="module")
 def core_url(pytestconfig):
@@ -42,6 +44,8 @@ def gcs_path(pytestconfig):
 def client(core_url, serving_url, allow_dirty):
     # Get client for core and serving
     client = Client(core_url=core_url, serving_url=serving_url)
+    client.create_project(PROJECT_NAME)
+    client.set_project(PROJECT_NAME)
 
     # Ensure Feast core is active, but empty
     if not allow_dirty:
@@ -51,16 +55,68 @@ def client(core_url, serving_url, allow_dirty):
 
     return client
 
+@pytest.mark.first
+def test_apply_all_featuresets(client):
+    client.set_project(PROJECT_NAME)
 
-def test_get_batch_features_with_file(client):
     file_fs1 = FeatureSet(
-        "file_feature_set",
-        features=[Feature("feature_value", ValueType.STRING)],
-        entities=[Entity("entity_id", ValueType.INT64)],
+            "file_feature_set",
+            features=[Feature("feature_value1", ValueType.STRING)],
+            entities=[Entity("entity_id", ValueType.INT64)],
+            max_age=Duration(seconds=100),
+        )
+    client.apply(file_fs1)
+
+    gcs_fs1 = FeatureSet(
+            "gcs_feature_set",
+            features=[Feature("feature_value2", ValueType.STRING)],
+            entities=[Entity("entity_id", ValueType.INT64)],
+            max_age=Duration(seconds=100),
+        )
+    client.apply(gcs_fs1)
+
+    proc_time_fs = FeatureSet(
+            "processing_time",
+            features=[Feature("feature_value3", ValueType.STRING)],
+            entities=[Entity("entity_id", ValueType.INT64)],
+            max_age=Duration(seconds=100),
+        )
+    client.apply(proc_time_fs)
+
+    add_cols_fs = FeatureSet(
+            "additional_columns",
+            features=[Feature("feature_value4", ValueType.STRING)],
+            entities=[Entity("entity_id", ValueType.INT64)],
+            max_age=Duration(seconds=100),
+        )
+    client.apply(add_cols_fs)
+
+    historical_fs = FeatureSet(
+            "historical",
+            features=[Feature("feature_value5", ValueType.STRING)],
+            entities=[Entity("entity_id", ValueType.INT64)],
+            max_age=Duration(seconds=100),
+        )
+    client.apply(historical_fs)
+
+    fs1 = FeatureSet(
+            "feature_set_1",
+            features=[Feature("feature_value6", ValueType.STRING)],
+            entities=[Entity("entity_id", ValueType.INT64)],
+            max_age=Duration(seconds=100),
+        )
+
+    fs2 = FeatureSet(
+        "feature_set_2",
+        features=[Feature("other_feature_value7", ValueType.INT64)],
+        entities=[Entity("other_entity_id", ValueType.INT64)],
         max_age=Duration(seconds=100),
     )
+    client.apply(fs1)
+    client.apply(fs2)
 
-    client.apply(file_fs1)
+
+def test_get_batch_features_with_file(client):
     file_fs1 = client.get_feature_set(name="file_feature_set", version=1)
 
     N_ROWS = 10
@@ -69,7 +125,7 @@ def test_get_batch_features_with_file(client):
         {
             "datetime": [time_offset] * N_ROWS,
             "entity_id": [i for i in range(N_ROWS)],
-            "feature_value": [f"{i}" for i in range(N_ROWS)],
+            "feature_value1": [f"{i}" for i in range(N_ROWS)],
         }
     )
     client.ingest(file_fs1, features_1_df)
@@ -77,27 +133,20 @@ def test_get_batch_features_with_file(client):
     # Rename column (datetime -> event_timestamp)
     features_1_df = features_1_df.rename(columns={"datetime": "event_timestamp"})
 
-    to_avro(df=features_1_df, file_path_or_buffer="file_feature_set.avro")
+    to_avro(df=features_1_df[["event_timestamp", "entity_id"]], file_path_or_buffer="file_feature_set.avro")
 
+    time.sleep(15)
     feature_retrieval_job = client.get_batch_features(
-        entity_rows="file://file_feature_set.avro", feature_ids=["file_feature_set:1:feature_value"]
+        entity_rows="file://file_feature_set.avro", feature_refs=[f"{PROJECT_NAME}/feature_value1:1"]
     )
 
     output = feature_retrieval_job.to_dataframe()
     print(output.head())
 
-    assert output["entity_id"].to_list() == [int(i) for i in output["file_feature_set_v1_feature_value"].to_list()]
+    assert output["entity_id"].to_list() == [int(i) for i in output["feature_value1"].to_list()]
 
 
 def test_get_batch_features_with_gs_path(client, gcs_path):
-    gcs_fs1 = FeatureSet(
-        "gcs_feature_set",
-        features=[Feature("feature_value", ValueType.STRING)],
-        entities=[Entity("entity_id", ValueType.INT64)],
-        max_age=Duration(seconds=100),
-    )
-
-    client.apply(gcs_fs1)
     gcs_fs1 = client.get_feature_set(name="gcs_feature_set", version=1)
 
     N_ROWS = 10
@@ -106,7 +155,7 @@ def test_get_batch_features_with_gs_path(client, gcs_path):
         {
             "datetime": [time_offset] * N_ROWS,
             "entity_id": [i for i in range(N_ROWS)],
-            "feature_value": [f"{i}" for i in range(N_ROWS)],
+            "feature_value2": [f"{i}" for i in range(N_ROWS)],
         }
     )
     client.ingest(gcs_fs1, features_1_df)
@@ -116,7 +165,7 @@ def test_get_batch_features_with_gs_path(client, gcs_path):
 
     # Output file to local
     file_name = "gcs_feature_set.avro"
-    to_avro(df=features_1_df, file_path_or_buffer=file_name)
+    to_avro(df=features_1_df[["event_timestamp", "entity_id"]], file_path_or_buffer=file_name)
 
     uri = urlparse(gcs_path)
     bucket = uri.hostname
@@ -129,26 +178,19 @@ def test_get_batch_features_with_gs_path(client, gcs_path):
     blob = bucket.blob(remote_path)
     blob.upload_from_filename(file_name)
 
+    time.sleep(15)
     feature_retrieval_job = client.get_batch_features(
         entity_rows=f"{gcs_path}{ts}/*",
-        feature_ids=["gcs_feature_set:1:feature_value"]
+        feature_refs=[f"{PROJECT_NAME}/feature_value2:1"]
     )
 
     output = feature_retrieval_job.to_dataframe()
     print(output.head())
 
-    assert output["entity_id"].to_list() == [int(i) for i in output["gcs_feature_set_v1_feature_value"].to_list()]
+    assert output["entity_id"].to_list() == [int(i) for i in output["feature_value2"].to_list()]
 
 
 def test_order_by_creation_time(client):
-    proc_time_fs = FeatureSet(
-        "processing_time",
-        features=[Feature("feature_value", ValueType.STRING)],
-        entities=[Entity("entity_id", ValueType.INT64)],
-        max_age=Duration(seconds=100),
-    )
-    client.apply(proc_time_fs)
-    time.sleep(10)
     proc_time_fs = client.get_feature_set(name="processing_time", version=1)
 
     time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
@@ -157,43 +199,35 @@ def test_order_by_creation_time(client):
         {
             "datetime": [time_offset] * N_ROWS,
             "entity_id": [i for i in range(N_ROWS)],
-            "feature_value": ["WRONG"] * N_ROWS,
+            "feature_value3": ["WRONG"] * N_ROWS,
         }
     )
     correct_df = pd.DataFrame(
         {
             "datetime": [time_offset] * N_ROWS,
             "entity_id": [i for i in range(N_ROWS)],
-            "feature_value": ["CORRECT"] * N_ROWS,
+            "feature_value3": ["CORRECT"] * N_ROWS,
         }
     )
     client.ingest(proc_time_fs, incorrect_df)
-    time.sleep(10)
+    time.sleep(15)
     client.ingest(proc_time_fs, correct_df)
     feature_retrieval_job = client.get_batch_features(
-        entity_rows=incorrect_df[["datetime", "entity_id"]], feature_ids=["processing_time:1:feature_value"]
+        entity_rows=incorrect_df[["datetime", "entity_id"]], feature_refs=[f"{PROJECT_NAME}/feature_value3:1"]
     )
     output = feature_retrieval_job.to_dataframe()
     print(output.head())
 
-    assert output["processing_time_v1_feature_value"].to_list() == ["CORRECT"] * N_ROWS
+    assert output["feature_value3"].to_list() == ["CORRECT"] * N_ROWS
 
 
 def test_additional_columns_in_entity_table(client):
-    add_cols_fs = FeatureSet(
-        "additional_columns",
-        features=[Feature("feature_value", ValueType.STRING)],
-        entities=[Entity("entity_id", ValueType.INT64)],
-        max_age=Duration(seconds=100),
-    )
-    client.apply(add_cols_fs)
-    time.sleep(10)
     add_cols_fs = client.get_feature_set(name="additional_columns", version=1)
 
     N_ROWS = 10
     time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
     features_df = pd.DataFrame(
-        {"datetime": [time_offset] * N_ROWS, "entity_id": [i for i in range(N_ROWS)], "feature_value": ["abc"] * N_ROWS}
+        {"datetime": [time_offset] * N_ROWS, "entity_id": [i for i in range(N_ROWS)], "feature_value4": ["abc"] * N_ROWS}
     )
     client.ingest(add_cols_fs, features_df)
 
@@ -205,26 +239,20 @@ def test_additional_columns_in_entity_table(client):
             "additional_float_col": [random.random() for i in range(N_ROWS)],
         }
     )
+
+    time.sleep(15)
     feature_retrieval_job = client.get_batch_features(
-        entity_rows=entity_df, feature_ids=["additional_columns:1:feature_value"]
+        entity_rows=entity_df, feature_refs=[f"{PROJECT_NAME}/feature_value4:1"]
     )
     output = feature_retrieval_job.to_dataframe()
     print(output.head())
 
     assert np.allclose(output["additional_float_col"], entity_df["additional_float_col"])
     assert output["additional_string_col"].to_list() == entity_df["additional_string_col"].to_list()
-    assert output["additional_columns_v1_feature_value"].to_list() == features_df["feature_value"].to_list()
+    assert output["feature_value4"].to_list() == features_df["feature_value4"].to_list()
 
 
 def test_point_in_time_correctness_join(client):
-    historical_fs = FeatureSet(
-        "historical",
-        features=[Feature("feature_value", ValueType.STRING)],
-        entities=[Entity("entity_id", ValueType.INT64)],
-        max_age=Duration(seconds=100),
-    )
-    client.apply(historical_fs)
-    time.sleep(10)
     historical_fs = client.get_feature_set(name="historical", version=1)
 
     time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
@@ -238,7 +266,7 @@ def test_point_in_time_correctness_join(client):
             ]
             * N_EXAMPLES,
             "entity_id": [i for i in range(N_EXAMPLES) for _ in range(3)],
-            "feature_value": ["WRONG", "WRONG", "CORRECT"] * N_EXAMPLES,
+            "feature_value5": ["WRONG", "WRONG", "CORRECT"] * N_EXAMPLES,
         }
     )
     entity_df = pd.DataFrame(
@@ -247,32 +275,16 @@ def test_point_in_time_correctness_join(client):
 
     client.ingest(historical_fs, historical_df)
 
-    feature_retrieval_job = client.get_batch_features(entity_rows=entity_df, feature_ids=["historical:1:feature_value"])
+    time.sleep(15)
+    feature_retrieval_job = client.get_batch_features(entity_rows=entity_df, feature_refs=[f"{PROJECT_NAME}/feature_value5"])
     output = feature_retrieval_job.to_dataframe()
     print(output.head())
 
-    assert output["historical_v1_feature_value"].to_list() == ["CORRECT"] * N_EXAMPLES
+    assert output["feature_value5"].to_list() == ["CORRECT"] * N_EXAMPLES
 
 
 def test_multiple_featureset_joins(client):
-    fs1 = FeatureSet(
-        "feature_set_1",
-        features=[Feature("feature_value", ValueType.STRING)],
-        entities=[Entity("entity_id", ValueType.INT64)],
-        max_age=Duration(seconds=100),
-    )
-
-    fs2 = FeatureSet(
-        "feature_set_2",
-        features=[Feature("other_feature_value", ValueType.INT64)],
-        entities=[Entity("other_entity_id", ValueType.INT64)],
-        max_age=Duration(seconds=100),
-    )
-
-    client.apply(fs1)
     fs1 = client.get_feature_set(name="feature_set_1", version=1)
-
-    client.apply(fs2)
     fs2 = client.get_feature_set(name="feature_set_2", version=1)
 
     N_ROWS = 10
@@ -281,7 +293,7 @@ def test_multiple_featureset_joins(client):
         {
             "datetime": [time_offset] * N_ROWS,
             "entity_id": [i for i in range(N_ROWS)],
-            "feature_value": [f"{i}" for i in range(N_ROWS)],
+            "feature_value6": [f"{i}" for i in range(N_ROWS)],
         }
     )
     client.ingest(fs1, features_1_df)
@@ -290,7 +302,7 @@ def test_multiple_featureset_joins(client):
         {
             "datetime": [time_offset] * N_ROWS,
             "other_entity_id": [i for i in range(N_ROWS)],
-            "other_feature_value": [i for i in range(N_ROWS)],
+            "other_feature_value7": [i for i in range(N_ROWS)],
         }
     )
     client.ingest(fs2, features_2_df)
@@ -302,11 +314,13 @@ def test_multiple_featureset_joins(client):
             "other_entity_id": [N_ROWS - 1 - i for i in range(N_ROWS)],
         }
     )
+
+    time.sleep(15)
     feature_retrieval_job = client.get_batch_features(
-        entity_rows=entity_df, feature_ids=["feature_set_1:1:feature_value", "feature_set_2:1:other_feature_value"]
+        entity_rows=entity_df, feature_refs=[f"{PROJECT_NAME}/feature_value6:1", f"{PROJECT_NAME}/other_feature_value7:1"]
     )
     output = feature_retrieval_job.to_dataframe()
     print(output.head())
 
-    assert output["entity_id"].to_list() == [int(i) for i in output["feature_set_1_v1_feature_value"].to_list()]
-    assert output["other_entity_id"].to_list() == output["feature_set_2_v1_other_feature_value"].to_list()
+    assert output["entity_id"].to_list() == [int(i) for i in output["feature_value6"].to_list()]
+    assert output["other_entity_id"].to_list() == output["other_feature_value7"].to_list()

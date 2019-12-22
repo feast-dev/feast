@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import feast.core.FeatureSetProto;
+import feast.core.FeatureSetProto.FeatureSetMeta;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto;
 import feast.core.SourceProto.KafkaSourceConfig;
@@ -60,7 +61,7 @@ public class JobUpdateTaskTest {
             .setName("test")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().build())
-            .addSubscriptions(Subscription.newBuilder().setName("*").setVersion(">0").build())
+            .addSubscriptions(Subscription.newBuilder().setProject("*").setName("*").setVersion("*").build())
             .build();
 
     source =
@@ -79,12 +80,14 @@ public class JobUpdateTaskTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setName("featureSet1").setVersion(1).setSource(source))
+                FeatureSetSpec.newBuilder().setSource(source).setProject("project1").setName("featureSet1").setVersion(1))
+            .setMeta(FeatureSetMeta.newBuilder())
             .build();
     FeatureSetProto.FeatureSet featureSet2 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setName("featureSet2").setVersion(1).setSource(source))
+                FeatureSetSpec.newBuilder().setSource(source).setProject("project1").setName("featureSet2").setVersion(1))
+            .setMeta(FeatureSetMeta.newBuilder())
             .build();
     Job originalJob =
         new Job(
@@ -97,7 +100,7 @@ public class JobUpdateTaskTest {
             JobStatus.RUNNING);
     JobUpdateTask jobUpdateTask =
         new JobUpdateTask(
-            Arrays.asList(featureSet1.getSpec(), featureSet2.getSpec()),
+            Arrays.asList(featureSet1, featureSet2),
             source,
             store,
             Optional.of(originalJob),
@@ -134,12 +137,13 @@ public class JobUpdateTaskTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setName("featureSet1").setVersion(1).setSource(source))
+                FeatureSetSpec.newBuilder().setSource(source).setProject("project1").setName("featureSet1").setVersion(1))
+            .setMeta(FeatureSetMeta.newBuilder())
             .build();
     JobUpdateTask jobUpdateTask =
         spy(
             new JobUpdateTask(
-                Arrays.asList(featureSet1.getSpec()),
+                Arrays.asList(featureSet1),
                 source,
                 store,
                 Optional.empty(),
@@ -179,7 +183,8 @@ public class JobUpdateTaskTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setName("featureSet1").setVersion(1).setSource(source))
+                FeatureSetSpec.newBuilder().setSource(source).setProject("project1").setName("featureSet1").setVersion(1))
+            .setMeta(FeatureSetMeta.newBuilder())
             .build();
     Job originalJob =
         new Job(
@@ -192,7 +197,7 @@ public class JobUpdateTaskTest {
             JobStatus.RUNNING);
     JobUpdateTask jobUpdateTask =
         new JobUpdateTask(
-            Arrays.asList(featureSet1.getSpec()),
+            Arrays.asList(featureSet1),
             source,
             store,
             Optional.of(originalJob),
@@ -219,12 +224,13 @@ public class JobUpdateTaskTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setName("featureSet1").setVersion(1).setSource(source))
+                FeatureSetSpec.newBuilder().setSource(source).setProject("project1").setName("featureSet1").setVersion(1))
+            .setMeta(FeatureSetMeta.newBuilder())
             .build();
     JobUpdateTask jobUpdateTask =
         spy(
             new JobUpdateTask(
-                Arrays.asList(featureSet1.getSpec()),
+                Arrays.asList(featureSet1),
                 source,
                 store,
                 Optional.empty(),
@@ -262,8 +268,12 @@ public class JobUpdateTaskTest {
 
   @Test
   public void shouldTimeout() {
-    FeatureSetSpec featureSet1 =
-        FeatureSetSpec.newBuilder().setName("featureSet1").setVersion(1).setSource(source).build();
+    FeatureSetProto.FeatureSet featureSet1 =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                FeatureSetSpec.newBuilder().setSource(source).setProject("project1").setName("featureSet1").setVersion(1))
+            .setMeta(FeatureSetMeta.newBuilder()).build();
+
     JobUpdateTask jobUpdateTask =
         spy(
             new JobUpdateTask(

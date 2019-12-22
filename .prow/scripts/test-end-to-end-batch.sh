@@ -123,7 +123,9 @@ feast:
 
 spring:
   jpa:
-    properties.hibernate.format_sql: true
+    properties.hibernate:
+      format_sql: true
+      event.merge.entity_copy_observer: allow
     hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
     hibernate.ddl-auto: update
   datasource:
@@ -167,7 +169,8 @@ bigquery_config:
   datasetId: $DATASET_NAME
 subscriptions:
   - name: "*"
-    version: ">0"
+    version: "*"
+    project: "*"
 EOF
 
 cat <<EOF > /tmp/serving.warehouse.application.yml

@@ -20,7 +20,6 @@ import com.google.auto.value.AutoValue;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import com.timgroup.statsd.StatsDClientException;
-import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
 import feast.types.ValueProto.Value.ValCase;
@@ -34,6 +33,7 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
 
   private final String METRIC_PREFIX = "feast_ingestion";
   private final String STORE_TAG_KEY = "feast_store";
+  private final String FEATURE_SET_PROJECT_TAG_KEY = "feast_project_name";
   private final String FEATURE_SET_NAME_TAG_KEY = "feast_featureSet_name";
   private final String FEATURE_SET_VERSION_TAG_KEY = "feast_featureSet_version";
   private final String FEATURE_TAG_KEY = "feast_feature_name";
@@ -46,10 +46,7 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
   public abstract int getStatsdPort();
 
   public static WriteRowMetricsDoFn create(
-      String newStoreName,
-      FeatureSetSpec newFeatureSetSpec,
-      String newStatsdHost,
-      int newStatsdPort) {
+      String newStoreName, String newStatsdHost, int newStatsdPort) {
     return newBuilder()
         .setStoreName(newStoreName)
         .setStatsdHost(newStatsdHost)
@@ -88,13 +85,15 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
       long eventTimestamp = com.google.protobuf.util.Timestamps.toMillis(row.getEventTimestamp());
 
       String[] split = row.getFeatureSet().split(":");
-      String featureSetName = split[0];
+      String featureSetProject = split[0].split("/")[0];
+      String featureSetName = split[0].split("/")[1];
       String featureSetVersion = split[1];
 
       statsd.histogram(
           "feature_row_lag_ms",
           System.currentTimeMillis() - eventTimestamp,
           STORE_TAG_KEY + ":" + getStoreName(),
+          FEATURE_SET_PROJECT_TAG_KEY + ":" + featureSetProject,
           FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
           FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
           INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
@@ -103,6 +102,7 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
           "feature_row_event_time_epoch_ms",
           eventTimestamp,
           STORE_TAG_KEY + ":" + getStoreName(),
+          FEATURE_SET_PROJECT_TAG_KEY + ":" + featureSetProject,
           FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
           FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
           INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
@@ -113,6 +113,7 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
               "feature_value_lag_ms",
               System.currentTimeMillis() - eventTimestamp,
               STORE_TAG_KEY + ":" + getStoreName(),
+              FEATURE_SET_PROJECT_TAG_KEY + ":" + featureSetProject,
               FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
               FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
               FEATURE_TAG_KEY + ":" + field.getName(),
@@ -122,6 +123,7 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
               "feature_value_missing_count",
               1,
               STORE_TAG_KEY + ":" + getStoreName(),
+              FEATURE_SET_PROJECT_TAG_KEY + ":" + featureSetProject,
               FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
               FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
               FEATURE_TAG_KEY + ":" + field.getName(),
@@ -133,6 +135,7 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
           "feature_row_ingested_count",
           1,
           STORE_TAG_KEY + ":" + getStoreName(),
+          FEATURE_SET_PROJECT_TAG_KEY + ":" + featureSetProject,
           FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
           FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
           INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName());
