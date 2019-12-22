@@ -44,6 +44,17 @@ public class SpecUtil {
     List<FeatureSet> subscribed = new ArrayList<>();
     for (FeatureSet featureSet : featureSets) {
       for (Subscription sub : subscriptions) {
+        // If default subscription, then subscribe to everything
+        if (sub == Subscription.getDefaultInstance()){
+          subscribed.add(featureSet);
+          break;
+        }
+
+        // Do not allow a missing project value if feature set name or version is set
+        if (!sub.getProject().isEmpty() && !sub.getProject().equals(featureSet.getSpec().getProject())){
+          continue;
+        }
+
         // Convert wildcard to regex
         String subName = sub.getName();
         if (!sub.getName().contains(".*")) {
@@ -84,9 +95,9 @@ public class SpecUtil {
       throws InvalidProtocolBufferException {
     List<FeatureSet> featureSets = new ArrayList<>();
     for (String json : jsonList) {
-      FeatureSet.Builder builder = FeatureSet.newBuilder();
+      FeatureSetSpec.Builder builder = FeatureSetSpec.newBuilder();
       JsonFormat.parser().merge(json, builder);
-      featureSets.add(builder.build());
+      featureSets.add(FeatureSet.newBuilder().setSpec(builder.build()).build());
     }
     return featureSets;
   }

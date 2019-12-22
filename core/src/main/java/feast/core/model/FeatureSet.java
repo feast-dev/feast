@@ -130,7 +130,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   }
 
   private void setId(String project, String name, int version) {
-    this.id = project + ":" + name + ":" + version;
+    this.id = project + "/" + name + ":" + version;
   }
 
   public void setVersion(int version) {

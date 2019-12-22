@@ -59,7 +59,6 @@ class FeatureSet:
             self._source = source
         self._max_age = max_age
         self._version = None
-        self._client = None
         self._status = None
         self._created_timestamp = None
 
@@ -83,11 +82,13 @@ class FeatureSet:
         return str(MessageToJson(self.to_proto()))
 
     def __repr__(self):
-        ref = self._name
-        if self._project:
-            ref += self._project + "/" + ref
-        if self._version:
-            ref += ":" + str(self._version).strip()
+        ref = ""
+        if self.project:
+            ref += self.project + "/"
+        if self.name:
+            ref += self.name
+        if self.version:
+            ref += ":" + str(self.version).strip()
         return ref
 
     @property
@@ -436,6 +437,7 @@ class FeatureSet:
         """
 
         self.name = feature_set.name
+        self.project = feature_set.project
         self.version = feature_set.version
         self.source = feature_set.source
         self.max_age = feature_set.max_age
@@ -466,6 +468,9 @@ class FeatureSet:
         Validates the state of a feature set locally. Raises an exception
         if feature set is invalid.
         """
+
+        if not self.name:
+            raise ValueError(f"No name found in feature set.")
 
         if len(self.entities) == 0:
             raise ValueError(f"No entities found in feature set {self.name}")
@@ -516,7 +521,7 @@ class FeatureSet:
         """
 
         feature_set = cls(
-            name=feature_set_proto.meta.name,
+            name=feature_set_proto.spec.name,
             features=[
                 Feature.from_proto(feature)
                 for feature in feature_set_proto.spec.features
@@ -530,11 +535,11 @@ class FeatureSet:
                 if feature_set_proto.spec.source.type == 0
                 else Source.from_proto(feature_set_proto.spec.source)
             ),
-            project=None
-            if len(feature_set_proto.meta.project) == 0
-            else feature_set_proto.meta.project,
+            project=feature_set_proto.spec.project
+            if len(feature_set_proto.spec.project) == 0
+            else feature_set_proto.spec.project,
         )
-        feature_set._version = feature_set_proto.meta.version
+        feature_set._version = feature_set_proto.spec.version
         feature_set._status = feature_set_proto.meta.status
         feature_set._created_timestamp = feature_set_proto.meta.created_timestamp
         return feature_set
@@ -548,14 +553,13 @@ class FeatureSet:
         """
 
         meta = FeatureSetMetaProto(
-            name=self.name,
-            version=self.version,
-            created_timestamp=self.created_timestamp,
-            status=self.status,
-            project=self.project,
+            created_timestamp=self.created_timestamp, status=self.status
         )
 
         spec = FeatureSetSpecProto(
+            project=self.project,
+            name=self.name,
+            version=self.version,
             max_age=self.max_age,
             source=self.source.to_proto() if self.source is not None else None,
             features=[

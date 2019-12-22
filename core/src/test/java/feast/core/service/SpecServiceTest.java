@@ -294,7 +294,7 @@ public class SpecServiceTest {
 
   @Test
   public void shouldThrowExceptionGivenMissingFeatureSet() {
-    expectedException.expect(NullPointerException.class);
+    expectedException.expect(RetrievalException.class);
     expectedException.expectMessage(
         "Feature set with name \"f1000\" and version \"2\" could not be found.");
     specService.getFeatureSet(

@@ -118,14 +118,14 @@ public class Store {
   }
 
   private static String convertSubscriptionToString(Subscription sub) {
-    return String.format("%s:%s", sub.getName(), sub.getVersion());
+    return String.format("%s:%s:%s", sub.getProject(), sub.getName(), sub.getVersion());
   }
 
   private Subscription convertStringToSubscription(String sub) {
     if (sub.equals("")) {
       return Subscription.newBuilder().build();
     }
-    String[] split = sub.split(":");
-    return Subscription.newBuilder().setName(split[0]).setVersion(split[1]).build();
+    String[] split = sub.split(":", 3);
+    return Subscription.newBuilder().setProject(split[0]).setName(split[1]).setVersion(split[2]).build();
   }
 }

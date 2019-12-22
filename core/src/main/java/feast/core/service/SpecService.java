@@ -35,6 +35,7 @@ import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto;
 import feast.core.SourceProto;
 import feast.core.StoreProto;
+ import feast.core.StoreProto.Store.Subscription;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.ProjectRepository;
 import feast.core.dao.StoreRepository;
@@ -115,7 +116,7 @@ public class SpecService {
                   request.getProject());
 
       if (featureSet == null) {
-        throw new NullPointerException(String.format(
+        throw new RetrievalException(String.format(
             "Feature set with name \"%s\" could not be found.", request.getName()));
       }
     } else {
@@ -124,7 +125,7 @@ public class SpecService {
               request.getName(), request.getProject(), request.getVersion());
 
       if (featureSet == null) {
-        throw new NullPointerException(String.format(
+        throw new RetrievalException(String.format(
             "Feature set with name \"%s\" and version \"%s\" could " + "not be found.",
             request.getName(), request.getVersion()));
       }
@@ -139,10 +140,11 @@ public class SpecService {
    * Return a list of feature sets matching the feature set name, version, and project provided in
    * the filter. Providing a project name will filter feature sets to only a single project.
    * Providing a feature set name will match only feature sets with that name, but can return
-   * multiple versions. If a feature set name is not provided then all names will be returned.
+   * multiple versions. If a feature set name is not provided then all names will be returned. A
+   * feature set name or pattern can only be provided if a project is provided.
    *
    * <p>The feature set name in the filter accepts an asterisk as a wildcard. All matching
-   * featureSets will be returned.
+   * feature sets will be returned.
    *
    * <p>The version filter is optional; If not provided, this method will return all featureSet
    * versions of the featureSet name provided. Valid version filters should optionally contain a
@@ -316,6 +318,20 @@ public class SpecService {
   public UpdateStoreResponse updateStore(UpdateStoreRequest updateStoreRequest)
       throws InvalidProtocolBufferException {
     StoreProto.Store newStoreProto = updateStoreRequest.getStore();
+
+    List<Subscription> subs = newStoreProto.getSubscriptionsList();
+    for (Subscription sub : subs) {
+      // If no subscription is set, then subscribe to all feature sets
+      if (sub == Subscription.getDefaultInstance()) {
+        continue;
+      }
+      // Ensure that a project name is set in subscription if a feature set is set
+      if ((!sub.getVersion().isEmpty() || !sub.getName().isEmpty()) && sub.getProject().isEmpty()) {
+        throw new IllegalArgumentException(
+            String.format("Project name must be configured in a subscription if a feature set name "
+                + "or feature set version is configured: %s", sub));
+      }
+    }
     Store existingStore = storeRepository.findById(newStoreProto.getName()).orElse(null);
 
     // Do nothing if no change

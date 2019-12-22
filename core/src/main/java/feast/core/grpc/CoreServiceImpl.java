@@ -76,7 +76,8 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void getFeatureSet(
       GetFeatureSetRequest request, StreamObserver<GetFeatureSetResponse> responseObserver) {
     try {
-      responseObserver.onNext(specService.getFeatureSet(request));
+      GetFeatureSetResponse response = specService.getFeatureSet(request);
+      responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (RetrievalException | StatusRuntimeException e) {
       log.error("Exception has occurred in GetFeatureSet method: ", e);
