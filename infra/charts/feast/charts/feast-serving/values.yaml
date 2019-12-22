@@ -107,7 +107,7 @@ application.yaml:
 # store.yaml will be mounted in the container.
 springConfigMountPath: /etc/feast/feast-serving
 
-# gcpServiceAccount is the service account that Feast Core will use.
+# gcpServiceAccount is the service account that Feast Serving will use.
 gcpServiceAccount:
   # useExistingSecret specifies Feast to use an existing secret containing Google
   # Cloud service account JSON key file.
