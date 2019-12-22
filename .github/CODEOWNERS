@@ -1,8 +1,8 @@
 # Each line is a file pattern followed by one or more owners.
 # https://help.github.com/en/articles/about-code-owners
 
-*           @zhilingc @pradithya @woop @tims @thirteen37 @davidheryanto
-/core/      @zhilingc @pradithya @tims
-/ingestion/ @zhilingc @pradithya @tims
-/serving/   @zhilingc @pradithya @tims
+*           @zhilingc @pradithya @woop @davidheryanto @khorshuheng
+/core/      @zhilingc @pradithya
+/ingestion/ @zhilingc @pradithya
+/serving/   @zhilingc @pradithya
 /cli/       @zhilingc @pradithya
