@@ -20,31 +20,28 @@ Feature sets allow for groups of fields in these data sources to be ingested and
 
 When data is loaded from these sources, each field in the feature set must be found in every record of the data source. Fields from these data sources must be either a timestamp, an entity, or a feature.
 
-{% hint style="info" %}
 Feature sets are a grouping of feature sets based on how they are loaded into Feast. They ensure that data is efficiently stored during ingestion. Feature sets are not a grouping of features for retrieval of features. During retrieval it is possible to retrieve feature values from any number of feature sets.
-{% endhint %}
 
 #### Customer Transactions Example
 
 Below is an example of a basic `customer transactions` feature set that has been exported to YAML:
 
-{% tabs %}
-{% tab title="customer\_transactions\_feature\_set.yaml" %}
-```yaml
-name: customer_transactions
-kind: feature_set
-entities:
-- name: customer_id
-  valueType: INT64
-features:
-- name: daily_transactions
-  valueType: FLOAT
-- name: total_transactions
-  valueType: FLOAT
-  maxAge: 3600s
-```
-{% endtab %}
-{% endtabs %}
+* `customer\_transactions\_feature\_set.yaml`:
+
+    ```yaml
+    name: customer_transactions
+    kind: feature_set
+    entities:
+    - name: customer_id
+        valueType: INT64
+    features:
+    - name: daily_transactions
+        valueType: FLOAT
+    - name: total_transactions
+        valueType: FLOAT
+        maxAge: 3600s
+    ```
+
 
 The dataframe below \(`customer_data.csv`\) contains the features and entities of the above feature set
 
@@ -74,9 +71,7 @@ A feature is an individual measurable property or characteristic of a phenomenon
 
 In the context of Feast, features are values that are associated with either one or more entities over time. In Feast, these values are either primitives or lists of primitives. Each feature can also have additional information attached to it. For example whether it is a categorical feature or numerical.
 
-{% hint style="info" %}
 Features in Feast are defined within Feature Sets and are not treated as standalone concepts.
-{% endhint %}
 
 ### Entity
 
@@ -91,9 +86,7 @@ An entity is the object on which features are observed. For example we could hav
 
 In the context of Feast, entities are important because they are used as keys when looking up feature values. Entities are also used when joining feature values between different feature sets in order to build one large data set to train a model, or to serve a model.
 
-{% hint style="info" %}
 Entities in Feast are defined within Feature Sets and are not treated as standalone concepts.
-{% endhint %}
 
 ### Types
 

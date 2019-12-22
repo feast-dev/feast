@@ -191,7 +191,6 @@ This guide will install Feast into a Kubernetes cluster on GCP. It assumes that 
 * Retrieve features for model training.
 * Retrieve features for online serving.
 
-{% hint style="info" %}
 This guide requires [Google Cloud Platform](https://cloud.google.com/) for installation.
 
 * [BigQuery](https://cloud.google.com/bigquery/) is used for storing historical features.
