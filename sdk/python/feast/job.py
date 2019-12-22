@@ -1,12 +1,11 @@
 import tempfile
 import time
 from datetime import datetime, timedelta
-from typing import List
+from typing import Iterable
 from urllib.parse import urlparse
 
 import fastavro
 import pandas as pd
-from fastavro import reader as fastavro_reader
 from google.cloud import storage
 
 from feast.serving.ServingService_pb2 import GetJobRequest
@@ -62,15 +61,18 @@ class Job:
         """
         self.job_proto = self.serving_stub.GetJob(GetJobRequest(job=self.job_proto)).job
 
-    def result(self, timeout_sec: int = DEFAULT_TIMEOUT_SEC):
+    def get_avro_files(self, timeout_sec: int = DEFAULT_TIMEOUT_SEC):
         """
-        Wait until job is done to get an iterable rows of result.
-        The row can only represent an Avro row in Feast 0.3.
+        Wait until job is done to get the file uri to Avro result files on
+        Google Cloud Storage.
 
         Args:
-            timeout_sec: max no of seconds to wait until job is done. If "timeout_sec" is exceeded, an exception will be raised.
+            timeout_sec (int):
+                Max no of seconds to wait until job is done. If "timeout_sec"
+                is exceeded, an exception will be raised.
 
-        Returns: Iterable of Avro rows
+        Returns:
+            str: Google Cloud Storage file uris of the returned Avro files.
         """
         max_wait_datetime = datetime.now() + timedelta(seconds=timeout_sec)
         wait_duration_sec = 2
@@ -78,11 +80,13 @@ class Job:
         while self.status != JOB_STATUS_DONE:
             if datetime.now() > max_wait_datetime:
                 raise Exception(
-                    "Timeout exceeded while waiting for result. Please retry this method or use a longer timeout value."
+                    "Timeout exceeded while waiting for result. Please retry "
+                    "this method or use a longer timeout value."
                 )
 
             self.reload()
             time.sleep(wait_duration_sec)
+
             # Backoff the wait duration exponentially up till MAX_WAIT_INTERVAL_SEC
             wait_duration_sec = min(wait_duration_sec * 2, MAX_WAIT_INTERVAL_SEC)
 
@@ -95,7 +99,22 @@ class Job:
                 "your Feast Serving deployment."
             )
 
-        uris = [urlparse(uri) for uri in self.job_proto.file_uris]
+        return [urlparse(uri) for uri in self.job_proto.file_uris]
+
+    def result(self, timeout_sec: int = DEFAULT_TIMEOUT_SEC):
+        """
+        Wait until job is done to get an iterable rows of result. The row can
+        only represent an Avro row in Feast 0.3.
+
+        Args:
+            timeout_sec (int):
+                Max no of seconds to wait until job is done. If "timeout_sec"
+                is exceeded, an exception will be raised.
+
+        Returns:
+            Iterable of Avro rows.
+        """
+        uris = self.get_avro_files(timeout_sec)
         for file_uri in uris:
             if file_uri.scheme == "gs":
                 file_obj = tempfile.TemporaryFile()
@@ -113,16 +132,64 @@ class Job:
             for record in avro_reader:
                 yield record
 
-    def to_dataframe(self, timeout_sec: int = DEFAULT_TIMEOUT_SEC):
+    def to_dataframe(
+            self,
+            timeout_sec: int = DEFAULT_TIMEOUT_SEC
+    ) -> pd.DataFrame:
         """
-        Wait until job is done to get an interable rows of result
+        Wait until a job is done to get an iterable rows of result. This method
+        will split the response into chunked DataFrame of a specified size to
+        to be yielded to the instance calling it.
 
         Args:
-            timeout_sec: max no of seconds to wait until job is done. If "timeout_sec" is exceeded, an exception will be raised.
-        Returns: pandas Dataframe of the feature values
+            max_chunk_size (int):
+                Maximum number of rows that the DataFrame should contain.
+
+            timeout_sec (int):
+                Max no of seconds to wait until job is done. If "timeout_sec"
+                is exceeded, an exception will be raised.
+
+        Returns:
+            pd.DataFrame:
+                Pandas DataFrame of the feature values.
         """
         records = [r for r in self.result(timeout_sec=timeout_sec)]
         return pd.DataFrame.from_records(records)
+
+    def to_chunked_dataframe(
+            self,
+            max_chunk_size: int = -1,
+            timeout_sec: int = DEFAULT_TIMEOUT_SEC
+    ) -> pd.DataFrame:
+        """
+        Wait until a job is done to get an iterable rows of result. This method
+        will split the response into chunked DataFrame of a specified size to
+        to be yielded to the instance calling it.
+
+        Args:
+            max_chunk_size (int):
+                Maximum number of rows that the DataFrame should contain.
+
+            timeout_sec (int):
+                Max no of seconds to wait until job is done. If "timeout_sec"
+                is exceeded, an exception will be raised.
+
+        Returns:
+            pd.DataFrame:
+                Pandas DataFrame of the feature values.
+        """
+        # Max chunk size defined by user
+        records = []
+        for result in self.result(timeout_sec=timeout_sec):
+            result.append(records)
+            if len(records) == max_chunk_size:
+                df = pd.DataFrame.from_records(records)
+                records.clear()  # Empty records array
+                yield df
+
+        # Handle for last chunk that is < max_chunk_size
+        if not records:
+            yield pd.DataFrame.from_records(records)
 
     def __iter__(self):
         return iter(self.result())
