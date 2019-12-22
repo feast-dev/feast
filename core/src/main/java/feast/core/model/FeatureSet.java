@@ -27,19 +27,23 @@ import feast.core.FeatureSetProto.FeatureSpec;
 import feast.types.ValueProto.ValueType;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import javax.persistence.CascadeType;
+import javax.persistence.CollectionTable;
 import javax.persistence.Column;
+import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
 
@@ -49,7 +53,7 @@ import org.hibernate.annotations.FetchMode;
 @Table(name = "feature_sets")
 public class FeatureSet extends AbstractTimestampEntity implements Comparable<FeatureSet> {
 
-  // Id of the featureSet, defined as name:version
+  // Id of the featureSet, defined as project:feature_set_name:feature_set_version
   @Id
   @Column(name = "id", nullable = false, unique = true)
   private String id;
@@ -58,29 +62,37 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   @Column(name = "name", nullable = false)
   private String name;
 
+  // Version of the featureSet
+  @Column(name = "version")
+  private int version;
+
   // Project that this featureSet belongs to
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "project_name")
   private Project project;
 
-  // Version of the featureSet
-  @Column(name = "version")
-  private int version;
-
   // Max allowed staleness for features in this featureSet.
   @Column(name = "max_age")
   private long maxAgeSeconds;
 
-  @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-  @Fetch(value = FetchMode.SUBSELECT)
-  @JoinColumn(name = "entities")
-  private List<Field> entities;
 
-  // Features inside this featureSet
-  @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-  @Fetch(value = FetchMode.SUBSELECT)
-  @JoinColumn(name = "features")
-  private List<Field> features;
+  // Entity fields inside this feature set
+  @ElementCollection(fetch = FetchType.EAGER)
+  @CollectionTable(
+      name = "entities",
+      joinColumns = @JoinColumn(name = "feature_set_id")
+  )
+  @Fetch(FetchMode.SUBSELECT)
+  private Set<Field> entities;
+
+  // Feature fields inside this feature set
+  @ElementCollection(fetch = FetchType.EAGER)
+  @CollectionTable(
+      name = "features",
+      joinColumns = @JoinColumn(name = "feature_set_id")
+  )
+  @Fetch(FetchMode.SUBSELECT)
+  private Set<Field> features;
 
   // Source on which feature rows can be found
   @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
@@ -104,33 +116,50 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
       List<Field> features,
       Source source,
       FeatureSetStatus status) {
-    this.id = String.format("%s:%s", name, version);
-    this.name = name;
-    this.version = version;
     this.maxAgeSeconds = maxAgeSeconds;
-    this.entities = entities;
-    this.features = features;
     this.source = source;
     this.status = status.toString();
+    this.entities = new HashSet<>();
+    this.features = new HashSet<>();
+    this.name = name;
     this.project = new Project(project);
+    this.version = version;
+    this.setId(project, name, version);
+    addEntities(entities);
+    addFeatures(features);
+  }
+
+  private void setId(String project, String name, int version) {
+    this.id = project + ":" + name + ":" + version;
+  }
+
+  public void setVersion(int version) {
+    this.version = version;
+    this.setId(getProject().getName(), getName(), version);
+  }
+
+  public void setName(String name) {
+    this.name = name;
+    this.setId(getProject().getName(), name, getVersion());
+  }
+
+  public void setProject(Project project) {
+    this.project = project;
+    this.setId(project.getName(), getName(), getVersion());
   }
 
   public static FeatureSet fromProto(FeatureSetProto.FeatureSet featureSetProto) {
     FeatureSetSpec featureSetSpec = featureSetProto.getSpec();
     Source source = Source.fromProto(featureSetSpec.getSource());
-    String id = String.format("%s/%s:%d",
-        featureSetProto.getSpec().getProject(),
-        featureSetProto.getSpec().getName(),
-        featureSetProto.getSpec().getVersion());
 
     List<Field> features = new ArrayList<>();
     for (FeatureSpec feature : featureSetSpec.getFeaturesList()) {
-      features.add(new Field(id, feature.getName(), feature.getValueType()));
+      features.add(new Field(feature.getName(), feature.getValueType()));
     }
 
     List<Field> entities = new ArrayList<>();
     for (EntitySpec entity : featureSetSpec.getEntitiesList()) {
-      entities.add(new Field(id, entity.getName(), entity.getValueType()));
+      entities.add(new Field(entity.getName(), entity.getValueType()));
     }
 
     return new FeatureSet(
@@ -142,6 +171,26 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
         features,
         source,
         featureSetProto.getMeta().getStatus());
+  }
+
+  public void addEntities(List<Field> fields) {
+    for (Field field : fields) {
+      addEntity(field);
+    }
+  }
+
+  public void addEntity(Field field) {
+    entities.add(field);
+  }
+
+  public void addFeatures(List<Field> fields) {
+    for (Field field : fields) {
+      addFeature(field);
+    }
+  }
+
+  public void addFeature(Field field) {
+    features.add(field);
   }
 
   public FeatureSetProto.FeatureSet toProto() {
@@ -170,8 +219,8 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
 
     FeatureSetSpec.Builder spec =
         FeatureSetSpec.newBuilder()
-            .setName(name)
-            .setVersion(version)
+            .setName(getName())
+            .setVersion(getVersion())
             .setProject(project.getName())
             .setMaxAge(Duration.newBuilder().setSeconds(maxAgeSeconds))
             .addAllEntities(entitySpecs)
@@ -188,7 +237,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
    * @return boolean denoting if the source or schema have changed.
    */
   public boolean equalTo(FeatureSet other) {
-    if (!name.equals(other.getName())) {
+    if (!getName().equals(other.getName())) {
       return false;
     }
 
@@ -216,12 +265,12 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     }
 
     // Ensure map size is consistent with existing fields
-    if (fields.size() != other.features.size() + other.entities.size()) {
+    if (fields.size() != other.getFeatures().size() + other.getEntities().size()) {
       return false;
     }
 
-    // Ensure the other entities and fields exist in the field map
-    for (Field e : other.entities) {
+    // Ensure the other entities and features exist in the field map
+    for (Field e : other.getEntities()) {
       if (!fields.containsKey(e.getName())) {
         return false;
       }
@@ -230,7 +279,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
       }
     }
 
-    for (Field f : features) {
+    for (Field f : other.getFeatures()) {
       if (!fields.containsKey(f.getName())) {
         return false;
       }
@@ -243,7 +292,27 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   }
 
   @Override
+  public int hashCode() {
+    HashCodeBuilder hcb = new HashCodeBuilder();
+    hcb.append(project.getName());
+    hcb.append(getName());
+    hcb.append(getVersion());
+    return hcb.toHashCode();
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) {
+      return true;
+    }
+    if (!(obj instanceof FeatureSet)) {
+      return false;
+    }
+    return this.equalTo(((FeatureSet) obj));
+  }
+
+  @Override
   public int compareTo(FeatureSet o) {
-    return Integer.compare(version, o.version);
+    return Integer.compare(getVersion(), o.getVersion());
   }
 }

@@ -23,6 +23,7 @@ import feast.core.SourceProto.KafkaSourceConfig;
 import feast.core.SourceProto.Source.Builder;
 import feast.core.SourceProto.SourceType;
 import io.grpc.Status;
+import java.util.Objects;
 import java.util.Set;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -198,5 +199,22 @@ public class Source {
         // should not occur
         return "";
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Source source = (Source) o;
+    return id.equals(source.id);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(id);
   }
 }

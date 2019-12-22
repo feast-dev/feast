@@ -33,6 +33,7 @@ import feast.core.job.Runner;
 import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
+import feast.core.model.Project;
 import feast.core.model.Source;
 import feast.core.model.Store;
 import feast.core.util.TypeConversion;
@@ -185,7 +186,9 @@ public class DataflowJobManager implements JobManager {
               .map(
                   fsp -> {
                     FeatureSet featureSet = new FeatureSet();
-                    featureSet.setId(fsp.getSpec().getName() + ":" + fsp.getSpec().getVersion());
+                    featureSet.setName(fsp.getSpec().getName());
+                    featureSet.setVersion(fsp.getSpec().getVersion());
+                    featureSet.setProject(new Project(fsp.getSpec().getProject()));
                     return featureSet;
                   })
               .collect(Collectors.toList());

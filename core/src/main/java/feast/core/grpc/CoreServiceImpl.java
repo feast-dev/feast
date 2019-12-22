@@ -16,39 +16,53 @@
  */
 package feast.core.grpc;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.CoreServiceGrpc.CoreServiceImplBase;
 import feast.core.CoreServiceProto.ApplyFeatureSetRequest;
 import feast.core.CoreServiceProto.ApplyFeatureSetResponse;
+import feast.core.CoreServiceProto.ArchiveProjectRequest;
+import feast.core.CoreServiceProto.ArchiveProjectResponse;
+import feast.core.CoreServiceProto.CreateProjectRequest;
+import feast.core.CoreServiceProto.CreateProjectResponse;
 import feast.core.CoreServiceProto.GetFeastCoreVersionRequest;
 import feast.core.CoreServiceProto.GetFeastCoreVersionResponse;
 import feast.core.CoreServiceProto.GetFeatureSetRequest;
 import feast.core.CoreServiceProto.GetFeatureSetResponse;
 import feast.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.core.CoreServiceProto.ListProjectsRequest;
+import feast.core.CoreServiceProto.ListProjectsResponse;
 import feast.core.CoreServiceProto.ListStoresRequest;
 import feast.core.CoreServiceProto.ListStoresResponse;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.exception.RetrievalException;
 import feast.core.grpc.interceptors.MonitoringInterceptor;
+import feast.core.model.Project;
+import feast.core.service.AccessManagementService;
 import feast.core.service.SpecService;
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import java.util.List;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.lognet.springboot.grpc.GRpcService;
 import org.springframework.beans.factory.annotation.Autowired;
 
-/** Implementation of the feast core GRPC service. */
+/**
+ * Implementation of the feast core GRPC service.
+ */
 @Slf4j
 @GRpcService(interceptors = {MonitoringInterceptor.class})
 public class CoreServiceImpl extends CoreServiceImplBase {
 
   private SpecService specService;
+  private AccessManagementService accessManagementService;
 
   @Autowired
-  public CoreServiceImpl(SpecService specService) {
+  public CoreServiceImpl(SpecService specService, AccessManagementService accessManagementService) {
     this.specService = specService;
+    this.accessManagementService = accessManagementService;
   }
 
   @Override
@@ -62,12 +76,14 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void getFeatureSet(
       GetFeatureSetRequest request, StreamObserver<GetFeatureSetResponse> responseObserver) {
     try {
-      GetFeatureSetResponse response = specService.getFeatureSet(request);
-      responseObserver.onNext(response);
+      responseObserver.onNext(specService.getFeatureSet(request));
       responseObserver.onCompleted();
-    } catch (RetrievalException | InvalidProtocolBufferException | StatusRuntimeException e) {
+    } catch (RetrievalException | StatusRuntimeException e) {
       log.error("Exception has occurred in GetFeatureSet method: ", e);
-      responseObserver.onError(e);
+      responseObserver.onError(Status.INTERNAL
+          .withDescription(e.getMessage())
+          .withCause(e)
+          .asRuntimeException());
     }
   }
 
@@ -78,9 +94,12 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       ListFeatureSetsResponse response = specService.listFeatureSets(request.getFilter());
       responseObserver.onNext(response);
       responseObserver.onCompleted();
-    } catch (RetrievalException | InvalidProtocolBufferException e) {
+    } catch (RetrievalException e) {
       log.error("Exception has occurred in ListFeatureSet method: ", e);
-      responseObserver.onError(e);
+      responseObserver.onError(Status.INTERNAL
+          .withDescription(e.getMessage())
+          .withCause(e)
+          .asRuntimeException());
     }
   }
 
@@ -93,7 +112,10 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onCompleted();
     } catch (RetrievalException e) {
       log.error("Exception has occurred in ListStores method: ", e);
-      responseObserver.onError(e);
+      responseObserver.onError(Status.INTERNAL
+          .withDescription(e.getMessage())
+          .withCause(e)
+          .asRuntimeException());
     }
   }
 
@@ -106,7 +128,10 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onCompleted();
     } catch (Exception e) {
       log.error("Exception has occurred in ApplyFeatureSet method: ", e);
-      responseObserver.onError(e);
+      responseObserver.onError(Status.INTERNAL
+          .withDescription(e.getMessage())
+          .withCause(e)
+          .asRuntimeException());
     }
   }
 
@@ -119,7 +144,61 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onCompleted();
     } catch (Exception e) {
       log.error("Exception has occurred in UpdateStore method: ", e);
-      responseObserver.onError(e);
+      responseObserver.onError(Status.INTERNAL
+          .withDescription(e.getMessage())
+          .withCause(e)
+          .asRuntimeException());
     }
   }
+
+  @Override
+  public void createProject(
+      CreateProjectRequest request, StreamObserver<CreateProjectResponse> responseObserver) {
+    try {
+      accessManagementService.createProject(request.getName());
+      responseObserver.onNext(CreateProjectResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (Exception e) {
+      log.error("Exception has occurred in the createProject method: ", e);
+      responseObserver.onError(Status.INTERNAL
+          .withDescription(e.getMessage())
+          .withCause(e)
+          .asRuntimeException());
+    }
+  }
+
+  @Override
+  public void archiveProject(
+      ArchiveProjectRequest request, StreamObserver<ArchiveProjectResponse> responseObserver) {
+    try {
+      accessManagementService.archiveProject(request.getName());
+      responseObserver.onNext(ArchiveProjectResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (Exception e) {
+      log.error("Exception has occurred in the createProject method: ", e);
+      responseObserver.onError(Status.INTERNAL
+          .withDescription(e.getMessage())
+          .withCause(e)
+          .asRuntimeException());
+    }
+  }
+
+  @Override
+  public void listProjects(
+      ListProjectsRequest request, StreamObserver<ListProjectsResponse> responseObserver) {
+    try {
+      List<Project> projects = accessManagementService.listProjects();
+      responseObserver.onNext(ListProjectsResponse.newBuilder()
+          .addAllProjects(projects.stream().map(Project::getName).collect(
+              Collectors.toList())).build());
+      responseObserver.onCompleted();
+    } catch (Exception e) {
+      log.error("Exception has occurred in the listProjects method: ", e);
+      responseObserver.onError(Status.INTERNAL
+          .withDescription(e.getMessage())
+          .withCause(e)
+          .asRuntimeException());
+    }
+  }
+
 }
