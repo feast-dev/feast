@@ -19,6 +19,7 @@ package feast.ingestion.utils;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.FeatureSetProto.EntitySpec;
+import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
 import feast.core.StoreProto.Store;
@@ -32,11 +33,16 @@ import java.util.regex.Pattern;
 
 public class SpecUtil {
 
+  public static String getFeatureSetReference(FeatureSet featureSet) {
+    FeatureSetSpec spec = featureSet.getSpec();
+    return String.format("%s/%s:%d", spec.getProject(), spec.getName(), spec.getVersion());
+  }
+
   /** Get only feature set specs that matches the subscription */
-  public static List<FeatureSetSpec> getSubscribedFeatureSets(
-      List<Subscription> subscriptions, List<FeatureSetSpec> featureSetSpecs) {
-    List<FeatureSetSpec> subscribed = new ArrayList<>();
-    for (FeatureSetSpec featureSet : featureSetSpecs) {
+  public static List<FeatureSet> getSubscribedFeatureSets(
+      List<Subscription> subscriptions, List<FeatureSet> featureSets) {
+    List<FeatureSet> subscribed = new ArrayList<>();
+    for (FeatureSet featureSet : featureSets) {
       for (Subscription sub : subscriptions) {
         // Convert wildcard to regex
         String subName = sub.getName();
@@ -46,7 +52,7 @@ public class SpecUtil {
 
         // Match feature set name to pattern
         Pattern pattern = Pattern.compile(subName);
-        if (!pattern.matcher(featureSet.getName()).matches()) {
+        if (!pattern.matcher(featureSet.getSpec().getName()).matches()) {
           continue;
         }
 
@@ -57,14 +63,14 @@ public class SpecUtil {
         } else if (sub.getVersion().startsWith(">") && sub.getVersion().length() > 1) {
           // if version starts with >, match only those greater than the version number
           int lowerBoundIncl = Integer.parseInt(sub.getVersion().substring(1));
-          if (featureSet.getVersion() >= lowerBoundIncl) {
+          if (featureSet.getSpec().getVersion() >= lowerBoundIncl) {
             subscribed.add(featureSet);
             break;
           }
         } else {
           // If a specific version, match that version alone
           int version = Integer.parseInt(sub.getVersion());
-          if (featureSet.getVersion() == version) {
+          if (featureSet.getSpec().getVersion() == version) {
             subscribed.add(featureSet);
             break;
           }
@@ -74,15 +80,15 @@ public class SpecUtil {
     return subscribed;
   }
 
-  public static List<FeatureSetSpec> parseFeatureSetSpecJsonList(List<String> jsonList)
+  public static List<FeatureSet> parseFeatureSetSpecJsonList(List<String> jsonList)
       throws InvalidProtocolBufferException {
-    List<FeatureSetSpec> featureSetSpecs = new ArrayList<>();
+    List<FeatureSet> featureSets = new ArrayList<>();
     for (String json : jsonList) {
-      FeatureSetSpec.Builder builder = FeatureSetSpec.newBuilder();
+      FeatureSet.Builder builder = FeatureSet.newBuilder();
       JsonFormat.parser().merge(json, builder);
-      featureSetSpecs.add(builder.build());
+      featureSets.add(builder.build());
     }
-    return featureSetSpecs;
+    return featureSets;
   }
 
   public static List<Store> parseStoreJsonList(List<String> jsonList)

@@ -17,7 +17,6 @@
 package feast.core.job;
 
 import feast.core.FeatureSetProto;
-import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto;
 import feast.core.StoreProto;
 import feast.core.log.Action;
@@ -53,7 +52,7 @@ import lombok.extern.slf4j.Slf4j;
 @Getter
 public class JobUpdateTask implements Callable<Job> {
 
-  private final List<FeatureSetSpec> featureSetSpecs;
+  private final List<FeatureSetProto.FeatureSet> featureSets;
   private final SourceProto.Source sourceSpec;
   private final StoreProto.Store store;
   private final Optional<Job> currentJob;
@@ -61,14 +60,14 @@ public class JobUpdateTask implements Callable<Job> {
   private long jobUpdateTimeoutSeconds;
 
   public JobUpdateTask(
-      List<FeatureSetSpec> featureSetSpecs,
+      List<FeatureSetProto.FeatureSet> featureSets,
       SourceProto.Source sourceSpec,
       StoreProto.Store store,
       Optional<Job> currentJob,
       JobManager jobManager,
       long jobUpdateTimeoutSeconds) {
 
-    this.featureSetSpecs = featureSetSpecs;
+    this.featureSets = featureSets;
     this.sourceSpec = sourceSpec;
     this.store = store;
     this.currentJob = currentJob;
@@ -87,8 +86,8 @@ public class JobUpdateTask implements Callable<Job> {
               .map(FeatureSet::getId)
               .collect(Collectors.toSet());
       Set<String> newFeatureSetsPopulatedByJob =
-          featureSetSpecs.stream()
-              .map(fs -> fs.getName() + ":" + fs.getVersion())
+          featureSets.stream()
+              .map(fs -> fs.getSpec().getName() + ":" + fs.getSpec().getVersion())
               .collect(Collectors.toSet());
       if (existingFeatureSetsPopulatedByJob.size() == newFeatureSetsPopulatedByJob.size()
           && existingFeatureSetsPopulatedByJob.containsAll(newFeatureSetsPopulatedByJob)) {
@@ -107,12 +106,12 @@ public class JobUpdateTask implements Callable<Job> {
         return job;
       } else {
         submittedJob =
-            executorService.submit(() -> updateJob(currentJob.get(), featureSetSpecs, store));
+            executorService.submit(() -> updateJob(currentJob.get(), featureSets, store));
       }
     } else {
       String jobId = createJobId(source.getId(), store.getName());
       submittedJob =
-          executorService.submit(() -> startJob(jobId, featureSetSpecs, sourceSpec, store));
+          executorService.submit(() -> startJob(jobId, featureSets, sourceSpec, store));
     }
 
     Job job = null;
@@ -128,16 +127,16 @@ public class JobUpdateTask implements Callable<Job> {
   /** Start or update the job to ingest data to the sink. */
   private Job startJob(
       String jobId,
-      List<FeatureSetSpec> featureSetSpecs,
+      List<FeatureSetProto.FeatureSet> featureSetProtos,
       SourceProto.Source source,
       StoreProto.Store sinkSpec) {
 
     List<FeatureSet> featureSets =
-        featureSetSpecs.stream()
+        featureSetProtos.stream()
             .map(
-                spec ->
+                fsp ->
                     FeatureSet.fromProto(
-                        FeatureSetProto.FeatureSet.newBuilder().setSpec(spec).build()))
+                        FeatureSetProto.FeatureSet.newBuilder().setSpec(fsp.getSpec()).setMeta(fsp.getMeta()).build()))
             .collect(Collectors.toList());
     Job job =
         new Job(
@@ -185,13 +184,13 @@ public class JobUpdateTask implements Callable<Job> {
   }
 
   /** Update the given job */
-  private Job updateJob(Job job, List<FeatureSetSpec> featureSetSpecs, StoreProto.Store store) {
+  private Job updateJob(Job job, List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store store) {
     job.setFeatureSets(
-        featureSetSpecs.stream()
+        featureSets.stream()
             .map(
-                spec ->
+                fs ->
                     FeatureSet.fromProto(
-                        FeatureSetProto.FeatureSet.newBuilder().setSpec(spec).build()))
+                        FeatureSetProto.FeatureSet.newBuilder().setSpec(fs.getSpec()).setMeta(fs.getMeta()).build()))
             .collect(Collectors.toList()));
     job.setStore(feast.core.model.Store.fromProto(store));
     AuditLogger.log(

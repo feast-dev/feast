@@ -20,20 +20,20 @@ import static feast.core.validators.Matchers.checkValidCharacters;
 
 import com.google.common.collect.Sets;
 import feast.core.FeatureSetProto.EntitySpec;
-import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.FeatureSetProto.FeatureSpec;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class FeatureSetValidator {
-  public static void validateSpec(FeatureSetSpec featureSetSpec) {
-    checkValidCharacters(featureSetSpec.getName(), "name");
-    checkUniqueColumns(featureSetSpec.getEntitiesList(), featureSetSpec.getFeaturesList());
-    for (EntitySpec entitySpec : featureSetSpec.getEntitiesList()) {
+  public static void validateSpec(FeatureSet featureSet) {
+    checkValidCharacters(featureSet.getSpec().getName(), "name");
+    checkUniqueColumns(featureSet.getSpec().getEntitiesList(), featureSet.getSpec().getFeaturesList());
+    for (EntitySpec entitySpec : featureSet.getSpec().getEntitiesList()) {
       checkValidCharacters(entitySpec.getName(), "entities::name");
     }
-    for (FeatureSpec featureSpec : featureSetSpec.getFeaturesList()) {
+    for (FeatureSpec featureSpec : featureSet.getSpec().getFeaturesList()) {
       checkValidCharacters(featureSpec.getName(), "features::name");
     }
   }

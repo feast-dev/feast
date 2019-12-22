@@ -33,7 +33,6 @@ import feast.core.CoreServiceProto.ListStoresResponse.Builder;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto;
-import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto;
 import feast.core.StoreProto;
 import feast.core.dao.FeatureSetRepository;
@@ -139,8 +138,8 @@ public class SpecService {
    * Get featureSets matching the feature name and version provided in the filter. If the feature
    * name is not provided, the method will return all featureSets currently registered to Feast.
    *
-   * <p>The feature set name in the filter accepts any valid regex string. All matching featureSets
-   * will be returned.
+   * <p>The feature set name in the filter accepts an asterisk as a wildcard. All matching
+   * featureSets will be returned.
    *
    * <p>The version filter is optional; If not provided, this method will return all featureSet
    * versions of the featureSet name provided. Valid version filters should optionally contain a
@@ -219,13 +218,13 @@ public class SpecService {
    */
   public ApplyFeatureSetResponse applyFeatureSet(FeatureSetProto.FeatureSet newFeatureSet)
       throws InvalidProtocolBufferException {
-    FeatureSetSpec newFeatureSetSpec = newFeatureSet.getSpec();
-    FeatureSetValidator.validateSpec(newFeatureSetSpec);
+
+    FeatureSetValidator.validateSpec(newFeatureSet);
     List<FeatureSet> existingFeatureSets =
-        featureSetRepository.findByName(newFeatureSetSpec.getName());
+        featureSetRepository.findByName(newFeatureSet.getSpec().getName());
 
     if (existingFeatureSets.size() == 0) {
-      newFeatureSetSpec = newFeatureSetSpec.toBuilder().setVersion(1).build();
+      newFeatureSet = newFeatureSet.toBuilder().setSpec(newFeatureSet.getSpec().toBuilder().setVersion(1)).build();
     } else {
       existingFeatureSets = Ordering.natural().reverse().sortedCopy(existingFeatureSets);
       FeatureSet latest = existingFeatureSets.get(0);
@@ -238,11 +237,11 @@ public class SpecService {
             .setStatus(Status.NO_CHANGE)
             .build();
       }
-      newFeatureSetSpec = newFeatureSetSpec.toBuilder().setVersion(latest.getVersion() + 1).build();
+      // TODO: There is a race condition here with incrementing the version
+      newFeatureSet = newFeatureSet.toBuilder().setSpec(newFeatureSet.getSpec().toBuilder().setVersion(latest.getVersion() + 1)).build();
     }
-    newFeatureSet = newFeatureSet.toBuilder().setSpec(newFeatureSetSpec).build();
     FeatureSet featureSet = FeatureSet.fromProto(newFeatureSet);
-    if (newFeatureSetSpec.getSource() == SourceProto.Source.getDefaultInstance()) {
+    if (newFeatureSet.getSpec().getSource() == SourceProto.Source.getDefaultInstance()) {
       featureSet.setSource(defaultSource);
     }
     featureSetRepository.saveAndFlush(featureSet);

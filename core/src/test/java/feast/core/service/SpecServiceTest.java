@@ -71,11 +71,14 @@ import org.mockito.Mock;
 
 public class SpecServiceTest {
 
-  @Mock private FeatureSetRepository featureSetRepository;
+  @Mock
+  private FeatureSetRepository featureSetRepository;
 
-  @Mock private StoreRepository storeRepository;
+  @Mock
+  private StoreRepository storeRepository;
 
-  @Rule public final ExpectedException expectedException = ExpectedException.none();
+  @Rule
+  public final ExpectedException expectedException = ExpectedException.none();
 
   private SpecService specService;
   private List<FeatureSet> featureSets;
@@ -94,10 +97,10 @@ public class SpecServiceTest {
                 .build(),
             true);
 
-    FeatureSet featureSet1v1 = newDummyFeatureSet("f1", 1);
-    FeatureSet featureSet1v2 = newDummyFeatureSet("f1", 2);
-    FeatureSet featureSet1v3 = newDummyFeatureSet("f1", 3);
-    FeatureSet featureSet2v1 = newDummyFeatureSet("f2", 1);
+    FeatureSet featureSet1v1 = newDummyFeatureSet("f1", 1, "project1");
+    FeatureSet featureSet1v2 = newDummyFeatureSet("f1", 2, "project1");
+    FeatureSet featureSet1v3 = newDummyFeatureSet("f1", 3, "project1");
+    FeatureSet featureSet2v1 = newDummyFeatureSet("f2", 1, "project1");
 
     Field f3f1 = new Field("f3", "f3f1", Enum.INT64);
     Field f3f2 = new Field("f3", "f3f2", Enum.INT64);
@@ -105,6 +108,7 @@ public class SpecServiceTest {
     FeatureSet featureSet3v1 =
         new FeatureSet(
             "f3",
+            "project1",
             1,
             100L,
             Arrays.asList(f3e1),
@@ -311,9 +315,11 @@ public class SpecServiceTest {
       throws InvalidProtocolBufferException {
     FeatureSetSpec incomingFeatureSetSpec =
         featureSets.get(2).toProto().getSpec().toBuilder().clearVersion().build();
+
     ApplyFeatureSetResponse applyFeatureSetResponse =
         specService.applyFeatureSet(
-            FeatureSetProto.FeatureSet.newBuilder().setSpec(incomingFeatureSetSpec).build());
+            FeatureSetProto.FeatureSet.newBuilder()
+                .setSpec(incomingFeatureSetSpec).build());
 
     verify(featureSetRepository, times(0)).save(ArgumentMatchers.any(FeatureSet.class));
     assertThat(applyFeatureSetResponse.getStatus(), equalTo(Status.NO_CHANGE));
@@ -324,39 +330,52 @@ public class SpecServiceTest {
   public void applyFeatureSetShouldApplyFeatureSetWithInitVersionIfNotExists()
       throws InvalidProtocolBufferException {
     when(featureSetRepository.findByName("f2")).thenReturn(Lists.newArrayList());
-    FeatureSetSpec incomingFeatureSetSpec =
-        newDummyFeatureSet("f2", 1).toProto().getSpec().toBuilder().clearVersion().build();
+
+    FeatureSetProto.FeatureSet incomingFeatureSet =
+        newDummyFeatureSet("f2", 1, "project1").toProto();
+
+
+    FeatureSetProto.FeatureSetSpec incomingFeatureSetSpec =
+        incomingFeatureSet.getSpec().toBuilder().clearVersion().build();
 
     ApplyFeatureSetResponse applyFeatureSetResponse =
         specService.applyFeatureSet(
-            FeatureSetProto.FeatureSet.newBuilder().setSpec(incomingFeatureSetSpec).build());
+            FeatureSetProto.FeatureSet.newBuilder()
+                .setSpec(incomingFeatureSet.getSpec()).build());
     verify(featureSetRepository).saveAndFlush(ArgumentMatchers.any(FeatureSet.class));
-    FeatureSetSpec expected =
-        incomingFeatureSetSpec.toBuilder().setVersion(1).setSource(defaultSource.toProto()).build();
+
+    FeatureSetProto.FeatureSet expected =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(incomingFeatureSetSpec.toBuilder().setVersion(1).setSource(defaultSource.toProto()).build())
+            .build();
     assertThat(applyFeatureSetResponse.getStatus(), equalTo(Status.CREATED));
-    assertThat(applyFeatureSetResponse.getFeatureSet().getSpec(), equalTo(expected));
+    assertThat(applyFeatureSetResponse.getFeatureSet().getSpec(), equalTo(expected.getSpec()));
+    assertThat(applyFeatureSetResponse.getFeatureSet().getSpec().getVersion(),
+        equalTo(expected.getSpec().getVersion()));
   }
 
   @Test
   public void applyFeatureSetShouldIncrementFeatureSetVersionIfAlreadyExists()
       throws InvalidProtocolBufferException {
-    FeatureSetSpec incomingFeatureSet =
+    FeatureSetProto.FeatureSet incomingFeatureSet =
         featureSets
             .get(2)
-            .toProto()
-            .getSpec()
-            .toBuilder()
-            .clearVersion()
-            .addFeatures(FeatureSpec.newBuilder().setName("feature2").setValueType(Enum.STRING))
-            .build();
-    FeatureSetSpec expected =
-        incomingFeatureSet.toBuilder().setVersion(4).setSource(defaultSource.toProto()).build();
+            .toProto();
+    incomingFeatureSet = incomingFeatureSet.toBuilder()
+        .setMeta(incomingFeatureSet.getMeta()).setSpec(
+            incomingFeatureSet.getSpec().toBuilder().clearVersion().addFeatures(
+                FeatureSpec.newBuilder().setName("feature2").setValueType(Enum.STRING)).build()).build();
+
+    FeatureSetProto.FeatureSet expected = incomingFeatureSet.toBuilder()
+            .setMeta(incomingFeatureSet.getMeta().toBuilder().build()).setSpec(
+                incomingFeatureSet.getSpec().toBuilder().setVersion(4).setSource(defaultSource.toProto()).build()).build();
+
     ApplyFeatureSetResponse applyFeatureSetResponse =
-        specService.applyFeatureSet(
-            FeatureSetProto.FeatureSet.newBuilder().setSpec(expected).build());
+        specService.applyFeatureSet(incomingFeatureSet);
     verify(featureSetRepository).saveAndFlush(ArgumentMatchers.any(FeatureSet.class));
     assertThat(applyFeatureSetResponse.getStatus(), equalTo(Status.CREATED));
-    assertThat(applyFeatureSetResponse.getFeatureSet().getSpec(), equalTo(expected));
+    assertThat(applyFeatureSetResponse.getFeatureSet().getSpec(), equalTo(expected.getSpec()));
+    assertThat(applyFeatureSetResponse.getFeatureSet().getSpec().getVersion(), equalTo(expected.getSpec().getVersion()));
   }
 
   @Test
@@ -368,13 +387,14 @@ public class SpecServiceTest {
     Field f3e1 = new Field("f3", "f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
         (new FeatureSet(
-                "f3",
-                5,
-                100L,
-                Arrays.asList(f3e1),
-                Arrays.asList(f3f2, f3f1),
-                defaultSource,
-                FeatureSetStatus.STATUS_READY))
+            "f3",
+            "project1",
+            5,
+            100L,
+            Arrays.asList(f3e1),
+            Arrays.asList(f3f2, f3f1),
+            defaultSource,
+            FeatureSetStatus.STATUS_READY))
             .toProto();
 
     FeatureSetProto.FeatureSet expected = incomingFeatureSet;
@@ -430,12 +450,13 @@ public class SpecServiceTest {
     assertThat(actual, equalTo(expected));
   }
 
-  private FeatureSet newDummyFeatureSet(String name, int version) {
+  private FeatureSet newDummyFeatureSet(String name, int version, String project) {
     Field feature = new Field(name, "feature", Enum.INT64);
     Field entity = new Field(name, "entity", Enum.STRING);
     FeatureSet fs =
         new FeatureSet(
             name,
+            project,
             version,
             100L,
             Arrays.asList(entity),

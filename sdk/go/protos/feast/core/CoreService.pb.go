@@ -84,6 +84,8 @@ func (UpdateStoreResponse_Status) EnumDescriptor() ([]byte, []int) {
 
 // Request for a single feature set
 type GetFeatureSetRequest struct {
+	// Name of project the feature set belongs to (required)
+	Project string `protobuf:"bytes,3,opt,name=project,proto3" json:"project,omitempty"`
 	// Name of feature set (required).
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Version of feature set (optional). If omitted then latest feature set will be returned.
@@ -118,6 +120,13 @@ func (m *GetFeatureSetRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_GetFeatureSetRequest proto.InternalMessageInfo
 
+func (m *GetFeatureSetRequest) GetProject() string {
+	if m != nil {
+		return m.Project
+	}
+	return ""
+}
+
 func (m *GetFeatureSetRequest) GetName() string {
 	if m != nil {
 		return m.Name
@@ -134,10 +143,10 @@ func (m *GetFeatureSetRequest) GetVersion() int32 {
 
 // Response containing a single feature set
 type GetFeatureSetResponse struct {
-	FeatureSet           *FeatureSetSpec `protobuf:"bytes,1,opt,name=feature_set,json=featureSet,proto3" json:"feature_set,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
-	XXX_unrecognized     []byte          `json:"-"`
-	XXX_sizecache        int32           `json:"-"`
+	FeatureSet           *FeatureSet `protobuf:"bytes,1,opt,name=feature_set,json=featureSet,proto3" json:"feature_set,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
 func (m *GetFeatureSetResponse) Reset()         { *m = GetFeatureSetResponse{} }
@@ -165,7 +174,7 @@ func (m *GetFeatureSetResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_GetFeatureSetResponse proto.InternalMessageInfo
 
-func (m *GetFeatureSetResponse) GetFeatureSet() *FeatureSetSpec {
+func (m *GetFeatureSetResponse) GetFeatureSet() *FeatureSet {
 	if m != nil {
 		return m.FeatureSet
 	}
@@ -213,10 +222,12 @@ func (m *ListFeatureSetsRequest) GetFilter() *ListFeatureSetsRequest_Filter {
 }
 
 type ListFeatureSetsRequest_Filter struct {
-	// Name of the desired feature set. Valid regex strings are allowed.
+	// Name of project that the feature sets belongs to.
+	Project string `protobuf:"bytes,3,opt,name=project,proto3" json:"project,omitempty"`
+	// Name of the desired feature set. Asterisks can be used as wildcards in the name.
 	// e.g.
-	// - .* can be used to match all feature sets
-	// - my-project-.* can be used to match all features prefixed by "my-project"
+	// - * can be used to match all feature sets
+	// - my-feature-set* can be used to match all features prefixed by "my-feature-set"
 	FeatureSetName string `protobuf:"bytes,1,opt,name=feature_set_name,json=featureSetName,proto3" json:"feature_set_name,omitempty"`
 	// Version of the desired feature set. Either a number or valid expression can be provided.
 	// e.g.
@@ -254,6 +265,13 @@ func (m *ListFeatureSetsRequest_Filter) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ListFeatureSetsRequest_Filter proto.InternalMessageInfo
 
+func (m *ListFeatureSetsRequest_Filter) GetProject() string {
+	if m != nil {
+		return m.Project
+	}
+	return ""
+}
+
 func (m *ListFeatureSetsRequest_Filter) GetFeatureSetName() string {
 	if m != nil {
 		return m.FeatureSetName
@@ -269,10 +287,10 @@ func (m *ListFeatureSetsRequest_Filter) GetFeatureSetVersion() string {
 }
 
 type ListFeatureSetsResponse struct {
-	FeatureSets          []*FeatureSetSpec `protobuf:"bytes,1,rep,name=feature_sets,json=featureSets,proto3" json:"feature_sets,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
-	XXX_unrecognized     []byte            `json:"-"`
-	XXX_sizecache        int32             `json:"-"`
+	FeatureSets          []*FeatureSet `protobuf:"bytes,1,rep,name=feature_sets,json=featureSets,proto3" json:"feature_sets,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
+	XXX_unrecognized     []byte        `json:"-"`
+	XXX_sizecache        int32         `json:"-"`
 }
 
 func (m *ListFeatureSetsResponse) Reset()         { *m = ListFeatureSetsResponse{} }
@@ -300,7 +318,7 @@ func (m *ListFeatureSetsResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ListFeatureSetsResponse proto.InternalMessageInfo
 
-func (m *ListFeatureSetsResponse) GetFeatureSets() []*FeatureSetSpec {
+func (m *ListFeatureSetsResponse) GetFeatureSets() []*FeatureSet {
 	if m != nil {
 		return m.FeatureSets
 	}
@@ -427,10 +445,10 @@ func (m *ListStoresResponse) GetStore() []*Store {
 
 type ApplyFeatureSetRequest struct {
 	// Feature set version and source will be ignored
-	FeatureSet           *FeatureSetSpec `protobuf:"bytes,1,opt,name=feature_set,json=featureSet,proto3" json:"feature_set,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
-	XXX_unrecognized     []byte          `json:"-"`
-	XXX_sizecache        int32           `json:"-"`
+	FeatureSet           *FeatureSet `protobuf:"bytes,1,opt,name=feature_set,json=featureSet,proto3" json:"feature_set,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
 func (m *ApplyFeatureSetRequest) Reset()         { *m = ApplyFeatureSetRequest{} }
@@ -458,7 +476,7 @@ func (m *ApplyFeatureSetRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ApplyFeatureSetRequest proto.InternalMessageInfo
 
-func (m *ApplyFeatureSetRequest) GetFeatureSet() *FeatureSetSpec {
+func (m *ApplyFeatureSetRequest) GetFeatureSet() *FeatureSet {
 	if m != nil {
 		return m.FeatureSet
 	}
@@ -467,7 +485,7 @@ func (m *ApplyFeatureSetRequest) GetFeatureSet() *FeatureSetSpec {
 
 type ApplyFeatureSetResponse struct {
 	// Feature set response has been enriched with version and source information
-	FeatureSet           *FeatureSetSpec                `protobuf:"bytes,1,opt,name=feature_set,json=featureSet,proto3" json:"feature_set,omitempty"`
+	FeatureSet           *FeatureSet                    `protobuf:"bytes,1,opt,name=feature_set,json=featureSet,proto3" json:"feature_set,omitempty"`
 	Status               ApplyFeatureSetResponse_Status `protobuf:"varint,2,opt,name=status,proto3,enum=feast.core.ApplyFeatureSetResponse_Status" json:"status,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                       `json:"-"`
 	XXX_unrecognized     []byte                         `json:"-"`
@@ -499,7 +517,7 @@ func (m *ApplyFeatureSetResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ApplyFeatureSetResponse proto.InternalMessageInfo
 
-func (m *ApplyFeatureSetResponse) GetFeatureSet() *FeatureSetSpec {
+func (m *ApplyFeatureSetResponse) GetFeatureSet() *FeatureSet {
 	if m != nil {
 		return m.FeatureSet
 	}
@@ -669,6 +687,225 @@ func (m *UpdateStoreResponse) GetStatus() UpdateStoreResponse_Status {
 	return UpdateStoreResponse_NO_CHANGE
 }
 
+// Request to create a project
+type CreateProjectRequest struct {
+	// Name of project (required)
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *CreateProjectRequest) Reset()         { *m = CreateProjectRequest{} }
+func (m *CreateProjectRequest) String() string { return proto.CompactTextString(m) }
+func (*CreateProjectRequest) ProtoMessage()    {}
+func (*CreateProjectRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d9be266444105411, []int{12}
+}
+
+func (m *CreateProjectRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateProjectRequest.Unmarshal(m, b)
+}
+func (m *CreateProjectRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateProjectRequest.Marshal(b, m, deterministic)
+}
+func (m *CreateProjectRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateProjectRequest.Merge(m, src)
+}
+func (m *CreateProjectRequest) XXX_Size() int {
+	return xxx_messageInfo_CreateProjectRequest.Size(m)
+}
+func (m *CreateProjectRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateProjectRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateProjectRequest proto.InternalMessageInfo
+
+func (m *CreateProjectRequest) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+// Response for creation of a project
+type CreateProjectResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *CreateProjectResponse) Reset()         { *m = CreateProjectResponse{} }
+func (m *CreateProjectResponse) String() string { return proto.CompactTextString(m) }
+func (*CreateProjectResponse) ProtoMessage()    {}
+func (*CreateProjectResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d9be266444105411, []int{13}
+}
+
+func (m *CreateProjectResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateProjectResponse.Unmarshal(m, b)
+}
+func (m *CreateProjectResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateProjectResponse.Marshal(b, m, deterministic)
+}
+func (m *CreateProjectResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateProjectResponse.Merge(m, src)
+}
+func (m *CreateProjectResponse) XXX_Size() int {
+	return xxx_messageInfo_CreateProjectResponse.Size(m)
+}
+func (m *CreateProjectResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateProjectResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateProjectResponse proto.InternalMessageInfo
+
+// Request for the archival of a project
+type ArchiveProjectRequest struct {
+	// Name of project to be archived
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ArchiveProjectRequest) Reset()         { *m = ArchiveProjectRequest{} }
+func (m *ArchiveProjectRequest) String() string { return proto.CompactTextString(m) }
+func (*ArchiveProjectRequest) ProtoMessage()    {}
+func (*ArchiveProjectRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d9be266444105411, []int{14}
+}
+
+func (m *ArchiveProjectRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ArchiveProjectRequest.Unmarshal(m, b)
+}
+func (m *ArchiveProjectRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ArchiveProjectRequest.Marshal(b, m, deterministic)
+}
+func (m *ArchiveProjectRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ArchiveProjectRequest.Merge(m, src)
+}
+func (m *ArchiveProjectRequest) XXX_Size() int {
+	return xxx_messageInfo_ArchiveProjectRequest.Size(m)
+}
+func (m *ArchiveProjectRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ArchiveProjectRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ArchiveProjectRequest proto.InternalMessageInfo
+
+func (m *ArchiveProjectRequest) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+// Response for archival of a project
+type ArchiveProjectResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ArchiveProjectResponse) Reset()         { *m = ArchiveProjectResponse{} }
+func (m *ArchiveProjectResponse) String() string { return proto.CompactTextString(m) }
+func (*ArchiveProjectResponse) ProtoMessage()    {}
+func (*ArchiveProjectResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d9be266444105411, []int{15}
+}
+
+func (m *ArchiveProjectResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ArchiveProjectResponse.Unmarshal(m, b)
+}
+func (m *ArchiveProjectResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ArchiveProjectResponse.Marshal(b, m, deterministic)
+}
+func (m *ArchiveProjectResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ArchiveProjectResponse.Merge(m, src)
+}
+func (m *ArchiveProjectResponse) XXX_Size() int {
+	return xxx_messageInfo_ArchiveProjectResponse.Size(m)
+}
+func (m *ArchiveProjectResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ArchiveProjectResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ArchiveProjectResponse proto.InternalMessageInfo
+
+// Request for listing of projects
+type ListProjectsRequest struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ListProjectsRequest) Reset()         { *m = ListProjectsRequest{} }
+func (m *ListProjectsRequest) String() string { return proto.CompactTextString(m) }
+func (*ListProjectsRequest) ProtoMessage()    {}
+func (*ListProjectsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d9be266444105411, []int{16}
+}
+
+func (m *ListProjectsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListProjectsRequest.Unmarshal(m, b)
+}
+func (m *ListProjectsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListProjectsRequest.Marshal(b, m, deterministic)
+}
+func (m *ListProjectsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListProjectsRequest.Merge(m, src)
+}
+func (m *ListProjectsRequest) XXX_Size() int {
+	return xxx_messageInfo_ListProjectsRequest.Size(m)
+}
+func (m *ListProjectsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListProjectsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListProjectsRequest proto.InternalMessageInfo
+
+// Response for listing of projects
+type ListProjectsResponse struct {
+	// List of project names (archived projects are filtered out)
+	Projects             []string `protobuf:"bytes,1,rep,name=projects,proto3" json:"projects,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ListProjectsResponse) Reset()         { *m = ListProjectsResponse{} }
+func (m *ListProjectsResponse) String() string { return proto.CompactTextString(m) }
+func (*ListProjectsResponse) ProtoMessage()    {}
+func (*ListProjectsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d9be266444105411, []int{17}
+}
+
+func (m *ListProjectsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListProjectsResponse.Unmarshal(m, b)
+}
+func (m *ListProjectsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListProjectsResponse.Marshal(b, m, deterministic)
+}
+func (m *ListProjectsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListProjectsResponse.Merge(m, src)
+}
+func (m *ListProjectsResponse) XXX_Size() int {
+	return xxx_messageInfo_ListProjectsResponse.Size(m)
+}
+func (m *ListProjectsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListProjectsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListProjectsResponse proto.InternalMessageInfo
+
+func (m *ListProjectsResponse) GetProjects() []string {
+	if m != nil {
+		return m.Projects
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterEnum("feast.core.ApplyFeatureSetResponse_Status", ApplyFeatureSetResponse_Status_name, ApplyFeatureSetResponse_Status_value)
 	proto.RegisterEnum("feast.core.UpdateStoreResponse_Status", UpdateStoreResponse_Status_name, UpdateStoreResponse_Status_value)
@@ -686,52 +923,66 @@ func init() {
 	proto.RegisterType((*GetFeastCoreVersionResponse)(nil), "feast.core.GetFeastCoreVersionResponse")
 	proto.RegisterType((*UpdateStoreRequest)(nil), "feast.core.UpdateStoreRequest")
 	proto.RegisterType((*UpdateStoreResponse)(nil), "feast.core.UpdateStoreResponse")
+	proto.RegisterType((*CreateProjectRequest)(nil), "feast.core.CreateProjectRequest")
+	proto.RegisterType((*CreateProjectResponse)(nil), "feast.core.CreateProjectResponse")
+	proto.RegisterType((*ArchiveProjectRequest)(nil), "feast.core.ArchiveProjectRequest")
+	proto.RegisterType((*ArchiveProjectResponse)(nil), "feast.core.ArchiveProjectResponse")
+	proto.RegisterType((*ListProjectsRequest)(nil), "feast.core.ListProjectsRequest")
+	proto.RegisterType((*ListProjectsResponse)(nil), "feast.core.ListProjectsResponse")
 }
 
 func init() { proto.RegisterFile("feast/core/CoreService.proto", fileDescriptor_d9be266444105411) }
 
 var fileDescriptor_d9be266444105411 = []byte{
-	// 636 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x55, 0xdd, 0x72, 0xd2, 0x40,
-	0x14, 0x36, 0xb5, 0xa5, 0xc3, 0x89, 0xad, 0xb0, 0x28, 0x65, 0x52, 0xac, 0x18, 0x3b, 0x16, 0xbd,
-	0x48, 0x66, 0xf0, 0xc2, 0x0b, 0xc5, 0x19, 0xfe, 0x5a, 0x67, 0x74, 0xa0, 0xb3, 0x80, 0xe3, 0xf4,
-	0x86, 0x01, 0xba, 0x20, 0xb6, 0x65, 0x63, 0x76, 0xe9, 0x8c, 0x6f, 0xe3, 0x85, 0xef, 0xe1, 0x03,
-	0xf8, 0x52, 0x4e, 0xb2, 0x5b, 0xb2, 0x09, 0x21, 0x5c, 0xe8, 0x5d, 0xb2, 0xe7, 0x3b, 0xdf, 0x9e,
-	0xfd, 0xce, 0x1f, 0x14, 0x27, 0x64, 0xc8, 0xb8, 0x3d, 0xa6, 0x2e, 0xb1, 0x1b, 0xd4, 0x25, 0x5d,
-	0xe2, 0xde, 0xce, 0xc6, 0xc4, 0x72, 0x5c, 0xca, 0x29, 0x02, 0xdf, 0x6a, 0x79, 0x56, 0xe3, 0x50,
-	0x41, 0x9e, 0x92, 0x21, 0x5f, 0x78, 0x60, 0x2e, 0x80, 0x46, 0x5e, 0x31, 0x76, 0x39, 0x75, 0x25,
-	0x81, 0xd9, 0x84, 0x47, 0x67, 0x84, 0x07, 0x70, 0x4c, 0xbe, 0x2f, 0x08, 0xe3, 0x08, 0xc1, 0xf6,
-	0x7c, 0x78, 0x43, 0x0a, 0x5a, 0x49, 0x2b, 0xa7, 0xb1, 0xff, 0x8d, 0x0a, 0xb0, 0x7b, 0x4b, 0x5c,
-	0x36, 0xa3, 0xf3, 0xc2, 0x56, 0x49, 0x2b, 0xef, 0xe0, 0xbb, 0x5f, 0xb3, 0x07, 0x8f, 0x23, 0x2c,
-	0xcc, 0xa1, 0x73, 0x46, 0xd0, 0x5b, 0xd0, 0x27, 0xe2, 0x74, 0xc0, 0x08, 0xf7, 0xd9, 0xf4, 0x8a,
-	0x61, 0x05, 0x51, 0x5b, 0x81, 0x53, 0xd7, 0x21, 0x63, 0x0c, 0x93, 0xe5, 0xbf, 0xf9, 0x5b, 0x83,
-	0xfc, 0xa7, 0x19, 0x53, 0x78, 0xd9, 0x5d, 0x78, 0x35, 0x48, 0x4d, 0x66, 0xd7, 0x9c, 0xb8, 0x92,
-	0xf2, 0xa5, 0x4a, 0x19, 0xef, 0x63, 0x9d, 0xfa, 0x0e, 0x58, 0x3a, 0x1a, 0x23, 0x48, 0x89, 0x13,
-	0x54, 0x86, 0x8c, 0x12, 0xe4, 0x40, 0x79, 0xf7, 0x7e, 0x10, 0x4d, 0xdb, 0x53, 0xc0, 0x82, 0x9c,
-	0x8a, 0x54, 0xd5, 0x48, 0xe3, 0x6c, 0x00, 0xfe, 0x2c, 0x75, 0xf9, 0x02, 0x07, 0x2b, 0xc1, 0x48,
-	0x65, 0xaa, 0xf0, 0x40, 0xa1, 0x62, 0x05, 0xad, 0x74, 0x7f, 0x83, 0x34, 0x7a, 0xc0, 0xcf, 0x4c,
-	0x0a, 0x59, 0x8f, 0xd9, 0x4f, 0xe5, 0x52, 0x95, 0x77, 0x11, 0x55, 0x8e, 0xa3, 0xaa, 0x84, 0xe0,
-	0x51, 0x41, 0x8a, 0x4b, 0x41, 0x62, 0x92, 0x6f, 0x56, 0x01, 0xa9, 0x0c, 0xf2, 0x15, 0x27, 0xb0,
-	0xc3, 0xbc, 0x13, 0x19, 0x7e, 0x56, 0xbd, 0xd0, 0x87, 0x62, 0x61, 0x37, 0xfb, 0x90, 0xaf, 0x39,
-	0xce, 0xf5, 0x8f, 0xd5, 0x4a, 0xfb, 0xa7, 0x12, 0xf9, 0xa3, 0xc1, 0xc1, 0x0a, 0xef, 0x7f, 0xa8,
-	0x3d, 0x54, 0x87, 0x14, 0xe3, 0x43, 0xbe, 0x60, 0x7e, 0x72, 0xf7, 0x2b, 0xaf, 0x54, 0xbf, 0x35,
-	0x37, 0x5a, 0x5d, 0xdf, 0x03, 0x4b, 0x4f, 0xd3, 0x86, 0x94, 0x38, 0x41, 0x7b, 0x90, 0x6e, 0x77,
-	0x06, 0x8d, 0x0f, 0xb5, 0xf6, 0x59, 0x2b, 0x73, 0x0f, 0xe9, 0xb0, 0xdb, 0xc0, 0xad, 0x5a, 0xaf,
-	0xd5, 0xcc, 0x68, 0x28, 0x0d, 0x3b, 0x2d, 0x8c, 0x3b, 0x38, 0xb3, 0x65, 0x16, 0xc1, 0x10, 0x6d,
-	0xc4, 0xb8, 0xd7, 0xea, 0xb2, 0x8a, 0xa4, 0x50, 0xe6, 0x1b, 0x38, 0x8c, 0xb5, 0xca, 0xe7, 0x2a,
-	0xdd, 0x29, 0xf2, 0xb6, 0xec, 0xce, 0x2a, 0xa0, 0xbe, 0x73, 0x39, 0xe4, 0x44, 0x64, 0x44, 0xea,
-	0xae, 0xa4, 0x4e, 0x4b, 0x4c, 0xdd, 0x2f, 0x0d, 0x72, 0x21, 0xff, 0xd5, 0xdc, 0x27, 0x12, 0xa0,
-	0xf7, 0x11, 0x2d, 0x5f, 0xa8, 0xc8, 0x18, 0xe6, 0xa8, 0x8e, 0xc7, 0x09, 0x3a, 0xf6, 0xcf, 0x9b,
-	0x42, 0xc7, 0xca, 0xcf, 0x6d, 0xd0, 0x95, 0x01, 0x89, 0x26, 0x90, 0x8b, 0x91, 0x0b, 0x85, 0x2e,
-	0x5f, 0xaf, 0xb6, 0x71, 0xb2, 0x11, 0x27, 0x65, 0xe8, 0xc1, 0x5e, 0x68, 0xf6, 0xa1, 0xd2, 0xaa,
-	0x67, 0xb8, 0xe4, 0x8d, 0x67, 0x09, 0x08, 0xc9, 0x7a, 0x01, 0x0f, 0x23, 0x93, 0x03, 0x99, 0x9b,
-	0x67, 0x9c, 0xf1, 0x3c, 0x11, 0x23, 0xb9, 0x3f, 0x02, 0x04, 0xad, 0x8c, 0x9e, 0x24, 0x0e, 0x09,
-	0xe3, 0x68, 0x9d, 0x39, 0x08, 0x34, 0xd2, 0x0e, 0xe1, 0x40, 0xe3, 0xbb, 0x3e, 0x1c, 0xe8, 0xba,
-	0x0e, 0x6e, 0x83, 0xae, 0x94, 0x07, 0x3a, 0x5a, 0x5b, 0x37, 0x82, 0xf3, 0xe9, 0x86, 0xba, 0xaa,
-	0x77, 0x40, 0xd9, 0x97, 0xf5, 0x8c, 0x52, 0x2d, 0xe7, 0xde, 0x32, 0xbc, 0xb0, 0xa7, 0x33, 0xfe,
-	0x75, 0x31, 0xb2, 0xc6, 0xf4, 0xc6, 0x9e, 0xd2, 0x6f, 0xe4, 0xca, 0x16, 0x5b, 0x93, 0x5d, 0x5e,
-	0xd9, 0x53, 0x6a, 0xfb, 0x1b, 0x93, 0xd9, 0xc1, 0x26, 0x1d, 0xa5, 0xfc, 0xa3, 0xd7, 0x7f, 0x03,
-	0x00, 0x00, 0xff, 0xff, 0xc7, 0xc1, 0x10, 0xf1, 0xa5, 0x07, 0x00, 0x00,
+	// 762 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x56, 0xef, 0x4e, 0x13, 0x4f,
+	0x14, 0xfd, 0x2d, 0xfc, 0x28, 0xf6, 0x16, 0xb0, 0x4c, 0x69, 0x69, 0x16, 0x84, 0x3a, 0x12, 0x41,
+	0x4c, 0x76, 0x93, 0xfa, 0x81, 0x98, 0x88, 0x49, 0x29, 0x05, 0x13, 0x4d, 0x29, 0x0b, 0x68, 0xc2,
+	0x07, 0x49, 0x29, 0x53, 0x28, 0xff, 0xa6, 0xee, 0x4c, 0x49, 0x4c, 0x7c, 0x1a, 0xe3, 0xbb, 0xf8,
+	0x0c, 0xbe, 0x8d, 0xd9, 0x9d, 0x69, 0x77, 0x66, 0xba, 0xdd, 0x1a, 0xfd, 0xd6, 0xbd, 0x73, 0xee,
+	0xd9, 0xbb, 0xe7, 0xde, 0x73, 0x3b, 0xb0, 0xdc, 0x26, 0x4d, 0xc6, 0xdd, 0x16, 0xf5, 0x89, 0x5b,
+	0xa5, 0x3e, 0x39, 0x22, 0xfe, 0x43, 0xa7, 0x45, 0x9c, 0xae, 0x4f, 0x39, 0x45, 0x10, 0x9e, 0x3a,
+	0xc1, 0xa9, 0xbd, 0xa4, 0x20, 0xf7, 0x48, 0x93, 0xf7, 0x02, 0x30, 0x17, 0x40, 0xbb, 0xa0, 0x1c,
+	0x1e, 0x71, 0xea, 0x4b, 0x02, 0xfc, 0x19, 0x16, 0xf6, 0x09, 0x8f, 0xe0, 0x1e, 0xf9, 0xd2, 0x23,
+	0x8c, 0xa3, 0x22, 0x4c, 0x77, 0x7d, 0x7a, 0x4d, 0x5a, 0xbc, 0x38, 0x59, 0xb2, 0x36, 0xd2, 0x5e,
+	0xff, 0x11, 0x21, 0xf8, 0xff, 0xbe, 0x79, 0x47, 0x8a, 0x56, 0x18, 0x0e, 0x7f, 0x07, 0xe8, 0x07,
+	0xe2, 0xb3, 0x0e, 0xbd, 0x2f, 0x4e, 0x94, 0xac, 0x8d, 0x29, 0xaf, 0xff, 0x88, 0x1b, 0x90, 0x37,
+	0xf8, 0x59, 0x97, 0xde, 0x33, 0x82, 0xb6, 0x20, 0xd3, 0x16, 0xd1, 0x33, 0x46, 0x78, 0xc8, 0x96,
+	0x29, 0x17, 0x9c, 0xe8, 0x7b, 0x1c, 0x25, 0x09, 0xda, 0x83, 0xdf, 0xf8, 0x97, 0x05, 0x85, 0x0f,
+	0x1d, 0xa6, 0x70, 0xb2, 0x7e, 0xd1, 0x15, 0x48, 0xb5, 0x3b, 0xb7, 0x9c, 0xf8, 0x92, 0xee, 0x85,
+	0x4a, 0x17, 0x9f, 0xe3, 0xec, 0x85, 0x09, 0x9e, 0x4c, 0xb4, 0xbf, 0x41, 0x4a, 0x44, 0x12, 0x14,
+	0xd8, 0x80, 0xac, 0x52, 0xfa, 0x99, 0xa2, 0xc6, 0x5c, 0x54, 0x67, 0x3d, 0xd0, 0xc5, 0x81, 0x9c,
+	0x8a, 0x54, 0x35, 0x4a, 0x7b, 0xf3, 0x11, 0xf8, 0xa3, 0x54, 0xeb, 0x18, 0x16, 0x87, 0xca, 0x94,
+	0x7a, 0xbd, 0x86, 0x19, 0x85, 0x8a, 0x15, 0xad, 0xd2, 0x64, 0x82, 0x60, 0x99, 0x88, 0x9b, 0x61,
+	0x0a, 0xf3, 0x01, 0x6b, 0xd8, 0xf6, 0x81, 0x56, 0x6f, 0x0c, 0xad, 0xd6, 0x4c, 0xad, 0x34, 0xb8,
+	0x29, 0xd3, 0xf2, 0x40, 0xa6, 0x98, 0x71, 0xc0, 0xdb, 0x80, 0x54, 0x06, 0xf9, 0x05, 0xeb, 0x30,
+	0xc5, 0x82, 0x88, 0x2c, 0x7d, 0x5e, 0x7d, 0x61, 0x08, 0xf5, 0xc4, 0x39, 0x3e, 0x84, 0x42, 0xa5,
+	0xdb, 0xbd, 0xfd, 0x3a, 0x3c, 0x95, 0x7f, 0x3d, 0x34, 0x3f, 0x2d, 0x58, 0x1c, 0xe2, 0xfc, 0xc7,
+	0x49, 0x44, 0x3b, 0x90, 0x62, 0xbc, 0xc9, 0x7b, 0x2c, 0x6c, 0xe8, 0x5c, 0x79, 0x53, 0xcd, 0x19,
+	0xf1, 0x36, 0xe7, 0x28, 0xcc, 0xf0, 0x64, 0x26, 0x76, 0x21, 0x25, 0x22, 0x68, 0x16, 0xd2, 0xf5,
+	0x83, 0xb3, 0xea, 0xbb, 0x4a, 0x7d, 0xbf, 0x96, 0xfd, 0x0f, 0x65, 0x60, 0xba, 0xea, 0xd5, 0x2a,
+	0xc7, 0xb5, 0xdd, 0xac, 0x85, 0xd2, 0x30, 0x55, 0xf3, 0xbc, 0x03, 0x2f, 0x3b, 0x81, 0x97, 0xc1,
+	0x16, 0x86, 0x62, 0x3c, 0x58, 0x07, 0x72, 0x72, 0xa4, 0x40, 0x78, 0x0b, 0x96, 0x62, 0x4f, 0xe5,
+	0xa7, 0x2a, 0x3e, 0x15, 0xfd, 0x1a, 0xf8, 0x74, 0x1b, 0xd0, 0x49, 0xf7, 0xa2, 0xc9, 0x89, 0xe8,
+	0x84, 0xd4, 0x5b, 0x69, 0x99, 0x95, 0xd8, 0xb2, 0x1f, 0x16, 0xe4, 0xb4, 0xfc, 0xe1, 0x9e, 0x27,
+	0x12, 0xa0, 0xb7, 0x86, 0x96, 0xcf, 0x55, 0x64, 0x0c, 0xb3, 0xa9, 0xe3, 0x5a, 0x82, 0x8e, 0x27,
+	0x8d, 0x5d, 0xa1, 0x23, 0xde, 0x84, 0x85, 0xaa, 0x4f, 0x9a, 0x9c, 0x34, 0x84, 0x95, 0xfb, 0xdf,
+	0x19, 0x37, 0xc4, 0x8b, 0x90, 0x37, 0xb0, 0xe2, 0xcd, 0xf8, 0x25, 0xe4, 0x2b, 0x7e, 0xeb, 0xaa,
+	0xf3, 0xf0, 0x27, 0x2c, 0x45, 0x28, 0x98, 0x60, 0x49, 0x93, 0x87, 0x5c, 0x60, 0x12, 0x19, 0xee,
+	0x1b, 0x0d, 0x97, 0x61, 0x41, 0x0f, 0x4b, 0x25, 0x6d, 0x78, 0x24, 0xf7, 0x8f, 0xf0, 0x7e, 0xda,
+	0x1b, 0x3c, 0x97, 0xbf, 0xa7, 0x20, 0xa3, 0xfc, 0x37, 0xa0, 0x36, 0xe4, 0x62, 0xa6, 0x00, 0x69,
+	0x9a, 0x8e, 0x1e, 0x22, 0x7b, 0x7d, 0x2c, 0x4e, 0xd6, 0x74, 0x0c, 0xb3, 0xda, 0x72, 0x47, 0xa5,
+	0xe1, 0x4c, 0xdd, 0xc1, 0xf6, 0xd3, 0x04, 0x84, 0x64, 0x3d, 0x85, 0xc7, 0xc6, 0x12, 0x44, 0x78,
+	0xfc, 0x22, 0xb7, 0x9f, 0x25, 0x62, 0x24, 0xf7, 0x7b, 0x80, 0x68, 0x33, 0xa1, 0x27, 0x89, 0x3b,
+	0xcf, 0x5e, 0x19, 0x75, 0x1c, 0x15, 0x6a, 0xb8, 0x5c, 0x2f, 0x34, 0x7e, 0x89, 0xe9, 0x85, 0x8e,
+	0x5a, 0x4a, 0x75, 0xc8, 0x28, 0x53, 0x8f, 0x56, 0x46, 0xda, 0x41, 0x70, 0xae, 0x8e, 0xb1, 0x4b,
+	0xd0, 0x2a, 0x6d, 0x9a, 0xf5, 0x56, 0xc5, 0x99, 0x42, 0x6f, 0x55, 0xac, 0x15, 0xd0, 0x27, 0x98,
+	0xd3, 0xa7, 0x1b, 0x69, 0x49, 0xb1, 0x36, 0xb1, 0x71, 0x12, 0x44, 0x12, 0x1f, 0xc2, 0x8c, 0xea,
+	0x02, 0xb4, 0x6a, 0xb6, 0xc2, 0xb0, 0x8d, 0x5d, 0x1a, 0x0d, 0x10, 0x94, 0x3b, 0x07, 0xa0, 0x5c,
+	0x96, 0x76, 0xb2, 0x8a, 0x5f, 0x1a, 0xc1, 0x4d, 0xe8, 0xd4, 0xbd, 0xec, 0xf0, 0xab, 0xde, 0xb9,
+	0xd3, 0xa2, 0x77, 0xee, 0x25, 0xbd, 0x26, 0x37, 0xae, 0xb8, 0x32, 0xb1, 0x8b, 0x1b, 0xf7, 0x92,
+	0xba, 0xe1, 0x75, 0x89, 0xb9, 0xd1, 0x35, 0xea, 0x3c, 0x15, 0x86, 0x5e, 0xfd, 0x0e, 0x00, 0x00,
+	0xff, 0xff, 0xe2, 0x7d, 0x9e, 0xca, 0xa2, 0x09, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -774,6 +1025,17 @@ type CoreServiceClient interface {
 	// If the changes are valid, core will return the given store configuration in response, and
 	// start or update the necessary feature population jobs for the updated store.
 	UpdateStore(ctx context.Context, in *UpdateStoreRequest, opts ...grpc.CallOption) (*UpdateStoreResponse, error)
+	// Creates a project. Projects serve as namespaces within which resources like features will be
+	// created. Both feature set names as well as field names must be unique within a project. Project
+	// names themselves must be globally unique.
+	CreateProject(ctx context.Context, in *CreateProjectRequest, opts ...grpc.CallOption) (*CreateProjectResponse, error)
+	// Archives a project. Archived projects will continue to exist and function, but won't be visible
+	// through the Core API. Any existing ingestion or serving requests will continue to function,
+	// but will result in warning messages being logged. It is not possible to unarchive a project
+	// through the Core API
+	ArchiveProject(ctx context.Context, in *ArchiveProjectRequest, opts ...grpc.CallOption) (*ArchiveProjectResponse, error)
+	// Lists all projects active projects.
+	ListProjects(ctx context.Context, in *ListProjectsRequest, opts ...grpc.CallOption) (*ListProjectsResponse, error)
 }
 
 type coreServiceClient struct {
@@ -838,6 +1100,33 @@ func (c *coreServiceClient) UpdateStore(ctx context.Context, in *UpdateStoreRequ
 	return out, nil
 }
 
+func (c *coreServiceClient) CreateProject(ctx context.Context, in *CreateProjectRequest, opts ...grpc.CallOption) (*CreateProjectResponse, error) {
+	out := new(CreateProjectResponse)
+	err := c.cc.Invoke(ctx, "/feast.core.CoreService/CreateProject", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *coreServiceClient) ArchiveProject(ctx context.Context, in *ArchiveProjectRequest, opts ...grpc.CallOption) (*ArchiveProjectResponse, error) {
+	out := new(ArchiveProjectResponse)
+	err := c.cc.Invoke(ctx, "/feast.core.CoreService/ArchiveProject", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *coreServiceClient) ListProjects(ctx context.Context, in *ListProjectsRequest, opts ...grpc.CallOption) (*ListProjectsResponse, error) {
+	out := new(ListProjectsResponse)
+	err := c.cc.Invoke(ctx, "/feast.core.CoreService/ListProjects", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CoreServiceServer is the server API for CoreService service.
 type CoreServiceServer interface {
 	// Retrieve version information about this Feast deployment
@@ -868,6 +1157,17 @@ type CoreServiceServer interface {
 	// If the changes are valid, core will return the given store configuration in response, and
 	// start or update the necessary feature population jobs for the updated store.
 	UpdateStore(context.Context, *UpdateStoreRequest) (*UpdateStoreResponse, error)
+	// Creates a project. Projects serve as namespaces within which resources like features will be
+	// created. Both feature set names as well as field names must be unique within a project. Project
+	// names themselves must be globally unique.
+	CreateProject(context.Context, *CreateProjectRequest) (*CreateProjectResponse, error)
+	// Archives a project. Archived projects will continue to exist and function, but won't be visible
+	// through the Core API. Any existing ingestion or serving requests will continue to function,
+	// but will result in warning messages being logged. It is not possible to unarchive a project
+	// through the Core API
+	ArchiveProject(context.Context, *ArchiveProjectRequest) (*ArchiveProjectResponse, error)
+	// Lists all projects active projects.
+	ListProjects(context.Context, *ListProjectsRequest) (*ListProjectsResponse, error)
 }
 
 // UnimplementedCoreServiceServer can be embedded to have forward compatible implementations.
@@ -891,6 +1191,15 @@ func (*UnimplementedCoreServiceServer) ApplyFeatureSet(ctx context.Context, req 
 }
 func (*UnimplementedCoreServiceServer) UpdateStore(ctx context.Context, req *UpdateStoreRequest) (*UpdateStoreResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateStore not implemented")
+}
+func (*UnimplementedCoreServiceServer) CreateProject(ctx context.Context, req *CreateProjectRequest) (*CreateProjectResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateProject not implemented")
+}
+func (*UnimplementedCoreServiceServer) ArchiveProject(ctx context.Context, req *ArchiveProjectRequest) (*ArchiveProjectResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ArchiveProject not implemented")
+}
+func (*UnimplementedCoreServiceServer) ListProjects(ctx context.Context, req *ListProjectsRequest) (*ListProjectsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListProjects not implemented")
 }
 
 func RegisterCoreServiceServer(s *grpc.Server, srv CoreServiceServer) {
@@ -1005,6 +1314,60 @@ func _CoreService_UpdateStore_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CoreService_CreateProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateProjectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoreServiceServer).CreateProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/feast.core.CoreService/CreateProject",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoreServiceServer).CreateProject(ctx, req.(*CreateProjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CoreService_ArchiveProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArchiveProjectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoreServiceServer).ArchiveProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/feast.core.CoreService/ArchiveProject",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoreServiceServer).ArchiveProject(ctx, req.(*ArchiveProjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CoreService_ListProjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListProjectsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoreServiceServer).ListProjects(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/feast.core.CoreService/ListProjects",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoreServiceServer).ListProjects(ctx, req.(*ListProjectsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _CoreService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "feast.core.CoreService",
 	HandlerType: (*CoreServiceServer)(nil),
@@ -1032,6 +1395,18 @@ var _CoreService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateStore",
 			Handler:    _CoreService_UpdateStore_Handler,
+		},
+		{
+			MethodName: "CreateProject",
+			Handler:    _CoreService_CreateProject_Handler,
+		},
+		{
+			MethodName: "ArchiveProject",
+			Handler:    _CoreService_ArchiveProject_Handler,
+		},
+		{
+			MethodName: "ListProjects",
+			Handler:    _CoreService_ListProjects_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

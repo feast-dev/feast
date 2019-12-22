@@ -58,6 +58,11 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   @Column(name = "name", nullable = false)
   private String name;
 
+  // Project that this featureSet belongs to
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "project_name")
+  private Project project;
+
   // Version of the featureSet
   @Column(name = "version")
   private int version;
@@ -92,6 +97,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
 
   public FeatureSet(
       String name,
+      String project,
       int version,
       long maxAgeSeconds,
       List<Field> entities,
@@ -106,24 +112,31 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     this.features = features;
     this.source = source;
     this.status = status.toString();
+    this.project = new Project(project);
   }
 
   public static FeatureSet fromProto(FeatureSetProto.FeatureSet featureSetProto) {
     FeatureSetSpec featureSetSpec = featureSetProto.getSpec();
     Source source = Source.fromProto(featureSetSpec.getSource());
-    String id = String.format("%s:%d", featureSetSpec.getName(), featureSetSpec.getVersion());
+    String id = String.format("%s/%s:%d",
+        featureSetProto.getSpec().getProject(),
+        featureSetProto.getSpec().getName(),
+        featureSetProto.getSpec().getVersion());
+
     List<Field> features = new ArrayList<>();
     for (FeatureSpec feature : featureSetSpec.getFeaturesList()) {
       features.add(new Field(id, feature.getName(), feature.getValueType()));
     }
+
     List<Field> entities = new ArrayList<>();
     for (EntitySpec entity : featureSetSpec.getEntitiesList()) {
       entities.add(new Field(id, entity.getName(), entity.getValueType()));
     }
 
     return new FeatureSet(
-        featureSetSpec.getName(),
-        featureSetSpec.getVersion(),
+        featureSetProto.getSpec().getName(),
+        featureSetProto.getSpec().getProject(),
+        featureSetProto.getSpec().getVersion(),
         featureSetSpec.getMaxAge().getSeconds(),
         entities,
         features,
@@ -159,6 +172,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
         FeatureSetSpec.newBuilder()
             .setName(name)
             .setVersion(version)
+            .setProject(project.getName())
             .setMaxAge(Duration.newBuilder().setSeconds(maxAgeSeconds))
             .addAllEntities(entitySpecs)
             .addAllFeatures(featureSpecs)
@@ -175,6 +189,10 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
    */
   public boolean equalTo(FeatureSet other) {
     if (!name.equals(other.getName())) {
+      return false;
+    }
+
+    if (!project.getName().equals(other.project.getName())) {
       return false;
     }
 

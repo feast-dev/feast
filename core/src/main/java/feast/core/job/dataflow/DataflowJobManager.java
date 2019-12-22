@@ -23,7 +23,7 @@ import com.google.common.base.Strings;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
-import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.FeatureSetProto;
 import feast.core.SourceProto;
 import feast.core.StoreProto;
 import feast.core.config.FeastProperties.MetricsProperties;
@@ -77,13 +77,13 @@ public class DataflowJobManager implements JobManager {
 
   @Override
   public Job startJob(Job job) {
-    List<FeatureSetSpec> featureSetSpecs =
+    List<FeatureSetProto.FeatureSet> featureSetProtos =
         job.getFeatureSets().stream()
-            .map(fs -> fs.toProto().getSpec())
+            .map(FeatureSet::toProto)
             .collect(Collectors.toList());
     try {
       return submitDataflowJob(
-          job.getId(), featureSetSpecs, job.getSource().toProto(), job.getStore().toProto(), false);
+          job.getId(), featureSetProtos, job.getSource().toProto(), job.getStore().toProto(), false);
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(String.format("Unable to start job %s", job.getId()), e);
     }
@@ -98,13 +98,13 @@ public class DataflowJobManager implements JobManager {
   @Override
   public Job updateJob(Job job) {
     try {
-      List<FeatureSetSpec> featureSetSpecs =
+      List<FeatureSetProto.FeatureSet> featureSetProtos =
           job.getFeatureSets().stream()
-              .map(fs -> fs.toProto().getSpec())
+              .map(FeatureSet::toProto)
               .collect(Collectors.toList());
 
       return submitDataflowJob(
-          job.getId(), featureSetSpecs, job.getSource().toProto(), job.getStore().toProto(), true);
+          job.getId(), featureSetProtos, job.getSource().toProto(), job.getStore().toProto(), true);
 
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(String.format("Unable to update job %s", job.getId()), e);
@@ -173,19 +173,19 @@ public class DataflowJobManager implements JobManager {
 
   private Job submitDataflowJob(
       String jobName,
-      List<FeatureSetSpec> featureSetSpecs,
+      List<FeatureSetProto.FeatureSet> featureSetProtos,
       SourceProto.Source source,
       StoreProto.Store sink,
       boolean update) {
     try {
-      ImportOptions pipelineOptions = getPipelineOptions(jobName, featureSetSpecs, sink, update);
+      ImportOptions pipelineOptions = getPipelineOptions(jobName, featureSetProtos, sink, update);
       DataflowPipelineJob pipelineResult = runPipeline(pipelineOptions);
       List<FeatureSet> featureSets =
-          featureSetSpecs.stream()
+          featureSetProtos.stream()
               .map(
-                  spec -> {
+                  fsp -> {
                     FeatureSet featureSet = new FeatureSet();
-                    featureSet.setId(spec.getName() + ":" + spec.getVersion());
+                    featureSet.setId(fsp.getSpec().getName() + ":" + fsp.getSpec().getVersion());
                     return featureSet;
                   })
               .collect(Collectors.toList());
@@ -205,16 +205,16 @@ public class DataflowJobManager implements JobManager {
   }
 
   private ImportOptions getPipelineOptions(
-      String jobName, List<FeatureSetSpec> featureSets, StoreProto.Store sink, boolean update)
+      String jobName, List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store sink, boolean update)
       throws IOException {
     String[] args = TypeConversion.convertMapToArgs(defaultOptions);
     ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
     Printer printer = JsonFormat.printer();
     List<String> featureSetsJson = new ArrayList<>();
-    for (FeatureSetSpec featureSet : featureSets) {
-      featureSetsJson.add(printer.print(featureSet));
+    for (FeatureSetProto.FeatureSet featureSet : featureSets) {
+      featureSetsJson.add(printer.print(featureSet.getSpec()));
     }
-    pipelineOptions.setFeatureSetSpecJson(featureSetsJson);
+    pipelineOptions.setFeatureSetJson(featureSetsJson);
     pipelineOptions.setStoreJson(Collections.singletonList(printer.print(sink)));
     pipelineOptions.setProject(projectId);
     pipelineOptions.setUpdate(update);

@@ -16,7 +16,7 @@
  */
 package com.gojek.feast.v1alpha1;
 
-import feast.serving.ServingAPIProto.FeatureSetRequest;
+import feast.serving.ServingAPIProto.FeatureReference;
 import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.serving.ServingAPIProto.GetFeastServingInfoResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
@@ -59,42 +59,46 @@ public class FeastClient implements AutoCloseable {
   /**
    * Get online features from Feast.
    *
-   * <p>See {@link #getOnlineFeatures(List, List, boolean)}
+   * <p>See {@link #getOnlineFeatures(List, List, str)}
    *
-   * @param featureIds list of feature id to retrieve, feature id follows this format
-   *     [feature_set_name]:[version]:[feature_name]
+   * @param features list of string feature references to retrieve, feature reference follows this format
+   *     [project]/[name]:[version]
    * @param rows list of {@link Row} to select the entities to retrieve the features for
+   * @param defaultProject {@link String} Default project to find features in if not provided in
+   *     feature reference.
    * @return list of {@link Row} containing features
    */
-  public List<Row> getOnlineFeatures(List<String> featureIds, List<Row> rows) {
-    return getOnlineFeatures(featureIds, rows, false);
+  public List<Row> getOnlineFeatures(List<String> features, List<Row> rows, String defaultProject) {
+    return getOnlineFeatures(features, rows, defaultProject, false);
   }
 
   /**
    * Get online features from Feast.
    *
-   * <p>Example of retrieving online features for driver feature set, version 1, with features
-   * driver_id and driver_name
+   * <p>Example of retrieving online features for the driver project, with features
+   * driver_id and driver_name, both version 1
    *
    * <pre>{@code
    * FeastClient client = FeastClient.create("localhost", 6566);
-   * List<String> requestedFeatureIds = Arrays.asList("driver:1:driver_id", "driver:1:driver_name");
+   * List<String> requestedFeatureIds = Arrays.asList("driver/driver_id:1", "driver/driver_name:1");
    * List<Row> requestedRows =
    *         Arrays.asList(Row.create().set("driver_id", 123), Row.create().set("driver_id", 456));
    * List<Row> retrievedFeatures = client.getOnlineFeatures(requestedFeatureIds, requestedRows);
    * retrievedFeatures.forEach(System.out::println);
    * }</pre>
    *
-   * @param featureIds list of feature id to retrieve, feature id follows this format
-   *     [feature_set_name]:[version]:[feature_name]
+   * @param featureRefStrings list of feature refs to retrieve, feature refs follow this format
+   *     [project]/[name]:[version]
    * @param rows list of {@link Row} to select the entities to retrieve the features for
+   * @param defaultProject {@link String} Default project to find features in if not provided in
+   *     feature reference.
    * @param omitEntitiesInResponse if true, the returned {@link Row} will not contain field and
    *     value for the entity
    * @return list of {@link Row} containing features
    */
   public List<Row> getOnlineFeatures(
-      List<String> featureIds, List<Row> rows, boolean omitEntitiesInResponse) {
-    List<FeatureSetRequest> featureSets = RequestUtil.createFeatureSets(featureIds);
+      List<String> featureRefStrings, List<Row> rows, String defaultProject, boolean omitEntitiesInResponse) {
+    List<FeatureReference> features = RequestUtil.createFeatureRefs(featureRefStrings, defaultProject);
     List<EntityRow> entityRows =
         rows.stream()
             .map(
@@ -108,7 +112,7 @@ public class FeastClient implements AutoCloseable {
     GetOnlineFeaturesResponse response =
         stub.getOnlineFeatures(
             GetOnlineFeaturesRequest.newBuilder()
-                .addAllFeatureSets(featureSets)
+                .addAllFeatures(features)
                 .addAllEntityRows(entityRows)
                 .setOmitEntitiesInResponse(omitEntitiesInResponse)
                 .build());

@@ -20,6 +20,7 @@ import com.google.common.base.Strings;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
+import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto;
 import feast.core.config.FeastProperties.MetricsProperties;
@@ -74,11 +75,11 @@ public class DirectRunnerJobManager implements JobManager {
   @Override
   public Job startJob(Job job) {
     try {
-      List<FeatureSetSpec> featureSetSpecs =
+      List<FeatureSetProto.FeatureSet> featureSetProtos =
           job.getFeatureSets().stream()
-              .map(fs -> fs.toProto().getSpec())
+              .map(FeatureSet::toProto)
               .collect(Collectors.toList());
-      ImportOptions pipelineOptions = getPipelineOptions(featureSetSpecs, job.getStore().toProto());
+      ImportOptions pipelineOptions = getPipelineOptions(featureSetProtos, job.getStore().toProto());
       PipelineResult pipelineResult = runPipeline(pipelineOptions);
       DirectJob directJob = new DirectJob(job.getId(), pipelineResult);
       jobs.add(directJob);
@@ -92,16 +93,16 @@ public class DirectRunnerJobManager implements JobManager {
   }
 
   private ImportOptions getPipelineOptions(
-      List<FeatureSetSpec> featureSetSpecs, StoreProto.Store sink)
+      List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store sink)
       throws InvalidProtocolBufferException {
     String[] args = TypeConversion.convertMapToArgs(defaultOptions);
     ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
     Printer printer = JsonFormat.printer();
     List<String> featureSetsJson = new ArrayList<>();
-    for (FeatureSetSpec featureSetSpec : featureSetSpecs) {
-      featureSetsJson.add(printer.print(featureSetSpec));
+    for (FeatureSetProto.FeatureSet featureSet : featureSets) {
+      featureSetsJson.add(printer.print(featureSet.getSpec()));
     }
-    pipelineOptions.setFeatureSetSpecJson(featureSetsJson);
+    pipelineOptions.setFeatureSetJson(featureSetsJson);
     pipelineOptions.setStoreJson(Collections.singletonList(printer.print(sink)));
     pipelineOptions.setRunner(DirectRunner.class);
     pipelineOptions.setProject(""); // set to default value to satisfy validation

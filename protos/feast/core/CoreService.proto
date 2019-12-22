@@ -58,11 +58,28 @@ service CoreService {
     //
     // If the changes are valid, core will return the given store configuration in response, and
     // start or update the necessary feature population jobs for the updated store.
-    rpc UpdateStore(UpdateStoreRequest) returns (UpdateStoreResponse);
+    rpc UpdateStore (UpdateStoreRequest) returns (UpdateStoreResponse);
+
+    // Creates a project. Projects serve as namespaces within which resources like features will be
+    // created. Both feature set names as well as field names must be unique within a project. Project
+    // names themselves must be globally unique.
+    rpc CreateProject (CreateProjectRequest) returns (CreateProjectResponse);
+
+    // Archives a project. Archived projects will continue to exist and function, but won't be visible
+    // through the Core API. Any existing ingestion or serving requests will continue to function,
+    // but will result in warning messages being logged. It is not possible to unarchive a project
+    // through the Core API
+    rpc ArchiveProject (ArchiveProjectRequest) returns (ArchiveProjectResponse);
+
+    // Lists all projects active projects.
+    rpc ListProjects (ListProjectsRequest) returns (ListProjectsResponse);
 }
 
 // Request for a single feature set
 message GetFeatureSetRequest {
+    // Name of project the feature set belongs to (required)
+    string project = 3;
+
     // Name of feature set (required).
     string name = 1;
 
@@ -77,12 +94,18 @@ message GetFeatureSetResponse {
 
 // Retrieves details for all versions of a specific feature set
 message ListFeatureSetsRequest {
+    Filter filter = 1;
+
     message Filter {
-        // Name of the desired feature set. Valid regex strings are allowed.
+        // Name of project that the feature sets belongs to.
+        string project = 3;
+
+        // Name of the desired feature set. Asterisks can be used as wildcards in the name.
         // e.g.
-        // - .* can be used to match all feature sets
-        // - my-project-.* can be used to match all features prefixed by "my-project"
+        // - * can be used to match all feature sets
+        // - my-feature-set* can be used to match all features prefixed by "my-feature-set"
         string feature_set_name = 1;
+
         // Version of the desired feature set. Either a number or valid expression can be provided.
         // e.g.
         // - 1 will match version 1 exactly
@@ -90,8 +113,6 @@ message ListFeatureSetsRequest {
         // - <10 will match all versions less than 10
         string feature_set_version = 2;
     }
-
-    Filter filter = 1;
 }
 
 message ListFeatureSetsResponse {
@@ -133,7 +154,8 @@ message ApplyFeatureSetResponse {
     Status status = 2;
 }
 
-message GetFeastCoreVersionRequest {}
+message GetFeastCoreVersionRequest {
+}
 
 message GetFeastCoreVersionResponse {
     string version = 1;
@@ -153,4 +175,34 @@ message UpdateStoreResponse {
     }
     feast.core.Store store = 1;
     Status status = 2;
+}
+
+// Request to create a project
+message CreateProjectRequest {
+    // Name of project (required)
+    string name = 1;
+}
+
+// Response for creation of a project
+message CreateProjectResponse {
+}
+
+// Request for the archival of a project
+message ArchiveProjectRequest {
+    // Name of project to be archived
+    string name = 1;
+}
+
+// Response for archival of a project
+message ArchiveProjectResponse {
+}
+
+// Request for listing of projects
+message ListProjectsRequest {
+}
+
+// Response for listing of projects
+message ListProjectsResponse {
+    // List of project names (archived projects are filtered out)
+    repeated string projects = 1;
 }

@@ -7,8 +7,10 @@ import pandas as pd
 import pyarrow.parquet as pq
 from feast.constants import DATETIME_COLUMN
 from feast.feature_set import FeatureSet
-from feast.type_map import pa_column_to_timestamp_proto_column, \
-    pa_column_to_proto_column
+from feast.type_map import (
+    pa_column_to_timestamp_proto_column,
+    pa_column_to_proto_column,
+)
 from feast.types import Field_pb2 as FieldProto
 from feast.types.FeatureRow_pb2 import FeatureRow
 
@@ -22,11 +24,7 @@ BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS = 300
 KAFKA_CHUNK_PRODUCTION_TIMEOUT = 120  # type: int
 
 
-def _encode_pa_tables(
-        file: str,
-        fs: FeatureSet,
-        row_group_idx: int,
-) -> List[bytes]:
+def _encode_pa_tables(file: str, fs: FeatureSet, row_group_idx: int) -> List[bytes]:
     """
     Helper function to encode a PyArrow table(s) read from parquet file(s) into
     FeatureRows.
@@ -58,13 +56,11 @@ def _encode_pa_tables(
     table = pq_file.read_row_group(row_group_idx)
 
     # Add datetime column
-    datetime_col = pa_column_to_timestamp_proto_column(
-        table.column(DATETIME_COLUMN))
+    datetime_col = pa_column_to_timestamp_proto_column(table.column(DATETIME_COLUMN))
 
     # Preprocess the columns by converting all its values to Proto values
     proto_columns = {
-        field_name: pa_column_to_proto_column(field.dtype,
-                                              table.column(field_name))
+        field_name: pa_column_to_proto_column(field.dtype, table.column(field_name))
         for field_name, field in fs.fields.items()
     }
 
@@ -80,8 +76,9 @@ def _encode_pa_tables(
 
     # Iterate through the rows
     for row_idx in range(table.num_rows):
-        feature_row = FeatureRow(event_timestamp=datetime_col[row_idx],
-                                 feature_set=feature_set)
+        feature_row = FeatureRow(
+            event_timestamp=datetime_col[row_idx], feature_set=feature_set
+        )
         # Loop optimization declaration
         ext = feature_row.fields.extend
 
@@ -96,10 +93,7 @@ def _encode_pa_tables(
 
 
 def get_feature_row_chunks(
-        file: str,
-        row_groups: List[int],
-        fs: FeatureSet,
-        max_workers: int
+    file: str, row_groups: List[int], fs: FeatureSet, max_workers: int
 ) -> Iterable[List[bytes]]:
     """
     Iterator function to encode a PyArrow table read from a parquet file to
