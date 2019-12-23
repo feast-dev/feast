@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.gojek.feast.v1alpha1;
+package com.gojek.feast;
 
 import feast.serving.ServingAPIProto.FeatureSetRequest;
 import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
