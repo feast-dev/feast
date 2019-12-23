@@ -16,6 +16,7 @@
  */
 package feast.serving.specs;
 
+import static feast.serving.util.SpecUtil.generateFeastId;
 import static feast.serving.util.mappers.YamlToProtoMapper.yamlToStoreProto;
 import static java.util.Comparator.comparingInt;
 import static java.util.stream.Collectors.groupingBy;
@@ -112,7 +113,7 @@ public class CachedSpecService {
             featureReference -> {
               String featureSet =
                   featureToFeatureSetMapping.getOrDefault(
-                      getId(
+                      generateFeastId(
                           featureReference.getProject(),
                           featureReference.getName(),
                           featureReference.getVersion()),
@@ -183,7 +184,7 @@ public class CachedSpecService {
 
         for (FeatureSet fs : featureSetsResponse.getFeatureSetsList()) {
           FeatureSetSpec spec = fs.getSpec();
-          featureSets.put(getId(spec.getProject(), spec.getName(), spec.getVersion()), spec);
+          featureSets.put(generateFeastId(spec.getProject(), spec.getName(), spec.getVersion()), spec);
         }
       } catch (StatusRuntimeException e) {
         throw new RuntimeException(
@@ -209,12 +210,12 @@ public class CachedSpecService {
                 FeatureSetSpec fs = v.get(i);
                 for (FeatureSpec featureSpec : fs.getFeaturesList()) {
                   mapping.put(
-                      getId(fs.getProject(), featureSpec.getName(), fs.getVersion()),
-                      getId(fs.getProject(), fs.getName(), fs.getVersion()));
+                      generateFeastId(fs.getProject(), featureSpec.getName(), fs.getVersion()),
+                      generateFeastId(fs.getProject(), fs.getName(), fs.getVersion()));
                   if (i == v.size() - 1) {
                     mapping.put(
-                        getId(fs.getProject(), featureSpec.getName(), 0),
-                        getId(fs.getProject(), fs.getName(), fs.getVersion()));
+                        generateFeastId(fs.getProject(), featureSpec.getName(), 0),
+                        generateFeastId(fs.getProject(), fs.getName(), fs.getVersion()));
                   }
                 }
               }
@@ -245,13 +246,5 @@ public class CachedSpecService {
     } catch (Exception e) {
       throw new RuntimeException("Unable to update store configuration", e);
     }
-  }
-
-  private String getId(String project, String name, int version) {
-    String ref = String.format("%s/%s", project, name);
-    if (version > 0) {
-      return ref + String.format(":%d", version);
-    }
-    return ref;
   }
 }

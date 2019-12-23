@@ -20,6 +20,7 @@ import static feast.serving.util.Metrics.missingKeyCount;
 import static feast.serving.util.Metrics.requestCount;
 import static feast.serving.util.Metrics.requestLatency;
 import static feast.serving.util.Metrics.staleKeyCount;
+import static feast.serving.util.SpecUtil.generateFeastId;
 
 import com.google.common.collect.Maps;
 import com.google.protobuf.AbstractMessageLite;
@@ -143,8 +144,7 @@ public class RedisServingService implements ServingService {
       FeatureSetSpec featureSetSpec) {
     try (Scope scope = tracer.buildSpan("Redis-makeRedisKeys").startActive(true)) {
       String featureSetId =
-          String.format(
-              "%s/%s:%s",
+          generateFeastId(
               featureSetSpec.getProject(), featureSetSpec.getName(), featureSetSpec.getVersion());
       List<RedisKey> redisKeys =
           entityRows.stream()
@@ -201,7 +201,7 @@ public class RedisServingService implements ServingService {
           featureSetRequest.getFeatureReferences().stream()
               .collect(
                   Collectors.toMap(
-                      fr -> getFeatureId(fr.getProject(), fr.getName(), fr.getVersion()),
+                      fr -> generateFeastId(fr.getProject(), fr.getName(), fr.getVersion()),
                       fr -> Value.newBuilder().build()));
 
       for (int i = 0; i < jedisResps.size(); i++) {
@@ -261,7 +261,7 @@ public class RedisServingService implements ServingService {
             .forEach(
                 f -> {
                   FeatureReference fr = featureNames.get(f.getName());
-                  String id = getFeatureId(fr.getProject(), fr.getName(), fr.getVersion());
+                  String id = generateFeastId(fr.getProject(), fr.getName(), fr.getVersion());
                   featureValues.put(id, f.getValue());
                 });
       }
@@ -308,13 +308,5 @@ public class RedisServingService implements ServingService {
         requestLatency.labels("sendMultiGet").observe(System.currentTimeMillis() - startTime);
       }
     }
-  }
-
-  private String getFeatureId(String project, String name, int version) {
-    String ref = String.format("%s/%s", project, name);
-    if (version > 0) {
-      return ref + String.format(":%d", version);
-    }
-    return ref;
   }
 }
