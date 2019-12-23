@@ -5,7 +5,7 @@ LEFT JOIN (
     SELECT
     uuid,
     {% for featureName in featureSet.features %}
-    {{ featureSet.name }}_v{{ featureSet.version }}_{{ featureName }}{% if loop.last %}{% else %}, {% endif %}
+    {{ featureSet.project }}_{{ featureName }}_v{{ featureSet.version }}{% if loop.last %}{% else %}, {% endif %}
     {% endfor %}
     FROM `{{ featureSet.table }}`
 ) USING (uuid)
@@ -15,7 +15,7 @@ LEFT JOIN (
     {{ entities | join(', ') }}
     {% for featureSet in featureSets %}
     {% for featureName in featureSet.features %}
-    ,{{ featureSet.name }}_v{{ featureSet.version }}_{{ featureName }}
+    ,{{ featureSet.project }}_{{ featureName }}_v{{ featureSet.version }}
     {% endfor %}
     {% endfor %}
 FROM joined

@@ -19,7 +19,7 @@ package feast.serving.configuration;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
-import feast.serving.service.CachedSpecService;
+import feast.serving.specs.CachedSpecService;
 import feast.serving.service.JobService;
 import feast.serving.service.NoopJobService;
 import feast.serving.service.RedisBackedJobService;

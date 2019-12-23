@@ -22,6 +22,8 @@ import com.mitchellbosecke.pebble.PebbleEngine;
 import com.mitchellbosecke.pebble.template.PebbleTemplate;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.serving.ServingAPIProto.FeatureReference;
+import feast.serving.specs.FeatureSetRequest;
 import feast.serving.store.bigquery.model.FeatureSetInfo;
 import java.io.IOException;
 import java.io.StringWriter;
@@ -65,36 +67,29 @@ public class QueryTemplater {
    * Generate the information necessary for the sql templating for point in time correctness join to
    * the entity dataset for each feature set requested.
    *
-   * @param featureSetSpecs List of feature set specs requested
-   * @param featureSetRequests List of feature set requests from the batch retrieval request
+   * @param featureSetRequests List of feature sets requested
    * @return List of FeatureSetInfos
    */
   public static List<FeatureSetInfo> getFeatureSetInfos(
-      List<FeatureSetSpec> featureSetSpecs, List<FeatureSetRequest> featureSetRequests)
+      List<FeatureSetRequest> featureSetRequests)
       throws IllegalArgumentException {
 
-    if (featureSetRequests.size() != featureSetSpecs.size()) {
-      throw new IllegalArgumentException(
-          "Number of feature sets not matching number of feature set requests");
-    }
-
     List<FeatureSetInfo> featureSetInfos = new ArrayList<>();
-
-    for (int i = 0; i < featureSetRequests.size(); i++) {
-      FeatureSetSpec spec = featureSetSpecs.get(i);
-      FeatureSetRequest request = featureSetRequests.get(i);
-      Duration maxAge = getMaxAge(request, spec);
+    for (FeatureSetRequest featureSetRequest : featureSetRequests) {
+      FeatureSetSpec spec = featureSetRequest.getSpec();
+      Duration maxAge = spec.getMaxAge();
       List<String> fsEntities =
           spec.getEntitiesList().stream().map(EntitySpec::getName).collect(Collectors.toList());
-      String id = String.format("%s:%s", spec.getName(), spec.getVersion());
+      List<String> features = featureSetRequest.getFeatureReferences().stream().map(FeatureReference::getName).collect(
+          Collectors.toList());
       featureSetInfos.add(
           new FeatureSetInfo(
-              id,
+              spec.getProject(),
               spec.getName(),
               spec.getVersion(),
               maxAge.getSeconds(),
               fsEntities,
-              request.getFeatureNamesList(),
+              features,
               ""));
     }
     return featureSetInfos;
@@ -156,13 +151,6 @@ public class QueryTemplater {
     Writer writer = new StringWriter();
     template.evaluate(writer, context);
     return writer.toString();
-  }
-
-  private static Duration getMaxAge(FeatureSetRequest featureSet, FeatureSetSpec featureSetSpec) {
-    if (featureSet.getMaxAge() == Duration.getDefaultInstance()) {
-      return featureSetSpec.getMaxAge();
-    }
-    return featureSet.getMaxAge();
   }
 
   public static String generateFullTableName(TableId tableId) {

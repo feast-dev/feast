@@ -14,36 +14,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.serving.service;
+package feast.serving.specs;
 
 import static feast.serving.util.mappers.YamlToProtoMapper.yamlToStoreProto;
+import static java.util.Comparator.comparingInt;
+import static java.util.stream.Collectors.groupingBy;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
-import com.google.common.cache.CacheLoader.InvalidCacheLoadException;
 import com.google.common.cache.LoadingCache;
 import feast.core.CoreServiceProto.ListFeatureSetsRequest;
-import feast.core.CoreServiceProto.ListFeatureSetsRequest.Filter;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.FeatureSetProto.FeatureSpec;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Subscription;
+import feast.serving.ServingAPIProto.FeatureReference;
 import feast.serving.exception.SpecRetrievalException;
 import io.grpc.StatusRuntimeException;
 import io.prometheus.client.Gauge;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.slf4j.Logger;
 
-/** In-memory cache of specs. */
+/**
+ * In-memory cache of specs.
+ */
 public class CachedSpecService {
 
   private static final int MAX_SPEC_COUNT = 1000;
@@ -52,8 +61,10 @@ public class CachedSpecService {
   private final CoreSpecService coreService;
   private final Path configPath;
 
-  private final CacheLoader<String, FeatureSetSpec> featureSetSpecCacheLoader;
-  private final LoadingCache<String, FeatureSetSpec> featureSetSpecCache;
+  private final Map<String, String> featureToFeatureSetMapping;
+
+  private final CacheLoader<String, FeatureSetSpec> featureSetCacheLoader;
+  private final LoadingCache<String, FeatureSetSpec> featureSetCache;
   private Store store;
 
   private static Gauge featureSetsCount =
@@ -74,10 +85,12 @@ public class CachedSpecService {
     this.coreService = coreService;
     this.store = updateStore(readConfig(configPath));
 
-    Map<String, FeatureSetSpec> featureSetSpecs = getFeatureSetSpecMap();
-    featureSetSpecCacheLoader = CacheLoader.from((String key) -> featureSetSpecs.get(key));
-    featureSetSpecCache =
-        CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(featureSetSpecCacheLoader);
+    Map<String, FeatureSetSpec> featureSets = getFeatureSetMap();
+    featureToFeatureSetMapping = new ConcurrentHashMap<>(
+        getFeatureToFeatureSetMapping(featureSets));
+    featureSetCacheLoader = CacheLoader.from(featureSets::get);
+    featureSetCache =
+        CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(featureSetCacheLoader);
   }
 
   /**
@@ -90,37 +103,39 @@ public class CachedSpecService {
   }
 
   /**
-   * Get a single FeatureSetSpec matching the given name and version.
+   * Get FeatureSetSpecs for the given features.
    *
-   * @param name of the featureSet
-   * @param version to retrieve
-   * @return FeatureSetSpec of the matching FeatureSet
+   * @return FeatureSetRequest containing the specs, and their respective feature references
    */
-  public FeatureSetSpec getFeatureSet(String name, int version) {
-    String id = String.format("%s:%d", name, version);
-    try {
-      return featureSetSpecCache.get(id);
-    } catch (InvalidCacheLoadException e) {
-      // if not found, try to retrieve from core
-      ListFeatureSetsRequest request =
-          ListFeatureSetsRequest.newBuilder()
-              .setFilter(
-                  Filter.newBuilder()
-                      .setFeatureSetName(name)
-                      .setFeatureSetVersion(String.valueOf(version)))
-              .build();
-      ListFeatureSetsResponse featureSets = coreService.listFeatureSets(request);
-      if (featureSets.getFeatureSetsList().size() == 0) {
-        throw new SpecRetrievalException(
-            String.format(
-                "Unable to retrieve featureSet with id %s from core, featureSet does not exist",
-                id));
-      }
-      return featureSets.getFeatureSets(0).getSpec();
-    } catch (ExecutionException e) {
-      throw new SpecRetrievalException(
-          String.format("Unable to retrieve featureSet with id %s", id), e);
-    }
+  public List<FeatureSetRequest> getFeatureSets(List<FeatureReference> featureReferences) {
+    List<FeatureSetRequest> featureSetRequests = new ArrayList<>();
+      featureReferences.stream()
+          .map(featureReference -> {
+            String featureSet = featureToFeatureSetMapping.getOrDefault(
+                getId(featureReference.getProject(), featureReference.getName(), featureReference.getVersion()), "");
+            if (featureSet.isEmpty()) {
+              throw new SpecRetrievalException(
+                  String.format("Unable to retrieve feature %s", featureReference));
+            }
+            return Pair.of(featureSet, featureReference);
+          })
+          .collect(groupingBy(Pair::getLeft))
+          .forEach((fsName, featrefs) -> {
+            try {
+              FeatureSetSpec fs = featureSetCache.get(fsName);
+              List<FeatureReference> requestedFeatures = featrefs.stream().map(Pair::getRight)
+                  .collect(Collectors.toList());
+              FeatureSetRequest featureSetRequest = FeatureSetRequest.newBuilder()
+                  .setSpec(fs)
+                  .addAllFeatureReferences(requestedFeatures)
+                  .build();
+              featureSetRequests.add(featureSetRequest);
+            } catch (ExecutionException e) {
+              throw new SpecRetrievalException(
+                  String.format("Unable to retrieve featureSet with id %s", fsName), e);
+            }
+          });
+      return featureSetRequests;
   }
 
   /**
@@ -129,10 +144,11 @@ public class CachedSpecService {
    */
   public void populateCache() {
     this.store = updateStore(readConfig(configPath));
-    Map<String, FeatureSetSpec> featureSetSpecMap = getFeatureSetSpecMap();
-    featureSetSpecCache.putAll(featureSetSpecMap);
+    Map<String, FeatureSetSpec> featureSetMap = getFeatureSetMap();
+    featureSetCache.putAll(featureSetMap);
+    featureToFeatureSetMapping.putAll(getFeatureToFeatureSetMapping(featureSetMap));
 
-    featureSetsCount.set(featureSetSpecCache.size());
+    featureSetsCount.set(featureSetCache.size());
     cacheLastUpdated.set(System.currentTimeMillis());
   }
 
@@ -144,8 +160,8 @@ public class CachedSpecService {
     }
   }
 
-  private Map<String, FeatureSetSpec> getFeatureSetSpecMap() {
-    HashMap<String, FeatureSetSpec> featureSetSpecs = new HashMap<>();
+  private Map<String, FeatureSetSpec> getFeatureSetMap() {
+    HashMap<String, FeatureSetSpec> featureSets = new HashMap<>();
 
     for (Subscription subscription : this.store.getSubscriptionsList()) {
       try {
@@ -154,22 +170,52 @@ public class CachedSpecService {
                 ListFeatureSetsRequest.newBuilder()
                     .setFilter(
                         ListFeatureSetsRequest.Filter.newBuilder()
+                            .setProject(subscription.getProject())
                             .setFeatureSetName(subscription.getName())
                             .setFeatureSetVersion(subscription.getVersion()))
                     .build());
 
-        for (FeatureSet featureSet : featureSetsResponse.getFeatureSetsList()) {
-          FeatureSetSpec featureSetSpec = featureSet.getSpec();
-          featureSetSpecs.put(
-              String.format("%s:%s", featureSetSpec.getName(), featureSetSpec.getVersion()),
-              featureSetSpec);
+        for (FeatureSet fs : featureSetsResponse.getFeatureSetsList()) {
+          FeatureSetSpec spec = fs.getSpec();
+          featureSets
+              .put(getId(spec.getProject(), spec.getName(), spec.getVersion()),
+                  spec);
         }
       } catch (StatusRuntimeException e) {
         throw new RuntimeException(
             String.format("Unable to retrieve specs matching subscription %s", subscription), e);
       }
     }
-    return featureSetSpecs;
+    return featureSets;
+  }
+
+  private Map<String, String> getFeatureToFeatureSetMapping(
+      Map<String, FeatureSetSpec> featureSets) {
+    HashMap<String, String> mapping = new HashMap<>();
+
+    featureSets.values()
+        .stream()
+        .collect(groupingBy(fs -> Triple.of(fs.getProject(), fs.getName(), fs.getVersion())))
+        .forEach((k, v) -> {
+              v = v.stream()
+                  .sorted(comparingInt(FeatureSetSpec::getVersion))
+                  .collect(Collectors.toList());
+              for (int i = 0; i < v.size(); i++) {
+                FeatureSetSpec fs = v.get(i);
+                for (FeatureSpec featureSpec : fs.getFeaturesList()) {
+                  mapping.put(
+                      getId(fs.getProject(), featureSpec.getName(), fs.getVersion()),
+                      getId(fs.getProject(), fs.getName(), fs.getVersion()));
+                  if (i == v.size() - 1) {
+                    mapping
+                        .put(getId(fs.getProject(), featureSpec.getName(), 0),
+                            getId(fs.getProject(), fs.getName(), fs.getVersion()));
+                  }
+                }
+              }
+            }
+        );
+    return mapping;
   }
 
   private Store readConfig(Path path) {
@@ -195,5 +241,13 @@ public class CachedSpecService {
     } catch (Exception e) {
       throw new RuntimeException("Unable to update store configuration", e);
     }
+  }
+
+  private String getId(String project, String name, int version) {
+    String ref = String.format("%s/%s", project, name);
+    if (version > 0) {
+      return ref + String.format(":%d", version);
+    }
+    return ref;
   }
 }

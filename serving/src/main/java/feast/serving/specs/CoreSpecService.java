@@ -14,9 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.serving.service;
+package feast.serving.specs;
 
 import feast.core.CoreServiceGrpc;
+import feast.core.CoreServiceProto.GetFeatureSetRequest;
+import feast.core.CoreServiceProto.GetFeatureSetResponse;
 import feast.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
@@ -35,6 +37,10 @@ public class CoreSpecService {
     ManagedChannel channel =
         ManagedChannelBuilder.forAddress(feastCoreHost, feastCorePort).usePlaintext().build();
     blockingStub = CoreServiceGrpc.newBlockingStub(channel);
+  }
+
+  public GetFeatureSetResponse getFeatureSet(GetFeatureSetRequest getFeatureSetRequest) {
+    return blockingStub.getFeatureSet(getFeatureSetRequest);
   }
 
   public ListFeatureSetsResponse listFeatureSets(ListFeatureSetsRequest ListFeatureSetsRequest) {

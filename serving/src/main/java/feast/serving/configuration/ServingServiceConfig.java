@@ -29,7 +29,7 @@ import feast.core.StoreProto.Store.Subscription;
 import feast.serving.FeastProperties;
 import feast.serving.FeastProperties.JobProperties;
 import feast.serving.service.BigQueryServingService;
-import feast.serving.service.CachedSpecService;
+import feast.serving.specs.CachedSpecService;
 import feast.serving.service.JobService;
 import feast.serving.service.NoopJobService;
 import feast.serving.service.RedisServingService;

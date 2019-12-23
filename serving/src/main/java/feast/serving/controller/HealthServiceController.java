@@ -18,7 +18,7 @@ package feast.serving.controller;
 
 import feast.core.StoreProto.Store;
 import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
-import feast.serving.service.CachedSpecService;
+import feast.serving.specs.CachedSpecService;
 import feast.serving.service.ServingService;
 import io.grpc.health.v1.HealthGrpc.HealthImplBase;
 import io.grpc.health.v1.HealthProto.HealthCheckRequest;

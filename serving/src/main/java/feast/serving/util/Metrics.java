@@ -35,7 +35,7 @@ public class Metrics {
           .name("request_feature_count")
           .subsystem("feast_serving")
           .help("number of feature rows requested")
-          .labelNames("feature_set_name")
+          .labelNames("project", "feature_name")
           .register();
 
   public static final Counter missingKeyCount =
@@ -43,7 +43,7 @@ public class Metrics {
           .name("missing_feature_count")
           .subsystem("feast_serving")
           .help("number requested feature rows that were not found")
-          .labelNames("feature_set_name")
+          .labelNames("project", "feature_name")
           .register();
 
   public static final Counter staleKeyCount =
@@ -51,6 +51,6 @@ public class Metrics {
           .name("stale_feature_count")
           .subsystem("feast_serving")
           .help("number requested feature rows that were stale")
-          .labelNames("feature_set_name")
+          .labelNames("project", "feature_name")
           .register();
 }
