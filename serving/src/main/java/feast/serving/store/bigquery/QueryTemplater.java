@@ -70,8 +70,7 @@ public class QueryTemplater {
    * @param featureSetRequests List of feature sets requested
    * @return List of FeatureSetInfos
    */
-  public static List<FeatureSetInfo> getFeatureSetInfos(
-      List<FeatureSetRequest> featureSetRequests)
+  public static List<FeatureSetInfo> getFeatureSetInfos(List<FeatureSetRequest> featureSetRequests)
       throws IllegalArgumentException {
 
     List<FeatureSetInfo> featureSetInfos = new ArrayList<>();
@@ -80,8 +79,10 @@ public class QueryTemplater {
       Duration maxAge = spec.getMaxAge();
       List<String> fsEntities =
           spec.getEntitiesList().stream().map(EntitySpec::getName).collect(Collectors.toList());
-      List<String> features = featureSetRequest.getFeatureReferences().stream().map(FeatureReference::getName).collect(
-          Collectors.toList());
+      List<String> features =
+          featureSetRequest.getFeatureReferences().stream()
+              .map(FeatureReference::getName)
+              .collect(Collectors.toList());
       featureSetInfos.add(
           new FeatureSetInfo(
               spec.getProject(),

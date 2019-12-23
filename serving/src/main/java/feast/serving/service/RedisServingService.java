@@ -89,13 +89,12 @@ public class RedisServingService implements ServingService {
       Map<EntityRow, Map<String, Value>> featureValuesMap =
           entityRows.stream()
               .collect(Collectors.toMap(er -> er, er -> Maps.newHashMap(er.getFieldsMap())));
-      List<FeatureSetRequest> featureSetRequests = specService.getFeatureSets(request.getFeaturesList());
+      List<FeatureSetRequest> featureSetRequests =
+          specService.getFeatureSets(request.getFeaturesList());
       for (FeatureSetRequest featureSetRequest : featureSetRequests) {
 
         List<String> featureSetEntityNames =
-            featureSetRequest.getSpec()
-                .getEntitiesList()
-                .stream()
+            featureSetRequest.getSpec().getEntitiesList().stream()
                 .map(EntitySpec::getName)
                 .collect(Collectors.toList());
 
@@ -144,7 +143,9 @@ public class RedisServingService implements ServingService {
       FeatureSetSpec featureSetSpec) {
     try (Scope scope = tracer.buildSpan("Redis-makeRedisKeys").startActive(true)) {
       String featureSetId =
-          String.format("%s/%s:%s", featureSetSpec.getProject(), featureSetSpec.getName(), featureSetSpec.getVersion());
+          String.format(
+              "%s/%s:%s",
+              featureSetSpec.getProject(), featureSetSpec.getName(), featureSetSpec.getVersion());
       List<RedisKey> redisKeys =
           entityRows.stream()
               .map(row -> makeRedisKey(featureSetId, featureSetEntityNames, row))
@@ -200,7 +201,8 @@ public class RedisServingService implements ServingService {
           featureSetRequest.getFeatureReferences().stream()
               .collect(
                   Collectors.toMap(
-                      fr -> getFeatureId(fr.getProject(), fr.getName(), fr.getVersion()), fr -> Value.newBuilder().build()));
+                      fr -> getFeatureId(fr.getProject(), fr.getName(), fr.getVersion()),
+                      fr -> Value.newBuilder().build()));
 
       for (int i = 0; i < jedisResps.size(); i++) {
         EntityRow entityRow = entityRows.get(i);
@@ -208,8 +210,16 @@ public class RedisServingService implements ServingService {
 
         byte[] jedisResponse = jedisResps.get(i);
         if (jedisResponse == null) {
-          featureSetRequest.getFeatureReferences().parallelStream()
-              .forEach(fr -> missingKeyCount.labels(spec.getProject(), String.format("%s:%d", fr.getName(), fr.getVersion())).inc());
+          featureSetRequest
+              .getFeatureReferences()
+              .parallelStream()
+              .forEach(
+                  fr ->
+                      missingKeyCount
+                          .labels(
+                              spec.getProject(),
+                              String.format("%s:%d", fr.getName(), fr.getVersion()))
+                          .inc());
           featureValues.putAll(nullValues);
           continue;
         }
@@ -218,25 +228,42 @@ public class RedisServingService implements ServingService {
 
         boolean stale = isStale(featureSetRequest, entityRow, featureRow);
         if (stale) {
-          featureSetRequest.getFeatureReferences().parallelStream()
-              .forEach(fr -> staleKeyCount.labels(spec.getProject(), String.format("%s:%d", fr.getName(), fr.getVersion())).inc());
+          featureSetRequest
+              .getFeatureReferences()
+              .parallelStream()
+              .forEach(
+                  fr ->
+                      staleKeyCount
+                          .labels(
+                              spec.getProject(),
+                              String.format("%s:%d", fr.getName(), fr.getVersion()))
+                          .inc());
           featureValues.putAll(nullValues);
           continue;
         }
 
-        featureSetRequest.getFeatureReferences().parallelStream()
-            .forEach(fr -> requestCount.labels(spec.getProject(), String.format("%s:%d", fr.getName(), fr.getVersion())).inc());
+        featureSetRequest
+            .getFeatureReferences()
+            .parallelStream()
+            .forEach(
+                fr ->
+                    requestCount
+                        .labels(
+                            spec.getProject(),
+                            String.format("%s:%d", fr.getName(), fr.getVersion()))
+                        .inc());
 
-        Map<String, FeatureReference> featureNames = featureSetRequest.getFeatureReferences()
-            .stream()
-            .collect(Collectors.toMap(FeatureReference::getName, fr -> fr));
+        Map<String, FeatureReference> featureNames =
+            featureSetRequest.getFeatureReferences().stream()
+                .collect(Collectors.toMap(FeatureReference::getName, fr -> fr));
         featureRow.getFieldsList().stream()
             .filter(f -> featureNames.keySet().contains(f.getName()))
-            .forEach(f -> {
-              FeatureReference fr = featureNames.get(f.getName());
-              String id = getFeatureId(fr.getProject(), fr.getName(), fr.getVersion());
-              featureValues.put(id, f.getValue());
-            });
+            .forEach(
+                f -> {
+                  FeatureReference fr = featureNames.get(f.getName());
+                  String id = getFeatureId(fr.getProject(), fr.getName(), fr.getVersion());
+                  featureValues.put(id, f.getValue());
+                });
       }
     } finally {
       requestLatency.labels("processResponse").observe(System.currentTimeMillis() - startTime);

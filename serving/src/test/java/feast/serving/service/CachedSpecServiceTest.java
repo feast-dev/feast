@@ -60,8 +60,7 @@ public class CachedSpecServiceTest {
 
   @Rule public final ExpectedException expectedException = ExpectedException.none();
 
-  @Mock
-  CoreSpecService coreService;
+  @Mock CoreSpecService coreService;
 
   private Map<String, FeatureSetSpec> featureSetSpecs;
   private CachedSpecService cachedSpecService;
@@ -93,33 +92,49 @@ public class CachedSpecServiceTest {
             .setName("SERVING")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379))
-            .addSubscriptions(Subscription.newBuilder().setProject("project").setName("fs1").setVersion(">0").build())
-            .addSubscriptions(Subscription.newBuilder().setProject("project").setName("fs2").setVersion(">0").build())
+            .addSubscriptions(
+                Subscription.newBuilder()
+                    .setProject("project")
+                    .setName("fs1")
+                    .setVersion(">0")
+                    .build())
+            .addSubscriptions(
+                Subscription.newBuilder()
+                    .setProject("project")
+                    .setName("fs2")
+                    .setVersion(">0")
+                    .build())
             .build();
 
     when(coreService.updateStore(UpdateStoreRequest.newBuilder().setStore(store).build()))
         .thenReturn(UpdateStoreResponse.newBuilder().setStore(store).build());
 
     featureSetSpecs = new LinkedHashMap<>();
-    featureSetSpecs.put("fs1:1", FeatureSetSpec.newBuilder()
-        .setProject("project")
-        .setName("fs1")
-        .setVersion(1)
-        .addFeatures(FeatureSpec.newBuilder().setName("feature"))
-        .build());
-    featureSetSpecs.put("fs1:2", FeatureSetSpec.newBuilder()
-        .setProject("project")
-        .setName("fs1")
-        .setVersion(2)
-        .addFeatures(FeatureSpec.newBuilder().setName("feature"))
-        .addFeatures(FeatureSpec.newBuilder().setName("feature2"))
-        .build());
-    featureSetSpecs.put("fs2:1", FeatureSetSpec.newBuilder()
-        .setProject("project")
-        .setName("fs2")
-        .setVersion(1)
-        .addFeatures(FeatureSpec.newBuilder().setName("feature3"))
-        .build());
+    featureSetSpecs.put(
+        "fs1:1",
+        FeatureSetSpec.newBuilder()
+            .setProject("project")
+            .setName("fs1")
+            .setVersion(1)
+            .addFeatures(FeatureSpec.newBuilder().setName("feature"))
+            .build());
+    featureSetSpecs.put(
+        "fs1:2",
+        FeatureSetSpec.newBuilder()
+            .setProject("project")
+            .setName("fs1")
+            .setVersion(2)
+            .addFeatures(FeatureSpec.newBuilder().setName("feature"))
+            .addFeatures(FeatureSpec.newBuilder().setName("feature2"))
+            .build());
+    featureSetSpecs.put(
+        "fs2:1",
+        FeatureSetSpec.newBuilder()
+            .setProject("project")
+            .setName("fs2")
+            .setVersion(1)
+            .addFeatures(FeatureSpec.newBuilder().setName("feature3"))
+            .build());
 
     List<FeatureSetProto.FeatureSet> fs1FeatureSets =
         Lists.newArrayList(
@@ -167,98 +182,108 @@ public class CachedSpecServiceTest {
   @Test
   public void shouldPopulateAndReturnFeatureSets() {
     cachedSpecService.populateCache();
-    FeatureReference frv1 = FeatureReference.newBuilder()
-        .setProject("project")
-        .setName("feature")
-        .setVersion(1)
-        .build();
-    FeatureReference frv2 = FeatureReference.newBuilder()
-        .setProject("project")
-        .setName("feature")
-        .setVersion(2)
-        .build();
+    FeatureReference frv1 =
+        FeatureReference.newBuilder()
+            .setProject("project")
+            .setName("feature")
+            .setVersion(1)
+            .build();
+    FeatureReference frv2 =
+        FeatureReference.newBuilder()
+            .setProject("project")
+            .setName("feature")
+            .setVersion(2)
+            .build();
 
-    assertThat(cachedSpecService.getFeatureSets(Collections.singletonList(frv1)),
-        equalTo(Lists.newArrayList(
-            FeatureSetRequest.newBuilder()
-                .addFeatureReference(frv1)
-                .setSpec(featureSetSpecs.get("fs1:1"))
-                .build())
-        ));
-    assertThat(cachedSpecService.getFeatureSets(Collections.singletonList(frv2)),
-        equalTo(Lists.newArrayList(
-            FeatureSetRequest.newBuilder()
-                .addFeatureReference(frv2)
-                .setSpec(featureSetSpecs.get("fs1:2"))
-                .build())
-        ));
+    assertThat(
+        cachedSpecService.getFeatureSets(Collections.singletonList(frv1)),
+        equalTo(
+            Lists.newArrayList(
+                FeatureSetRequest.newBuilder()
+                    .addFeatureReference(frv1)
+                    .setSpec(featureSetSpecs.get("fs1:1"))
+                    .build())));
+    assertThat(
+        cachedSpecService.getFeatureSets(Collections.singletonList(frv2)),
+        equalTo(
+            Lists.newArrayList(
+                FeatureSetRequest.newBuilder()
+                    .addFeatureReference(frv2)
+                    .setSpec(featureSetSpecs.get("fs1:2"))
+                    .build())));
   }
 
   @Test
   public void shouldPopulateAndReturnLatestFeatureSetIfVersionsNotSupplied() {
     cachedSpecService.populateCache();
-    FeatureReference frv1 = FeatureReference.newBuilder()
-        .setProject("project")
-        .setName("feature")
-        .build();
+    FeatureReference frv1 =
+        FeatureReference.newBuilder().setProject("project").setName("feature").build();
 
-    assertThat(cachedSpecService.getFeatureSets(Collections.singletonList(frv1)),
-        equalTo(Lists.newArrayList(
-            FeatureSetRequest.newBuilder()
-                .addFeatureReference(frv1)
-                .setSpec(featureSetSpecs.get("fs1:2"))
-                .build())
-        ));
+    assertThat(
+        cachedSpecService.getFeatureSets(Collections.singletonList(frv1)),
+        equalTo(
+            Lists.newArrayList(
+                FeatureSetRequest.newBuilder()
+                    .addFeatureReference(frv1)
+                    .setSpec(featureSetSpecs.get("fs1:2"))
+                    .build())));
   }
 
   @Test
   public void shouldPopulateAndReturnFeatureSetsGivenFeaturesFromDifferentFeatureSets() {
     cachedSpecService.populateCache();
-    FeatureReference frv1 = FeatureReference.newBuilder()
-        .setProject("project")
-        .setName("feature")
-        .setVersion(1)
-        .build();
-    FeatureReference fr3 = FeatureReference.newBuilder()
-        .setProject("project")
-        .setName("feature3")
-        .setVersion(1)
-        .build();
+    FeatureReference frv1 =
+        FeatureReference.newBuilder()
+            .setProject("project")
+            .setName("feature")
+            .setVersion(1)
+            .build();
+    FeatureReference fr3 =
+        FeatureReference.newBuilder()
+            .setProject("project")
+            .setName("feature3")
+            .setVersion(1)
+            .build();
 
-    assertThat(cachedSpecService.getFeatureSets(Lists.newArrayList(frv1, fr3)),
-        containsInAnyOrder(Lists.newArrayList(
-            FeatureSetRequest.newBuilder()
-                .addFeatureReference(frv1)
-                .setSpec(featureSetSpecs.get("fs1:1"))
-                .build(),
-            FeatureSetRequest.newBuilder()
-                .addFeatureReference(fr3)
-                .setSpec(featureSetSpecs.get("fs2:1"))
-                .build()).toArray()
-        ));
+    assertThat(
+        cachedSpecService.getFeatureSets(Lists.newArrayList(frv1, fr3)),
+        containsInAnyOrder(
+            Lists.newArrayList(
+                    FeatureSetRequest.newBuilder()
+                        .addFeatureReference(frv1)
+                        .setSpec(featureSetSpecs.get("fs1:1"))
+                        .build(),
+                    FeatureSetRequest.newBuilder()
+                        .addFeatureReference(fr3)
+                        .setSpec(featureSetSpecs.get("fs2:1"))
+                        .build())
+                .toArray()));
   }
 
   @Test
   public void shouldPopulateAndReturnFeatureSetGivenFeaturesFromSameFeatureSet() {
     cachedSpecService.populateCache();
-    FeatureReference fr1 = FeatureReference.newBuilder()
-        .setProject("project")
-        .setName("feature")
-        .setVersion(2)
-        .build();
-    FeatureReference fr2 = FeatureReference.newBuilder()
-        .setProject("project")
-        .setName("feature2")
-        .setVersion(2)
-        .build();
+    FeatureReference fr1 =
+        FeatureReference.newBuilder()
+            .setProject("project")
+            .setName("feature")
+            .setVersion(2)
+            .build();
+    FeatureReference fr2 =
+        FeatureReference.newBuilder()
+            .setProject("project")
+            .setName("feature2")
+            .setVersion(2)
+            .build();
 
-    assertThat(cachedSpecService.getFeatureSets(Lists.newArrayList(fr1, fr2)),
-        equalTo(Lists.newArrayList(
-            FeatureSetRequest.newBuilder()
-                .addFeatureReference(fr1)
-                .addFeatureReference(fr2)
-                .setSpec(featureSetSpecs.get("fs1:2"))
-                .build())
-        ));
+    assertThat(
+        cachedSpecService.getFeatureSets(Lists.newArrayList(fr1, fr2)),
+        equalTo(
+            Lists.newArrayList(
+                FeatureSetRequest.newBuilder()
+                    .addFeatureReference(fr1)
+                    .addFeatureReference(fr2)
+                    .setSpec(featureSetSpecs.get("fs1:2"))
+                    .build())));
   }
 }

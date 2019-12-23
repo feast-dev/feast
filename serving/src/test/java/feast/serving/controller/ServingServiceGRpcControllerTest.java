@@ -51,16 +51,18 @@ public class ServingServiceGRpcControllerTest {
 
     validRequest =
         GetOnlineFeaturesRequest.newBuilder()
-            .addFeatures(FeatureReference.newBuilder()
-                .setName("feature1")
-                .setVersion(1)
-                .setProject("project")
-                .build())
-            .addFeatures(FeatureReference.newBuilder()
-                .setName("feature2")
-                .setVersion(1)
-                .setProject("project")
-                .build())
+            .addFeatures(
+                FeatureReference.newBuilder()
+                    .setName("feature1")
+                    .setVersion(1)
+                    .setProject("project")
+                    .build())
+            .addFeatures(
+                FeatureReference.newBuilder()
+                    .setName("feature2")
+                    .setVersion(1)
+                    .setProject("project")
+                    .build())
             .addEntityRows(
                 EntityRow.newBuilder()
                     .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))

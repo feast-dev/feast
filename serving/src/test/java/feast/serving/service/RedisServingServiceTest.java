@@ -58,8 +58,7 @@ public class RedisServingServiceTest {
 
   @Mock Jedis jedis;
 
-  @Mock
-  CachedSpecService specService;
+  @Mock CachedSpecService specService;
 
   @Mock Tracer tracer;
 
@@ -97,16 +96,18 @@ public class RedisServingServiceTest {
   public void shouldReturnResponseWithValuesIfKeysPresent() {
     GetOnlineFeaturesRequest request =
         GetOnlineFeaturesRequest.newBuilder()
-            .addFeatures(FeatureReference.newBuilder()
-                .setName("feature1")
-                .setVersion(1)
-                .setProject("project")
-                .build())
-            .addFeatures(FeatureReference.newBuilder()
-                .setName("feature2")
-                .setVersion(1)
-                .setProject("project")
-                .build())
+            .addFeatures(
+                FeatureReference.newBuilder()
+                    .setName("feature1")
+                    .setVersion(1)
+                    .setProject("project")
+                    .build())
+            .addFeatures(
+                FeatureReference.newBuilder()
+                    .setName("feature2")
+                    .setVersion(1)
+                    .setProject("project")
+                    .build())
             .addEntityRows(
                 EntityRow.newBuilder()
                     .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
@@ -142,15 +143,16 @@ public class RedisServingServiceTest {
                 .setFeatureSet("featureSet:1")
                 .build());
 
-    FeatureSetRequest featureSetRequest = FeatureSetRequest.newBuilder()
-        .addAllFeatureReferences(request.getFeaturesList())
-        .setSpec(getFeatureSetSpec())
-        .build();
+    FeatureSetRequest featureSetRequest =
+        FeatureSetRequest.newBuilder()
+            .addAllFeatureReferences(request.getFeaturesList())
+            .setSpec(getFeatureSetSpec())
+            .build();
 
     List<byte[]> featureRowBytes =
         featureRows.stream().map(AbstractMessageLite::toByteArray).collect(Collectors.toList());
-    when(specService.getFeatureSets(request.getFeaturesList())).thenReturn(
-        Collections.singletonList(featureSetRequest));
+    when(specService.getFeatureSets(request.getFeaturesList()))
+        .thenReturn(Collections.singletonList(featureSetRequest));
     when(jedisPool.getResource()).thenReturn(jedis);
     when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
@@ -179,16 +181,18 @@ public class RedisServingServiceTest {
   public void shouldReturnResponseWithValuesWhenFeatureSetSpecHasUnspecifiedMaxAge() {
     GetOnlineFeaturesRequest request =
         GetOnlineFeaturesRequest.newBuilder()
-            .addFeatures(FeatureReference.newBuilder()
-                .setName("feature1")
-                .setVersion(1)
-                .setProject("project")
-                .build())
-            .addFeatures(FeatureReference.newBuilder()
-                .setName("feature2")
-                .setVersion(1)
-                .setProject("project")
-                .build())
+            .addFeatures(
+                FeatureReference.newBuilder()
+                    .setName("feature1")
+                    .setVersion(1)
+                    .setProject("project")
+                    .build())
+            .addFeatures(
+                FeatureReference.newBuilder()
+                    .setName("feature2")
+                    .setVersion(1)
+                    .setProject("project")
+                    .build())
             .addEntityRows(
                 EntityRow.newBuilder()
                     .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
@@ -224,15 +228,16 @@ public class RedisServingServiceTest {
                 .setFeatureSet("featureSet:1")
                 .build());
 
-    FeatureSetRequest featureSetRequest = FeatureSetRequest.newBuilder()
-        .addAllFeatureReferences(request.getFeaturesList())
-        .setSpec(getFeatureSetSpecWithNoMaxAge())
-        .build();
+    FeatureSetRequest featureSetRequest =
+        FeatureSetRequest.newBuilder()
+            .addAllFeatureReferences(request.getFeaturesList())
+            .setSpec(getFeatureSetSpecWithNoMaxAge())
+            .build();
 
     List<byte[]> featureRowBytes =
         featureRows.stream().map(AbstractMessageLite::toByteArray).collect(Collectors.toList());
-    when(specService.getFeatureSets(request.getFeaturesList())).thenReturn(
-        Collections.singletonList(featureSetRequest));
+    when(specService.getFeatureSets(request.getFeaturesList()))
+        .thenReturn(Collections.singletonList(featureSetRequest));
     when(jedisPool.getResource()).thenReturn(jedis);
     when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
@@ -261,15 +266,14 @@ public class RedisServingServiceTest {
   public void shouldReturnKeysWithoutVersionifNotProvided() {
     GetOnlineFeaturesRequest request =
         GetOnlineFeaturesRequest.newBuilder()
-            .addFeatures(FeatureReference.newBuilder()
-                .setName("feature1")
-                .setVersion(1)
-                .setProject("project")
-                .build())
-            .addFeatures(FeatureReference.newBuilder()
-                .setName("feature2")
-                .setProject("project")
-                .build())
+            .addFeatures(
+                FeatureReference.newBuilder()
+                    .setName("feature1")
+                    .setVersion(1)
+                    .setProject("project")
+                    .build())
+            .addFeatures(
+                FeatureReference.newBuilder().setName("feature2").setProject("project").build())
             .addEntityRows(
                 EntityRow.newBuilder()
                     .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
@@ -305,15 +309,16 @@ public class RedisServingServiceTest {
                 .setFeatureSet("featureSet:1")
                 .build());
 
-    FeatureSetRequest featureSetRequest = FeatureSetRequest.newBuilder()
-        .addAllFeatureReferences(request.getFeaturesList())
-        .setSpec(getFeatureSetSpec())
-        .build();
+    FeatureSetRequest featureSetRequest =
+        FeatureSetRequest.newBuilder()
+            .addAllFeatureReferences(request.getFeaturesList())
+            .setSpec(getFeatureSetSpec())
+            .build();
 
     List<byte[]> featureRowBytes =
         featureRows.stream().map(AbstractMessageLite::toByteArray).collect(Collectors.toList());
-    when(specService.getFeatureSets(request.getFeaturesList())).thenReturn(
-        Collections.singletonList(featureSetRequest));
+    when(specService.getFeatureSets(request.getFeaturesList()))
+        .thenReturn(Collections.singletonList(featureSetRequest));
     when(jedisPool.getResource()).thenReturn(jedis);
     when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
@@ -343,16 +348,18 @@ public class RedisServingServiceTest {
     // some keys not present, should have empty values
     GetOnlineFeaturesRequest request =
         GetOnlineFeaturesRequest.newBuilder()
-            .addFeatures(FeatureReference.newBuilder()
-                .setName("feature1")
-                .setVersion(1)
-                .setProject("project")
-                .build())
-            .addFeatures(FeatureReference.newBuilder()
-                .setName("feature2")
-                .setVersion(1)
-                .setProject("project")
-                .build())
+            .addFeatures(
+                FeatureReference.newBuilder()
+                    .setName("feature1")
+                    .setVersion(1)
+                    .setProject("project")
+                    .build())
+            .addFeatures(
+                FeatureReference.newBuilder()
+                    .setName("feature2")
+                    .setVersion(1)
+                    .setProject("project")
+                    .build())
             .addEntityRows(
                 EntityRow.newBuilder()
                     .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
@@ -388,14 +395,15 @@ public class RedisServingServiceTest {
                 .setFeatureSet("featureSet:1")
                 .build());
 
-    FeatureSetRequest featureSetRequest = FeatureSetRequest.newBuilder()
-        .addAllFeatureReferences(request.getFeaturesList())
-        .setSpec(getFeatureSetSpec())
-        .build();
+    FeatureSetRequest featureSetRequest =
+        FeatureSetRequest.newBuilder()
+            .addAllFeatureReferences(request.getFeaturesList())
+            .setSpec(getFeatureSetSpec())
+            .build();
 
     List<byte[]> featureRowBytes = Lists.newArrayList(featureRows.get(0).toByteArray(), null);
-    when(specService.getFeatureSets(request.getFeaturesList())).thenReturn(
-        Collections.singletonList(featureSetRequest));
+    when(specService.getFeatureSets(request.getFeaturesList()))
+        .thenReturn(Collections.singletonList(featureSetRequest));
     when(jedisPool.getResource()).thenReturn(jedis);
     when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
@@ -425,16 +433,18 @@ public class RedisServingServiceTest {
     // keys present, but too stale comp. to maxAge
     GetOnlineFeaturesRequest request =
         GetOnlineFeaturesRequest.newBuilder()
-            .addFeatures(FeatureReference.newBuilder()
-                .setName("feature1")
-                .setVersion(1)
-                .setProject("project")
-                .build())
-            .addFeatures(FeatureReference.newBuilder()
-                .setName("feature2")
-                .setVersion(1)
-                .setProject("project")
-                .build())
+            .addFeatures(
+                FeatureReference.newBuilder()
+                    .setName("feature1")
+                    .setVersion(1)
+                    .setProject("project")
+                    .build())
+            .addFeatures(
+                FeatureReference.newBuilder()
+                    .setName("feature2")
+                    .setVersion(1)
+                    .setProject("project")
+                    .build())
             .addEntityRows(
                 EntityRow.newBuilder()
                     .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
@@ -471,18 +481,18 @@ public class RedisServingServiceTest {
                 .setFeatureSet("featureSet:1")
                 .build());
 
-    FeatureSetSpec spec = getFeatureSetSpec().toBuilder()
-        .setMaxAge(Duration.newBuilder().setSeconds(1))
-        .build();
-    FeatureSetRequest featureSetRequest = FeatureSetRequest.newBuilder()
-        .addAllFeatureReferences(request.getFeaturesList())
-        .setSpec(spec)
-        .build();
+    FeatureSetSpec spec =
+        getFeatureSetSpec().toBuilder().setMaxAge(Duration.newBuilder().setSeconds(1)).build();
+    FeatureSetRequest featureSetRequest =
+        FeatureSetRequest.newBuilder()
+            .addAllFeatureReferences(request.getFeaturesList())
+            .setSpec(spec)
+            .build();
 
     List<byte[]> featureRowBytes =
         featureRows.stream().map(AbstractMessageLite::toByteArray).collect(Collectors.toList());
-    when(specService.getFeatureSets(request.getFeaturesList())).thenReturn(
-        Collections.singletonList(featureSetRequest));
+    when(specService.getFeatureSets(request.getFeaturesList()))
+        .thenReturn(Collections.singletonList(featureSetRequest));
     when(jedisPool.getResource()).thenReturn(jedis);
     when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
@@ -512,11 +522,12 @@ public class RedisServingServiceTest {
     // requested rows less than the rows available in the featureset
     GetOnlineFeaturesRequest request =
         GetOnlineFeaturesRequest.newBuilder()
-            .addFeatures(FeatureReference.newBuilder()
-                .setName("feature1")
-                .setVersion(1)
-                .setProject("project")
-                .build())
+            .addFeatures(
+                FeatureReference.newBuilder()
+                    .setName("feature1")
+                    .setVersion(1)
+                    .setProject("project")
+                    .build())
             .addEntityRows(
                 EntityRow.newBuilder()
                     .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
@@ -552,15 +563,16 @@ public class RedisServingServiceTest {
                 .setFeatureSet("featureSet:1")
                 .build());
 
-    FeatureSetRequest featureSetRequest = FeatureSetRequest.newBuilder()
-        .addAllFeatureReferences(request.getFeaturesList())
-        .setSpec(getFeatureSetSpec())
-        .build();
+    FeatureSetRequest featureSetRequest =
+        FeatureSetRequest.newBuilder()
+            .addAllFeatureReferences(request.getFeaturesList())
+            .setSpec(getFeatureSetSpec())
+            .build();
 
     List<byte[]> featureRowBytes =
         featureRows.stream().map(AbstractMessageLite::toByteArray).collect(Collectors.toList());
-    when(specService.getFeatureSets(request.getFeaturesList())).thenReturn(
-        Collections.singletonList(featureSetRequest));
+    when(specService.getFeatureSets(request.getFeaturesList()))
+        .thenReturn(Collections.singletonList(featureSetRequest));
     when(jedisPool.getResource()).thenReturn(jedis);
     when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));

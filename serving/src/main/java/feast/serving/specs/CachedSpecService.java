@@ -50,9 +50,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.slf4j.Logger;
 
-/**
- * In-memory cache of specs.
- */
+/** In-memory cache of specs. */
 public class CachedSpecService {
 
   private static final int MAX_SPEC_COUNT = 1000;
@@ -86,8 +84,8 @@ public class CachedSpecService {
     this.store = updateStore(readConfig(configPath));
 
     Map<String, FeatureSetSpec> featureSets = getFeatureSetMap();
-    featureToFeatureSetMapping = new ConcurrentHashMap<>(
-        getFeatureToFeatureSetMapping(featureSets));
+    featureToFeatureSetMapping =
+        new ConcurrentHashMap<>(getFeatureToFeatureSetMapping(featureSets));
     featureSetCacheLoader = CacheLoader.from(featureSets::get);
     featureSetCache =
         CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(featureSetCacheLoader);
@@ -109,33 +107,41 @@ public class CachedSpecService {
    */
   public List<FeatureSetRequest> getFeatureSets(List<FeatureReference> featureReferences) {
     List<FeatureSetRequest> featureSetRequests = new ArrayList<>();
-      featureReferences.stream()
-          .map(featureReference -> {
-            String featureSet = featureToFeatureSetMapping.getOrDefault(
-                getId(featureReference.getProject(), featureReference.getName(), featureReference.getVersion()), "");
-            if (featureSet.isEmpty()) {
-              throw new SpecRetrievalException(
-                  String.format("Unable to retrieve feature %s", featureReference));
-            }
-            return Pair.of(featureSet, featureReference);
-          })
-          .collect(groupingBy(Pair::getLeft))
-          .forEach((fsName, featrefs) -> {
-            try {
-              FeatureSetSpec fs = featureSetCache.get(fsName);
-              List<FeatureReference> requestedFeatures = featrefs.stream().map(Pair::getRight)
-                  .collect(Collectors.toList());
-              FeatureSetRequest featureSetRequest = FeatureSetRequest.newBuilder()
-                  .setSpec(fs)
-                  .addAllFeatureReferences(requestedFeatures)
-                  .build();
-              featureSetRequests.add(featureSetRequest);
-            } catch (ExecutionException e) {
-              throw new SpecRetrievalException(
-                  String.format("Unable to retrieve featureSet with id %s", fsName), e);
-            }
-          });
-      return featureSetRequests;
+    featureReferences.stream()
+        .map(
+            featureReference -> {
+              String featureSet =
+                  featureToFeatureSetMapping.getOrDefault(
+                      getId(
+                          featureReference.getProject(),
+                          featureReference.getName(),
+                          featureReference.getVersion()),
+                      "");
+              if (featureSet.isEmpty()) {
+                throw new SpecRetrievalException(
+                    String.format("Unable to retrieve feature %s", featureReference));
+              }
+              return Pair.of(featureSet, featureReference);
+            })
+        .collect(groupingBy(Pair::getLeft))
+        .forEach(
+            (fsName, featrefs) -> {
+              try {
+                FeatureSetSpec fs = featureSetCache.get(fsName);
+                List<FeatureReference> requestedFeatures =
+                    featrefs.stream().map(Pair::getRight).collect(Collectors.toList());
+                FeatureSetRequest featureSetRequest =
+                    FeatureSetRequest.newBuilder()
+                        .setSpec(fs)
+                        .addAllFeatureReferences(requestedFeatures)
+                        .build();
+                featureSetRequests.add(featureSetRequest);
+              } catch (ExecutionException e) {
+                throw new SpecRetrievalException(
+                    String.format("Unable to retrieve featureSet with id %s", fsName), e);
+              }
+            });
+    return featureSetRequests;
   }
 
   /**
@@ -177,9 +183,7 @@ public class CachedSpecService {
 
         for (FeatureSet fs : featureSetsResponse.getFeatureSetsList()) {
           FeatureSetSpec spec = fs.getSpec();
-          featureSets
-              .put(getId(spec.getProject(), spec.getName(), spec.getVersion()),
-                  spec);
+          featureSets.put(getId(spec.getProject(), spec.getName(), spec.getVersion()), spec);
         }
       } catch (StatusRuntimeException e) {
         throw new RuntimeException(
@@ -193,13 +197,14 @@ public class CachedSpecService {
       Map<String, FeatureSetSpec> featureSets) {
     HashMap<String, String> mapping = new HashMap<>();
 
-    featureSets.values()
-        .stream()
+    featureSets.values().stream()
         .collect(groupingBy(fs -> Triple.of(fs.getProject(), fs.getName(), fs.getVersion())))
-        .forEach((k, v) -> {
-              v = v.stream()
-                  .sorted(comparingInt(FeatureSetSpec::getVersion))
-                  .collect(Collectors.toList());
+        .forEach(
+            (k, v) -> {
+              v =
+                  v.stream()
+                      .sorted(comparingInt(FeatureSetSpec::getVersion))
+                      .collect(Collectors.toList());
               for (int i = 0; i < v.size(); i++) {
                 FeatureSetSpec fs = v.get(i);
                 for (FeatureSpec featureSpec : fs.getFeaturesList()) {
@@ -207,14 +212,13 @@ public class CachedSpecService {
                       getId(fs.getProject(), featureSpec.getName(), fs.getVersion()),
                       getId(fs.getProject(), fs.getName(), fs.getVersion()));
                   if (i == v.size() - 1) {
-                    mapping
-                        .put(getId(fs.getProject(), featureSpec.getName(), 0),
-                            getId(fs.getProject(), fs.getName(), fs.getVersion()));
+                    mapping.put(
+                        getId(fs.getProject(), featureSpec.getName(), 0),
+                        getId(fs.getProject(), fs.getName(), fs.getVersion()));
                   }
                 }
               }
-            }
-        );
+            });
     return mapping;
   }
 

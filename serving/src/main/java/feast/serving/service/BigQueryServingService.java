@@ -107,7 +107,8 @@ public class BigQueryServingService implements ServingService {
   @Override
   public GetBatchFeaturesResponse getBatchFeatures(GetBatchFeaturesRequest getFeaturesRequest) {
     long startTime = System.currentTimeMillis();
-    List<FeatureSetRequest> featureSetRequests = specService.getFeatureSets(getFeaturesRequest.getFeaturesList());
+    List<FeatureSetRequest> featureSetRequests =
+        specService.getFeatureSets(getFeaturesRequest.getFeaturesList());
 
     Table entityTable;
     String entityTableName;
@@ -129,8 +130,7 @@ public class BigQueryServingService implements ServingService {
             .filter(name -> !name.equals("event_timestamp"))
             .collect(Collectors.toList());
 
-    List<FeatureSetInfo> featureSetInfos =
-        QueryTemplater.getFeatureSetInfos(featureSetRequests);
+    List<FeatureSetInfo> featureSetInfos = QueryTemplater.getFeatureSetInfos(featureSetRequests);
 
     String feastJobId = UUID.randomUUID().toString();
     ServingAPIProto.Job feastJob =
