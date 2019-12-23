@@ -127,7 +127,7 @@ def get_feature_row_chunks(
 
     pool = Pool(max_workers)
     func = partial(_encode_pa_tables, file, fs)
-    for chunk in pool.imap_unordered(func, row_groups):
+    for chunk in pool.imap(func, row_groups):
         yield chunk
     return
 
