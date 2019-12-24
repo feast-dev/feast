@@ -16,9 +16,12 @@
  */
 package feast.serving.util;
 
+import feast.serving.ServingAPIProto.FeatureReference;
 import feast.serving.ServingAPIProto.GetBatchFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import io.grpc.Status;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class RequestHelper {
 
@@ -41,6 +44,15 @@ public class RequestHelper {
     if (!getFeaturesRequest.getDatasetSource().hasFileSource()) {
       throw Status.INVALID_ARGUMENT
           .withDescription("Dataset source must be provided: only file source supported")
+          .asRuntimeException();
+    }
+
+    Set<String> uniqueFeatureNames = getFeaturesRequest.getFeaturesList().stream()
+        .map(FeatureReference::getName)
+        .collect(Collectors.toSet());
+    if (uniqueFeatureNames.size() != getFeaturesRequest.getFeaturesList().size()) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("Feature names must be unique within the request")
           .asRuntimeException();
     }
   }

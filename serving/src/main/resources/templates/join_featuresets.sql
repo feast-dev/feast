@@ -15,7 +15,7 @@ LEFT JOIN (
     {{ entities | join(', ') }}
     {% for featureSet in featureSets %}
     {% for featureName in featureSet.features %}
-    ,{{ featureSet.project }}_{{ featureName }}_v{{ featureSet.version }}
+    ,{{ featureSet.project }}_{{ featureName }}_v{{ featureSet.version }} as {{ featureName }}
     {% endfor %}
     {% endfor %}
 FROM joined
