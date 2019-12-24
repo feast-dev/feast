@@ -36,7 +36,7 @@ public class Field {
   @Column(name = "type", nullable = false)
   private String type;
 
-  // Version of the featureSet
+  // Version of the field
   @Column(name = "version")
   private int version;
 
