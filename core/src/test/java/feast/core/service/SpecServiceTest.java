@@ -56,7 +56,6 @@ import feast.core.model.Project;
 import feast.core.model.Source;
 import feast.core.model.Store;
 import feast.types.ValueProto.ValueType.Enum;
-import io.grpc.StatusRuntimeException;
 import java.sql.Date;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -126,29 +125,36 @@ public class SpecServiceTest {
     featureSets =
         Arrays.asList(featureSet1v1, featureSet1v2, featureSet1v3, featureSet2v1, featureSet3v1);
     when(featureSetRepository.findAll()).thenReturn(featureSets);
-    when(featureSetRepository.findAllByProject_ArchivedOrderByNameAscVersionAsc(false))
+    when(featureSetRepository.findAllByOrderByNameAscVersionAsc())
         .thenReturn(featureSets);
+
     when(featureSetRepository
-        .findAllByNameLikeAndProject_NameAndProject_ArchivedOrderByNameAscVersionAsc("f1",
-            "project1",
-            false)).thenReturn(featureSets.subList(0, 3));
+        .findFeatureSetByNameAndProject_NameAndVersion("f1",
+            "project1", 1)).thenReturn(featureSets.get(0));
     when(featureSetRepository
-        .findAllByNameLikeAndProject_NameAndProject_ArchivedOrderByNameAscVersionAsc("f3",
-            "project1",
-            false)).thenReturn(featureSets.subList(4, 5));
+        .findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc("f1",
+            "project1")).thenReturn(featureSets.subList(0, 3));
     when(featureSetRepository
-        .findFirstFeatureSetByNameAndProject_NameOrderByVersionDesc("f1", "project1"))
+        .findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc("f3",
+            "project1")).thenReturn(featureSets.subList(4, 5));
+    when(featureSetRepository
+        .findFirstFeatureSetByNameLikeAndProject_NameOrderByVersionDesc("f1", "project1"))
         .thenReturn(featureSet1v3);
-    when(featureSetRepository.findByNameWithWildcardOrderByNameAscVersionAsc("project1", "f1"))
+    when(featureSetRepository
+        .findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc("f1", "project1"))
         .thenReturn(featureSets.subList(0, 3));
     when(featureSetRepository
-        .findAllByNameLikeAndProject_NameAndProject_ArchivedOrderByNameAscVersionAsc("asd",
-            "project1",
-            false)).thenReturn(Lists.newArrayList());
+        .findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc("asd",
+            "project1")).thenReturn(Lists.newArrayList());
     when(featureSetRepository
-        .findAllByNameLikeAndProject_NameAndProject_ArchivedOrderByNameAscVersionAsc("f%",
-            "project1", false))
+        .findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc("f%",
+            "project1"))
         .thenReturn(featureSets);
+    when(featureSetRepository
+        .findAllByNameLikeAndProject_NameLikeOrderByNameAscVersionAsc("%",
+            "%"))
+        .thenReturn(featureSets);
+
 
     when(projectRepository.findAllByArchivedIsFalse())
         .thenReturn(Collections.singletonList(new Project("project1")));
@@ -166,9 +172,11 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void shouldGetAllFeatureSetsIfNoFilterProvided() {
+  public void shouldGetAllFeatureSetsIfOnlyWildcardsProvided() {
     ListFeatureSetsResponse actual =
-        specService.listFeatureSets(Filter.newBuilder().setFeatureSetName("").build());
+        specService.listFeatureSets(
+            Filter.newBuilder().setFeatureSetName("*").setProject("*").setFeatureSetVersion("*")
+                .build());
     List<FeatureSetProto.FeatureSet> list = new ArrayList<>();
     for (FeatureSet featureSet : featureSets) {
       FeatureSetProto.FeatureSet toProto = featureSet.toProto();
@@ -182,16 +190,17 @@ public class SpecServiceTest {
   @Test
   public void listFeatureSetShouldFailIfFeatureSetProvidedWithoutProject() {
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Invalid listFeatureSetRequest feature_set_name: \"f1\"\n"
-        + "feature_set_version: \"1\"");
+    expectedException.expectMessage(
+        "Invalid listFeatureSetRequest, missing arguments. Must provide project, feature set name, and version.");
     specService.listFeatureSets(
         Filter.newBuilder().setFeatureSetName("f1").setFeatureSetVersion("1").build());
   }
 
   @Test
-  public void shouldGetAllFeatureSetsMatchingNameIfNoVersionProvided() {
+  public void shouldGetAllFeatureSetsMatchingNameIfWildcardVersionProvided() {
     ListFeatureSetsResponse actual =
-        specService.listFeatureSets(Filter.newBuilder().setProject("project1").setFeatureSetName("f1").build());
+        specService.listFeatureSets(
+            Filter.newBuilder().setProject("project1").setFeatureSetName("f1").setFeatureSetVersion("*").build());
     List<FeatureSet> expectedFeatureSets =
         featureSets.stream().filter(fs -> fs.getName().equals("f1")).collect(Collectors.toList());
     List<FeatureSetProto.FeatureSet> list = new ArrayList<>();
@@ -208,7 +217,8 @@ public class SpecServiceTest {
   public void shouldGetAllFeatureSetsMatchingNameWithWildcardSearch() {
     ListFeatureSetsResponse actual =
         specService.listFeatureSets(
-            Filter.newBuilder().setProject("project1").setFeatureSetName("f*").build());
+            Filter.newBuilder().setProject("project1").setFeatureSetName("f*")
+                .setFeatureSetVersion("*").build());
     List<FeatureSet> expectedFeatureSets =
         featureSets.stream()
             .filter(fs -> fs.getName().startsWith("f"))
@@ -245,23 +255,11 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void shouldGetAllFeatureSetsGivenVersionWithComparator() {
-    ListFeatureSetsResponse actual =
-        specService.listFeatureSets(
-            Filter.newBuilder().setProject("project1").setFeatureSetName("f1").setFeatureSetVersion(">1").build());
-    List<FeatureSet> expectedFeatureSets =
-        featureSets.stream()
-            .filter(fs -> fs.getName().equals("f1"))
-            .filter(fs -> fs.getVersion() > 1)
-            .collect(Collectors.toList());
-    List<FeatureSetProto.FeatureSet> list = new ArrayList<>();
-    for (FeatureSet expectedFeatureSet : expectedFeatureSets) {
-      FeatureSetProto.FeatureSet toProto = expectedFeatureSet.toProto();
-      list.add(toProto);
-    }
-    ListFeatureSetsResponse expected =
-        ListFeatureSetsResponse.newBuilder().addAllFeatureSets(list).build();
-    assertThat(actual, equalTo(expected));
+  public void shouldThrowExceptionIfGetAllFeatureSetsGivenVersionWithComparator() {
+    expectedException.expect(IllegalArgumentException.class);
+    specService.listFeatureSets(
+        Filter.newBuilder().setProject("project1").setFeatureSetName("f1")
+            .setFeatureSetVersion(">1").build());
   }
 
   @Test
@@ -304,11 +302,15 @@ public class SpecServiceTest {
 
   @Test
   public void shouldThrowRetrievalExceptionGivenInvalidFeatureSetVersionComparator() {
-    expectedException.expect(StatusRuntimeException.class);
-    expectedException.expectMessage("Invalid comparator '=<' provided.");
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Invalid listFeatureSetRequest. Version must be set to \"*\" if the project name and feature set name aren't set explicitly: \n"
+            + "feature_set_name: \"f1\"\n"
+            + "feature_set_version: \">1\"\n"
+            + "project: \"project1\"");
     specService.listFeatureSets(
         Filter.newBuilder().setProject("project1").setFeatureSetName("f1")
-            .setFeatureSetVersion("=<1").build());
+            .setFeatureSetVersion(">1").build());
   }
 
   @Test
@@ -360,9 +362,8 @@ public class SpecServiceTest {
   @Test
   public void applyFeatureSetShouldApplyFeatureSetWithInitVersionIfNotExists() {
     when(featureSetRepository
-        .findAllByNameLikeAndProject_NameAndProject_ArchivedOrderByNameAscVersionAsc(
-            "f2", "project1",
-            false)).thenReturn(Lists.newArrayList());
+        .findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
+            "f2", "project1")).thenReturn(Lists.newArrayList());
 
     FeatureSetProto.FeatureSet incomingFeatureSet =
         newDummyFeatureSet("f2", 1, "project1").toProto();
@@ -409,7 +410,8 @@ public class SpecServiceTest {
         specService.applyFeatureSet(incomingFeatureSet);
     verify(projectRepository).saveAndFlush(ArgumentMatchers.any(Project.class));
     assertThat(applyFeatureSetResponse.getStatus(), equalTo(Status.CREATED));
-    assertEquals(FeatureSet.fromProto(applyFeatureSetResponse.getFeatureSet()), FeatureSet.fromProto(expected));
+    assertEquals(FeatureSet.fromProto(applyFeatureSetResponse.getFeatureSet()),
+        FeatureSet.fromProto(expected));
     assertThat(applyFeatureSetResponse.getFeatureSet().getSpec().getVersion(),
         equalTo(expected.getSpec().getVersion()));
   }
@@ -432,19 +434,18 @@ public class SpecServiceTest {
             FeatureSetStatus.STATUS_READY))
             .toProto();
 
-    FeatureSetProto.FeatureSet expected = incomingFeatureSet;
     ApplyFeatureSetResponse applyFeatureSetResponse =
         specService.applyFeatureSet(incomingFeatureSet);
     assertThat(applyFeatureSetResponse.getStatus(), equalTo(Status.NO_CHANGE));
     assertThat(
         applyFeatureSetResponse.getFeatureSet().getSpec().getMaxAge(),
-        equalTo(expected.getSpec().getMaxAge()));
+        equalTo(incomingFeatureSet.getSpec().getMaxAge()));
     assertThat(
         applyFeatureSetResponse.getFeatureSet().getSpec().getEntities(0),
-        equalTo(expected.getSpec().getEntities(0)));
+        equalTo(incomingFeatureSet.getSpec().getEntities(0)));
     assertThat(
         applyFeatureSetResponse.getFeatureSet().getSpec().getName(),
-        equalTo(expected.getSpec().getName()));
+        equalTo(incomingFeatureSet.getSpec().getName()));
   }
 
   @Test
@@ -455,7 +456,8 @@ public class SpecServiceTest {
             .setName("SERVING")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder())
-            .addSubscriptions(Subscription.newBuilder().setProject("project1").setName("a").setVersion(">1"))
+            .addSubscriptions(
+                Subscription.newBuilder().setProject("project1").setName("a").setVersion(">1"))
             .build();
     UpdateStoreResponse actual =
         specService.updateStore(UpdateStoreRequest.newBuilder().setStore(newStore).build());

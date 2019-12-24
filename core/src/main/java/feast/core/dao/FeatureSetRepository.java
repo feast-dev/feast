@@ -19,7 +19,6 @@ package feast.core.dao;
 import feast.core.model.FeatureSet;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
 
 /**
  * JPA repository supplying FeatureSet objects keyed by id.
@@ -32,25 +31,21 @@ public interface FeatureSetRepository extends JpaRepository<FeatureSet, String> 
   FeatureSet findFeatureSetByNameAndProject_NameAndVersion(String name, String project,
       Integer version);
 
-  // Find single latest version of a feature set by project and name
-  FeatureSet findFirstFeatureSetByNameAndProject_NameOrderByVersionDesc(String name,
+  // Find single latest version of a feature set by project and name (LIKE)
+  FeatureSet findFirstFeatureSetByNameLikeAndProject_NameOrderByVersionDesc(String name,
       String project);
 
   // find all feature sets and order by name and version
-  List<FeatureSet> findAllByProject_ArchivedOrderByNameAscVersionAsc(boolean project_archived);
+  List<FeatureSet> findAllByOrderByNameAscVersionAsc();
 
   // find all feature sets within a project and order by name and version
-  List<FeatureSet> findAllByProject_NameAndProject_ArchivedOrderByNameAscVersionAsc(String project_name, boolean project_archived);
+  List<FeatureSet> findAllByProject_NameOrderByNameAscVersionAsc(String project_name);
 
-  // find all versions of feature sets matching the given name with a project.
-  List<FeatureSet> findAllByNameLikeAndProject_NameAndProject_ArchivedOrderByNameAscVersionAsc(String name, String project_name, boolean project_archived);
+  // find all versions of feature sets matching the given name pattern with a specific project.
+  List<FeatureSet> findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(String name,
+      String project_name);
 
-  // find all versions of featureSets with names matching the regex
-  @Query(
-      nativeQuery = true,
-      value = "SELECT fs.* FROM feature_sets fs JOIN projects p on fs.project_name = ?1"
-          + " WHERE fs.name LIKE ?1 AND p.archived is FALSE ORDER BY name ASC, version ASC")
-  List<FeatureSet> findByNameWithWildcardOrderByNameAscVersionAsc(String project, String name);
-
-
+  // find all versions of feature sets matching the given name pattern and project pattern
+  List<FeatureSet> findAllByNameLikeAndProject_NameLikeOrderByNameAscVersionAsc(String name,
+      String project_name);
 }
