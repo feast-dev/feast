@@ -99,20 +99,20 @@ Entities in Feast are defined within Feature Sets and are not treated as standal
 
 Feast supports the following types for feature values
 
-* Bytes
-* String
-* Int32
-* Int64
-* Double
-* Float
-* Bool
-* Bytes List
-* String List
-* Int32 List
-* Int64 List
-* Double List
-* Float List
-* Bool List
+* BYTES
+* STRING
+* INT32
+* INT64
+* DOUBLE
+* FLOAT
+* BOOL
+* BYTES_LIST
+* STRING_LIST
+* INT32_LIST
+* INT64_LIST
+* DOUBLE_LIST
+* FLOAT_LIST
+* BOOL_LIST
 
 ## Glossary
 
