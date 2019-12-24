@@ -86,7 +86,7 @@ public class DirectRunnerJobManagerTest {
             .setName("SERVING")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
-            .addSubscriptions(Subscription.newBuilder().setName("*").setVersion(">0").build())
+            .addSubscriptions(Subscription.newBuilder().setProject("*").setName("*").setVersion("*").build())
             .build();
 
     SourceProto.Source source =

@@ -5,4 +5,5 @@ redis_config:
   port: 6379
 subscriptions:
   - name: "*"
-    version: ">0"
+    project: "*"
+    version: "*"

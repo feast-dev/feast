@@ -47,9 +47,6 @@ import feast.core.model.Store;
 import feast.core.validators.FeatureSetValidator;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Predicate;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,9 +65,6 @@ public class SpecService {
   private final ProjectRepository projectRepository;
   private final StoreRepository storeRepository;
   private final Source defaultSource;
-
-  private final Pattern versionPattern =
-      Pattern.compile("^(?<comparator>[\\>\\<\\=]{0,2})(?<version>\\d*)$");
 
   @Autowired
   public SpecService(
@@ -139,17 +133,21 @@ public class SpecService {
 
   /**
    * Return a list of feature sets matching the feature set name, version, and project provided in
-   * the filter. Providing a project name will filter feature sets to only a single project.
-   * Providing a feature set name will match only feature sets with that name, but can return
-   * multiple versions. If a feature set name is not provided then all names will be returned. A
-   * feature set name or pattern can only be provided if a project is provided.
+   * the filter. All fields are requried. Use '*' for all three arguments in order to return all
+   * feature sets and versions in all projects.
+   *
+   * <p> Project name can be explicitly provided, or an asterisk can be provided to match all
+   * projects. It is not possible to provide a combination of asterisks/wildcards and text.
    *
    * <p>The feature set name in the filter accepts an asterisk as a wildcard. All matching
-   * feature sets will be returned.
+   * feature sets will be returned. Regex is not supported. Explicitly defining a feature set name
+   * is not possible if a project name is not set explicitly
    *
-   * <p>The version filter is optional; If not provided, this method will return all featureSet
-   * versions of the featureSet name provided. Valid version filters should optionally contain a
-   * comparator (<, <=, >, etc) and a version number, e.g. 10, <10, >=1
+   * <p> The version field can be one of
+   * - '*'        - This will match all versions
+   * - 'latest'   - This will match the latest feature set version
+   * - '<number>' - This will match a specific feature set version. This property can only be set
+   *                if both the feature set name and project name are explicitly set.
    *
    * @param filter filter containing the desired featureSet name and version filter
    * @return ListFeatureSetsResponse with list of featureSets found matching the filter
@@ -370,17 +368,11 @@ public class SpecService {
 
     List<Subscription> subs = newStoreProto.getSubscriptionsList();
     for (Subscription sub : subs) {
-      // If no subscription is set, then subscribe to all feature sets
-      if (sub == Subscription.getDefaultInstance()) {
-        continue;
-      }
-      // Ensure that a project name is set in subscription if a feature set is set
-      if ((!sub.getVersion().isEmpty() || !sub.getName().isEmpty()) && sub.getProject()
-          .isEmpty()) {
+      // Ensure that all fields in a subscription contain values
+      if ((sub.getVersion().isEmpty() || sub.getName().isEmpty()) || sub.getProject().isEmpty()) {
         throw new IllegalArgumentException(
             String
-                .format("Project name must be configured in a subscription if a feature set name "
-                    + "or feature set version is configured: %s", sub));
+                .format("Missing parameter in subscription: %s", sub));
       }
     }
     Store existingStore = storeRepository.findById(newStoreProto.getName()).orElse(null);
@@ -401,44 +393,4 @@ public class SpecService {
         .build();
   }
 
-  private Predicate<? super FeatureSet> getVersionFilter(String versionFilter) {
-    if (versionFilter.equals("")) {
-      return v -> true;
-    }
-    Matcher match = versionPattern.matcher(versionFilter);
-    match.find();
-
-    if (!match.matches()) {
-      throw io.grpc.Status.INVALID_ARGUMENT
-          .withDescription(
-              String.format(
-                  "Invalid version string '%s' provided. Version string may either "
-                      + "be a fixed version, e.g. 10, or contain a comparator, e.g. >10.",
-                  versionFilter))
-          .asRuntimeException();
-    }
-
-    int versionNumber = Integer.valueOf(match.group("version"));
-    String comparator = match.group("comparator");
-    switch (comparator) {
-      case "<":
-        return v -> v.getVersion() < versionNumber;
-      case ">":
-        return v -> v.getVersion() > versionNumber;
-      case "<=":
-        return v -> v.getVersion() <= versionNumber;
-      case ">=":
-        return v -> v.getVersion() >= versionNumber;
-      case "":
-        return v -> v.getVersion() == versionNumber;
-      default:
-        throw io.grpc.Status.INVALID_ARGUMENT
-            .withDescription(
-                String.format(
-                    "Invalid comparator '%s' provided. Version string may either "
-                        + "be a fixed version, e.g. 10, or contain a comparator, e.g. >10.",
-                    comparator))
-            .asRuntimeException();
-    }
-  }
 }

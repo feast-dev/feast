@@ -46,15 +46,30 @@ public class SpecUtil {
     List<FeatureSet> subscribed = new ArrayList<>();
     for (FeatureSet featureSet : featureSets) {
       for (Subscription sub : subscriptions) {
-        // If default subscription, then subscribe to everything
-        if (sub.getProject().isEmpty() && sub.getName().isEmpty() && sub.getVersion().isEmpty()) {
+        // If configuration missing, fail
+        if (sub.getProject().isEmpty() || sub.getName().isEmpty() || sub.getVersion().isEmpty()) {
+          throw new IllegalArgumentException(
+              String.format("Subscription is missing arguments: %s", sub.toString()));
+        }
+
+        // If all wildcards, subscribe to everything
+        if (sub.getProject().equals("*") || sub.getName().equals("*") || sub.getVersion()
+            .equals("*")) {
           subscribed.add(featureSet);
           break;
         }
 
-        // Do not allow a missing project value if feature set name or version is set
-        if (!sub.getProject().isEmpty() && !sub.getProject()
-            .equals(featureSet.getSpec().getProject())) {
+        // If all wildcards, subscribe to everything
+        if (sub.getProject().equals("*") && (!sub.getName().equals("*") || !sub.getVersion()
+            .equals("*"))) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Subscription cannot have feature set name and/or version set if project is not defined: %s",
+                  sub.toString()));
+        }
+
+        // Match project name
+        if (!featureSet.getSpec().getProject().equals(sub.getProject())) {
           continue;
         }
 
@@ -70,17 +85,17 @@ public class SpecUtil {
           continue;
         }
 
-        // If version is empty, match all
-        if (sub.getVersion().isEmpty()) {
+        // If version is '*', match all
+        if (sub.getVersion().equals("*")) {
           subscribed.add(featureSet);
           break;
-        } else if (sub.getVersion().startsWith(">") && sub.getVersion().length() > 1) {
-          // if version starts with >, match only those greater than the version number
-          int lowerBoundIncl = Integer.parseInt(sub.getVersion().substring(1));
-          if (featureSet.getSpec().getVersion() >= lowerBoundIncl) {
-            subscribed.add(featureSet);
-            break;
-          }
+        } else if (sub.getVersion().equals("latest")) {
+          // if version is "latest"
+          throw new RuntimeException(
+              String.format(
+                  "Support for latest feature set subscription has not been implemented yet: %s",
+                  sub.toString()));
+
         } else {
           // If a specific version, match that version alone
           int version = Integer.parseInt(sub.getVersion());

@@ -118,6 +118,9 @@ public class Store {
   }
 
   private static String convertSubscriptionToString(Subscription sub) {
+    if(sub.getVersion().isEmpty() || sub.getName().isEmpty() || sub.getProject().isEmpty()){
+      throw new IllegalArgumentException(String.format("Missing arguments in subscription string: %s", sub.toString()));
+    }
     return String.format("%s:%s:%s", sub.getProject(), sub.getName(), sub.getVersion());
   }
 
