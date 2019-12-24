@@ -16,7 +16,7 @@
  */
 package feast.serving.util;
 
-public class SpecUtil {
+public class FeatureRefUtil {
   public static String generateFeastRef(String project, String name, int version) {
     String ref = String.format("%s/%s", project, name);
     if (version > 0) {

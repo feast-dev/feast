@@ -20,7 +20,7 @@ import static feast.serving.util.Metrics.missingKeyCount;
 import static feast.serving.util.Metrics.requestCount;
 import static feast.serving.util.Metrics.requestLatency;
 import static feast.serving.util.Metrics.staleKeyCount;
-import static feast.serving.util.SpecUtil.generateFeastRef;
+import static feast.serving.util.FeatureRefUtil.generateFeastRef;
 
 import com.google.common.collect.Maps;
 import com.google.protobuf.AbstractMessageLite;

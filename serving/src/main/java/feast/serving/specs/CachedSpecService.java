@@ -16,7 +16,7 @@
  */
 package feast.serving.specs;
 
-import static feast.serving.util.SpecUtil.generateFeastRef;
+import static feast.serving.util.FeatureRefUtil.generateFeastRef;
 import static feast.serving.util.mappers.YamlToProtoMapper.yamlToStoreProto;
 import static java.util.Comparator.comparingInt;
 import static java.util.stream.Collectors.groupingBy;
