@@ -28,6 +28,7 @@
     <packaging>pom</packaging>
 
     <modules>
+        <module>datatypes/java</module>
         <module>ingestion</module>
         <module>core</module>
         <module>serving</module>
@@ -542,25 +543,6 @@
                     <groupId>org.xolstice.maven.plugins</groupId>
                     <artifactId>protobuf-maven-plugin</artifactId>
                     <version>0.6.1</version>
-                    <configuration>
-                        <checkStaleness>true</checkStaleness>
-                        <protocArtifact>
-                            com.google.protobuf:protoc:${protocVersion}:exe:${os.detected.classifier}
-                        </protocArtifact>
-                        <pluginId>grpc-java</pluginId>
-                        <pluginArtifact>
-                            io.grpc:protoc-gen-grpc-java:${grpcVersion}:exe:${os.detected.classifier}
-                        </pluginArtifact>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <goals>
-                                <goal>compile</goal>
-                                <goal>compile-custom</goal>
-                                <goal>test-compile</goal>
-                            </goals>
-                        </execution>
-                    </executions>
                 </plugin>
             </plugins>
         </pluginManagement>
