@@ -20,7 +20,7 @@ import static feast.serving.util.Metrics.missingKeyCount;
 import static feast.serving.util.Metrics.requestCount;
 import static feast.serving.util.Metrics.requestLatency;
 import static feast.serving.util.Metrics.staleKeyCount;
-import static feast.serving.util.SpecUtil.generateFeastId;
+import static feast.serving.util.SpecUtil.generateFeastRef;
 
 import com.google.common.collect.Maps;
 import com.google.protobuf.AbstractMessageLite;
@@ -143,12 +143,12 @@ public class RedisServingService implements ServingService {
       List<EntityRow> entityRows,
       FeatureSetSpec featureSetSpec) {
     try (Scope scope = tracer.buildSpan("Redis-makeRedisKeys").startActive(true)) {
-      String featureSetId =
-          generateFeastId(
+      String featureSetRef =
+          generateFeastRef(
               featureSetSpec.getProject(), featureSetSpec.getName(), featureSetSpec.getVersion());
       List<RedisKey> redisKeys =
           entityRows.stream()
-              .map(row -> makeRedisKey(featureSetId, featureSetEntityNames, row))
+              .map(row -> makeRedisKey(featureSetRef, featureSetEntityNames, row))
               .collect(Collectors.toList());
       return redisKeys;
     }
@@ -201,7 +201,7 @@ public class RedisServingService implements ServingService {
           featureSetRequest.getFeatureReferences().stream()
               .collect(
                   Collectors.toMap(
-                      fr -> generateFeastId(fr.getProject(), fr.getName(), fr.getVersion()),
+                      fr -> generateFeastRef(fr.getProject(), fr.getName(), fr.getVersion()),
                       fr -> Value.newBuilder().build()));
 
       for (int i = 0; i < jedisResps.size(); i++) {
@@ -261,7 +261,7 @@ public class RedisServingService implements ServingService {
             .forEach(
                 f -> {
                   FeatureReference fr = featureNames.get(f.getName());
-                  String id = generateFeastId(fr.getProject(), fr.getName(), fr.getVersion());
+                  String id = generateFeastRef(fr.getProject(), fr.getName(), fr.getVersion());
                   featureValues.put(id, f.getValue());
                 });
       }

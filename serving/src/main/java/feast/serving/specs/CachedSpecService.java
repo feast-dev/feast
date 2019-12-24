@@ -16,7 +16,7 @@
  */
 package feast.serving.specs;
 
-import static feast.serving.util.SpecUtil.generateFeastId;
+import static feast.serving.util.SpecUtil.generateFeastRef;
 import static feast.serving.util.mappers.YamlToProtoMapper.yamlToStoreProto;
 import static java.util.Comparator.comparingInt;
 import static java.util.stream.Collectors.groupingBy;
@@ -113,7 +113,7 @@ public class CachedSpecService {
             featureReference -> {
               String featureSet =
                   featureToFeatureSetMapping.getOrDefault(
-                      generateFeastId(
+                      generateFeastRef(
                           featureReference.getProject(),
                           featureReference.getName(),
                           featureReference.getVersion()),
@@ -184,7 +184,8 @@ public class CachedSpecService {
 
         for (FeatureSet fs : featureSetsResponse.getFeatureSetsList()) {
           FeatureSetSpec spec = fs.getSpec();
-          featureSets.put(generateFeastId(spec.getProject(), spec.getName(), spec.getVersion()), spec);
+          featureSets.put(
+              generateFeastRef(spec.getProject(), spec.getName(), spec.getVersion()), spec);
         }
       } catch (StatusRuntimeException e) {
         throw new RuntimeException(
@@ -201,21 +202,21 @@ public class CachedSpecService {
     featureSets.values().stream()
         .collect(groupingBy(fs -> Triple.of(fs.getProject(), fs.getName(), fs.getVersion())))
         .forEach(
-            (k, v) -> {
-              v =
-                  v.stream()
+            (group, groupedFeatureSets) -> {
+              groupedFeatureSets =
+                  groupedFeatureSets.stream()
                       .sorted(comparingInt(FeatureSetSpec::getVersion))
                       .collect(Collectors.toList());
-              for (int i = 0; i < v.size(); i++) {
-                FeatureSetSpec fs = v.get(i);
+              for (int i = 0; i < groupedFeatureSets.size(); i++) {
+                FeatureSetSpec fs = groupedFeatureSets.get(i);
                 for (FeatureSpec featureSpec : fs.getFeaturesList()) {
                   mapping.put(
-                      generateFeastId(fs.getProject(), featureSpec.getName(), fs.getVersion()),
-                      generateFeastId(fs.getProject(), fs.getName(), fs.getVersion()));
-                  if (i == v.size() - 1) {
+                      generateFeastRef(fs.getProject(), featureSpec.getName(), fs.getVersion()),
+                      generateFeastRef(fs.getProject(), fs.getName(), fs.getVersion()));
+                  if (i == groupedFeatureSets.size() - 1) {
                     mapping.put(
-                        generateFeastId(fs.getProject(), featureSpec.getName(), 0),
-                        generateFeastId(fs.getProject(), fs.getName(), fs.getVersion()));
+                        generateFeastRef(fs.getProject(), featureSpec.getName(), 0),
+                        generateFeastRef(fs.getProject(), fs.getName(), fs.getVersion()));
                   }
                 }
               }
