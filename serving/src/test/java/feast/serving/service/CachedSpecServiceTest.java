@@ -79,10 +79,10 @@ public class CachedSpecServiceTest {
             + "subscriptions:\n"
             + "- project: project\n"
             + "  name: fs1\n"
-            + "  version: \">0\"\n"
+            + "  version: \"*\"\n"
             + "- project: project\n"
             + "  name: fs2\n"
-            + "  version: \">0\"";
+            + "  version: \"*\"";
     BufferedWriter writer = new BufferedWriter(new FileWriter(configFile));
     writer.write(yamlString);
     writer.close();
@@ -96,13 +96,13 @@ public class CachedSpecServiceTest {
                 Subscription.newBuilder()
                     .setProject("project")
                     .setName("fs1")
-                    .setVersion(">0")
+                    .setVersion("*")
                     .build())
             .addSubscriptions(
                 Subscription.newBuilder()
                     .setProject("project")
                     .setName("fs2")
-                    .setVersion(">0")
+                    .setVersion("*")
                     .build())
             .build();
 
@@ -149,7 +149,7 @@ public class CachedSpecServiceTest {
                     ListFeatureSetsRequest.Filter.newBuilder()
                         .setProject("project")
                         .setFeatureSetName("fs1")
-                        .setFeatureSetVersion(">0")
+                        .setFeatureSetVersion("*")
                         .build())
                 .build()))
         .thenReturn(ListFeatureSetsResponse.newBuilder().addAllFeatureSets(fs1FeatureSets).build());
@@ -159,7 +159,7 @@ public class CachedSpecServiceTest {
                     ListFeatureSetsRequest.Filter.newBuilder()
                         .setProject("project")
                         .setFeatureSetName("fs2")
-                        .setFeatureSetVersion(">0")
+                        .setFeatureSetVersion("*")
                         .build())
                 .build()))
         .thenReturn(ListFeatureSetsResponse.newBuilder().addAllFeatureSets(fs2FeatureSets).build());
