@@ -156,7 +156,9 @@ public class BigQueryServingService implements ServingService {
                 .build())
         .start();
 
-    requestLatency.labels("getBatchFeatures").observe(System.currentTimeMillis() - startTime);
+    requestLatency
+        .labels("getBatchFeatures")
+        .observe((System.currentTimeMillis() - startTime) / 1000);
     return GetBatchFeaturesResponse.newBuilder().setJob(feastJob).build();
   }
 

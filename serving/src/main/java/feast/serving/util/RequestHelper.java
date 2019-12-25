@@ -47,9 +47,10 @@ public class RequestHelper {
           .asRuntimeException();
     }
 
-    Set<String> uniqueFeatureNames = getFeaturesRequest.getFeaturesList().stream()
-        .map(FeatureReference::getName)
-        .collect(Collectors.toSet());
+    Set<String> uniqueFeatureNames =
+        getFeaturesRequest.getFeaturesList().stream()
+            .map(FeatureReference::getName)
+            .collect(Collectors.toSet());
     if (uniqueFeatureNames.size() != getFeaturesRequest.getFeaturesList().size()) {
       throw Status.INVALID_ARGUMENT
           .withDescription("Feature names must be unique within the request")

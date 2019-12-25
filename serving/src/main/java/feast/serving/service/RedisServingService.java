@@ -16,11 +16,11 @@
  */
 package feast.serving.service;
 
+import static feast.serving.util.FeatureRefUtil.generateFeastRef;
 import static feast.serving.util.Metrics.missingKeyCount;
 import static feast.serving.util.Metrics.requestCount;
 import static feast.serving.util.Metrics.requestLatency;
 import static feast.serving.util.Metrics.staleKeyCount;
-import static feast.serving.util.FeatureRefUtil.generateFeastRef;
 
 import com.google.common.collect.Maps;
 import com.google.protobuf.AbstractMessageLite;
@@ -115,7 +115,9 @@ public class RedisServingService implements ServingService {
           featureValuesMap.values().stream()
               .map(m -> FieldValues.newBuilder().putAllFields(m).build())
               .collect(Collectors.toList());
-      requestLatency.labels("getOnlineFeatures").observe(System.currentTimeMillis() - startTime);
+      requestLatency
+          .labels("getOnlineFeatures")
+          .observe((System.currentTimeMillis() - startTime) / 1000);
       return getOnlineFeaturesResponseBuilder.addAllFieldValues(fieldValues).build();
     }
   }
@@ -266,7 +268,9 @@ public class RedisServingService implements ServingService {
                 });
       }
     } finally {
-      requestLatency.labels("processResponse").observe(System.currentTimeMillis() - startTime);
+      requestLatency
+          .labels("processResponse")
+          .observe((System.currentTimeMillis() - startTime) / 1000);
     }
   }
 
@@ -305,7 +309,9 @@ public class RedisServingService implements ServingService {
             .withCause(e)
             .asRuntimeException();
       } finally {
-        requestLatency.labels("sendMultiGet").observe(System.currentTimeMillis() - startTime);
+        requestLatency
+            .labels("sendMultiGet")
+            .observe((System.currentTimeMillis() - startTime) / 1000);
       }
     }
   }

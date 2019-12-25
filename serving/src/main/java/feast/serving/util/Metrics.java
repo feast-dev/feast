@@ -23,10 +23,10 @@ public class Metrics {
 
   public static final Histogram requestLatency =
       Histogram.build()
-          .buckets(2, 4, 6, 8, 10, 15, 20, 25, 30, 35, 50)
+          .buckets(0.001, 0.002, 0.004, 0.006, 0.008, 0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.05)
           .name("request_latency_ms")
           .subsystem("feast_serving")
-          .help("Request latency in milliseconds.")
+          .help("Request latency in seconds.")
           .labelNames("method")
           .register();
 
