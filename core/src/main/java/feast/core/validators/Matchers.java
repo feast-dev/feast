@@ -23,7 +23,7 @@ public class Matchers {
   private static Pattern UPPER_SNAKE_CASE_REGEX = Pattern.compile("^[A-Z0-9]+(_[A-Z0-9]+)*$");
   private static Pattern LOWER_SNAKE_CASE_REGEX = Pattern.compile("^[a-z0-9]+(_[a-z0-9]+)*$");
   private static Pattern VALID_CHARACTERS_REGEX = Pattern.compile("^[a-zA-Z0-9\\-_]*$");
-  private static Pattern VALID_CHARACTERS_FSET_FILTER_REGEX =
+  private static Pattern VALID_CHARACTERS_REGEX_WITH_ASTERISK_WILDCARD =
       Pattern.compile("^[a-zA-Z0-9\\-_*]*$");
 
   private static String ERROR_MESSAGE_TEMPLATE = "invalid value for field %s: %s";
@@ -61,9 +61,9 @@ public class Matchers {
     }
   }
 
-  public static void checkValidFeatureSetFilterName(String input, String fieldName)
+  public static void checkValidCharactersAllowAsterisk(String input, String fieldName)
       throws IllegalArgumentException {
-    if (!VALID_CHARACTERS_FSET_FILTER_REGEX.matcher(input).matches()) {
+    if (!VALID_CHARACTERS_REGEX_WITH_ASTERISK_WILDCARD.matcher(input).matches()) {
       throw new IllegalArgumentException(
           String.format(
               ERROR_MESSAGE_TEMPLATE,

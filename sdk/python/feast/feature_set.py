@@ -67,7 +67,6 @@ class FeatureSet:
             self._source = source
         self._max_age = max_age
         self._version = None
-        self._client = None
         self._status = None
         self._created_timestamp = None
 
@@ -91,11 +90,13 @@ class FeatureSet:
         return str(MessageToJson(self.to_proto()))
 
     def __repr__(self):
-        ref = self._name
-        if self._project:
-            ref += self._project + "/" + ref
-        if self._version:
-            ref += ":" + str(self._version).strip()
+        ref = ""
+        if self.project:
+            ref += self.project + "/"
+        if self.name:
+            ref += self.name
+        if self.version:
+            ref += ":" + str(self.version).strip()
         return ref
 
     @property
@@ -624,6 +625,7 @@ class FeatureSet:
         """
 
         self.name = feature_set.name
+        self.project = feature_set.project
         self.version = feature_set.version
         self.source = feature_set.source
         self.max_age = feature_set.max_age
@@ -654,6 +656,9 @@ class FeatureSet:
         Validates the state of a feature set locally. Raises an exception
         if feature set is invalid.
         """
+
+        if not self.name:
+            raise ValueError(f"No name found in feature set.")
 
         if len(self.entities) == 0:
             raise ValueError(f"No entities found in feature set {self.name}")
@@ -718,7 +723,7 @@ class FeatureSet:
                 if feature_set_proto.spec.source.type == 0
                 else Source.from_proto(feature_set_proto.spec.source)
             ),
-            project=None
+            project=feature_set_proto.spec.project
             if len(feature_set_proto.spec.project) == 0
             else feature_set_proto.spec.project,
         )

@@ -22,7 +22,6 @@ import com.mitchellbosecke.pebble.PebbleEngine;
 import com.mitchellbosecke.pebble.template.PebbleTemplate;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.serving.ServingAPIProto.FeatureSetRequest;
 import feast.serving.store.bigquery.model.FeatureSetInfo;
 import java.io.IOException;
 import java.io.StringWriter;

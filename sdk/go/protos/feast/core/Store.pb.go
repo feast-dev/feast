@@ -391,18 +391,27 @@ func (m *Store_CassandraConfig) GetPort() int32 {
 }
 
 type Store_Subscription struct {
-	// Name of project where subscribed feature sets can be found. All feature sets must be located
-	// within this project. Wildcards are not supported.
+	// Name of project that the feature sets belongs to. This can be one of
+	// - [project_name]
+	// - *
+	// If an asterisk is provided, filtering on projects will be disabled. All projects will
+	// be matched. It is NOT possible to provide an asterisk with a string in order to do
+	// pattern matching.
 	Project string `protobuf:"bytes,3,opt,name=project,proto3" json:"project,omitempty"`
-	// Name of featureSet to subscribe to. This field supports any valid basic POSIX regex,
-	// e.g. customer_.* or .*
-	// https://www.regular-expressions.info/posix.html
+	// Name of the desired feature set. Asterisks can be used as wildcards in the name.
+	// Matching on names is only permitted if a specific project is defined. It is disallowed
+	// If the project name is set to "*"
+	// e.g.
+	// - * can be used to match all feature sets
+	// - my-feature-set* can be used to match all features prefixed by "my-feature-set"
+	// - my-feature-set-6 can be used to select a single feature set
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Versions of the given featureSet that will be ingested into this store.
+	// Versions of the given feature sets that will be returned.
 	// Valid options for version:
-	//     latest: only subscribe to latest version of feature set
-	//     [version number]: pin to a specific version
-	//     >[version number]: subscribe to all versions larger than or equal to [version number]
+	//     "latest": only the latest version is returned.
+	//     "*": Subscribe to all versions
+	//     [version number]: pin to a specific version. Project and feature set name must be
+	//                       explicitly defined if a specific version is pinned.
 	Version              string   `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

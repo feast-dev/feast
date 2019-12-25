@@ -222,18 +222,27 @@ func (m *ListFeatureSetsRequest) GetFilter() *ListFeatureSetsRequest_Filter {
 }
 
 type ListFeatureSetsRequest_Filter struct {
-	// Name of project that the feature sets belongs to.
+	// Name of project that the feature sets belongs to. This can be one of
+	// - [project_name]
+	// - *
+	// If an asterisk is provided, filtering on projects will be disabled. All projects will
+	// be matched. It is NOT possible to provide an asterisk with a string in order to do
+	// pattern matching.
 	Project string `protobuf:"bytes,3,opt,name=project,proto3" json:"project,omitempty"`
 	// Name of the desired feature set. Asterisks can be used as wildcards in the name.
+	// Matching on names is only permitted if a specific project is defined. It is disallowed
+	// If the project name is set to "*"
 	// e.g.
 	// - * can be used to match all feature sets
 	// - my-feature-set* can be used to match all features prefixed by "my-feature-set"
+	// - my-feature-set-6 can be used to select a single feature set
 	FeatureSetName string `protobuf:"bytes,1,opt,name=feature_set_name,json=featureSetName,proto3" json:"feature_set_name,omitempty"`
-	// Version of the desired feature set. Either a number or valid expression can be provided.
-	// e.g.
-	// - 1 will match version 1 exactly
-	// - >=1 will match all versions greater or equal to 1
-	// - <10 will match all versions less than 10
+	// Versions of the given feature sets that will be returned.
+	// Valid options for version:
+	//     "latest": only the latest version is returned.
+	//     "*": Subscribe to all versions
+	//     [version number]: pin to a specific version. Project and feature set name must be
+	//                       explicitly defined if a specific version is pinned.
 	FeatureSetVersion    string   `protobuf:"bytes,2,opt,name=feature_set_version,json=featureSetVersion,proto3" json:"feature_set_version,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

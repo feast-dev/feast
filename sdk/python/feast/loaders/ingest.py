@@ -64,7 +64,7 @@ def _encode_pa_tables(file: str, fs: FeatureSet, row_group_idx: int) -> List[byt
         for field_name, field in fs.fields.items()
     }
 
-    feature_set = f"{fs.name}:{fs.version}"
+    feature_set = f"{fs.project}/{fs.name}:{fs.version}"
 
     # List to store result
     feature_rows = []

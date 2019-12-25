@@ -16,14 +16,14 @@
  */
 package feast.core.model;
 
-import java.util.List;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.Id;
-import javax.persistence.JoinColumn;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import lombok.Getter;
@@ -41,12 +41,11 @@ public class Project {
   private String name;
 
   // Flag to set whether the project has been archived
-  @Column(name = "is_archived", nullable = false)
-  private boolean isArchived;
+  @Column(name = "archived", nullable = false)
+  private boolean archived;
 
-  @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-  @JoinColumn(name = "feature_set_id")
-  private List<FeatureSet> featureSets;
+  @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true, mappedBy = "project")
+  private Set<FeatureSet> featureSets;
 
   public Project() {
     super();
@@ -54,6 +53,12 @@ public class Project {
 
   public Project(String name) {
     this.name = name;
+    this.featureSets = new HashSet<>();
+  }
+
+  public void addFeatureSet(FeatureSet featureSet) {
+    featureSet.setProject(this);
+    featureSets.add(featureSet);
   }
 
   @Override

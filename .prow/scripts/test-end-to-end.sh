@@ -143,7 +143,8 @@ redis_config:
   port: 6379
 subscriptions:
   - name: "*"
-    version: ">0"
+    version: "*"
+    project: "*"
 EOF
 
 cat <<EOF > /tmp/serving.online.application.yml

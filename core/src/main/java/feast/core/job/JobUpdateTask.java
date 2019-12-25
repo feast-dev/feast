@@ -87,7 +87,7 @@ public class JobUpdateTask implements Callable<Job> {
               .collect(Collectors.toSet());
       Set<String> newFeatureSetsPopulatedByJob =
           featureSets.stream()
-              .map(fs -> fs.getSpec().getName() + ":" + fs.getSpec().getVersion())
+              .map(fs -> FeatureSet.fromProto(fs).getId())
               .collect(Collectors.toSet());
       if (existingFeatureSetsPopulatedByJob.size() == newFeatureSetsPopulatedByJob.size()
           && existingFeatureSetsPopulatedByJob.containsAll(newFeatureSetsPopulatedByJob)) {
