@@ -258,6 +258,6 @@ public class BigQueryServingService implements ServingService {
   }
 
   public static String createTempTableName() {
-    return "temp" + UUID.randomUUID().toString().replace("-", "");
+    return "_" + UUID.randomUUID().toString().replace("-", "");
   }
 }
