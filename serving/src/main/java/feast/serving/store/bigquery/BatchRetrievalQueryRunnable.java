@@ -39,7 +39,6 @@ import feast.serving.ServingAPIProto;
 import feast.serving.ServingAPIProto.DataFormat;
 import feast.serving.ServingAPIProto.JobStatus;
 import feast.serving.ServingAPIProto.JobType;
-import feast.serving.service.BigQueryServingService;
 import feast.serving.service.JobService;
 import feast.serving.store.bigquery.model.FeatureSetInfo;
 import io.grpc.Status;
@@ -233,7 +232,7 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
             .getTable(queryJobConfig.getDestinationTable())
             .toBuilder()
             .setExpirationTime(
-                System.currentTimeMillis() + BigQueryServingService.TEMP_TABLE_EXPIRY_DURATION_MS)
+                System.currentTimeMillis() + TEMP_TABLE_EXPIRY_DURATION_MS)
             .build();
     bigquery().update(expiry);
 
