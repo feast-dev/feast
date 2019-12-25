@@ -32,6 +32,7 @@ import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.storage.Storage;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.serving.ServingAPIProto;
@@ -56,10 +57,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 
 public class BigQueryServingService implements ServingService {
 
+  // Default no of millis for which a temporary table should exist before it is deleted in BigQuery.
+  public static final long TEMP_TABLE_EXPIRY_DURATION_MS = Duration.standardDays(1).getMillis();
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(BigQueryServingService.class);
 
   private final BigQuery bigquery;
@@ -230,9 +234,19 @@ public class BigQueryServingService implements ServingService {
     try {
       String uuidQuery =
           createEntityTableUUIDQuery(generateFullTableName(loadedEntityTable.getTableId()));
-      QueryJobConfiguration queryJobConfig = QueryJobConfiguration.newBuilder(uuidQuery).build();
+      QueryJobConfiguration queryJobConfig =
+          QueryJobConfiguration.newBuilder(uuidQuery)
+              .setDestinationTable(TableId.of(projectId, datasetId, createTempTableName()))
+              .build();
       Job queryJob = bigquery.create(JobInfo.of(queryJobConfig));
       queryJob.waitFor();
+      TableInfo expiry =
+          bigquery
+              .getTable(queryJobConfig.getDestinationTable())
+              .toBuilder()
+              .setExpirationTime(System.currentTimeMillis() + TEMP_TABLE_EXPIRY_DURATION_MS)
+              .build();
+      bigquery.update(expiry);
       queryJobConfig = queryJob.getConfiguration();
       return queryJobConfig.getDestinationTable();
     } catch (InterruptedException | BigQueryException e) {
@@ -241,5 +255,9 @@ public class BigQueryServingService implements ServingService {
           .withCause(e)
           .asRuntimeException();
     }
+  }
+
+  public static String createTempTableName() {
+    return "temp" + UUID.randomUUID().toString().replace("-", "");
   }
 }
