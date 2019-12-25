@@ -186,15 +186,15 @@ public class BigQueryServingService implements ServingService {
     switch (datasetSource.getDatasetSourceCase()) {
       case FILE_SOURCE:
         try {
-          String tableName = generateTemporaryTableName();
-          log.info("Loading entity dataset to table {}.{}.{}", projectId, datasetId, tableName);
-          TableId tableId = TableId.of(projectId, datasetId, tableName);
-          // Currently only avro supported
+          // Currently only AVRO format is supported
           if (datasetSource.getFileSource().getDataFormat() != DataFormat.DATA_FORMAT_AVRO) {
             throw Status.INVALID_ARGUMENT
-                .withDescription("Invalid file format, only avro supported")
+                .withDescription("Invalid file format, only AVRO is supported.")
                 .asRuntimeException();
           }
+
+          TableId tableId = TableId.of(projectId, datasetId, createTempTableName());
+          log.info("Loading entity rows to: {}.{}.{}", projectId, datasetId, tableId.getTable());
           LoadJobConfiguration loadJobConfiguration =
               LoadJobConfiguration.of(
                   tableId, datasetSource.getFileSource().getFileUrisList(), FormatOptions.avro());
@@ -202,6 +202,13 @@ public class BigQueryServingService implements ServingService {
               loadJobConfiguration.toBuilder().setUseAvroLogicalTypes(true).build();
           Job job = bigquery.create(JobInfo.of(loadJobConfiguration));
           job.waitFor();
+          TableInfo expiry =
+              bigquery
+                  .getTable(tableId)
+                  .toBuilder()
+                  .setExpirationTime(System.currentTimeMillis() + TEMP_TABLE_EXPIRY_DURATION_MS)
+                  .build();
+          bigquery.update(expiry);
           loadedEntityTable = bigquery.getTable(tableId);
           if (!loadedEntityTable.exists()) {
             throw new RuntimeException(
@@ -221,13 +228,6 @@ public class BigQueryServingService implements ServingService {
             .withDescription("Data source must be set.")
             .asRuntimeException();
     }
-  }
-
-  private String generateTemporaryTableName() {
-    String source = String.format("feastserving%d", System.currentTimeMillis());
-    String guid = UUID.nameUUIDFromBytes(source.getBytes()).toString();
-    String suffix = guid.substring(0, Math.min(guid.length(), 10)).replaceAll("-", "");
-    return String.format("temp_%s", suffix);
   }
 
   private TableId generateUUIDs(Table loadedEntityTable) {
