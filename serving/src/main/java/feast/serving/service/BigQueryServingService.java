@@ -218,7 +218,7 @@ public class BigQueryServingService implements ServingService {
         } catch (Exception e) {
           log.error("Exception has occurred in loadEntities method: ", e);
           throw Status.INTERNAL
-              .withDescription("Failed to load entity dataset into store")
+              .withDescription("Failed to load entity dataset into store: " + e.toString())
               .withCause(e)
               .asRuntimeException();
         }
