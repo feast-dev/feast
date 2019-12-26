@@ -46,7 +46,8 @@ public class YamlToProtoMapperTest {
             .setName("test")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379))
-            .addSubscriptions(Subscription.newBuilder().setProject("*").setName("*").setVersion("*"))
+            .addSubscriptions(
+                Subscription.newBuilder().setProject("*").setName("*").setVersion("*"))
             .build();
     assertThat(store, equalTo(expected));
   }
