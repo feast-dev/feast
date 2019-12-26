@@ -16,13 +16,16 @@
  */
 package feast.serving.store.bigquery;
 
+import static feast.serving.service.BigQueryServingService.TEMP_TABLE_EXPIRY_DURATION_MS;
 import static feast.serving.store.bigquery.QueryTemplater.generateFullTableName;
 
 import com.google.auto.value.AutoValue;
+import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableInfo;
 import feast.serving.store.bigquery.model.FeatureSetInfo;
 import java.util.concurrent.Callable;
 
@@ -32,6 +35,8 @@ import java.util.concurrent.Callable;
  */
 @AutoValue
 public abstract class SubqueryCallable implements Callable<FeatureSetInfo> {
+
+  public abstract BigQuery bigquery();
 
   public abstract FeatureSetInfo featureSetInfo();
 
@@ -43,6 +48,8 @@ public abstract class SubqueryCallable implements Callable<FeatureSetInfo> {
 
   @AutoValue.Builder
   public abstract static class Builder {
+
+    public abstract Builder setBigquery(BigQuery bigquery);
 
     public abstract Builder setFeatureSetInfo(FeatureSetInfo featureSetInfo);
 
@@ -57,6 +64,13 @@ public abstract class SubqueryCallable implements Callable<FeatureSetInfo> {
     subqueryJob().waitFor();
     subqueryConfig = subqueryJob().getConfiguration();
     TableId destinationTable = subqueryConfig.getDestinationTable();
+    TableInfo expiry =
+        bigquery()
+            .getTable(destinationTable)
+            .toBuilder()
+            .setExpirationTime(System.currentTimeMillis() + TEMP_TABLE_EXPIRY_DURATION_MS)
+            .build();
+    bigquery().update(expiry);
     String fullTablePath = generateFullTableName(destinationTable);
 
     return new FeatureSetInfo(featureSetInfo(), fullTablePath);

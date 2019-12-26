@@ -14,6 +14,7 @@ from feast.feature_set import FeatureSet
 from feast.type_map import ValueType
 from google.protobuf.duration_pb2 import Duration
 
+pd.set_option('display.max_columns', None)
 
 @pytest.fixture(scope="module")
 def core_url(pytestconfig):
@@ -112,8 +113,8 @@ def test_additional_columns_in_entity_table(client):
     feature_retrieval_job = client.get_batch_features(
         entity_rows=entity_df, feature_ids=["additional_columns:1:feature_value"]
     )
-    output = feature_retrieval_job.to_dataframe()
-    print(output.head())
+    output = feature_retrieval_job.to_dataframe().sort_values(by=["entity_id"])
+    print(output.head(10))
 
     assert np.allclose(output["additional_float_col"], entity_df["additional_float_col"])
     assert output["additional_string_col"].to_list() == entity_df["additional_string_col"].to_list()

@@ -16,6 +16,8 @@
  */
 package feast.serving.store.bigquery;
 
+import static feast.serving.service.BigQueryServingService.TEMP_TABLE_EXPIRY_DURATION_MS;
+import static feast.serving.service.BigQueryServingService.createTempTableName;
 import static feast.serving.store.bigquery.QueryTemplater.createTimestampLimitQuery;
 
 import com.google.auto.value.AutoValue;
@@ -27,6 +29,8 @@ import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
@@ -175,15 +179,17 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
     ExecutorCompletionService<FeatureSetInfo> executorCompletionService =
         new ExecutorCompletionService<>(executorService);
 
-
     List<FeatureSetInfo> featureSetInfos = new ArrayList<>();
 
     for (int i = 0; i < featureSetQueries.size(); i++) {
       QueryJobConfiguration queryJobConfig =
-          QueryJobConfiguration.newBuilder(featureSetQueries.get(i)).build();
+          QueryJobConfiguration.newBuilder(featureSetQueries.get(i))
+              .setDestinationTable(TableId.of(projectId(), datasetId(), createTempTableName()))
+              .build();
       Job subqueryJob = bigquery().create(JobInfo.of(queryJobConfig));
       executorCompletionService.submit(
           SubqueryCallable.builder()
+              .setBigquery(bigquery())
               .setFeatureSetInfo(featureSetInfos().get(i))
               .setSubqueryJob(subqueryJob)
               .build());
@@ -191,7 +197,8 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
 
     for (int i = 0; i < featureSetQueries.size(); i++) {
       try {
-        FeatureSetInfo featureSetInfo = executorCompletionService.take().get(SUBQUERY_TIMEOUT_SECS, TimeUnit.SECONDS);
+        FeatureSetInfo featureSetInfo =
+            executorCompletionService.take().get(SUBQUERY_TIMEOUT_SECS, TimeUnit.SECONDS);
         featureSetInfos.add(featureSetInfo);
       } catch (InterruptedException | ExecutionException | TimeoutException e) {
         jobService()
@@ -214,9 +221,20 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
     String joinQuery =
         QueryTemplater.createJoinQuery(
             featureSetInfos, entityTableColumnNames(), entityTableName());
-    QueryJobConfiguration queryJobConfig = QueryJobConfiguration.newBuilder(joinQuery).build();
+    QueryJobConfiguration queryJobConfig =
+        QueryJobConfiguration.newBuilder(joinQuery)
+            .setDestinationTable(TableId.of(projectId(), datasetId(), createTempTableName()))
+            .build();
     queryJob = bigquery().create(JobInfo.of(queryJobConfig));
     queryJob.waitFor();
+    TableInfo expiry =
+        bigquery()
+            .getTable(queryJobConfig.getDestinationTable())
+            .toBuilder()
+            .setExpirationTime(
+                System.currentTimeMillis() + TEMP_TABLE_EXPIRY_DURATION_MS)
+            .build();
+    bigquery().update(expiry);
 
     return queryJob;
   }
@@ -248,10 +266,19 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
     QueryJobConfiguration getTimestampLimitsQuery =
         QueryJobConfiguration.newBuilder(createTimestampLimitQuery(entityTableName))
             .setDefaultDataset(DatasetId.of(projectId(), datasetId()))
+            .setDestinationTable(TableId.of(projectId(), datasetId(), createTempTableName()))
             .build();
     try {
       Job job = bigquery().create(JobInfo.of(getTimestampLimitsQuery));
       TableResult getTimestampLimitsQueryResult = job.waitFor().getQueryResults();
+      TableInfo expiry =
+          bigquery()
+              .getTable(getTimestampLimitsQuery.getDestinationTable())
+              .toBuilder()
+              .setExpirationTime(System.currentTimeMillis() + TEMP_TABLE_EXPIRY_DURATION_MS)
+              .build();
+      bigquery().update(expiry);
+
       FieldValueList result = null;
       for (FieldValueList fields : getTimestampLimitsQueryResult.getValues()) {
         result = fields;
