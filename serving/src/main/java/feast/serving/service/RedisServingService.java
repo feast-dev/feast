@@ -20,7 +20,8 @@ import static feast.serving.util.Metrics.missingKeyCount;
 import static feast.serving.util.Metrics.requestCount;
 import static feast.serving.util.Metrics.requestLatency;
 import static feast.serving.util.Metrics.staleKeyCount;
-import static feast.serving.util.RefUtil.generateFeastRef;
+import static feast.serving.util.RefUtil.generateFeatureSetStringRef;
+import static feast.serving.util.RefUtil.generateFeatureStringRef;
 
 import com.google.common.collect.Maps;
 import com.google.protobuf.AbstractMessageLite;
@@ -42,6 +43,7 @@ import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.specs.FeatureSetRequest;
+import feast.serving.util.RefUtil;
 import feast.storage.RedisProto.RedisKey;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
@@ -145,9 +147,7 @@ public class RedisServingService implements ServingService {
       List<EntityRow> entityRows,
       FeatureSetSpec featureSetSpec) {
     try (Scope scope = tracer.buildSpan("Redis-makeRedisKeys").startActive(true)) {
-      String featureSetRef =
-          generateFeastRef(
-              featureSetSpec.getProject(), featureSetSpec.getName(), featureSetSpec.getVersion());
+      String featureSetRef = generateFeatureSetStringRef(featureSetSpec);
       List<RedisKey> redisKeys =
           entityRows.stream()
               .map(row -> makeRedisKey(featureSetRef, featureSetEntityNames, row))
@@ -203,11 +203,7 @@ public class RedisServingService implements ServingService {
           featureSetRequest.getFeatureReferences().stream()
               .collect(
                   Collectors.toMap(
-                      featureReference ->
-                          generateFeastRef(
-                              featureReference.getProject(),
-                              featureReference.getName(),
-                              featureReference.getVersion()),
+                      RefUtil::generateFeatureStringRef,
                       featureReference -> Value.newBuilder().build()));
 
       for (int i = 0; i < jedisResps.size(); i++) {
@@ -269,7 +265,7 @@ public class RedisServingService implements ServingService {
             .forEach(
                 field -> {
                   FeatureReference ref = featureNames.get(field.getName());
-                  String id = generateFeastRef(ref.getProject(), ref.getName(), ref.getVersion());
+                  String id = generateFeatureStringRef(ref);
                   featureValues.put(id, field.getValue());
                 });
       }

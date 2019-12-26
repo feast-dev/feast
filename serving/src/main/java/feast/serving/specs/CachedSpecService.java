@@ -16,7 +16,8 @@
  */
 package feast.serving.specs;
 
-import static feast.serving.util.RefUtil.generateFeastRef;
+import static feast.serving.util.RefUtil.generateFeatureSetStringRef;
+import static feast.serving.util.RefUtil.generateFeatureStringRef;
 import static feast.serving.util.mappers.YamlToProtoMapper.yamlToStoreProto;
 import static java.util.Comparator.comparingInt;
 import static java.util.stream.Collectors.groupingBy;
@@ -113,11 +114,7 @@ public class CachedSpecService {
             featureReference -> {
               String featureSet =
                   featureToFeatureSetMapping.getOrDefault(
-                      generateFeastRef(
-                          featureReference.getProject(),
-                          featureReference.getName(),
-                          featureReference.getVersion()),
-                      "");
+                      generateFeatureStringRef(featureReference), "");
               if (featureSet.isEmpty()) {
                 throw new SpecRetrievalException(
                     String.format("Unable to retrieve feature %s", featureReference));
@@ -126,14 +123,14 @@ public class CachedSpecService {
             })
         .collect(groupingBy(Pair::getLeft))
         .forEach(
-            (fsName, featrefs) -> {
+            (fsName, featureRefs) -> {
               try {
-                FeatureSetSpec fs = featureSetCache.get(fsName);
+                FeatureSetSpec featureSetSpec = featureSetCache.get(fsName);
                 List<FeatureReference> requestedFeatures =
-                    featrefs.stream().map(Pair::getRight).collect(Collectors.toList());
+                    featureRefs.stream().map(Pair::getRight).collect(Collectors.toList());
                 FeatureSetRequest featureSetRequest =
                     FeatureSetRequest.newBuilder()
-                        .setSpec(fs)
+                        .setSpec(featureSetSpec)
                         .addAllFeatureReferences(requestedFeatures)
                         .build();
                 featureSetRequests.add(featureSetRequest);
@@ -182,10 +179,9 @@ public class CachedSpecService {
                             .setFeatureSetVersion(subscription.getVersion()))
                     .build());
 
-        for (FeatureSet fs : featureSetsResponse.getFeatureSetsList()) {
-          FeatureSetSpec spec = fs.getSpec();
-          featureSets.put(
-              generateFeastRef(spec.getProject(), spec.getName(), spec.getVersion()), spec);
+        for (FeatureSet featureSet : featureSetsResponse.getFeatureSetsList()) {
+          FeatureSetSpec spec = featureSet.getSpec();
+          featureSets.put(generateFeatureSetStringRef(spec), spec);
         }
       } catch (StatusRuntimeException e) {
         throw new RuntimeException(
@@ -200,7 +196,11 @@ public class CachedSpecService {
     HashMap<String, String> mapping = new HashMap<>();
 
     featureSets.values().stream()
-        .collect(groupingBy(fs -> Triple.of(fs.getProject(), fs.getName(), fs.getVersion())))
+        .collect(
+            groupingBy(
+                featureSet ->
+                    Triple.of(
+                        featureSet.getProject(), featureSet.getName(), featureSet.getVersion())))
         .forEach(
             (group, groupedFeatureSets) -> {
               groupedFeatureSets =
@@ -208,15 +208,26 @@ public class CachedSpecService {
                       .sorted(comparingInt(FeatureSetSpec::getVersion))
                       .collect(Collectors.toList());
               for (int i = 0; i < groupedFeatureSets.size(); i++) {
-                FeatureSetSpec fs = groupedFeatureSets.get(i);
-                for (FeatureSpec featureSpec : fs.getFeaturesList()) {
+                FeatureSetSpec featureSetSpec = groupedFeatureSets.get(i);
+                for (FeatureSpec featureSpec : featureSetSpec.getFeaturesList()) {
+                  FeatureReference featureRef =
+                      FeatureReference.newBuilder()
+                          .setProject(featureSetSpec.getProject())
+                          .setName(featureSpec.getName())
+                          .setVersion(featureSetSpec.getVersion())
+                          .build();
                   mapping.put(
-                      generateFeastRef(fs.getProject(), featureSpec.getName(), fs.getVersion()),
-                      generateFeastRef(fs.getProject(), fs.getName(), fs.getVersion()));
+                      generateFeatureStringRef(featureRef),
+                      generateFeatureSetStringRef(featureSetSpec));
                   if (i == groupedFeatureSets.size() - 1) {
+                    featureRef =
+                        FeatureReference.newBuilder()
+                            .setProject(featureSetSpec.getProject())
+                            .setName(featureSpec.getName())
+                            .build();
                     mapping.put(
-                        generateFeastRef(fs.getProject(), featureSpec.getName(), 0),
-                        generateFeastRef(fs.getProject(), fs.getName(), fs.getVersion()));
+                        generateFeatureStringRef(featureRef),
+                        generateFeatureSetStringRef(featureSetSpec));
                   }
                 }
               }
