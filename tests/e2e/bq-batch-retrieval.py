@@ -247,8 +247,8 @@ def test_additional_columns_in_entity_table(client):
     feature_retrieval_job = client.get_batch_features(
         entity_rows=entity_df, feature_refs=[f"{PROJECT_NAME}/feature_value4:1"]
     )
-    output = feature_retrieval_job.to_dataframe()
-    print(output.head())
+    output = feature_retrieval_job.to_dataframe().sort_values(by=["entity_id"])
+    print(output.head(10))
 
     assert np.allclose(output["additional_float_col"], entity_df["additional_float_col"])
     assert output["additional_string_col"].to_list() == entity_df["additional_string_col"].to_list()
@@ -322,8 +322,8 @@ def test_multiple_featureset_joins(client):
     feature_retrieval_job = client.get_batch_features(
         entity_rows=entity_df, feature_refs=[f"{PROJECT_NAME}/feature_value6:1", f"{PROJECT_NAME}/other_feature_value7:1"]
     )
-    output = feature_retrieval_job.to_dataframe().sort_values(by=["entity_id"])
-    print(output.head(10))
+    output = feature_retrieval_job.to_dataframe()
+    print(output.head())
 
     assert output["entity_id"].to_list() == [int(i) for i in output["feature_value6"].to_list()]
     assert output["other_entity_id"].to_list() == output["other_feature_value7"].to_list()
