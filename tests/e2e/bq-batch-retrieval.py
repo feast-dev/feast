@@ -18,7 +18,10 @@ from google.cloud import storage
 from google.protobuf.duration_pb2 import Duration
 from pandavro import to_avro
 
+pd.set_option('display.max_columns', None)
+
 PROJECT_NAME = 'batch_' + uuid.uuid4().hex.upper()[0:6]
+
 
 @pytest.fixture(scope="module")
 def core_url(pytestconfig):
@@ -319,8 +322,8 @@ def test_multiple_featureset_joins(client):
     feature_retrieval_job = client.get_batch_features(
         entity_rows=entity_df, feature_refs=[f"{PROJECT_NAME}/feature_value6:1", f"{PROJECT_NAME}/other_feature_value7:1"]
     )
-    output = feature_retrieval_job.to_dataframe()
-    print(output.head())
+    output = feature_retrieval_job.to_dataframe().sort_values(by=["entity_id"])
+    print(output.head(10))
 
     assert output["entity_id"].to_list() == [int(i) for i in output["feature_value6"].to_list()]
     assert output["other_entity_id"].to_list() == output["other_feature_value7"].to_list()
