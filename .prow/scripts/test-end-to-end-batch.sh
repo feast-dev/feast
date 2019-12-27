@@ -3,6 +3,8 @@
 set -e
 set -o pipefail
 
+export REVISION=dev
+
 if ! cat /etc/*release | grep -q stretch; then
     echo ${BASH_SOURCE} only supports Debian stretch. 
     echo Please change your operating system to use this script.
@@ -90,7 +92,7 @@ Building jars for Feast
     --output-dir /root/
 
 # Build jars for Feast
-mvn --quiet --batch-mode --define skipTests=true clean package
+mvn --quiet --batch-mode --define skipTests=true --define revision=$REVISION clean package
 
 echo "
 ============================================================
@@ -142,7 +144,7 @@ management:
         enabled: false
 EOF
 
-nohup java -jar core/target/feast-core-0.3.2-SNAPSHOT.jar \
+nohup java -jar core/target/feast-core-$REVISION.jar \
   --spring.config.location=file:///tmp/core.application.yml \
   &> /var/log/feast-core.log &
 sleep 35
@@ -196,7 +198,7 @@ spring:
     web-environment: false
 EOF
 
-nohup java -jar serving/target/feast-serving-0.3.2-SNAPSHOT.jar \
+nohup java -jar serving/target/feast-serving-$REVISION.jar \
   --spring.config.location=file:///tmp/serving.warehouse.application.yml \
   &> /var/log/feast-serving-warehouse.log &
 sleep 15
