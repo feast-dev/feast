@@ -16,39 +16,53 @@
  */
 package feast.core.model;
 
-import feast.types.ValueProto.ValueType;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
-import javax.persistence.Embeddable;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.Id;
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
-@Embeddable
-public class Field {
+@Entity
+@Table(name = "projects")
+public class Project {
 
-  // Name of the feature
-  @Column(name = "name", nullable = false)
+  // Name of the project
+  @Id
+  @Column(name = "name", nullable = false, unique = true)
   private String name;
 
-  // Type of the feature, should correspond with feast.types.ValueType
-  @Column(name = "type", nullable = false)
-  private String type;
+  // Flag to set whether the project has been archived
+  @Column(name = "archived", nullable = false)
+  private boolean archived;
 
-  // Version of the field
-  @Column(name = "version")
-  private int version;
+  @OneToMany(
+      cascade = CascadeType.ALL,
+      fetch = FetchType.EAGER,
+      orphanRemoval = true,
+      mappedBy = "project")
+  private Set<FeatureSet> featureSets;
 
-  // Project that this field belongs to
-  @Column(name = "project")
-  private String project;
+  public Project() {
+    super();
+  }
 
-  public Field() {}
-
-  public Field(String name, ValueType.Enum type) {
+  public Project(String name) {
     this.name = name;
-    this.type = type.toString();
+    this.featureSets = new HashSet<>();
+  }
+
+  public void addFeatureSet(FeatureSet featureSet) {
+    featureSet.setProject(this);
+    featureSets.add(featureSet);
   }
 
   @Override
@@ -59,12 +73,12 @@ public class Field {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    Field field = (Field) o;
-    return name.equals(field.getName()) && type.equals(field.getType());
+    Project field = (Project) o;
+    return name.equals(field.getName());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(super.hashCode(), name, type);
+    return Objects.hash(super.hashCode(), name);
   }
 }

@@ -20,6 +20,7 @@ import com.google.common.io.Files;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.FeatureSetProto.EntitySpec;
+import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
 import feast.core.SourceProto.KafkaSourceConfig;
@@ -113,6 +114,7 @@ public class ImportJobTest {
         FeatureSetSpec.newBuilder()
             .setName("feature_set")
             .setVersion(3)
+            .setProject("myproject")
             .addEntities(
                 EntitySpec.newBuilder()
                     .setName("entity_id_primary")
@@ -143,6 +145,8 @@ public class ImportJobTest {
                     .build())
             .build();
 
+    FeatureSet featureSet = FeatureSet.newBuilder().setSpec(spec).build();
+
     Store redis =
         Store.newBuilder()
             .setName(StoreType.REDIS.toString())
@@ -151,15 +155,16 @@ public class ImportJobTest {
                 RedisConfig.newBuilder().setHost(REDIS_HOST).setPort(REDIS_PORT).build())
             .addSubscriptions(
                 Subscription.newBuilder()
+                    .setProject(spec.getProject())
                     .setName(spec.getName())
                     .setVersion(String.valueOf(spec.getVersion()))
                     .build())
             .build();
 
     ImportOptions options = PipelineOptionsFactory.create().as(ImportOptions.class);
-    options.setFeatureSetSpecJson(
+    options.setFeatureSetJson(
         Collections.singletonList(
-            JsonFormat.printer().omittingInsignificantWhitespace().print(spec)));
+            JsonFormat.printer().omittingInsignificantWhitespace().print(featureSet.getSpec())));
     options.setStoreJson(
         Collections.singletonList(
             JsonFormat.printer().omittingInsignificantWhitespace().print(redis)));
@@ -173,8 +178,8 @@ public class ImportJobTest {
     IntStream.range(0, IMPORT_JOB_SAMPLE_FEATURE_ROW_SIZE)
         .forEach(
             i -> {
-              FeatureRow randomRow = TestUtil.createRandomFeatureRow(spec);
-              RedisKey redisKey = TestUtil.createRedisKey(spec, randomRow);
+              FeatureRow randomRow = TestUtil.createRandomFeatureRow(featureSet);
+              RedisKey redisKey = TestUtil.createRedisKey(featureSet, randomRow);
               input.add(randomRow);
               expected.put(redisKey, randomRow);
             });

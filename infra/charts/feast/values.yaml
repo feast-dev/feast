@@ -124,7 +124,8 @@ feast-serving-online:
       port: 6379
     subscriptions:
     - name: "*"
-      version: ">0"
+      project: "*"
+      version: "*"
 
 # ============================================================
 # Feast Serving Batch
@@ -200,4 +201,5 @@ feast-serving-batch:
       dataset_id: DATASET_ID
     subscriptions:
     - name: "*"
-      version: ">0"
+      project: "*"
+      version: "*"

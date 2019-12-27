@@ -14,6 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core;
+package feast.core.dao;
 
-public class CoreApplicationTest {}
+import feast.core.model.Project;
+import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+/** JPA repository supplying Project objects keyed by id. */
+public interface ProjectRepository extends JpaRepository<Project, String> {
+
+  List<Project> findAllByArchivedIsFalse();
+}

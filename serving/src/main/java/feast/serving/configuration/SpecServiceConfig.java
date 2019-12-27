@@ -17,8 +17,8 @@
 package feast.serving.configuration;
 
 import feast.serving.FeastProperties;
-import feast.serving.service.CachedSpecService;
-import feast.serving.service.CoreSpecService;
+import feast.serving.specs.CachedSpecService;
+import feast.serving.specs.CoreSpecService;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.Executors;

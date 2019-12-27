@@ -27,7 +27,7 @@ from pandavro import to_avro
 
 
 def export_source_to_staging_location(
-        source: Union[pd.DataFrame, str], staging_location_uri: str
+    source: Union[pd.DataFrame, str], staging_location_uri: str
 ) -> List[str]:
     """
     Uploads a DataFrame as an Avro file to a remote staging location.
@@ -69,38 +69,33 @@ def export_source_to_staging_location(
             uri_path = None
 
         # Remote gs staging location provided by serving
-        dir_path, file_name, source_path = export_dataframe_to_local(
-            source,
-            uri_path
-        )
+        dir_path, file_name, source_path = export_dataframe_to_local(source, uri_path)
     elif urlparse(source).scheme in ["", "file"]:
         # Local file provided as a source
         dir_path = None
         file_name = os.path.basename(source)
-        source_path = os.path.abspath(os.path.join(
-            urlparse(source).netloc, urlparse(source).path))
+        source_path = os.path.abspath(
+            os.path.join(urlparse(source).netloc, urlparse(source).path)
+        )
     elif urlparse(source).scheme == "gs":
         # Google Cloud Storage path provided
         input_source_uri = urlparse(source)
         if "*" in source:
             # Wildcard path
-            return _get_files(
-                bucket=input_source_uri.hostname,
-                uri=input_source_uri
-            )
+            return _get_files(bucket=input_source_uri.hostname, uri=input_source_uri)
         else:
             return [source]
     else:
-        raise Exception(f"Only string and DataFrame types are allowed as a "
-                        f"source, {type(source)} was provided.")
+        raise Exception(
+            f"Only string and DataFrame types are allowed as a "
+            f"source, {type(source)} was provided."
+        )
 
     # Push data to required staging location
     if uri.scheme == "gs":
         # Staging location is a Google Cloud Storage path
         upload_file_to_gcs(
-            source_path,
-            uri.hostname,
-            str(uri.path).strip("/") + "/" + file_name
+            source_path, uri.hostname, str(uri.path).strip("/") + "/" + file_name
         )
     elif uri.scheme == "file":
         # Staging location is a file path
@@ -120,8 +115,7 @@ def export_source_to_staging_location(
 
 
 def export_dataframe_to_local(
-        df: pd.DataFrame,
-        dir_path: Optional[str] = None
+    df: pd.DataFrame, dir_path: Optional[str] = None
 ) -> Tuple[str, str, str]:
     """
     Exports a pandas DataFrame to the local filesystem.
@@ -149,11 +143,7 @@ def export_dataframe_to_local(
 
     # Temporarily rename datetime column to event_timestamp. Ideally we would
     # force the schema with our avro writer instead.
-    df.columns = [
-        "event_timestamp"
-        if col == "datetime" else col
-        for col in df.columns
-    ]
+    df.columns = ["event_timestamp" if col == "datetime" else col for col in df.columns]
 
     try:
         # Export dataset to file in local path
@@ -163,9 +153,7 @@ def export_dataframe_to_local(
     finally:
         # Revert event_timestamp column to datetime
         df.columns = [
-            "datetime"
-            if col == "event_timestamp" else col
-            for col in df.columns
+            "datetime" if col == "event_timestamp" else col for col in df.columns
         ]
 
     return dir_path, file_name, dest_path
@@ -223,13 +211,14 @@ def _get_files(bucket: str, uri: ParseResult) -> List[str]:
     if "*" in path:
         regex = re.compile(path.replace("*", ".*?").strip("/"))
         blob_list = bucket.list_blobs(
-            prefix=path.strip("/").split("*")[0],
-            delimiter="/"
+            prefix=path.strip("/").split("*")[0], delimiter="/"
         )
         # File path should not be in path (file path must be longer than path)
-        return [f"{uri.scheme}://{uri.hostname}/{file}"
-                for file in [x.name for x in blob_list]
-                if re.match(regex, file) and file not in path]
+        return [
+            f"{uri.scheme}://{uri.hostname}/{file}"
+            for file in [x.name for x in blob_list]
+            if re.match(regex, file) and file not in path
+        ]
     else:
         raise Exception(f"{path} is not a wildcard path")
 

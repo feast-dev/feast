@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.protobuf.TextFormat;
-import feast.serving.ServingAPIProto.FeatureSetRequest;
+import feast.serving.ServingAPIProto.FeatureReference;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -36,43 +36,57 @@ class RequestUtilTest {
   private static Stream<Arguments> provideValidFeatureIds() {
     return Stream.of(
         Arguments.of(
-            Collections.singletonList("driver:1:driver_id"),
+            Collections.singletonList("driver_project/driver_id:1"),
             Collections.singletonList(
-                FeatureSetRequest.newBuilder()
-                    .setName("driver")
+                FeatureReference.newBuilder()
+                    .setProject("driver_project")
+                    .setName("driver_id")
                     .setVersion(1)
-                    .addFeatureNames("driver_id"))),
-        Arguments.of(
-            Arrays.asList("driver:1:driver_id", "driver:1:driver_name"),
-            Collections.singletonList(
-                FeatureSetRequest.newBuilder()
-                    .setName("driver")
-                    .setVersion(1)
-                    .addAllFeatureNames(Arrays.asList("driver_id", "driver_name"))
                     .build())),
         Arguments.of(
-            Arrays.asList("driver:1:driver_id", "driver:1:driver_name", "booking:2:booking_id"),
+            Arrays.asList("driver_project/driver_id:1", "driver_project/driver_name:1"),
             Arrays.asList(
-                FeatureSetRequest.newBuilder()
-                    .setName("driver")
+                FeatureReference.newBuilder()
+                    .setProject("driver_project")
+                    .setName("driver_id")
                     .setVersion(1)
-                    .addAllFeatureNames(Arrays.asList("driver_id", "driver_name"))
                     .build(),
-                FeatureSetRequest.newBuilder()
-                    .setName("booking")
-                    .setVersion(2)
-                    .addFeatureNames("booking_id")
+                FeatureReference.newBuilder()
+                    .setProject("driver_project")
+                    .setName("driver_name")
+                    .setVersion(1)
+                    .build())),
+        Arguments.of(
+            Arrays.asList(
+                "driver_project/driver_id:1",
+                "driver_project/driver_name:1",
+                "booking_project/driver_name:1"),
+            Arrays.asList(
+                FeatureReference.newBuilder()
+                    .setProject("driver_project")
+                    .setVersion(1)
+                    .setName("driver_id")
+                    .build(),
+                FeatureReference.newBuilder()
+                    .setProject("driver_project")
+                    .setVersion(1)
+                    .setName("driver_name")
+                    .build(),
+                FeatureReference.newBuilder()
+                    .setProject("booking_project")
+                    .setVersion(1)
+                    .setName("driver_name")
                     .build())));
   }
 
   @ParameterizedTest
   @MethodSource("provideValidFeatureIds")
   void createFeatureSets_ShouldReturnFeatureSetsForValidFeatureIds(
-      List<String> input, List<FeatureSetRequest> expected) {
-    List<FeatureSetRequest> actual = RequestUtil.createFeatureSets(input);
+      List<String> input, List<FeatureReference> expected) {
+    List<FeatureReference> actual = RequestUtil.createFeatureRefs(input, "my-project");
     // Order of the actual and expected featureSets do no not matter
-    actual.sort(Comparator.comparing(FeatureSetRequest::getName));
-    expected.sort(Comparator.comparing(FeatureSetRequest::getName));
+    actual.sort(Comparator.comparing(FeatureReference::getName));
+    expected.sort(Comparator.comparing(FeatureReference::getName));
     assertEquals(expected.size(), actual.size());
     for (int i = 0; i < expected.size(); i++) {
       String expectedString = TextFormat.printer().printToString(expected.get(i));
@@ -81,23 +95,23 @@ class RequestUtilTest {
     }
   }
 
-  private static Stream<Arguments> provideInvalidFeatureIds() {
+  private static Stream<Arguments> provideInvalidFeatureRefs() {
     return Stream.of(
-        Arguments.of(Collections.singletonList("feature_set_only")),
-        Arguments.of(Collections.singletonList("missing:feature_name")),
-        Arguments.of(Collections.singletonList("invalid:version:value")),
+        Arguments.of(Collections.singletonList("missing:bad_version")),
         Arguments.of(Collections.singletonList("")));
   }
 
   @ParameterizedTest
-  @MethodSource("provideInvalidFeatureIds")
-  void createFeatureSets_ShouldThrowExceptionForInvalidFeatureIds(List<String> input) {
-    assertThrows(IllegalArgumentException.class, () -> RequestUtil.createFeatureSets(input));
+  @MethodSource("provideInvalidFeatureRefs")
+  void createFeatureSets_ShouldThrowExceptionForInvalidFeatureRefs(List<String> input) {
+    assertThrows(
+        IllegalArgumentException.class, () -> RequestUtil.createFeatureRefs(input, "my-project"));
   }
 
   @ParameterizedTest
   @NullSource
-  void createFeatureSets_ShouldThrowExceptionForNullFeatureIds(List<String> input) {
-    assertThrows(IllegalArgumentException.class, () -> RequestUtil.createFeatureSets(input));
+  void createFeatureSets_ShouldThrowExceptionForNullFeatureRefs(List<String> input) {
+    assertThrows(
+        IllegalArgumentException.class, () -> RequestUtil.createFeatureRefs(input, "my-project"));
   }
 }

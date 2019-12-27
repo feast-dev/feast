@@ -132,10 +132,7 @@ class Job:
             for record in avro_reader:
                 yield record
 
-    def to_dataframe(
-            self,
-            timeout_sec: int = DEFAULT_TIMEOUT_SEC
-    ) -> pd.DataFrame:
+    def to_dataframe(self, timeout_sec: int = DEFAULT_TIMEOUT_SEC) -> pd.DataFrame:
         """
         Wait until a job is done to get an iterable rows of result. This method
         will split the response into chunked DataFrame of a specified size to
@@ -157,9 +154,7 @@ class Job:
         return pd.DataFrame.from_records(records)
 
     def to_chunked_dataframe(
-            self,
-            max_chunk_size: int = -1,
-            timeout_sec: int = DEFAULT_TIMEOUT_SEC
+        self, max_chunk_size: int = -1, timeout_sec: int = DEFAULT_TIMEOUT_SEC
     ) -> pd.DataFrame:
         """
         Wait until a job is done to get an iterable rows of result. This method

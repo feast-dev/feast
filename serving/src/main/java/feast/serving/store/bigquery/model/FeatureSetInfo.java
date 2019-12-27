@@ -20,7 +20,7 @@ import java.util.List;
 
 public class FeatureSetInfo {
 
-  private final String id;
+  private final String project;
   private final String name;
   private final int version;
   private final long maxAge;
@@ -29,14 +29,14 @@ public class FeatureSetInfo {
   private final String table;
 
   public FeatureSetInfo(
-      String id,
+      String project,
       String name,
       int version,
       long maxAge,
       List<String> entities,
       List<String> features,
       String table) {
-    this.id = id;
+    this.project = project;
     this.name = name;
     this.version = version;
     this.maxAge = maxAge;
@@ -47,7 +47,7 @@ public class FeatureSetInfo {
 
   public FeatureSetInfo(FeatureSetInfo featureSetInfo, String table) {
 
-    this.id = featureSetInfo.getId();
+    this.project = featureSetInfo.getProject();
     this.name = featureSetInfo.getName();
     this.version = featureSetInfo.getVersion();
     this.maxAge = featureSetInfo.getMaxAge();
@@ -56,8 +56,8 @@ public class FeatureSetInfo {
     this.table = table;
   }
 
-  public String getId() {
-    return id;
+  public String getProject() {
+    return project;
   }
 
   public String getName() {
