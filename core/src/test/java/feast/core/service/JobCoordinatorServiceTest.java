@@ -60,8 +60,7 @@ import org.mockito.Mock;
 public class JobCoordinatorServiceTest {
 
   @Rule public final ExpectedException exception = ExpectedException.none();
-  @Mock
-  JobRepository jobRepository;
+  @Mock JobRepository jobRepository;
   @Mock JobManager jobManager;
   @Mock SpecService specService;
   @Mock FeatureSetRepository featureSetRepository;
@@ -92,12 +91,17 @@ public class JobCoordinatorServiceTest {
             .setName("test")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().build())
-            .addSubscriptions(Subscription.newBuilder().setProject("*").setName("*").setVersion("*").build())
+            .addSubscriptions(
+                Subscription.newBuilder().setProject("*").setName("*").setVersion("*").build())
             .build();
     when(specService.listStores(any()))
         .thenReturn(ListStoresResponse.newBuilder().addStore(store).build());
     when(specService.listFeatureSets(
-            Filter.newBuilder().setProject("*").setFeatureSetName("*").setFeatureSetVersion("*").build()))
+            Filter.newBuilder()
+                .setProject("*")
+                .setFeatureSetName("*")
+                .setFeatureSetVersion("*")
+                .build()))
         .thenReturn(ListFeatureSetsResponse.newBuilder().build());
     JobCoordinatorService jcs =
         new JobCoordinatorService(
@@ -114,7 +118,11 @@ public class JobCoordinatorServiceTest {
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().build())
             .addSubscriptions(
-                Subscription.newBuilder().setProject("project1").setName("features").setVersion("*").build())
+                Subscription.newBuilder()
+                    .setProject("project1")
+                    .setName("features")
+                    .setVersion("*")
+                    .build())
             .build();
     Source source =
         Source.newBuilder()
@@ -129,17 +137,22 @@ public class JobCoordinatorServiceTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source).setProject("project1").setName("features").setVersion(1))
-            .setMeta(
-                FeatureSetMeta.newBuilder()
-            )
+                FeatureSetSpec.newBuilder()
+                    .setSource(source)
+                    .setProject("project1")
+                    .setName("features")
+                    .setVersion(1))
+            .setMeta(FeatureSetMeta.newBuilder())
             .build();
     FeatureSetProto.FeatureSet featureSet2 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source).setProject("project1").setName("features").setVersion(2))
-            .setMeta(
-                FeatureSetMeta.newBuilder())
+                FeatureSetSpec.newBuilder()
+                    .setSource(source)
+                    .setProject("project1")
+                    .setName("features")
+                    .setVersion(2))
+            .setMeta(FeatureSetMeta.newBuilder())
             .build();
     String extId = "ext";
     ArgumentCaptor<Job> jobArgCaptor = ArgumentCaptor.forClass(Job.class);
@@ -165,7 +178,11 @@ public class JobCoordinatorServiceTest {
             JobStatus.RUNNING);
 
     when(specService.listFeatureSets(
-            Filter.newBuilder().setProject("project1").setFeatureSetName("features").setFeatureSetVersion("*").build()))
+            Filter.newBuilder()
+                .setProject("project1")
+                .setFeatureSetName("features")
+                .setFeatureSetVersion("*")
+                .build()))
         .thenReturn(
             ListFeatureSetsResponse.newBuilder()
                 .addFeatureSets(featureSet1)
@@ -194,7 +211,11 @@ public class JobCoordinatorServiceTest {
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().build())
             .addSubscriptions(
-                Subscription.newBuilder().setProject("project1").setName("features").setVersion("*").build())
+                Subscription.newBuilder()
+                    .setProject("project1")
+                    .setName("features")
+                    .setVersion("*")
+                    .build())
             .build();
     Source source1 =
         Source.newBuilder()
@@ -218,16 +239,22 @@ public class JobCoordinatorServiceTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source1).setProject("project1").setName("features").setVersion(1))
-            .setMeta(
-                FeatureSetMeta.newBuilder())
+                FeatureSetSpec.newBuilder()
+                    .setSource(source1)
+                    .setProject("project1")
+                    .setName("features")
+                    .setVersion(1))
+            .setMeta(FeatureSetMeta.newBuilder())
             .build();
     FeatureSetProto.FeatureSet featureSet2 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source2).setProject("project1").setName("features").setVersion(2))
-            .setMeta(
-                FeatureSetMeta.newBuilder())
+                FeatureSetSpec.newBuilder()
+                    .setSource(source2)
+                    .setProject("project1")
+                    .setName("features")
+                    .setVersion(2))
+            .setMeta(FeatureSetMeta.newBuilder())
             .build();
 
     Job expectedInput1 =
@@ -272,7 +299,11 @@ public class JobCoordinatorServiceTest {
     ArgumentCaptor<Job> jobArgCaptor = ArgumentCaptor.forClass(Job.class);
 
     when(specService.listFeatureSets(
-            Filter.newBuilder().setProject("project1").setFeatureSetName("features").setFeatureSetVersion("*").build()))
+            Filter.newBuilder()
+                .setProject("project1")
+                .setFeatureSetName("features")
+                .setFeatureSetVersion("*")
+                .build()))
         .thenReturn(
             ListFeatureSetsResponse.newBuilder()
                 .addFeatureSets(featureSet1)

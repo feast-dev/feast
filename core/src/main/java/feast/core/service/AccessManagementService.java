@@ -25,7 +25,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-
 @Slf4j
 @Service
 public class AccessManagementService {
@@ -33,8 +32,7 @@ public class AccessManagementService {
   private ProjectRepository projectRepository;
 
   @Autowired
-  public AccessManagementService(
-      ProjectRepository projectRepository) {
+  public AccessManagementService(ProjectRepository projectRepository) {
     this.projectRepository = projectRepository;
   }
 
@@ -45,7 +43,7 @@ public class AccessManagementService {
    */
   @Transactional
   public void createProject(String name) {
-    if(projectRepository.existsById(name)){
+    if (projectRepository.existsById(name)) {
       throw new IllegalArgumentException(String.format("Project already exists: %s", name));
     }
     Project project = new Project(name);

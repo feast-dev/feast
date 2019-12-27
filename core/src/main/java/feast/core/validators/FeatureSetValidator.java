@@ -28,16 +28,17 @@ import java.util.stream.Collectors;
 
 public class FeatureSetValidator {
   public static void validateSpec(FeatureSet featureSet) {
-    if(featureSet.getSpec().getProject().isEmpty()){
+    if (featureSet.getSpec().getProject().isEmpty()) {
       throw new IllegalArgumentException("Project name must be provided");
     }
-    if(featureSet.getSpec().getName().isEmpty()){
+    if (featureSet.getSpec().getName().isEmpty()) {
       throw new IllegalArgumentException("Feature set name must be provided");
     }
 
     checkValidCharacters(featureSet.getSpec().getProject(), "project");
     checkValidCharacters(featureSet.getSpec().getName(), "name");
-    checkUniqueColumns(featureSet.getSpec().getEntitiesList(), featureSet.getSpec().getFeaturesList());
+    checkUniqueColumns(
+        featureSet.getSpec().getEntitiesList(), featureSet.getSpec().getFeaturesList());
     for (EntitySpec entitySpec : featureSet.getSpec().getEntitiesList()) {
       checkValidCharacters(entitySpec.getName(), "entities::name");
     }

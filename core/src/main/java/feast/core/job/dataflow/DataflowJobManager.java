@@ -79,12 +79,14 @@ public class DataflowJobManager implements JobManager {
   @Override
   public Job startJob(Job job) {
     List<FeatureSetProto.FeatureSet> featureSetProtos =
-        job.getFeatureSets().stream()
-            .map(FeatureSet::toProto)
-            .collect(Collectors.toList());
+        job.getFeatureSets().stream().map(FeatureSet::toProto).collect(Collectors.toList());
     try {
       return submitDataflowJob(
-          job.getId(), featureSetProtos, job.getSource().toProto(), job.getStore().toProto(), false);
+          job.getId(),
+          featureSetProtos,
+          job.getSource().toProto(),
+          job.getStore().toProto(),
+          false);
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(String.format("Unable to start job %s", job.getId()), e);
     }
@@ -100,9 +102,7 @@ public class DataflowJobManager implements JobManager {
   public Job updateJob(Job job) {
     try {
       List<FeatureSetProto.FeatureSet> featureSetProtos =
-          job.getFeatureSets().stream()
-              .map(FeatureSet::toProto)
-              .collect(Collectors.toList());
+          job.getFeatureSets().stream().map(FeatureSet::toProto).collect(Collectors.toList());
 
       return submitDataflowJob(
           job.getId(), featureSetProtos, job.getSource().toProto(), job.getStore().toProto(), true);
@@ -156,12 +156,7 @@ public class DataflowJobManager implements JobManager {
 
     try {
       com.google.api.services.dataflow.model.Job dataflowJob =
-          dataflow
-              .projects()
-              .locations()
-              .jobs()
-              .get(projectId, location, job.getExtId())
-              .execute();
+          dataflow.projects().locations().jobs().get(projectId, location, job.getExtId()).execute();
       return DataflowJobStateMapper.map(dataflowJob.getCurrentState());
     } catch (Exception e) {
       log.error(
@@ -208,7 +203,10 @@ public class DataflowJobManager implements JobManager {
   }
 
   private ImportOptions getPipelineOptions(
-      String jobName, List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store sink, boolean update)
+      String jobName,
+      List<FeatureSetProto.FeatureSet> featureSets,
+      StoreProto.Store sink,
+      boolean update)
       throws IOException {
     String[] args = TypeConversion.convertMapToArgs(defaultOptions);
     ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);

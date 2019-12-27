@@ -38,9 +38,7 @@ public class SpecUtil {
     return String.format("%s/%s:%d", spec.getProject(), spec.getName(), spec.getVersion());
   }
 
-  /**
-   * Get only feature set specs that matches the subscription
-   */
+  /** Get only feature set specs that matches the subscription */
   public static List<FeatureSet> getSubscribedFeatureSets(
       List<Subscription> subscriptions, List<FeatureSet> featureSets) {
     List<FeatureSet> subscribed = new ArrayList<>();
@@ -53,15 +51,16 @@ public class SpecUtil {
         }
 
         // If all wildcards, subscribe to everything
-        if (sub.getProject().equals("*") || sub.getName().equals("*") || sub.getVersion()
-            .equals("*")) {
+        if (sub.getProject().equals("*")
+            || sub.getName().equals("*")
+            || sub.getVersion().equals("*")) {
           subscribed.add(featureSet);
           break;
         }
 
         // If all wildcards, subscribe to everything
-        if (sub.getProject().equals("*") && (!sub.getName().equals("*") || !sub.getVersion()
-            .equals("*"))) {
+        if (sub.getProject().equals("*")
+            && (!sub.getName().equals("*") || !sub.getVersion().equals("*"))) {
           throw new IllegalArgumentException(
               String.format(
                   "Subscription cannot have feature set name and/or version set if project is not defined: %s",

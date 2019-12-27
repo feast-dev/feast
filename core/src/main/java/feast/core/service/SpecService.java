@@ -106,13 +106,12 @@ public class SpecService {
     // Filter the list based on version
     if (request.getVersion() == 0) {
       featureSet =
-          featureSetRepository
-              .findFirstFeatureSetByNameLikeAndProject_NameOrderByVersionDesc(request.getName(),
-                  request.getProject());
+          featureSetRepository.findFirstFeatureSetByNameLikeAndProject_NameOrderByVersionDesc(
+              request.getName(), request.getProject());
 
       if (featureSet == null) {
-        throw new RetrievalException(String.format(
-            "Feature set with name \"%s\" could not be found.", request.getName()));
+        throw new RetrievalException(
+            String.format("Feature set with name \"%s\" could not be found.", request.getName()));
       }
     } else {
       featureSet =
@@ -120,9 +119,10 @@ public class SpecService {
               request.getName(), request.getProject(), request.getVersion());
 
       if (featureSet == null) {
-        throw new RetrievalException(String.format(
-            "Feature set with name \"%s\" and version \"%s\" could " + "not be found.",
-            request.getName(), request.getVersion()));
+        throw new RetrievalException(
+            String.format(
+                "Feature set with name \"%s\" and version \"%s\" could " + "not be found.",
+                request.getName(), request.getVersion()));
       }
     }
 
@@ -130,24 +130,22 @@ public class SpecService {
     return GetFeatureSetResponse.newBuilder().setFeatureSet(featureSet.toProto()).build();
   }
 
-
   /**
    * Return a list of feature sets matching the feature set name, version, and project provided in
    * the filter. All fields are requried. Use '*' for all three arguments in order to return all
    * feature sets and versions in all projects.
    *
-   * <p> Project name can be explicitly provided, or an asterisk can be provided to match all
+   * <p>Project name can be explicitly provided, or an asterisk can be provided to match all
    * projects. It is not possible to provide a combination of asterisks/wildcards and text.
    *
-   * <p>The feature set name in the filter accepts an asterisk as a wildcard. All matching
-   * feature sets will be returned. Regex is not supported. Explicitly defining a feature set name
-   * is not possible if a project name is not set explicitly
+   * <p>The feature set name in the filter accepts an asterisk as a wildcard. All matching feature
+   * sets will be returned. Regex is not supported. Explicitly defining a feature set name is not
+   * possible if a project name is not set explicitly
    *
-   * <p> The version field can be one of
-   * - '*'        - This will match all versions
-   * - 'latest'   - This will match the latest feature set version
-   * - '<number>' - This will match a specific feature set version. This property can only be set
-   *                if both the feature set name and project name are explicitly set.
+   * <p>The version field can be one of - '*' - This will match all versions - 'latest' - This will
+   * match the latest feature set version - '<number>' - This will match a specific feature set
+   * version. This property can only be set if both the feature set name and project name are
+   * explicitly set.
    *
    * @param filter filter containing the desired featureSet name and version filter
    * @return ListFeatureSetsResponse with list of featureSets found matching the filter
@@ -159,81 +157,73 @@ public class SpecService {
 
     if (project.isEmpty() || name.isEmpty() || version.isEmpty()) {
       throw new IllegalArgumentException(
-          String
-              .format(
-                  "Invalid listFeatureSetRequest, missing arguments. Must provide project, feature set name, and version.",
-                  filter.toString()));
+          String.format(
+              "Invalid listFeatureSetRequest, missing arguments. Must provide project, feature set name, and version.",
+              filter.toString()));
     }
 
     checkValidCharactersAllowAsterisk(name, "featureSetName");
     checkValidCharactersAllowAsterisk(project, "projectName");
 
-    List<FeatureSet> featureSets = new ArrayList<FeatureSet>() {
-    };
+    List<FeatureSet> featureSets = new ArrayList<FeatureSet>() {};
 
     if (project.equals("*")) {
       // Matching all projects
 
       if (name.equals("*") && version.equals("*")) {
-        featureSets = featureSetRepository
-            .findAllByNameLikeAndProject_NameLikeOrderByNameAscVersionAsc(
-                name.replace('*', '%'),
-                project.replace('*', '%'));
+        featureSets =
+            featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAscVersionAsc(
+                name.replace('*', '%'), project.replace('*', '%'));
       } else {
         throw new IllegalArgumentException(
-            String
-                .format(
-                    "Invalid listFeatureSetRequest. Version and feature set name must be set to "
-                        + "\"*\" if the project name and feature set name aren't set explicitly: \n%s",
-                    filter.toString()));
+            String.format(
+                "Invalid listFeatureSetRequest. Version and feature set name must be set to "
+                    + "\"*\" if the project name and feature set name aren't set explicitly: \n%s",
+                filter.toString()));
       }
     } else if (!project.contains("*")) {
       // Matching a specific project
 
       if (name.contains("*") && version.equals("*")) {
         // Find all feature sets matching a pattern and versions in a specific project
-        featureSets = featureSetRepository
-            .findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
-                name.replace('*', '%'),
-                project);
+        featureSets =
+            featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
+                name.replace('*', '%'), project);
 
       } else if (!name.contains("*") && version.equals("*")) {
         // Find all versions of a specific feature set in a specific project
-        featureSets = featureSetRepository
-            .findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
-                name,
-                project);
+        featureSets =
+            featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
+                name, project);
 
       } else if (version.equals("latest")) {
-        // Find the latest version of a feature set matching a specific pattern in a specific project
-        FeatureSet latestFeatureSet = featureSetRepository
-            .findFirstFeatureSetByNameLikeAndProject_NameOrderByVersionDesc(
-                name.replace('*', '%'),
-                project);
+        // Find the latest version of a feature set matching a specific pattern in a specific
+        // project
+        FeatureSet latestFeatureSet =
+            featureSetRepository.findFirstFeatureSetByNameLikeAndProject_NameOrderByVersionDesc(
+                name.replace('*', '%'), project);
         featureSets.add(latestFeatureSet);
 
       } else if (!name.contains("*") && StringUtils.isNumeric(version)) {
         // Find a specific version of a feature set matching a specific name in a specific project
-        FeatureSet specificFeatureSet = featureSetRepository
-            .findFeatureSetByNameAndProject_NameAndVersion(name, project,
-                Integer.parseInt(version));
+        FeatureSet specificFeatureSet =
+            featureSetRepository.findFeatureSetByNameAndProject_NameAndVersion(
+                name, project, Integer.parseInt(version));
         featureSets.add(specificFeatureSet);
 
       } else {
         throw new IllegalArgumentException(
-            String
-                .format(
-                    "Invalid listFeatureSetRequest. Version must be set to \"*\" if the project "
-                        + "name and feature set name aren't set explicitly: \n%s",
-                    filter.toString()));
+            String.format(
+                "Invalid listFeatureSetRequest. Version must be set to \"*\" if the project "
+                    + "name and feature set name aren't set explicitly: \n%s",
+                filter.toString()));
       }
     } else {
       throw new IllegalArgumentException(
-          String
-              .format(
-                  "Invalid listFeatureSetRequest. Project name cannot be a pattern. It may only be"
-                      + "a specific project name or an asterisk: \n%s",
-                  filter.toString()));
+          String.format(
+              "Invalid listFeatureSetRequest. Project name cannot be a pattern. It may only be"
+                  + "a specific project name or an asterisk: \n%s",
+              filter.toString()));
     }
 
     ListFeatureSetsResponse.Builder response = ListFeatureSetsResponse.newBuilder();
@@ -284,9 +274,9 @@ public class SpecService {
    * Creates or updates a feature set in the repository. If there is a change in the feature set
    * schema, then the feature set version will be incremented.
    *
-   * <p>This function is idempotent. If no changes are detected in the incoming featureSet's
-   * schema, this method will update the incoming featureSet spec with the latest version stored in
-   * the repository, and return that.
+   * <p>This function is idempotent. If no changes are detected in the incoming featureSet's schema,
+   * this method will update the incoming featureSet spec with the latest version stored in the
+   * repository, and return that.
    *
    * @param newFeatureSet Feature set that will be created or updated.
    */
@@ -297,28 +287,33 @@ public class SpecService {
 
     // Ensure that the project already exists
     String project_name = newFeatureSet.getSpec().getProject();
-    Project project = projectRepository.findById(newFeatureSet.getSpec().getProject())
-        .orElseThrow(() -> new IllegalArgumentException(String
-            .format("Project name does not exist. Please create a project first: %s", project_name
-            )));
+    Project project =
+        projectRepository
+            .findById(newFeatureSet.getSpec().getProject())
+            .orElseThrow(
+                () ->
+                    new IllegalArgumentException(
+                        String.format(
+                            "Project name does not exist. Please create a project first: %s",
+                            project_name)));
 
     // Ensure that the project is not archived
     if (project.isArchived()) {
-      throw new IllegalArgumentException(String
-          .format("Project is archived: %s", project_name
-          ));
+      throw new IllegalArgumentException(String.format("Project is archived: %s", project_name));
     }
 
     // Retrieve all existing FeatureSet objects
     List<FeatureSet> existingFeatureSets =
-        featureSetRepository
-            .findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
-                newFeatureSet.getSpec().getName(), project_name);
+        featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
+            newFeatureSet.getSpec().getName(), project_name);
 
     if (existingFeatureSets.size() == 0) {
       // Create new feature set since it doesn't exist
-      newFeatureSet = newFeatureSet.toBuilder()
-          .setSpec(newFeatureSet.getSpec().toBuilder().setVersion(1)).build();
+      newFeatureSet =
+          newFeatureSet
+              .toBuilder()
+              .setSpec(newFeatureSet.getSpec().toBuilder().setVersion(1))
+              .build();
     } else {
       // Retrieve the latest feature set if the name does exist
       existingFeatureSets = Ordering.natural().reverse().sortedCopy(existingFeatureSets);
@@ -333,9 +328,11 @@ public class SpecService {
             .build();
       }
       // TODO: There is a race condition here with incrementing the version
-      newFeatureSet = newFeatureSet.toBuilder()
-          .setSpec(newFeatureSet.getSpec().toBuilder().setVersion(latest.getVersion() + 1))
-          .build();
+      newFeatureSet =
+          newFeatureSet
+              .toBuilder()
+              .setSpec(newFeatureSet.getSpec().toBuilder().setVersion(latest.getVersion() + 1))
+              .build();
     }
 
     // Build a new FeatureSet object which includes the new properties
@@ -371,8 +368,7 @@ public class SpecService {
       // Ensure that all fields in a subscription contain values
       if ((sub.getVersion().isEmpty() || sub.getName().isEmpty()) || sub.getProject().isEmpty()) {
         throw new IllegalArgumentException(
-            String
-                .format("Missing parameter in subscription: %s", sub));
+            String.format("Missing parameter in subscription: %s", sub));
       }
     }
     Store existingStore = storeRepository.findById(newStoreProto.getName()).orElse(null);
@@ -392,5 +388,4 @@ public class SpecService {
         .setStore(updateStoreRequest.getStore())
         .build();
   }
-
 }

@@ -110,8 +110,7 @@ public class JobUpdateTask implements Callable<Job> {
       }
     } else {
       String jobId = createJobId(source.getId(), store.getName());
-      submittedJob =
-          executorService.submit(() -> startJob(jobId, featureSets, sourceSpec, store));
+      submittedJob = executorService.submit(() -> startJob(jobId, featureSets, sourceSpec, store));
     }
 
     Job job = null;
@@ -136,7 +135,10 @@ public class JobUpdateTask implements Callable<Job> {
             .map(
                 fsp ->
                     FeatureSet.fromProto(
-                        FeatureSetProto.FeatureSet.newBuilder().setSpec(fsp.getSpec()).setMeta(fsp.getMeta()).build()))
+                        FeatureSetProto.FeatureSet.newBuilder()
+                            .setSpec(fsp.getSpec())
+                            .setMeta(fsp.getMeta())
+                            .build()))
             .collect(Collectors.toList());
     Job job =
         new Job(
@@ -184,13 +186,17 @@ public class JobUpdateTask implements Callable<Job> {
   }
 
   /** Update the given job */
-  private Job updateJob(Job job, List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store store) {
+  private Job updateJob(
+      Job job, List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store store) {
     job.setFeatureSets(
         featureSets.stream()
             .map(
                 fs ->
                     FeatureSet.fromProto(
-                        FeatureSetProto.FeatureSet.newBuilder().setSpec(fs.getSpec()).setMeta(fs.getMeta()).build()))
+                        FeatureSetProto.FeatureSet.newBuilder()
+                            .setSpec(fs.getSpec())
+                            .setMeta(fs.getMeta())
+                            .build()))
             .collect(Collectors.toList()));
     job.setStore(feast.core.model.Store.fromProto(store));
     AuditLogger.log(

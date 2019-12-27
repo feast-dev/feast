@@ -61,8 +61,8 @@ public class FeastClient implements AutoCloseable {
    *
    * <p>See {@link #getOnlineFeatures(List, List, str)}
    *
-   * @param features list of string feature references to retrieve, feature reference follows this format
-   *     [project]/[name]:[version]
+   * @param features list of string feature references to retrieve, feature reference follows this
+   *     format [project]/[name]:[version]
    * @param rows list of {@link Row} to select the entities to retrieve the features for
    * @param defaultProject {@link String} Default project to find features in if not provided in
    *     feature reference.
@@ -75,8 +75,8 @@ public class FeastClient implements AutoCloseable {
   /**
    * Get online features from Feast.
    *
-   * <p>Example of retrieving online features for the driver project, with features
-   * driver_id and driver_name, both version 1
+   * <p>Example of retrieving online features for the driver project, with features driver_id and
+   * driver_name, both version 1
    *
    * <pre>{@code
    * FeastClient client = FeastClient.create("localhost", 6566);
@@ -97,8 +97,12 @@ public class FeastClient implements AutoCloseable {
    * @return list of {@link Row} containing features
    */
   public List<Row> getOnlineFeatures(
-      List<String> featureRefStrings, List<Row> rows, String defaultProject, boolean omitEntitiesInResponse) {
-    List<FeatureReference> features = RequestUtil.createFeatureRefs(featureRefStrings, defaultProject);
+      List<String> featureRefStrings,
+      List<Row> rows,
+      String defaultProject,
+      boolean omitEntitiesInResponse) {
+    List<FeatureReference> features =
+        RequestUtil.createFeatureRefs(featureRefStrings, defaultProject);
     List<EntityRow> entityRows =
         rows.stream()
             .map(

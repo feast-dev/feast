@@ -63,8 +63,7 @@ public class Job extends AbstractTimestampEntity {
   private Store store;
 
   // FeatureSets populated by the job
-  @ManyToMany
-  private List<FeatureSet> featureSets;
+  @ManyToMany private List<FeatureSet> featureSets;
 
   // Job Metrics
   @OneToMany(mappedBy = "job", cascade = CascadeType.ALL)

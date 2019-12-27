@@ -61,7 +61,8 @@ public class JobUpdateTaskTest {
             .setName("test")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().build())
-            .addSubscriptions(Subscription.newBuilder().setProject("*").setName("*").setVersion("*").build())
+            .addSubscriptions(
+                Subscription.newBuilder().setProject("*").setName("*").setVersion("*").build())
             .build();
 
     source =
@@ -80,13 +81,21 @@ public class JobUpdateTaskTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source).setProject("project1").setName("featureSet1").setVersion(1))
+                FeatureSetSpec.newBuilder()
+                    .setSource(source)
+                    .setProject("project1")
+                    .setName("featureSet1")
+                    .setVersion(1))
             .setMeta(FeatureSetMeta.newBuilder())
             .build();
     FeatureSetProto.FeatureSet featureSet2 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source).setProject("project1").setName("featureSet2").setVersion(1))
+                FeatureSetSpec.newBuilder()
+                    .setSource(source)
+                    .setProject("project1")
+                    .setName("featureSet2")
+                    .setVersion(1))
             .setMeta(FeatureSetMeta.newBuilder())
             .build();
     Job originalJob =
@@ -137,18 +146,17 @@ public class JobUpdateTaskTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source).setProject("project1").setName("featureSet1").setVersion(1))
+                FeatureSetSpec.newBuilder()
+                    .setSource(source)
+                    .setProject("project1")
+                    .setName("featureSet1")
+                    .setVersion(1))
             .setMeta(FeatureSetMeta.newBuilder())
             .build();
     JobUpdateTask jobUpdateTask =
         spy(
             new JobUpdateTask(
-                Arrays.asList(featureSet1),
-                source,
-                store,
-                Optional.empty(),
-                jobManager,
-                100L));
+                Arrays.asList(featureSet1), source, store, Optional.empty(), jobManager, 100L));
     doReturn("job").when(jobUpdateTask).createJobId("KAFKA/servers:9092/topic", "test");
 
     Job expectedInput =
@@ -183,7 +191,11 @@ public class JobUpdateTaskTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source).setProject("project1").setName("featureSet1").setVersion(1))
+                FeatureSetSpec.newBuilder()
+                    .setSource(source)
+                    .setProject("project1")
+                    .setName("featureSet1")
+                    .setVersion(1))
             .setMeta(FeatureSetMeta.newBuilder())
             .build();
     Job originalJob =
@@ -197,12 +209,7 @@ public class JobUpdateTaskTest {
             JobStatus.RUNNING);
     JobUpdateTask jobUpdateTask =
         new JobUpdateTask(
-            Arrays.asList(featureSet1),
-            source,
-            store,
-            Optional.of(originalJob),
-            jobManager,
-            100L);
+            Arrays.asList(featureSet1), source, store, Optional.of(originalJob), jobManager, 100L);
 
     when(jobManager.getJobStatus(originalJob)).thenReturn(JobStatus.ABORTING);
     Job expected =
@@ -224,18 +231,17 @@ public class JobUpdateTaskTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source).setProject("project1").setName("featureSet1").setVersion(1))
+                FeatureSetSpec.newBuilder()
+                    .setSource(source)
+                    .setProject("project1")
+                    .setName("featureSet1")
+                    .setVersion(1))
             .setMeta(FeatureSetMeta.newBuilder())
             .build();
     JobUpdateTask jobUpdateTask =
         spy(
             new JobUpdateTask(
-                Arrays.asList(featureSet1),
-                source,
-                store,
-                Optional.empty(),
-                jobManager,
-                100L));
+                Arrays.asList(featureSet1), source, store, Optional.empty(), jobManager, 100L));
     doReturn("job").when(jobUpdateTask).createJobId("KAFKA/servers:9092/topic", "test");
 
     Job expectedInput =
@@ -271,8 +277,13 @@ public class JobUpdateTaskTest {
     FeatureSetProto.FeatureSet featureSet1 =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                FeatureSetSpec.newBuilder().setSource(source).setProject("project1").setName("featureSet1").setVersion(1))
-            .setMeta(FeatureSetMeta.newBuilder()).build();
+                FeatureSetSpec.newBuilder()
+                    .setSource(source)
+                    .setProject("project1")
+                    .setName("featureSet1")
+                    .setVersion(1))
+            .setMeta(FeatureSetMeta.newBuilder())
+            .build();
 
     JobUpdateTask jobUpdateTask =
         spy(

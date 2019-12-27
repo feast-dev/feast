@@ -86,7 +86,8 @@ public class DirectRunnerJobManagerTest {
             .setName("SERVING")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
-            .addSubscriptions(Subscription.newBuilder().setProject("*").setName("*").setVersion("*").build())
+            .addSubscriptions(
+                Subscription.newBuilder().setProject("*").setName("*").setVersion("*").build())
             .build();
 
     SourceProto.Source source =
@@ -101,7 +102,13 @@ public class DirectRunnerJobManagerTest {
 
     FeatureSetProto.FeatureSet featureSet =
         FeatureSetProto.FeatureSet.newBuilder()
-            .setSpec(FeatureSetSpec.newBuilder().setName("featureSet").setVersion(1).setMaxAge(Duration.newBuilder()).setSource(source).build())
+            .setSpec(
+                FeatureSetSpec.newBuilder()
+                    .setName("featureSet")
+                    .setVersion(1)
+                    .setMaxAge(Duration.newBuilder())
+                    .setSource(source)
+                    .build())
             .build();
 
     Printer printer = JsonFormat.printer();
@@ -132,8 +139,7 @@ public class DirectRunnerJobManagerTest {
             Runner.DIRECT.getName(),
             Source.fromProto(source),
             Store.fromProto(store),
-            Lists.newArrayList(
-                FeatureSet.fromProto(featureSet)),
+            Lists.newArrayList(FeatureSet.fromProto(featureSet)),
             JobStatus.PENDING);
     Job actual = drJobManager.startJob(job);
     verify(drJobManager, times(1)).runPipeline(pipelineOptionsCaptor.capture());

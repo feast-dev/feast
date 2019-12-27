@@ -208,7 +208,7 @@ public class StoreUtil {
     String tableName =
         String.format(
                 "%s_%s_v%d",
-            featureSetSpec.getProject(), featureSetSpec.getName(), featureSetSpec.getVersion())
+                featureSetSpec.getProject(), featureSetSpec.getName(), featureSetSpec.getVersion())
             .replaceAll("-", "_");
     TableId tableId = TableId.of(bigqueryProjectId, datasetId.getDataset(), tableName);
 

@@ -95,14 +95,15 @@ public class JobCoordinatorService {
       Set<FeatureSetProto.FeatureSet> featureSets = new HashSet<>();
       for (Subscription subscription : store.getSubscriptionsList()) {
         featureSets.addAll(
-            new ArrayList<>(specService
-                .listFeatureSets(
-                    ListFeatureSetsRequest.Filter.newBuilder()
-                        .setFeatureSetName(subscription.getName())
-                        .setFeatureSetVersion(subscription.getVersion())
-                        .setProject(subscription.getProject())
-                        .build())
-                .getFeatureSetsList()));
+            new ArrayList<>(
+                specService
+                    .listFeatureSets(
+                        ListFeatureSetsRequest.Filter.newBuilder()
+                            .setFeatureSetName(subscription.getName())
+                            .setFeatureSetVersion(subscription.getVersion())
+                            .setProject(subscription.getProject())
+                            .build())
+                    .getFeatureSetsList()));
       }
       if (!featureSets.isEmpty()) {
         featureSets.stream()

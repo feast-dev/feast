@@ -76,13 +76,9 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   @Column(name = "max_age")
   private long maxAgeSeconds;
 
-
   // Entity fields inside this feature set
   @ElementCollection(fetch = FetchType.EAGER)
-  @CollectionTable(
-      name = "entities",
-      joinColumns = @JoinColumn(name = "feature_set_id")
-  )
+  @CollectionTable(name = "entities", joinColumns = @JoinColumn(name = "feature_set_id"))
   @Fetch(FetchMode.SUBSELECT)
   private Set<Field> entities;
 
@@ -91,9 +87,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   @CollectionTable(
       name = "features",
       joinColumns = @JoinColumn(name = "feature_set_id"),
-      uniqueConstraints =
-      @UniqueConstraint(columnNames = {"name", "project", "version"})
-  )
+      uniqueConstraints = @UniqueConstraint(columnNames = {"name", "project", "version"}))
   @Fetch(FetchMode.SUBSELECT)
   private Set<Field> features;
 

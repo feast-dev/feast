@@ -49,9 +49,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.lognet.springboot.grpc.GRpcService;
 import org.springframework.beans.factory.annotation.Autowired;
 
-/**
- * Implementation of the feast core GRPC service.
- */
+/** Implementation of the feast core GRPC service. */
 @Slf4j
 @GRpcService(interceptors = {MonitoringInterceptor.class})
 public class CoreServiceImpl extends CoreServiceImplBase {
@@ -81,10 +79,8 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onCompleted();
     } catch (RetrievalException | StatusRuntimeException e) {
       log.error("Exception has occurred in GetFeatureSet method: ", e);
-      responseObserver.onError(Status.INTERNAL
-          .withDescription(e.getMessage())
-          .withCause(e)
-          .asRuntimeException());
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
   }
 
@@ -97,10 +93,8 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onCompleted();
     } catch (RetrievalException | IllegalArgumentException e) {
       log.error("Exception has occurred in ListFeatureSet method: ", e);
-      responseObserver.onError(Status.INTERNAL
-          .withDescription(e.getMessage())
-          .withCause(e)
-          .asRuntimeException());
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
   }
 
@@ -113,10 +107,8 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onCompleted();
     } catch (RetrievalException e) {
       log.error("Exception has occurred in ListStores method: ", e);
-      responseObserver.onError(Status.INTERNAL
-          .withDescription(e.getMessage())
-          .withCause(e)
-          .asRuntimeException());
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
   }
 
@@ -132,16 +124,12 @@ public class CoreServiceImpl extends CoreServiceImplBase {
           "Unable to persist this feature set due to a constraint violation. Please ensure that"
               + " field names are unique within the project namespace: ",
           e);
-      responseObserver.onError(Status.ALREADY_EXISTS
-          .withDescription(e.getMessage())
-          .withCause(e)
-          .asRuntimeException());
+      responseObserver.onError(
+          Status.ALREADY_EXISTS.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     } catch (Exception e) {
       log.error("Exception has occurred in ApplyFeatureSet method: ", e);
-      responseObserver.onError(Status.INTERNAL
-          .withDescription(e.getMessage())
-          .withCause(e)
-          .asRuntimeException());
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
   }
 
@@ -154,10 +142,8 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onCompleted();
     } catch (Exception e) {
       log.error("Exception has occurred in UpdateStore method: ", e);
-      responseObserver.onError(Status.INTERNAL
-          .withDescription(e.getMessage())
-          .withCause(e)
-          .asRuntimeException());
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
   }
 
@@ -170,10 +156,8 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onCompleted();
     } catch (Exception e) {
       log.error("Exception has occurred in the createProject method: ", e);
-      responseObserver.onError(Status.INTERNAL
-          .withDescription(e.getMessage())
-          .withCause(e)
-          .asRuntimeException());
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
   }
 
@@ -186,10 +170,8 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onCompleted();
     } catch (Exception e) {
       log.error("Exception has occurred in the createProject method: ", e);
-      responseObserver.onError(Status.INTERNAL
-          .withDescription(e.getMessage())
-          .withCause(e)
-          .asRuntimeException());
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
   }
 
@@ -198,17 +180,15 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       ListProjectsRequest request, StreamObserver<ListProjectsResponse> responseObserver) {
     try {
       List<Project> projects = accessManagementService.listProjects();
-      responseObserver.onNext(ListProjectsResponse.newBuilder()
-          .addAllProjects(projects.stream().map(Project::getName).collect(
-              Collectors.toList())).build());
+      responseObserver.onNext(
+          ListProjectsResponse.newBuilder()
+              .addAllProjects(projects.stream().map(Project::getName).collect(Collectors.toList()))
+              .build());
       responseObserver.onCompleted();
     } catch (Exception e) {
       log.error("Exception has occurred in the listProjects method: ", e);
-      responseObserver.onError(Status.INTERNAL
-          .withDescription(e.getMessage())
-          .withCause(e)
-          .asRuntimeException());
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
   }
-
 }

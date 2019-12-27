@@ -74,17 +74,13 @@ import org.mockito.Mock;
 
 public class SpecServiceTest {
 
-  @Mock
-  private FeatureSetRepository featureSetRepository;
+  @Mock private FeatureSetRepository featureSetRepository;
 
-  @Mock
-  private StoreRepository storeRepository;
+  @Mock private StoreRepository storeRepository;
 
-  @Mock
-  private ProjectRepository projectRepository;
+  @Mock private ProjectRepository projectRepository;
 
-  @Rule
-  public final ExpectedException expectedException = ExpectedException.none();
+  @Rule public final ExpectedException expectedException = ExpectedException.none();
 
   private SpecService specService;
   private List<FeatureSet> featureSets;
@@ -125,36 +121,31 @@ public class SpecServiceTest {
     featureSets =
         Arrays.asList(featureSet1v1, featureSet1v2, featureSet1v3, featureSet2v1, featureSet3v1);
     when(featureSetRepository.findAll()).thenReturn(featureSets);
-    when(featureSetRepository.findAllByOrderByNameAscVersionAsc())
-        .thenReturn(featureSets);
+    when(featureSetRepository.findAllByOrderByNameAscVersionAsc()).thenReturn(featureSets);
 
-    when(featureSetRepository
-        .findFeatureSetByNameAndProject_NameAndVersion("f1",
-            "project1", 1)).thenReturn(featureSets.get(0));
-    when(featureSetRepository
-        .findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc("f1",
-            "project1")).thenReturn(featureSets.subList(0, 3));
-    when(featureSetRepository
-        .findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc("f3",
-            "project1")).thenReturn(featureSets.subList(4, 5));
-    when(featureSetRepository
-        .findFirstFeatureSetByNameLikeAndProject_NameOrderByVersionDesc("f1", "project1"))
-        .thenReturn(featureSet1v3);
-    when(featureSetRepository
-        .findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc("f1", "project1"))
+    when(featureSetRepository.findFeatureSetByNameAndProject_NameAndVersion("f1", "project1", 1))
+        .thenReturn(featureSets.get(0));
+    when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
+            "f1", "project1"))
         .thenReturn(featureSets.subList(0, 3));
-    when(featureSetRepository
-        .findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc("asd",
-            "project1")).thenReturn(Lists.newArrayList());
-    when(featureSetRepository
-        .findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc("f%",
-            "project1"))
+    when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
+            "f3", "project1"))
+        .thenReturn(featureSets.subList(4, 5));
+    when(featureSetRepository.findFirstFeatureSetByNameLikeAndProject_NameOrderByVersionDesc(
+            "f1", "project1"))
+        .thenReturn(featureSet1v3);
+    when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
+            "f1", "project1"))
+        .thenReturn(featureSets.subList(0, 3));
+    when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
+            "asd", "project1"))
+        .thenReturn(Lists.newArrayList());
+    when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
+            "f%", "project1"))
         .thenReturn(featureSets);
-    when(featureSetRepository
-        .findAllByNameLikeAndProject_NameLikeOrderByNameAscVersionAsc("%",
-            "%"))
+    when(featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAscVersionAsc(
+            "%", "%"))
         .thenReturn(featureSets);
-
 
     when(projectRepository.findAllByArchivedIsFalse())
         .thenReturn(Collections.singletonList(new Project("project1")));
@@ -167,15 +158,18 @@ public class SpecServiceTest {
     when(storeRepository.findById("SERVING")).thenReturn(Optional.of(store1));
     when(storeRepository.findById("NOTFOUND")).thenReturn(Optional.empty());
 
-    specService = new SpecService(featureSetRepository, storeRepository, projectRepository,
-        defaultSource);
+    specService =
+        new SpecService(featureSetRepository, storeRepository, projectRepository, defaultSource);
   }
 
   @Test
   public void shouldGetAllFeatureSetsIfOnlyWildcardsProvided() {
     ListFeatureSetsResponse actual =
         specService.listFeatureSets(
-            Filter.newBuilder().setFeatureSetName("*").setProject("*").setFeatureSetVersion("*")
+            Filter.newBuilder()
+                .setFeatureSetName("*")
+                .setProject("*")
+                .setFeatureSetVersion("*")
                 .build());
     List<FeatureSetProto.FeatureSet> list = new ArrayList<>();
     for (FeatureSet featureSet : featureSets) {
@@ -200,7 +194,11 @@ public class SpecServiceTest {
   public void shouldGetAllFeatureSetsMatchingNameIfWildcardVersionProvided() {
     ListFeatureSetsResponse actual =
         specService.listFeatureSets(
-            Filter.newBuilder().setProject("project1").setFeatureSetName("f1").setFeatureSetVersion("*").build());
+            Filter.newBuilder()
+                .setProject("project1")
+                .setFeatureSetName("f1")
+                .setFeatureSetVersion("*")
+                .build());
     List<FeatureSet> expectedFeatureSets =
         featureSets.stream().filter(fs -> fs.getName().equals("f1")).collect(Collectors.toList());
     List<FeatureSetProto.FeatureSet> list = new ArrayList<>();
@@ -217,8 +215,11 @@ public class SpecServiceTest {
   public void shouldGetAllFeatureSetsMatchingNameWithWildcardSearch() {
     ListFeatureSetsResponse actual =
         specService.listFeatureSets(
-            Filter.newBuilder().setProject("project1").setFeatureSetName("f*")
-                .setFeatureSetVersion("*").build());
+            Filter.newBuilder()
+                .setProject("project1")
+                .setFeatureSetName("f*")
+                .setFeatureSetVersion("*")
+                .build());
     List<FeatureSet> expectedFeatureSets =
         featureSets.stream()
             .filter(fs -> fs.getName().startsWith("f"))
@@ -237,8 +238,11 @@ public class SpecServiceTest {
   public void shouldGetAllFeatureSetsMatchingVersionIfNoComparator() {
     ListFeatureSetsResponse actual =
         specService.listFeatureSets(
-            Filter.newBuilder().setProject("project1").setFeatureSetName("f1")
-                .setFeatureSetVersion("1").build());
+            Filter.newBuilder()
+                .setProject("project1")
+                .setFeatureSetName("f1")
+                .setFeatureSetVersion("1")
+                .build());
     List<FeatureSet> expectedFeatureSets =
         featureSets.stream()
             .filter(fs -> fs.getName().equals("f1"))
@@ -258,8 +262,11 @@ public class SpecServiceTest {
   public void shouldThrowExceptionIfGetAllFeatureSetsGivenVersionWithComparator() {
     expectedException.expect(IllegalArgumentException.class);
     specService.listFeatureSets(
-        Filter.newBuilder().setProject("project1").setFeatureSetName("f1")
-            .setFeatureSetVersion(">1").build());
+        Filter.newBuilder()
+            .setProject("project1")
+            .setFeatureSetName("f1")
+            .setFeatureSetVersion(">1")
+            .build());
   }
 
   @Test
@@ -277,7 +284,10 @@ public class SpecServiceTest {
         .thenReturn(featureSets.get(1));
     GetFeatureSetResponse actual =
         specService.getFeatureSet(
-            GetFeatureSetRequest.newBuilder().setProject("project1").setName("f1").setVersion(2)
+            GetFeatureSetRequest.newBuilder()
+                .setProject("project1")
+                .setName("f1")
+                .setVersion(2)
                 .build());
     FeatureSet expected = featureSets.get(1);
     assertThat(actual.getFeatureSet(), equalTo(expected.toProto()));
@@ -296,7 +306,10 @@ public class SpecServiceTest {
     expectedException.expectMessage(
         "Feature set with name \"f1000\" and version \"2\" could not be found.");
     specService.getFeatureSet(
-        GetFeatureSetRequest.newBuilder().setName("f1000").setProject("project1").setVersion(2)
+        GetFeatureSetRequest.newBuilder()
+            .setName("f1000")
+            .setProject("project1")
+            .setVersion(2)
             .build());
   }
 
@@ -309,8 +322,11 @@ public class SpecServiceTest {
             + "feature_set_version: \">1\"\n"
             + "project: \"project1\"");
     specService.listFeatureSets(
-        Filter.newBuilder().setProject("project1").setFeatureSetName("f1")
-            .setFeatureSetVersion(">1").build());
+        Filter.newBuilder()
+            .setProject("project1")
+            .setFeatureSetName("f1")
+            .setFeatureSetVersion(">1")
+            .build());
   }
 
   @Test
@@ -351,8 +367,7 @@ public class SpecServiceTest {
 
     ApplyFeatureSetResponse applyFeatureSetResponse =
         specService.applyFeatureSet(
-            FeatureSetProto.FeatureSet.newBuilder()
-                .setSpec(incomingFeatureSetSpec).build());
+            FeatureSetProto.FeatureSet.newBuilder().setSpec(incomingFeatureSetSpec).build());
 
     verify(featureSetRepository, times(0)).save(ArgumentMatchers.any(FeatureSet.class));
     assertThat(applyFeatureSetResponse.getStatus(), equalTo(Status.NO_CHANGE));
@@ -361,9 +376,9 @@ public class SpecServiceTest {
 
   @Test
   public void applyFeatureSetShouldApplyFeatureSetWithInitVersionIfNotExists() {
-    when(featureSetRepository
-        .findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
-            "f2", "project1")).thenReturn(Lists.newArrayList());
+    when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
+            "f2", "project1"))
+        .thenReturn(Lists.newArrayList());
 
     FeatureSetProto.FeatureSet incomingFeatureSet =
         newDummyFeatureSet("f2", 1, "project1").toProto();
@@ -373,46 +388,64 @@ public class SpecServiceTest {
 
     ApplyFeatureSetResponse applyFeatureSetResponse =
         specService.applyFeatureSet(
-            FeatureSetProto.FeatureSet.newBuilder()
-                .setSpec(incomingFeatureSet.getSpec()).build());
+            FeatureSetProto.FeatureSet.newBuilder().setSpec(incomingFeatureSet.getSpec()).build());
     verify(projectRepository).saveAndFlush(ArgumentMatchers.any(Project.class));
 
     FeatureSetProto.FeatureSet expected =
         FeatureSetProto.FeatureSet.newBuilder()
             .setSpec(
-                incomingFeatureSetSpec.toBuilder().setVersion(1).setSource(defaultSource.toProto())
+                incomingFeatureSetSpec
+                    .toBuilder()
+                    .setVersion(1)
+                    .setSource(defaultSource.toProto())
                     .build())
             .build();
     assertThat(applyFeatureSetResponse.getStatus(), equalTo(Status.CREATED));
     assertThat(applyFeatureSetResponse.getFeatureSet().getSpec(), equalTo(expected.getSpec()));
-    assertThat(applyFeatureSetResponse.getFeatureSet().getSpec().getVersion(),
+    assertThat(
+        applyFeatureSetResponse.getFeatureSet().getSpec().getVersion(),
         equalTo(expected.getSpec().getVersion()));
   }
 
   @Test
   public void applyFeatureSetShouldIncrementFeatureSetVersionIfAlreadyExists() {
-    FeatureSetProto.FeatureSet incomingFeatureSet =
-        featureSets
-            .get(2)
-            .toProto();
-    incomingFeatureSet = incomingFeatureSet.toBuilder()
-        .setMeta(incomingFeatureSet.getMeta()).setSpec(
-            incomingFeatureSet.getSpec().toBuilder().clearVersion().addFeatures(
-                FeatureSpec.newBuilder().setName("feature2").setValueType(Enum.STRING)).build())
-        .build();
+    FeatureSetProto.FeatureSet incomingFeatureSet = featureSets.get(2).toProto();
+    incomingFeatureSet =
+        incomingFeatureSet
+            .toBuilder()
+            .setMeta(incomingFeatureSet.getMeta())
+            .setSpec(
+                incomingFeatureSet
+                    .getSpec()
+                    .toBuilder()
+                    .clearVersion()
+                    .addFeatures(
+                        FeatureSpec.newBuilder().setName("feature2").setValueType(Enum.STRING))
+                    .build())
+            .build();
 
-    FeatureSetProto.FeatureSet expected = incomingFeatureSet.toBuilder()
-        .setMeta(incomingFeatureSet.getMeta().toBuilder().build()).setSpec(
-            incomingFeatureSet.getSpec().toBuilder().setVersion(4)
-                .setSource(defaultSource.toProto()).build()).build();
+    FeatureSetProto.FeatureSet expected =
+        incomingFeatureSet
+            .toBuilder()
+            .setMeta(incomingFeatureSet.getMeta().toBuilder().build())
+            .setSpec(
+                incomingFeatureSet
+                    .getSpec()
+                    .toBuilder()
+                    .setVersion(4)
+                    .setSource(defaultSource.toProto())
+                    .build())
+            .build();
 
     ApplyFeatureSetResponse applyFeatureSetResponse =
         specService.applyFeatureSet(incomingFeatureSet);
     verify(projectRepository).saveAndFlush(ArgumentMatchers.any(Project.class));
     assertThat(applyFeatureSetResponse.getStatus(), equalTo(Status.CREATED));
-    assertEquals(FeatureSet.fromProto(applyFeatureSetResponse.getFeatureSet()),
+    assertEquals(
+        FeatureSet.fromProto(applyFeatureSetResponse.getFeatureSet()),
         FeatureSet.fromProto(expected));
-    assertThat(applyFeatureSetResponse.getFeatureSet().getSpec().getVersion(),
+    assertThat(
+        applyFeatureSetResponse.getFeatureSet().getSpec().getVersion(),
         equalTo(expected.getSpec().getVersion()));
   }
 
@@ -424,14 +457,14 @@ public class SpecServiceTest {
     Field f3e1 = new Field("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
         (new FeatureSet(
-            "f3",
-            "project1",
-            5,
-            100L,
-            Arrays.asList(f3e1),
-            Arrays.asList(f3f2, f3f1),
-            defaultSource,
-            FeatureSetStatus.STATUS_READY))
+                "f3",
+                "project1",
+                5,
+                100L,
+                Arrays.asList(f3e1),
+                Arrays.asList(f3f2, f3f1),
+                defaultSource,
+                FeatureSetStatus.STATUS_READY))
             .toProto();
 
     ApplyFeatureSetResponse applyFeatureSetResponse =

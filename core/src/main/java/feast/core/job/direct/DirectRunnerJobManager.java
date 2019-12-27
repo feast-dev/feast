@@ -76,10 +76,9 @@ public class DirectRunnerJobManager implements JobManager {
   public Job startJob(Job job) {
     try {
       List<FeatureSetProto.FeatureSet> featureSetProtos =
-          job.getFeatureSets().stream()
-              .map(FeatureSet::toProto)
-              .collect(Collectors.toList());
-      ImportOptions pipelineOptions = getPipelineOptions(featureSetProtos, job.getStore().toProto());
+          job.getFeatureSets().stream().map(FeatureSet::toProto).collect(Collectors.toList());
+      ImportOptions pipelineOptions =
+          getPipelineOptions(featureSetProtos, job.getStore().toProto());
       PipelineResult pipelineResult = runPipeline(pipelineOptions);
       DirectJob directJob = new DirectJob(job.getId(), pipelineResult);
       jobs.add(directJob);

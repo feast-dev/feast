@@ -44,7 +44,11 @@ public class Project {
   @Column(name = "archived", nullable = false)
   private boolean archived;
 
-  @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true, mappedBy = "project")
+  @OneToMany(
+      cascade = CascadeType.ALL,
+      fetch = FetchType.EAGER,
+      orphanRemoval = true,
+      mappedBy = "project")
   private Set<FeatureSet> featureSets;
 
   public Project() {

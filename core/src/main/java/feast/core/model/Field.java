@@ -44,8 +44,7 @@ public class Field {
   @Column(name = "project")
   private String project;
 
-  public Field() {
-  }
+  public Field() {}
 
   public Field(String name, ValueType.Enum type) {
     this.name = name;

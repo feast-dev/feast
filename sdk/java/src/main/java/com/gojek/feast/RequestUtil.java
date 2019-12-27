@@ -23,8 +23,8 @@ import java.util.List;
 @SuppressWarnings("WeakerAccess")
 public class RequestUtil {
 
-  public static List<FeatureReference> createFeatureRefs(List<String> featureRefStrings,
-      String defaultProject) {
+  public static List<FeatureReference> createFeatureRefs(
+      List<String> featureRefStrings, String defaultProject) {
     if (featureRefStrings == null) {
       throw new IllegalArgumentException("featureRefs cannot be null");
     }
@@ -78,11 +78,14 @@ public class RequestUtil {
       }
 
       featureRefs.add(
-          FeatureReference.newBuilder().setName(name).setProject(project).setVersion(version)
+          FeatureReference.newBuilder()
+              .setName(name)
+              .setProject(project)
+              .setVersion(version)
               .build());
     }
 
-  ;  return featureRefs;
-
+    ;
+    return featureRefs;
   }
 }
