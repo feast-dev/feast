@@ -13,4 +13,5 @@
 ## Reference
 
 * [Python SDK](https://api.docs.feast.dev/python/)
+* [Go SDK](https://godoc.org/github.com/gojek/feast/sdk/go)
 
