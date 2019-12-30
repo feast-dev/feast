@@ -265,7 +265,7 @@ class Client:
         )  # type: ListProjectsResponse
         return list(response.projects)
 
-    def create_project(self, project):
+    def create_project(self, project: str):
         """
         Creates a Feast project
 
