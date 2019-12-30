@@ -129,8 +129,8 @@ def feature_set():
     pass
 
 
-@feature_set.command()
-def list():
+@feature_set.command(name="list")
+def feature_set_list():
     """
     List all feature sets
     """
@@ -147,9 +147,9 @@ def list():
     print(tabulate(table, headers=["NAME", "VERSION"], tablefmt="plain"))
 
 
-@feature_set.command()
+@feature_set.command("create")
 @click.argument("name")
-def create(name):
+def feature_set_create(name):
     """
     Create a feature set
     """
@@ -160,10 +160,10 @@ def create(name):
     feast_client.apply(FeatureSet(name=name))
 
 
-@feature_set.command()
+@feature_set.command("describe")
 @click.argument("name", type=click.STRING)
 @click.argument("version", type=click.INT)
-def describe(name: str, version: int):
+def feature_set_describe(name: str, version: int):
     """
     Describe a feature set
     """
@@ -179,6 +179,56 @@ def describe(name: str, version: int):
         return
 
     print(yaml.dump(yaml.safe_load(str(fs)), default_flow_style=False, sort_keys=False))
+
+
+@cli.group(name="projects")
+def project():
+    """
+    Create and manage projects
+    """
+    pass
+
+
+@project.command(name="create")
+@click.argument("name", type=click.STRING)
+def project_create(name: str):
+    """
+    Create a project
+    """
+    feast_client = Client(
+        core_url=feast_config.get_config_property_or_fail("core_url")
+    )  # type: Client
+    feast_client.create_project(name)
+
+
+@project.command(name="archive")
+@click.argument("name", type=click.STRING)
+def project_archive(name: str):
+    """
+    Archive a project
+    """
+    feast_client = Client(
+        core_url=feast_config.get_config_property_or_fail("core_url")
+    )  # type: Client
+    feast_client.archive_project(name)
+
+
+@project.command(name="list")
+def feature_set_list():
+    """
+    List all projects
+    """
+    feast_client = Client(
+        core_url=feast_config.get_config_property_or_fail("core_url")
+    )  # type: Client
+
+    table = []
+    for project in feast_client.list_projects():
+        table.append([project])
+
+    from tabulate import tabulate
+
+    print(tabulate(table, headers=["NAME"], tablefmt="plain"))
 
 
 @cli.command()
