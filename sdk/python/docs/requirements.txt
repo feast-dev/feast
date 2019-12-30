@@ -18,5 +18,14 @@ fastavro==0.21.*
 grpcio-testing==1.*
 pytest-ordering==0.6.*
 pyarrow
-Sphinx
+Sphinx==2.*
+sphinx-autodoc-napoleon-typehints
+sphinx-autodoc-typehints
 sphinx-rtd-theme
+sphinxcontrib-applehelp
+sphinxcontrib-devhelp
+sphinxcontrib-htmlhelp
+sphinxcontrib-jsmath
+sphinxcontrib-napoleon
+sphinxcontrib-qthelp
+sphinxcontrib-serializinghtml

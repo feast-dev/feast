@@ -19,6 +19,7 @@ Feature
 ==================
 
 .. automodule:: feast.feature
+    :inherited-members:
     :members:
 
 
@@ -26,6 +27,7 @@ Entity
 ==================
 
 .. automodule:: feast.entity
+    :inherited-members:
     :members:
 
 

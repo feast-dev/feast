@@ -560,7 +560,6 @@ class Client:
         response = self._serving_service_stub.GetBatchFeatures(request)
         return Job(response.job, self._serving_service_stub)
 
-
     def get_online_features(
         self,
         feature_refs: List[str],
