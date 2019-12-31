@@ -62,6 +62,8 @@ application.yaml:
     jobs:
       runner: DirectRunner
       options: {}
+      updates:
+        timeoutSeconds: 240
       metrics:
         enabled: false
         type: statsd
