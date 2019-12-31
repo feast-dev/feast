@@ -24,7 +24,7 @@
 
     <groupId>dev.feast</groupId>
     <artifactId>feast-parent</artifactId>
-    <version>${revision}</version>
+    <version>0.3.6-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <modules>
@@ -35,7 +35,6 @@
     </modules>
 
     <properties>
-        <revision>0.3.2-SNAPSHOT</revision>
         <github.url>https://github.com/gojek/feast</github.url>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
