@@ -56,8 +56,10 @@ docker run --rm --name feast-build \
 ```bash
 docker run --rm --name feast-build \
     -v $(pwd):/workspace \
-    -v go_cache:/cache/go \
-    -v m2_cache:/cache/m2 \
+    -v $(pwd)/tmp/go_cache:/cache/go \
+    -v $(pwd)/tmp/m2_cache:/cache/m2 \
+    -v $(pwd)/tmp/pip_cache:/root/.cache/pip \
+    -v $(pwd)/tmp/logs:/log \
     -w /workspace/sdk/python \
     -e GO111MODULE=on \
     -e GOPATH=/cache/go \
@@ -65,7 +67,7 @@ docker run --rm --name feast-build \
     -e FEAST_VERSION=ff-$(git rev-parse --short HEAD) \
     --entrypoint sh -- \
     python:3.7-buster \
-    -c 'pip install -r requirements-ci.txt && pip install . && pytest ./tests'
+    -c 'pip install -r requirements-ci.txt && pip install -e . && pytest --junitxml=/log/python-sdk-test-report.xml'
 ```
 
 ### How-to: Run locally
