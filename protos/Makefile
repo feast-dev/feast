@@ -12,5 +12,22 @@ gen-python:
 	@$(foreach dir,$(dirs),python -m grpc_tools.protoc -I. --python_out=../sdk/python/ --mypy_out=../sdk/python/ feast/$(dir)/*.proto;)
 	@$(foreach dir,$(service_dirs),python -m grpc_tools.protoc -I. --grpc_python_out=../sdk/python/ feast/$(dir)/*.proto;)
 
+install-dependencies-docs:
+	mkdir -p $$HOME/bin
+	mkdir -p $$HOME/include
+	go get github.com/golang/protobuf/proto && \
+	go get gopkg.in/russross/blackfriday.v2 && \
+	cd $$(mktemp -d) && \
+	git clone https://github.com/istio/tools/ && \
+	cd tools/cmd/protoc-gen-docs && \
+	go build && \
+	cp protoc-gen-docs $$HOME/bin && \
+	cd $$HOME && curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v3.11.2/protoc-3.11.2-linux-x86_64.zip && \
+	unzip protoc-3.11.2-linux-x86_64.zip -d protoc3 && \
+	mv protoc3/bin/* $$HOME/bin/ && \
+	chmod +x $$HOME/bin/protoc && \
+	mv protoc3/include/* $$HOME/include
+
 gen-docs:
-	protoc --doc_out=../docs/api/ --doc_opt=../docs/assets/protoc-gen-doc-markdown.tmpl,proto.md feast/core/*.proto feast/serving/*.proto feast/storage/*.proto feast/types/*.proto;
+	protoc --docs_out=../dist/grpc feast/*/*.proto || \
+	$(MAKE) install-dependencies-docs && PATH=$$HOME/bin:$$PATH protoc -I $$HOME/include/ -I . --docs_out=../dist/grpc feast/*/*.proto
