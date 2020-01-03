@@ -32,7 +32,7 @@ REQUIRED = [
     "googleapis-common-protos==1.*",
     "google-cloud-bigquery-storage==0.7.*",
     "grpcio==1.*",
-    "pandas==0.*",
+    "pandas>=0.25.0",
     "pandavro==1.5.*",
     "protobuf>=3.10",
     "PyYAML==5.1.*",

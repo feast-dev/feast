@@ -17,6 +17,7 @@ import logging
 import os
 import time
 from collections import OrderedDict
+from math import ceil
 from typing import Dict, Union
 from typing import List
 from urllib.parse import urlparse
@@ -36,7 +37,6 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetResponse,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.core.FeatureSet_pb2 import FeatureSetStatus
 from feast.feature_set import FeatureSet, Entity
 from feast.job import Job
 from feast.loaders.abstract_producer import get_producer
@@ -336,10 +336,14 @@ class Client:
                 "feature_set_name:version:feature_name".
 
             entity_rows (Union[pd.DataFrame, str]):
+                Either:
                 Pandas dataframe containing entities and a 'datetime' column.
                 Each entity in a feature set must be present as a column in this
                 dataframe. The datetime column must contain timestamps in
                 datetime64 format.
+
+                Or:
+                A file path in AVRO format representing the entity rows.
 
         Returns:
             feast.job.Job:
@@ -794,7 +798,7 @@ def _read_table_from_source(
 
     # Write table as parquet file with a specified row_group_size
     tmp_table_name = f"{int(time.time())}.parquet"
-    row_group_size = min(int(table.num_rows/max_workers), chunk_size)
+    row_group_size = min(ceil(table.num_rows / max_workers), chunk_size)
     pq.write_table(table=table, where=tmp_table_name,
                    row_group_size=row_group_size)
 

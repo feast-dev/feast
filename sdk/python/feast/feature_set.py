@@ -19,8 +19,6 @@ from typing import List, Optional
 
 import pandas as pd
 import pyarrow as pa
-from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
-from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
 from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
 from feast.entity import Entity
 from feast.feature import Feature, Field

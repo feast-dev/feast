@@ -385,36 +385,6 @@ class TestClient:
             # Ingest data into Feast
             client.ingest("driver-feature-set", dataframe)
 
-    @pytest.mark.parametrize("dataframe,exception", [(dataframes.GOOD, TimeoutError)])
-    def test_feature_set_ingest_fail_if_pending(
-        self, dataframe, exception, client, mocker
-    ):
-        with pytest.raises(exception):
-            driver_fs = FeatureSet(
-                "driver-feature-set",
-                source=KafkaSource(brokers="kafka:9092", topic="test"),
-            )
-            driver_fs.add(Feature(name="feature_1", dtype=ValueType.FLOAT))
-            driver_fs.add(Feature(name="feature_2", dtype=ValueType.STRING))
-            driver_fs.add(Feature(name="feature_3", dtype=ValueType.INT64))
-            driver_fs.add(Entity(name="entity_id", dtype=ValueType.INT64))
-
-            # Register with Feast core
-            client.apply(driver_fs)
-            driver_fs = driver_fs.to_proto()
-            driver_fs.meta.status = FeatureSetStatus.STATUS_PENDING
-
-            mocker.patch.object(
-                client._core_service_stub,
-                "GetFeatureSet",
-                return_value=GetFeatureSetResponse(feature_set=driver_fs),
-            )
-
-            # Need to create a mock producer
-            with patch("feast.client.get_producer") as mocked_queue:
-                # Ingest data into Feast
-                client.ingest("driver-feature-set", dataframe, timeout=1)
-
     @pytest.mark.parametrize(
         "dataframe,exception",
         [
