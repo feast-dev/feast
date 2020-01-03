@@ -22,9 +22,9 @@
     <description>Feature Store for Machine Learning</description>
     <url>${github.url}</url>
 
-    <groupId>feast</groupId>
+    <groupId>dev.feast</groupId>
     <artifactId>feast-parent</artifactId>
-    <version>${revision}</version>
+    <version>0.3.6-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <modules>
@@ -35,7 +35,6 @@
     </modules>
 
     <properties>
-        <revision>0.3.2-SNAPSHOT</revision>
         <github.url>https://github.com/gojek/feast</github.url>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -83,15 +82,10 @@
     </issueManagement>
 
     <distributionManagement>
-        <!-- TODO: use a profile like local -->
         <snapshotRepository>
-            <id>feast-snapshot</id>
-            <url>file:///tmp/snapshot</url>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
         </snapshotRepository>
-        <repository>
-            <id>feast</id>
-            <url>file:///tmp/snapshot</url>
-        </repository>
     </distributionManagement>
 
     <dependencyManagement>
@@ -280,6 +274,43 @@
         </extensions>
 
         <plugins>
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <version>1.6.7</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <serverId>ossrh</serverId>
+                    <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+                    <autoReleaseAfterClose>false</autoReleaseAfterClose>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>2.2.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>2.9.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>

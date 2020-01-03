@@ -82,7 +82,7 @@ public class SpecService {
    * required. If the version is provided then it will be used for the lookup. If the version is
    * omitted then the latest version will be returned.
    *
-   * @param GetFeatureSetRequest containing the name and version of the feature set
+   * @param request containing the name and version of the feature set
    * @return GetFeatureSetResponse containing a single feature set
    */
   public GetFeatureSetResponse getFeatureSet(GetFeatureSetRequest request)
@@ -141,7 +141,7 @@ public class SpecService {
    *
    * <p>The version filter is optional; If not provided, this method will return all featureSet
    * versions of the featureSet name provided. Valid version filters should optionally contain a
-   * comparator (<, <=, >, etc) and a version number, e.g. 10, <10, >=1
+   * comparator (&lt;, &lt;=, &gt;, etc) and a version number, e.g. 10, &lt;10, &gt;=1
    *
    * @param filter filter containing the desired featureSet name and version filter
    * @return ListFeatureSetsResponse with list of featureSets found matching the filter

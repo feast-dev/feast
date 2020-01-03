@@ -6,12 +6,12 @@
 
   <name>Feast SDK for Java</name>
   <description>SDK for registering, storing, and retrieving features</description>
-  <artifactId>feast-client</artifactId>
+  <artifactId>feast-sdk</artifactId>
 
   <parent>
-    <groupId>feast</groupId>
+    <groupId>dev.feast</groupId>
     <artifactId>feast-parent</artifactId>
-    <version>${revision}</version>
+    <version>0.3.6-SNAPSHOT</version>
     <relativePath>../..</relativePath>
   </parent>
 
