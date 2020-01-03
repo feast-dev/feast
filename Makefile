@@ -32,7 +32,7 @@ build-cli:
 	$(MAKE) -C cli build-all
 
 build-java:
-	mvn clean verify -Drevision=$(VERSION)
+	mvn clean verify
 
 build-docker:
 	docker build -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .

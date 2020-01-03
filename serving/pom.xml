@@ -21,9 +21,9 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>feast</groupId>
+    <groupId>dev.feast</groupId>
     <artifactId>feast-parent</artifactId>
-    <version>${revision}</version>
+    <version>0.3.6-SNAPSHOT</version>
   </parent>
 
   <artifactId>feast-serving</artifactId>
