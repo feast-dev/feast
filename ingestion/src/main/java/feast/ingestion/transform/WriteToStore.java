@@ -19,7 +19,7 @@ package feast.ingestion.transform;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse.InsertErrors;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
-import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.BigQueryConfig;
 import feast.core.StoreProto.Store.RedisConfig;
@@ -50,7 +50,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.slf4j.Logger;
 
 @AutoValue
@@ -61,12 +60,12 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
   public static final String METRIC_NAMESPACE = "WriteToStore";
   public static final String ELEMENTS_WRITTEN_METRIC = "elements_written";
 
-  private static final Counter elementsWritten = Metrics
-      .counter(METRIC_NAMESPACE, ELEMENTS_WRITTEN_METRIC);
+  private static final Counter elementsWritten =
+      Metrics.counter(METRIC_NAMESPACE, ELEMENTS_WRITTEN_METRIC);
 
   public abstract Store getStore();
 
-  public abstract Map<String, FeatureSetSpec> getFeatureSetSpecs();
+  public abstract Map<String, FeatureSet> getFeatureSets();
 
   public static Builder newBuilder() {
     return new AutoValue_WriteToStore.Builder();
@@ -77,7 +76,7 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
 
     public abstract Builder setStore(Store store);
 
-    public abstract Builder setFeatureSetSpecs(Map<String, FeatureSetSpec> featureSetSpecs);
+    public abstract Builder setFeatureSets(Map<String, FeatureSet> featureSets);
 
     public abstract WriteToStore build();
   }
@@ -93,7 +92,7 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
         input
             .apply(
                 "FeatureRowToRedisMutation",
-                ParDo.of(new FeatureRowToRedisMutationDoFn(getFeatureSetSpecs())))
+                ParDo.of(new FeatureRowToRedisMutationDoFn(getFeatureSets())))
             .apply(
                 "WriteRedisMutationToRedis",
                 RedisCustomIO.write(redisConfig.getHost(), redisConfig.getPort()));
@@ -151,11 +150,14 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
         break;
     }
 
-    input.apply("IncrementWriteToStoreElementsWrittenCounter",
-        MapElements.into(TypeDescriptors.booleans()).via((FeatureRow row) -> {
-          elementsWritten.inc();
-          return true;
-        }));
+    input.apply(
+        "IncrementWriteToStoreElementsWrittenCounter",
+        MapElements.into(TypeDescriptors.booleans())
+            .via(
+                (FeatureRow row) -> {
+                  elementsWritten.inc();
+                  return true;
+                }));
 
     return PDone.in(input.getPipeline());
   }

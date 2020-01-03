@@ -3,7 +3,7 @@ google-auth==1.*
 google-cloud-bigquery==1.*
 google-cloud-bigquery-storage==0.*
 google-cloud-storage==1.*
-google-resumable-media==0.3.1
+google-resumable-media>=0.5
 googleapis-common-protos==1.*
 grpcio==1.*
 numpy

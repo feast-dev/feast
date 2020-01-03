@@ -39,6 +39,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class FeatureStreamConfig {
 
+  String DEFAULT_KAFKA_REQUEST_TIMEOUT_MS_CONFIG = "15000";
+
   @Autowired
   @Bean
   public Source getDefaultSource(FeastProperties feastProperties) {
@@ -50,7 +52,8 @@ public class FeatureStreamConfig {
         String topicName = streamProperties.getOptions().get("topic");
         Map<String, Object> map = new HashMap<>();
         map.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        map.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "1000");
+        map.put(
+            AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, DEFAULT_KAFKA_REQUEST_TIMEOUT_MS_CONFIG);
         AdminClient client = AdminClient.create(map);
 
         NewTopic newTopic =

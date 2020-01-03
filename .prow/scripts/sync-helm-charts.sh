@@ -31,7 +31,7 @@ fi
 exit_code=0
 
 for dir in "$repo_dir"/*; do
-    if helm dependency build "$dir"; then
+    if  helm dep update "$dir" && helm dep build "$dir"; then
         helm package --destination "$sync_dir" "$dir"
     else
         log_error "Problem building dependencies. Skipping packaging of '$dir'."
@@ -46,7 +46,7 @@ if helm repo index --url "$repo_url" --merge "$index_dir/index.yaml" "$sync_dir"
     gsutil -m rsync "$sync_dir" "$bucket"
 
     # Make sure index.yaml is synced last
-    gsutil cp "$index_dir/index.yaml" "$bucket"
+    gsutil -h "Cache-Control:no-cache,max-age=0" cp "$index_dir/index.yaml" "$bucket"
 else
     log_error "Exiting because unable to update index. Not safe to push update."
     exit 1

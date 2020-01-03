@@ -129,7 +129,7 @@ prediction = my_model.predict(fs.get_online_features(customer_features, customer
 ## Important resources
  * [Why Feast?](docs/why-feast.md)
  * [Concepts](docs/concepts.md)
- * [Installation](docs/getting-started/install-feast.md)
+ * [Installation](docs/getting-started/installing-feast.md)
  * [Getting Help](docs/community.md)
 
 ## Notice

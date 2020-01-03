@@ -3,6 +3,8 @@
 set -e
 set -o pipefail
 
+export REVISION=dev
+
 if ! cat /etc/*release | grep -q stretch; then
     echo ${BASH_SOURCE} only supports Debian stretch. 
     echo Please change your operating system to use this script.
@@ -28,7 +30,7 @@ Installing gcloud SDK
 "
 if [[ ! $(command -v gsutil) ]]; then
   CURRENT_DIR=$(dirname "$BASH_SOURCE")
-  . "${CURRENT_DIR}"/install_google_cloud_sdk.sh
+  . "${CURRENT_DIR}"/install-google-cloud-sdk.sh
 fi
 
 export GOOGLE_APPLICATION_CREDENTIALS=/etc/service-account/service-account.json
@@ -73,10 +75,10 @@ Installing Kafka at localhost:9092
 wget -qO- https://www-eu.apache.org/dist/kafka/2.3.0/kafka_2.12-2.3.0.tgz | tar xz
 mv kafka_2.12-2.3.0/ /tmp/kafka
 nohup /tmp/kafka/bin/zookeeper-server-start.sh /tmp/kafka/config/zookeeper.properties &> /var/log/zookeeper.log 2>&1 &
-sleep 5
+sleep 10
 tail -n10 /var/log/zookeeper.log
 nohup /tmp/kafka/bin/kafka-server-start.sh /tmp/kafka/config/server.properties &> /var/log/kafka.log 2>&1 &
-sleep 10
+sleep 30
 tail -n10 /var/log/kafka.log
 
 echo "
@@ -90,7 +92,7 @@ Building jars for Feast
     --output-dir /root/
 
 # Build jars for Feast
-mvn --quiet --batch-mode --define skipTests=true clean package
+mvn --quiet --batch-mode --define skipTests=true --define revision=$REVISION clean package
 
 echo "
 ============================================================
@@ -108,6 +110,8 @@ feast:
   jobs:
     runner: DirectRunner
     options: {}
+    updates:
+      timeoutSeconds: 240
     metrics:
       enabled: false
 
@@ -121,7 +125,9 @@ feast:
 
 spring:
   jpa:
-    properties.hibernate.format_sql: true
+    properties.hibernate:
+      format_sql: true
+      event.merge.entity_copy_observer: allow
     hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
     hibernate.ddl-auto: update
   datasource:
@@ -138,10 +144,10 @@ management:
         enabled: false
 EOF
 
-nohup java -jar core/target/feast-core-0.3.2-SNAPSHOT.jar \
+nohup java -jar core/target/feast-core-$REVISION.jar \
   --spring.config.location=file:///tmp/core.application.yml \
   &> /var/log/feast-core.log &
-sleep 30
+sleep 35
 tail -n10 /var/log/feast-core.log
 echo "
 ============================================================
@@ -165,7 +171,8 @@ bigquery_config:
   datasetId: $DATASET_NAME
 subscriptions:
   - name: "*"
-    version: ">0"
+    version: "*"
+    project: "*"
 EOF
 
 cat <<EOF > /tmp/serving.warehouse.application.yml
@@ -191,7 +198,7 @@ spring:
     web-environment: false
 EOF
 
-nohup java -jar serving/target/feast-serving-0.3.2-SNAPSHOT.jar \
+nohup java -jar serving/target/feast-serving-$REVISION.jar \
   --spring.config.location=file:///tmp/serving.warehouse.application.yml \
   &> /var/log/feast-serving-warehouse.log &
 sleep 15
@@ -210,7 +217,7 @@ bash /tmp/miniconda.sh -b -p /root/miniconda -f
 source ~/.bashrc
 
 # Install Feast Python SDK and test requirements
-pip install -q sdk/python
+pip install -qe sdk/python
 pip install -qr tests/e2e/requirements.txt
 
 echo "

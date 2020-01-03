@@ -1,7 +1,0 @@
-{
-  "id": "example_errors",
-  "type": "file.json",
-  "options": {
-    "path": "output/errors/data"
-  }
-}

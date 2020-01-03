@@ -10,11 +10,17 @@ from feast.core.CoreService_pb2 import (
     ListFeatureSetsResponse,
     ListFeatureSetsRequest,
 )
-from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpec
+from google.protobuf.timestamp_pb2 import Timestamp
+from feast.core.FeatureSet_pb2 import (
+    FeatureSetSpec as FeatureSetSpec,
+    FeatureSetMeta,
+    FeatureSetStatus,
+)
 from feast.core.Source_pb2 import (
     SourceType as SourceTypeProto,
     KafkaSourceConfig as KafkaSourceConfigProto,
 )
+from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from typing import List
 
 _logger = logging.getLogger(__name__)
@@ -36,11 +42,13 @@ class CoreServicer(Core.CoreServiceServicer):
             for fs in list(self._feature_sets.values())
             if (
                 not request.filter.feature_set_name
-                or fs.name == request.filter.feature_set_name
+                or request.filter.feature_set_name == "*"
+                or fs.spec.name == request.filter.feature_set_name
             )
             and (
                 not request.filter.feature_set_version
-                or str(fs.version) == request.filter.feature_set_version
+                or str(fs.spec.version) == request.filter.feature_set_version
+                or request.filter.feature_set_version == "*"
             )
         ]
 
@@ -48,32 +56,39 @@ class CoreServicer(Core.CoreServiceServicer):
 
     def ApplyFeatureSet(self, request: ApplyFeatureSetRequest, context):
         feature_set = request.feature_set
-
-        if feature_set.version is None:
-            feature_set.version = 1
+        if feature_set.spec.version is None:
+            feature_set.spec.version = 1
         else:
-            feature_set.version = feature_set.version + 1
+            feature_set.spec.version = feature_set.spec.version + 1
 
-        if feature_set.source.type == SourceTypeProto.INVALID:
-            feature_set.source.kafka_source_config.CopyFrom(
+        if feature_set.spec.source.type == SourceTypeProto.INVALID:
+            feature_set.spec.source.kafka_source_config.CopyFrom(
                 KafkaSourceConfigProto(bootstrap_servers="server.com", topic="topic1")
             )
-            feature_set.source.type = SourceTypeProto.KAFKA
+            feature_set.spec.source.type = SourceTypeProto.KAFKA
 
-        self._feature_sets[feature_set.name] = feature_set
+        feature_set_meta = FeatureSetMeta(
+            status=FeatureSetStatus.STATUS_READY,
+            created_timestamp=Timestamp(seconds=10),
+        )
+        applied_feature_set = FeatureSetProto(
+            spec=feature_set.spec, meta=feature_set_meta
+        )
+        self._feature_sets[feature_set.spec.name] = applied_feature_set
 
         _logger.info(
             "registered feature set "
-            + feature_set.name
+            + feature_set.spec.name
             + " with "
-            + str(len(feature_set.entities))
+            + str(len(feature_set.spec.entities))
             + " entities and "
-            + str(len(feature_set.features))
+            + str(len(feature_set.spec.features))
             + " features"
         )
 
         return ApplyFeatureSetResponse(
-            feature_set=feature_set, status=ApplyFeatureSetResponse.Status.CREATED
+            feature_set=applied_feature_set,
+            status=ApplyFeatureSetResponse.Status.CREATED,
         )
 
 

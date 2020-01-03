@@ -37,15 +37,17 @@ public class YamlToProtoMapperTest {
             + "  host: localhost\n"
             + "  port: 6379\n"
             + "subscriptions:\n"
-            + "- name: \"*\"\n"
-            + "  version: \">0\"\n";
+            + "- project: \"*\"\n"
+            + "  name: \"*\"\n"
+            + "  version: \"*\"\n";
     Store store = YamlToProtoMapper.yamlToStoreProto(yaml);
     Store expected =
         Store.newBuilder()
             .setName("test")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379))
-            .addSubscriptions(Subscription.newBuilder().setName("*").setVersion(">0"))
+            .addSubscriptions(
+                Subscription.newBuilder().setProject("*").setName("*").setVersion("*"))
             .build();
     assertThat(store, equalTo(expected));
   }

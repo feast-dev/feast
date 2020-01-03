@@ -8,44 +8,102 @@ This installation guide will demonstrate three ways of installing Feast:
 * [**Minikube**](installing-feast.md#minikube)**:** This installation has no external dependencies, but does not have a historical feature store installed. It allows users to quickly get a feel for Feast.
 * [**Google Kubernetes Engine:**](installing-feast.md#google-kubernetes-engine) This guide installs a single cluster Feast installation on Google's GKE. It has Google Cloud specific dependencies like BigQuery, Dataflow, and Google Cloud Storage.
 
-## Docker Compose
+## Docker Compose \(Quickstart\)
 
 ### Overview
 
-A docker compose file is provided to quickly test Feast with the official docker images. There is no hard dependency on GCP, unless batch serving is required. 
+A docker compose file is provided to quickly test Feast with the official docker images. There is no hard dependency on GCP, unless batch serving is required. Once you have set up Feast using Docker Compose, you will be able to:
 
-* Define and register feature set
-* Feature ingestion
+* Create, register, and manage feature sets
+* Ingest feature data into Feast
 * Retrieve features for online serving
-* Updating the feature set
 
-The docker compose setup uses Direct Runner for the Apache Beam jobs.
+{% hint style="info" %}
+The docker compose setup uses Direct Runner for the Apache Beam jobs. Running Beam with the Direct Runner means it does not need a dedicated runner like Flink or Dataflow, but this comes at the cost of performance. We recommend the use of a full runner when running Feast with very large workloads.
+{% endhint %}
 
 ### 0. Requirements
 
-1. [Docker compose](https://docs.docker.com/compose/install/) should be installed.
-2. TCP ports 6565, 6566, 8888, and 9094 are not in use. Otherwise, modify the port mappings in  `infra/docker-compose/docker-compose.yml` to use unoccupied ports.
-3. \(optional\) For batch serving you will also need a [GCP service account key](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) that has access to GCS and BigQuery. Port 6567 will be used for the batch serving endpoint.
+* [Docker compose](https://docs.docker.com/compose/install/) should be installed.
+* TCP ports 6565, 6566, 8888, and 9094 should not be in use. Otherwise, modify the port mappings in  `infra/docker-compose/docker-compose.yml` to use unoccupied ports.
+* \(for batch serving only\) For batch serving you will also need a [GCP service account key](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) that has access to GCS and BigQuery. Port 6567 will be used for the batch serving endpoint.
+* \(for batch serving only\) [Google Cloud SDK ](https://cloud.google.com/sdk/install)installed, authenticated, and configured to the project you will use.
 
-### 1. Step-by-step guide \(Online serving\)
+### 1. Step-by-step guide \(Online serving only\)
 
-1. Navigate to `infra/docker-compose`.
-2. Copy `.env.sample` to `.env`.
-3. `docker-compose up -d`
-4. A Jupyter Notebook server should be accessible via `localhost:8888`
-5. Please wait a minute or two for the Feast services to be ready before running the notebook. You will know that the services are ready when port `6565` and `6566` starts listening.
+Clone the [Feast repository](https://github.com/gojek/feast/) and navigate to the `docker-compose` sub-directory:
 
-### 2. Step-by-step guide \(Batch serving\)
+```bash
+git clone https://github.com/gojek/feast.git && \
+cd feast && export FEAST_HOME_DIR=$(pwd) && \
+cd infra/docker-compose
+```
 
-1. Navigate to `infra/docker-compose`.
-2. Copy `.env.sample` to `.env`.
-3. Copy your GCP account service key\(s\) to `infra/docker-compose/gcp-service-accounts`.
-4. Modify the value of `FEAST_<SERVICE_NAME>_GCP_SERVICE_ACCOUNT_KEY` in your `.env` file. It should be the json file name without extension.
-5. Modify the value of `infra/docker-compose/serving/bq-store.yml`. Alternatively, you can also point to a different store configuration file by modifying `FEAST_BATCH_STORE_CONFIG` in your `.env` file.
-6. `docker-compose -f docker-compose.yml -f docker-compose.batch.yml up -d`
-7. A jupyter notebook server should be accessible via `localhost:8888`
-8. Please wait a minute or two for the Feast services to be ready before running the notebook. You will know that the services are ready when port `6565` and `6567` starts listening.
-9. When you are done, run `docker-compose -f docker-compose.yml -f docker-compose.batch.yml down` to shutdown the services.
+Make a copy of the `.env.sample` file:
+
+```bash
+cp .env.sample .env
+```
+
+Start Feast:
+
+```javascript
+docker-compose up -d
+```
+
+A Jupyter notebook is now available to use Feast:
+
+[http://localhost:8888/notebooks/feast-notebooks/feast-quickstart.ipynb](http://localhost:8888/notebooks/feast-notebooks/feast-quickstart.ipynb)
+
+### 2. Step-by-step guide \(Batch and online serving\)
+
+Clone the [Feast repository](https://github.com/gojek/feast/) and navigate to the `docker-compose` sub-directory:
+
+```bash
+git clone https://github.com/gojek/feast.git && \
+cd feast && export FEAST_HOME_DIR=$(pwd) && \
+cd infra/docker-compose
+```
+
+Create a [service account ](https://cloud.google.com/iam/docs/creating-managing-service-accounts)from the GCP console and copy it to the `gcp-service-accounts` folder:
+
+```javascript
+cp my-service-account.json ${FEAST_HOME_DIR}/infra/docker-compose/gcp-service-accounts
+```
+
+Create a Google Cloud Storage bucket. Make sure that your service account above has read/write permissions to this bucket:
+
+```bash
+gsutil mb gs://my-feast-staging-bucket
+```
+
+Make a copy of the `.env.sample` file:
+
+```bash
+cp .env.sample .env
+```
+
+Customize the `.env` file based on your environment. At the very least you have to modify:
+
+* **FEAST\_CORE\_GCP\_SERVICE\_ACCOUNT\_KEY:** This should be your service account file name without the .json extension.
+* **FEAST\_BATCH\_SERVING\_GCP\_SERVICE\_ACCOUNT\_KEY:** This should be your service account file name without the .json extension.
+* **FEAST\_JUPYTER\_GCP\_SERVICE\_ACCOUNT\_KEY:** This should be your service account file name without the .json extension.
+* **FEAST\_JOB\_STAGING\_LOCATION:** Google Cloud Storage bucket that Feast will use to stage data exports and batch retrieval requests.
+
+We will also need to customize the `bq-store.yml` file inside `infra/docker-compose/serving/` to configure the BigQuery storage configuration as well as the feature sets that the store subscribes to. At a minimum you will need to set:
+
+* **project\_id:** This is you GCP project id.
+* **dataset\_id:** This is the name of the BigQuery dataset that tables will be created in. Each feature set will have one table in BigQuery.
+
+Start Feast:
+
+```javascript
+docker-compose -f docker-compose.yml -f docker-compose.batch.yml up -d
+```
+
+A Jupyter notebook is now available to use Feast:
+
+[http://localhost:8888/notebooks/feast-notebooks](http://localhost:8888/tree/feast-notebooks)
 
 ## Minikube
 
@@ -67,7 +125,7 @@ The following software should be installed prior to starting:
 
 1. [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/) should be installed.
 2. [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) installed and configured to work with Minikube.
-3. [Helm](https://helm.sh/3) \(2.16.0 or greater\).
+3. [Helm](https://helm.sh/3) \(2.16.0 or greater\). Helm 3 has not been tested yet.
 
 ### 1. Set up Minikube
 
@@ -154,30 +212,6 @@ feast config set core_url ${FEAST_CORE_URL}
 feast config set serving_url ${FEAST_SERVING_URL}
 ```
 
-Make sure that both Feast Core and Feast Serving are connected:
-
-```bash
-feast version
-```
-
-```javascript
-{
-  "sdk": {
-    "version": "feast 0.3.2"
-  },
-  "core": {
-    "url": "192.168.99.100:32090",
-    "version": "0.3",
-    "status": "connected"
-  },
-  "serving": {
-    "url": "192.168.99.100:32091",
-    "version": "0.3",
-    "status": "connected"
-  }
-}
-```
-
 That's it! You can now start to use Feast!
 
 ## Google Kubernetes Engine
@@ -203,7 +237,7 @@ This guide requires [Google Cloud Platform](https://cloud.google.com/) for insta
 
 1. [Google Cloud SDK ](https://cloud.google.com/sdk/install)installed, authenticated, and configured to the project you will use.
 2. [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) installed.
-3. [Helm](https://helm.sh/3) \(2.16.0 or greater\) installed on your local machine with Tiller installed in your cluster.
+3. [Helm](https://helm.sh/3) \(2.16.0 or greater\) installed on your local machine with Tiller installed in your cluster. Helm 3 has not been tested yet.
 
 ### 1. Set up GCP
 
@@ -384,30 +418,6 @@ Configure the Feast Python SDK:
 ```bash
 feast config set core_url ${FEAST_CORE_URL}
 feast config set serving_url ${FEAST_ONLINE_SERVING_URL}
-```
-
-Make sure that both Feast Core and Feast Serving are connected:
-
-```bash
-feast version
-```
-
-```javascript
-{
-  "sdk": {
-    "version": "feast 0.3.2"
-  },
-  "core": {
-    "url": "192.168.99.100:32090",
-    "version": "0.3",
-    "status": "connected"
-  },
-  "serving": {
-    "url": "192.168.99.100:32091",
-    "version": "0.3",
-    "status": "connected"
-  }
-}
 ```
 
 That's it! You can now start to use Feast!

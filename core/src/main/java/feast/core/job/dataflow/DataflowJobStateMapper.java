@@ -58,7 +58,7 @@ public class DataflowJobStateMapper {
    * @return JobStatus.
    * @throws IllegalArgumentException if jobState is invalid.
    */
-  public JobStatus map(String jobState) {
+  public static JobStatus map(String jobState) {
     DataflowJobState dfJobState = DataflowJobState.valueOf(jobState);
     if (DATAFLOW_TO_FEAST_JOB_STATUS.containsKey(dfJobState)) {
       return DATAFLOW_TO_FEAST_JOB_STATUS.get(dfJobState);

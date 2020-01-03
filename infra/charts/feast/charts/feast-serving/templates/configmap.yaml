@@ -19,7 +19,7 @@ data:
 {{- end }}
 
 {{- $store := index .Values "store.yaml" }}
-{{- if eq $store.type "BIGQUERY" }}
+{{- if and (eq $store.type "BIGQUERY") (not (hasKey $config.feast.jobs "store-options")) }}
 {{- $jobStore := dict "host" (printf "%s-redis-headless" .Release.Name) "port" 6379 }}
 {{- $newConfig := dict "feast" (dict "jobs" (dict "store-options" $jobStore)) }}
 {{- $config := mergeOverwrite $config $newConfig }}

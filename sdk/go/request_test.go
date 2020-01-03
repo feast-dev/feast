@@ -20,24 +20,40 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 		{
 			name: "valid",
 			req: OnlineFeaturesRequest{
-				Features: []string{"fs:1:feature1", "fs:1:feature2", "fs:2:feature1"},
+				Features: []string{"my_project_1/feature1:1", "my_project_2/feature1:1", "my_project_4/feature3", "feature2:2", "feature2"},
 				Entities: []Row{
 					{"entity1": Int64Val(1), "entity2": StrVal("bob")},
 					{"entity1": Int64Val(1), "entity2": StrVal("annie")},
 					{"entity1": Int64Val(1), "entity2": StrVal("jane")},
 				},
+				Project: "my_project_3",
 			},
 			want: &serving.GetOnlineFeaturesRequest{
-				FeatureSets: []*serving.FeatureSetRequest{
+				Features: []*serving.FeatureReference{
 					{
-						Name:         "fs",
-						Version:      1,
-						FeatureNames: []string{"feature1", "feature2"},
+						Project: "my_project_1",
+						Name:    "feature1",
+						Version: 1,
 					},
 					{
-						Name:         "fs",
-						Version:      2,
-						FeatureNames: []string{"feature1"},
+						Project: "my_project_2",
+						Name:    "feature1",
+						Version: 1,
+					},
+					{
+						Project: "my_project_4",
+						Name:    "feature3",
+						Version: 0,
+					},
+					{
+						Project: "my_project_3",
+						Name:    "feature2",
+						Version: 2,
+					},
+					{
+						Project: "my_project_3",
+						Name:    "feature2",
+						Version: 0,
 					},
 				},
 				EntityRows: []*serving.GetOnlineFeaturesRequest_EntityRow{
@@ -66,35 +82,69 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 			err:     nil,
 		},
 		{
-			name: "invalid_feature_name/wrong_format",
+			name: "valid_project_in_name",
 			req: OnlineFeaturesRequest{
-				Features: []string{"fs1:feature1"},
+				Features: []string{"project/feature1"},
+				Entities: []Row{},
+			},
+			want: &serving.GetOnlineFeaturesRequest{
+				Features: []*serving.FeatureReference{
+					{
+						Project: "project",
+						Name:    "feature1",
+						Version: 0,
+					},
+				},
+				EntityRows: []*serving.GetOnlineFeaturesRequest_EntityRow{
+				},
+				OmitEntitiesInResponse: false,
+			},
+			wantErr: false,
+			err:     nil,
+		},
+		{
+			name: "no_project",
+			req: OnlineFeaturesRequest{
+				Features: []string{"feature1"},
 				Entities: []Row{},
 			},
 			wantErr: true,
-			err:     fmt.Errorf(ErrInvalidFeatureName, "fs1:feature1"),
+			err:     fmt.Errorf(ErrInvalidFeatureName, "feature1"),
+		},
+		{
+			name: "invalid_feature_name/wrong_format",
+			req: OnlineFeaturesRequest{
+				Features: []string{"fs1:3:feature1"},
+				Entities: []Row{},
+				Project: "my_project",
+			},
+			wantErr: true,
+			err:     fmt.Errorf(ErrInvalidFeatureName, "fs1:3:feature1"),
 		},
 		{
 			name: "invalid_feature_name/invalid_version",
 			req: OnlineFeaturesRequest{
-				Features: []string{"fs:a:feature1"},
+				Features: []string{"project/a:feature1"},
 				Entities: []Row{},
 			},
 			wantErr: true,
-			err:     fmt.Errorf(ErrInvalidFeatureName, "fs:a:feature1"),
+			err:     fmt.Errorf(ErrInvalidFeatureName, "project/a:feature1"),
 		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := tc.req.buildRequest()
+
 			if (err != nil) != tc.wantErr {
 				t.Errorf("error = %v, wantErr %v", err, tc.wantErr)
 				return
 			}
+
 			if tc.wantErr && err.Error() != tc.err.Error() {
 				t.Errorf("error = %v, expected err = %v", err, tc.err)
 				return
 			}
+
 			if !cmp.Equal(got, tc.want) {
 				m := json.Marshaler{}
 				gotJson, _ := m.MarshalToString(got)

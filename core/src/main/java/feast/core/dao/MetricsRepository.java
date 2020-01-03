@@ -23,5 +23,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface MetricsRepository extends JpaRepository<Metrics, Long> {
-  List<Metrics> findByJobInfo_Id(String id);
+  List<Metrics> findByJob_Id(String id);
 }

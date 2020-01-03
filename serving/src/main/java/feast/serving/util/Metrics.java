@@ -23,10 +23,10 @@ public class Metrics {
 
   public static final Histogram requestLatency =
       Histogram.build()
-          .buckets(2, 4, 6, 8, 10, 15, 20, 25, 30, 35, 50)
+          .buckets(0.001, 0.002, 0.004, 0.006, 0.008, 0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.05)
           .name("request_latency_ms")
           .subsystem("feast_serving")
-          .help("Request latency in milliseconds.")
+          .help("Request latency in seconds.")
           .labelNames("method")
           .register();
 
@@ -35,7 +35,7 @@ public class Metrics {
           .name("request_feature_count")
           .subsystem("feast_serving")
           .help("number of feature rows requested")
-          .labelNames("feature_set_name")
+          .labelNames("project", "feature_name")
           .register();
 
   public static final Counter missingKeyCount =
@@ -43,7 +43,7 @@ public class Metrics {
           .name("missing_feature_count")
           .subsystem("feast_serving")
           .help("number requested feature rows that were not found")
-          .labelNames("feature_set_name")
+          .labelNames("project", "feature_name")
           .register();
 
   public static final Counter staleKeyCount =
@@ -51,6 +51,6 @@ public class Metrics {
           .name("stale_feature_count")
           .subsystem("feast_serving")
           .help("number requested feature rows that were stale")
-          .labelNames("feature_set_name")
+          .labelNames("project", "feature_name")
           .register();
 }
