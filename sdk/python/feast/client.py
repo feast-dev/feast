@@ -164,7 +164,10 @@ class Client:
             raise ValueError("Please set Feast Core URL.")
 
         if self.__core_channel is None:
-            self.__core_channel = grpc.insecure_channel(self.core_url)
+            if self.core_url.endswith(":443"):
+                self.__core_channel = grpc.secure_channel(self.core_url, grpc.ssl_channel_credentials())
+            else:
+                self.__core_channel = grpc.insecure_channel(self.core_url)
 
         try:
             grpc.channel_ready_future(self.__core_channel).result(

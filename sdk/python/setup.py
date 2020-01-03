@@ -11,15 +11,28 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import os
 from setuptools import find_packages, setup
+
+
+def sha_commit_from_version_file(filepath):
+    if not os.path.exists(filepath):
+        return None
+
+    with open(filepath) as _file:
+        return next(iter(_file.readlines()), None)
+
 
 NAME = "feast"
 DESCRIPTION = "Python sdk for Feast"
 URL = "https://github.com/gojek/feast"
 AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.6.0"
-VERSION = "0.3.2"
+VERSION_FILE = "VERSION"
+
+SHA_COMMIT = sha_commit_from_version_file(filepath=VERSION_FILE)
+SEM_VERSION = "0.3.2"
+VERSION = SEM_VERSION if SHA_COMMIT is None else f"{SEM_VERSION}+{SHA_COMMIT}"
 
 REQUIRED = [
     "Click==7.*",

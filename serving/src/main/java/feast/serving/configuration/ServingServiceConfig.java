@@ -21,26 +21,18 @@ import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import feast.core.StoreProto.Store;
-import feast.core.StoreProto.Store.BigQueryConfig;
-import feast.core.StoreProto.Store.Builder;
-import feast.core.StoreProto.Store.RedisConfig;
-import feast.core.StoreProto.Store.StoreType;
-import feast.core.StoreProto.Store.Subscription;
+import feast.core.StoreProto.Store.*;
 import feast.serving.FeastProperties;
 import feast.serving.FeastProperties.JobProperties;
-import feast.serving.service.BigQueryServingService;
-import feast.serving.service.CachedSpecService;
-import feast.serving.service.JobService;
-import feast.serving.service.NoopJobService;
-import feast.serving.service.RedisServingService;
-import feast.serving.service.ServingService;
+import feast.serving.service.*;
 import io.opentracing.Tracer;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
+
+import java.util.Map;
 
 @Configuration
 public class ServingServiceConfig {
@@ -106,6 +98,9 @@ public class ServingServiceConfig {
       case BIGQUERY:
         BigQueryConfig bqConfig = store.getBigqueryConfig();
         BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+        log.debug("BigQuery: GOOGLE_CLOUD_PROJECT={}, GOOGLE_APPLICATION_CREDENTIALS={}, project-id={}, credentials={}",
+            System.getenv("GOOGLE_CLOUD_PROJECT"), System.getenv("GOOGLE_APPLICATION_CREDENTIALS"),
+            bigquery.getOptions().getProjectId(), bigquery.getOptions().getCredentials());
         Storage storage = StorageOptions.getDefaultInstance().getService();
         String jobStagingLocation = feastProperties.getJobs().getStagingLocation();
         if (!jobStagingLocation.contains("://")) {

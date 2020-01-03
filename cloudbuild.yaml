@@ -16,58 +16,46 @@ steps:
   - /cache/m2
 
 # JAVA
-- id: unit-test-core
+- id: unit-test
   waitFor: ['m2-cahce-pull']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: mvn
-  args: ['--settings=cloudbuild-settings.xml', '--projects=core', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
-- id: unit-test-ingestion
-  waitFor: ['unit-test-core']
-  name: 'maven:${_MAVEN_VERSION}'
-  entrypoint: mvn
-  args: ['--settings=cloudbuild-settings.xml', '--projects=ingestion', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
-- id: unit-test-serving
-  waitFor: ['unit-test-ingestion']
-  name: 'maven:${_MAVEN_VERSION}'
-  entrypoint: mvn
-  args: ['--settings=cloudbuild-settings.xml', '--projects=serving', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
+  args: ['--settings=cloudbuild-settings.xml', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
 - id: build-java
-  waitFor: ['unit-test-core', 'unit-test-ingestion', 'unit-test-serving']
+  waitFor: ['unit-test']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: mvn
-  args: ['--settings=cloudbuild-settings.xml', '--projects=core,ingestion,serving', '-Drevision=ff-${SHORT_SHA}', '-DskipTests=true', '--batch-mode', 'package']
+  args: ['--settings=cloudbuild-settings.xml', '-Drevision=ff-${SHORT_SHA}', '-DskipTests=true', '--batch-mode', 'package']
   timeout: 900s
 
-# CLI (GO)
+# SDK (GO)
 - id: gen-proto-go
   waitFor: ['-']
   name: 'gcr.io/konnekt-core/protoc-go:3.6.1'
   dir: '/workspace/protos'
   entrypoint: make
   args: ['gen-go']
-- id: unit-test-mockgen
-  waitFor: ['gen-proto-go']
-  name: 'gcr.io/konnekt-core/mockgen:1.3.1'
-  args: ['-package=mock', '-destination=cmd/mock/core_service.go', 'github.com/gojek/feast/protos/generated/go/feast/core', 'CoreServiceClient']
-- id: unit-test-cli-setup
+- id: unit-test-go-sdk-setup
   waitFor: ['-']
   name: 'golang:1.13'
   args: ['go', 'get', '-u', 'github.com/jstemmer/go-junit-report']
-- id: unit-test-cli-run
-  waitFor: ['unit-test-mockgen', 'unit-test-cli-setup']
+- id: unit-test-go-sdk-run
+  waitFor: ['gen-proto-go', 'unit-test-go-sdk-setup']
   name: 'golang:1.13'
-  args: ['go', 'test', '-v', './cli/feast/...']
-- id: build-cli
-  waitFor: ['unit-test-cli-run']
-  name: 'gcr.io/konnekt-core/protoc-go:3.6.1'
-  dir: '/workspace/cli'
-  entrypoint: make
-  args: ['build-all']
+  dir: '/workspace/sdk/go'
+  entrypoint: 'sh'
+  args: ['-c', 'go test -v 2>&1 | tee /log/unit-test-cli-run']
+- id: unit-test-go-sdk-report
+  waitFor: ['unit-test-go-sdk-run']
+  name: 'golang:1.13'
+  dir: '/workspace/sdk/go'
+  entrypoint: 'sh'
+  args: ['-c', 'cat /log/unit-test-cli-run | $${GOPATH}/bin/go-junit-report > /log/golang-sdk-test-report.xml']
 
 # SDK (Python)
 - id: gen-proto-python
   waitFor: ['-']
-  name: 'gcr.io/konnekt-core/protoc-python:3.6.1'
+  name: 'gcr.io/konnekt-core/protoc-python@sha256:61421f32abe11acac6a9aa6356a1b3cf009daa0fc3feb3d875e098fde422f8b0'
   dir: '/workspace/protos'
   entrypoint: make
   args: ['gen-python']
@@ -75,18 +63,26 @@ steps:
   waitFor: ['gen-proto-python']
   name: 'python:3.7-buster'
   dir: '/workspace/sdk/python'
-  env: ['SKIP_BIGQUERY_TEST=true'] # TODO: Configure project/permissions and re-enable
   entrypoint: sh
-  args: ['-c', 'pip install -r requirements-test.txt && pip install . && pytest ./tests']
-- id: install-python-sdk
+  args: ['-c', 'pip install -r requirements-ci.txt && pip install . && pytest']
+- id: upload-python-package
   waitFor: ['unit-test-python-sdk']
+  name: 'python:3.7-buster'
+  dir: '/workspace/sdk/python'
+  entrypoint: sh
+  args: ['-c', 'echo ${SHORT_SHA} >> VERSION && python setup.py sdist && pip install twine && twine upload dist/*${SHORT_SHA}* --repository-url https://${_PYPI_REPO} -u ${_PYPI_USER} -p ${_PYPI_PWD}']
+  env:
+    - SHORT_SHA=${SHORT_SHA}
+
+- id: install-python-sdk
+  waitFor: ['upload-python-package']
   name: 'python:3.7-buster'
   entrypoint: sh
   args: ['-c', 'pip install -qe sdk/python']
 
 # Integration Test (DISABLED TODO: Enable)
 - id: integration-test-setup
-  waitFor: ['build-java', 'build-cli', 'install-python-sdk']
+  waitFor: ['build-java', 'unit-test-go-sdk-report', 'install-python-sdk']
   name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: sh
   args: ['-c', 'echo TODO: prepare_integration_test.sh']
@@ -105,11 +101,11 @@ steps:
 - id: docker-build-core
   waitFor: ['build-java']
   name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--build-arg', 'REVISION=ff-${SHORT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}', '-f', 'Dockerfiles/core/Dockerfile', '.']
+  args: ['build', '--build-arg', 'REVISION=ff-${SHORT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}', '-f', 'infra/docker/core/Dockerfile', '.']
 - id: docker-build-serving
   waitFor: ['build-java']
   name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--build-arg', 'REVISION=ff-${SHORT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}', '-f', 'Dockerfiles/serving/Dockerfile', '.']
+  args: ['build', '--build-arg', 'REVISION=ff-${SHORT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}', '-f', 'infra/docker/serving/Dockerfile', '.']
 
 # Teardown
 - id: m2-cahce-push
@@ -130,11 +126,11 @@ images:
 - gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}
 - gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}
 
-artifacts:
-  objects:
-    location: 'gs://konnekt-artifacts/binaries/feast/ff-${SHORT_SHA}/'
-    paths:
-    - cli/bin/feast.*
+#artifacts:
+#  objects:
+#    location: 'gs://konnekt-artifacts/test-reports/feast/ff-${SHORT_SHA}/'
+#    paths:
+#    - /log/golang-sdk-test-report.xml
 
 options:
   machineType: N1_HIGHCPU_8
@@ -147,6 +143,8 @@ options:
     path: /cache/go
   - name: m2_cache
     path: /cache/m2
+  - name: logs
+    path: /log
 
 timeout: 1800s
 

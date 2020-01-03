@@ -16,12 +16,13 @@
   ~
   -->
 
-<Configuration status="WARN">
+<Configuration status="info">
     <Properties>
         <Property name="LOG_PATTERN">
             %d{yyyy-MM-dd HH:mm:ss.SSS} %5p ${hostName} --- [%15.15t] %-40.40c{1.} : %m%n%ex
         </Property>
         <Property name="APPENDER_TYPE">${env:LOG_TYPE:-Console}</Property>
+        <Property name="LOG_LEVEL">${env:LOG_LEVEL:-info}</Property>
     </Properties>
     <CustomLevels>
         <CustomLevel name="AUDIT" intLevel="350"/>
@@ -35,13 +36,16 @@
         </Console>
     </Appenders>
     <Loggers>
-        <Logger name="com.zaxxer.hikari" level="info" additivity="false">
+        <Logger name="feast.core" level="debug" additivity="false">
             <AppenderRef ref="${APPENDER_TYPE}Appender"/>
         </Logger>
-        <Logger name="org.hibernate.validator" level="info" additivity="false">
+        <Logger name="com.zaxxer.hikari" level="warn" additivity="false">
             <AppenderRef ref="${APPENDER_TYPE}Appender"/>
         </Logger>
-        <Root level="warn">
+        <Logger name="org.hibernate.validator" level="warn" additivity="false">
+            <AppenderRef ref="${APPENDER_TYPE}Appender"/>
+        </Logger>
+        <Root level="${LOG_LEVEL}">
             <AppenderRef ref="${APPENDER_TYPE}Appender"/>
         </Root>
     </Loggers>
