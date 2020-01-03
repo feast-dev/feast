@@ -20,6 +20,7 @@ import static feast.serving.store.bigquery.QueryTemplater.createEntityTableUUIDQ
 import static feast.serving.store.bigquery.QueryTemplater.generateFullTableName;
 import static feast.serving.util.Metrics.requestLatency;
 
+import com.google.cloud.RetryOption;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Field;
@@ -57,12 +58,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import org.joda.time.Duration;
 import org.slf4j.Logger;
+import org.threeten.bp.Duration;
 
 public class BigQueryServingService implements ServingService {
 
-  public static final long TEMP_TABLE_EXPIRY_DURATION_MS = Duration.standardDays(1).getMillis();
+  public static final long TEMP_TABLE_EXPIRY_DURATION_MS = Duration.ofDays(1).toMillis();
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(BigQueryServingService.class);
 
   private final BigQuery bigquery;
