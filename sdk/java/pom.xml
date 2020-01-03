@@ -69,6 +69,15 @@
       <scope>compile</scope>
     </dependency>
 
+    <!-- Java 11 Upgrade -->
+    <dependency>
+      <groupId>javax.xml.bind</groupId>
+      <artifactId>jaxb-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>javax.annotation</groupId>
+      <artifactId>javax.annotation-api</artifactId>
+    </dependency>
   </dependencies>
 
   <build>

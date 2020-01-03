@@ -48,7 +48,6 @@ docker run --rm --name feast-build \
     -e FEAST_VERSION=ff-$(git rev-parse --short HEAD) \
     --entrypoint mvn -- \
     maven:3.6.2-jdk-11-slim \
-    --projects=core \
     -Drevision=ff-$(git rev-parse --short HEAD) \
     -Dtestbucket=dev-konnekt-data-deep-1-feast-tmp \
     test
@@ -64,10 +63,9 @@ docker run --rm --name feast-build \
     -e GOPATH=/cache/go \
     -e MAVEN_OPTS=-Dmaven.repo.local=/cache/m2 \
     -e FEAST_VERSION=ff-$(git rev-parse --short HEAD) \
-    -e SKIP_BIGQUERY_TEST=true \
     --entrypoint sh -- \
     python:3.7-buster \
-    -c 'pip install -r requirements-test.txt && pip install . && pytest ./tests'
+    -c 'pip install -r requirements-ci.txt && pip install . && pytest ./tests'
 ```
 
 ### How-to: Run locally
@@ -91,6 +89,15 @@ docker run --rm --name postgresql \
 ```text
 LOG_TYPE=JSON;PROJECT_ID=dev-konnekt-data-deep-1;TRAINING_DATASET_PREFIX=feast_training;JOB_RUNNER=DataflowRunner;JOB_WORKSPACE=gs://dev-konnekt-data-deep-1-dataflow-workspace;JOB_OPTIONS={};STORE_SERVING_TYPE=noop;STORE_SERVING_OPTIONS={};STORE_WAREHOUSE_TYPE=bigquery;STORE_WAREHOUSE_OPTIONS={"project": "dev-konnekt-data-deep-1", "dataset": "feast_warehouse"};STORE_ERRORS_TYPE=stdout;STORE_ERRORS_OPTIONS=;DATAFLOW_PROJECT_ID=dev-konnekt-data-deep-1;DATAFLOW_LOCATION=europe-west4
 ```
+
+### Forward ports to run locally
+
+```bash
+kubectl port-forward -n deep svc/feast-postgresql-postgresql 5432:5432
+kubectl port-forward -n deep svc/feast-redis-jobstore-headless 6379:6379
+kubectl port-forward -n deep svc/feast-feast-core 6565:6565
+```
+
 ## Overview
 
 Feast (Feature Store) is a tool for managing and serving machine learning features. Feast is the bridge between models and data.

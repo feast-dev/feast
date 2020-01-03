@@ -16,47 +16,30 @@
  */
 package feast.serving.service;
 
-import static feast.serving.store.bigquery.QueryTemplater.createEntityTableUUIDQuery;
-import static feast.serving.store.bigquery.QueryTemplater.generateFullTableName;
-import static feast.serving.util.Metrics.requestCount;
-import static feast.serving.util.Metrics.requestLatency;
-
-import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryException;
-import com.google.cloud.bigquery.Field;
-import com.google.cloud.bigquery.FormatOptions;
+import com.google.cloud.RetryOption;
 import com.google.cloud.bigquery.Job;
-import com.google.cloud.bigquery.JobInfo;
-import com.google.cloud.bigquery.LoadJobConfiguration;
-import com.google.cloud.bigquery.QueryJobConfiguration;
-import com.google.cloud.bigquery.Schema;
-import com.google.cloud.bigquery.Table;
-import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.*;
 import com.google.cloud.storage.Storage;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.serving.ServingAPIProto;
-import feast.serving.ServingAPIProto.DataFormat;
-import feast.serving.ServingAPIProto.DatasetSource;
-import feast.serving.ServingAPIProto.FeastServingType;
-import feast.serving.ServingAPIProto.GetBatchFeaturesRequest;
-import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
-import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
-import feast.serving.ServingAPIProto.GetFeastServingInfoResponse;
-import feast.serving.ServingAPIProto.GetJobRequest;
-import feast.serving.ServingAPIProto.GetJobResponse;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.JobStatus;
-import feast.serving.ServingAPIProto.JobType;
+import feast.serving.ServingAPIProto.*;
 import feast.serving.store.bigquery.BatchRetrievalQueryRunnable;
 import feast.serving.store.bigquery.QueryTemplater;
 import feast.serving.store.bigquery.model.FeatureSetInfo;
 import io.grpc.Status;
+import org.slf4j.Logger;
+import org.threeten.bp.Duration;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
+
+import static feast.serving.store.bigquery.QueryTemplater.createEntityTableUUIDQuery;
+import static feast.serving.store.bigquery.QueryTemplater.generateFullTableName;
+import static feast.serving.util.Metrics.requestCount;
+import static feast.serving.util.Metrics.requestLatency;
 
 public class BigQueryServingService implements ServingService {
 
@@ -87,7 +70,9 @@ public class BigQueryServingService implements ServingService {
     this.storage = storage;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public GetFeastServingInfoResponse getFeastServingInfo(
       GetFeastServingInfoRequest getFeastServingInfoRequest) {
@@ -97,13 +82,17 @@ public class BigQueryServingService implements ServingService {
         .build();
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest getFeaturesRequest) {
     throw Status.UNIMPLEMENTED.withDescription("Method not implemented").asRuntimeException();
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public GetBatchFeaturesResponse getBatchFeatures(GetBatchFeaturesRequest getFeaturesRequest) {
     long startTime = System.currentTimeMillis();
@@ -147,25 +136,27 @@ public class BigQueryServingService implements ServingService {
     jobService.upsert(feastJob);
 
     new Thread(
-            BatchRetrievalQueryRunnable.builder()
-                .setEntityTableName(entityTableName)
-                .setBigquery(bigquery)
-                .setStorage(storage)
-                .setJobService(jobService)
-                .setProjectId(projectId)
-                .setDatasetId(datasetId)
-                .setFeastJobId(feastJobId)
-                .setEntityTableColumnNames(entityNames)
-                .setFeatureSetInfos(featureSetInfos)
-                .setJobStagingLocation(jobStagingLocation)
-                .build())
+        BatchRetrievalQueryRunnable.builder()
+            .setEntityTableName(entityTableName)
+            .setBigquery(bigquery)
+            .setStorage(storage)
+            .setJobService(jobService)
+            .setProjectId(projectId)
+            .setDatasetId(datasetId)
+            .setFeastJobId(feastJobId)
+            .setEntityTableColumnNames(entityNames)
+            .setFeatureSetInfos(featureSetInfos)
+            .setJobStagingLocation(jobStagingLocation)
+            .build())
         .start();
 
     requestLatency.labels("getBatchFeatures").observe(System.currentTimeMillis() - startTime);
     return GetBatchFeaturesResponse.newBuilder().setJob(feastJob).build();
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public GetJobResponse getJob(GetJobRequest getJobRequest) {
     Optional<ServingAPIProto.Job> job = jobService.get(getJobRequest.getJob().getId());
@@ -197,7 +188,15 @@ public class BigQueryServingService implements ServingService {
           loadJobConfiguration =
               loadJobConfiguration.toBuilder().setUseAvroLogicalTypes(true).build();
           Job job = bigquery.create(JobInfo.of(loadJobConfiguration));
-          job.waitFor();
+          // TODO: Configurable retry options
+          Job completedJob = job.waitFor(
+              RetryOption.initialRetryDelay(Duration.ofSeconds(1)),
+              RetryOption.totalTimeout(Duration.ofMinutes(10)));
+          if (completedJob == null) {
+            throw new RuntimeException("Job no longer exists");
+          } else if (completedJob.getStatus().getError() != null) {
+            throw new RuntimeException("Job failed:" + completedJob.getStatus().getError());
+          }
           loadedEntityTable = bigquery.getTable(tableId);
           if (!loadedEntityTable.exists()) {
             throw new RuntimeException(
