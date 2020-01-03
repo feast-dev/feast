@@ -17,23 +17,3 @@ Feast aims to:
 
 This means that new ML projects start with a process of feature selection from a catalog instead of having to do feature engineering from scratch.
 
-```python
-# Setting things up
-fs = feast.Client('feast.example.com')
-customer_ids = ['1001', '1002', '1003']
-customer_features = ['CreditScore', 'Balance', 'Age', 'NumOfProducts', 'IsActive']
-from_date = '2019-01-01'
-to_date = '2019-12-31'
-
-# Training your model (typically from a notebook or pipeline)
-data = fs.get_batch_features(customer_features, customer_ids, from_date, to_date)
-my_model = ml.fit(data.to_train(), data.to_train())
-
-# Serving predictions (when serving the model in production)
-prediction = my_model.predict(fs.get_online_features(customer_features, customer_ids))
-```
-
-The code above is for illustrative purposes. Please see our getting started guide for more realistic examples.
-
-For more reasons to use Feast, please see [Why Feast?](why-feast.md#why-feast)
-

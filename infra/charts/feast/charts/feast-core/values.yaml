@@ -62,6 +62,8 @@ application.yaml:
     jobs:
       runner: DirectRunner
       options: {}
+      updates:
+        timeoutSeconds: 240
       metrics:
         enabled: false
         type: statsd
@@ -77,6 +79,7 @@ application.yaml:
   spring:
     jpa:
       properties.hibernate.format_sql: true
+      properties.hibernate.event.merge.entity_copy_observer: allow
       hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
       hibernate.ddl-auto: update
     datasource:

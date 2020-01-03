@@ -2,32 +2,41 @@ prowjob_namespace: default
 pod_namespace: test-pods
 
 plank:
-  allow_cancellations: true
-  job_url_prefix: http://prow.feast.ai/view/gcs
+  job_url_prefix_config:
+    "*": http://prow.feast.ai/view/gcs
   report_template: '[Full PR test history](https://prow.feast.ai/pr-history?org={{.Spec.Refs.Org}}&repo={{.Spec.Refs.Repo}}&pr={{with index .Spec.Refs.Pulls 0}}{{.Number}}{{end}})'
-  default_decoration_config:
-    timeout: 7200000000000    # 2h
-    grace_period: 15000000000 # 15s
-    utility_images:
-      clonerefs: gcr.io/k8s-prow/clonerefs:v20190221-d14461a
-      initupload: gcr.io/k8s-prow/initupload:v20190221-d14461a
-      entrypoint: gcr.io/k8s-prow/entrypoint:v20190221-d14461a
-      sidecar: gcr.io/k8s-prow/sidecar:v20190221-d14461a
-    gcs_configuration:
-      bucket: feast-templocation-kf-feast
-      path_strategy: explicit
-    gcs_credentials_secret: prow-service-account
+  pod_pending_timeout: 60m
+  default_decoration_configs:
+    "*":
+      timeout: 1h
+      grace_period: 15s
+      utility_images:
+        clonerefs: gcr.io/k8s-prow/clonerefs:v20190221-d14461a
+        initupload: gcr.io/k8s-prow/initupload:v20190221-d14461a
+        entrypoint: gcr.io/k8s-prow/entrypoint:v20190221-d14461a
+        sidecar: gcr.io/k8s-prow/sidecar:v20190221-d14461a
+      gcs_configuration:
+        bucket: feast-templocation-kf-feast
+        path_strategy: explicit
+      gcs_credentials_secret: prow-service-account
 
 deck:
   tide_update_period: 1s
   spyglass:
-    size_limit: 50e+6 # 50MB
-    viewers:
-      "started.json|finished.json": ["metadata"]
-      "build-log.txt": ["buildlog"]
-      "report.xml": ["junit"]
-      "artifacts/.*\\.xml": ["junit"]
-      "surefire-reports/.*\\.xml": ["junit"]
+    size_limit: 10e+6 # 10MB
+    lenses:
+    - lens:
+        name: metadata
+      required_files:
+      - started.json|finished.json
+    - lens:
+        name: buildlog
+      required_files:
+      - build-log.txt
+    - lens:
+        name: junit
+      required_files:
+      - artifacts/.*\.xml
 
 tide:
   queries:
@@ -47,7 +56,9 @@ tide:
   blocker_label: merge-blocker
   squash_label: tide/squash
 
-# presubmits list Prow jobs that run on pull requests
+# presubmits and postsubmits configure ProwJobs:
+# https://github.com/kubernetes/test-infra/blob/6571843b1aa7bd6cf577a7a8b9e9971241f424d5/prow/jobs.md
+
 presubmits:
   gojek/feast:
   - name: test-core-and-ingestion
@@ -59,8 +70,8 @@ presubmits:
         command: [".prow/scripts/test-core-ingestion.sh"]
         resources:
           requests:
-            cpu: "1000m"
-            memory: "512Mi"
+            cpu: "1500m"
+            memory: "1536Mi"
           limit:
             memory: "4096Mi"
 
@@ -105,10 +116,10 @@ presubmits:
         command: [".prow/scripts/test-end-to-end.sh"]
         resources:
           requests:
-            cpu: "1000m"
-            memory: "1024Mi"
-          limit:
+            cpu: "3000m"
             memory: "4096Mi"
+          limit:
+            memory: "6144Mi"
 
   - name: test-end-to-end-batch
     decorate: true
@@ -131,8 +142,140 @@ presubmits:
         - name: service-account
           mountPath: "/etc/service-account"
 
-# TODO: do a release when a git tag is pushed
-#
-# postsubmits list Prow jobs that run on every push 
-# postsubmits:
-#   gojek/feast:
+postsubmits:
+  gojek/feast:
+  - name: publish-python-sdk
+    decorate: true
+    spec:
+      containers:
+      - image: python:3
+        command:
+        - sh
+        - -c
+        - |
+          .prow/scripts/publish-python-sdk.sh \
+            --directory-path sdk/python --repository pypi
+        volumeMounts:
+        - name: pypirc
+          mountPath: /root/.pypirc
+          subPath: .pypirc
+          readOnly: true
+      volumes:
+      - name: pypirc
+        secret:
+          secretName: pypirc
+    branches:
+    # Filter on tags with semantic versioning, prefixed with "v"
+    # https://github.com/semver/semver/issues/232
+    - ^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$
+
+  - name: publish-docker-images
+    decorate: true
+    spec:
+      containers:
+      - image: google/cloud-sdk:273.0.0
+        command:
+        - bash
+        - -c
+        - |
+          .prow/scripts/download-maven-cache.sh \
+            --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
+            --output-dir $PWD/
+
+          if [ $PULL_BASE_REF == "master" ]; then
+
+          .prow/scripts/publish-docker-image.sh \
+            --repository gcr.io/kf-feast/feast-core \
+            --tag dev \
+            --file infra/docker/core/Dockerfile \
+            --google-service-account-file /etc/gcloud/service-account.json
+
+          .prow/scripts/publish-docker-image.sh \
+            --repository gcr.io/kf-feast/feast-serving \
+            --tag dev \
+            --file infra/docker/serving/Dockerfile \
+            --google-service-account-file /etc/gcloud/service-account.json
+
+          docker tag gcr.io/kf-feast/feast-core:dev gcr.io/kf-feast/feast-core:${PULL_BASE_SHA}
+          docker push gcr.io/kf-feast/feast-core:${PULL_BASE_SHA}
+
+          docker tag gcr.io/kf-feast/feast-serving:dev gcr.io/kf-feast/feast-serving:${PULL_BASE_SHA}
+          docker push gcr.io/kf-feast/feast-serving:${PULL_BASE_SHA}
+
+          else
+
+          .prow/scripts/publish-docker-image.sh \
+            --repository gcr.io/kf-feast/feast-core \
+            --tag ${PULL_BASE_REF:1} \
+            --file infra/docker/core/Dockerfile \
+            --google-service-account-file /etc/gcloud/service-account.json
+
+          .prow/scripts/publish-docker-image.sh \
+            --repository gcr.io/kf-feast/feast-serving \
+            --tag ${PULL_BASE_REF:1} \
+            --file infra/docker/serving/Dockerfile \
+            --google-service-account-file /etc/gcloud/service-account.json
+
+          docker tag gcr.io/kf-feast/feast-core:${PULL_BASE_REF:1} gcr.io/kf-feast/feast-core:latest
+          docker push gcr.io/kf-feast/feast-core:latest
+
+          docker tag gcr.io/kf-feast/feast-serving:${PULL_BASE_REF:1} gcr.io/kf-feast/feast-serving:latest
+          docker push gcr.io/kf-feast/feast-serving:latest
+
+          fi
+        volumeMounts:
+        - name: docker-socket
+          mountPath: /var/run/docker.sock
+        - name: service-account
+          mountPath: /etc/gcloud/service-account.json
+          subPath: service-account.json
+          readOnly: true
+        securityContext:
+          privileged: true
+      volumes:
+      - name: docker-socket
+        hostPath:
+          path: /var/run/docker.sock
+      - name: service-account
+        secret:
+          secretName: feast-service-account
+    branches:
+    - ^master$
+    - ^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$
+
+  - name: publish-helm-chart
+    decorate: true
+    spec:
+      containers:
+      - image: google/cloud-sdk:273.0.0-slim
+        command:
+        - bash
+        - -c
+        - |
+          gcloud auth activate-service-account --key-file /etc/gcloud/service-account.json
+
+          curl -s https://get.helm.sh/helm-v2.16.1-linux-amd64.tar.gz | tar -C /tmp -xz
+          mv /tmp/linux-amd64/helm /usr/bin/helm
+          helm init --client-only
+
+          sed -i "/version: /c\version: ${PULL_BASE_REF:1}" infra/charts/feast/Chart.yaml
+          sed -i "/  version: /c\  version: ${PULL_BASE_REF:1}" infra/charts/feast/requirements.yaml
+
+          sed -i "/version: /c\version: ${PULL_BASE_REF:1}" infra/charts/feast/charts/feast-core/Chart.yaml
+          sed -i "/  tag: /c\  tag: ${PULL_BASE_REF:1}" infra/charts/feast/charts/feast-core/values.yaml
+
+          sed -i "/version: /c\version: ${PULL_BASE_REF:1}" infra/charts/feast/charts/feast-serving/Chart.yaml
+          sed -i "/  tag: /c\  tag: ${PULL_BASE_REF:1}" infra/charts/feast/charts/feast-serving/values.yaml
+
+          .prow/scripts/sync-helm-charts.sh
+        volumeMounts:
+        - name: service-account
+          mountPath: /etc/gcloud/service-account.json
+          subPath: service-account.json
+          readOnly: true
+      volumes:
+      - name: service-account
+        secret:
+          secretName: feast-service-account
+    branches:
+    - ^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$

@@ -90,8 +90,9 @@ application.yaml:
 #     host: localhost
 #     port: 6379
 #   subscriptions:
-#   - name: "*"
-#     version: ">0"
+#   - project: "*"
+#     name: "*"
+#     version: "*"
 #
 # store.yaml:
 #   name: bigquery
@@ -100,14 +101,15 @@ application.yaml:
 #     project_id: PROJECT_ID
 #     dataset_id: DATASET_ID
 #   subscriptions:
-#   - name: "*"
-#     version: ">0"
+#   - project: "*"
+#     name: "*"
+#     version: "*"
 
 # springConfigMountPath is the directory path where application.yaml and 
 # store.yaml will be mounted in the container.
 springConfigMountPath: /etc/feast/feast-serving
 
-# gcpServiceAccount is the service account that Feast Core will use.
+# gcpServiceAccount is the service account that Feast Serving will use.
 gcpServiceAccount:
   # useExistingSecret specifies Feast to use an existing secret containing Google
   # Cloud service account JSON key file.

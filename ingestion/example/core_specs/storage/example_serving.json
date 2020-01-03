@@ -1,7 +1,0 @@
-{
-  "id": "example_serving",
-  "type": "file.json",
-  "options": {
-    "path": "output/serving/data"
-  }
-}

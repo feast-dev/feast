@@ -36,6 +36,7 @@ import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.bigquery.TimePartitioning.Type;
 import com.google.common.collect.ImmutableMap;
 import feast.core.FeatureSetProto.EntitySpec;
+import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
 import feast.core.StoreProto.Store;
@@ -99,7 +100,7 @@ public class StoreUtil {
     VALUE_TYPE_TO_STANDARD_SQL_TYPE.put(Enum.BOOL_LIST, StandardSQLTypeName.BOOL);
   }
 
-  public static void setupStore(Store store, FeatureSetSpec featureSetSpec) {
+  public static void setupStore(Store store, FeatureSet featureSet) {
     StoreType storeType = store.getType();
     switch (storeType) {
       case REDIS:
@@ -107,7 +108,7 @@ public class StoreUtil {
         break;
       case BIGQUERY:
         StoreUtil.setupBigQuery(
-            featureSetSpec,
+            featureSet,
             store.getBigqueryConfig().getProjectId(),
             store.getBigqueryConfig().getDatasetId(),
             BigQueryOptions.getDefaultInstance().getService());
@@ -185,17 +186,18 @@ public class StoreUtil {
    * <p>Refer to protos/feast/core/Store.proto for the derivation of the table name and schema from
    * a FeatureSetSpec object.
    *
-   * @param featureSetSpec FeatureSetSpec object
+   * @param featureSet FeatureSet object
    * @param bigqueryProjectId BigQuery project id
    * @param bigqueryDatasetId BigQuery dataset id
    * @param bigquery BigQuery service object
    */
   public static void setupBigQuery(
-      FeatureSetSpec featureSetSpec,
+      FeatureSet featureSet,
       String bigqueryProjectId,
       String bigqueryDatasetId,
       BigQuery bigquery) {
 
+    FeatureSetSpec featureSetSpec = featureSet.getSpec();
     // Ensure BigQuery dataset exists.
     DatasetId datasetId = DatasetId.of(bigqueryProjectId, bigqueryDatasetId);
     if (bigquery.getDataset(datasetId) == null) {
@@ -204,7 +206,9 @@ public class StoreUtil {
     }
 
     String tableName =
-        String.format("%s_v%d", featureSetSpec.getName(), featureSetSpec.getVersion())
+        String.format(
+                "%s_%s_v%d",
+                featureSetSpec.getProject(), featureSetSpec.getName(), featureSetSpec.getVersion())
             .replaceAll("-", "_");
     TableId tableId = TableId.of(bigqueryProjectId, datasetId.getDataset(), tableName);
 
@@ -224,7 +228,7 @@ public class StoreUtil {
         tableId.getTable(),
         datasetId.getDataset(),
         bigqueryProjectId);
-    TableDefinition tableDefinition = createBigQueryTableDefinition(featureSetSpec);
+    TableDefinition tableDefinition = createBigQueryTableDefinition(featureSet.getSpec());
     TableInfo tableInfo = TableInfo.of(tableId, tableDefinition);
     bigquery.create(tableInfo);
   }

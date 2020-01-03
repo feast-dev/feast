@@ -19,19 +19,23 @@ package feast.core.job.dataflow;
 import static feast.core.util.PipelineUtil.detectClassPathResourcesToStage;
 
 import com.google.api.services.dataflow.Dataflow;
-import com.google.api.services.dataflow.model.Job;
 import com.google.common.base.Strings;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.StoreProto.Store;
+import feast.core.FeatureSetProto;
+import feast.core.SourceProto;
+import feast.core.StoreProto;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
 import feast.core.model.FeatureSet;
-import feast.core.model.JobInfo;
+import feast.core.model.Job;
+import feast.core.model.JobStatus;
+import feast.core.model.Project;
+import feast.core.model.Source;
+import feast.core.model.Store;
 import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
 import feast.ingestion.options.ImportOptions;
@@ -40,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -72,27 +77,38 @@ public class DataflowJobManager implements JobManager {
   }
 
   @Override
-  public String startJob(String name, List<FeatureSetSpec> featureSets, Store sink) {
-    return submitDataflowJob(name, featureSets, sink, false);
+  public Job startJob(Job job) {
+    List<FeatureSetProto.FeatureSet> featureSetProtos =
+        job.getFeatureSets().stream().map(FeatureSet::toProto).collect(Collectors.toList());
+    try {
+      return submitDataflowJob(
+          job.getId(),
+          featureSetProtos,
+          job.getSource().toProto(),
+          job.getStore().toProto(),
+          false);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(String.format("Unable to start job %s", job.getId()), e);
+    }
   }
 
   /**
    * Update an existing Dataflow job.
    *
-   * @param jobInfo jobInfo of target job to change
+   * @param job job of target job to change
    * @return Dataflow-specific job id
    */
   @Override
-  public String updateJob(JobInfo jobInfo) {
+  public Job updateJob(Job job) {
     try {
-      List<FeatureSetSpec> featureSetSpecs = new ArrayList<>();
-      for (FeatureSet featureSet : jobInfo.getFeatureSets()) {
-        featureSetSpecs.add(featureSet.toProto());
-      }
+      List<FeatureSetProto.FeatureSet> featureSetProtos =
+          job.getFeatureSets().stream().map(FeatureSet::toProto).collect(Collectors.toList());
+
       return submitDataflowJob(
-          jobInfo.getId(), featureSetSpecs, jobInfo.getStore().toProto(), true);
+          job.getId(), featureSetProtos, job.getSource().toProto(), job.getStore().toProto(), true);
+
     } catch (InvalidProtocolBufferException e) {
-      throw new RuntimeException(String.format("Unable to update job %s", jobInfo.getId()), e);
+      throw new RuntimeException(String.format("Unable to update job %s", job.getId()), e);
     }
   }
 
@@ -104,9 +120,10 @@ public class DataflowJobManager implements JobManager {
   @Override
   public void abortJob(String dataflowJobId) {
     try {
-      Job job =
+      com.google.api.services.dataflow.model.Job job =
           dataflow.projects().locations().jobs().get(projectId, location, dataflowJobId).execute();
-      Job content = new Job();
+      com.google.api.services.dataflow.model.Job content =
+          new com.google.api.services.dataflow.model.Job();
       if (job.getType().equals(DataflowJobType.JOB_TYPE_BATCH.toString())) {
         content.setRequestedState(DataflowJobState.JOB_STATE_CANCELLED.toString());
       } else if (job.getType().equals(DataflowJobType.JOB_TYPE_STREAMING.toString())) {
@@ -125,13 +142,60 @@ public class DataflowJobManager implements JobManager {
     }
   }
 
-  private String submitDataflowJob(
-      String jobName, List<FeatureSetSpec> featureSets, Store sink, boolean update) {
+  /**
+   * Get status of a dataflow job with given id and try to map it into Feast's JobStatus.
+   *
+   * @param job Job containing dataflow job id
+   * @return status of the job, or return {@link JobStatus#UNKNOWN} if error happens.
+   */
+  @Override
+  public JobStatus getJobStatus(Job job) {
+    if (!Runner.DATAFLOW.getName().equals(job.getRunner())) {
+      return job.getStatus();
+    }
+
     try {
-      ImportOptions pipelineOptions = getPipelineOptions(jobName, featureSets, sink, update);
+      com.google.api.services.dataflow.model.Job dataflowJob =
+          dataflow.projects().locations().jobs().get(projectId, location, job.getExtId()).execute();
+      return DataflowJobStateMapper.map(dataflowJob.getCurrentState());
+    } catch (Exception e) {
+      log.error(
+          "Unable to retrieve status of a dataflow job with id : {}\ncause: {}",
+          job.getExtId(),
+          e.getMessage());
+    }
+    return JobStatus.UNKNOWN;
+  }
+
+  private Job submitDataflowJob(
+      String jobName,
+      List<FeatureSetProto.FeatureSet> featureSetProtos,
+      SourceProto.Source source,
+      StoreProto.Store sink,
+      boolean update) {
+    try {
+      ImportOptions pipelineOptions = getPipelineOptions(jobName, featureSetProtos, sink, update);
       DataflowPipelineJob pipelineResult = runPipeline(pipelineOptions);
+      List<FeatureSet> featureSets =
+          featureSetProtos.stream()
+              .map(
+                  fsp -> {
+                    FeatureSet featureSet = new FeatureSet();
+                    featureSet.setName(fsp.getSpec().getName());
+                    featureSet.setVersion(fsp.getSpec().getVersion());
+                    featureSet.setProject(new Project(fsp.getSpec().getProject()));
+                    return featureSet;
+                  })
+              .collect(Collectors.toList());
       String jobId = waitForJobToRun(pipelineResult);
-      return jobId;
+      return new Job(
+          jobName,
+          jobId,
+          getRunnerType().getName(),
+          Source.fromProto(source),
+          Store.fromProto(sink),
+          featureSets,
+          JobStatus.PENDING);
     } catch (Exception e) {
       log.error("Error submitting job", e);
       throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
@@ -139,16 +203,19 @@ public class DataflowJobManager implements JobManager {
   }
 
   private ImportOptions getPipelineOptions(
-      String jobName, List<FeatureSetSpec> featureSets, Store sink, boolean update)
+      String jobName,
+      List<FeatureSetProto.FeatureSet> featureSets,
+      StoreProto.Store sink,
+      boolean update)
       throws IOException {
     String[] args = TypeConversion.convertMapToArgs(defaultOptions);
     ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
     Printer printer = JsonFormat.printer();
     List<String> featureSetsJson = new ArrayList<>();
-    for (FeatureSetSpec featureSet : featureSets) {
-      featureSetsJson.add(printer.print(featureSet));
+    for (FeatureSetProto.FeatureSet featureSet : featureSets) {
+      featureSetsJson.add(printer.print(featureSet.getSpec()));
     }
-    pipelineOptions.setFeatureSetSpecJson(featureSetsJson);
+    pipelineOptions.setFeatureSetJson(featureSetsJson);
     pipelineOptions.setStoreJson(Collections.singletonList(printer.print(sink)));
     pipelineOptions.setProject(projectId);
     pipelineOptions.setUpdate(update);

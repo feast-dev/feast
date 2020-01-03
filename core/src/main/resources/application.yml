@@ -33,6 +33,9 @@ feast:
       region: ${DATAFLOW_LOCATION:}
       project: ${DATAFLOW_PROJECT_ID:}
       tempLocation: ${JOB_WORKSPACE:}
+    updates:
+      # Timeout in seconds for each attempt to update or submit a new job to the runner.
+      timeoutSeconds: 240
     metrics:
       # Enable metrics pushing for all ingestion jobs.
       enabled: false
@@ -55,7 +58,11 @@ feast:
 
 spring:
   jpa:
-    properties.hibernate.format_sql: true
+    properties.hibernate:
+      format_sql: true
+      event:
+        merge:
+          entity_copy_observer: allow
     hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
     hibernate.ddl-auto: update
   datasource:

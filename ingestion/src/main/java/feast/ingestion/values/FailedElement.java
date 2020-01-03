@@ -34,6 +34,9 @@ public abstract class FailedElement {
   public abstract String getJobName();
 
   @Nullable
+  public abstract String getProjectName();
+
+  @Nullable
   public abstract String getFeatureSetName();
 
   @Nullable
@@ -58,6 +61,8 @@ public abstract class FailedElement {
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setTimestamp(Instant timestamp);
+
+    public abstract Builder setProjectName(String projectName);
 
     public abstract Builder setFeatureSetName(String featureSetName);
 

@@ -13,21 +13,31 @@
 # limitations under the License.
 
 
-import pandas as pd
-from typing import List, Optional
 from collections import OrderedDict
 from typing import Dict
-from feast.source import Source
-from pandas.api.types import is_datetime64_ns_dtype
+from typing import List, Optional
+
+import pandas as pd
+import pyarrow as pa
+from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
+from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
+from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
 from feast.entity import Entity
 from feast.feature import Feature, Field
+from feast.loaders import yaml as feast_yaml
+from feast.source import Source
+from feast.type_map import DATETIME_COLUMN
+from feast.type_map import pa_to_feast_value_type
+from feast.type_map import python_type_to_feast_value_type
+from google.protobuf import json_format
 from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
+from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
+from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from google.protobuf.duration_pb2 import Duration
 from feast.type_map import python_type_to_feast_value_type
 from google.protobuf.json_format import MessageToJson
-from google.protobuf import json_format
-from feast.type_map import DATETIME_COLUMN
-from feast.loaders import yaml as feast_yaml
+from pandas.api.types import is_datetime64_ns_dtype
+from pyarrow.lib import TimestampType
 
 
 class FeatureSet:
@@ -38,12 +48,14 @@ class FeatureSet:
     def __init__(
         self,
         name: str,
+        project: str = None,
         features: List[Feature] = None,
         entities: List[Entity] = None,
         source: Source = None,
         max_age: Optional[Duration] = None,
     ):
         self._name = name
+        self._project = project
         self._fields = OrderedDict()  # type: Dict[str, Field]
         if features is not None:
             self.features = features
@@ -55,7 +67,8 @@ class FeatureSet:
             self._source = source
         self._max_age = max_age
         self._version = None
-        self._client = None
+        self._status = None
+        self._created_timestamp = None
 
     def __eq__(self, other):
         if not isinstance(other, FeatureSet):
@@ -65,7 +78,11 @@ class FeatureSet:
             if key not in other.fields.keys() or self.fields[key] != other.fields[key]:
                 return False
 
-        if self.name != other.name or self.max_age != other.max_age:
+        if (
+            self.name != other.name
+            or self.project != other.project
+            or self.max_age != other.max_age
+        ):
             return False
         return True
 
@@ -73,10 +90,14 @@ class FeatureSet:
         return str(MessageToJson(self.to_proto()))
 
     def __repr__(self):
-        shortname = "" + self._name
-        if self._version:
-            shortname += ":" + str(self._version).strip()
-        return shortname
+        ref = ""
+        if self.project:
+            ref += self.project + "/"
+        if self.name:
+            ref += self.name
+        if self.version:
+            ref += ":" + str(self.version).strip()
+        return ref
 
     @property
     def fields(self) -> Dict[str, Field]:
@@ -152,6 +173,20 @@ class FeatureSet:
         self._name = name
 
     @property
+    def project(self):
+        """
+        Returns the project that this feature set belongs to
+        """
+        return self._project
+
+    @project.setter
+    def project(self, project):
+        """
+        Sets the project that this feature set belongs to
+        """
+        self._project = project
+
+    @property
     def source(self):
         """
         Returns the source of this feature set
@@ -194,6 +229,34 @@ class FeatureSet:
         Set the maximum age for this feature set
         """
         self._max_age = max_age
+
+    @property
+    def status(self):
+        """
+        Returns the status of this feature set
+        """
+        return self._status
+
+    @status.setter
+    def status(self, status):
+        """
+        Sets the status of this feature set
+        """
+        self._status = status
+
+    @property
+    def created_timestamp(self):
+        """
+        Returns the created_timestamp of this feature set
+        """
+        return self._created_timestamp
+
+    @created_timestamp.setter
+    def created_timestamp(self, created_timestamp):
+        """
+        Sets the status of this feature set
+        """
+        self._created_timestamp = created_timestamp
 
     def add(self, resource):
         """
@@ -256,7 +319,6 @@ class FeatureSet:
         rows_to_sample: int = 100,
     ):
         """
-
         Adds fields (Features or Entities) to a feature set based on the schema
         of a Datatframe. Only Pandas dataframes are supported. All columns are
         detected as features, so setting at least one entity manually is
@@ -283,6 +345,7 @@ class FeatureSet:
                 must have consistent types, even values within list types must
                 be homogeneous
         """
+
         if entities is None:
             entities = list()
         if features is None:
@@ -373,7 +436,187 @@ class FeatureSet:
         self._fields = new_fields
         print(output_log)
 
-    def update_from_feature_set(self, feature_set):
+    def infer_fields_from_pa(
+        self,
+        table: pa.lib.Table,
+        entities: Optional[List[Entity]] = None,
+        features: Optional[List[Feature]] = None,
+        replace_existing_features: bool = False,
+        replace_existing_entities: bool = False,
+        discard_unused_fields: bool = False,
+    ) -> None:
+        """
+        Adds fields (Features or Entities) to a feature set based on the schema
+        of a PyArrow table. Only PyArrow tables are supported. All columns are
+        detected as features, so setting at least one entity manually is
+        advised.
+
+
+        Args:
+            table (pyarrow.lib.Table):
+                PyArrow table to read schema from.
+
+            entities (Optional[List[Entity]]):
+                List of entities that will be set manually and not inferred.
+                These will take precedence over any existing entities or
+                entities found in the PyArrow table.
+
+            features (Optional[List[Feature]]):
+                List of features that will be set manually and not inferred.
+                These will take precedence over any existing feature or features
+                found in the PyArrow table.
+
+            replace_existing_features (bool):
+                Boolean flag. If true, will replace existing features in this
+                feature set with features found in dataframe. If false, will
+                skip conflicting features.
+
+            replace_existing_entities (bool):
+                Boolean flag. If true, will replace existing entities in this
+                feature set with features found in dataframe. If false, will
+                skip conflicting entities.
+
+            discard_unused_fields (bool):
+                Boolean flag. Setting this to True will discard any existing
+                fields that are not found in the dataset or provided by the
+                user.
+
+        Returns:
+            None:
+                None
+        """
+        if entities is None:
+            entities = list()
+        if features is None:
+            features = list()
+
+        # Validate whether the datetime column exists with the right name
+        if DATETIME_COLUMN not in table.column_names:
+            raise Exception("No column 'datetime'")
+
+        # Validate the date type for the datetime column
+        if not isinstance(table.column(DATETIME_COLUMN).type, TimestampType):
+            raise Exception(
+                "Column 'datetime' does not have the correct type: datetime64[ms]"
+            )
+
+        # Create dictionary of fields that will not be inferred (manually set)
+        provided_fields = OrderedDict()
+
+        for field in entities + features:
+            if not isinstance(field, Field):
+                raise Exception(f"Invalid field object type provided {type(field)}")
+            if field.name not in provided_fields:
+                provided_fields[field.name] = field
+            else:
+                raise Exception(f"Duplicate field name detected {field.name}.")
+
+        new_fields = self._fields.copy()
+        output_log = ""
+
+        # Add in provided fields
+        for name, field in provided_fields.items():
+            if name in new_fields.keys():
+                upsert_message = "created"
+            else:
+                upsert_message = "updated (replacing an existing field)"
+
+            output_log += (
+                f"{type(field).__name__} {field.name}"
+                f"({field.dtype}) manually {upsert_message}.\n"
+            )
+            new_fields[name] = field
+
+        # Iterate over all of the column names and create features
+        for column in table.column_names:
+            column = column.strip()
+
+            # Skip datetime column
+            if DATETIME_COLUMN in column:
+                continue
+
+            # Skip user provided fields
+            if column in provided_fields.keys():
+                continue
+
+            # Only overwrite conflicting fields if replacement is allowed
+            if column in new_fields:
+                if (
+                    isinstance(self._fields[column], Feature)
+                    and not replace_existing_features
+                ):
+                    continue
+
+                if (
+                    isinstance(self._fields[column], Entity)
+                    and not replace_existing_entities
+                ):
+                    continue
+
+            # Store this fields as a feature
+            # TODO: (Minor) Change the parameter name from dtype to patype
+            new_fields[column] = Feature(
+                name=column, dtype=self._infer_pa_column_type(table.column(column))
+            )
+
+            output_log += f"{type(new_fields[column]).__name__} {new_fields[column].name} ({new_fields[column].dtype}) added from PyArrow Table.\n"
+
+        # Discard unused fields from feature set
+        if discard_unused_fields:
+            keys_to_remove = []
+            for key in new_fields.keys():
+                if not (key in table.column_names or key in provided_fields.keys()):
+                    output_log += f"{type(new_fields[key]).__name__} {new_fields[key].name} ({new_fields[key].dtype}) removed because it is unused.\n"
+                    keys_to_remove.append(key)
+            for key in keys_to_remove:
+                del new_fields[key]
+
+        # Update feature set
+        self._fields = new_fields
+        print(output_log)
+
+    def _infer_pd_column_type(self, column, series, rows_to_sample):
+        dtype = None
+        sample_count = 0
+
+        # Loop over all rows for this column to infer types
+        for key, value in series.iteritems():
+            sample_count += 1
+            # Stop sampling at the row limit
+            if sample_count > rows_to_sample:
+                continue
+
+            # Infer the specific type for this row
+            current_dtype = python_type_to_feast_value_type(name=column, value=value)
+
+            # Make sure the type is consistent for column
+            if dtype:
+                if dtype != current_dtype:
+                    raise ValueError(
+                        f"Type mismatch detected in column {column}. Both "
+                        f"the types {current_dtype} and {dtype} "
+                        f"have been found."
+                    )
+            else:
+                # Store dtype in field to type map if it isnt already
+                dtype = current_dtype
+
+        return dtype
+
+    def _infer_pa_column_type(self, column: pa.lib.ChunkedArray):
+        """
+        Infers the PyArrow column type.
+
+        :param column: Column from a PyArrow table
+        :type column: pa.lib.ChunkedArray
+        :return:
+        :rtype:
+        """
+        # Validates the column to ensure that value types are consistent
+        column.validate()
+        return pa_to_feast_value_type(column)
+
+    def _update_from_feature_set(self, feature_set):
         """
         Deep replaces one feature set with another
 
@@ -382,12 +625,15 @@ class FeatureSet:
         """
 
         self.name = feature_set.name
+        self.project = feature_set.project
         self.version = feature_set.version
         self.source = feature_set.source
         self.max_age = feature_set.max_age
         self.features = feature_set.features
         self.entities = feature_set.entities
         self.source = feature_set.source
+        self.status = feature_set.status
+        self.created_timestamp = feature_set.created_timestamp
 
     def get_kafka_source_brokers(self) -> str:
         """
@@ -410,6 +656,9 @@ class FeatureSet:
         Validates the state of a feature set locally. Raises an exception
         if feature set is invalid.
         """
+
+        if not self.name:
+            raise ValueError(f"No name found in feature set.")
 
         if len(self.entities) == 0:
             raise ValueError(f"No entities found in feature set {self.name}")
@@ -443,51 +692,62 @@ class FeatureSet:
         if ("kind" not in fs_dict) and (fs_dict["kind"].strip() != "feature_set"):
             raise Exception(f"Resource kind is not a feature set {str(fs_dict)}")
         feature_set_proto = json_format.ParseDict(
-            fs_dict, FeatureSetSpecProto(), ignore_unknown_fields=True
+            fs_dict, FeatureSetProto(), ignore_unknown_fields=True
         )
         return cls.from_proto(feature_set_proto)
 
     @classmethod
-    def from_proto(cls, feature_set_proto: FeatureSetSpecProto):
+    def from_proto(cls, feature_set_proto: FeatureSetProto):
         """
         Creates a feature set from a protobuf representation of a feature set
 
         Args:
-            from_proto: A protobuf representation of a feature set
+            feature_set_proto: A protobuf representation of a feature set
 
         Returns:
             Returns a FeatureSet object based on the feature set protobuf
         """
 
         feature_set = cls(
-            name=feature_set_proto.name,
+            name=feature_set_proto.spec.name,
             features=[
-                Feature.from_proto(feature) for feature in feature_set_proto.features
+                Feature.from_proto(feature)
+                for feature in feature_set_proto.spec.features
             ],
             entities=[
-                Entity.from_proto(entity) for entity in feature_set_proto.entities
+                Entity.from_proto(entity) for entity in feature_set_proto.spec.entities
             ],
-            max_age=feature_set_proto.max_age,
+            max_age=feature_set_proto.spec.max_age,
             source=(
                 None
-                if feature_set_proto.source.type == 0
-                else Source.from_proto(feature_set_proto.source)
+                if feature_set_proto.spec.source.type == 0
+                else Source.from_proto(feature_set_proto.spec.source)
             ),
+            project=feature_set_proto.spec.project
+            if len(feature_set_proto.spec.project) == 0
+            else feature_set_proto.spec.project,
         )
-        feature_set._version = feature_set_proto.version
+        feature_set._version = feature_set_proto.spec.version
+        feature_set._status = feature_set_proto.meta.status
+        feature_set._created_timestamp = feature_set_proto.meta.created_timestamp
         return feature_set
 
-    def to_proto(self) -> FeatureSetSpecProto:
+    def to_proto(self) -> FeatureSetProto:
         """
         Converts a feature set object to its protobuf representation
 
         Returns:
-            FeatureSetSpec protobuf
+            FeatureSetProto protobuf
         """
 
-        return FeatureSetSpecProto(
+        meta = FeatureSetMetaProto(
+            created_timestamp=self.created_timestamp, status=self.status
+        )
+
+        spec = FeatureSetSpecProto(
             name=self.name,
             version=self.version,
+            project=self.project,
             max_age=self.max_age,
             source=self.source.to_proto() if self.source is not None else None,
             features=[
@@ -501,6 +761,8 @@ class FeatureSet:
                 if type(field) == Entity
             ],
         )
+
+        return FeatureSetProto(spec=spec, meta=meta)
 
 
 def _infer_pd_column_type(column, series, rows_to_sample):

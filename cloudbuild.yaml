@@ -64,7 +64,7 @@ steps:
   name: 'python:3.7-buster'
   dir: '/workspace/sdk/python'
   entrypoint: sh
-  args: ['-c', 'pip install -r requirements-ci.txt && pip install . && pytest']
+  args: ['-c', 'pip install -r requirements-ci.txt && pip install -e . && pytest --junitxml=/log/python-sdk-test-report.xml']
 - id: upload-python-package
   waitFor: ['unit-test-python-sdk']
   name: 'python:3.7-buster'

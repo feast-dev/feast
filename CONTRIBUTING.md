@@ -64,8 +64,9 @@ store {
   name: "SERVING"
   type: REDIS
   subscriptions {
+    project: "*"
     name: "*"
-    version: ">0"
+    version: "*"
   }
   redis_config {
     host: "localhost"
@@ -76,8 +77,9 @@ store {
   name: "WAREHOUSE"
   type: BIGQUERY
   subscriptions {
+    project: "*"
     name: "*"
-    version: ">0"
+    version: "*"
   }
   bigquery_config {
     project_id: "my-google-project-id"
