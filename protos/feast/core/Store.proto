@@ -110,6 +110,8 @@ message Store {
     //
     // Columns:
     // - entities: concatenated string of feature set name and all entities' keys and values
+    //   entities concatenated format - [feature_set]:[entity_name1=entity_value1]|[entity_name2=entity_value2]
+    //   TODO: string representation of float or double types may have different value in different runtime or platform
     // - feature: clustering column where each feature is a column
     // - value: byte array of Value (refer to feast.types.Value)
     //
@@ -135,8 +137,15 @@ message Store {
     string bootstrap_hosts = 1;
     int32 port = 2;
     string keyspace = 3;
+
+    // Please note that table name must be "feature_store" as is specified in the @Table annotation of the
+    // datastax object mapper
     string table_name = 4;
+
+    // This specifies the replication strategy to use. Please refer to docs for more details:
+    // https://docs.datastax.com/en/dse/6.7/cql/cql/cql_reference/cql_commands/cqlCreateKeyspace.html#cqlCreateKeyspace__cqlCreateKeyspacereplicationmap-Pr3yUQ7t
     map<string, string> replication_options = 5;
+
     // Default expiration in seconds to use when FeatureSetSpec does not have max_age defined.
     // Specify 0 for no default expiration
     google.protobuf.Duration default_ttl = 6;

@@ -24,7 +24,9 @@ import com.google.protobuf.util.Timestamps;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
+import feast.core.StoreProto.Store.CassandraConfig;
 import feast.ingestion.transform.WriteToStore;
+import feast.ingestion.utils.StoreUtil;
 import feast.storage.RedisProto.RedisKey;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FeatureRowProto.FeatureRow.Builder;
@@ -64,7 +66,6 @@ import org.apache.kafka.common.serialization.LongSerializer;
 import org.apache.thrift.transport.TTransportException;
 import org.apache.zookeeper.server.ServerConfig;
 import org.apache.zookeeper.server.ZooKeeperServerMain;
-import org.cassandraunit.dataset.cql.ClassPathCQLDataSet;
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper;
 import org.joda.time.Duration;
 import redis.embedded.RedisServer;
@@ -100,10 +101,8 @@ public class TestUtil {
       EmbeddedCassandraServerHelper.startEmbeddedCassandra();
     }
 
-    public static void createKeyspaceAndTable() {
-      new ClassPathCQLDataSet("embedded-store/LoadCassandra.cql", true, true)
-          .getCQLStatements()
-          .forEach(s -> LocalCassandra.getSession().execute(s));
+    public static void createKeyspaceAndTable(CassandraConfig config) {
+      StoreUtil.setupCassandra(config);
     }
 
     public static String getHost() {

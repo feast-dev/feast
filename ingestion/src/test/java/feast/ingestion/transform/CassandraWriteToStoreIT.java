@@ -66,13 +66,7 @@ public class CassandraWriteToStoreIT implements Serializable {
       return Store.newBuilder()
           .setType(StoreType.CASSANDRA)
           .setName("SERVING")
-          .setCassandraConfig(
-              CassandraConfig.newBuilder()
-                  .setBootstrapHosts(LocalCassandra.getHost())
-                  .setPort(LocalCassandra.getPort())
-                  .setTableName("feature_store")
-                  .setKeyspace("test")
-                  .build())
+          .setCassandraConfig(getCassandraConfig())
           .build();
     }
 
@@ -86,10 +80,26 @@ public class CassandraWriteToStoreIT implements Serializable {
     }
   }
 
+  private static CassandraConfig getCassandraConfig() {
+    return CassandraConfig.newBuilder()
+        .setBootstrapHosts(LocalCassandra.getHost())
+        .setPort(LocalCassandra.getPort())
+        .setTableName("feature_store")
+        .setKeyspace("test")
+        .putAllReplicationOptions(
+            new HashMap<String, String>() {
+              {
+                put("class", "SimpleStrategy");
+                put("replication_factor", "1");
+              }
+            })
+        .build();
+  }
+
   @BeforeClass
   public static void startServer() throws InterruptedException, IOException, TTransportException {
     LocalCassandra.start();
-    LocalCassandra.createKeyspaceAndTable();
+    LocalCassandra.createKeyspaceAndTable(getCassandraConfig());
   }
 
   @Before
@@ -120,7 +130,7 @@ public class CassandraWriteToStoreIT implements Serializable {
                 put("entity1", TestUtil.intValue(1));
                 put("entity2", TestUtil.strValue("a"));
                 put("feature1", TestUtil.intValue(1));
-                put("feature2", TestUtil.intValue(1));
+                put("feature2", TestUtil.intValue(2));
               }
             });
   }
@@ -146,7 +156,7 @@ public class CassandraWriteToStoreIT implements Serializable {
     List<Field> expectedFields =
         Arrays.asList(
             Field.newBuilder().setName("feature1").setValue(TestUtil.intValue(1)).build(),
-            Field.newBuilder().setName("feature2").setValue(TestUtil.intValue(1)).build());
+            Field.newBuilder().setName("feature2").setValue(TestUtil.intValue(2)).build());
 
     assertTrue(actualResults.containsAll(expectedFields));
     assertEquals(expectedFields.size(), actualResults.size());
@@ -201,7 +211,7 @@ public class CassandraWriteToStoreIT implements Serializable {
                 put("entity1", TestUtil.intValue(1));
                 put("entity2", TestUtil.strValue("a"));
                 put("feature1", TestUtil.intValue(3));
-                put("feature2", TestUtil.intValue(3));
+                put("feature2", TestUtil.intValue(4));
               }
             });
 
@@ -217,7 +227,7 @@ public class CassandraWriteToStoreIT implements Serializable {
     List<Field> expectedFields =
         Arrays.asList(
             Field.newBuilder().setName("feature1").setValue(TestUtil.intValue(1)).build(),
-            Field.newBuilder().setName("feature2").setValue(TestUtil.intValue(1)).build());
+            Field.newBuilder().setName("feature2").setValue(TestUtil.intValue(2)).build());
 
     assertTrue(actualResults.containsAll(expectedFields));
     assertEquals(expectedFields.size(), actualResults.size());

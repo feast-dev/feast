@@ -303,7 +303,7 @@ public class StoreUtil {
               .ifNotExists()
               .addPartitionKey(CassandraMutation.ENTITIES, DataType.text())
               .addClusteringColumn(CassandraMutation.FEATURE, DataType.text())
-              .addStaticColumn(CassandraMutation.VALUE, DataType.blob());
+              .addColumn(CassandraMutation.VALUE, DataType.blob());
       log.info("Create Cassandra table if not exists..");
       session.execute(createTable);
 
