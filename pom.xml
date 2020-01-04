@@ -81,6 +81,7 @@
         <url>${github.url}/issues</url>
     </issueManagement>
 
+    <!-- Release Java library on Sonatype https://central.sonatype.org/pages/apache-maven.html -->
     <distributionManagement>
         <snapshotRepository>
             <id>ossrh</id>
@@ -321,7 +322,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>2.2.1</version>
+                <version>3.2.1</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
@@ -334,7 +335,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>2.9.1</version>
+                <version>3.1.1</version>
                 <executions>
                     <execution>
                         <id>attach-javadocs</id>
@@ -347,7 +348,7 @@
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
-                <version>1.26.0</version>
+                <version>1.26.1</version>
                 <configuration>
                     <java>
                         <licenseHeader>
