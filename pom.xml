@@ -280,46 +280,6 @@
 
         <plugins>
             <plugin>
-                <groupId>org.sonatype.plugins</groupId>
-                <artifactId>nexus-staging-maven-plugin</artifactId>
-                <version>1.6.8</version>
-                <extensions>true</extensions>
-                <configuration>
-                    <serverId>ossrh</serverId>
-                    <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-                    <autoReleaseAfterClose>false</autoReleaseAfterClose>
-                </configuration>
-            </plugin>
-            <!--
-            flatten-maven-plugin is used to flatten the generated POM during deployment. This is
-            required when releasing a project with a parent dependency where the version
-            is using ${revision} variable. This plugin will resolve and flatten the relationship.
-            https://www.mojohaus.org/flatten-maven-plugin/index.html
-            -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>flatten-maven-plugin</artifactId>
-                <version>1.1.0</version>
-                <configuration>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>flatten</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>flatten</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>flatten.clean</id>
-                        <phase>clean</phase>
-                        <goals>
-                            <goal>clean</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
                 <version>3.2.1</version>
@@ -462,6 +422,77 @@
                     <!-- Parent POM isn't a Spring Boot app, don't try to discover main classes. -->
                     <skip>true</skip>
                 </configuration>
+            </plugin>
+            <!-- nexus-staging-maven-plugin configures Maven to deploy to OSSRH Nexus Repository Manager -->
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <version>1.6.8</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <serverId>ossrh</serverId>
+                    <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+                    <!-- autoReleaseAfterClose is true as the release should be automated via continuous integration -->
+                    <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                </configuration>
+            </plugin>
+            <!--
+            flatten-maven-plugin is used to flatten the generated POM during deployment. This is
+            required when releasing a project with a parent dependency where the version
+            is using ${revision} variable. This plugin will resolve and flatten the relationship.
+            https://www.mojohaus.org/flatten-maven-plugin/index.html
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.1.0</version>
+                <configuration>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>flatten.clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- maven-gpg-plugin is used to sign Maven components. This is required when releasing libraries to Maven Central -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>1.5</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                        <!--
+                        This configuration helps with performing GPG operations non-interactively.
+                        For example when releasing via continuous integration.
+                        It is assumed that the GPG command used is version 2.x.
+                        -->
+                        <configuration>
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
+                            <!-- Setting to allow retrieval of GPG passphrase from ~/.m2/settings.xml, refer to https://maven.apache.org/plugins/maven-gpg-plugin/usage.html -->
+                            <!--suppress MavenModelInspection -->
+                            <passphrase>${gpg.passphrase}</passphrase>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
 
