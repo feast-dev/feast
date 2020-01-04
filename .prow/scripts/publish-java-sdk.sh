@@ -17,9 +17,10 @@ usage()
                         The default value is '/etc/gpg'
   
   This script assumes the GPG private key is protected by a passphrase.
-  The passphrase can be specified in \$HOME/.m2/settings.xml:
+  The passphrase can be specified in \$HOME/.m2/settings.xml. In the same xml
+  file, credentials to upload releases to Sonatype must also be provided.
 
-  # ~/.m2/settings.xml
+  # Example settings: ~/.m2/settings.xml
   <settings>
     <servers>
       <server>
@@ -56,6 +57,7 @@ echo "============================================================"
 echo "Checking Maven and GPG versions"
 echo "============================================================"
 mvn --version 
+echo ""
 gpg --version
 
 echo "============================================================"
@@ -67,4 +69,4 @@ gpg --import --batch --yes /etc/gpg/private-key
 echo "============================================================"
 echo "Deploying Java SDK with revision: $REVISION"
 echo "============================================================"
-mvn --projects sdk/java -Drevision=$REVISION clean deploy
+mvn --projects sdk/java -Drevision=$REVISION --batch-mode clean deploy
