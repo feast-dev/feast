@@ -58,8 +58,17 @@
 
     <organization>
         <name>Gojek</name>
-        <url>https://www.gojek.io/</url>
+        <url>https://www.gojek.com</url>
     </organization>
+
+    <developers>
+        <developer>
+            <name>Feast Authors</name>
+            <url>${github.url}</url>
+            <organization>Gojek</organization>
+            <organizationUrl>https://www.gojek.com</organizationUrl>
+        </developer>
+    </developers>
 
     <licenses>
         <license>
@@ -447,6 +456,7 @@
                 <artifactId>flatten-maven-plugin</artifactId>
                 <version>1.1.0</version>
                 <configuration>
+                    <flattenMode>oss</flattenMode>
                 </configuration>
                 <executions>
                     <execution>
