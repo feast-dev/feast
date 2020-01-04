@@ -52,10 +52,19 @@ done
 
 if [ -z $REVISION ]; then usage; exit 1; fi
 
-echo $REVISION 
-echo $GPG_KEY_IMPORT_DIR
+echo "============================================================"
+echo "Checking Maven and GPG versions"
+echo "============================================================"
+mvn --version 
+gpg --version
 
+echo "============================================================"
+echo "Importing GPG keys"
+echo "============================================================"
 gpg --import --batch --yes /etc/gpg/public-key
 gpg --import --batch --yes /etc/gpg/private-key
 
+echo "============================================================"
+echo "Deploying Java SDK with revision: $REVISION"
+echo "============================================================"
 mvn --projects sdk/java -Drevision=$REVISION clean deploy
