@@ -63,8 +63,8 @@ gpg --version
 echo "============================================================"
 echo "Importing GPG keys"
 echo "============================================================"
-gpg --import --batch --yes /etc/gpg/public-key
-gpg --import --batch --yes /etc/gpg/private-key
+gpg --import --batch --yes $GPG_KEY_IMPORT_DIR/public-key
+gpg --import --batch --yes $GPG_KEY_IMPORT_DIR/private-key
 
 echo "============================================================"
 echo "Deploying Java SDK with revision: $REVISION"
