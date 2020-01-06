@@ -47,14 +47,7 @@ FROM `{{projectId}}.{{datasetId}}.{{ featureSet.project }}_{{ featureSet.name }}
 WHERE is_entity_table
 )
 SELECT
-  k.uuid as uuid,
-  k.event_timestamp as event_timestamp,
-  {% for entityName in featureSet.entities %}
-  k.{{ entityName }} as {{ entityName }},
-  {% endfor %}
-  {% for featureName in featureSet.features %}
-  k.{{ featureSet.project }}_{{ featureName }}_v{{ featureSet.version }} as {{ featureSet.project }}_{{ featureName }}_v{{ featureSet.version }}{% if loop.last %}{% else %}, {% endif %}
-  {% endfor %}
+  k.*
 FROM (
   SELECT ARRAY_AGG(row LIMIT 1)[OFFSET(0)] k
   FROM joined row
