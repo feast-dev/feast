@@ -12,7 +12,7 @@ WORKDIR /build
 # the existing .m2 directory to $FEAST_REPO_ROOT/.m2
 #
 ENV MAVEN_OPTS="-Dmaven.repo.local=/build/.m2/repository -DdependencyLocationsEnabled=false"
-RUN mvn --also-make --projects core,ingestion \
+RUN mvn --also-make --projects core,ingestion -Drevision=$REVISION \
   -DskipTests=true --batch-mode package
 #
 # Unpack the jar and copy the files into production Docker image
