@@ -23,7 +23,11 @@ import feast.ingestion.values.Field;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto;
 import feast.types.ValueProto.Value.ValCase;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -57,15 +61,12 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
     String error = null;
     FeatureRow featureRow = context.element();
     FeatureSet featureSet = getFeatureSets().getOrDefault(featureRow.getFeatureSet(), null);
+    List<FieldProto.Field> fields = new ArrayList<>();
     if (featureSet != null) {
-
       for (FieldProto.Field field : featureRow.getFieldsList()) {
         Field fieldSpec = featureSet.getField(field.getName());
         if (fieldSpec == null) {
-          error =
-              String.format(
-                  "FeatureRow contains field '%s' which do not exists in FeatureSet '%s' version '%d'. Please check the FeatureRow data.",
-                  field.getName(), featureSet.getReference());
+          // skip
           break;
         }
         // If value is set in the FeatureRow, make sure the value type matches
@@ -80,6 +81,9 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
                     field.getName(), field.getValue().getValCase(), fieldSpec.getType());
             break;
           }
+        }
+        if (!fields.contains(field)) {
+          fields.add(field);
         }
       }
     } else {
@@ -107,6 +111,10 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
       }
       context.output(getFailureTag(), failedElement.build());
     } else {
+      featureRow = featureRow.toBuilder()
+                    .clearFields()
+                    .addAllFields(fields)
+                    .build();
       context.output(getSuccessTag(), featureRow);
     }
   }
