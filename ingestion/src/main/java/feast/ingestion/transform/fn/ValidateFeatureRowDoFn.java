@@ -61,7 +61,7 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
     String error = null;
     FeatureRow featureRow = context.element();
     FeatureSet featureSet = getFeatureSets().getOrDefault(featureRow.getFeatureSet(), null);
-    Set<FieldProto.Field> fields = new HashSet<>();
+    List<FieldProto.Field> fields = new ArrayList<>();
     if (featureSet != null) {
       for (FieldProto.Field field : featureRow.getFieldsList()) {
         Field fieldSpec = featureSet.getField(field.getName());
@@ -82,7 +82,9 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
             break;
           }
         }
-        fields.add(field);
+        if (!fields.contains(field)) {
+          fields.add(field);
+        }
       }
     } else {
       error =
