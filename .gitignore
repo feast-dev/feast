@@ -173,3 +173,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 .vscode
+
+sdk/python/docs/html
