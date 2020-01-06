@@ -12,7 +12,7 @@ WORKDIR /build
 # the existing .m2 directory to $FEAST_REPO_ROOT/.m2
 #
 ENV MAVEN_OPTS="-Dmaven.repo.local=/build/.m2/repository -DdependencyLocationsEnabled=false"
-RUN mvn --also-make --projects serving \
+RUN mvn --also-make --projects serving -Drevision=$REVISION \
   -DskipTests=true --batch-mode package
 
 # ============================================================
