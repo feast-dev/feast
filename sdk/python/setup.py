@@ -94,6 +94,6 @@ setup(
         "Programming Language :: Python :: 3.6",
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
-    use_scm_version=False,
+    use_scm_version={"root": "../..", "relative_to": __file__},
     setup_requires=["setuptools_scm"],
 )
