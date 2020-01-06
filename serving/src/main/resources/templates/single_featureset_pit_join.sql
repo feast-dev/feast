@@ -53,7 +53,7 @@ SELECT
   k.{{ entityName }} as {{ entityName }},
   {% endfor %}
   {% for featureName in featureSet.features %}
-  k.{{ featureName }} as {{ featureName }}{% if loop.last %}{% else %}, {% endif %}
+  k.{{ featureSet.project }}_{{ featureName }}_v{{ featureSet.version }} as {{ featureSet.project }}_{{ featureName }}_v{{ featureSet.version }}{% if loop.last %}{% else %}, {% endif %}
   {% endfor %}
 FROM (
   SELECT ARRAY_AGG(row LIMIT 1)[OFFSET(0)] k
