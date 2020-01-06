@@ -61,10 +61,13 @@ REQUIRED = [
     "confluent_kafka",
 ]
 
-# README file from Feast repo root directory
-README_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "README.md")
-with open(os.path.join(README_FILE), "r") as f:
-    LONG_DESCRIPTION = f.read()
+try:
+    # README file from Feast repo root directory
+    README_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "README.md")
+    with open(os.path.join(README_FILE), "r") as f:
+        LONG_DESCRIPTION = f.read()
+except FileNotFoundError:
+    LONG_DESCRIPTION = "Feast Python package"
 
 setup(
     name=NAME,
@@ -91,6 +94,6 @@ setup(
         "Programming Language :: Python :: 3.6",
     ],
     entry_points={"console_scripts": ["feast=feast.cli:cli"]},
-    use_scm_version={"root": "../..", "relative_to": __file__},
+    use_scm_version=False,
     setup_requires=["setuptools_scm"],
 )
