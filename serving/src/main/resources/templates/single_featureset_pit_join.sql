@@ -15,7 +15,7 @@ SELECT
   {{ featureSet.entities | join(', ')}},
   false AS is_entity_table
 FROM `{{projectId}}.{{datasetId}}.{{ featureSet.project }}_{{ featureSet.name }}_v{{ featureSet.version }}` WHERE event_timestamp <= '{{maxTimestamp}}' AND event_timestamp >= Timestamp_sub(TIMESTAMP '{{ minTimestamp }}', interval {{ featureSet.maxAge }} second)
-)
+), joined AS (
 SELECT
   uuid,
   event_timestamp,
@@ -45,3 +45,10 @@ SELECT
 FROM `{{projectId}}.{{datasetId}}.{{ featureSet.project }}_{{ featureSet.name }}_v{{ featureSet.version }}` WHERE event_timestamp <= '{{maxTimestamp}}' AND event_timestamp >= Timestamp_sub(TIMESTAMP '{{ minTimestamp }}', interval {{ featureSet.maxAge }} second)
 ) USING ({{ featureSet.project }}_{{ featureSet.name }}_v{{ featureSet.version }}_feature_timestamp, created_timestamp, {{ featureSet.entities | join(', ')}})
 WHERE is_entity_table
+)
+SELECT *
+FROM (
+  SELECT ARRAY_AGG(row LIMIT 1)[OFFSET(0)] k
+  FROM joined row
+  GROUP BY uuid
+)
