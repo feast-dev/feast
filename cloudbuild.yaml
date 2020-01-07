@@ -70,7 +70,7 @@ steps:
   name: 'python:3.7-buster'
   dir: '/workspace/sdk/python'
   entrypoint: sh
-  args: ['-c', 'echo ${SHORT_SHA} >> VERSION && python setup.py sdist && pip install twine && twine upload dist/*${SHORT_SHA}* --repository-url https://${_PYPI_REPO} -u ${_PYPI_USER} -p ${_PYPI_PWD}']
+  args: ['-c', 'python setup.py sdist && pip install twine && twine upload dist/*${SHORT_SHA}* --repository-url https://${_PYPI_REPO} -u ${_PYPI_USER} -p ${_PYPI_PWD}']
   env:
     - SHORT_SHA=${SHORT_SHA}
 
