@@ -1,3 +1,4 @@
+Click==7.*
 google-api-core==1.*
 google-auth==1.*
 google-cloud-bigquery==1.*
@@ -13,10 +14,17 @@ protobuf==3.*
 pytest
 pytest-mock
 pytest-timeout
-PyYAML==5.1.2
-fastavro==0.21.*
+PyYAML==5.1.*
+fastavro==0.*
 grpcio-testing==1.*
 pytest-ordering==0.6.*
 pyarrow
 Sphinx
 sphinx-rtd-theme
+toml==0.10.*
+tqdm==4.*
+confluent_kafka
+google
+pandavro==1.5.*
+kafka-python==1.*
+tabulate==0.8.*

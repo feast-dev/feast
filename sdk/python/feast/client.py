@@ -615,7 +615,7 @@ class Client:
         Loads feature data into Feast for a specific feature set.
 
         Args:
-            feature_set (typing.Union[str, FeatureSet]):
+            feature_set (typing.Union[str, feast.feature_set.FeatureSet]):
                 Feature set object or the string name of the feature set
                 (without a version).
 
