@@ -29,6 +29,9 @@ prediction = my_model.predict(fs.get_online_features(customer_features, customer
 ```
 
 ## Important resources
+
+Please refer to the official docs at <https://feast.dev>
+
  * [Why Feast?](https://docs.feast.dev/why-feast)
  * [Concepts](https://docs.feast.dev/concepts)
  * [Installation](https://docs.feast.dev/getting-started/installing-feast)
