@@ -6,10 +6,10 @@
 
   <name>Feast SDK for Java</name>
   <description>SDK for registering, storing, and retrieving features</description>
-  <artifactId>feast-client</artifactId>
+  <artifactId>feast-sdk</artifactId>
 
   <parent>
-    <groupId>feast</groupId>
+    <groupId>dev.feast</groupId>
     <artifactId>feast-parent</artifactId>
     <version>${revision}</version>
     <relativePath>../..</relativePath>
@@ -21,6 +21,12 @@
   </properties>
 
   <dependencies>
+    <dependency>
+      <groupId>dev.feast</groupId>
+      <artifactId>datatypes-java</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
     <!-- GRPC and Protobuf -->
     <dependency>
       <groupId>io.grpc</groupId>
@@ -79,10 +85,6 @@
 
   <build>
     <plugins>
-      <plugin>
-        <groupId>org.xolstice.maven.plugins</groupId>
-        <artifactId>protobuf-maven-plugin</artifactId>
-      </plugin>
       <!-- Javadoc -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

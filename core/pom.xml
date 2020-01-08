@@ -21,7 +21,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>feast</groupId>
+        <groupId>dev.feast</groupId>
         <artifactId>feast-parent</artifactId>
         <version>${revision}</version>
     </parent>
@@ -39,16 +39,12 @@
                     <skip>false</skip>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.xolstice.maven.plugins</groupId>
-                <artifactId>protobuf-maven-plugin</artifactId>
-            </plugin>
         </plugins>
     </build>
 
     <dependencies>
         <dependency>
-            <groupId>feast</groupId>
+            <groupId>dev.feast</groupId>
             <artifactId>feast-ingestion</artifactId>
             <version>${project.version}</version>
         </dependency>

@@ -49,8 +49,9 @@ public class PackageUtil {
    * handled by default in Apache Beam.
    *
    * <pre>
-   * @code
+   * <code>
    * URL url = new URL("jar:file:/tmp/springexample/target/spring-example-1.0-SNAPSHOT.jar!/BOOT-INF/lib/beam-sdks-java-core-2.16.0.jar!/");
+   * </code>
    * String resolvedPath = resolveSpringBootPackageClasspath(url);
    * // resolvedPath should point to "/tmp/springexample/target/spring-example-1.0-SNAPSHOT/BOOT-INF/lib/beam-sdks-java-core-2.16.0.jar"
    * // Note that spring-example-1.0-SNAPSHOT.jar is extracted in the process.

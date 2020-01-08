@@ -66,7 +66,7 @@ public class MonitoringConfig {
   /**
    * Register custom Prometheus collector that exports metrics about JVM resource usage.
    *
-   * @return @{link {@link JVMResourceCollector}}
+   * @return {@link JVMResourceCollector}
    */
   @Bean
   public JVMResourceCollector jvmResourceCollector() {
