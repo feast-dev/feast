@@ -20,6 +20,9 @@ import feast.core.StoreProto;
 import feast.ingestion.values.FailedElement;
 import feast.retry.BackOffExecutor;
 import feast.retry.Retriable;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -37,10 +40,6 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.Response;
 import redis.clients.jedis.exceptions.JedisConnectionException;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 public class RedisCustomIO {
 
@@ -164,7 +163,8 @@ public class RedisCustomIO {
   }
 
   /** ServingStoreWrite data to a Redis server. */
-  public static class Write extends PTransform<PCollection<RedisMutation>, PCollection<FailedElement>> {
+  public static class Write
+      extends PTransform<PCollection<RedisMutation>, PCollection<FailedElement>> {
 
     private WriteDoFn dofn;
 
@@ -202,9 +202,10 @@ public class RedisCustomIO {
       WriteDoFn(StoreProto.Store.RedisConfig redisConfig) {
         this.host = redisConfig.getHost();
         this.port = redisConfig.getPort();
-        long backoffMs = redisConfig.getInitialBackoffMs() > 0 ? redisConfig.getInitialBackoffMs() : 1;
-        this.backOffExecutor = new BackOffExecutor(redisConfig.getMaxRetries(),
-                Duration.millis(backoffMs));
+        long backoffMs =
+            redisConfig.getInitialBackoffMs() > 0 ? redisConfig.getInitialBackoffMs() : 1;
+        this.backOffExecutor =
+            new BackOffExecutor(redisConfig.getMaxRetries(), Duration.millis(backoffMs));
       }
 
       public WriteDoFn withBatchSize(int batchSize) {
@@ -233,47 +234,50 @@ public class RedisCustomIO {
       }
 
       private void executeBatch() throws Exception {
-        backOffExecutor.execute(new Retriable() {
-          @Override
-          public void execute() {
-            pipeline.multi();
-            mutations.forEach(mutation -> {
-              writeRecord(mutation);
-              if (mutation.getExpiryMillis() != null && mutation.getExpiryMillis() > 0) {
-                pipeline.pexpire(mutation.getKey(), mutation.getExpiryMillis());
+        backOffExecutor.execute(
+            new Retriable() {
+              @Override
+              public void execute() {
+                pipeline.multi();
+                mutations.forEach(
+                    mutation -> {
+                      writeRecord(mutation);
+                      if (mutation.getExpiryMillis() != null && mutation.getExpiryMillis() > 0) {
+                        pipeline.pexpire(mutation.getKey(), mutation.getExpiryMillis());
+                      }
+                    });
+                pipeline.exec();
+                pipeline.sync();
+                mutations.clear();
+              }
+
+              @Override
+              public Boolean isExceptionRetriable(Exception e) {
+                return e instanceof JedisConnectionException;
+              }
+
+              @Override
+              public void cleanUpAfterFailure() {
+                try {
+                  pipeline.close();
+                } catch (IOException e) {
+                  log.error(String.format("Error while closing pipeline: %s", e.getMessage()));
+                }
+                jedis = new Jedis(host, port, timeout);
+                pipeline = jedis.pipelined();
               }
             });
-            pipeline.exec();
-            pipeline.sync();
-            mutations.clear();
-          }
-
-          @Override
-          public Boolean isExceptionRetriable(Exception e) {
-            return e instanceof JedisConnectionException;
-          }
-
-          @Override
-          public void cleanUpAfterFailure() {
-            try {
-              pipeline.close();
-            } catch (IOException e) {
-              log.error(String.format("Error while closing pipeline: %s", e.getMessage()));
-            }
-            jedis = new Jedis(host, port, timeout);
-            pipeline = jedis.pipelined();
-          }
-        });
       }
 
-      private FailedElement toFailedElement(RedisMutation mutation, Exception exception, String jobName) {
+      private FailedElement toFailedElement(
+          RedisMutation mutation, Exception exception, String jobName) {
         return FailedElement.newBuilder()
-          .setJobName(jobName)
-          .setTransformName("RedisCustomIO")
-          .setPayload(mutation.getValue().toString())
-          .setErrorMessage(exception.getMessage())
-          .setStackTrace(ExceptionUtils.getStackTrace(exception))
-          .build();
+            .setJobName(jobName)
+            .setTransformName("RedisCustomIO")
+            .setPayload(mutation.getValue().toString())
+            .setErrorMessage(exception.getMessage())
+            .setStackTrace(ExceptionUtils.getStackTrace(exception))
+            .build();
       }
 
       @ProcessElement
@@ -284,11 +288,12 @@ public class RedisCustomIO {
           try {
             executeBatch();
           } catch (Exception e) {
-            mutations.forEach(failedMutation -> {
-              FailedElement failedElement = toFailedElement(
-                failedMutation, e, context.getPipelineOptions().getJobName());
-              context.output(failedElement);
-            });
+            mutations.forEach(
+                failedMutation -> {
+                  FailedElement failedElement =
+                      toFailedElement(failedMutation, e, context.getPipelineOptions().getJobName());
+                  context.output(failedElement);
+                });
             mutations.clear();
           }
         }
@@ -315,16 +320,18 @@ public class RedisCustomIO {
       }
 
       @FinishBundle
-      public void finishBundle(FinishBundleContext context) throws IOException, InterruptedException {
-        if(mutations.size() > 0) {
+      public void finishBundle(FinishBundleContext context)
+          throws IOException, InterruptedException {
+        if (mutations.size() > 0) {
           try {
             executeBatch();
           } catch (Exception e) {
-            mutations.forEach(failedMutation -> {
-              FailedElement failedElement = toFailedElement(
-                failedMutation, e, context.getPipelineOptions().getJobName());
-              context.output(failedElement, Instant.now(), GlobalWindow.INSTANCE);
-            });
+            mutations.forEach(
+                failedMutation -> {
+                  FailedElement failedElement =
+                      toFailedElement(failedMutation, e, context.getPipelineOptions().getJobName());
+                  context.output(failedElement, Instant.now(), GlobalWindow.INSTANCE);
+                });
             mutations.clear();
           }
         }
