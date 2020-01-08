@@ -180,12 +180,14 @@ public class ValidateFeatureRowsTest {
 
     FeatureRow randomRow = TestUtil.createRandomFeatureRow(fs1);
     expected.add(randomRow);
-    input.add(randomRow.toBuilder()
-        .addFields(Field.newBuilder()
-          .setName("extra")
-          .setValue(Value.newBuilder().setStringVal("hello")))
-        .build()
-    );
+    input.add(
+        randomRow
+            .toBuilder()
+            .addFields(
+                Field.newBuilder()
+                    .setName("extra")
+                    .setValue(Value.newBuilder().setStringVal("hello")))
+            .build());
 
     PCollectionTuple output =
         p.apply(Create.of(input))

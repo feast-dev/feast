@@ -143,8 +143,8 @@ public class SpecService {
    * possible if a project name is not set explicitly
    *
    * <p>The version field can be one of - '*' - This will match all versions - 'latest' - This will
-   * match the latest feature set version - '&lt;number&gt;' - This will match a specific feature set
-   * version. This property can only be set if both the feature set name and project name are
+   * match the latest feature set version - '&lt;number&gt;' - This will match a specific feature
+   * set version. This property can only be set if both the feature set name and project name are
    * explicitly set.
    *
    * @param filter filter containing the desired featureSet name and version filter
