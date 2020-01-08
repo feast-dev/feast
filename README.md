@@ -129,11 +129,15 @@ prediction = my_model.predict(fs.get_online_features(customer_features, customer
 ```
 
 ## Important resources
- * [Why Feast?](docs/why-feast.md)
- * [Concepts](docs/concepts.md)
- * [Installation](docs/getting-started/installing-feast.md)
- * [Getting Help](docs/community.md)
+
+Please refer to the official docs at <https://feast.dev>
+
+ * [Why Feast?](https://docs.feast.dev/why-feast)
+ * [Concepts](https://docs.feast.dev/concepts)
+ * [Installation](https://docs.feast.dev/getting-started/installing-feast)
+ * [Getting Help](https://docs.feast.dev/getting-help)
+ * [Example Notebook](https://github.com/gojek/feast/blob/master/examples/basic/basic.ipynb)
 
 ## Notice
 
-Feast is a community project and is still under active development. Your feedback and contributions are important to us. Please have a look at our [contributing guide](CONTRIBUTING.md) for details.
+Feast is a community project and is still under active development. Your feedback and contributions are important to us. Please have a look at our [contributing guide](docs/contributing.md) for details.

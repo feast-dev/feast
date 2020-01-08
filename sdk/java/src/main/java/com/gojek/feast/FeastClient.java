@@ -59,7 +59,7 @@ public class FeastClient implements AutoCloseable {
   /**
    * Get online features from Feast.
    *
-   * <p>See {@link #getOnlineFeatures(List, List, str)}
+   * <p>See {@link #getOnlineFeatures(List, List, String)}
    *
    * @param features list of string feature references to retrieve, feature reference follows this
    *     format [project]/[name]:[version]

@@ -25,6 +25,8 @@ import feast.core.FeatureSetProto.FeatureSpec;
 import feast.ingestion.values.FailedElement;
 import feast.test.TestUtil;
 import feast.types.FeatureRowProto.FeatureRow;
+import feast.types.FieldProto.Field;
+import feast.types.ValueProto.Value;
 import feast.types.ValueProto.ValueType.Enum;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -135,6 +137,69 @@ public class ValidateFeatureRowsTest {
 
     PAssert.that(output.get(SUCCESS_TAG)).containsInAnyOrder(expected);
     PAssert.that(output.get(FAILURE_TAG).apply(Count.globally())).containsInAnyOrder(1L);
+
+    p.run();
+  }
+
+  @Test
+  public void shouldExcludeUnregisteredFields() {
+    FeatureSet fs1 =
+        FeatureSet.newBuilder()
+            .setSpec(
+                FeatureSetSpec.newBuilder()
+                    .setName("feature_set")
+                    .setVersion(1)
+                    .setProject("myproject")
+                    .addEntities(
+                        EntitySpec.newBuilder()
+                            .setName("entity_id_primary")
+                            .setValueType(Enum.INT32)
+                            .build())
+                    .addEntities(
+                        EntitySpec.newBuilder()
+                            .setName("entity_id_secondary")
+                            .setValueType(Enum.STRING)
+                            .build())
+                    .addFeatures(
+                        FeatureSpec.newBuilder()
+                            .setName("feature_1")
+                            .setValueType(Enum.STRING)
+                            .build())
+                    .addFeatures(
+                        FeatureSpec.newBuilder()
+                            .setName("feature_2")
+                            .setValueType(Enum.INT64)
+                            .build()))
+            .build();
+
+    Map<String, FeatureSet> featureSets = new HashMap<>();
+    featureSets.put("myproject/feature_set:1", fs1);
+
+    List<FeatureRow> input = new ArrayList<>();
+    List<FeatureRow> expected = new ArrayList<>();
+
+    FeatureRow randomRow = TestUtil.createRandomFeatureRow(fs1);
+    expected.add(randomRow);
+    input.add(
+        randomRow
+            .toBuilder()
+            .addFields(
+                Field.newBuilder()
+                    .setName("extra")
+                    .setValue(Value.newBuilder().setStringVal("hello")))
+            .build());
+
+    PCollectionTuple output =
+        p.apply(Create.of(input))
+            .setCoder(ProtoCoder.of(FeatureRow.class))
+            .apply(
+                ValidateFeatureRows.newBuilder()
+                    .setFailureTag(FAILURE_TAG)
+                    .setSuccessTag(SUCCESS_TAG)
+                    .setFeatureSets(featureSets)
+                    .build());
+
+    PAssert.that(output.get(SUCCESS_TAG)).containsInAnyOrder(expected);
 
     p.run();
   }

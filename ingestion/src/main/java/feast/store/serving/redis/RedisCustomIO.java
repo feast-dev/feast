@@ -16,19 +16,30 @@
  */
 package feast.store.serving.redis;
 
+import feast.core.StoreProto;
+import feast.ingestion.values.FailedElement;
+import feast.retry.BackOffExecutor;
+import feast.retry.Retriable;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
+import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.Response;
+import redis.clients.jedis.exceptions.JedisConnectionException;
 
 public class RedisCustomIO {
 
@@ -39,8 +50,8 @@ public class RedisCustomIO {
 
   private RedisCustomIO() {}
 
-  public static Write write(String host, int port) {
-    return new Write(host, port);
+  public static Write write(StoreProto.Store.RedisConfig redisConfig) {
+    return new Write(redisConfig);
   }
 
   public enum Method {
@@ -152,12 +163,13 @@ public class RedisCustomIO {
   }
 
   /** ServingStoreWrite data to a Redis server. */
-  public static class Write extends PTransform<PCollection<RedisMutation>, PDone> {
+  public static class Write
+      extends PTransform<PCollection<RedisMutation>, PCollection<FailedElement>> {
 
     private WriteDoFn dofn;
 
-    private Write(String host, int port) {
-      this.dofn = new WriteDoFn(host, port);
+    private Write(StoreProto.Store.RedisConfig redisConfig) {
+      this.dofn = new WriteDoFn(redisConfig);
     }
 
     public Write withBatchSize(int batchSize) {
@@ -171,24 +183,29 @@ public class RedisCustomIO {
     }
 
     @Override
-    public PDone expand(PCollection<RedisMutation> input) {
-      input.apply(ParDo.of(dofn));
-      return PDone.in(input.getPipeline());
+    public PCollection<FailedElement> expand(PCollection<RedisMutation> input) {
+      return input.apply(ParDo.of(dofn));
     }
 
-    public static class WriteDoFn extends DoFn<RedisMutation, Void> {
+    public static class WriteDoFn extends DoFn<RedisMutation, FailedElement> {
 
       private final String host;
-      private int port;
+      private final int port;
+      private final BackOffExecutor backOffExecutor;
+      private final List<RedisMutation> mutations = new ArrayList<>();
+
       private Jedis jedis;
       private Pipeline pipeline;
-      private int batchCount;
       private int batchSize = DEFAULT_BATCH_SIZE;
       private int timeout = DEFAULT_TIMEOUT;
 
-      WriteDoFn(String host, int port) {
-        this.host = host;
-        this.port = port;
+      WriteDoFn(StoreProto.Store.RedisConfig redisConfig) {
+        this.host = redisConfig.getHost();
+        this.port = redisConfig.getPort();
+        long backoffMs =
+            redisConfig.getInitialBackoffMs() > 0 ? redisConfig.getInitialBackoffMs() : 1;
+        this.backOffExecutor =
+            new BackOffExecutor(redisConfig.getMaxRetries(), Duration.millis(backoffMs));
       }
 
       public WriteDoFn withBatchSize(int batchSize) {
@@ -212,24 +229,73 @@ public class RedisCustomIO {
 
       @StartBundle
       public void startBundle() {
+        mutations.clear();
         pipeline = jedis.pipelined();
-        pipeline.multi();
-        batchCount = 0;
+      }
+
+      private void executeBatch() throws Exception {
+        backOffExecutor.execute(
+            new Retriable() {
+              @Override
+              public void execute() {
+                pipeline.multi();
+                mutations.forEach(
+                    mutation -> {
+                      writeRecord(mutation);
+                      if (mutation.getExpiryMillis() != null && mutation.getExpiryMillis() > 0) {
+                        pipeline.pexpire(mutation.getKey(), mutation.getExpiryMillis());
+                      }
+                    });
+                pipeline.exec();
+                pipeline.sync();
+                mutations.clear();
+              }
+
+              @Override
+              public Boolean isExceptionRetriable(Exception e) {
+                return e instanceof JedisConnectionException;
+              }
+
+              @Override
+              public void cleanUpAfterFailure() {
+                try {
+                  pipeline.close();
+                } catch (IOException e) {
+                  log.error(String.format("Error while closing pipeline: %s", e.getMessage()));
+                }
+                jedis = new Jedis(host, port, timeout);
+                pipeline = jedis.pipelined();
+              }
+            });
+      }
+
+      private FailedElement toFailedElement(
+          RedisMutation mutation, Exception exception, String jobName) {
+        return FailedElement.newBuilder()
+            .setJobName(jobName)
+            .setTransformName("RedisCustomIO")
+            .setPayload(mutation.getValue().toString())
+            .setErrorMessage(exception.getMessage())
+            .setStackTrace(ExceptionUtils.getStackTrace(exception))
+            .build();
       }
 
       @ProcessElement
       public void processElement(ProcessContext context) {
         RedisMutation mutation = context.element();
-        writeRecord(mutation);
-        if (mutation.getExpiryMillis() != null && mutation.getExpiryMillis() > 0) {
-          pipeline.pexpire(mutation.getKey(), mutation.getExpiryMillis());
-        }
-        batchCount++;
-        if (batchCount >= batchSize) {
-          pipeline.exec();
-          pipeline.sync();
-          pipeline.multi();
-          batchCount = 0;
+        mutations.add(mutation);
+        if (mutations.size() >= batchSize) {
+          try {
+            executeBatch();
+          } catch (Exception e) {
+            mutations.forEach(
+                failedMutation -> {
+                  FailedElement failedElement =
+                      toFailedElement(failedMutation, e, context.getPipelineOptions().getJobName());
+                  context.output(failedElement);
+                });
+            mutations.clear();
+          }
         }
       }
 
@@ -254,12 +320,21 @@ public class RedisCustomIO {
       }
 
       @FinishBundle
-      public void finishBundle() {
-        if (pipeline.isInMulti()) {
-          pipeline.exec();
-          pipeline.sync();
+      public void finishBundle(FinishBundleContext context)
+          throws IOException, InterruptedException {
+        if (mutations.size() > 0) {
+          try {
+            executeBatch();
+          } catch (Exception e) {
+            mutations.forEach(
+                failedMutation -> {
+                  FailedElement failedElement =
+                      toFailedElement(failedMutation, e, context.getPipelineOptions().getJobName());
+                  context.output(failedElement, Instant.now(), GlobalWindow.INSTANCE);
+                });
+            mutations.clear();
+          }
         }
-        batchCount = 0;
       }
 
       @Teardown
