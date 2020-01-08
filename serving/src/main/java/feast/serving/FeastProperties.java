@@ -85,6 +85,15 @@ public class FeastProperties {
     private String configPath;
     private int redisPoolMaxSize;
     private int redisPoolMaxIdle;
+    private int cassandraPoolCoreLocalConnections;
+    private int cassandraPoolMaxLocalConnections;
+    private int cassandraPoolCoreRemoteConnections;
+    private int cassandraPoolMaxRemoteConnections;
+    private int cassandraPoolMaxRequestsLocalConnection;
+    private int cassandraPoolMaxRequestsRemoteConnection;
+    private int cassandraPoolNewLocalConnectionThreshold;
+    private int cassandraPoolNewRemoteConnectionThreshold;
+    private int cassandraPoolTimeoutMillis;
 
     public String getConfigPath() {
       return this.configPath;
@@ -98,6 +107,42 @@ public class FeastProperties {
       return this.redisPoolMaxIdle;
     }
 
+    public int getCassandraPoolCoreLocalConnections() {
+      return this.cassandraPoolCoreLocalConnections;
+    }
+
+    public int getCassandraPoolMaxLocalConnections() {
+      return this.cassandraPoolMaxLocalConnections;
+    }
+
+    public int getCassandraPoolCoreRemoteConnections() {
+      return this.cassandraPoolCoreRemoteConnections;
+    }
+
+    public int getCassandraPoolMaxRemoteConnections() {
+      return this.cassandraPoolMaxRemoteConnections;
+    }
+
+    public int getCassandraPoolMaxRequestsLocalConnection() {
+      return this.cassandraPoolMaxRequestsLocalConnection;
+    }
+
+    public int getCassandraPoolMaxRequestsRemoteConnection() {
+      return this.cassandraPoolMaxRequestsRemoteConnection;
+    }
+
+    public int getCassandraPoolNewLocalConnectionThreshold() {
+      return this.cassandraPoolNewLocalConnectionThreshold;
+    }
+
+    public int getCassandraPoolNewRemoteConnectionThreshold() {
+      return this.cassandraPoolNewRemoteConnectionThreshold;
+    }
+
+    public int getCassandraPoolTimeoutMillis() {
+      return this.cassandraPoolTimeoutMillis;
+    }
+
     public void setConfigPath(String configPath) {
       this.configPath = configPath;
     }
@@ -108,6 +153,46 @@ public class FeastProperties {
 
     public void setRedisPoolMaxIdle(int redisPoolMaxIdle) {
       this.redisPoolMaxIdle = redisPoolMaxIdle;
+    }
+
+    public void setCassandraPoolCoreLocalConnections(int cassandraPoolCoreLocalConnections) {
+      this.cassandraPoolCoreLocalConnections = cassandraPoolCoreLocalConnections;
+    }
+
+    public void setCassandraPoolMaxLocalConnections(int cassandraPoolMaxLocalConnections) {
+      this.cassandraPoolMaxLocalConnections = cassandraPoolMaxLocalConnections;
+    }
+
+    public void setCassandraPoolCoreRemoteConnections(int cassandraPoolCoreRemoteConnections) {
+      this.cassandraPoolCoreRemoteConnections = cassandraPoolCoreRemoteConnections;
+    }
+
+    public void setCassandraPoolMaxRemoteConnections(int cassandraPoolMaxRemoteConnections) {
+      this.cassandraPoolMaxRemoteConnections = cassandraPoolMaxRemoteConnections;
+    }
+
+    public void setCassandraPoolMaxRequestsLocalConnection(
+        int cassandraPoolMaxRequestsLocalConnection) {
+      this.cassandraPoolMaxRequestsLocalConnection = cassandraPoolMaxRequestsLocalConnection;
+    }
+
+    public void setCassandraPoolMaxRequestsRemoteConnection(
+        int cassandraPoolMaxRequestsRemoteConnection) {
+      this.cassandraPoolMaxRequestsRemoteConnection = cassandraPoolMaxRequestsRemoteConnection;
+    }
+
+    public void setCassandraPoolNewLocalConnectionThreshold(
+        int cassandraPoolNewLocalConnectionThreshold) {
+      this.cassandraPoolNewLocalConnectionThreshold = cassandraPoolNewLocalConnectionThreshold;
+    }
+
+    public void setCassandraPoolNewRemoteConnectionThreshold(
+        int cassandraPoolNewRemoteConnectionThreshold) {
+      this.cassandraPoolNewRemoteConnectionThreshold = cassandraPoolNewRemoteConnectionThreshold;
+    }
+
+    public void setCassandraPoolTimeoutMillis(int cassandraPoolTimeoutMillis) {
+      this.cassandraPoolTimeoutMillis = cassandraPoolTimeoutMillis;
     }
   }
 

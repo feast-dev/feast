@@ -6,7 +6,7 @@ We use [RFCs](https://en.wikipedia.org/wiki/Request_for_Comments) and [GitHub is
 
 Please communicate your ideas through a GitHub issue or through our Slack Channel before starting development.
 
-Please [submit a PR ](https://github.com/gojek/feast/pulls)to the master branch of the Feast repository once you are ready to submit your contribution. Code submission to Feast \(including submission from project maintainers\) require review and approval from maintainers or code owners. 
+Please [submit a PR ](https://github.com/gojek/feast/pulls)to the master branch of the Feast repository once you are ready to submit your contribution. Code submission to Feast \(including submission from project maintainers\) require review and approval from maintainers or code owners.
 
 PRs that are submitted by the general public need to be identified as `ok-to-test`. Once enabled, [Prow](https://github.com/kubernetes/test-infra/tree/master/prow) will run a range of tests to verify the submission, after which community members will help to review the pull request.
 
@@ -31,7 +31,7 @@ The main components of Feast are:
 
 ### 2.**2 Requirements**
 
-#### 2.**2.1 Development environment** 
+#### 2.**2.1 Development environment**
 
 The following software is required for Feast development
 
@@ -96,6 +96,7 @@ $ mvn verify
 The `core` and `serving` modules are Spring Boot applications. These may be run as usual for [the Spring Boot Maven plugin](https://docs.spring.io/spring-boot/docs/current/maven-plugin/index.html):
 
 ```text
+<<<<<<< HEAD
 $ mvn --projects core spring-boot:run
 
 # Or for short:
@@ -129,7 +130,7 @@ The following section is a quick walk-through to test whether your local Feast d
 
   can be accessed with credentials user `postgres` and password `password`. Different database configurations can be supplied here \(`/core/src/main/resources/application.yml`\)
 
-* Redis is running locally and accessible from `localhost:6379`   
+* Redis is running locally and accessible from `localhost:6379`
 * \(optional\) The local environment has been authentication with Google Cloud Platform and has full access to BigQuery. This is only necessary for BigQuery testing/development.
 
 #### 2.4.2 Clone Feast
@@ -146,6 +147,12 @@ To run Feast Core locally using Maven:
 ```bash
 # Feast Core can be configured from the following .yml file
 # $FEAST_HOME_DIR/core/src/main/resources/application.yml
+=======
+# Please check the default configuration for Feast Core in
+# "$FEAST_HOME/core/src/main/resources/application.yml" and update it accordingly.
+#
+# Start Feast Core GRPC server on localhost:6565
+>>>>>>> 98198d8... Add Cassandra Store (#360)
 mvn --projects core spring-boot:run
 ```
 
@@ -167,7 +174,7 @@ Rpc succeeded with OK status
 
 Feast Serving is configured through the `$FEAST_HOME_DIR/serving/src/main/resources/application.yml`. Each Serving deployment must be configured with a store. The default store is Redis \(used for online serving\).
 
-The configuration for this default store is located in a separate `.yml` file. The default location is `$FEAST_HOME_DIR/serving/sample_redis_config.yml`:   
+The configuration for this default store is located in a separate `.yml` file. The default location is `$FEAST_HOME_DIR/serving/sample_redis_config.yml`:
 
 ```text
 name: serving
@@ -181,7 +188,7 @@ subscriptions:
     version: "*"
 ```
 
-Once Feast Serving is started, it will register its store with Feast Core \(by name\) and start to subscribe to a feature sets based on its subscription. 
+Once Feast Serving is started, it will register its store with Feast Core \(by name\) and start to subscribe to a feature sets based on its subscription.
 
 Start Feast Serving GRPC server on localhost:6566 with store name `serving`
 
@@ -195,6 +202,7 @@ Test connectivity to Feast Serving
 grpc_cli call localhost:6566 GetFeastServingInfo ''
 ```
 
+<<<<<<< HEAD
 ```text
 connecting to localhost:6566
 version: "0.4.2-SNAPSHOT"
@@ -202,6 +210,16 @@ type: FEAST_SERVING_TYPE_ONLINE
 
 Rpc succeeded with OK status
 ```
+=======
+# If Feast Core starts successfully, verify the correct Stores are registered
+# correctly, for example by using grpc_cli.
+grpc_cli call localhost:6565 ListStores ''
+
+<<<<<<< HEAD:docs/contributing.md
+# Should return something similar to the following.
+# Note that you should change BigQuery projectId and datasetId accordingly
+# in "$FEAST_HOME/core/src/main/resources/application.yml"
+>>>>>>> 98198d8... Add Cassandra Store (#360)
 
 Test Feast Core to see whether it is aware of the Feast Serving deployment
 
@@ -228,7 +246,7 @@ store {
 Rpc succeeded with OK status
 ```
 
-In order to use BigQuery as a historical store, it is necessary to start Feast Serving with a different store type. 
+In order to use BigQuery as a historical store, it is necessary to start Feast Serving with a different store type.
 
 Copy `$FEAST_HOME_DIR/serving/sample_redis_config.yml`  to the following location `$FEAST_HOME_DIR/serving/my_bigquery_config.yml` and update the configuration as below:
 
@@ -280,10 +298,23 @@ store {
     project_id: "my_project"
     dataset_id: "my_bq_dataset"
   }
+# Should return something similar to the following if you have not updated any stores
+{
+  "store": []
 }
 ```
 
+<<<<<<< HEAD
 #### 2.4.5 Registering a FeatureSet
+=======
+#### Starting Feast Serving
+
+Feast Serving requires administrators to provide an **existing** store name in Feast.
+An instance of Feast Serving can only retrieve features from a **single** store.
+> In order to retrieve features from multiple stores you must start **multiple**
+instances of Feast serving. If you start multiple Feast serving on a single host,
+make sure that they are listening on different ports.
+>>>>>>> 98198d8... Add Cassandra Store (#360)
 
 Before registering a new FeatureSet, a project is required.
 
@@ -293,10 +324,78 @@ grpc_cli call localhost:6565 CreateProject '
 '
 ```
 
+<<<<<<< HEAD
 When a feature set is successfully registered, Feast Core will start an **ingestion** job that listens for new features in the feature set.
+=======
+#### Updating a store
+
+Create a new Store by sending a request to Feast Core.
+
+```
+# Example of updating a redis store
+
+grpc_cli call localhost:6565 UpdateStore '
+store {
+  name: "SERVING"
+  type: REDIS
+  subscriptions {
+    name: "*"
+    version: ">0"
+  }
+  redis_config {
+    host: "localhost"
+    port: 6379
+  }
+}
+'
+
+# Other supported stores examples (replacing redis_config):
+# BigQuery
+bigquery_config {
+  project_id: "my-google-project-id"
+  dataset_id: "my-bigquery-dataset-id"
+}
+
+# Cassandra: two options in cassandra depending on replication strategy
+# See details: https://docs.datastax.com/en/cassandra/3.0/cassandra/architecture/archDataDistributeReplication.html
+#
+# Please note that table name must be "feature_store" as is specified in the @Table annotation of the
+# datastax object mapper
+
+# SimpleStrategy
+cassandra_config {
+  bootstrap_hosts: "localhost"
+  port: 9042
+  keyspace: "feast"
+  table_name: "feature_store"
+  replication_options {
+    class: "SimpleStrategy"
+    replication_factor: 1
+  }
+}
+
+# NetworkTopologyStrategy
+cassandra_config {
+  bootstrap_hosts: "localhost"
+  port: 9042
+  keyspace: "feast"
+  table_name: "feature_store"
+  replication_options {
+    class: "NetworkTopologyStrategy"
+    east: 2
+    west: 2
+  }
+}
+
+# To check that the Stores has been updated correctly.
+grpc_cli call localhost:6565 ListStores ''
+```
+
+#### Registering a FeatureSet
+>>>>>>> 98198d8... Add Cassandra Store (#360)
 
 {% hint style="info" %}
-Note that Feast currently only supports source of type `KAFKA`, so you must have access to a running Kafka broker to register a FeatureSet successfully. It is possible to omit the `source` from a Feature Set, but Feast Core will still use Kafka behind the scenes, it is simply abstracted away from the user. 
+Note that Feast currently only supports source of type `KAFKA`, so you must have access to a running Kafka broker to register a FeatureSet successfully. It is possible to omit the `source` from a Feature Set, but Feast Core will still use Kafka behind the scenes, it is simply abstracted away from the user.
 {% endhint %}
 
 Create a new FeatureSet in Feast by sending a request to Feast Core:
@@ -456,7 +555,7 @@ field_values {
 
 #### 2.4.8 Summary
 
-If you have made it to this point successfully you should have a functioning Feast deployment, at the very least using the Apache Beam DirectRunner for ingestion jobs and Redis for online serving. 
+If you have made it to this point successfully you should have a functioning Feast deployment, at the very least using the Apache Beam DirectRunner for ingestion jobs and Redis for online serving.
 
 It is important to note that most of the functionality demonstrated above is already available in a more abstracted form in the Python SDK \(Feast management, data ingestion, feature retrieval\) and the Java/Go SDKs \(feature retrieval\). However, it is useful to understand these internals from a development standpoint.
 

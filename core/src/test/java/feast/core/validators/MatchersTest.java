@@ -43,7 +43,7 @@ public class MatchersTest {
   public void checkUpperSnakeCaseShouldThrowIllegalArgumentExceptionWithFieldForInvalidString() {
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage(
-        Strings.lenientFormat(
+        String.format(
             "invalid value for field %s: %s",
             "someField",
             "argument must be in upper snake case, and cannot include any special characters."));
@@ -61,7 +61,7 @@ public class MatchersTest {
   public void checkLowerSnakeCaseShouldThrowIllegalArgumentExceptionWithFieldForInvalidString() {
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage(
-        Strings.lenientFormat(
+        String.format(
             "invalid value for field %s: %s",
             "someField",
             "argument must be in lower snake case, and cannot include any special characters."));

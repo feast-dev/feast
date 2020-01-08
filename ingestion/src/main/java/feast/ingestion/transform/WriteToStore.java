@@ -16,23 +16,30 @@
  */
 package feast.ingestion.transform;
 
+import com.datastax.driver.core.Session;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse.InsertErrors;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
 import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.BigQueryConfig;
+import feast.core.StoreProto.Store.CassandraConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.utils.ResourceUtil;
 import feast.ingestion.values.FailedElement;
 import feast.store.serving.bigquery.FeatureRowToTableRow;
 import feast.store.serving.bigquery.GetTableDestination;
+import feast.store.serving.cassandra.CassandraMutation;
+import feast.store.serving.cassandra.FeatureRowToCassandraMutationDoFn;
 import feast.store.serving.redis.FeatureRowToRedisMutationDoFn;
 import feast.store.serving.redis.RedisCustomIO;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Map;
+import org.apache.beam.sdk.io.cassandra.CassandraIO;
+import org.apache.beam.sdk.io.cassandra.Mapper;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
@@ -46,6 +53,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -148,6 +156,24 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
                       .setJsonSchema(ResourceUtil.getDeadletterTableSchemaJson())
                       .build());
         }
+        break;
+      case CASSANDRA:
+        CassandraConfig cassandraConfig = getStore().getCassandraConfig();
+        SerializableFunction<Session, Mapper> mapperFactory =
+            new CassandraMutationMapperFactory(CassandraMutation.class);
+        input
+            .apply(
+                "Create CassandraMutation from FeatureRow",
+                ParDo.of(
+                    new FeatureRowToCassandraMutationDoFn(
+                        getFeatureSets(), cassandraConfig.getDefaultTtl())))
+            .apply(
+                CassandraIO.<CassandraMutation>write()
+                    .withHosts(Arrays.asList(cassandraConfig.getBootstrapHosts().split(",")))
+                    .withPort(cassandraConfig.getPort())
+                    .withKeyspace(cassandraConfig.getKeyspace())
+                    .withEntity(CassandraMutation.class)
+                    .withMapperFactoryFn(mapperFactory));
         break;
       default:
         log.error("Store type '{}' is not supported. No Feature Row will be written.", storeType);

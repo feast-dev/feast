@@ -18,10 +18,18 @@ package feast.test;
 
 import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
 
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.Session;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import feast.core.FeatureSetProto.FeatureSet;
+import feast.core.FeatureSetProto.FeatureSpec;
+import feast.core.FeatureSetProto.EntitySpec;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.StoreProto.Store.CassandraConfig;
 import feast.ingestion.transform.WriteToStore;
+import feast.ingestion.utils.StoreUtil;
 import feast.storage.RedisProto.RedisKey;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FeatureRowProto.FeatureRow.Builder;
@@ -35,13 +43,18 @@ import feast.types.ValueProto.Int64List;
 import feast.types.ValueProto.StringList;
 import feast.types.ValueProto.Value;
 import feast.types.ValueProto.ValueType;
+import feast.types.ValueProto.ValueType.Enum;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServerStartable;
 import org.apache.beam.sdk.PipelineResult;
@@ -53,8 +66,10 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.LongSerializer;
+import org.apache.thrift.transport.TTransportException;
 import org.apache.zookeeper.server.ServerConfig;
 import org.apache.zookeeper.server.ZooKeeperServerMain;
+import org.cassandraunit.utils.EmbeddedCassandraServerHelper;
 import org.joda.time.Duration;
 import redis.embedded.RedisServer;
 
@@ -80,6 +95,37 @@ public class TestUtil {
       if (server != null) {
         server.stop();
       }
+    }
+  }
+
+  public static class LocalCassandra {
+
+    public static void start() throws InterruptedException, IOException, TTransportException {
+      EmbeddedCassandraServerHelper.startEmbeddedCassandra();
+    }
+
+    public static void createKeyspaceAndTable(CassandraConfig config) {
+      StoreUtil.setupCassandra(config);
+    }
+
+    public static String getHost() {
+      return EmbeddedCassandraServerHelper.getHost();
+    }
+
+    public static int getPort() {
+      return EmbeddedCassandraServerHelper.getNativeTransportPort();
+    }
+
+    public static Cluster getCluster() {
+      return EmbeddedCassandraServerHelper.getCluster();
+    }
+
+    public static Session getSession() {
+      return EmbeddedCassandraServerHelper.getSession();
+    }
+
+    public static void stop() {
+      EmbeddedCassandraServerHelper.cleanEmbeddedCassandra();
     }
   }
 
@@ -163,6 +209,85 @@ public class TestUtil {
             e.printStackTrace();
           }
         });
+  }
+
+  /**
+   * Create a Feature Set Spec.
+   *
+   * @param name name of the feature set
+   * @param version version of the feature set
+   * @param maxAgeSeconds max age
+   * @param entities entities provided as map of string to {@link Enum}
+   * @param features features provided as map of string to {@link Enum}
+   * @return {@link FeatureSetSpec}
+   */
+  public static FeatureSetSpec createFeatureSetSpec(
+      String name,
+      int version,
+      int maxAgeSeconds,
+      Map<String, Enum> entities,
+      Map<String, Enum> features) {
+    FeatureSetSpec.Builder featureSetSpec =
+        FeatureSetSpec.newBuilder()
+            .setName(name)
+            .setVersion(version)
+            .setMaxAge(com.google.protobuf.Duration.newBuilder().setSeconds(maxAgeSeconds).build());
+
+    for (Entry<String, Enum> entity : entities.entrySet()) {
+      featureSetSpec.addEntities(
+          EntitySpec.newBuilder().setName(entity.getKey()).setValueType(entity.getValue()).build());
+    }
+
+    for (Entry<String, Enum> feature : features.entrySet()) {
+      featureSetSpec.addFeatures(
+          FeatureSpec.newBuilder()
+              .setName(feature.getKey())
+              .setValueType(feature.getValue())
+              .build());
+    }
+
+    return featureSetSpec.build();
+  }
+
+  /**
+   * Create a Feature Row.
+   *
+   * @param featureSetSpec {@link FeatureSetSpec}
+   * @param timestampSeconds timestamp given in seconds
+   * @param fields fields provided as a map name to {@link Value}
+   * @return {@link FeatureRow}
+   */
+  public static FeatureRow createFeatureRow(
+      FeatureSetSpec featureSetSpec, long timestampSeconds, Map<String, Value> fields) {
+    List<String> featureNames =
+        featureSetSpec.getFeaturesList().stream()
+            .map(FeatureSpec::getName)
+            .collect(Collectors.toList());
+    List<String> entityNames =
+        featureSetSpec.getEntitiesList().stream()
+            .map(EntitySpec::getName)
+            .collect(Collectors.toList());
+    List<String> requiredFields =
+        Stream.concat(featureNames.stream(), entityNames.stream()).collect(Collectors.toList());
+
+    if (fields.keySet().containsAll(requiredFields)) {
+      FeatureRow.Builder featureRow =
+          FeatureRow.newBuilder()
+              .setFeatureSet(featureSetSpec.getName() + ":" + featureSetSpec.getVersion())
+              .setEventTimestamp(Timestamp.newBuilder().setSeconds(timestampSeconds).build());
+      for (Entry<String, Value> field : fields.entrySet()) {
+        featureRow.addFields(
+            Field.newBuilder().setName(field.getKey()).setValue(field.getValue()).build());
+      }
+      return featureRow.build();
+    } else {
+      String missingFields =
+          requiredFields.stream()
+              .filter(f -> !fields.keySet().contains(f))
+              .collect(Collectors.joining(","));
+      throw new IllegalArgumentException(
+          "FeatureRow is missing some fields defined in FeatureSetSpec: " + missingFields);
+    }
   }
 
   /**
@@ -417,5 +542,13 @@ public class TestUtil {
         }
       }
     }
+  }
+
+  public static Value intValue(int val) {
+    return Value.newBuilder().setInt64Val(val).build();
+  }
+
+  public static Value strValue(String val) {
+    return Value.newBuilder().setStringVal(val).build();
   }
 }

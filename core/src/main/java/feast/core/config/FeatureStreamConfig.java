@@ -69,7 +69,7 @@ public class FeatureStreamConfig {
         } catch (InterruptedException | ExecutionException e) {
           if (e.getCause().getClass().equals(TopicExistsException.class)) {
             log.warn(
-                Strings.lenientFormat(
+                String.format(
                     "Unable to create topic %s in the feature stream, topic already exists, using existing topic.",
                     topicName));
           } else {

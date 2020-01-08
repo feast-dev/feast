@@ -148,7 +148,7 @@ public class DataflowJobManager implements JobManager {
     } catch (Exception e) {
       log.error("Unable to drain job with id: {}, cause: {}", dataflowJobId, e.getMessage());
       throw new RuntimeException(
-          Strings.lenientFormat("Unable to drain job with id: %s", dataflowJobId), e);
+          String.format("Unable to drain job with id: %s", dataflowJobId), e);
     }
   }
 

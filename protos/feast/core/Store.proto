@@ -17,6 +17,8 @@
 syntax = "proto3";
 package feast.core;
 
+import "google/protobuf/duration.proto";
+
 option java_package = "feast.core";
 option java_outer_classname = "StoreProto";
 option go_package = "github.com/gojek/feast/sdk/go/protos/feast/core";
@@ -103,7 +105,20 @@ message Store {
     //
     BIGQUERY = 2;
 
-    // Unsupported in Feast 0.3
+    // Cassandra stores entities as a string partition key, feature as clustering column.
+    // NOTE: This store currently uses max_age defined in FeatureSet for ttl
+    //
+    // Columns:
+    // - entities: concatenated string of feature set name and all entities' keys and values
+    //   entities concatenated format - [feature_set]:[entity_name1=entity_value1]|[entity_name2=entity_value2]
+    //   TODO: string representation of float or double types may have different value in different runtime or platform
+    // - feature: clustering column where each feature is a column
+    // - value: byte array of Value (refer to feast.types.Value)
+    //
+    // Internal columns:
+    // - writeTime: timestamp of the written record. This is used to ensure that new records are not replaced
+    //              by older ones
+    // - ttl: expiration time the record. Currently using max_age from feature set spec as ttl
     CASSANDRA = 3;
   }
 
@@ -123,8 +138,22 @@ message Store {
   }
 
   message CassandraConfig {
-    string host = 1;
+    // - bootstrapHosts: [comma delimited value of hosts]
+    string bootstrap_hosts = 1;
     int32 port = 2;
+    string keyspace = 3;
+
+    // Please note that table name must be "feature_store" as is specified in the @Table annotation of the
+    // datastax object mapper
+    string table_name = 4;
+
+    // This specifies the replication strategy to use. Please refer to docs for more details:
+    // https://docs.datastax.com/en/dse/6.7/cql/cql/cql_reference/cql_commands/cqlCreateKeyspace.html#cqlCreateKeyspace__cqlCreateKeyspacereplicationmap-Pr3yUQ7t
+    map<string, string> replication_options = 5;
+
+    // Default expiration in seconds to use when FeatureSetSpec does not have max_age defined.
+    // Specify 0 for no default expiration
+    google.protobuf.Duration default_ttl = 6;
   }
 
   message Subscription {

@@ -1,7 +1,7 @@
 feast:
   # This value is retrieved from project.version properties in pom.xml
   # https://docs.spring.io/spring-boot/docs/current/reference/html/
-  version: @project.version@
+#  version: @project.version@
   # GRPC service address for Feast Core
   # Feast Serving requires connection to Feast Core to retrieve and reload Feast metadata (e.g. FeatureSpecs, Store information)
   core-host: ${FEAST_CORE_HOST:localhost}
@@ -24,6 +24,24 @@ feast:
     redis-pool-max-size: ${FEAST_REDIS_POOL_MAX_SIZE:128}
     # If serving redis, the redis pool max idle conns
     redis-pool-max-idle: ${FEAST_REDIS_POOL_MAX_IDLE:16}
+    # If serving cassandra, minimum connection for local host (one in same data center)
+    cassandra-pool-core-local-connections: ${FEAST_CASSANDRA_CORE_LOCAL_CONNECTIONS:1}
+    # If serving cassandra, maximum connection for local host (one in same data center)
+    cassandra-pool-max-local-connections: ${FEAST_CASSANDRA_MAX_LOCAL_CONNECTIONS:1}
+    # If serving cassandra, minimum connection for remote host (one in remote data center)
+    cassandra-pool-core-remote-connections: ${FEAST_CASSANDRA_CORE_REMOTE_CONNECTIONS:1}
+    # If serving cassandra, maximum connection for remote host (one in same data center)
+    cassandra-pool-max-remote-connections: ${FEAST_CASSANDRA_MAX_REMOTE_CONNECTIONS:1}
+    # If serving cassandra, maximum number of concurrent requests per local connection (one in same data center)
+    cassandra-pool-max-requests-local-connection: ${FEAST_CASSANDRA_MAX_REQUESTS_LOCAL_CONNECTION:32768}
+    # If serving cassandra, maximum number of concurrent requests per remote connection (one in remote data center)
+    cassandra-pool-max-requests-remote-connection: ${FEAST_CASSANDRA_MAX_REQUESTS_REMOTE_CONNECTION:2048}
+    # If serving cassandra, number of requests which trigger opening of new local connection (if it is available)
+    cassandra-pool-new-local-connection-threshold: ${FEAST_CASSANDRA_NEW_LOCAL_CONNECTION_THRESHOLD:30000}
+    # If serving cassandra, number of requests which trigger opening of new remote connection (if it is available)
+    cassandra-pool-new-remote-connection-threshold: ${FEAST_CASSANDRA_NEW_REMOTE_CONNECTION_THRESHOLD:400}
+    # If serving cassandra, number of milliseconds to wait to acquire connection (after that go to next available host in query plan)
+    cassandra-pool-timeout-millis: ${FEAST_CASSANDRA_POOL_TIMEOUT_MILLIS:0}
 
   jobs:
     # staging-location specifies the URI to store intermediate files for batch serving.

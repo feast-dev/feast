@@ -1,0 +1,13 @@
+name: serving
+type: CASSANDRA
+cassandra_config:
+  bootstrap_hosts: localhost
+  port: 9042
+  keyspace: feast
+  table_name: feature_store
+  replication_options:
+    class: SimpleStrategy
+    replication_factor: 1
+subscriptions:
+  - name: "*"
+    version: ">0"
