@@ -1,0 +1,93 @@
+feast-core:
+  enabled: true
+  image:
+    tag: "0.4.2"
+  jvmOptions:
+  - -Xms1024m
+  - -Xmx1024m
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 1024Mi
+  service:
+    type: NodePort
+    grpc:
+      nodePort: 32090
+  gcpServiceAccount:
+    useExistingSecret: true
+  application.yaml:
+    feast:
+      jobs:
+        # TODO: fix/validate this runner works
+        runner: DataflowRunner
+        options:
+          project: gradient-decision
+          region: us-east1
+          subnetwork: default
+          maxNumWorkers: 4
+          autoscalingAlgorithm: THROUGHPUT_BASED
+          serviceAccount: feast-sa@gradient-decision.iam.gserviceaccount.com
+          tempLocation: gs://gradient-decision_feast_bucket/ingest/scratch
+feast-serving-online:
+  enabled: true
+  redis:
+    enabled: true
+  image:
+    tag: "0.4.2"
+  jvmOptions:
+  - -Xms1024m
+  - -Xmx1024m
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1024Mi
+  service:
+    type: NodePort
+    grpc:
+      nodePort: 32091
+  store.yaml:
+    name: redis
+    type: REDIS
+    redis_config:
+      port: 6379
+    subscriptions:
+    - name: "*"
+      project: "*"
+      version: "*"
+feast-serving-batch:
+  enabled: true
+  redis:
+    enabled: false
+  image:
+    tag: "0.4.2"
+  jvmOptions:
+  - -Xms1024m
+  - -Xmx1024m
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1024Mi
+  service:
+    type: NodePort
+    grpc:
+      nodePort: 32092
+  gcpServiceAccount:
+    useExistingSecret: true
+  application.yaml:
+    feast:
+      jobs:
+        staging-location: gs://gradient-decision_feast_bucket/serving/batch
+        store-type: REDIS
+        store-options:
+          host: localhost
+          port: 6379
+  store.yaml:
+    name: bigquery
+    type: BIGQUERY
+    bigquery_config:
+      project_id: gradient-decision
+      dataset_id: feast
+    subscriptions:
+    - name: "*"
+      project: "*"
+      version: "*"
