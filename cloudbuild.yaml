@@ -65,8 +65,12 @@ steps:
   dir: '/workspace/sdk/python'
   entrypoint: sh
   args: ['-c', 'pip install -r requirements-ci.txt && pip install -e . && pytest --junitxml=/log/python-sdk-test-report.xml']
-- id: upload-python-package
+- id: unshallow-git-clone
   waitFor: ['unit-test-python-sdk']
+  name: gcr.io/cloud-builders/git
+  args: ['fetch', '--unshallow']
+- id: upload-python-package
+  waitFor: ['unshallow-git-clone']
   name: 'python:3.7-buster'
   dir: '/workspace/sdk/python'
   entrypoint: sh
