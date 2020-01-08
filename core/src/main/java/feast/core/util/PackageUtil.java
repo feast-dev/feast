@@ -44,13 +44,14 @@ public class PackageUtil {
    * points to the resource location. Note that the extraction process can take several minutes to
    * complete.
    *
-   * <p>One use case of this function is to detect the class path of resources to stage when
-   * using Dataflow runner. The resource URL however is in "jar:file:" format, which cannot be
-   * handled by default in Apache Beam.
+   * <p>One use case of this function is to detect the class path of resources to stage when using
+   * Dataflow runner. The resource URL however is in "jar:file:" format, which cannot be handled by
+   * default in Apache Beam.
    *
    * <pre>
-   * @code
+   * <code>
    * URL url = new URL("jar:file:/tmp/springexample/target/spring-example-1.0-SNAPSHOT.jar!/BOOT-INF/lib/beam-sdks-java-core-2.16.0.jar!/");
+   * </code>
    * String resolvedPath = resolveSpringBootPackageClasspath(url);
    * // resolvedPath should point to "/tmp/springexample/target/spring-example-1.0-SNAPSHOT/BOOT-INF/lib/beam-sdks-java-core-2.16.0.jar"
    * // Note that spring-example-1.0-SNAPSHOT.jar is extracted in the process.
