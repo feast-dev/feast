@@ -110,6 +110,11 @@ message Store {
   message RedisConfig {
     string host = 1;
     int32 port = 2;
+    // Optional. The number of milliseconds to wait before retrying failed Redis connection.
+    // By default, Feast uses exponential backoff policy and "initial_backoff_ms" sets the initial wait duration.
+    int32 initial_backoff_ms = 3;
+    // Optional. Maximum total number of retries for connecting to Redis. Default to zero retries.
+    int32 max_retries = 4;
   }
 
   message BigQueryConfig {

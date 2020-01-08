@@ -70,10 +70,8 @@ presubmits:
         command: [".prow/scripts/test-core-ingestion.sh"]
         resources:
           requests:
-            cpu: "1500m"
+            cpu: "2000m"
             memory: "1536Mi"
-          limit:
-            memory: "4096Mi"
 
   - name: test-serving
     decorate: true
@@ -116,9 +114,7 @@ presubmits:
         command: [".prow/scripts/test-end-to-end.sh"]
         resources:
           requests:
-            cpu: "3000m"
-            memory: "4096Mi"
-          limit:
+            cpu: "6"
             memory: "6144Mi"
 
   - name: test-end-to-end-batch
@@ -134,10 +130,8 @@ presubmits:
         command: [".prow/scripts/test-end-to-end-batch.sh"]
         resources:
           requests:
-            cpu: "1000m"
-            memory: "1024Mi"
-          limit:
-            memory: "4096Mi"
+            cpu: "6"
+            memory: "6144Mi"
         volumeMounts:
         - name: service-account
           mountPath: "/etc/service-account"
@@ -167,6 +161,34 @@ postsubmits:
     branches:
     # Filter on tags with semantic versioning, prefixed with "v"
     # https://github.com/semver/semver/issues/232
+    - ^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$
+
+  - name: publish-java-sdk
+    decorate: true
+    spec:
+      containers:
+      - image: maven:3.6-jdk-8
+        command:
+        - bash
+        - -c
+        - .prow/scripts/publish-java-sdk.sh --revision ${PULL_BASE_REF:1}
+        volumeMounts:
+        - name: gpg-keys
+          mountPath: /etc/gpg
+          readOnly: true
+        - name: maven-settings
+          mountPath: /root/.m2/settings.xml
+          subPath: settings.xml
+          readOnly: true
+      volumes:
+      - name: gpg-keys
+        secret:
+          secretName: gpg-keys
+      - name: maven-settings
+        secret:
+          secretName: maven-settings
+    branches:
+    # Filter on tags with semantic versioning, prefixed with "v"
     - ^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$
 
   - name: publish-docker-images
@@ -278,4 +300,5 @@ postsubmits:
         secret:
           secretName: feast-service-account
     branches:
+    # Filter on tags with semantic versioning, prefixed with "v"
     - ^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$

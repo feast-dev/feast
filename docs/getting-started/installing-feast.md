@@ -306,13 +306,13 @@ kubectl create secret generic feast-gcp-service-account --from-file=key.json
 For this guide we will use `NodePort` for exposing Feast services. In order to do so, we must find an internal IP of at least one GKE node.
 
 ```bash
-export FEAST_IP=$(kubectl describe nodes | grep InternalIP | awk '{print $2}' | head -n 1)
+export FEAST_IP=$(kubectl describe nodes | grep ExternalIP | awk '{print $2}' | head -n 1)
 export FEAST_CORE_URL=${FEAST_IP}:32090
 export FEAST_ONLINE_SERVING_URL=${FEAST_IP}:32091
 export FEAST_BATCH_SERVING_URL=${FEAST_IP}:32092
 ```
 
-Confirm that you are able to access this node:
+Confirm that you are able to access this node \(please make sure that no firewall rules are preventing access to these ports\):
 
 ```bash
 ping $FEAST_IP
