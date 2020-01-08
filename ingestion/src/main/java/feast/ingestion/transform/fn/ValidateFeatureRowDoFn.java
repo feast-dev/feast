@@ -18,20 +18,23 @@ package feast.ingestion.transform.fn;
 
 import com.google.auto.value.AutoValue;
 import feast.ingestion.values.FailedElement;
-import feast.ingestion.values.FailedElement.Builder;
-import feast.ingestion.values.FeatureSetSpec;
+import feast.ingestion.values.FeatureSet;
 import feast.ingestion.values.Field;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto;
 import feast.types.ValueProto.Value.ValCase;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.TupleTag;
 
 @AutoValue
 public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow> {
 
-  public abstract Map<String, FeatureSetSpec> getFeatureSetSpecs();
+  public abstract Map<String, FeatureSet> getFeatureSets();
 
   public abstract TupleTag<FeatureRow> getSuccessTag();
 
@@ -44,7 +47,7 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
   @AutoValue.Builder
   public abstract static class Builder {
 
-    public abstract Builder setFeatureSetSpecs(Map<String, FeatureSetSpec> featureSetSpecs);
+    public abstract Builder setFeatureSets(Map<String, FeatureSet> featureSets);
 
     public abstract Builder setSuccessTag(TupleTag<FeatureRow> successTag);
 
@@ -57,17 +60,13 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
   public void processElement(ProcessContext context) {
     String error = null;
     FeatureRow featureRow = context.element();
-    FeatureSetSpec featureSetSpec =
-        getFeatureSetSpecs().getOrDefault(featureRow.getFeatureSet(), null);
-    if (featureSetSpec != null) {
-
+    FeatureSet featureSet = getFeatureSets().getOrDefault(featureRow.getFeatureSet(), null);
+    List<FieldProto.Field> fields = new ArrayList<>();
+    if (featureSet != null) {
       for (FieldProto.Field field : featureRow.getFieldsList()) {
-        Field fieldSpec = featureSetSpec.getField(field.getName());
+        Field fieldSpec = featureSet.getField(field.getName());
         if (fieldSpec == null) {
-          error =
-              String.format(
-                  "FeatureRow contains field '%s' which do not exists in FeatureSet '%s' version '%d'. Please check the FeatureRow data.",
-                  field.getName(), featureSetSpec.getId());
+          // skip
           break;
         }
         // If value is set in the FeatureRow, make sure the value type matches
@@ -82,6 +81,9 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
                     field.getName(), field.getValue().getValCase(), fieldSpec.getType());
             break;
           }
+        }
+        if (!fields.contains(field)) {
+          fields.add(field);
         }
       }
     } else {
@@ -98,12 +100,21 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
               .setJobName(context.getPipelineOptions().getJobName())
               .setPayload(featureRow.toString())
               .setErrorMessage(error);
-      if (featureSetSpec != null) {
-        String[] split = featureSetSpec.getId().split(":");
-        failedElement = failedElement.setFeatureSetName(split[0]).setFeatureSetVersion(split[1]);
+      if (featureSet != null) {
+        String[] split = featureSet.getReference().split(":");
+        String[] nameSplit = split[0].split("/");
+        failedElement =
+            failedElement
+                .setProjectName(nameSplit[0])
+                .setFeatureSetName(nameSplit[1])
+                .setFeatureSetVersion(split[1]);
       }
       context.output(getFailureTag(), failedElement.build());
     } else {
+      featureRow = featureRow.toBuilder()
+                    .clearFields()
+                    .addAllFields(fields)
+                    .build();
       context.output(getSuccessTag(), featureRow);
     }
   }

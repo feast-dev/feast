@@ -18,10 +18,9 @@ package feast.serving.controller;
 
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import com.google.common.collect.Lists;
 import com.google.protobuf.Timestamp;
 import feast.serving.FeastProperties;
-import feast.serving.ServingAPIProto.FeatureSetRequest;
+import feast.serving.ServingAPIProto.FeatureReference;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
@@ -52,11 +51,17 @@ public class ServingServiceGRpcControllerTest {
 
     validRequest =
         GetOnlineFeaturesRequest.newBuilder()
-            .addFeatureSets(
-                FeatureSetRequest.newBuilder()
-                    .setName("featureSet")
+            .addFeatures(
+                FeatureReference.newBuilder()
+                    .setName("feature1")
                     .setVersion(1)
-                    .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
+                    .setProject("project")
+                    .build())
+            .addFeatures(
+                FeatureReference.newBuilder()
+                    .setName("feature2")
+                    .setVersion(1)
+                    .setProject("project")
                     .build())
             .addEntityRows(
                 EntityRow.newBuilder()

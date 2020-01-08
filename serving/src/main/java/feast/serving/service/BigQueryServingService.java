@@ -18,7 +18,6 @@ package feast.serving.service;
 
 import static feast.serving.store.bigquery.QueryTemplater.createEntityTableUUIDQuery;
 import static feast.serving.store.bigquery.QueryTemplater.generateFullTableName;
-import static feast.serving.util.Metrics.requestCount;
 import static feast.serving.util.Metrics.requestLatency;
 
 import com.google.cloud.bigquery.BigQuery;
@@ -32,8 +31,8 @@ import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.storage.Storage;
-import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.serving.ServingAPIProto;
 import feast.serving.ServingAPIProto.DataFormat;
 import feast.serving.ServingAPIProto.DatasetSource;
@@ -48,6 +47,8 @@ import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.JobStatus;
 import feast.serving.ServingAPIProto.JobType;
+import feast.serving.specs.CachedSpecService;
+import feast.serving.specs.FeatureSetRequest;
 import feast.serving.store.bigquery.BatchRetrievalQueryRunnable;
 import feast.serving.store.bigquery.QueryTemplater;
 import feast.serving.store.bigquery.model.FeatureSetInfo;
@@ -56,10 +57,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 
 public class BigQueryServingService implements ServingService {
 
+  public static final long TEMP_TABLE_EXPIRY_DURATION_MS = Duration.standardDays(1).getMillis();
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(BigQueryServingService.class);
 
   private final BigQuery bigquery;
@@ -107,21 +110,8 @@ public class BigQueryServingService implements ServingService {
   @Override
   public GetBatchFeaturesResponse getBatchFeatures(GetBatchFeaturesRequest getFeaturesRequest) {
     long startTime = System.currentTimeMillis();
-    List<FeatureSetSpec> featureSetSpecs =
-        getFeaturesRequest.getFeatureSetsList().stream()
-            .map(
-                featureSet -> {
-                  requestCount.labels(featureSet.getName()).inc();
-                  return specService.getFeatureSet(featureSet.getName(), featureSet.getVersion());
-                })
-            .collect(Collectors.toList());
-
-    if (getFeaturesRequest.getFeatureSetsList().size() != featureSetSpecs.size()) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription(
-              "Some of the feature sets requested do not exist in Feast. Please check your request payload.")
-          .asRuntimeException();
-    }
+    List<FeatureSetRequest> featureSetRequests =
+        specService.getFeatureSets(getFeaturesRequest.getFeaturesList());
 
     Table entityTable;
     String entityTableName;
@@ -143,8 +133,7 @@ public class BigQueryServingService implements ServingService {
             .filter(name -> !name.equals("event_timestamp"))
             .collect(Collectors.toList());
 
-    List<FeatureSetInfo> featureSetInfos =
-        QueryTemplater.getFeatureSetInfos(featureSetSpecs, getFeaturesRequest.getFeatureSetsList());
+    List<FeatureSetInfo> featureSetInfos = QueryTemplater.getFeatureSetInfos(featureSetRequests);
 
     String feastJobId = UUID.randomUUID().toString();
     ServingAPIProto.Job feastJob =
@@ -170,7 +159,9 @@ public class BigQueryServingService implements ServingService {
                 .build())
         .start();
 
-    requestLatency.labels("getBatchFeatures").observe(System.currentTimeMillis() - startTime);
+    requestLatency
+        .labels("getBatchFeatures")
+        .observe((System.currentTimeMillis() - startTime) / 1000);
     return GetBatchFeaturesResponse.newBuilder().setJob(feastJob).build();
   }
 
@@ -191,15 +182,17 @@ public class BigQueryServingService implements ServingService {
     switch (datasetSource.getDatasetSourceCase()) {
       case FILE_SOURCE:
         try {
-          String tableName = generateTemporaryTableName();
-          log.info("Loading entity dataset to table {}.{}.{}", projectId, datasetId, tableName);
-          TableId tableId = TableId.of(projectId, datasetId, tableName);
-          // Currently only avro supported
+          // Currently only AVRO format is supported
+
           if (datasetSource.getFileSource().getDataFormat() != DataFormat.DATA_FORMAT_AVRO) {
             throw Status.INVALID_ARGUMENT
-                .withDescription("Invalid file format, only avro supported")
+                .withDescription("Invalid file format, only AVRO is supported.")
                 .asRuntimeException();
           }
+
+          TableId tableId = TableId.of(projectId, datasetId, createTempTableName());
+          log.info("Loading entity rows to: {}.{}.{}", projectId, datasetId, tableId.getTable());
+
           LoadJobConfiguration loadJobConfiguration =
               LoadJobConfiguration.of(
                   tableId, datasetSource.getFileSource().getFileUrisList(), FormatOptions.avro());
@@ -207,6 +200,15 @@ public class BigQueryServingService implements ServingService {
               loadJobConfiguration.toBuilder().setUseAvroLogicalTypes(true).build();
           Job job = bigquery.create(JobInfo.of(loadJobConfiguration));
           job.waitFor();
+
+          TableInfo expiry =
+              bigquery
+                  .getTable(tableId)
+                  .toBuilder()
+                  .setExpirationTime(System.currentTimeMillis() + TEMP_TABLE_EXPIRY_DURATION_MS)
+                  .build();
+          bigquery.update(expiry);
+
           loadedEntityTable = bigquery.getTable(tableId);
           if (!loadedEntityTable.exists()) {
             throw new RuntimeException(
@@ -216,7 +218,7 @@ public class BigQueryServingService implements ServingService {
         } catch (Exception e) {
           log.error("Exception has occurred in loadEntities method: ", e);
           throw Status.INTERNAL
-              .withDescription("Failed to load entity dataset into store")
+              .withDescription("Failed to load entity dataset into store: " + e.toString())
               .withCause(e)
               .asRuntimeException();
         }
@@ -228,20 +230,23 @@ public class BigQueryServingService implements ServingService {
     }
   }
 
-  private String generateTemporaryTableName() {
-    String source = String.format("feastserving%d", System.currentTimeMillis());
-    String guid = UUID.nameUUIDFromBytes(source.getBytes()).toString();
-    String suffix = guid.substring(0, Math.min(guid.length(), 10)).replaceAll("-", "");
-    return String.format("temp_%s", suffix);
-  }
-
   private TableId generateUUIDs(Table loadedEntityTable) {
     try {
       String uuidQuery =
           createEntityTableUUIDQuery(generateFullTableName(loadedEntityTable.getTableId()));
-      QueryJobConfiguration queryJobConfig = QueryJobConfiguration.newBuilder(uuidQuery).build();
+      QueryJobConfiguration queryJobConfig =
+          QueryJobConfiguration.newBuilder(uuidQuery)
+              .setDestinationTable(TableId.of(projectId, datasetId, createTempTableName()))
+              .build();
       Job queryJob = bigquery.create(JobInfo.of(queryJobConfig));
       queryJob.waitFor();
+      TableInfo expiry =
+          bigquery
+              .getTable(queryJobConfig.getDestinationTable())
+              .toBuilder()
+              .setExpirationTime(System.currentTimeMillis() + TEMP_TABLE_EXPIRY_DURATION_MS)
+              .build();
+      bigquery.update(expiry);
       queryJobConfig = queryJob.getConfiguration();
       return queryJobConfig.getDestinationTable();
     } catch (InterruptedException | BigQueryException e) {
@@ -250,5 +255,9 @@ public class BigQueryServingService implements ServingService {
           .withCause(e)
           .asRuntimeException();
     }
+  }
+
+  public static String createTempTableName() {
+    return "_" + UUID.randomUUID().toString().replace("-", "");
   }
 }

@@ -22,12 +22,7 @@ class AbstractProducer:
     Abstract class for Kafka producers
     """
 
-    def __init__(
-            self,
-            brokers: str,
-            row_count: int,
-            disable_progress_bar: bool
-    ):
+    def __init__(self, brokers: str, row_count: int, disable_progress_bar: bool):
         self.brokers = brokers
         self.row_count = row_count
         self.error_count = 0
@@ -35,20 +30,15 @@ class AbstractProducer:
 
         # Progress bar will always display average rate
         self.pbar = tqdm(
-            total=row_count,
-            unit="rows",
-            smoothing=0,
-            disable=disable_progress_bar
+            total=row_count, unit="rows", smoothing=0, disable=disable_progress_bar
         )
 
     def produce(self, topic: str, data: str):
-        message = "{} should implement a produce method".format(
-            self.__class__.__name__)
+        message = "{} should implement a produce method".format(self.__class__.__name__)
         raise NotImplementedError(message)
 
     def flush(self, timeout: int):
-        message = "{} should implement a flush method".format(
-            self.__class__.__name__)
+        message = "{} should implement a flush method".format(self.__class__.__name__)
         raise NotImplementedError(message)
 
     def _inc_pbar(self, meta):
@@ -98,13 +88,9 @@ class ConfluentProducer(AbstractProducer):
     Concrete implementation of Confluent Kafka producer (confluent-kafka)
     """
 
-    def __init__(
-            self,
-            brokers: str,
-            row_count: int,
-            disable_progress_bar: bool
-    ):
+    def __init__(self, brokers: str, row_count: int, disable_progress_bar: bool):
         from confluent_kafka import Producer
+
         self.producer = Producer({"bootstrap.servers": brokers})
         super().__init__(brokers, row_count, disable_progress_bar)
 
@@ -122,8 +108,7 @@ class ConfluentProducer(AbstractProducer):
         """
 
         try:
-            self.producer.produce(
-                topic, value=value, callback=self._delivery_callback)
+            self.producer.produce(topic, value=value, callback=self._delivery_callback)
             # Serve delivery callback queue.
             # NOTE: Since produce() is an asynchronous API this poll() call
             #       will most likely not serve the delivery callback for the
@@ -173,13 +158,9 @@ class KafkaPythonProducer(AbstractProducer):
     Concrete implementation of Python Kafka producer (kafka-python)
     """
 
-    def __init__(
-            self,
-            brokers: str,
-            row_count: int,
-            disable_progress_bar: bool
-    ):
+    def __init__(self, brokers: str, row_count: int, disable_progress_bar: bool):
         from kafka import KafkaProducer
+
         self.producer = KafkaProducer(bootstrap_servers=[brokers])
         super().__init__(brokers, row_count, disable_progress_bar)
 
@@ -199,8 +180,11 @@ class KafkaPythonProducer(AbstractProducer):
             KafkaTimeoutError: if unable to fetch topic metadata, or unable
                 to obtain memory buffer prior to configured max_block_ms
         """
-        return self.producer.send(topic, value=value).add_callback(
-            self._inc_pbar).add_errback(self._set_error)
+        return (
+            self.producer.send(topic, value=value)
+            .add_callback(self._inc_pbar)
+            .add_errback(self._set_error)
+        )
 
     def flush(self, timeout: Optional[int]):
         """
@@ -220,7 +204,7 @@ class KafkaPythonProducer(AbstractProducer):
 
 
 def get_producer(
-        brokers: str, row_count: int, disable_progress_bar: bool
+    brokers: str, row_count: int, disable_progress_bar: bool
 ) -> Union[ConfluentProducer, KafkaPythonProducer]:
     """
     Simple context helper function that returns a AbstractProducer object when

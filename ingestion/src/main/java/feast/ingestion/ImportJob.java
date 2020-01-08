@@ -16,8 +16,10 @@
  */
 package feast.ingestion;
 
+import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
+
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.SourceProto.Source;
 import feast.core.StoreProto.Store;
 import feast.ingestion.options.ImportOptions;
@@ -31,16 +33,15 @@ import feast.ingestion.utils.SpecUtil;
 import feast.ingestion.utils.StoreUtil;
 import feast.ingestion.values.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 
 public class ImportJob {
@@ -79,26 +80,25 @@ public class ImportJob {
 
     log.info("Starting import job with settings: \n{}", options.toString());
 
-    List<FeatureSetSpec> featureSetSpecs =
-        SpecUtil.parseFeatureSetSpecJsonList(options.getFeatureSetSpecJson());
+    List<FeatureSet> featureSets =
+        SpecUtil.parseFeatureSetSpecJsonList(options.getFeatureSetJson());
     List<Store> stores = SpecUtil.parseStoreJsonList(options.getStoreJson());
 
     for (Store store : stores) {
-      List<FeatureSetSpec> subscribedFeatureSets =
-          SpecUtil.getSubscribedFeatureSets(store.getSubscriptionsList(), featureSetSpecs);
+      List<FeatureSet> subscribedFeatureSets =
+          SpecUtil.getSubscribedFeatureSets(store.getSubscriptionsList(), featureSets);
 
       // Generate tags by key
-      Map<String, FeatureSetSpec> featureSetSpecsByKey =
-          subscribedFeatureSets.stream()
-              .map(
-                  fs -> {
-                    String id = String.format("%s:%s", fs.getName(), fs.getVersion());
-                    return Pair.of(id, fs);
-                  })
-              .collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
+      Map<String, FeatureSet> featureSetsByKey = new HashMap<>();
+      subscribedFeatureSets.stream()
+          .forEach(
+              fs -> {
+                String ref = getFeatureSetReference(fs);
+                featureSetsByKey.put(ref, fs);
+              });
 
       // TODO: make the source part of the job initialisation options
-      Source source = subscribedFeatureSets.get(0).getSource();
+      Source source = subscribedFeatureSets.get(0).getSpec().getSource();
 
       // Step 1. Read messages from Feast Source as FeatureRow.
       PCollectionTuple convertedFeatureRows =
@@ -110,7 +110,7 @@ public class ImportJob {
                   .setFailureTag(DEADLETTER_OUT)
                   .build());
 
-      for (FeatureSetSpec featureSet : subscribedFeatureSets) {
+      for (FeatureSet featureSet : subscribedFeatureSets) {
         // Ensure Store has valid configuration and Feast can access it.
         StoreUtil.setupStore(store, featureSet);
       }
@@ -121,7 +121,7 @@ public class ImportJob {
               .get(FEATURE_ROW_OUT)
               .apply(
                   ValidateFeatureRows.newBuilder()
-                      .setFeatureSetSpecs(featureSetSpecsByKey)
+                      .setFeatureSets(featureSetsByKey)
                       .setSuccessTag(FEATURE_ROW_OUT)
                       .setFailureTag(DEADLETTER_OUT)
                       .build());
@@ -131,10 +131,7 @@ public class ImportJob {
           .get(FEATURE_ROW_OUT)
           .apply(
               "WriteFeatureRowToStore",
-              WriteToStore.newBuilder()
-                  .setFeatureSetSpecs(featureSetSpecsByKey)
-                  .setStore(store)
-                  .build());
+              WriteToStore.newBuilder().setFeatureSets(featureSetsByKey).setStore(store).build());
 
       // Step 4. Write FailedElements to a dead letter table in BigQuery.
       if (options.getDeadLetterTableSpec() != null) {

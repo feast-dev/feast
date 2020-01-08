@@ -44,7 +44,7 @@ REQUIRED = [
     "pyarrow>=0.15.1",
     "numpy",
     "google",
-    "confluent_kafka"
+    "confluent_kafka",
 ]
 
 # README file from Feast repo root directory
@@ -75,7 +75,7 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
     ],
-    entry_points={"console_scripts": ["feast=cli:cli"]},
+    entry_points={"console_scripts": ["feast=feast.cli:cli"]},
     use_scm_version={"root": "../..", "relative_to": __file__},
     setup_requires=["setuptools_scm"],
 )

@@ -4,5 +4,6 @@ bigquery_config:
   project_id: <gcp-project-id>
   dataset_id: <dataset-id>
 subscriptions:
-  - name: "*"
-    version: ">0"
+- name: "*"
+  project: "*"
+  version: "*"

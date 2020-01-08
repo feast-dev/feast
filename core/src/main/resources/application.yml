@@ -55,7 +55,11 @@ feast:
 
 spring:
   jpa:
-    properties.hibernate.format_sql: true
+    properties.hibernate:
+      format_sql: true
+      event:
+        merge:
+          entity_copy_observer: allow
     hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
     hibernate.ddl-auto: update
   datasource:

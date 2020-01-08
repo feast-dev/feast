@@ -32,6 +32,7 @@ import com.google.protobuf.Duration;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
 import feast.core.FeatureSetProto;
+import feast.core.FeatureSetProto.FeatureSetMeta;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto;
 import feast.core.SourceProto.KafkaSourceConfig;
@@ -92,7 +93,8 @@ public class DataflowJobManagerTest {
             .setName("SERVING")
             .setType(StoreType.REDIS)
             .setRedisConfig(RedisConfig.newBuilder().setHost("localhost").setPort(6379).build())
-            .addSubscriptions(Subscription.newBuilder().setName("*").setVersion(">0").build())
+            .addSubscriptions(
+                Subscription.newBuilder().setProject("*").setName("*").setVersion("*").build())
             .build();
 
     SourceProto.Source source =
@@ -105,12 +107,15 @@ public class DataflowJobManagerTest {
                     .build())
             .build();
 
-    FeatureSetSpec featureSetSpec =
-        FeatureSetSpec.newBuilder()
-            .setName("featureSet")
-            .setVersion(1)
-            .setSource(source)
-            .setMaxAge(Duration.newBuilder().build())
+    FeatureSetProto.FeatureSet featureSet =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setMeta(FeatureSetMeta.newBuilder())
+            .setSpec(
+                FeatureSetSpec.newBuilder()
+                    .setSource(source)
+                    .setName("featureSet")
+                    .setVersion(1)
+                    .setMaxAge(Duration.newBuilder().build()))
             .build();
 
     Printer printer = JsonFormat.printer();
@@ -126,8 +131,8 @@ public class DataflowJobManagerTest {
     expectedPipelineOptions.setAppName("DataflowJobManager");
     expectedPipelineOptions.setJobName(jobName);
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
-    expectedPipelineOptions.setFeatureSetSpecJson(
-        Lists.newArrayList(printer.print(featureSetSpec)));
+    expectedPipelineOptions.setFeatureSetJson(
+        Lists.newArrayList(printer.print(featureSet.getSpec())));
 
     ArgumentCaptor<ImportOptions> captor = ArgumentCaptor.forClass(ImportOptions.class);
 
@@ -143,9 +148,7 @@ public class DataflowJobManagerTest {
             Runner.DATAFLOW.getName(),
             Source.fromProto(source),
             Store.fromProto(store),
-            Lists.newArrayList(
-                FeatureSet.fromProto(
-                    FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSetSpec).build())),
+            Lists.newArrayList(FeatureSet.fromProto(featureSet)),
             JobStatus.PENDING);
     Job actual = dfJobManager.startJob(job);
 
@@ -190,8 +193,15 @@ public class DataflowJobManagerTest {
                     .build())
             .build();
 
-    FeatureSetSpec featureSetSpec =
-        FeatureSetSpec.newBuilder().setName("featureSet").setVersion(1).setSource(source).build();
+    FeatureSetProto.FeatureSet featureSet =
+        FeatureSetProto.FeatureSet.newBuilder()
+            .setSpec(
+                FeatureSetSpec.newBuilder()
+                    .setName("featureSet")
+                    .setVersion(1)
+                    .setSource(source)
+                    .build())
+            .build();
 
     dfJobManager = Mockito.spy(dfJobManager);
 
@@ -207,9 +217,7 @@ public class DataflowJobManagerTest {
             Runner.DATAFLOW.getName(),
             Source.fromProto(source),
             Store.fromProto(store),
-            Lists.newArrayList(
-                FeatureSet.fromProto(
-                    FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSetSpec).build())),
+            Lists.newArrayList(FeatureSet.fromProto(featureSet)),
             JobStatus.PENDING);
 
     expectedException.expect(JobExecutionException.class);

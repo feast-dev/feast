@@ -123,7 +123,9 @@ feast:
 
 spring:
   jpa:
-    properties.hibernate.format_sql: true
+    properties.hibernate:
+      format_sql: true
+      event.merge.entity_copy_observer: allow
     hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
     hibernate.ddl-auto: update
   datasource:
@@ -140,7 +142,7 @@ management:
         enabled: false
 EOF
 
-nohup java -jar core/target/feast-core-0.3.2-SNAPSHOT.jar \
+nohup java -jar core/target/feast-core-*-SNAPSHOT.jar \
   --spring.config.location=file:///tmp/core.application.yml \
   &> /var/log/feast-core.log &
 sleep 35
@@ -167,7 +169,8 @@ bigquery_config:
   datasetId: $DATASET_NAME
 subscriptions:
   - name: "*"
-    version: ">0"
+    version: "*"
+    project: "*"
 EOF
 
 cat <<EOF > /tmp/serving.warehouse.application.yml
@@ -193,7 +196,7 @@ spring:
     web-environment: false
 EOF
 
-nohup java -jar serving/target/feast-serving-0.3.2-SNAPSHOT.jar \
+nohup java -jar serving/target/feast-serving-*-SNAPSHOT.jar \
   --spring.config.location=file:///tmp/serving.warehouse.application.yml \
   &> /var/log/feast-serving-warehouse.log &
 sleep 15

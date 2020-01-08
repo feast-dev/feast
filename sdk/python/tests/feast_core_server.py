@@ -42,11 +42,13 @@ class CoreServicer(Core.CoreServiceServicer):
             for fs in list(self._feature_sets.values())
             if (
                 not request.filter.feature_set_name
-                or fs.name == request.filter.feature_set_name
+                or request.filter.feature_set_name == "*"
+                or fs.spec.name == request.filter.feature_set_name
             )
             and (
                 not request.filter.feature_set_version
-                or str(fs.version) == request.filter.feature_set_version
+                or str(fs.spec.version) == request.filter.feature_set_version
+                or request.filter.feature_set_version == "*"
             )
         ]
 
@@ -54,7 +56,6 @@ class CoreServicer(Core.CoreServiceServicer):
 
     def ApplyFeatureSet(self, request: ApplyFeatureSetRequest, context):
         feature_set = request.feature_set
-
         if feature_set.spec.version is None:
             feature_set.spec.version = 1
         else:
@@ -70,7 +71,9 @@ class CoreServicer(Core.CoreServiceServicer):
             status=FeatureSetStatus.STATUS_READY,
             created_timestamp=Timestamp(seconds=10),
         )
-        applied_feature_set = FeatureSetProto(spec=feature_set.spec, meta=feature_set_meta)
+        applied_feature_set = FeatureSetProto(
+            spec=feature_set.spec, meta=feature_set_meta
+        )
         self._feature_sets[feature_set.spec.name] = applied_feature_set
 
         _logger.info(

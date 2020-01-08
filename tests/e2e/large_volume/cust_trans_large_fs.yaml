@@ -5,8 +5,8 @@ spec:
   - name: customer_id
     valueType: INT64
   features:
-  - name: daily_transactions
+  - name: daily_transactions_large
     valueType: FLOAT
-  - name: total_transactions
+  - name: total_transactions_large
     valueType: FLOAT
   maxAge: 3600s

@@ -32,7 +32,7 @@ build-cli:
 	$(MAKE) -C cli build-all
 
 build-java:
-	mvn clean verify -Drevision=$(VERSION)
+	mvn clean verify
 
 build-docker:
 	docker build -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
@@ -47,5 +47,9 @@ clean-html:
 	rm -rf 	$(PROJECT_ROOT)/dist
 
 build-html:
+	rm -rf $(PROJECT_ROOT)/dist/
 	mkdir -p $(PROJECT_ROOT)/dist/python
+	mkdir -p $(PROJECT_ROOT)/dist/grpc
+	cd 	$(PROJECT_ROOT)/protos && $(MAKE) gen-docs
+	cd 	$(PROJECT_ROOT)/sdk/python/docs && $(MAKE) html
 	cp -r $(PROJECT_ROOT)/sdk/python/docs/html/* $(PROJECT_ROOT)/dist/python
