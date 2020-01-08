@@ -141,7 +141,19 @@
       <groupId>redis.clients</groupId>
       <artifactId>jedis</artifactId>
     </dependency>
-    <!--compile 'com.google.guava:guava:26.0-jre'-->
+    <!--compile 'com.datastax.cassandra:cassandra-driver-core:3.4.0'-->
+    <dependency>
+      <groupId>com.datastax.cassandra</groupId>
+      <artifactId>cassandra-driver-core</artifactId>
+      <version>3.4.0</version>
+      <exclusions>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <!--compile 'com.google.guava:guava:25.0-jre'-->
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
@@ -225,6 +237,13 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!--testCompile 'org.cassandraunit:cassandra-unit-shaded:3.11.2.0'-->
+    <dependency>
+      <groupId>org.cassandraunit</groupId>
+      <artifactId>cassandra-unit-shaded</artifactId>
+      <version>3.11.2.0</version>
       <scope>test</scope>
     </dependency>
 

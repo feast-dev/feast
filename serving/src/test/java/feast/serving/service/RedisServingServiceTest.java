@@ -16,6 +16,9 @@
  */
 package feast.serving.service;
 
+import static feast.serving.test.TestUtil.intValue;
+import static feast.serving.test.TestUtil.responseToMapList;
+import static feast.serving.test.TestUtil.strValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.mockito.Mockito.when;
@@ -39,7 +42,6 @@ import feast.types.ValueProto.Value;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Test;
@@ -523,20 +525,6 @@ public class RedisServingServiceTest {
     GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
     assertThat(
         responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
-  }
-
-  private List<Map<String, Value>> responseToMapList(GetOnlineFeaturesResponse response) {
-    return response.getFieldValuesList().stream()
-        .map(FieldValues::getFieldsMap)
-        .collect(Collectors.toList());
-  }
-
-  private Value intValue(int val) {
-    return Value.newBuilder().setInt64Val(val).build();
-  }
-
-  private Value strValue(String val) {
-    return Value.newBuilder().setStringVal(val).build();
   }
 
   private FeatureSetSpec getFeatureSetSpec() {

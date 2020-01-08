@@ -54,42 +54,18 @@ mvn --projects core spring-boot:run
 
 # If Feast Core starts successfully, verify the correct Stores are registered
 # correctly, for example by using grpc_cli.
-grpc_cli call localhost:6565 GetStores ''
+grpc_cli call localhost:6565 ListStores ''
 
-# Should return something similar to the following.
-# Note that you should change BigQuery projectId and datasetId accordingly
-# in "$FEAST_HOME/core/src/main/resources/application.yml"
-
-store {
-  name: "SERVING"
-  type: REDIS
-  subscriptions {
-    name: "*"
-    version: ">0"
-  }
-  redis_config {
-    host: "localhost"
-    port: 6379
-  }
-}
-store {
-  name: "WAREHOUSE"
-  type: BIGQUERY
-  subscriptions {
-    name: "*"
-    version: ">0"
-  }
-  bigquery_config {
-    project_id: "my-google-project-id"
-    dataset_id: "my-bigquery-dataset-id"
-  }
+# Should return something similar to the following if you have not updated any stores
+{
+  "store": []
 }
 ```
 
 #### Starting Feast Serving
 
-Feast Serving requires administrators to provide an **existing** store name in Feast. 
-An instance of Feast Serving can only retrieve features from a **single** store. 
+Feast Serving requires administrators to provide an **existing** store name in Feast.
+An instance of Feast Serving can only retrieve features from a **single** store.
 > In order to retrieve features from multiple stores you must start **multiple**
 instances of Feast serving. If you start multiple Feast serving on a single host,
 make sure that they are listening on different ports.
@@ -105,6 +81,69 @@ grpc_cli call localhost:6566 GetFeastServingType ''
 type: FEAST_SERVING_TYPE_ONLINE
 ```
 
+#### Updating a store
+
+Create a new Store by sending a request to Feast Core.
+
+```
+# Example of updating a redis store
+
+grpc_cli call localhost:6565 UpdateStore '
+store {
+  name: "SERVING"
+  type: REDIS
+  subscriptions {
+    name: "*"
+    version: ">0"
+  }
+  redis_config {
+    host: "localhost"
+    port: 6379
+  }
+}
+'
+
+# Other supported stores examples (replacing redis_config):
+# BigQuery
+bigquery_config {
+  project_id: "my-google-project-id"
+  dataset_id: "my-bigquery-dataset-id"
+}
+
+# Cassandra: two options in cassandra depending on replication strategy
+# See details: https://docs.datastax.com/en/cassandra/3.0/cassandra/architecture/archDataDistributeReplication.html
+#
+# Please note that table name must be "feature_store" as is specified in the @Table annotation of the
+# datastax object mapper
+
+# SimpleStrategy
+cassandra_config {
+  bootstrap_hosts: "localhost"
+  port: 9042
+  keyspace: "feast"
+  table_name: "feature_store"
+  replication_options {
+    class: "SimpleStrategy"
+    replication_factor: 1
+  }
+}
+
+# NetworkTopologyStrategy
+cassandra_config {
+  bootstrap_hosts: "localhost"
+  port: 9042
+  keyspace: "feast"
+  table_name: "feature_store"
+  replication_options {
+    class: "NetworkTopologyStrategy"
+    east: 2
+    west: 2
+  }
+}
+
+# To check that the Stores has been updated correctly.
+grpc_cli call localhost:6565 ListStores ''
+```
 
 #### Registering a FeatureSet
 

@@ -44,7 +44,7 @@ public class AuditLogger {
     map.put("resource", resource.toString());
     map.put("id", id);
     map.put("action", action.toString());
-    map.put("detail", Strings.lenientFormat(detail, args));
+    map.put("detail", String.format(detail, args));
     ObjectMessage msg = new ObjectMessage(map);
 
     log.log(AUDIT_LEVEL, msg);

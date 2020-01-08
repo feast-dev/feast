@@ -16,29 +16,10 @@
  */
 package feast.serving.service;
 
-import static feast.serving.util.Metrics.missingKeyCount;
-import static feast.serving.util.Metrics.requestCount;
-import static feast.serving.util.Metrics.requestLatency;
-import static feast.serving.util.Metrics.staleKeyCount;
-
-import com.google.common.collect.Maps;
 import com.google.protobuf.AbstractMessageLite;
-import com.google.protobuf.Duration;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.FeatureSetProto.EntitySpec;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.serving.ServingAPIProto.FeastServingType;
 import feast.serving.ServingAPIProto.FeatureSetRequest;
-import feast.serving.ServingAPIProto.GetBatchFeaturesRequest;
-import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
-import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
-import feast.serving.ServingAPIProto.GetFeastServingInfoResponse;
-import feast.serving.ServingAPIProto.GetJobRequest;
-import feast.serving.ServingAPIProto.GetJobResponse;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.storage.RedisProto.RedisKey;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
@@ -53,86 +34,16 @@ import org.slf4j.Logger;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 
-public class RedisServingService implements ServingService {
+public class RedisServingService extends OnlineServingService<RedisKey, byte[]> {
 
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(RedisServingService.class);
   private final JedisPool jedisPool;
-  private final CachedSpecService specService;
   private final Tracer tracer;
 
   public RedisServingService(JedisPool jedisPool, CachedSpecService specService, Tracer tracer) {
+    super(specService, tracer);
     this.jedisPool = jedisPool;
-    this.specService = specService;
     this.tracer = tracer;
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public GetFeastServingInfoResponse getFeastServingInfo(
-      GetFeastServingInfoRequest getFeastServingInfoRequest) {
-    return GetFeastServingInfoResponse.newBuilder()
-        .setType(FeastServingType.FEAST_SERVING_TYPE_ONLINE)
-        .build();
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest request) {
-    try (Scope scope = tracer.buildSpan("Redis-getOnlineFeatures").startActive(true)) {
-      long startTime = System.currentTimeMillis();
-      GetOnlineFeaturesResponse.Builder getOnlineFeaturesResponseBuilder =
-          GetOnlineFeaturesResponse.newBuilder();
-
-      List<EntityRow> entityRows = request.getEntityRowsList();
-      Map<EntityRow, Map<String, Value>> featureValuesMap =
-          entityRows.stream()
-              .collect(Collectors.toMap(er -> er, er -> Maps.newHashMap(er.getFieldsMap())));
-
-      List<FeatureSetRequest> featureSetRequests = request.getFeatureSetsList();
-      for (FeatureSetRequest featureSetRequest : featureSetRequests) {
-
-        FeatureSetSpec featureSetSpec =
-            specService.getFeatureSet(featureSetRequest.getName(), featureSetRequest.getVersion());
-
-        List<String> featureSetEntityNames =
-            featureSetSpec.getEntitiesList().stream()
-                .map(EntitySpec::getName)
-                .collect(Collectors.toList());
-
-        Duration defaultMaxAge = featureSetSpec.getMaxAge();
-        if (featureSetRequest.getMaxAge().equals(Duration.getDefaultInstance())) {
-          featureSetRequest = featureSetRequest.toBuilder().setMaxAge(defaultMaxAge).build();
-        }
-
-        List<RedisKey> redisKeys =
-            getRedisKeys(featureSetEntityNames, entityRows, featureSetRequest);
-
-        try {
-          sendAndProcessMultiGet(redisKeys, entityRows, featureValuesMap, featureSetRequest);
-        } catch (InvalidProtocolBufferException e) {
-          throw Status.INTERNAL
-              .withDescription("Unable to parse protobuf while retrieving feature")
-              .withCause(e)
-              .asRuntimeException();
-        }
-      }
-      List<FieldValues> fieldValues =
-          featureValuesMap.values().stream()
-              .map(m -> FieldValues.newBuilder().putAllFields(m).build())
-              .collect(Collectors.toList());
-      requestLatency.labels("getOnlineFeatures").observe(System.currentTimeMillis() - startTime);
-      return getOnlineFeaturesResponseBuilder.addAllFieldValues(fieldValues).build();
-    }
-  }
-
-  @Override
-  public GetBatchFeaturesResponse getBatchFeatures(GetBatchFeaturesRequest getFeaturesRequest) {
-    throw Status.UNIMPLEMENTED.withDescription("Method not implemented").asRuntimeException();
-  }
-
-  @Override
-  public GetJobResponse getJob(GetJobRequest getJobRequest) {
-    throw Status.UNIMPLEMENTED.withDescription("Method not implemented").asRuntimeException();
   }
 
   /**
@@ -143,7 +54,8 @@ public class RedisServingService implements ServingService {
    * @param featureSetRequest details of the requested featureSet
    * @return list of RedisKeys
    */
-  private List<RedisKey> getRedisKeys(
+  @Override
+  List<RedisKey> createLookupKeys(
       List<String> featureSetEntityNames,
       List<EntityRow> entityRows,
       FeatureSetRequest featureSetRequest) {
@@ -156,6 +68,33 @@ public class RedisServingService implements ServingService {
               .collect(Collectors.toList());
       return redisKeys;
     }
+  }
+
+  @Override
+  protected boolean isEmpty(byte[] response) {
+    return response == null;
+  }
+
+  /**
+   * Send a list of get request as an mget
+   *
+   * @param keys list of {@link RedisKey}
+   * @return list of {@link FeatureRow} in primitive byte representation for each {@link RedisKey}
+   */
+  @Override
+  protected List<byte[]> getAll(List<RedisKey> keys) {
+    Jedis jedis = jedisPool.getResource();
+    byte[][] binaryKeys =
+        keys.stream()
+            .map(AbstractMessageLite::toByteArray)
+            .collect(Collectors.toList())
+            .toArray(new byte[0][0]);
+    return jedis.mget(binaryKeys);
+  }
+
+  @Override
+  FeatureRow parseResponse(byte[] response) throws InvalidProtocolBufferException {
+    return FeatureRow.parseFrom(response);
   }
 
   /**
@@ -187,94 +126,5 @@ public class RedisServingService implements ServingService {
           Field.newBuilder().setName(entityName).setValue(fieldsMap.get(entityName)));
     }
     return builder.build();
-  }
-
-  private void sendAndProcessMultiGet(
-      List<RedisKey> redisKeys,
-      List<EntityRow> entityRows,
-      Map<EntityRow, Map<String, Value>> featureValuesMap,
-      FeatureSetRequest featureSetRequest)
-      throws InvalidProtocolBufferException {
-
-    List<byte[]> jedisResps = sendMultiGet(redisKeys);
-    long startTime = System.currentTimeMillis();
-    try (Scope scope = tracer.buildSpan("Redis-processResponse").startActive(true)) {
-      String featureSetId =
-          String.format("%s:%d", featureSetRequest.getName(), featureSetRequest.getVersion());
-
-      Map<String, Value> nullValues =
-          featureSetRequest.getFeatureNamesList().stream()
-              .collect(
-                  Collectors.toMap(
-                      name -> featureSetId + ":" + name, name -> Value.newBuilder().build()));
-
-      for (int i = 0; i < jedisResps.size(); i++) {
-        EntityRow entityRow = entityRows.get(i);
-        Map<String, Value> featureValues = featureValuesMap.get(entityRow);
-
-        byte[] jedisResponse = jedisResps.get(i);
-        if (jedisResponse == null) {
-          missingKeyCount.labels(featureSetRequest.getName()).inc();
-          featureValues.putAll(nullValues);
-          continue;
-        }
-
-        FeatureRow featureRow = FeatureRow.parseFrom(jedisResponse);
-
-        boolean stale = isStale(featureSetRequest, entityRow, featureRow);
-        if (stale) {
-          staleKeyCount.labels(featureSetRequest.getName()).inc();
-          featureValues.putAll(nullValues);
-          continue;
-        }
-
-        requestCount.labels(featureSetRequest.getName()).inc();
-        featureRow.getFieldsList().stream()
-            .filter(f -> featureSetRequest.getFeatureNamesList().contains(f.getName()))
-            .forEach(f -> featureValues.put(featureSetId + ":" + f.getName(), f.getValue()));
-      }
-    } finally {
-      requestLatency.labels("processResponse").observe(System.currentTimeMillis() - startTime);
-    }
-  }
-
-  private boolean isStale(
-      FeatureSetRequest featureSetRequest, EntityRow entityRow, FeatureRow featureRow) {
-    if (featureSetRequest.getMaxAge().equals(Duration.getDefaultInstance())) {
-      return false;
-    }
-    long givenTimestamp = entityRow.getEntityTimestamp().getSeconds();
-    if (givenTimestamp == 0) {
-      givenTimestamp = System.currentTimeMillis() / 1000;
-    }
-    long timeDifference = givenTimestamp - featureRow.getEventTimestamp().getSeconds();
-    return timeDifference > featureSetRequest.getMaxAge().getSeconds();
-  }
-
-  /**
-   * Send a list of get request as an mget
-   *
-   * @param keys list of {@link RedisKey}
-   * @return list of {@link FeatureRow} in primitive byte representation for each {@link RedisKey}
-   */
-  private List<byte[]> sendMultiGet(List<RedisKey> keys) {
-    try (Scope scope = tracer.buildSpan("Redis-sendMultiGet").startActive(true)) {
-      long startTime = System.currentTimeMillis();
-      try (Jedis jedis = jedisPool.getResource()) {
-        byte[][] binaryKeys =
-            keys.stream()
-                .map(AbstractMessageLite::toByteArray)
-                .collect(Collectors.toList())
-                .toArray(new byte[0][0]);
-        return jedis.mget(binaryKeys);
-      } catch (Exception e) {
-        throw Status.NOT_FOUND
-            .withDescription("Unable to retrieve feature from Redis")
-            .withCause(e)
-            .asRuntimeException();
-      } finally {
-        requestLatency.labels("sendMultiGet").observe(System.currentTimeMillis() - startTime);
-      }
-    }
   }
 }

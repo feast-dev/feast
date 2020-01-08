@@ -56,6 +56,15 @@ application.yaml:
       config-path: /etc/feast/feast-serving/store.yaml
       redis-pool-max-size: 128
       redis-pool-max-idle: 64
+      cassandra-pool-core-local-connections: 1
+      cassandra-pool-max-local-connections: 1
+      cassandra-pool-core-remote-connections: 1
+      cassandra-pool-max-remote-connections: 1
+      cassandra-pool-max-requests-local-connection: 32768
+      cassandra-pool-max-requests-remote-connection: 2048
+      cassandra-pool-new-local-connection-threshold: 30000
+      cassandra-pool-new-remote-connection-threshold: 400
+      cassandra-pool-timeout-millis: 0
     jobs:
       staging-location: ""
       store-type: ""

@@ -16,6 +16,10 @@
  */
 package feast.serving.configuration;
 
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.HostDistance;
+import com.datastax.driver.core.PoolingOptions;
+import com.datastax.driver.core.Session;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.storage.Storage;
@@ -23,19 +27,26 @@ import com.google.cloud.storage.StorageOptions;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.BigQueryConfig;
 import feast.core.StoreProto.Store.Builder;
+import feast.core.StoreProto.Store.CassandraConfig;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.core.StoreProto.Store.Subscription;
 import feast.serving.FeastProperties;
 import feast.serving.FeastProperties.JobProperties;
+import feast.serving.FeastProperties.StoreProperties;
 import feast.serving.service.BigQueryServingService;
 import feast.serving.service.CachedSpecService;
+import feast.serving.service.CassandraServingService;
 import feast.serving.service.JobService;
 import feast.serving.service.NoopJobService;
 import feast.serving.service.RedisServingService;
 import feast.serving.service.ServingService;
 import io.opentracing.Tracer;
+import java.net.InetSocketAddress;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -76,6 +87,13 @@ public class ServingServiceConfig {
                 .build();
         return builder.setBigqueryConfig(bqConfig).build();
       case CASSANDRA:
+        CassandraConfig cassandraConfig =
+            CassandraConfig.newBuilder()
+                .setBootstrapHosts(options.get("host"))
+                .setPort(Integer.parseInt(options.get("port")))
+                .setKeyspace(options.get("keyspace"))
+                .build();
+        return builder.setCassandraConfig(cassandraConfig).build();
       default:
         throw new IllegalArgumentException(
             String.format(
@@ -135,6 +153,47 @@ public class ServingServiceConfig {
                 storage);
         break;
       case CASSANDRA:
+        StoreProperties storeProperties = feastProperties.getStore();
+        PoolingOptions poolingOptions = new PoolingOptions();
+        poolingOptions.setCoreConnectionsPerHost(
+            HostDistance.LOCAL, storeProperties.getCassandraPoolCoreLocalConnections());
+        poolingOptions.setCoreConnectionsPerHost(
+            HostDistance.REMOTE, storeProperties.getCassandraPoolCoreRemoteConnections());
+        poolingOptions.setMaxConnectionsPerHost(
+            HostDistance.LOCAL, storeProperties.getCassandraPoolMaxLocalConnections());
+        poolingOptions.setMaxConnectionsPerHost(
+            HostDistance.REMOTE, storeProperties.getCassandraPoolMaxRemoteConnections());
+        poolingOptions.setMaxRequestsPerConnection(
+            HostDistance.LOCAL, storeProperties.getCassandraPoolMaxRequestsLocalConnection());
+        poolingOptions.setMaxRequestsPerConnection(
+            HostDistance.REMOTE, storeProperties.getCassandraPoolMaxRequestsRemoteConnection());
+        poolingOptions.setNewConnectionThreshold(
+            HostDistance.LOCAL, storeProperties.getCassandraPoolNewLocalConnectionThreshold());
+        poolingOptions.setNewConnectionThreshold(
+            HostDistance.REMOTE, storeProperties.getCassandraPoolNewRemoteConnectionThreshold());
+        poolingOptions.setPoolTimeoutMillis(storeProperties.getCassandraPoolTimeoutMillis());
+        CassandraConfig cassandraConfig = store.getCassandraConfig();
+        List<InetSocketAddress> contactPoints =
+            Arrays.stream(cassandraConfig.getBootstrapHosts().split(","))
+                .map(h -> new InetSocketAddress(h, cassandraConfig.getPort()))
+                .collect(Collectors.toList());
+        Cluster cluster =
+            Cluster.builder()
+                .addContactPointsWithPorts(contactPoints)
+                .withPoolingOptions(poolingOptions)
+                .build();
+        // Session in Cassandra is thread-safe and maintains connections to cluster nodes internally
+        // Recommended to use one session per keyspace instead of open and close connection for each
+        // request
+        Session session = cluster.connect();
+        servingService =
+            new CassandraServingService(
+                session,
+                cassandraConfig.getKeyspace(),
+                cassandraConfig.getTableName(),
+                specService,
+                tracer);
+        break;
       case UNRECOGNIZED:
       case INVALID:
         throw new IllegalArgumentException(
