@@ -24,10 +24,8 @@ import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto;
 import feast.types.ValueProto.Value.ValCase;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -111,10 +109,7 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
       }
       context.output(getFailureTag(), failedElement.build());
     } else {
-      featureRow = featureRow.toBuilder()
-                    .clearFields()
-                    .addAllFields(fields)
-                    .build();
+      featureRow = featureRow.toBuilder().clearFields().addAllFields(fields).build();
       context.output(getSuccessTag(), featureRow);
     }
   }

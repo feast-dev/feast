@@ -89,15 +89,14 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
     switch (storeType) {
       case REDIS:
         RedisConfig redisConfig = getStore().getRedisConfig();
-        PCollection<FailedElement> redisWriteResult = input
-            .apply(
-                "FeatureRowToRedisMutation",
-                ParDo.of(new FeatureRowToRedisMutationDoFn(getFeatureSets())))
-            .apply(
-                "WriteRedisMutationToRedis",
-                RedisCustomIO.write(redisConfig));
+        PCollection<FailedElement> redisWriteResult =
+            input
+                .apply(
+                    "FeatureRowToRedisMutation",
+                    ParDo.of(new FeatureRowToRedisMutationDoFn(getFeatureSets())))
+                .apply("WriteRedisMutationToRedis", RedisCustomIO.write(redisConfig));
         if (options.getDeadLetterTableSpec() != null) {
-            redisWriteResult.apply(
+          redisWriteResult.apply(
               WriteFailedElementToBigQuery.newBuilder()
                   .setTableSpec(options.getDeadLetterTableSpec())
                   .setJsonSchema(ResourceUtil.getDeadletterTableSchemaJson())
