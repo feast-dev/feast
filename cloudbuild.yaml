@@ -28,6 +28,33 @@ steps:
   args: ['--settings=cloudbuild-settings.xml', '-Drevision=ff-${SHORT_SHA}', '-DskipTests=true', '--batch-mode', 'package']
   timeout: 900s
 
+# SDK (Python)
+- id: gen-proto-python
+  waitFor: ['-']
+  name: 'gcr.io/konnekt-core/protoc-python@sha256:61421f32abe11acac6a9aa6356a1b3cf009daa0fc3feb3d875e098fde422f8b0'
+  dir: '/workspace/protos'
+  entrypoint: make
+  args: ['gen-python']
+- id: unit-test-python-sdk
+  waitFor: ['gen-proto-python']
+  name: 'python:3.7-buster'
+  dir: '/workspace/sdk/python'
+  entrypoint: sh
+  args: ['-c', 'pip install -r requirements-ci.txt && pip install -e . && pytest --junitxml=/log/python-sdk-test-report.xml']
+- id: upload-python-package
+  waitFor: ['unit-test-python-sdk']
+  name: 'python:3.7-buster'
+  dir: '/workspace/sdk/python'
+  entrypoint: sh
+  args: ['-c', 'python setup.py sdist && pip install twine && twine upload dist/*${SHORT_SHA}* --repository-url https://${_PYPI_REPO} -u ${_PYPI_USER} -p ${_PYPI_PWD}']
+  env:
+    - SHORT_SHA=${SHORT_SHA}
+- id: install-python-sdk
+  waitFor: ['upload-python-package']
+  name: 'python:3.7-buster'
+  entrypoint: sh
+  args: ['-c', 'pip install -qe sdk/python']
+
 # SDK (GO)
 - id: gen-proto-go
   waitFor: ['-']
@@ -52,36 +79,7 @@ steps:
   entrypoint: 'sh'
   args: ['-c', 'cat /log/unit-test-cli-run | $${GOPATH}/bin/go-junit-report > /log/golang-sdk-test-report.xml']
 
-# SDK (Python)
-- id: gen-proto-python
-  waitFor: ['-']
-  name: 'gcr.io/konnekt-core/protoc-python@sha256:61421f32abe11acac6a9aa6356a1b3cf009daa0fc3feb3d875e098fde422f8b0'
-  dir: '/workspace/protos'
-  entrypoint: make
-  args: ['gen-python']
-- id: unit-test-python-sdk
-  waitFor: ['gen-proto-python']
-  name: 'python:3.7-buster'
-  dir: '/workspace/sdk/python'
-  entrypoint: sh
-  args: ['-c', 'pip install -r requirements-ci.txt && pip install -e . && pytest --junitxml=/log/python-sdk-test-report.xml']
-- id: clean-git-state
-  waitFor: ['unit-test-python-sdk']
-  name: gcr.io/cloud-builders/git
-  args: ['stash']
-- id: upload-python-package
-  waitFor: ['clean-git-state']
-  name: 'python:3.7-buster'
-  dir: '/workspace/sdk/python'
-  entrypoint: sh
-  args: ['-c', 'python setup.py sdist && pip install twine && twine upload dist/*${SHORT_SHA}* --repository-url https://${_PYPI_REPO} -u ${_PYPI_USER} -p ${_PYPI_PWD}']
-  env:
-    - SHORT_SHA=${SHORT_SHA}
-- id: install-python-sdk
-  waitFor: ['upload-python-package']
-  name: 'python:3.7-buster'
-  entrypoint: sh
-  args: ['-c', 'pip install -qe sdk/python']
+
 
 # Integration Test (DISABLED TODO: Enable)
 - id: integration-test-setup
