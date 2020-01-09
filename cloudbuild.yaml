@@ -65,24 +65,20 @@ steps:
   dir: '/workspace/sdk/python'
   entrypoint: sh
   args: ['-c', 'pip install -r requirements-ci.txt && pip install -e . && pytest --junitxml=/log/python-sdk-test-report.xml']
-- id: unshallow-git-clone
+- id: clean-git-state
   waitFor: ['unit-test-python-sdk']
   name: gcr.io/cloud-builders/git
-  args: ['fetch', '--unshallow']
+  args: ['stash']
 - id: upload-python-package
-  waitFor: ['unshallow-git-clone']
+  waitFor: ['clean-git-state']
   name: 'python:3.7-buster'
   dir: '/workspace/sdk/python'
   entrypoint: sh
   args: ['-c', 'python setup.py sdist && pip install twine && twine upload dist/*${SHORT_SHA}* --repository-url https://${_PYPI_REPO} -u ${_PYPI_USER} -p ${_PYPI_PWD}']
   env:
     - SHORT_SHA=${SHORT_SHA}
-- id: git-status
-  waitFor: ['upload-python-package']
-  name: gcr.io/cloud-builders/git
-  args: ['status']
 - id: install-python-sdk
-  waitFor: ['git-status']
+  waitFor: ['upload-python-package']
   name: 'python:3.7-buster'
   entrypoint: sh
   args: ['-c', 'pip install -qe sdk/python']
