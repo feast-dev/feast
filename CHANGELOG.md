@@ -1,14 +1,5 @@
 # Changelog
 
-**Merged pull requests:**
-
-- Increase resource requests to distribute tests [\#418](https://github.com/gojek/feast/pull/418) ([woop](https://github.com/woop))
-- Unserializable FluentBackoff cause null pointer exception in Dataflow Runner [\#417](https://github.com/gojek/feast/pull/417) ([khorshuheng](https://github.com/khorshuheng))
-- Add PR template [\#416](https://github.com/gojek/feast/pull/416) ([zhilingc](https://github.com/zhilingc))
-- Remove CONTRIBUTING.md [\#411](https://github.com/gojek/feast/pull/411) ([woop](https://github.com/woop))
-- Introduce datatypes/java module for proto generation [\#391](https://github.com/gojek/feast/pull/391) ([ches](https://github.com/ches))
-- \<doc\>\(README\): add a link for user to view docs on GitBook [\#385](https://github.com/gojek/feast/pull/385) ([david30907d](https://github.com/david30907d))
-
 ## [v0.4.3](https://github.com/gojek/feast/tree/v0.4.3) (2020-01-08)
 
 [Full Changelog](https://github.com/gojek/feast/compare/v0.4.2...v0.4.3)
