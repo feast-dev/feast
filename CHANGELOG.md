@@ -4,6 +4,10 @@
 
 [Full Changelog](https://github.com/gojek/feast/compare/v0.4.2...v0.4.3)
 
+**Fixed bugs:**
+
+- Bugfix for redis ingestion retries throwing NullPointerException on remote runners [\#417](https://github.com/gojek/feast/pull/417) ([khorshuheng](https://github.com/khorshuheng))
+
 ## [v0.4.2](https://github.com/gojek/feast/tree/v0.4.2) (2020-01-07)
 
 [Full Changelog](https://github.com/gojek/feast/compare/v0.4.1...v0.4.2)
@@ -60,7 +64,11 @@
 
 ## [v0.3.6](https://github.com/gojek/feast/tree/v0.3.6) (2020-01-03)
 
+**Merged pull requests:**
+
 [Full Changelog](https://github.com/gojek/feast/compare/v0.3.5...v0.3.6)
+
+- Add support for file paths for providing entity rows during batch retrieval [\#375](https://github.com/gojek/feast/pull/376) ([voonhous](https://github.com/voonhous))
 
 ## [v0.3.5](https://github.com/gojek/feast/tree/v0.3.5) (2019-12-26)
 
@@ -73,6 +81,10 @@
 ## [v0.3.4](https://github.com/gojek/feast/tree/v0.3.4) (2019-12-23)
 
 [Full Changelog](https://github.com/gojek/feast/compare/v0.3.3...v0.3.4)
+
+**Merged pull requests:**
+
+- Make redis key creation more determinisitic [\#380](https://github.com/gojek/feast/pull/380) ([zhilingc](https://github.com/zhilingc))
 
 ## [v0.3.3](https://github.com/gojek/feast/tree/v0.3.3) (2019-12-18)
 
