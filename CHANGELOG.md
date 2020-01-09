@@ -1,5 +1,144 @@
 # Changelog
 
+## [v0.4.3](https://github.com/gojek/feast/tree/v0.4.3) (2020-01-08)
+
+[Full Changelog](https://github.com/gojek/feast/compare/v0.4.2...v0.4.3)
+
+**Fixed bugs:**
+
+- Bugfix for redis ingestion retries throwing NullPointerException on remote runners [\#417](https://github.com/gojek/feast/pull/417) ([khorshuheng](https://github.com/khorshuheng))
+
+## [v0.4.2](https://github.com/gojek/feast/tree/v0.4.2) (2020-01-07)
+
+[Full Changelog](https://github.com/gojek/feast/compare/v0.4.1...v0.4.2)
+
+**Fixed bugs:**
+
+- Missing argument in error string in ValidateFeatureRowDoFn [\#401](https://github.com/gojek/feast/issues/401)
+
+**Merged pull requests:**
+
+- Define maven revision property when packaging jars in Dockerfile so the images are built successfully [\#410](https://github.com/gojek/feast/pull/410) ([davidheryanto](https://github.com/davidheryanto))
+- Deduplicate rows in subquery [\#409](https://github.com/gojek/feast/pull/409) ([zhilingc](https://github.com/zhilingc))
+- Filter out extra fields, deduplicate fields in ingestion [\#404](https://github.com/gojek/feast/pull/404) ([zhilingc](https://github.com/zhilingc))
+- Automatic documentation generation for gRPC API [\#403](https://github.com/gojek/feast/pull/403) ([woop](https://github.com/woop))
+- Update feast core default values to include hibernate merge strategy [\#400](https://github.com/gojek/feast/pull/400) ([zhilingc](https://github.com/zhilingc))
+- Move cli into feast package [\#398](https://github.com/gojek/feast/pull/398) ([zhilingc](https://github.com/zhilingc))
+- Use Nexus staging plugin for deployment [\#394](https://github.com/gojek/feast/pull/394) ([khorshuheng](https://github.com/khorshuheng))
+- Handle retry for redis io flow [\#274](https://github.com/gojek/feast/pull/274) ([khorshuheng](https://github.com/khorshuheng))
+
+## [v0.4.1](https://github.com/gojek/feast/tree/v0.4.1) (2019-12-30)
+
+[Full Changelog](https://github.com/gojek/feast/compare/v0.4.0...v0.4.1)
+
+**Merged pull requests:**
+
+- Add project-related commands to CLI [\#397](https://github.com/gojek/feast/pull/397) ([zhilingc](https://github.com/zhilingc))
+
+## [v0.4.0](https://github.com/gojek/feast/tree/v0.4.0) (2019-12-28)
+
+[Full Changelog](https://github.com/gojek/feast/compare/v0.3.5...v0.4.0)
+
+**Implemented enhancements:**
+
+- Edit description in feature specification to also reflect in BigQuery schema description. [\#239](https://github.com/gojek/feast/issues/239)
+- Allow for disabling of metrics pushing [\#57](https://github.com/gojek/feast/issues/57)
+
+**Merged pull requests:**
+
+- Java SDK release script [\#406](https://github.com/gojek/feast/pull/406) ([davidheryanto](https://github.com/davidheryanto))
+- Use fixed 'dev' revision for test-e2e-batch [\#395](https://github.com/gojek/feast/pull/395) ([davidheryanto](https://github.com/davidheryanto))
+- Project Namespacing [\#393](https://github.com/gojek/feast/pull/393) ([woop](https://github.com/woop))
+- \<docs\>\(concepts\): change data types to upper case because lower case … [\#389](https://github.com/gojek/feast/pull/389) ([david30907d](https://github.com/david30907d))
+- Remove alpha v1 from java package name [\#387](https://github.com/gojek/feast/pull/387) ([khorshuheng](https://github.com/khorshuheng))
+- Minor bug fixes for Python SDK [\#383](https://github.com/gojek/feast/pull/383) ([voonhous](https://github.com/voonhous))
+- Allow user to override job options [\#377](https://github.com/gojek/feast/pull/377) ([khorshuheng](https://github.com/khorshuheng))
+- Add documentation to default values.yaml in Feast chart [\#376](https://github.com/gojek/feast/pull/376) ([davidheryanto](https://github.com/davidheryanto))
+- Add support for file paths for providing entity rows during batch retrieval  [\#375](https://github.com/gojek/feast/pull/375) ([voonhous](https://github.com/voonhous))
+- Update sync helm chart script to ensure requirements.lock in in sync with requirements.yaml [\#373](https://github.com/gojek/feast/pull/373) ([davidheryanto](https://github.com/davidheryanto))
+- Catch errors thrown by BQ during entity table loading [\#371](https://github.com/gojek/feast/pull/371) ([zhilingc](https://github.com/zhilingc))
+- Async job management [\#361](https://github.com/gojek/feast/pull/361) ([zhilingc](https://github.com/zhilingc))
+- Infer schema of PyArrow table directly [\#355](https://github.com/gojek/feast/pull/355) ([voonhous](https://github.com/voonhous))
+- Add readiness checks for Feast services in end to end test [\#337](https://github.com/gojek/feast/pull/337) ([davidheryanto](https://github.com/davidheryanto))
+- Create CHANGELOG.md [\#321](https://github.com/gojek/feast/pull/321) ([woop](https://github.com/woop))
+
+## [v0.3.6](https://github.com/gojek/feast/tree/v0.3.6) (2020-01-03)
+
+**Merged pull requests:**
+
+[Full Changelog](https://github.com/gojek/feast/compare/v0.3.5...v0.3.6)
+
+- Add support for file paths for providing entity rows during batch retrieval [\#375](https://github.com/gojek/feast/pull/376) ([voonhous](https://github.com/voonhous))
+
+## [v0.3.5](https://github.com/gojek/feast/tree/v0.3.5) (2019-12-26)
+
+[Full Changelog](https://github.com/gojek/feast/compare/v0.3.4...v0.3.5)
+
+**Merged pull requests:**
+
+- Always set destination table in BigQuery query config in Feast Batch Serving so it can handle large results [\#392](https://github.com/gojek/feast/pull/392) ([davidheryanto](https://github.com/davidheryanto))
+
+## [v0.3.4](https://github.com/gojek/feast/tree/v0.3.4) (2019-12-23)
+
+[Full Changelog](https://github.com/gojek/feast/compare/v0.3.3...v0.3.4)
+
+**Merged pull requests:**
+
+- Make redis key creation more determinisitic [\#380](https://github.com/gojek/feast/pull/380) ([zhilingc](https://github.com/zhilingc))
+
+## [v0.3.3](https://github.com/gojek/feast/tree/v0.3.3) (2019-12-18)
+
+[Full Changelog](https://github.com/gojek/feast/compare/v0.3.2...v0.3.3)
+
+**Implemented enhancements:**
+
+- Added Docker Compose for Feast [\#272](https://github.com/gojek/feast/issues/272)
+- Added ability to check import job status and cancel job through Python SDK [\#194](https://github.com/gojek/feast/issues/194)
+- Added basic customer transactions example [\#354](https://github.com/gojek/feast/pull/354) ([woop](https://github.com/woop))
+
+**Merged pull requests:**
+
+- Added Prow jobs to automate the release of Docker images and Python SDK [\#369](https://github.com/gojek/feast/pull/369) ([davidheryanto](https://github.com/davidheryanto))
+- Fixed installation link in README.md [\#368](https://github.com/gojek/feast/pull/368) ([Jeffwan](https://github.com/Jeffwan))
+- Fixed Java SDK tests not actually running \(missing dependencies\) [\#366](https://github.com/gojek/feast/pull/366) ([woop](https://github.com/woop))
+- Added more batch retrieval tests [\#357](https://github.com/gojek/feast/pull/357) ([zhilingc](https://github.com/zhilingc))
+- Python SDK and Feast Core Bug Fixes [\#353](https://github.com/gojek/feast/pull/353) ([woop](https://github.com/woop))
+- Updated buildFeatureSets method in Golang SDK [\#351](https://github.com/gojek/feast/pull/351) ([davidheryanto](https://github.com/davidheryanto))
+- Python SDK cleanup [\#348](https://github.com/gojek/feast/pull/348) ([woop](https://github.com/woop))
+- Broke up queries for point in time correctness joins [\#347](https://github.com/gojek/feast/pull/347) ([zhilingc](https://github.com/zhilingc))
+- Exports gRPC call metrics and Feast resource metrics in Core [\#345](https://github.com/gojek/feast/pull/345) ([davidheryanto](https://github.com/davidheryanto))
+- Fixed broken Google Group link on Community page [\#343](https://github.com/gojek/feast/pull/343) ([ches](https://github.com/ches))
+- Ensured ImportJobTest is not flaky by checking WriteToStore metric and requesting adequate resources for testing [\#332](https://github.com/gojek/feast/pull/332) ([davidheryanto](https://github.com/davidheryanto))
+- Added docker-compose file with Jupyter notebook [\#328](https://github.com/gojek/feast/pull/328) ([khorshuheng](https://github.com/khorshuheng))
+- Added minimal implementation of ingesting Parquet and CSV files [\#327](https://github.com/gojek/feast/pull/327) ([voonhous](https://github.com/voonhous))
+
+## [v0.3.2](https://github.com/gojek/feast/tree/v0.3.2) (2019-11-29)
+
+[Full Changelog](https://github.com/gojek/feast/compare/v0.3.1...v0.3.2)
+
+**Merged pull requests:**
+
+- Fixed incorrect BigQuery schema creation from FeatureSetSpec [\#340](https://github.com/gojek/feast/pull/340) ([davidheryanto](https://github.com/davidheryanto))
+- Filtered out feature sets that dont share the same source [\#339](https://github.com/gojek/feast/pull/339) ([zhilingc](https://github.com/zhilingc))
+- Changed latency calculation method to not use Timer [\#338](https://github.com/gojek/feast/pull/338) ([zhilingc](https://github.com/zhilingc))
+- Moved Prometheus annotations to pod template for serving [\#336](https://github.com/gojek/feast/pull/336) ([zhilingc](https://github.com/zhilingc))
+- Removed metrics windowing, cleaned up step names for metrics writing [\#334](https://github.com/gojek/feast/pull/334) ([zhilingc](https://github.com/zhilingc))
+- Set BigQuery table time partition inside get table function [\#333](https://github.com/gojek/feast/pull/333) ([zhilingc](https://github.com/zhilingc))
+- Added unit test in Redis to return values with no max age set [\#329](https://github.com/gojek/feast/pull/329) ([smadarasmi](https://github.com/smadarasmi))
+- Consolidated jobs into single steps instead of branching out [\#326](https://github.com/gojek/feast/pull/326) ([zhilingc](https://github.com/zhilingc))
+- Pinned Python SDK to minor versions for dependencies [\#322](https://github.com/gojek/feast/pull/322) ([woop](https://github.com/woop))
+- Added Auto format to Google style with Spotless [\#317](https://github.com/gojek/feast/pull/317) ([ches](https://github.com/ches))
+
+## [v0.3.1](https://github.com/gojek/feast/tree/v0.3.1) (2019-11-25)
+
+[Full Changelog](https://github.com/gojek/feast/compare/v0.3.0...v0.3.1)
+
+**Merged pull requests:**
+
+- Added Prometheus metrics to serving [\#316](https://github.com/gojek/feast/pull/316) ([zhilingc](https://github.com/zhilingc))
+- Changed default job metrics sink to Statsd [\#315](https://github.com/gojek/feast/pull/315) ([zhilingc](https://github.com/zhilingc))
+- Fixed module import error in Feast CLI [\#314](https://github.com/gojek/feast/pull/314) ([davidheryanto](https://github.com/davidheryanto))
+
 ## [v0.3.0](https://github.com/gojek/feast/tree/v0.3.0) (2019-11-19)
 
 [Full Changelog](https://github.com/gojek/feast/compare/v0.1.8...v0.3.0)
