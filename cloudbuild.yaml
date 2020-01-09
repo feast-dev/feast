@@ -77,9 +77,12 @@ steps:
   args: ['-c', 'python setup.py sdist && pip install twine && twine upload dist/*${SHORT_SHA}* --repository-url https://${_PYPI_REPO} -u ${_PYPI_USER} -p ${_PYPI_PWD}']
   env:
     - SHORT_SHA=${SHORT_SHA}
-
-- id: install-python-sdk
+- id: git-status
   waitFor: ['upload-python-package']
+  name: gcr.io/cloud-builders/git
+  args: ['status']
+- id: install-python-sdk
+  waitFor: ['git-status']
   name: 'python:3.7-buster'
   entrypoint: sh
   args: ['-c', 'pip install -qe sdk/python']
