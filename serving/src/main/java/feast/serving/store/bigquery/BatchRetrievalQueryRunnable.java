@@ -55,15 +55,23 @@ import java.util.concurrent.TimeoutException;
 /**
  * BatchRetrievalQueryRunnable is a Runnable for running a BigQuery Feast batch retrieval job async.
  *
- * <p>It does the following, in sequence: 1. Retrieve the temporal bounds of the entity dataset
- * provided. This will be used to filter the feature set tables when performing the feature
- * retrieval. 2. For each of the feature sets requested, generate the subquery for doing a
- * point-in-time correctness join of the features in the feature set to the entity table. 3. Run
- * each of the subqueries in parallel and wait for them to complete. If any of the jobs are
- * unsuccessful, the thread running the BatchRetrievalQueryRunnable catches the error and updates
- * the job database. 4. When all the subquery jobs are complete, join the outputs of all the
- * subqueries into a single table. 5. Extract the output of the join to a remote file, and write the
- * location of the remote file to the job database, and mark the retrieval job as successful.
+ * <p>It does the following, in sequence:
+ *
+ * <p>1. Retrieve the temporal bounds of the entity dataset provided. This will be used to filter
+ * the feature set tables when performing the feature retrieval.
+ *
+ * <p>2. For each of the feature sets requested, generate the subquery for doing a point-in-time
+ * correctness join of the features in the feature set to the entity table.
+ *
+ * <p>3. Run each of the subqueries in parallel and wait for them to complete. If any of the jobs
+ * are unsuccessful, the thread running the BatchRetrievalQueryRunnable catches the error and
+ * updates the job database.
+ *
+ * <p>4. When all the subquery jobs are complete, join the outputs of all the subqueries into a
+ * single table.
+ *
+ * <p>5. Extract the output of the join to a remote file, and write the location of the remote file
+ * to the job database, and mark the retrieval job as successful.
  */
 @AutoValue
 public abstract class BatchRetrievalQueryRunnable implements Runnable {
