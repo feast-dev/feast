@@ -23,14 +23,20 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.Timestamp;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.junit.Test;
 
 public class TypeConversionTest {
 
   @Test
   public void convertTimeStampShouldHanldeNulls() {
-    assertThat(TypeConversion.convertTimestamp(null), nullValue());
+    Date input = null;
+    assertThat(TypeConversion.convertTimestamp(input), nullValue());
   }
 
   @Test
@@ -83,7 +89,7 @@ public class TypeConversionTest {
     input.put("key", "value");
     input.put("key2", "value2");
 
-    String[] expected = new String[] {"--key=value", "--key2=value2"};
+    String[] expected = new String[]{"--key=value", "--key2=value2"};
     String[] actual = TypeConversion.convertMapToArgs(input);
     assertThat(actual.length, equalTo(expected.length));
     assertTrue(Arrays.asList(actual).containsAll(Arrays.asList(expected)));

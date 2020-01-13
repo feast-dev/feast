@@ -106,9 +106,6 @@ public class ServingServiceConfig {
       case BIGQUERY:
         BigQueryConfig bqConfig = store.getBigqueryConfig();
         BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
-        log.debug("BigQuery: GOOGLE_CLOUD_PROJECT={}, GOOGLE_APPLICATION_CREDENTIALS={}, project-id={}, credentials={}",
-            System.getenv("GOOGLE_CLOUD_PROJECT"), System.getenv("GOOGLE_APPLICATION_CREDENTIALS"),
-            bigquery.getOptions().getProjectId(), bigquery.getOptions().getCredentials());
         Storage storage = StorageOptions.getDefaultInstance().getService();
         String jobStagingLocation = feastProperties.getJobs().getStagingLocation();
         if (!jobStagingLocation.contains("://")) {
