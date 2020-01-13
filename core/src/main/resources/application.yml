@@ -17,7 +17,7 @@
 
 grpc:
   # The port number Feast Serving GRPC service should listen on
-  port: ${GRPC_PORT:6565}
+  port: 6565
   # This allows client to discover GRPC endpoints easily
   # https://github.com/grpc/grpc-java/blob/master/documentation/server-reflection-tutorial.md
   enable-reflection: true
@@ -27,12 +27,9 @@ feast:
   jobs:
     # Runner type for feature population jobs. Currently supported runner types are
     # DirectRunner and DataflowRunner.
-    runner: ${JOB_RUNNER:DirectRunner}
+    runner: DirectRunner
     # Key-value dict of job options to be passed to the population jobs.
-    options:
-      region: ${DATAFLOW_LOCATION:}
-      project: ${DATAFLOW_PROJECT_ID:}
-      tempLocation: ${JOB_WORKSPACE:}
+    options: {}
     updates:
       # Timeout in seconds for each attempt to update or submit a new job to the runner.
       timeoutSeconds: 240
