@@ -21,8 +21,6 @@ DESCRIPTION = "Python SDK for Feast"
 URL = "https://github.com/gojek/feast"
 AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.6.0"
-VERSION_FILE = "VERSION"
-VERSION = "0.3.2"
 
 REQUIRED = [
     "Click==7.*",
@@ -59,7 +57,6 @@ except FileNotFoundError:
 
 setup(
     name=NAME,
-    version=VERSION,
     author=AUTHOR,
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
