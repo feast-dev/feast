@@ -16,25 +16,13 @@ import os
 
 from setuptools import find_packages, setup
 
-
-def sha_commit_from_version_file(filepath):
-    if not os.path.exists(filepath):
-        return None
-
-    with open(filepath) as _file:
-        return next(iter(_file.readlines()), None)
-
-
 NAME = "feast"
 DESCRIPTION = "Python SDK for Feast"
 URL = "https://github.com/gojek/feast"
 AUTHOR = "Feast"
 REQUIRES_PYTHON = ">=3.6.0"
 VERSION_FILE = "VERSION"
-
-SHA_COMMIT = sha_commit_from_version_file(filepath=VERSION_FILE)
-SEM_VERSION = "0.3.2"
-VERSION = SEM_VERSION if SHA_COMMIT is None else f"{SEM_VERSION}+{SHA_COMMIT}"
+VERSION = "0.3.2"
 
 REQUIRED = [
     "Click==7.*",
