@@ -26,13 +26,18 @@ feast:
     redis-pool-max-idle: ${FEAST_REDIS_POOL_MAX_IDLE:16}
 
   jobs:
-    # job-staging-location specifies the URI to store intermediate files for batch serving.
+    # staging-location specifies the URI to store intermediate files for batch serving.
     # Feast Serving client is expected to have read access to this staging location
     # to download the batch features.
     #
     # For example: gs://mybucket/myprefix
     # Please omit the trailing slash in the URI.
     staging-location: ${FEAST_JOB_STAGING_LOCATION:}
+    #
+    # Retry options for BigQuery jobs:
+    bigquery-initial-retry-delay-secs: 1
+    bigquery-total-timeout-secs: 600
+    #
     # Type of store to store job metadata. This only needs to be set if the
     # serving store type is Bigquery.
     store-type: ${FEAST_JOB_STORE_TYPE:}
