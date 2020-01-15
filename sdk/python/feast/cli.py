@@ -17,7 +17,6 @@ import logging
 import click
 from feast import config as feast_config
 from feast.client import Client
-from feast.resource import ResourceFactory
 from feast.feature_set import FeatureSet
 import toml
 import pkg_resources
@@ -147,17 +146,25 @@ def feature_set_list():
     print(tabulate(table, headers=["NAME", "VERSION"], tablefmt="plain"))
 
 
-@feature_set.command("create")
-@click.argument("name")
-def feature_set_create(name):
+@feature_set.command("apply")
+@click.option(
+    "--filename",
+    "-f",
+    help="Path to a feature set configuration file that will be applied",
+    type=click.Path(exists=True),
+)
+def feature_set_create(filename):
     """
-    Create a feature set
+    Create or update a feature set
     """
+
+    feature_sets = [FeatureSet.from_dict(fs_dict) for fs_dict in yaml_loader(filename)]
+
     feast_client = Client(
         core_url=feast_config.get_config_property_or_fail("core_url")
     )  # type: Client
 
-    feast_client.apply(FeatureSet(name=name))
+    feast_client.apply(feature_sets)
 
 
 @feature_set.command("describe")
@@ -262,30 +269,6 @@ def ingest(name, version, filename, file_type):
 
     feature_set = feast_client.get_feature_set(name=name, version=version)
     feature_set.ingest_file(file_path=filename)
-
-
-@cli.command()
-@click.option(
-    "--filename",
-    "-f",
-    help="Path to the configuration file that will be applied",
-    type=click.Path(exists=True),
-)
-def apply(filename):
-    """
-    Apply a configuration to a resource by filename or stdin
-    """
-
-    resources = [
-        ResourceFactory.get_resource(res_dict["kind"]).from_dict(res_dict)
-        for res_dict in yaml_loader(filename)
-    ]
-
-    feast_client = Client(
-        core_url=feast_config.get_config_property_or_fail("core_url")
-    )  # type: Client
-
-    feast_client.apply(resources)
 
 
 if __name__ == "__main__":
