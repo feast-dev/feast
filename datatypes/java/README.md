@@ -20,6 +20,11 @@ Dependency Coordinates
 </dependency>
 ```
 
+Use the version corresponding to the Feast release you have deployed in your
+environment—see the [Feast release notes] for details.
+
+[Feast release notes]: ../../CHANGELOG.md
+
 Using the `.proto` Definitions
 ------------------------------
 
@@ -36,8 +41,15 @@ either for `include` or to compile with a different `protoc` plugin than Java.
 [Gradle]: https://github.com/google/protobuf-gradle-plugin#protos-in-dependencies
 [sbt-protoc]: https://github.com/thesamet/sbt-protoc
 
-Publishing
-----------
+Releases
+--------
 
-TODO: this module should be published to Maven Central upon Feast releases—this
-needs to be set up in POM configuration and release automation.
+The module is published to Maven Central upon each release of Feast (since
+v0.3.7).
+
+For developers, the publishing process is automated along with the Java SDK by
+[the `publish-java-sdk` build task in Prow][prow task], where you can see how
+it works. Artifacts are staged to Sonatype where a maintainer needs to take a
+release action for them to go live on Maven Central.
+
+[prow task]: https://github.com/gojek/feast/blob/17e7dca8238aae4dcbf0ff9f0db5d80ef8e035cf/.prow/config.yaml#L166-L192

@@ -98,6 +98,7 @@ LOG_TYPE=JSON;PROJECT_ID=dev-konnekt-data-deep-1;TRAINING_DATASET_PREFIX=feast_t
 kubectl port-forward -n deep svc/feast-postgresql-postgresql 5432:5432
 kubectl port-forward -n deep svc/feast-redis-jobstore-headless 6379:6379
 kubectl port-forward -n deep svc/feast-feast-core 6565:6565
+kubectl port-forward -n deep svc/feast-feast-serving-batch 6566:6566
 ```
 
 ## Overview
