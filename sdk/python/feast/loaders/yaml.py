@@ -53,7 +53,7 @@ def _get_yaml_contents(yml: str) -> str:
         with open(yml, "r") as f:
             yml_content = f.read()
 
-    elif isinstance(yml, str) and "kind" in yml.lower():
+    elif isinstance(yml, str):
         yml_content = yml
     else:
         raise Exception(
@@ -73,7 +73,4 @@ def _yaml_to_dict(yaml_string):
         Dictionary containing the same object
     """
 
-    yaml_dict = yaml.safe_load(yaml_string)
-    if not isinstance(yaml_dict, dict) or not "kind" in yaml_dict:
-        raise Exception(f"Could not detect YAML kind from resource: ${yaml_string}")
-    return yaml_dict
+    return yaml.safe_load(yaml_string)

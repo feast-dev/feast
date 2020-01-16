@@ -689,8 +689,6 @@ class FeatureSet:
             Returns a FeatureSet object based on the feature set dict
         """
 
-        if ("kind" not in fs_dict) and (fs_dict["kind"].strip() != "feature_set"):
-            raise Exception(f"Resource kind is not a feature set {str(fs_dict)}")
         feature_set_proto = json_format.ParseDict(
             fs_dict, FeatureSetProto(), ignore_unknown_fields=True
         )
