@@ -132,6 +132,8 @@ public class ServingServiceConfig {
                 specService,
                 jobService,
                 jobStagingLocation,
+                feastProperties.getJobs().getBigqueryInitialRetryDelaySecs(),
+                feastProperties.getJobs().getBigqueryTotalTimeoutSecs(),
                 storage);
         break;
       case CASSANDRA:
