@@ -203,6 +203,8 @@ feast:
     config-path: /tmp/serving.store.bigquery.yml
   jobs:
     staging-location: ${JOBS_STAGING_LOCATION}
+    bigquery-initial-retry-delay-secs: 1
+    bigquery-total-timeout-secs: 900
     store-type: REDIS
     store-options:
       host: localhost
