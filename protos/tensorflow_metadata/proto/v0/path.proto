@@ -1,0 +1,43 @@
+// Copyright 2018 The TensorFlow Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// =============================================================================
+
+syntax = "proto2";
+option cc_enable_arenas = true;
+
+package tensorflow.metadata.v0;
+
+option java_package = "org.tensorflow.metadata.v0";
+option java_multiple_files = true;
+
+// A path is a more general substitute for the name of a field or feature that
+// can be used for flat examples as well as structured data. For example, if
+// we had data in a protocol buffer:
+// message Person {
+//   int age = 1;
+//   optional string gender = 2;
+//   repeated Person parent = 3;
+// }
+// Thus, here the path {step:["parent", "age"]} in statistics would refer to the
+// age of a parent, and {step:["parent", "parent", "age"]} would refer to the
+// age of a grandparent. This allows us to distinguish between the statistics
+// of parents' ages and grandparents' ages. In general, repeated messages are
+// to be preferred to linked lists of arbitrary length.
+// For SequenceExample, if we have a feature list "foo", this is represented
+// by {step:["##SEQUENCE##", "foo"]}.
+message Path {
+  // Any string is a valid step.
+  // However, whenever possible have a step be [A-Za-z0-9_]+.
+  repeated string step = 1;
+}
