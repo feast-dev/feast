@@ -4,7 +4,7 @@ set -e
 set -o pipefail
 
 if ! cat /etc/*release | grep -q stretch; then
-    echo ${BASH_SOURCE} only supports Debian stretch. 
+    echo ${BASH_SOURCE} only supports Debian stretch.
     echo Please change your operating system to use this script.
     exit 1
 fi
@@ -16,7 +16,7 @@ This script will run end-to-end tests for Feast Core and Batch Serving.
 2. Install Redis as the job store for Feast Batch Serving.
 4. Install Postgres for persisting Feast metadata.
 5. Install Kafka and Zookeeper as the Source in Feast.
-6. Install Python 3.7.4, Feast Python SDK and run end-to-end tests from 
+6. Install Python 3.7.4, Feast Python SDK and run end-to-end tests from
    tests/e2e via pytest.
 "
 
@@ -185,6 +185,8 @@ feast:
   jobs:
     staging-location: gs://feast-templocation-kf-feast/staging-location
     store-type: REDIS
+    bigquery-initial-retry-delay-secs: 1
+    bigquery-total-timeout-secs: 900
     store-options:
       host: $REMOTE_HOST
       port: 6379

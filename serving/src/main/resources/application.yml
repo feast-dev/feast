@@ -36,7 +36,7 @@ feast:
     #
     # Retry options for BigQuery jobs:
     bigquery-initial-retry-delay-secs: 1
-    bigquery-total-timeout-secs: 600
+    bigquery-total-timeout-secs: 21600
     #
     # Type of store to store job metadata. This only needs to be set if the
     # serving store type is Bigquery.
