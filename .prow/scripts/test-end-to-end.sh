@@ -4,10 +4,17 @@ set -e
 set -o pipefail
 
 if ! cat /etc/*release | grep -q stretch; then
-    echo ${BASH_SOURCE} only supports Debian stretch. 
+    echo ${BASH_SOURCE} only supports Debian stretch.
     echo Please change your operating system to use this script.
     exit 1
 fi
+
+test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/etc/service-account/service-account.json"
+test -z ${SKIP_BUILD_JARS} && SKIP_BUILD_JARS="false"
+test -z ${GOOGLE_CLOUD_PROJECT} && GOOGLE_CLOUD_PROJECT="kf-feast"
+test -z ${TEMP_BUCKET} && TEMP_BUCKET="feast-templocation-kf-feast"
+test -z ${JOBS_STAGING_LOCATION} && JOBS_STAGING_LOCATION="gs://${TEMP_BUCKET}/staging-location"
+test -z ${JAR_VERSION_SUFFIX} && JAR_VERSION_SUFFIX="-SNAPSHOT"
 
 echo "
 This script will run end-to-end tests for Feast Core and Online Serving.
@@ -15,7 +22,7 @@ This script will run end-to-end tests for Feast Core and Online Serving.
 1. Install Redis as the store for Feast Online Serving.
 2. Install Postgres for persisting Feast metadata.
 3. Install Kafka and Zookeeper as the Source in Feast.
-4. Install Python 3.7.4, Feast Python SDK and run end-to-end tests from 
+4. Install Python 3.7.4, Feast Python SDK and run end-to-end tests from
    tests/e2e via pytest.
 "
 
@@ -27,7 +34,6 @@ echo "
 Installing Redis at localhost:6379
 ============================================================
 "
-
 # Allow starting serving in this Maven Docker image. Default set to not allowed.
 echo "exit 0" > /usr/sbin/policy-rc.d
 apt-get -y install redis-server > /var/log/redis.install.log
@@ -67,24 +73,24 @@ tail -n10 /var/log/kafka.log
 kafkacat -b localhost:9092 -L
 
 if [[ ${SKIP_BUILD_JARS} != "true" ]]; then
-echo "
-============================================================
-Building jars for Feast
-============================================================
-"
+  echo "
+  ============================================================
+  Building jars for Feast
+  ============================================================
+  "
 
-.prow/scripts/download-maven-cache.sh \
-    --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
-    --output-dir /root/
+  .prow/scripts/download-maven-cache.sh \
+      --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
+      --output-dir /root/
 
-# Build jars for Feast
-mvn --quiet --batch-mode --define skipTests=true clean package
+  # Build jars for Feast
+  mvn --quiet --batch-mode --define skipTests=true clean package
 
-ls -lh core/target/*jar
-ls -lh serving/target/*jar
-else
-  echo "[DEBUG] Skipping building jars"
-fi
+  ls -lh core/target/*jar
+  ls -lh serving/target/*jar
+  else
+    echo "[DEBUG] Skipping building jars"
+  fi
 
 echo "
 ============================================================
@@ -122,7 +128,6 @@ spring:
       event.merge.entity_copy_observer: allow
     hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
     hibernate.ddl-auto: update
-
   datasource:
     url: jdbc:postgresql://localhost:5432/postgres
     username: postgres
@@ -137,7 +142,7 @@ management:
         enabled: false
 EOF
 
-nohup java -jar core/target/feast-core-*-SNAPSHOT.jar \
+nohup java -jar core/target/feast-core-*${JAR_VERSION_SUFFIX}.jar \
   --spring.config.location=file:///tmp/core.application.yml \
   &> /var/log/feast-core.log &
 sleep 35
@@ -167,17 +172,14 @@ feast:
   version: 0.3
   core-host: localhost
   core-grpc-port: 6565
-
   tracing:
     enabled: false
-
   store:
     config-path: /tmp/serving.store.redis.yml
     redis-pool-max-size: 128
     redis-pool-max-idle: 16
-
   jobs:
-    staging-location: gs://feast-templocation-kf-feast/staging-location
+    staging-location: ${JOBS_STAGING_LOCATION}
     store-type:
     store-options: {}
 
@@ -191,11 +193,11 @@ spring:
 
 EOF
 
-nohup java -jar serving/target/feast-serving-*-SNAPSHOT.jar \
+nohup java -jar serving/target/feast-serving-*${JAR_VERSION_SUFFIX}.jar \
   --spring.config.location=file:///tmp/serving.online.application.yml \
   &> /var/log/feast-serving-online.log &
 sleep 15
-tail -n10 /var/log/feast-serving-online.log
+tail -n100 /var/log/feast-serving-online.log
 nc -w2 localhost 6566 < /dev/null
 
 echo "
@@ -233,9 +235,6 @@ if [[ ${TEST_EXIT_CODE} != 0 ]]; then
   echo "[DEBUG] Printing logs"
   ls -ltrh /var/log/feast*
   cat /var/log/feast-serving-online.log /var/log/feast-core.log
-
-  echo "[DEBUG] Printing Python packages list"
-  pip list
 fi
 
 cd ${ORIGINAL_DIR}
