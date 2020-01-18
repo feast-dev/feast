@@ -55,6 +55,8 @@
         <mockito.version>2.28.2</mockito.version>
         <!-- OpenCensus is used in grpc and Google's HTTP client libs in Cloud SDKs -->
         <opencensus.version>0.21.0</opencensus.version>
+        <!-- Force log4j2 to 2.11+ to support objectMessageAsJsonObject -->
+        <log4jVersion>2.12.1</log4jVersion>
     </properties>
 
     <organization>
@@ -260,6 +262,26 @@
                         <artifactId>spring-boot-starter-logging</artifactId>
                     </exclusion>
                 </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-api</artifactId>
+                <version>${log4jVersion}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-core</artifactId>
+                <version>${log4jVersion}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-jul</artifactId>
+                <version>${log4jVersion}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-slf4j-impl</artifactId>
+                <version>${log4jVersion}</version>
             </dependency>
 
             <!--

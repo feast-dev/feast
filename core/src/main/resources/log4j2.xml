@@ -22,9 +22,10 @@
             %d{yyyy-MM-dd HH:mm:ss.SSS} %5p ${hostName} --- [%15.15t] %-40.40c{1.} : %m%n%ex
         </Property>
         <Property name="APPENDER_TYPE">${env:LOG_TYPE:-Console}</Property>
+        <Property name="LOG_LEVEL">${env:LOG_LEVEL:-info}</Property>
     </Properties>
     <CustomLevels>
-        <CustomLevel name="AUDIT" intLevel="350" />
+        <CustomLevel name="AUDIT" intLevel="350"/>
     </CustomLevels>
     <Appenders>
         <Console name="ConsoleAppender" target="SYSTEM_OUT" follow="true">
@@ -35,8 +36,11 @@
         </Console>
     </Appenders>
     <Loggers>
-        <Root level="info">
-            <AppenderRef ref="${APPENDER_TYPE}Appender" />
-        </Root>
+      <Logger name="feast.core" level="debug" additivity="false">
+        <AppenderRef ref="${APPENDER_TYPE}Appender"/>
+      </Logger>
+      <Root level="${LOG_LEVEL}">
+        <AppenderRef ref="${APPENDER_TYPE}Appender"/>
+      </Root>
     </Loggers>
 </Configuration>
