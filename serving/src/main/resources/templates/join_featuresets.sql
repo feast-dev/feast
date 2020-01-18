@@ -1,3 +1,6 @@
+/*
+ Joins the outputs of multiple point-in-time-correctness joins to a single table.
+ */
 WITH joined as (
 SELECT * FROM `{{ leftTableName }}`
 {% for featureSet in featureSets %}
