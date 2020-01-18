@@ -37,6 +37,7 @@ import feast.core.CoreServiceProto.ListStoresResponse;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto;
+import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.FeatureSetProto.FeatureSpec;
@@ -61,6 +62,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -71,16 +73,28 @@ import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
+import org.tensorflow.metadata.v0.BoolDomain;
+import org.tensorflow.metadata.v0.FeaturePresence;
+import org.tensorflow.metadata.v0.FeaturePresenceWithinGroup;
+import org.tensorflow.metadata.v0.FixedShape;
+import org.tensorflow.metadata.v0.FloatDomain;
+import org.tensorflow.metadata.v0.IntDomain;
+import org.tensorflow.metadata.v0.StringDomain;
+import org.tensorflow.metadata.v0.ValueCount;
 
 public class SpecServiceTest {
 
-  @Mock private FeatureSetRepository featureSetRepository;
+  @Mock
+  private FeatureSetRepository featureSetRepository;
 
-  @Mock private StoreRepository storeRepository;
+  @Mock
+  private StoreRepository storeRepository;
 
-  @Mock private ProjectRepository projectRepository;
+  @Mock
+  private ProjectRepository projectRepository;
 
-  @Rule public final ExpectedException expectedException = ExpectedException.none();
+  @Rule
+  public final ExpectedException expectedException = ExpectedException.none();
 
   private SpecService specService;
   private List<FeatureSet> featureSets;
@@ -126,25 +140,25 @@ public class SpecServiceTest {
     when(featureSetRepository.findFeatureSetByNameAndProject_NameAndVersion("f1", "project1", 1))
         .thenReturn(featureSets.get(0));
     when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
-            "f1", "project1"))
+        "f1", "project1"))
         .thenReturn(featureSets.subList(0, 3));
     when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
-            "f3", "project1"))
+        "f3", "project1"))
         .thenReturn(featureSets.subList(4, 5));
     when(featureSetRepository.findFirstFeatureSetByNameLikeAndProject_NameOrderByVersionDesc(
-            "f1", "project1"))
+        "f1", "project1"))
         .thenReturn(featureSet1v3);
     when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
-            "f1", "project1"))
+        "f1", "project1"))
         .thenReturn(featureSets.subList(0, 3));
     when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
-            "asd", "project1"))
+        "asd", "project1"))
         .thenReturn(Lists.newArrayList());
     when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
-            "f%", "project1"))
+        "f%", "project1"))
         .thenReturn(featureSets);
     when(featureSetRepository.findAllByNameLikeAndProject_NameLikeOrderByNameAscVersionAsc(
-            "%", "%"))
+        "%", "%"))
         .thenReturn(featureSets);
 
     when(projectRepository.findAllByArchivedIsFalse())
@@ -163,7 +177,8 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void shouldGetAllFeatureSetsIfOnlyWildcardsProvided() {
+  public void shouldGetAllFeatureSetsIfOnlyWildcardsProvided()
+      throws InvalidProtocolBufferException {
     ListFeatureSetsResponse actual =
         specService.listFeatureSets(
             Filter.newBuilder()
@@ -182,7 +197,8 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void listFeatureSetShouldFailIfFeatureSetProvidedWithoutProject() {
+  public void listFeatureSetShouldFailIfFeatureSetProvidedWithoutProject()
+      throws InvalidProtocolBufferException {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Invalid listFeatureSetRequest, missing arguments. Must provide project, feature set name, and version.");
@@ -191,7 +207,8 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void shouldGetAllFeatureSetsMatchingNameIfWildcardVersionProvided() {
+  public void shouldGetAllFeatureSetsMatchingNameIfWildcardVersionProvided()
+      throws InvalidProtocolBufferException {
     ListFeatureSetsResponse actual =
         specService.listFeatureSets(
             Filter.newBuilder()
@@ -212,7 +229,8 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void shouldGetAllFeatureSetsMatchingNameWithWildcardSearch() {
+  public void shouldGetAllFeatureSetsMatchingNameWithWildcardSearch()
+      throws InvalidProtocolBufferException {
     ListFeatureSetsResponse actual =
         specService.listFeatureSets(
             Filter.newBuilder()
@@ -235,7 +253,8 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void shouldGetAllFeatureSetsMatchingVersionIfNoComparator() {
+  public void shouldGetAllFeatureSetsMatchingVersionIfNoComparator()
+      throws InvalidProtocolBufferException {
     ListFeatureSetsResponse actual =
         specService.listFeatureSets(
             Filter.newBuilder()
@@ -259,7 +278,8 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void shouldThrowExceptionIfGetAllFeatureSetsGivenVersionWithComparator() {
+  public void shouldThrowExceptionIfGetAllFeatureSetsGivenVersionWithComparator()
+      throws InvalidProtocolBufferException {
     expectedException.expect(IllegalArgumentException.class);
     specService.listFeatureSets(
         Filter.newBuilder()
@@ -270,7 +290,8 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void shouldGetLatestFeatureSetGivenMissingVersionFilter() {
+  public void shouldGetLatestFeatureSetGivenMissingVersionFilter()
+      throws InvalidProtocolBufferException {
     GetFeatureSetResponse actual =
         specService.getFeatureSet(
             GetFeatureSetRequest.newBuilder().setName("f1").setProject("project1").build());
@@ -279,7 +300,8 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void shouldGetSpecificFeatureSetGivenSpecificVersionFilter() {
+  public void shouldGetSpecificFeatureSetGivenSpecificVersionFilter()
+      throws InvalidProtocolBufferException {
     when(featureSetRepository.findFeatureSetByNameAndProject_NameAndVersion("f1", "project1", 2))
         .thenReturn(featureSets.get(1));
     GetFeatureSetResponse actual =
@@ -294,14 +316,15 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void shouldThrowExceptionGivenMissingFeatureSetName() {
+  public void shouldThrowExceptionGivenMissingFeatureSetName()
+      throws InvalidProtocolBufferException {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("No feature set name provided");
     specService.getFeatureSet(GetFeatureSetRequest.newBuilder().setVersion(2).build());
   }
 
   @Test
-  public void shouldThrowExceptionGivenMissingFeatureSet() {
+  public void shouldThrowExceptionGivenMissingFeatureSet() throws InvalidProtocolBufferException {
     expectedException.expect(RetrievalException.class);
     expectedException.expectMessage(
         "Feature set with name \"f1000\" and version \"2\" could not be found.");
@@ -314,7 +337,8 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void shouldThrowRetrievalExceptionGivenInvalidFeatureSetVersionComparator() {
+  public void shouldThrowRetrievalExceptionGivenInvalidFeatureSetVersionComparator()
+      throws InvalidProtocolBufferException {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Invalid listFeatureSetRequest. Version must be set to \"*\" if the project name and feature set name aren't set explicitly: \n"
@@ -361,7 +385,8 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void applyFeatureSetShouldReturnFeatureSetWithLatestVersionIfFeatureSetHasNotChanged() {
+  public void applyFeatureSetShouldReturnFeatureSetWithLatestVersionIfFeatureSetHasNotChanged()
+      throws InvalidProtocolBufferException {
     FeatureSetSpec incomingFeatureSetSpec =
         featureSets.get(2).toProto().getSpec().toBuilder().clearVersion().build();
 
@@ -375,9 +400,10 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void applyFeatureSetShouldApplyFeatureSetWithInitVersionIfNotExists() {
+  public void applyFeatureSetShouldApplyFeatureSetWithInitVersionIfNotExists()
+      throws InvalidProtocolBufferException {
     when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
-            "f2", "project1"))
+        "f2", "project1"))
         .thenReturn(Lists.newArrayList());
 
     FeatureSetProto.FeatureSet incomingFeatureSet =
@@ -408,7 +434,8 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void applyFeatureSetShouldIncrementFeatureSetVersionIfAlreadyExists() {
+  public void applyFeatureSetShouldIncrementFeatureSetVersionIfAlreadyExists()
+      throws InvalidProtocolBufferException {
     FeatureSetProto.FeatureSet incomingFeatureSet = featureSets.get(2).toProto();
     incomingFeatureSet =
         incomingFeatureSet
@@ -450,21 +477,22 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void applyFeatureSetShouldNotCreateFeatureSetIfFieldsUnordered() {
+  public void applyFeatureSetShouldNotCreateFeatureSetIfFieldsUnordered()
+      throws InvalidProtocolBufferException {
 
     Field f3f1 = new Field("f3f1", Enum.INT64);
     Field f3f2 = new Field("f3f2", Enum.INT64);
     Field f3e1 = new Field("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
         (new FeatureSet(
-                "f3",
-                "project1",
-                5,
-                100L,
-                Arrays.asList(f3e1),
-                Arrays.asList(f3f2, f3f1),
-                defaultSource,
-                FeatureSetStatus.STATUS_READY))
+            "f3",
+            "project1",
+            5,
+            100L,
+            Arrays.asList(f3e1),
+            Arrays.asList(f3f2, f3f1),
+            defaultSource,
+            FeatureSetStatus.STATUS_READY))
             .toProto();
 
     ApplyFeatureSetResponse applyFeatureSetResponse =
@@ -479,6 +507,108 @@ public class SpecServiceTest {
     assertThat(
         applyFeatureSetResponse.getFeatureSet().getSpec().getName(),
         equalTo(incomingFeatureSet.getSpec().getName()));
+  }
+
+  @Test
+  public void applyFeatureSetShouldAcceptPresenceShapeAndDomainConstraints()
+      throws InvalidProtocolBufferException {
+    List<EntitySpec> entitySpecs = new ArrayList<>();
+    entitySpecs.add(EntitySpec.newBuilder().setName("entity1")
+        .setValueType(Enum.INT64)
+        .setPresence(FeaturePresence.getDefaultInstance())
+        .setShape(FixedShape.getDefaultInstance())
+        .setDomain("mydomain")
+        .build());
+    entitySpecs.add(EntitySpec.newBuilder().setName("entity2")
+        .setValueType(Enum.INT64)
+        .setGroupPresence(FeaturePresenceWithinGroup.getDefaultInstance())
+        .setValueCount(ValueCount.getDefaultInstance())
+        .setIntDomain(IntDomain.getDefaultInstance())
+        .build());
+    entitySpecs.add(EntitySpec.newBuilder().setName("entity3")
+        .setValueType(Enum.FLOAT)
+        .setPresence(FeaturePresence.getDefaultInstance())
+        .setValueCount(ValueCount.getDefaultInstance())
+        .setFloatDomain(FloatDomain.getDefaultInstance())
+        .build());
+    entitySpecs.add(EntitySpec.newBuilder().setName("entity4")
+        .setValueType(Enum.STRING)
+        .setPresence(FeaturePresence.getDefaultInstance())
+        .setValueCount(ValueCount.getDefaultInstance())
+        .setStringDomain(StringDomain.getDefaultInstance())
+        .build());
+    entitySpecs.add(EntitySpec.newBuilder().setName("entity5")
+        .setValueType(Enum.BOOL)
+        .setPresence(FeaturePresence.getDefaultInstance())
+        .setValueCount(ValueCount.getDefaultInstance())
+        .setBoolDomain(BoolDomain.getDefaultInstance())
+        .build());
+
+    List<FeatureSpec> featureSpecs = new ArrayList<>();
+    featureSpecs.add(FeatureSpec.newBuilder().setName("feature1")
+        .setValueType(Enum.INT64)
+        .setPresence(FeaturePresence.getDefaultInstance())
+        .setShape(FixedShape.getDefaultInstance())
+        .setDomain("mydomain")
+        .build());
+    featureSpecs.add(FeatureSpec.newBuilder().setName("feature2")
+        .setValueType(Enum.INT64)
+        .setGroupPresence(FeaturePresenceWithinGroup.getDefaultInstance())
+        .setValueCount(ValueCount.getDefaultInstance())
+        .setIntDomain(IntDomain.getDefaultInstance())
+        .build());
+    featureSpecs.add(FeatureSpec.newBuilder().setName("feature3")
+        .setValueType(Enum.FLOAT)
+        .setPresence(FeaturePresence.getDefaultInstance())
+        .setValueCount(ValueCount.getDefaultInstance())
+        .setFloatDomain(FloatDomain.getDefaultInstance())
+        .build());
+    featureSpecs.add(FeatureSpec.newBuilder().setName("feature4")
+        .setValueType(Enum.STRING)
+        .setPresence(FeaturePresence.getDefaultInstance())
+        .setValueCount(ValueCount.getDefaultInstance())
+        .setStringDomain(StringDomain.getDefaultInstance())
+        .build());
+    featureSpecs.add(FeatureSpec.newBuilder().setName("feature5")
+        .setValueType(Enum.BOOL)
+        .setPresence(FeaturePresence.getDefaultInstance())
+        .setValueCount(ValueCount.getDefaultInstance())
+        .setBoolDomain(BoolDomain.getDefaultInstance())
+        .build());
+
+    FeatureSetSpec featureSetSpec = FeatureSetSpec.newBuilder()
+        .setProject("project1")
+        .setName("featureSetWithConstraints")
+        .addAllEntities(entitySpecs)
+        .addAllFeatures(featureSpecs)
+        .build();
+    FeatureSetProto.FeatureSet featureSet = FeatureSetProto.FeatureSet.newBuilder()
+        .setSpec(featureSetSpec)
+        .build();
+
+    ApplyFeatureSetResponse applyFeatureSetResponse = specService.applyFeatureSet(featureSet);
+    FeatureSetSpec appliedFeatureSetSpec = applyFeatureSetResponse.getFeatureSet().getSpec();
+
+    // appliedEntitySpecs needs to be sorted because the list returned by specService may not
+    // follow the order in the request
+    List<EntitySpec> appliedEntitySpecs = new ArrayList<>(appliedFeatureSetSpec.getEntitiesList());
+    appliedEntitySpecs.sort(Comparator.comparing(EntitySpec::getName));
+
+    // appliedFeatureSpecs needs to be sorted because the list returned by specService may not
+    // follow the order in the request
+    List<FeatureSpec> appliedFeatureSpecs = new ArrayList<>(appliedFeatureSetSpec.getFeaturesList());
+    appliedFeatureSpecs.sort(Comparator.comparing(FeatureSpec::getName));
+
+    assertEquals(appliedEntitySpecs.size(), entitySpecs.size());
+    assertEquals(appliedFeatureSpecs.size(), featureSpecs.size());
+
+    for (int i = 0; i < appliedEntitySpecs.size(); i++) {
+      assertEquals(entitySpecs.get(i), appliedEntitySpecs.get(i));
+    }
+
+    for (int i = 0; i < appliedFeatureSpecs.size(); i++) {
+      assertEquals(featureSpecs.get(i), appliedFeatureSpecs.get(i));
+    }
   }
 
   @Test
@@ -521,7 +651,7 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void shouldFailIfGetFeatureSetWithoutProject() {
+  public void shouldFailIfGetFeatureSetWithoutProject() throws InvalidProtocolBufferException {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("No project provided");
     specService.getFeatureSet(GetFeatureSetRequest.newBuilder().setName("f1").build());
@@ -530,6 +660,7 @@ public class SpecServiceTest {
   private FeatureSet newDummyFeatureSet(String name, int version, String project) {
     Field feature = new Field("feature", Enum.INT64);
     Field entity = new Field("entity", Enum.STRING);
+
     FeatureSet fs =
         new FeatureSet(
             name,
@@ -553,4 +684,6 @@ public class SpecServiceTest {
     store.setConfig(RedisConfig.newBuilder().setPort(6379).build().toByteArray());
     return store;
   }
+
+
 }

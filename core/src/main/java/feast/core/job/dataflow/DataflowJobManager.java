@@ -78,17 +78,24 @@ public class DataflowJobManager implements JobManager {
 
   @Override
   public Job startJob(Job job) {
-    List<FeatureSetProto.FeatureSet> featureSetProtos =
-        job.getFeatureSets().stream().map(FeatureSet::toProto).collect(Collectors.toList());
     try {
+      List<FeatureSetProto.FeatureSet> featureSetProtos = new ArrayList<>();
+      for (FeatureSet featureSet : job.getFeatureSets()) {
+        featureSetProtos.add(featureSet.toProto());
+      }
       return submitDataflowJob(
           job.getId(),
           featureSetProtos,
           job.getSource().toProto(),
           job.getStore().toProto(),
           false);
+
     } catch (InvalidProtocolBufferException e) {
-      throw new RuntimeException(String.format("Unable to start job %s", job.getId()), e);
+      log.error(e.getMessage());
+      throw new IllegalArgumentException(
+          String.format("DataflowJobManager failed to START job with id '%s' because the job"
+                  + "has an invalid spec. Please check the FeatureSet, Source and Store specs. Actual error message: %s",
+              job.getId(), e.getMessage()));
     }
   }
 
@@ -101,14 +108,18 @@ public class DataflowJobManager implements JobManager {
   @Override
   public Job updateJob(Job job) {
     try {
-      List<FeatureSetProto.FeatureSet> featureSetProtos =
-          job.getFeatureSets().stream().map(FeatureSet::toProto).collect(Collectors.toList());
-
-      return submitDataflowJob(
-          job.getId(), featureSetProtos, job.getSource().toProto(), job.getStore().toProto(), true);
-
+      List<FeatureSetProto.FeatureSet> featureSetProtos = new ArrayList<>();
+      for (FeatureSet featureSet : job.getFeatureSets()) {
+        featureSetProtos.add(featureSet.toProto());
+      }
+      return submitDataflowJob(job.getId(), featureSetProtos, job.getSource().toProto(),
+          job.getStore().toProto(), true);
     } catch (InvalidProtocolBufferException e) {
-      throw new RuntimeException(String.format("Unable to update job %s", job.getId()), e);
+      log.error(e.getMessage());
+      throw new IllegalArgumentException(
+          String.format("DataflowJobManager failed to UPDATE job with id '%s' because the job"
+                  + "has an invalid spec. Please check the FeatureSet, Source and Store specs. Actual error message: %s",
+              job.getId(), e.getMessage()));
     }
   }
 
