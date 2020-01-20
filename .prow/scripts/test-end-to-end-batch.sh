@@ -204,6 +204,8 @@ feast:
   jobs:
     staging-location: ${JOBS_STAGING_LOCATION}
     store-type: REDIS
+    bigquery-initial-retry-delay-secs: 1
+    bigquery-total-timeout-secs: 900
     store-options:
       host: localhost
       port: 6379

@@ -21,6 +21,7 @@ import static feast.serving.service.BigQueryServingService.createTempTableName;
 import static feast.serving.store.bigquery.QueryTemplater.createTimestampLimitQuery;
 
 import com.google.auto.value.AutoValue;
+import com.google.cloud.RetryOption;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.DatasetId;
@@ -51,6 +52,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.threeten.bp.Duration;
 
 /**
  * BatchRetrievalQueryRunnable is a Runnable for running a BigQuery Feast batch retrieval job async.
@@ -96,6 +98,10 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
 
   public abstract String jobStagingLocation();
 
+  public abstract int initialRetryDelaySecs();
+
+  public abstract int totalTimeoutSecs();
+
   public abstract Storage storage();
 
   public static Builder builder() {
@@ -121,6 +127,10 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
     public abstract Builder setEntityTableName(String entityTableName);
 
     public abstract Builder setJobStagingLocation(String jobStagingLocation);
+
+    public abstract Builder setInitialRetryDelaySecs(int initialRetryDelaySecs);
+
+    public abstract Builder setTotalTimeoutSecs(int totalTimeoutSecs);
 
     public abstract Builder setStorage(Storage storage);
 
@@ -151,7 +161,7 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
           ExtractJobConfiguration.of(
               queryConfig.getDestinationTable(), exportTableDestinationUri, "Avro");
       Job extractJob = bigquery().create(JobInfo.of(extractConfig));
-      extractJob.waitFor();
+      waitForJob(extractJob);
     } catch (BigQueryException | InterruptedException | IOException e) {
       jobService()
           .upsert(
@@ -200,7 +210,6 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
 
   Job runBatchQuery(List<String> featureSetQueries)
       throws BigQueryException, InterruptedException, IOException {
-    Job queryJob;
     ExecutorService executorService = Executors.newFixedThreadPool(featureSetQueries.size());
     ExecutorCompletionService<FeatureSetInfo> executorCompletionService =
         new ExecutorCompletionService<>(executorService);
@@ -257,8 +266,8 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
         QueryJobConfiguration.newBuilder(joinQuery)
             .setDestinationTable(TableId.of(projectId(), datasetId(), createTempTableName()))
             .build();
-    queryJob = bigquery().create(JobInfo.of(queryJobConfig));
-    queryJob.waitFor();
+    Job queryJob = bigquery().create(JobInfo.of(queryJobConfig));
+    Job completedQueryJob = waitForJob(queryJob);
 
     TableInfo expiry =
         bigquery()
@@ -268,7 +277,7 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
             .build();
     bigquery().update(expiry);
 
-    return queryJob;
+    return completedQueryJob;
   }
 
   private List<String> generateQueries(FieldValueList timestampLimits) {
@@ -302,7 +311,7 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
             .build();
     try {
       Job job = bigquery().create(JobInfo.of(getTimestampLimitsQuery));
-      TableResult getTimestampLimitsQueryResult = job.waitFor().getQueryResults();
+      TableResult getTimestampLimitsQueryResult = waitForJob(job).getQueryResults();
       TableInfo expiry =
           bigquery()
               .getTable(getTimestampLimitsQuery.getDestinationTable())
@@ -325,4 +334,21 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
           .asRuntimeException();
     }
   }
+
+  private Job waitForJob(Job queryJob) throws InterruptedException {
+    Job completedJob = queryJob.waitFor(
+        RetryOption.initialRetryDelay(Duration.ofSeconds(initialRetryDelaySecs())),
+        RetryOption.totalTimeout(Duration.ofSeconds(totalTimeoutSecs())));
+    if (completedJob == null) {
+      throw Status.INTERNAL
+          .withDescription("Job no longer exists")
+          .asRuntimeException();
+    } else if (completedJob.getStatus().getError() != null) {
+      throw Status.INTERNAL
+          .withDescription("Job failed: " + completedJob.getStatus().getError())
+          .asRuntimeException();
+    }
+    return completedJob;
+  }
+
 }
