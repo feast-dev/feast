@@ -4,10 +4,17 @@ set -e
 set -o pipefail
 
 if ! cat /etc/*release | grep -q stretch; then
-    echo ${BASH_SOURCE} only supports Debian stretch. 
+    echo ${BASH_SOURCE} only supports Debian stretch.
     echo Please change your operating system to use this script.
     exit 1
 fi
+
+test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/etc/service-account/service-account.json"
+test -z ${SKIP_BUILD_JARS} && SKIP_BUILD_JARS="false"
+test -z ${GOOGLE_CLOUD_PROJECT} && GOOGLE_CLOUD_PROJECT="kf-feast"
+test -z ${TEMP_BUCKET} && TEMP_BUCKET="feast-templocation-kf-feast"
+test -z ${JOBS_STAGING_LOCATION} && JOBS_STAGING_LOCATION="gs://${TEMP_BUCKET}/staging-location"
+test -z ${JAR_VERSION_SUFFIX} && JAR_VERSION_SUFFIX="-SNAPSHOT"
 
 echo "
 This script will run end-to-end tests for Feast Core and Batch Serving.
@@ -16,9 +23,12 @@ This script will run end-to-end tests for Feast Core and Batch Serving.
 2. Install Redis as the job store for Feast Batch Serving.
 4. Install Postgres for persisting Feast metadata.
 5. Install Kafka and Zookeeper as the Source in Feast.
-6. Install Python 3.7.4, Feast Python SDK and run end-to-end tests from 
+6. Install Python 3.7.4, Feast Python SDK and run end-to-end tests from
    tests/e2e via pytest.
 "
+
+apt-get -qq update
+apt-get -y install wget netcat kafkacat
 
 
 echo "
@@ -31,8 +41,8 @@ if [[ ! $(command -v gsutil) ]]; then
   . "${CURRENT_DIR}"/install-google-cloud-sdk.sh
 fi
 
-export GOOGLE_APPLICATION_CREDENTIALS=/etc/service-account/service-account.json
-gcloud auth activate-service-account --key-file /etc/service-account/service-account.json
+export GOOGLE_APPLICATION_CREDENTIALS
+gcloud auth activate-service-account --key-file ${GOOGLE_APPLICATION_CREDENTIALS}
 
 
 
@@ -41,10 +51,9 @@ echo "
 Installing Redis at localhost:6379
 ============================================================
 "
-apt-get -qq update
 # Allow starting serving in this Maven Docker image. Default set to not allowed.
 echo "exit 0" > /usr/sbin/policy-rc.d
-apt-get -y install redis-server wget > /var/log/redis.install.log
+apt-get -y install redis-server > /var/log/redis.install.log
 redis-server --daemonize yes
 redis-cli ping
 
@@ -73,24 +82,32 @@ Installing Kafka at localhost:9092
 wget -qO- https://www-eu.apache.org/dist/kafka/2.3.0/kafka_2.12-2.3.0.tgz | tar xz
 mv kafka_2.12-2.3.0/ /tmp/kafka
 nohup /tmp/kafka/bin/zookeeper-server-start.sh /tmp/kafka/config/zookeeper.properties &> /var/log/zookeeper.log 2>&1 &
-sleep 10
+sleep 5
 tail -n10 /var/log/zookeeper.log
 nohup /tmp/kafka/bin/kafka-server-start.sh /tmp/kafka/config/server.properties &> /var/log/kafka.log 2>&1 &
-sleep 30
+sleep 20
 tail -n10 /var/log/kafka.log
+kafkacat -b localhost:9092 -L
 
-echo "
-============================================================
-Building jars for Feast
-============================================================
-"
+if [[ ${SKIP_BUILD_JARS} != "true" ]]; then
+  echo "
+  ============================================================
+  Building jars for Feast
+  ============================================================
+  "
 
-.prow/scripts/download-maven-cache.sh \
-    --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
-    --output-dir /root/
+  .prow/scripts/download-maven-cache.sh \
+      --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
+      --output-dir /root/
 
-# Build jars for Feast
-mvn --quiet --batch-mode --define skipTests=true clean package
+  # Build jars for Feast
+  mvn --quiet --batch-mode --define skipTests=true clean package
+
+  ls -lh core/target/*jar
+  ls -lh serving/target/*jar
+else
+  echo "[DEBUG] Skipping building jars"
+fi
 
 echo "
 ============================================================
@@ -142,11 +159,13 @@ management:
         enabled: false
 EOF
 
-nohup java -jar core/target/feast-core-*-SNAPSHOT.jar \
+nohup java -jar core/target/feast-core-*${JAR_VERSION_SUFFIX}.jar \
   --spring.config.location=file:///tmp/core.application.yml \
   &> /var/log/feast-core.log &
 sleep 35
 tail -n10 /var/log/feast-core.log
+nc -w2 localhost 6565 < /dev/null
+
 echo "
 ============================================================
 Starting Feast Warehouse Serving
@@ -155,18 +174,18 @@ Starting Feast Warehouse Serving
 
 DATASET_NAME=feast_$(date +%s)
 
-bq --location=US --project_id=kf-feast mk \
+bq --location=US --project_id=${GOOGLE_CLOUD_PROJECT} mk \
   --dataset \
   --default_table_expiration 86400 \
-  kf-feast:$DATASET_NAME
+  ${GOOGLE_CLOUD_PROJECT}:${DATASET_NAME}
 
 # Start Feast Online Serving in background
 cat <<EOF > /tmp/serving.store.bigquery.yml
 name: warehouse
 type: BIGQUERY
 bigquery_config:
-  projectId: kf-feast
-  datasetId: $DATASET_NAME
+  projectId: ${GOOGLE_CLOUD_PROJECT}
+  datasetId: ${DATASET_NAME}
 subscriptions:
   - name: "*"
     version: "*"
@@ -183,24 +202,29 @@ feast:
   store:
     config-path: /tmp/serving.store.bigquery.yml
   jobs:
-    staging-location: gs://feast-templocation-kf-feast/staging-location
+    staging-location: ${JOBS_STAGING_LOCATION}
+    bigquery-initial-retry-delay-secs: 1
+    bigquery-total-timeout-secs: 900
     store-type: REDIS
     store-options:
-      host: $REMOTE_HOST
+      host: localhost
       port: 6379
 grpc:
   port: 6566
   enable-reflection: true
+
 spring:
   main:
     web-environment: false
+
 EOF
 
-nohup java -jar serving/target/feast-serving-*-SNAPSHOT.jar \
+nohup java -jar serving/target/feast-serving-*${JAR_VERSION_SUFFIX}.jar \
   --spring.config.location=file:///tmp/serving.warehouse.application.yml \
   &> /var/log/feast-serving-warehouse.log &
 sleep 15
 tail -n100 /var/log/feast-serving-warehouse.log
+nc -w2 localhost 6566 < /dev/null
 
 echo "
 ============================================================
@@ -230,8 +254,14 @@ ORIGINAL_DIR=$(pwd)
 cd tests/e2e
 
 set +e
-pytest bq-batch-retrieval.py --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+pytest bq-batch-retrieval.py --gcs_path "gs://${TEMP_BUCKET}/" --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
+
+if [[ ${TEST_EXIT_CODE} != 0 ]]; then
+  echo "[DEBUG] Printing logs"
+  ls -ltrh /var/log/feast*
+  cat /var/log/feast-serving-warehouse.log /var/log/feast-core.log
+fi
 
 cd ${ORIGINAL_DIR}
 exit ${TEST_EXIT_CODE}
@@ -242,4 +272,4 @@ Cleaning up
 ============================================================
 "
 
-bq rm -r -f kf-feast:$DATASET_NAME
+bq rm -r -f ${GOOGLE_CLOUD_PROJECT}:${DATASET_NAME}

@@ -73,8 +73,25 @@ docker run --rm --name feast-build \
 ### How-to: Run locally
 
 ```bash
-mvn --projects core,ingestion -Drevision=dev -DskipTests=true --batch-mode package
+mvn clean -Drevision=dev -DskipTests=true --batch-mode package
 docker-compose up --build
+```
+
+### How-to: Run e2e locally
+```bash
+mvn clean -Drevision=ff-$(git rev-parse --short HEAD)-dev -DskipTests=true --batch-mode package
+docker run -it --name feast-e2e \
+    -v $(pwd):/workspace \
+    -v /Volumes/GoogleDrive/My\ Drive/credentials/dev-konnekt-data-deep-1_feast-dev.json:/etc/service-account/service-account.json \
+    -w /workspace \
+    -e SKIP_BUILD_JARS=true \
+    -e GOOGLE_CLOUD_PROJECT=dev-konnekt-data-deep-1 \
+    -e TEMP_BUCKET=dev-konnekt-data-deep-1-feast-tmp \
+    -e JOBS_STAGING_LOCATION=gs://dev-konnekt-data-deep-1-feast-tmp/e2e-staging \
+    -e JAR_VERSION_SUFFIX=$(git rev-parse --short HEAD) \
+    maven:3.6.2-jdk-11 \
+    bash
+.prow/scripts/test-end-to-end-batch.sh
 ```
 
 ### How-to: Run locally in IDE

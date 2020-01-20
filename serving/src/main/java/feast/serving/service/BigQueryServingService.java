@@ -72,6 +72,8 @@ public class BigQueryServingService implements ServingService {
   private final CachedSpecService specService;
   private final JobService jobService;
   private final String jobStagingLocation;
+  private final int initialRetryDelaySecs;
+  private final int totalTimeoutSecs;
   private final Storage storage;
 
   public BigQueryServingService(
@@ -81,6 +83,8 @@ public class BigQueryServingService implements ServingService {
       CachedSpecService specService,
       JobService jobService,
       String jobStagingLocation,
+      int initialRetryDelaySecs,
+      int totalTimeoutSecs,
       Storage storage) {
     this.bigquery = bigquery;
     this.projectId = projectId;
@@ -88,6 +92,8 @@ public class BigQueryServingService implements ServingService {
     this.specService = specService;
     this.jobService = jobService;
     this.jobStagingLocation = jobStagingLocation;
+    this.initialRetryDelaySecs = initialRetryDelaySecs;
+    this.totalTimeoutSecs = totalTimeoutSecs;
     this.storage = storage;
   }
 
@@ -157,6 +163,8 @@ public class BigQueryServingService implements ServingService {
                 .setEntityTableColumnNames(entityNames)
                 .setFeatureSetInfos(featureSetInfos)
                 .setJobStagingLocation(jobStagingLocation)
+                .setInitialRetryDelaySecs(initialRetryDelaySecs)
+                .setTotalTimeoutSecs(totalTimeoutSecs)
                 .build())
         .start();
 
@@ -200,15 +208,7 @@ public class BigQueryServingService implements ServingService {
           loadJobConfiguration =
               loadJobConfiguration.toBuilder().setUseAvroLogicalTypes(true).build();
           Job job = bigquery.create(JobInfo.of(loadJobConfiguration));
-          // TODO: Configurable retry options
-          Job completedJob = job.waitFor(
-              RetryOption.initialRetryDelay(Duration.ofSeconds(1)),
-              RetryOption.totalTimeout(Duration.ofMinutes(10)));
-          if (completedJob == null) {
-            throw new RuntimeException("Job no longer exists");
-          } else if (completedJob.getStatus().getError() != null) {
-            throw new RuntimeException("Job failed:" + completedJob.getStatus().getError());
-          }
+          waitForJob(job);
 
           TableInfo expiry =
               bigquery
@@ -248,7 +248,7 @@ public class BigQueryServingService implements ServingService {
               .setDestinationTable(TableId.of(projectId, datasetId, createTempTableName()))
               .build();
       Job queryJob = bigquery.create(JobInfo.of(queryJobConfig));
-      queryJob.waitFor();
+      Job completedJob = waitForJob(queryJob);
       TableInfo expiry =
           bigquery
               .getTable(queryJobConfig.getDestinationTable())
@@ -256,7 +256,7 @@ public class BigQueryServingService implements ServingService {
               .setExpirationTime(System.currentTimeMillis() + TEMP_TABLE_EXPIRY_DURATION_MS)
               .build();
       bigquery.update(expiry);
-      queryJobConfig = queryJob.getConfiguration();
+      queryJobConfig = completedJob.getConfiguration();
       return queryJobConfig.getDestinationTable();
     } catch (InterruptedException | BigQueryException e) {
       throw Status.INTERNAL
@@ -264,6 +264,22 @@ public class BigQueryServingService implements ServingService {
           .withCause(e)
           .asRuntimeException();
     }
+  }
+
+  private Job waitForJob(Job queryJob) throws InterruptedException {
+    Job completedJob = queryJob.waitFor(
+        RetryOption.initialRetryDelay(Duration.ofSeconds(initialRetryDelaySecs)),
+        RetryOption.totalTimeout(Duration.ofSeconds(totalTimeoutSecs)));
+    if (completedJob == null) {
+      throw Status.INTERNAL
+          .withDescription("Job no longer exists")
+          .asRuntimeException();
+    } else if (completedJob.getStatus().getError() != null) {
+      throw Status.INTERNAL
+          .withDescription("Job failed: " + completedJob.getStatus().getError())
+          .asRuntimeException();
+    }
+    return completedJob;
   }
 
   public static String createTempTableName() {
