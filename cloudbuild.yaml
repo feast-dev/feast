@@ -75,8 +75,12 @@ steps:
   waitFor: ['unit-test-python-sdk']
   name: gcr.io/cloud-builders/git
   args: ['stash']
+- id: git-fetch-tags
+  waitFor: ['unit-test-python-sdk']
+  name: gcr.io/cloud-builders/git
+  args: ['fetch', '--tags']
 - id: upload-python-package
-  waitFor: ['clean-git-state']
+  waitFor: ['git-fetch-tags']
   name: 'python:3.7-buster'
   dir: '/workspace/sdk/python'
   entrypoint: sh
