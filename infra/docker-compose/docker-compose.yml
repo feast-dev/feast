@@ -59,6 +59,8 @@ services:
 
   redis:
     image: redis:5-alpine
+    ports:
+      - "6379:6379"
 
   kafka:
     image: confluentinc/cp-kafka:5.2.1
@@ -70,7 +72,8 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
     ports:
-      - 9094:9092
+      - "9092:9092"
+      - "9094:9094"
 
     depends_on:
       - zookeeper

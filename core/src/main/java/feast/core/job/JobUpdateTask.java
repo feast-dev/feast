@@ -173,6 +173,7 @@ public class JobUpdateTask implements Callable<Job> {
 
       return job;
     } catch (Exception e) {
+      log.error(e.getMessage());
       AuditLogger.log(
           Resource.JOB,
           jobId,

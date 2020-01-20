@@ -30,8 +30,8 @@ import feast.serving.store.bigquery.model.FeatureSetInfo;
 import java.util.concurrent.Callable;
 
 /**
- * Waits for a bigquery job to complete; when complete, it updates the feature set info with the
- * output table name, as well as increments the completed jobs counter in the query job listener.
+ * Waits for a point-in-time correctness join to complete. On completion, returns a featureSetInfo
+ * updated with the reference to the table containing the results of the query.
  */
 @AutoValue
 public abstract class SubqueryCallable implements Callable<FeatureSetInfo> {

@@ -17,6 +17,7 @@
 package feast.core.model;
 
 import com.google.protobuf.Duration;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
 import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.EntitySpec;
@@ -24,7 +25,7 @@ import feast.core.FeatureSetProto.FeatureSetMeta;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.FeatureSetProto.FeatureSpec;
-import feast.types.ValueProto.ValueType;
+import feast.types.ValueProto.ValueType.Enum;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,6 +48,20 @@ import lombok.Setter;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
+import org.tensorflow.metadata.v0.BoolDomain;
+import org.tensorflow.metadata.v0.FeaturePresence;
+import org.tensorflow.metadata.v0.FeaturePresenceWithinGroup;
+import org.tensorflow.metadata.v0.FixedShape;
+import org.tensorflow.metadata.v0.FloatDomain;
+import org.tensorflow.metadata.v0.ImageDomain;
+import org.tensorflow.metadata.v0.IntDomain;
+import org.tensorflow.metadata.v0.NaturalLanguageDomain;
+import org.tensorflow.metadata.v0.StringDomain;
+import org.tensorflow.metadata.v0.StructDomain;
+import org.tensorflow.metadata.v0.TimeDomain;
+import org.tensorflow.metadata.v0.TimeOfDayDomain;
+import org.tensorflow.metadata.v0.URLDomain;
+import org.tensorflow.metadata.v0.ValueCount;
 
 @Getter
 @Setter
@@ -157,14 +172,14 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     FeatureSetSpec featureSetSpec = featureSetProto.getSpec();
     Source source = Source.fromProto(featureSetSpec.getSource());
 
-    List<Field> features = new ArrayList<>();
-    for (FeatureSpec feature : featureSetSpec.getFeaturesList()) {
-      features.add(new Field(feature.getName(), feature.getValueType()));
+    List<Field> featureSpecs = new ArrayList<>();
+    for (FeatureSpec featureSpec : featureSetSpec.getFeaturesList()) {
+      featureSpecs.add(new Field(featureSpec));
     }
 
-    List<Field> entities = new ArrayList<>();
-    for (EntitySpec entity : featureSetSpec.getEntitiesList()) {
-      entities.add(new Field(entity.getName(), entity.getValueType()));
+    List<Field> entitySpecs = new ArrayList<>();
+    for (EntitySpec entitySpec : featureSetSpec.getEntitiesList()) {
+      entitySpecs.add(new Field(entitySpec));
     }
 
     return new FeatureSet(
@@ -172,8 +187,8 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
         featureSetProto.getSpec().getProject(),
         featureSetProto.getSpec().getVersion(),
         featureSetSpec.getMaxAge().getSeconds(),
-        entities,
-        features,
+        entitySpecs,
+        featureSpecs,
         source,
         featureSetProto.getMeta().getStatus());
   }
@@ -202,24 +217,21 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     features.add(field);
   }
 
-  public FeatureSetProto.FeatureSet toProto() {
+  public FeatureSetProto.FeatureSet toProto() throws InvalidProtocolBufferException {
     List<EntitySpec> entitySpecs = new ArrayList<>();
-    for (Field entity : entities) {
-      entitySpecs.add(
-          EntitySpec.newBuilder()
-              .setName(entity.getName())
-              .setValueType(ValueType.Enum.valueOf(entity.getType()))
-              .build());
+    for (Field entityField : entities) {
+      EntitySpec.Builder entitySpecBuilder = EntitySpec.newBuilder();
+      setEntitySpecFields(entitySpecBuilder, entityField);
+      entitySpecs.add(entitySpecBuilder.build());
     }
 
     List<FeatureSpec> featureSpecs = new ArrayList<>();
-    for (Field feature : features) {
-      featureSpecs.add(
-          FeatureSpec.newBuilder()
-              .setName(feature.getName())
-              .setValueType(ValueType.Enum.valueOf(feature.getType()))
-              .build());
+    for (Field featureField : features) {
+      FeatureSpec.Builder featureSpecBuilder = FeatureSpec.newBuilder();
+      setFeatureSpecFields(featureSpecBuilder, featureField);
+      featureSpecs.add(featureSpecBuilder.build());
     }
+
     FeatureSetMeta.Builder meta =
         FeatureSetMeta.newBuilder()
             .setCreatedTimestamp(
@@ -237,6 +249,108 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
             .setSource(source.toProto());
 
     return FeatureSetProto.FeatureSet.newBuilder().setMeta(meta).setSpec(spec).build();
+  }
+
+  // setEntitySpecFields and setFeatureSpecFields methods contain duplicated code because
+  // Feast internally treat EntitySpec and FeatureSpec as Field class. However, the proto message
+  // builder for EntitySpec and FeatureSpec are of different class.
+  @SuppressWarnings("DuplicatedCode")
+  private void setEntitySpecFields(EntitySpec.Builder entitySpecBuilder, Field entityField)
+      throws InvalidProtocolBufferException {
+    entitySpecBuilder
+        .setName(entityField.getName())
+        .setValueType(Enum.valueOf(entityField.getType()));
+
+    if (entityField.getPresence() != null) {
+      entitySpecBuilder.setPresence(FeaturePresence.parseFrom(entityField.getPresence()));
+    } else if (entityField.getGroupPresence() != null) {
+      entitySpecBuilder
+          .setGroupPresence(FeaturePresenceWithinGroup.parseFrom(entityField.getGroupPresence()));
+    }
+
+    if (entityField.getShape() != null) {
+      entitySpecBuilder.setShape(FixedShape.parseFrom(entityField.getShape()));
+    } else if (entityField.getValueCount() != null) {
+      entitySpecBuilder.setValueCount(ValueCount.parseFrom(entityField.getValueCount()));
+    }
+
+    if (entityField.getDomain() != null) {
+      entitySpecBuilder.setDomain(entityField.getDomain());
+    } else if (entityField.getIntDomain() != null) {
+      entitySpecBuilder.setIntDomain(IntDomain.parseFrom(entityField.getIntDomain()));
+    } else if (entityField.getFloatDomain() != null) {
+      entitySpecBuilder.setFloatDomain(FloatDomain.parseFrom(entityField.getFloatDomain()));
+    } else if (entityField.getStringDomain() != null) {
+      entitySpecBuilder.setStringDomain(StringDomain.parseFrom(entityField.getStringDomain()));
+    } else if (entityField.getBoolDomain() != null) {
+      entitySpecBuilder.setBoolDomain(BoolDomain.parseFrom(entityField.getBoolDomain()));
+    } else if (entityField.getStructDomain() != null) {
+      entitySpecBuilder.setStructDomain(StructDomain.parseFrom(entityField.getStructDomain()));
+    } else if (entityField.getNaturalLanguageDomain() != null) {
+      entitySpecBuilder.setNaturalLanguageDomain(
+          NaturalLanguageDomain.parseFrom(entityField.getNaturalLanguageDomain()));
+    } else if (entityField.getImageDomain() != null) {
+      entitySpecBuilder.setImageDomain(ImageDomain.parseFrom(entityField.getImageDomain()));
+    } else if (entityField.getMidDomain() != null) {
+      entitySpecBuilder.setIntDomain(IntDomain.parseFrom(entityField.getIntDomain()));
+    } else if (entityField.getUrlDomain() != null) {
+      entitySpecBuilder.setUrlDomain(URLDomain.parseFrom(entityField.getUrlDomain()));
+    } else if (entityField.getTimeDomain() != null) {
+      entitySpecBuilder.setTimeDomain(TimeDomain.parseFrom(entityField.getTimeDomain()));
+    } else if (entityField.getTimeOfDayDomain() != null) {
+      entitySpecBuilder
+          .setTimeOfDayDomain(TimeOfDayDomain.parseFrom(entityField.getTimeOfDayDomain()));
+    }
+  }
+
+  // Refer to setEntitySpecFields method for the reason for code duplication.
+  @SuppressWarnings("DuplicatedCode")
+  private void setFeatureSpecFields(FeatureSpec.Builder featureSpecBuilder, Field featureField)
+      throws InvalidProtocolBufferException {
+    featureSpecBuilder
+        .setName(featureField.getName())
+        .setValueType(Enum.valueOf(featureField.getType()));
+
+    if (featureField.getPresence() != null) {
+      featureSpecBuilder.setPresence(FeaturePresence.parseFrom(featureField.getPresence()));
+    } else if (featureField.getGroupPresence() != null) {
+      featureSpecBuilder
+          .setGroupPresence(FeaturePresenceWithinGroup.parseFrom(featureField.getGroupPresence()));
+    }
+
+    if (featureField.getShape() != null) {
+      featureSpecBuilder.setShape(FixedShape.parseFrom(featureField.getShape()));
+    } else if (featureField.getValueCount() != null) {
+      featureSpecBuilder.setValueCount(ValueCount.parseFrom(featureField.getValueCount()));
+    }
+
+    if (featureField.getDomain() != null) {
+      featureSpecBuilder.setDomain(featureField.getDomain());
+    } else if (featureField.getIntDomain() != null) {
+      featureSpecBuilder.setIntDomain(IntDomain.parseFrom(featureField.getIntDomain()));
+    } else if (featureField.getFloatDomain() != null) {
+      featureSpecBuilder.setFloatDomain(FloatDomain.parseFrom(featureField.getFloatDomain()));
+    } else if (featureField.getStringDomain() != null) {
+      featureSpecBuilder.setStringDomain(StringDomain.parseFrom(featureField.getStringDomain()));
+    } else if (featureField.getBoolDomain() != null) {
+      featureSpecBuilder.setBoolDomain(BoolDomain.parseFrom(featureField.getBoolDomain()));
+    } else if (featureField.getStructDomain() != null) {
+      featureSpecBuilder.setStructDomain(StructDomain.parseFrom(featureField.getStructDomain()));
+    } else if (featureField.getNaturalLanguageDomain() != null) {
+      featureSpecBuilder.setNaturalLanguageDomain(
+          NaturalLanguageDomain.parseFrom(featureField.getNaturalLanguageDomain()));
+    } else if (featureField.getImageDomain() != null) {
+      featureSpecBuilder.setImageDomain(ImageDomain.parseFrom(featureField.getImageDomain()));
+    } else if (featureField.getMidDomain() != null) {
+      featureSpecBuilder.setIntDomain(IntDomain.parseFrom(featureField.getIntDomain()));
+    } else if (featureField.getUrlDomain() != null) {
+      featureSpecBuilder.setUrlDomain(URLDomain.parseFrom(featureField.getUrlDomain()));
+    } else if (featureField.getTimeDomain() != null) {
+      featureSpecBuilder.setTimeDomain(TimeDomain.parseFrom(featureField.getTimeDomain()));
+    } else if (featureField.getTimeOfDayDomain() != null) {
+      featureSpecBuilder
+          .setTimeOfDayDomain(TimeOfDayDomain.parseFrom(featureField.getTimeOfDayDomain()));
+    }
   }
 
   /**

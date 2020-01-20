@@ -225,8 +225,6 @@
       <artifactId>slf4j-api</artifactId>
     </dependency>
 
-    <!-- library does not need logging impl -->
-
     <!-- To run actual Redis for ingestion integration test -->
     <dependency>
       <groupId>com.github.kstyrc</groupId>

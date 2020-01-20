@@ -75,7 +75,7 @@ public class JobCoordinatorServiceTest {
   }
 
   @Test
-  public void shouldDoNothingIfNoStoresFound() {
+  public void shouldDoNothingIfNoStoresFound() throws InvalidProtocolBufferException {
     when(specService.listStores(any())).thenReturn(ListStoresResponse.newBuilder().build());
     JobCoordinatorService jcs =
         new JobCoordinatorService(
