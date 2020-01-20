@@ -21,7 +21,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
 import feast.core.FeatureSetProto;
-import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
@@ -38,7 +37,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.PipelineResult;
@@ -75,8 +73,10 @@ public class DirectRunnerJobManager implements JobManager {
   @Override
   public Job startJob(Job job) {
     try {
-      List<FeatureSetProto.FeatureSet> featureSetProtos =
-          job.getFeatureSets().stream().map(FeatureSet::toProto).collect(Collectors.toList());
+      List<FeatureSetProto.FeatureSet> featureSetProtos = new ArrayList<>();
+      for (FeatureSet featureSet : job.getFeatureSets()) {
+        featureSetProtos.add(featureSet.toProto());
+      }
       ImportOptions pipelineOptions =
           getPipelineOptions(featureSetProtos, job.getStore().toProto());
       PipelineResult pipelineResult = runPipeline(pipelineOptions);
@@ -131,10 +131,6 @@ public class DirectRunnerJobManager implements JobManager {
     String jobId = job.getExtId();
     abortJob(jobId);
     try {
-      List<FeatureSetSpec> featureSetSpecs = new ArrayList<>();
-      for (FeatureSet featureSet : job.getFeatureSets()) {
-        featureSetSpecs.add(featureSet.toProto().getSpec());
-      }
       return startJob(job);
     } catch (JobExecutionException e) {
       throw new JobExecutionException(String.format("Error running ingestion job: %s", e), e);
