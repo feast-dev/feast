@@ -28,7 +28,7 @@ steps:
   entrypoint: mvn
   args: ['--settings=cloudbuild-settings.xml', '-Drevision=ff-${SHORT_SHA}', 'test']
 - id: build-java
-  waitFor: ['unit-test']
+  waitFor: ['unit-test-java']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: mvn
   args: ['--settings=cloudbuild-settings.xml', '-Drevision=ff-${SHORT_SHA}', '-DskipTests=true', '--batch-mode', 'package']
