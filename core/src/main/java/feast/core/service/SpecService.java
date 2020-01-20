@@ -86,7 +86,8 @@ public class SpecService {
    * @param request: GetFeatureSetRequest Request containing filter parameters.
    * @return Returns a GetFeatureSetResponse containing a feature set..
    */
-  public GetFeatureSetResponse getFeatureSet(GetFeatureSetRequest request) {
+  public GetFeatureSetResponse getFeatureSet(GetFeatureSetRequest request)
+      throws InvalidProtocolBufferException {
 
     // Validate input arguments
     checkValidCharacters(request.getName(), "featureSetName");
@@ -150,7 +151,8 @@ public class SpecService {
    * @param filter filter containing the desired featureSet name and version filter
    * @return ListFeatureSetsResponse with list of featureSets found matching the filter
    */
-  public ListFeatureSetsResponse listFeatureSets(ListFeatureSetsRequest.Filter filter) {
+  public ListFeatureSetsResponse listFeatureSets(ListFeatureSetsRequest.Filter filter)
+      throws InvalidProtocolBufferException {
     String name = filter.getFeatureSetName();
     String project = filter.getProject();
     String version = filter.getFeatureSetVersion();
@@ -165,7 +167,8 @@ public class SpecService {
     checkValidCharactersAllowAsterisk(name, "featureSetName");
     checkValidCharactersAllowAsterisk(project, "projectName");
 
-    List<FeatureSet> featureSets = new ArrayList<FeatureSet>() {};
+    List<FeatureSet> featureSets = new ArrayList<FeatureSet>() {
+    };
 
     if (project.equals("*")) {
       // Matching all projects
@@ -274,13 +277,14 @@ public class SpecService {
    * Creates or updates a feature set in the repository. If there is a change in the feature set
    * schema, then the feature set version will be incremented.
    *
-   * <p>This function is idempotent. If no changes are detected in the incoming featureSet's schema,
-   * this method will update the incoming featureSet spec with the latest version stored in the
-   * repository, and return that.
+   * <p>This function is idempotent. If no changes are detected in the incoming featureSet's
+   * schema, this method will update the incoming featureSet spec with the latest version stored in
+   * the repository, and return that.
    *
    * @param newFeatureSet Feature set that will be created or updated.
    */
-  public ApplyFeatureSetResponse applyFeatureSet(FeatureSetProto.FeatureSet newFeatureSet) {
+  public ApplyFeatureSetResponse applyFeatureSet(FeatureSetProto.FeatureSet newFeatureSet)
+      throws InvalidProtocolBufferException {
 
     // Validate incoming feature set
     FeatureSetValidator.validateSpec(newFeatureSet);

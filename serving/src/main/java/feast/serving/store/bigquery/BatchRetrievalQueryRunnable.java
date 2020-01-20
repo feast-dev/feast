@@ -54,6 +54,27 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.threeten.bp.Duration;
 
+/**
+ * BatchRetrievalQueryRunnable is a Runnable for running a BigQuery Feast batch retrieval job async.
+ *
+ * <p>It does the following, in sequence:
+ *
+ * <p>1. Retrieve the temporal bounds of the entity dataset provided. This will be used to filter
+ * the feature set tables when performing the feature retrieval.
+ *
+ * <p>2. For each of the feature sets requested, generate the subquery for doing a point-in-time
+ * correctness join of the features in the feature set to the entity table.
+ *
+ * <p>3. Run each of the subqueries in parallel and wait for them to complete. If any of the jobs
+ * are unsuccessful, the thread running the BatchRetrievalQueryRunnable catches the error and
+ * updates the job database.
+ *
+ * <p>4. When all the subquery jobs are complete, join the outputs of all the subqueries into a
+ * single table.
+ *
+ * <p>5. Extract the output of the join to a remote file, and write the location of the remote file
+ * to the job database, and mark the retrieval job as successful.
+ */
 @AutoValue
 public abstract class BatchRetrievalQueryRunnable implements Runnable {
 
@@ -119,18 +140,22 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
   @Override
   public void run() {
 
+    // 1. Retrieve the temporal bounds of the entity dataset provided
     FieldValueList timestampLimits = getTimestampLimits(entityTableName());
 
+    // 2. Generate the subqueries
     List<String> featureSetQueries = generateQueries(timestampLimits);
 
     QueryJobConfiguration queryConfig;
 
     try {
+      // 3 & 4. Run the subqueries in parallel then collect the outputs
       Job queryJob = runBatchQuery(featureSetQueries);
       queryConfig = queryJob.getConfiguration();
       String exportTableDestinationUri =
           String.format("%s/%s/*.avro", jobStagingLocation(), feastJobId());
 
+      // 5. Export the table
       // Hardcode the format to Avro for now
       ExtractJobConfiguration extractConfig =
           ExtractJobConfiguration.of(
@@ -151,6 +176,7 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
 
     List<String> fileUris = parseOutputFileURIs();
 
+    // 5. Update the job database
     jobService()
         .upsert(
             ServingAPIProto.Job.newBuilder()
@@ -190,6 +216,8 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
 
     List<FeatureSetInfo> featureSetInfos = new ArrayList<>();
 
+    // For each of the feature sets requested, start an async job joining the features in that
+    // feature set to the provided entity table
     for (int i = 0; i < featureSetQueries.size(); i++) {
       QueryJobConfiguration queryJobConfig =
           QueryJobConfiguration.newBuilder(featureSetQueries.get(i))
@@ -206,6 +234,8 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
 
     for (int i = 0; i < featureSetQueries.size(); i++) {
       try {
+        // Try to retrieve the outputs of all the jobs. The timeout here is a formality;
+        // a stricter timeout is implemented in the actual SubqueryCallable.
         FeatureSetInfo featureSetInfo =
             executorCompletionService.take().get(SUBQUERY_TIMEOUT_SECS, TimeUnit.SECONDS);
         featureSetInfos.add(featureSetInfo);
@@ -227,6 +257,8 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
       }
     }
 
+    // Generate and run a join query to collect the outputs of all the
+    // subqueries into a single table.
     String joinQuery =
         QueryTemplater.createJoinQuery(
             featureSetInfos, entityTableColumnNames(), entityTableName());

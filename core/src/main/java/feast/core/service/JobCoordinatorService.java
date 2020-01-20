@@ -16,6 +16,7 @@
  */
 package feast.core.service;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.core.CoreServiceProto.ListStoresRequest.Filter;
 import feast.core.CoreServiceProto.ListStoresResponse;
@@ -87,7 +88,7 @@ public class JobCoordinatorService {
    */
   @Transactional
   @Scheduled(fixedDelay = POLLING_INTERVAL_MILLISECONDS)
-  public void Poll() {
+  public void Poll() throws InvalidProtocolBufferException {
     log.info("Polling for new jobs...");
     List<JobUpdateTask> jobUpdateTasks = new ArrayList<>();
     ListStoresResponse listStoresResponse = specService.listStores(Filter.newBuilder().build());
