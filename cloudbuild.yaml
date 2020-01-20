@@ -22,11 +22,11 @@ steps:
   - /cache/m2
 
 # JAVA
-- id: unit-test
+- id: unit-test-java
   waitFor: ['m2-cahce-pull']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: mvn
-  args: ['--settings=cloudbuild-settings.xml', '-Drevision=ff-${SHORT_SHA}', '-Dtestbucket=${_TEST_BUCKET}', 'test']
+  args: ['--settings=cloudbuild-settings.xml', '-Drevision=ff-${SHORT_SHA}', 'test']
 - id: build-java
   waitFor: ['unit-test']
   name: 'maven:${_MAVEN_VERSION}'
@@ -64,7 +64,7 @@ steps:
   name: 'gcr.io/konnekt-core/protoc-python@sha256:61421f32abe11acac6a9aa6356a1b3cf009daa0fc3feb3d875e098fde422f8b0'
   dir: '/workspace/protos'
   entrypoint: make
-  args: ['gen-python']
+  args: ['gen-python', '--dry-run'] # Disable for now (TODO: MR and fix)
 - id: unit-test-python-sdk
   waitFor: ['gen-proto-python']
   name: 'python:3.7-buster'
@@ -160,6 +160,8 @@ options:
     path: /cache/go
   - name: m2_cache
     path: /cache/m2
+  - name: pip_cache
+    path: /root/.cache/pip
   - name: logs
     path: /log
 

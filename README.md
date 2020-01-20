@@ -22,50 +22,66 @@ Some steps can be build directly on your own machine - follow the commands that 
 If you do not have the required dependencies, you can translate the `cloudbuild.yaml` step into a Docker command. E.g.:
 
 ```bash
-docker run --rm --name feast-build \
-    -v $(pwd):/workspace \
-    -v go_cache:/cache/go \
-    -v m2_cache:/cache/m2 \
+CLOUDBUILD_STEP="docker run --rm --name feast-build \
+                     -v $(pwd):/workspace \
+                     -v go_cache:/cache/go \
+                     -v m2_cache:/cache/m2 \
+                     -v pip_cache:/root/.cache/pip \
+                     -e GO111MODULE=on \
+                     -e GOPATH=/cache/go \
+                     -e FEAST_VERSION=ff-$(git rev-parse --short HEAD)-dev \
+                     -e MAVEN_OPTS=-Dmaven.repo.local=/cache/m2 \
+                     -e GOOGLE_APPLICATION_CREDENTIALS=/etc/service-account/service-account.json
+                     -e GOOGLE_CLOUD_PROJECT=dev-konnekt-data-deep-1 \
+"
+```
+
+#### gen-proto-go
+```bash
+$CLOUDBUILD_STEP \
     -w /workspace/protos \
-    -e GO111MODULE=on \
-    -e GOPATH=/cache/go \
-    -e MAVEN_OPTS=-Dmaven.repo.local=/cache/m2 \
-    -e FEAST_VERSION=ff-$(git rev-parse --short HEAD)-dev \
     --entrypoint make \
     gcr.io/konnekt-core/protoc-go:3.6.1 \
     gen-go
 ```
 
+#### unit-test-java
 ```bash
-docker run --rm --name feast-build \
-    -v $(pwd):/workspace \
-    -v go_cache:/cache/go \
-    -v m2_cache:/cache/m2 \
+$CLOUDBUILD_STEP \
     -w /workspace \
-    -e GO111MODULE=on \
-    -e GOPATH=/cache/go \
-    -e MAVEN_OPTS=-Dmaven.repo.local=/cache/m2 \
-    -e FEAST_VERSION=ff-$(git rev-parse --short HEAD) \
-    --entrypoint mvn -- \
+    --entrypoint mvn \
     maven:3.6.2-jdk-11-slim \
     -Drevision=ff-$(git rev-parse --short HEAD) \
-    -Dtestbucket=dev-konnekt-data-deep-1-feast-tmp \
     test
 ```
 
+#### build-java
 ```bash
-docker run --rm --name feast-build \
-    -v $(pwd):/workspace \
-    -v $(pwd)/tmp/go_cache:/cache/go \
-    -v $(pwd)/tmp/m2_cache:/cache/m2 \
-    -v $(pwd)/tmp/pip_cache:/root/.cache/pip \
-    -v $(pwd)/tmp/logs:/log \
+$CLOUDBUILD_STEP \
+    -w /workspace \
+    --entrypoint mvn \
+    maven:3.6.2-jdk-11-slim \
+    -Drevision=ff-$(git rev-parse --short HEAD) \
+    -DskipTests=true \
+    --batch-mode \
+    package
+```
+
+#### gen-proto-python
+```bash
+$CLOUDBUILD_STEP \
+    -w /workspace/protos \
+    --entrypoint make \
+    gcr.io/konnekt-core/protoc-python@sha256:61421f32abe11acac6a9aa6356a1b3cf009daa0fc3feb3d875e098fde422f8b0 \
+   'gen-python'
+```
+
+#### unit-test-python-sdk
+```bash
+$CLOUDBUILD_STEP \
     -w /workspace/sdk/python \
-    -e GO111MODULE=on \
-    -e GOPATH=/cache/go \
-    -e MAVEN_OPTS=-Dmaven.repo.local=/cache/m2 \
-    -e FEAST_VERSION=ff-$(git rev-parse --short HEAD) \
-    --entrypoint sh -- \
+    -v /Volumes/GoogleDrive/My\ Drive/credentials/dev-konnekt-data-deep-1_feast-dev.json:/etc/service-account/service-account.json \
+    --entrypoint sh \
     python:3.7-buster \
     -c 'pip install -r requirements-ci.txt && pip install -e . && pytest --junitxml=/log/python-sdk-test-report.xml'
 ```
