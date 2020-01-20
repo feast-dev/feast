@@ -113,11 +113,21 @@ public class FeastProperties {
 
   public static class JobProperties {
     private String stagingLocation;
+    private int bigqueryInitialRetryDelaySecs;
+    private int bigqueryTotalTimeoutSecs;
     private String storeType;
     private Map<String, String> storeOptions;
 
     public String getStagingLocation() {
       return this.stagingLocation;
+    }
+
+    public int getBigqueryInitialRetryDelaySecs() {
+      return bigqueryInitialRetryDelaySecs;
+    }
+
+    public int getBigqueryTotalTimeoutSecs() {
+      return bigqueryTotalTimeoutSecs;
     }
 
     public String getStoreType() {
@@ -130,6 +140,14 @@ public class FeastProperties {
 
     public void setStagingLocation(String stagingLocation) {
       this.stagingLocation = stagingLocation;
+    }
+
+    public void setBigqueryInitialRetryDelaySecs(int bigqueryInitialRetryDelaySecs) {
+      this.bigqueryInitialRetryDelaySecs = bigqueryInitialRetryDelaySecs;
+    }
+
+    public void setBigqueryTotalTimeoutSecs(int bigqueryTotalTimeoutSecs) {
+      this.bigqueryTotalTimeoutSecs = bigqueryTotalTimeoutSecs;
     }
 
     public void setStoreType(String storeType) {

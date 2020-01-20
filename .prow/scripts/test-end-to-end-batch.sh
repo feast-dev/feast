@@ -185,6 +185,8 @@ feast:
   jobs:
     staging-location: gs://feast-templocation-kf-feast/staging-location
     store-type: REDIS
+    bigquery-initial-retry-delay-secs: 1
+    bigquery-total-timeout-secs: 900
     store-options:
       host: $REMOTE_HOST
       port: 6379
