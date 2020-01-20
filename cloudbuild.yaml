@@ -78,7 +78,7 @@ steps:
 - id: git-fetch-tags
   waitFor: ['unit-test-python-sdk']
   name: gcr.io/cloud-builders/git
-  args: ['fetch', '--tags']
+  args: ['fetch', '--tags', '--unshallow']
 - id: upload-python-package
   waitFor: ['git-fetch-tags']
   name: 'python:3.7-buster'
@@ -93,31 +93,31 @@ steps:
   entrypoint: sh
   args: ['-c', 'pip install -qe sdk/python']
 
-# End-to-End Tests
-- id: test-end-to-end
-  waitFor: ['secrets', 'build-java', 'unit-test-go-sdk-report', 'install-python-sdk']
-  name: 'maven:${_MAVEN_VERSION}'
-  entrypoint: bash
-  args: ['.prow/scripts/test-end-to-end.sh']
-  env:
-  - GOOGLE_APPLICATION_CREDENTIALS=/.secrets/gcp-credentials.json
-  - SKIP_BUILD_JARS=true
-  - GOOGLE_CLOUD_PROJECT=dev-konnekt-data-deep-1
-  - TEMP_BUCKET=${_TEST_BUCKET}
-  - JOBS_STAGING_LOCATION=gs://${_TEST_BUCKET}/e2e-staging
-  - JAR_VERSION_SUFFIX=${SHORT_SHA}
-- id: test-end-to-end-batch
-  waitFor: ['secrets', 'build-java', 'unit-test-go-sdk-report', 'install-python-sdk']
-  name: 'maven:${_MAVEN_VERSION}'
-  entrypoint: bash
-  args: ['.prow/scripts/test-end-to-end-batch.sh']
-  env:
-  - GOOGLE_APPLICATION_CREDENTIALS=/.secrets/gcp-credentials.json
-  - SKIP_BUILD_JARS=true
-  - GOOGLE_CLOUD_PROJECT=dev-konnekt-data-deep-1
-  - TEMP_BUCKET=${_TEST_BUCKET}
-  - JOBS_STAGING_LOCATION=gs://${_TEST_BUCKET}/e2e-staging
-  - JAR_VERSION_SUFFIX=${SHORT_SHA}
+## End-to-End Tests
+#- id: test-end-to-end
+#  waitFor: ['secrets', 'build-java', 'unit-test-go-sdk-report', 'install-python-sdk']
+#  name: 'maven:${_MAVEN_VERSION}'
+#  entrypoint: bash
+#  args: ['.prow/scripts/test-end-to-end.sh']
+#  env:
+#  - GOOGLE_APPLICATION_CREDENTIALS=/.secrets/gcp-credentials.json
+#  - SKIP_BUILD_JARS=true
+#  - GOOGLE_CLOUD_PROJECT=dev-konnekt-data-deep-1
+#  - TEMP_BUCKET=${_TEST_BUCKET}
+#  - JOBS_STAGING_LOCATION=gs://${_TEST_BUCKET}/e2e-staging
+#  - JAR_VERSION_SUFFIX=${SHORT_SHA}
+#- id: test-end-to-end-batch
+#  waitFor: ['secrets', 'build-java', 'unit-test-go-sdk-report', 'install-python-sdk']
+#  name: 'maven:${_MAVEN_VERSION}'
+#  entrypoint: bash
+#  args: ['.prow/scripts/test-end-to-end-batch.sh']
+#  env:
+#  - GOOGLE_APPLICATION_CREDENTIALS=/.secrets/gcp-credentials.json
+#  - SKIP_BUILD_JARS=true
+#  - GOOGLE_CLOUD_PROJECT=dev-konnekt-data-deep-1
+#  - TEMP_BUCKET=${_TEST_BUCKET}
+#  - JOBS_STAGING_LOCATION=gs://${_TEST_BUCKET}/e2e-staging
+#  - JAR_VERSION_SUFFIX=${SHORT_SHA}
 
 # Docker Images
 - id: docker-build-core
