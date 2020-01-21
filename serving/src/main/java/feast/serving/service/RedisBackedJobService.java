@@ -43,34 +43,40 @@ public class RedisBackedJobService implements JobService {
 
   @Override
   public Optional<Job> get(String id) {
-    Jedis jedis = jedisPool.getResource();
-    String json = jedis.get(id);
-    if (json == null) {
-      return Optional.empty();
-    }
+    Jedis jedis = null;
     Job job = null;
-    Builder builder = Job.newBuilder();
     try {
+      jedis = jedisPool.getResource();
+      String json = jedis.get(id);
+      if (json == null) {
+        return Optional.empty();
+      }
+      Builder builder = Job.newBuilder();
       JsonFormat.parser().merge(json, builder);
       job = builder.build();
     } catch (Exception e) {
       log.error(String.format("Failed to parse JSON for Feast job: %s", e.getMessage()));
     } finally {
-      jedis.close();
+      if (jedis != null) {
+        jedis.close();
+      }
     }
     return Optional.ofNullable(job);
   }
 
   @Override
   public void upsert(Job job) {
-    Jedis jedis = jedisPool.getResource();
+    Jedis jedis = null;
     try {
+      jedis = jedisPool.getResource();
       jedis.set(job.getId(), JsonFormat.printer().omittingInsignificantWhitespace().print(job));
       jedis.expire(job.getId(), defaultExpirySeconds);
     } catch (Exception e) {
       log.error(String.format("Failed to upsert job: %s", e.getMessage()));
     } finally {
-      jedis.close();
+      if (jedis != null) {
+        jedis.close();
+      }
     }
   }
 }
