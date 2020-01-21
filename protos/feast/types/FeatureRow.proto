@@ -35,8 +35,10 @@ message FeatureRow {
     // will use to perform joins, determine latest values, and coalesce rows.
     google.protobuf.Timestamp event_timestamp = 3;
 
-    // Complete reference to the featureSet this featureRow belongs to, in the form of
-    // featureSetName:version. This value will be used by the feast ingestion job to filter
-    // rows, and write the values to the correct tables.
+    // Complete reference to the featureSet this featureRow belongs to, in the form of:
+    // [project]/[feature_set_name]:[version]
+    //
+    // FeatureSet reference will be used by the Feast ingestion job to filter
+    // rows and write the values to the correct tables.
     string feature_set = 6;
 }
