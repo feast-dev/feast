@@ -55,8 +55,11 @@ public class RedisBackedJobService implements JobService {
       job = builder.build();
     } catch (Exception e) {
       log.error(String.format("Failed to parse JSON for Feast job: %s", e.getMessage()));
+    } finally {
+      if (jedis.isConnected()) {
+        jedis.close();
+      }
     }
-
     return Optional.ofNullable(job);
   }
 
@@ -68,6 +71,10 @@ public class RedisBackedJobService implements JobService {
       jedis.expire(job.getId(), defaultExpirySeconds);
     } catch (Exception e) {
       log.error(String.format("Failed to upsert job: %s", e.getMessage()));
+    } finally {
+      if (jedis.isConnected()) {
+        jedis.close();
+      }
     }
   }
 }
