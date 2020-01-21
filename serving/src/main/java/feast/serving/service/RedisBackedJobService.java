@@ -24,7 +24,7 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.exceptions.JedisException;
+import redis.clients.jedis.exceptions.JedisConnectionException;
 
 // TODO: Do rate limiting, currently if clients call get() or upsert()
 //       and an exceedingly high rate e.g. they wrap job reload in a while loop with almost no wait
@@ -55,7 +55,7 @@ public class RedisBackedJobService implements JobService {
       Builder builder = Job.newBuilder();
       JsonFormat.parser().merge(json, builder);
       job = builder.build();
-    } catch (JedisException e) {
+    } catch (JedisConnectionException e) {
       log.error(String.format("Failed to connect to the redis instance: %s", e));
     } catch (Exception e) {
       log.error(String.format("Failed to parse JSON for Feast job: %s", e.getMessage()));
