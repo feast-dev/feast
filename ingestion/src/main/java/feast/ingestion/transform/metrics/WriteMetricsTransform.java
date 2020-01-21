@@ -55,7 +55,9 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
   @Override
   public PDone expand(PCollectionTuple input) {
     ImportOptions options = input.getPipeline().getOptions().as(ImportOptions.class);
-    switch (options.getMetricsExporterType()) {
+    assert options.getMetricsExporterType() != null;
+
+    switch (options.getMetricsExporterType().trim().toLowerCase()) {
       case "statsd":
         input
             .get(getFailureTag())

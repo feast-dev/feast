@@ -65,7 +65,7 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
   void setDeadLetterTableSpec(String deadLetterTableSpec);
 
   // TODO: expound
-  @Description("MetricsAccumulator exporter type to instantiate.")
+  @Description("MetricsAccumulator exporter type to instantiate. Currently supported type: statsd.")
   @Default.String("none")
   String getMetricsExporterType();
 
