@@ -47,10 +47,12 @@ import org.slf4j.Logger;
 public class ImportJob {
 
   // Tag for main output containing Feature Row that has been successfully processed.
-  private static final TupleTag<FeatureRow> FEATURE_ROW_OUT = new TupleTag<FeatureRow>() {};
+  private static final TupleTag<FeatureRow> FEATURE_ROW_OUT = new TupleTag<FeatureRow>() {
+  };
 
   // Tag for deadletter output containing elements and error messages from invalid input/transform.
-  private static final TupleTag<FailedElement> DEADLETTER_OUT = new TupleTag<FailedElement>() {};
+  private static final TupleTag<FailedElement> DEADLETTER_OUT = new TupleTag<FailedElement>() {
+  };
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(ImportJob.class);
 
   /**
@@ -88,14 +90,13 @@ public class ImportJob {
       List<FeatureSet> subscribedFeatureSets =
           SpecUtil.getSubscribedFeatureSets(store.getSubscriptionsList(), featureSets);
 
-      // Generate tags by key
-      Map<String, FeatureSet> featureSetsByKey = new HashMap<>();
-      subscribedFeatureSets.stream()
-          .forEach(
-              fs -> {
-                String ref = getFeatureSetReference(fs);
-                featureSetsByKey.put(ref, fs);
-              });
+      // featureSetsByRef is a map of FeatureSet string reference to FeatureSet object.
+      // FeatureSet reference follows this format: PROJECT/FEATURE_SET_NAME:VERSION
+      Map<String, FeatureSet> featureSetsByRef = new HashMap<>();
+      subscribedFeatureSets.forEach(fs -> {
+        String ref = getFeatureSetReference(fs);
+        featureSetsByRef.put(ref, fs);
+      });
 
       // TODO: make the source part of the job initialisation options
       Source source = subscribedFeatureSets.get(0).getSpec().getSource();
@@ -121,7 +122,7 @@ public class ImportJob {
               .get(FEATURE_ROW_OUT)
               .apply(
                   ValidateFeatureRows.newBuilder()
-                      .setFeatureSets(featureSetsByKey)
+                      .setFeatureSets(featureSetsByRef)
                       .setSuccessTag(FEATURE_ROW_OUT)
                       .setFailureTag(DEADLETTER_OUT)
                       .build());
@@ -131,7 +132,7 @@ public class ImportJob {
           .get(FEATURE_ROW_OUT)
           .apply(
               "WriteFeatureRowToStore",
-              WriteToStore.newBuilder().setFeatureSets(featureSetsByKey).setStore(store).build());
+              WriteToStore.newBuilder().setFeatureSets(featureSetsByRef).setStore(store).build());
 
       // Step 4. Write FailedElements to a dead letter table in BigQuery.
       if (options.getDeadLetterTableSpec() != null) {
