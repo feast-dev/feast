@@ -23,6 +23,7 @@ import java.util.Optional;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
 
 // TODO: Do rate limiting, currently if clients call get() or upsert()
 //       and an exceedingly high rate e.g. they wrap job reload in a while loop with almost no wait
@@ -31,17 +32,18 @@ import redis.clients.jedis.Jedis;
 public class RedisBackedJobService implements JobService {
 
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(RedisBackedJobService.class);
-  private final Jedis jedis;
+  private final JedisPool jedisPool;
   // Remove job state info after "defaultExpirySeconds" to prevent filling up Redis memory
   // and since users normally don't require info about relatively old jobs.
   private final int defaultExpirySeconds = (int) Duration.standardDays(1).getStandardSeconds();
 
-  public RedisBackedJobService(Jedis jedis) {
-    this.jedis = jedis;
+  public RedisBackedJobService(JedisPool jedisPool) {
+    this.jedisPool = jedisPool;
   }
 
   @Override
   public Optional<Job> get(String id) {
+    Jedis jedis = jedisPool.getResource();
     String json = jedis.get(id);
     if (json == null) {
       return Optional.empty();
@@ -60,6 +62,7 @@ public class RedisBackedJobService implements JobService {
 
   @Override
   public void upsert(Job job) {
+    Jedis jedis = jedisPool.getResource();
     try {
       jedis.set(job.getId(), JsonFormat.printer().omittingInsignificantWhitespace().print(job));
       jedis.expire(job.getId(), defaultExpirySeconds);

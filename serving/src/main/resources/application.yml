@@ -47,6 +47,10 @@ feast:
     # store-options:
     #   host: localhost
     #   port: 6379
+    # Optionally, you can configure the connection pool with the following items:
+    #   max-conn: 8
+    #   max-idle: 8
+    #   max-wait-millis: 50
     store-options: {}
 
 grpc:

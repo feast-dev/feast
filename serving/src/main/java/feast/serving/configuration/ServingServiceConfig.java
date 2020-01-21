@@ -22,12 +22,9 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.BigQueryConfig;
-import feast.core.StoreProto.Store.Builder;
 import feast.core.StoreProto.Store.RedisConfig;
-import feast.core.StoreProto.Store.StoreType;
 import feast.core.StoreProto.Store.Subscription;
 import feast.serving.FeastProperties;
-import feast.serving.FeastProperties.JobProperties;
 import feast.serving.service.BigQueryServingService;
 import feast.serving.service.JobService;
 import feast.serving.service.NoopJobService;
@@ -46,18 +43,6 @@ import redis.clients.jedis.JedisPoolConfig;
 public class ServingServiceConfig {
 
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(ServingServiceConfig.class);
-
-  @Bean(name = "JobStore")
-  public Store jobStoreDefinition(FeastProperties feastProperties) {
-    JobProperties jobProperties = feastProperties.getJobs();
-    if (feastProperties.getJobs().getStoreType().equals("")) {
-      return Store.newBuilder().build();
-    }
-    Map<String, String> options = jobProperties.getStoreOptions();
-    Builder storeDefinitionBuilder =
-        Store.newBuilder().setType(StoreType.valueOf(jobProperties.getStoreType()));
-    return setStoreConfig(storeDefinitionBuilder, options);
-  }
 
   private Store setStoreConfig(Store.Builder builder, Map<String, String> options) {
     switch (builder.getType()) {
