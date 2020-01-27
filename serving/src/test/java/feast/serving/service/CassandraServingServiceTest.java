@@ -23,9 +23,9 @@ import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.datastax.driver.core.Session;
 import feast.core.FeatureSetProto;
+import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.specs.FeatureSetRequest;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
 import java.util.ArrayList;
@@ -81,13 +81,19 @@ public class CassandraServingServiceTest {
                         .build());
               }
             },
-            FeatureSetRequest.newBuilder().setSpec(FeatureSetProto.FeatureSetSpec.newBuilder().setName("featureSet").setVersion(1).build()).build()
-      );
+            FeatureSetRequest.newBuilder()
+                .setSpec(
+                    FeatureSetProto.FeatureSetSpec.newBuilder()
+                        .setName("featureSet")
+                        .setProject("test_project")
+                        .setVersion(1)
+                        .build())
+                .build());
     List<String> expectedKeys =
         new ArrayList<String>() {
           {
-            add("featureSet:1:entity1=1|entity2=a");
-            add("featureSet:1:entity1=2|entity2=b");
+            add("test_project/featureSet:1:entity1=1|entity2=a");
+            add("test_project/featureSet:1:entity1=2|entity2=b");
           }
         };
 
@@ -114,6 +120,12 @@ public class CassandraServingServiceTest {
                         .build());
               }
             },
-            FeatureSetRequest.newBuilder().setSpec(FeatureSetProto.FeatureSetSpec.newBuilder().setName("featureSet").setVersion(1).build()).build());
+            FeatureSetRequest.newBuilder()
+                .setSpec(
+                    FeatureSetProto.FeatureSetSpec.newBuilder()
+                        .setName("featureSet")
+                        .setVersion(1)
+                        .build())
+                .build());
   }
 }

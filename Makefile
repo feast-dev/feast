@@ -14,7 +14,7 @@
 #  limitations under the License.
 #
 REGISTRY := gcr.io/pm-registry/feast
-VERSION := v0.4.3-cassandra-experiment-1
+VERSION := v0.4.3-cassandra-experiment-54
 PROJECT_ROOT 	:= $(shell git rev-parse --show-toplevel)
 
 test:
@@ -36,12 +36,12 @@ build-java:
 	mvn clean verify
 
 build-docker:
-	docker build -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
+	#docker build -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
 	docker build -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
 
 build-push-docker:
 	@$(MAKE) build-docker registry=$(REGISTRY) version=$(VERSION)
-	docker push $(REGISTRY)/feast-core:$(VERSION)
+	#docker push $(REGISTRY)/feast-core:$(VERSION)
 	docker push $(REGISTRY)/feast-serving:$(VERSION)
 
 clean-html:

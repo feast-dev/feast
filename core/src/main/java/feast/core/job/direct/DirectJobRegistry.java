@@ -16,7 +16,6 @@
  */
 package feast.core.job.direct;
 
-import com.google.common.base.Strings;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;

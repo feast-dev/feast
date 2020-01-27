@@ -33,16 +33,16 @@ import com.datastax.driver.core.utils.Bytes;
 import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
-import feast.core.FeatureSetProto.FeatureSpec;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.FeatureSetProto.FeatureSpec;
 import feast.serving.ServingAPIProto;
-import feast.serving.specs.CachedSpecService;
-import feast.serving.specs.FeatureSetRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
+import feast.serving.specs.CachedSpecService;
+import feast.serving.specs.FeatureSetRequest;
 import feast.serving.test.TestUtil.LocalCassandra;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.ValueProto;
@@ -53,7 +53,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.thrift.transport.TTransportException;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -84,13 +83,22 @@ public class CassandraServingServiceITTest {
     initMocks(this);
     FeatureSetSpec featureSetSpec =
         FeatureSetSpec.newBuilder()
+            .setProject("test_project")
+            .setName("featureSet")
+            .setVersion(1)
             .addEntities(EntitySpec.newBuilder().setName("entity1"))
             .addEntities(EntitySpec.newBuilder().setName("entity2"))
             .build();
     List<FeatureSetRequest> req = new ArrayList<FeatureSetRequest>();
     req.add(FeatureSetRequest.newBuilder().setSpec(featureSetSpec).build());
     List<ServingAPIProto.FeatureReference> ref = new ArrayList<ServingAPIProto.FeatureReference>();
-    ref.add(ServingAPIProto.FeatureReference.newBuilder().setName("featureSet").setVersion(1).build());
+    ref.add(
+        ServingAPIProto.FeatureReference.newBuilder()
+            .setName("featureSet")
+            .setVersion(1)
+            .setProject("test_project")
+            .build());
+    System.out.printf("FS request return %s", specService.getFeatureSets(ref));
     when(specService.getFeatureSets(ref)).thenReturn(req);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
@@ -110,16 +118,32 @@ public class CassandraServingServiceITTest {
   private void populateTable(Session session) {
     session.execute(
         insertQuery(
-            "test", "feature_store", "featureSet:1:entity1=1|entity2=a", "feature1", intValue(1)));
+            "test",
+            "feature_store",
+            "test_project/featureSet:1:entity1=1|entity2=a",
+            "feature1",
+            intValue(1)));
     session.execute(
         insertQuery(
-            "test", "feature_store", "featureSet:1:entity1=1|entity2=a", "feature2", intValue(1)));
+            "test",
+            "feature_store",
+            "test_project/featureSet:1:entity1=1|entity2=a",
+            "feature2",
+            intValue(1)));
     session.execute(
         insertQuery(
-            "test", "feature_store", "featureSet:1:entity1=2|entity2=b", "feature1", intValue(1)));
+            "test",
+            "feature_store",
+            "test_project/featureSet:1:entity1=2|entity2=b",
+            "feature1",
+            intValue(1)));
     session.execute(
         insertQuery(
-            "test", "feature_store", "featureSet:1:entity1=2|entity2=b", "feature2", intValue(1)));
+            "test",
+            "feature_store",
+            "test_project/featureSet:1:entity1=2|entity2=b",
+            "feature2",
+            intValue(1)));
   }
 
   @AfterClass
@@ -133,21 +157,24 @@ public class CassandraServingServiceITTest {
         GetOnlineFeaturesRequest.newBuilder()
             .addAllFeatures(
                 FeatureSetRequest.newBuilder()
-                        .setSpec(FeatureSetSpec.newBuilder()
-                                .setName("featureSet")
-                                .setVersion(1)
-                                .addAllFeatures(Lists.newArrayList(
-                                        FeatureSpec.newBuilder()
+                    .setSpec(
+                        FeatureSetSpec.newBuilder()
+                            .setName("featureSet")
+                            .setProject("test_project")
+                            .setVersion(1)
+                            .addAllFeatures(
+                                Lists.newArrayList(
+                                    FeatureSpec.newBuilder()
                                         .setName("feature1")
                                         .setValueType(ValueProto.ValueType.Enum.INT64)
                                         .build(),
-                                        FeatureSpec.newBuilder()
+                                    FeatureSpec.newBuilder()
                                         .setName("feature2")
                                         .setValueType(ValueProto.ValueType.Enum.STRING)
                                         .build()))
-                                .build())
-                        .build().getFeatureReferences()
-            )
+                            .build())
+                    .build()
+                    .getFeatureReferences())
             .addEntityRows(
                 EntityRow.newBuilder()
                     .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
@@ -166,17 +193,19 @@ public class CassandraServingServiceITTest {
                 FieldValues.newBuilder()
                     .putFields("entity1", intValue(1))
                     .putFields("entity2", strValue("a"))
-                    .putFields("featureSet:1:feature1", intValue(1))
-                    .putFields("featureSet:1:feature2", intValue(1)))
+                    .putFields("fs/featureSet:1:feature1", intValue(1))
+                    .putFields("fs/featureSet:1:feature2", intValue(1)))
             .addFieldValues(
                 FieldValues.newBuilder()
                     .putFields("entity1", intValue(2))
                     .putFields("entity2", strValue("b"))
-                    .putFields("featureSet:1:feature1", intValue(1))
-                    .putFields("featureSet:1:feature2", intValue(1)))
+                    .putFields("test_project/featureSet:1:feature1", intValue(1))
+                    .putFields("test_project/featureSet:1:feature2", intValue(1)))
             .build();
-    GetOnlineFeaturesResponse actual = cassandraServingService.getOnlineFeatures(request);
 
+    GetOnlineFeaturesResponse actual = cassandraServingService.getOnlineFeatures(request);
+    System.out.printf("ACTUAL %s\n", responseToMapList(actual));
+    System.out.printf("EXPECTED %s\n", responseToMapList(expected));
     assertThat(
         responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
   }
@@ -185,35 +214,38 @@ public class CassandraServingServiceITTest {
   public void shouldReturnResponseWithUnsetValuesIfKeysNotPresent() {
     GetOnlineFeaturesRequest request =
         GetOnlineFeaturesRequest.newBuilder()
-                .addAllFeatures(
-                        FeatureSetRequest.newBuilder()
-                                .setSpec(FeatureSetSpec.newBuilder()
-                                        .setName("featureSet")
-                                        .setVersion(1)
-                                        .addAllFeatures(Lists.newArrayList(
-                                                FeatureSpec.newBuilder()
-                                                        .setName("feature1")
-                                                        .setValueType(ValueProto.ValueType.Enum.INT64)
-                                                        .build(),
-                                                FeatureSpec.newBuilder()
-                                                        .setName("feature2")
-                                                        .setValueType(ValueProto.ValueType.Enum.STRING)
-                                                        .build()))
-                                        .build())
-                                .build().getFeatureReferences()
-                )
-                .addEntityRows(
+            .addAllFeatures(
+                FeatureSetRequest.newBuilder()
+                    .setSpec(
+                        FeatureSetSpec.newBuilder()
+                            .setName("featureSet")
+                            .setProject("test_project")
+                            .setVersion(1)
+                            .addAllFeatures(
+                                Lists.newArrayList(
+                                    FeatureSpec.newBuilder()
+                                        .setName("feature1")
+                                        .setValueType(ValueProto.ValueType.Enum.INT64)
+                                        .build(),
+                                    FeatureSpec.newBuilder()
+                                        .setName("feature2")
+                                        .setValueType(ValueProto.ValueType.Enum.STRING)
+                                        .build()))
+                            .build())
+                    .build()
+                    .getFeatureReferences())
+            .addEntityRows(
                 EntityRow.newBuilder()
                     .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
                     .putFields("entity1", intValue(1))
                     .putFields("entity2", strValue("a")))
-                // Non-existing entity keys
-                .addEntityRows(
+            // Non-existing entity keys
+            .addEntityRows(
                 EntityRow.newBuilder()
                     .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
                     .putFields("entity1", intValue(55))
                     .putFields("entity2", strValue("ff")))
-                .build();
+            .build();
 
     GetOnlineFeaturesResponse expected =
         GetOnlineFeaturesResponse.newBuilder()

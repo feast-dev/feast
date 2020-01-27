@@ -19,7 +19,6 @@ package feast.core.job.dataflow;
 import static feast.core.util.PipelineUtil.detectClassPathResourcesToStage;
 
 import com.google.api.services.dataflow.Dataflow;
-import com.google.common.base.Strings;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.FeatureSetProto;

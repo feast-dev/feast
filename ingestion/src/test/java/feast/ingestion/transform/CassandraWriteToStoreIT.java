@@ -22,8 +22,8 @@ import static org.junit.Assert.assertTrue;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSet;
+import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.CassandraConfig;
 import feast.core.StoreProto.Store.StoreType;
@@ -75,7 +75,9 @@ public class CassandraWriteToStoreIT implements Serializable {
     public Map<String, FeatureSet> getFeatureSets() {
       return new HashMap<String, FeatureSet>() {
         {
-          put(featureSetSpec.getName() + ":" + featureSetSpec.getVersion(), FeatureSet.newBuilder().setSpec(featureSetSpec).build());
+          put(
+              featureSetSpec.getName() + ":" + featureSetSpec.getVersion(),
+              FeatureSet.newBuilder().setSpec(featureSetSpec).build());
         }
       };
     }
@@ -108,6 +110,7 @@ public class CassandraWriteToStoreIT implements Serializable {
     featureSetSpec =
         TestUtil.createFeatureSetSpec(
             "fs",
+            "test_project",
             1,
             10,
             new HashMap<String, Enum>() {
@@ -170,6 +173,7 @@ public class CassandraWriteToStoreIT implements Serializable {
     FeatureSetSpec featureSetSpec =
         TestUtil.createFeatureSetSpec(
             "fs",
+            "test_project",
             1,
             1,
             new HashMap<String, Enum>() {

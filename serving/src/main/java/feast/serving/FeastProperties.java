@@ -198,6 +198,7 @@ public class FeastProperties {
 
   public static class JobProperties {
     private String stagingLocation;
+    private String stagingProject;
     private int bigqueryInitialRetryDelaySecs;
     private int bigqueryTotalTimeoutSecs;
     private String storeType;
@@ -205,6 +206,10 @@ public class FeastProperties {
 
     public String getStagingLocation() {
       return this.stagingLocation;
+    }
+
+    public String getStagingProject() {
+      return this.stagingProject;
     }
 
     public int getBigqueryInitialRetryDelaySecs() {
@@ -225,6 +230,10 @@ public class FeastProperties {
 
     public void setStagingLocation(String stagingLocation) {
       this.stagingLocation = stagingLocation;
+    }
+
+    public void setStagingProject(String stagingProject) {
+      this.stagingProject = stagingProject;
     }
 
     public void setBigqueryInitialRetryDelaySecs(int bigqueryInitialRetryDelaySecs) {

@@ -40,12 +40,13 @@ public class FeatureRowToCassandraMutationDoFn extends DoFn<FeatureRow, Cassandr
   private Map<String, FeatureSet> featureSets;
   private Map<String, Integer> maxAges;
 
-  public FeatureRowToCassandraMutationDoFn(Map<String, FeatureSet> featureSets, Duration defaultTtl) {
+  public FeatureRowToCassandraMutationDoFn(
+      Map<String, FeatureSet> featureSets, Duration defaultTtl) {
     this.featureSets = featureSets;
     this.maxAges = new HashMap<>();
     for (FeatureSet set : featureSets.values()) {
       FeatureSetSpec spec = set.getSpec();
-      String featureSetName = spec.getName() + ":" + spec.getVersion();
+      String featureSetName = spec.getProject() + "/" + spec.getName() + ":" + spec.getVersion();
       if (spec.getMaxAge() != null && spec.getMaxAge().getSeconds() > 0) {
         maxAges.put(featureSetName, Math.toIntExact(spec.getMaxAge().getSeconds()));
       } else {
@@ -82,6 +83,8 @@ public class FeatureRowToCassandraMutationDoFn extends DoFn<FeatureRow, Cassandr
       mutations.forEach(context::output);
     } catch (Exception e) {
       log.error(e.getMessage(), e);
+      log.error(maxAges.toString());
+      log.error(featureRow.getFeatureSet());
     }
   }
 }

@@ -16,24 +16,21 @@
  */
 package feast.serving.service;
 
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.core.querybuilder.QueryBuilder;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.Timestamp;
-import com.google.common.collect.Maps;
-import io.grpc.Status;
 import static feast.serving.util.Metrics.requestCount;
 import static feast.serving.util.Metrics.requestLatency;
 import static feast.serving.util.RefUtil.generateFeatureStringRef;
 
+import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Row;
+import com.datastax.driver.core.Session;
+import com.datastax.driver.core.querybuilder.QueryBuilder;
+import com.google.common.collect.Maps;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Timestamp;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.serving.ServingAPIProto.FeatureReference;
-import feast.serving.specs.CachedSpecService;
-import feast.serving.specs.FeatureSetRequest;
 import feast.serving.ServingAPIProto.FeastServingType;
+import feast.serving.ServingAPIProto.FeatureReference;
 import feast.serving.ServingAPIProto.GetBatchFeaturesRequest;
 import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
@@ -44,10 +41,13 @@ import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
+import feast.serving.specs.CachedSpecService;
+import feast.serving.specs.FeatureSetRequest;
 import feast.serving.util.ValueUtil;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
 import feast.types.ValueProto.Value;
+import io.grpc.Status;
 import io.opentracing.Scope;
 import io.opentracing.Tracer;
 import java.nio.ByteBuffer;
@@ -57,9 +57,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
 
 public class CassandraServingService implements ServingService {
 
+  private static final Logger log =
+      org.slf4j.LoggerFactory.getLogger(CassandraServingService.class);
   private final Session session;
   private final String keyspace;
   private final String tableName;
@@ -79,7 +82,7 @@ public class CassandraServingService implements ServingService {
     this.specService = specService;
   }
 
-    /** {@inheritDoc} */
+  /** {@inheritDoc} */
   @Override
   public GetFeastServingInfoResponse getFeastServingInfo(
       GetFeastServingInfoRequest getFeastServingInfoRequest) {
@@ -112,8 +115,9 @@ public class CassandraServingService implements ServingService {
         List<String> cassandraKeys =
             createLookupKeys(featureSetEntityNames, entityRows, featureSetRequest);
         try {
-            getAndProcessAll(cassandraKeys, entityRows, featureValuesMap, featureSetRequest);
+          getAndProcessAll(cassandraKeys, entityRows, featureValuesMap, featureSetRequest);
         } catch (Exception e) {
+          log.info(e.getStackTrace().toString());
           throw Status.INTERNAL
               .withDescription("Unable to parse cassandea response/ while retrieving feature")
               .withCause(e)
@@ -141,7 +145,6 @@ public class CassandraServingService implements ServingService {
     throw Status.UNIMPLEMENTED.withDescription("Method not implemented").asRuntimeException();
   }
 
-
   List<String> createLookupKeys(
       List<String> featureSetEntityNames,
       List<EntityRow> entityRows,
@@ -149,7 +152,7 @@ public class CassandraServingService implements ServingService {
     try (Scope scope = tracer.buildSpan("Cassandra-makeCassandraKeys").startActive(true)) {
       FeatureSetSpec fsSpec = featureSetRequest.getSpec();
       String featureSetId =
-          String.format("%s:%s", fsSpec.getName(), fsSpec.getVersion());
+          String.format("%s/%s:%s", fsSpec.getProject(), fsSpec.getName(), fsSpec.getVersion());
       return entityRows.stream()
           .map(row -> createCassandraKey(featureSetId, featureSetEntityNames, row))
           .collect(Collectors.toList());
@@ -164,7 +167,6 @@ public class CassandraServingService implements ServingService {
    * Send a list of get request as an mget
    *
    * @param keys list of string keys
-   *
    */
   protected void getAndProcessAll(
       List<String> keys,
@@ -175,9 +177,9 @@ public class CassandraServingService implements ServingService {
     List<ResultSet> results = new ArrayList<>();
     long startTime = System.currentTimeMillis();
     for (String key : keys) {
-        results.add(
-            session.execute(
-                QueryBuilder.select()
+      results.add(
+          session.execute(
+              QueryBuilder.select()
                   .column("entities")
                   .column("feature")
                   .column("value")
@@ -193,61 +195,61 @@ public class CassandraServingService implements ServingService {
         ResultSet queryRows = results.get(i);
         Instant instant = Instant.now();
         List<Field> fields = new ArrayList<>();
-        while (queryRows.isExhausted()) {
+        while (!queryRows.isExhausted()) {
           Row row = queryRows.one();
           long microSeconds = row.getLong("writetime");
           instant =
-                  Instant.ofEpochSecond(
-                          TimeUnit.MICROSECONDS.toSeconds(microSeconds),
-                          TimeUnit.MICROSECONDS.toNanos(
-                                  Math.floorMod(microSeconds, TimeUnit.SECONDS.toMicros(1))));
+              Instant.ofEpochSecond(
+                  TimeUnit.MICROSECONDS.toSeconds(microSeconds),
+                  TimeUnit.MICROSECONDS.toNanos(
+                      Math.floorMod(microSeconds, TimeUnit.SECONDS.toMicros(1))));
           try {
             fields.add(
-                    Field.newBuilder()
-                            .setName(row.getString("feature"))
-                            .setValue(Value.parseFrom(ByteBuffer.wrap(row.getBytes("value").array())))
-                            .build());
+                Field.newBuilder()
+                    .setName(row.getString("feature"))
+                    .setValue(Value.parseFrom(ByteBuffer.wrap(row.getBytes("value").array())))
+                    .build());
           } catch (InvalidProtocolBufferException e) {
             e.printStackTrace();
           }
         }
-        FeatureRow featureRow = FeatureRow.newBuilder()
+        FeatureRow featureRow =
+            FeatureRow.newBuilder()
                 .addAllFields(fields)
                 .setEventTimestamp(
-                        Timestamp.newBuilder()
-                                .setSeconds(instant.getEpochSecond())
-                                .setNanos(instant.getNano())
-                                .build())
+                    Timestamp.newBuilder()
+                        .setSeconds(instant.getEpochSecond())
+                        .setNanos(instant.getNano())
+                        .build())
                 .build();
         featureSetRequest
-                .getFeatureReferences()
-                .parallelStream()
-                .forEach(
-                        request ->
-                                requestCount
-                                        .labels(
-                                                spec.getProject(),
-                                                String.format("%s:%d", request.getName(), request.getVersion()))
-                                        .inc());
+            .getFeatureReferences()
+            .parallelStream()
+            .forEach(
+                request ->
+                    requestCount
+                        .labels(
+                            spec.getProject(),
+                            String.format("%s:%d", request.getName(), request.getVersion()))
+                        .inc());
         Map<String, FeatureReference> featureNames =
-                featureSetRequest.getFeatureReferences().stream()
-                        .collect(
-                                Collectors.toMap(
-                                        FeatureReference::getName, featureReference -> featureReference));
+            featureSetRequest.getFeatureReferences().stream()
+                .collect(
+                    Collectors.toMap(
+                        FeatureReference::getName, featureReference -> featureReference));
         featureRow.getFieldsList().stream()
-                .filter(field -> featureNames.keySet().contains(field.getName()))
-                .forEach(
-                        field -> {
-                          FeatureReference ref = featureNames.get(field.getName());
-                          String id = generateFeatureStringRef(ref);
-                          featureValues.put(id, field.getValue());
-                        });
+            .filter(field -> featureNames.keySet().contains(field.getName()))
+            .forEach(
+                field -> {
+                  FeatureReference ref = featureNames.get(field.getName());
+                  String id = generateFeatureStringRef(ref);
+                  featureValues.put(id, field.getValue());
+                });
       }
-    }
-    finally {
+    } finally {
       requestLatency
-              .labels("processResponse")
-              .observe((System.currentTimeMillis() - startTime) / 1000);
+          .labels("processResponse")
+          .observe((System.currentTimeMillis() - startTime) / 1000);
     }
   }
 

@@ -17,8 +17,8 @@
 package feast.store.serving.cassandra;
 
 import com.google.protobuf.Duration;
-import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSet;
+import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.test.TestUtil;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.ValueProto.Value;
@@ -43,6 +43,7 @@ public class FeatureRowToCassandraMutationDoFnTest implements Serializable {
     FeatureSetSpec featureSetSpec =
         TestUtil.createFeatureSetSpec(
             "fs",
+            "test_project",
             1,
             10,
             new HashMap<String, Enum>() {
@@ -75,7 +76,7 @@ public class FeatureRowToCassandraMutationDoFnTest implements Serializable {
                     new HashMap<String, FeatureSet>() {
                       {
                         put(
-                            featureSetSpec.getName() + ":" + featureSetSpec.getVersion(),
+                            featureSetSpec.getProject() + "/" + featureSetSpec.getName() + ":" + featureSetSpec.getVersion(),
                             FeatureSet.newBuilder().setSpec(featureSetSpec).build());
                       }
                     },
@@ -84,7 +85,7 @@ public class FeatureRowToCassandraMutationDoFnTest implements Serializable {
     CassandraMutation[] expected =
         new CassandraMutation[] {
           new CassandraMutation(
-              "fs:1:entity1=1",
+              "test_project/fs:1:entity1=1",
               "feature1",
               ByteBuffer.wrap(TestUtil.strValue("a").toByteArray()),
               10000000,
@@ -102,6 +103,7 @@ public class FeatureRowToCassandraMutationDoFnTest implements Serializable {
     FeatureSetSpec featureSetSpec =
         TestUtil.createFeatureSetSpec(
             "fs",
+            "test_project",
             1,
             10,
             new HashMap<String, Enum>() {
@@ -138,7 +140,7 @@ public class FeatureRowToCassandraMutationDoFnTest implements Serializable {
                     new HashMap<String, FeatureSet>() {
                       {
                         put(
-                            featureSetSpec.getName() + ":" + featureSetSpec.getVersion(),
+                            featureSetSpec.getProject() + "/" + featureSetSpec.getName() + ":" + featureSetSpec.getVersion(),
                             FeatureSet.newBuilder().setSpec(featureSetSpec).build());
                       }
                     },
@@ -147,13 +149,13 @@ public class FeatureRowToCassandraMutationDoFnTest implements Serializable {
     CassandraMutation[] expected =
         new CassandraMutation[] {
           new CassandraMutation(
-              "fs:1:entity1=1|entity2=b",
+              "test_project/fs:1:entity1=1|entity2=b",
               "feature1",
               ByteBuffer.wrap(TestUtil.strValue("a").toByteArray()),
               10000000,
               10),
           new CassandraMutation(
-              "fs:1:entity1=1|entity2=b",
+              "test_project/fs:1:entity1=1|entity2=b",
               "feature2",
               ByteBuffer.wrap(TestUtil.intValue(2).toByteArray()),
               10000000,
@@ -171,6 +173,7 @@ public class FeatureRowToCassandraMutationDoFnTest implements Serializable {
     FeatureSetSpec featureSetSpec =
         TestUtil.createFeatureSetSpec(
             "fs",
+            "test_project",
             1,
             0,
             new HashMap<String, Enum>() {
@@ -203,7 +206,7 @@ public class FeatureRowToCassandraMutationDoFnTest implements Serializable {
                     new HashMap<String, FeatureSet>() {
                       {
                         put(
-                            featureSetSpec.getName() + ":" + featureSetSpec.getVersion(),
+                            featureSetSpec.getProject() + "/" + featureSetSpec.getName() + ":" + featureSetSpec.getVersion(),
                             FeatureSet.newBuilder().setSpec(featureSetSpec).build());
                       }
                     },
@@ -212,7 +215,7 @@ public class FeatureRowToCassandraMutationDoFnTest implements Serializable {
     CassandraMutation[] expected =
         new CassandraMutation[] {
           new CassandraMutation(
-              "fs:1:entity1=1",
+              "test_project/fs:1:entity1=1",
               "feature1",
               ByteBuffer.wrap(TestUtil.strValue("a").toByteArray()),
               10000000,

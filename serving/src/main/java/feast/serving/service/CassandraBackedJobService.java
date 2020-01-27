@@ -19,26 +19,16 @@ package feast.serving.service;
 import com.datastax.driver.core.ColumnDefinitions;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
-import com.datastax.driver.core.DataType;
-import com.datastax.driver.core.querybuilder.QueryBuilder;
-import com.google.gson.JsonObject;
-import com.google.protobuf.Any;
-import com.google.protobuf.MapEntry;
-import com.google.protobuf.util.JsonFormat;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.querybuilder.QueryBuilder;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import feast.serving.ServingAPIProto.Job;
 import feast.serving.ServingAPIProto.Job.Builder;
-import org.joda.time.Duration;
-import org.joda.time.MutableDateTime;
-import org.slf4j.Logger;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.exceptions.JedisConnectionException;
-
-import javax.xml.crypto.Data;
-import java.util.List;
-import java.util.Map;
+import java.util.Date;
 import java.util.Optional;
+import org.joda.time.Duration;
+import org.slf4j.Logger;
 
 // TODO: Do rate limiting, currently if clients call get() or upsert()
 //       and an exceedingly high rate e.g. they wrap job reload in a while loop with almost no wait
@@ -46,10 +36,9 @@ import java.util.Optional;
 
 public class CassandraBackedJobService implements JobService {
 
-  private static final Logger log = org.slf4j.LoggerFactory.getLogger(CassandraBackedJobService.class);
+  private static final Logger log =
+      org.slf4j.LoggerFactory.getLogger(CassandraBackedJobService.class);
   private final Session session;
-  // Remove job state info after "defaultExpirySeconds" to prevent filling up Redis memory
-  // and since users normally don't require info about relatively old jobs.
   private final int defaultExpirySeconds = (int) Duration.standardDays(1).getStandardSeconds();
 
   public CassandraBackedJobService(Session session) {
@@ -59,39 +48,52 @@ public class CassandraBackedJobService implements JobService {
   @Override
   public Optional<Job> get(String id) {
     Job job = null;
-    try {
-      ResultSet res =  session.execute(
-              QueryBuilder.select()
-                      .column("job_uuid")
-                      .column("value")
-                      .writeTime("value")
-                      .as("writetime")
-                      .from("admin", "jobs")
-                      .where(QueryBuilder.eq("job_uuid", id)));
-      JsonObject result = new JsonObject();
-      Builder builder = Job.newBuilder();
-      while (!res.isExhausted()) {
-        Row r = res.one();
-        ColumnDefinitions defs = r.getColumnDefinitions();
-        for (int i = 0; i < defs.size(); i++) {
-          result.addProperty(defs.getName(i), r.getString(i));
+    Job latestJob = Job.newBuilder().build();
+    ResultSet res =
+        session.execute(
+            QueryBuilder.select()
+                .column("job_uuid")
+                .column("job_data")
+                .column("timestamp")
+                .from("admin", "jobs")
+                .where(QueryBuilder.eq("job_uuid", id)));
+    Date timestamp = new Date(0);
+    while (!res.isExhausted()) {
+      Row r = res.one();
+      ColumnDefinitions defs = r.getColumnDefinitions();
+      Date newTs = new Date(0);
+      for (int i = 0; i < defs.size(); i++) {
+        if (defs.getName(i).equals("timestamp")) {
+          if (r.getTimestamp(i).compareTo(timestamp) > 0) {
+            newTs = r.getTimestamp(i);
+          }
+        }
+        if (defs.getName(i).equals("job_data")) {
+          Builder builder = Job.newBuilder();
+          try {
+            JsonFormat.parser().merge(r.getString(i), builder);
+            job = builder.build();
+          } catch (InvalidProtocolBufferException e) {
+            throw new IllegalStateException("Could not build job from %s", e);
+          }
         }
       }
-      if (result == null) {
-        return Optional.empty();
+      if (newTs.compareTo(timestamp) > 0) {
+        latestJob = job;
       }
-      JsonFormat.parser().merge(result.toString(), builder);
-      job = builder.build();
-    } catch (Exception e) {
-      log.error(String.format("Failed to parse JSON for Feast job: %s", e.getMessage()));
     }
-    return Optional.ofNullable(job);
+    return Optional.ofNullable(latestJob);
   }
 
   @Override
   public void upsert(Job job) {
     try {
-      session.execute(QueryBuilder.update(job.getId(), JsonFormat.printer().omittingInsignificantWhitespace().print(job)));
+      session.execute(
+          QueryBuilder.insertInto("admin", "jobs")
+              .value("job_uuid", job.getId())
+              .value("timestamp", System.currentTimeMillis())
+              .value("job_data", JsonFormat.printer().omittingInsignificantWhitespace().print(job))
+              .using(QueryBuilder.ttl(defaultExpirySeconds)));
     } catch (Exception e) {
       log.error(String.format("Failed to upsert job: %s", e.getMessage()));
     }

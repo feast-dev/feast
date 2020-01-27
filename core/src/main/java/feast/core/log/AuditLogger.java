@@ -16,7 +16,6 @@
  */
 package feast.core.log;
 
-import com.google.common.base.Strings;
 import java.util.Date;
 import java.util.Map;
 import java.util.TreeMap;

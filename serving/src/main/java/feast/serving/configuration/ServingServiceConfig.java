@@ -20,20 +20,20 @@ import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.HostDistance;
 import com.datastax.driver.core.PoolingOptions;
 import com.datastax.driver.core.Session;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.BigQueryConfig;
-import feast.core.StoreProto.Store.Builder;
 import feast.core.StoreProto.Store.CassandraConfig;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.Subscription;
 import feast.serving.FeastProperties;
-import feast.serving.service.BigQueryServingService;
-import feast.serving.FeastProperties.JobProperties;
 import feast.serving.FeastProperties.StoreProperties;
+import feast.serving.service.BigQueryServingService;
 import feast.serving.service.CassandraServingService;
 import feast.serving.service.JobService;
 import feast.serving.service.NoopJobService;
@@ -41,6 +41,8 @@ import feast.serving.service.RedisServingService;
 import feast.serving.service.ServingService;
 import feast.serving.specs.CachedSpecService;
 import io.opentracing.Tracer;
+import java.io.File;
+import java.io.FileInputStream;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.List;
@@ -105,7 +107,21 @@ public class ServingServiceConfig {
         break;
       case BIGQUERY:
         BigQueryConfig bqConfig = store.getBigqueryConfig();
-        BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+        GoogleCredentials credentials;
+        File credentialsPath =
+            new File(
+                "/etc/gcloud/service-accounts/credentials.json"); // TODO: update to your key path.
+        try (FileInputStream serviceAccountStream = new FileInputStream(credentialsPath)) {
+          credentials = ServiceAccountCredentials.fromStream(serviceAccountStream);
+        } catch (Exception e) {
+          throw new IllegalStateException("No credentials file found", e);
+        }
+        BigQuery bigquery =
+            BigQueryOptions.newBuilder()
+                .setCredentials(credentials)
+                .setProjectId(feastProperties.getJobs().getStagingProject())
+                .build()
+                .getService();
         Storage storage = StorageOptions.getDefaultInstance().getService();
         String jobStagingLocation = feastProperties.getJobs().getStagingLocation();
         if (!jobStagingLocation.contains("://")) {

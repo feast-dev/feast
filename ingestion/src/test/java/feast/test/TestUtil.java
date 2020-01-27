@@ -23,10 +23,10 @@ import com.datastax.driver.core.Session;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
-import feast.core.FeatureSetProto.FeatureSet;
-import feast.core.FeatureSetProto.FeatureSpec;
 import feast.core.FeatureSetProto.EntitySpec;
+import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.FeatureSetProto.FeatureSpec;
 import feast.core.StoreProto.Store.CassandraConfig;
 import feast.ingestion.transform.WriteToStore;
 import feast.ingestion.utils.StoreUtil;
@@ -223,6 +223,7 @@ public class TestUtil {
    */
   public static FeatureSetSpec createFeatureSetSpec(
       String name,
+      String project,
       int version,
       int maxAgeSeconds,
       Map<String, Enum> entities,
@@ -230,6 +231,7 @@ public class TestUtil {
     FeatureSetSpec.Builder featureSetSpec =
         FeatureSetSpec.newBuilder()
             .setName(name)
+            .setProject(project)
             .setVersion(version)
             .setMaxAge(com.google.protobuf.Duration.newBuilder().setSeconds(maxAgeSeconds).build());
 
@@ -273,7 +275,7 @@ public class TestUtil {
     if (fields.keySet().containsAll(requiredFields)) {
       FeatureRow.Builder featureRow =
           FeatureRow.newBuilder()
-              .setFeatureSet(featureSetSpec.getName() + ":" + featureSetSpec.getVersion())
+              .setFeatureSet(featureSetSpec.getProject() + "/" + featureSetSpec.getName() + ":" + featureSetSpec.getVersion())
               .setEventTimestamp(Timestamp.newBuilder().setSeconds(timestampSeconds).build());
       for (Entry<String, Value> field : fields.entrySet()) {
         featureRow.addFields(

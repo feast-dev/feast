@@ -124,6 +124,7 @@ public class CachedSpecService {
                 throw new SpecRetrievalException(
                     String.format("Unable to retrieve feature %s", featureReference));
               }
+              //log.info("FeatRef: {} with fs {}", featureReference, featureSet);
               return Pair.of(featureSet, featureReference);
             })
         .collect(groupingBy(Pair::getLeft))
@@ -133,11 +134,13 @@ public class CachedSpecService {
                 FeatureSetSpec featureSetSpec = featureSetCache.get(fsName);
                 List<FeatureReference> requestedFeatures =
                     featureRefs.stream().map(Pair::getRight).collect(Collectors.toList());
+                //log.info("RequestBuilding for {}", featureSetSpec.toString());
                 FeatureSetRequest featureSetRequest =
                     FeatureSetRequest.newBuilder()
                         .setSpec(featureSetSpec)
                         .addAllFeatureReferences(requestedFeatures)
                         .build();
+                //log.info("FS Request {}", featureSetRequest);
                 featureSetRequests.add(featureSetRequest);
               } catch (ExecutionException e) {
                 throw new SpecRetrievalException(
@@ -199,7 +202,6 @@ public class CachedSpecService {
   private Map<String, String> getFeatureToFeatureSetMapping(
       Map<String, FeatureSetSpec> featureSets) {
     HashMap<String, String> mapping = new HashMap<>();
-
     featureSets.values().stream()
         .collect(groupingBy(featureSet -> Pair.of(featureSet.getProject(), featureSet.getName())))
         .forEach(
@@ -240,7 +242,6 @@ public class CachedSpecService {
     try {
       List<String> fileContents = Files.readAllLines(path);
       String yaml = fileContents.stream().reduce("", (l1, l2) -> l1 + "\n" + l2);
-      log.info("loaded store config at {}: \n{}", path.toString(), yaml);
       return yamlToStoreProto(yaml);
     } catch (IOException e) {
       throw new RuntimeException(

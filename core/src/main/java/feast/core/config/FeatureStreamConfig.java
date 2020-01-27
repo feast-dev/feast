@@ -16,7 +16,6 @@
  */
 package feast.core.config;
 
-import com.google.common.base.Strings;
 import feast.core.SourceProto.KafkaSourceConfig;
 import feast.core.SourceProto.SourceType;
 import feast.core.config.FeastProperties.StreamProperties;

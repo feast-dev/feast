@@ -219,6 +219,7 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
     // For each of the feature sets requested, start an async job joining the features in that
     // feature set to the provided entity table
     for (int i = 0; i < featureSetQueries.size(); i++) {
+      System.out.println(featureSetQueries.get(i));
       QueryJobConfiguration queryJobConfig =
           QueryJobConfiguration.newBuilder(featureSetQueries.get(i))
               .setDestinationTable(TableId.of(projectId(), datasetId(), createTempTableName()))
@@ -233,6 +234,7 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
     }
 
     for (int i = 0; i < featureSetQueries.size(); i++) {
+      System.out.println(i);
       try {
         // Try to retrieve the outputs of all the jobs. The timeout here is a formality;
         // a stricter timeout is implemented in the actual SubqueryCallable.
@@ -250,6 +252,7 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
                     .build());
 
         executorService.shutdownNow();
+        e.printStackTrace();
         throw Status.INTERNAL
             .withDescription("Error running batch query")
             .withCause(e)

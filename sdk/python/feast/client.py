@@ -740,6 +740,7 @@ class Client:
             if timeout is not None and time.time() - current_time >= timeout:
                 raise TimeoutError("Timed out waiting for feature set to be ready")
             feature_set = self.get_feature_set(name, version)
+            print(feature_set)
             if (
                 feature_set is not None
                 and feature_set.status == FeatureSetStatus.STATUS_READY

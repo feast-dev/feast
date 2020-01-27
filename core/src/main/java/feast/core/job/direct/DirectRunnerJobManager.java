@@ -104,7 +104,9 @@ public class DirectRunnerJobManager implements JobManager {
     pipelineOptions.setStoreJson(Collections.singletonList(JsonFormat.printer().print(sink)));
     pipelineOptions.setRunner(DirectRunner.class);
     pipelineOptions.setProject(""); // set to default value to satisfy validation
+    log.info("FINDING METRICS!\n{}", metrics);
     if (metrics.isEnabled()) {
+      log.info("METRICS ENABLED!");
       pipelineOptions.setMetricsExporterType(metrics.getType());
       if (metrics.getType().equals("statsd")) {
         pipelineOptions.setStatsdHost(metrics.getHost());
@@ -147,8 +149,7 @@ public class DirectRunnerJobManager implements JobManager {
     try {
       job.abort();
     } catch (IOException e) {
-      throw new RuntimeException(
-          String.format("Unable to abort DirectRunner job %s", extId), e);
+      throw new RuntimeException(String.format("Unable to abort DirectRunner job %s", extId), e);
     }
     jobs.remove(extId);
   }
