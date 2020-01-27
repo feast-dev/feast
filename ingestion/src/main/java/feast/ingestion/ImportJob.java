@@ -162,6 +162,7 @@ public class ImportJob {
               .setStoreName(store.getName())
               .setSuccessTag(FEATURE_ROW_OUT)
               .setFailureTag(DEADLETTER_OUT)
+              .setFeatureSetByRef(featureSetsByRef)
               .build());
     }
 

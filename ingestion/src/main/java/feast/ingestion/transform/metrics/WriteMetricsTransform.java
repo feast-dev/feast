@@ -17,24 +17,42 @@
 package feast.ingestion.transform.metrics;
 
 import com.google.auto.value.AutoValue;
+import feast.core.FeatureSetProto;
+import feast.core.FeatureSetProto.FeatureSet;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.values.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
+import java.util.Map;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
+import org.joda.time.Duration;
 
 @AutoValue
 public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple, PDone> {
+
+  // FIXED_WINDOW_DURATION_IN_SEC_FOR_ROW_METRICS is the interval at which ingestion metrics
+  // are collected and aggregated.
+  //
+  // Metrics in Feast are sent via StatsD and are later scraped by Prometheus at a regular interval.
+  // The duration here should be higher than Prometheus scrope interval, otherwise some metrics may
+  // not be scraped because Prometheus scrape frequency is too slow.
+  private static final long FIXED_WINDOW_DURATION_IN_SEC_FOR_ROW_METRICS = 20;
 
   public abstract String getStoreName();
 
   public abstract TupleTag<FeatureRow> getSuccessTag();
 
   public abstract TupleTag<FailedElement> getFailureTag();
+
+  public abstract Map<String, FeatureSet> getFeatureSetByRef();
 
   public static Builder newBuilder() {
     return new AutoValue_WriteMetricsTransform.Builder();
@@ -48,6 +66,9 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
     public abstract Builder setSuccessTag(TupleTag<FeatureRow> successTag);
 
     public abstract Builder setFailureTag(TupleTag<FailedElement> failureTag);
+
+    public abstract Builder setFeatureSetByRef(
+        Map<String, FeatureSetProto.FeatureSet> featureSetByRef);
 
     public abstract WriteMetricsTransform build();
   }
@@ -72,13 +93,24 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
 
         input
             .get(getSuccessTag())
+            .apply("FixedWindowForMetricsCollection",
+                Window.into(FixedWindows
+                    .of(Duration.standardSeconds(FIXED_WINDOW_DURATION_IN_SEC_FOR_ROW_METRICS))))
+            .apply("MapToFeatureRowByRef", ParDo.of(new DoFn<FeatureRow, KV<String, FeatureRow>>() {
+              @ProcessElement
+              public void processElement(ProcessContext c) {
+                c.output(KV.of(c.element().getFeatureSet(), c.element()));
+              }
+            }))
+            .apply("GroupByFeatureRef", GroupByKey.create())
             .apply(
-                "WriteRowMetrics",
+                "WriteFeatureRowMetrics",
                 ParDo.of(
                     WriteRowMetricsDoFn.newBuilder()
                         .setStatsdHost(options.getStatsdHost())
                         .setStatsdPort(options.getStatsdPort())
                         .setStoreName(getStoreName())
+                        .setFeatureSetByRef(getFeatureSetByRef())
                         .build()));
 
         return PDone.in(input.getPipeline());
@@ -91,7 +123,8 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
                 ParDo.of(
                     new DoFn<FeatureRow, Void>() {
                       @ProcessElement
-                      public void processElement(ProcessContext c) {}
+                      public void processElement(ProcessContext c) {
+                      }
                     }));
         return PDone.in(input.getPipeline());
     }
