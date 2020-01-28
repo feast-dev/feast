@@ -1,5 +1,31 @@
 # Changelog
 
+## [v0.4.4](https://github.com/gojek/feast/tree/v0.4.4) (2020-01-28)
+
+[Full Changelog](https://github.com/gojek/feast/compare/v0.4.3...v0.4.4)
+
+**Closed issues:**
+
+- Improve Python SDK feature set listing [\#296](https://github.com/gojek/feast/issues/296)
+- Ingestion dependency not found when starting Core server locally \(CONTRIBUTING.md\) [\#294](https://github.com/gojek/feast/issues/294)
+- Add support for ingesting from BigQuery SQL statement / View [\#6](https://github.com/gojek/feast/issues/6)
+
+**Merged pull requests:**
+
+- Change RedisBackedJobService to use a connection pool [\#439](https://github.com/gojek/feast/pull/439) ([zhilingc](https://github.com/zhilingc))
+- Update protos with Tensorflow data validation schema [\#438](https://github.com/gojek/feast/pull/438) ([davidheryanto](https://github.com/davidheryanto))
+- Update GKE installation and chart values to work with 0.4.3 [\#434](https://github.com/gojek/feast/pull/434) ([lgvital](https://github.com/lgvital))
+- Parameterize end-to-end test scripts [\#433](https://github.com/gojek/feast/pull/433) ([Yanson](https://github.com/Yanson))
+- Remove "resource" concept and the need to specify a kind in feature sets [\#432](https://github.com/gojek/feast/pull/432) ([woop](https://github.com/woop))
+- Add retry options to BigQuery [\#431](https://github.com/gojek/feast/pull/431) ([Yanson](https://github.com/Yanson))
+- Fix logging [\#430](https://github.com/gojek/feast/pull/430) ([Yanson](https://github.com/Yanson))
+- Add documentation for bigquery batch retrieval [\#428](https://github.com/gojek/feast/pull/428) ([zhilingc](https://github.com/zhilingc))
+- Publish datatypes/java along with sdk/java [\#426](https://github.com/gojek/feast/pull/426) ([ches](https://github.com/ches))
+- Update basic Feast example to Feast 0.4 [\#424](https://github.com/gojek/feast/pull/424) ([woop](https://github.com/woop))
+- Unserializable FluentBackoff cause null pointer exception in Dataflow Runner [\#417](https://github.com/gojek/feast/pull/417) ([khorshuheng](https://github.com/khorshuheng))
+- Introduce datatypes/java module for proto generation [\#391](https://github.com/gojek/feast/pull/391) ([ches](https://github.com/ches))
+- Allow user to override job options [\#377](https://github.com/gojek/feast/pull/377) ([khorshuheng](https://github.com/khorshuheng))
+
 ## [v0.4.3](https://github.com/gojek/feast/tree/v0.4.3) (2020-01-08)
 
 [Full Changelog](https://github.com/gojek/feast/compare/v0.4.2...v0.4.3)
