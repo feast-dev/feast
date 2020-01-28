@@ -247,7 +247,7 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<String, Iterable<Featu
       };
       statsd.gauge("feature_value_min", valueStat.getMin(), tags);
       statsd.gauge("feature_value_max", valueStat.getMax(), tags);
-      statsd.count("feature_value_count", valueStat.getCount(), tags);
+      statsd.count("feature_value_presence_count", valueStat.getCount(), tags);
     }
   }
 
