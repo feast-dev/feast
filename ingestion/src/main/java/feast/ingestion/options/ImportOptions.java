@@ -24,8 +24,11 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation.Required;
 
-/** Options passed to Beam to influence the job's execution environment */
+/**
+ * Options passed to Beam to influence the job's execution environment
+ */
 public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions, DirectOptions {
+
   @Required
   @Description(
       "JSON string representation of the FeatureSet that the import job will process."
@@ -60,7 +63,7 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
 
   /**
    * @param deadLetterTableSpec (Optional) BigQuery table for storing elements that failed to be
-   *     processed. Table spec must follow this format PROJECT_ID:DATASET_ID.PROJECT_ID
+   *                            processed. Table spec must follow this format PROJECT_ID:DATASET_ID.PROJECT_ID
    */
   void setDeadLetterTableSpec(String deadLetterTableSpec);
 
@@ -83,4 +86,14 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
   int getStatsdPort();
 
   void setStatsdPort(int StatsdPort);
+
+  @Description(
+      "The fixed window size in seconds at which ingestion metrics are collected and aggregated. "
+          + "Metrics in Feast are sent via StatsD and are later scraped by Prometheus at a regular interval. "
+          + "The window size here should be higher than Prometheus scrope interval, otherwise gauge metrics may "
+          + "miss scraping because Prometheus scrape frequency is too slow.")
+  @Default.Integer(20)
+  int getWindowSizeForMetrics();
+
+  void setWindowSizeForMetrics(int durationInSeconds);
 }

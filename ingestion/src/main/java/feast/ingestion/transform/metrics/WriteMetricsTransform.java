@@ -38,14 +38,6 @@ import org.joda.time.Duration;
 @AutoValue
 public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple, PDone> {
 
-  // FIXED_WINDOW_DURATION_IN_SEC_FOR_ROW_METRICS is the interval at which ingestion metrics
-  // are collected and aggregated.
-  //
-  // Metrics in Feast are sent via StatsD and are later scraped by Prometheus at a regular interval.
-  // The duration here should be higher than Prometheus scrope interval, otherwise some metrics may
-  // not be scraped because Prometheus scrape frequency is too slow.
-  private static final long FIXED_WINDOW_DURATION_IN_SEC_FOR_ROW_METRICS = 20;
-
   public abstract String getStoreName();
 
   public abstract TupleTag<FeatureRow> getSuccessTag();
@@ -95,7 +87,7 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
             .get(getSuccessTag())
             .apply("FixedWindowForMetricsCollection",
                 Window.into(FixedWindows
-                    .of(Duration.standardSeconds(FIXED_WINDOW_DURATION_IN_SEC_FOR_ROW_METRICS))))
+                    .of(Duration.standardSeconds(options.getWindowSizeForMetrics()))))
             .apply("MapToFeatureRowByRef", ParDo.of(new DoFn<FeatureRow, KV<String, FeatureRow>>() {
               @ProcessElement
               public void processElement(ProcessContext c) {
