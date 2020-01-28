@@ -359,4 +359,4 @@ def test_no_max_age(client):
     output = feature_retrieval_job.to_dataframe()
     print(output.head())
 
-    assert output["entity_id"].to_list() == output["feature_value1"].to_list()
+    assert output["entity_id"].to_list() == output["feature_value8"].to_list()
