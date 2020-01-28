@@ -118,6 +118,14 @@ def test_apply_all_featuresets(client):
     client.apply(fs1)
     client.apply(fs2)
 
+    no_max_age_fs = FeatureSet(
+        "no_max_age",
+        features=[Feature("feature_value8", ValueType.INT64)],
+        entities=[Entity("entity_id", ValueType.INT64)],
+        max_age=Duration(seconds=0),
+    )
+    client.apply(no_max_age_fs)
+
 
 def test_get_batch_features_with_file(client):
     file_fs1 = client.get_feature_set(name="file_feature_set", version=1)
@@ -327,3 +335,28 @@ def test_multiple_featureset_joins(client):
 
     assert output["entity_id"].to_list() == [int(i) for i in output["feature_value6"].to_list()]
     assert output["other_entity_id"].to_list() == output["other_feature_value7"].to_list()
+
+
+def test_no_max_age(client):
+    no_max_age_fs = client.get_feature_set(name="no_max_age", version=1)
+
+    time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
+    N_ROWS = 10
+    features_8_df = pd.DataFrame(
+        {
+            "datetime": [time_offset] * N_ROWS,
+            "entity_id": [i for i in range(N_ROWS)],
+            "feature_value8": [i for i in range(N_ROWS)],
+        }
+    )
+    client.ingest(no_max_age_fs, features_8_df)
+
+    time.sleep(15)
+    feature_retrieval_job = client.get_batch_features(
+        entity_rows=features_8_df[["datetime", "entity_id"]], feature_refs=[f"{PROJECT_NAME}/feature_value8:1"]
+    )
+
+    output = feature_retrieval_job.to_dataframe()
+    print(output.head())
+
+    assert output["entity_id"].to_list() == output["feature_value8"].to_list()

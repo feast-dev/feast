@@ -54,7 +54,7 @@ feast-core:
   enabled: true
   # Specify what image tag to use. Keep this consistent for all components
   image:
-    tag: "0.4.3"
+    tag: "0.4.4"
   # jvmOptions are options that will be passed to the Java Virtual Machine (JVM)
   # running Feast Core.
   #
@@ -119,7 +119,7 @@ feast-serving-online:
   enabled: true
   # Specify what image tag to use. Keep this consistent for all components
   image:
-    tag: "0.4.3"
+    tag: "0.4.4"
   # redis.enabled specifies whether Redis should be installed as part of Feast Serving.
   #
   # If enabled is set to "false", Feast admin has to ensure there is an
@@ -178,7 +178,7 @@ feast-serving-batch:
   enabled: true
   # Specify what image tag to use. Keep this consistent for all components
   image:
-    tag: "0.4.3"
+    tag: "0.4.4"
   # redis.enabled specifies whether Redis should be installed as part of Feast Serving.
   #
   # This is usually set to "false" for Feast Serving Batch because the default

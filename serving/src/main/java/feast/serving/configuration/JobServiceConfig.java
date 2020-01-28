@@ -16,40 +16,55 @@
  */
 package feast.serving.configuration;
 
-import feast.core.StoreProto.Store;
-import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
+import feast.serving.FeastProperties;
 import feast.serving.service.JobService;
 import feast.serving.service.NoopJobService;
 import feast.serving.service.RedisBackedJobService;
 import feast.serving.specs.CachedSpecService;
+import java.util.Map;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisPoolConfig;
 
 @Configuration
 public class JobServiceConfig {
 
+  public static final String DEFAULT_REDIS_MAX_CONN = "8";
+  public static final String DEFAULT_REDIS_MAX_IDLE = "8";
+  public static final String DEFAULT_REDIS_MAX_WAIT_MILLIS = "50";
+
   @Bean
-  public JobService jobService(Store jobStore, CachedSpecService specService) {
+  public JobService jobService(FeastProperties feastProperties, CachedSpecService specService) {
     if (!specService.getStore().getType().equals(StoreType.BIGQUERY)) {
       return new NoopJobService();
     }
-
-    switch (jobStore.getType()) {
+    StoreType storeType = StoreType.valueOf(feastProperties.getJobs().getStoreType());
+    Map<String, String> storeOptions = feastProperties.getJobs().getStoreOptions();
+    switch (storeType) {
       case REDIS:
-        RedisConfig redisConfig = jobStore.getRedisConfig();
-        Jedis jedis = new Jedis(redisConfig.getHost(), redisConfig.getPort());
-        return new RedisBackedJobService(jedis);
+        JedisPoolConfig jedisPoolConfig = new JedisPoolConfig();
+        jedisPoolConfig.setMaxTotal(
+            Integer.parseInt(storeOptions.getOrDefault("max-conn", DEFAULT_REDIS_MAX_CONN)));
+        jedisPoolConfig.setMaxIdle(
+            Integer.parseInt(storeOptions.getOrDefault("max-idle", DEFAULT_REDIS_MAX_IDLE)));
+        jedisPoolConfig.setMaxWaitMillis(
+            Integer.parseInt(
+                storeOptions.getOrDefault("max-wait-millis", DEFAULT_REDIS_MAX_WAIT_MILLIS)));
+        JedisPool jedisPool =
+            new JedisPool(
+                jedisPoolConfig,
+                storeOptions.get("host"),
+                Integer.parseInt(storeOptions.get("port")));
+        return new RedisBackedJobService(jedisPool);
       case INVALID:
       case BIGQUERY:
       case CASSANDRA:
       case UNRECOGNIZED:
       default:
         throw new IllegalArgumentException(
-            String.format(
-                "Unsupported store type '%s' for job store name '%s'",
-                jobStore.getType(), jobStore.getName()));
+            String.format("Unsupported store type '%s' for job store", storeType));
     }
   }
 }

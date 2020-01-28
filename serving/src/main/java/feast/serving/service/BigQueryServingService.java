@@ -267,13 +267,12 @@ public class BigQueryServingService implements ServingService {
   }
 
   private Job waitForJob(Job queryJob) throws InterruptedException {
-    Job completedJob = queryJob.waitFor(
-        RetryOption.initialRetryDelay(Duration.ofSeconds(initialRetryDelaySecs)),
-        RetryOption.totalTimeout(Duration.ofSeconds(totalTimeoutSecs)));
+    Job completedJob =
+        queryJob.waitFor(
+            RetryOption.initialRetryDelay(Duration.ofSeconds(initialRetryDelaySecs)),
+            RetryOption.totalTimeout(Duration.ofSeconds(totalTimeoutSecs)));
     if (completedJob == null) {
-      throw Status.INTERNAL
-          .withDescription("Job no longer exists")
-          .asRuntimeException();
+      throw Status.INTERNAL.withDescription("Job no longer exists").asRuntimeException();
     } else if (completedJob.getStatus().getError() != null) {
       throw Status.INTERNAL
           .withDescription("Job failed: " + completedJob.getStatus().getError())
