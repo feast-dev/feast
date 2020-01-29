@@ -4,12 +4,6 @@
 
 [Full Changelog](https://github.com/gojek/feast/compare/v0.4.3...v0.4.4)
 
-**Closed issues:**
-
-- Improve Python SDK feature set listing [\#296](https://github.com/gojek/feast/issues/296)
-- Ingestion dependency not found when starting Core server locally \(CONTRIBUTING.md\) [\#294](https://github.com/gojek/feast/issues/294)
-- Add support for ingesting from BigQuery SQL statement / View [\#6](https://github.com/gojek/feast/issues/6)
-
 **Merged pull requests:**
 
 - Change RedisBackedJobService to use a connection pool [\#439](https://github.com/gojek/feast/pull/439) ([zhilingc](https://github.com/zhilingc))
