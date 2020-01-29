@@ -53,7 +53,7 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<String, Iterable<Featu
   private static final String FEATURE_SET_NAME_TAG_KEY = "feast_featureSet_name";
   private static final String FEATURE_SET_VERSION_TAG_KEY = "feast_featureSet_version";
   private static final String FEATURE_NAME_TAG_KEY = "feast_feature_name";
-  private static final String INGESTION_JOB_NAME_KEY = "feast_job_name";
+  private static final String INGESTION_JOB_NAME_KEY = "feast_ingestion_job_name";
 
   public abstract String getStoreName();
 
