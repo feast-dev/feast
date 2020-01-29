@@ -167,3 +167,9 @@ class TestFeatureSet:
         )
         assert len(my_feature_set.features) == feature_count
         assert len(my_feature_set.entities) == entity_count
+
+    def test_update_schema(self):
+        pass
+
+    def test_get_schema(self):
+        pass

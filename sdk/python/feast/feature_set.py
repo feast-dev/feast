@@ -16,6 +16,7 @@
 from collections import OrderedDict
 from typing import Dict
 from typing import List, Optional
+from tensorflow_metadata.proto.v0.schema_pb2 import Schema
 
 import pandas as pd
 import pyarrow as pa
@@ -662,6 +663,12 @@ class FeatureSet:
 
         if len(self.entities) == 0:
             raise ValueError(f"No entities found in feature set {self.name}")
+
+    def update_schema(self):
+        pass
+
+    def get_schema(self) -> Schema:
+        pass
 
     @classmethod
     def from_yaml(cls, yml: str):
