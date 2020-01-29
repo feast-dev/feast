@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.core',
   syntax='proto3',
   serialized_options=_b('\n\nfeast.coreB\nStoreProtoZ/github.com/gojek/feast/sdk/go/protos/feast/core'),
-  serialized_pb=_b('\n\x16\x66\x65\x61st/core/Store.proto\x12\nfeast.core\"\xca\x04\n\x05Store\x12\x0c\n\x04name\x18\x01 \x01(\t\x12)\n\x04type\x18\x02 \x01(\x0e\x32\x1b.feast.core.Store.StoreType\x12\x35\n\rsubscriptions\x18\x04 \x03(\x0b\x32\x1e.feast.core.Store.Subscription\x12\x35\n\x0credis_config\x18\x0b \x01(\x0b\x32\x1d.feast.core.Store.RedisConfigH\x00\x12;\n\x0f\x62igquery_config\x18\x0c \x01(\x0b\x32 .feast.core.Store.BigQueryConfigH\x00\x12=\n\x10\x63\x61ssandra_config\x18\r \x01(\x0b\x32!.feast.core.Store.CassandraConfigH\x00\x1a)\n\x0bRedisConfig\x12\x0c\n\x04host\x18\x01 \x01(\t\x12\x0c\n\x04port\x18\x02 \x01(\x05\x1a\x38\n\x0e\x42igQueryConfig\x12\x12\n\nproject_id\x18\x01 \x01(\t\x12\x12\n\ndataset_id\x18\x02 \x01(\t\x1a-\n\x0f\x43\x61ssandraConfig\x12\x0c\n\x04host\x18\x01 \x01(\t\x12\x0c\n\x04port\x18\x02 \x01(\x05\x1a>\n\x0cSubscription\x12\x0f\n\x07project\x18\x03 \x01(\t\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\t\"@\n\tStoreType\x12\x0b\n\x07INVALID\x10\x00\x12\t\n\x05REDIS\x10\x01\x12\x0c\n\x08\x42IGQUERY\x10\x02\x12\r\n\tCASSANDRA\x10\x03\x42\x08\n\x06\x63onfigBI\n\nfeast.coreB\nStoreProtoZ/github.com/gojek/feast/sdk/go/protos/feast/coreb\x06proto3')
+  serialized_pb=_b('\n\x16\x66\x65\x61st/core/Store.proto\x12\nfeast.core\"\xfb\x04\n\x05Store\x12\x0c\n\x04name\x18\x01 \x01(\t\x12)\n\x04type\x18\x02 \x01(\x0e\x32\x1b.feast.core.Store.StoreType\x12\x35\n\rsubscriptions\x18\x04 \x03(\x0b\x32\x1e.feast.core.Store.Subscription\x12\x35\n\x0credis_config\x18\x0b \x01(\x0b\x32\x1d.feast.core.Store.RedisConfigH\x00\x12;\n\x0f\x62igquery_config\x18\x0c \x01(\x0b\x32 .feast.core.Store.BigQueryConfigH\x00\x12=\n\x10\x63\x61ssandra_config\x18\r \x01(\x0b\x32!.feast.core.Store.CassandraConfigH\x00\x1aZ\n\x0bRedisConfig\x12\x0c\n\x04host\x18\x01 \x01(\t\x12\x0c\n\x04port\x18\x02 \x01(\x05\x12\x1a\n\x12initial_backoff_ms\x18\x03 \x01(\x05\x12\x13\n\x0bmax_retries\x18\x04 \x01(\x05\x1a\x38\n\x0e\x42igQueryConfig\x12\x12\n\nproject_id\x18\x01 \x01(\t\x12\x12\n\ndataset_id\x18\x02 \x01(\t\x1a-\n\x0f\x43\x61ssandraConfig\x12\x0c\n\x04host\x18\x01 \x01(\t\x12\x0c\n\x04port\x18\x02 \x01(\x05\x1a>\n\x0cSubscription\x12\x0f\n\x07project\x18\x03 \x01(\t\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\t\"@\n\tStoreType\x12\x0b\n\x07INVALID\x10\x00\x12\t\n\x05REDIS\x10\x01\x12\x0c\n\x08\x42IGQUERY\x10\x02\x12\r\n\tCASSANDRA\x10\x03\x42\x08\n\x06\x63onfigBI\n\nfeast.coreB\nStoreProtoZ/github.com/gojek/feast/sdk/go/protos/feast/coreb\x06proto3')
 )
 
 
@@ -50,8 +50,8 @@ _STORE_STORETYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=551,
-  serialized_end=615,
+  serialized_start=600,
+  serialized_end=664,
 )
 _sym_db.RegisterEnumDescriptor(_STORE_STORETYPE)
 
@@ -77,6 +77,20 @@ _STORE_REDISCONFIG = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='initial_backoff_ms', full_name='feast.core.Store.RedisConfig.initial_backoff_ms', index=2,
+      number=3, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='max_retries', full_name='feast.core.Store.RedisConfig.max_retries', index=3,
+      number=4, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -90,7 +104,7 @@ _STORE_REDISCONFIG = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=339,
-  serialized_end=380,
+  serialized_end=429,
 )
 
 _STORE_BIGQUERYCONFIG = _descriptor.Descriptor(
@@ -126,8 +140,8 @@ _STORE_BIGQUERYCONFIG = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=382,
-  serialized_end=438,
+  serialized_start=431,
+  serialized_end=487,
 )
 
 _STORE_CASSANDRACONFIG = _descriptor.Descriptor(
@@ -163,8 +177,8 @@ _STORE_CASSANDRACONFIG = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=440,
-  serialized_end=485,
+  serialized_start=489,
+  serialized_end=534,
 )
 
 _STORE_SUBSCRIPTION = _descriptor.Descriptor(
@@ -207,8 +221,8 @@ _STORE_SUBSCRIPTION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=487,
-  serialized_end=549,
+  serialized_start=536,
+  serialized_end=598,
 )
 
 _STORE = _descriptor.Descriptor(
@@ -277,7 +291,7 @@ _STORE = _descriptor.Descriptor(
       index=0, containing_type=None, fields=[]),
   ],
   serialized_start=39,
-  serialized_end=625,
+  serialized_end=674,
 )
 
 _STORE_REDISCONFIG.containing_type = _STORE
