@@ -18,7 +18,7 @@ The main components of Feast are:
 
 **Pre-requisites**
 
-* Java SDK version 8
+* Java SE Development Kit 11
 * Python version 3.6 \(or above\) and pip
 * Access to Postgres database \(version 11 and above\)
 * Access to [Redis](https://redis.io/topics/quickstart) instance \(tested on version 5.x\)
