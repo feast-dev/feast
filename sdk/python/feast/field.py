@@ -284,7 +284,9 @@ class Field:
                 else:
                     raise ValueError(
                         f"Reference to a domain '{domain_ref}' is missing in the schema. "
-                        f"Please validate the schema in your Tensorflow metadata."
+                        f"Please check the string_domain, float_domain and int_domain"
+                        f"fields in the schema of your Tensorflow metadata, making sure"
+                        f"that the domain referenced exists."
                     )
         elif domain_info_case == "int_domain":
             self.int_domain = feature.int_domain
