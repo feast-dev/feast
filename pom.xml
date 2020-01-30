@@ -299,7 +299,6 @@
                 <scope>import</scope>
             </dependency>
 
-            <!-- Java 11 Upgrade -->
             <dependency>
                 <groupId>javax.xml.bind</groupId>
                 <artifactId>jaxb-api</artifactId>
