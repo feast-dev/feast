@@ -211,6 +211,8 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<String, Iterable<Featu
           case INT64_LIST_VAL:
           case DOUBLE_LIST_VAL:
           case BOOL_LIST_VAL:
+            valueStat.accept(Double.NaN);
+            fieldNameToValueStat.put(fieldName, valueStat);
             break;
           case VAL_NOT_SET:
             Integer oldCount = fieldNameToMissingCount.get(fieldName);
@@ -245,8 +247,15 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<String, Iterable<Featu
           INGESTION_JOB_NAME_KEY + ":" + c.getPipelineOptions().getJobName(),
           FEATURE_NAME_TAG_KEY + ":" + fieldName,
       };
-      statsd.gauge("feature_value_min", valueStat.getMin(), tags);
-      statsd.gauge("feature_value_max", valueStat.getMax(), tags);
+
+      // valueStat.getMin() or getMax() can return non finite values when there is no element
+      // or there is an element that is not a number. No metric should be sent in such case.
+      if (Double.isFinite(valueStat.getMin())) {
+        statsd.gauge("feature_value_min", valueStat.getMin(), tags);
+      }
+      if (Double.isFinite(valueStat.getMax())) {
+        statsd.gauge("feature_value_max", valueStat.getMax(), tags);
+      }
       statsd.count("feature_value_presence_count", valueStat.getCount(), tags);
     }
   }
