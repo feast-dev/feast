@@ -193,8 +193,13 @@ def test_update_schema(self):
         # Before update
         for entity in feature_set_bikeshare.entities:
             assert entity.presence is None
+            assert entity.shape is None
         for feature in feature_set_bikeshare.features:
             assert feature.presence is None
+            assert feature.shape is None
+            assert feature.string_domain is None
+            assert feature.float_domain is None
+            assert feature.int_domain is None
 
         feature_set_bikeshare.update_schema(schema_bikeshare)
 
