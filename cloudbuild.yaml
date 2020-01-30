@@ -184,4 +184,4 @@ substitutions:
   _TEST_BUCKET: dev-konnekt-data-deep-1-feast-tmp
   _MAVEN_VERSION: 3.6.2-jdk-11
 
-tags: ['team__konnekt', 'repo__konnekt_data_feast', 'commit__${SHORT_SHA}', 'slack__konnekt-se']
+tags: ['team__konnekt', 'repo__konnekt_data_feast', 'commit__${SHORT_SHA}', 'slack__konnekt-devops-test']
