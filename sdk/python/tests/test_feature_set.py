@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import pathlib
 from concurrent import futures
 from datetime import datetime
 
@@ -18,6 +19,8 @@ import grpc
 import pandas as pd
 import pytest
 import pytz
+from google.protobuf import json_format
+from tensorflow_metadata.proto.v0 import schema_pb2
 
 import dataframes
 import feast.core.CoreService_pb2_grpc as Core
@@ -167,6 +170,47 @@ class TestFeatureSet:
         )
         assert len(my_feature_set.features) == feature_count
         assert len(my_feature_set.entities) == entity_count
+        
+def test_update_schema(self):
+        test_data_folder = (
+            pathlib.Path(__file__).parent / "data" / "tensorflow_metadata"
+        )
+        schema_bikeshare = schema_pb2.Schema()
+        json_format.Parse(
+            open(test_data_folder / "schema_bikeshare.json").read(), schema_bikeshare
+        )
+        feature_set_bikeshare = FeatureSet(
+            name="bikeshare",
+            entities=[Entity(name="station_id", dtype=ValueType.INT64),],
+            features=[
+                Feature(name="name", dtype=ValueType.STRING),
+                Feature(name="status", dtype=ValueType.STRING),
+                Feature(name="latitude", dtype=ValueType.FLOAT),
+                Feature(name="longitude", dtype=ValueType.FLOAT),
+                Feature(name="location", dtype=ValueType.STRING),
+            ],
+        )
+        # Before update
+        for entity in feature_set_bikeshare.entities:
+            assert entity.presence is None
+        for feature in feature_set_bikeshare.features:
+            assert feature.presence is None
+
+        feature_set_bikeshare.update_schema(schema_bikeshare)
+
+        # After update
+        for entity in feature_set_bikeshare.entities:
+            assert entity.presence is not None
+            assert entity.shape is not None
+        for feature in feature_set_bikeshare.features:
+            assert feature.presence is not None
+            assert feature.shape is not None
+            if feature.name in ["location", "name", "status"]:
+                assert feature.string_domain is not None
+            elif feature.name in ["latitude", "longitude"]:
+                assert feature.float_domain is not None
+            elif feature.name in ["station_id"]:
+                assert feature.int_domain is not None
 
 
 class TestFeatureSetRef:

@@ -11,12 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
+import warnings
 from collections import OrderedDict
 from typing import Dict
 from typing import List, Optional
-from tensorflow_metadata.proto.v0.schema_pb2 import Schema
 
 import pandas as pd
 import pyarrow as pa
@@ -25,6 +23,7 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToJson
 from pandas.api.types import is_datetime64_ns_dtype
 from pyarrow.lib import TimestampType
+from tensorflow_metadata.proto.v0.schema_pb2 import Schema
 
 from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
@@ -659,11 +658,40 @@ class FeatureSet:
         if len(self.entities) == 0:
             raise ValueError(f"No entities found in feature set {self.name}")
 
-    def update_schema(self):
-        pass
+    def update_schema(self, schema: Schema):
+        """
+        Updates presence_constraints, shape_type and domain_info for all entities
+        and features in the FeatureSet from schema in Tensorflow metadata.
 
-    def get_schema(self) -> Schema:
-        pass
+        Args:
+            schema: schema from Tensorflow metadata
+
+        Returns:
+            None
+
+        """
+        name_to_feature = {f.name: f for f in self.features}
+        name_to_entity = {e.name: e for e in self.entities}
+
+        for feature_from_new_schema in schema.feature:
+
+            if feature_from_new_schema.name in name_to_feature:
+                feature = name_to_feature[feature_from_new_schema.name]
+                feature.update_presence_constraints(feature_from_new_schema)
+                feature.update_shape_type(feature_from_new_schema)
+                feature.update_domain_info(feature_from_new_schema, schema)
+
+            elif feature_from_new_schema.name in name_to_entity:
+                entity = name_to_entity[feature_from_new_schema.name]
+                entity.update_presence_constraints(feature_from_new_schema)
+                entity.update_shape_type(feature_from_new_schema)
+                entity.update_domain_info(feature_from_new_schema, schema)
+
+            else:
+                warnings.warn(
+                    f"The provided schema contains feature name '{feature_from_new_schema.name}' "
+                    f"that does not exist in the FeatureSet '{self.name}' in Feast"
+                )
 
     @classmethod
     def from_yaml(cls, yml: str):
