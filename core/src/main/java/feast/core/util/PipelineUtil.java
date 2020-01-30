@@ -75,7 +75,7 @@ public class PipelineUtil {
     return files;
   }
 
-  public static List<String> getClasspathFiles() {
+  private static List<String> getClasspathFiles() {
     return Arrays.stream(System.getProperty("java.class.path").split(File.pathSeparator))
         .map(entry -> new File(entry).getPath())
         .collect(Collectors.toList());
