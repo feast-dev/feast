@@ -248,12 +248,19 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<String, Iterable<Featu
           FEATURE_NAME_TAG_KEY + ":" + fieldName,
       };
 
-      // valueStat.getMin() or getMax() can return non finite values when there is no element
-      // or there is an element that is not a number. No metric should be sent in such case.
+      // valueStat.getMin() or getMax() should only return finite values.
+      // (non-finite values can be returned if there is no element or there is an element that is
+      // not a number. No metric should be sent in such case)
       if (Double.isFinite(valueStat.getMin())) {
+        // Statsd gauge will asssign a delta instead of the actual value, if there is a sign in
+        // the value. For e.g. if the value is negative, a delta will be assigned. For this reason,
+        // the gauge value is set to zero beforehand.
+        // https://github.com/statsd/statsd/blob/master/docs/metric_types.md#gauges
+        statsd.gauge("feature_value_min", 0, tags);
         statsd.gauge("feature_value_min", valueStat.getMin(), tags);
       }
       if (Double.isFinite(valueStat.getMax())) {
+        statsd.gauge("feature_value_max", 0, tags);
         statsd.gauge("feature_value_max", valueStat.getMax(), tags);
       }
       statsd.count("feature_value_presence_count", valueStat.getCount(), tags);
@@ -272,26 +279,32 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<String, Iterable<Featu
           EntitySpec entitySpec = entityNameToSpec.get(fieldName);
           if (entitySpec.getDomainInfoCase().equals(DomainInfoCase.INT_DOMAIN)) {
             IntDomain intDomain = entitySpec.getIntDomain();
+            statsd.gauge("feature_value_domain_min", 0, tags);
             statsd.gauge("feature_value_domain_min", intDomain.getMin(), tags);
+            statsd.gauge("feature_value_domain_max", 0, tags);
             statsd.gauge("feature_value_domain_max", intDomain.getMax(), tags);
           }
           if (entitySpec.getPresenceConstraintsCase().equals(PresenceConstraintsCase.PRESENCE)) {
             FeaturePresence presence = entitySpec.getPresence();
-            statsd.gauge("feature_presence_min_fraction", presence.getMinFraction(), tags);
-            statsd.gauge("feature_presence_min_count", presence.getMinCount(), tags);
+            statsd.gauge("feature_presence_min_fraction", Math.max(presence.getMinFraction(), 0),
+                tags);
+            statsd.gauge("feature_presence_min_count", Math.max(presence.getMinCount(), 0), tags);
           }
         } else if (featureNameToSpec.containsKey(fieldName)) {
           FeatureSpec featureSpec = featureNameToSpec.get(fieldName);
           if (featureSpec.getDomainInfoCase().equals(FeatureSpec.DomainInfoCase.INT_DOMAIN)) {
             IntDomain intDomain = featureSpec.getIntDomain();
+            statsd.gauge("feature_value_domain_min", 0, tags);
             statsd.gauge("feature_value_domain_min", intDomain.getMin(), tags);
+            statsd.gauge("feature_value_domain_max", 0, tags);
             statsd.gauge("feature_value_domain_max", intDomain.getMax(), tags);
           }
           if (featureSpec.getPresenceConstraintsCase()
               .equals(FeatureSpec.PresenceConstraintsCase.PRESENCE)) {
             FeaturePresence presence = featureSpec.getPresence();
-            statsd.gauge("feature_presence_min_fraction", presence.getMinFraction(), tags);
-            statsd.gauge("feature_presence_min_count", presence.getMinCount(), tags);
+            statsd.gauge("feature_presence_min_fraction", Math.max(presence.getMinFraction(), 0),
+                tags);
+            statsd.gauge("feature_presence_min_count", Math.max(presence.getMinCount(), 0), tags);
           }
         }
         break;
@@ -301,26 +314,32 @@ public abstract class WriteRowMetricsDoFn extends DoFn<KV<String, Iterable<Featu
           EntitySpec entitySpec = entityNameToSpec.get(fieldName);
           if (entitySpec.getDomainInfoCase().equals(DomainInfoCase.FLOAT_DOMAIN)) {
             FloatDomain floatDomain = entitySpec.getFloatDomain();
+            statsd.gauge("feature_value_domain_min", 0, tags);
             statsd.gauge("feature_value_domain_min", floatDomain.getMin(), tags);
+            statsd.gauge("feature_value_domain_max", 0, tags);
             statsd.gauge("feature_value_domain_max", floatDomain.getMax(), tags);
           }
           if (entitySpec.getPresenceConstraintsCase().equals(PresenceConstraintsCase.PRESENCE)) {
             FeaturePresence presence = entitySpec.getPresence();
-            statsd.gauge("feature_presence_min_fraction", presence.getMinFraction(), tags);
-            statsd.gauge("feature_presence_min_count", presence.getMinCount(), tags);
+            statsd.gauge("feature_presence_min_fraction", Math.max(presence.getMinFraction(), 0),
+                tags);
+            statsd.gauge("feature_presence_min_count", Math.max(presence.getMinCount(), 0), tags);
           }
         } else if (featureNameToSpec.containsKey(fieldName)) {
           FeatureSpec featureSpec = featureNameToSpec.get(fieldName);
           if (featureSpec.getDomainInfoCase().equals(FeatureSpec.DomainInfoCase.FLOAT_DOMAIN)) {
             FloatDomain floatDomain = featureSpec.getFloatDomain();
+            statsd.gauge("feature_value_domain_min", 0, tags);
             statsd.gauge("feature_value_domain_min", floatDomain.getMin(), tags);
+            statsd.gauge("feature_value_domain_max", 0, tags);
             statsd.gauge("feature_value_domain_max", floatDomain.getMax(), tags);
           }
           if (featureSpec.getPresenceConstraintsCase()
               .equals(FeatureSpec.PresenceConstraintsCase.PRESENCE)) {
             FeaturePresence presence = featureSpec.getPresence();
-            statsd.gauge("feature_presence_min_fraction", presence.getMinFraction(), tags);
-            statsd.gauge("feature_presence_min_count", presence.getMinCount(), tags);
+            statsd.gauge("feature_presence_min_fraction", Math.max(presence.getMinFraction(), 0),
+                tags);
+            statsd.gauge("feature_presence_min_count", Math.max(presence.getMinCount(), 0), tags);
           }
         }
         break;
