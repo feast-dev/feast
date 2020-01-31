@@ -179,7 +179,7 @@ class TestFeatureSet:
         json_format.Parse(
             open(test_data_folder / "schema_bikeshare.json").read(), schema_bikeshare
         )
-        feature_set_bikeshare = FeatureSet(
+        feature_set = FeatureSet(
             name="bikeshare",
             entities=[Entity(name="station_id", dtype=ValueType.INT64),],
             features=[
@@ -191,23 +191,23 @@ class TestFeatureSet:
             ],
         )
         # Before update
-        for entity in feature_set_bikeshare.entities:
+        for entity in feature_set.entities:
             assert entity.presence is None
             assert entity.shape is None
-        for feature in feature_set_bikeshare.features:
+        for feature in feature_set.features:
             assert feature.presence is None
             assert feature.shape is None
             assert feature.string_domain is None
             assert feature.float_domain is None
             assert feature.int_domain is None
 
-        feature_set_bikeshare.update_schema(schema_bikeshare)
+        feature_set.update_schema(schema_bikeshare)
 
         # After update
-        for entity in feature_set_bikeshare.entities:
+        for entity in feature_set.entities:
             assert entity.presence is not None
             assert entity.shape is not None
-        for feature in feature_set_bikeshare.features:
+        for feature in feature_set.features:
             assert feature.presence is not None
             assert feature.shape is not None
             if feature.name in ["location", "name", "status"]:

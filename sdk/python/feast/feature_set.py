@@ -21,8 +21,10 @@ import pyarrow as pa
 from google.protobuf import json_format
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToJson
+from google.protobuf.message import Message
 from pandas.api.types import is_datetime64_ns_dtype
 from pyarrow.lib import TimestampType
+from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0.schema_pb2 import Schema
 
 from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
@@ -694,6 +696,51 @@ class FeatureSet:
                     f"The provided schema contains feature name '{feature_from_new_schema.name}' "
                     f"that does not exist in the FeatureSet '{self.name}' in Feast"
                 )
+
+    def export_schema(self) -> Schema:
+        schema = Schema()
+        for _, field in self._fields.items():
+            # TODO: export type as well
+            feature = schema_pb2.Feature()
+            attributes_to_copy_from_field_to_feature = [
+                "name",
+                "presence",
+                "group_presence",
+                "shape",
+                "value_count",
+                "domain",
+                "int_domain",
+                "float_domain",
+                "string_domain",
+                "bool_domain",
+                "struct_domain",
+                "_natural_language_domain",
+                "image_domain",
+                "mid_domain",
+                "url_domain",
+                "time_domain",
+                "time_of_day_domain",
+            ]
+            for attr in attributes_to_copy_from_field_to_feature:
+                if getattr(field, attr) is None:
+                    continue
+
+                if issubclass(type(getattr(feature, attr)), Message):
+                    # Proto message field to copy is an embedded field, so MergeFrom() method must be used
+                    getattr(feature, attr).MergeFrom(getattr(field, attr))
+                elif issubclass(type(getattr(feature, attr)), (int, str, bool)):
+                    # Proto message field is a simple Python type, so setattr() can be used
+                    setattr(feature, attr, getattr(field, attr))
+                else:
+                    warnings.warn(
+                        f"Attribute '{attr}' cannot be copied from Field "
+                        f"'{field.name}' in FeatureSet '{self.name}' to a "
+                        f"Feature in the Schema in Tensorflow metadata, because"
+                        f"the type is neither a Protobuf message or Python "
+                        f"int, str and bool"
+                    )
+            schema.feature.append(feature)
+        return schema
 
     @classmethod
     def from_yaml(cls, yml: str):
