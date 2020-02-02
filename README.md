@@ -43,7 +43,7 @@ Please see the links below to set up Feast for batch/historical serving with Big
 
 ## Important resources
 
-Please refer to the official documentation is at <https://docs.feast.dev>
+Please refer to the official documentation at <https://docs.feast.dev>
 
  * [Why Feast?](https://docs.feast.dev/why-feast)
  * [Concepts](https://docs.feast.dev/concepts)
