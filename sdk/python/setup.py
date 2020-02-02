@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import subprocess
 
 from setuptools import find_packages, setup
 
@@ -48,7 +49,13 @@ REQUIRED = [
 ]
 
 # README file from Feast repo root directory
-README_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "README.md")
+repo_root = (
+    subprocess.Popen(["git", "rev-parse", "--show-toplevel"], stdout=subprocess.PIPE)
+    .communicate()[0]
+    .rstrip()
+    .decode("utf-8")
+)
+README_FILE = os.path.join(repo_root, "README.md")
 with open(os.path.join(README_FILE), "r") as f:
     LONG_DESCRIPTION = f.read()
 
