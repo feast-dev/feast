@@ -46,6 +46,8 @@ cp .env.sample .env
 
 ## 2. Docker Compose for Online Serving Only
 
+### 2.1 Start Feast \(without batch retrieval support\)
+
 If you do not require batch serving, then its possible to simply bring up Feast:
 
 ```javascript
@@ -56,13 +58,15 @@ A Jupyter Notebook environment is now available to use Feast:
 
 [http://localhost:8888/tree/feast/examples](http://localhost:8888/tree/feast/examples)
 
-## 2. Docker Compose for Online and Batch Serving
+## 3. Docker Compose for Online and Batch Serving
 
 {% hint style="info" %}
 Batch serving requires Google Cloud Storage to function, specifically Google Cloud Storage \(GCP\) and BigQuery.
 {% endhint %}
 
-Create a [service account ](https://cloud.google.com/iam/docs/creating-managing-service-accounts)from the GCP console and copy it to the `gcp-service-accounts` folder:
+### 3.1 Set up Google Cloud Platform
+
+Create a [service account ](https://cloud.google.com/iam/docs/creating-managing-service-accounts)from the GCP console and copy it to the `infra/docker-compose/gcp-service-accounts` folder:
 
 ```javascript
 cp my-service-account.json ${FEAST_HOME_DIR}/infra/docker-compose/gcp-service-accounts
@@ -74,28 +78,32 @@ Create a Google Cloud Storage bucket. Make sure that your service account above 
 gsutil mb gs://my-feast-staging-bucket
 ```
 
-### 2.1 Configure .env
+### 3.2 Configure .env
 
 Configure the `.env` file based on your environment. At the very least you have to modify:
 
-* **FEAST\_CORE\_GCP\_SERVICE\_ACCOUNT\_KEY:** This should be your service account file name, for example `key.json`.
-* **FEAST\_BATCH\_SERVING\_GCP\_SERVICE\_ACCOUNT\_KEY:** This should be your service account file name, for example `key.json`.
-* **FEAST\_JUPYTER\_GCP\_SERVICE\_ACCOUNT\_KEY:** This should be your service account file name, for example `key.json`.
-* **FEAST\_JOB\_STAGING\_LOCATION:** Google Cloud Storage bucket that Feast will use to stage data exports and batch retrieval requests, for example `gs://your-gcs-bucket/staging`
+| Parameter | Description |
+| :--- | :--- |
+| FEAST\_CORE\_GCP\_SERVICE\_ACCOUNT\_KEY | This should be your service account file name, for example `key.json`. |
+| FEAST\_BATCH\_SERVING\_GCP\_SERVICE\_ACCOUNT\_KEY | This should be your service account file name, for example `key.json` |
+| FEAST\_JUPYTER\_GCP\_SERVICE\_ACCOUNT\_KEY | This should be your service account file name, for example `key.json` |
+| FEAST\_JOB\_STAGING\_LOCATION | Google Cloud Storage bucket that Feast will use to stage data exports and batch retrieval requests, for example `gs://your-gcs-bucket/staging` |
 
-### 2.2 Configure .bq-store.yml
+### 3.3 Configure .bq-store.yml
 
 We will also need to configure the `bq-store.yml` file inside `infra/docker-compose/serving/` to configure the BigQuery storage configuration as well as the feature sets that the store subscribes to. At a minimum you will need to set:
 
-* **project\_id:** This is you [GCP project Id](https://cloud.google.com/resource-manager/docs/creating-managing-projects).
-* **dataset\_id:** This is the name of the BigQuery dataset that tables will be created in. Each feature set will have one table in BigQuery.
+| Parameter | Description |
+| :--- | :--- |
+| bigquery\_config.project\_id | This is you [GCP project Id](https://cloud.google.com/resource-manager/docs/creating-managing-projects). |
+| bigquery\_config.dataset\_id | This is the name of the BigQuery dataset that tables will be created in. Each feature set will have one table in BigQuery. |
 
-### 2.3 Start Feast with batch retrieval support
+### 3.4 Start Feast \(with batch retrieval support\)
 
 Start Feast:
 
 ```javascript
-docker-compose -f docker-compose.yml -f docker-compose.batch.yml up -d
+docker-compose up -d
 ```
 
 A Jupyter Notebook environment is now available to use Feast:

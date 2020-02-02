@@ -13,7 +13,6 @@ This guide will install Feast into a Kubernetes cluster on GCP. It assumes that 
 This guide requires [Google Cloud Platform](https://cloud.google.com/) for installation.
 
 * [BigQuery](https://cloud.google.com/bigquery/) is used for storing historical features.
-* [Cloud Dataflow](https://cloud.google.com/dataflow/) is used for running data ingestion jobs.
 * [Google Cloud Storage](https://cloud.google.com/storage/) is used for intermediate data storage.
 {% endhint %}
 
@@ -34,38 +33,26 @@ export FEAST_GCP_ZONE=us-central1-a
 export FEAST_BIGQUERY_DATASET_ID=feast
 export FEAST_GCS_BUCKET=${FEAST_GCP_PROJECT_ID}_feast_bucket
 export FEAST_GKE_CLUSTER_NAME=feast
-export FEAST_S_ACCOUNT_NAME=feast-sa
+export FEAST_SERVICE_ACCOUNT_NAME=feast-sa
 ```
 
-Create a Google Cloud Storage bucket for Feast to stage data during exports:
+Create a Google Cloud Storage bucket for Feast to stage batch data exports:
 
 ```bash
 gsutil mb gs://${FEAST_GCS_BUCKET}
 ```
 
-Create a BigQuery dataset for storing historical features:
-
-```bash
-bq mk ${FEAST_BIGQUERY_DATASET_ID}
-```
-
 Create the service account that Feast will run as:
 
 ```bash
-gcloud iam service-accounts create ${FEAST_S_ACCOUNT_NAME}
+gcloud iam service-accounts create ${FEAST_SERVICE_ACCOUNT_NAME}
 
 gcloud projects add-iam-policy-binding ${FEAST_GCP_PROJECT_ID} \
-  --member serviceAccount:${FEAST_S_ACCOUNT_NAME}@${FEAST_GCP_PROJECT_ID}.iam.gserviceaccount.com \
+  --member serviceAccount:${FEAST_SERVICE_ACCOUNT_NAME}@${FEAST_GCP_PROJECT_ID}.iam.gserviceaccount.com \
   --role roles/editor
 
 gcloud iam service-accounts keys create key.json --iam-account \
-${FEAST_S_ACCOUNT_NAME}@${FEAST_GCP_PROJECT_ID}.iam.gserviceaccount.com
-```
-
-Ensure that [Dataflow API is enabled](https://console.cloud.google.com/apis/api/dataflow.googleapis.com/overview):
-
-```bash
-gcloud services enable dataflow.googleapis.com
+${FEAST_SERVICE_ACCOUNT_NAME}@${FEAST_GCP_PROJECT_ID}.iam.gserviceaccount.com
 ```
 
 ## 2. Set up a Kubernetes \(GKE\) cluster
@@ -87,25 +74,13 @@ Create a secret in the GKE cluster based on your local key `key.json`:
 kubectl create secret generic feast-gcp-service-account --from-file=key.json
 ```
 
-For this guide we will use `NodePort` for exposing Feast services. In order to do so, we must find an internal IP of at least one GKE node.
+For this guide we will use `NodePort` for exposing Feast services. In order to do so, we must find an External IP of at least one GKE node. This should be a public IP.
 
 ```bash
 export FEAST_IP=$(kubectl describe nodes | grep ExternalIP | awk '{print $2}' | head -n 1)
 export FEAST_CORE_URL=${FEAST_IP}:32090
 export FEAST_ONLINE_SERVING_URL=${FEAST_IP}:32091
 export FEAST_BATCH_SERVING_URL=${FEAST_IP}:32092
-```
-
-Confirm that you are able to access this node \(please make sure that no firewall rules are preventing access to these ports\):
-
-```bash
-ping $FEAST_IP
-```
-
-```bash
-PING 10.123.114.11 (10.203.164.22) 56(84) bytes of data.
-64 bytes from 10.123.114.11: icmp_seq=1 ttl=63 time=54.2 ms
-64 bytes from 10.123.114.11: icmp_seq=2 ttl=63 time=51.2 ms
 ```
 
 Add firewall rules to open up ports on your Google Cloud Platform project:
@@ -170,8 +145,10 @@ cp values.yaml my-feast-values.yaml
 Update `my-feast-values.yaml` based on your GCP and GKE environment.
 
 * Required fields are paired with comments which indicate whether they need to be replaced.
-* All occurrences of `EXTERNAL_IP` should be replaced with either your domain name or the IP stored in `$FEAST_IP`.
+* All occurrences of `EXTERNAL_IP` should be replaced with either a domain pointing to a load balancer for the cluster or the IP stored in `$FEAST_IP`.
 * Replace all occurrences of `YOUR_BUCKET_NAME` with your bucket name stored in `$FEAST_GCS_BUCKET`
+* Change `feast-serving-batch.store.yaml.bigquery_config.project_id` to your GCP project Id.
+* Change `feast-serving-batch.store.yaml.bigquery_config.dataset_id` to the BigQuery dataset that Feast should use.
 
 Install the Feast Helm chart:
 
@@ -179,16 +156,18 @@ Install the Feast Helm chart:
 helm install --name feast -f my-feast-values.yaml .
 ```
 
-Ensure that the system comes online. This will take a few minutes
+Ensure that the system comes online. This will take a few minutes. 
 
 ```bash
-watch kubectl get pods
+kubectl get pods
 ```
+
+There may be pod restarts while waiting for Kafka to come online.
 
 ```bash
 NAME                                           READY   STATUS      RESTARTS   AGE
-pod/feast-feast-core-666fd46db4-l58l6          1/1     Running     0          5m
-pod/feast-feast-serving-online-84d99ddcbd      1/1     Running     0          6m
+pod/feast-feast-core-666fd46db4-l58l6          1/1     Running     2          5m
+pod/feast-feast-serving-online-84d99ddcbd      1/1     Running     3          6m
 pod/feast-kafka-0                              1/1     Running     0          3m
 pod/feast-kafka-1                              1/1     Running     0          4m
 pod/feast-kafka-2                              1/1     Running     0          4m
@@ -204,7 +183,7 @@ pod/feast-zookeeper-2                          1/1     Running     0          5m
 Install the Python SDK using pip:
 
 ```bash
-pip install -e ${FEAST_HOME_DIR}/sdk/python
+pip install feast
 ```
 
 Configure the Feast Python SDK:
@@ -214,5 +193,19 @@ feast config set core_url ${FEAST_CORE_URL}
 feast config set serving_url ${FEAST_ONLINE_SERVING_URL}
 ```
 
+Test whether you are able to connect to Feast Core
+
+```text
+feast projects list
+```
+
+Should print an empty list:
+
+```text
+NAME
+```
+
 That's it! You can now start to use Feast!
+
+Please see our [examples](https://github.com/gojek/feast/blob/master/examples/) to get started.
 
