@@ -67,6 +67,9 @@ class Field:
 
     @property
     def presence(self) -> schema_pb2.FeaturePresence:
+        """
+        Getter for presence of this field
+        """
         return self._presence
 
     @presence.setter
@@ -78,6 +81,9 @@ class Field:
 
     @property
     def group_presence(self) -> schema_pb2.FeaturePresenceWithinGroup:
+        """
+        Getter for group_presence of this field
+        """
         return self._group_presence
 
     @group_presence.setter
@@ -89,6 +95,9 @@ class Field:
 
     @property
     def shape(self) -> schema_pb2.FixedShape:
+        """
+        Getter for shape of this field
+        """
         return self._shape
 
     @shape.setter
@@ -100,6 +109,9 @@ class Field:
 
     @property
     def value_count(self) -> schema_pb2.ValueCount:
+        """
+        Getter for value_count of this field
+        """
         return self._value_count
 
     @value_count.setter
@@ -111,6 +123,9 @@ class Field:
 
     @property
     def domain(self) -> str:
+        """
+        Getter for domain of this field
+        """
         return self._domain
 
     @domain.setter
@@ -122,6 +137,9 @@ class Field:
 
     @property
     def int_domain(self) -> schema_pb2.IntDomain:
+        """
+        Getter for int_domain of this field
+        """
         return self._int_domain
 
     @int_domain.setter
@@ -133,6 +151,9 @@ class Field:
 
     @property
     def float_domain(self) -> schema_pb2.FloatDomain:
+        """
+        Getter for float_domain of this field
+        """
         return self._float_domain
 
     @float_domain.setter
@@ -144,6 +165,9 @@ class Field:
 
     @property
     def string_domain(self) -> schema_pb2.StringDomain:
+        """
+        Getter for string_domain of this field
+        """
         return self._string_domain
 
     @string_domain.setter
@@ -155,6 +179,9 @@ class Field:
 
     @property
     def bool_domain(self) -> schema_pb2.BoolDomain:
+        """
+        Getter for bool_domain of this field
+        """
         return self._bool_domain
 
     @bool_domain.setter
@@ -166,6 +193,9 @@ class Field:
 
     @property
     def struct_domain(self) -> schema_pb2.StructDomain:
+        """
+        Getter for struct_domain of this field
+        """
         return self._struct_domain
 
     @struct_domain.setter
@@ -177,6 +207,9 @@ class Field:
 
     @property
     def natural_language_domain(self) -> schema_pb2.NaturalLanguageDomain:
+        """
+        Getter for natural_language_domain of this field
+        """
         return self._natural_language_domain
 
     @natural_language_domain.setter
@@ -192,6 +225,9 @@ class Field:
 
     @property
     def image_domain(self) -> schema_pb2.ImageDomain:
+        """
+        Getter for image_domain of this field
+        """
         return self._image_domain
 
     @image_domain.setter
@@ -203,6 +239,9 @@ class Field:
 
     @property
     def mid_domain(self) -> schema_pb2.MIDDomain:
+        """
+        Getter for mid_domain of this field
+        """
         return self._mid_domain
 
     @mid_domain.setter
@@ -214,6 +253,9 @@ class Field:
 
     @property
     def url_domain(self) -> schema_pb2.URLDomain:
+        """
+        Getter for url_domain of this field
+        """
         return self._url_domain
 
     @url_domain.setter
@@ -225,6 +267,9 @@ class Field:
 
     @property
     def time_domain(self) -> schema_pb2.TimeDomain:
+        """
+        Getter for time_domain of this field
+        """
         return self._time_domain
 
     @time_domain.setter
@@ -236,6 +281,9 @@ class Field:
 
     @property
     def time_of_day_domain(self) -> schema_pb2.TimeOfDayDomain:
+        """
+        Getter for time_of_day_domain of this field
+        """
         return self._time_of_day_domain
 
     @time_of_day_domain.setter

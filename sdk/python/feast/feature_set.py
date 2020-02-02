@@ -25,8 +25,8 @@ from google.protobuf.message import Message
 from pandas.api.types import is_datetime64_ns_dtype
 from pyarrow.lib import TimestampType
 from tensorflow_metadata.proto.v0 import schema_pb2
-from tensorflow_metadata.proto.v0.schema_pb2 import Schema
 
+from feast.value_type import ValueType
 from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
 from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
@@ -662,84 +662,90 @@ class FeatureSet:
         if len(self.entities) == 0:
             raise ValueError(f"No entities found in feature set {self.name}")
 
-    def update_schema(self, schema: Schema):
+    def import_tfx_schema(self, schema: schema_pb2.Schema):
         """
-        Updates presence_constraints, shape_type and domain_info for all entities
-        and features in the FeatureSet from schema in Tensorflow metadata.
+        Updates presence_constraints, shape_type and domain_info for all fields
+        (features and entities) in the FeatureSet from schema in the Tensorflow metadata.
 
         Args:
-            schema: schema from Tensorflow metadata
+            schema: Schema from Tensorflow metadata
 
         Returns:
             None
 
         """
-        name_to_feature = {f.name: f for f in self.features}
-        name_to_entity = {e.name: e for e in self.entities}
-
-        for feature_from_new_schema in schema.feature:
-
-            if feature_from_new_schema.name in name_to_feature:
-                feature = name_to_feature[feature_from_new_schema.name]
-                feature.update_presence_constraints(feature_from_new_schema)
-                feature.update_shape_type(feature_from_new_schema)
-                feature.update_domain_info(feature_from_new_schema, schema)
-
-            elif feature_from_new_schema.name in name_to_entity:
-                entity = name_to_entity[feature_from_new_schema.name]
-                entity.update_presence_constraints(feature_from_new_schema)
-                entity.update_shape_type(feature_from_new_schema)
-                entity.update_domain_info(feature_from_new_schema, schema)
-
+        for feature_from_tfx_schema in schema.feature:
+            if feature_from_tfx_schema.name in self._fields.keys():
+                field = self._fields[feature_from_tfx_schema.name]
+                field.update_presence_constraints(feature_from_tfx_schema)
+                field.update_shape_type(feature_from_tfx_schema)
+                field.update_domain_info(feature_from_tfx_schema, schema)
             else:
                 warnings.warn(
-                    f"The provided schema contains feature name '{feature_from_new_schema.name}' "
+                    f"The provided schema contains feature name '{feature_from_tfx_schema.name}' "
                     f"that does not exist in the FeatureSet '{self.name}' in Feast"
                 )
 
-    def export_schema(self) -> Schema:
-        schema = Schema()
+    def export_tfx_schema(self) -> schema_pb2.Schema:
+        """
+        Create a Tensorflow metadata schema from a FeatureSet.
+
+        Returns:
+            Tensorflow metadata schema.
+
+        """
+        schema = schema_pb2.Schema()
+
+        # List of attributes to copy from fields in the FeatureSet to feature in
+        # Tensorflow metadata schema where the attribute name is the same.
+        attributes_to_copy_from_field_to_feature = [
+            "name",
+            "presence",
+            "group_presence",
+            "shape",
+            "value_count",
+            "domain",
+            "int_domain",
+            "float_domain",
+            "string_domain",
+            "bool_domain",
+            "struct_domain",
+            "_natural_language_domain",
+            "image_domain",
+            "mid_domain",
+            "url_domain",
+            "time_domain",
+            "time_of_day_domain",
+        ]
+
         for _, field in self._fields.items():
-            # TODO: export type as well
             feature = schema_pb2.Feature()
-            attributes_to_copy_from_field_to_feature = [
-                "name",
-                "presence",
-                "group_presence",
-                "shape",
-                "value_count",
-                "domain",
-                "int_domain",
-                "float_domain",
-                "string_domain",
-                "bool_domain",
-                "struct_domain",
-                "_natural_language_domain",
-                "image_domain",
-                "mid_domain",
-                "url_domain",
-                "time_domain",
-                "time_of_day_domain",
-            ]
             for attr in attributes_to_copy_from_field_to_feature:
                 if getattr(field, attr) is None:
+                    # This corresponds to an unset member in the proto Oneof field.
                     continue
-
                 if issubclass(type(getattr(feature, attr)), Message):
-                    # Proto message field to copy is an embedded field, so MergeFrom() method must be used
+                    # Proto message field to copy is an "embedded" field, so MergeFrom()
+                    # method must be used.
                     getattr(feature, attr).MergeFrom(getattr(field, attr))
                 elif issubclass(type(getattr(feature, attr)), (int, str, bool)):
-                    # Proto message field is a simple Python type, so setattr() can be used
+                    # Proto message field is a simple Python type, so setattr()
+                    # can be used.
                     setattr(feature, attr, getattr(field, attr))
                 else:
                     warnings.warn(
                         f"Attribute '{attr}' cannot be copied from Field "
                         f"'{field.name}' in FeatureSet '{self.name}' to a "
-                        f"Feature in the Schema in Tensorflow metadata, because"
+                        f"Feature in the Tensorflow metadata schema, because"
                         f"the type is neither a Protobuf message or Python "
                         f"int, str and bool"
                     )
+            # "type" attr is handled separately because the attribute name is different
+            # ("dtype" in field and "type" in Feature) and "type" in Feature is only
+            # a subset of "dtype".
+            feature.type = field.dtype.to_tfx_schema_feature_type()
             schema.feature.append(feature)
+
         return schema
 
     @classmethod
