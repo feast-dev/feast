@@ -300,7 +300,7 @@ docker run --rm \
 
 ## Code reviews
 
-Code submission to Feast \(including submission from project maintainers\) requires review and approval. Please submit a **pull request** to initiate the code review process. We use [prow](https://github.com/kubernetes/test-infra/tree/master/prow) to manage the testing and reviewing of pull requests. Please refer to [config.yaml](../.prow/config.yaml) for details on the test jobs.
+Code submission to Feast \(including submission from project maintainers\) requires review and approval. Please submit a **pull request** to initiate the code review process. We use [prow](https://github.com/kubernetes/test-infra/tree/master/prow) to manage the testing and reviewing of pull requests. Please refer to [config.yaml](https://github.com/gojek/feast/tree/4cd928d1d3b7972b15f0c5dd29593fcedecea9f5/.prow/config.yaml) for details on the test jobs.
 
 ## Code conventions
 
