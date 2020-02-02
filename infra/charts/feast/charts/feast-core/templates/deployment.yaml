@@ -40,7 +40,7 @@ spec:
 
       containers:
       - name: {{ .Chart.Name }}
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        image: '{{ .Values.image.repository }}:{{ required "No .image.tag found. This must be provided as input."  .Values.image.tag }}'
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         
         volumeMounts:
