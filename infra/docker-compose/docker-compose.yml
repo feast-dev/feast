@@ -4,8 +4,8 @@ services:
   core:
     image: ${FEAST_CORE_IMAGE}:${FEAST_VERSION}
     volumes:
-      - ./core/${FEAST_CORE_CONFIG}.yml:/etc/feast/application.yml
-      - ./gcp-service-accounts/${FEAST_CORE_GCP_SERVICE_ACCOUNT_KEY}.json:/etc/gcloud/service-accounts/key.json
+      - ./core/${FEAST_CORE_CONFIG}:/etc/feast/application.yml
+      - ./gcp-service-accounts/${FEAST_CORE_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json
     environment:
       DB_HOST: db
       GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
@@ -24,8 +24,8 @@ services:
   online-serving:
     image: ${FEAST_SERVING_IMAGE}:${FEAST_VERSION}
     volumes:
-      - ./serving/${FEAST_ONLINE_SERVING_CONFIG}.yml:/etc/feast/application.yml
-      - ./serving/${FEAST_ONLINE_STORE_CONFIG}.yml:/etc/feast/store.yml
+      - ./serving/${FEAST_ONLINE_SERVING_CONFIG}:/etc/feast/application.yml
+      - ./serving/${FEAST_ONLINE_STORE_CONFIG}:/etc/feast/store.yml
     depends_on:
       - core
       - redis
@@ -39,11 +39,10 @@ services:
       - --spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml
 
   jupyter:
-    image: ${FEAST_JUPYTER_IMAGE}:${FEAST_VERSION}
+    image: jupyter/datascience-notebook:latest
     volumes:
-      - ./jupyter/notebooks:/home/jovyan/feast-notebooks
-      - ./jupyter/features:/home/jovyan/features
-      - ./gcp-service-accounts/${FEAST_JUPYTER_GCP_SERVICE_ACCOUNT_KEY}.json:/etc/gcloud/service-accounts/key.json
+      - ../../:/home/jovyan/feast
+      - ./gcp-service-accounts/${FEAST_JUPYTER_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json
     depends_on:
       - core
       - online-serving

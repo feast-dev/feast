@@ -4,9 +4,9 @@ services:
   batch-serving:
     image: ${FEAST_SERVING_IMAGE}:${FEAST_VERSION}
     volumes:
-      - ./serving/${FEAST_BATCH_SERVING_CONFIG}.yml:/etc/feast/application.yml
-      - ./serving/${FEAST_BATCH_STORE_CONFIG}.yml:/etc/feast/store.yml
-      - ./gcp-service-accounts/${FEAST_BATCH_SERVING_GCP_SERVICE_ACCOUNT_KEY}.json:/etc/gcloud/service-accounts/key.json
+      - ./serving/${FEAST_BATCH_SERVING_CONFIG}:/etc/feast/application.yml
+      - ./serving/${FEAST_BATCH_STORE_CONFIG}:/etc/feast/store.yml
+      - ./gcp-service-accounts/${FEAST_BATCH_SERVING_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json
     depends_on:
       - core
       - redis
