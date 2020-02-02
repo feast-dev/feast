@@ -57,7 +57,8 @@ def _get_yaml_contents(yml: str) -> str:
         yml_content = yml
     else:
         raise Exception(
-            f"Invalid YAML provided. Please provide either a file path or YAML string: ${yml}"
+            f"Invalid YAML provided. Please provide either a file path or YAML string.\n"
+            f"Provided YAML: {yml}"
         )
     return yml_content
 

@@ -190,6 +190,7 @@ def test_update_schema(self):
                 Feature(name="location", dtype=ValueType.STRING),
             ],
         )
+
         # Before update
         for entity in feature_set.entities:
             assert entity.presence is None
@@ -201,7 +202,7 @@ def test_update_schema(self):
             assert feature.float_domain is None
             assert feature.int_domain is None
 
-        feature_set.update_schema(schema_bikeshare)
+        feature_set.import_tfx_schema(test_input_schema)
 
         # After update
         for entity in feature_set.entities:
@@ -216,6 +217,50 @@ def test_update_schema(self):
                 assert feature.float_domain is not None
             elif feature.name in ["station_id"]:
                 assert feature.int_domain is not None
+
+    def test_export_tfx_schema(self):
+        tests_folder = pathlib.Path(__file__).parent
+        test_input_feature_set = FeatureSet.from_yaml(
+            str(
+                tests_folder
+                / "data"
+                / "tensorflow_metadata"
+                / "bikeshare_feature_set.yaml"
+            )
+        )
+
+        expected_schema_json = open(
+            tests_folder / "data" / "tensorflow_metadata" / "bikeshare_schema.json"
+        ).read()
+        expected_schema = schema_pb2.Schema()
+        json_format.Parse(expected_schema_json, expected_schema)
+        make_tfx_schema_domain_info_inline(expected_schema)
+
+        actual_schema = test_input_feature_set.export_tfx_schema()
+
+        assert len(actual_schema.feature) == len(expected_schema.feature)
+        for actual, expected in zip(actual_schema.feature, expected_schema.feature):
+            assert actual.SerializeToString() == expected.SerializeToString()
+
+
+def make_tfx_schema_domain_info_inline(schema):
+    # Copy top-level domain info defined in the schema to inline definition.
+    # One use case is in FeatureSet which does not have access to the top-level domain
+    # info.
+    domain_ref_to_string_domain = {d.name: d for d in schema.string_domain}
+    domain_ref_to_float_domain = {d.name: d for d in schema.float_domain}
+    domain_ref_to_int_domain = {d.name: d for d in schema.int_domain}
+
+    for feature in schema.feature:
+        domain_info_case = feature.WhichOneof("domain_info")
+        if domain_info_case == "domain":
+            domain_ref = feature.domain
+            if domain_ref in domain_ref_to_string_domain:
+                feature.string_domain.MergeFrom(domain_ref_to_string_domain[domain_ref])
+            elif domain_ref in domain_ref_to_float_domain:
+                feature.float_domain.MergeFrom(domain_ref_to_float_domain[domain_ref])
+            elif domain_ref in domain_ref_to_int_domain:
+                feature.int_domain.MergeFrom(domain_ref_to_int_domain[domain_ref])
 
 
 class TestFeatureSetRef:
@@ -233,3 +278,4 @@ class TestFeatureSetRef:
         ref_str = repr(original_ref)
         parsed_ref = FeatureSetRef.from_str(ref_str)
         assert original_ref == parsed_ref
+
