@@ -11,6 +11,7 @@
 * [Overview](installing-feast/overview.md)
 * [Docker Compose](installing-feast/docker-compose.md)
 * [Google Kubernetes Engine \(GKE\)](installing-feast/gke.md)
+* [Troubleshooting](installing-feast/troubleshooting.md)
 
 ## Using Feast
 
