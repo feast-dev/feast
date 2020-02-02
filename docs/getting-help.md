@@ -2,7 +2,7 @@
 
 ## Chat
 
-* Come and chat with us in the [\#Feast Slack channel in the Kubeflow workspace](https://join.slack.com/t/kubeflow/shared_invite/enQtNDg5MTM4NTQyNjczLTdkNTVhMjg1ZTExOWI0N2QyYTQ2MTIzNTJjMWRiOTFjOGRlZWEzODc1NzMwNTMwM2EzNjY1MTFhODczNjk4MTk) and catch up on all things Feast!
+* Come and say hello in [\#Feast](https://join.slack.com/t/kubeflow/shared_invite/enQtNDg5MTM4NTQyNjczLTdkNTVhMjg1ZTExOWI0N2QyYTQ2MTIzNTJjMWRiOTFjOGRlZWEzODc1NzMwNTMwM2EzNjY1MTFhODczNjk4MTk) over in the Kubeflow Slack.
 
 ## GitHub
 

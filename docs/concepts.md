@@ -2,7 +2,7 @@
 
 ## Architecture
 
-![Logical diagram of a typical Feast deployment](.gitbook/assets/basic-architecture-diagram.svg)
+![Logical diagram of a typical Feast deployment](.gitbook/assets/basic-architecture-diagram%20%282%29.svg)
 
 The core components of a Feast deployment are
 
@@ -106,13 +106,13 @@ Feast supports the following types for feature values
 * DOUBLE
 * FLOAT
 * BOOL
-* BYTES_LIST
-* STRING_LIST
-* INT32_LIST
-* INT64_LIST
-* DOUBLE_LIST
-* FLOAT_LIST
-* BOOL_LIST
+* BYTES\_LIST
+* STRING\_LIST
+* INT32\_LIST
+* INT64\_LIST
+* DOUBLE\_LIST
+* FLOAT\_LIST
+* BOOL\_LIST
 
 ## Glossary
 
