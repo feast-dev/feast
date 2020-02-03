@@ -27,6 +27,12 @@ from typing_extensions import (
 )
 
 
+builtin___bool = bool
+builtin___bytes = bytes
+builtin___float = float
+builtin___int = int
+
+
 class RedisKey(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
     feature_set = ... # type: typing___Text
@@ -40,7 +46,7 @@ class RedisKey(google___protobuf___message___Message):
         entities : typing___Optional[typing___Iterable[feast___types___Field_pb2___Field]] = None,
         ) -> None: ...
     @classmethod
-    def FromString(cls, s: bytes) -> RedisKey: ...
+    def FromString(cls, s: builtin___bytes) -> RedisKey: ...
     def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     if sys.version_info >= (3,):

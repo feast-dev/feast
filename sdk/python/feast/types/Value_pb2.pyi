@@ -27,68 +27,75 @@ from typing_extensions import (
 )
 
 
+builtin___bool = bool
+builtin___bytes = bytes
+builtin___float = float
+builtin___int = int
+builtin___str = str
+
+
 class ValueType(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
-    class Enum(int):
+    class Enum(builtin___int):
         DESCRIPTOR: google___protobuf___descriptor___EnumDescriptor = ...
         @classmethod
-        def Name(cls, number: int) -> str: ...
+        def Name(cls, number: builtin___int) -> builtin___str: ...
         @classmethod
-        def Value(cls, name: str) -> ValueType.Enum: ...
+        def Value(cls, name: builtin___str) -> 'ValueType.Enum': ...
         @classmethod
-        def keys(cls) -> typing___List[str]: ...
+        def keys(cls) -> typing___List[builtin___str]: ...
         @classmethod
-        def values(cls) -> typing___List[ValueType.Enum]: ...
+        def values(cls) -> typing___List['ValueType.Enum']: ...
         @classmethod
-        def items(cls) -> typing___List[typing___Tuple[str, ValueType.Enum]]: ...
-        INVALID = typing___cast(ValueType.Enum, 0)
-        BYTES = typing___cast(ValueType.Enum, 1)
-        STRING = typing___cast(ValueType.Enum, 2)
-        INT32 = typing___cast(ValueType.Enum, 3)
-        INT64 = typing___cast(ValueType.Enum, 4)
-        DOUBLE = typing___cast(ValueType.Enum, 5)
-        FLOAT = typing___cast(ValueType.Enum, 6)
-        BOOL = typing___cast(ValueType.Enum, 7)
-        BYTES_LIST = typing___cast(ValueType.Enum, 11)
-        STRING_LIST = typing___cast(ValueType.Enum, 12)
-        INT32_LIST = typing___cast(ValueType.Enum, 13)
-        INT64_LIST = typing___cast(ValueType.Enum, 14)
-        DOUBLE_LIST = typing___cast(ValueType.Enum, 15)
-        FLOAT_LIST = typing___cast(ValueType.Enum, 16)
-        BOOL_LIST = typing___cast(ValueType.Enum, 17)
-    INVALID = typing___cast(ValueType.Enum, 0)
-    BYTES = typing___cast(ValueType.Enum, 1)
-    STRING = typing___cast(ValueType.Enum, 2)
-    INT32 = typing___cast(ValueType.Enum, 3)
-    INT64 = typing___cast(ValueType.Enum, 4)
-    DOUBLE = typing___cast(ValueType.Enum, 5)
-    FLOAT = typing___cast(ValueType.Enum, 6)
-    BOOL = typing___cast(ValueType.Enum, 7)
-    BYTES_LIST = typing___cast(ValueType.Enum, 11)
-    STRING_LIST = typing___cast(ValueType.Enum, 12)
-    INT32_LIST = typing___cast(ValueType.Enum, 13)
-    INT64_LIST = typing___cast(ValueType.Enum, 14)
-    DOUBLE_LIST = typing___cast(ValueType.Enum, 15)
-    FLOAT_LIST = typing___cast(ValueType.Enum, 16)
-    BOOL_LIST = typing___cast(ValueType.Enum, 17)
+        def items(cls) -> typing___List[typing___Tuple[builtin___str, 'ValueType.Enum']]: ...
+        INVALID = typing___cast('ValueType.Enum', 0)
+        BYTES = typing___cast('ValueType.Enum', 1)
+        STRING = typing___cast('ValueType.Enum', 2)
+        INT32 = typing___cast('ValueType.Enum', 3)
+        INT64 = typing___cast('ValueType.Enum', 4)
+        DOUBLE = typing___cast('ValueType.Enum', 5)
+        FLOAT = typing___cast('ValueType.Enum', 6)
+        BOOL = typing___cast('ValueType.Enum', 7)
+        BYTES_LIST = typing___cast('ValueType.Enum', 11)
+        STRING_LIST = typing___cast('ValueType.Enum', 12)
+        INT32_LIST = typing___cast('ValueType.Enum', 13)
+        INT64_LIST = typing___cast('ValueType.Enum', 14)
+        DOUBLE_LIST = typing___cast('ValueType.Enum', 15)
+        FLOAT_LIST = typing___cast('ValueType.Enum', 16)
+        BOOL_LIST = typing___cast('ValueType.Enum', 17)
+    INVALID = typing___cast('ValueType.Enum', 0)
+    BYTES = typing___cast('ValueType.Enum', 1)
+    STRING = typing___cast('ValueType.Enum', 2)
+    INT32 = typing___cast('ValueType.Enum', 3)
+    INT64 = typing___cast('ValueType.Enum', 4)
+    DOUBLE = typing___cast('ValueType.Enum', 5)
+    FLOAT = typing___cast('ValueType.Enum', 6)
+    BOOL = typing___cast('ValueType.Enum', 7)
+    BYTES_LIST = typing___cast('ValueType.Enum', 11)
+    STRING_LIST = typing___cast('ValueType.Enum', 12)
+    INT32_LIST = typing___cast('ValueType.Enum', 13)
+    INT64_LIST = typing___cast('ValueType.Enum', 14)
+    DOUBLE_LIST = typing___cast('ValueType.Enum', 15)
+    FLOAT_LIST = typing___cast('ValueType.Enum', 16)
+    BOOL_LIST = typing___cast('ValueType.Enum', 17)
 
 
     def __init__(self,
         ) -> None: ...
     @classmethod
-    def FromString(cls, s: bytes) -> ValueType: ...
+    def FromString(cls, s: builtin___bytes) -> ValueType: ...
     def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
 
 class Value(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
-    bytes_val = ... # type: bytes
+    bytes_val = ... # type: builtin___bytes
     string_val = ... # type: typing___Text
-    int32_val = ... # type: int
-    int64_val = ... # type: int
-    double_val = ... # type: float
-    float_val = ... # type: float
-    bool_val = ... # type: bool
+    int32_val = ... # type: builtin___int
+    int64_val = ... # type: builtin___int
+    double_val = ... # type: builtin___float
+    float_val = ... # type: builtin___float
+    bool_val = ... # type: builtin___bool
 
     @property
     def bytes_list_val(self) -> BytesList: ...
@@ -113,13 +120,13 @@ class Value(google___protobuf___message___Message):
 
     def __init__(self,
         *,
-        bytes_val : typing___Optional[bytes] = None,
+        bytes_val : typing___Optional[builtin___bytes] = None,
         string_val : typing___Optional[typing___Text] = None,
-        int32_val : typing___Optional[int] = None,
-        int64_val : typing___Optional[int] = None,
-        double_val : typing___Optional[float] = None,
-        float_val : typing___Optional[float] = None,
-        bool_val : typing___Optional[bool] = None,
+        int32_val : typing___Optional[builtin___int] = None,
+        int64_val : typing___Optional[builtin___int] = None,
+        double_val : typing___Optional[builtin___float] = None,
+        float_val : typing___Optional[builtin___float] = None,
+        bool_val : typing___Optional[builtin___bool] = None,
         bytes_list_val : typing___Optional[BytesList] = None,
         string_list_val : typing___Optional[StringList] = None,
         int32_list_val : typing___Optional[Int32List] = None,
@@ -129,27 +136,27 @@ class Value(google___protobuf___message___Message):
         bool_list_val : typing___Optional[BoolList] = None,
         ) -> None: ...
     @classmethod
-    def FromString(cls, s: bytes) -> Value: ...
+    def FromString(cls, s: builtin___bytes) -> Value: ...
     def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     if sys.version_info >= (3,):
-        def HasField(self, field_name: typing_extensions___Literal[u"bool_list_val",u"bool_val",u"bytes_list_val",u"bytes_val",u"double_list_val",u"double_val",u"float_list_val",u"float_val",u"int32_list_val",u"int32_val",u"int64_list_val",u"int64_val",u"string_list_val",u"string_val",u"val"]) -> bool: ...
+        def HasField(self, field_name: typing_extensions___Literal[u"bool_list_val",u"bool_val",u"bytes_list_val",u"bytes_val",u"double_list_val",u"double_val",u"float_list_val",u"float_val",u"int32_list_val",u"int32_val",u"int64_list_val",u"int64_val",u"string_list_val",u"string_val",u"val"]) -> builtin___bool: ...
         def ClearField(self, field_name: typing_extensions___Literal[u"bool_list_val",u"bool_val",u"bytes_list_val",u"bytes_val",u"double_list_val",u"double_val",u"float_list_val",u"float_val",u"int32_list_val",u"int32_val",u"int64_list_val",u"int64_val",u"string_list_val",u"string_val",u"val"]) -> None: ...
     else:
-        def HasField(self, field_name: typing_extensions___Literal[u"bool_list_val",b"bool_list_val",u"bool_val",b"bool_val",u"bytes_list_val",b"bytes_list_val",u"bytes_val",b"bytes_val",u"double_list_val",b"double_list_val",u"double_val",b"double_val",u"float_list_val",b"float_list_val",u"float_val",b"float_val",u"int32_list_val",b"int32_list_val",u"int32_val",b"int32_val",u"int64_list_val",b"int64_list_val",u"int64_val",b"int64_val",u"string_list_val",b"string_list_val",u"string_val",b"string_val",u"val",b"val"]) -> bool: ...
+        def HasField(self, field_name: typing_extensions___Literal[u"bool_list_val",b"bool_list_val",u"bool_val",b"bool_val",u"bytes_list_val",b"bytes_list_val",u"bytes_val",b"bytes_val",u"double_list_val",b"double_list_val",u"double_val",b"double_val",u"float_list_val",b"float_list_val",u"float_val",b"float_val",u"int32_list_val",b"int32_list_val",u"int32_val",b"int32_val",u"int64_list_val",b"int64_list_val",u"int64_val",b"int64_val",u"string_list_val",b"string_list_val",u"string_val",b"string_val",u"val",b"val"]) -> builtin___bool: ...
         def ClearField(self, field_name: typing_extensions___Literal[u"bool_list_val",b"bool_list_val",u"bool_val",b"bool_val",u"bytes_list_val",b"bytes_list_val",u"bytes_val",b"bytes_val",u"double_list_val",b"double_list_val",u"double_val",b"double_val",u"float_list_val",b"float_list_val",u"float_val",b"float_val",u"int32_list_val",b"int32_list_val",u"int32_val",b"int32_val",u"int64_list_val",b"int64_list_val",u"int64_val",b"int64_val",u"string_list_val",b"string_list_val",u"string_val",b"string_val",u"val",b"val"]) -> None: ...
     def WhichOneof(self, oneof_group: typing_extensions___Literal[u"val",b"val"]) -> typing_extensions___Literal["bytes_val","string_val","int32_val","int64_val","double_val","float_val","bool_val","bytes_list_val","string_list_val","int32_list_val","int64_list_val","double_list_val","float_list_val","bool_list_val"]: ...
 
 class BytesList(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
-    val = ... # type: google___protobuf___internal___containers___RepeatedScalarFieldContainer[bytes]
+    val = ... # type: google___protobuf___internal___containers___RepeatedScalarFieldContainer[builtin___bytes]
 
     def __init__(self,
         *,
-        val : typing___Optional[typing___Iterable[bytes]] = None,
+        val : typing___Optional[typing___Iterable[builtin___bytes]] = None,
         ) -> None: ...
     @classmethod
-    def FromString(cls, s: bytes) -> BytesList: ...
+    def FromString(cls, s: builtin___bytes) -> BytesList: ...
     def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     if sys.version_info >= (3,):
@@ -166,7 +173,7 @@ class StringList(google___protobuf___message___Message):
         val : typing___Optional[typing___Iterable[typing___Text]] = None,
         ) -> None: ...
     @classmethod
-    def FromString(cls, s: bytes) -> StringList: ...
+    def FromString(cls, s: builtin___bytes) -> StringList: ...
     def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     if sys.version_info >= (3,):
@@ -176,14 +183,14 @@ class StringList(google___protobuf___message___Message):
 
 class Int32List(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
-    val = ... # type: google___protobuf___internal___containers___RepeatedScalarFieldContainer[int]
+    val = ... # type: google___protobuf___internal___containers___RepeatedScalarFieldContainer[builtin___int]
 
     def __init__(self,
         *,
-        val : typing___Optional[typing___Iterable[int]] = None,
+        val : typing___Optional[typing___Iterable[builtin___int]] = None,
         ) -> None: ...
     @classmethod
-    def FromString(cls, s: bytes) -> Int32List: ...
+    def FromString(cls, s: builtin___bytes) -> Int32List: ...
     def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     if sys.version_info >= (3,):
@@ -193,14 +200,14 @@ class Int32List(google___protobuf___message___Message):
 
 class Int64List(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
-    val = ... # type: google___protobuf___internal___containers___RepeatedScalarFieldContainer[int]
+    val = ... # type: google___protobuf___internal___containers___RepeatedScalarFieldContainer[builtin___int]
 
     def __init__(self,
         *,
-        val : typing___Optional[typing___Iterable[int]] = None,
+        val : typing___Optional[typing___Iterable[builtin___int]] = None,
         ) -> None: ...
     @classmethod
-    def FromString(cls, s: bytes) -> Int64List: ...
+    def FromString(cls, s: builtin___bytes) -> Int64List: ...
     def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     if sys.version_info >= (3,):
@@ -210,14 +217,14 @@ class Int64List(google___protobuf___message___Message):
 
 class DoubleList(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
-    val = ... # type: google___protobuf___internal___containers___RepeatedScalarFieldContainer[float]
+    val = ... # type: google___protobuf___internal___containers___RepeatedScalarFieldContainer[builtin___float]
 
     def __init__(self,
         *,
-        val : typing___Optional[typing___Iterable[float]] = None,
+        val : typing___Optional[typing___Iterable[builtin___float]] = None,
         ) -> None: ...
     @classmethod
-    def FromString(cls, s: bytes) -> DoubleList: ...
+    def FromString(cls, s: builtin___bytes) -> DoubleList: ...
     def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     if sys.version_info >= (3,):
@@ -227,14 +234,14 @@ class DoubleList(google___protobuf___message___Message):
 
 class FloatList(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
-    val = ... # type: google___protobuf___internal___containers___RepeatedScalarFieldContainer[float]
+    val = ... # type: google___protobuf___internal___containers___RepeatedScalarFieldContainer[builtin___float]
 
     def __init__(self,
         *,
-        val : typing___Optional[typing___Iterable[float]] = None,
+        val : typing___Optional[typing___Iterable[builtin___float]] = None,
         ) -> None: ...
     @classmethod
-    def FromString(cls, s: bytes) -> FloatList: ...
+    def FromString(cls, s: builtin___bytes) -> FloatList: ...
     def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     if sys.version_info >= (3,):
@@ -244,14 +251,14 @@ class FloatList(google___protobuf___message___Message):
 
 class BoolList(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
-    val = ... # type: google___protobuf___internal___containers___RepeatedScalarFieldContainer[bool]
+    val = ... # type: google___protobuf___internal___containers___RepeatedScalarFieldContainer[builtin___bool]
 
     def __init__(self,
         *,
-        val : typing___Optional[typing___Iterable[bool]] = None,
+        val : typing___Optional[typing___Iterable[builtin___bool]] = None,
         ) -> None: ...
     @classmethod
-    def FromString(cls, s: bytes) -> BoolList: ...
+    def FromString(cls, s: builtin___bytes) -> BoolList: ...
     def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     if sys.version_info >= (3,):
