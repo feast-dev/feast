@@ -34,7 +34,7 @@ echo "
 Installing Redis at localhost:6379
 ============================================================
 "
-# Allow starting serving in this Maven Docker image. Default set to not allowed.
+# Allow starting Linux services in this Maven Docker image. Default set to not allowed.
 echo "exit 0" > /usr/sbin/policy-rc.d
 apt-get -y install redis-server > /var/log/redis.install.log
 redis-server --daemonize yes
@@ -63,14 +63,64 @@ Installing Kafka at localhost:9092
 ============================================================
 "
 wget -qO- https://www-eu.apache.org/dist/kafka/2.3.0/kafka_2.12-2.3.0.tgz | tar xz
-mv kafka_2.12-2.3.0/ /tmp/kafka
-nohup /tmp/kafka/bin/zookeeper-server-start.sh /tmp/kafka/config/zookeeper.properties &> /var/log/zookeeper.log 2>&1 &
+mv kafka_2.12-2.3.0/ /opt/kafka
+nohup /opt/kafka/bin/zookeeper-server-start.sh /opt/kafka/config/zookeeper.properties &> /var/log/zookeeper.log 2>&1 &
 sleep 5
 tail -n10 /var/log/zookeeper.log
-nohup /tmp/kafka/bin/kafka-server-start.sh /tmp/kafka/config/server.properties &> /var/log/kafka.log 2>&1 &
+nohup /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/server.properties &> /var/log/kafka.log 2>&1 &
 sleep 20
 tail -n10 /var/log/kafka.log
 kafkacat -b localhost:9092 -L
+
+echo "
+============================================================
+Installing Telegraf with StatsD input and Prometheus output
+Installing Prometheus that scrapes metrics from Telegraf
+============================================================
+"
+
+echo "Downloading Telegraf ..."
+wget -O- https://dl.influxdata.com/telegraf/releases/telegraf-1.13.2_linux_amd64.tar.gz | tar xz && \
+mv telegraf /opt/telegraf
+
+cat <<EOF > /tmp/telegraf.conf
+[agent]
+  interval = "10s"
+  round_interval = true
+
+[[inputs.statsd]]
+  protocol = "udp"
+  service_address = ":8125"
+  datadog_extensions = true
+  delete_counters = false
+
+[[outputs.prometheus_client]]
+  listen = ":9273"
+  collectors_exclude = ["gocollector", "process"]
+EOF
+nohup /opt/telegraf/usr/bin/telegraf --config /tmp/telegraf.conf &> /var/log/telegraf.log &
+
+echo "Downloading Prometheus ..."
+wget -qO- https://github.com/prometheus/prometheus/releases/download/v2.15.2/prometheus-2.15.2.linux-amd64.tar.gz | tar xz
+mv prometheus-2.15.2.linux-amd64 /opt/prometheus
+
+cat <<EOF > /tmp/prometheus.yml
+global:
+  scrape_interval:     10s
+  evaluation_interval: 10s
+
+scrape_configs:
+- job_name: "prometheus"
+  static_configs:
+  - targets: ["localhost:9273"]
+EOF
+nohup /opt/prometheus/prometheus --config.file=/tmp/prometheus.yml &> /var/log/prometheus.log &
+
+sleep 3
+echo -e "\nTelegraf logs:"
+tail -n5 /var/log/telegraf.log
+echo -e "\nPrometheus logs:"
+tail -n5 /var/log/prometheus.log
 
 if [[ ${SKIP_BUILD_JARS} != "true" ]]; then
   echo "
@@ -111,7 +161,10 @@ feast:
     updates:
       timeoutSeconds: 240
     metrics:
-      enabled: false
+      enabled: true
+      type: statsd
+      host: localhost
+      port: 8125
 
   stream:
     type: kafka
@@ -190,7 +243,6 @@ grpc:
 spring:
   main:
     web-environment: false
-
 EOF
 
 nohup java -jar serving/target/feast-serving-*${JAR_VERSION_SUFFIX}.jar \
