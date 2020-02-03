@@ -12,10 +12,6 @@
 # of Feast Serving: online and batch will be deployed. Both described
 # using the same chart "feast-serving".
 #
-# The following are default values for typical Feast deployment, but not
-# for production setting. Refer to "values-production.yaml" for recommended
-# values in production environment.
-#
 # Note that the import job by default uses DirectRunner
 # https://beam.apache.org/documentation/runners/direct/
 # in this configuration since it allows Feast to run in more environments
@@ -45,16 +41,18 @@
 # ============================================================
 
 feast-core:
-  # enabled specifies whether to install Feast Core component.
+  # If enabled specifies whether to install Feast Core component.
   #
   # Normally, this is set to "false" when Feast users need access to low latency
   # Feast Serving, by deploying multiple instances of Feast Serving closest
   # to the client. These instances of Feast Serving however can still use
   # the same shared Feast Core.
   enabled: true
-  # Specify what image tag to use. Keep this consistent for all components
+
+  # Specify which image tag to use. Keep this consistent for all components
   image:
     tag: "0.4.4"
+
   # jvmOptions are options that will be passed to the Java Virtual Machine (JVM)
   # running Feast Core.
   #
@@ -63,6 +61,7 @@ feast-core:
   jvmOptions:
   - -Xms1024m
   - -Xmx1024m
+
   # resources that should be allocated to Feast Core.
   resources:
     requests:
@@ -70,6 +69,7 @@ feast-core:
       memory: 1024Mi
     limits:
       memory: 2048Mi
+
   # gcpServiceAccount is the Google service account that Feast Core will use.
   gcpServiceAccount:
     # useExistingSecret specifies Feast to use an existing secret containing
