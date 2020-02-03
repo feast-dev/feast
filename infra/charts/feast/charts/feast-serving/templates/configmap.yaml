@@ -11,37 +11,43 @@ metadata:
     heritage: {{ .Release.Service }}
 data:
   application.yaml: |
-{{- $config := index .Values "application.yaml" }}
+{{- toYaml (index .Values "application.yaml") | nindent 4 }}
 
 {{- if .Values.core.enabled }}
-{{- $newConfig := dict "feast" (dict "core-host" (printf "%s-feast-core" .Release.Name)) }}
-{{- $config := mergeOverwrite $config $newConfig }}
+  application-bundled-core.yaml: |
+    feast:
+      core-host: {{ printf "%s-feast-core" .Release.Name }}
 {{- end }}
 
-{{- $store := index .Values "store.yaml" }}
-{{- if and (eq $store.type "BIGQUERY") (not (hasKey $config.feast.jobs "store-options")) }}
-{{- $jobStore := dict "host" (printf "%s-redis-headless" .Release.Name) "port" 6379 }}
-{{- $newConfig := dict "feast" (dict "jobs" (dict "store-options" $jobStore)) }}
-{{- $config := mergeOverwrite $config $newConfig }}
+{{- if eq (include "bq_store_and_no_job_options" .) "true" }}
+  application-bundled-redis.yaml: |
+    feast:
+      jobs:
+        store-options:
+          host: {{ printf "%s-redis-headless" .Release.Name }}
+          port: 6379
 {{- end }}
 
-{{- toYaml $config | nindent 4 }}
-  
   store.yaml: |
-{{- $config := index .Values "store.yaml"}}
+{{- $store := index .Values "store.yaml"}}
 
-{{- if and .Values.redis.enabled (eq $config.type "REDIS") }}
+{{- if and .Values.redis.enabled (eq $store.type "REDIS") }}
 
 {{- if eq .Values.redis.master.service.type "ClusterIP" }}
 {{- $newConfig := dict "redis_config" (dict "host" (printf "%s-redis-headless" .Release.Name) "port" .Values.redis.redisPort) }}
-{{- $config := mergeOverwrite $config $newConfig }}
+{{- $config := mergeOverwrite $store $newConfig }}
 {{- end }}
 
 {{- if and (eq .Values.redis.master.service.type "LoadBalancer") (not (empty .Values.redis.master.service.loadBalancerIP)) }}
 {{- $newConfig := dict "redis_config" (dict "host" .Values.redis.master.service.loadBalancerIP "port" .Values.redis.redisPort) }}
-{{- $config := mergeOverwrite $config $newConfig }}
+{{- $config := mergeOverwrite $store $newConfig }}
 {{- end }}
 
 {{- end }}
 
-{{- toYaml $config | nindent 4 }}
+{{- toYaml $store | nindent 4 }}
+
+{{- range $name, $content := .Values.springConfigProfiles }}
+  application-{{ $name }}.yaml: |
+{{- toYaml $content | nindent 4 }}
+{{- end }}

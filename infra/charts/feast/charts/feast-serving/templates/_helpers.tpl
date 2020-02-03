@@ -43,3 +43,10 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
+
+{{/*
+Helpers
+*/}}
+{{- define "bq_store_and_no_job_options" -}}
+{{ and (eq (index .Values "store.yaml" "type") "BIGQUERY") (empty (index .Values "application.yaml" "feast" "jobs" "store-options")) }}
+{{- end -}}

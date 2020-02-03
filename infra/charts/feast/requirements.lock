@@ -1,12 +1,6 @@
 dependencies:
-- name: feast-core
-  repository: ""
-  version: 0.3.2
-- name: feast-serving
-  repository: ""
-  version: 0.3.2
-- name: feast-serving
-  repository: ""
-  version: 0.3.2
-digest: sha256:7ee4cd271cbd4ace44817dd12ba65f490a8e3529adf199604a2c2bdad9c2fac3
-generated: "2019-11-27T13:35:41.334054+08:00"
+- name: common
+  repository: https://kubernetes-charts-incubator.storage.googleapis.com
+  version: 0.0.5
+digest: sha256:935bfb09e9ed90ff800826a7df21adaabe3225511c3ad78df44e1a5a60e93f14
+generated: 2019-12-10T14:47:49.57569Z
