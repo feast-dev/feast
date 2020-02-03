@@ -28,11 +28,29 @@ my_model = ml.fit(data)
 prediction = my_model.predict(fs.get_online_features(customer_features, customer_entities))
 ```
 
+## Getting Started with Docker Compose
+The following commands will start Feast in online-only mode. 
+```
+git clone https://github.com/gojek/feast.git
+cd feast/infra/docker-compose
+cp .env.sample .env
+docker-compose up -d
+```
+
+A [Jupyter Notebook](http://localhost:8888/tree/feast/examples) is now available to start using Feast.
+
+Please see the links below to set up Feast for batch/historical serving with BigQuery.
+
 ## Important resources
- * [Why Feast?](docs/why-feast.md)
- * [Concepts](docs/concepts.md)
- * [Installation](docs/getting-started/installing-feast.md)
- * [Getting Help](docs/community.md)
+
+Please refer to the official documentation at <https://docs.feast.dev>
+
+ * [Why Feast?](https://docs.feast.dev/why-feast)
+ * [Concepts](https://docs.feast.dev/concepts)
+ * [Installation](https://docs.feast.dev/installing-feast/overview)
+ * [Examples](https://github.com/gojek/feast/blob/master/examples/)
+ * [Change Log](https://github.com/gojek/feast/blob/master/CHANGELOG.md)
+ * [Slack (#Feast)](https://join.slack.com/t/kubeflow/shared_invite/enQtNDg5MTM4NTQyNjczLTdkNTVhMjg1ZTExOWI0N2QyYTQ2MTIzNTJjMWRiOTFjOGRlZWEzODc1NzMwNTMwM2EzNjY1MTFhODczNjk4MTk)
 
 ## Notice
 
