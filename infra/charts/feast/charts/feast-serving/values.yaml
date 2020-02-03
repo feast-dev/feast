@@ -29,7 +29,6 @@ replicaCount: 1
 # image configures the Docker image for Feast Serving
 image:
   repository: gcr.io/kf-feast/feast-serving
-  tag: 0.3.2
   pullPolicy: IfNotPresent
 
 # application.yaml is the main configuration for Feast Serving application.
