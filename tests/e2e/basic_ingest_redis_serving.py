@@ -22,6 +22,7 @@ from feast.serving.ServingService_pb2 import (
 from feast.type_map import ValueType
 from feast.types.Value_pb2 import Value as Value
 from google.protobuf.duration_pb2 import Duration
+import warnings
 
 FLOAT_TOLERANCE = 0.00001
 PROJECT_NAME = "basic_" + uuid.uuid4().hex.upper()[0:6]
@@ -499,6 +500,10 @@ def test_all_types_infer_register_ingest_file_success(client, all_types_parquet_
 @pytest.mark.run(order=42)
 def test_basic_metrics(pytestconfig, basic_dataframe):
     if not pytestconfig.getoption("prometheus_server_url"):
+        warnings.warn(
+            "Skipping 'test_basic_metrics' because 'prometheus_server_url' argument"
+            "is not provided"
+        )
         return
 
     feature_set = FeatureSet.from_yaml("basic/cust_trans_fs.yaml")
@@ -589,7 +594,7 @@ def test_basic_metrics(pytestconfig, basic_dataframe):
                             feature_set.fields[feature_name].float_domain.max,
                             abs_tol=FLOAT_TOLERANCE,
                         )
-                # basic_dataframe has not UNSET values, hence the assertions
+                # basic_dataframe has no UNSET values, hence the assertions
                 # for "feast_ingestion_feature_value_presence_count" and
                 # "feast_ingestion_feature_value_missing_count"
                 elif query == "feast_ingestion_feature_value_presence_count":

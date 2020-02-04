@@ -259,7 +259,7 @@ Installing Python 3.7 with Miniconda and Feast SDK
 "
 # Install Python 3.7 with Miniconda
 wget -q https://repo.continuum.io/miniconda/Miniconda3-4.7.12-Linux-x86_64.sh \
-   -O /tmp/miniconda.sh
+  -O /tmp/miniconda.sh
 bash /tmp/miniconda.sh -b -p /root/miniconda -f
 /root/miniconda/bin/conda init
 source ~/.bashrc
@@ -280,7 +280,8 @@ ORIGINAL_DIR=$(pwd)
 cd tests/e2e
 
 set +e
-pytest basic-ingest-redis-serving.py --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+pytest basic_ingest_redis_serving.py --prometheus_server_url=http://localhost:9090 \
+  --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
 if [[ ${TEST_EXIT_CODE} != 0 ]]; then
