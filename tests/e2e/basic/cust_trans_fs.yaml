@@ -4,9 +4,36 @@ spec:
   entities:
   - name: customer_id
     valueType: INT64
+    intDomain:
+      min: 1000
+      max: 100005
+    presence:
+      minFraction: 1.0
+      minCount: 1
+    shape:
+      dim:
+      - size: 1
   features:
   - name: daily_transactions
     valueType: FLOAT
+    floatDomain:
+      min: 0
+      max: 1
+    presence:
+      minFraction: 1.0
+      minCount: 1
+    shape:
+      dim:
+      - size: 1
   - name: total_transactions
     valueType: FLOAT
+    floatDomain:
+      min: 512
+      max: 512
+    presence:
+      minFraction: 1.0
+      minCount: 1
+    shape:
+      dim:
+      - size: 1
   maxAge: 3600s

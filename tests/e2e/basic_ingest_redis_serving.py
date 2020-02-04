@@ -501,6 +501,7 @@ def test_basic_metrics(pytestconfig, basic_dataframe):
     if not pytestconfig.getoption("prometheus_server_url"):
         return
 
+    feature_set = FeatureSet.from_yaml("basic/cust_trans_fs.yaml")
     project_name = PROJECT_NAME
     feature_set_name = "customer_transactions"
 
@@ -565,11 +566,29 @@ def test_basic_metrics(pytestconfig, basic_dataframe):
                         abs_tol=FLOAT_TOLERANCE,
                     )
                 elif query == "feast_ingestion_feature_value_domain_min":
-                    # TODO: get from FeatureSetSpec
-                    pass
+                    if feature_name == "customer_id":
+                        assert (
+                            int(last_value)
+                            == feature_set.fields[feature_name].int_domain.min
+                        )
+                    elif feature_name in ["daily_transactions", "total_transactions"]:
+                        assert math.isclose(
+                            float(last_value),
+                            feature_set.fields[feature_name].float_domain.min,
+                            abs_tol=FLOAT_TOLERANCE,
+                        )
                 elif query == "feast_ingestion_feature_value_domain_max":
-                    # TODO: get from FeatureSetSpec
-                    pass
+                    if feature_name == "customer_id":
+                        assert (
+                            int(last_value)
+                            == feature_set.fields[feature_name].int_domain.max
+                        )
+                    elif feature_name in ["daily_transactions", "total_transactions"]:
+                        assert math.isclose(
+                            float(last_value),
+                            feature_set.fields[feature_name].float_domain.max,
+                            abs_tol=FLOAT_TOLERANCE,
+                        )
                 # basic_dataframe has not UNSET values, hence the assertions
                 # for "feast_ingestion_feature_value_presence_count" and
                 # "feast_ingestion_feature_value_missing_count"
@@ -578,8 +597,13 @@ def test_basic_metrics(pytestconfig, basic_dataframe):
                 elif query == "feast_ingestion_feature_value_missing_count":
                     assert int(last_value) == 0
                 elif query == "feast_ingestion_feature_presence_min_fraction":
-                    # TODO: get from FeatureSetSpec
-                    pass
+                    assert math.isclose(
+                        float(last_value),
+                        feature_set.fields[feature_name].presence.min_fraction,
+                        abs_tol=FLOAT_TOLERANCE,
+                    )
                 elif query == "feast_ingestion_feature_presence_min_count":
-                    # TODO: get from FeatureSetSpec
-                    pass
+                    assert (
+                        int(last_value)
+                        == feature_set.fields[feature_name].presence.min_count
+                    )
