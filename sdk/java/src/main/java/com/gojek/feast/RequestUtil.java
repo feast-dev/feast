@@ -61,7 +61,7 @@ public class RequestUtil {
                   "Feature id '%s' contains invalid version. Expected format: <project>/<feature-name>:<feature-version>.",
                   featureRefString));
         }
-      } else if (projectSplit.length == 1) {
+      } else if (featureSplit.length == 1) {
         name = featureSplit[0];
       } else {
         throw new IllegalArgumentException(
