@@ -72,10 +72,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-log4j2</artifactId>
         </dependency>
-        <!--compile io.github.lognet:grpc-spring-boot-starter:3.0.2'-->
+        <!--compile io.github.lognet:grpc-spring-boot-starter:3.5.1'-->
         <dependency>
             <groupId>io.github.lognet</groupId>
             <artifactId>grpc-spring-boot-starter</artifactId>
+            <version>3.5.1</version>
         </dependency>
         <!--compile "org.springframework.boot:spring-boot-starter-data-jpa:${springBootVersion}"-->
         <dependency>
