@@ -60,7 +60,7 @@ class RequestUtilTest {
             Arrays.asList(
                 "driver_project/driver_id:1",
                 "driver_project/driver_name:1",
-                "booking_project/driver_name:1"),
+                "booking_project/driver_name"),
             Arrays.asList(
                 FeatureReference.newBuilder()
                     .setProject("driver_project")
@@ -74,7 +74,6 @@ class RequestUtilTest {
                     .build(),
                 FeatureReference.newBuilder()
                     .setProject("booking_project")
-                    .setVersion(1)
                     .setName("driver_name")
                     .build())));
   }
