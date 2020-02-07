@@ -42,7 +42,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <grpcVersion>1.17.1</grpcVersion>
+        <grpcVersion>1.25.0</grpcVersion>
         <protocVersion>3.10.0</protocVersion>
         <protobufVersion>3.10.0</protobufVersion>
         <springBootVersion>2.0.9.RELEASE</springBootVersion>
