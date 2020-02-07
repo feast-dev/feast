@@ -31,6 +31,7 @@ import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.core.StoreProto.Store.Subscription;
 import feast.ingestion.options.ImportOptions;
+import feast.ingestion.utils.CompressionUtil;
 import feast.storage.RedisProto.RedisKey;
 import feast.test.TestUtil;
 import feast.test.TestUtil.LocalKafka;
@@ -162,12 +163,10 @@ public class ImportJobTest {
             .build();
 
     ImportOptions options = PipelineOptionsFactory.create().as(ImportOptions.class);
-    options.setFeatureSetJson(
-        Collections.singletonList(
-            JsonFormat.printer().omittingInsignificantWhitespace().print(featureSet.getSpec())));
-    options.setStoreJson(
-        Collections.singletonList(
-            JsonFormat.printer().omittingInsignificantWhitespace().print(redis)));
+    JsonFormat.Printer printer =
+        JsonFormat.printer().omittingInsignificantWhitespace().printingEnumsAsInts();
+    options.setFeatureSetJson(CompressionUtil.compress(printer.print(spec)));
+    options.setStoreJson(Collections.singletonList(JsonFormat.printer().print(redis)));
     options.setProject("");
     options.setBlockOnRun(false);
 

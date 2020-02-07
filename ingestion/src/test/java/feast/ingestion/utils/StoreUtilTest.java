@@ -14,22 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.ingestion.util;
+package feast.ingestion.utils;
 
-import static feast.types.ValueProto.ValueType.Enum.BOOL;
-import static feast.types.ValueProto.ValueType.Enum.BOOL_LIST;
-import static feast.types.ValueProto.ValueType.Enum.BYTES;
-import static feast.types.ValueProto.ValueType.Enum.BYTES_LIST;
-import static feast.types.ValueProto.ValueType.Enum.DOUBLE;
-import static feast.types.ValueProto.ValueType.Enum.DOUBLE_LIST;
-import static feast.types.ValueProto.ValueType.Enum.FLOAT;
-import static feast.types.ValueProto.ValueType.Enum.FLOAT_LIST;
-import static feast.types.ValueProto.ValueType.Enum.INT32;
-import static feast.types.ValueProto.ValueType.Enum.INT32_LIST;
-import static feast.types.ValueProto.ValueType.Enum.INT64;
-import static feast.types.ValueProto.ValueType.Enum.INT64_LIST;
-import static feast.types.ValueProto.ValueType.Enum.STRING;
-import static feast.types.ValueProto.ValueType.Enum.STRING_LIST;
+import static feast.types.ValueProto.ValueType.Enum.*;
 
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Field;
@@ -40,7 +27,6 @@ import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
-import feast.ingestion.utils.StoreUtil;
 import java.util.Arrays;
 import org.junit.Assert;
 import org.junit.Test;

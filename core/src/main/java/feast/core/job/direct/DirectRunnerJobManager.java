@@ -17,9 +17,7 @@
 package feast.core.job.direct;
 
 import com.google.common.base.Strings;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import com.google.protobuf.util.JsonFormat.Printer;
 import feast.core.FeatureSetProto;
 import feast.core.StoreProto;
 import feast.core.config.FeastProperties.MetricsProperties;
@@ -29,9 +27,11 @@ import feast.core.job.Runner;
 import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
+import feast.core.util.ProtoUtil;
 import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
 import feast.ingestion.options.ImportOptions;
+import feast.ingestion.utils.CompressionUtil;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -92,17 +92,11 @@ public class DirectRunnerJobManager implements JobManager {
   }
 
   private ImportOptions getPipelineOptions(
-      List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store sink)
-      throws InvalidProtocolBufferException {
+      List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store sink) throws IOException {
     String[] args = TypeConversion.convertMapToArgs(defaultOptions);
     ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
-    Printer printer = JsonFormat.printer();
-    List<String> featureSetsJson = new ArrayList<>();
-    for (FeatureSetProto.FeatureSet featureSet : featureSets) {
-      featureSetsJson.add(printer.print(featureSet.getSpec()));
-    }
-    pipelineOptions.setFeatureSetJson(featureSetsJson);
-    pipelineOptions.setStoreJson(Collections.singletonList(printer.print(sink)));
+    pipelineOptions.setFeatureSetJson(CompressionUtil.compress(ProtoUtil.toJson(featureSets)));
+    pipelineOptions.setStoreJson(Collections.singletonList(JsonFormat.printer().print(sink)));
     pipelineOptions.setRunner(DirectRunner.class);
     pipelineOptions.setProject(""); // set to default value to satisfy validation
     if (metrics.isEnabled()) {

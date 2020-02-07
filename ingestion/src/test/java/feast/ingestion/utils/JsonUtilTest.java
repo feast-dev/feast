@@ -14,12 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.ingestion.util;
+package feast.ingestion.utils;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import feast.ingestion.utils.JsonUtil;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;

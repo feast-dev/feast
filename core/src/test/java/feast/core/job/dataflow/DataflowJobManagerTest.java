@@ -19,11 +19,7 @@ package feast.core.job.dataflow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.api.services.dataflow.Dataflow;
@@ -44,13 +40,12 @@ import feast.core.StoreProto.Store.Subscription;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.Runner;
-import feast.core.model.FeatureSet;
-import feast.core.model.Job;
-import feast.core.model.JobStatus;
-import feast.core.model.Source;
-import feast.core.model.Store;
+import feast.core.model.*;
+import feast.core.util.ProtoUtil;
 import feast.ingestion.options.ImportOptions;
+import feast.ingestion.utils.CompressionUtil;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
@@ -132,7 +127,7 @@ public class DataflowJobManagerTest {
     expectedPipelineOptions.setJobName(jobName);
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
     expectedPipelineOptions.setFeatureSetJson(
-        Lists.newArrayList(printer.print(featureSet.getSpec())));
+        CompressionUtil.compress(ProtoUtil.toJson(Collections.singletonList(featureSet))));
 
     ArgumentCaptor<ImportOptions> captor = ArgumentCaptor.forClass(ImportOptions.class);
 
@@ -170,7 +165,19 @@ public class DataflowJobManagerTest {
     // Assume the files that are staged are correct
     expectedPipelineOptions.setFilesToStage(actualPipelineOptions.getFilesToStage());
 
-    assertThat(actualPipelineOptions.toString(), equalTo(expectedPipelineOptions.toString()));
+    assertThat(
+        actualPipelineOptions.getFeatureSetJson(),
+        equalTo(expectedPipelineOptions.getFeatureSetJson()));
+    assertThat(
+        actualPipelineOptions.getDeadLetterTableSpec(),
+        equalTo(expectedPipelineOptions.getDeadLetterTableSpec()));
+    assertThat(
+        actualPipelineOptions.getStatsdHost(), equalTo(expectedPipelineOptions.getStatsdHost()));
+    assertThat(
+        actualPipelineOptions.getMetricsExporterType(),
+        equalTo(expectedPipelineOptions.getMetricsExporterType()));
+    assertThat(
+        actualPipelineOptions.getStoreJson(), equalTo(expectedPipelineOptions.getStoreJson()));
     assertThat(actual.getExtId(), equalTo(expectedExtJobId));
   }
 

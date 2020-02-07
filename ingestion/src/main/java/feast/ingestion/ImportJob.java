@@ -28,11 +28,13 @@ import feast.ingestion.transform.ValidateFeatureRows;
 import feast.ingestion.transform.WriteFailedElementToBigQuery;
 import feast.ingestion.transform.WriteToStore;
 import feast.ingestion.transform.metrics.WriteMetricsTransform;
+import feast.ingestion.utils.CompressionUtil;
 import feast.ingestion.utils.ResourceUtil;
 import feast.ingestion.utils.SpecUtil;
 import feast.ingestion.utils.StoreUtil;
 import feast.ingestion.values.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,15 +59,14 @@ public class ImportJob {
    * @param args arguments to be passed to Beam pipeline
    * @throws InvalidProtocolBufferException if options passed to the pipeline are invalid
    */
-  public static void main(String[] args) throws InvalidProtocolBufferException {
+  public static void main(String[] args) throws IOException {
     ImportOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().create().as(ImportOptions.class);
     runPipeline(options);
   }
 
   @SuppressWarnings("UnusedReturnValue")
-  public static PipelineResult runPipeline(ImportOptions options)
-      throws InvalidProtocolBufferException {
+  public static PipelineResult runPipeline(ImportOptions options) throws IOException {
     /*
      * Steps:
      * 1. Read messages from Feast Source as FeatureRow
@@ -80,8 +81,9 @@ public class ImportJob {
 
     log.info("Starting import job with settings: \n{}", options.toString());
 
-    List<FeatureSet> featureSets =
-        SpecUtil.parseFeatureSetSpecJsonList(options.getFeatureSetJson());
+    List<String> featureSetJson =
+        CompressionUtil.decompressAsListOfString(options.getFeatureSetJson());
+    List<FeatureSet> featureSets = SpecUtil.parseFeatureSetSpecJsonList(featureSetJson);
     List<Store> stores = SpecUtil.parseStoreJsonList(options.getStoreJson());
 
     for (Store store : stores) {

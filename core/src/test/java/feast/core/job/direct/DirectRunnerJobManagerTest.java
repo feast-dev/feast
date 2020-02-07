@@ -45,8 +45,11 @@ import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import feast.core.model.Source;
 import feast.core.model.Store;
+import feast.core.util.ProtoUtil;
 import feast.ingestion.options.ImportOptions;
+import feast.ingestion.utils.CompressionUtil;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.direct.DirectRunner;
@@ -122,7 +125,7 @@ public class DirectRunnerJobManagerTest {
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
     expectedPipelineOptions.setProject("");
     expectedPipelineOptions.setFeatureSetJson(
-        Lists.newArrayList(printer.print(featureSet.getSpec())));
+        CompressionUtil.compress(ProtoUtil.toJson(Collections.singletonList(featureSet))));
 
     String expectedJobId = "feast-job-0";
     ArgumentCaptor<ImportOptions> pipelineOptionsCaptor =
@@ -150,7 +153,20 @@ public class DirectRunnerJobManagerTest {
     expectedPipelineOptions.setOptionsId(
         actualPipelineOptions.getOptionsId()); // avoid comparing this value
 
-    assertThat(actualPipelineOptions.toString(), equalTo(expectedPipelineOptions.toString()));
+    assertThat(
+        actualPipelineOptions.getFeatureSetJson(),
+        equalTo(expectedPipelineOptions.getFeatureSetJson()));
+    assertThat(
+        actualPipelineOptions.getDeadLetterTableSpec(),
+        equalTo(expectedPipelineOptions.getDeadLetterTableSpec()));
+    assertThat(
+        actualPipelineOptions.getStatsdHost(), equalTo(expectedPipelineOptions.getStatsdHost()));
+    assertThat(
+        actualPipelineOptions.getMetricsExporterType(),
+        equalTo(expectedPipelineOptions.getMetricsExporterType()));
+    assertThat(
+        actualPipelineOptions.getStoreJson(), equalTo(expectedPipelineOptions.getStoreJson()));
+
     assertThat(jobStarted.getPipelineResult(), equalTo(mockPipelineResult));
     assertThat(jobStarted.getJobId(), equalTo(expectedJobId));
     assertThat(actual.getExtId(), equalTo(expectedJobId));

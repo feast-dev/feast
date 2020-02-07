@@ -14,15 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.ingestion.util;
+package feast.ingestion.utils;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.*;
 
 import com.google.protobuf.Timestamp;
-import feast.ingestion.utils.DateUtil;
 import junit.framework.TestCase;
 import org.joda.time.DateTime;
 
