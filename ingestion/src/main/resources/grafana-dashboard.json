@@ -75,13 +75,13 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "(feast_ingestion_feature_value_max - on(feast_project_name,feast_feature_name) feast_ingestion_feature_value_domain_max) > 0",
+          "expr": "(feast_ingestion_feature_value_max - on(feast_project_name,feast_feature_name,feast_store,feast_ingestion_job_name) feast_ingestion_feature_value_domain_max) > 0",
           "hide": false,
           "legendFormat": "",
           "refId": "A"
         },
         {
-          "expr": "(feast_ingestion_feature_value_domain_min - on(feast_project_name,feast_feature_name) feast_ingestion_feature_value_min) > 0",
+          "expr": "(feast_ingestion_feature_value_domain_min - on(feast_project_name,feast_feature_name,feast_store,feast_ingestion_job_name) feast_ingestion_feature_value_min) > 0",
           "hide": false,
           "legendFormat": "",
           "refId": "B"
@@ -169,7 +169,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "feast_ingestion_feature_presence_min_count - on (feast_feature_name, feast_project_name)  increase(feast_ingestion_feature_value_presence_count[5m]) > 0",
+          "expr": "feast_ingestion_feature_presence_min_count - on(feast_project_name,feast_feature_name,feast_store,feast_ingestion_job_name)  increase(feast_ingestion_feature_value_presence_count[5m]) > 0",
           "refId": "B"
         }
       ],
@@ -198,6 +198,7 @@
           "logBase": 1,
           "max": null,
           "min": null,
+          "decimals": 0,
           "show": true
         },
         {
@@ -255,7 +256,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "feast_ingestion_feature_presence_min_fraction - on (feast_feature_name, feast_project_name) increase(feast_ingestion_feature_value_presence_count[5m]) / (\nincrease(feast_ingestion_feature_value_presence_count[5m]) +\nincrease(feast_ingestion_feature_value_missing_count[5m])\n) > 0",
+          "expr": "feast_ingestion_feature_presence_min_fraction - on(feast_project_name,feast_feature_name,feast_store,feast_ingestion_job_name) increase(feast_ingestion_feature_value_presence_count[5m]) / (\nincrease(feast_ingestion_feature_value_presence_count[5m]) +\nincrease(feast_ingestion_feature_value_missing_count[5m])\n) > 0",
           "refId": "A"
         }
       ],
@@ -282,8 +283,8 @@
           "format": "short",
           "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
+          "max": 1,
+          "min": -1,
           "show": true
         },
         {
@@ -379,22 +380,22 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "feast_ingestion_feature_value_min{feast_project_name=\"[[project]]\", feast_feature_name=~\"[[feature]]\"}",
+          "expr": "feast_ingestion_feature_value_min{feast_project_name=\"[[project]]\", feast_feature_name=~\"[[feature]]\",feast_store=\"[[store]]\"}",
           "legendFormat": "min_val",
           "refId": "A"
         },
         {
-          "expr": "feast_ingestion_feature_value_max{feast_project_name=\"[[project]]\",feast_feature_name=~\"[[feature]]\"}",
+          "expr": "feast_ingestion_feature_value_max{feast_project_name=\"[[project]]\",feast_feature_name=~\"[[feature]]\",feast_store=\"[[store]]\"}",
           "legendFormat": "max_val",
           "refId": "B"
         },
         {
-          "expr": "feast_ingestion_feature_value_domain_min{feast_project_name=\"[[project]]\",feast_feature_name=~\"[[feature]]\"}",
+          "expr": "feast_ingestion_feature_value_domain_min{feast_project_name=\"[[project]]\",feast_feature_name=~\"[[feature]]\",feast_store=\"[[store]]\"}",
           "legendFormat": "min_domain",
           "refId": "C"
         },
         {
-          "expr": "feast_ingestion_feature_value_domain_max{feast_project_name=\"[[project]]\",feast_feature_name=~\"[[feature]]\"}",
+          "expr": "feast_ingestion_feature_value_domain_max{feast_project_name=\"[[project]]\",feast_feature_name=~\"[[feature]]\",feast_store=\"[[store]]\"}",
           "legendFormat": "max_domain",
           "refId": "D"
         }
@@ -495,7 +496,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "increase(feast_ingestion_feature_value_presence_count{feast_project_name=\"[[project]]\", feast_feature_name=~\"[[feature]]\"}[$__range])",
+          "expr": "increase(feast_ingestion_feature_value_presence_count{feast_project_name=\"[[project]]\", feast_feature_name=~\"[[feature]]\",feast_store=\"[[store]]\"}[$__range])",
           "instant": false,
           "interval": "",
           "intervalFactor": 1,
@@ -503,7 +504,7 @@
           "refId": "A"
         },
         {
-          "expr": "feast_ingestion_feature_presence_min_count{feast_project_name=\"[[project]]\", feast_feature_name=~\"[[feature]]\"}",
+          "expr": "feast_ingestion_feature_presence_min_count{feast_project_name=\"[[project]]\", feast_feature_name=~\"[[feature]]\",feast_store=\"[[store]]\"}",
           "legendFormat": "feature_presence_min_count",
           "refId": "B"
         }
@@ -532,7 +533,8 @@
           "label": null,
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": 0,
+          "decimals": 0,
           "show": true
         },
         {
@@ -635,8 +637,8 @@
           "format": "short",
           "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
+          "max": 1,
+          "min": 0,
           "show": true
         },
         {
@@ -737,22 +739,22 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "feast_ingestion_feature_value_min{feast_project_name=\"[[project]]\", feast_feature_name=~\"[[feature]]\"}",
+          "expr": "feast_ingestion_feature_value_min{feast_project_name=\"[[project]]\", feast_feature_name=~\"[[feature]]\",feast_store=\"[[store]]\"}",
           "legendFormat": "min_val",
           "refId": "A"
         },
         {
-          "expr": "feast_ingestion_feature_value_max{feast_project_name=\"[[project]]\",feast_feature_name=~\"[[feature]]\"}",
+          "expr": "feast_ingestion_feature_value_max{feast_project_name=\"[[project]]\",feast_feature_name=~\"[[feature]]\",feast_store=\"[[store]]\"}",
           "legendFormat": "max_val",
           "refId": "B"
         },
         {
-          "expr": "feast_ingestion_feature_value_domain_min{feast_project_name=\"[[project]]\",feast_feature_name=~\"[[feature]]\"}",
+          "expr": "feast_ingestion_feature_value_domain_min{feast_project_name=\"[[project]]\",feast_feature_name=~\"[[feature]]\",feast_store=\"[[store]]\"}",
           "legendFormat": "min_domain",
           "refId": "C"
         },
         {
-          "expr": "feast_ingestion_feature_value_domain_max{feast_project_name=\"[[project]]\",feast_feature_name=~\"[[feature]]\"}",
+          "expr": "feast_ingestion_feature_value_domain_max{feast_project_name=\"[[project]]\",feast_feature_name=~\"[[feature]]\",feast_store=\"[[store]]\"}",
           "legendFormat": "max_domain",
           "refId": "D"
         }
@@ -856,7 +858,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "increase(feast_ingestion_feature_value_presence_count{feast_project_name=\"[[project]]\", feast_feature_name=~\"[[feature]]\"}[$__range])",
+          "expr": "increase(feast_ingestion_feature_value_presence_count{feast_project_name=\"[[project]]\", feast_feature_name=~\"[[feature]]\",feast_store=\"[[store]]\"}[$__range])",
           "instant": false,
           "interval": "",
           "intervalFactor": 1,
@@ -864,7 +866,7 @@
           "refId": "A"
         },
         {
-          "expr": "feast_ingestion_feature_presence_min_count{feast_project_name=\"[[project]]\", feast_feature_name=~\"[[feature]]\"}",
+          "expr": "feast_ingestion_feature_presence_min_count{feast_project_name=\"[[project]]\", feast_feature_name=~\"[[feature]]\",feast_store=\"[[store]]\"}",
           "legendFormat": "feature_presence_min_count",
           "refId": "B"
         }
@@ -893,7 +895,8 @@
           "label": null,
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": 0,
+          "decimals": 0,
           "show": true
         },
         {
@@ -999,8 +1002,8 @@
           "format": "short",
           "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
+          "max": 1,
+          "min": 0,
           "show": true
         },
         {
@@ -1101,22 +1104,22 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "feast_ingestion_feature_value_min{feast_project_name=\"[[project]]\", feast_feature_name=~\"[[feature]]\"}",
+          "expr": "feast_ingestion_feature_value_min{feast_project_name=\"[[project]]\", feast_feature_name=~\"[[feature]]\",feast_store=\"[[store]]\"}",
           "legendFormat": "min_val",
           "refId": "A"
         },
         {
-          "expr": "feast_ingestion_feature_value_max{feast_project_name=\"[[project]]\",feast_feature_name=~\"[[feature]]\"}",
+          "expr": "feast_ingestion_feature_value_max{feast_project_name=\"[[project]]\",feast_feature_name=~\"[[feature]]\",feast_store=\"[[store]]\"}",
           "legendFormat": "max_val",
           "refId": "B"
         },
         {
-          "expr": "feast_ingestion_feature_value_domain_min{feast_project_name=\"[[project]]\",feast_feature_name=~\"[[feature]]\"}",
+          "expr": "feast_ingestion_feature_value_domain_min{feast_project_name=\"[[project]]\",feast_feature_name=~\"[[feature]]\",feast_store=\"[[store]]\"}",
           "legendFormat": "min_domain",
           "refId": "C"
         },
         {
-          "expr": "feast_ingestion_feature_value_domain_max{feast_project_name=\"[[project]]\",feast_feature_name=~\"[[feature]]\"}",
+          "expr": "feast_ingestion_feature_value_domain_max{feast_project_name=\"[[project]]\",feast_feature_name=~\"[[feature]]\",feast_store=\"[[store]]\"}",
           "legendFormat": "max_domain",
           "refId": "D"
         }
@@ -1220,7 +1223,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "increase(feast_ingestion_feature_value_presence_count{feast_project_name=\"[[project]]\", feast_feature_name=~\"[[feature]]\"}[$__range])",
+          "expr": "increase(feast_ingestion_feature_value_presence_count{feast_project_name=\"[[project]]\", feast_feature_name=~\"[[feature]]\",feast_store=\"[[store]]\"}[$__range])",
           "instant": false,
           "interval": "",
           "intervalFactor": 1,
@@ -1228,7 +1231,7 @@
           "refId": "A"
         },
         {
-          "expr": "feast_ingestion_feature_presence_min_count{feast_project_name=\"[[project]]\", feast_feature_name=~\"[[feature]]\"}",
+          "expr": "feast_ingestion_feature_presence_min_count{feast_project_name=\"[[project]]\", feast_feature_name=~\"[[feature]]\",feast_store=\"[[store]]\"}",
           "legendFormat": "feature_presence_min_count",
           "refId": "B"
         }
@@ -1257,7 +1260,8 @@
           "label": null,
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": 0,
+          "decimals": 0,
           "show": true
         },
         {
@@ -1363,8 +1367,8 @@
           "format": "short",
           "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
+          "max": 1,
+          "min": 0,
           "show": true
         },
         {
@@ -1394,7 +1398,7 @@
           "text": "project1",
           "value": "project1"
         },
-        "datasource": "Prometheus",
+        "datasource": null,
         "definition": "label_values(feast_project_name)",
         "hide": 0,
         "includeAll": false,
@@ -1423,7 +1427,7 @@
             "feature2"
           ]
         },
-        "datasource": "Prometheus",
+        "datasource": null,
         "definition": "label_values(feast_ingestion_feature_value_presence_count{feast_project_name=\"[[project]]\"},feast_feature_name)",
         "hide": 0,
         "includeAll": false,
@@ -1432,6 +1436,31 @@
         "name": "feature",
         "options": [],
         "query": "label_values(feast_ingestion_feature_value_presence_count{feast_project_name=\"[[project]]\"},feast_feature_name)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "allValue": null,
+        "current": {
+          "text": "redis",
+          "value": "redis"
+        },
+        "datasource": null,
+        "definition": "label_values(feast_store)",
+        "hide": 0,
+        "includeAll": false,
+        "label": null,
+        "multi": false,
+        "name": "store",
+        "options": [],
+        "query": "label_values(feast_store)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -1464,6 +1493,5 @@
   },
   "timezone": "",
   "title": "Feast Features Dashboard",
-  "uid": "ywufPPyWz",
-  "version": 45
+  "version": 1
 }
