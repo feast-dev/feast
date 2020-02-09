@@ -3,20 +3,30 @@ image:
   tag: v0.12.1
   pullPolicy: IfNotPresent
 
-service:
+metricsService:
+  type: ClusterIP 
+  port: 9102
   annotations: {}
   labels: {}
   clusterIP: ""
-  ## List of IP addresses at which the alertmanager service is available
-  ## Ref: https://kubernetes.io/docs/user-guide/services/#external-ips
-  ##
   externalIPs: []
   loadBalancerIP: ""
   loadBalancerSourceRanges: []
-  servicePort: 80
-  type: ClusterIP
-  metricsPort: 9102
-  statsdPort: 9125
+
+statsdService:
+  type: ClusterIP 
+  port: 9125
+  protocol: UDP
+  annotations: {}
+  labels: {}
+  clusterIP: ""
+  externalIPs: []
+  loadBalancerIP: ""
+  loadBalancerSourceRanges: []
+
+statsd_mappings.yaml:
+  defaults:
+    ttl: 60s
 
 statsdexporter:
   podAnnotations:

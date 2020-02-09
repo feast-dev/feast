@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-{{- if .Values.service.annotations }}
+{{- if .Values.metricsService.annotations }}
   annotations:
-{{ toYaml .Values.service.annotations | indent 4 }}
+{{ toYaml .Values.metricsService.annotations | indent 4 }}
 {{- end }}
   labels:
     app: {{ template "prometheus-statsd-exporter.fullname" . }}
@@ -11,41 +11,79 @@ metadata:
     component: "{{ .Chart.Name }}"
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
-{{- if .Values.service.labels }}
-{{ toYaml .Values.service.labels | indent 4 }}
+{{- if .Values.metricsService.labels }}
+{{ toYaml .Values.metricsService.labels | indent 4 }}
 {{- end }}
-  name: {{ template "prometheus-statsd-exporter.fullname" . }}
+  name: {{ template "prometheus-statsd-exporter.fullname" . }}-metrics
 spec:
-{{- if .Values.service.clusterIP }}
-  clusterIP: {{ .Values.service.clusterIP }}
+{{- if .Values.metricsService.clusterIP }}
+  clusterIP: {{ .Values.metricsService.clusterIP }}
 {{- end }}
-{{- if .Values.service.externalIPs }}
+{{- if .Values.metricsService.externalIPs }}
   externalIPs:
-{{ toYaml .Values.service.externalIPs | indent 4 }}
+{{ toYaml .Values.metricsService.externalIPs | indent 4 }}
 {{- end }}
-{{- if .Values.service.loadBalancerIP }}
-  loadBalancerIP: {{ .Values.service.loadBalancerIP }}
+{{- if .Values.metricsService.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.metricsService.loadBalancerIP }}
 {{- end }}
-{{- if .Values.service.loadBalancerSourceRanges }}
+{{- if .Values.metricsService.loadBalancerSourceRanges }}
   loadBalancerSourceRanges:
-  {{- range $cidr := .Values.service.loadBalancerSourceRanges }}
+  {{- range $cidr := .Values.metricsService.loadBalancerSourceRanges }}
     - {{ $cidr }}
   {{- end }}
 {{- end }}
   ports:
     - name: metrics
-      port: {{ .Values.service.metricsPort }}
+      port: {{ .Values.metricsService.port }}
       protocol: TCP
       targetPort: 9102
-    - name: statsd-tcp
-      port: {{ .Values.service.statsdPort }}
-      protocol: TCP
-      targetPort: 9125
-    - name: statsd-udp
-      port: {{ .Values.service.statsdPort }}
-      protocol: UDP
-      targetPort: 9125
   selector:
     app: {{ template "prometheus-statsd-exporter.name" . }}
     release: {{ .Release.Name }}
-  type: "{{ .Values.service.type }}"
+  type: "{{ .Values.metricsService.type }}"
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+{{- if .Values.statsdService.annotations }}
+  annotations:
+{{ toYaml .Values.statsdService.annotations | indent 4 }}
+{{- end }}
+  labels:
+    app: {{ template "prometheus-statsd-exporter.fullname" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    component: "{{ .Chart.Name }}"
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+{{- if .Values.statsdService.labels }}
+{{ toYaml .Values.statsdService.labels | indent 4 }}
+{{- end }}
+  name: {{ template "prometheus-statsd-exporter.fullname" . }}-statsd
+spec:
+{{- if .Values.statsdService.clusterIP }}
+  clusterIP: {{ .Values.statsdService.clusterIP }}
+{{- end }}
+{{- if .Values.statsdService.externalIPs }}
+  externalIPs:
+{{ toYaml .Values.statsdService.externalIPs | indent 4 }}
+{{- end }}
+{{- if .Values.statsdService.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.statsdService.loadBalancerIP }}
+{{- end }}
+{{- if .Values.statsdService.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+  {{- range $cidr := .Values.statsdService.loadBalancerSourceRanges }}
+    - {{ $cidr }}
+  {{- end }}
+{{- end }}
+  ports:
+    - name: statsd-udp
+      port: {{ .Values.statsdService.port }}
+      protocol: {{ .Values.statsdService.protocol }}
+      targetPort: {{ .Values.statsdService.port }}
+  selector:
+    app: {{ template "prometheus-statsd-exporter.name" . }}
+    release: {{ .Release.Name }}
+  type: "{{ .Values.statsdService.type }}"
