@@ -1,12 +1,12 @@
 dependencies:
 - name: feast-core
-  version: 0.3.2
+  version: 0.4.4
   condition: feast-core.enabled
 - name: feast-serving
   alias: feast-serving-batch
-  version: 0.3.2
+  version: 0.4.4
   condition: feast-serving-batch.enabled
 - name: feast-serving
   alias: feast-serving-online
-  version: 0.3.2
+  version: 0.4.4
   condition: feast-serving-online.enabled

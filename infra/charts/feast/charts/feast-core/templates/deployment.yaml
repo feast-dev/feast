@@ -18,6 +18,13 @@ spec:
       release: {{ .Release.Name }}
   template:
     metadata:
+      {{- if .Values.prometheus.enabled }}
+      annotations:
+      {{ $config := index .Values "application.yaml" }}
+        prometheus.io/path: /metrics
+        prometheus.io/port: "{{ $config.server.port }}"
+        prometheus.io/scrape: "true"
+      {{- end }}
       labels:
         app: {{ template "feast-core.name" . }}
         component: core
@@ -40,9 +47,9 @@ spec:
 
       containers:
       - name: {{ .Chart.Name }}
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        image: '{{ .Values.image.repository }}:{{ required "No .image.tag found. This must be provided as input."  .Values.image.tag }}'
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        
+
         volumeMounts:
         - name: {{ template "feast-core.fullname" . }}-config
           mountPath: "{{ .Values.springConfigMountPath }}"
@@ -53,31 +60,48 @@ spec:
         {{- end }}
 
         env:
+        - name: LOG_TYPE
+          value: {{ .Values.logType | quote }}
+        - name: LOG_LEVEL
+          value: {{ .Values.logLevel | quote }}
+
         {{- if .Values.postgresql.enabled }}
         - name: SPRING_DATASOURCE_USERNAME
-          value: {{ .Values.postgresql.postgresqlUsername }}
+          value: {{ .Values.postgresql.postgresqlUsername | quote }}
         - name: SPRING_DATASOURCE_PASSWORD
-          value: {{ .Values.postgresql.postgresqlPassword }}
+          value: {{ .Values.postgresql.postgresqlPassword | quote }}
         {{- end }}
 
         {{- if .Values.gcpServiceAccount.useExistingSecret }}
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: {{ .Values.gcpServiceAccount.mountPath }}/{{ .Values.gcpServiceAccount.existingSecret.key }}
         {{- end }}
+        {{- if .Values.gcpProjectId }}
+        - name: GOOGLE_CLOUD_PROJECT
+          value: {{ .Values.gcpProjectId | quote }}
+        {{- end }}
 
         command:
         - java
         {{- range .Values.jvmOptions }}
-        - {{ . }}
+        - {{ . | quote }}
         {{- end }}
-        - -jar 
-        - /opt/feast/feast-core.jar
-        - "--spring.config.location=file:{{ .Values.springConfigMountPath }}/application.yaml"
+        - -jar
+        - {{ .Values.jarPath | quote }}
+        - "--spring.config.location=file:{{ .Values.springConfigMountPath }}/"
+        {{- $profilesArray := splitList "," .Values.springConfigProfilesActive -}}
+        {{- $profilesArray = append $profilesArray (.Values.postgresql.enabled | ternary "bundled-postgresql" "") -}}
+        {{- $profilesArray = append $profilesArray (.Values.kafka.enabled | ternary "bundled-kafka" "") -}}
+        {{- $profilesArray = append $profilesArray (index .Values "prometheus-statsd-exporter" "enabled" | ternary "bundled-statsd" "") -}}
+        {{- $profilesArray = compact $profilesArray -}}
+        {{- if $profilesArray }}
+        - "--spring.profiles.active={{ join "," $profilesArray }}"
+        {{- end }}
 
         ports:
         - name: http
           containerPort: {{ .Values.service.http.targetPort }}
-        - name: grpc 
+        - name: grpc
           containerPort: {{ .Values.service.grpc.targetPort }}
 
         {{- if .Values.livenessProbe.enabled }}
@@ -103,6 +127,6 @@ spec:
           timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
           failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
         {{- end }}
-        
+
         resources:
           {{- toYaml .Values.resources | nindent 10 }}

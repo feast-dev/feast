@@ -1,12 +1,15 @@
-# postgresql configures Postgresql that is installed as part of Feast Core.
+# ============================================================
+# Bundled PostgreSQL
+# ============================================================
+
 # Refer to https://github.com/helm/charts/tree/c42002a21abf8eff839ff1d2382152bde2bbe596/stable/postgresql
 # for additional configuration.
 postgresql:
   # enabled specifies whether Postgresql should be installed as part of Feast Core.
   #
-  # Feast Core requires a database to store data such as the created FeatureSets 
+  # Feast Core requires a database to store data such as the created FeatureSets
   # and job statuses. If enabled, the database and service port specified below
-  # will override "spring.datasource.url" value in application.yaml. The 
+  # will override "spring.datasource.url" value in application.yaml. The
   # username and password will also be set as environment variables that will
   # override "spring.datasource.username/password" in application.yaml.
   enabled: true
@@ -20,12 +23,15 @@ postgresql:
     # port is the TCP port that Postgresql will listen to
     port: 5432
 
-# kafka configures Kafka that is installed as part of Feast Core.
+# ============================================================
+# Bundled Kafka
+# ============================================================
+
 # Refer to https://github.com/helm/charts/tree/c42002a21abf8eff839ff1d2382152bde2bbe596/incubator/kafka
 # for additional configuration.
 kafka:
   # enabled specifies whether Kafka should be installed as part of Feast Core.
-  # 
+  #
   # Feast Core requires a Kafka instance to be set as the default source for
   # FeatureRows. If enabled, "feast.stream" option in application.yaml will
   # be overridden by this installed Kafka configuration.
@@ -36,22 +42,38 @@ kafka:
     replicationFactor: 1
     partitions: 1
 
+
+# ============================================================
+# Bundled Prometheus StatsD Exporter
+# ============================================================
+
+prometheus-statsd-exporter:
+  enabled: false
+
+# ============================================================
+# Feast Core
+# ============================================================
+
 # replicaCount is the number of pods that will be created.
 replicaCount: 1
 
 # image configures the Docker image for Feast Core
 image:
   repository: gcr.io/kf-feast/feast-core
-  tag: 0.3.2
   pullPolicy: IfNotPresent
 
+# Add prometheus scraping annotations to the Pod metadata.
+# If enabled, you must also ensure server.port is specified under application.yaml
+prometheus:
+  enabled: false
+
 # application.yaml is the main configuration for Feast Core application.
-# 
+#
 # Feast Core is a Spring Boot app which uses this yaml configuration file.
 # Refer to https://github.com/gojek/feast/blob/79eb4ab5fa3d37102c1dca9968162a98690526ba/core/src/main/resources/application.yml
 # for a complete list and description of the configuration.
 #
-# Note that some properties defined in application.yaml may be overriden by 
+# Note that some properties defined in application.yaml may be overriden by
 # Helm under certain conditions. For example, if postgresql and kafka dependencies
 # are enabled.
 application.yaml:
@@ -97,7 +119,14 @@ application.yaml:
           host: localhost
           port: 8125
 
-# springConfigMountPath is the directory path where application.yaml will be 
+springConfigProfiles: {}
+#  db: |
+#    spring:
+#      datasource:
+#        driverClassName: org.postgresql.Driver
+#        url: jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:5432}/${DB_DATABASE:postgres}
+springConfigProfilesActive: ""
+# springConfigMountPath is the directory path where application.yaml will be
 # mounted in the container.
 springConfigMountPath: /etc/feast/feast-core
 
@@ -108,7 +137,7 @@ gcpServiceAccount:
   useExistingSecret: false
   existingSecret:
     # name is the secret name of the existing secret for the service account.
-    name: feast-gcp-service-account 
+    name: feast-gcp-service-account
     # key is the secret key of the existing secret for the service account.
     # key is normally derived from the file name of the JSON key file.
     key: key.json
@@ -116,18 +145,28 @@ gcpServiceAccount:
   # the value of "existingSecret.key" is file name of the service account file.
   mountPath: /etc/gcloud/service-accounts
 
-# jvmOptions are options that will be passed to the Java Virtual Machine (JVM) 
+# Project ID picked up by the Cloud SDK (e.g. BigQuery run against this project)
+gcpProjectId: ""
+
+# Path to Jar file in the Docker image.
+# If you are using gcr.io/kf-feast/feast-core this should not need to be changed
+jarPath: /opt/feast/feast-core.jar
+
+# jvmOptions are options that will be passed to the Java Virtual Machine (JVM)
 # running Feast Core.
-# 
+#
 # For example, it is good practice to set min and max heap size in JVM.
 # https://stackoverflow.com/questions/6902135/side-effect-for-increasing-maxpermsize-and-max-heap-size
 #
 # Refer to https://docs.oracle.com/cd/E22289_01/html/821-1274/configuring-the-default-jvm-and-java-arguments.html
 # to see other JVM options that can be set.
 #
-# jvmOptions: 
-# - -Xms1024m 
+jvmOptions: []
+# - -Xms1024m
 # - -Xmx1024m
+
+logType: JSON
+logLevel: warn
 
 livenessProbe:
   enabled: true
@@ -163,12 +202,29 @@ service:
     # nodePort:
 
 ingress:
-  enabled: false
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
-  hosts:
-  # - host: chart-example.local
-  #   port: http
+  grpc:
+    enabled: false
+    class: nginx
+    hosts: []
+    annotations: {}
+    https:
+      enabled: true
+      secretNames: {}
+    whitelist: ""
+    auth:
+      enabled: false
+  http:
+    enabled: false
+    class: nginx
+    hosts: []
+    annotations: {}
+    https:
+      enabled: true
+      secretNames: {}
+    whitelist: ""
+    auth:
+      enabled: false
+      authUrl: http://auth-server.auth-ns.svc.cluster.local/auth
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious

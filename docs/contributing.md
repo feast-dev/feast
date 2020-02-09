@@ -6,13 +6,13 @@ The following guide will help you quickly run Feast in your local machine.
 
 The main components of Feast are:
 
-* **Feast Core** handles FeatureSpec registration, starts and monitors Ingestion 
+* **Feast Core** handles FeatureSpec registration, starts and monitors Ingestion
 
   jobs and ensures that Feast internal metadata is consistent.
 
 * **Feast Ingestion** subscribes to streams of FeatureRow and writes the feature
 
-  values to registered Stores. 
+  values to registered Stores.
 
 * **Feast Serving** handles requests for features values retrieval from the end users.
 
@@ -29,13 +29,13 @@ The main components of Feast are:
 
 > **Assumptions:**
 >
-> 1. Postgres is running in "localhost:5432" and has a database called "postgres" which 
+> 1. Postgres is running in "localhost:5432" and has a database called "postgres" which
 >
->    can be accessed with credentials user "postgres" and password "password". 
+>    can be accessed with credentials user "postgres" and password "password".
 >
->    To use different database name and credentials, please update 
+>    To use different database name and credentials, please update
 >
->    "$FEAST\_HOME/core/src/main/resources/application.yml" 
+>    "$FEAST\_HOME/core/src/main/resources/application.yml"
 >
 >    or set these environment variables: DB\_HOST, DB\_USERNAME, DB\_PASSWORD.
 >
@@ -52,15 +52,15 @@ cd feast
 #### Starting Feast Core
 
 ```text
-# Please check the default configuration for Feast Core in 
+# Please check the default configuration for Feast Core in
 # "$FEAST_HOME/core/src/main/resources/application.yml" and update it accordingly.
-# 
+#
 # Start Feast Core GRPC server on localhost:6565
 mvn --projects core spring-boot:run
 
 # If Feast Core starts successfully, verify the correct Stores are registered
 # correctly, for example by using grpc_cli.
-grpc_cli call localhost:6565 GetStores ''
+grpc_cli call localhost:6565 ListStores ''
 
 # Should return something similar to the following.
 # Note that you should change BigQuery projectId and datasetId accordingly
@@ -105,7 +105,7 @@ Feast Serving requires administrators to provide an **existing** store name in F
 mvn --projects serving spring-boot:run -Dspring-boot.run.arguments='--feast.store-name=SERVING'
 
 # To verify Feast Serving starts successfully
-grpc_cli call localhost:6566 GetFeastServingType ''
+grpc_cli call localhost:6566 GetFeastServingInfo ''
 
 # Should return something similar to the following.
 type: FEAST_SERVING_TYPE_ONLINE
@@ -113,32 +113,44 @@ type: FEAST_SERVING_TYPE_ONLINE
 
 #### Registering a FeatureSet
 
+Before registering a new FeatureSet, a project is required.
+
+```text
+grpc_cli call localhost:6565 CreateProject '
+  name: "your_project_name"
+'
+```
+
 Create a new FeatureSet on Feast by sending a request to Feast Core. When a feature set is successfully registered, Feast Core will start an **ingestion** job that listens for new features in the FeatureSet. Note that Feast currently only supports source of type "KAFKA", so you must have access to a running Kafka broker to register a FeatureSet successfully.
 
 ```text
-# Example of registering a new driver feature set 
+# Example of registering a new driver feature set
 # Note the source value, it assumes that you have access to a Kafka broker
 # running on localhost:9092
 
 grpc_cli call localhost:6565 ApplyFeatureSet '
 feature_set {
-  name: "driver"
-  version: 1
+  spec {
+    project: "your_project_name"
+    name: "driver"
+    version: 1
 
-  entities {
-    name: "driver_id"
-    value_type: INT64
-  }
+    entities {
+      name: "driver_id"
+      value_type: INT64
+    }
 
-  features {
-    name: "city"
-    value_type: STRING
-  }
+    features {
+      name: "city"
+      value_type: STRING
+    }
 
-  source {
-    type: KAFKA
-    kafka_source_config {
-      bootstrap_servers: "localhost:9092"
+    source {
+      type: KAFKA
+      kafka_source_config {
+        bootstrap_servers: "localhost:9092"
+        topic: "your-kafka-topic"
+      }
     }
   }
 }
@@ -146,7 +158,20 @@ feature_set {
 
 # To check that the FeatureSet has been registered correctly.
 # You should also see logs from Feast Core of the ingestion job being started
-grpc_cli call localhost:6565 GetFeatureSets ''
+grpc_cli call localhost:6565 GetFeatureSet '
+  project: "your_project_name"
+  name: "driver"
+'
+
+or
+
+grpc_cli call localhost:6565 ListFeatureSets '
+  filter {
+    project: "your_project_name"
+    feature_set_name: "driver"
+    feature_set_version: "1"
+  }
+'
 ```
 
 #### Ingestion and Population of Feature Values
@@ -156,7 +181,7 @@ grpc_cli call localhost:6565 GetFeatureSets ''
 # and written to the registered stores.
 # Make sure the value here is the topic assigned to the feature set
 # ... producer.send("feast-driver-features" ...)
-# 
+#
 # Install Python SDK to help writing FeatureRow messages to Kafka
 cd $FEAST_HOME/sdk/python
 pip3 install -e .
@@ -194,24 +219,28 @@ timestamp.FromJsonString(
 )
 row.event_timestamp.CopyFrom(timestamp)
 
-# The format is [FEATURE_NAME]:[VERSION]
-row.feature_set = "driver:1"
+# The format is [PROJECT_NAME]/[FEATURE_NAME]:[VERSION]
+row.feature_set = "your_project_name/driver:1"
 
-producer.send("feast-driver-features", row.SerializeToString())
+producer.send("your-kafka-topic", row.SerializeToString())
 producer.flush()
 logger.info(row)
 EOF
 
 # Check that the ingested feature rows can be retrieved from Feast serving
 grpc_cli call localhost:6566 GetOnlineFeatures '
-feature_sets {
-  name: "driver"
+features {
+  project: "your_project_name"
+  name: "city"
   version: 1
+  max_age {
+    seconds: 3600
+  }
 }
-entity_dataset {
-  entity_names: "driver_id"
-  entity_dataset_rows {
-    entity_ids {
+entity_rows {
+  fields {
+    key: "driver_id"
+    value {
       int64_val: 1234
     }
   }
@@ -300,7 +329,7 @@ docker run --rm \
 
 ## Code reviews
 
-Code submission to Feast \(including submission from project maintainers\) requires review and approval. Please submit a **pull request** to initiate the code review process. We use [prow](https://github.com/kubernetes/test-infra/tree/master/prow) to manage the testing and reviewing of pull requests. Please refer to [config.yaml](../.prow/config.yaml) for details on the test jobs.
+Code submission to Feast \(including submission from project maintainers\) requires review and approval. Please submit a **pull request** to initiate the code review process. We use [prow](https://github.com/kubernetes/test-infra/tree/master/prow) to manage the testing and reviewing of pull requests. Please refer to [config.yaml](https://github.com/gojek/feast/tree/4cd928d1d3b7972b15f0c5dd29593fcedecea9f5/.prow/config.yaml) for details on the test jobs.
 
 ## Code conventions
 
