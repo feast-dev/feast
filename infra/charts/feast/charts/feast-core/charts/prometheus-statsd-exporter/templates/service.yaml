@@ -37,6 +37,9 @@ spec:
       port: {{ .Values.metricsService.port }}
       protocol: TCP
       targetPort: 9102
+{{- if (and (eq .Values.metricsService.type "NodePort") (not (empty .Values.metricsService.nodePort))) }}
+      nodePort: {{.Values.metricsService.nodePort}}
+{{ end }}
   selector:
     app: {{ template "prometheus-statsd-exporter.name" . }}
     release: {{ .Release.Name }}
@@ -79,10 +82,13 @@ spec:
   {{- end }}
 {{- end }}
   ports:
-    - name: statsd-udp
+    - name: statsd
       port: {{ .Values.statsdService.port }}
       protocol: {{ .Values.statsdService.protocol }}
       targetPort: {{ .Values.statsdService.port }}
+{{- if (and (eq .Values.statsdService.type "NodePort") (not (empty .Values.statsdService.nodePort))) }}
+      nodePort: {{.Values.statsdService.nodePort}}
+{{ end }}
   selector:
     app: {{ template "prometheus-statsd-exporter.name" . }}
     release: {{ .Release.Name }}

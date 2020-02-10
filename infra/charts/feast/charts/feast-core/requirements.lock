@@ -1,0 +1,18 @@
+dependencies:
+- name: postgresql
+  repository: https://kubernetes-charts.storage.googleapis.com
+  version: 6.5.5
+- name: kafka
+  repository: http://storage.googleapis.com/kubernetes-charts-incubator
+  version: 0.20.1
+- name: prometheus-statsd-exporter
+  repository: ""
+  version: 0.1.2
+- name: prometheus
+  repository: https://kubernetes-charts.storage.googleapis.com
+  version: 10.4.0
+- name: grafana
+  repository: https://kubernetes-charts.storage.googleapis.com
+  version: 4.6.3
+digest: sha256:ce18529b8328a9075d567b949f45e701e3691b275dbc3bcb9f7c7f4052b8fa95
+generated: "2020-02-09T12:30:30.358843813+08:00"

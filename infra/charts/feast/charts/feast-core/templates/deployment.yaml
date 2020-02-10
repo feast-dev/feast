@@ -92,7 +92,6 @@ spec:
         {{- $profilesArray := splitList "," .Values.springConfigProfilesActive -}}
         {{- $profilesArray = append $profilesArray (.Values.postgresql.enabled | ternary "bundled-postgresql" "") -}}
         {{- $profilesArray = append $profilesArray (.Values.kafka.enabled | ternary "bundled-kafka" "") -}}
-        {{- $profilesArray = append $profilesArray (index .Values "prometheus-statsd-exporter" "enabled" | ternary "bundled-statsd" "") -}}
         {{- $profilesArray = compact $profilesArray -}}
         {{- if $profilesArray }}
         - "--spring.profiles.active={{ join "," $profilesArray }}"

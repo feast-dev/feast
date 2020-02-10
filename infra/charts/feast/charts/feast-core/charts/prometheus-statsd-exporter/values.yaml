@@ -31,8 +31,8 @@ statsd_mappings.yaml:
 statsdexporter:
   podAnnotations:
 
-  extraArgs: {}
-  #  - --persistence.file=data-perst
+  extraArgs: 
+    statsd.event-flush-interval: 1000ms
 
   resources: {}
     # We usually recommend not to specify default resources and to leave this as a conscious

@@ -36,17 +36,6 @@ data:
           {{- end }}
 {{- end }}
 
-{{- if (index .Values "prometheus-statsd-exporter" "enabled" )}}
-  application-bundled-statsd.yaml: |
-    feast:
-      jobs:
-        metrics:
-          enabled: true
-          type: statsd
-          host: prometheus-statsd-exporter
-          port: 9125
-{{- end }}
-
 {{- range $name, $content := .Values.springConfigProfiles }}
   application-{{ $name }}.yaml: |
 {{- toYaml $content | nindent 4 }}

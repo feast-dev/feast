@@ -49,6 +49,52 @@ kafka:
 
 prometheus-statsd-exporter:
   enabled: false
+  statsdexporter:
+    annotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/path: /metrics
+      prometheus.io/port: "9102"
+
+# ============================================================
+# Bundled Prometheus
+# ============================================================
+
+prometheus:
+  enabled: false
+  server:
+    global:
+      scrape_interval: 15s
+  kubeStateMetrics:
+    enabled: false 
+  nodeExporter:
+    enabled: false
+  pushgateway:
+    enabled: false
+
+# ============================================================
+# Bundled Grafana
+# ============================================================
+
+grafana:
+  enabled: false
+  adminUser: admin
+  adminPassword: admin
+  dashboardProviders:
+   dashboardproviders.yaml:
+     apiVersion: 1
+     providers:
+     - name: 'feast'
+       orgId: 1
+       folder: 'feast'
+       type: file
+       disableDeletion: false
+       editable: true
+       options:
+         path: /var/lib/grafana/dashboards/feast
+  dashboards:
+    feast:
+      feast-ingestion-dashboard:
+        url: https://raw.githubusercontent.com/davidheryanto/feast/update-ingestion-metrics-for-validation/ingestion/src/main/resources/grafana-dashboard.json
 
 # ============================================================
 # Feast Core
@@ -77,6 +123,8 @@ prometheus:
 # Helm under certain conditions. For example, if postgresql and kafka dependencies
 # are enabled.
 application.yaml:
+  server:
+    port: 8080
   grpc:
     port: 6565
     enable-reflection: true
