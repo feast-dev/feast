@@ -1,3 +1,10 @@
 feast:
   jobs:
     runner: DirectRunner
+    updates:
+      timeoutSeconds: 20
+    metrics:
+      enabled: true
+      type: statsd
+      host: statsd-exporter
+      port: 9125
