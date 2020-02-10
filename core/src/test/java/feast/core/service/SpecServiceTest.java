@@ -596,7 +596,8 @@ public class SpecServiceTest {
 
     // appliedFeatureSpecs needs to be sorted because the list returned by specService may not
     // follow the order in the request
-    List<FeatureSpec> appliedFeatureSpecs = new ArrayList<>(appliedFeatureSetSpec.getFeaturesList());
+    List<FeatureSpec> appliedFeatureSpecs = new ArrayList<>(
+        appliedFeatureSetSpec.getFeaturesList());
     appliedFeatureSpecs.sort(Comparator.comparing(FeatureSpec::getName));
 
     assertEquals(appliedEntitySpecs.size(), entitySpecs.size());
@@ -609,6 +610,31 @@ public class SpecServiceTest {
     for (int i = 0; i < appliedFeatureSpecs.size(); i++) {
       assertEquals(featureSpecs.get(i), appliedFeatureSpecs.get(i));
     }
+  }
+
+  @Test
+  public void applyFeatureSetShouldUpdateExistingFeatureSetWhenConstraintsAreUpdated()
+      throws InvalidProtocolBufferException {
+    FeatureSetProto.FeatureSet existingFeatureSet = featureSets.get(2).toProto();
+    assertThat("Existing feature set has version 3",
+        existingFeatureSet.getSpec().getVersion() == 3);
+    assertThat("Existing feature set has at least 1 feature",
+        existingFeatureSet.getSpec().getFeaturesList().size() > 0);
+
+    // New FeatureSetSpec with IntDomain
+    FeatureSpec newFeatureSpec = existingFeatureSet.getSpec().getFeatures(0).toBuilder()
+        .setIntDomain(IntDomain.newBuilder().setMin(5)).build();
+    FeatureSetSpec newFeatureSetSpec = existingFeatureSet.getSpec().toBuilder()
+        .setFeatures(0, newFeatureSpec).build();
+    FeatureSetProto.FeatureSet newFeatureSet = existingFeatureSet.toBuilder()
+        .setSpec(newFeatureSetSpec).build();
+
+    ApplyFeatureSetResponse response = specService.applyFeatureSet(newFeatureSet);
+    assertEquals("Response should have CREATED status", Status.CREATED, response.getStatus());
+    assertEquals("Response FeatureSet should have new version",
+        4, response.getFeatureSet().getSpec().getVersion());
+    assertEquals("Response should have IntDomain value set",
+        5, response.getFeatureSet().getSpec().getFeatures(0).getIntDomain().getMin());
   }
 
   @Test

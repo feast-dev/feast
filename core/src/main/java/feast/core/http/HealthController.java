@@ -29,7 +29,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Web http for pod health-check endpoints. */
+/**
+ * Web http for pod health-check endpoints.
+ */
 @Slf4j
 @RestController
 public class HealthController {
@@ -64,7 +66,7 @@ public class HealthController {
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body("Unable to establish connection with DB");
     } catch (SQLException e) {
-      log.error("Unable to reach DB: {}", e);
+      log.error(String.format("Unable to reach DB: %s", e.getMessage()));
       return ResponseEntity.status(INTERNAL_SERVER_ERROR).body(e.getMessage());
     }
   }

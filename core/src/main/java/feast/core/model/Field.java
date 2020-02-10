@@ -19,6 +19,7 @@ package feast.core.model;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSpec;
 import feast.types.ValueProto.ValueType;
+import java.util.Arrays;
 import java.util.Objects;
 import javax.persistence.Column;
 import javax.persistence.Embeddable;
@@ -216,15 +217,38 @@ public class Field {
   }
 
   @Override
-  public boolean equals(Object o) {
-    if (this == o) {
+  public boolean equals(Object thatObject) {
+    if (this == thatObject) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+
+    if (thatObject == null || this.getClass() != thatObject.getClass()) {
       return false;
     }
-    Field field = (Field) o;
-    return name.equals(field.getName()) && type.equals(field.getType());
+
+    Field that = (Field) thatObject;
+
+    // "this" field is equal to "that" field if all the properties (except version) have the same values.
+    // Note that Objects.equals(a,b) handles "null" String as well.
+    return Objects.equals(this.name, that.name) &&
+        Objects.equals(this.type, that.type) &&
+        Objects.equals(this.project, that.project) &&
+        Arrays.equals(this.presence, that.presence) &&
+        Arrays.equals(this.groupPresence, that.groupPresence) &&
+        Arrays.equals(this.shape, that.shape) &&
+        Arrays.equals(this.valueCount, that.valueCount) &&
+        Objects.equals(this.domain, that.domain) &&
+        Arrays.equals(this.intDomain, that.intDomain) &&
+        Arrays.equals(this.floatDomain, that.floatDomain) &&
+        Arrays.equals(this.stringDomain, that.stringDomain) &&
+        Arrays.equals(this.boolDomain, that.boolDomain) &&
+        Arrays.equals(this.structDomain, that.structDomain) &&
+        Arrays.equals(this.naturalLanguageDomain, that.naturalLanguageDomain) &&
+        Arrays.equals(this.imageDomain, that.imageDomain) &&
+        Arrays.equals(this.midDomain, that.midDomain) &&
+        Arrays.equals(this.urlDomain, that.urlDomain) &&
+        Arrays.equals(this.timeDomain, that.timeDomain) &&
+        Arrays.equals(this.timeOfDayDomain, that.timeOfDayDomain);
   }
 
   @Override
