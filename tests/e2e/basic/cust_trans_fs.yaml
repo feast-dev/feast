@@ -8,7 +8,7 @@ spec:
       min: 1000
       max: 100005
     presence:
-      minFraction: 1.0
+      minFraction: 0.99
       minCount: 1
     shape:
       dim:
@@ -20,7 +20,7 @@ spec:
       min: 0
       max: 1
     presence:
-      minFraction: 1.0
+      minFraction: 0.90
       minCount: 1
     shape:
       dim:
@@ -28,10 +28,10 @@ spec:
   - name: total_transactions
     valueType: FLOAT
     floatDomain:
-      min: 512
-      max: 512
+      min: 500
+      max: 520
     presence:
-      minFraction: 1.0
+      minFraction: 0.90
       minCount: 1
     shape:
       dim:
