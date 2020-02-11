@@ -7,3 +7,9 @@ dependencies:
   version: 0.20.1
   repository: "@incubator"
   condition: kafka.enabled
+- name: common
+  version: 0.0.5
+  repository: "@incubator"
+- name: prometheus-statsd-exporter
+  version: 0.1.2
+  condition: prometheus-statsd-exporter.enabled

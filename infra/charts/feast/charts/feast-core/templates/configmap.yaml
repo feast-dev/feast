@@ -11,22 +11,43 @@ metadata:
     heritage: {{ .Release.Service }}
 data:
   application.yaml: |
-{{- $config := index .Values "application.yaml"}}
+{{- toYaml (index .Values "application.yaml") | nindent 4 }}
 
 {{- if .Values.postgresql.enabled }}
-{{- $datasource := dict "url" (printf "jdbc:postgresql://%s:%s/%s" (printf "%s-postgresql" .Release.Name) (.Values.postgresql.service.port | toString) (.Values.postgresql.postgresqlDatabase)) "driverClassName" "org.postgresql.Driver" }}
-{{- $newConfig := dict "spring" (dict "datasource" $datasource) }}
-{{- $config := mergeOverwrite $config $newConfig }}
+  application-bundled-postgresql.yaml: |
+    spring:
+      datasource:
+        url: {{ printf "jdbc:postgresql://%s:%s/%s" (printf "%s-postgresql" .Release.Name) (.Values.postgresql.service.port | toString) (.Values.postgresql.postgresqlDatabase) }}
+        driverClassName: org.postgresql.Driver
 {{- end }}
 
-{{- if .Values.kafka.enabled }}
-{{- $topic := index .Values.kafka.topics 0 }}
-{{- $options := dict "topic" $topic.name "replicationFactor" $topic.replicationFactor "partitions" $topic.partitions }}
-{{- if not .Values.kafka.external.enabled }}
-{{- $_ := set $options "bootstrapServers" (printf "%s:9092" (printf "%s-kafka" .Release.Name)) }}
-{{- end }}
-{{- $newConfig := dict "feast" (dict "stream" (dict "type" "kafka" "options" $options))}}
-{{- $config := mergeOverwrite $config $newConfig }}
+{{ if .Values.kafka.enabled }}
+  {{- $topic := index .Values.kafka.topics 0 }}
+  application-bundled-kafka.yaml: |
+    feast:
+      stream:
+        type: kafka
+        options:
+          topic: {{ $topic.name | quote }}
+          replicationFactor: {{ $topic.replicationFactor }}
+          partitions: {{ $topic.partitions }}
+          {{- if not .Values.kafka.external.enabled }}
+          bootstrapServers: {{ printf "%s:9092" (printf "%s-kafka" .Release.Name) }}
+          {{- end }}
 {{- end }}
 
-{{- toYaml $config | nindent 4 }}
+{{- if (index .Values "prometheus-statsd-exporter" "enabled" )}}
+  application-bundled-statsd.yaml: |
+    feast:
+      jobs:
+        metrics:
+          enabled: true
+          type: statsd
+          host: prometheus-statsd-exporter
+          port: 9125
+{{- end }}
+
+{{- range $name, $content := .Values.springConfigProfiles }}
+  application-{{ $name }}.yaml: |
+{{- toYaml $content | nindent 4 }}
+{{- end }}
