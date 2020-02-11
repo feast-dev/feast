@@ -2,12 +2,12 @@
 # Build stage 1: Builder
 # ============================================================
 
-FROM maven:3.6-jdk-8-slim as builder
+FROM maven:3.6-jdk-11-slim as builder
 ARG REVISION=dev
 COPY  . /build
 WORKDIR /build
 #
-# Setting Maven repository .m2 directory relative to /build folder gives the 
+# Setting Maven repository .m2 directory relative to /build folder gives the
 # user to optionally use cached repository when building the image by copying
 # the existing .m2 directory to $FEAST_REPO_ROOT/.m2
 #
@@ -19,10 +19,10 @@ RUN mvn --also-make --projects serving -Drevision=$REVISION \
 # Build stage 2: Production
 # ============================================================
 
-FROM openjdk:8-jre-alpine as production
+FROM openjdk:11-jre-alpine as production
 ARG REVISION=dev
 #
-# Download grpc_health_probe to run health check for Feast Serving 
+# Download grpc_health_probe to run health check for Feast Serving
 # https://kubernetes.io/blog/2018/10/01/health-checking-grpc-servers-on-kubernetes/
 #
 RUN wget -q https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.3.1/grpc_health_probe-linux-amd64 \

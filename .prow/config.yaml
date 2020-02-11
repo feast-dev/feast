@@ -66,7 +66,7 @@ presubmits:
     always_run: true
     spec:
       containers:
-      - image: maven:3.6-jdk-8
+      - image: maven:3.6-jdk-11
         command: [".prow/scripts/test-core-ingestion.sh"]
         resources:
           requests:
@@ -78,7 +78,7 @@ presubmits:
     always_run: true
     spec:
       containers:
-      - image: maven:3.6-jdk-8
+      - image: maven:3.6-jdk-11
         command: [".prow/scripts/test-serving.sh"]
 
   - name: test-java-sdk
@@ -86,7 +86,7 @@ presubmits:
     always_run: true
     spec:
       containers:
-      - image: maven:3.6-jdk-8
+      - image: maven:3.6-jdk-11
         command: [".prow/scripts/test-java-sdk.sh"]
 
   - name: test-python-sdk
@@ -110,7 +110,7 @@ presubmits:
     always_run: true
     spec:
       containers:
-      - image: maven:3.6-jdk-8
+      - image: maven:3.6-jdk-11
         command: [".prow/scripts/test-end-to-end.sh"]
         resources:
           requests:
@@ -126,7 +126,7 @@ presubmits:
         secret:
           secretName: feast-service-account
       containers:
-      - image: maven:3.6-jdk-8
+      - image: maven:3.6-jdk-11
         command: [".prow/scripts/test-end-to-end-batch.sh"]
         resources:
           requests:
@@ -167,7 +167,7 @@ postsubmits:
     decorate: true
     spec:
       containers:
-      - image: maven:3.6-jdk-8
+      - image: maven:3.6-jdk-11
         command:
         - bash
         - -c

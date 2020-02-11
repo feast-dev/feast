@@ -31,7 +31,7 @@ import java.util.Optional;
 @SuppressWarnings("UnusedReturnValue")
 public class Row {
   private Timestamp entity_timestamp;
-  private Map<String, Value> fields;
+  private HashMap<String, Value> fields;
 
   public static Row create() {
     Row row = new Row();
