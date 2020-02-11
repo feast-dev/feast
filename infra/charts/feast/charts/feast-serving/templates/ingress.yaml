@@ -1,28 +1,7 @@
-{{- if .Values.ingress.enabled -}}
-{{- $fullName := include "feast-serving.fullname" . -}}
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: {{ $fullName }}
-  labels:
-    app: {{ template "feast-serving.name" . }}
-    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
-    component: serving
-    heritage: {{ .Release.Service }}
-    release: {{ .Release.Name }}
-  annotations:
-{{- with .Values.ingress.annotations }}
-{{ toYaml . | indent 4 }}
+{{- if .Values.ingress.http.enabled -}}
+{{ template "feast.ingress" (list . "serving" "http" .Values.ingress.http) }}
 {{- end }}
-spec:
-  rules:
-  {{- range .Values.ingress.hosts }}
-    - host: {{ .host | quote }}
-      http:
-        paths:
-          - path: /
-            backend:
-              serviceName: {{ $fullName }}
-              servicePort: {{ .port | quote }}
-  {{- end }}
+---
+{{ if .Values.ingress.grpc.enabled -}}
+{{ template "feast.ingress" (list . "serving" "grpc" .Values.ingress.grpc) }}
 {{- end }}
