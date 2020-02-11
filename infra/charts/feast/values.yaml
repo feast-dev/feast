@@ -2,10 +2,12 @@
 # - Feast Core
 # - Feast Serving Online
 # - Feast Serving Batch
+# - Prometheus StatsD Exporter
 #
 # The configuration for different components can be referenced from:
 # - charts/feast-core/values.yaml
 # - charts/feast-serving/values.yaml
+# - charts/prometheus-statsd-exporter/values.yaml
 #
 # Note that "feast-serving-online" and "feast-serving-batch" are
 # aliases to "feast-serving" chart since in typical scenario two instances
@@ -235,11 +237,11 @@ feast-serving-batch:
         # enabled as well. So Feast Serving Batch will share the same
         # Redis instance to store job statuses.
         store-type: REDIS
-        store-options:
-          # Use the externally exposed redis instance deployed by Online service
-          # Please set EXTERNAL_IP to your cluster's external IP
-          host: EXTERNAL_IP
-          port: 32101
+        # Default to use the internal hostname of the redis instance deployed by Online service,
+        # otherwise use externally exposed by setting EXTERNAL_IP to your cluster's external IP
+        # store-options:
+          # host: EXTERNAL_IP
+          # port: 32101
   # store.yaml is the configuration for Feast Store.
   #
   # Refer to this link for more description:
