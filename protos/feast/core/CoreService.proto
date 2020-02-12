@@ -73,6 +73,21 @@ service CoreService {
 
     // Lists all projects active projects.
     rpc ListProjects (ListProjectsRequest) returns (ListProjectsResponse);
+
+    // Add member
+    rpc AddMember (AddMemberRequest) returns (AddMemberResponse);
+
+    // Remove member
+    rpc RemoveMember (RemoveMemberRequest) returns (RemoveMemberResponse);
+
+    // List members
+    rpc ListMembers (ListMembersRequest) returns (ListMembersResponse);
+
+    // Add role
+    rpc AddRole (AddRoleRequest) returns (AddRoleResponse);
+
+    // Remove role
+    rpc RemoveRole (RemoveRoleRequest) returns (RemoveRoleResponse);
 }
 
 // Request for a single feature set
@@ -113,7 +128,6 @@ message ListFeatureSetsRequest {
         // - my-feature-set* can be used to match all features prefixed by "my-feature-set"
         // - my-feature-set-6 can be used to select a single feature set
         string feature_set_name = 1;
-
 
         // Versions of the given feature sets that will be returned.
         // Valid options for version:
@@ -215,4 +229,84 @@ message ListProjectsRequest {
 message ListProjectsResponse {
     // List of project names (archived projects are filtered out)
     repeated string projects = 1;
+}
+
+// Request for adding member
+message AddMemberRequest {
+    // Name of user who is added to the project
+    string user = 1;
+
+    // Name of project
+    string project = 2;
+}
+
+// Response for adding member
+message AddMemberResponse {
+}
+
+// Request for removing member
+message RemoveMemberRequest {
+    // Name of user who is removed from the project
+    string user = 1;
+
+    // Name of project
+    string project = 2;
+}
+
+// Response for removing member
+message RemoveMemberResponse {
+}
+
+// Request for listing member
+message ListMembersRequest {
+    // Name of project
+    string project = 1;
+}
+
+// Response for listing member
+message ListMembersResponse {
+    // List of members in the project
+    repeated string users = 1;
+}
+
+// Request for adding role
+message AddRoleRequest {
+    enum Role {
+        // Owner role which grants full access at the project level
+        OWNER = 0;
+
+        // Viewer role which grants read access at the project level
+        VIEWER = 1;
+    }
+
+    // Name of user
+    string user = 1;
+
+    // Role determines access granted to the user
+    Role role = 2;
+}
+
+// Response for adding role
+message AddRoleResponse {
+}
+
+// Request for removing role
+message RemoveRoleRequest {
+    enum Role {
+        // Owner role which grants full access at the project level
+        OWNER = 0;
+
+        // Viewer role which grants read access at the project level
+        VIEWER = 1;
+    }
+
+    // Name of user
+    string user = 1;
+
+    // Role determines access granted to the user
+    Role role = 2;
+}
+
+// Response for removing role
+message RemoveRoleResponse {
 }
