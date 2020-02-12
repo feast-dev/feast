@@ -30,7 +30,9 @@ import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.core.StoreProto.Store.Subscription;
+import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
+import feast.ingestion.options.OptionByteConverter;
 import feast.storage.RedisProto.RedisKey;
 import feast.test.TestUtil;
 import feast.test.TestUtil.LocalKafka;
@@ -164,14 +166,12 @@ public class ImportJobTest {
             .build();
 
     ImportOptions options = PipelineOptionsFactory.create().as(ImportOptions.class);
-    JsonFormat.Printer printer =
-        JsonFormat.printer().omittingInsignificantWhitespace().printingEnumsAsInts();
-    ByteArrayOutputStream compressedStream = new ByteArrayOutputStream();
-    try (BZip2CompressorOutputStream bzip2Output =
-        new BZip2CompressorOutputStream(compressedStream)) {
-      bzip2Output.write(printer.print(spec).getBytes());
-    }
-    options.setFeatureSetJson(compressedStream.toByteArray());
+    BZip2Compressor<FeatureSetSpec> compressor = new BZip2Compressor<>(option -> {
+      JsonFormat.Printer printer =
+          JsonFormat.printer().omittingInsignificantWhitespace().printingEnumsAsInts();
+      return printer.print(option).getBytes();
+    });
+    options.setFeatureSetJson(compressor.compress(spec));
     options.setStoreJson(Collections.singletonList(JsonFormat.printer().print(redis)));
     options.setProject("");
     options.setBlockOnRun(false);
