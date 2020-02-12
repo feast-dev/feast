@@ -14,20 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.util;
+package feast.core.job.option;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto;
 import feast.core.SourceProto;
 import feast.types.ValueProto;
-import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.junit.Test;
 
-public class ProtoUtilTest {
+public class FeatureSetJsonByteConverterTest {
 
   private FeatureSetProto.FeatureSet newFeatureSet(Integer version, Integer numberOfFeatures) {
     List<FeatureSetProto.FeatureSpec> features =
@@ -60,7 +60,7 @@ public class ProtoUtilTest {
   }
 
   @Test
-  public void testConversionToJson() throws IOException {
+  public void shouldConvertFeatureSetsAsJsonStringBytes() throws InvalidProtocolBufferException {
     int nrOfFeatureSet = 1;
     int nrOfFeatures = 1;
     List<FeatureSetProto.FeatureSet> featureSets =
@@ -68,7 +68,7 @@ public class ProtoUtilTest {
             .mapToObj(i -> newFeatureSet(i, nrOfFeatures))
             .collect(Collectors.toList());
 
-    String expectedOutput =
+    String expectedOutputString =
         "{\"version\":1,"
             + "\"entities\":[{\"name\":\"entity\",\"valueType\":2}],"
             + "\"features\":[{\"name\":\"feature1\",\"valueType\":6}],"
@@ -77,6 +77,7 @@ public class ProtoUtilTest {
             + "\"kafkaSourceConfig\":{"
             + "\"bootstrapServers\":\"somebrokers:9092\","
             + "\"topic\":\"sometopic\"}}}";
-    assertEquals(expectedOutput, ProtoUtil.toJson(featureSets));
+    FeatureSetJsonByteConverter byteConverter = new FeatureSetJsonByteConverter();
+    assertEquals(expectedOutputString, new String(byteConverter.toByte(featureSets)));
   }
 }

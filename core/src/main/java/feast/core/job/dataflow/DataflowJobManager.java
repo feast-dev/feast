@@ -29,17 +29,13 @@ import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
-import feast.core.model.FeatureSet;
-import feast.core.model.Job;
-import feast.core.model.JobStatus;
-import feast.core.model.Project;
-import feast.core.model.Source;
-import feast.core.model.Store;
-import feast.core.util.ProtoUtil;
+import feast.core.job.option.FeatureSetJsonByteConverter;
+import feast.core.model.*;
 import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
+import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
-import feast.ingestion.utils.CompressionUtil;
+import feast.ingestion.options.OptionCompressor;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -225,7 +221,10 @@ public class DataflowJobManager implements JobManager {
     String[] args = TypeConversion.convertMapToArgs(defaultOptions);
     ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
 
-    pipelineOptions.setFeatureSetJson(CompressionUtil.compress(ProtoUtil.toJson(featureSets)));
+    OptionCompressor<List<FeatureSetProto.FeatureSet>> featureSetJsonCompressor =
+        new BZip2Compressor<>(new FeatureSetJsonByteConverter());
+
+    pipelineOptions.setFeatureSetJson(featureSetJsonCompressor.compress(featureSets));
     pipelineOptions.setStoreJson(Collections.singletonList(JsonFormat.printer().print(sink)));
     pipelineOptions.setProject(projectId);
     pipelineOptions.setUpdate(update);

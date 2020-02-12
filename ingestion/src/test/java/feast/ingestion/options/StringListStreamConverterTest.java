@@ -14,23 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.ingestion.utils;
+package feast.ingestion.options;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
-import java.util.List;
 import org.junit.Test;
 
-public class CompressionUtilTest {
+public class StringListStreamConverterTest {
 
   @Test
-  public void testCompressAndDecompression() throws IOException {
-    String origString = "abc\ndef";
-    byte[] compressedString = CompressionUtil.compress(origString);
-    List<String> decompressedFeatureSets =
-        CompressionUtil.decompressAsListOfString(compressedString);
-    assertEquals(Arrays.asList("abc", "def"), decompressedFeatureSets);
+  public void shouldReadStreamAsNewlineSeparatedStrings() throws IOException {
+    StringListStreamConverter converter = new StringListStreamConverter();
+    String originalString = "abc\ndef";
+    InputStream stringStream = new ByteArrayInputStream(originalString.getBytes());
+    assertEquals(Arrays.asList("abc", "def"), converter.readStream(stringStream));
   }
 }

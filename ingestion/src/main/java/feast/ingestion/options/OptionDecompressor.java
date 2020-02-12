@@ -14,23 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.core.util;
+package feast.ingestion.options;
 
-import com.google.protobuf.util.JsonFormat;
-import feast.core.FeatureSetProto;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
-public class ProtoUtil {
+public interface OptionDecompressor<T> {
 
-  public static String toJson(List<FeatureSetProto.FeatureSet> featureSets) throws IOException {
-    JsonFormat.Printer printer =
-        JsonFormat.printer().omittingInsignificantWhitespace().printingEnumsAsInts();
-    List<String> featureSetsJson = new ArrayList<>();
-    for (FeatureSetProto.FeatureSet featureSet : featureSets) {
-      featureSetsJson.add(printer.print(featureSet.getSpec()));
-    }
-    return String.join("\n", featureSetsJson);
-  }
+  /**
+   * Decompress pipeline option from byte array.
+   *
+   * @param compressed Compressed pipeline option value
+   * @return Decompressed pipeline option
+   */
+  T decompress(byte[] compressed) throws IOException;
 }

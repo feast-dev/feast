@@ -24,14 +24,15 @@ import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
+import feast.core.job.option.FeatureSetJsonByteConverter;
 import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
-import feast.core.util.ProtoUtil;
 import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
+import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
-import feast.ingestion.utils.CompressionUtil;
+import feast.ingestion.options.OptionCompressor;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -95,7 +96,11 @@ public class DirectRunnerJobManager implements JobManager {
       List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store sink) throws IOException {
     String[] args = TypeConversion.convertMapToArgs(defaultOptions);
     ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
-    pipelineOptions.setFeatureSetJson(CompressionUtil.compress(ProtoUtil.toJson(featureSets)));
+
+    OptionCompressor<List<FeatureSetProto.FeatureSet>> featureSetJsonCompressor =
+        new BZip2Compressor<>(new FeatureSetJsonByteConverter());
+
+    pipelineOptions.setFeatureSetJson(featureSetJsonCompressor.compress(featureSets));
     pipelineOptions.setStoreJson(Collections.singletonList(JsonFormat.printer().print(sink)));
     pipelineOptions.setRunner(DirectRunner.class);
     pipelineOptions.setProject(""); // set to default value to satisfy validation

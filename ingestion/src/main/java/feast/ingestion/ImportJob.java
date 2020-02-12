@@ -22,13 +22,14 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.SourceProto.Source;
 import feast.core.StoreProto.Store;
+import feast.ingestion.options.BZip2Decompressor;
 import feast.ingestion.options.ImportOptions;
+import feast.ingestion.options.StringListStreamConverter;
 import feast.ingestion.transform.ReadFromSource;
 import feast.ingestion.transform.ValidateFeatureRows;
 import feast.ingestion.transform.WriteFailedElementToBigQuery;
 import feast.ingestion.transform.WriteToStore;
 import feast.ingestion.transform.metrics.WriteMetricsTransform;
-import feast.ingestion.utils.CompressionUtil;
 import feast.ingestion.utils.ResourceUtil;
 import feast.ingestion.utils.SpecUtil;
 import feast.ingestion.utils.StoreUtil;
@@ -81,8 +82,9 @@ public class ImportJob {
 
     log.info("Starting import job with settings: \n{}", options.toString());
 
-    List<String> featureSetJson =
-        CompressionUtil.decompressAsListOfString(options.getFeatureSetJson());
+    BZip2Decompressor<List<String>> decompressor =
+        new BZip2Decompressor<>(new StringListStreamConverter());
+    List<String> featureSetJson = decompressor.decompress(options.getFeatureSetJson());
     List<FeatureSet> featureSets = SpecUtil.parseFeatureSetSpecJsonList(featureSetJson);
     List<Store> stores = SpecUtil.parseStoreJsonList(options.getStoreJson());
 

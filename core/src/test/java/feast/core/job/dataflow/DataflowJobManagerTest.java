@@ -40,13 +40,15 @@ import feast.core.StoreProto.Store.Subscription;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.Runner;
+import feast.core.job.option.FeatureSetJsonByteConverter;
 import feast.core.model.*;
-import feast.core.util.ProtoUtil;
+import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
-import feast.ingestion.utils.CompressionUtil;
+import feast.ingestion.options.OptionCompressor;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -126,8 +128,11 @@ public class DataflowJobManagerTest {
     expectedPipelineOptions.setAppName("DataflowJobManager");
     expectedPipelineOptions.setJobName(jobName);
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
+
+    OptionCompressor<List<FeatureSetProto.FeatureSet>> featureSetJsonCompressor =
+        new BZip2Compressor<>(new FeatureSetJsonByteConverter());
     expectedPipelineOptions.setFeatureSetJson(
-        CompressionUtil.compress(ProtoUtil.toJson(Collections.singletonList(featureSet))));
+        featureSetJsonCompressor.compress(Collections.singletonList(featureSet)));
 
     ArgumentCaptor<ImportOptions> captor = ArgumentCaptor.forClass(ImportOptions.class);
 

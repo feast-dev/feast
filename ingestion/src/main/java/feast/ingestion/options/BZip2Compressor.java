@@ -14,30 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.ingestion.utils;
+package feast.ingestion.options;
 
-import java.io.*;
-import java.util.List;
-import java.util.stream.Collectors;
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 
-public class CompressionUtil {
+public class BZip2Compressor<T> implements OptionCompressor<T> {
 
-  public static List<String> decompressAsListOfString(byte[] compressedFeatureSets)
-      throws IOException {
-    try (ByteArrayInputStream inputStream = new ByteArrayInputStream(compressedFeatureSets);
-        BZip2CompressorInputStream bzip2Input = new BZip2CompressorInputStream(inputStream);
-        BufferedReader reader = new BufferedReader(new InputStreamReader(bzip2Input)); ) {
-      return reader.lines().collect(Collectors.toList());
-    }
+  private final OptionByteConverter<T> byteConverter;
+
+  public BZip2Compressor(OptionByteConverter<T> byteConverter) {
+    this.byteConverter = byteConverter;
   }
-
-  public static byte[] compress(String origStr) throws IOException {
+  /**
+   * Compress pipeline option using BZip2
+   *
+   * @param option Pipeline option value
+   * @return BZip2 compressed option value
+   * @throws IOException
+   */
+  @Override
+  public byte[] compress(T option) throws IOException {
     ByteArrayOutputStream compressedStream = new ByteArrayOutputStream();
     try (BZip2CompressorOutputStream bzip2Output =
         new BZip2CompressorOutputStream(compressedStream)) {
-      bzip2Output.write(origStr.getBytes());
+      bzip2Output.write(byteConverter.toByte(option));
     }
 
     return compressedStream.toByteArray();

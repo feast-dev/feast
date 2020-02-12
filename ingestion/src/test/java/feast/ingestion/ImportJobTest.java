@@ -31,13 +31,13 @@ import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.core.StoreProto.Store.Subscription;
 import feast.ingestion.options.ImportOptions;
-import feast.ingestion.utils.CompressionUtil;
 import feast.storage.RedisProto.RedisKey;
 import feast.test.TestUtil;
 import feast.test.TestUtil.LocalKafka;
 import feast.test.TestUtil.LocalRedis;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.ValueProto.ValueType.Enum;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -49,6 +49,7 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
@@ -165,7 +166,12 @@ public class ImportJobTest {
     ImportOptions options = PipelineOptionsFactory.create().as(ImportOptions.class);
     JsonFormat.Printer printer =
         JsonFormat.printer().omittingInsignificantWhitespace().printingEnumsAsInts();
-    options.setFeatureSetJson(CompressionUtil.compress(printer.print(spec)));
+    ByteArrayOutputStream compressedStream = new ByteArrayOutputStream();
+    try (BZip2CompressorOutputStream bzip2Output =
+        new BZip2CompressorOutputStream(compressedStream)) {
+      bzip2Output.write(printer.print(spec).getBytes());
+    }
+    options.setFeatureSetJson(compressedStream.toByteArray());
     options.setStoreJson(Collections.singletonList(JsonFormat.printer().print(redis)));
     options.setProject("");
     options.setBlockOnRun(false);
