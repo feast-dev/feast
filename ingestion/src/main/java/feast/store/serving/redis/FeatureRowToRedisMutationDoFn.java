@@ -24,8 +24,9 @@ import feast.store.serving.redis.RedisCustomIO.Method;
 import feast.store.serving.redis.RedisCustomIO.RedisMutation;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.slf4j.Logger;
@@ -42,16 +43,23 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRow, RedisMutatio
 
   private RedisKey getKey(FeatureRow featureRow) {
     FeatureSet featureSet = featureSets.get(featureRow.getFeatureSet());
-    Set<String> entityNames =
+    List<String> entityNames =
         featureSet.getSpec().getEntitiesList().stream()
             .map(EntitySpec::getName)
-            .collect(Collectors.toSet());
+            .sorted()
+            .collect(Collectors.toList());
 
+    Map<String, Field> entityFields = new HashMap<>();
     Builder redisKeyBuilder = RedisKey.newBuilder().setFeatureSet(featureRow.getFeatureSet());
     for (Field field : featureRow.getFieldsList()) {
       if (entityNames.contains(field.getName())) {
-        redisKeyBuilder.addEntities(field);
+        entityFields.putIfAbsent(
+            field.getName(),
+            Field.newBuilder().setName(field.getName()).setValue(field.getValue()).build());
       }
+    }
+    for (String entityName : entityNames) {
+      redisKeyBuilder.addEntities(entityFields.get(entityName));
     }
     return redisKeyBuilder.build();
   }
