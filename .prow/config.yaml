@@ -74,6 +74,7 @@ presubmits:
             memory: "1536Mi"
     skip_branches:
     - "^v0.4-branch"
+    - "^v0.3-branch"
 
   - name: test-core-and-ingestion-java-8
     decorate: true
@@ -88,6 +89,7 @@ presubmits:
               memory: "1536Mi"
     branches:
     - "^v0.4-branch"
+    - "^v0.3-branch"
 
   - name: test-serving
     decorate: true
@@ -98,6 +100,7 @@ presubmits:
         command: [".prow/scripts/test-serving.sh"]
     skip_branches:
     - "^v0.4-branch"
+    - "^v0.3-branch"
 
   - name: test-serving-java-8
     decorate: true
@@ -108,6 +111,7 @@ presubmits:
           command: [".prow/scripts/test-serving.sh"]
     branches:
     - "^v0.4-branch"
+    - "^v0.3-branch"
 
   - name: test-java-sdk
     decorate: true
@@ -118,6 +122,7 @@ presubmits:
         command: [".prow/scripts/test-java-sdk.sh"]
     skip_branches:
     - "^v0.4-branch"
+    - "^v0.3-branch"
 
   - name: test-java-sdk-java-8
     decorate: true
@@ -128,6 +133,7 @@ presubmits:
           command: [".prow/scripts/test-java-sdk.sh"]
     branches:
     - "^v0.4-branch"
+    - "^v0.3-branch"
 
   - name: test-python-sdk
     decorate: true
@@ -158,6 +164,7 @@ presubmits:
             memory: "6144Mi"
     skip_branches:
     - "^v0.4-branch"
+    - "^v0.3-branch"
 
   - name: test-end-to-end-java-8
     decorate: true
@@ -172,6 +179,7 @@ presubmits:
               memory: "6144Mi"
     branches:
     - "^v0.4-branch"
+    - "^v0.3-branch"
 
   - name: test-end-to-end-batch
     decorate: true
@@ -193,6 +201,7 @@ presubmits:
           mountPath: "/etc/service-account"
     skip_branches:
     - "^v0.4-branch"
+    - "^v0.3-branch"
 
   - name: test-end-to-end-batch-java-8
     decorate: true
@@ -214,6 +223,7 @@ presubmits:
               mountPath: "/etc/service-account"
     branches:
     - "^v0.4-branch"
+    - "^v0.3-branch"
 
 postsubmits:
   gojek/feast:
@@ -268,6 +278,7 @@ postsubmits:
           secretName: maven-settings
     skip_branches:
     - "^v0.4-branch"
+    - "^v0.3-branch"
     branches:
     # Filter on tags with semantic versioning, prefixed with "v"
     - ^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$
@@ -298,6 +309,7 @@ postsubmits:
             secretName: maven-settings
     branches:
     - "^v0.4-branch"
+    - "^v0.3-branch"
 
   - name: publish-docker-images
     decorate: true
