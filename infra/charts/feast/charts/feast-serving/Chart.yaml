@@ -1,4 +1,4 @@
 apiVersion: v1
 description: A Helm chart for serving component of Feast
 name: feast-serving
-version: 0.3.2
+version: 0.4.4

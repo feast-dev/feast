@@ -32,10 +32,6 @@
   <build>
     <plugins>
       <plugin>
-        <groupId>org.xolstice.maven.plugins</groupId>
-        <artifactId>protobuf-maven-plugin</artifactId>
-      </plugin>
-      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <version>3.2.1</version>
@@ -91,6 +87,12 @@
 
   <dependencies>
     <dependency>
+      <groupId>dev.feast</groupId>
+      <artifactId>datatypes-java</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>org.glassfish</groupId>
       <artifactId>javax.el</artifactId>
       <version>3.0.0</version>
@@ -105,7 +107,7 @@
     <dependency>
       <groupId>org.hibernate.validator</groupId>
       <artifactId>hibernate-validator</artifactId>
-      <version>6.0.13.Final</version>
+      <version>6.1.0.Final</version>
     </dependency>
 
     <dependency>
@@ -221,15 +223,6 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-    </dependency>
-
-    <!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-jdk14 -->
-    <!-- Add slf4j API frontend binding with JUL backend -->
-    <dependency>
-      <groupId>ch.qos.logback</groupId>
-      <artifactId>logback-classic</artifactId>
-      <version>1.2.3</version>
-      <scope>runtime</scope>
     </dependency>
 
     <!-- To run actual Redis for ingestion integration test -->

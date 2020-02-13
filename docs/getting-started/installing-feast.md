@@ -268,7 +268,7 @@ bq mk ${FEAST_BIGQUERY_DATASET_ID}
 Create the service account that Feast will run as:
 
 ```bash
-gcloud iam service-accounts create ${FEAST_SERVICE_ACCOUNT_NAME}
+gcloud iam service-accounts create ${FEAST_S_ACCOUNT_NAME}
 
 gcloud projects add-iam-policy-binding ${FEAST_GCP_PROJECT_ID} \
   --member serviceAccount:${FEAST_S_ACCOUNT_NAME}@${FEAST_GCP_PROJECT_ID}.iam.gserviceaccount.com \
@@ -324,6 +324,15 @@ PING 10.123.114.11 (10.203.164.22) 56(84) bytes of data.
 64 bytes from 10.123.114.11: icmp_seq=2 ttl=63 time=51.2 ms
 ```
 
+Add firewall rules in gcloud to open up ports:
+```bash
+gcloud compute firewall-rules create feast-core-port --allow tcp:32090
+gcloud compute firewall-rules create feast-online-port --allow tcp:32091
+gcloud compute firewall-rules create feast-batch-port --allow tcp:32092
+gcloud compute firewall-rules create feast-redis-port --allow tcp:32101
+gcloud compute firewall-rules create feast-kafka-ports --allow tcp:31090-31095
+```
+
 ### 3. Set up Helm
 
 Run the following command to provide Tiller with authorization to install Feast:
@@ -377,7 +386,8 @@ cp values.yaml my-feast-values.yaml
 Update `my-feast-values.yaml` based on your GCP and GKE environment.
 
 * Required fields are paired with comments which indicate whether they need to be replaced.
-* All occurrences of `feast.example.com` should be replaced with either your domain name or the IP stored in `$FEAST_IP`.
+* All occurrences of `EXTERNAL_IP` should be replaced with either your domain name or the IP stored in `$FEAST_IP`.
+* Replace all occurrences of `YOUR_BUCKET_NAME` with your bucket name stored in `$FEAST_GCS_BUCKET`
 
 Install the Feast Helm chart:
 
@@ -421,4 +431,3 @@ feast config set serving_url ${FEAST_ONLINE_SERVING_URL}
 ```
 
 That's it! You can now start to use Feast!
-
