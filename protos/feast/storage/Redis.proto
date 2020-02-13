@@ -32,6 +32,7 @@ message RedisKey {
   string feature_set = 2;
 
   // List of fields containing entity names and their respective values
-  // contained within this feature row.
+  // contained within this feature row. The entities should be sorted 
+  // by the entity name alphabetically in ascending order.
   repeated feast.types.Field entities = 3;
 }
