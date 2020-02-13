@@ -526,17 +526,38 @@ And to format:
 $ make format-python
 ```
 
-## 4. Release process
+## 4. Versioning policy and branch workflow
 
-Feast uses [semantic versioning](https://semver.org/).
+Feast uses [semantic versioning](https://semver.org/). As such, while it is still pre-1.0 breaking changes will happen in minor versions.
+
+Contributors are encouraged to understand our branch workflow described below, for choosing where to branch when making a change (and thus the merge base for a pull request).
 
 * Major and minor releases are cut from the `master` branch.
-* Whenever a major or minor release is cut, a branch is created for that release. This is called a "release branch". For example if `0.3` is released from `master`, a branch named `v0.3-branch` is created.
-* You can create a release branch via the GitHub UI.
-* From this branch a git tag is created for the specific release, for example `v0.3.0`.
-* Tagging a release will automatically build and push the relevant artifacts to their repositories or package managers \(docker images, Python wheels, etc\).
-* A release branch should be substantially _feature complete_ with respect to the intended release. Code that is committed to `master` may be merged or cherry-picked on to a release branch, but code that is directly committed to the release branch should be solely applicable to that release \(and should not be committed back to master\).
-* In general, unless you're committing code that only applies to the release stream \(for example, temporary hotfixes, backported security fixes, or image hashes\), you should commit to `master` and then merge or cherry-pick to the release branch.
-* It is also important to update the [CHANGELOG.md](https://github.com/gojek/feast/blob/master/CHANGELOG.md) when submitting a new release. This can be in the same PR or a separate PR.
-* Finally it is also important to create a [GitHub release](https://github.com/gojek/feast/releases) which includes a summary of important changes as well as any artifacts associated with that release.
+* Each major and minor release has a long-lived maintenance branch, for example `v0.3-branch`. This is called a "release branch".
+* From the release branches, patch version releases are tagged, for example `v0.3.0`.
 
+A release branch should be substantially _feature complete_ with respect to the intended release. Code that is committed to `master` may be merged or cherry-picked on to a release branch, but code that is directly committed to a release branch should be solely applicable to that release \(and should not be committed back to master\).
+
+In general, unless you're committing code that only applies to a particular release stream \(for example, temporary hotfixes, backported security fixes, or image hashes\), you should base changes from `master` and then merge or cherry-pick to the release branch.
+
+### 4.1 Release process
+
+For Feast maintainers, these are the concrete steps for making a new release.
+
+1. For a major or minor release, create and check out the release branch for the new stream, e.g. `v0.6-branch`. For a patch version, check out the stream's release branch.
+1. In the root `pom.xml`, remove `-SNAPSHOT` from the `<revision>` property, and commit.
+1. Push. For a new release branch, open a PR against master.
+1. When CI passes, merge. (Remember _not_ to delete the new release branch).
+1. Tag the merge commit with the release version, using a `v` prefix. Push the tag.
+1. Bump to the next working version and append `-SNAPSHOT` in `pom.xml`.
+1. Update the [CHANGELOG.md]:
+
+       $ docker run -it --rm -e CHANGELOG_GITHUB_TOKEN="[Token]" -v "$(pwd)":/usr/local/src/your-app ferrarimarco/github-changelog-generator --user gojek --project feast
+   Get a token [according to the instructions][changelog gen token].
+1. Commit the POM and changelog, and open a PR.
+1. Create a [GitHub release](https://github.com/gojek/feast/releases) which includes a summary of important changes as well as any artifacts associated with the release.
+
+When a tag that matches a Semantic Version string is pushed, CI will automatically build and push the relevant artifacts to their repositories or package managers \(docker images, Python wheels, etc\). JVM artifacts are promoted from Sonatype OSSRH to Maven Central, but it sometimes takes some time for them to be available.
+
+[CHANGELOG.md]: https://github.com/gojek/feast/blob/master/CHANGELOG.md
+[changelog gen token]: https://github.com/github-changelog-generator/github-changelog-generator#github-token
