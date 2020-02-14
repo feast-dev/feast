@@ -18,6 +18,15 @@ package feast.core.grpc;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.CoreServiceGrpc.CoreServiceImplBase;
+import feast.core.CoreServiceProto;
+import feast.core.CoreServiceProto.AddRoleRequest;
+import feast.core.CoreServiceProto.AddRoleResponse;
+import feast.core.CoreServiceProto.RemoveRoleRequest;
+import feast.core.CoreServiceProto.RemoveRoleResponse;
+import feast.core.CoreServiceProto.AddMemberRequest;
+import feast.core.CoreServiceProto.AddMemberResponse;
+import feast.core.CoreServiceProto.RemoveMemberRequest;
+import feast.core.CoreServiceProto.RemoveMemberResponse;
 import feast.core.CoreServiceProto.ApplyFeatureSetRequest;
 import feast.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.core.CoreServiceProto.ArchiveProjectRequest;
@@ -30,6 +39,8 @@ import feast.core.CoreServiceProto.GetFeatureSetRequest;
 import feast.core.CoreServiceProto.GetFeatureSetResponse;
 import feast.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.core.CoreServiceProto.ListMembersRequest;
+import feast.core.CoreServiceProto.ListMembersResponse;
 import feast.core.CoreServiceProto.ListProjectsRequest;
 import feast.core.CoreServiceProto.ListProjectsResponse;
 import feast.core.CoreServiceProto.ListStoresRequest;
@@ -39,18 +50,23 @@ import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.exception.RetrievalException;
 import feast.core.grpc.interceptors.MonitoringInterceptor;
 import feast.core.model.Project;
+import feast.core.model.User;
 import feast.core.service.AccessManagementService;
 import feast.core.service.SpecService;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+
 import java.util.List;
 import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
 import org.lognet.springboot.grpc.GRpcService;
 import org.springframework.beans.factory.annotation.Autowired;
 
-/** Implementation of the feast core GRPC service. */
+/**
+ * Implementation of the feast core GRPC service.
+ */
 @Slf4j
 @GRpcService(interceptors = {MonitoringInterceptor.class})
 public class CoreServiceImpl extends CoreServiceImplBase {
@@ -188,6 +204,80 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onCompleted();
     } catch (Exception e) {
       log.error("Exception has occurred in the listProjects method: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void listMembers(
+      ListMembersRequest request, StreamObserver<ListMembersResponse> responseObserver) {
+    try {
+      List<User> members = accessManagementService.listMembers();
+      //        responseObserver.onNext(
+      //                ListMembersResponse.newBuilder()
+      //
+      // .addAllUsers(members.stream().map(User::getName).collect(Collectors.toList()))
+      //                        .build());
+      //        responseObserver.onCompleted();
+    } catch (Exception e) {
+      log.error("Exception has occurred in the listMembers method: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void addMember(
+      AddMemberRequest request, StreamObserver<AddMemberResponse> responseObserver) {
+    try {
+      accessManagementService.addMember(request.getUser());
+      responseObserver.onNext(AddMemberResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (Exception e) {
+      log.error("Exception has occurred in the addMember method: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void removeMember(
+      RemoveMemberRequest request, StreamObserver<RemoveMemberResponse> responseObserver) {
+    try {
+      accessManagementService.removeMember(request.getUser());
+      responseObserver.onNext(RemoveMemberResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (Exception e) {
+      log.error("Exception has occurred in the removeMember method: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void addRole(
+      AddRoleRequest request, StreamObserver<AddRoleResponse> responseObserver) {
+    try {
+      accessManagementService.addRole(request.getUser(), request.getRole());
+      responseObserver.onNext(AddRoleResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (Exception e) {
+      log.error("Exception has occurred in the addRole method: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void removeRole(
+      RemoveRoleRequest request, StreamObserver<RemoveRoleResponse> responseObserver) {
+    try {
+      accessManagementService.removeRole(request.getUser(), request.getRole());
+      responseObserver.onNext(RemoveRoleResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (Exception e) {
+      log.error("Exception has occurred in the removeRole method: ", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }

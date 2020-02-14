@@ -16,10 +16,14 @@
  */
 package feast.core.service;
 
+import feast.core.CoreServiceProto;
 import feast.core.dao.ProjectRepository;
 import feast.core.model.Project;
+import feast.core.model.User;
+
 import java.util.List;
 import java.util.Optional;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -74,5 +78,26 @@ public class AccessManagementService {
   @Transactional
   public List<Project> listProjects() {
     return projectRepository.findAllByArchivedIsFalse();
+  }
+
+  @Transactional
+  public List<User> listMembers() {
+    return null;
+  }
+
+  @Transactional
+  public void addMember(String user) {
+  }
+
+  @Transactional
+  public void removeMember(String user) {
+  }
+
+  @Transactional
+  public void addRole(String user, CoreServiceProto.AddRoleRequest.Role role) {
+  }
+
+  @Transactional
+  public void removeRole(String user, CoreServiceProto.RemoveRoleRequest.Role role) {
   }
 }
