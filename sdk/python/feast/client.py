@@ -43,7 +43,8 @@ from feast.core.CoreService_pb2 import (
     ArchiveProjectResponse,
     ListProjectsRequest,
     ListProjectsResponse,
-)
+    AddMemberRequest, RemoveMemberRequest, ListMembersRequest, AddRoleRequest,
+    RemoveRoleRequest)
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
 from feast.feature_set import FeatureSet, Entity
@@ -295,6 +296,85 @@ class Client:
 
         if self._project == project:
             self._project = ""
+
+    def add_member(self, user: str, project: str = None):
+        """
+        Add a user to a specific project. If project is omitted
+        the user will be added to the currently set project.
+
+        Args:
+            user: Name of the user to be added to the project
+            project: Name of the project
+        """
+
+        self._connect_core()
+        self._core_service_stub.AddMember(
+            AddMemberRequest(user=user, project=project), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+        )  # type: AddMemberResponse
+
+    def remove_member(self, user: str, project: str = None):
+        """
+        Remove a user from a specific project. If project is omitted
+        the user will be removed from the currently set project.
+
+        Args:
+            user: Name of the user to be removed from the project
+            project: Name of the project
+        """
+
+        self._connect_core()
+        self._core_service_stub.RemoveMember(
+            RemoveMemberRequest(user=user, project=project), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+        )  # type: RemoveMemberResponse
+
+    def list_members(self, project: str = None) -> List[str]:
+        """
+        Returns the list of members in a project as well as their role.
+        If project is omitted the members will be listed from the currently set project.
+
+        Args:
+            project: Name of the project
+
+        Returns: List of the members in the project
+        """
+
+        self._connect_core()
+        response = self._core_service_stub.ListMembers(
+            ListMembersRequest(project=project), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+        )  # type: ListMembersResponse
+        return list(response.users)
+
+    def add_role(self, user: str, role: str, project: str = None):
+        """
+        Add a specific role to a specific user in a specific project.
+        Project can be omitted. This will use the currently set project.
+
+        Args:
+            user: Name of the user in a specific project
+            role: Role to be added to the user
+            project: Name of the project
+        """
+
+        self._connect_core()
+        self._core_service_stub.AddRole(
+            AddRoleRequest(user=user, role=role, project=project), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+        )  # type: AddRoleResponse
+
+    def remove_role(self, user: str, role: str, project: str = None):
+        """
+        Remove a specific role from a specific user in a specific project.
+        Project can be omitted. This will use the currently set project.
+
+        Args:
+            user: Name of the user in a specific project
+            role: Role to be removed from the user
+            project: Name of the project
+        """
+
+        self._connect_core()
+        self._core_service_stub.RemoveRole(
+            RemoveRoleRequest(user=user, role=role, project=project), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+        )  # type: RemoveRoleResponse
 
     def apply(self, feature_sets: Union[List[FeatureSet], FeatureSet]):
         """

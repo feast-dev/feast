@@ -237,6 +237,57 @@ def feature_set_list():
 
     print(tabulate(table, headers=["NAME"], tablefmt="plain"))
 
+@cli.group(name="users")
+def user():
+    """
+    Create and manage users
+    """
+    pass
+
+@user.command(name="add")
+@click.argument("user", type=click.STRING)
+@click.argument("project", type=click.STRING)
+def member_add(user: str, project: str):
+    feast_client = Client(
+        core_url=feast_config.get_config_property_or_fail("core_url")
+    )  # type: Client
+    feast_client.add_member(user,project)
+
+@user.command(name="remove")
+@click.argument("user", type=click.STRING)
+@click.argument("project", type=click.STRING)
+def member_remove(user: str, project: str):
+    feast_client = Client(
+        core_url=feast_config.get_config_property_or_fail("core_url")
+    )  # type: Client
+    feast_client.remove_member(user,project)
+
+@cli.group(name="roles")
+def role():
+    """
+    Create and manage roles
+    """
+    pass
+
+@role.command(name="add")
+@click.argument("user", type=click.STRING)
+@click.argument("role", type=click.STRING)
+@click.argument("project", type=click.STRING)
+def role_add(user: str, role: str, project: str):
+    feast_client = Client(
+        core_url=feast_config.get_config_property_or_fail("core_url")
+    )  # type: Client
+    feast_client.add_role(user, role, project)
+
+@role.command(name="remove")
+@click.argument("user", type=click.STRING)
+@click.argument("role", type=click.STRING)
+@click.argument("project", type=click.STRING)
+def role_remove(user: str, role: str, project: str):
+    feast_client = Client(
+        core_url=feast_config.get_config_property_or_fail("core_url")
+    )  # type: Client
+    feast_client.remove_role(user, role, project)
 
 @cli.command()
 @click.option(
