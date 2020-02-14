@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.4.5](https://github.com/gojek/feast/tree/v0.4.5) (2020-02-14)
+
+[Full Changelog](https://github.com/gojek/feast/compare/v0.4.4...v0.4.5)
+
+**Merged pull requests:**
+- Use bzip2 compressed feature set json as pipeline option [\#466](https://github.com/gojek/feast/pull/466) ([khorshuheng](https://github.com/khorshuheng))
+- Make redis key creation more determinisitic [\#471](https://github.com/gojek/feast/pull/471) ([zhilingc](https://github.com/zhilingc))
+- Helm Chart Upgrades [\#458](https://github.com/gojek/feast/pull/458) ([Yanson](https://github.com/Yanson))
+- Exclude version from grouping [\#441](https://github.com/gojek/feast/pull/441) ([khorshuheng](https://github.com/khorshuheng))
+- Use concrete class for AvroCoder compatibility [\#465](https://github.com/gojek/feast/pull/465) ([zhilingc](https://github.com/zhilingc))
+- Fix typo in split string length check [\#464](https://github.com/gojek/feast/pull/464) ([zhilingc](https://github.com/zhilingc))
+- Update README.md and remove versions from Helm Charts [\#457](https://github.com/gojek/feast/pull/457) ([woop](https://github.com/woop))
+- Deduplicate example notebooks [\#456](https://github.com/gojek/feast/pull/456) ([woop](https://github.com/woop))
+- Allow users not to set max age for batch retrieval [\#446](https://github.com/gojek/feast/pull/446) ([zhilingc](https://github.com/zhilingc))
+
 ## [v0.4.4](https://github.com/gojek/feast/tree/v0.4.4) (2020-01-28)
 
 [Full Changelog](https://github.com/gojek/feast/compare/v0.4.3...v0.4.4)
