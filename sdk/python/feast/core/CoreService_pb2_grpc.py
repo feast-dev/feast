@@ -59,6 +59,31 @@ class CoreServiceStub(object):
         request_serializer=feast_dot_core_dot_CoreService__pb2.ListProjectsRequest.SerializeToString,
         response_deserializer=feast_dot_core_dot_CoreService__pb2.ListProjectsResponse.FromString,
         )
+    self.AddMember = channel.unary_unary(
+        '/feast.core.CoreService/AddMember',
+        request_serializer=feast_dot_core_dot_CoreService__pb2.AddMemberRequest.SerializeToString,
+        response_deserializer=feast_dot_core_dot_CoreService__pb2.AddMemberResponse.FromString,
+        )
+    self.RemoveMember = channel.unary_unary(
+        '/feast.core.CoreService/RemoveMember',
+        request_serializer=feast_dot_core_dot_CoreService__pb2.RemoveMemberRequest.SerializeToString,
+        response_deserializer=feast_dot_core_dot_CoreService__pb2.RemoveMemberResponse.FromString,
+        )
+    self.ListMembers = channel.unary_unary(
+        '/feast.core.CoreService/ListMembers',
+        request_serializer=feast_dot_core_dot_CoreService__pb2.ListMembersRequest.SerializeToString,
+        response_deserializer=feast_dot_core_dot_CoreService__pb2.ListMembersResponse.FromString,
+        )
+    self.AddRole = channel.unary_unary(
+        '/feast.core.CoreService/AddRole',
+        request_serializer=feast_dot_core_dot_CoreService__pb2.AddRoleRequest.SerializeToString,
+        response_deserializer=feast_dot_core_dot_CoreService__pb2.AddRoleResponse.FromString,
+        )
+    self.RemoveRole = channel.unary_unary(
+        '/feast.core.CoreService/RemoveRole',
+        request_serializer=feast_dot_core_dot_CoreService__pb2.RemoveRoleRequest.SerializeToString,
+        response_deserializer=feast_dot_core_dot_CoreService__pb2.RemoveRoleResponse.FromString,
+        )
 
 
 class CoreServiceServicer(object):
@@ -149,6 +174,41 @@ class CoreServiceServicer(object):
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
+  def AddMember(self, request, context):
+    """Add member
+    """
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
+  def RemoveMember(self, request, context):
+    """Remove member
+    """
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
+  def ListMembers(self, request, context):
+    """List members
+    """
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
+  def AddRole(self, request, context):
+    """Add role
+    """
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
+  def RemoveRole(self, request, context):
+    """Remove role
+    """
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
 
 def add_CoreServiceServicer_to_server(servicer, server):
   rpc_method_handlers = {
@@ -196,6 +256,31 @@ def add_CoreServiceServicer_to_server(servicer, server):
           servicer.ListProjects,
           request_deserializer=feast_dot_core_dot_CoreService__pb2.ListProjectsRequest.FromString,
           response_serializer=feast_dot_core_dot_CoreService__pb2.ListProjectsResponse.SerializeToString,
+      ),
+      'AddMember': grpc.unary_unary_rpc_method_handler(
+          servicer.AddMember,
+          request_deserializer=feast_dot_core_dot_CoreService__pb2.AddMemberRequest.FromString,
+          response_serializer=feast_dot_core_dot_CoreService__pb2.AddMemberResponse.SerializeToString,
+      ),
+      'RemoveMember': grpc.unary_unary_rpc_method_handler(
+          servicer.RemoveMember,
+          request_deserializer=feast_dot_core_dot_CoreService__pb2.RemoveMemberRequest.FromString,
+          response_serializer=feast_dot_core_dot_CoreService__pb2.RemoveMemberResponse.SerializeToString,
+      ),
+      'ListMembers': grpc.unary_unary_rpc_method_handler(
+          servicer.ListMembers,
+          request_deserializer=feast_dot_core_dot_CoreService__pb2.ListMembersRequest.FromString,
+          response_serializer=feast_dot_core_dot_CoreService__pb2.ListMembersResponse.SerializeToString,
+      ),
+      'AddRole': grpc.unary_unary_rpc_method_handler(
+          servicer.AddRole,
+          request_deserializer=feast_dot_core_dot_CoreService__pb2.AddRoleRequest.FromString,
+          response_serializer=feast_dot_core_dot_CoreService__pb2.AddRoleResponse.SerializeToString,
+      ),
+      'RemoveRole': grpc.unary_unary_rpc_method_handler(
+          servicer.RemoveRole,
+          request_deserializer=feast_dot_core_dot_CoreService__pb2.RemoveRoleRequest.FromString,
+          response_serializer=feast_dot_core_dot_CoreService__pb2.RemoveRoleResponse.SerializeToString,
       ),
   }
   generic_handler = grpc.method_handlers_generic_handler(
