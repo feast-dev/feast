@@ -71,8 +71,7 @@ public class Field {
   private byte[] timeDomain;
   private byte[] timeOfDayDomain;
 
-  public Field() {
-  }
+  public Field() {}
 
   public Field(String name, ValueType.Enum type) {
     this.name = name;

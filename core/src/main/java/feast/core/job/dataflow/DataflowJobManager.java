@@ -22,7 +22,6 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.common.base.Strings;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import com.google.protobuf.util.JsonFormat.Printer;
 import feast.core.FeatureSetProto;
 import feast.core.SourceProto;
 import feast.core.StoreProto;
@@ -30,15 +29,13 @@ import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.exception.JobExecutionException;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
-import feast.core.model.FeatureSet;
-import feast.core.model.Job;
-import feast.core.model.JobStatus;
-import feast.core.model.Project;
-import feast.core.model.Source;
-import feast.core.model.Store;
+import feast.core.job.option.FeatureSetJsonByteConverter;
+import feast.core.model.*;
 import feast.core.util.TypeConversion;
 import feast.ingestion.ImportJob;
+import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
+import feast.ingestion.options.OptionCompressor;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -93,7 +90,8 @@ public class DataflowJobManager implements JobManager {
     } catch (InvalidProtocolBufferException e) {
       log.error(e.getMessage());
       throw new IllegalArgumentException(
-          String.format("DataflowJobManager failed to START job with id '%s' because the job"
+          String.format(
+              "DataflowJobManager failed to START job with id '%s' because the job"
                   + "has an invalid spec. Please check the FeatureSet, Source and Store specs. Actual error message: %s",
               job.getId(), e.getMessage()));
     }
@@ -112,12 +110,13 @@ public class DataflowJobManager implements JobManager {
       for (FeatureSet featureSet : job.getFeatureSets()) {
         featureSetProtos.add(featureSet.toProto());
       }
-      return submitDataflowJob(job.getId(), featureSetProtos, job.getSource().toProto(),
-          job.getStore().toProto(), true);
+      return submitDataflowJob(
+          job.getId(), featureSetProtos, job.getSource().toProto(), job.getStore().toProto(), true);
     } catch (InvalidProtocolBufferException e) {
       log.error(e.getMessage());
       throw new IllegalArgumentException(
-          String.format("DataflowJobManager failed to UPDATE job with id '%s' because the job"
+          String.format(
+              "DataflowJobManager failed to UPDATE job with id '%s' because the job"
                   + "has an invalid spec. Please check the FeatureSet, Source and Store specs. Actual error message: %s",
               job.getId(), e.getMessage()));
     }
@@ -221,13 +220,12 @@ public class DataflowJobManager implements JobManager {
       throws IOException {
     String[] args = TypeConversion.convertMapToArgs(defaultOptions);
     ImportOptions pipelineOptions = PipelineOptionsFactory.fromArgs(args).as(ImportOptions.class);
-    Printer printer = JsonFormat.printer();
-    List<String> featureSetsJson = new ArrayList<>();
-    for (FeatureSetProto.FeatureSet featureSet : featureSets) {
-      featureSetsJson.add(printer.print(featureSet.getSpec()));
-    }
-    pipelineOptions.setFeatureSetJson(featureSetsJson);
-    pipelineOptions.setStoreJson(Collections.singletonList(printer.print(sink)));
+
+    OptionCompressor<List<FeatureSetProto.FeatureSet>> featureSetJsonCompressor =
+        new BZip2Compressor<>(new FeatureSetJsonByteConverter());
+
+    pipelineOptions.setFeatureSetJson(featureSetJsonCompressor.compress(featureSets));
+    pipelineOptions.setStoreJson(Collections.singletonList(JsonFormat.printer().print(sink)));
     pipelineOptions.setProject(projectId);
     pipelineOptions.setUpdate(update);
     pipelineOptions.setRunner(DataflowRunner.class);

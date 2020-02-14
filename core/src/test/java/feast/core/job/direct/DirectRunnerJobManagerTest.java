@@ -40,14 +40,19 @@ import feast.core.StoreProto.Store.StoreType;
 import feast.core.StoreProto.Store.Subscription;
 import feast.core.config.FeastProperties.MetricsProperties;
 import feast.core.job.Runner;
+import feast.core.job.option.FeatureSetJsonByteConverter;
 import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import feast.core.model.Source;
 import feast.core.model.Store;
+import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
+import feast.ingestion.options.OptionCompressor;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.PipelineResult;
@@ -121,8 +126,11 @@ public class DirectRunnerJobManagerTest {
     expectedPipelineOptions.setProject("");
     expectedPipelineOptions.setStoreJson(Lists.newArrayList(printer.print(store)));
     expectedPipelineOptions.setProject("");
+
+    OptionCompressor<List<FeatureSetProto.FeatureSet>> featureSetJsonCompressor =
+        new BZip2Compressor<>(new FeatureSetJsonByteConverter());
     expectedPipelineOptions.setFeatureSetJson(
-        Lists.newArrayList(printer.print(featureSet.getSpec())));
+        featureSetJsonCompressor.compress(Collections.singletonList(featureSet)));
 
     String expectedJobId = "feast-job-0";
     ArgumentCaptor<ImportOptions> pipelineOptionsCaptor =
@@ -150,7 +158,20 @@ public class DirectRunnerJobManagerTest {
     expectedPipelineOptions.setOptionsId(
         actualPipelineOptions.getOptionsId()); // avoid comparing this value
 
-    assertThat(actualPipelineOptions.toString(), equalTo(expectedPipelineOptions.toString()));
+    assertThat(
+        actualPipelineOptions.getFeatureSetJson(),
+        equalTo(expectedPipelineOptions.getFeatureSetJson()));
+    assertThat(
+        actualPipelineOptions.getDeadLetterTableSpec(),
+        equalTo(expectedPipelineOptions.getDeadLetterTableSpec()));
+    assertThat(
+        actualPipelineOptions.getStatsdHost(), equalTo(expectedPipelineOptions.getStatsdHost()));
+    assertThat(
+        actualPipelineOptions.getMetricsExporterType(),
+        equalTo(expectedPipelineOptions.getMetricsExporterType()));
+    assertThat(
+        actualPipelineOptions.getStoreJson(), equalTo(expectedPipelineOptions.getStoreJson()));
+
     assertThat(jobStarted.getPipelineResult(), equalTo(mockPipelineResult));
     assertThat(jobStarted.getJobId(), equalTo(expectedJobId));
     assertThat(actual.getExtId(), equalTo(expectedJobId));
