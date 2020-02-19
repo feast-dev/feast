@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.core',
   syntax='proto3',
   serialized_options=b'\n\nfeast.coreB\020CoreServiceProtoZ/github.com/gojek/feast/sdk/go/protos/feast/core',
-  serialized_pb=b'\n\x1c\x66\x65\x61st/core/CoreService.proto\x12\nfeast.core\x1a\x1b\x66\x65\x61st/core/FeatureSet.proto\x1a\x16\x66\x65\x61st/core/Store.proto\"F\n\x14GetFeatureSetRequest\x12\x0f\n\x07project\x18\x03 \x01(\t\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\x05\"D\n\x15GetFeatureSetResponse\x12+\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x16.feast.core.FeatureSet\"\xa5\x01\n\x16ListFeatureSetsRequest\x12\x39\n\x06\x66ilter\x18\x01 \x01(\x0b\x32).feast.core.ListFeatureSetsRequest.Filter\x1aP\n\x06\x46ilter\x12\x0f\n\x07project\x18\x03 \x01(\t\x12\x18\n\x10\x66\x65\x61ture_set_name\x18\x01 \x01(\t\x12\x1b\n\x13\x66\x65\x61ture_set_version\x18\x02 \x01(\t\"G\n\x17ListFeatureSetsResponse\x12,\n\x0c\x66\x65\x61ture_sets\x18\x01 \x03(\x0b\x32\x16.feast.core.FeatureSet\"a\n\x11ListStoresRequest\x12\x34\n\x06\x66ilter\x18\x01 \x01(\x0b\x32$.feast.core.ListStoresRequest.Filter\x1a\x16\n\x06\x46ilter\x12\x0c\n\x04name\x18\x01 \x01(\t\"6\n\x12ListStoresResponse\x12 \n\x05store\x18\x01 \x03(\x0b\x32\x11.feast.core.Store\"E\n\x16\x41pplyFeatureSetRequest\x12+\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x16.feast.core.FeatureSet\"\xb3\x01\n\x17\x41pplyFeatureSetResponse\x12+\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x16.feast.core.FeatureSet\x12:\n\x06status\x18\x02 \x01(\x0e\x32*.feast.core.ApplyFeatureSetResponse.Status\"/\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0b\n\x07\x43REATED\x10\x01\x12\t\n\x05\x45RROR\x10\x02\"\x1c\n\x1aGetFeastCoreVersionRequest\".\n\x1bGetFeastCoreVersionResponse\x12\x0f\n\x07version\x18\x01 \x01(\t\"6\n\x12UpdateStoreRequest\x12 \n\x05store\x18\x01 \x01(\x0b\x32\x11.feast.core.Store\"\x95\x01\n\x13UpdateStoreResponse\x12 \n\x05store\x18\x01 \x01(\x0b\x32\x11.feast.core.Store\x12\x36\n\x06status\x18\x02 \x01(\x0e\x32&.feast.core.UpdateStoreResponse.Status\"$\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0b\n\x07UPDATED\x10\x01\"$\n\x14\x43reateProjectRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x17\n\x15\x43reateProjectResponse\"%\n\x15\x41rchiveProjectRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x18\n\x16\x41rchiveProjectResponse\"\x15\n\x13ListProjectsRequest\"(\n\x14ListProjectsResponse\x12\x10\n\x08projects\x18\x01 \x03(\t\"1\n\x10\x41\x64\x64MemberRequest\x12\x0c\n\x04user\x18\x01 \x01(\t\x12\x0f\n\x07project\x18\x02 \x01(\t\"\x13\n\x11\x41\x64\x64MemberResponse\"4\n\x13RemoveMemberRequest\x12\x0c\n\x04user\x18\x01 \x01(\t\x12\x0f\n\x07project\x18\x02 \x01(\t\"\x16\n\x14RemoveMemberResponse\"%\n\x12ListMembersRequest\x12\x0f\n\x07project\x18\x01 \x01(\t\"$\n\x13ListMembersResponse\x12\r\n\x05users\x18\x01 \x03(\t\"l\n\x0e\x41\x64\x64RoleRequest\x12\x0c\n\x04user\x18\x01 \x01(\t\x12-\n\x04role\x18\x02 \x01(\x0e\x32\x1f.feast.core.AddRoleRequest.Role\"\x1d\n\x04Role\x12\t\n\x05OWNER\x10\x00\x12\n\n\x06VIEWER\x10\x01\"\x11\n\x0f\x41\x64\x64RoleResponse\"r\n\x11RemoveRoleRequest\x12\x0c\n\x04user\x18\x01 \x01(\t\x12\x30\n\x04role\x18\x02 \x01(\x0e\x32\".feast.core.RemoveRoleRequest.Role\"\x1d\n\x04Role\x12\t\n\x05OWNER\x10\x00\x12\n\n\x06VIEWER\x10\x01\"\x14\n\x12RemoveRoleResponse2\xa0\t\n\x0b\x43oreService\x12\x66\n\x13GetFeastCoreVersion\x12&.feast.core.GetFeastCoreVersionRequest\x1a\'.feast.core.GetFeastCoreVersionResponse\x12T\n\rGetFeatureSet\x12 .feast.core.GetFeatureSetRequest\x1a!.feast.core.GetFeatureSetResponse\x12Z\n\x0fListFeatureSets\x12\".feast.core.ListFeatureSetsRequest\x1a#.feast.core.ListFeatureSetsResponse\x12K\n\nListStores\x12\x1d.feast.core.ListStoresRequest\x1a\x1e.feast.core.ListStoresResponse\x12Z\n\x0f\x41pplyFeatureSet\x12\".feast.core.ApplyFeatureSetRequest\x1a#.feast.core.ApplyFeatureSetResponse\x12N\n\x0bUpdateStore\x12\x1e.feast.core.UpdateStoreRequest\x1a\x1f.feast.core.UpdateStoreResponse\x12T\n\rCreateProject\x12 .feast.core.CreateProjectRequest\x1a!.feast.core.CreateProjectResponse\x12W\n\x0e\x41rchiveProject\x12!.feast.core.ArchiveProjectRequest\x1a\".feast.core.ArchiveProjectResponse\x12Q\n\x0cListProjects\x12\x1f.feast.core.ListProjectsRequest\x1a .feast.core.ListProjectsResponse\x12H\n\tAddMember\x12\x1c.feast.core.AddMemberRequest\x1a\x1d.feast.core.AddMemberResponse\x12Q\n\x0cRemoveMember\x12\x1f.feast.core.RemoveMemberRequest\x1a .feast.core.RemoveMemberResponse\x12N\n\x0bListMembers\x12\x1e.feast.core.ListMembersRequest\x1a\x1f.feast.core.ListMembersResponse\x12\x42\n\x07\x41\x64\x64Role\x12\x1a.feast.core.AddRoleRequest\x1a\x1b.feast.core.AddRoleResponse\x12K\n\nRemoveRole\x12\x1d.feast.core.RemoveRoleRequest\x1a\x1e.feast.core.RemoveRoleResponseBO\n\nfeast.coreB\x10\x43oreServiceProtoZ/github.com/gojek/feast/sdk/go/protos/feast/coreb\x06proto3'
+  serialized_pb=b'\n\x1c\x66\x65\x61st/core/CoreService.proto\x12\nfeast.core\x1a\x1b\x66\x65\x61st/core/FeatureSet.proto\x1a\x16\x66\x65\x61st/core/Store.proto\"F\n\x14GetFeatureSetRequest\x12\x0f\n\x07project\x18\x03 \x01(\t\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\x05\"D\n\x15GetFeatureSetResponse\x12+\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x16.feast.core.FeatureSet\"\xa5\x01\n\x16ListFeatureSetsRequest\x12\x39\n\x06\x66ilter\x18\x01 \x01(\x0b\x32).feast.core.ListFeatureSetsRequest.Filter\x1aP\n\x06\x46ilter\x12\x0f\n\x07project\x18\x03 \x01(\t\x12\x18\n\x10\x66\x65\x61ture_set_name\x18\x01 \x01(\t\x12\x1b\n\x13\x66\x65\x61ture_set_version\x18\x02 \x01(\t\"G\n\x17ListFeatureSetsResponse\x12,\n\x0c\x66\x65\x61ture_sets\x18\x01 \x03(\x0b\x32\x16.feast.core.FeatureSet\"a\n\x11ListStoresRequest\x12\x34\n\x06\x66ilter\x18\x01 \x01(\x0b\x32$.feast.core.ListStoresRequest.Filter\x1a\x16\n\x06\x46ilter\x12\x0c\n\x04name\x18\x01 \x01(\t\"6\n\x12ListStoresResponse\x12 \n\x05store\x18\x01 \x03(\x0b\x32\x11.feast.core.Store\"E\n\x16\x41pplyFeatureSetRequest\x12+\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x16.feast.core.FeatureSet\"\xb3\x01\n\x17\x41pplyFeatureSetResponse\x12+\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x16.feast.core.FeatureSet\x12:\n\x06status\x18\x02 \x01(\x0e\x32*.feast.core.ApplyFeatureSetResponse.Status\"/\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0b\n\x07\x43REATED\x10\x01\x12\t\n\x05\x45RROR\x10\x02\"\x1c\n\x1aGetFeastCoreVersionRequest\".\n\x1bGetFeastCoreVersionResponse\x12\x0f\n\x07version\x18\x01 \x01(\t\"6\n\x12UpdateStoreRequest\x12 \n\x05store\x18\x01 \x01(\x0b\x32\x11.feast.core.Store\"\x95\x01\n\x13UpdateStoreResponse\x12 \n\x05store\x18\x01 \x01(\x0b\x32\x11.feast.core.Store\x12\x36\n\x06status\x18\x02 \x01(\x0e\x32&.feast.core.UpdateStoreResponse.Status\"$\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0b\n\x07UPDATED\x10\x01\"$\n\x14\x43reateProjectRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x17\n\x15\x43reateProjectResponse\"%\n\x15\x41rchiveProjectRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x18\n\x16\x41rchiveProjectResponse\"\x15\n\x13ListProjectsRequest\"(\n\x14ListProjectsResponse\x12\x10\n\x08projects\x18\x01 \x03(\t\"1\n\x10\x41\x64\x64MemberRequest\x12\x0c\n\x04user\x18\x01 \x01(\t\x12\x0f\n\x07project\x18\x02 \x01(\t\"\x13\n\x11\x41\x64\x64MemberResponse\"4\n\x13RemoveMemberRequest\x12\x0c\n\x04user\x18\x01 \x01(\t\x12\x0f\n\x07project\x18\x02 \x01(\t\"\x16\n\x14RemoveMemberResponse\"%\n\x12ListMembersRequest\x12\x0f\n\x07project\x18\x01 \x01(\t\"$\n\x13ListMembersResponse\x12\r\n\x05users\x18\x01 \x03(\t2\x8f\x08\n\x0b\x43oreService\x12\x66\n\x13GetFeastCoreVersion\x12&.feast.core.GetFeastCoreVersionRequest\x1a\'.feast.core.GetFeastCoreVersionResponse\x12T\n\rGetFeatureSet\x12 .feast.core.GetFeatureSetRequest\x1a!.feast.core.GetFeatureSetResponse\x12Z\n\x0fListFeatureSets\x12\".feast.core.ListFeatureSetsRequest\x1a#.feast.core.ListFeatureSetsResponse\x12K\n\nListStores\x12\x1d.feast.core.ListStoresRequest\x1a\x1e.feast.core.ListStoresResponse\x12Z\n\x0f\x41pplyFeatureSet\x12\".feast.core.ApplyFeatureSetRequest\x1a#.feast.core.ApplyFeatureSetResponse\x12N\n\x0bUpdateStore\x12\x1e.feast.core.UpdateStoreRequest\x1a\x1f.feast.core.UpdateStoreResponse\x12T\n\rCreateProject\x12 .feast.core.CreateProjectRequest\x1a!.feast.core.CreateProjectResponse\x12W\n\x0e\x41rchiveProject\x12!.feast.core.ArchiveProjectRequest\x1a\".feast.core.ArchiveProjectResponse\x12Q\n\x0cListProjects\x12\x1f.feast.core.ListProjectsRequest\x1a .feast.core.ListProjectsResponse\x12H\n\tAddMember\x12\x1c.feast.core.AddMemberRequest\x1a\x1d.feast.core.AddMemberResponse\x12Q\n\x0cRemoveMember\x12\x1f.feast.core.RemoveMemberRequest\x1a .feast.core.RemoveMemberResponse\x12N\n\x0bListMembers\x12\x1e.feast.core.ListMembersRequest\x1a\x1f.feast.core.ListMembersResponseBO\n\nfeast.coreB\x10\x43oreServiceProtoZ/github.com/gojek/feast/sdk/go/protos/feast/coreb\x06proto3'
   ,
   dependencies=[feast_dot_core_dot_FeatureSet__pb2.DESCRIPTOR,feast_dot_core_dot_Store__pb2.DESCRIPTOR,])
 
@@ -73,50 +73,6 @@ _UPDATESTORERESPONSE_STATUS = _descriptor.EnumDescriptor(
   serialized_end=1172,
 )
 _sym_db.RegisterEnumDescriptor(_UPDATESTORERESPONSE_STATUS)
-
-_ADDROLEREQUEST_ROLE = _descriptor.EnumDescriptor(
-  name='Role',
-  full_name='feast.core.AddRoleRequest.Role',
-  filename=None,
-  file=DESCRIPTOR,
-  values=[
-    _descriptor.EnumValueDescriptor(
-      name='OWNER', index=0, number=0,
-      serialized_options=None,
-      type=None),
-    _descriptor.EnumValueDescriptor(
-      name='VIEWER', index=1, number=1,
-      serialized_options=None,
-      type=None),
-  ],
-  containing_type=None,
-  serialized_options=None,
-  serialized_start=1673,
-  serialized_end=1702,
-)
-_sym_db.RegisterEnumDescriptor(_ADDROLEREQUEST_ROLE)
-
-_REMOVEROLEREQUEST_ROLE = _descriptor.EnumDescriptor(
-  name='Role',
-  full_name='feast.core.RemoveRoleRequest.Role',
-  filename=None,
-  file=DESCRIPTOR,
-  values=[
-    _descriptor.EnumValueDescriptor(
-      name='OWNER', index=0, number=0,
-      serialized_options=None,
-      type=None),
-    _descriptor.EnumValueDescriptor(
-      name='VIEWER', index=1, number=1,
-      serialized_options=None,
-      type=None),
-  ],
-  containing_type=None,
-  serialized_options=None,
-  serialized_start=1673,
-  serialized_end=1702,
-)
-_sym_db.RegisterEnumDescriptor(_REMOVEROLEREQUEST_ROLE)
 
 
 _GETFEATURESETREQUEST = _descriptor.Descriptor(
@@ -938,132 +894,6 @@ _LISTMEMBERSRESPONSE = _descriptor.Descriptor(
   serialized_end=1592,
 )
 
-
-_ADDROLEREQUEST = _descriptor.Descriptor(
-  name='AddRoleRequest',
-  full_name='feast.core.AddRoleRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='user', full_name='feast.core.AddRoleRequest.user', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='role', full_name='feast.core.AddRoleRequest.role', index=1,
-      number=2, type=14, cpp_type=8, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-    _ADDROLEREQUEST_ROLE,
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1594,
-  serialized_end=1702,
-)
-
-
-_ADDROLERESPONSE = _descriptor.Descriptor(
-  name='AddRoleResponse',
-  full_name='feast.core.AddRoleResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1704,
-  serialized_end=1721,
-)
-
-
-_REMOVEROLEREQUEST = _descriptor.Descriptor(
-  name='RemoveRoleRequest',
-  full_name='feast.core.RemoveRoleRequest',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='user', full_name='feast.core.RemoveRoleRequest.user', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='role', full_name='feast.core.RemoveRoleRequest.role', index=1,
-      number=2, type=14, cpp_type=8, label=1,
-      has_default_value=False, default_value=0,
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-    _REMOVEROLEREQUEST_ROLE,
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1723,
-  serialized_end=1837,
-)
-
-
-_REMOVEROLERESPONSE = _descriptor.Descriptor(
-  name='RemoveRoleResponse',
-  full_name='feast.core.RemoveRoleResponse',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=1839,
-  serialized_end=1859,
-)
-
 _GETFEATURESETRESPONSE.fields_by_name['feature_set'].message_type = feast_dot_core_dot_FeatureSet__pb2._FEATURESET
 _LISTFEATURESETSREQUEST_FILTER.containing_type = _LISTFEATURESETSREQUEST
 _LISTFEATURESETSREQUEST.fields_by_name['filter'].message_type = _LISTFEATURESETSREQUEST_FILTER
@@ -1079,10 +909,6 @@ _UPDATESTOREREQUEST.fields_by_name['store'].message_type = feast_dot_core_dot_St
 _UPDATESTORERESPONSE.fields_by_name['store'].message_type = feast_dot_core_dot_Store__pb2._STORE
 _UPDATESTORERESPONSE.fields_by_name['status'].enum_type = _UPDATESTORERESPONSE_STATUS
 _UPDATESTORERESPONSE_STATUS.containing_type = _UPDATESTORERESPONSE
-_ADDROLEREQUEST.fields_by_name['role'].enum_type = _ADDROLEREQUEST_ROLE
-_ADDROLEREQUEST_ROLE.containing_type = _ADDROLEREQUEST
-_REMOVEROLEREQUEST.fields_by_name['role'].enum_type = _REMOVEROLEREQUEST_ROLE
-_REMOVEROLEREQUEST_ROLE.containing_type = _REMOVEROLEREQUEST
 DESCRIPTOR.message_types_by_name['GetFeatureSetRequest'] = _GETFEATURESETREQUEST
 DESCRIPTOR.message_types_by_name['GetFeatureSetResponse'] = _GETFEATURESETRESPONSE
 DESCRIPTOR.message_types_by_name['ListFeatureSetsRequest'] = _LISTFEATURESETSREQUEST
@@ -1107,10 +933,6 @@ DESCRIPTOR.message_types_by_name['RemoveMemberRequest'] = _REMOVEMEMBERREQUEST
 DESCRIPTOR.message_types_by_name['RemoveMemberResponse'] = _REMOVEMEMBERRESPONSE
 DESCRIPTOR.message_types_by_name['ListMembersRequest'] = _LISTMEMBERSREQUEST
 DESCRIPTOR.message_types_by_name['ListMembersResponse'] = _LISTMEMBERSRESPONSE
-DESCRIPTOR.message_types_by_name['AddRoleRequest'] = _ADDROLEREQUEST
-DESCRIPTOR.message_types_by_name['AddRoleResponse'] = _ADDROLERESPONSE
-DESCRIPTOR.message_types_by_name['RemoveRoleRequest'] = _REMOVEROLEREQUEST
-DESCRIPTOR.message_types_by_name['RemoveRoleResponse'] = _REMOVEROLERESPONSE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 GetFeatureSetRequest = _reflection.GeneratedProtocolMessageType('GetFeatureSetRequest', (_message.Message,), {
@@ -1297,34 +1119,6 @@ ListMembersResponse = _reflection.GeneratedProtocolMessageType('ListMembersRespo
   })
 _sym_db.RegisterMessage(ListMembersResponse)
 
-AddRoleRequest = _reflection.GeneratedProtocolMessageType('AddRoleRequest', (_message.Message,), {
-  'DESCRIPTOR' : _ADDROLEREQUEST,
-  '__module__' : 'feast.core.CoreService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.core.AddRoleRequest)
-  })
-_sym_db.RegisterMessage(AddRoleRequest)
-
-AddRoleResponse = _reflection.GeneratedProtocolMessageType('AddRoleResponse', (_message.Message,), {
-  'DESCRIPTOR' : _ADDROLERESPONSE,
-  '__module__' : 'feast.core.CoreService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.core.AddRoleResponse)
-  })
-_sym_db.RegisterMessage(AddRoleResponse)
-
-RemoveRoleRequest = _reflection.GeneratedProtocolMessageType('RemoveRoleRequest', (_message.Message,), {
-  'DESCRIPTOR' : _REMOVEROLEREQUEST,
-  '__module__' : 'feast.core.CoreService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.core.RemoveRoleRequest)
-  })
-_sym_db.RegisterMessage(RemoveRoleRequest)
-
-RemoveRoleResponse = _reflection.GeneratedProtocolMessageType('RemoveRoleResponse', (_message.Message,), {
-  'DESCRIPTOR' : _REMOVEROLERESPONSE,
-  '__module__' : 'feast.core.CoreService_pb2'
-  # @@protoc_insertion_point(class_scope:feast.core.RemoveRoleResponse)
-  })
-_sym_db.RegisterMessage(RemoveRoleResponse)
-
 
 DESCRIPTOR._options = None
 
@@ -1334,8 +1128,8 @@ _CORESERVICE = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=1862,
-  serialized_end=3046,
+  serialized_start=1595,
+  serialized_end=2634,
   methods=[
   _descriptor.MethodDescriptor(
     name='GetFeastCoreVersion',
@@ -1443,24 +1237,6 @@ _CORESERVICE = _descriptor.ServiceDescriptor(
     containing_service=None,
     input_type=_LISTMEMBERSREQUEST,
     output_type=_LISTMEMBERSRESPONSE,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='AddRole',
-    full_name='feast.core.CoreService.AddRole',
-    index=12,
-    containing_service=None,
-    input_type=_ADDROLEREQUEST,
-    output_type=_ADDROLERESPONSE,
-    serialized_options=None,
-  ),
-  _descriptor.MethodDescriptor(
-    name='RemoveRole',
-    full_name='feast.core.CoreService.RemoveRole',
-    index=13,
-    containing_service=None,
-    input_type=_REMOVEROLEREQUEST,
-    output_type=_REMOVEROLERESPONSE,
     serialized_options=None,
   ),
 ])
