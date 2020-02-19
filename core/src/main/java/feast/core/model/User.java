@@ -16,4 +16,46 @@
  */
 package feast.core.model;
 
-public class User {}
+import lombok.Getter;
+import lombok.Setter;
+
+import javax.persistence.*;
+import java.util.Set;
+
+@Getter
+@Setter
+@Entity
+@Table(name = "users")
+public class User {
+
+  // User Id
+  @Id
+  @Column(name = "id", nullable = false, unique = true)
+  private String id;
+
+  // Name of the user
+  @Column(name = "name", nullable = false)
+  private String name;
+
+  //Password of the user
+  @Column(name = "password_sha", nullable = false)
+  private String password_sha;
+
+  @ManyToMany
+  @JoinTable(
+      name = "projects_members",
+      joinColumns = @JoinColumn(name = "user_id"),
+      inverseJoinColumns = @JoinColumn(name = "project_name")
+  )
+  Set<Project> projects;
+
+  public User() {
+    super();
+  }
+
+  public User(String id, String name, String password_sha) {
+    this.id = id;
+    this.name = name;
+    this.password_sha = password_sha;
+  }
+}

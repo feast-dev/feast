@@ -19,13 +19,8 @@ package feast.core.model;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.Id;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
+import javax.persistence.*;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -50,6 +45,9 @@ public class Project {
       orphanRemoval = true,
       mappedBy = "project")
   private Set<FeatureSet> featureSets;
+
+  @ManyToMany(mappedBy = "projects")
+  private Set<User> projectMembers;
 
   public Project() {
     super();
