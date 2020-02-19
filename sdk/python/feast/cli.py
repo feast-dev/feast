@@ -244,6 +244,14 @@ def user():
     """
     pass
 
+@user.command(name="list")
+@click.argument("project", type=click.STRING)
+def member_list(project: str):
+    feast_client = Client(
+        core_url=feast_config.get_config_property_or_fail("core_url")
+    )  # type: Client
+    feast_client.list_members(project)
+
 @user.command(name="add")
 @click.argument("user", type=click.STRING)
 @click.argument("project", type=click.STRING)
