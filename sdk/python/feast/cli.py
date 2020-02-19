@@ -262,33 +262,6 @@ def member_remove(user: str, project: str):
     )  # type: Client
     feast_client.remove_member(user,project)
 
-@cli.group(name="roles")
-def role():
-    """
-    Create and manage roles
-    """
-    pass
-
-@role.command(name="add")
-@click.argument("user", type=click.STRING)
-@click.argument("role", type=click.STRING)
-@click.argument("project", type=click.STRING)
-def role_add(user: str, role: str, project: str):
-    feast_client = Client(
-        core_url=feast_config.get_config_property_or_fail("core_url")
-    )  # type: Client
-    feast_client.add_role(user, role, project)
-
-@role.command(name="remove")
-@click.argument("user", type=click.STRING)
-@click.argument("role", type=click.STRING)
-@click.argument("project", type=click.STRING)
-def role_remove(user: str, role: str, project: str):
-    feast_client = Client(
-        core_url=feast_config.get_config_property_or_fail("core_url")
-    )  # type: Client
-    feast_client.remove_role(user, role, project)
-
 @cli.command()
 @click.option(
     "--name", "-n", help="Feature set name to ingest data into", required=True
