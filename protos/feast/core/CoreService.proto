@@ -82,12 +82,6 @@ service CoreService {
 
     // List members
     rpc ListMembers (ListMembersRequest) returns (ListMembersResponse);
-
-    // Add role
-    rpc AddRole (AddRoleRequest) returns (AddRoleResponse);
-
-    // Remove role
-    rpc RemoveRole (RemoveRoleRequest) returns (RemoveRoleResponse);
 }
 
 // Request for a single feature set
@@ -267,46 +261,4 @@ message ListMembersRequest {
 message ListMembersResponse {
     // List of members in the project
     repeated string users = 1;
-}
-
-// Request for adding role
-message AddRoleRequest {
-    enum Role {
-        // Owner role which grants full access at the project level
-        OWNER = 0;
-
-        // Viewer role which grants read access at the project level
-        VIEWER = 1;
-    }
-
-    // Name of user
-    string user = 1;
-
-    // Role determines access granted to the user
-    Role role = 2;
-}
-
-// Response for adding role
-message AddRoleResponse {
-}
-
-// Request for removing role
-message RemoveRoleRequest {
-    enum Role {
-        // Owner role which grants full access at the project level
-        OWNER = 0;
-
-        // Viewer role which grants read access at the project level
-        VIEWER = 1;
-    }
-
-    // Name of user
-    string user = 1;
-
-    // Role determines access granted to the user
-    Role role = 2;
-}
-
-// Response for removing role
-message RemoveRoleResponse {
 }
