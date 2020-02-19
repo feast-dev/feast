@@ -167,8 +167,7 @@ public class SpecService {
     checkValidCharactersAllowAsterisk(name, "featureSetName");
     checkValidCharactersAllowAsterisk(project, "projectName");
 
-    List<FeatureSet> featureSets = new ArrayList<FeatureSet>() {
-    };
+    List<FeatureSet> featureSets = new ArrayList<FeatureSet>() {};
 
     if (project.equals("*")) {
       // Matching all projects
@@ -277,9 +276,9 @@ public class SpecService {
    * Creates or updates a feature set in the repository. If there is a change in the feature set
    * schema, then the feature set version will be incremented.
    *
-   * <p>This function is idempotent. If no changes are detected in the incoming featureSet's
-   * schema, this method will update the incoming featureSet spec with the latest version stored in
-   * the repository, and return that.
+   * <p>This function is idempotent. If no changes are detected in the incoming featureSet's schema,
+   * this method will update the incoming featureSet spec with the latest version stored in the
+   * repository, and return that.
    *
    * @param newFeatureSet Feature set that will be created or updated.
    */

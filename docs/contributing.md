@@ -1,78 +1,267 @@
 # Contributing
 
-## Getting Started
+## 1. Contribution process
+
+We use [RFCs](https://en.wikipedia.org/wiki/Request_for_Comments) and [GitHub issues](https://github.com/gojek/feast/issues) to communicate development ideas. The simplest way to contribute to Feast is to leave comments in our [RFCs](https://drive.google.com/drive/u/0/folders/1Lj1nIeRB868oZvKTPLYqAvKQ4O0BksjY) in the [Feast Google Drive](https://drive.google.com/drive/u/0/folders/0AAe8j7ZK3sxSUk9PVA) or our GitHub issues.
+
+Please communicate your ideas through a GitHub issue or through our Slack Channel before starting development.
+
+Please [submit a PR ](https://github.com/gojek/feast/pulls)to the master branch of the Feast repository once you are ready to submit your contribution. Code submission to Feast \(including submission from project maintainers\) require review and approval from maintainers or code owners. 
+
+PRs that are submitted by the general public need to be identified as `ok-to-test`. Once enabled, [Prow](https://github.com/kubernetes/test-infra/tree/master/prow) will run a range of tests to verify the submission, after which community members will help to review the pull request.
+
+{% hint style="success" %}
+Please sign the [Google CLA](https://cla.developers.google.com/) in order to have your code merged into the Feast repository.
+{% endhint %}
+
+## 2. Development guide
+
+### 2.1 Overview
 
 The following guide will help you quickly run Feast in your local machine.
 
 The main components of Feast are:
 
-* **Feast Core** handles FeatureSpec registration, starts and monitors Ingestion 
+* **Feast Core:** Handles feature registration, starts and manages ingestion jobs and ensures that Feast internal metadata is consistent.
+* **Feast Ingestion Jobs:** Subscribes to streams of FeatureRows and writes these as feature
 
-  jobs and ensures that Feast internal metadata is consistent.
+  values to registered databases \(online, historical\) that can be read by Feast Serving.
 
-* **Feast Ingestion** subscribes to streams of FeatureRow and writes the feature
+* **Feast Serving:** Service that handles requests for features values, either online or batch.
 
-  values to registered Stores. 
+### 2.**2 Requirements**
 
-* **Feast Serving** handles requests for features values retrieval from the end users.
+#### 2.**2.1 Development environment** 
 
-**Pre-requisites**
+The following software is required for Feast development
 
-* Java SDK version 8
+* Java SE Development Kit 11
 * Python version 3.6 \(or above\) and pip
-* Access to Postgres database \(version 11 and above\)
-* Access to [Redis](https://redis.io/topics/quickstart) instance \(tested on version 5.x\)
-* Access to [Kafka](https://kafka.apache.org/) brokers \(tested on version 2.x\)
-* [Maven ](https://maven.apache.org/install.html) version 3.6.x
-* [grpc\_cli](https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md) is useful for debugging and quick testing
-* An overview of Feast specifications and protos
+* [Maven ](https://maven.apache.org/install.html)version 3.6.x
 
-> **Assumptions:**
->
-> 1. Postgres is running in "localhost:5432" and has a database called "postgres" which 
->
->    can be accessed with credentials user "postgres" and password "password". 
->
->    To use different database name and credentials, please update 
->
->    "$FEAST\_HOME/core/src/main/resources/application.yml" 
->
->    or set these environment variables: DB\_HOST, DB\_USERNAME, DB\_PASSWORD.
->
-> 2. Redis is running locally and accessible from "localhost:6379"
-> 3. Feast has admin access to BigQuery.
+Additionally, [grpc\_cli](https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md) is useful for debugging and quick testing of gRPC endpoints.
 
-```text
-# $FEAST_HOME will refer to be the root directory of this Feast Git repository
+#### 2.**2.2 Services**
 
-git clone https://github.com/gojek/feast
-cd feast
+The following components/services are required to develop Feast:
+
+* **Feast Core:** Requires PostgreSQL \(version 11 and above\) to store state, and requires a Kafka \(tested on version 2.x\) setup to allow for ingestion of FeatureRows.
+* **Feast Serving:** Requires Redis \(tested on version 5.x\).
+
+These services should be running before starting development. The following snippet will start the services using Docker.
+
+```bash
+# Start Postgres
+docker run --name postgres --rm -it -d --net host -e POSTGRES_DB=postgres -e POSTGRES_USER=postgres \
+-e POSTGRES_PASSWORD=password postgres:12-alpine
+
+# Start Redis
+docker run --name redis --rm -it --net host -d redis:5-alpine
+
+# Start Zookeeper (needed by Kafka)
+docker run --rm \
+  --net=host \
+  --name=zookeeper \
+  --env=ZOOKEEPER_CLIENT_PORT=2181 \
+  --detach confluentinc/cp-zookeeper:5.2.1
+
+# Start Kafka
+docker run --rm \
+  --net=host \
+  --name=kafka \
+  --env=KAFKA_ZOOKEEPER_CONNECT=localhost:2181 \
+  --env=KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+  --env=KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+  --detach confluentinc/cp-kafka:5.2.1
 ```
 
-#### Starting Feast Core
+### 2.3 Testing and development
+
+#### 2.3.1 Running unit tests
 
 ```text
-# Please check the default configuration for Feast Core in 
-# "$FEAST_HOME/core/src/main/resources/application.yml" and update it accordingly.
-# 
-# Start Feast Core GRPC server on localhost:6565
+$ mvn test
+```
+
+#### 2.3.2 Running integration tests
+
+_Note: integration suite isn't yet separated from unit._
+
+```text
+$ mvn verify
+```
+
+#### 2.3.3 Running components locally
+
+The `core` and `serving` modules are Spring Boot applications. These may be run as usual for [the Spring Boot Maven plugin](https://docs.spring.io/spring-boot/docs/current/maven-plugin/index.html):
+
+```text
+$ mvn --projects core spring-boot:run
+
+# Or for short:
+$ mvn -pl core spring-boot:run
+```
+
+Note that you should execute `mvn` from the Feast repository root directory, as there are intermodule dependencies that Maven will not resolve if you `cd` to subdirectories to run.
+
+#### 2.3.4 Running from IntelliJ
+
+Compiling and running tests in IntelliJ should work as usual.
+
+Running the Spring Boot apps may work out of the box in IDEA Ultimate, which has built-in support for Spring Boot projects, but the Community Edition needs a bit of help:
+
+The Spring Boot Maven plugin automatically puts dependencies with `provided` scope on the runtime classpath when using `spring-boot:run`, such as its embedded Tomcat server. The "Play" buttons in the gutter or right-click menu of a `main()` method [do not do this](https://stackoverflow.com/questions/30237768/run-spring-boots-main-using-ide).
+
+A solution to this is:
+
+1. Open `View > Tool Windows > Maven`
+2. Drill down to e.g. `Feast Core > Plugins > spring-boot:run`, right-click and `Create 'feast-core [spring-boot'…`
+3. In the dialog that pops up, check the `Resolve Workspace artifacts` box
+4. Click `OK`. You should now be able to select this run configuration for the Play button in the main toolbar, keyboard shortcuts, etc.
+
+### 2.**4** Validating your setup
+
+The following section is a quick walk-through to test whether your local Feast deployment is functional for development purposes.
+
+**2.4.1 Assumptions**
+
+* PostgreSQL is running in `localhost:5432` and has a database called `postgres` which
+
+  can be accessed with credentials user `postgres` and password `password`. Different database configurations can be supplied here \(`/core/src/main/resources/application.yml`\)
+
+* Redis is running locally and accessible from `localhost:6379`   
+* \(optional\) The local environment has been authentication with Google Cloud Platform and has full access to BigQuery. This is only necessary for BigQuery testing/development.
+
+#### 2.4.2 Clone Feast
+
+```bash
+git clone https://github.com/gojek/feast.git && cd feast && \
+export FEAST_HOME_DIR=$(pwd)
+```
+
+#### 2.4.3 Starting Feast Core
+
+To run Feast Core locally using Maven:
+
+```bash
+# Feast Core can be configured from the following .yml file
+# $FEAST_HOME_DIR/core/src/main/resources/application.yml
 mvn --projects core spring-boot:run
+```
 
-# If Feast Core starts successfully, verify the correct Stores are registered
-# correctly, for example by using grpc_cli.
-grpc_cli call localhost:6565 GetStores ''
+Test whether Feast Core is running
 
-# Should return something similar to the following.
-# Note that you should change BigQuery projectId and datasetId accordingly
-# in "$FEAST_HOME/core/src/main/resources/application.yml"
+```text
+grpc_cli call localhost:6565 ListStores ''
+```
 
+The output should list **no** stores since no Feast Serving has registered its stores to Feast Core:
+
+```text
+connecting to localhost:6565
+
+Rpc succeeded with OK status
+```
+
+#### 2.4.4 Starting Feast Serving
+
+Feast Serving is configured through the `$FEAST_HOME_DIR/serving/src/main/resources/application.yml`. Each Serving deployment must be configured with a store. The default store is Redis \(used for online serving\).
+
+The configuration for this default store is located in a separate `.yml` file. The default location is `$FEAST_HOME_DIR/serving/sample_redis_config.yml`:   
+
+```text
+name: serving
+type: REDIS
+redis_config:
+  host: localhost
+  port: 6379
+subscriptions:
+  - name: "*"
+    project: "*"
+    version: "*"
+```
+
+Once Feast Serving is started, it will register its store with Feast Core \(by name\) and start to subscribe to a feature sets based on its subscription. 
+
+Start Feast Serving GRPC server on localhost:6566 with store name `serving`
+
+```text
+mvn --projects serving spring-boot:run
+```
+
+Test connectivity to Feast Serving
+
+```text
+grpc_cli call localhost:6566 GetFeastServingInfo ''
+```
+
+```text
+connecting to localhost:6566
+version: "0.4.2-SNAPSHOT"
+type: FEAST_SERVING_TYPE_ONLINE
+
+Rpc succeeded with OK status
+```
+
+Test Feast Core to see whether it is aware of the Feast Serving deployment
+
+```text
+grpc_cli call localhost:6565 ListStores ''
+```
+
+```text
+connecting to localhost:6565
 store {
-  name: "SERVING"
+  name: "serving"
   type: REDIS
   subscriptions {
-    project: "*"
     name: "*"
     version: "*"
+    project: "*"
+  }
+  redis_config {
+    host: "localhost"
+    port: 6379
+  }
+}
+
+Rpc succeeded with OK status
+```
+
+In order to use BigQuery as a historical store, it is necessary to start Feast Serving with a different store type. 
+
+Copy `$FEAST_HOME_DIR/serving/sample_redis_config.yml`  to the following location `$FEAST_HOME_DIR/serving/my_bigquery_config.yml` and update the configuration as below:
+
+```text
+name: bigquery
+type: BIGQUERY
+bigquery_config:
+  project_id: YOUR_GCP_PROJECT_ID
+  dataset_id: YOUR_GCP_DATASET
+subscriptions:
+  - name: "*"
+    version: "*"
+    project: "*"
+```
+
+Then inside `serving/src/main/resources/application.yml` modify the following key `feast.store.config-path`  to point to the new store configuration.
+
+After making these changes, restart Feast Serving:
+
+```text
+mvn --projects serving spring-boot:run
+```
+
+You should see two stores registered:
+
+```text
+store {
+  name: "serving"
+  type: REDIS
+  subscriptions {
+    name: "*"
+    version: "*"
+    project: "*"
   }
   redis_config {
     host: "localhost"
@@ -80,85 +269,105 @@ store {
   }
 }
 store {
-  name: "WAREHOUSE"
+  name: "bigquery"
   type: BIGQUERY
   subscriptions {
-    project: "*"
     name: "*"
     version: "*"
+    project: "*"
   }
   bigquery_config {
-    project_id: "my-google-project-id"
-    dataset_id: "my-bigquery-dataset-id"
+    project_id: "my_project"
+    dataset_id: "my_bq_dataset"
   }
 }
 ```
 
-#### Starting Feast Serving
+#### 2.4.5 Registering a FeatureSet
 
-Feast Serving requires administrators to provide an **existing** store name in Feast. An instance of Feast Serving can only retrieve features from a **single** store.
-
-> In order to retrieve features from multiple stores you must start **multiple** instances of Feast serving. If you start multiple Feast serving on a single host, make sure that they are listening on different ports.
+Before registering a new FeatureSet, a project is required.
 
 ```text
-# Start Feast Serving GRPC server on localhost:6566 with store name "SERVING"
-mvn --projects serving spring-boot:run -Dspring-boot.run.arguments='--feast.store-name=SERVING'
-
-# To verify Feast Serving starts successfully
-grpc_cli call localhost:6566 GetFeastServingType ''
-
-# Should return something similar to the following.
-type: FEAST_SERVING_TYPE_ONLINE
+grpc_cli call localhost:6565 CreateProject '
+  name: "your_project_name"
+'
 ```
 
-#### Registering a FeatureSet
+When a feature set is successfully registered, Feast Core will start an **ingestion** job that listens for new features in the feature set.
 
-Create a new FeatureSet on Feast by sending a request to Feast Core. When a feature set is successfully registered, Feast Core will start an **ingestion** job that listens for new features in the FeatureSet. Note that Feast currently only supports source of type "KAFKA", so you must have access to a running Kafka broker to register a FeatureSet successfully.
+{% hint style="info" %}
+Note that Feast currently only supports source of type `KAFKA`, so you must have access to a running Kafka broker to register a FeatureSet successfully. It is possible to omit the `source` from a Feature Set, but Feast Core will still use Kafka behind the scenes, it is simply abstracted away from the user. 
+{% endhint %}
+
+Create a new FeatureSet in Feast by sending a request to Feast Core:
 
 ```text
-# Example of registering a new driver feature set 
+# Example of registering a new driver feature set
 # Note the source value, it assumes that you have access to a Kafka broker
 # running on localhost:9092
 
 grpc_cli call localhost:6565 ApplyFeatureSet '
 feature_set {
-  name: "driver"
-  version: 1
+  spec {
+    project: "your_project_name"
+    name: "driver"
+    version: 1
 
-  entities {
-    name: "driver_id"
-    value_type: INT64
-  }
+    entities {
+      name: "driver_id"
+      value_type: INT64
+    }
 
-  features {
-    name: "city"
-    value_type: STRING
-  }
+    features {
+      name: "city"
+      value_type: STRING
+    }
 
-  source {
-    type: KAFKA
-    kafka_source_config {
-      bootstrap_servers: "localhost:9092"
+    source {
+      type: KAFKA
+      kafka_source_config {
+        bootstrap_servers: "localhost:9092"
+        topic: "your-kafka-topic"
+      }
     }
   }
 }
 '
-
-# To check that the FeatureSet has been registered correctly.
-# You should also see logs from Feast Core of the ingestion job being started
-grpc_cli call localhost:6565 GetFeatureSets ''
 ```
 
-#### Ingestion and Population of Feature Values
+Verify that the FeatureSet has been registered correctly.
+
+```text
+# To check that the FeatureSet has been registered correctly.
+# You should also see logs from Feast Core of the ingestion job being started
+grpc_cli call localhost:6565 GetFeatureSet '
+  project: "your_project_name"
+  name: "driver"
+'
+```
+
+Or alternatively, list all feature sets
+
+```text
+grpc_cli call localhost:6565 ListFeatureSets '
+  filter {
+    project: "your_project_name"
+    feature_set_name: "driver"
+    feature_set_version: "1"
+  }
+'
+```
+
+#### 2.4.6 Ingestion and Population of Feature Values
 
 ```text
 # Produce FeatureRow messages to Kafka so it will be ingested by Feast
 # and written to the registered stores.
 # Make sure the value here is the topic assigned to the feature set
 # ... producer.send("feast-driver-features" ...)
-# 
+#
 # Install Python SDK to help writing FeatureRow messages to Kafka
-cd $FEAST_HOME/sdk/python
+cd $FEAST_HOMEDIR/sdk/python
 pip3 install -e .
 pip3 install pendulum
 
@@ -194,24 +403,33 @@ timestamp.FromJsonString(
 )
 row.event_timestamp.CopyFrom(timestamp)
 
-# The format is [FEATURE_NAME]:[VERSION]
-row.feature_set = "driver:1"
+# The format is [PROJECT_NAME]/[FEATURE_NAME]:[VERSION]
+row.feature_set = "your_project_name/driver:1"
 
-producer.send("feast-driver-features", row.SerializeToString())
+producer.send("your-kafka-topic", row.SerializeToString())
 producer.flush()
 logger.info(row)
 EOF
+```
 
-# Check that the ingested feature rows can be retrieved from Feast serving
+#### 2.4.7 Retrieval from Feast Serving
+
+Ensure that Feast Serving returns results for the feature value for the specific driver
+
+```text
 grpc_cli call localhost:6566 GetOnlineFeatures '
-feature_sets {
-  name: "driver"
+features {
+  project: "your_project_name"
+  name: "city"
   version: 1
+  max_age {
+    seconds: 3600
+  }
 }
-entity_dataset {
-  entity_names: "driver_id"
-  entity_dataset_rows {
-    entity_ids {
+entity_rows {
+  fields {
+    key: "driver_id"
+    value {
       int64_val: 1234
     }
   }
@@ -219,92 +437,32 @@ entity_dataset {
 '
 ```
 
-## Development
-
-Notes:
-
-* Use of Lombok is being phased out, prefer to use [Google Auto](https://github.com/google/auto) in new code.
-
-### Running Unit Tests
-
 ```text
-$ mvn test
+field_values {
+  fields {
+    key: "driver_id"
+    value {
+      int64_val: 1234
+    }
+  }
+  fields {
+    key: "your_project_name/city:1"
+    value {
+      string_val: "JAKARTA"
+    }
+  }
+}
 ```
 
-### Running Integration Tests
+#### 2.4.8 Summary
 
-_Note: integration suite isn't yet separated from unit._
+If you have made it to this point successfully you should have a functioning Feast deployment, at the very least using the Apache Beam DirectRunner for ingestion jobs and Redis for online serving. 
 
-```text
-$ mvn verify
-```
+It is important to note that most of the functionality demonstrated above is already available in a more abstracted form in the Python SDK \(Feast management, data ingestion, feature retrieval\) and the Java/Go SDKs \(feature retrieval\). However, it is useful to understand these internals from a development standpoint.
 
-### Running Components Locally
+## 3. Style guide
 
-The `core` and `serving` modules are Spring Boot applications. These may be run as usual for [the Spring Boot Maven plugin](https://docs.spring.io/spring-boot/docs/current/maven-plugin/index.html):
-
-```text
-$ mvn --projects core spring-boot:run
-
-# Or for short:
-$ mvn -pl core spring-boot:run
-```
-
-Note that you should execute `mvn` from the Feast repository root directory, as there are intermodule dependencies that Maven will not resolve if you `cd` to subdirectories to run.
-
-#### Running From IntelliJ
-
-Compiling and running tests in IntelliJ should work as usual.
-
-Running the Spring Boot apps may work out of the box in IDEA Ultimate, which has built-in support for Spring Boot projects, but the Community Edition needs a bit of help:
-
-The Spring Boot Maven plugin automatically puts dependencies with `provided` scope on the runtime classpath when using `spring-boot:run`, such as its embedded Tomcat server. The "Play" buttons in the gutter or right-click menu of a `main()` method [do not do this](https://stackoverflow.com/questions/30237768/run-spring-boots-main-using-ide).
-
-A solution to this is:
-
-1. Open `View > Tool Windows > Maven`
-2. Drill down to e.g. `Feast Core > Plugins > spring-boot:run`, right-click and `Create 'feast-core [spring-boot'…`
-3. In the dialog that pops up, check the `Resolve Workspace artifacts` box
-4. Click `OK`. You should now be able to select this run configuration for the Play button in the main toolbar, keyboard shortcuts, etc.
-
-#### Tips for Running Postgres, Redis and Kafka with Docker
-
-This guide assumes you are running Docker service on a bridge network \(which is usually the case if you're running Linux\). Otherwise, you may need to use different network options than shown below.
-
-> `--net host` usually only works as expected when you're running Docker service in bridge networking mode.
-
-```text
-# Start Postgres
-docker run --name postgres --rm -it -d --net host -e POSTGRES_DB=postgres -e POSTGRES_USER=postgres \
--e POSTGRES_PASSWORD=password postgres:12-alpine
-
-# Start Redis
-docker run --name redis --rm -it --net host -d redis:5-alpine
-
-# Start Zookeeper (needed by Kafka)
-docker run --rm \
-  --net=host \
-  --name=zookeeper \
-  --env=ZOOKEEPER_CLIENT_PORT=2181 \
-  --detach confluentinc/cp-zookeeper:5.2.1
-
-# Start Kafka
-docker run --rm \
-  --net=host \
-  --name=kafka \
-  --env=KAFKA_ZOOKEEPER_CONNECT=localhost:2181 \
-  --env=KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
-  --env=KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
-  --detach confluentinc/cp-kafka:5.2.1
-```
-
-## Code reviews
-
-Code submission to Feast \(including submission from project maintainers\) requires review and approval. Please submit a **pull request** to initiate the code review process. We use [prow](https://github.com/kubernetes/test-infra/tree/master/prow) to manage the testing and reviewing of pull requests. Please refer to [config.yaml](../.prow/config.yaml) for details on the test jobs.
-
-## Code conventions
-
-### Java
+### 3.1 Java
 
 We conform to the [Google Java Style Guide](https://google.github.io/styleguide/javaguide.html). Maven can helpfully take care of that for you before you commit:
 
@@ -319,13 +477,17 @@ $ mvn spotless:check  # Check is automatic upon `mvn verify`
 $ mvn verify -Dspotless.check.skip
 ```
 
-If you're using IntelliJ, you can import [these code style settings](https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xml) if you'd like to use the IDE's reformat function as you work.
+If you're using IntelliJ, you can import [these code style settings](https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xml) if you'd like to use the IDE's reformat function as you develop.
 
-### Go
+### 3.2 Go
 
 Make sure you apply `go fmt`.
 
-## Release process
+### 3.3 Python
+
+We use [Python Black](https://github.com/psf/black) to format our Python code prior to submission.
+
+## 4. Release process
 
 Feast uses [semantic versioning](https://semver.org/).
 

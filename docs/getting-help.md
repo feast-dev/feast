@@ -1,23 +1,36 @@
 # Getting Help
 
-## Chat
+### Chat
 
-* Come and chat with us in the [\#Feast Slack channel in the Kubeflow workspace](https://join.slack.com/t/kubeflow/shared_invite/enQtNDg5MTM4NTQyNjczLTdkNTVhMjg1ZTExOWI0N2QyYTQ2MTIzNTJjMWRiOTFjOGRlZWEzODc1NzMwNTMwM2EzNjY1MTFhODczNjk4MTk) and catch up on all things Feast!
+* Come and say hello in [\#Feast](https://join.slack.com/t/kubeflow/shared_invite/enQtNDg5MTM4NTQyNjczLTdkNTVhMjg1ZTExOWI0N2QyYTQ2MTIzNTJjMWRiOTFjOGRlZWEzODc1NzMwNTMwM2EzNjY1MTFhODczNjk4MTk) over in the Kubeflow Slack.
 
-## GitHub
+### GitHub
 
 * Feast's GitHub repo can be [found here](https://github.com/gojek/feast/).
 * Found a bug or need a feature? [Create an issue on GitHub](https://github.com/gojek/feast/issues/new)
 
-## Mailing list
+### Community Call
 
-### Feast discussion
+We have a community call every 2 weeks. Alternating between two times.
+
+* 11 am \(UTC + 8\)
+* 5 pm \(UTC + 8\)
+
+Please join the [**feast-dev**](getting-help.md#feast-development) mailing list to receive the the calendar invitation.
+
+### Mailing list
+
+#### Feast discussion
 
 * Google Group: [https://groups.google.com/d/forum/feast-discuss](https://groups.google.com/d/forum/feast-discuss)
 * Mailing List: [feast-discuss@googlegroups.com](mailto:feast-discuss@googlegroups.com)
 
-### Feast development
+#### Feast development
 
 * Google Group: [https://groups.google.com/d/forum/feast-dev](https://groups.google.com/d/forum/feast-dev)
 * Mailing List: [feast-dev@googlegroups.com](mailto:feast-dev@googlegroups.com)
+
+### Google Drive
+
+The Feast community also maintains a [Google Drive](https://drive.google.com/drive/u/0/folders/0AAe8j7ZK3sxSUk9PVA) with documents like RFCs, meeting notes, or roadmaps. Please join one of the above mailing lists \(feast-dev or feast-discuss\) to gain access to the drive.
 

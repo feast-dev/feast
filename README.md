@@ -162,15 +162,30 @@ my_model = ml.fit(data)
 prediction = my_model.predict(fs.get_online_features(customer_features, customer_entities))
 ```
 
+## Getting Started with Docker Compose
+The following commands will start Feast in online-only mode. 
+```
+git clone https://github.com/gojek/feast.git
+cd feast/infra/docker-compose
+cp .env.sample .env
+docker-compose up -d
+```
+
+A [Jupyter Notebook](http://localhost:8888/tree/feast/examples) is now available to start using Feast.
+
+Please see the links below to set up Feast for batch/historical serving with BigQuery.
+
 ## Important resources
 
-Please refer to the official docs at <https://feast.dev>
+Please refer to the official documentation at <https://docs.feast.dev>
 
  * [Why Feast?](https://docs.feast.dev/why-feast)
  * [Concepts](https://docs.feast.dev/concepts)
- * [Installation](https://docs.feast.dev/getting-started/installing-feast)
- * [Getting Help](https://docs.feast.dev/getting-help)
- * [Example Notebook](https://github.com/gojek/feast/blob/master/examples/basic/basic.ipynb)
+ * [Installation](https://docs.feast.dev/installing-feast/overview)
+ * [Examples](https://github.com/gojek/feast/blob/master/examples/)
+ * [Roadmap](https://docs.google.com/document/d/1ZZY59j_c2oNN3N6TmavJIyLPMzINdea44CRIe2nhUIo/edit#)
+ * [Change Log](https://github.com/gojek/feast/blob/master/CHANGELOG.md)
+ * [Slack (#Feast)](https://join.slack.com/t/kubeflow/shared_invite/enQtNDg5MTM4NTQyNjczLTdkNTVhMjg1ZTExOWI0N2QyYTQ2MTIzNTJjMWRiOTFjOGRlZWEzODc1NzMwNTMwM2EzNjY1MTFhODczNjk4MTk)
 
 ## Notice
 

@@ -48,14 +48,6 @@ public class PipelineUtil {
       throws IOException {
     if (!(classLoader instanceof URLClassLoader)) {
       return getClasspathFiles();
-/*
-      String message =
-          String.format(
-              "Unable to use ClassLoader to detect classpath elements. "
-                  + "Current ClassLoader is %s, only URLClassLoaders are supported.",
-              classLoader);
-      throw new IllegalArgumentException(message);
-*/
     }
 
     List<String> files = new ArrayList<>();

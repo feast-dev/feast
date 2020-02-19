@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import subprocess
 
 from setuptools import find_packages, setup
 
@@ -47,13 +48,16 @@ REQUIRED = [
     "confluent_kafka",
 ]
 
-try:
-    # README file from Feast repo root directory
-    README_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "README.md")
-    with open(os.path.join(README_FILE), "r") as f:
-        LONG_DESCRIPTION = f.read()
-except FileNotFoundError:
-    LONG_DESCRIPTION = "Feast Python package"
+# README file from Feast repo root directory
+repo_root = (
+    subprocess.Popen(["git", "rev-parse", "--show-toplevel"], stdout=subprocess.PIPE)
+    .communicate()[0]
+    .rstrip()
+    .decode("utf-8")
+)
+README_FILE = os.path.join(repo_root, "README.md")
+with open(os.path.join(README_FILE), "r") as f:
+    LONG_DESCRIPTION = f.read()
 
 setup(
     name=NAME,

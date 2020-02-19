@@ -5,10 +5,17 @@
 * [Concepts](concepts.md)
 * [Getting Help](getting-help.md)
 * [Contributing](contributing.md)
+* [Roadmap](https://docs.google.com/document/d/1ZZY59j_c2oNN3N6TmavJIyLPMzINdea44CRIe2nhUIo/edit#)
 
-## Getting Started
+## Installing Feast
 
-* [Installing Feast](getting-started/installing-feast.md)
+* [Overview](installing-feast/overview.md)
+* [Docker Compose](installing-feast/docker-compose.md)
+* [Google Kubernetes Engine \(GKE\)](installing-feast/gke.md)
+* [Troubleshooting](installing-feast/troubleshooting.md)
+
+## Using Feast
+
 * [Using Feast](https://github.com/gojek/feast/blob/master/examples/basic/basic.ipynb)
 
 ## Reference

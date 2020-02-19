@@ -28,16 +28,16 @@ import org.apache.beam.sdk.options.Validation.Required;
 public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions, DirectOptions {
   @Required
   @Description(
-      "JSON string representation of the FeatureSet that the import job will process."
+      "JSON string representation of the FeatureSet that the import job will process, in BZip2 binary format."
           + "FeatureSet follows the format in feast.core.FeatureSet proto."
           + "Mutliple FeatureSetSpec can be passed by specifying '--featureSet={...}' multiple times"
           + "The conversion of Proto message to JSON should follow this mapping:"
           + "https://developers.google.com/protocol-buffers/docs/proto3#json"
           + "Please minify and remove all insignificant whitespace such as newline in the JSON string"
           + "to prevent error when parsing the options")
-  List<String> getFeatureSetJson();
+  byte[] getFeatureSetJson();
 
-  void setFeatureSetJson(List<String> featureSetJson);
+  void setFeatureSetJson(byte[] featureSetJson);
 
   @Required
   @Description(
