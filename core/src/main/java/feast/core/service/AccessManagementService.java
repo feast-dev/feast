@@ -92,12 +92,4 @@ public class AccessManagementService {
   @Transactional
   public void removeMember(String user) {
   }
-
-  @Transactional
-  public void addRole(String user, CoreServiceProto.AddRoleRequest.Role role) {
-  }
-
-  @Transactional
-  public void removeRole(String user, CoreServiceProto.RemoveRoleRequest.Role role) {
-  }
 }

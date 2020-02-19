@@ -19,10 +19,6 @@ package feast.core.grpc;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.CoreServiceGrpc.CoreServiceImplBase;
 import feast.core.CoreServiceProto;
-import feast.core.CoreServiceProto.AddRoleRequest;
-import feast.core.CoreServiceProto.AddRoleResponse;
-import feast.core.CoreServiceProto.RemoveRoleRequest;
-import feast.core.CoreServiceProto.RemoveRoleResponse;
 import feast.core.CoreServiceProto.AddMemberRequest;
 import feast.core.CoreServiceProto.AddMemberResponse;
 import feast.core.CoreServiceProto.RemoveMemberRequest;
@@ -250,34 +246,6 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onCompleted();
     } catch (Exception e) {
       log.error("Exception has occurred in the removeMember method: ", e);
-      responseObserver.onError(
-          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
-    }
-  }
-
-  @Override
-  public void addRole(
-      AddRoleRequest request, StreamObserver<AddRoleResponse> responseObserver) {
-    try {
-      accessManagementService.addRole(request.getUser(), request.getRole());
-      responseObserver.onNext(AddRoleResponse.getDefaultInstance());
-      responseObserver.onCompleted();
-    } catch (Exception e) {
-      log.error("Exception has occurred in the addRole method: ", e);
-      responseObserver.onError(
-          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
-    }
-  }
-
-  @Override
-  public void removeRole(
-      RemoveRoleRequest request, StreamObserver<RemoveRoleResponse> responseObserver) {
-    try {
-      accessManagementService.removeRole(request.getUser(), request.getRole());
-      responseObserver.onNext(RemoveRoleResponse.getDefaultInstance());
-      responseObserver.onCompleted();
-    } catch (Exception e) {
-      log.error("Exception has occurred in the removeRole method: ", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
