@@ -220,13 +220,11 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
     }
 
     if (shouldWrite) {
-      if (value < 1) {
-        // For negative value, Statsd record it as delta rather than the actual value
-        // So we need to "zero" the value first.
-        // https://github.com/statsd/statsd/blob/master/docs/metric_types.md#gauges
-        statsd.recordGaugeValue(metricName, 0, tags);
+      if (value >= 0) {
+        // StatsD histogram (i.e timings) only works with positive values
+        // so we ignore negative values
+        statsd.histogram(metricName, value, tags);
       }
-      statsd.recordGaugeValue(metricName, value, tags);
     }
   }
 }
