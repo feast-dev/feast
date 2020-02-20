@@ -107,3 +107,5 @@ services:
 
   db:
     image: postgres:12-alpine
+    ports:
+      - "5432:5342"
