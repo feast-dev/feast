@@ -43,14 +43,15 @@ import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.types.ValueProto.ValueType.Enum;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisConnectionException;
+import io.lettuce.core.RedisURI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.exceptions.JedisConnectionException;
 
 // TODO: Create partitioned table by default
 
@@ -239,15 +240,16 @@ public class StoreUtil {
    * @param redisConfig Plase refer to feast.core.Store proto
    */
   public static void checkRedisConnection(RedisConfig redisConfig) {
-    JedisPool jedisPool = new JedisPool(redisConfig.getHost(), redisConfig.getPort());
+    RedisClient redisClient =
+        RedisClient.create(RedisURI.create(redisConfig.getHost(), redisConfig.getPort()));
     try {
-      jedisPool.getResource();
-    } catch (JedisConnectionException e) {
+      redisClient.connect();
+    } catch (RedisConnectionException e) {
       throw new RuntimeException(
           String.format(
               "Failed to connect to Redis at host: '%s' port: '%d'. Please check that your Redis is running and accessible from Feast.",
               redisConfig.getHost(), redisConfig.getPort()));
     }
-    jedisPool.close();
+    redisClient.shutdown();
   }
 }

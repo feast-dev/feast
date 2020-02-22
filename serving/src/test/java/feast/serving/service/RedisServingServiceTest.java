@@ -38,29 +38,28 @@ import feast.storage.RedisProto.RedisKey;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
 import feast.types.ValueProto.Value;
+import io.lettuce.core.KeyValue;
+import io.lettuce.core.api.StatefulRedisConnection;
+import io.lettuce.core.api.sync.RedisCommands;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
 
 public class RedisServingServiceTest {
-
-  @Mock JedisPool jedisPool;
-
-  @Mock Jedis jedis;
 
   @Mock CachedSpecService specService;
 
   @Mock Tracer tracer;
+
+  @Mock StatefulRedisConnection<byte[], byte[]> connection;
+
+  @Mock RedisCommands<byte[], byte[]> syncCommands;
 
   private RedisServingService redisServingService;
   private byte[][] redisKeyList;
@@ -68,8 +67,8 @@ public class RedisServingServiceTest {
   @Before
   public void setUp() {
     initMocks(this);
-
-    redisServingService = new RedisServingService(jedisPool, specService, tracer);
+    when(connection.sync()).thenReturn(syncCommands);
+    redisServingService = new RedisServingService(connection, specService, tracer);
     redisKeyList =
         Lists.newArrayList(
                 RedisKey.newBuilder()
@@ -149,12 +148,14 @@ public class RedisServingServiceTest {
             .setSpec(getFeatureSetSpec())
             .build();
 
-    List<byte[]> featureRowBytes =
-        featureRows.stream().map(AbstractMessageLite::toByteArray).collect(Collectors.toList());
+    List<KeyValue<byte[], byte[]>> featureRowBytes =
+        featureRows.stream()
+            .map(x -> KeyValue.from(new byte[1], Optional.of(x.toByteArray())))
+            .collect(Collectors.toList());
     when(specService.getFeatureSets(request.getFeaturesList()))
         .thenReturn(Collections.singletonList(featureSetRequest));
-    when(jedisPool.getResource()).thenReturn(jedis);
-    when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
+    when(connection.sync()).thenReturn(syncCommands);
+    when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected =
@@ -234,12 +235,14 @@ public class RedisServingServiceTest {
             .setSpec(getFeatureSetSpecWithNoMaxAge())
             .build();
 
-    List<byte[]> featureRowBytes =
-        featureRows.stream().map(AbstractMessageLite::toByteArray).collect(Collectors.toList());
+    List<KeyValue<byte[], byte[]>> featureRowBytes =
+        featureRows.stream()
+            .map(x -> KeyValue.from(new byte[1], Optional.of(x.toByteArray())))
+            .collect(Collectors.toList());
     when(specService.getFeatureSets(request.getFeaturesList()))
         .thenReturn(Collections.singletonList(featureSetRequest));
-    when(jedisPool.getResource()).thenReturn(jedis);
-    when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
+    when(connection.sync()).thenReturn(syncCommands);
+    when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected =
@@ -315,12 +318,14 @@ public class RedisServingServiceTest {
             .setSpec(getFeatureSetSpec())
             .build();
 
-    List<byte[]> featureRowBytes =
-        featureRows.stream().map(AbstractMessageLite::toByteArray).collect(Collectors.toList());
+    List<KeyValue<byte[], byte[]>> featureRowBytes =
+        featureRows.stream()
+            .map(x -> KeyValue.from(new byte[1], Optional.of(x.toByteArray())))
+            .collect(Collectors.toList());
     when(specService.getFeatureSets(request.getFeaturesList()))
         .thenReturn(Collections.singletonList(featureSetRequest));
-    when(jedisPool.getResource()).thenReturn(jedis);
-    when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
+    when(connection.sync()).thenReturn(syncCommands);
+    when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected =
@@ -401,11 +406,14 @@ public class RedisServingServiceTest {
             .setSpec(getFeatureSetSpec())
             .build();
 
-    List<byte[]> featureRowBytes = Lists.newArrayList(featureRows.get(0).toByteArray(), null);
+    List<KeyValue<byte[], byte[]>> featureRowBytes =
+        featureRows.stream()
+            .map(x -> KeyValue.from(new byte[1], Optional.of(x.toByteArray())))
+            .collect(Collectors.toList());
     when(specService.getFeatureSets(request.getFeaturesList()))
         .thenReturn(Collections.singletonList(featureSetRequest));
-    when(jedisPool.getResource()).thenReturn(jedis);
-    when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
+    when(connection.sync()).thenReturn(syncCommands);
+    when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected =
@@ -489,12 +497,14 @@ public class RedisServingServiceTest {
             .setSpec(spec)
             .build();
 
-    List<byte[]> featureRowBytes =
-        featureRows.stream().map(AbstractMessageLite::toByteArray).collect(Collectors.toList());
+    List<KeyValue<byte[], byte[]>> featureRowBytes =
+        featureRows.stream()
+            .map(x -> KeyValue.from(new byte[1], Optional.of(x.toByteArray())))
+            .collect(Collectors.toList());
     when(specService.getFeatureSets(request.getFeaturesList()))
         .thenReturn(Collections.singletonList(featureSetRequest));
-    when(jedisPool.getResource()).thenReturn(jedis);
-    when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
+    when(connection.sync()).thenReturn(syncCommands);
+    when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected =
@@ -569,12 +579,14 @@ public class RedisServingServiceTest {
             .setSpec(getFeatureSetSpec())
             .build();
 
-    List<byte[]> featureRowBytes =
-        featureRows.stream().map(AbstractMessageLite::toByteArray).collect(Collectors.toList());
+    List<KeyValue<byte[], byte[]>> featureRowBytes =
+        featureRows.stream()
+            .map(x -> KeyValue.from(new byte[1], Optional.of(x.toByteArray())))
+            .collect(Collectors.toList());
     when(specService.getFeatureSets(request.getFeaturesList()))
         .thenReturn(Collections.singletonList(featureSetRequest));
-    when(jedisPool.getResource()).thenReturn(jedis);
-    when(jedis.mget(redisKeyList)).thenReturn(featureRowBytes);
+    when(connection.sync()).thenReturn(syncCommands);
+    when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected =

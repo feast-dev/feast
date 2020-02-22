@@ -49,24 +49,27 @@ import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
 import feast.types.ValueProto.Value;
 import io.grpc.Status;
+import io.lettuce.core.api.StatefulRedisConnection;
+import io.lettuce.core.api.sync.RedisCommands;
 import io.opentracing.Scope;
 import io.opentracing.Tracer;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
 
 public class RedisServingService implements ServingService {
 
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(RedisServingService.class);
-  private final JedisPool jedisPool;
   private final CachedSpecService specService;
   private final Tracer tracer;
+  private final RedisCommands<byte[], byte[]> syncCommands;
 
-  public RedisServingService(JedisPool jedisPool, CachedSpecService specService, Tracer tracer) {
-    this.jedisPool = jedisPool;
+  public RedisServingService(
+      StatefulRedisConnection<byte[], byte[]> connection,
+      CachedSpecService specService,
+      Tracer tracer) {
+    this.syncCommands = connection.sync();
     this.specService = specService;
     this.tracer = tracer;
   }
@@ -194,7 +197,7 @@ public class RedisServingService implements ServingService {
       FeatureSetRequest featureSetRequest)
       throws InvalidProtocolBufferException {
 
-    List<byte[]> jedisResps = sendMultiGet(redisKeys);
+    List<byte[]> values = sendMultiGet(redisKeys);
     long startTime = System.currentTimeMillis();
     try (Scope scope = tracer.buildSpan("Redis-processResponse").startActive(true)) {
       FeatureSetSpec spec = featureSetRequest.getSpec();
@@ -206,12 +209,12 @@ public class RedisServingService implements ServingService {
                       RefUtil::generateFeatureStringRef,
                       featureReference -> Value.newBuilder().build()));
 
-      for (int i = 0; i < jedisResps.size(); i++) {
+      for (int i = 0; i < values.size(); i++) {
         EntityRow entityRow = entityRows.get(i);
         Map<String, Value> featureValues = featureValuesMap.get(entityRow);
 
-        byte[] jedisResponse = jedisResps.get(i);
-        if (jedisResponse == null) {
+        byte[] value = values.get(i);
+        if (value == null) {
           featureSetRequest
               .getFeatureReferences()
               .parallelStream()
@@ -226,7 +229,7 @@ public class RedisServingService implements ServingService {
           continue;
         }
 
-        FeatureRow featureRow = FeatureRow.parseFrom(jedisResponse);
+        FeatureRow featureRow = FeatureRow.parseFrom(value);
 
         boolean stale = isStale(featureSetRequest, entityRow, featureRow);
         if (stale) {
@@ -298,13 +301,15 @@ public class RedisServingService implements ServingService {
   private List<byte[]> sendMultiGet(List<RedisKey> keys) {
     try (Scope scope = tracer.buildSpan("Redis-sendMultiGet").startActive(true)) {
       long startTime = System.currentTimeMillis();
-      try (Jedis jedis = jedisPool.getResource()) {
+      try {
         byte[][] binaryKeys =
             keys.stream()
                 .map(AbstractMessageLite::toByteArray)
                 .collect(Collectors.toList())
                 .toArray(new byte[0][0]);
-        return jedis.mget(binaryKeys);
+        return syncCommands.mget(binaryKeys).stream()
+            .map(io.lettuce.core.Value::getValue)
+            .collect(Collectors.toList());
       } catch (Exception e) {
         throw Status.NOT_FOUND
             .withDescription("Unable to retrieve feature from Redis")
@@ -313,7 +318,7 @@ public class RedisServingService implements ServingService {
       } finally {
         requestLatency
             .labels("sendMultiGet")
-            .observe((System.currentTimeMillis() - startTime) / 1000);
+            .observe((System.currentTimeMillis() - startTime) / 1000.0);
       }
     }
   }

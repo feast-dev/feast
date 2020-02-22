@@ -138,11 +138,11 @@
       <version>3.1.0</version>
     </dependency>
 
-    <!--compile 'redis.clients:jedis:2.9.0'-->
     <dependency>
-      <groupId>redis.clients</groupId>
-      <artifactId>jedis</artifactId>
+      <groupId>io.lettuce</groupId>
+      <artifactId>lettuce-core</artifactId>
     </dependency>
+
     <!--compile 'com.google.guava:guava:26.0-jre'-->
     <dependency>
       <groupId>com.google.guava</groupId>

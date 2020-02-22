@@ -20,9 +20,14 @@ import feast.core.StoreProto;
 import feast.ingestion.values.FailedElement;
 import feast.retry.BackOffExecutor;
 import feast.retry.Retriable;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisConnectionException;
+import io.lettuce.core.RedisFuture;
+import io.lettuce.core.RedisURI;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -36,10 +41,6 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.Pipeline;
-import redis.clients.jedis.Response;
-import redis.clients.jedis.exceptions.JedisConnectionException;
 
 public class RedisCustomIO {
 
@@ -194,10 +195,10 @@ public class RedisCustomIO {
       private final BackOffExecutor backOffExecutor;
       private final List<RedisMutation> mutations = new ArrayList<>();
 
-      private Jedis jedis;
-      private Pipeline pipeline;
+      private LettuceTransactionPipeline pipeline;
       private int batchSize = DEFAULT_BATCH_SIZE;
       private int timeout = DEFAULT_TIMEOUT;
+      private RedisClient redisclient;
 
       WriteDoFn(StoreProto.Store.RedisConfig redisConfig) {
         this.host = redisConfig.getHost();
@@ -224,20 +225,29 @@ public class RedisCustomIO {
 
       @Setup
       public void setup() {
-        jedis = new Jedis(host, port, timeout);
+        this.redisclient =
+            RedisClient.create(new RedisURI(host, port, java.time.Duration.ofMillis(timeout)));
       }
 
       @StartBundle
       public void startBundle() {
+        try {
+          pipeline = new LettuceTransactionPipeline(redisclient);
+        } catch (RedisConnectionException e) {
+          log.error("Connection to redis cannot be established ", e);
+        }
         mutations.clear();
-        pipeline = jedis.pipelined();
       }
 
       private void executeBatch() throws Exception {
         backOffExecutor.execute(
             new Retriable() {
               @Override
-              public void execute() {
+              public void execute() throws ExecutionException, InterruptedException {
+                if (pipeline == null) {
+                  pipeline = new LettuceTransactionPipeline(redisclient);
+                }
+                pipeline.clear();
                 pipeline.multi();
                 mutations.forEach(
                     mutation -> {
@@ -247,24 +257,22 @@ public class RedisCustomIO {
                       }
                     });
                 pipeline.exec();
-                pipeline.sync();
+                pipeline.clear();
                 mutations.clear();
               }
 
               @Override
               public Boolean isExceptionRetriable(Exception e) {
-                return e instanceof JedisConnectionException;
+                return e instanceof RedisConnectionException
+                    || e instanceof ExecutionException
+                    || e instanceof InterruptedException;
               }
 
               @Override
               public void cleanUpAfterFailure() {
-                try {
-                  pipeline.close();
-                } catch (IOException e) {
-                  log.error(String.format("Error while closing pipeline: %s", e.getMessage()));
+                if (pipeline != null) {
+                  pipeline.clear();
                 }
-                jedis = new Jedis(host, port, timeout);
-                pipeline = jedis.pipelined();
               }
             });
       }
@@ -299,7 +307,7 @@ public class RedisCustomIO {
         }
       }
 
-      private Response<?> writeRecord(RedisMutation mutation) {
+      private RedisFuture<?> writeRecord(RedisMutation mutation) {
         switch (mutation.getMethod()) {
           case APPEND:
             return pipeline.append(mutation.getKey(), mutation.getValue());
@@ -339,7 +347,7 @@ public class RedisCustomIO {
 
       @Teardown
       public void teardown() {
-        jedis.close();
+        redisclient.shutdown();
       }
     }
   }

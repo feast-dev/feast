@@ -17,7 +17,7 @@
 package feast.retry;
 
 public interface Retriable {
-  void execute();
+  void execute() throws Exception;
 
   Boolean isExceptionRetriable(Exception e);
 
