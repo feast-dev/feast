@@ -72,5 +72,4 @@ public class PipelineUtil {
         .map(entry -> new File(entry).getPath())
         .collect(Collectors.toList());
   }
-
 }
