@@ -24,8 +24,11 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation.Required;
 
-/** Options passed to Beam to influence the job's execution environment */
+/**
+ * Options passed to Beam to influence the job's execution environment
+ */
 public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions, DirectOptions {
+
   @Required
   @Description(
       "JSON string representation of the FeatureSet that the import job will process, in BZip2 binary format."
@@ -60,7 +63,7 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
 
   /**
    * @param deadLetterTableSpec (Optional) BigQuery table for storing elements that failed to be
-   *     processed. Table spec must follow this format PROJECT_ID:DATASET_ID.PROJECT_ID
+   *                            processed. Table spec must follow this format PROJECT_ID:DATASET_ID.PROJECT_ID
    */
   void setDeadLetterTableSpec(String deadLetterTableSpec);
 
@@ -83,4 +86,13 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
   int getStatsdPort();
 
   void setStatsdPort(int StatsdPort);
+
+  @Description(
+      "Fixed window size in seconds (default 30) to apply before aggregation of numerical value of features"
+          + "and writing the aggregated value to StatsD. Refer to feast.ingestion.transform.metrics.WriteFeatureValueMetricsDoFn"
+          + "for details on the metric names and types.")
+  @Default.Integer(30)
+  int getWindowSizeInSecForFeatureValueMetric();
+
+  void setWindowSizeInSecForFeatureValueMetric(int seconds);
 }

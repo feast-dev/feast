@@ -67,24 +67,24 @@ tail -n10 /var/log/kafka.log
 kafkacat -b localhost:9092 -L
 
 if [[ ${SKIP_BUILD_JARS} != "true" ]]; then
-  echo "
-  ============================================================
-  Building jars for Feast
-  ============================================================
-  "
+echo "
+============================================================
+Building jars for Feast
+============================================================
+"
 
-  .prow/scripts/download-maven-cache.sh \
-      --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
-      --output-dir /root/
+.prow/scripts/download-maven-cache.sh \
+    --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
+    --output-dir /root/
 
-  # Build jars for Feast
-  mvn --quiet --batch-mode --define skipTests=true clean package
+# Build jars for Feast
+mvn --quiet --batch-mode --define skipTests=true clean package
 
-  ls -lh core/target/*jar
-  ls -lh serving/target/*jar
-  else
-    echo "[DEBUG] Skipping building jars"
-  fi
+ls -lh core/target/*jar
+ls -lh serving/target/*jar
+else
+  echo "[DEBUG] Skipping building jars"
+fi
 
 echo "
 ============================================================
