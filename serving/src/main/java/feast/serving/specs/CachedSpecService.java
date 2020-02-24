@@ -195,11 +195,7 @@ public class CachedSpecService {
     HashMap<String, String> mapping = new HashMap<>();
 
     featureSets.values().stream()
-        .collect(
-            groupingBy(
-                featureSet ->
-                    Pair.of(
-                        featureSet.getProject(), featureSet.getName())))
+        .collect(groupingBy(featureSet -> Pair.of(featureSet.getProject(), featureSet.getName())))
         .forEach(
             (group, groupedFeatureSets) -> {
               groupedFeatureSets =
