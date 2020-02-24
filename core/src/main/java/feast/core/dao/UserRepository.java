@@ -9,4 +9,6 @@ import java.util.Optional;
 /** JPA repository supplying User objects keyed by id. */
 public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByName(String user_name);
+
+    boolean existsUserByName(String user_name);
 }

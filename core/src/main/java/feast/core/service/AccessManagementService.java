@@ -107,6 +107,10 @@ public class AccessManagementService {
     Optional<Project> project = projectRepository.findById(project_name);
     Project p = project.get();
 
+    if (userRepository.existsUserByName(user_name)) {
+      throw new IllegalArgumentException(String.format("User already exists: %s", user_name));
+    }
+
     User user = new User(user_name);
     p.addUser(user);
 
@@ -117,7 +121,6 @@ public class AccessManagementService {
   public void removeMember(String user_name, String project_name) {
     Optional<Project> project = projectRepository.findById(project_name);
     Project p = project.get();
-
     Optional<User> user = userRepository.findByName(user_name);
     if (!user.isPresent()) {
       throw new IllegalArgumentException(String.format("Could not find user: \"%s\"", user_name));
