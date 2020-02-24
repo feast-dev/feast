@@ -55,8 +55,7 @@ import org.junit.Test;
 
 public class WriteFeatureValueMetricsDoFnTest {
 
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   private static final int STATSD_SERVER_PORT = 17254;
   private final DummyStatsDServer statsDServer = new DummyStatsDServer(STATSD_SERVER_PORT);
 
@@ -275,19 +274,19 @@ public class WriteFeatureValueMetricsDoFnTest {
         throw new IllegalStateException(e);
       }
       new Thread(
-          () -> {
-            try {
-              while (true) {
-                final DatagramPacket packet = new DatagramPacket(new byte[65535], 65535);
-                server.receive(packet);
-                messagesReceived.add(
-                    new String(packet.getData(), StandardCharsets.UTF_8).trim() + "\n");
-                Thread.sleep(50);
-              }
+              () -> {
+                try {
+                  while (true) {
+                    final DatagramPacket packet = new DatagramPacket(new byte[65535], 65535);
+                    server.receive(packet);
+                    messagesReceived.add(
+                        new String(packet.getData(), StandardCharsets.UTF_8).trim() + "\n");
+                    Thread.sleep(50);
+                  }
 
-            } catch (Exception e) {
-            }
-          })
+                } catch (Exception e) {
+                }
+              })
           .start();
     }
 

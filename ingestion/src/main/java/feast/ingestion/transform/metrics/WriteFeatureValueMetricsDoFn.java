@@ -159,12 +159,12 @@ public abstract class WriteFeatureValueMetricsDoFn
       String featureName = entry.getKey();
       DoubleSummaryStatistics stats = entry.getValue();
       String[] tags = {
-          STORE_TAG_KEY + ":" + getStoreName(),
-          FEATURE_SET_PROJECT_TAG_KEY + ":" + projectName,
-          FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
-          FEATURE_SET_VERSION_TAG_KEY + ":" + version,
-          FEATURE_TAG_KEY + ":" + featureName,
-          INGESTION_JOB_NAME_KEY + ":" + context.getPipelineOptions().getJobName()
+        STORE_TAG_KEY + ":" + getStoreName(),
+        FEATURE_SET_PROJECT_TAG_KEY + ":" + projectName,
+        FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
+        FEATURE_SET_VERSION_TAG_KEY + ":" + version,
+        FEATURE_TAG_KEY + ":" + featureName,
+        INGESTION_JOB_NAME_KEY + ":" + context.getPipelineOptions().getJobName()
       };
 
       // stats can return non finite values when there is no element

@@ -24,9 +24,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation.Required;
 
-/**
- * Options passed to Beam to influence the job's execution environment
- */
+/** Options passed to Beam to influence the job's execution environment */
 public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions, DirectOptions {
 
   @Required
@@ -63,7 +61,7 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
 
   /**
    * @param deadLetterTableSpec (Optional) BigQuery table for storing elements that failed to be
-   *                            processed. Table spec must follow this format PROJECT_ID:DATASET_ID.PROJECT_ID
+   *     processed. Table spec must follow this format PROJECT_ID:DATASET_ID.PROJECT_ID
    */
   void setDeadLetterTableSpec(String deadLetterTableSpec);
 
