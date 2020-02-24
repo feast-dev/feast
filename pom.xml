@@ -372,6 +372,16 @@
                         <removeUnusedImports />
                     </java>
                 </configuration>
+                <executions>
+                  <!-- Move check to fail faster, but after compilation. Default is verify phase -->
+                  <execution>
+                      <id>spotless-check</id>
+                      <phase>process-test-classes</phase>
+                      <goals>
+                          <goal>check</goal>
+                      </goals>
+                  </execution>
+              </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
