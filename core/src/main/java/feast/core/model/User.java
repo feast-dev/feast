@@ -20,6 +20,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.*;
+import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 @Getter
@@ -30,18 +32,19 @@ public class User {
 
   // User Id
   @Id
+  @GeneratedValue(strategy = GenerationType.SEQUENCE)
   @Column(name = "id", nullable = false, unique = true)
-  private String id;
+  private Integer id;
 
   // Name of the user
   @Column(name = "name", nullable = false)
   private String name;
 
   //Password of the user
-  @Column(name = "password_sha", nullable = false)
-  private String password_sha;
+//  @Column(name = "password_sha")
+//  private String password_sha;
 
-  @ManyToMany
+  @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "projects_members",
       joinColumns = @JoinColumn(name = "user_id"),
@@ -53,9 +56,35 @@ public class User {
     super();
   }
 
-  public User(String id, String name, String password_sha) {
-    this.id = id;
+  public User(String name) {
     this.name = name;
-    this.password_sha = password_sha;
+    this.projects = new HashSet<>();
+  }
+
+  public void setProject(Project project){
+    projects.add(project);
+    this.setProjects(projects);
+  }
+
+  public void removeProject(Project project){
+    projects.remove(project);
+    this.setProjects(projects);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    User field = (User) o;
+    return name.equals(field.getName());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(super.hashCode(), name);
   }
 }

@@ -18,26 +18,32 @@ package feast.core.service;
 
 import feast.core.CoreServiceProto;
 import feast.core.dao.ProjectRepository;
+import feast.core.dao.UserRepository;
 import feast.core.model.Project;
-import feast.core.model.User;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
+import feast.core.model.User;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import javax.swing.text.html.Option;
 
 @Slf4j
 @Service
 public class AccessManagementService {
 
   private ProjectRepository projectRepository;
+  private UserRepository userRepository;
 
   @Autowired
-  public AccessManagementService(ProjectRepository projectRepository) {
+  public AccessManagementService(ProjectRepository projectRepository, UserRepository userRepository) {
     this.projectRepository = projectRepository;
+    this.userRepository = userRepository;
   }
 
   /**
@@ -80,16 +86,44 @@ public class AccessManagementService {
     return projectRepository.findAllByArchivedIsFalse();
   }
 
+  /**
+   * List all members registered in the project
+   *
+   * @return List of users in the project
+   */
   @Transactional
-  public List<User> listMembers() {
-    return null;
+  public Set<User> listMembers(String project_name) {
+    Optional<Project> project = projectRepository.findById(project_name);
+    if (!project.isPresent()) {
+      throw new IllegalArgumentException(String.format("Could not find project: \"%s\"", project_name));
+    }
+    Project p = project.get();
+    Set<User> result = p.getProjectMembers();
+    return result;
   }
 
   @Transactional
-  public void addMember(String user) {
+  public void addMember(String user_name, String project_name) {
+    Optional<Project> project = projectRepository.findById(project_name);
+    Project p = project.get();
+
+    User user = new User(user_name);
+    p.addUser(user);
+
+    userRepository.saveAndFlush(user);
   }
 
   @Transactional
-  public void removeMember(String user) {
+  public void removeMember(String user_name, String project_name) {
+    Optional<Project> project = projectRepository.findById(project_name);
+    Project p = project.get();
+
+    Optional<User> user = userRepository.findByName(user_name);
+    if (!user.isPresent()) {
+      throw new IllegalArgumentException(String.format("Could not find user: \"%s\"", user_name));
+    }
+    User u = user.get();
+    p.removeUser(u);
+    userRepository.saveAndFlush(u);
   }
 }

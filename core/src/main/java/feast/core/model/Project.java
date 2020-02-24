@@ -46,7 +46,7 @@ public class Project {
       mappedBy = "project")
   private Set<FeatureSet> featureSets;
 
-  @ManyToMany(mappedBy = "projects")
+  @ManyToMany(mappedBy = "projects", fetch = FetchType.EAGER)
   private Set<User> projectMembers;
 
   public Project() {
@@ -56,11 +56,22 @@ public class Project {
   public Project(String name) {
     this.name = name;
     this.featureSets = new HashSet<>();
+    this.projectMembers = new HashSet<>();
   }
 
   public void addFeatureSet(FeatureSet featureSet) {
     featureSet.setProject(this);
     featureSets.add(featureSet);
+  }
+
+  public void addUser(User user){
+    user.setProject(this);
+    projectMembers.add(user);
+  }
+
+  public void removeUser(User user){
+    user.removeProject(this);
+    projectMembers.remove(user);
   }
 
   @Override

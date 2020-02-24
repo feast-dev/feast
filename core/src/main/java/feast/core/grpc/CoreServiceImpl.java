@@ -54,6 +54,7 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
@@ -209,13 +210,12 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void listMembers(
       ListMembersRequest request, StreamObserver<ListMembersResponse> responseObserver) {
     try {
-      List<User> members = accessManagementService.listMembers();
-      //        responseObserver.onNext(
-      //                ListMembersResponse.newBuilder()
-      //
-      // .addAllUsers(members.stream().map(User::getName).collect(Collectors.toList()))
-      //                        .build());
-      //        responseObserver.onCompleted();
+      Set<User> members = accessManagementService.listMembers(request.getProject());
+      responseObserver.onNext(
+              ListMembersResponse.newBuilder()
+              .addAllUsers(members.stream().map(User::getName).collect(Collectors.toList()))
+              .build());
+      responseObserver.onCompleted();
     } catch (Exception e) {
       log.error("Exception has occurred in the listMembers method: ", e);
       responseObserver.onError(
@@ -227,7 +227,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void addMember(
       AddMemberRequest request, StreamObserver<AddMemberResponse> responseObserver) {
     try {
-      accessManagementService.addMember(request.getUser());
+      accessManagementService.addMember(request.getUser(), request.getProject());
       responseObserver.onNext(AddMemberResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (Exception e) {
@@ -241,7 +241,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
   public void removeMember(
       RemoveMemberRequest request, StreamObserver<RemoveMemberResponse> responseObserver) {
     try {
-      accessManagementService.removeMember(request.getUser());
+      accessManagementService.removeMember(request.getUser(), request.getProject());
       responseObserver.onNext(RemoveMemberResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (Exception e) {
