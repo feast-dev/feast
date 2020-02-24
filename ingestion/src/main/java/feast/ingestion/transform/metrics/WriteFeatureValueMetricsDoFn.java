@@ -103,8 +103,8 @@ public abstract class WriteFeatureValueMetricsDoFn
     // https://github.com/DataDog/java-dogstatsd-client#unix-domain-socket-support
     try {
       statsDClient = new NonBlockingStatsDClient(METRIC_PREFIX, getStatsdHost(), getStatsdPort());
-    } catch (StatsDClientException e) {
-      log.warn("StatsD client cannot be started: " + e.getMessage());
+    } catch (Exception e) {
+      log.error("StatsD client cannot be started: " + e.getMessage());
     }
   }
 
