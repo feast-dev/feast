@@ -105,12 +105,14 @@ application.yaml:
 #     version: "*"
 
 springConfigProfiles: {}
+springSecretProfiles: {}
 #  db: |
 #    spring:
 #      datasource:
 #        driverClassName: org.postgresql.Driver
 #        url: jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:5432}/${DB_DATABASE:postgres}
 springConfigProfilesActive: ""
+springSecretProfilesActive: ""
 # springConfigMountPath is the directory path where application.yaml and
 # store.yaml will be mounted in the container.
 springConfigMountPath: /etc/feast/feast-serving

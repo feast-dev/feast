@@ -18,8 +18,12 @@ spec:
       release: {{ .Release.Name }}
   template:
     metadata:
-      {{- if .Values.prometheus.enabled }}
       annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if .Values.springSecretProfiles }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+      {{- if .Values.prometheus.enabled }}
       {{ $config := index .Values "application.yaml" }}
         prometheus.io/path: /metrics
         prometheus.io/port: "{{ $config.server.port }}"
@@ -37,8 +41,14 @@ spec:
 
       volumes:
       - name: {{ template "feast-core.fullname" . }}-config
-        configMap:
-          name: {{ template "feast-core.fullname" . }}
+        projected:
+          sources:
+            - configMap:
+                name: {{ template "feast-core.fullname" . }}
+            {{- if .Values.springSecretProfiles }}
+            - secret:
+                name: {{ template "feast-core.fullname" . }}
+            {{- end }}
       {{- if .Values.gcpServiceAccount.useExistingSecret }}
       - name: {{ template "feast-core.fullname" . }}-gcpserviceaccount
         secret:
@@ -89,7 +99,8 @@ spec:
         - -jar
         - {{ .Values.jarPath | quote }}
         - "--spring.config.location=file:{{ .Values.springConfigMountPath }}/"
-        {{- $profilesArray := splitList "," .Values.springConfigProfilesActive -}}
+        {{- $combinedProfiles := printf "%s,%s" .Values.springConfigProfilesActive .Values.springSecretProfilesActive -}}
+        {{- $profilesArray := splitList "," $combinedProfiles -}}
         {{- $profilesArray = append $profilesArray (.Values.postgresql.enabled | ternary "bundled-postgresql" "") -}}
         {{- $profilesArray = append $profilesArray (.Values.kafka.enabled | ternary "bundled-kafka" "") -}}
         {{- $profilesArray = append $profilesArray (index .Values "prometheus-statsd-exporter" "enabled" | ternary "bundled-statsd" "") -}}

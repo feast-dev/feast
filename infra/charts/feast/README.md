@@ -100,7 +100,9 @@ The following table lists the configurable parameters of the Feast chart and the
 | `feast-core.logLevel` | Application logging level | `warn`
 | `feast-core.logType` | Application logging type (`JSON` or `Console`) | `JSON`
 | `feast-core.springConfigProfiles` | Map of profile name to file content for additional Spring profiles | `{}`
+| `feast-core.springSecretProfiles` | Map of profile name to file content for additional Spring profiles. Use this instead of springConfigProfiles if the content contains secrets. | `{}`
 | `feast-core.springConfigProfilesActive` | CSV of profiles to enable from `springConfigProfiles` | `""`
+| `feast-core.springSecretProfilesActive` | CSV of profiles to enable from `springSecretProfiles` | `""`
 | `feast-core.livenessProbe.enabled` | Flag to enable liveness probe | `true`
 | `feast-core.livenessProbe.initialDelaySeconds` | Delay before liveness probe is initiated | `60`
 | `feast-core.livenessProbe.periodSeconds` | How often to perform the probe | `10`
@@ -142,7 +144,9 @@ The following table lists the configurable parameters of the Feast chart and the
 | `feast-serving-online.logLevel` | Application logging level | `warn`
 | `feast-serving-online.logType` | Application logging type (`JSON` or `Console`) | `JSON`
 | `feast-serving-online.springConfigProfiles` | Map of profile name to file content for additional Spring profiles | `{}`
+| `feast-serving-online.springSecretProfiles` | Map of profile name to file content for additional Spring profiles. Use this instead of springConfigProfiles if the content contains secrets. | `{}`
 | `feast-serving-online.springConfigProfilesActive` | CSV of profiles to enable from `springConfigProfiles` | `""`
+| `feast-serving-online.springSecretProfilesActive` | CSV of profiles to enable from `springSecretProfiles` | `""`
 | `feast-serving-online.livenessProbe.enabled` | Flag to enable liveness probe | `true`
 | `feast-serving-online.livenessProbe.initialDelaySeconds` | Delay before liveness probe is initiated | `60`
 | `feast-serving-online.livenessProbe.periodSeconds` | How often to perform the probe | `10`
@@ -184,7 +188,9 @@ The following table lists the configurable parameters of the Feast chart and the
 | `feast-serving-batch.logLevel` | Application logging level | `warn`
 | `feast-serving-batch.logType` | Application logging type (`JSON` or `Console`) | `JSON`
 | `feast-serving-batch.springConfigProfiles` | Map of profile name to file content for additional Spring profiles | `{}`
+| `feast-serving-batch.springSecretProfiles` | Map of profile name to file content for additional Spring profiles. Use this instead of springConfigProfiles if the content contains secrets. | `{}`
 | `feast-serving-batch.springConfigProfilesActive` | CSV of profiles to enable from `springConfigProfiles` | `""`
+| `feast-serving-batch.springSecretProfilesActive` | CSV of profiles to enable from `springSecretProfiles` | `""`
 | `feast-serving-batch.livenessProbe.enabled` | Flag to enable liveness probe | `true`
 | `feast-serving-batch.livenessProbe.initialDelaySeconds` | Delay before liveness probe is initiated | `60`
 | `feast-serving-batch.livenessProbe.periodSeconds` | How often to perform the probe | `10`
