@@ -129,7 +129,7 @@ public abstract class WriteFeatureValueMetricsDoFn
     }
     String[] colonSplits = featureSetRef.split(":");
     if (colonSplits.length != 2) {
-      log.warn(
+      log.error(
           "Skip writing feature value metrics because the feature set reference '{}' does not"
               + "follow the required format <project>/<feature_set_name>:<version>",
           featureSetRef);
@@ -137,7 +137,7 @@ public abstract class WriteFeatureValueMetricsDoFn
     }
     String[] slashSplits = colonSplits[0].split("/");
     if (slashSplits.length != 2) {
-      log.warn(
+      log.error(
           "Skip writing feature value metrics because the feature set reference '{}' does not"
               + "follow the required format <project>/<feature_set_name>:<version>",
           featureSetRef);
