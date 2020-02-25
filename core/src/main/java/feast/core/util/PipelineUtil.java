@@ -24,7 +24,9 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class PipelineUtil {
 
@@ -45,12 +47,7 @@ public class PipelineUtil {
   public static List<String> detectClassPathResourcesToStage(ClassLoader classLoader)
       throws IOException {
     if (!(classLoader instanceof URLClassLoader)) {
-      String message =
-          String.format(
-              "Unable to use ClassLoader to detect classpath elements. "
-                  + "Current ClassLoader is %s, only URLClassLoaders are supported.",
-              classLoader);
-      throw new IllegalArgumentException(message);
+      return getClasspathFiles();
     }
 
     List<String> files = new ArrayList<>();
@@ -68,5 +65,11 @@ public class PipelineUtil {
       }
     }
     return files;
+  }
+
+  private static List<String> getClasspathFiles() {
+    return Arrays.stream(System.getProperty("java.class.path").split(File.pathSeparator))
+        .map(entry -> new File(entry).getPath())
+        .collect(Collectors.toList());
   }
 }

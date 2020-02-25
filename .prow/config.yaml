@@ -66,28 +66,68 @@ presubmits:
     always_run: true
     spec:
       containers:
-      - image: maven:3.6-jdk-8
+      - image: maven:3.6-jdk-11
         command: [".prow/scripts/test-core-ingestion.sh"]
         resources:
           requests:
             cpu: "2000m"
             memory: "1536Mi"
+    skip_branches:
+    - ^v0\.(3|4)-branch$
+
+  - name: test-core-and-ingestion-java-8
+    decorate: true
+    always_run: true
+    spec:
+      containers:
+        - image: maven:3.6-jdk-8
+          command: [".prow/scripts/test-core-ingestion.sh"]
+          resources:
+            requests:
+              cpu: "2000m"
+              memory: "1536Mi"
+    branches:
+    - ^v0\.(3|4)-branch$
 
   - name: test-serving
     decorate: true
     always_run: true
     spec:
       containers:
-      - image: maven:3.6-jdk-8
+      - image: maven:3.6-jdk-11
         command: [".prow/scripts/test-serving.sh"]
+    skip_branches:
+    - ^v0\.(3|4)-branch$
+
+  - name: test-serving-java-8
+    decorate: true
+    always_run: true
+    spec:
+      containers:
+        - image: maven:3.6-jdk-8
+          command: [".prow/scripts/test-serving.sh"]
+    branches:
+    - ^v0\.(3|4)-branch$
 
   - name: test-java-sdk
     decorate: true
     always_run: true
     spec:
       containers:
-      - image: maven:3.6-jdk-8
+      - image: maven:3.6-jdk-11
         command: [".prow/scripts/test-java-sdk.sh"]
+    skip_branches:
+    - ^v0\.(3|4)-branch$
+
+  - name: test-java-sdk-java-8
+    decorate: true
+    always_run: true
+    spec:
+      containers:
+        - image: maven:3.6-jdk-8
+          command: [".prow/scripts/test-java-sdk.sh"]
+    branches:
+    - ^v0\.(3|4)-branch$
 
   - name: test-python-sdk
     decorate: true
@@ -110,12 +150,28 @@ presubmits:
     always_run: true
     spec:
       containers:
-      - image: maven:3.6-jdk-8
+      - image: maven:3.6-jdk-11
         command: [".prow/scripts/test-end-to-end.sh"]
         resources:
           requests:
             cpu: "6"
             memory: "6144Mi"
+    skip_branches:
+    - ^v0\.(3|4)-branch$
+
+  - name: test-end-to-end-java-8
+    decorate: true
+    always_run: true
+    spec:
+      containers:
+        - image: maven:3.6-jdk-8
+          command: [".prow/scripts/test-end-to-end.sh"]
+          resources:
+            requests:
+              cpu: "6"
+              memory: "6144Mi"
+    branches:
+    - ^v0\.(3|4)-branch$
 
   - name: test-end-to-end-batch
     decorate: true
@@ -126,7 +182,7 @@ presubmits:
         secret:
           secretName: feast-service-account
       containers:
-      - image: maven:3.6-jdk-8
+      - image: maven:3.6-jdk-11
         command: [".prow/scripts/test-end-to-end-batch.sh"]
         resources:
           requests:
@@ -135,6 +191,29 @@ presubmits:
         volumeMounts:
         - name: service-account
           mountPath: "/etc/service-account"
+    skip_branches:
+    - ^v0\.(3|4)-branch$
+
+  - name: test-end-to-end-batch-java-8
+    decorate: true
+    always_run: true
+    spec:
+      volumes:
+        - name: service-account
+          secret:
+            secretName: feast-service-account
+      containers:
+        - image: maven:3.6-jdk-8
+          command: [".prow/scripts/test-end-to-end-batch.sh"]
+          resources:
+            requests:
+              cpu: "6"
+              memory: "6144Mi"
+          volumeMounts:
+            - name: service-account
+              mountPath: "/etc/service-account"
+    branches:
+    - ^v0\.(3|4)-branch$
 
 postsubmits:
   gojek/feast:
@@ -167,7 +246,7 @@ postsubmits:
     decorate: true
     spec:
       containers:
-      - image: maven:3.6-jdk-8
+      - image: maven:3.6-jdk-11
         command:
         - bash
         - -c
@@ -187,9 +266,41 @@ postsubmits:
       - name: maven-settings
         secret:
           secretName: maven-settings
+    skip_branches:
+    # Skip version 0.3 and 0.4
+    - ^v0\.(3|4)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$
+
     branches:
-    # Filter on tags with semantic versioning, prefixed with "v"
+    # Filter on tags with semantic versioning, prefixed with "v".
     - ^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$
+
+  - name: publish-java-8-sdk
+    decorate: true
+    spec:
+      containers:
+        - image: maven:3.6-jdk-8
+          command:
+            - bash
+            - -c
+            - .prow/scripts/publish-java-sdk.sh --revision ${PULL_BASE_REF:1}
+          volumeMounts:
+            - name: gpg-keys
+              mountPath: /etc/gpg
+              readOnly: true
+            - name: maven-settings
+              mountPath: /root/.m2/settings.xml
+              subPath: settings.xml
+              readOnly: true
+      volumes:
+        - name: gpg-keys
+          secret:
+            secretName: gpg-keys
+        - name: maven-settings
+          secret:
+            secretName: maven-settings
+    branches:
+    # Filter on tags with semantic versioning, prefixed with "v". v0.3 and v0.4 only.
+    - ^v0\.(3|4)\.(0|[1-9]\d*)(-(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$
 
   - name: publish-docker-images
     decorate: true

@@ -3,12 +3,6 @@
 set -e
 set -o pipefail
 
-if ! cat /etc/*release | grep -q stretch; then
-    echo ${BASH_SOURCE} only supports Debian stretch.
-    echo Please change your operating system to use this script.
-    exit 1
-fi
-
 test -z ${GOOGLE_APPLICATION_CREDENTIALS} && GOOGLE_APPLICATION_CREDENTIALS="/etc/service-account/service-account.json"
 test -z ${SKIP_BUILD_JARS} && SKIP_BUILD_JARS="false"
 test -z ${GOOGLE_CLOUD_PROJECT} && GOOGLE_CLOUD_PROJECT="kf-feast"
@@ -73,24 +67,24 @@ tail -n10 /var/log/kafka.log
 kafkacat -b localhost:9092 -L
 
 if [[ ${SKIP_BUILD_JARS} != "true" ]]; then
-  echo "
-  ============================================================
-  Building jars for Feast
-  ============================================================
-  "
+echo "
+============================================================
+Building jars for Feast
+============================================================
+"
 
-  .prow/scripts/download-maven-cache.sh \
-      --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
-      --output-dir /root/
+.prow/scripts/download-maven-cache.sh \
+    --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
+    --output-dir /root/
 
-  # Build jars for Feast
-  mvn --quiet --batch-mode --define skipTests=true clean package
+# Build jars for Feast
+mvn --quiet --batch-mode --define skipTests=true clean package
 
-  ls -lh core/target/*jar
-  ls -lh serving/target/*jar
-  else
-    echo "[DEBUG] Skipping building jars"
-  fi
+ls -lh core/target/*jar
+ls -lh serving/target/*jar
+else
+  echo "[DEBUG] Skipping building jars"
+fi
 
 echo "
 ============================================================
@@ -235,6 +229,9 @@ if [[ ${TEST_EXIT_CODE} != 0 ]]; then
   echo "[DEBUG] Printing logs"
   ls -ltrh /var/log/feast*
   cat /var/log/feast-serving-online.log /var/log/feast-core.log
+
+  echo "[DEBUG] Printing Python packages list"
+  pip list
 fi
 
 cd ${ORIGINAL_DIR}

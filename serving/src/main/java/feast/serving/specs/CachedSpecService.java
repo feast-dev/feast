@@ -49,7 +49,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.lang3.tuple.Triple;
 import org.slf4j.Logger;
 
 /** In-memory cache of specs. */
@@ -196,11 +195,7 @@ public class CachedSpecService {
     HashMap<String, String> mapping = new HashMap<>();
 
     featureSets.values().stream()
-        .collect(
-            groupingBy(
-                featureSet ->
-                    Triple.of(
-                        featureSet.getProject(), featureSet.getName(), featureSet.getVersion())))
+        .collect(groupingBy(featureSet -> Pair.of(featureSet.getProject(), featureSet.getName())))
         .forEach(
             (group, groupedFeatureSets) -> {
               groupedFeatureSets =

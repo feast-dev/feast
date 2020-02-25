@@ -36,7 +36,7 @@ message FeatureRow {
     google.protobuf.Timestamp event_timestamp = 3;
 
     // Complete reference to the featureSet this featureRow belongs to, in the form of
-    // featureSetName:version. This value will be used by the feast ingestion job to filter
+    // <project>/<feature-set-name>:<version>. This value will be used by the feast ingestion job to filter
     // rows, and write the values to the correct tables.
     string feature_set = 6;
 }

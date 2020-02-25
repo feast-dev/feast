@@ -238,7 +238,6 @@ public class RedisCustomIO {
             new Retriable() {
               @Override
               public void execute() {
-                pipeline.multi();
                 mutations.forEach(
                     mutation -> {
                       writeRecord(mutation);
@@ -246,7 +245,6 @@ public class RedisCustomIO {
                         pipeline.pexpire(mutation.getKey(), mutation.getExpiryMillis());
                       }
                     });
-                pipeline.exec();
                 pipeline.sync();
                 mutations.clear();
               }

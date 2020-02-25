@@ -1,7 +1,7 @@
 # The following are values for installing Feast for demonstration purpose:
 # - Persistence is disabled since for demo purpose data is not expected
 #   to be durable
-# - Only online serving (no batch serving) is installed to remove dependency 
+# - Only online serving (no batch serving) is installed to remove dependency
 #   on Google Cloud services. Batch serving requires BigQuery dependency.
 # - Replace all occurrences of "feast.example.com" with the domain name or
 #   external IP pointing to your cluster
@@ -68,4 +68,17 @@ feast-serving-online:
         version: "*"
 
 feast-serving-batch:
-  enabled: false
+#  enabled: false
+  enabled: true
+  store.yaml:
+    name: bigquery
+    type: BIGQUERY
+    bigquery_config:
+      project_id: PROJECT_ID
+      dataset_id: DATASET_ID
+    subscriptions:
+    - project: "*"
+      name: "*"
+      version: "*"
+  redis:
+    enabled: false
