@@ -41,10 +41,6 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.Pipeline;
-import redis.clients.jedis.Response;
-import redis.clients.jedis.exceptions.JedisConnectionException;
 
 public class RedisCustomIO {
 
@@ -241,7 +237,6 @@ public class RedisCustomIO {
           log.error("Connection to redis cannot be established ", e);
         }
         mutations.clear();
-        pipeline = jedis.pipelined();
       }
 
       private void executeBatch() throws Exception {
@@ -278,8 +273,6 @@ public class RedisCustomIO {
                 if (pipeline != null) {
                   pipeline.clear();
                 }
-                jedis = new Jedis(host, port, timeout);
-                pipeline = jedis.pipelined();
               }
             });
       }
