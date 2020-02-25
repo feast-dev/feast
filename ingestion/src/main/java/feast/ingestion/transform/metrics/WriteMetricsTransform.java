@@ -21,11 +21,16 @@ import feast.ingestion.options.ImportOptions;
 import feast.ingestion.values.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
+import org.joda.time.Duration;
 
 @AutoValue
 public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple, PDone> {
@@ -74,6 +79,42 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
                 "WriteRowMetrics",
                 ParDo.of(
                     WriteRowMetricsDoFn.newBuilder()
+                        .setStatsdHost(options.getStatsdHost())
+                        .setStatsdPort(options.getStatsdPort())
+                        .setStoreName(getStoreName())
+                        .build()));
+
+        // 1. Apply a fixed window
+        // 2. Group feature row by feature set reference
+        // 3. Calculate min, max, mean, percentiles of numerical values of features in the window
+        // and
+        // 4. Send the aggregate value to StatsD metric collector.
+        //
+        // NOTE: window is applied here so the metric collector will not be overwhelmed with
+        // metrics data. And for metric data, only statistic of the  values are usually required
+        // vs the actual values.
+        input
+            .get(getSuccessTag())
+            .apply(
+                "FixedWindow",
+                Window.into(
+                    FixedWindows.of(
+                        Duration.standardSeconds(
+                            options.getWindowSizeInSecForFeatureValueMetric()))))
+            .apply(
+                "ConvertTo_FeatureSetRefToFeatureRow",
+                ParDo.of(
+                    new DoFn<FeatureRow, KV<String, FeatureRow>>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c, @Element FeatureRow featureRow) {
+                        c.output(KV.of(featureRow.getFeatureSet(), featureRow));
+                      }
+                    }))
+            .apply("GroupByFeatureSetRef", GroupByKey.create())
+            .apply(
+                "WriteFeatureValueMetrics",
+                ParDo.of(
+                    WriteFeatureValueMetricsDoFn.newBuilder()
                         .setStatsdHost(options.getStatsdHost())
                         .setStatsdPort(options.getStatsdPort())
                         .setStoreName(getStoreName())
