@@ -86,7 +86,8 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
 
         // 1. Apply a fixed window
         // 2. Group feature row by feature set reference
-        // 3. Calculate min, max, mean, percentiles of numerical values of features in the window and
+        // 3. Calculate min, max, mean, percentiles of numerical values of features in the window
+        // and
         // 4. Send the aggregate value to StatsD metric collector.
         //
         // NOTE: window is applied here so the metric collector will not be overwhelmed with
@@ -94,21 +95,30 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
         // vs the actual values.
         input
             .get(getSuccessTag())
-            .apply("FixedWindow", Window.into(FixedWindows
-                .of(Duration.standardSeconds(options.getWindowSizeInSecForFeatureValueMetric()))))
-            .apply("ConvertTo_FeatureSetRefToFeatureRow",
-                ParDo.of(new DoFn<FeatureRow, KV<String, FeatureRow>>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c, @Element FeatureRow featureRow) {
-                    c.output(KV.of(featureRow.getFeatureSet(), featureRow));
-                  }
-                }))
+            .apply(
+                "FixedWindow",
+                Window.into(
+                    FixedWindows.of(
+                        Duration.standardSeconds(
+                            options.getWindowSizeInSecForFeatureValueMetric()))))
+            .apply(
+                "ConvertTo_FeatureSetRefToFeatureRow",
+                ParDo.of(
+                    new DoFn<FeatureRow, KV<String, FeatureRow>>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c, @Element FeatureRow featureRow) {
+                        c.output(KV.of(featureRow.getFeatureSet(), featureRow));
+                      }
+                    }))
             .apply("GroupByFeatureSetRef", GroupByKey.create())
-            .apply("WriteFeatureValueMetrics", ParDo.of(WriteFeatureValueMetricsDoFn.newBuilder()
-                .setStatsdHost(options.getStatsdHost())
-                .setStatsdPort(options.getStatsdPort())
-                .setStoreName(getStoreName())
-                .build()));
+            .apply(
+                "WriteFeatureValueMetrics",
+                ParDo.of(
+                    WriteFeatureValueMetricsDoFn.newBuilder()
+                        .setStatsdHost(options.getStatsdHost())
+                        .setStatsdPort(options.getStatsdPort())
+                        .setStoreName(getStoreName())
+                        .build()));
 
         return PDone.in(input.getPipeline());
       case "none":
@@ -120,8 +130,7 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
                 ParDo.of(
                     new DoFn<FeatureRow, Void>() {
                       @ProcessElement
-                      public void processElement(ProcessContext c) {
-                      }
+                      public void processElement(ProcessContext c) {}
                     }));
         return PDone.in(input.getPipeline());
     }

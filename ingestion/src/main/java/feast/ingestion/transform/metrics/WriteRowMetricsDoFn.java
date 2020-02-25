@@ -75,7 +75,6 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
   @Setup
   public void setup() {
     statsd = new NonBlockingStatsDClient(METRIC_PREFIX, getStatsdHost(), getStatsdPort());
-
   }
 
   @ProcessElement
