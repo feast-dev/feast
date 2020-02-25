@@ -114,7 +114,12 @@ public class RedisCustomIOTest {
                         null))
             .collect(Collectors.toList());
 
-    p.apply(Create.of(featureRowWrites)).apply(RedisCustomIO.write(redisConfig));
+    StoreProto.Store store =
+        StoreProto.Store.newBuilder()
+            .setRedisConfig(redisConfig)
+            .setType(StoreProto.Store.StoreType.REDIS)
+            .build();
+    p.apply(Create.of(featureRowWrites)).apply(RedisCustomIO.write(store));
     p.run();
 
     kvs.forEach(
@@ -157,9 +162,14 @@ public class RedisCustomIOTest {
                         null))
             .collect(Collectors.toList());
 
+    StoreProto.Store store =
+        StoreProto.Store.newBuilder()
+            .setRedisConfig(redisConfig)
+            .setType(StoreProto.Store.StoreType.REDIS)
+            .build();
     PCollection<Long> failedElementCount =
         p.apply(Create.of(featureRowWrites))
-            .apply(RedisCustomIO.write(redisConfig))
+            .apply(RedisCustomIO.write(store))
             .apply(Count.globally());
 
     redis.stop();
@@ -211,9 +221,14 @@ public class RedisCustomIOTest {
                         null))
             .collect(Collectors.toList());
 
+    StoreProto.Store store =
+        StoreProto.Store.newBuilder()
+            .setRedisConfig(redisConfig)
+            .setType(StoreProto.Store.StoreType.REDIS)
+            .build();
     PCollection<Long> failedElementCount =
         p.apply(Create.of(featureRowWrites))
-            .apply(RedisCustomIO.write(redisConfig))
+            .apply(RedisCustomIO.write(store))
             .apply(Count.globally());
 
     redis.stop();
