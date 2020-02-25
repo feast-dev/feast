@@ -31,13 +31,13 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
 
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(WriteRowMetricsDoFn.class);
 
-  private final String METRIC_PREFIX = "feast_ingestion";
-  private final String STORE_TAG_KEY = "feast_store";
-  private final String FEATURE_SET_PROJECT_TAG_KEY = "feast_project_name";
-  private final String FEATURE_SET_NAME_TAG_KEY = "feast_featureSet_name";
-  private final String FEATURE_SET_VERSION_TAG_KEY = "feast_featureSet_version";
-  private final String FEATURE_TAG_KEY = "feast_feature_name";
-  private final String INGESTION_JOB_NAME_KEY = "ingestion_job_name";
+  public static final String METRIC_PREFIX = "feast_ingestion";
+  public static final String STORE_TAG_KEY = "feast_store";
+  public static final String FEATURE_SET_PROJECT_TAG_KEY = "feast_project_name";
+  public static final String FEATURE_SET_NAME_TAG_KEY = "feast_featureSet_name";
+  public static final String FEATURE_SET_VERSION_TAG_KEY = "feast_featureSet_version";
+  public static final String FEATURE_TAG_KEY = "feast_feature_name";
+  public static final String INGESTION_JOB_NAME_KEY = "ingestion_job_name";
 
   public abstract String getStoreName();
 

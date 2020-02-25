@@ -1,0 +1,9 @@
+WriteFeatureValueMetricsDoFnTest.input file contains data that can be read by test utility 
+into map of FeatureSetRef -> [FeatureRow]. In the first row, the cell value corresponds to the
+field name in the FeatureRow. This should not be changed as the test utility derives the value
+type from this name. Empty value in the cell is a value that is not set. For list type, the values
+of different element is separated by the '|' character.
+
+WriteFeatureValueMetricsDoFnTest.output file contains lines of expected StatsD metrics that should
+be sent when WriteFeatureValueMetricsDoFn runs. It can be checked against the actual outputted
+StatsD metrics to test for correctness.
