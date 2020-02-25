@@ -11,9 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import pkgutil
 from datetime import datetime
 
 import tempfile
+from unittest import mock
+
 import grpc
 import pandas as pd
 from google.protobuf.duration_pb2 import Duration
@@ -63,26 +66,21 @@ import dataframes
 
 CORE_URL = "core.feast.example.com"
 SERVING_URL = "serving.example.com"
+_PRIVATE_KEY_RESOURCE_PATH = 'data/localhost.key'
+_CERTIFICATE_CHAIN_RESOURCE_PATH = 'data/localhost.pem'
+_ROOT_CERTIFICATE_RESOURCE_PATH = 'data/localhost.crt'
 
 
 class TestClient:
-    @pytest.fixture(scope="function")
-    def core_server(self):
-        server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
-        server.add_insecure_port("[::]:50051")
-        server.start()
-        yield server
-        server.stop(0)
 
-    @pytest.fixture(scope="function")
-    def serving_server(self):
-        server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        Serving.add_ServingServiceServicer_to_server(ServingServicer(), server)
-        server.add_insecure_port("[::]:50052")
-        server.start()
-        yield server
-        server.stop(0)
+    @pytest.fixture
+    def secure_mock_client(self, mocker):
+        client = Client(core_url=CORE_URL, serving_url=SERVING_URL, core_secure=True, serving_secure=True)
+        mocker.patch.object(client, "_connect_core")
+        mocker.patch.object(client, "_connect_serving")
+        client._core_url = CORE_URL
+        client._serving_url = SERVING_URL
+        return client
 
     @pytest.fixture
     def mock_client(self, mocker):
@@ -94,39 +92,97 @@ class TestClient:
         return client
 
     @pytest.fixture
+    def server_credentials(self):
+        private_key = pkgutil.get_data(__name__, _PRIVATE_KEY_RESOURCE_PATH)
+        certificate_chain = pkgutil.get_data(__name__, _CERTIFICATE_CHAIN_RESOURCE_PATH)
+        return grpc.ssl_server_credentials(((private_key, certificate_chain),))
+
+    @pytest.fixture
+    def core_server(self):
+        server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
+        server.add_insecure_port("[::]:50051")
+        server.start()
+        yield server
+        server.stop(0)
+
+    @pytest.fixture
+    def serving_server(self):
+        server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        Serving.add_ServingServiceServicer_to_server(ServingServicer(), server)
+        server.add_insecure_port("[::]:50052")
+        server.start()
+        yield server
+        server.stop(0)
+
+    @pytest.fixture
+    def secure_core_server(self, server_credentials):
+        server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        Core.add_CoreServiceServicer_to_server(CoreServicer(), server)
+        server.add_secure_port("[::]:50053", server_credentials)
+        server.start()
+        yield server
+        server.stop(0)
+
+    @pytest.fixture
+    def secure_serving_server(self, server_credentials):
+        server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        Serving.add_ServingServiceServicer_to_server(ServingServicer(), server)
+
+        server.add_secure_port("[::]:50054", server_credentials)
+        server.start()
+        yield server
+        server.stop(0)
+
+    @pytest.fixture
+    def secure_client(self, secure_core_server, secure_serving_server):
+        root_certificate_credentials = pkgutil.get_data(__name__, _ROOT_CERTIFICATE_RESOURCE_PATH)
+        # this is needed to establish a secure connection using self-signed certificates, for the purpose of the test
+        ssl_channel_credentials = grpc.ssl_channel_credentials(root_certificates=root_certificate_credentials)
+        with mock.patch("grpc.ssl_channel_credentials", MagicMock(return_value=ssl_channel_credentials)):
+            yield Client(core_url="localhost:50053", serving_url="localhost:50054", core_secure=True,
+                         serving_secure=True)
+
+    @pytest.fixture
     def client(self, core_server, serving_server):
         return Client(core_url="localhost:50051", serving_url="localhost:50052")
 
-    def test_version(self, mock_client, mocker):
-        mock_client._core_service_stub = Core.CoreServiceStub(grpc.insecure_channel(""))
-        mock_client._serving_service_stub = Serving.ServingServiceStub(
+    @pytest.mark.parametrize("mocked_client", [pytest.lazy_fixture("mock_client"),
+                                               pytest.lazy_fixture("secure_mock_client")
+                                               ])
+    def test_version(self, mocked_client, mocker):
+        mocked_client._core_service_stub = Core.CoreServiceStub(grpc.insecure_channel(""))
+        mocked_client._serving_service_stub = Serving.ServingServiceStub(
             grpc.insecure_channel("")
         )
 
         mocker.patch.object(
-            mock_client._core_service_stub,
+            mocked_client._core_service_stub,
             "GetFeastCoreVersion",
             return_value=GetFeastCoreVersionResponse(version="0.3.2"),
         )
 
         mocker.patch.object(
-            mock_client._serving_service_stub,
+            mocked_client._serving_service_stub,
             "GetFeastServingInfo",
             return_value=GetFeastServingInfoResponse(version="0.3.2"),
         )
 
-        status = mock_client.version()
+        status = mocked_client.version()
         assert (
-            status["core"]["url"] == CORE_URL
-            and status["core"]["version"] == "0.3.2"
-            and status["serving"]["url"] == SERVING_URL
-            and status["serving"]["version"] == "0.3.2"
+                status["core"]["url"] == CORE_URL
+                and status["core"]["version"] == "0.3.2"
+                and status["serving"]["url"] == SERVING_URL
+                and status["serving"]["version"] == "0.3.2"
         )
 
-    def test_get_online_features(self, mock_client, mocker):
+    @pytest.mark.parametrize("mocked_client", [pytest.lazy_fixture("mock_client"),
+                                               pytest.lazy_fixture("secure_mock_client")
+                                               ])
+    def test_get_online_features(self, mocked_client, mocker):
         ROW_COUNT = 300
 
-        mock_client._serving_service_stub = Serving.ServingServiceStub(
+        mocked_client._serving_service_stub = Serving.ServingServiceStub(
             grpc.insecure_channel("")
         )
 
@@ -148,12 +204,12 @@ class TestClient:
             )
 
         mocker.patch.object(
-            mock_client._serving_service_stub,
+            mocked_client._serving_service_stub,
             "GetOnlineFeatures",
             return_value=response,
         )
 
-        response = mock_client.get_online_features(
+        response = mocked_client.get_online_features(
             entity_rows=entity_rows,
             feature_refs=[
                 "my_project/feature_1:1",
@@ -169,17 +225,20 @@ class TestClient:
         )  # type: GetOnlineFeaturesResponse
 
         assert (
-            response.field_values[0].fields["my_project/feature_1:1"].int64_val == 1
-            and response.field_values[0].fields["my_project/feature_9:1"].int64_val == 9
+                response.field_values[0].fields["my_project/feature_1:1"].int64_val == 1
+                and response.field_values[0].fields["my_project/feature_9:1"].int64_val == 9
         )
 
-    def test_get_feature_set(self, mock_client, mocker):
-        mock_client._core_service_stub = Core.CoreServiceStub(grpc.insecure_channel(""))
+    @pytest.mark.parametrize("mocked_client", [pytest.lazy_fixture("mock_client"),
+                                               pytest.lazy_fixture("secure_mock_client")
+                                               ])
+    def test_get_feature_set(self, mocked_client, mocker):
+        mocked_client._core_service_stub = Core.CoreServiceStub(grpc.insecure_channel(""))
 
         from google.protobuf.duration_pb2 import Duration
 
         mocker.patch.object(
-            mock_client._core_service_stub,
+            mocked_client._core_service_stub,
             "GetFeatureSet",
             return_value=GetFeatureSetResponse(
                 feature_set=FeatureSetProto(
@@ -214,29 +273,32 @@ class TestClient:
                 )
             ),
         )
-        mock_client.set_project("my_project")
-        feature_set = mock_client.get_feature_set("my_feature_set", version=2)
+        mocked_client.set_project("my_project")
+        feature_set = mocked_client.get_feature_set("my_feature_set", version=2)
 
         assert (
-            feature_set.name == "my_feature_set"
-            and feature_set.version == 2
-            and feature_set.fields["my_feature_1"].name == "my_feature_1"
-            and feature_set.fields["my_feature_1"].dtype == ValueType.FLOAT
-            and feature_set.fields["my_entity_1"].name == "my_entity_1"
-            and feature_set.fields["my_entity_1"].dtype == ValueType.INT64
-            and len(feature_set.features) == 2
-            and len(feature_set.entities) == 1
+                feature_set.name == "my_feature_set"
+                and feature_set.version == 2
+                and feature_set.fields["my_feature_1"].name == "my_feature_1"
+                and feature_set.fields["my_feature_1"].dtype == ValueType.FLOAT
+                and feature_set.fields["my_entity_1"].name == "my_entity_1"
+                and feature_set.fields["my_entity_1"].dtype == ValueType.INT64
+                and len(feature_set.features) == 2
+                and len(feature_set.entities) == 1
         )
 
-    def test_get_batch_features(self, mock_client, mocker):
+    @pytest.mark.parametrize("mocked_client", [pytest.lazy_fixture("mock_client"),
+                                               pytest.lazy_fixture("secure_mock_client")
+                                               ])
+    def test_get_batch_features(self, mocked_client, mocker):
 
-        mock_client._serving_service_stub = Serving.ServingServiceStub(
+        mocked_client._serving_service_stub = Serving.ServingServiceStub(
             grpc.insecure_channel("")
         )
-        mock_client._core_service_stub = Core.CoreServiceStub(grpc.insecure_channel(""))
+        mocked_client._core_service_stub = Core.CoreServiceStub(grpc.insecure_channel(""))
 
         mocker.patch.object(
-            mock_client._core_service_stub,
+            mocked_client._core_service_stub,
             "GetFeatureSet",
             return_value=GetFeatureSetResponse(
                 feature_set=FeatureSetProto(
@@ -283,7 +345,7 @@ class TestClient:
         to_avro(file_path_or_buffer=final_results, df=expected_dataframe)
 
         mocker.patch.object(
-            mock_client._serving_service_stub,
+            mocked_client._serving_service_stub,
             "GetBatchFeatures",
             return_value=GetBatchFeaturesResponse(
                 job=BatchFeaturesJob(
@@ -297,7 +359,7 @@ class TestClient:
         )
 
         mocker.patch.object(
-            mock_client._serving_service_stub,
+            mocked_client._serving_service_stub,
             "GetJob",
             return_value=GetJobResponse(
                 job=BatchFeaturesJob(
@@ -311,7 +373,7 @@ class TestClient:
         )
 
         mocker.patch.object(
-            mock_client._serving_service_stub,
+            mocked_client._serving_service_stub,
             "GetFeastServingInfo",
             return_value=GetFeastServingInfoResponse(
                 job_staging_location=f"file://{tempfile.mkdtemp()}/",
@@ -319,8 +381,8 @@ class TestClient:
             ),
         )
 
-        mock_client.set_project("project1")
-        response = mock_client.get_batch_features(
+        mocked_client.set_project("project1")
+        response = mocked_client.get_batch_features(
             entity_rows=pd.DataFrame(
                 {
                     "datetime": [
@@ -348,9 +410,12 @@ class TestClient:
             ]
         )
 
-    def test_apply_feature_set_success(self, client):
+    @pytest.mark.parametrize("test_client", [pytest.lazy_fixture("client"),
+                                             pytest.lazy_fixture("secure_client")
+                                             ])
+    def test_apply_feature_set_success(self, test_client):
 
-        client.set_project("project1")
+        test_client.set_project("project1")
 
         # Create Feature Sets
         fs1 = FeatureSet("my-feature-set-1")
@@ -364,23 +429,24 @@ class TestClient:
         fs2.add(Entity(name="fs2-my-entity-1", dtype=ValueType.INT64))
 
         # Register Feature Set with Core
-        client.apply(fs1)
-        client.apply(fs2)
+        test_client.apply(fs1)
+        test_client.apply(fs2)
 
-        feature_sets = client.list_feature_sets()
+        feature_sets = test_client.list_feature_sets()
 
         # List Feature Sets
         assert (
-            len(feature_sets) == 2
-            and feature_sets[0].name == "my-feature-set-1"
-            and feature_sets[0].features[0].name == "fs1-my-feature-1"
-            and feature_sets[0].features[0].dtype == ValueType.INT64
-            and feature_sets[1].features[1].dtype == ValueType.BYTES_LIST
+                len(feature_sets) == 2
+                and feature_sets[0].name == "my-feature-set-1"
+                and feature_sets[0].features[0].name == "fs1-my-feature-1"
+                and feature_sets[0].features[0].dtype == ValueType.INT64
+                and feature_sets[1].features[1].dtype == ValueType.BYTES_LIST
         )
 
-    @pytest.mark.parametrize("dataframe", [dataframes.GOOD])
-    def test_feature_set_ingest_success(self, dataframe, client, mocker):
-        client.set_project("project1")
+    @pytest.mark.parametrize("dataframe,test_client", [(dataframes.GOOD, pytest.lazy_fixture("client")),
+                                                       (dataframes.GOOD, pytest.lazy_fixture("secure_client"))])
+    def test_feature_set_ingest_success(self, dataframe, test_client, mocker):
+        test_client.set_project("project1")
         driver_fs = FeatureSet(
             "driver-feature-set", source=KafkaSource(brokers="kafka:9092", topic="test")
         )
@@ -390,12 +456,12 @@ class TestClient:
         driver_fs.add(Entity(name="entity_id", dtype=ValueType.INT64))
 
         # Register with Feast core
-        client.apply(driver_fs)
+        test_client.apply(driver_fs)
         driver_fs = driver_fs.to_proto()
         driver_fs.meta.status = FeatureSetStatusProto.STATUS_READY
 
         mocker.patch.object(
-            client._core_service_stub,
+            test_client._core_service_stub,
             "GetFeatureSet",
             return_value=GetFeatureSetResponse(feature_set=driver_fs),
         )
@@ -403,14 +469,16 @@ class TestClient:
         # Need to create a mock producer
         with patch("feast.client.get_producer") as mocked_queue:
             # Ingest data into Feast
-            client.ingest("driver-feature-set", dataframe)
+            test_client.ingest("driver-feature-set", dataframe)
 
-    @pytest.mark.parametrize("dataframe,exception", [(dataframes.GOOD, TimeoutError)])
+    @pytest.mark.parametrize("dataframe,exception,test_client",
+                             [(dataframes.GOOD, TimeoutError, pytest.lazy_fixture("client")),
+                              (dataframes.GOOD, TimeoutError, pytest.lazy_fixture("secure_client"))])
     def test_feature_set_ingest_fail_if_pending(
-        self, dataframe, exception, client, mocker
+            self, dataframe, exception, test_client, mocker
     ):
         with pytest.raises(exception):
-            client.set_project("project1")
+            test_client.set_project("project1")
             driver_fs = FeatureSet(
                 "driver-feature-set",
                 source=KafkaSource(brokers="kafka:9092", topic="test"),
@@ -421,12 +489,12 @@ class TestClient:
             driver_fs.add(Entity(name="entity_id", dtype=ValueType.INT64))
 
             # Register with Feast core
-            client.apply(driver_fs)
+            test_client.apply(driver_fs)
             driver_fs = driver_fs.to_proto()
             driver_fs.meta.status = FeatureSetStatusProto.STATUS_PENDING
 
             mocker.patch.object(
-                client._core_service_stub,
+                test_client._core_service_stub,
                 "GetFeatureSet",
                 return_value=GetFeatureSetResponse(feature_set=driver_fs),
             )
@@ -434,18 +502,22 @@ class TestClient:
             # Need to create a mock producer
             with patch("feast.client.get_producer") as mocked_queue:
                 # Ingest data into Feast
-                client.ingest("driver-feature-set", dataframe, timeout=1)
+                test_client.ingest("driver-feature-set", dataframe, timeout=1)
 
     @pytest.mark.parametrize(
-        "dataframe,exception",
+        "dataframe,exception,test_client",
         [
-            (dataframes.BAD_NO_DATETIME, Exception),
-            (dataframes.BAD_INCORRECT_DATETIME_TYPE, Exception),
-            (dataframes.BAD_NO_ENTITY, Exception),
-            (dataframes.NO_FEATURES, Exception),
+            (dataframes.BAD_NO_DATETIME, Exception, pytest.lazy_fixture("client")),
+            (dataframes.BAD_INCORRECT_DATETIME_TYPE, Exception, pytest.lazy_fixture("client")),
+            (dataframes.BAD_NO_ENTITY, Exception, pytest.lazy_fixture("client")),
+            (dataframes.NO_FEATURES, Exception, pytest.lazy_fixture("client")),
+            (dataframes.BAD_NO_DATETIME, Exception, pytest.lazy_fixture("secure_client")),
+            (dataframes.BAD_INCORRECT_DATETIME_TYPE, Exception, pytest.lazy_fixture("secure_client")),
+            (dataframes.BAD_NO_ENTITY, Exception, pytest.lazy_fixture("secure_client")),
+            (dataframes.NO_FEATURES, Exception, pytest.lazy_fixture("secure_client")),
         ],
     )
-    def test_feature_set_ingest_failure(self, client, dataframe, exception):
+    def test_feature_set_ingest_failure(self, test_client, dataframe, exception):
         with pytest.raises(exception):
             # Create feature set
             driver_fs = FeatureSet("driver-feature-set")
@@ -454,15 +526,16 @@ class TestClient:
             driver_fs.infer_fields_from_df(dataframe)
 
             # Register with Feast core
-            client.apply(driver_fs)
+            test_client.apply(driver_fs)
 
             # Ingest data into Feast
-            client.ingest(driver_fs, dataframe=dataframe)
+            test_client.ingest(driver_fs, dataframe=dataframe)
 
-    @pytest.mark.parametrize("dataframe", [dataframes.ALL_TYPES])
-    def test_feature_set_types_success(self, client, dataframe, mocker):
+    @pytest.mark.parametrize("dataframe,test_client", [(dataframes.ALL_TYPES, pytest.lazy_fixture("client")),
+                                                       (dataframes.ALL_TYPES, pytest.lazy_fixture("secure_client"))])
+    def test_feature_set_types_success(self, test_client, dataframe, mocker):
 
-        client.set_project("project1")
+        test_client.set_project("project1")
 
         all_types_fs = FeatureSet(
             name="all_types",
@@ -489,10 +562,10 @@ class TestClient:
         )
 
         # Register with Feast core
-        client.apply(all_types_fs)
+        test_client.apply(all_types_fs)
 
         mocker.patch.object(
-            client._core_service_stub,
+            test_client._core_service_stub,
             "GetFeatureSet",
             return_value=GetFeatureSetResponse(feature_set=all_types_fs.to_proto()),
         )
@@ -500,4 +573,38 @@ class TestClient:
         # Need to create a mock producer
         with patch("feast.client.get_producer") as mocked_queue:
             # Ingest data into Feast
-            client.ingest(all_types_fs, dataframe)
+            test_client.ingest(all_types_fs, dataframe)
+
+    @patch("grpc.channel_ready_future")
+    def test_secure_channel_creation_with_secure_client(self, _mocked_obj):
+        client = Client(core_url="localhost:50051", serving_url="localhost:50052", serving_secure=True,
+                        core_secure=True)
+        with mock.patch("grpc.secure_channel") as _grpc_mock, \
+                mock.patch("grpc.ssl_channel_credentials", MagicMock(return_value="test")) as _mocked_credentials:
+            client._connect_serving()
+            _grpc_mock.assert_called_with(client.serving_url, _mocked_credentials.return_value)
+
+    @mock.patch("grpc.channel_ready_future")
+    def test_secure_channel_creation_with_secure_serving_url(self, _mocked_obj, ):
+        client = Client(core_url="localhost:50051", serving_url="localhost:443")
+        with mock.patch("grpc.secure_channel") as _grpc_mock, \
+                mock.patch("grpc.ssl_channel_credentials", MagicMock(return_value="test")) as _mocked_credentials:
+            client._connect_serving()
+            _grpc_mock.assert_called_with(client.serving_url, _mocked_credentials.return_value)
+
+    @patch("grpc.channel_ready_future")
+    def test_secure_channel_creation_with_secure_client(self, _mocked_obj):
+        client = Client(core_url="localhost:50053", serving_url="localhost:50054", serving_secure=True,
+                        core_secure=True)
+        with mock.patch("grpc.secure_channel") as _grpc_mock, \
+                mock.patch("grpc.ssl_channel_credentials", MagicMock(return_value="test")) as _mocked_credentials:
+            client._connect_core()
+            _grpc_mock.assert_called_with(client.core_url, _mocked_credentials.return_value)
+
+    @patch("grpc.channel_ready_future")
+    def test_secure_channel_creation_with_secure_core_url(self, _mocked_obj):
+        client = Client(core_url="localhost:443", serving_url="localhost:50054")
+        with mock.patch("grpc.secure_channel") as _grpc_mock, \
+                mock.patch("grpc.ssl_channel_credentials", MagicMock(return_value="test")) as _mocked_credentials:
+            client._connect_core()
+            _grpc_mock.assert_called_with(client.core_url, _mocked_credentials.return_value)
