@@ -66,6 +66,7 @@ sleep 20
 tail -n10 /var/log/kafka.log
 kafkacat -b localhost:9092 -L
 
+if [[ ${SKIP_BUILD_JARS} != "true" ]]; then
 echo "
 ============================================================
 Building jars for Feast
@@ -81,6 +82,9 @@ mvn --quiet --batch-mode --define skipTests=true clean package
 
 ls -lh core/target/*jar
 ls -lh serving/target/*jar
+else
+  echo "[DEBUG] Skipping building jars"
+fi
 
 echo "
 ============================================================
