@@ -235,6 +235,15 @@ set +e
 pytest bq-batch-retrieval.py --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
+if [[ ${TEST_EXIT_CODE} != 0 ]]; then
+  echo "[DEBUG] Printing logs"
+  ls -ltrh /var/log/feast*
+  cat /var/log/feast-serving-warehouse.log /var/log/feast-core.log
+
+  echo "[DEBUG] Printing Python packages list"
+  pip list
+fi
+
 cd ${ORIGINAL_DIR}
 exit ${TEST_EXIT_CODE}
 
