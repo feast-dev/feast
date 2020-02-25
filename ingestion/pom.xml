@@ -248,5 +248,12 @@
       <version>2.8.1</version>
     </dependency>
 
+    <!-- For calculation of percentiles in feature values -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-math3</artifactId>
+      <version>3.6.1</version>
+    </dependency>
+
   </dependencies>
 </project>
