@@ -37,7 +37,7 @@ cp .env.sample .env
 docker-compose up -d
 ```
 
-A [Jupyter Notebook](http://localhost:8888/tree/feast/examples) is now available to start using Feast.
+A [Jupyter Notebook](https://github.com/gojek/feast/blob/master/examples/basic/basic.ipynb) is now available to start using Feast.
 
 Please see the links below to set up Feast for batch/historical serving with BigQuery.
 
