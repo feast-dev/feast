@@ -40,6 +40,11 @@ service CoreService {
     // sets currently stored in the registry.
     rpc ListFeatureSets (ListFeatureSetsRequest) returns (ListFeatureSetsResponse);
 
+    // Get feature statistics computed over the data in the batch stores.
+    //
+    // Returns a dataset containing TFDV statistics mapped to each valid historical store.
+    rpc GetFeatureStatistics (GetFeatureStatisticsRequest) returns (GetFeatureStatisticsResponse);
+
     // Retrieve store details given a filter.
     //
     // Returns all stores matching that filter. If none are found, an empty list will be returned.
@@ -215,4 +220,39 @@ message ListProjectsRequest {
 message ListProjectsResponse {
     // List of project names (archived projects are filtered out)
     repeated string projects = 1;
+}
+
+message GetFeatureStatisticsRequest {
+    // Optional filter which filters returned statistics by selected features. These
+    // features must be present in the data that is being processed.
+    repeated string feature_refs = 1;
+
+    // Optional filter to select the stores over which the statistics will retrieved.
+    // Only historical stores are allowed.
+    repeated string stores = 2;
+
+    // Optional start and end dates over which to filter statistical data
+    // Start date is inclusive, but end date is not.
+    // Only dates are supported, not times.
+    // Cannot be used with dataset_ids.
+    // If this period spans multiple days, unaggregatable statistics will be dropped.
+    google.protobuf.Timestamp start_date = 3;
+    google.protobuf.Timestamp end_date = 4;
+
+    // Optional list of dataset Ids by which to filter data before
+    // retrieving statistics.
+    // Cannot be used with the date ranges
+    // If multiple dataset ids are provided, unaggregatable statistics will be dropped.
+    repeated string dataset_ids = 5;
+
+    // Setting this flag to true will force a recalculation of statistics and overwrite results currently in the
+    // cache, if any.
+    bool force_refresh = 6;
+}
+
+message GetFeatureStatisticsResponse {
+    // Contains statistics for the requested data by store.
+    // Due to the limitations of TFDV and Facets, only a single dataset can be returned in
+    // per store, despite the message being of list type.
+    map<string, DatasetFeatureStatisticsList> dataset_feature_statistics_list = 1;
 }
