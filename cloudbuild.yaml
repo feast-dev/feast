@@ -64,7 +64,7 @@ steps:
   name: 'gcr.io/konnekt-core/protoc-python@sha256:61421f32abe11acac6a9aa6356a1b3cf009daa0fc3feb3d875e098fde422f8b0'
   dir: '/workspace/protos'
   entrypoint: make
-  args: ['gen-python', '--dry-run'] # Disable for now (TODO: MR and fix)
+  args: ['gen-python'] # Disable for now (TODO: MR and fix)
 - id: unit-test-python-sdk
   waitFor: ['gen-proto-python']
   name: 'python:3.7-buster'
