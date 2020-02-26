@@ -63,8 +63,10 @@ public class RedisStandaloneIngestionClient implements RedisIngestionClient {
 
   @Override
   public void connect() {
-    this.connection = this.redisclient.connect(new ByteArrayCodec());
-    this.commands = connection.async();
+    if (!isConnected()) {
+      this.connection = this.redisclient.connect(new ByteArrayCodec());
+      this.commands = connection.async();
+    }
   }
 
   @Override
@@ -75,6 +77,7 @@ public class RedisStandaloneIngestionClient implements RedisIngestionClient {
   @Override
   public void sync() {
     // Wait for some time for futures to complete
+    // TODO: should this be configurable?
     LettuceFutures.awaitAll(60, TimeUnit.SECONDS, futures.toArray(new RedisFuture[0]));
     futures.clear();
   }

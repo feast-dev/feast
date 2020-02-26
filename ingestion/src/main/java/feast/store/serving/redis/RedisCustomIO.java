@@ -189,11 +189,11 @@ public class RedisCustomIO {
       private final List<RedisMutation> mutations = new ArrayList<>();
       private int batchSize = DEFAULT_BATCH_SIZE;
       private int timeout = DEFAULT_TIMEOUT;
-      private RedisIngestionClient ingestionClient;
+      private RedisIngestionClient redisIngestionClient;
 
       WriteDoFn(StoreProto.Store store) {
         if (store.getType() == StoreProto.Store.StoreType.REDIS)
-          this.ingestionClient = new RedisStandaloneIngestionClient(store.getRedisConfig());
+          this.redisIngestionClient = new RedisStandaloneIngestionClient(store.getRedisConfig());
       }
 
       public WriteDoFn withBatchSize(int batchSize) {
@@ -212,13 +212,13 @@ public class RedisCustomIO {
 
       @Setup
       public void setup() {
-        this.ingestionClient.setup();
+        this.redisIngestionClient.setup();
       }
 
       @StartBundle
       public void startBundle() {
         try {
-          ingestionClient.connect();
+          redisIngestionClient.connect();
         } catch (RedisConnectionException e) {
           log.error("Connection to redis cannot be established ", e);
         }
@@ -226,24 +226,24 @@ public class RedisCustomIO {
       }
 
       private void executeBatch() throws Exception {
-        this.ingestionClient
+        this.redisIngestionClient
             .getBackOffExecutor()
             .execute(
                 new Retriable() {
                   @Override
                   public void execute() throws ExecutionException, InterruptedException {
-                    if (!ingestionClient.isConnected()) {
-                      ingestionClient.connect();
+                    if (!redisIngestionClient.isConnected()) {
+                      redisIngestionClient.connect();
                     }
                     mutations.forEach(
                         mutation -> {
                           writeRecord(mutation);
                           if (mutation.getExpiryMillis() != null
                               && mutation.getExpiryMillis() > 0) {
-                            ingestionClient.pexpire(mutation.getKey(), mutation.getExpiryMillis());
+                            redisIngestionClient.pexpire(mutation.getKey(), mutation.getExpiryMillis());
                           }
                         });
-                    ingestionClient.sync();
+                    redisIngestionClient.sync();
                     mutations.clear();
                   }
 
@@ -290,22 +290,22 @@ public class RedisCustomIO {
       private void writeRecord(RedisMutation mutation) {
         switch (mutation.getMethod()) {
           case APPEND:
-            ingestionClient.append(mutation.getKey(), mutation.getValue());
+            redisIngestionClient.append(mutation.getKey(), mutation.getValue());
             return;
           case SET:
-            ingestionClient.set(mutation.getKey(), mutation.getValue());
+            redisIngestionClient.set(mutation.getKey(), mutation.getValue());
             return;
           case LPUSH:
-            ingestionClient.lpush(mutation.getKey(), mutation.getValue());
+            redisIngestionClient.lpush(mutation.getKey(), mutation.getValue());
             return;
           case RPUSH:
-            ingestionClient.rpush(mutation.getKey(), mutation.getValue());
+            redisIngestionClient.rpush(mutation.getKey(), mutation.getValue());
             return;
           case SADD:
-            ingestionClient.sadd(mutation.getKey(), mutation.getValue());
+            redisIngestionClient.sadd(mutation.getKey(), mutation.getValue());
             return;
           case ZADD:
-            ingestionClient.zadd(mutation.getKey(), mutation.getScore(), mutation.getValue());
+            redisIngestionClient.zadd(mutation.getKey(), mutation.getScore(), mutation.getValue());
             return;
           default:
             throw new UnsupportedOperationException(
@@ -333,7 +333,7 @@ public class RedisCustomIO {
 
       @Teardown
       public void teardown() {
-        ingestionClient.shutdown();
+        redisIngestionClient.shutdown();
       }
     }
   }
