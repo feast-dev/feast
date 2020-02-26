@@ -16,7 +16,7 @@ Dependency Coordinates
 <dependency>
   <groupId>dev.feast</groupId>
   <artifactId>datatypes-java</artifactId>
-  <version>0.4.5-SNAPSHOT</version>
+  <version>0.4.6-SNAPSHOT</version>
 </dependency>
 ```
 

@@ -85,7 +85,7 @@ The following table lists the configurable parameters of the Feast chart and the
 | `feast-core.prometheus-statsd-exporter.*` | Refer to this [link](charts/feast-core/charts/prometheus-statsd-exporter/values.yaml  |
 | `feast-core.replicaCount` | No of pods to create | `1`
 | `feast-core.image.repository` | Repository for Feast Core Docker image | `gcr.io/kf-feast/feast-core`
-| `feast-core.image.tag` | Tag for Feast Core Docker image | `0.4.5`
+| `feast-core.image.tag` | Tag for Feast Core Docker image | `0.4.6`
 | `feast-core.image.pullPolicy` | Image pull policy for Feast Core Docker image | `IfNotPresent`
 | `feast-core.prometheus.enabled` | Add annotations to enable Prometheus scraping | `false`
 | `feast-core.application.yaml` | Configuration for Feast Core application | Refer to this [link](charts/feast-core/values.yaml) 
@@ -126,7 +126,7 @@ The following table lists the configurable parameters of the Feast chart and the
 | `feast-serving-online.core.enabled` | Flag for Feast Serving to use Feast Core in the same Helm release | `true`
 | `feast-serving-online.replicaCount` | No of pods to create  | `1`
 | `feast-serving-online.image.repository` | Repository for Feast Serving Docker image | `gcr.io/kf-feast/feast-serving`
-| `feast-serving-online.image.tag` | Tag for Feast Serving Docker image | `0.4.5`
+| `feast-serving-online.image.tag` | Tag for Feast Serving Docker image | `0.4.6`
 | `feast-serving-online.image.pullPolicy` | Image pull policy for Feast Serving Docker image | `IfNotPresent`
 | `feast-serving-online.prometheus.enabled` | Add annotations to enable Prometheus scraping | `true`
 | `feast-serving-online.application.yaml` | Application configuration for Feast Serving | Refer to this [link](charts/feast-serving/values.yaml) 
@@ -168,7 +168,7 @@ The following table lists the configurable parameters of the Feast chart and the
 | `feast-serving-batch.core.enabled` | Flag for Feast Serving to use Feast Core in the same Helm release | `true`
 | `feast-serving-batch.replicaCount` | No of pods to create  | `1`
 | `feast-serving-batch.image.repository` | Repository for Feast Serving Docker image | `gcr.io/kf-feast/feast-serving`
-| `feast-serving-batch.image.tag` | Tag for Feast Serving Docker image | `0.4.5`
+| `feast-serving-batch.image.tag` | Tag for Feast Serving Docker image | `0.4.6`
 | `feast-serving-batch.image.pullPolicy` | Image pull policy for Feast Serving Docker image | `IfNotPresent`
 | `feast-serving-batch.prometheus.enabled` | Add annotations to enable Prometheus scraping | `true`
 | `feast-serving-batch.application.yaml` | Application configuration for Feast Serving | Refer to this [link](charts/feast-serving/values.yaml) 
