@@ -1,5 +1,18 @@
 # Changelog
 
+## [v0.4.6](https://github.com/gojek/feast/tree/v0.4.6) (2020-02-26)
+
+[Full Changelog](https://github.com/gojek/feast/compare/v0.4.5...v0.4.6)
+
+**Merged pull requests:**
+- Rename metric name for request latency in feast serving [\#488](https://github.com/gojek/feast/pull/488) ([davidheryanto](https://github.com/davidheryanto))
+- Allow use of secure gRPC in Feast Python client [\#459](https://github.com/gojek/feast/pull/459) ([Yanson](https://github.com/Yanson))
+- Extend WriteMetricsTransform in Ingestion to write feature value stats to StatsD [\#486](https://github.com/gojek/feast/pull/486) ([davidheryanto](https://github.com/davidheryanto))
+- Remove transaction from Ingestion [\#480](https://github.com/gojek/feast/pull/480) ([imjuanleonard](https://github.com/imjuanleonard))
+- Fix fastavro version used in Feast to avoid Timestamp delta error [\#490](https://github.com/gojek/feast/pull/490) ([davidheryanto](https://github.com/davidheryanto))
+- Fail Spotless formatting check before tests execute [\#487](https://github.com/gojek/feast/pull/487) ([ches](https://github.com/ches))
+- Reduce refresh rate of specification refresh in Serving to 10 seconds [\#481](https://github.com/gojek/feast/pull/481) ([woop](https://github.com/woop))
+
 ## [v0.4.5](https://github.com/gojek/feast/tree/v0.4.5) (2020-02-14)
 
 [Full Changelog](https://github.com/gojek/feast/compare/v0.4.4...v0.4.5)
