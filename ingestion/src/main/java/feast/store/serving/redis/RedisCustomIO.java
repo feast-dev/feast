@@ -240,7 +240,8 @@ public class RedisCustomIO {
                           writeRecord(mutation);
                           if (mutation.getExpiryMillis() != null
                               && mutation.getExpiryMillis() > 0) {
-                            redisIngestionClient.pexpire(mutation.getKey(), mutation.getExpiryMillis());
+                            redisIngestionClient.pexpire(
+                                mutation.getKey(), mutation.getExpiryMillis());
                           }
                         });
                     redisIngestionClient.sync();
