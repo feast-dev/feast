@@ -318,7 +318,7 @@ public class RedisServingService implements ServingService {
       } finally {
         requestLatency
             .labels("sendMultiGet")
-            .observe((System.currentTimeMillis() - startTime) / 1000.0);
+            .observe((System.currentTimeMillis() - startTime) / 1000d);
       }
     }
   }
