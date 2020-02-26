@@ -37,7 +37,6 @@ import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.options.OptionCompressor;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
