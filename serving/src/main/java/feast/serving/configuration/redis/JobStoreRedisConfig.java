@@ -16,6 +16,7 @@
  */
 package feast.serving.configuration.redis;
 
+import com.google.common.base.Enums;
 import feast.core.StoreProto;
 import feast.serving.FeastProperties;
 import io.lettuce.core.RedisClient;
@@ -40,8 +41,11 @@ public class JobStoreRedisConfig {
   @Bean(destroyMethod = "shutdown")
   RedisClient jobStoreRedisClient(
       ClientResources jobStoreClientResources, FeastProperties feastProperties) {
-    if (StoreProto.Store.StoreType.valueOf(feastProperties.getJobs().getStoreType())
-        != StoreProto.Store.StoreType.REDIS) return null;
+    StoreProto.Store.StoreType storeType =
+        Enums.getIfPresent(
+                StoreProto.Store.StoreType.class, feastProperties.getJobs().getStoreType())
+            .orNull();
+    if (storeType != StoreProto.Store.StoreType.REDIS) return null;
     Map<String, String> jobStoreConf = feastProperties.getJobs().getStoreOptions();
     // If job conf is empty throw StoreException
     if (jobStoreConf == null
