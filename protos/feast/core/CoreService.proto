@@ -227,9 +227,9 @@ message GetFeatureStatisticsRequest {
     // features must be present in the data that is being processed.
     repeated string feature_refs = 1;
 
-    // Optional filter to select the stores over which the statistics will retrieved.
+    // Optional filter to select store over which the statistics will retrieved.
     // Only historical stores are allowed.
-    repeated string stores = 2;
+    string store = 2;
 
     // Optional start and end dates over which to filter statistical data
     // Start date is inclusive, but end date is not.
@@ -251,8 +251,8 @@ message GetFeatureStatisticsRequest {
 }
 
 message GetFeatureStatisticsResponse {
-    // Contains statistics for the requested data by store.
-    // Due to the limitations of TFDV and Facets, only a single dataset can be returned in
-    // per store, despite the message being of list type.
-    map<string, DatasetFeatureStatisticsList> dataset_feature_statistics_list = 1;
+    // Contains statistics for the requested data.
+    // Due to the limitations of TFDV and Facets, only a single dataset can be returned in,
+    // despite the message being of list type.
+    DatasetFeatureStatisticsList dataset_feature_statistics_list = 1;
 }
