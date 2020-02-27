@@ -26,6 +26,11 @@ import feast.store.serving.redis.RedisCustomIO.Method;
 import feast.store.serving.redis.RedisCustomIO.RedisMutation;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.ValueProto.ValueType.Enum;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisURI;
+import io.lettuce.core.api.StatefulRedisConnection;
+import io.lettuce.core.api.sync.RedisStringCommands;
+import io.lettuce.core.codec.ByteArrayCodec;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -43,7 +48,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import redis.clients.jedis.Jedis;
 import redis.embedded.Redis;
 import redis.embedded.RedisServer;
 
@@ -53,17 +57,22 @@ public class RedisCustomIOTest {
   private static String REDIS_HOST = "localhost";
   private static int REDIS_PORT = 51234;
   private Redis redis;
-  private Jedis jedis;
+  private RedisClient redisClient;
+  private RedisStringCommands<byte[], byte[]> sync;
 
   @Before
   public void setUp() throws IOException {
     redis = new RedisServer(REDIS_PORT);
     redis.start();
-    jedis = new Jedis(REDIS_HOST, REDIS_PORT);
+    redisClient =
+        RedisClient.create(new RedisURI(REDIS_HOST, REDIS_PORT, java.time.Duration.ofMillis(2000)));
+    StatefulRedisConnection<byte[], byte[]> connection = redisClient.connect(new ByteArrayCodec());
+    sync = connection.sync();
   }
 
   @After
   public void teardown() {
+    redisClient.shutdown();
     redis.stop();
   }
 
@@ -105,12 +114,17 @@ public class RedisCustomIOTest {
                         null))
             .collect(Collectors.toList());
 
-    p.apply(Create.of(featureRowWrites)).apply(RedisCustomIO.write(redisConfig));
+    StoreProto.Store store =
+        StoreProto.Store.newBuilder()
+            .setRedisConfig(redisConfig)
+            .setType(StoreProto.Store.StoreType.REDIS)
+            .build();
+    p.apply(Create.of(featureRowWrites)).apply(RedisCustomIO.write(store));
     p.run();
 
     kvs.forEach(
         (key, value) -> {
-          byte[] actual = jedis.get(key.toByteArray());
+          byte[] actual = sync.get(key.toByteArray());
           assertThat(actual, equalTo(value.toByteArray()));
         });
   }
@@ -148,9 +162,14 @@ public class RedisCustomIOTest {
                         null))
             .collect(Collectors.toList());
 
+    StoreProto.Store store =
+        StoreProto.Store.newBuilder()
+            .setRedisConfig(redisConfig)
+            .setType(StoreProto.Store.StoreType.REDIS)
+            .build();
     PCollection<Long> failedElementCount =
         p.apply(Create.of(featureRowWrites))
-            .apply(RedisCustomIO.write(redisConfig))
+            .apply(RedisCustomIO.write(store))
             .apply(Count.globally());
 
     redis.stop();
@@ -169,7 +188,7 @@ public class RedisCustomIOTest {
 
     kvs.forEach(
         (key, value) -> {
-          byte[] actual = jedis.get(key.toByteArray());
+          byte[] actual = sync.get(key.toByteArray());
           assertThat(actual, equalTo(value.toByteArray()));
         });
   }
@@ -202,9 +221,14 @@ public class RedisCustomIOTest {
                         null))
             .collect(Collectors.toList());
 
+    StoreProto.Store store =
+        StoreProto.Store.newBuilder()
+            .setRedisConfig(redisConfig)
+            .setType(StoreProto.Store.StoreType.REDIS)
+            .build();
     PCollection<Long> failedElementCount =
         p.apply(Create.of(featureRowWrites))
-            .apply(RedisCustomIO.write(redisConfig))
+            .apply(RedisCustomIO.write(store))
             .apply(Count.globally());
 
     redis.stop();

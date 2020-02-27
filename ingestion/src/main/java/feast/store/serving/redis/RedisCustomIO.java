@@ -18,11 +18,13 @@ package feast.store.serving.redis;
 
 import feast.core.StoreProto;
 import feast.ingestion.values.FailedElement;
-import feast.retry.BackOffExecutor;
 import feast.retry.Retriable;
+import io.lettuce.core.RedisConnectionException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -32,14 +34,9 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.Pipeline;
-import redis.clients.jedis.Response;
-import redis.clients.jedis.exceptions.JedisConnectionException;
 
 public class RedisCustomIO {
 
@@ -50,8 +47,8 @@ public class RedisCustomIO {
 
   private RedisCustomIO() {}
 
-  public static Write write(StoreProto.Store.RedisConfig redisConfig) {
-    return new Write(redisConfig);
+  public static Write write(StoreProto.Store store) {
+    return new Write(store);
   }
 
   public enum Method {
@@ -168,8 +165,8 @@ public class RedisCustomIO {
 
     private WriteDoFn dofn;
 
-    private Write(StoreProto.Store.RedisConfig redisConfig) {
-      this.dofn = new WriteDoFn(redisConfig);
+    private Write(StoreProto.Store store) {
+      this.dofn = new WriteDoFn(store);
     }
 
     public Write withBatchSize(int batchSize) {
@@ -189,23 +186,14 @@ public class RedisCustomIO {
 
     public static class WriteDoFn extends DoFn<RedisMutation, FailedElement> {
 
-      private final String host;
-      private final int port;
-      private final BackOffExecutor backOffExecutor;
       private final List<RedisMutation> mutations = new ArrayList<>();
-
-      private Jedis jedis;
-      private Pipeline pipeline;
       private int batchSize = DEFAULT_BATCH_SIZE;
       private int timeout = DEFAULT_TIMEOUT;
+      private RedisIngestionClient redisIngestionClient;
 
-      WriteDoFn(StoreProto.Store.RedisConfig redisConfig) {
-        this.host = redisConfig.getHost();
-        this.port = redisConfig.getPort();
-        long backoffMs =
-            redisConfig.getInitialBackoffMs() > 0 ? redisConfig.getInitialBackoffMs() : 1;
-        this.backOffExecutor =
-            new BackOffExecutor(redisConfig.getMaxRetries(), Duration.millis(backoffMs));
+      WriteDoFn(StoreProto.Store store) {
+        if (store.getType() == StoreProto.Store.StoreType.REDIS)
+          this.redisIngestionClient = new RedisStandaloneIngestionClient(store.getRedisConfig());
       }
 
       public WriteDoFn withBatchSize(int batchSize) {
@@ -224,47 +212,50 @@ public class RedisCustomIO {
 
       @Setup
       public void setup() {
-        jedis = new Jedis(host, port, timeout);
+        this.redisIngestionClient.setup();
       }
 
       @StartBundle
       public void startBundle() {
+        try {
+          redisIngestionClient.connect();
+        } catch (RedisConnectionException e) {
+          log.error("Connection to redis cannot be established ", e);
+        }
         mutations.clear();
-        pipeline = jedis.pipelined();
       }
 
       private void executeBatch() throws Exception {
-        backOffExecutor.execute(
-            new Retriable() {
-              @Override
-              public void execute() {
-                mutations.forEach(
-                    mutation -> {
-                      writeRecord(mutation);
-                      if (mutation.getExpiryMillis() != null && mutation.getExpiryMillis() > 0) {
-                        pipeline.pexpire(mutation.getKey(), mutation.getExpiryMillis());
-                      }
-                    });
-                pipeline.sync();
-                mutations.clear();
-              }
+        this.redisIngestionClient
+            .getBackOffExecutor()
+            .execute(
+                new Retriable() {
+                  @Override
+                  public void execute() throws ExecutionException, InterruptedException {
+                    if (!redisIngestionClient.isConnected()) {
+                      redisIngestionClient.connect();
+                    }
+                    mutations.forEach(
+                        mutation -> {
+                          writeRecord(mutation);
+                          if (mutation.getExpiryMillis() != null
+                              && mutation.getExpiryMillis() > 0) {
+                            redisIngestionClient.pexpire(
+                                mutation.getKey(), mutation.getExpiryMillis());
+                          }
+                        });
+                    redisIngestionClient.sync();
+                    mutations.clear();
+                  }
 
-              @Override
-              public Boolean isExceptionRetriable(Exception e) {
-                return e instanceof JedisConnectionException;
-              }
+                  @Override
+                  public Boolean isExceptionRetriable(Exception e) {
+                    return e instanceof RedisConnectionException;
+                  }
 
-              @Override
-              public void cleanUpAfterFailure() {
-                try {
-                  pipeline.close();
-                } catch (IOException e) {
-                  log.error(String.format("Error while closing pipeline: %s", e.getMessage()));
-                }
-                jedis = new Jedis(host, port, timeout);
-                pipeline = jedis.pipelined();
-              }
-            });
+                  @Override
+                  public void cleanUpAfterFailure() {}
+                });
       }
 
       private FailedElement toFailedElement(
@@ -272,7 +263,7 @@ public class RedisCustomIO {
         return FailedElement.newBuilder()
             .setJobName(jobName)
             .setTransformName("RedisCustomIO")
-            .setPayload(mutation.getValue().toString())
+            .setPayload(Arrays.toString(mutation.getValue()))
             .setErrorMessage(exception.getMessage())
             .setStackTrace(ExceptionUtils.getStackTrace(exception))
             .build();
@@ -297,20 +288,26 @@ public class RedisCustomIO {
         }
       }
 
-      private Response<?> writeRecord(RedisMutation mutation) {
+      private void writeRecord(RedisMutation mutation) {
         switch (mutation.getMethod()) {
           case APPEND:
-            return pipeline.append(mutation.getKey(), mutation.getValue());
+            redisIngestionClient.append(mutation.getKey(), mutation.getValue());
+            return;
           case SET:
-            return pipeline.set(mutation.getKey(), mutation.getValue());
+            redisIngestionClient.set(mutation.getKey(), mutation.getValue());
+            return;
           case LPUSH:
-            return pipeline.lpush(mutation.getKey(), mutation.getValue());
+            redisIngestionClient.lpush(mutation.getKey(), mutation.getValue());
+            return;
           case RPUSH:
-            return pipeline.rpush(mutation.getKey(), mutation.getValue());
+            redisIngestionClient.rpush(mutation.getKey(), mutation.getValue());
+            return;
           case SADD:
-            return pipeline.sadd(mutation.getKey(), mutation.getValue());
+            redisIngestionClient.sadd(mutation.getKey(), mutation.getValue());
+            return;
           case ZADD:
-            return pipeline.zadd(mutation.getKey(), mutation.getScore(), mutation.getValue());
+            redisIngestionClient.zadd(mutation.getKey(), mutation.getScore(), mutation.getValue());
+            return;
           default:
             throw new UnsupportedOperationException(
                 String.format("Not implemented writing records for %s", mutation.getMethod()));
@@ -337,7 +334,7 @@ public class RedisCustomIO {
 
       @Teardown
       public void teardown() {
-        jedis.close();
+        redisIngestionClient.shutdown();
       }
     }
   }
