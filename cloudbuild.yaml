@@ -33,6 +33,16 @@ steps:
   entrypoint: mvn
   args: ['--settings=cloudbuild-settings.xml', '-Drevision=ff-${SHORT_SHA}', '-DskipTests=true', '--batch-mode', 'package']
   timeout: 900s
+- id: create-deploy-poms
+  waitFor: ['unit-test-java', 'build-java']
+  name: 'alpine:latest'
+  entrypoint: sh
+  args: ['-c', "for m in datatypes/java sdk/java; do sh -c \"sed -E 's^(<artifactId>)(feast-parent)(</artifactId>)^\1feast-ff-deploy\3^; s^(<relativePath>)(.*)(</relativePath>)^\1\2/pom-ff-deploy.xml\3^' $$m/pom.xml > $$m/pom-ff-deploy.xml\"; done"]
+- id: publish-java-sdk
+  waitFor: ['create-deploy-poms']
+  name: 'maven:${_MAVEN_VERSION}'
+  entrypoint: mvn
+  args: ['--settings=cloudbuild-settings.xml', '-Drevision=ff-${SHORT_SHA}','-f pom-ff-deploy.xml', 'package', 'deploy:deploy']
 
 # SDK (GO)
 - id: gen-proto-go
@@ -184,4 +194,4 @@ substitutions:
   _TEST_BUCKET: dev-konnekt-data-deep-1-feast-tmp
   _MAVEN_VERSION: 3.6.2-jdk-11
 
-tags: ['team__konnekt', 'repo__konnekt_data_feast', 'commit__${SHORT_SHA}', 'slack__konnekt-se']
+tags: ['team__konnekt', 'repo__konnekt_data_feast', 'commit__${SHORT_SHA}', 'slack__konnekt-devops-test']
