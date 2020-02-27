@@ -29,6 +29,11 @@ class CoreServiceStub(object):
         request_serializer=feast_dot_core_dot_CoreService__pb2.ListFeatureSetsRequest.SerializeToString,
         response_deserializer=feast_dot_core_dot_CoreService__pb2.ListFeatureSetsResponse.FromString,
         )
+    self.GetFeatureStatistics = channel.unary_unary(
+        '/feast.core.CoreService/GetFeatureStatistics',
+        request_serializer=feast_dot_core_dot_CoreService__pb2.GetFeatureStatisticsRequest.SerializeToString,
+        response_deserializer=feast_dot_core_dot_CoreService__pb2.GetFeatureStatisticsResponse.FromString,
+        )
     self.ListStores = channel.unary_unary(
         '/feast.core.CoreService/ListStores',
         request_serializer=feast_dot_core_dot_CoreService__pb2.ListStoresRequest.SerializeToString,
@@ -86,6 +91,15 @@ class CoreServiceServicer(object):
     an empty list will be returned.
     If no filter is provided in the request, the response will contain all the feature
     sets currently stored in the registry.
+    """
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
+  def GetFeatureStatistics(self, request, context):
+    """Get feature statistics computed over the data in the batch stores.
+
+    Returns a dataset containing TFDV statistics mapped to each valid historical store.
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
     context.set_details('Method not implemented!')
@@ -166,6 +180,11 @@ def add_CoreServiceServicer_to_server(servicer, server):
           servicer.ListFeatureSets,
           request_deserializer=feast_dot_core_dot_CoreService__pb2.ListFeatureSetsRequest.FromString,
           response_serializer=feast_dot_core_dot_CoreService__pb2.ListFeatureSetsResponse.SerializeToString,
+      ),
+      'GetFeatureStatistics': grpc.unary_unary_rpc_method_handler(
+          servicer.GetFeatureStatistics,
+          request_deserializer=feast_dot_core_dot_CoreService__pb2.GetFeatureStatisticsRequest.FromString,
+          response_serializer=feast_dot_core_dot_CoreService__pb2.GetFeatureStatisticsResponse.SerializeToString,
       ),
       'ListStores': grpc.unary_unary_rpc_method_handler(
           servicer.ListStores,

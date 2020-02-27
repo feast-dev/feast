@@ -29,6 +29,24 @@ from google.protobuf.timestamp_pb2 import (
     Timestamp as google___protobuf___timestamp_pb2___Timestamp,
 )
 
+from tensorflow_metadata.proto.v0.schema_pb2 import (
+    BoolDomain as tensorflow_metadata___proto___v0___schema_pb2___BoolDomain,
+    FeaturePresence as tensorflow_metadata___proto___v0___schema_pb2___FeaturePresence,
+    FeaturePresenceWithinGroup as tensorflow_metadata___proto___v0___schema_pb2___FeaturePresenceWithinGroup,
+    FixedShape as tensorflow_metadata___proto___v0___schema_pb2___FixedShape,
+    FloatDomain as tensorflow_metadata___proto___v0___schema_pb2___FloatDomain,
+    ImageDomain as tensorflow_metadata___proto___v0___schema_pb2___ImageDomain,
+    IntDomain as tensorflow_metadata___proto___v0___schema_pb2___IntDomain,
+    MIDDomain as tensorflow_metadata___proto___v0___schema_pb2___MIDDomain,
+    NaturalLanguageDomain as tensorflow_metadata___proto___v0___schema_pb2___NaturalLanguageDomain,
+    StringDomain as tensorflow_metadata___proto___v0___schema_pb2___StringDomain,
+    StructDomain as tensorflow_metadata___proto___v0___schema_pb2___StructDomain,
+    TimeDomain as tensorflow_metadata___proto___v0___schema_pb2___TimeDomain,
+    TimeOfDayDomain as tensorflow_metadata___proto___v0___schema_pb2___TimeOfDayDomain,
+    URLDomain as tensorflow_metadata___proto___v0___schema_pb2___URLDomain,
+    ValueCount as tensorflow_metadata___proto___v0___schema_pb2___ValueCount,
+)
+
 from typing import (
     Iterable as typing___Iterable,
     List as typing___List,
@@ -36,6 +54,7 @@ from typing import (
     Text as typing___Text,
     Tuple as typing___Tuple,
     cast as typing___cast,
+    overload as typing___overload,
 )
 
 from typing_extensions import (
@@ -130,39 +149,179 @@ class EntitySpec(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
     name = ... # type: typing___Text
     value_type = ... # type: feast___types___Value_pb2___ValueType.Enum
+    domain = ... # type: typing___Text
+
+    @property
+    def presence(self) -> tensorflow_metadata___proto___v0___schema_pb2___FeaturePresence: ...
+
+    @property
+    def group_presence(self) -> tensorflow_metadata___proto___v0___schema_pb2___FeaturePresenceWithinGroup: ...
+
+    @property
+    def shape(self) -> tensorflow_metadata___proto___v0___schema_pb2___FixedShape: ...
+
+    @property
+    def value_count(self) -> tensorflow_metadata___proto___v0___schema_pb2___ValueCount: ...
+
+    @property
+    def int_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___IntDomain: ...
+
+    @property
+    def float_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___FloatDomain: ...
+
+    @property
+    def string_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___StringDomain: ...
+
+    @property
+    def bool_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___BoolDomain: ...
+
+    @property
+    def struct_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___StructDomain: ...
+
+    @property
+    def natural_language_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___NaturalLanguageDomain: ...
+
+    @property
+    def image_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___ImageDomain: ...
+
+    @property
+    def mid_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___MIDDomain: ...
+
+    @property
+    def url_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___URLDomain: ...
+
+    @property
+    def time_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___TimeDomain: ...
+
+    @property
+    def time_of_day_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___TimeOfDayDomain: ...
 
     def __init__(self,
         *,
         name : typing___Optional[typing___Text] = None,
         value_type : typing___Optional[feast___types___Value_pb2___ValueType.Enum] = None,
+        presence : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___FeaturePresence] = None,
+        group_presence : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___FeaturePresenceWithinGroup] = None,
+        shape : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___FixedShape] = None,
+        value_count : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___ValueCount] = None,
+        domain : typing___Optional[typing___Text] = None,
+        int_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___IntDomain] = None,
+        float_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___FloatDomain] = None,
+        string_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___StringDomain] = None,
+        bool_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___BoolDomain] = None,
+        struct_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___StructDomain] = None,
+        natural_language_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___NaturalLanguageDomain] = None,
+        image_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___ImageDomain] = None,
+        mid_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___MIDDomain] = None,
+        url_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___URLDomain] = None,
+        time_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___TimeDomain] = None,
+        time_of_day_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___TimeOfDayDomain] = None,
         ) -> None: ...
     @classmethod
     def FromString(cls, s: bytes) -> EntitySpec: ...
     def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     if sys.version_info >= (3,):
-        def ClearField(self, field_name: typing_extensions___Literal[u"name",u"value_type"]) -> None: ...
+        def HasField(self, field_name: typing_extensions___Literal[u"bool_domain",u"domain",u"domain_info",u"float_domain",u"group_presence",u"image_domain",u"int_domain",u"mid_domain",u"natural_language_domain",u"presence",u"presence_constraints",u"shape",u"shape_type",u"string_domain",u"struct_domain",u"time_domain",u"time_of_day_domain",u"url_domain",u"value_count"]) -> bool: ...
+        def ClearField(self, field_name: typing_extensions___Literal[u"bool_domain",u"domain",u"domain_info",u"float_domain",u"group_presence",u"image_domain",u"int_domain",u"mid_domain",u"name",u"natural_language_domain",u"presence",u"presence_constraints",u"shape",u"shape_type",u"string_domain",u"struct_domain",u"time_domain",u"time_of_day_domain",u"url_domain",u"value_count",u"value_type"]) -> None: ...
     else:
-        def ClearField(self, field_name: typing_extensions___Literal[u"name",b"name",u"value_type",b"value_type"]) -> None: ...
+        def HasField(self, field_name: typing_extensions___Literal[u"bool_domain",b"bool_domain",u"domain",b"domain",u"domain_info",b"domain_info",u"float_domain",b"float_domain",u"group_presence",b"group_presence",u"image_domain",b"image_domain",u"int_domain",b"int_domain",u"mid_domain",b"mid_domain",u"natural_language_domain",b"natural_language_domain",u"presence",b"presence",u"presence_constraints",b"presence_constraints",u"shape",b"shape",u"shape_type",b"shape_type",u"string_domain",b"string_domain",u"struct_domain",b"struct_domain",u"time_domain",b"time_domain",u"time_of_day_domain",b"time_of_day_domain",u"url_domain",b"url_domain",u"value_count",b"value_count"]) -> bool: ...
+        def ClearField(self, field_name: typing_extensions___Literal[u"bool_domain",b"bool_domain",u"domain",b"domain",u"domain_info",b"domain_info",u"float_domain",b"float_domain",u"group_presence",b"group_presence",u"image_domain",b"image_domain",u"int_domain",b"int_domain",u"mid_domain",b"mid_domain",u"name",b"name",u"natural_language_domain",b"natural_language_domain",u"presence",b"presence",u"presence_constraints",b"presence_constraints",u"shape",b"shape",u"shape_type",b"shape_type",u"string_domain",b"string_domain",u"struct_domain",b"struct_domain",u"time_domain",b"time_domain",u"time_of_day_domain",b"time_of_day_domain",u"url_domain",b"url_domain",u"value_count",b"value_count",u"value_type",b"value_type"]) -> None: ...
+    @typing___overload
+    def WhichOneof(self, oneof_group: typing_extensions___Literal[u"domain_info",b"domain_info"]) -> typing_extensions___Literal["domain","int_domain","float_domain","string_domain","bool_domain","struct_domain","natural_language_domain","image_domain","mid_domain","url_domain","time_domain","time_of_day_domain"]: ...
+    @typing___overload
+    def WhichOneof(self, oneof_group: typing_extensions___Literal[u"presence_constraints",b"presence_constraints"]) -> typing_extensions___Literal["presence","group_presence"]: ...
+    @typing___overload
+    def WhichOneof(self, oneof_group: typing_extensions___Literal[u"shape_type",b"shape_type"]) -> typing_extensions___Literal["shape","value_count"]: ...
 
 class FeatureSpec(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
     name = ... # type: typing___Text
     value_type = ... # type: feast___types___Value_pb2___ValueType.Enum
+    domain = ... # type: typing___Text
+
+    @property
+    def presence(self) -> tensorflow_metadata___proto___v0___schema_pb2___FeaturePresence: ...
+
+    @property
+    def group_presence(self) -> tensorflow_metadata___proto___v0___schema_pb2___FeaturePresenceWithinGroup: ...
+
+    @property
+    def shape(self) -> tensorflow_metadata___proto___v0___schema_pb2___FixedShape: ...
+
+    @property
+    def value_count(self) -> tensorflow_metadata___proto___v0___schema_pb2___ValueCount: ...
+
+    @property
+    def int_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___IntDomain: ...
+
+    @property
+    def float_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___FloatDomain: ...
+
+    @property
+    def string_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___StringDomain: ...
+
+    @property
+    def bool_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___BoolDomain: ...
+
+    @property
+    def struct_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___StructDomain: ...
+
+    @property
+    def natural_language_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___NaturalLanguageDomain: ...
+
+    @property
+    def image_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___ImageDomain: ...
+
+    @property
+    def mid_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___MIDDomain: ...
+
+    @property
+    def url_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___URLDomain: ...
+
+    @property
+    def time_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___TimeDomain: ...
+
+    @property
+    def time_of_day_domain(self) -> tensorflow_metadata___proto___v0___schema_pb2___TimeOfDayDomain: ...
 
     def __init__(self,
         *,
         name : typing___Optional[typing___Text] = None,
         value_type : typing___Optional[feast___types___Value_pb2___ValueType.Enum] = None,
+        presence : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___FeaturePresence] = None,
+        group_presence : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___FeaturePresenceWithinGroup] = None,
+        shape : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___FixedShape] = None,
+        value_count : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___ValueCount] = None,
+        domain : typing___Optional[typing___Text] = None,
+        int_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___IntDomain] = None,
+        float_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___FloatDomain] = None,
+        string_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___StringDomain] = None,
+        bool_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___BoolDomain] = None,
+        struct_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___StructDomain] = None,
+        natural_language_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___NaturalLanguageDomain] = None,
+        image_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___ImageDomain] = None,
+        mid_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___MIDDomain] = None,
+        url_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___URLDomain] = None,
+        time_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___TimeDomain] = None,
+        time_of_day_domain : typing___Optional[tensorflow_metadata___proto___v0___schema_pb2___TimeOfDayDomain] = None,
         ) -> None: ...
     @classmethod
     def FromString(cls, s: bytes) -> FeatureSpec: ...
     def MergeFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     if sys.version_info >= (3,):
-        def ClearField(self, field_name: typing_extensions___Literal[u"name",u"value_type"]) -> None: ...
+        def HasField(self, field_name: typing_extensions___Literal[u"bool_domain",u"domain",u"domain_info",u"float_domain",u"group_presence",u"image_domain",u"int_domain",u"mid_domain",u"natural_language_domain",u"presence",u"presence_constraints",u"shape",u"shape_type",u"string_domain",u"struct_domain",u"time_domain",u"time_of_day_domain",u"url_domain",u"value_count"]) -> bool: ...
+        def ClearField(self, field_name: typing_extensions___Literal[u"bool_domain",u"domain",u"domain_info",u"float_domain",u"group_presence",u"image_domain",u"int_domain",u"mid_domain",u"name",u"natural_language_domain",u"presence",u"presence_constraints",u"shape",u"shape_type",u"string_domain",u"struct_domain",u"time_domain",u"time_of_day_domain",u"url_domain",u"value_count",u"value_type"]) -> None: ...
     else:
-        def ClearField(self, field_name: typing_extensions___Literal[u"name",b"name",u"value_type",b"value_type"]) -> None: ...
+        def HasField(self, field_name: typing_extensions___Literal[u"bool_domain",b"bool_domain",u"domain",b"domain",u"domain_info",b"domain_info",u"float_domain",b"float_domain",u"group_presence",b"group_presence",u"image_domain",b"image_domain",u"int_domain",b"int_domain",u"mid_domain",b"mid_domain",u"natural_language_domain",b"natural_language_domain",u"presence",b"presence",u"presence_constraints",b"presence_constraints",u"shape",b"shape",u"shape_type",b"shape_type",u"string_domain",b"string_domain",u"struct_domain",b"struct_domain",u"time_domain",b"time_domain",u"time_of_day_domain",b"time_of_day_domain",u"url_domain",b"url_domain",u"value_count",b"value_count"]) -> bool: ...
+        def ClearField(self, field_name: typing_extensions___Literal[u"bool_domain",b"bool_domain",u"domain",b"domain",u"domain_info",b"domain_info",u"float_domain",b"float_domain",u"group_presence",b"group_presence",u"image_domain",b"image_domain",u"int_domain",b"int_domain",u"mid_domain",b"mid_domain",u"name",b"name",u"natural_language_domain",b"natural_language_domain",u"presence",b"presence",u"presence_constraints",b"presence_constraints",u"shape",b"shape",u"shape_type",b"shape_type",u"string_domain",b"string_domain",u"struct_domain",b"struct_domain",u"time_domain",b"time_domain",u"time_of_day_domain",b"time_of_day_domain",u"url_domain",b"url_domain",u"value_count",b"value_count",u"value_type",b"value_type"]) -> None: ...
+    @typing___overload
+    def WhichOneof(self, oneof_group: typing_extensions___Literal[u"domain_info",b"domain_info"]) -> typing_extensions___Literal["domain","int_domain","float_domain","string_domain","bool_domain","struct_domain","natural_language_domain","image_domain","mid_domain","url_domain","time_domain","time_of_day_domain"]: ...
+    @typing___overload
+    def WhichOneof(self, oneof_group: typing_extensions___Literal[u"presence_constraints",b"presence_constraints"]) -> typing_extensions___Literal["presence","group_presence"]: ...
+    @typing___overload
+    def WhichOneof(self, oneof_group: typing_extensions___Literal[u"shape_type",b"shape_type"]) -> typing_extensions___Literal["shape","value_count"]: ...
 
 class FeatureSetMeta(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...

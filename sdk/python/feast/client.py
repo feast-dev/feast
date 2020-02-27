@@ -24,11 +24,14 @@ from typing import Dict, List, Tuple, Union, Optional
 from typing import List
 from urllib.parse import urlparse
 
+import datetime
 import fastavro
 import grpc
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+from tensorflow_metadata.proto.v0 import statistics_pb2
+
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionRequest,
     ListFeatureSetsResponse,
@@ -599,6 +602,52 @@ class Client:
                 entity_rows=entity_rows,
             )
         )  # type: GetOnlineFeaturesResponse
+
+    def get_statistics(
+        self,
+        feature_refs: List[str],
+        store: str,
+        dataset_ids: Optional[List[str]] = None,
+        start_date: Optional[Union[datetime.date, str]] = None,
+        end_date: Optional[Union[datetime.date, str]] = None,
+        force_refresh: bool = False,
+        default_project: Optional[str] = None,
+    ) -> statistics_pb2.DatasetFeatureStatisticsList:
+        """
+        Retrieves the feature statistics computed over the data in the batch
+        stores.
+
+        Args:
+            feature_refs: List of feature references in the following format
+                [project]/[feature_name]:[version]. Only the feature name
+                is a required component in the reference.
+                example:
+                    ["my_project/my_feature_1:3",
+                    "my_project3/my_feature_4:1",]
+            store: Name of the store to retrieve feature statistics over. This
+                store must be a historical store.
+            dataset_ids: Optional list of dataset Ids by which to filter data
+                before retrieving statistics. Cannot be used with start_date
+                and end_date.
+                If multiple dataset ids are provided, unaggregatable statistics
+                will be dropped.
+            start_date: Optional start date over which to filter statistical data.
+                Data from this date will be included.
+                Cannot be used with dataset_ids. If the provided period spans
+                multiple days, unaggregatable statistics will be dropped.
+            end_date: Optional end date over which to filter statistical data.
+                Data from this data will not be included.
+                Cannot be used with dataset_ids. If the provided period spans
+                multiple days, unaggregatable statistics will be dropped.
+            force_refresh: Setting this flag to true will force a recalculation
+                of statistics and overwrite results currently in the cache, if any.
+            default_project: This project will be used if the project name is
+                not provided in the feature reference
+
+        Returns:
+           Returns a tensorflow DatasetFeatureStatisticsList containing TFDV statistics.
+        """
+        pass
 
     def ingest(
         self,

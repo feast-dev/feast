@@ -11,15 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from datetime import datetime
+from datetime import datetime, date
 
 import tempfile
 import grpc
 import pandas as pd
 from google.protobuf.duration_pb2 import Duration
+from google.protobuf.timestamp_pb2 import Timestamp
 from mock import MagicMock, patch
 from pytz import timezone
-from pandavro import to_avro
+from pandavro import to_avro, read_avro
+import tensorflow_data_validation as tfdv
+
 import feast.core.CoreService_pb2_grpc as Core
 import feast.serving.ServingService_pb2_grpc as Serving
 from feast.feature_set import FeatureSet
@@ -38,6 +41,8 @@ from feast.core.Source_pb2 import SourceType, KafkaSourceConfig, Source
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
     GetFeatureSetResponse,
+    GetFeatureStatisticsResponse,
+    GetFeatureStatisticsRequest,
 )
 from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoResponse,
@@ -377,6 +382,69 @@ class TestClient:
             and feature_sets[0].features[0].dtype == ValueType.INT64
             and feature_sets[1].features[1].dtype == ValueType.BYTES_LIST
         )
+
+    @pytest.mark.parametrize(
+        "dataset_ids,start_date,end_date,exception",
+        [
+            (["dataset1"], None, None, None),
+            (None, "2020-01-21", "2020-01-22", None),
+            (None, date(2020, 1, 21), date(2020, 2, 22), None),
+            (["dataset1"], "2020-01-21", "2020-01-22", Exception),
+        ],
+    )
+    def test_get_statistics(
+        self, dataset_ids, start_date, end_date, exception, client, mocker
+    ):
+        client.set_project("project1")
+
+        df = read_avro("data/austin_bikeshare.bikeshare_stations.avro")
+        stats = tfdv.generate_statistics_from_dataframe(df)
+
+        mocked = mocker.patch.object(
+            client._core_service_stub,
+            "GetFeatureStatistics",
+            return_value=GetFeatureStatisticsResponse(
+                dataset_feature_statistics_list=stats
+            ),
+        )
+
+        feature_names = [
+            "station_id",
+            "name",
+            "status",
+            "latitude",
+            "longitude",
+            "location",
+        ]
+        store = "bigquery"
+        if exception is not None:
+            with pytest.raises(exception):
+                client.get_statistics(
+                    feature_names,
+                    store,
+                    dataset_ids=dataset_ids,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+        else:
+            expected_request = GetFeatureStatisticsRequest(
+                feature_refs=["project1/" + f_id for f_id in feature_names], store=store
+            )
+            if dataset_ids is None:
+                expected_request.start_date = Timestamp(seconds=1579564800)
+                expected_request.end_date = Timestamp(seconds=1579651200)
+            else:
+                expected_request.dataset_ids.append(dataset_ids)
+            output_stats = client.get_statistics(
+                feature_names,
+                store,
+                dataset_ids=dataset_ids,
+                start_date=start_date,
+                end_date=end_date,
+            )
+
+            assert output_stats == stats
+            mocked.assert_called_with(expected_request)
 
     @pytest.mark.parametrize("dataframe", [dataframes.GOOD])
     def test_feature_set_ingest_success(self, dataframe, client, mocker):
