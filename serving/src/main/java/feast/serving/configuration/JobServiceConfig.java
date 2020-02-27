@@ -22,42 +22,24 @@ import feast.serving.service.JobService;
 import feast.serving.service.NoopJobService;
 import feast.serving.service.RedisBackedJobService;
 import feast.serving.specs.CachedSpecService;
-import java.util.Map;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.JedisPoolConfig;
 
 @Configuration
 public class JobServiceConfig {
 
-  public static final String DEFAULT_REDIS_MAX_CONN = "8";
-  public static final String DEFAULT_REDIS_MAX_IDLE = "8";
-  public static final String DEFAULT_REDIS_MAX_WAIT_MILLIS = "50";
-
   @Bean
-  public JobService jobService(FeastProperties feastProperties, CachedSpecService specService) {
+  public JobService jobService(
+      FeastProperties feastProperties,
+      CachedSpecService specService,
+      StoreConfiguration storeConfiguration) {
     if (!specService.getStore().getType().equals(StoreType.BIGQUERY)) {
       return new NoopJobService();
     }
     StoreType storeType = StoreType.valueOf(feastProperties.getJobs().getStoreType());
-    Map<String, String> storeOptions = feastProperties.getJobs().getStoreOptions();
     switch (storeType) {
       case REDIS:
-        JedisPoolConfig jedisPoolConfig = new JedisPoolConfig();
-        jedisPoolConfig.setMaxTotal(
-            Integer.parseInt(storeOptions.getOrDefault("max-conn", DEFAULT_REDIS_MAX_CONN)));
-        jedisPoolConfig.setMaxIdle(
-            Integer.parseInt(storeOptions.getOrDefault("max-idle", DEFAULT_REDIS_MAX_IDLE)));
-        jedisPoolConfig.setMaxWaitMillis(
-            Integer.parseInt(
-                storeOptions.getOrDefault("max-wait-millis", DEFAULT_REDIS_MAX_WAIT_MILLIS)));
-        JedisPool jedisPool =
-            new JedisPool(
-                jedisPoolConfig,
-                storeOptions.get("host"),
-                Integer.parseInt(storeOptions.get("port")));
-        return new RedisBackedJobService(jedisPool);
+        return new RedisBackedJobService(storeConfiguration.getJobStoreRedisConnection());
       case INVALID:
       case BIGQUERY:
       case CASSANDRA:

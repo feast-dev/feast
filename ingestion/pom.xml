@@ -216,8 +216,8 @@
     </dependency>
 
     <dependency>
-      <groupId>redis.clients</groupId>
-      <artifactId>jedis</artifactId>
+      <groupId>io.lettuce</groupId>
+      <artifactId>lettuce-core</artifactId>
     </dependency>
 
     <dependency>

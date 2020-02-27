@@ -16,17 +16,17 @@
  */
 package feast.serving.service;
 
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisURI;
+import io.lettuce.core.codec.ByteArrayCodec;
 import java.io.IOException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.JedisPoolConfig;
 import redis.embedded.RedisServer;
 
 public class RedisBackedJobServiceTest {
-  private static String REDIS_HOST = "localhost";
-  private static int REDIS_PORT = 51235;
+  private static Integer REDIS_PORT = 51235;
   private RedisServer redis;
 
   @Before
@@ -41,12 +41,10 @@ public class RedisBackedJobServiceTest {
   }
 
   @Test
-  public void shouldRecoverIfRedisConnectionIsLost() {
-    JedisPoolConfig jedisPoolConfig = new JedisPoolConfig();
-    jedisPoolConfig.setMaxTotal(1);
-    jedisPoolConfig.setMaxWaitMillis(10);
-    JedisPool jedisPool = new JedisPool(jedisPoolConfig, REDIS_HOST, REDIS_PORT);
-    RedisBackedJobService jobService = new RedisBackedJobService(jedisPool);
+  public void shouldRecoverIfRedisConnectionIsLost() throws IOException {
+    RedisClient client = RedisClient.create(RedisURI.create("localhost", REDIS_PORT));
+    RedisBackedJobService jobService =
+        new RedisBackedJobService(client.connect(new ByteArrayCodec()));
     jobService.get("does not exist");
     redis.stop();
     try {
@@ -56,5 +54,6 @@ public class RedisBackedJobServiceTest {
     }
     redis.start();
     jobService.get("does not exist");
+    client.shutdown();
   }
 }
