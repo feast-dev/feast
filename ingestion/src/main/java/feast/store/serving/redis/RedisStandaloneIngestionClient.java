@@ -78,8 +78,11 @@ public class RedisStandaloneIngestionClient implements RedisIngestionClient {
   public void sync() {
     // Wait for some time for futures to complete
     // TODO: should this be configurable?
-    LettuceFutures.awaitAll(60, TimeUnit.SECONDS, futures.toArray(new RedisFuture[0]));
-    futures.clear();
+    try {
+      LettuceFutures.awaitAll(60, TimeUnit.SECONDS, futures.toArray(new RedisFuture[0]));
+    } finally {
+      futures.clear();
+    }
   }
 
   @Override
