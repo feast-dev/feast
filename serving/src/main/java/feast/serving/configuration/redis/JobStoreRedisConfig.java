@@ -40,17 +40,19 @@ public class JobStoreRedisConfig {
   @Bean(destroyMethod = "shutdown")
   RedisClient jobStoreRedisClient(
       ClientResources jobStoreClientResources, FeastProperties feastProperties) {
-    try {
-      if (StoreProto.Store.StoreType.valueOf(feastProperties.getJobs().getStoreType())
-          != StoreProto.Store.StoreType.REDIS) return null;
-      Map<String, String> jobStoreConf = feastProperties.getJobs().getStoreOptions();
-      RedisURI uri =
-          RedisURI.create(jobStoreConf.get("host"), Integer.parseInt(jobStoreConf.get("port")));
-      return RedisClient.create(jobStoreClientResources, uri);
-    } catch (Exception e) {
-      // If the store type is empty or keys are not not properly set.
-      return null;
-    }
+    if (StoreProto.Store.StoreType.valueOf(feastProperties.getJobs().getStoreType())
+        != StoreProto.Store.StoreType.REDIS) return null;
+    Map<String, String> jobStoreConf = feastProperties.getJobs().getStoreOptions();
+    // If job conf is empty throw StoreException
+    if (jobStoreConf == null
+        || jobStoreConf.get("host") == null
+        || jobStoreConf.get("host").isEmpty()
+        || jobStoreConf.get("port") == null
+        || jobStoreConf.get("port").isEmpty())
+      throw new IllegalArgumentException("Store Configuration is not set");
+    RedisURI uri =
+        RedisURI.create(jobStoreConf.get("host"), Integer.parseInt(jobStoreConf.get("port")));
+    return RedisClient.create(jobStoreClientResources, uri);
   }
 
   @Bean(destroyMethod = "close")
