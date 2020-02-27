@@ -42,7 +42,7 @@ steps:
   waitFor: ['create-deploy-poms']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: mvn
-  args: ['--settings=cloudbuild-settings.xml', '-Drevision=ff-${SHORT_SHA}','-f pom-ff-deploy.xml', 'package', 'deploy:deploy']
+  args: ['--settings=cloudbuild-settings.xml', '-Drevision=ff-${SHORT_SHA}','--file=pom-ff-deploy.xml', 'package', 'deploy:deploy']
 
 # SDK (GO)
 - id: gen-proto-go
