@@ -59,7 +59,6 @@ public class SpecServiceConfig {
 
   @Bean
   public CachedSpecService specService(FeastProperties feastProperties) {
-
     CoreSpecService coreService = new CoreSpecService(feastCoreHost, feastCorePort);
     Path path = Paths.get(feastProperties.getStore().getConfigPath());
     CachedSpecService cachedSpecStorage = new CachedSpecService(coreService, path);
