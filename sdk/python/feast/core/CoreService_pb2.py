@@ -13,8 +13,10 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
+from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 from feast.core import FeatureSet_pb2 as feast_dot_core_dot_FeatureSet__pb2
 from feast.core import Store_pb2 as feast_dot_core_dot_Store__pb2
+from tensorflow_metadata.proto.v0 import statistics_pb2 as tensorflow__metadata_dot_proto_dot_v0_dot_statistics__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(
@@ -22,9 +24,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.core',
   syntax='proto3',
   serialized_options=_b('\n\nfeast.coreB\020CoreServiceProtoZ/github.com/gojek/feast/sdk/go/protos/feast/core'),
-  serialized_pb=_b('\n\x1c\x66\x65\x61st/core/CoreService.proto\x12\nfeast.core\x1a\x1b\x66\x65\x61st/core/FeatureSet.proto\x1a\x16\x66\x65\x61st/core/Store.proto\"F\n\x14GetFeatureSetRequest\x12\x0f\n\x07project\x18\x03 \x01(\t\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\x05\"D\n\x15GetFeatureSetResponse\x12+\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x16.feast.core.FeatureSet\"\xa5\x01\n\x16ListFeatureSetsRequest\x12\x39\n\x06\x66ilter\x18\x01 \x01(\x0b\x32).feast.core.ListFeatureSetsRequest.Filter\x1aP\n\x06\x46ilter\x12\x0f\n\x07project\x18\x03 \x01(\t\x12\x18\n\x10\x66\x65\x61ture_set_name\x18\x01 \x01(\t\x12\x1b\n\x13\x66\x65\x61ture_set_version\x18\x02 \x01(\t\"G\n\x17ListFeatureSetsResponse\x12,\n\x0c\x66\x65\x61ture_sets\x18\x01 \x03(\x0b\x32\x16.feast.core.FeatureSet\"a\n\x11ListStoresRequest\x12\x34\n\x06\x66ilter\x18\x01 \x01(\x0b\x32$.feast.core.ListStoresRequest.Filter\x1a\x16\n\x06\x46ilter\x12\x0c\n\x04name\x18\x01 \x01(\t\"6\n\x12ListStoresResponse\x12 \n\x05store\x18\x01 \x03(\x0b\x32\x11.feast.core.Store\"E\n\x16\x41pplyFeatureSetRequest\x12+\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x16.feast.core.FeatureSet\"\xb3\x01\n\x17\x41pplyFeatureSetResponse\x12+\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x16.feast.core.FeatureSet\x12:\n\x06status\x18\x02 \x01(\x0e\x32*.feast.core.ApplyFeatureSetResponse.Status\"/\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0b\n\x07\x43REATED\x10\x01\x12\t\n\x05\x45RROR\x10\x02\"\x1c\n\x1aGetFeastCoreVersionRequest\".\n\x1bGetFeastCoreVersionResponse\x12\x0f\n\x07version\x18\x01 \x01(\t\"6\n\x12UpdateStoreRequest\x12 \n\x05store\x18\x01 \x01(\x0b\x32\x11.feast.core.Store\"\x95\x01\n\x13UpdateStoreResponse\x12 \n\x05store\x18\x01 \x01(\x0b\x32\x11.feast.core.Store\x12\x36\n\x06status\x18\x02 \x01(\x0e\x32&.feast.core.UpdateStoreResponse.Status\"$\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0b\n\x07UPDATED\x10\x01\"$\n\x14\x43reateProjectRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x17\n\x15\x43reateProjectResponse\"%\n\x15\x41rchiveProjectRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x18\n\x16\x41rchiveProjectResponse\"\x15\n\x13ListProjectsRequest\"(\n\x14ListProjectsResponse\x12\x10\n\x08projects\x18\x01 \x03(\t2\xa2\x06\n\x0b\x43oreService\x12\x66\n\x13GetFeastCoreVersion\x12&.feast.core.GetFeastCoreVersionRequest\x1a\'.feast.core.GetFeastCoreVersionResponse\x12T\n\rGetFeatureSet\x12 .feast.core.GetFeatureSetRequest\x1a!.feast.core.GetFeatureSetResponse\x12Z\n\x0fListFeatureSets\x12\".feast.core.ListFeatureSetsRequest\x1a#.feast.core.ListFeatureSetsResponse\x12K\n\nListStores\x12\x1d.feast.core.ListStoresRequest\x1a\x1e.feast.core.ListStoresResponse\x12Z\n\x0f\x41pplyFeatureSet\x12\".feast.core.ApplyFeatureSetRequest\x1a#.feast.core.ApplyFeatureSetResponse\x12N\n\x0bUpdateStore\x12\x1e.feast.core.UpdateStoreRequest\x1a\x1f.feast.core.UpdateStoreResponse\x12T\n\rCreateProject\x12 .feast.core.CreateProjectRequest\x1a!.feast.core.CreateProjectResponse\x12W\n\x0e\x41rchiveProject\x12!.feast.core.ArchiveProjectRequest\x1a\".feast.core.ArchiveProjectResponse\x12Q\n\x0cListProjects\x12\x1f.feast.core.ListProjectsRequest\x1a .feast.core.ListProjectsResponseBO\n\nfeast.coreB\x10\x43oreServiceProtoZ/github.com/gojek/feast/sdk/go/protos/feast/coreb\x06proto3')
+  serialized_pb=_b('\n\x1c\x66\x65\x61st/core/CoreService.proto\x12\nfeast.core\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1b\x66\x65\x61st/core/FeatureSet.proto\x1a\x16\x66\x65\x61st/core/Store.proto\x1a-tensorflow_metadata/proto/v0/statistics.proto\"F\n\x14GetFeatureSetRequest\x12\x0f\n\x07project\x18\x03 \x01(\t\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\x05\"D\n\x15GetFeatureSetResponse\x12+\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x16.feast.core.FeatureSet\"\xa5\x01\n\x16ListFeatureSetsRequest\x12\x39\n\x06\x66ilter\x18\x01 \x01(\x0b\x32).feast.core.ListFeatureSetsRequest.Filter\x1aP\n\x06\x46ilter\x12\x0f\n\x07project\x18\x03 \x01(\t\x12\x18\n\x10\x66\x65\x61ture_set_name\x18\x01 \x01(\t\x12\x1b\n\x13\x66\x65\x61ture_set_version\x18\x02 \x01(\t\"G\n\x17ListFeatureSetsResponse\x12,\n\x0c\x66\x65\x61ture_sets\x18\x01 \x03(\x0b\x32\x16.feast.core.FeatureSet\"a\n\x11ListStoresRequest\x12\x34\n\x06\x66ilter\x18\x01 \x01(\x0b\x32$.feast.core.ListStoresRequest.Filter\x1a\x16\n\x06\x46ilter\x12\x0c\n\x04name\x18\x01 \x01(\t\"6\n\x12ListStoresResponse\x12 \n\x05store\x18\x01 \x03(\x0b\x32\x11.feast.core.Store\"E\n\x16\x41pplyFeatureSetRequest\x12+\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x16.feast.core.FeatureSet\"\xb3\x01\n\x17\x41pplyFeatureSetResponse\x12+\n\x0b\x66\x65\x61ture_set\x18\x01 \x01(\x0b\x32\x16.feast.core.FeatureSet\x12:\n\x06status\x18\x02 \x01(\x0e\x32*.feast.core.ApplyFeatureSetResponse.Status\"/\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0b\n\x07\x43REATED\x10\x01\x12\t\n\x05\x45RROR\x10\x02\"\x1c\n\x1aGetFeastCoreVersionRequest\".\n\x1bGetFeastCoreVersionResponse\x12\x0f\n\x07version\x18\x01 \x01(\t\"6\n\x12UpdateStoreRequest\x12 \n\x05store\x18\x01 \x01(\x0b\x32\x11.feast.core.Store\"\x95\x01\n\x13UpdateStoreResponse\x12 \n\x05store\x18\x01 \x01(\x0b\x32\x11.feast.core.Store\x12\x36\n\x06status\x18\x02 \x01(\x0e\x32&.feast.core.UpdateStoreResponse.Status\"$\n\x06Status\x12\r\n\tNO_CHANGE\x10\x00\x12\x0b\n\x07UPDATED\x10\x01\"$\n\x14\x43reateProjectRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x17\n\x15\x43reateProjectResponse\"%\n\x15\x41rchiveProjectRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\"\x18\n\x16\x41rchiveProjectResponse\"\x15\n\x13ListProjectsRequest\"(\n\x14ListProjectsResponse\x12\x10\n\x08projects\x18\x01 \x03(\t\"\xcb\x01\n\x1bGetFeatureStatisticsRequest\x12\x13\n\x0b\x66\x65\x61ture_ids\x18\x01 \x03(\t\x12\r\n\x05store\x18\x02 \x01(\t\x12.\n\nstart_date\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12,\n\x08\x65nd_date\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x13\n\x0b\x64\x61taset_ids\x18\x05 \x03(\t\x12\x15\n\rforce_refresh\x18\x06 \x01(\x08\"}\n\x1cGetFeatureStatisticsResponse\x12]\n\x1f\x64\x61taset_feature_statistics_list\x18\x01 \x01(\x0b\x32\x34.tensorflow.metadata.v0.DatasetFeatureStatisticsList2\x8d\x07\n\x0b\x43oreService\x12\x66\n\x13GetFeastCoreVersion\x12&.feast.core.GetFeastCoreVersionRequest\x1a\'.feast.core.GetFeastCoreVersionResponse\x12T\n\rGetFeatureSet\x12 .feast.core.GetFeatureSetRequest\x1a!.feast.core.GetFeatureSetResponse\x12Z\n\x0fListFeatureSets\x12\".feast.core.ListFeatureSetsRequest\x1a#.feast.core.ListFeatureSetsResponse\x12i\n\x14GetFeatureStatistics\x12\'.feast.core.GetFeatureStatisticsRequest\x1a(.feast.core.GetFeatureStatisticsResponse\x12K\n\nListStores\x12\x1d.feast.core.ListStoresRequest\x1a\x1e.feast.core.ListStoresResponse\x12Z\n\x0f\x41pplyFeatureSet\x12\".feast.core.ApplyFeatureSetRequest\x1a#.feast.core.ApplyFeatureSetResponse\x12N\n\x0bUpdateStore\x12\x1e.feast.core.UpdateStoreRequest\x1a\x1f.feast.core.UpdateStoreResponse\x12T\n\rCreateProject\x12 .feast.core.CreateProjectRequest\x1a!.feast.core.CreateProjectResponse\x12W\n\x0e\x41rchiveProject\x12!.feast.core.ArchiveProjectRequest\x1a\".feast.core.ArchiveProjectResponse\x12Q\n\x0cListProjects\x12\x1f.feast.core.ListProjectsRequest\x1a .feast.core.ListProjectsResponseBO\n\nfeast.coreB\x10\x43oreServiceProtoZ/github.com/gojek/feast/sdk/go/protos/feast/coreb\x06proto3')
   ,
-  dependencies=[feast_dot_core_dot_FeatureSet__pb2.DESCRIPTOR,feast_dot_core_dot_Store__pb2.DESCRIPTOR,])
+  dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,feast_dot_core_dot_FeatureSet__pb2.DESCRIPTOR,feast_dot_core_dot_Store__pb2.DESCRIPTOR,tensorflow__metadata_dot_proto_dot_v0_dot_statistics__pb2.DESCRIPTOR,])
 
 
 
@@ -49,8 +51,8 @@ _APPLYFEATURESETRESPONSE_STATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=839,
-  serialized_end=886,
+  serialized_start=919,
+  serialized_end=966,
 )
 _sym_db.RegisterEnumDescriptor(_APPLYFEATURESETRESPONSE_STATUS)
 
@@ -71,8 +73,8 @@ _UPDATESTORERESPONSE_STATUS = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=1136,
-  serialized_end=1172,
+  serialized_start=1216,
+  serialized_end=1252,
 )
 _sym_db.RegisterEnumDescriptor(_UPDATESTORERESPONSE_STATUS)
 
@@ -117,8 +119,8 @@ _GETFEATURESETREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=97,
-  serialized_end=167,
+  serialized_start=177,
+  serialized_end=247,
 )
 
 
@@ -148,8 +150,8 @@ _GETFEATURESETRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=169,
-  serialized_end=237,
+  serialized_start=249,
+  serialized_end=317,
 )
 
 
@@ -193,8 +195,8 @@ _LISTFEATURESETSREQUEST_FILTER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=325,
-  serialized_end=405,
+  serialized_start=405,
+  serialized_end=485,
 )
 
 _LISTFEATURESETSREQUEST = _descriptor.Descriptor(
@@ -223,8 +225,8 @@ _LISTFEATURESETSREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=240,
-  serialized_end=405,
+  serialized_start=320,
+  serialized_end=485,
 )
 
 
@@ -254,8 +256,8 @@ _LISTFEATURESETSRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=407,
-  serialized_end=478,
+  serialized_start=487,
+  serialized_end=558,
 )
 
 
@@ -285,8 +287,8 @@ _LISTSTORESREQUEST_FILTER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=555,
-  serialized_end=577,
+  serialized_start=635,
+  serialized_end=657,
 )
 
 _LISTSTORESREQUEST = _descriptor.Descriptor(
@@ -315,8 +317,8 @@ _LISTSTORESREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=480,
-  serialized_end=577,
+  serialized_start=560,
+  serialized_end=657,
 )
 
 
@@ -346,8 +348,8 @@ _LISTSTORESRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=579,
-  serialized_end=633,
+  serialized_start=659,
+  serialized_end=713,
 )
 
 
@@ -377,8 +379,8 @@ _APPLYFEATURESETREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=635,
-  serialized_end=704,
+  serialized_start=715,
+  serialized_end=784,
 )
 
 
@@ -416,8 +418,8 @@ _APPLYFEATURESETRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=707,
-  serialized_end=886,
+  serialized_start=787,
+  serialized_end=966,
 )
 
 
@@ -440,8 +442,8 @@ _GETFEASTCOREVERSIONREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=888,
-  serialized_end=916,
+  serialized_start=968,
+  serialized_end=996,
 )
 
 
@@ -471,8 +473,8 @@ _GETFEASTCOREVERSIONRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=918,
-  serialized_end=964,
+  serialized_start=998,
+  serialized_end=1044,
 )
 
 
@@ -502,8 +504,8 @@ _UPDATESTOREREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=966,
-  serialized_end=1020,
+  serialized_start=1046,
+  serialized_end=1100,
 )
 
 
@@ -541,8 +543,8 @@ _UPDATESTORERESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1023,
-  serialized_end=1172,
+  serialized_start=1103,
+  serialized_end=1252,
 )
 
 
@@ -572,8 +574,8 @@ _CREATEPROJECTREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1174,
-  serialized_end=1210,
+  serialized_start=1254,
+  serialized_end=1290,
 )
 
 
@@ -596,8 +598,8 @@ _CREATEPROJECTRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1212,
-  serialized_end=1235,
+  serialized_start=1292,
+  serialized_end=1315,
 )
 
 
@@ -627,8 +629,8 @@ _ARCHIVEPROJECTREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1237,
-  serialized_end=1274,
+  serialized_start=1317,
+  serialized_end=1354,
 )
 
 
@@ -651,8 +653,8 @@ _ARCHIVEPROJECTRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1276,
-  serialized_end=1300,
+  serialized_start=1356,
+  serialized_end=1380,
 )
 
 
@@ -675,8 +677,8 @@ _LISTPROJECTSREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1302,
-  serialized_end=1323,
+  serialized_start=1382,
+  serialized_end=1403,
 )
 
 
@@ -706,8 +708,105 @@ _LISTPROJECTSRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1325,
-  serialized_end=1365,
+  serialized_start=1405,
+  serialized_end=1445,
+)
+
+
+_GETFEATURESTATISTICSREQUEST = _descriptor.Descriptor(
+  name='GetFeatureStatisticsRequest',
+  full_name='feast.core.GetFeatureStatisticsRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='feature_ids', full_name='feast.core.GetFeatureStatisticsRequest.feature_ids', index=0,
+      number=1, type=9, cpp_type=9, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='store', full_name='feast.core.GetFeatureStatisticsRequest.store', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='start_date', full_name='feast.core.GetFeatureStatisticsRequest.start_date', index=2,
+      number=3, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='end_date', full_name='feast.core.GetFeatureStatisticsRequest.end_date', index=3,
+      number=4, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='dataset_ids', full_name='feast.core.GetFeatureStatisticsRequest.dataset_ids', index=4,
+      number=5, type=9, cpp_type=9, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='force_refresh', full_name='feast.core.GetFeatureStatisticsRequest.force_refresh', index=5,
+      number=6, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1448,
+  serialized_end=1651,
+)
+
+
+_GETFEATURESTATISTICSRESPONSE = _descriptor.Descriptor(
+  name='GetFeatureStatisticsResponse',
+  full_name='feast.core.GetFeatureStatisticsResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='dataset_feature_statistics_list', full_name='feast.core.GetFeatureStatisticsResponse.dataset_feature_statistics_list', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1653,
+  serialized_end=1778,
 )
 
 _GETFEATURESETRESPONSE.fields_by_name['feature_set'].message_type = feast_dot_core_dot_FeatureSet__pb2._FEATURESET
@@ -725,6 +824,9 @@ _UPDATESTOREREQUEST.fields_by_name['store'].message_type = feast_dot_core_dot_St
 _UPDATESTORERESPONSE.fields_by_name['store'].message_type = feast_dot_core_dot_Store__pb2._STORE
 _UPDATESTORERESPONSE.fields_by_name['status'].enum_type = _UPDATESTORERESPONSE_STATUS
 _UPDATESTORERESPONSE_STATUS.containing_type = _UPDATESTORERESPONSE
+_GETFEATURESTATISTICSREQUEST.fields_by_name['start_date'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
+_GETFEATURESTATISTICSREQUEST.fields_by_name['end_date'].message_type = google_dot_protobuf_dot_timestamp__pb2._TIMESTAMP
+_GETFEATURESTATISTICSRESPONSE.fields_by_name['dataset_feature_statistics_list'].message_type = tensorflow__metadata_dot_proto_dot_v0_dot_statistics__pb2._DATASETFEATURESTATISTICSLIST
 DESCRIPTOR.message_types_by_name['GetFeatureSetRequest'] = _GETFEATURESETREQUEST
 DESCRIPTOR.message_types_by_name['GetFeatureSetResponse'] = _GETFEATURESETRESPONSE
 DESCRIPTOR.message_types_by_name['ListFeatureSetsRequest'] = _LISTFEATURESETSREQUEST
@@ -743,6 +845,8 @@ DESCRIPTOR.message_types_by_name['ArchiveProjectRequest'] = _ARCHIVEPROJECTREQUE
 DESCRIPTOR.message_types_by_name['ArchiveProjectResponse'] = _ARCHIVEPROJECTRESPONSE
 DESCRIPTOR.message_types_by_name['ListProjectsRequest'] = _LISTPROJECTSREQUEST
 DESCRIPTOR.message_types_by_name['ListProjectsResponse'] = _LISTPROJECTSRESPONSE
+DESCRIPTOR.message_types_by_name['GetFeatureStatisticsRequest'] = _GETFEATURESTATISTICSREQUEST
+DESCRIPTOR.message_types_by_name['GetFeatureStatisticsResponse'] = _GETFEATURESTATISTICSRESPONSE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 GetFeatureSetRequest = _reflection.GeneratedProtocolMessageType('GetFeatureSetRequest', (_message.Message,), {
@@ -887,6 +991,20 @@ ListProjectsResponse = _reflection.GeneratedProtocolMessageType('ListProjectsRes
   })
 _sym_db.RegisterMessage(ListProjectsResponse)
 
+GetFeatureStatisticsRequest = _reflection.GeneratedProtocolMessageType('GetFeatureStatisticsRequest', (_message.Message,), {
+  'DESCRIPTOR' : _GETFEATURESTATISTICSREQUEST,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.GetFeatureStatisticsRequest)
+  })
+_sym_db.RegisterMessage(GetFeatureStatisticsRequest)
+
+GetFeatureStatisticsResponse = _reflection.GeneratedProtocolMessageType('GetFeatureStatisticsResponse', (_message.Message,), {
+  'DESCRIPTOR' : _GETFEATURESTATISTICSRESPONSE,
+  '__module__' : 'feast.core.CoreService_pb2'
+  # @@protoc_insertion_point(class_scope:feast.core.GetFeatureStatisticsResponse)
+  })
+_sym_db.RegisterMessage(GetFeatureStatisticsResponse)
+
 
 DESCRIPTOR._options = None
 
@@ -896,8 +1014,8 @@ _CORESERVICE = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=1368,
-  serialized_end=2170,
+  serialized_start=1781,
+  serialized_end=2690,
   methods=[
   _descriptor.MethodDescriptor(
     name='GetFeastCoreVersion',
@@ -927,9 +1045,18 @@ _CORESERVICE = _descriptor.ServiceDescriptor(
     serialized_options=None,
   ),
   _descriptor.MethodDescriptor(
+    name='GetFeatureStatistics',
+    full_name='feast.core.CoreService.GetFeatureStatistics',
+    index=3,
+    containing_service=None,
+    input_type=_GETFEATURESTATISTICSREQUEST,
+    output_type=_GETFEATURESTATISTICSRESPONSE,
+    serialized_options=None,
+  ),
+  _descriptor.MethodDescriptor(
     name='ListStores',
     full_name='feast.core.CoreService.ListStores',
-    index=3,
+    index=4,
     containing_service=None,
     input_type=_LISTSTORESREQUEST,
     output_type=_LISTSTORESRESPONSE,
@@ -938,7 +1065,7 @@ _CORESERVICE = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='ApplyFeatureSet',
     full_name='feast.core.CoreService.ApplyFeatureSet',
-    index=4,
+    index=5,
     containing_service=None,
     input_type=_APPLYFEATURESETREQUEST,
     output_type=_APPLYFEATURESETRESPONSE,
@@ -947,7 +1074,7 @@ _CORESERVICE = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='UpdateStore',
     full_name='feast.core.CoreService.UpdateStore',
-    index=5,
+    index=6,
     containing_service=None,
     input_type=_UPDATESTOREREQUEST,
     output_type=_UPDATESTORERESPONSE,
@@ -956,7 +1083,7 @@ _CORESERVICE = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='CreateProject',
     full_name='feast.core.CoreService.CreateProject',
-    index=6,
+    index=7,
     containing_service=None,
     input_type=_CREATEPROJECTREQUEST,
     output_type=_CREATEPROJECTRESPONSE,
@@ -965,7 +1092,7 @@ _CORESERVICE = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='ArchiveProject',
     full_name='feast.core.CoreService.ArchiveProject',
-    index=7,
+    index=8,
     containing_service=None,
     input_type=_ARCHIVEPROJECTREQUEST,
     output_type=_ARCHIVEPROJECTRESPONSE,
@@ -974,7 +1101,7 @@ _CORESERVICE = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='ListProjects',
     full_name='feast.core.CoreService.ListProjects',
-    index=8,
+    index=9,
     containing_service=None,
     input_type=_LISTPROJECTSREQUEST,
     output_type=_LISTPROJECTSRESPONSE,
