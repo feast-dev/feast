@@ -52,10 +52,6 @@ public class User {
   )
   Set<Project> projects;
 
-  public User() {
-    super();
-  }
-
   public User(String name) {
     this.name = name;
     this.projects = new HashSet<>();
