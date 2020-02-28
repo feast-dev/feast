@@ -22,8 +22,10 @@ option go_package = "github.com/gojek/feast/sdk/go/protos/feast/core";
 option java_outer_classname = "CoreServiceProto";
 option java_package = "feast.core";
 
+import "google/protobuf/timestamp.proto";
 import "feast/core/FeatureSet.proto";
 import "feast/core/Store.proto";
+import "tensorflow_metadata/proto/v0/statistics.proto";
 
 service CoreService {
     // Retrieve version information about this Feast deployment
@@ -225,7 +227,7 @@ message ListProjectsResponse {
 message GetFeatureStatisticsRequest {
     // Optional filter which filters returned statistics by selected features. These
     // features must be present in the data that is being processed.
-    repeated string feature_refs = 1;
+    repeated string feature_ids = 1;
 
     // Optional filter to select store over which the statistics will retrieved.
     // Only historical stores are allowed.
@@ -254,5 +256,5 @@ message GetFeatureStatisticsResponse {
     // Contains statistics for the requested data.
     // Due to the limitations of TFDV and Facets, only a single dataset can be returned in,
     // despite the message being of list type.
-    DatasetFeatureStatisticsList dataset_feature_statistics_list = 1;
+    tensorflow.metadata.v0.DatasetFeatureStatisticsList dataset_feature_statistics_list = 1;
 }

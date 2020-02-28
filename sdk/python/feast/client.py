@@ -23,11 +23,15 @@ from math import ceil
 from typing import Dict, List, Tuple, Union, Optional
 from urllib.parse import urlparse
 
+import datetime
 import fastavro
 import grpc
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+
+from tensorflow_metadata.proto.v0 import statistics_pb2
+from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionRequest,
@@ -43,6 +47,7 @@ from feast.core.CoreService_pb2 import (
     ArchiveProjectResponse,
     ListProjectsRequest,
     ListProjectsResponse,
+    GetFeatureStatisticsRequest,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
@@ -658,6 +663,85 @@ class Client:
                 entity_rows=entity_rows,
             )
         )  # type: GetOnlineFeaturesResponse
+
+    def get_statistics(
+        self,
+        feature_refs: List[str],
+        store: str,
+        dataset_ids: Optional[List[str]] = None,
+        start_date: Optional[datetime.datetime] = None,
+        end_date: Optional[datetime.datetime] = None,
+        force_refresh: bool = False,
+        default_project: Optional[str] = None,
+    ) -> statistics_pb2.DatasetFeatureStatisticsList:
+        """
+        Retrieves the feature statistics computed over the data in the batch
+        stores.
+
+        Args:
+            feature_refs: List of feature references in the following format
+                [project]/[feature_name]:[version]. Only the feature name
+                is a required component in the reference.
+                example:
+                    ["my_project/my_feature_1:3",
+                    "my_project3/my_feature_4:1",]
+            store: Name of the store to retrieve feature statistics over. This
+                store must be a historical store.
+            dataset_ids: Optional list of dataset Ids by which to filter data
+                before retrieving statistics. Cannot be used with start_date
+                and end_date.
+                If multiple dataset ids are provided, unaggregatable statistics
+                will be dropped.
+            start_date: Optional start date over which to filter statistical data.
+                Data from this date will be included.
+                Cannot be used with dataset_ids. If the provided period spans
+                multiple days, unaggregatable statistics will be dropped.
+            end_date: Optional end date over which to filter statistical data.
+                Data from this data will not be included.
+                Cannot be used with dataset_ids. If the provided period spans
+                multiple days, unaggregatable statistics will be dropped.
+            force_refresh: Setting this flag to true will force a recalculation
+                of statistics and overwrite results currently in the cache, if any.
+            default_project: This project will be used if the project name is
+                not provided in the feature reference
+
+        Returns:
+           Returns a tensorflow DatasetFeatureStatisticsList containing TFDV statistics.
+        """
+
+        if dataset_ids is not None and (start_date is not None or end_date is not None):
+            raise ValueError(
+                "Only one of dataset_id or [start_date, end_date] can be provided."
+            )
+
+        feature_refs = _build_feature_references(
+            feature_refs=feature_refs,
+            default_project=(default_project if not self.project else self.project),
+        )
+        feature_ids = [
+            f"{ref.project}/{ref.name}:{ref.version}"
+            if ref.version > 0
+            else f"{ref.project}/{ref.name}"
+            for ref in feature_refs
+        ]
+        request = GetFeatureStatisticsRequest(
+            feature_ids=feature_ids, store=store, force_refresh=force_refresh
+        )
+        if dataset_ids is not None:
+            request.dataset_ids.extend(dataset_ids)
+        else:
+            if start_date is not None:
+                request.start_date.CopyFrom(
+                    Timestamp(seconds=int(start_date.strftime("%s")))
+                )
+            if end_date is not None:
+                request.end_date.CopyFrom(
+                    Timestamp(seconds=int(end_date.strftime("%s")))
+                )
+
+        return self._core_service_stub.GetFeatureStatistics(
+            request
+        ).dataset_feature_statistics_list
 
     def ingest(
         self,
