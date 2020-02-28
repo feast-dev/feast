@@ -39,6 +39,7 @@ public class AccessManagementService {
 
   private ProjectRepository projectRepository;
   private UserRepository userRepository;
+  private String currentUser = System.getenv("FEAST_USER_NAME");
 
   @Autowired
   public AccessManagementService(ProjectRepository projectRepository, UserRepository userRepository) {
@@ -83,6 +84,7 @@ public class AccessManagementService {
    */
   @Transactional
   public List<Project> listProjects() {
+    String userName = System.getenv("FEAST_USER_NAME");
     return projectRepository.findAllByArchivedIsFalse();
   }
 
@@ -103,27 +105,28 @@ public class AccessManagementService {
   }
 
   @Transactional
-  public void addMember(String user_name, String project_name) {
-    Optional<Project> project = projectRepository.findById(project_name);
+  public void addMember(String userName, String projectName) {
+    Optional<Project> project = projectRepository.findById(projectName);
     Project p = project.get();
 
-    if (userRepository.existsUserByName(user_name)) {
-      throw new IllegalArgumentException(String.format("User already exists: %s", user_name));
+    //Check if the current user is the member of the project
+    if (!p.getUser(new User(currentUser))){
+      throw new IllegalArgumentException(String.format("Current user does not have permission to add member: %s", currentUser));
     }
 
-    User user = new User(user_name);
+    User user = new User(userName);
     p.addUser(user);
 
     userRepository.saveAndFlush(user);
   }
 
   @Transactional
-  public void removeMember(String user_name, String project_name) {
-    Optional<Project> project = projectRepository.findById(project_name);
+  public void removeMember(String userName, String projectName) {
+    Optional<Project> project = projectRepository.findById(projectName);
     Project p = project.get();
-    Optional<User> user = userRepository.findByName(user_name);
+    Optional<User> user = userRepository.findByName(userName);
     if (!user.isPresent()) {
-      throw new IllegalArgumentException(String.format("Could not find user: \"%s\"", user_name));
+      throw new IllegalArgumentException(String.format("Could not find user: \"%s\"", userName));
     }
     User u = user.get();
     p.removeUser(u);

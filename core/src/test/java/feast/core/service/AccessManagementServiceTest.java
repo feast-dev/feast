@@ -45,40 +45,40 @@ public class AccessManagementServiceTest {
 
   @Test
   public void shouldCreateProjectIfItDoesntExist() {
-    String project_name = "project1";
-    Project project = new Project(project_name);
+    String projectName = "project1";
+    Project project = new Project(projectName);
     when(projectRepository.saveAndFlush(any(Project.class))).thenReturn(project);
-    accessManagementService.createProject(project_name);
+    accessManagementService.createProject(projectName);
     verify(projectRepository, times(1)).saveAndFlush(any());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void shouldNotCreateProjectIfItExist() {
-    String project_name = "project1";
-    when(projectRepository.existsById(project_name)).thenReturn(true);
-    accessManagementService.createProject(project_name);
+    String projectName = "project1";
+    when(projectRepository.existsById(projectName)).thenReturn(true);
+    accessManagementService.createProject(projectName);
   }
 
   @Test
   public void shouldArchiveProjectIfItExists() {
-    String project_name = "project1";
-    when(projectRepository.findById(project_name))
-        .thenReturn(Optional.of(new Project(project_name)));
-    accessManagementService.archiveProject(project_name);
+    String projectName = "project1";
+    when(projectRepository.findById(projectName))
+        .thenReturn(Optional.of(new Project(projectName)));
+    accessManagementService.archiveProject(projectName);
     verify(projectRepository, times(1)).saveAndFlush(any(Project.class));
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void shouldNotArchiveProjectIfItIsAlreadyArchived() {
-    String project_name = "project1";
-    when(projectRepository.findById(project_name)).thenReturn(Optional.empty());
-    accessManagementService.archiveProject(project_name);
+    String projectName = "project1";
+    when(projectRepository.findById(projectName)).thenReturn(Optional.empty());
+    accessManagementService.archiveProject(projectName);
   }
 
   @Test
   public void shouldListProjects() {
-    String project_name = "project1";
-    Project project = new Project(project_name);
+    String projectName = "project1";
+    Project project = new Project(projectName);
     List<Project> expected = Arrays.asList(project);
     when(projectRepository.findAllByArchivedIsFalse()).thenReturn(expected);
     List<Project> actual = accessManagementService.listProjects();
@@ -87,61 +87,61 @@ public class AccessManagementServiceTest {
 
   @Test
   public void shouldListMembersWhenProjectExists() {
-    String project_name = "project1";
+    String projectName = "project1";
     User user = new User("user1");
     Set<User> expected = new HashSet<>(Arrays.asList(user));
     Project mockProject = mock(Project.class);
-    when(projectRepository.findById(project_name)).thenReturn(Optional.of(mockProject));
+    when(projectRepository.findById(projectName)).thenReturn(Optional.of(mockProject));
     when(mockProject.getProjectMembers()).thenReturn(new HashSet<>(Arrays.asList(user)));
-    Set<User> actual = accessManagementService.listMembers(project_name);
+    Set<User> actual = accessManagementService.listMembers(projectName);
     Assert.assertEquals(expected, actual);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void shouldNotListMembersWhenProjectDoesntExist() {
-    String project_name = "project1";
-    accessManagementService.listMembers(project_name);
+    String projectName = "project1";
+    accessManagementService.listMembers(projectName);
   }
 
   @Test
   public void shouldAddMemberWhenProjectExists() {
-    String project_name = "project1";
-    String user_name = "user1";
+    String projectName = "project1";
+    String userName = "user1";
     Project mockProject = mock(Project.class);
-    when(projectRepository.findById(project_name)).thenReturn(Optional.of(mockProject));
-    when(userRepository.saveAndFlush(any(User.class))).thenReturn(new User(user_name));
-    accessManagementService.addMember(user_name, project_name);
+    when(projectRepository.findById(projectName)).thenReturn(Optional.of(mockProject));
+    when(userRepository.saveAndFlush(any(User.class))).thenReturn(new User(userName));
+    accessManagementService.addMember(userName, projectName);
     verify(userRepository, times(1)).saveAndFlush(any());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void shouldNotAddMemberWhenUserAlreadyExists() {
-    String project_name = "project1";
-    String user_name = "user1";
+    String projectName = "project1";
+    String userName = "user1";
     Project mockProject = mock(Project.class);
-    when(projectRepository.findById(project_name)).thenReturn(Optional.of(mockProject));
-    when(userRepository.existsUserByName(user_name)).thenReturn(true);
-    accessManagementService.addMember(user_name, project_name);
+    when(projectRepository.findById(projectName)).thenReturn(Optional.of(mockProject));
+    when(userRepository.existsUserByName(userName)).thenReturn(true);
+    accessManagementService.addMember(userName, projectName);
   }
 
   @Test
   public void shouldRemoveMemberIfRegisteredAsProjectMember() {
-    String project_name = "project1";
-    String user_name = "user1";
+    String projectName = "project1";
+    String userName = "user1";
     Project mockProject = mock(Project.class);
-    when(projectRepository.findById(project_name)).thenReturn(Optional.of(mockProject));
-    when(userRepository.findByName(user_name)).thenReturn(Optional.of(new User(user_name)));
-    accessManagementService.removeMember(user_name, project_name);
+    when(projectRepository.findById(projectName)).thenReturn(Optional.of(mockProject));
+    when(userRepository.findByName(userName)).thenReturn(Optional.of(new User(userName)));
+    accessManagementService.removeMember(userName, projectName);
     verify(userRepository, times(1)).saveAndFlush(any(User.class));
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void shouldRemoveMemberIfUserDoesntExist() {
-    String project_name = "project1";
-    String user_name = "user1";
+    String projectName = "project1";
+    String userName = "user1";
     Project mockProject = mock(Project.class);
-    when(projectRepository.findById(project_name)).thenReturn(Optional.of(mockProject));
-    when(userRepository.findByName(user_name)).thenReturn(Optional.empty());
-    accessManagementService.removeMember(user_name, project_name);
+    when(projectRepository.findById(projectName)).thenReturn(Optional.of(mockProject));
+    when(userRepository.findByName(userName)).thenReturn(Optional.empty());
+    accessManagementService.removeMember(userName, projectName);
   }
 }
