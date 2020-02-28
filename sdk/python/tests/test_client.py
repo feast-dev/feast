@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 from datetime import datetime, date
 
 import tempfile
@@ -387,8 +388,18 @@ class TestClient:
         "dataset_ids,start_date,end_date,exception",
         [
             (["dataset1"], None, None, None),
-            (None, datetime.fromtimestamp(1579564800), datetime.fromtimestamp(1579651200), None),
-            (["dataset1"], datetime.fromtimestamp(1579564800), datetime.fromtimestamp(1579651200), Exception),
+            (
+                None,
+                datetime.fromtimestamp(1579564800),
+                datetime.fromtimestamp(1579651200),
+                None,
+            ),
+            (
+                ["dataset1"],
+                datetime.fromtimestamp(1579564800),
+                datetime.fromtimestamp(1579651200),
+                Exception,
+            ),
         ],
     )
     def test_get_statistics(
@@ -397,7 +408,12 @@ class TestClient:
         client._core_service_stub = Core.CoreServiceStub(grpc.insecure_channel(""))
         client.set_project("project1")
 
-        df = read_avro("data/austin_bikeshare.bikeshare_stations.avro")
+        df = read_avro(
+            os.path.join(
+                os.path.dirname(__file__),
+                "data/austin_bikeshare.bikeshare_stations.avro",
+            )
+        )
         stats = tfdv.generate_statistics_from_dataframe(df)
 
         mocked = mocker.patch.object(

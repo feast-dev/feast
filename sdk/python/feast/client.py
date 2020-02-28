@@ -651,7 +651,9 @@ class Client:
         """
 
         if dataset_ids is not None and (start_date is not None or end_date is not None):
-            raise ValueError("Only one of dataset_id or [start_date, end_date] can be provided.")
+            raise ValueError(
+                "Only one of dataset_id or [start_date, end_date] can be provided."
+            )
 
         feature_refs = _build_feature_references(
             feature_refs=feature_refs,
@@ -670,9 +672,13 @@ class Client:
             request.dataset_ids.extend(dataset_ids)
         else:
             if start_date is not None:
-                request.start_date.CopyFrom(Timestamp(seconds=int(start_date.strftime("%s"))))
+                request.start_date.CopyFrom(
+                    Timestamp(seconds=int(start_date.strftime("%s")))
+                )
             if end_date is not None:
-                request.end_date.CopyFrom(Timestamp(seconds=int(end_date.strftime("%s"))))
+                request.end_date.CopyFrom(
+                    Timestamp(seconds=int(end_date.strftime("%s")))
+                )
 
         return self._core_service_stub.GetFeatureStatistics(
             request
@@ -867,6 +873,7 @@ def _build_feature_references(
 
         features.append(FeatureReference(project=project, name=name, version=version))
     return features
+
 
 def _read_table_from_source(
     source: Union[pd.DataFrame, str], chunk_size: int, max_workers: int
