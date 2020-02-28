@@ -137,6 +137,14 @@ def _is_valid_property(prop: str, value: str) -> bool:
         if parsed_value.netloc:
             return True
 
+    elif prop_type == "user_name":
+        if isinstance(value, str):
+            return True
+
+    elif prop_type == "user_password":
+        if isinstance(value, str):
+            return True
+
     _logger.error("The property you are trying to set could not be identified")
     sys.exit(1)
 
