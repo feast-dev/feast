@@ -65,13 +65,20 @@ public class Project {
   }
 
   public void addUser(User user){
-    user.setProject(this);
+    user.addProject(this);
     projectMembers.add(user);
   }
 
   public void removeUser(User user){
     user.removeProject(this);
     projectMembers.remove(user);
+  }
+
+  public boolean getUser(User user){
+    if (projectMembers.contains(user)) {
+      return true;
+    }
+    return false;
   }
 
   @Override

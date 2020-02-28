@@ -41,8 +41,8 @@ public class User {
   private String name;
 
   //Password of the user
-//  @Column(name = "password_sha")
-//  private String password_sha;
+  @Column(name = "password_sha")
+  private String password_sha;
 
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
@@ -61,7 +61,7 @@ public class User {
     this.projects = new HashSet<>();
   }
 
-  public void setProject(Project project){
+  public void addProject(Project project){
     projects.add(project);
     this.setProjects(projects);
   }
