@@ -18,7 +18,7 @@ PyYAML==5.1.*
 fastavro==0.*
 grpcio-testing==1.*
 pytest-ordering==0.6.*
-pyarrow
+pyarrow==0.15.*
 Sphinx
 sphinx-rtd-theme
 toml==0.10.*
@@ -29,3 +29,4 @@ pandavro==1.5.*
 kafka-python==1.*
 tabulate==0.8.*
 tensorflow-data-validation==0.21.*
+tfx-bsl==0.21.*

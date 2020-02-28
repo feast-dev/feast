@@ -44,10 +44,11 @@ REQUIRED = [
     "tabulate==0.8.*",
     "toml==0.10.*",
     "tqdm==4.*",
-    "pyarrow>=0.15.1",
+    "pyarrow==0.15.*",
     "numpy",
     "google",
     "confluent_kafka",
+    "tensorflow-data-validation==0.21.*",
 ]
 
 # README file from Feast repo root directory
