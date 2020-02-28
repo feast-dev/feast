@@ -29,6 +29,8 @@ import grpc
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+
+import config
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionRequest,
     ListFeatureSetsResponse,
@@ -101,6 +103,10 @@ class Client:
         self.__serving_channel: grpc.Channel = None
         self._core_service_stub: CoreServiceStub = None
         self._serving_service_stub: ServingServiceStub = None
+        self._user_name = config.get_config_property_or_fail("user_name")
+        # Todo: Hash the password
+        self._user_password = config.get_config_property_or_fail("user_password")
+        self._user_metadata = [("user_name", self._user_name), ("user_password", self._user_password)]
 
     @property
     def core_url(self) -> str:
@@ -262,8 +268,9 @@ class Client:
 
         """
         self._connect_core()
-        response = self._core_service_stub.ListProjects(
-            ListProjectsRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT
+        response = self._core_service_stub.ListProjects.with_call(
+            ListProjectsRequest(), timeout=GRPC_CONNECTION_TIMEOUT_DEFAULT,
+            metadata=self._user_metadata
         )  # type: ListProjectsResponse
         return list(response.projects)
 

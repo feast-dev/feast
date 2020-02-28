@@ -26,7 +26,7 @@ import toml
 
 _logger = logging.getLogger(__name__)
 
-feast_configuration_properties = {"core_url": "URL", "serving_url": "URL"}
+feast_configuration_properties = {"core_url": "URL", "serving_url": "URL", "user_name" : "user_name", "user_password" : "user_password"}
 
 CONFIGURATION_FILE_DIR = os.environ.get("FEAST_CONFIG", ".feast")
 CONFIGURATION_FILE_NAME = "config.toml"
