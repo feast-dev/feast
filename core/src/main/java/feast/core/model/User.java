@@ -37,7 +37,7 @@ public class User {
   private Integer id;
 
   // Name of the user
-  @Column(name = "name", nullable = false)
+  @Column(name = "name", nullable = false, unique = true)
   private String name;
 
   //Password of the user
