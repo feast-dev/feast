@@ -1,6 +1,5 @@
 package feast.core.service;
 
-import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -12,20 +11,16 @@ import feast.core.dao.ProjectRepository;
 import feast.core.dao.UserRepository;
 import feast.core.model.Project;
 import feast.core.model.User;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import org.apache.avro.generic.GenericData.Array;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.mockito.ArgumentCaptor;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 
 public class AccessManagementServiceTest {
