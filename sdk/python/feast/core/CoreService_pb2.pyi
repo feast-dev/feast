@@ -438,7 +438,7 @@ class ListProjectsResponse(google___protobuf___message___Message):
 
 class GetFeatureStatisticsRequest(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...
-    feature_refs = ... # type: google___protobuf___internal___containers___RepeatedScalarFieldContainer[typing___Text]
+    feature_ids = ... # type: google___protobuf___internal___containers___RepeatedScalarFieldContainer[typing___Text]
     store = ... # type: typing___Text
     dataset_ids = ... # type: google___protobuf___internal___containers___RepeatedScalarFieldContainer[typing___Text]
     force_refresh = ... # type: bool
@@ -451,7 +451,7 @@ class GetFeatureStatisticsRequest(google___protobuf___message___Message):
 
     def __init__(self,
         *,
-        feature_refs : typing___Optional[typing___Iterable[typing___Text]] = None,
+        feature_ids : typing___Optional[typing___Iterable[typing___Text]] = None,
         store : typing___Optional[typing___Text] = None,
         start_date : typing___Optional[google___protobuf___timestamp_pb2___Timestamp] = None,
         end_date : typing___Optional[google___protobuf___timestamp_pb2___Timestamp] = None,
@@ -464,10 +464,10 @@ class GetFeatureStatisticsRequest(google___protobuf___message___Message):
     def CopyFrom(self, other_msg: google___protobuf___message___Message) -> None: ...
     if sys.version_info >= (3,):
         def HasField(self, field_name: typing_extensions___Literal[u"end_date",u"start_date"]) -> bool: ...
-        def ClearField(self, field_name: typing_extensions___Literal[u"dataset_ids",u"end_date",u"feature_refs",u"force_refresh",u"start_date",u"store"]) -> None: ...
+        def ClearField(self, field_name: typing_extensions___Literal[u"dataset_ids",u"end_date",u"feature_ids",u"force_refresh",u"start_date",u"store"]) -> None: ...
     else:
         def HasField(self, field_name: typing_extensions___Literal[u"end_date",b"end_date",u"start_date",b"start_date"]) -> bool: ...
-        def ClearField(self, field_name: typing_extensions___Literal[u"dataset_ids",b"dataset_ids",u"end_date",b"end_date",u"feature_refs",b"feature_refs",u"force_refresh",b"force_refresh",u"start_date",b"start_date",u"store",b"store"]) -> None: ...
+        def ClearField(self, field_name: typing_extensions___Literal[u"dataset_ids",b"dataset_ids",u"end_date",b"end_date",u"feature_ids",b"feature_ids",u"force_refresh",b"force_refresh",u"start_date",b"start_date",u"store",b"store"]) -> None: ...
 
 class GetFeatureStatisticsResponse(google___protobuf___message___Message):
     DESCRIPTOR: google___protobuf___descriptor___Descriptor = ...

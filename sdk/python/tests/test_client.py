@@ -387,14 +387,14 @@ class TestClient:
         "dataset_ids,start_date,end_date,exception",
         [
             (["dataset1"], None, None, None),
-            (None, "2020-01-21", "2020-01-22", None),
-            (None, date(2020, 1, 21), date(2020, 2, 22), None),
-            (["dataset1"], "2020-01-21", "2020-01-22", Exception),
+            (None, datetime.fromtimestamp(1579564800), datetime.fromtimestamp(1579651200), None),
+            (["dataset1"], datetime.fromtimestamp(1579564800), datetime.fromtimestamp(1579651200), Exception),
         ],
     )
     def test_get_statistics(
         self, dataset_ids, start_date, end_date, exception, client, mocker
     ):
+        client._core_service_stub = Core.CoreServiceStub(grpc.insecure_channel(""))
         client.set_project("project1")
 
         df = read_avro("data/austin_bikeshare.bikeshare_stations.avro")
@@ -428,13 +428,13 @@ class TestClient:
                 )
         else:
             expected_request = GetFeatureStatisticsRequest(
-                feature_refs=["project1/" + f_id for f_id in feature_names], store=store
+                feature_ids=["project1/" + f_id for f_id in feature_names], store=store
             )
             if dataset_ids is None:
-                expected_request.start_date = Timestamp(seconds=1579564800)
-                expected_request.end_date = Timestamp(seconds=1579651200)
+                expected_request.start_date.CopyFrom(Timestamp(seconds=1579564800))
+                expected_request.end_date.CopyFrom(Timestamp(seconds=1579651200))
             else:
-                expected_request.dataset_ids.append(dataset_ids)
+                expected_request.dataset_ids.extend(dataset_ids)
             output_stats = client.get_statistics(
                 feature_names,
                 store,

@@ -31,6 +31,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 from tensorflow_metadata.proto.v0 import statistics_pb2
+from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionRequest,
@@ -46,6 +47,7 @@ from feast.core.CoreService_pb2 import (
     ArchiveProjectResponse,
     ListProjectsRequest,
     ListProjectsResponse,
+    GetFeatureStatisticsRequest,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
@@ -608,8 +610,8 @@ class Client:
         feature_refs: List[str],
         store: str,
         dataset_ids: Optional[List[str]] = None,
-        start_date: Optional[Union[datetime.date, str]] = None,
-        end_date: Optional[Union[datetime.date, str]] = None,
+        start_date: Optional[datetime.datetime] = None,
+        end_date: Optional[datetime.datetime] = None,
         force_refresh: bool = False,
         default_project: Optional[str] = None,
     ) -> statistics_pb2.DatasetFeatureStatisticsList:
@@ -647,7 +649,34 @@ class Client:
         Returns:
            Returns a tensorflow DatasetFeatureStatisticsList containing TFDV statistics.
         """
-        pass
+
+        if dataset_ids is not None and (start_date is not None or end_date is not None):
+            raise ValueError("Only one of dataset_id or [start_date, end_date] can be provided.")
+
+        feature_refs = _build_feature_references(
+            feature_refs=feature_refs,
+            default_project=(default_project if not self.project else self.project),
+        )
+        feature_ids = [
+            f"{ref.project}/{ref.name}:{ref.version}"
+            if ref.version > 0
+            else f"{ref.project}/{ref.name}"
+            for ref in feature_refs
+        ]
+        request = GetFeatureStatisticsRequest(
+            feature_ids=feature_ids, store=store, force_refresh=force_refresh
+        )
+        if dataset_ids is not None:
+            request.dataset_ids.extend(dataset_ids)
+        else:
+            if start_date is not None:
+                request.start_date.CopyFrom(Timestamp(seconds=int(start_date.strftime("%s"))))
+            if end_date is not None:
+                request.end_date.CopyFrom(Timestamp(seconds=int(end_date.strftime("%s"))))
+
+        return self._core_service_stub.GetFeatureStatistics(
+            request
+        ).dataset_feature_statistics_list
 
     def ingest(
         self,
@@ -838,7 +867,6 @@ def _build_feature_references(
 
         features.append(FeatureReference(project=project, name=name, version=version))
     return features
-
 
 def _read_table_from_source(
     source: Union[pd.DataFrame, str], chunk_size: int, max_workers: int
