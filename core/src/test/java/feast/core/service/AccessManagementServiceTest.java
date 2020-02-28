@@ -37,7 +37,6 @@ public class AccessManagementServiceTest {
   private UserRepository userRepository;
 
 
-
   @Rule
   public final ExpectedException expectedException = ExpectedException.none();
 
@@ -59,22 +58,23 @@ public class AccessManagementServiceTest {
   }
 
   @Test(expected = IllegalArgumentException.class)
-  public void shouldNotCreateProjectIfItExist(){
+  public void shouldNotCreateProjectIfItExist() {
     String project_name = "project1";
     when(projectRepository.existsById(project_name)).thenReturn(true);
     accessManagementService.createProject(project_name);
   }
 
   @Test
-  public void shouldArchiveProjectIfItExists(){
+  public void shouldArchiveProjectIfItExists() {
     String project_name = "project1";
-    when(projectRepository.findById(project_name)).thenReturn(Optional.of(new Project(project_name)));
+    when(projectRepository.findById(project_name))
+        .thenReturn(Optional.of(new Project(project_name)));
     accessManagementService.archiveProject(project_name);
     verify(projectRepository, times(1)).saveAndFlush(any(Project.class));
   }
 
   @Test(expected = IllegalArgumentException.class)
-  public void shouldNotArchiveProjectIfItIsAlreadyArchived(){
+  public void shouldNotArchiveProjectIfItIsAlreadyArchived() {
     String project_name = "project1";
     when(projectRepository.findById(project_name)).thenReturn(Optional.empty());
     accessManagementService.archiveProject(project_name);
@@ -91,7 +91,7 @@ public class AccessManagementServiceTest {
   }
 
   @Test
-  public void shouldListMembers() {
+  public void shouldListMembersWhenProjectExists() {
     String project_name = "project1";
     User user = new User("user1");
     Set<User> expected = new HashSet<>(Arrays.asList(user));
@@ -102,11 +102,51 @@ public class AccessManagementServiceTest {
     Assert.assertEquals(expected, actual);
   }
 
-  @Test
-  public void addMember() {
+  @Test(expected = IllegalArgumentException.class)
+  public void shouldNotListMembersWhenProjectDoesntExist() {
+    String project_name = "project1";
+    accessManagementService.listMembers(project_name);
   }
 
   @Test
-  public void removeMember() {
+  public void shouldAddMemberWhenProjectExists() {
+    String project_name = "project1";
+    String user_name = "user1";
+    Project mockProject = mock(Project.class);
+    when(projectRepository.findById(project_name)).thenReturn(Optional.of(mockProject));
+    when(userRepository.saveAndFlush(any(User.class))).thenReturn(new User(user_name));
+    accessManagementService.addMember(user_name, project_name);
+    verify(userRepository, times(1)).saveAndFlush(any());
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void shouldNotAddMemberWhenUserAlreadyExists() {
+    String project_name = "project1";
+    String user_name = "user1";
+    Project mockProject = mock(Project.class);
+    when(projectRepository.findById(project_name)).thenReturn(Optional.of(mockProject));
+    when(userRepository.existsUserByName(user_name)).thenReturn(true);
+    accessManagementService.addMember(user_name, project_name);
+  }
+
+  @Test
+  public void shouldRemoveMemberIfRegisteredAsProjectMember() {
+    String project_name = "project1";
+    String user_name = "user1";
+    Project mockProject = mock(Project.class);
+    when(projectRepository.findById(project_name)).thenReturn(Optional.of(mockProject));
+    when(userRepository.findByName(user_name)).thenReturn(Optional.of(new User(user_name)));
+    accessManagementService.removeMember(user_name, project_name);
+    verify(userRepository, times(1)).saveAndFlush(any(User.class));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void shouldRemoveMemberIfUserDoesntExist() {
+    String project_name = "project1";
+    String user_name = "user1";
+    Project mockProject = mock(Project.class);
+    when(projectRepository.findById(project_name)).thenReturn(Optional.of(mockProject));
+    when(userRepository.findByName(user_name)).thenReturn(Optional.empty());
+    accessManagementService.removeMember(user_name, project_name);
   }
 }
