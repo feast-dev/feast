@@ -69,6 +69,7 @@ message Store {
     // ====================|==================|================================
     // - event_timestamp   | TIMESTAMP        | event time of the FeatureRow
     // - created_timestamp | TIMESTAMP        | processing time of the ingestion of the FeatureRow
+    // - dataset_id        | STRING           | identifier of the batch dataset a row belongs to
     // - job_id            | STRING           | identifier for the job that writes the FeatureRow to the corresponding BigQuery table
     //
     // BigQuery table created will be partitioned by the field "event_timestamp"
