@@ -23,25 +23,25 @@ from feast.feature import Feature
 import uuid
 
 FLOAT_TOLERANCE = 0.00001
-PROJECT_NAME = 'basic_' + uuid.uuid4().hex.upper()[0:6]
+PROJECT_NAME = "basic_" + uuid.uuid4().hex.upper()[0:6]
 
-@pytest.fixture(scope='module')
+
+@pytest.fixture(scope="module")
 def core_url(pytestconfig):
     return pytestconfig.getoption("core_url")
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def serving_url(pytestconfig):
     return pytestconfig.getoption("serving_url")
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def allow_dirty(pytestconfig):
-    return True if pytestconfig.getoption(
-        "allow_dirty").lower() == "true" else False
+    return True if pytestconfig.getoption("allow_dirty").lower() == "true" else False
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def client(core_url, serving_url, allow_dirty):
     # Get client for core and serving
     client = Client(core_url=core_url, serving_url=serving_url)
@@ -59,13 +59,12 @@ def client(core_url, serving_url, allow_dirty):
     return client
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def basic_dataframe():
     offset = random.randint(1000, 100000)  # ensure a unique key space is used
     return pd.DataFrame(
         {
-            "datetime": [datetime.utcnow().replace(tzinfo=pytz.utc) for _ in
-                         range(5)],
+            "datetime": [datetime.utcnow().replace(tzinfo=pytz.utc) for _ in range(5)],
             "customer_id": [offset + inc for inc in range(5)],
             "daily_transactions": [np.random.rand() for _ in range(5)],
             "total_transactions": [512 for _ in range(5)],
@@ -128,10 +127,7 @@ def test_basic_retrieve_online_success(client, basic_dataframe):
                     }
                 )
             ],
-            feature_refs=[
-                "daily_transactions",
-                "total_transactions",
-            ],
+            feature_refs=["daily_transactions", "total_transactions",],
         )  # type: GetOnlineFeaturesResponse
 
         if response is None:
@@ -139,11 +135,10 @@ def test_basic_retrieve_online_success(client, basic_dataframe):
 
         returned_daily_transactions = float(
             response.field_values[0]
-                .fields[PROJECT_NAME + "/daily_transactions"]
-                .float_val
+            .fields[PROJECT_NAME + "/daily_transactions"]
+            .float_val
         )
-        sent_daily_transactions = float(
-            basic_dataframe.iloc[0]["daily_transactions"])
+        sent_daily_transactions = float(basic_dataframe.iloc[0]["daily_transactions"])
 
         if math.isclose(
             sent_daily_transactions,
@@ -153,18 +148,16 @@ def test_basic_retrieve_online_success(client, basic_dataframe):
             break
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def all_types_dataframe():
     return pd.DataFrame(
         {
-            "datetime": [datetime.utcnow().replace(tzinfo=pytz.utc) for _ in
-                         range(3)],
+            "datetime": [datetime.utcnow().replace(tzinfo=pytz.utc) for _ in range(3)],
             "user_id": [1001, 1002, 1003],
             "int32_feature": [np.int32(1), np.int32(2), np.int32(3)],
             "int64_feature": [np.int64(1), np.int64(2), np.int64(3)],
             "float_feature": [np.float(0.1), np.float(0.2), np.float(0.3)],
-            "double_feature": [np.float64(0.1), np.float64(0.2),
-                               np.float64(0.3)],
+            "double_feature": [np.float64(0.1), np.float64(0.2), np.float64(0.3)],
             "string_feature": ["one", "two", "three"],
             "bytes_feature": [b"one", b"two", b"three"],
             "bool_feature": [True, False, False],
@@ -226,8 +219,7 @@ def test_all_types_register_feature_set_success(client):
             Feature(name="float_list_feature", dtype=ValueType.FLOAT_LIST),
             Feature(name="int64_list_feature", dtype=ValueType.INT64_LIST),
             Feature(name="int32_list_feature", dtype=ValueType.INT32_LIST),
-            Feature(name="string_list_feature",
-                    dtype=ValueType.STRING_LIST),
+            Feature(name="string_list_feature", dtype=ValueType.STRING_LIST),
             Feature(name="bytes_list_feature", dtype=ValueType.BYTES_LIST),
         ],
         max_age=Duration(seconds=3600),
@@ -273,8 +265,11 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
         response = client.get_online_features(
             entity_rows=[
                 GetOnlineFeaturesRequest.EntityRow(
-                    fields={"user_id": Value(
-                        int64_val=all_types_dataframe.iloc[0]["user_id"])}
+                    fields={
+                        "user_id": Value(
+                            int64_val=all_types_dataframe.iloc[0]["user_id"]
+                        )
+                    }
                 )
             ],
             feature_refs=[
@@ -297,11 +292,10 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
         if response is None:
             continue
 
-
         returned_float_list = (
             response.field_values[0]
-                .fields[PROJECT_NAME+"/float_list_feature"]
-                .float_list_val.val
+            .fields[PROJECT_NAME + "/float_list_feature"]
+            .float_list_val.val
         )
 
         sent_float_list = all_types_dataframe.iloc[0]["float_list_feature"]
@@ -312,15 +306,14 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
             break
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def large_volume_dataframe():
     ROW_COUNT = 100000
     offset = random.randint(1000000, 10000000)  # ensure a unique key space
     customer_data = pd.DataFrame(
         {
             "datetime": [
-                datetime.utcnow().replace(tzinfo=pytz.utc) for _ in
-                range(ROW_COUNT)
+                datetime.utcnow().replace(tzinfo=pytz.utc) for _ in range(ROW_COUNT)
             ],
             "customer_id": [offset + inc for inc in range(ROW_COUNT)],
             "daily_transactions_large": [np.random.rand() for _ in range(ROW_COUNT)],
@@ -334,7 +327,8 @@ def large_volume_dataframe():
 @pytest.mark.run(order=30)
 def test_large_volume_register_feature_set_success(client):
     cust_trans_fs_expected = FeatureSet.from_yaml(
-        "large_volume/cust_trans_large_fs.yaml")
+        "large_volume/cust_trans_large_fs.yaml"
+    )
 
     # Register feature set
     client.apply(cust_trans_fs_expected)
@@ -342,8 +336,7 @@ def test_large_volume_register_feature_set_success(client):
     # Feast Core needs some time to fully commit the FeatureSet applied
     # when there is no existing job yet for the Featureset
     time.sleep(10)
-    cust_trans_fs_actual = client.get_feature_set(
-        name="customer_transactions_large")
+    cust_trans_fs_actual = client.get_feature_set(name="customer_transactions_large")
 
     assert cust_trans_fs_actual == cust_trans_fs_expected
 
@@ -378,16 +371,12 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
                 GetOnlineFeaturesRequest.EntityRow(
                     fields={
                         "customer_id": Value(
-                            int64_val=large_volume_dataframe.iloc[0][
-                                "customer_id"]
+                            int64_val=large_volume_dataframe.iloc[0]["customer_id"]
                         )
                     }
                 )
             ],
-            feature_refs=[
-                "daily_transactions_large",
-                "total_transactions_large",
-            ],
+            feature_refs=["daily_transactions_large", "total_transactions_large",],
         )  # type: GetOnlineFeaturesResponse
 
         if response is None:
@@ -395,11 +384,12 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
 
         returned_daily_transactions = float(
             response.field_values[0]
-                .fields[PROJECT_NAME + "/daily_transactions_large"]
-                .float_val
+            .fields[PROJECT_NAME + "/daily_transactions_large"]
+            .float_val
         )
         sent_daily_transactions = float(
-            large_volume_dataframe.iloc[0]["daily_transactions_large"])
+            large_volume_dataframe.iloc[0]["daily_transactions_large"]
+        )
 
         if math.isclose(
             sent_daily_transactions,
@@ -409,49 +399,47 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
             break
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def all_types_parquet_file():
     COUNT = 20000
 
     df = pd.DataFrame(
         {
             "datetime": [datetime.utcnow() for _ in range(COUNT)],
-            "customer_id": [np.int32(random.randint(0, 10000)) for _ in
-                            range(COUNT)],
-            "int32_feature_parquet": [np.int32(random.randint(0, 10000)) for _ in
-                              range(COUNT)],
-            "int64_feature_parquet": [np.int64(random.randint(0, 10000)) for _ in
-                              range(COUNT)],
+            "customer_id": [np.int32(random.randint(0, 10000)) for _ in range(COUNT)],
+            "int32_feature_parquet": [
+                np.int32(random.randint(0, 10000)) for _ in range(COUNT)
+            ],
+            "int64_feature_parquet": [
+                np.int64(random.randint(0, 10000)) for _ in range(COUNT)
+            ],
             "float_feature_parquet": [np.float(random.random()) for _ in range(COUNT)],
-            "double_feature_parquet": [np.float64(random.random()) for _ in
-                               range(COUNT)],
-            "string_feature_parquet": ["one" + str(random.random()) for _ in
-                               range(COUNT)],
+            "double_feature_parquet": [
+                np.float64(random.random()) for _ in range(COUNT)
+            ],
+            "string_feature_parquet": [
+                "one" + str(random.random()) for _ in range(COUNT)
+            ],
             "bytes_feature_parquet": [b"one" for _ in range(COUNT)],
             "int32_list_feature_parquet": [
                 np.array([1, 2, 3, random.randint(0, 10000)], dtype=np.int32)
-                for _
-                in range(COUNT)
+                for _ in range(COUNT)
             ],
             "int64_list_feature_parquet": [
                 np.array([1, random.randint(0, 10000), 3, 4], dtype=np.int64)
-                for _
-                in range(COUNT)
+                for _ in range(COUNT)
             ],
             "float_list_feature_parquet": [
-                np.array([1.1, 1.2, 1.3, random.random()], dtype=np.float32) for
-                _
-                in range(COUNT)
+                np.array([1.1, 1.2, 1.3, random.random()], dtype=np.float32)
+                for _ in range(COUNT)
             ],
             "double_list_feature_parquet": [
-                np.array([1.1, 1.2, 1.3, random.random()], dtype=np.float64) for
-                _
-                in range(COUNT)
+                np.array([1.1, 1.2, 1.3, random.random()], dtype=np.float64)
+                for _ in range(COUNT)
             ],
             "string_list_feature_parquet": [
-                np.array(["one", "two" + str(random.random()), "three"]) for _
-                in
-                range(COUNT)
+                np.array(["one", "two" + str(random.random()), "three"])
+                for _ in range(COUNT)
             ],
             "bytes_list_feature_parquet": [
                 np.array([b"one", b"two", b"three"]) for _ in range(COUNT)
@@ -462,7 +450,7 @@ def all_types_parquet_file():
     # TODO: Boolean list is not being tested.
     #  https://github.com/gojek/feast/issues/341
 
-    file_path = os.path.join(tempfile.mkdtemp(), 'all_types.parquet')
+    file_path = os.path.join(tempfile.mkdtemp(), "all_types.parquet")
     df.to_parquet(file_path, allow_truncated_timestamps=True)
     return file_path
 
@@ -472,7 +460,8 @@ def all_types_parquet_file():
 def test_all_types_parquet_register_feature_set_success(client):
     # Load feature set from file
     all_types_parquet_expected = FeatureSet.from_yaml(
-        "all_types_parquet/all_types_parquet.yaml")
+        "all_types_parquet/all_types_parquet.yaml"
+    )
 
     # Register feature set
     client.apply(all_types_parquet_expected)
@@ -496,11 +485,11 @@ def test_all_types_parquet_register_feature_set_success(client):
 
 @pytest.mark.timeout(600)
 @pytest.mark.run(order=41)
-def test_all_types_infer_register_ingest_file_success(client,
-    all_types_parquet_file):
+def test_all_types_infer_register_ingest_file_success(client, all_types_parquet_file):
     # Get feature set
     all_types_fs = client.get_feature_set(name="all_types_parquet")
 
     # Ingest user embedding data
-    client.ingest(feature_set=all_types_fs, source=all_types_parquet_file,
-                  force_update=True)
+    client.ingest(
+        feature_set=all_types_fs, source=all_types_parquet_file, force_update=True
+    )
