@@ -18,6 +18,7 @@ import os
 import shutil
 import tempfile
 import time
+import uuid
 from collections import OrderedDict
 from math import ceil
 from typing import Dict, List, Tuple, Union, Optional
@@ -739,6 +740,7 @@ class Client:
                     Timestamp(seconds=int(end_date.strftime("%s")))
                 )
 
+        self._connect_core()
         return self._core_service_stub.GetFeatureStatistics(
             request
         ).dataset_feature_statistics_list
@@ -831,9 +833,6 @@ class Client:
                 break
             time.sleep(3)
 
-        if timeout is not None:
-            timeout = timeout - int(time.time() - current_time)
-
         try:
             # Kafka configs
             brokers = feature_set.get_kafka_source_brokers()
@@ -844,12 +843,15 @@ class Client:
             produce = producer.produce
             flush = producer.flush
 
+            dataset_id = _generate_dataset_id(feature_set)
+
             # Transform and push data to Kafka
             if feature_set.source.source_type == "Kafka":
                 for chunk in get_feature_row_chunks(
                     file=dest_path,
                     row_groups=list(range(pq_file.num_row_groups)),
                     fs=feature_set,
+                    dataset_id=dataset_id,
                     max_workers=max_workers,
                 ):
 
@@ -878,6 +880,20 @@ class Client:
             shutil.rmtree(dir_path)
 
         return None
+
+
+def _generate_dataset_id(feature_set: FeatureSet) -> str:
+    """
+    Generates a UUID from the feature set name, version, and the current time.
+
+    Args:
+        feature_set: Feature set of the dataset to be ingested.
+
+    Returns:
+        UUID unique to current time and the feature set provided.
+    """
+    uuid_str = f"{feature_set.name}_{feature_set.version}_{int(time.time())}"
+    return str(uuid.uuid3(uuid.NAMESPACE_DNS, uuid_str))
 
 
 def _build_feature_references(

@@ -202,6 +202,9 @@ public class StoreUtilTest {
                 Field.newBuilder("created_timestamp", StandardSQLTypeName.TIMESTAMP)
                     .setDescription(StoreUtil.BIGQUERY_CREATED_TIMESTAMP_FIELD_DESCRIPTION)
                     .build(),
+                Field.newBuilder("dataset_id", StandardSQLTypeName.STRING)
+                    .setDescription(StoreUtil.BIGQUERY_DATASET_ID_FIELD_DESCRIPTION)
+                    .build(),
                 Field.newBuilder("job_id", StandardSQLTypeName.STRING)
                     .setDescription(StoreUtil.BIGQUERY_JOB_ID_FIELD_DESCRIPTION)
                     .build()));

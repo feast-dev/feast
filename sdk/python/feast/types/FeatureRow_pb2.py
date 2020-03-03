@@ -22,7 +22,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='feast.types',
   syntax='proto3',
   serialized_options=_b('\n\013feast.typesB\017FeatureRowProtoZ0github.com/gojek/feast/sdk/go/protos/feast/types'),
-  serialized_pb=_b('\n\x1c\x66\x65\x61st/types/FeatureRow.proto\x12\x0b\x66\x65\x61st.types\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17\x66\x65\x61st/types/Field.proto\"z\n\nFeatureRow\x12\"\n\x06\x66ields\x18\x02 \x03(\x0b\x32\x12.feast.types.Field\x12\x33\n\x0f\x65vent_timestamp\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x13\n\x0b\x66\x65\x61ture_set\x18\x06 \x01(\tBP\n\x0b\x66\x65\x61st.typesB\x0f\x46\x65\x61tureRowProtoZ0github.com/gojek/feast/sdk/go/protos/feast/typesb\x06proto3')
+  serialized_pb=_b('\n\x1c\x66\x65\x61st/types/FeatureRow.proto\x12\x0b\x66\x65\x61st.types\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17\x66\x65\x61st/types/Field.proto\"\x8e\x01\n\nFeatureRow\x12\"\n\x06\x66ields\x18\x02 \x03(\x0b\x32\x12.feast.types.Field\x12\x33\n\x0f\x65vent_timestamp\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x13\n\x0b\x66\x65\x61ture_set\x18\x06 \x01(\t\x12\x12\n\ndataset_id\x18\x07 \x01(\tBP\n\x0b\x66\x65\x61st.typesB\x0f\x46\x65\x61tureRowProtoZ0github.com/gojek/feast/sdk/go/protos/feast/typesb\x06proto3')
   ,
   dependencies=[google_dot_protobuf_dot_timestamp__pb2.DESCRIPTOR,feast_dot_types_dot_Field__pb2.DESCRIPTOR,])
 
@@ -57,6 +57,13 @@ _FEATUREROW = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='dataset_id', full_name='feast.types.FeatureRow.dataset_id', index=3,
+      number=7, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -69,8 +76,8 @@ _FEATUREROW = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=103,
-  serialized_end=225,
+  serialized_start=104,
+  serialized_end=246,
 )
 
 _FEATUREROW.fields_by_name['fields'].message_type = feast_dot_types_dot_Field__pb2._FIELD
