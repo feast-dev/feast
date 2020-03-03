@@ -16,7 +16,7 @@ import multiprocessing
 
 
 def pytest_configure(config):
-    if platform == "darwin":
+    if platform in ["darwin", "windows"]:
         multiprocessing.set_start_method("spawn")
     else:
         multiprocessing.set_start_method("fork")
