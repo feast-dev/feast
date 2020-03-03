@@ -48,6 +48,7 @@ REQUIRED = [
     "numpy",
     "google",
     "confluent_kafka",
+    "tensorflow-metadata>=0.21,<0.22",
 ]
 
 # README file from Feast repo root directory
