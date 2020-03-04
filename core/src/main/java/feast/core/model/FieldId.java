@@ -30,16 +30,19 @@ import lombok.Setter;
 @Setter
 public class FieldId implements Serializable {
   // Project the field belongs to
+  @Column(nullable = false)
   private String project;
 
   // Feature set the field belongs to
-  @Column(name = "feature_set")
+  @Column(name = "feature_set", nullable = false)
   private String featureSet;
 
   // Version of the feature set this field belongs to
+  @Column(nullable = false)
   private int version;
 
   // Name of the field
+  @Column(nullable = false)
   private String name;
 
   @Override

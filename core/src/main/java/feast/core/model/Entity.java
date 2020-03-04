@@ -46,17 +46,15 @@ public class Entity extends Field {
     this.setType(type.toString());
   }
 
-  public Entity(EntitySpec entitySpec) {
-    this.setId(new FieldId());
-    this.setName(entitySpec.getName());
-    this.setType(entitySpec.getValueType().toString());
+  public static Entity fromProto(EntitySpec entitySpec) {
+    Entity entity = new Entity(entitySpec.getName(), entitySpec.getValueType());
 
     switch (entitySpec.getPresenceConstraintsCase()) {
       case PRESENCE:
-        this.setPresence(entitySpec.getPresence().toByteArray());
+        entity.setPresence(entitySpec.getPresence().toByteArray());
         break;
       case GROUP_PRESENCE:
-        this.setGroupPresence(entitySpec.getGroupPresence().toByteArray());
+        entity.setGroupPresence(entitySpec.getGroupPresence().toByteArray());
         break;
       case PRESENCECONSTRAINTS_NOT_SET:
         break;
@@ -64,10 +62,10 @@ public class Entity extends Field {
 
     switch (entitySpec.getShapeTypeCase()) {
       case SHAPE:
-        this.setShape(entitySpec.getShape().toByteArray());
+        entity.setShape(entitySpec.getShape().toByteArray());
         break;
       case VALUE_COUNT:
-        this.setValueCount(entitySpec.getValueCount().toByteArray());
+        entity.setValueCount(entitySpec.getValueCount().toByteArray());
         break;
       case SHAPETYPE_NOT_SET:
         break;
@@ -75,44 +73,45 @@ public class Entity extends Field {
 
     switch (entitySpec.getDomainInfoCase()) {
       case DOMAIN:
-        this.setDomain(entitySpec.getDomain());
+        entity.setDomain(entitySpec.getDomain());
         break;
       case INT_DOMAIN:
-        this.setIntDomain(entitySpec.getIntDomain().toByteArray());
+        entity.setIntDomain(entitySpec.getIntDomain().toByteArray());
         break;
       case FLOAT_DOMAIN:
-        this.setFloatDomain(entitySpec.getFloatDomain().toByteArray());
+        entity.setFloatDomain(entitySpec.getFloatDomain().toByteArray());
         break;
       case STRING_DOMAIN:
-        this.setStringDomain(entitySpec.getStringDomain().toByteArray());
+        entity.setStringDomain(entitySpec.getStringDomain().toByteArray());
         break;
       case BOOL_DOMAIN:
-        this.setBoolDomain(entitySpec.getBoolDomain().toByteArray());
+        entity.setBoolDomain(entitySpec.getBoolDomain().toByteArray());
         break;
       case STRUCT_DOMAIN:
-        this.setStructDomain(entitySpec.getStructDomain().toByteArray());
+        entity.setStructDomain(entitySpec.getStructDomain().toByteArray());
         break;
       case NATURAL_LANGUAGE_DOMAIN:
-        this.setNaturalLanguageDomain(entitySpec.getNaturalLanguageDomain().toByteArray());
+        entity.setNaturalLanguageDomain(entitySpec.getNaturalLanguageDomain().toByteArray());
         break;
       case IMAGE_DOMAIN:
-        this.setImageDomain(entitySpec.getImageDomain().toByteArray());
+        entity.setImageDomain(entitySpec.getImageDomain().toByteArray());
         break;
       case MID_DOMAIN:
-        this.setMidDomain(entitySpec.getMidDomain().toByteArray());
+        entity.setMidDomain(entitySpec.getMidDomain().toByteArray());
         break;
       case URL_DOMAIN:
-        this.setUrlDomain(entitySpec.getUrlDomain().toByteArray());
+        entity.setUrlDomain(entitySpec.getUrlDomain().toByteArray());
         break;
       case TIME_DOMAIN:
-        this.setTimeDomain(entitySpec.getTimeDomain().toByteArray());
+        entity.setTimeDomain(entitySpec.getTimeDomain().toByteArray());
         break;
       case TIME_OF_DAY_DOMAIN:
-        this.setTimeOfDayDomain(entitySpec.getTimeOfDayDomain().toByteArray());
+        entity.setTimeOfDayDomain(entitySpec.getTimeOfDayDomain().toByteArray());
         break;
       case DOMAININFO_NOT_SET:
         break;
     }
+    return entity;
   }
 
   public void addStatistics(Statistics newStatistic) {

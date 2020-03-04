@@ -133,12 +133,12 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
 
     List<Feature> featureSpecs = new ArrayList<>();
     for (FeatureSpec featureSpec : featureSetSpec.getFeaturesList()) {
-      featureSpecs.add(new Feature(featureSpec));
+      featureSpecs.add(Feature.fromProto(featureSpec));
     }
 
     List<Entity> entitySpecs = new ArrayList<>();
     for (EntitySpec entitySpec : featureSetSpec.getEntitiesList()) {
-      entitySpecs.add(new Entity(entitySpec));
+      entitySpecs.add(Entity.fromProto(entitySpec));
     }
 
     return new FeatureSet(
@@ -160,6 +160,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
 
   public void addEntity(Entity entity) {
     entity.setProject(this.project.getName());
+    entity.setFeatureSet(this.getName());
     entity.setVersion(this.getVersion());
     entities.add(entity);
   }
@@ -172,6 +173,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
 
   public void addFeature(Feature feature) {
     feature.setProject(this.project.getName());
+    feature.setFeatureSet(this.getName());
     feature.setVersion(this.getVersion());
     features.add(feature);
   }

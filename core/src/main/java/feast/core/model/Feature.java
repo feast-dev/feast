@@ -47,17 +47,15 @@ public class Feature extends Field {
     this.setType(type.toString());
   }
 
-  public Feature(FeatureSpec featureSpec) {
-    this.setId(new FieldId());
-    this.setName(featureSpec.getName());
-    this.setType(featureSpec.getValueType().toString());
+  public static Feature fromProto(FeatureSpec featureSpec) {
+    Feature feature = new Feature(featureSpec.getName(), featureSpec.getValueType());
 
     switch (featureSpec.getPresenceConstraintsCase()) {
       case PRESENCE:
-        this.setPresence(featureSpec.getPresence().toByteArray());
+        feature.setPresence(featureSpec.getPresence().toByteArray());
         break;
       case GROUP_PRESENCE:
-        this.setGroupPresence(featureSpec.getGroupPresence().toByteArray());
+        feature.setGroupPresence(featureSpec.getGroupPresence().toByteArray());
         break;
       case PRESENCECONSTRAINTS_NOT_SET:
         break;
@@ -65,10 +63,10 @@ public class Feature extends Field {
 
     switch (featureSpec.getShapeTypeCase()) {
       case SHAPE:
-        this.setShape(featureSpec.getShape().toByteArray());
+        feature.setShape(featureSpec.getShape().toByteArray());
         break;
       case VALUE_COUNT:
-        this.setValueCount(featureSpec.getValueCount().toByteArray());
+        feature.setValueCount(featureSpec.getValueCount().toByteArray());
         break;
       case SHAPETYPE_NOT_SET:
         break;
@@ -76,44 +74,45 @@ public class Feature extends Field {
 
     switch (featureSpec.getDomainInfoCase()) {
       case DOMAIN:
-        this.setDomain(featureSpec.getDomain());
+        feature.setDomain(featureSpec.getDomain());
         break;
       case INT_DOMAIN:
-        this.setIntDomain(featureSpec.getIntDomain().toByteArray());
+        feature.setIntDomain(featureSpec.getIntDomain().toByteArray());
         break;
       case FLOAT_DOMAIN:
-        this.setFloatDomain(featureSpec.getFloatDomain().toByteArray());
+        feature.setFloatDomain(featureSpec.getFloatDomain().toByteArray());
         break;
       case STRING_DOMAIN:
-        this.setStringDomain(featureSpec.getStringDomain().toByteArray());
+        feature.setStringDomain(featureSpec.getStringDomain().toByteArray());
         break;
       case BOOL_DOMAIN:
-        this.setBoolDomain(featureSpec.getBoolDomain().toByteArray());
+        feature.setBoolDomain(featureSpec.getBoolDomain().toByteArray());
         break;
       case STRUCT_DOMAIN:
-        this.setStructDomain(featureSpec.getStructDomain().toByteArray());
+        feature.setStructDomain(featureSpec.getStructDomain().toByteArray());
         break;
       case NATURAL_LANGUAGE_DOMAIN:
-        this.setNaturalLanguageDomain(featureSpec.getNaturalLanguageDomain().toByteArray());
+        feature.setNaturalLanguageDomain(featureSpec.getNaturalLanguageDomain().toByteArray());
         break;
       case IMAGE_DOMAIN:
-        this.setImageDomain(featureSpec.getImageDomain().toByteArray());
+        feature.setImageDomain(featureSpec.getImageDomain().toByteArray());
         break;
       case MID_DOMAIN:
-        this.setMidDomain(featureSpec.getMidDomain().toByteArray());
+        feature.setMidDomain(featureSpec.getMidDomain().toByteArray());
         break;
       case URL_DOMAIN:
-        this.setUrlDomain(featureSpec.getUrlDomain().toByteArray());
+        feature.setUrlDomain(featureSpec.getUrlDomain().toByteArray());
         break;
       case TIME_DOMAIN:
-        this.setTimeDomain(featureSpec.getTimeDomain().toByteArray());
+        feature.setTimeDomain(featureSpec.getTimeDomain().toByteArray());
         break;
       case TIME_OF_DAY_DOMAIN:
-        this.setTimeOfDayDomain(featureSpec.getTimeOfDayDomain().toByteArray());
+        feature.setTimeOfDayDomain(featureSpec.getTimeOfDayDomain().toByteArray());
         break;
       case DOMAININFO_NOT_SET:
         break;
     }
+    return feature;
   }
 
   public void addStatistics(Statistics newStatistic) {
