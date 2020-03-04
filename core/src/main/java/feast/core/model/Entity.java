@@ -1,0 +1,138 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2018-2019 The Feast Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package feast.core.model;
+
+import feast.core.FeatureSetProto.EntitySpec;
+import feast.types.ValueProto.ValueType;
+import java.util.List;
+import java.util.Objects;
+import javax.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+@javax.persistence.Entity
+public class Entity extends Field {
+
+  @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  @JoinColumns({
+    @JoinColumn(name = "project", referencedColumnName = "project"),
+    @JoinColumn(name = "feature_set", referencedColumnName = "feature_set"),
+    @JoinColumn(name = "version", referencedColumnName = "version"),
+    @JoinColumn(name = "name", referencedColumnName = "name")
+  })
+  private List<Statistics> statistics;
+
+  public Entity() {}
+
+  public Entity(String name, ValueType.Enum type) {
+    this.setId(new FieldId());
+    this.setName(name);
+    this.setType(type.toString());
+  }
+
+  public Entity(EntitySpec entitySpec) {
+    this.setId(new FieldId());
+    this.setName(entitySpec.getName());
+    this.setType(entitySpec.getValueType().toString());
+
+    switch (entitySpec.getPresenceConstraintsCase()) {
+      case PRESENCE:
+        this.setPresence(entitySpec.getPresence().toByteArray());
+        break;
+      case GROUP_PRESENCE:
+        this.setGroupPresence(entitySpec.getGroupPresence().toByteArray());
+        break;
+      case PRESENCECONSTRAINTS_NOT_SET:
+        break;
+    }
+
+    switch (entitySpec.getShapeTypeCase()) {
+      case SHAPE:
+        this.setShape(entitySpec.getShape().toByteArray());
+        break;
+      case VALUE_COUNT:
+        this.setValueCount(entitySpec.getValueCount().toByteArray());
+        break;
+      case SHAPETYPE_NOT_SET:
+        break;
+    }
+
+    switch (entitySpec.getDomainInfoCase()) {
+      case DOMAIN:
+        this.setDomain(entitySpec.getDomain());
+        break;
+      case INT_DOMAIN:
+        this.setIntDomain(entitySpec.getIntDomain().toByteArray());
+        break;
+      case FLOAT_DOMAIN:
+        this.setFloatDomain(entitySpec.getFloatDomain().toByteArray());
+        break;
+      case STRING_DOMAIN:
+        this.setStringDomain(entitySpec.getStringDomain().toByteArray());
+        break;
+      case BOOL_DOMAIN:
+        this.setBoolDomain(entitySpec.getBoolDomain().toByteArray());
+        break;
+      case STRUCT_DOMAIN:
+        this.setStructDomain(entitySpec.getStructDomain().toByteArray());
+        break;
+      case NATURAL_LANGUAGE_DOMAIN:
+        this.setNaturalLanguageDomain(entitySpec.getNaturalLanguageDomain().toByteArray());
+        break;
+      case IMAGE_DOMAIN:
+        this.setImageDomain(entitySpec.getImageDomain().toByteArray());
+        break;
+      case MID_DOMAIN:
+        this.setMidDomain(entitySpec.getMidDomain().toByteArray());
+        break;
+      case URL_DOMAIN:
+        this.setUrlDomain(entitySpec.getUrlDomain().toByteArray());
+        break;
+      case TIME_DOMAIN:
+        this.setTimeDomain(entitySpec.getTimeDomain().toByteArray());
+        break;
+      case TIME_OF_DAY_DOMAIN:
+        this.setTimeOfDayDomain(entitySpec.getTimeOfDayDomain().toByteArray());
+        break;
+      case DOMAININFO_NOT_SET:
+        break;
+    }
+  }
+
+  public void addStatistics(Statistics newStatistic) {
+    this.statistics.add(newStatistic);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Entity feature = (Entity) o;
+    return getId().equals(feature.getId()) && getType().equals(feature.getType());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(super.hashCode(), getId(), getType());
+  }
+}
