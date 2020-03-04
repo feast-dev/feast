@@ -60,6 +60,7 @@ import org.slf4j.Logger;
 
 public class RedisServingService implements ServingService {
 
+  private static final String SERVICE_NAME = "feast.serving.ServingService";
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(RedisServingService.class);
   private final CachedSpecService specService;
   private final Tracer tracer;
@@ -87,7 +88,6 @@ public class RedisServingService implements ServingService {
   @Override
   public GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest request) {
     try (Scope scope = tracer.buildSpan("Redis-getOnlineFeatures").startActive(true)) {
-      long startTime = System.currentTimeMillis();
       GetOnlineFeaturesResponse.Builder getOnlineFeaturesResponseBuilder =
           GetOnlineFeaturesResponse.newBuilder();
 
@@ -120,9 +120,6 @@ public class RedisServingService implements ServingService {
           featureValuesMap.values().stream()
               .map(valueMap -> FieldValues.newBuilder().putAllFields(valueMap).build())
               .collect(Collectors.toList());
-      requestLatency
-          .labels("getOnlineFeatures")
-          .observe((System.currentTimeMillis() - startTime) / 1000);
       return getOnlineFeaturesResponseBuilder.addAllFieldValues(fieldValues).build();
     }
   }
@@ -274,7 +271,7 @@ public class RedisServingService implements ServingService {
       }
     } finally {
       requestLatency
-          .labels("processResponse")
+          .labels(SERVICE_NAME, "processResponse", "NA")
           .observe((System.currentTimeMillis() - startTime) / 1000);
     }
   }
@@ -317,7 +314,7 @@ public class RedisServingService implements ServingService {
             .asRuntimeException();
       } finally {
         requestLatency
-            .labels("sendMultiGet")
+            .labels(SERVICE_NAME, "sendMultiGet", "NA")
             .observe((System.currentTimeMillis() - startTime) / 1000d);
       }
     }
