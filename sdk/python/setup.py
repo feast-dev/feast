@@ -43,10 +43,9 @@ REQUIRED = [
     "toml==0.10.*",
     "tqdm==4.*",
     "pyarrow>=0.15.1",
-    "numpy>=1.15.0",
-    "confluent_kafka>=1.3.0",
-    "tensorflow_metadata>=0.21.0",
-    "tensorflow_data_validation==0.15.*",
+    "numpy",
+    "google",
+    "confluent_kafka",
 ]
 
 # README file from Feast repo root directory
