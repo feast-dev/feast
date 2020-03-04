@@ -27,7 +27,7 @@ import io.grpc.ServerInterceptor;
 import io.grpc.Status;
 
 /**
- * MonitoringInterceptor intercepts a GRPC call to provide a request latency histogram metrics in
+ * GrpcMonitoringInterceptor intercepts GRPC calls to provide request latency histogram metrics in
  * the Prometheus client.
  */
 public class GrpcMonitoringInterceptor implements ServerInterceptor {
