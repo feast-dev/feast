@@ -65,8 +65,7 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
    */
   void setDeadLetterTableSpec(String deadLetterTableSpec);
 
-  // TODO: expound
-  @Description("MetricsAccumulator exporter type to instantiate.")
+  @Description("MetricsAccumulator exporter type to instantiate. Supported type: statsd")
   @Default.String("none")
   String getMetricsExporterType();
 
@@ -86,10 +85,11 @@ public interface ImportOptions extends PipelineOptions, DataflowPipelineOptions,
   void setStatsdPort(int StatsdPort);
 
   @Description(
-      "Fixed window size in seconds (default 30) to apply before aggregation of numerical value of features"
-          + "and writing the aggregated value to StatsD. Refer to feast.ingestion.transform.metrics.WriteFeatureValueMetricsDoFn"
-          + "for details on the metric names and types.")
-  @Default.Integer(30)
+      "Fixed window size in seconds (default 60) to apply before aggregating the numerical value of "
+          + "features and exporting the aggregated values as metrics. Refer to "
+          + "feast/ingestion/transform/metrics/WriteFeatureValueMetricsDoFn.java"
+          + "for the metric nameas and types used.")
+  @Default.Integer(60)
   int getWindowSizeInSecForFeatureValueMetric();
 
   void setWindowSizeInSecForFeatureValueMetric(int seconds);
