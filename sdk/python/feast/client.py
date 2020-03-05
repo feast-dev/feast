@@ -755,7 +755,7 @@ class Client:
         max_workers: int = max(CPU_COUNT - 1, 1),
         disable_progress_bar: bool = False,
         timeout: int = KAFKA_CHUNK_PRODUCTION_TIMEOUT,
-    ) -> None:
+    ) -> str:
         """
         Loads feature data into Feast for a specific feature set.
 
@@ -879,7 +879,7 @@ class Client:
             print("Removing temporary file(s)...")
             shutil.rmtree(dir_path)
 
-        return None
+        return dataset_id
 
 
 def _generate_dataset_id(feature_set: FeatureSet) -> str:

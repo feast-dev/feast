@@ -1,0 +1,665 @@
+{
+  "datasets": [
+    {
+      "numExamples": "20",
+      "features": [
+        {
+          "numStats": {
+            "commonStats": {
+              "numNonMissing": "20",
+              "minNumValues": "1",
+              "maxNumValues": "1",
+              "avgNumValues": 1.0,
+              "numValuesHistogram": {
+                "buckets": [
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  }
+                ],
+                "type": "QUANTILES"
+              },
+              "totNumValues": "20"
+            },
+            "mean": 9.5,
+            "stdDev": 5.766281297335398,
+            "numZeros": "1",
+            "median": 10.0,
+            "max": 19.0,
+            "histograms": [
+              {
+                "buckets": [
+                  {
+                    "highValue": 1.9,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 1.9,
+                    "highValue": 3.8,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 3.8,
+                    "highValue": 5.699999999999999,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 5.699999999999999,
+                    "highValue": 7.6,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 7.6,
+                    "highValue": 9.5,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 9.5,
+                    "highValue": 11.399999999999999,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 11.399999999999999,
+                    "highValue": 13.299999999999999,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 13.299999999999999,
+                    "highValue": 15.2,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 15.2,
+                    "highValue": 17.099999999999998,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 17.099999999999998,
+                    "highValue": 19.0,
+                    "sampleCount": 2.0180000000000002
+                  }
+                ]
+              },
+              {
+                "buckets": [
+                  {
+                    "highValue": 2.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 2.0,
+                    "highValue": 4.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 4.0,
+                    "highValue": 6.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 6.0,
+                    "highValue": 8.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 8.0,
+                    "highValue": 10.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 10.0,
+                    "highValue": 12.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 12.0,
+                    "highValue": 14.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 14.0,
+                    "highValue": 16.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 16.0,
+                    "highValue": 18.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 18.0,
+                    "highValue": 19.0,
+                    "sampleCount": 2.0
+                  }
+                ],
+                "type": "QUANTILES"
+              }
+            ]
+          },
+          "path": {
+            "step": [
+              "entity_id"
+            ]
+          }
+        },
+        {
+          "type": "FLOAT",
+          "numStats": {
+            "commonStats": {
+              "numNonMissing": "20",
+              "minNumValues": "1",
+              "maxNumValues": "1",
+              "avgNumValues": 1.0,
+              "numValuesHistogram": {
+                "buckets": [
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  }
+                ],
+                "type": "QUANTILES"
+              },
+              "totNumValues": "20"
+            },
+            "mean": 1.0,
+            "stdDev": 5.766281297335398,
+            "min": -8.5,
+            "median": 1.5,
+            "max": 10.5,
+            "histograms": [
+              {
+                "buckets": [
+                  {
+                    "lowValue": -8.5,
+                    "highValue": -6.6,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": -6.6,
+                    "highValue": -4.7,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": -4.7,
+                    "highValue": -2.8000000000000007,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": -2.8000000000000007,
+                    "highValue": -0.9000000000000004,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": -0.9000000000000004,
+                    "highValue": 1.0,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 2.8999999999999986,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 2.8999999999999986,
+                    "highValue": 4.799999999999999,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 4.799999999999999,
+                    "highValue": 6.699999999999999,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 6.699999999999999,
+                    "highValue": 8.599999999999998,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 8.599999999999998,
+                    "highValue": 10.5,
+                    "sampleCount": 2.0180000000000002
+                  }
+                ]
+              },
+              {
+                "buckets": [
+                  {
+                    "lowValue": -8.5,
+                    "highValue": -6.5,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": -6.5,
+                    "highValue": -4.5,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": -4.5,
+                    "highValue": -2.5,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": -2.5,
+                    "highValue": -0.5,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": -0.5,
+                    "highValue": 1.5,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.5,
+                    "highValue": 3.5,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 3.5,
+                    "highValue": 5.5,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 5.5,
+                    "highValue": 7.5,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 7.5,
+                    "highValue": 9.5,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 9.5,
+                    "highValue": 10.5,
+                    "sampleCount": 2.0
+                  }
+                ],
+                "type": "QUANTILES"
+              }
+            ]
+          },
+          "path": {
+            "step": [
+              "floats"
+            ]
+          }
+        },
+        {
+          "numStats": {
+            "commonStats": {
+              "numNonMissing": "20",
+              "minNumValues": "1",
+              "maxNumValues": "1",
+              "avgNumValues": 1.0,
+              "numValuesHistogram": {
+                "buckets": [
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  }
+                ],
+                "type": "QUANTILES"
+              },
+              "totNumValues": "20"
+            },
+            "mean": 9.5,
+            "stdDev": 5.766281297335398,
+            "numZeros": "1",
+            "median": 10.0,
+            "max": 19.0,
+            "histograms": [
+              {
+                "buckets": [
+                  {
+                    "highValue": 1.9,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 1.9,
+                    "highValue": 3.8,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 3.8,
+                    "highValue": 5.699999999999999,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 5.699999999999999,
+                    "highValue": 7.6,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 7.6,
+                    "highValue": 9.5,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 9.5,
+                    "highValue": 11.399999999999999,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 11.399999999999999,
+                    "highValue": 13.299999999999999,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 13.299999999999999,
+                    "highValue": 15.2,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 15.2,
+                    "highValue": 17.099999999999998,
+                    "sampleCount": 1.998
+                  },
+                  {
+                    "lowValue": 17.099999999999998,
+                    "highValue": 19.0,
+                    "sampleCount": 2.0180000000000002
+                  }
+                ]
+              },
+              {
+                "buckets": [
+                  {
+                    "highValue": 2.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 2.0,
+                    "highValue": 4.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 4.0,
+                    "highValue": 6.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 6.0,
+                    "highValue": 8.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 8.0,
+                    "highValue": 10.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 10.0,
+                    "highValue": 12.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 12.0,
+                    "highValue": 14.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 14.0,
+                    "highValue": 16.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 16.0,
+                    "highValue": 18.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 18.0,
+                    "highValue": 19.0,
+                    "sampleCount": 2.0
+                  }
+                ],
+                "type": "QUANTILES"
+              }
+            ]
+          },
+          "path": {
+            "step": [
+              "ints"
+            ]
+          }
+        },
+        {
+          "type": "STRING",
+          "stringStats": {
+            "commonStats": {
+              "numNonMissing": "20",
+              "minNumValues": "1",
+              "maxNumValues": "1",
+              "avgNumValues": 1.0,
+              "numValuesHistogram": {
+                "buckets": [
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  },
+                  {
+                    "lowValue": 1.0,
+                    "highValue": 1.0,
+                    "sampleCount": 2.0
+                  }
+                ],
+                "type": "QUANTILES"
+              },
+              "totNumValues": "20"
+            },
+            "unique": "2",
+            "topValues": [
+              {
+                "value": "b",
+                "frequency": 10.0
+              },
+              {
+                "value": "a",
+                "frequency": 10.0
+              }
+            ],
+            "avgLength": 1.0,
+            "rankHistogram": {
+              "buckets": [
+                {
+                  "label": "b",
+                  "sampleCount": 10.0
+                },
+                {
+                  "lowRank": "1",
+                  "highRank": "1",
+                  "label": "a",
+                  "sampleCount": 10.0
+                }
+              ]
+            }
+          },
+          "path": {
+            "step": [
+              "strings"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
