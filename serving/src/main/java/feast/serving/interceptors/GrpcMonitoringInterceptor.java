@@ -19,7 +19,6 @@ package feast.serving.interceptors;
 import feast.serving.util.Metrics;
 import io.grpc.ForwardingServerCall.SimpleForwardingServerCall;
 import io.grpc.Metadata;
-import io.grpc.MethodDescriptor;
 import io.grpc.ServerCall;
 import io.grpc.ServerCall.Listener;
 import io.grpc.ServerCallHandler;
@@ -47,9 +46,7 @@ public class GrpcMonitoringInterceptor implements ServerInterceptor {
             Metrics.requestLatency
                 .labels(methodName)
                 .observe((System.currentTimeMillis() - startCallMillis) / 1000f);
-            Metrics.grpcRequestCount
-                .labels(methodName, status.getCode().name())
-                .inc();
+            Metrics.grpcRequestCount.labels(methodName, status.getCode().name()).inc();
             super.close(status, trailers);
           }
         },
