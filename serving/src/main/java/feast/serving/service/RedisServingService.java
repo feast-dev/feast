@@ -60,7 +60,6 @@ import org.slf4j.Logger;
 
 public class RedisServingService implements ServingService {
 
-  private static final String SERVICE_NAME = "feast.serving.ServingService";
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(RedisServingService.class);
   private final CachedSpecService specService;
   private final Tracer tracer;
@@ -271,7 +270,7 @@ public class RedisServingService implements ServingService {
       }
     } finally {
       requestLatency
-          .labels(SERVICE_NAME, "processResponse", "NA")
+          .labels("processResponse")
           .observe((System.currentTimeMillis() - startTime) / 1000);
     }
   }
@@ -314,7 +313,7 @@ public class RedisServingService implements ServingService {
             .asRuntimeException();
       } finally {
         requestLatency
-            .labels(SERVICE_NAME, "sendMultiGet", "NA")
+            .labels("sendMultiGet")
             .observe((System.currentTimeMillis() - startTime) / 1000d);
       }
     }

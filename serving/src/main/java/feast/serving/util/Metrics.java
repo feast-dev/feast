@@ -27,7 +27,7 @@ public class Metrics {
           .name("request_latency_seconds")
           .subsystem("feast_serving")
           .help("Request latency in seconds")
-          .labelNames("service", "method", "status_code")
+          .labelNames("method")
           .register();
 
   public static final Counter requestCount =
@@ -52,5 +52,13 @@ public class Metrics {
           .subsystem("feast_serving")
           .help("number requested feature rows that were stale")
           .labelNames("project", "feature_name")
+          .register();
+
+  public static final Counter grpcRequestCount =
+      Counter.build()
+          .name("grpc_request_count")
+          .subsystem("feast_serving")
+          .help("number of grpc requests served")
+          .labelNames("method", "status_code")
           .register();
 }

@@ -38,7 +38,6 @@ public class GrpcMonitoringInterceptor implements ServerInterceptor {
 
     long startCallMillis = System.currentTimeMillis();
     String fullMethodName = call.getMethodDescriptor().getFullMethodName();
-    String serviceName = MethodDescriptor.extractFullServiceName(fullMethodName);
     String methodName = fullMethodName.substring(fullMethodName.indexOf("/") + 1);
 
     return next.startCall(
@@ -46,8 +45,11 @@ public class GrpcMonitoringInterceptor implements ServerInterceptor {
           @Override
           public void close(Status status, Metadata trailers) {
             Metrics.requestLatency
-                .labels(serviceName, methodName, status.getCode().name())
+                .labels(methodName)
                 .observe((System.currentTimeMillis() - startCallMillis) / 1000f);
+            Metrics.grpcRequestCount
+                .labels(methodName, status.getCode().name())
+                .inc();
             super.close(status, trailers);
           }
         },
