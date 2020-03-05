@@ -90,9 +90,11 @@ public abstract class WriteFeatureValueMetricsDoFn
   public static String GAUGE_NAME_FEATURE_VALUE_MIN = "feature_value_min";
   public static String GAUGE_NAME_FEATURE_VALUE_MAX = "feature_value_max";
   public static String GAUGE_NAME_FEATURE_VALUE_MEAN = "feature_value_mean";
+  public static String GAUGE_NAME_FEATURE_VALUE_PERCENTILE_25 = "feature_value_percentile_25";
   public static String GAUGE_NAME_FEATURE_VALUE_PERCENTILE_50 = "feature_value_percentile_50";
   public static String GAUGE_NAME_FEATURE_VALUE_PERCENTILE_90 = "feature_value_percentile_90";
   public static String GAUGE_NAME_FEATURE_VALUE_PERCENTILE_95 = "feature_value_percentile_95";
+  public static String GAUGE_NAME_FEATURE_VALUE_PERCENTILE_99 = "feature_value_percentile_99";
 
   @Setup
   public void setup() {
@@ -205,6 +207,12 @@ public abstract class WriteFeatureValueMetricsDoFn
         values[i] = valueList.get(i);
       }
 
+      double p25 = new Percentile().evaluate(values, 25);
+      if (p25 < 0) {
+        statsDClient.gauge(GAUGE_NAME_FEATURE_VALUE_PERCENTILE_25, 0, tags);
+      }
+      statsDClient.gauge(GAUGE_NAME_FEATURE_VALUE_PERCENTILE_25, p25, tags);
+
       double p50 = new Percentile().evaluate(values, 50);
       if (p50 < 0) {
         statsDClient.gauge(GAUGE_NAME_FEATURE_VALUE_PERCENTILE_50, 0, tags);
@@ -222,6 +230,12 @@ public abstract class WriteFeatureValueMetricsDoFn
         statsDClient.gauge(GAUGE_NAME_FEATURE_VALUE_PERCENTILE_95, 0, tags);
       }
       statsDClient.gauge(GAUGE_NAME_FEATURE_VALUE_PERCENTILE_95, p95, tags);
+
+      double p99 = new Percentile().evaluate(values, 99);
+      if (p99 < 0) {
+        statsDClient.gauge(GAUGE_NAME_FEATURE_VALUE_PERCENTILE_99, 0, tags);
+      }
+      statsDClient.gauge(GAUGE_NAME_FEATURE_VALUE_PERCENTILE_99, p99, tags);
     }
   }
 
