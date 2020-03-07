@@ -107,5 +107,7 @@ services:
 
   db:
     image: postgres:12-alpine
+    environment:
+      POSTGRES_PASSWORD: password
     ports:
       - "5432:5342"
