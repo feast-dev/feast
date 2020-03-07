@@ -170,12 +170,14 @@ public class ImportJobTest {
     Map<RedisKey, FeatureRow> expected = new HashMap<>();
 
     LOGGER.info("Generating test data ...");
-    IntStream.range(0, IMPORT_JOB_SAMPLE_FEATURE_ROW_SIZE).forEach(i -> {
-      FeatureRow randomRow = TestUtil.createRandomFeatureRow(spec);
-      RedisKey redisKey = TestUtil.createRedisKey(spec, randomRow);
-      input.add(randomRow);
-      expected.put(redisKey, randomRow);
-    });
+    IntStream.range(0, IMPORT_JOB_SAMPLE_FEATURE_ROW_SIZE)
+        .forEach(
+            i -> {
+              FeatureRow randomRow = TestUtil.createRandomFeatureRow(spec);
+              RedisKey redisKey = TestUtil.createRedisKey(spec, randomRow);
+              input.add(randomRow);
+              expected.put(redisKey, randomRow);
+            });
 
     LOGGER.info("Starting Import Job with the following options: {}", options.toString());
     PipelineResult pipelineResult = ImportJob.runPipeline(options);
@@ -183,43 +185,50 @@ public class ImportJobTest {
     Assert.assertEquals(pipelineResult.getState(), State.RUNNING);
 
     LOGGER.info("Publishing {} Feature Row messages to Kafka ...", input.size());
-    TestUtil.publishFeatureRowsToKafka(KAFKA_BOOTSTRAP_SERVERS, KAFKA_TOPIC, input,
-        ByteArraySerializer.class, KAFKA_PUBLISH_TIMEOUT_SEC);
-    TestUtil.waitUntilAllElementsAreWrittenToStore(pipelineResult,
+    TestUtil.publishFeatureRowsToKafka(
+        KAFKA_BOOTSTRAP_SERVERS,
+        KAFKA_TOPIC,
+        input,
+        ByteArraySerializer.class,
+        KAFKA_PUBLISH_TIMEOUT_SEC);
+    TestUtil.waitUntilAllElementsAreWrittenToStore(
+        pipelineResult,
         Duration.standardSeconds(IMPORT_JOB_MAX_RUN_DURATION_SEC),
         Duration.standardSeconds(IMPORT_JOB_CHECK_INTERVAL_DURATION_SEC));
 
     LOGGER.info("Validating the actual values written to Redis ...");
     Jedis jedis = new Jedis(REDIS_HOST, REDIS_PORT);
-    expected.forEach((key, expectedValue) -> {
+    expected.forEach(
+        (key, expectedValue) -> {
 
-      // Ensure ingested key exists.
-      byte[] actualByteValue = jedis.get(key.toByteArray());
-      if (actualByteValue == null) {
-        LOGGER.error("Key not found in Redis: " + key);
-        LOGGER.info("Redis INFO:");
-        LOGGER.info(jedis.info());
-        String randomKey = jedis.randomKey();
-        if (randomKey != null) {
-          LOGGER.info("Sample random key, value (for debugging purpose):");
-          LOGGER.info("Key: " + randomKey);
-          LOGGER.info("Value: " + jedis.get(randomKey));
-        }
-        Assert.fail("Missing key in Redis.");
-      }
+          // Ensure ingested key exists.
+          byte[] actualByteValue = jedis.get(key.toByteArray());
+          if (actualByteValue == null) {
+            LOGGER.error("Key not found in Redis: " + key);
+            LOGGER.info("Redis INFO:");
+            LOGGER.info(jedis.info());
+            String randomKey = jedis.randomKey();
+            if (randomKey != null) {
+              LOGGER.info("Sample random key, value (for debugging purpose):");
+              LOGGER.info("Key: " + randomKey);
+              LOGGER.info("Value: " + jedis.get(randomKey));
+            }
+            Assert.fail("Missing key in Redis.");
+          }
 
-      // Ensure value is a valid serialized FeatureRow object.
-      FeatureRow actualValue = null;
-      try {
-        actualValue = FeatureRow.parseFrom(actualByteValue);
-      } catch (InvalidProtocolBufferException e) {
-        Assert.fail(String
-            .format("Actual Redis value cannot be parsed as FeatureRow, key: %s, value :%s",
-                key, new String(actualByteValue, StandardCharsets.UTF_8)));
-      }
+          // Ensure value is a valid serialized FeatureRow object.
+          FeatureRow actualValue = null;
+          try {
+            actualValue = FeatureRow.parseFrom(actualByteValue);
+          } catch (InvalidProtocolBufferException e) {
+            Assert.fail(
+                String.format(
+                    "Actual Redis value cannot be parsed as FeatureRow, key: %s, value :%s",
+                    key, new String(actualByteValue, StandardCharsets.UTF_8)));
+          }
 
-      // Ensure the retrieved FeatureRow is equal to the ingested FeatureRow.
-      Assert.assertEquals(expectedValue, actualValue);
-    });
+          // Ensure the retrieved FeatureRow is equal to the ingested FeatureRow.
+          Assert.assertEquals(expectedValue, actualValue);
+        });
   }
 }

@@ -19,7 +19,6 @@ package feast.core.validators;
 import static feast.core.validators.Matchers.checkLowerSnakeCase;
 import static feast.core.validators.Matchers.checkUpperSnakeCase;
 
-import com.google.common.base.Strings;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
