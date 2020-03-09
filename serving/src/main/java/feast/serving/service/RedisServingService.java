@@ -87,7 +87,6 @@ public class RedisServingService implements ServingService {
   @Override
   public GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest request) {
     try (Scope scope = tracer.buildSpan("Redis-getOnlineFeatures").startActive(true)) {
-      long startTime = System.currentTimeMillis();
       GetOnlineFeaturesResponse.Builder getOnlineFeaturesResponseBuilder =
           GetOnlineFeaturesResponse.newBuilder();
 
@@ -120,9 +119,6 @@ public class RedisServingService implements ServingService {
           featureValuesMap.values().stream()
               .map(valueMap -> FieldValues.newBuilder().putAllFields(valueMap).build())
               .collect(Collectors.toList());
-      requestLatency
-          .labels("getOnlineFeatures")
-          .observe((System.currentTimeMillis() - startTime) / 1000);
       return getOnlineFeaturesResponseBuilder.addAllFieldValues(fieldValues).build();
     }
   }
