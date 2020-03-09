@@ -49,7 +49,7 @@ Please refer to the official documentation at <https://docs.feast.dev>
  * [Concepts](https://docs.feast.dev/concepts)
  * [Installation](https://docs.feast.dev/installing-feast/overview)
  * [Examples](https://github.com/gojek/feast/blob/master/examples/)
- * [Roadmap](https://docs.google.com/document/d/1ZZY59j_c2oNN3N6TmavJIyLPMzINdea44CRIe2nhUIo/edit#)
+ * [Roadmap](https://docs.feast.dev/roadmap)
  * [Change Log](https://github.com/gojek/feast/blob/master/CHANGELOG.md)
  * [Slack (#Feast)](https://join.slack.com/t/kubeflow/shared_invite/enQtNDg5MTM4NTQyNjczLTdkNTVhMjg1ZTExOWI0N2QyYTQ2MTIzNTJjMWRiOTFjOGRlZWEzODc1NzMwNTMwM2EzNjY1MTFhODczNjk4MTk)
 
