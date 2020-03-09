@@ -145,6 +145,11 @@
             <!-- gRPC -->
             <dependency>
                 <groupId>io.grpc</groupId>
+                <artifactId>grpc-core</artifactId>
+                <version>${grpcVersion}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
                 <artifactId>grpc-netty</artifactId>
                 <version>${grpcVersion}</version>
             </dependency>
@@ -568,6 +573,20 @@
                     <groupId>io.fabric8</groupId>
                     <artifactId>docker-maven-plugin</artifactId>
                     <version>0.20.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>3.1.1</version>
+                    <dependencies>
+                        <!-- Awaiting release with Java 11 class file support
+                             https://issues.apache.org/jira/browse/MDEP-613 -->
+                        <dependency>
+                            <groupId>org.apache.maven.shared</groupId>
+                            <artifactId>maven-dependency-analyzer</artifactId>
+                            <version>1.11.1</version>
+                        </dependency>
+                    </dependencies>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
