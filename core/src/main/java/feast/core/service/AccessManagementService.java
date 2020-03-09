@@ -71,7 +71,6 @@ public class AccessManagementService {
    *
    * @return List of active projects
    */
-  @Transactional
   public List<Project> listProjects() {
     return projectRepository.findAllByArchivedIsFalse();
   }
