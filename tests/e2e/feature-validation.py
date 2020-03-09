@@ -64,11 +64,18 @@ def dataset_basic(client):
             "floats": [10.5 - i for i in range(N_ROWS)],
         }
     )
+
+    expected_stats = statistics_pb2.DatasetFeatureStatisticsList()
+    with open("statistics/expected_output_basic_dataset.json", "r") as fo:
+        contents = fo.read()
+    json_format.Parse(contents, expected_stats)
+
     return {
         "id": client.ingest(fv_fs, df),
         "date": datetime.datetime(
             time_offset.year, time_offset.month, time_offset.day
         ).replace(tzinfo=pytz.utc),
+        "stats": expected_stats,
     }
 
 
@@ -78,11 +85,8 @@ def test_basic_retrieval_by_single_dataset(client, dataset_basic):
         store="bigquery",
         dataset_ids=[dataset_basic["id"]],
     )
-    expected_stats = statistics_pb2.DatasetFeatureStatisticsList()
-    with open("statistics/expected_output_basic_dataset.json", "r") as fo:
-        contents = fo.read()
-    json_format.Parse(contents, expected_stats)
-    assert stats == expected_stats
+
+    assert stats == dataset_basic["stats"]
 
 
 def test_basic_by_date(client, dataset_basic):
@@ -92,8 +96,4 @@ def test_basic_by_date(client, dataset_basic):
         start_date=dataset_basic["date"],
         end_date=dataset_basic["date"],
     )
-    expected_stats = statistics_pb2.DatasetFeatureStatisticsList()
-    with open("statistics/expected_output_basic_dataset.json", "r") as fo:
-        contents = fo.read()
-    json_format.Parse(contents, expected_stats)
-    assert stats == expected_stats
+    assert stats == dataset_basic["stats"]

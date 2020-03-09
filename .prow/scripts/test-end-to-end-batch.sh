@@ -248,7 +248,7 @@ ORIGINAL_DIR=$(pwd)
 cd tests/e2e
 
 set +e
-pytest bq-batch-retrieval.py --gcs_path "gs://${TEMP_BUCKET}/" --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
+pytest bq-batch-retrieval.py feature-validation.py --gcs_path "gs://${TEMP_BUCKET}/" --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
 TEST_EXIT_CODE=$?
 
 if [[ ${TEST_EXIT_CODE} != 0 ]]; then

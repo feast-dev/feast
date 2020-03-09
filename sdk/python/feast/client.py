@@ -90,8 +90,12 @@ class Client:
     """
 
     def __init__(
-        self, core_url: str = None, serving_url: str = None, project: str = None,
-        core_secure: bool = None, serving_secure: bool = None
+        self,
+        core_url: str = None,
+        serving_url: str = None,
+        project: str = None,
+        core_secure: bool = None,
+        serving_secure: bool = None,
     ):
         """
         The Feast Client should be initialized with at least one service url
@@ -245,7 +249,9 @@ class Client:
 
         if self.__core_channel is None:
             if self.core_secure or self.core_url.endswith(":443"):
-                self.__core_channel = grpc.secure_channel(self.core_url, grpc.ssl_channel_credentials())
+                self.__core_channel = grpc.secure_channel(
+                    self.core_url, grpc.ssl_channel_credentials()
+                )
             else:
                 self.__core_channel = grpc.insecure_channel(self.core_url)
 
@@ -277,7 +283,9 @@ class Client:
 
         if self.__serving_channel is None:
             if self.serving_secure or self.serving_url.endswith(":443"):
-                self.__serving_channel = grpc.secure_channel(self.serving_url, grpc.ssl_channel_credentials())
+                self.__serving_channel = grpc.secure_channel(
+                    self.serving_url, grpc.ssl_channel_credentials()
+                )
             else:
                 self.__serving_channel = grpc.insecure_channel(self.serving_url)
 
@@ -791,8 +799,9 @@ class Client:
                 Timeout in seconds to wait for completion.
 
         Returns:
-            None:
-                None
+            str:
+                Generated Dataset ID for the ingested dataset. This ID can be used to reference
+                rows specifically written during this ingestion.
         """
 
         if isinstance(feature_set, FeatureSet):
