@@ -49,11 +49,8 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.lognet.springboot.grpc.GRpcService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Implementation of the feast core GRPC service.
- */
+/** Implementation of the feast core GRPC service. */
 @Slf4j
 @GRpcService(interceptors = {MonitoringInterceptor.class})
 public class CoreServiceImpl extends CoreServiceImplBase {

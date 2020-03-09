@@ -231,8 +231,7 @@ public abstract class BatchRetrievalQueryRunnable implements Runnable {
         bigquery()
             .getTable(queryJobConfig.getDestinationTable())
             .toBuilder()
-            .setExpirationTime(
-                System.currentTimeMillis() + TEMP_TABLE_EXPIRY_DURATION_MS)
+            .setExpirationTime(System.currentTimeMillis() + TEMP_TABLE_EXPIRY_DURATION_MS)
             .build();
     bigquery().update(expiry);
 

@@ -16,7 +16,6 @@
  */
 package feast.core.job.direct;
 
-import com.google.common.base.Strings;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import com.google.protobuf.util.JsonFormat.Printer;
@@ -148,8 +147,7 @@ public class DirectRunnerJobManager implements JobManager {
     try {
       job.abort();
     } catch (IOException e) {
-      throw new RuntimeException(
-          String.format("Unable to abort DirectRunner job %s", extId), e);
+      throw new RuntimeException(String.format("Unable to abort DirectRunner job %s", extId), e);
     }
     jobs.remove(extId);
   }

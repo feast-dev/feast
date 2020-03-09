@@ -24,11 +24,9 @@ import feast.store.serving.redis.RedisCustomIO.Method;
 import feast.store.serving.redis.RedisCustomIO.RedisMutation;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
-import feast.types.ValueProto.Value;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.slf4j.Logger;
@@ -55,12 +53,9 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRow, RedisMutatio
     Builder redisKeyBuilder = RedisKey.newBuilder().setFeatureSet(featureRow.getFeatureSet());
     for (Field field : featureRow.getFieldsList()) {
       if (entityNames.contains(field.getName())) {
-        entityFields.putIfAbsent(field.getName(),
-            Field.newBuilder()
-                .setName(field.getName())
-                .setValue(field.getValue())
-                .build()
-        );
+        entityFields.putIfAbsent(
+            field.getName(),
+            Field.newBuilder().setName(field.getName()).setValue(field.getValue()).build());
       }
     }
     for (String entityName : entityNames) {
