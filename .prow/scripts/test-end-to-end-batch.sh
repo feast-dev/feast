@@ -3,12 +3,6 @@
 set -e
 set -o pipefail
 
-if ! cat /etc/*release | grep -q stretch; then
-    echo ${BASH_SOURCE} only supports Debian stretch. 
-    echo Please change your operating system to use this script.
-    exit 1
-fi
-
 echo "
 This script will run end-to-end tests for Feast Core and Batch Serving.
 
