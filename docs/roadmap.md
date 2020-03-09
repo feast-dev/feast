@@ -2,6 +2,8 @@
 
 ## Feast 0.5
 
+[Discussion](https://github.com/gojek/feast/issues/527)
+
 #### New functionality
 
 1. Streaming statistics and validation \(M1 from [Feature Validation RFC](https://docs.google.com/document/d/1TPmd7r4mniL9Y-V_glZaWNo5LMXLshEAUpYsohojZ-8/edit)\)
