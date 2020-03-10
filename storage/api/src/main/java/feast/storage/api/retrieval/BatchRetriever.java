@@ -17,10 +17,9 @@
 package feast.storage.api.retrieval;
 
 import feast.serving.ServingAPIProto;
-import java.io.Serializable;
 
 /** Interface for implementing user defined retrieval functionality from Batch/historical stores. */
-public interface BatchRetriever extends Serializable {
+public interface BatchRetriever {
 
   /**
    * Get all features corresponding to the provided batch features request.

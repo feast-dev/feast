@@ -16,17 +16,29 @@
  */
 package feast.storage.api.retrieval;
 
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
-import java.util.List;
+import feast.types.FeatureRowProto;
 
-/** Interface for implementing user defined retrieval functionality from Online stores. */
-public interface OnlineRetriever {
+/** Response from an online store. */
+public interface OnlineRetrieverResponse {
 
   /**
-   * Get all values corresponding to the request.
+   * Checks whether the response is empty, i.e. feature does not exist in the store
    *
-   * @param request Online features request containing the list of features and list of entity rows
-   * @return list of {@link OnlineRetrieverResponse}
+   * @return boolean
    */
-  List<OnlineRetrieverResponse> getOnlineFeatures(GetOnlineFeaturesRequest request);
+  boolean isEmpty();
+
+  /**
+   * Get the featureset associated with this response.
+   *
+   * @return String featureset reference in format featureSet:version
+   */
+  String getFeatureSet();
+
+  /**
+   * Parse response to FeatureRow
+   *
+   * @return {@link FeatureRowProto.FeatureRow}
+   */
+  FeatureRowProto.FeatureRow toFeatureRow();
 }
