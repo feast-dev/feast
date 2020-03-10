@@ -47,6 +47,10 @@ public class Field {
   @Column(name = "project")
   private String project;
 
+  // Labels that this field belongs to
+  @Column(name = "labels", columnDefinition = "text")
+  private String labels;
+
   // Presence constraints (refer to proto feast.core.FeatureSet.FeatureSpec)
   // Only one of them can be set.
   private byte[] presence;
