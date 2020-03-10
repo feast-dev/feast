@@ -156,6 +156,9 @@ message FeatureSpec {
         tensorflow.metadata.v0.TimeDomain time_domain = 17;
         tensorflow.metadata.v0.TimeOfDayDomain time_of_day_domain = 18;
     }
+
+    // Labels for user defined metadata on feature
+    map<string,string> labels=19;
 }
 
 message FeatureSetMeta {
