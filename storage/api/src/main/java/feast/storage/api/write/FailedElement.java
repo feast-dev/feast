@@ -17,11 +17,10 @@
 package feast.storage.api.write;
 
 import com.google.auto.value.AutoValue;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.joda.time.Instant;
-
-import javax.annotation.Nullable;
 
 @AutoValue
 // Use DefaultSchema annotation so this AutoValue class can be serialized by Beam
