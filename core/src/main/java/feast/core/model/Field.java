@@ -88,6 +88,7 @@ public class Field {
   public Field(FeatureSpec featureSpec) {
     this.name = featureSpec.getName();
     this.type = featureSpec.getValueType().toString();
+    this.labels = TypeConversion.convertMapToJsonString(featureSpec.getLabelsMap());
 
     switch (featureSpec.getPresenceConstraintsCase()) {
       case PRESENCE:
