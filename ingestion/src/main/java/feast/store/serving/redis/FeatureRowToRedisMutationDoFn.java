@@ -64,14 +64,20 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRow, RedisMutatio
     return redisKeyBuilder.build();
   }
 
+  private byte[] getValue(FeatureRow featureRow) {
+    FeatureRowEncoder encoder =
+        new FeatureRowEncoder(featureSets.get(featureRow.getFeatureSet()).getSpec());
+    return encoder.encode(featureRow).toByteArray();
+  }
+
   /** Output a redis mutation object for every feature in the feature row. */
   @ProcessElement
   public void processElement(ProcessContext context) {
     FeatureRow featureRow = context.element();
     try {
-      RedisKey key = getKey(featureRow);
-      RedisMutation redisMutation =
-          new RedisMutation(Method.SET, key.toByteArray(), featureRow.toByteArray(), null, null);
+      byte[] key = getKey(featureRow).toByteArray();
+      byte[] value = getValue(featureRow);
+      RedisMutation redisMutation = new RedisMutation(Method.SET, key, value, null, null);
       context.output(redisMutation);
     } catch (Exception e) {
       log.error(e.getMessage(), e);
