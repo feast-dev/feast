@@ -13,6 +13,21 @@
 
   <name>Feast Storage API</name>
 
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <configuration>
+          <!-- Required for generated code to compile; annotations are common false positive -->
+          <ignoredUnusedDeclaredDependencies>
+            javax.annotation
+          </ignoredUnusedDeclaredDependencies>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
   <dependencies>
 
     <dependency>

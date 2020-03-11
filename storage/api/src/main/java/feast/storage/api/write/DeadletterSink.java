@@ -16,15 +16,23 @@
  */
 package feast.storage.api.write;
 
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
 
 /** Interface for for implementing user defined deadletter sinks to write failed elements to. */
 public interface DeadletterSink {
 
   /**
-   * Write collection of FailedElements to the deadletter sink.
-   *
-   * @param input PCollection of FailedElements
+   * Set up the deadletter sink for writes. This method will be called once during pipeline
+   * initialisation.
    */
-  void write(PCollection<FailedElement> input);
+  void prepareWrite();
+
+  /**
+   * Get a {@link PTransform} that writes a collection of FailedElements to the deadletter sink.
+   *
+   * @return {@link PTransform}
+   */
+  PTransform<PCollection<FailedElement>, PDone> write();
 }

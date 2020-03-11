@@ -16,19 +16,41 @@
  */
 package feast.storage.api.write;
 
+import com.google.common.collect.ImmutableMap;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.io.Serializable;
-import org.apache.beam.sdk.values.PCollection;
+import java.util.Map;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.*;
 
 /** The result of a write transform. */
-public interface WriteResult extends Serializable {
+public final class WriteResult implements Serializable, POutput {
 
-  /**
-   * Gets set of successfully written feature rows.
-   *
-   * @return PCollection of feature rows successfully written to the store
-   */
-  PCollection<FeatureRow> getSuccessfulInserts();
+  private final Pipeline pipeline;
+  private final PCollection<FeatureRow> successfulInserts;
+  private final PCollection<FailedElement> failedInserts;
+
+  private static TupleTag<FeatureRow> successfulInsertsTag = new TupleTag<>("successfulInserts");
+  private static TupleTag<FailedElement> failedInsertsTupleTag = new TupleTag<>("failedInserts");
+
+  /** Creates a {@link WriteResult} in the given {@link Pipeline}. */
+  static WriteResult in(
+      Pipeline pipeline,
+      PCollection<FeatureRow> successfulInserts,
+      PCollection<FailedElement> failedInserts) {
+    return new WriteResult(pipeline, successfulInserts, failedInserts);
+  }
+
+  private WriteResult(
+      Pipeline pipeline,
+      PCollection<FeatureRow> successfulInserts,
+      PCollection<FailedElement> failedInserts) {
+
+    this.pipeline = pipeline;
+    this.successfulInserts = successfulInserts;
+    this.failedInserts = failedInserts;
+  }
 
   /**
    * Gets set of feature rows that were unsuccessfully written to the store. The failed feature rows
@@ -37,5 +59,31 @@ public interface WriteResult extends Serializable {
    *
    * @return FailedElements of unsuccessfully written feature rows
    */
-  PCollection<FailedElement> getFailedInserts();
+  public PCollection<FailedElement> getFailedInserts() {
+    return failedInserts;
+  }
+
+  /**
+   * Gets set of successfully written feature rows.
+   *
+   * @return PCollection of feature rows successfully written to the store
+   */
+  public PCollection<FeatureRow> getSuccessfulInserts() {
+    return successfulInserts;
+  }
+
+  @Override
+  public Pipeline getPipeline() {
+    return pipeline;
+  }
+
+  @Override
+  public Map<TupleTag<?>, PValue> expand() {
+    return ImmutableMap.of(
+        successfulInsertsTag, successfulInserts, failedInsertsTupleTag, failedInserts);
+  }
+
+  @Override
+  public void finishSpecifyingOutput(
+      String transformName, PInput input, PTransform<?, ?> transform) {}
 }

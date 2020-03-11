@@ -16,18 +16,39 @@
  */
 package feast.storage.api.write;
 
+import feast.core.FeatureSetProto;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.io.Serializable;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 
 /** Interface for implementing user defined feature sink functionality. */
 public interface FeatureSink extends Serializable {
 
   /**
-   * Write feature rows to the store.
+   * Set up storage backend for write. This method will be called once during pipeline
+   * initialisation.
    *
-   * @param input feature rows to write
-   * @return {@link WriteResult}
+   * <p>Examples when schemas need to be updated:
+   *
+   * <ul>
+   *   <li>when a new entity is registered, a table usually needs to be created
+   *   <li>when a new feature is registered, a column with appropriate data type usually needs to be
+   *       created
+   * </ul>
+   *
+   * <p>If the storage backend is a key-value or a schema-less database, however, there may not be a
+   * need to manage any schemas.
+   *
+   * @param featureSet Feature set to be written
    */
-  WriteResult write(PCollection<FeatureRow> input);
+  void prepareWrite(FeatureSetProto.FeatureSet featureSet);
+
+  /**
+   * Get a {@link PTransform} that writes feature rows to the store, and returns a {@link
+   * WriteResult} that splits successful and failed inserts to be separately logged.
+   *
+   * @return {@link PTransform}
+   */
+  PTransform<PCollection<FeatureRow>, WriteResult> write();
 }
