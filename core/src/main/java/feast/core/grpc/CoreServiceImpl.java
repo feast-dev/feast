@@ -156,7 +156,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onNext(CreateProjectResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (Exception e) {
-      log.error("Exception has occurred in the createProject method: ", e);
+      log.error("Exception has occurred in the CreateProject method: ", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
@@ -170,7 +170,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onNext(ArchiveProjectResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (Exception e) {
-      log.error("Exception has occurred in the createProject method: ", e);
+      log.error("Exception has occurred in the ArchiveProject method: ", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
@@ -187,7 +187,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
               .build());
       responseObserver.onCompleted();
     } catch (Exception e) {
-      log.error("Exception has occurred in the listProjects method: ", e);
+      log.error("Exception has occurred in the ListProjects method: ", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
