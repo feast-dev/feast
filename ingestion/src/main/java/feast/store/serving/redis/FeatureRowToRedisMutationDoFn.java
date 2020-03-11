@@ -18,12 +18,15 @@ package feast.store.serving.redis;
 
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSet;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.FeatureSetProto.FeatureSpec;
 import feast.storage.RedisProto.RedisKey;
 import feast.storage.RedisProto.RedisKey.Builder;
 import feast.store.serving.redis.RedisCustomIO.Method;
 import feast.store.serving.redis.RedisCustomIO.RedisMutation;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
+import feast.types.ValueProto;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,9 +68,34 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRow, RedisMutatio
   }
 
   private byte[] getValue(FeatureRow featureRow) {
-    FeatureRowEncoder encoder =
-        new FeatureRowEncoder(featureSets.get(featureRow.getFeatureSet()).getSpec());
-    return encoder.encode(featureRow).toByteArray();
+    FeatureSetSpec spec = featureSets.get(featureRow.getFeatureSet()).getSpec();
+
+    List<String> featureNames =
+        spec.getFeaturesList().stream().map(FeatureSpec::getName).collect(Collectors.toList());
+    Map<String, Field> fieldValueOnlyMap =
+        featureRow.getFieldsList().stream()
+            .filter(field -> featureNames.contains(field.getName()))
+            .distinct()
+            .collect(
+                Collectors.toMap(
+                    Field::getName,
+                    field -> Field.newBuilder().setValue(field.getValue()).build()));
+
+    List<Field> values =
+        featureNames.stream()
+            .sorted()
+            .map(
+                featureName ->
+                    fieldValueOnlyMap.getOrDefault(
+                        featureName,
+                        Field.newBuilder().setValue(ValueProto.Value.getDefaultInstance()).build()))
+            .collect(Collectors.toList());
+
+    return FeatureRow.newBuilder()
+        .setEventTimestamp(featureRow.getEventTimestamp())
+        .addAllFields(values)
+        .build()
+        .toByteArray();
   }
 
   /** Output a redis mutation object for every feature in the feature row. */
