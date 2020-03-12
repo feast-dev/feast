@@ -1,246 +1,132 @@
-# ============================================================
-# Bundled PostgreSQL
-# ============================================================
-
-# Refer to https://github.com/helm/charts/tree/c42002a21abf8eff839ff1d2382152bde2bbe596/stable/postgresql
-# for additional configuration.
-postgresql:
-  # enabled specifies whether Postgresql should be installed as part of Feast Core.
-  #
-  # Feast Core requires a database to store data such as the created FeatureSets
-  # and job statuses. If enabled, the database and service port specified below
-  # will override "spring.datasource.url" value in application.yaml. The
-  # username and password will also be set as environment variables that will
-  # override "spring.datasource.username/password" in application.yaml.
-  enabled: true
-  # postgresqlDatabase is the name of the database used by Feast Core.
-  postgresqlDatabase: feast
-  # postgresqlUsername is the username to authenticate to the database.
-  postgresqlUsername: postgres
-  # postgresqlPassword is the password to authenticate to the database.
-  postgresqlPassword: password
-  service:
-    # port is the TCP port that Postgresql will listen to
-    port: 5432
-
-# ============================================================
-# Bundled Kafka
-# ============================================================
-
-# Refer to https://github.com/helm/charts/tree/c42002a21abf8eff839ff1d2382152bde2bbe596/incubator/kafka
-# for additional configuration.
-kafka:
-  # enabled specifies whether Kafka should be installed as part of Feast Core.
-  #
-  # Feast Core requires a Kafka instance to be set as the default source for
-  # FeatureRows. If enabled, "feast.stream" option in application.yaml will
-  # be overridden by this installed Kafka configuration.
-  enabled: true
-  topics:
-  # topic that will be used as default in Feast Core for the default Kafka source.
-  - name: feast
-    replicationFactor: 1
-    partitions: 1
-
-
-# ============================================================
-# Bundled Prometheus StatsD Exporter
-# ============================================================
-
-prometheus-statsd-exporter:
-  enabled: false
-
-# ============================================================
-# Feast Core
-# ============================================================
-
-# replicaCount is the number of pods that will be created.
+# replicaCount -- Number of pods that will be created
 replicaCount: 1
 
-# image configures the Docker image for Feast Core
 image:
+  # image.repository -- Docker image repository
   repository: gcr.io/kf-feast/feast-core
+  # image.tag -- Image tag
+  tag: 0.4.6
+  # image.pullPolicy -- Image pull policy
   pullPolicy: IfNotPresent
 
-# Add prometheus scraping annotations to the Pod metadata.
-# If enabled, you must also ensure server.port is specified under application.yaml
-prometheus:
-  enabled: false
+# "application-override.yaml" -- [Configuration override](https://github.com/gojek/feast/blob/v0.4-branch/core/src/main/resources/application.yml) for Feast Core
+application-override.yaml: {}
 
-# application.yaml is the main configuration for Feast Core application.
-#
-# Feast Core is a Spring Boot app which uses this yaml configuration file.
-# Refer to https://github.com/gojek/feast/blob/79eb4ab5fa3d37102c1dca9968162a98690526ba/core/src/main/resources/application.yml
-# for a complete list and description of the configuration.
-#
-# Note that some properties defined in application.yaml may be overriden by
-# Helm under certain conditions. For example, if postgresql and kafka dependencies
-# are enabled.
-application.yaml:
-  grpc:
-    port: 6565
-    enable-reflection: true
-  feast:
-    jobs:
-      runner: DirectRunner
-      options: {}
-      updates:
-        timeoutSeconds: 240
-      metrics:
-        enabled: false
-        type: statsd
-        host: localhost
-        port: 9125
-    stream:
-      type: kafka
-      options:
-        topic: TOPIC
-        bootstrapServers: HOST:PORT
-        replicationFactor: 1
-        partitions: 1
-  spring:
-    jpa:
-      properties.hibernate.format_sql: true
-      properties.hibernate.event.merge.entity_copy_observer: allow
-      hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
-      hibernate.ddl-auto: update
-    datasource:
-      driverClassName: org.postgresql.Driver
-      url: jdbc:postgresql://HOST:PORT/DATABASE
-      username: USERNAME
-      password: PASSWORD
-  management:
-    metrics:
-      export:
-        simple:
-          enabled: false
-        statsd:
-          enabled: false
-          host: localhost
-          port: 8125
-
-springConfigProfiles: {}
-#  db: |
-#    spring:
-#      datasource:
-#        driverClassName: org.postgresql.Driver
-#        url: jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:5432}/${DB_DATABASE:postgres}
-springConfigProfilesActive: ""
-# springConfigMountPath is the directory path where application.yaml will be
-# mounted in the container.
-springConfigMountPath: /etc/feast/feast-core
-
-# gcpServiceAccount is the service account that Feast Core will use.
 gcpServiceAccount:
-  # useExistingSecret specifies Feast to use an existing secret containing Google
-  # Cloud service account JSON key file.
-  useExistingSecret: false
+  # gcpServiceAccount.enabled -- Flag to use [service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) JSON key
+  enabled: false
   existingSecret:
-    # name is the secret name of the existing secret for the service account.
+    # gcpServiceAccount.existingSecret.name -- Name of the existing secret containing the service account
     name: feast-gcp-service-account
-    # key is the secret key of the existing secret for the service account.
-    # key is normally derived from the file name of the JSON key file.
-    key: key.json
-  # mountPath is the directory path where the JSON key file will be mounted.
-  # the value of "existingSecret.key" is file name of the service account file.
-  mountPath: /etc/gcloud/service-accounts
+    # gcpServiceAccount.existingSecret.key -- Key in the secret data (file name of the service account)
+    key: credentials.json
 
-# Project ID picked up by the Cloud SDK (e.g. BigQuery run against this project)
-gcpProjectId: ""
+postgresql:
+  # postgresql.existingSecret -- Existing secret to use for authenticating to Postgres
+  existingSecret: 
 
-# Path to Jar file in the Docker image.
-# If you are using gcr.io/kf-feast/feast-core this should not need to be changed
-jarPath: /opt/feast/feast-core.jar
+# javaOpts -- [JVM options](https://docs.oracle.com/cd/E22289_01/html/821-1274/configuring-the-default-jvm-and-java-arguments.html). It is advised for better performance to set the min and max heap: <br> `-Xms2048m -Xmx2048m`
+javaOpts: 
 
-# jvmOptions are options that will be passed to the Java Virtual Machine (JVM)
-# running Feast Core.
-#
-# For example, it is good practice to set min and max heap size in JVM.
-# https://stackoverflow.com/questions/6902135/side-effect-for-increasing-maxpermsize-and-max-heap-size
-#
-# Refer to https://docs.oracle.com/cd/E22289_01/html/821-1274/configuring-the-default-jvm-and-java-arguments.html
-# to see other JVM options that can be set.
-#
-jvmOptions: []
-# - -Xms1024m
-# - -Xmx1024m
+# logType -- Log format, either `JSON` or `Console`
+logType: Console
+# logLevel -- Default log level, use either one of `DEBUG`, `INFO`, `WARN` or `ERROR`
+logLevel: WARN
 
-logType: JSON
-logLevel: warn
+prometheus:
+  # prometheus.enabled -- Flag to enable scraping of Feast Core metrics
+  enabled: true
 
 livenessProbe:
+  # livenessProbe.enabled -- Flag to enabled the probe
   enabled: true
+  # livenessProbe.initialDelaySeconds -- Delay before the probe is initiated
   initialDelaySeconds: 60
+  # livenessProbe.periodSeconds -- How often to perform the probe
   periodSeconds: 10
+  # livenessProbe.timeoutSeconds -- When the probe times out
   timeoutSeconds: 5
+  # livenessProbe.successThreshold -- Min consecutive success for the probe to be considered successful
   successThreshold: 1
+  # livenessProbe.failureThreshold -- Min consecutive failures for the probe to be considered failed
   failureThreshold: 5
 
 readinessProbe:
+  # readinessProbe.enabled -- Flag to enabled the probe
   enabled: true
-  initialDelaySeconds: 15
+  # readinessProbe.initialDelaySeconds -- Delay before the probe is initiated
+  initialDelaySeconds: 20
+  # readinessProbe.periodSeconds -- How often to perform the probe
   periodSeconds: 10
+  # readinessProbe.timeoutSeconds -- When the probe times out
   timeoutSeconds: 10
+  # readinessProbe.successThreshold -- Min consecutive success for the probe to be considered successful
   successThreshold: 1
+  # readinessProbe.failureThreshold -- Min consecutive failures for the probe to be considered failed
   failureThreshold: 5
 
 service:
+  # service.type -- Kubernetes service type
   type: ClusterIP
   http:
+    # service.http.port -- Service port for HTTP requests
     port: 80
+    # service.http.targetPort -- Container port serving HTTP requests
     targetPort: 8080
-    # nodePort is the port number that each cluster node will listen to
-    # https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
-    #
-    # nodePort:
+    # service.http.nodePort -- Port number that each cluster node will listen to
+    nodePort:
   grpc:
+    # service.grpc.port -- Service port for GRPC requests
     port: 6565
+    # service.grpc.targetPort -- Container port serving GRPC requests
     targetPort: 6565
-    # nodePort is the port number that each cluster node will listen to
-    # https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
-    #
-    # nodePort:
+    # service.grpc.nodePort -- Port number that each cluster node will listen to
+    nodePort:
 
 ingress:
   grpc:
+    # ingress.grpc.enabled -- Flag to create an ingress resource for the service
     enabled: false
+    # ingress.grpc.class -- Which ingress controller to use
     class: nginx
+    # ingress.grpc.hosts -- List of hostnames to match when routing requests
     hosts: []
+    # ingress.grpc.annotations -- Extra annotations for the ingress
     annotations: {}
     https:
+      # ingress.grpc.https.enabled -- Flag to enable HTTPS
       enabled: true
+      # ingress.grpc.https.secretNames -- Map of hostname to TLS secret name
       secretNames: {}
+    # ingress.grpc.whitelist -- Allowed client IP source ranges
     whitelist: ""
     auth:
+      # ingress.grpc.auth.enabled -- Flag to enable auth
       enabled: false
   http:
+    # ingress.http.enabled -- Flag to create an ingress resource for the service
     enabled: false
+    # ingress.http.class -- Which ingress controller to use
     class: nginx
+    # ingress.http.hosts -- List of hostnames to match when routing requests
     hosts: []
+    # ingress.http.annotations -- Extra annotations for the ingress
     annotations: {}
     https:
+      # ingress.http.https.enabled -- Flag to enable HTTPS
       enabled: true
+      # ingress.http.https.secretNames -- Map of hostname to TLS secret name
       secretNames: {}
+    # ingress.http.whitelist -- Allowed client IP source ranges
     whitelist: ""
     auth:
+      # ingress.http.auth.enabled -- Flag to enable auth
       enabled: false
+      # ingress.http.auth.authUrl -- URL to an existing authentication service
       authUrl: http://auth-server.auth-ns.svc.cluster.local/auth
 
+# resources -- CPU/memory [resource requests/limit](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#resource-requests-and-limits-of-pod-and-container)
 resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  #
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
 
+# nodeSelector -- Node labels for pod assignment
 nodeSelector: {}
-
-tolerations: []
-
-affinity: {}

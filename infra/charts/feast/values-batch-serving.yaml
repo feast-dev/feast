@@ -1,0 +1,22 @@
+feast-core:
+  gcpServiceAccount:
+    enabled: true
+
+feast-batch-serving:
+  enabled: true
+  store.yaml:
+    name: bigquery-store
+    type: BIGQUERY 
+    bigquery_config:
+      project_id: <google_project_id>
+      dataset_id: <bigquery_dataset_id>
+    subscriptions:
+    - project: "*"
+      name: "*"
+      version: "*"
+  application-override.yaml:
+    feast:
+      jobs:
+        staging-location: gs://<bucket_name>/staging-location
+  gcpServiceAccount:
+    enabled: true 

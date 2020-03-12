@@ -1,12 +1,30 @@
 dependencies:
 - name: feast-core
-  version: 0.4.4
+  version: 0.4.6
   condition: feast-core.enabled
 - name: feast-serving
-  alias: feast-serving-batch
-  version: 0.4.4
-  condition: feast-serving-batch.enabled
+  alias: feast-online-serving
+  version: 0.4.6
+  condition: feast-online-serving.enabled
 - name: feast-serving
-  alias: feast-serving-online
-  version: 0.4.4
-  condition: feast-serving-online.enabled
+  alias: feast-batch-serving
+  version: 0.4.6
+  condition: feast-batch-serving.enabled
+- name: postgresql
+  version: 8.6.1
+  condition: postgresql.enabled
+- name: kafka 
+  version: 0.20.8
+  condition: kafka.enabled
+- name: redis
+  version: 10.5.6
+  condition: redis.enabled
+- name: prometheus-statsd-exporter
+  version: 0.1.2
+  condition: prometheus-statsd-exporter.enabled
+- name: prometheus
+  version: 11.0.2
+  condition: prometheus.enabled
+- name: grafana
+  version: 5.0.5
+  condition: grafana.enabled

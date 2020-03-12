@@ -10,44 +10,27 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 data:
-  application.yaml: |
-{{- toYaml (index .Values "application.yaml") | nindent 4 }}
-
-{{- if .Values.postgresql.enabled }}
-  application-bundled-postgresql.yaml: |
+  application-default-postgresql.yaml: |
     spring:
       datasource:
-        url: {{ printf "jdbc:postgresql://%s:%s/%s" (printf "%s-postgresql" .Release.Name) (.Values.postgresql.service.port | toString) (.Values.postgresql.postgresqlDatabase) }}
-        driverClassName: org.postgresql.Driver
-{{- end }}
+        url: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/postgres
 
-{{ if .Values.kafka.enabled }}
-  {{- $topic := index .Values.kafka.topics 0 }}
-  application-bundled-kafka.yaml: |
+  application-default-kafka.yaml: |
     feast:
       stream:
         type: kafka
-        options:
-          topic: {{ $topic.name | quote }}
-          replicationFactor: {{ $topic.replicationFactor }}
-          partitions: {{ $topic.partitions }}
-          {{- if not .Values.kafka.external.enabled }}
-          bootstrapServers: {{ printf "%s:9092" (printf "%s-kafka" .Release.Name) }}
-          {{- end }}
-{{- end }}
+        options: 
+          bootstrapServers: {{ .Release.Name }}-kafka:9092
+          topic: feast
 
-{{- if (index .Values "prometheus-statsd-exporter" "enabled" )}}
-  application-bundled-statsd.yaml: |
+  application-default-statsd.yaml: |
     feast:
       jobs:
         metrics:
-          enabled: true
+          enabled: true 
           type: statsd
-          host: prometheus-statsd-exporter
+          host: {{ .Release.Name }}-prometheus-statsd-exporter-udp
           port: 9125
-{{- end }}
 
-{{- range $name, $content := .Values.springConfigProfiles }}
-  application-{{ $name }}.yaml: |
-{{- toYaml $content | nindent 4 }}
-{{- end }}
+  application-override.yaml: |
+{{- toYaml (index .Values "application-override.yaml") | nindent 4 }}    

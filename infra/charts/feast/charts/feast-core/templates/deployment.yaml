@@ -20,9 +20,8 @@ spec:
     metadata:
       {{- if .Values.prometheus.enabled }}
       annotations:
-      {{ $config := index .Values "application.yaml" }}
         prometheus.io/path: /metrics
-        prometheus.io/port: "{{ $config.server.port }}"
+        prometheus.io/port: "8080"
         prometheus.io/scrape: "true"
       {{- end }}
       labels:
@@ -39,23 +38,23 @@ spec:
       - name: {{ template "feast-core.fullname" . }}-config
         configMap:
           name: {{ template "feast-core.fullname" . }}
-      {{- if .Values.gcpServiceAccount.useExistingSecret }}
-      - name: {{ template "feast-core.fullname" . }}-gcpserviceaccount
+      {{- if .Values.gcpServiceAccount.enabled }}
+      - name: {{ template "feast-core.fullname" . }}-gcp-service-account
         secret:
           secretName: {{ .Values.gcpServiceAccount.existingSecret.name }}
       {{- end }}
 
       containers:
       - name: {{ .Chart.Name }}
-        image: '{{ .Values.image.repository }}:{{ required "No .image.tag found. This must be provided as input."  .Values.image.tag }}'
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
 
         volumeMounts:
         - name: {{ template "feast-core.fullname" . }}-config
-          mountPath: "{{ .Values.springConfigMountPath }}"
-        {{- if .Values.gcpServiceAccount.useExistingSecret }}
-        - name: {{ template "feast-core.fullname" . }}-gcpserviceaccount
-          mountPath: {{ .Values.gcpServiceAccount.mountPath }}
+          mountPath: /etc/feast
+        {{- if .Values.gcpServiceAccount.enabled }}
+        - name: {{ template "feast-core.fullname" . }}-gcp-service-account
+          mountPath: /etc/secrets/google
           readOnly: true
         {{- end }}
 
@@ -64,40 +63,32 @@ spec:
           value: {{ .Values.logType | quote }}
         - name: LOG_LEVEL
           value: {{ .Values.logLevel | quote }}
-
-        {{- if .Values.postgresql.enabled }}
-        - name: SPRING_DATASOURCE_USERNAME
-          value: {{ .Values.postgresql.postgresqlUsername | quote }}
         - name: SPRING_DATASOURCE_PASSWORD
-          value: {{ .Values.postgresql.postgresqlPassword | quote }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.postgresql.existingSecret | default (printf "%s-postgresql" .Release.Name) }}
+              key: postgresql-password
+
+        {{- if .Values.gcpServiceAccount.enabled }}
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /etc/secrets/google/{{ .Values.gcpServiceAccount.existingSecret.key }}
         {{- end }}
 
-        {{- if .Values.gcpServiceAccount.useExistingSecret }}
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: {{ .Values.gcpServiceAccount.mountPath }}/{{ .Values.gcpServiceAccount.existingSecret.key }}
-        {{- end }}
         {{- if .Values.gcpProjectId }}
         - name: GOOGLE_CLOUD_PROJECT
           value: {{ .Values.gcpProjectId | quote }}
         {{- end }}
 
-        command:
-        - java
-        {{- range .Values.jvmOptions }}
-        - {{ . | quote }}
-        {{- end }}
-        - -jar
-        - {{ .Values.jarPath | quote }}
-        - "--spring.config.location=file:{{ .Values.springConfigMountPath }}/"
-        {{- $profilesArray := splitList "," .Values.springConfigProfilesActive -}}
-        {{- $profilesArray = append $profilesArray (.Values.postgresql.enabled | ternary "bundled-postgresql" "") -}}
-        {{- $profilesArray = append $profilesArray (.Values.kafka.enabled | ternary "bundled-kafka" "") -}}
-        {{- $profilesArray = append $profilesArray (index .Values "prometheus-statsd-exporter" "enabled" | ternary "bundled-statsd" "") -}}
-        {{- $profilesArray = compact $profilesArray -}}
-        {{- if $profilesArray }}
-        - "--spring.profiles.active={{ join "," $profilesArray }}"
+        {{- if .Values.javaOpts }}
+        - name: JAVA_OPTS
+          value: {{ .Values.javaOpts }}
         {{- end }}
 
+        command:
+        - java 
+        - -jar 
+        - /opt/feast/feast-core.jar
+        - --spring.config.additional-location=/etc/feast/application-default-postgresql.yaml,/etc/feast/application-default-kafka.yaml,/etc/feast/application-default-statsd.yaml,/etc/feast/application-override.yaml
         ports:
         - name: http
           containerPort: {{ .Values.service.http.targetPort }}

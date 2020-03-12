@@ -1,4 +1,4 @@
 apiVersion: v1
-description: A Helm chart to install Feast on kubernetes
+description: Feature store for machine learning.
 name: feast
-version: 0.4.4
+version: 0.4.6

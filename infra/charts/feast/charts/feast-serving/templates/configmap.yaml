@@ -10,44 +10,31 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 data:
-  application.yaml: |
-{{- toYaml (index .Values "application.yaml") | nindent 4 }}
-
-{{- if .Values.core.enabled }}
-  application-bundled-core.yaml: |
-    feast:
-      core-host: {{ printf "%s-feast-core" .Release.Name }}
-{{- end }}
-
-{{- if eq (include "bq_store_and_no_job_options" .) "true" }}
-  application-bundled-redis.yaml: |
-    feast:
-      jobs:
-        store-options:
-          host: {{ printf "%s-redis-headless" .Release.Name }}
-          port: 6379
-{{- end }}
-
   store.yaml: |
-{{- $store := index .Values "store.yaml"}}
-
-{{- if and .Values.redis.enabled (eq $store.type "REDIS") }}
-
-{{- if eq .Values.redis.master.service.type "ClusterIP" }}
-{{- $newConfig := dict "redis_config" (dict "host" (printf "%s-redis-headless" .Release.Name) "port" .Values.redis.redisPort) }}
-{{- $config := mergeOverwrite $store $newConfig }}
+{{- if index .Values "store.yaml" }}
+{{- toYaml (index .Values "store.yaml") | nindent 4 }}
+{{- else }}
+    name: redis-store
+    type: REDIS
+    redis_config:
+      host: {{ .Release.Name }}-redis-master
+      port: 6379
+    subscriptions:
+    - name: "*"
+      project: "*"
+      version: "*"
 {{- end }}
 
-{{- if and (eq .Values.redis.master.service.type "LoadBalancer") (not (empty .Values.redis.master.service.loadBalancerIP)) }}
-{{- $newConfig := dict "redis_config" (dict "host" .Values.redis.master.service.loadBalancerIP "port" .Values.redis.redisPort) }}
-{{- $config := mergeOverwrite $store $newConfig }}
-{{- end }}
+  application-default.yaml: |
+    feast:
+      core-host: {{ .Release.Name }}-feast-core
+      store:
+        config-path: /etc/feast/store.yaml
+      jobs:
+        store-type: REDIS
+        store-options:
+          host: {{ .Release.Name }}-redis-master
+          port: 6379
 
-{{- end }}
-
-{{- toYaml $store | nindent 4 }}
-
-{{- range $name, $content := .Values.springConfigProfiles }}
-  application-{{ $name }}.yaml: |
-{{- toYaml $content | nindent 4 }}
-{{- end }}
+  application-override.yaml: |
+{{- toYaml (index .Values "application-override.yaml") | nindent 4 }}    

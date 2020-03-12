@@ -20,9 +20,8 @@ spec:
     metadata:
       annotations:
       {{- if .Values.prometheus.enabled }}
-      {{ $config := index .Values "application.yaml" }}
         prometheus.io/path: /metrics
-        prometheus.io/port: "{{ $config.server.port }}"
+        prometheus.io/port: "8080"
         prometheus.io/scrape: "true"
       {{- end }}
       labels:
@@ -39,23 +38,23 @@ spec:
       - name: {{ template "feast-serving.fullname" . }}-config
         configMap:
           name: {{ template "feast-serving.fullname" . }}
-      {{- if .Values.gcpServiceAccount.useExistingSecret }}
-      - name: {{ template "feast-serving.fullname" . }}-gcpserviceaccount
+      {{- if .Values.gcpServiceAccount.enabled }}
+      - name: {{ template "feast-serving.fullname" . }}-gcp-service-account
         secret:
           secretName: {{ .Values.gcpServiceAccount.existingSecret.name }}
       {{- end }}
 
       containers:
       - name: {{ .Chart.Name }}
-        image: '{{ .Values.image.repository }}:{{ required "No .image.tag found. This must be provided as input."  .Values.image.tag }}'
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
 
         volumeMounts:
         - name: {{ template "feast-serving.fullname" . }}-config
-          mountPath: "{{ .Values.springConfigMountPath }}"
-        {{- if .Values.gcpServiceAccount.useExistingSecret }}
-        - name: {{ template "feast-serving.fullname" . }}-gcpserviceaccount
-          mountPath: {{ .Values.gcpServiceAccount.mountPath }}
+          mountPath: /etc/feast
+        {{- if .Values.gcpServiceAccount.enabled }}
+        - name: {{ template "feast-serving.fullname" . }}-gcp-service-account
+          mountPath: /etc/secrets/google
           readOnly: true
         {{- end }}
 
@@ -65,30 +64,26 @@ spec:
         - name: LOG_LEVEL
           value: {{ .Values.logLevel | quote }}
 
-        {{- if .Values.gcpServiceAccount.useExistingSecret }}
+        {{- if .Values.gcpServiceAccount.enabled }}
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: {{ .Values.gcpServiceAccount.mountPath }}/{{ .Values.gcpServiceAccount.existingSecret.key }}
+          value: /etc/secrets/google/{{ .Values.gcpServiceAccount.existingSecret.key }}
         {{- end }}
+
         {{- if .Values.gcpProjectId }}
         - name: GOOGLE_CLOUD_PROJECT
           value: {{ .Values.gcpProjectId | quote }}
         {{- end }}
 
+        {{- if .Values.javaOpts }}
+        - name: JAVA_OPTS
+          value: {{ .Values.javaOpts }}
+        {{- end }}
+
         command:
         - java
-        {{- range .Values.jvmOptions }}
-        - {{ . | quote }}
-        {{- end }}
         - -jar
-        - {{ .Values.jarPath | quote }}
-        - "--spring.config.location=file:{{ .Values.springConfigMountPath }}/"
-        {{- $profilesArray := splitList "," .Values.springConfigProfilesActive -}}
-        {{- $profilesArray = append $profilesArray (.Values.core.enabled | ternary "bundled-core" "") -}}
-        {{- $profilesArray = append $profilesArray (eq (include "bq_store_and_no_job_options" .) "true" | ternary "bundled-redis" "") -}}
-        {{- $profilesArray = compact $profilesArray -}}
-        {{- if $profilesArray }}
-        - "--spring.profiles.active={{ join "," $profilesArray }}"
-        {{- end }}
+        - /opt/feast/feast-serving.jar
+        - --spring.config.additional-location=/etc/feast/application-default.yaml,/etc/feast/application-override.yaml
 
         ports:
         - name: http

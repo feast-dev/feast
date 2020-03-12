@@ -1,234 +1,132 @@
-# redis configures Redis that is installed as part of Feast Serving.
-# Refer to https://github.com/helm/charts/tree/99430c4afdc88213c1ca08f40eeb03868ffcc9d7/stable/redis
-# for additional configuration
-redis:
-  # enabled specifies whether Redis should be installed as part of Feast Serving.
-  #
-  # If enabled, "redis_config" in store.yaml will be overwritten by Helm
-  # to the configuration in this Redis installation.
-  enabled: false
-  # usePassword specifies if password is required to access Redis. Note that
-  # Feast 0.3 does not support Redis with password.
-  usePassword: false
-  # cluster configuration for Redis.
-  cluster:
-    # enabled specifies if Redis should be installed in cluster mode.
-    enabled: false
-
-# core configures Feast Core in the same parent feast chart that this Feast
-# Serving connects to.
-core:
-  # enabled specifies that Feast Serving will use Feast Core installed
-  # in the same parent feast chart. If enabled, Helm will overwrite
-  # "feast.core-host" in application.yaml with the correct value.
-  enabled: true
-
-# replicaCount is the number of pods that will be created.
+# replicaCount -- Number of pods that will be created
 replicaCount: 1
 
-# image configures the Docker image for Feast Serving
 image:
+  # image.repository -- Docker image repository
   repository: gcr.io/kf-feast/feast-serving
+  # image.tag -- Image tag
+  tag: 0.4.6
+  # image.pullPolicy -- Image pull policy
   pullPolicy: IfNotPresent
 
-# application.yaml is the main configuration for Feast Serving application.
-#
-# Feast Core is a Spring Boot app which uses this yaml configuration file.
-# Refer to https://github.com/gojek/feast/blob/79eb4ab5fa3d37102c1dca9968162a98690526ba/serving/src/main/resources/application.yml
-# for a complete list and description of the configuration.
-#
-# Note that some properties defined in application.yaml may be overridden by
-# Helm under certain conditions. For example, if core is enabled, then
-# "feast.core-host" will be overridden. Also, if "type: BIGQUERY" is specified
-# in store.yaml, "feast.jobs.store-options" will be overridden as well with
-# the default option supported in Feast 0.3.
-application.yaml:
-  feast:
-    version: 0.3
-    core-host: localhost
-    core-grpc-port: 6565
-    tracing:
-      enabled: false
-      tracer-name: jaeger
-      service-name: feast-serving
-    store:
-      config-path: /etc/feast/feast-serving/store.yaml
-      redis-pool-max-size: 128
-      redis-pool-max-idle: 64
-    jobs:
-      staging-location: ""
-      store-type: ""
-      store-options: {}
-  grpc:
-    port: 6566
-    enable-reflection: true
-  server:
-    port: 8080
+# "store.yaml" -- Store [config](https://github.com/gojek/feast/blob/master/protos/feast/core/Store.proto#L32) in yaml format. This is an [example](https://github.com/gojek/feast/blob/v0.4-branch/serving/sample_redis_config.yml) for Redis.
+store.yaml: {}
 
-# store.yaml is the configuration for Feast Store.
-#
-# Refer to this link for description:
-# https://github.com/gojek/feast/blob/79eb4ab5fa3d37102c1dca9968162a98690526ba/protos/feast/core/Store.proto
-#
-# Use the correct store configuration depending on whether the installed
-# Feast Serving is "online" or "batch", by uncommenting the correct store.yaml.
-#
-# Note that if "redis.enabled: true" and "type: REDIS" in store.yaml,
-# Helm will override "redis_config" with configuration of Redis installed
-# in this chart.
-#
-# Note that if "type: BIGQUERY" in store.yaml, Helm assumes Feast Online serving
-# is also installed with Redis store. Helm will then override "feast.jobs.store-options"
-# in application.yaml with the installed Redis store configuration. This is
-# because in Feast 0.3, Redis job store is required.
-#
-# store.yaml:
-#   name: online
-#   type: REDIS
-#   redis_config:
-#     host: localhost
-#     port: 6379
-#   subscriptions:
-#   - project: "*"
-#     name: "*"
-#     version: "*"
-#
-# store.yaml:
-#   name: bigquery
-#   type: BIGQUERY
-#   bigquery_config:
-#     project_id: PROJECT_ID
-#     dataset_id: DATASET_ID
-#   subscriptions:
-#   - project: "*"
-#     name: "*"
-#     version: "*"
+# "application-override.yaml" -- [Configuration override](https://github.com/gojek/feast/blob/v0.4-branch/serving/src/main/resources/application.yml) for Feast Serving. Note that setting `store.config-path` is not necessary since this chart will set it to where `store.yaml` is mounted.
+application-override.yaml: {}
 
-springConfigProfiles: {}
-#  db: |
-#    spring:
-#      datasource:
-#        driverClassName: org.postgresql.Driver
-#        url: jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:5432}/${DB_DATABASE:postgres}
-springConfigProfilesActive: ""
-# springConfigMountPath is the directory path where application.yaml and
-# store.yaml will be mounted in the container.
-springConfigMountPath: /etc/feast/feast-serving
-
-# gcpServiceAccount is the service account that Feast Serving will use.
 gcpServiceAccount:
-  # useExistingSecret specifies Feast to use an existing secret containing Google
+  # gcpServiceAccount.enabled -- Flag to use [service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) JSON key
   # Cloud service account JSON key file.
-  useExistingSecret: false
+  enabled: false
   existingSecret:
-    # name is the secret name of the existing secret for the service account.
+    # gcpServiceAccount.existingSecret.name -- Name of the existing secret containing the service account
     name: feast-gcp-service-account
-    # key is the secret key of the existing secret for the service account.
-    # key is normally derived from the file name of the JSON key file.
-    key: key.json
-  # mountPath is the directory path where the JSON key file will be mounted.
-  # the value of "existingSecret.key" is file name of the service account file.
-  mountPath: /etc/gcloud/service-accounts
+    # gcpServiceAccount.existingSecret.key -- Key in the secret data (file name of the service account)
+    key: credentials.json
 
-# Project ID picked up by the Cloud SDK (e.g. BigQuery run against this project)
-gcpProjectId: ""
+# javaOpts -- [JVM options](https://docs.oracle.com/cd/E22289_01/html/821-1274/configuring-the-default-jvm-and-java-arguments.html). It is advised for better performance to set the min and max heap: <br> `-Xms2048m -Xmx2048m`
+javaOpts:
 
-# Path to Jar file in the Docker image.
-# If using gcr.io/kf-feast/feast-serving this should not need to be changed.
-jarPath: /opt/feast/feast-serving.jar
+# logType -- Log format, either `JSON` or `Console`
+logType: Console
+# logLevel -- Default log level, use either one of `DEBUG`, `INFO`, `WARN` or `ERROR`
+logLevel: WARN
 
-# jvmOptions are options that will be passed to the Java Virtual Machine (JVM)
-# running Feast Core.
-#
-# For example, it is good practice to set min and max heap size in JVM.
-# https://stackoverflow.com/questions/6902135/side-effect-for-increasing-maxpermsize-and-max-heap-size
-#
-# Refer to https://docs.oracle.com/cd/E22289_01/html/821-1274/configuring-the-default-jvm-and-java-arguments.html
-# to see other JVM options that can be set.
-#
-jvmOptions: []
-# - -Xms768m
-# - -Xmx768m
-
-logType: JSON
-logLevel: warn
+prometheus:
+  # prometheus.enabled -- Flag to enable scraping of Feast Core metrics
+  enabled: true
 
 livenessProbe:
-  enabled: false
+  # livenessProbe.enabled -- Flag to enabled the probe
+  enabled: true
+  # livenessProbe.initialDelaySeconds -- Delay before the probe is initiated
   initialDelaySeconds: 60
+  # livenessProbe.periodSeconds -- How often to perform the probe
   periodSeconds: 10
+  # livenessProbe.timeoutSeconds -- When the probe times out
   timeoutSeconds: 5
+  # livenessProbe.successThreshold -- Min consecutive success for the probe to be considered successful
   successThreshold: 1
+  # livenessProbe.failureThreshold -- Min consecutive failures for the probe to be considered failed
   failureThreshold: 5
 
 readinessProbe:
-  enabled: false
+  # readinessProbe.enabled -- Flag to enabled the probe
+  enabled: true
+  # readinessProbe.initialDelaySeconds -- Delay before the probe is initiated
   initialDelaySeconds: 15
+  # readinessProbe.periodSeconds -- How often to perform the probe
   periodSeconds: 10
+  # readinessProbe.timeoutSeconds -- When the probe times out
   timeoutSeconds: 10
+  # readinessProbe.successThreshold -- Min consecutive success for the probe to be considered successful
   successThreshold: 1
+  # readinessProbe.failureThreshold -- Min consecutive failures for the probe to be considered failed
   failureThreshold: 5
 
 service:
+  # service.type -- Kubernetes service type
   type: ClusterIP
   http:
+    # service.http.port -- Service port for HTTP requests
     port: 80
+    # service.http.targetPort -- Container port serving HTTP requests
     targetPort: 8080
-    # nodePort is the port number that each cluster node will listen to
-    # https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
-    #
-    # nodePort:
+    # service.http.nodePort -- Port number that each cluster node will listen to
+    nodePort:
   grpc:
+    # service.grpc.port -- Service port for GRPC requests
     port: 6566
+    # service.grpc.targetPort -- Container port serving GRPC requests
     targetPort: 6566
-    # nodePort is the port number that each cluster node will listen to
-    # https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
-    #
-    # nodePort:
+    # service.grpc.nodePort -- Port number that each cluster node will listen to
+    nodePort:
 
 ingress:
   grpc:
+    # ingress.grpc.enabled -- Flag to create an ingress resource for the service
     enabled: false
+    # ingress.grpc.class -- Which ingress controller to use
     class: nginx
+    # ingress.grpc.hosts -- List of hostnames to match when routing requests
     hosts: []
+    # ingress.grpc.annotations -- Extra annotations for the ingress
     annotations: {}
     https:
+      # ingress.grpc.https.enabled -- Flag to enable HTTPS
       enabled: true
+      # ingress.grpc.https.secretNames -- Map of hostname to TLS secret name
       secretNames: {}
+    # ingress.grpc.whitelist -- Allowed client IP source ranges
     whitelist: ""
     auth:
+      # ingress.grpc.auth.enabled -- Flag to enable auth
       enabled: false
   http:
+    # ingress.http.enabled -- Flag to create an ingress resource for the service
     enabled: false
+    # ingress.http.class -- Which ingress controller to use
     class: nginx
+    # ingress.http.hosts -- List of hostnames to match when routing requests
     hosts: []
+    # ingress.http.annotations -- Extra annotations for the ingress
     annotations: {}
     https:
+      # ingress.http.https.enabled -- Flag to enable HTTPS
       enabled: true
+      # ingress.http.https.secretNames -- Map of hostname to TLS secret name
       secretNames: {}
+    # ingress.http.whitelist -- Allowed client IP source ranges
     whitelist: ""
     auth:
+      # ingress.http.auth.enabled -- Flag to enable auth
       enabled: false
+      # ingress.http.auth.authUrl -- URL to an existing authentication service
       authUrl: http://auth-server.auth-ns.svc.cluster.local/auth
 
-prometheus:
-  enabled: true
-
+# resources -- CPU/memory [resource requests/limit](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#resource-requests-and-limits-of-pod-and-container)
 resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  #
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
 
+# nodeSelector -- Node labels for pod assignment
 nodeSelector: {}
-
-tolerations: []
-
-affinity: {}

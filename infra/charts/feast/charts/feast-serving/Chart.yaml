@@ -1,4 +1,4 @@
 apiVersion: v1
-description: A Helm chart for serving component of Feast
+description: Feast Serving serves low-latency latest features and historical batch features.
 name: feast-serving
-version: 0.4.4
+version: 0.4.6

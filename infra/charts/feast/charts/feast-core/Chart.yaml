@@ -1,4 +1,4 @@
 apiVersion: v1
-description: A Helm chart for core component of Feast
+description: Feast Core registers feature specifications and manage ingestion jobs.
 name: feast-core
-version: 0.4.4
+version: 0.4.6
