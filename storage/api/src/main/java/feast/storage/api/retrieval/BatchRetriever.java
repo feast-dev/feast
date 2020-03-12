@@ -16,7 +16,9 @@
  */
 package feast.storage.api.retrieval;
 
+import feast.core.FeatureSetProto;
 import feast.serving.ServingAPIProto;
+import java.util.List;
 
 /** Interface for implementing user defined retrieval functionality from Batch/historical stores. */
 public interface BatchRetriever {
@@ -26,8 +28,13 @@ public interface BatchRetriever {
    *
    * @param request {@link ServingAPIProto.GetBatchFeaturesRequest} containing requested features
    *     and file containing entity columns.
+   * @param featureSetSpecs List of {@link feast.core.FeatureSetProto.FeatureSetSpec} passed to the
+   *     retriever from the serving service. The specs will only contain the features requested by
+   *     the user.
    * @return {@link ServingAPIProto.Job} if successful, contains the location of the results, else
    *     contains the error to be returned to the user.
    */
-  ServingAPIProto.Job getBatchFeatures(ServingAPIProto.GetBatchFeaturesRequest request);
+  ServingAPIProto.Job getBatchFeatures(
+      ServingAPIProto.GetBatchFeaturesRequest request,
+      List<FeatureSetProto.FeatureSetSpec> featureSetSpecs);
 }
