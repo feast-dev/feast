@@ -84,7 +84,7 @@ class Client:
     """
 
     def __init__(
-        self, core_url: str = None, serving_url: str = None, project: str = None,
+        self, core_url: str = None, serving_url: str = None, project: str = 'default',
         core_secure: bool = None, serving_secure: bool = None
     ):
         """
@@ -363,6 +363,8 @@ class Client:
         Args:
             feature_sets: List of feature sets that will be registered
         """
+        if self.project is not None and self.project not in self.list_projects():
+            self.create_project(self.project)
         if not isinstance(feature_sets, list):
             feature_sets = [feature_sets]
         for feature_set in feature_sets:
