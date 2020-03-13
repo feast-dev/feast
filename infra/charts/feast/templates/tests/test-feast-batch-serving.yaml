@@ -45,7 +45,7 @@ spec:
       pd.set_option("display.max_columns", 10)
 
       client = Client(core_url=os.getenv("FEAST_CORE_ADDR"), serving_url=os.getenv("FEAST_SERVING_ADDR"))
-      project = f"project_{int(time.time() / 3600)}"
+      project = f"testproject_{int(time.time() / 3600)}"
       if project not in client.list_projects():
         client.create_project(project)
       client.set_project(project)
