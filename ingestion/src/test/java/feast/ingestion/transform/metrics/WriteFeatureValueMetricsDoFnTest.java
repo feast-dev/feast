@@ -281,7 +281,10 @@ public class WriteFeatureValueMetricsDoFnTest {
                     server.receive(packet);
                     messagesReceived.add(
                         new String(packet.getData(), StandardCharsets.UTF_8).trim() + "\n");
-                    Thread.sleep(50);
+                    // The sleep duration here is shorter than that used in waitForMessage() at
+                    // 50ms.
+                    // Otherwise sometimes some messages seem to be lost, leading to flaky tests.
+                    Thread.sleep(15L);
                   }
 
                 } catch (Exception e) {
