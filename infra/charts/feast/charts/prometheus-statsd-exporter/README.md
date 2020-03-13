@@ -1,49 +1,57 @@
-prometheus-statsd-exporter
-==========================
-A Helm chart for prometheus statsd-exporter Scrape metrics stored statsd
+# Prometheus statsd-exporter
 
-Current chart version is `0.1.2`
+ ## TL;DR;
 
-Source code can be found [here](https://github.com/prometheus/statsd_exporter)
+ ```console
+$ helm install incubator/prometheus-statsd-exporter
+```
+
+ ## Introduction
+
+ This chart bootstraps a prometheus-statsd-exporter deployment on a [Kubernetes](http://kubernetes.io) cluster using the [Helm](https://helm.sh) package manager.
+
+ ## Installing the Chart
+
+ To install the chart with the release name `my-release`:
+
+ ```console
+$ helm install incubator/prometheus-statsd-exporter --name my-release
+```
 
 
+ The command deploys prometheus-statsd-exporter on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation.
 
-## Chart Values
+ ## Uninstalling the Chart
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| image.pullPolicy | string | `"IfNotPresent"` |  |
-| image.repository | string | `"prom/statsd-exporter"` |  |
-| image.tag | string | `"v0.12.1"` |  |
-| persistentVolume.accessModes[0] | string | `"ReadWriteOnce"` |  |
-| persistentVolume.annotations | object | `{}` |  |
-| persistentVolume.claimName | string | `"prometheus-statsd-exporter"` |  |
-| persistentVolume.enabled | bool | `true` |  |
-| persistentVolume.existingClaim | string | `""` |  |
-| persistentVolume.mountPath | string | `"/data"` |  |
-| persistentVolume.name | string | `"storage-volume"` |  |
-| persistentVolume.size | string | `"20Gi"` |  |
-| persistentVolume.storageClass | object | `{}` |  |
-| persistentVolume.subPath | string | `""` |  |
-| service.annotations | object | `{}` |  |
-| service.clusterIP | string | `""` |  |
-| service.externalIPs | list | `[]` |  |
-| service.labels | object | `{}` |  |
-| service.loadBalancerIP | string | `""` |  |
-| service.loadBalancerSourceRanges | list | `[]` |  |
-| service.metricsPort | int | `9102` |  |
-| service.servicePort | int | `80` |  |
-| service.statsdPort | int | `9125` |  |
-| service.type | string | `"ClusterIP"` |  |
-| serviceAccount.componentName | string | `"prometheus-statsd-exporter"` |  |
-| serviceAccount.enable | bool | `false` |  |
-| statsdexporter.affinity | object | `{}` |  |
-| statsdexporter.extraArgs | object | `{}` |  |
-| statsdexporter.ingress.enabled | bool | `false` |  |
-| statsdexporter.nodeSelector | object | `{}` |  |
-| statsdexporter.podAnnotations."prometheus.io/path" | string | `"/metrics"` |  |
-| statsdexporter.podAnnotations."prometheus.io/port" | string | `"9102"` |  |
-| statsdexporter.podAnnotations."prometheus.io/scrape" | string | `"true"` |  |
-| statsdexporter.replicaCount | int | `1` |  |
-| statsdexporter.resources | object | `{}` |  |
-| statsdexporter.tolerations | object | `{}` |  |
+ To uninstall/delete the `my-release` deployment:
+
+ ```console
+$ helm delete my-release
+```
+
+ The command removes all the Kubernetes components associated with the chart and deletes the release.
+
+ ## Configuration
+
+|Parameter                   | Description                                          | Default                                |
+|----------------------------|------------------------------------------------------|----------------------------------------|
+|`extraArgs`                 | key:value list of extra arguments to give the binary | `{}`                                   |
+|`image.pullPolicy`          | Image pull policy                                    | `IfNotPresent`                         |
+|`image.repository`          | Image repository                                     | `prom/statsd-exporter`                 |
+|`image.tag`                 | Image tag                                            | `v0.8.0`                               |
+|`ingress.enabled`           | enable ingress                                       | `false`                                |
+|`ingress.path`              | ingress base path                                    | `/`                                    |
+|`ingress.host`              | Ingress accepted hostnames                           | `nil`                                  |
+|`ingress.tls`               | Ingress TLS configuration                            | `[]`                                   |
+|`ingress.annotations`       | Ingress annotations                                  | `{}`                                   |
+|`service.type`              | type of service                                      | `ClusterIP`                            |
+|`tolerations`               | List of node taints to tolerate                      | `[]`                                   |
+|`resources`                 | pod resource requests & limits                       | `{}`                                   |   
+| `persistence.enabled`      | Create a volume to store data                        | true                                   |
+
+ Alternatively, a YAML file that specifies the values for the above parameters can be provided while installing the chart. For example,
+
+ ```console
+$ helm install incubator/prometheus-statsd-exporter --name my-release -f values.yaml
+```
+> **Tip**: You can use the default [values.yaml](values.yaml)

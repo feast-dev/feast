@@ -22,10 +22,9 @@ This chart install Feast deployment on a Kubernetes cluster using the [Helm](htt
 
 ## Chart requirements
 
-The chart dependencies are bundled in this chart so Feast users do need to run
-`helm dep update` to update the dependencies. It also allows Feast chart 
-maintainers to set reasonable defaults values for the dependencies so end users
-of Feast are not overwhelmed with the available configuration. 
+The chart dependencies are bundled in this chart so Feast users can use them directly. 
+It also allows Feast chart maintainers to set reasonable defaults values for the 
+dependencies so end users are not overwhelmed with the available configuration. 
 
 | Name | Version |
 |------|---------|
