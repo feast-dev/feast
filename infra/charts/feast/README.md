@@ -6,7 +6,7 @@ Feature store for machine learning. Current chart version is `0.4.6`
 ## TL;DR;
 
 ```bash
-# Install Feast with with Online Serving and Beam DirectRunner
+# Install Feast with Online Serving and Beam DirectRunner
 helm repo add feast-charts https://feast-charts.storage.googleapis.com
 helm repo update
 helm install --name myrelease feast-charts/feast
