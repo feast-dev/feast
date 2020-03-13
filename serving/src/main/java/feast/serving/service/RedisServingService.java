@@ -16,6 +16,7 @@
  */
 package feast.serving.service;
 
+import static feast.serving.util.Metrics.invalidEncodingCount;
 import static feast.serving.util.Metrics.missingKeyCount;
 import static feast.serving.util.Metrics.requestCount;
 import static feast.serving.util.Metrics.requestLatency;
@@ -41,6 +42,7 @@ import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
+import feast.serving.encoding.FeatureRowDecoder;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.specs.FeatureSetRequest;
 import feast.serving.util.RefUtil;
@@ -55,6 +57,7 @@ import io.opentracing.Scope;
 import io.opentracing.Tracer;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 
@@ -109,7 +112,7 @@ public class RedisServingService implements ServingService {
 
         try {
           sendAndProcessMultiGet(redisKeys, entityRows, featureValuesMap, featureSetRequest);
-        } catch (InvalidProtocolBufferException e) {
+        } catch (InvalidProtocolBufferException | ExecutionException e) {
           throw Status.INTERNAL
               .withDescription("Unable to parse protobuf while retrieving feature")
               .withCause(e)
@@ -195,7 +198,7 @@ public class RedisServingService implements ServingService {
       List<EntityRow> entityRows,
       Map<EntityRow, Map<String, Value>> featureValuesMap,
       FeatureSetRequest featureSetRequest)
-      throws InvalidProtocolBufferException {
+      throws InvalidProtocolBufferException, ExecutionException {
 
     List<byte[]> values = sendMultiGet(redisKeys);
     long startTime = System.currentTimeMillis();
@@ -230,6 +233,27 @@ public class RedisServingService implements ServingService {
         }
 
         FeatureRow featureRow = FeatureRow.parseFrom(value);
+        String featureSetRef = redisKeys.get(i).getFeatureSet();
+        FeatureRowDecoder decoder =
+            new FeatureRowDecoder(featureSetRef, specService.getFeatureSetSpec(featureSetRef));
+        if (decoder.isEncoded(featureRow)) {
+          if (decoder.isEncodingValid(featureRow)) {
+            featureRow = decoder.decode(featureRow);
+          } else {
+            featureSetRequest
+                .getFeatureReferences()
+                .parallelStream()
+                .forEach(
+                    request ->
+                        invalidEncodingCount
+                            .labels(
+                                spec.getProject(),
+                                String.format("%s:%d", request.getName(), request.getVersion()))
+                            .inc());
+            featureValues.putAll(nullValues);
+            continue;
+          }
+        }
 
         boolean stale = isStale(featureSetRequest, entityRow, featureRow);
         if (stale) {
