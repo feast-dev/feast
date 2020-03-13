@@ -195,7 +195,7 @@ feast-core:
     feast:
       stream:
         options:
-          bootstrapServers: <kafka_sevice_load_balancer_ip_address_1>
+          bootstrapServers: <kafka_sevice_load_balancer_ip_address_1:31090>
       jobs:
         runner: DataflowRunner
         options:
@@ -355,9 +355,9 @@ to set the minimum and maximum heap. This is an example reasonable value to set 
 feast-online-serving:
   javaOpts: "-Xms2048m -Xmx2048m"
   resources:
-    requests:
-      memory: "4096Mi"
     limits:
+      memory: "4096Mi"
+    requests:
       memory: "2048Mi"
       cpu: "2"
 ```

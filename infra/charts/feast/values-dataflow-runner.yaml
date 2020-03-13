@@ -5,7 +5,7 @@ feast-core:
     feast:
       stream:
         options:
-          bootstrapServers: <kafka_sevice_load_balancer_ip_address_1>
+          bootstrapServers: <kafka_sevice_load_balancer_ip_address_1:31090>
       jobs:
         runner: DataflowRunner
         options:
