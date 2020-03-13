@@ -47,13 +47,11 @@ class Feature(Field):
         )
 
     @classmethod
-    def from_proto(cls, feature_proto: FeatureProto, schema: schema_pb2.Schema = None):
+    def from_proto(cls, feature_proto: FeatureProto):
         """
 
         Args:
             feature_proto: FeatureSpec protobuf object
-            schema: Schema from Tensorflow metadata, will be used to reference domain
-                defined at the schema level
 
         Returns:
             Feature object
@@ -63,5 +61,5 @@ class Feature(Field):
         )
         feature.update_presence_constraints(feature_proto)
         feature.update_shape_type(feature_proto)
-        feature.update_domain_info(feature_proto, schema)
+        feature.update_domain_info(feature_proto)
         return feature

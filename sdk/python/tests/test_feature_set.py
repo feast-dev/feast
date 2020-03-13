@@ -234,7 +234,7 @@ def test_update_schema(self):
         ).read()
         expected_schema = schema_pb2.Schema()
         json_format.Parse(expected_schema_json, expected_schema)
-        make_tfx_schema_domain_info_inline(expected_schema)
+        feature_set._make_tfx_schema_domain_info_inline(expected_schema)
 
         actual_schema = test_input_feature_set.export_tfx_schema()
 

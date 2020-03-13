@@ -52,14 +52,12 @@ class Entity(Field):
         )
 
     @classmethod
-    def from_proto(cls, entity_proto: EntityProto, schema: schema_pb2.Schema = None):
+    def from_proto(cls, entity_proto: EntityProto):
         """
         Creates a Feast Entity object from its Protocol Buffer representation
 
         Args:
             entity_proto: EntitySpec protobuf object
-            schema: Schema from Tensorflow metadata, will be used to reference domain
-                defined at the schema level
 
         Returns:
             Entity object
@@ -67,5 +65,5 @@ class Entity(Field):
         entity = cls(name=entity_proto.name, dtype=ValueType(entity_proto.value_type))
         entity.update_presence_constraints(entity_proto)
         entity.update_shape_type(entity_proto)
-        entity.update_domain_info(entity_proto, schema)
+        entity.update_domain_info(entity_proto)
         return entity

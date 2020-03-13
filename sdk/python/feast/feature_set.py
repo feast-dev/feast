@@ -24,9 +24,7 @@ from google.protobuf.json_format import MessageToJson
 from google.protobuf.message import Message
 from pandas.api.types import is_datetime64_ns_dtype
 from pyarrow.lib import TimestampType
-from tensorflow_metadata.proto.v0 import schema_pb2
 
-from feast.value_type import ValueType
 from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
 from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
@@ -672,12 +670,13 @@ class FeatureSet:
             None
 
         """
+        _make_tfx_schema_domain_info_inline(schema)
         for feature_from_tfx_schema in schema.feature:
             if feature_from_tfx_schema.name in self._fields.keys():
                 field = self._fields[feature_from_tfx_schema.name]
                 field.update_presence_constraints(feature_from_tfx_schema)
                 field.update_shape_type(feature_from_tfx_schema)
-                field.update_domain_info(feature_from_tfx_schema, schema)
+                field.update_domain_info(feature_from_tfx_schema)
             else:
                 warnings.warn(
                     f"The provided schema contains feature name '{feature_from_tfx_schema.name}' "
@@ -942,6 +941,41 @@ class FeatureSetRef:
     def __hash__(self):
         # hash this reference
         return hash(repr(self))
+
+
+def _make_tfx_schema_domain_info_inline(schema: schema_pb2.Schema) -> None:
+    """
+    Copy top level domain info defined at schema level into inline definition.
+    One use case is when importing domain info from Tensorflow metadata schema
+    into Feast features. Feast features do not have access to schema level information
+    so the domain info needs to be inline.
+
+    Args:
+        schema: Tensorflow metadata schema
+
+    Returns: None
+    """
+    # Reference to domains defined at schema level
+    domain_ref_to_string_domain = {d.name: d for d in schema.string_domain}
+    domain_ref_to_float_domain = {d.name: d for d in schema.float_domain}
+    domain_ref_to_int_domain = {d.name: d for d in schema.int_domain}
+
+    # With the reference, it is safe to remove the domains defined at schema level
+    del schema.string_domain[:]
+    del schema.float_domain[:]
+    del schema.int_domain[:]
+
+    for feature in schema.feature:
+        domain_info_case = feature.WhichOneof("domain_info")
+        if domain_info_case == "domain":
+            domain_ref = feature.domain
+            if domain_ref in domain_ref_to_string_domain:
+                feature.string_domain.MergeFrom(domain_ref_to_string_domain[domain_ref])
+            elif domain_ref in domain_ref_to_float_domain:
+                feature.float_domain.MergeFrom(domain_ref_to_float_domain[domain_ref])
+            elif domain_ref in domain_ref_to_int_domain:
+                feature.int_domain.MergeFrom(domain_ref_to_int_domain[domain_ref])
+
 
 
 def _infer_pd_column_type(column, series, rows_to_sample):
