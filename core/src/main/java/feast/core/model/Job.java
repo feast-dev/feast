@@ -16,8 +16,27 @@
  */
 package feast.core.model;
 
+import java.util.ArrayList;
 import java.util.List;
-import javax.persistence.*;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToMany;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
+
+import com.google.protobuf.InvalidProtocolBufferException;
+
+import feast.core.FeatureSetProto;
+import feast.core.IngestionJobProto;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -102,6 +121,46 @@ public class Job extends AbstractTimestampEntity {
   public String getSinkName() {
     return store.getName();
   }
+  
+  /**
+   * Convert a job model to ingestion job proto
+   * 
+   * @param job job model to convert
+   * @return Ingestion Job proto derieved from the given job
+  */
+  public IngestionJobProto.IngestionJob toIngestionProto() 
+      throws InvalidProtocolBufferException {
+    // maps job models job status to ingestion job status
+    Map<JobStatus, IngestionJobProto.IngestionJobStatus> statusMap = Map.of(
+        JobStatus.UNKNOWN, IngestionJobProto.IngestionJobStatus.UNKNOWN,
+        JobStatus.PENDING, IngestionJobProto.IngestionJobStatus.PENDING,
+        JobStatus.RUNNING, IngestionJobProto.IngestionJobStatus.RUNNING,
+        JobStatus.COMPLETED, IngestionJobProto.IngestionJobStatus.COMPLETED,
+        JobStatus.ABORTING, IngestionJobProto.IngestionJobStatus.ABORTING,
+        JobStatus.ABORTED, IngestionJobProto.IngestionJobStatus.ABORTED,
+        JobStatus.ERROR, IngestionJobProto.IngestionJobStatus.ERROR,
+        JobStatus.SUSPENDING, IngestionJobProto.IngestionJobStatus.SUSPENDING,
+        JobStatus.SUSPENDED, IngestionJobProto.IngestionJobStatus.SUSPENDED
+    );
+    
+    // convert featuresets of job to protos
+    List<FeatureSetProto.FeatureSet> featureSetProtos = new ArrayList<>();
+    for(FeatureSet featureSet: this.getFeatureSets()) {
+      featureSetProtos.add(featureSet.toProto());
+    }
+  
+    // build ingestion job proto with job data
+    IngestionJobProto.IngestionJob ingestJob = IngestionJobProto.IngestionJob.newBuilder()
+      .setId(this.getId())
+      .setExternalId(this.getExtId())
+      .setStatus(statusMap.get(this.getStatus()))
+      .addAllFeatureSets(featureSetProtos)
+      .setSource(this.getSource().toProto())
+      .setStore(this.getStore().toProto())
+      .build();
+    
+    return ingestJob;
+  }
 
   // compute hash for a job
   @Override
@@ -113,7 +172,6 @@ public class Job extends AbstractTimestampEntity {
   }
 
   // comparing jobs - true equal, false otherwise
-
   @Override
   public boolean equals(Object obj) {
     if(this == obj) {
