@@ -33,20 +33,27 @@ import com.datastax.driver.core.utils.Bytes;
 import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
+import feast.core.FeatureSetProto.FeatureSpec;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.serving.ServingAPIProto.FeatureSetRequest;
+import feast.serving.ServingAPIProto;
+import feast.serving.specs.CachedSpecService;
+import feast.serving.specs.FeatureSetRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.serving.test.TestUtil.LocalCassandra;
 import feast.types.FeatureRowProto.FeatureRow;
+import feast.types.ValueProto;
 import feast.types.ValueProto.Value;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.thrift.transport.TTransportException;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -80,8 +87,11 @@ public class CassandraServingServiceITTest {
             .addEntities(EntitySpec.newBuilder().setName("entity1"))
             .addEntities(EntitySpec.newBuilder().setName("entity2"))
             .build();
-
-    when(specService.getFeatureSet("featureSet", 1)).thenReturn(featureSetSpec);
+    List<FeatureSetRequest> req = new ArrayList<FeatureSetRequest>();
+    req.add(FeatureSetRequest.newBuilder().setSpec(featureSetSpec).build());
+    List<ServingAPIProto.FeatureReference> ref = new ArrayList<ServingAPIProto.FeatureReference>();
+    ref.add(ServingAPIProto.FeatureReference.newBuilder().setName("featureSet").setVersion(1).build());
+    when(specService.getFeatureSets(ref)).thenReturn(req);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     session =
@@ -121,12 +131,23 @@ public class CassandraServingServiceITTest {
   public void shouldReturnResponseWithValuesIfKeysPresent() {
     GetOnlineFeaturesRequest request =
         GetOnlineFeaturesRequest.newBuilder()
-            .addFeatureSets(
+            .addAllFeatures(
                 FeatureSetRequest.newBuilder()
-                    .setName("featureSet")
-                    .setVersion(1)
-                    .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
-                    .build())
+                        .setSpec(FeatureSetSpec.newBuilder()
+                                .setName("featureSet")
+                                .setVersion(1)
+                                .addAllFeatures(Lists.newArrayList(
+                                        FeatureSpec.newBuilder()
+                                        .setName("feature1")
+                                        .setValueType(ValueProto.ValueType.Enum.INT64)
+                                        .build(),
+                                        FeatureSpec.newBuilder()
+                                        .setName("feature2")
+                                        .setValueType(ValueProto.ValueType.Enum.STRING)
+                                        .build()))
+                                .build())
+                        .build().getFeatureReferences()
+            )
             .addEntityRows(
                 EntityRow.newBuilder()
                     .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
@@ -164,24 +185,35 @@ public class CassandraServingServiceITTest {
   public void shouldReturnResponseWithUnsetValuesIfKeysNotPresent() {
     GetOnlineFeaturesRequest request =
         GetOnlineFeaturesRequest.newBuilder()
-            .addFeatureSets(
-                FeatureSetRequest.newBuilder()
-                    .setName("featureSet")
-                    .setVersion(1)
-                    .addAllFeatureNames(Lists.newArrayList("feature1", "feature2"))
-                    .build())
-            .addEntityRows(
+                .addAllFeatures(
+                        FeatureSetRequest.newBuilder()
+                                .setSpec(FeatureSetSpec.newBuilder()
+                                        .setName("featureSet")
+                                        .setVersion(1)
+                                        .addAllFeatures(Lists.newArrayList(
+                                                FeatureSpec.newBuilder()
+                                                        .setName("feature1")
+                                                        .setValueType(ValueProto.ValueType.Enum.INT64)
+                                                        .build(),
+                                                FeatureSpec.newBuilder()
+                                                        .setName("feature2")
+                                                        .setValueType(ValueProto.ValueType.Enum.STRING)
+                                                        .build()))
+                                        .build())
+                                .build().getFeatureReferences()
+                )
+                .addEntityRows(
                 EntityRow.newBuilder()
                     .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
                     .putFields("entity1", intValue(1))
                     .putFields("entity2", strValue("a")))
-            // Non-existing entity keys
-            .addEntityRows(
+                // Non-existing entity keys
+                .addEntityRows(
                 EntityRow.newBuilder()
                     .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
                     .putFields("entity1", intValue(55))
                     .putFields("entity2", strValue("ff")))
-            .build();
+                .build();
 
     GetOnlineFeaturesResponse expected =
         GetOnlineFeaturesResponse.newBuilder()

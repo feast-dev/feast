@@ -108,7 +108,7 @@ public class QueryTemplater {
    * @param maxTimestamp latest allowed timestamp for the historical data in feast
    * @return point in time correctness join BQ SQL query
    */
-  public static String createFeatureSetPointInTimeQuery(
+  public static String createFeatureSetPointInTimeQuery (
       FeatureSetInfo featureSetInfo,
       String projectId,
       String datasetId,

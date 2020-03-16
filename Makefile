@@ -14,7 +14,7 @@
 #  limitations under the License.
 #
 REGISTRY := gcr.io/pm-registry/feast
-VERSION := latest
+VERSION := v0.4.3-cassandra-experiment-1
 PROJECT_ROOT 	:= $(shell git rev-parse --show-toplevel)
 
 test:

@@ -22,8 +22,18 @@ import com.datastax.driver.core.Session;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
+import com.google.common.collect.Maps;
+import io.grpc.Status;
+import static feast.serving.util.Metrics.requestCount;
+import static feast.serving.util.Metrics.requestLatency;
+import static feast.serving.util.RefUtil.generateFeatureStringRef;
+
+import feast.core.FeatureSetProto.EntitySpec;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.serving.ServingAPIProto.FeatureReference;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.specs.FeatureSetRequest;
+import feast.serving.ServingAPIProto.FeastServingType;
 import feast.serving.ServingAPIProto.GetBatchFeaturesRequest;
 import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
@@ -54,6 +64,7 @@ public class CassandraServingService implements ServingService {
   private final String keyspace;
   private final String tableName;
   private final Tracer tracer;
+  private final CachedSpecService specService;
 
   public CassandraServingService(
       Session session,
@@ -61,11 +72,11 @@ public class CassandraServingService implements ServingService {
       String tableName,
       CachedSpecService specService,
       Tracer tracer) {
-    super(specService, tracer);
     this.session = session;
     this.keyspace = keyspace;
     this.tableName = tableName;
     this.tracer = tracer;
+    this.specService = specService;
   }
 
     /** {@inheritDoc} */
@@ -101,10 +112,10 @@ public class CassandraServingService implements ServingService {
         List<String> cassandraKeys =
             createLookupKeys(featureSetEntityNames, entityRows, featureSetRequest);
         try {
-            getAll(cassandraKeys, entityRows, featureValuesMap, featureSetRequest);
-        } catch (InvalidProtocolBufferException e) {
+            getAndProcessAll(cassandraKeys, entityRows, featureValuesMap, featureSetRequest);
+        } catch (Exception e) {
           throw Status.INTERNAL
-              .withDescription("Unable to parse protobuf while retrieving feature")
+              .withDescription("Unable to parse cassandea response/ while retrieving feature")
               .withCause(e)
               .asRuntimeException();
         }
@@ -131,21 +142,20 @@ public class CassandraServingService implements ServingService {
   }
 
 
-  @Override
   List<String> createLookupKeys(
       List<String> featureSetEntityNames,
       List<EntityRow> entityRows,
       FeatureSetRequest featureSetRequest) {
     try (Scope scope = tracer.buildSpan("Cassandra-makeCassandraKeys").startActive(true)) {
+      FeatureSetSpec fsSpec = featureSetRequest.getSpec();
       String featureSetId =
-          String.format("%s:%s", featureSetRequest.getName(), featureSetRequest.getVersion());
+          String.format("%s:%s", fsSpec.getName(), fsSpec.getVersion());
       return entityRows.stream()
           .map(row -> createCassandraKey(featureSetId, featureSetEntityNames, row))
           .collect(Collectors.toList());
     }
   }
 
-  @Override
   protected boolean isEmpty(ResultSet response) {
     return response.isExhausted();
   }
@@ -154,19 +164,20 @@ public class CassandraServingService implements ServingService {
    * Send a list of get request as an mget
    *
    * @param keys list of string keys
-   * @return list of {@link FeatureRow} in primitive byte representation for each key
+   *
    */
-  @Override
-  protected List<ResultSet> getAll(
+  protected void getAndProcessAll(
       List<String> keys,
       List<EntityRow> entityRows,
       Map<EntityRow, Map<String, Value>> featureValuesMap,
       FeatureSetRequest featureSetRequest) {
+    FeatureSetSpec spec = featureSetRequest.getSpec();
     List<ResultSet> results = new ArrayList<>();
+    long startTime = System.currentTimeMillis();
     for (String key : keys) {
-      featureValuesMap.put(key,
-          session.execute(
-              QueryBuilder.select()
+        results.add(
+            session.execute(
+                QueryBuilder.select()
                   .column("entities")
                   .column("feature")
                   .column("value")
@@ -175,9 +186,71 @@ public class CassandraServingService implements ServingService {
                   .from(keyspace, tableName)
                   .where(QueryBuilder.eq("entities", key))));
     }
+    try (Scope scope = tracer.buildSpan("Cassandra-processResponse").startActive(true)) {
+      for (int i = 0; i < results.size(); i++) {
+        EntityRow entityRow = entityRows.get(i);
+        Map<String, Value> featureValues = featureValuesMap.get(entityRow);
+        ResultSet queryRows = results.get(i);
+        Instant instant = Instant.now();
+        List<Field> fields = new ArrayList<>();
+        while (queryRows.isExhausted()) {
+          Row row = queryRows.one();
+          long microSeconds = row.getLong("writetime");
+          instant =
+                  Instant.ofEpochSecond(
+                          TimeUnit.MICROSECONDS.toSeconds(microSeconds),
+                          TimeUnit.MICROSECONDS.toNanos(
+                                  Math.floorMod(microSeconds, TimeUnit.SECONDS.toMicros(1))));
+          try {
+            fields.add(
+                    Field.newBuilder()
+                            .setName(row.getString("feature"))
+                            .setValue(Value.parseFrom(ByteBuffer.wrap(row.getBytes("value").array())))
+                            .build());
+          } catch (InvalidProtocolBufferException e) {
+            e.printStackTrace();
+          }
+        }
+        FeatureRow featureRow = FeatureRow.newBuilder()
+                .addAllFields(fields)
+                .setEventTimestamp(
+                        Timestamp.newBuilder()
+                                .setSeconds(instant.getEpochSecond())
+                                .setNanos(instant.getNano())
+                                .build())
+                .build();
+        featureSetRequest
+                .getFeatureReferences()
+                .parallelStream()
+                .forEach(
+                        request ->
+                                requestCount
+                                        .labels(
+                                                spec.getProject(),
+                                                String.format("%s:%d", request.getName(), request.getVersion()))
+                                        .inc());
+        Map<String, FeatureReference> featureNames =
+                featureSetRequest.getFeatureReferences().stream()
+                        .collect(
+                                Collectors.toMap(
+                                        FeatureReference::getName, featureReference -> featureReference));
+        featureRow.getFieldsList().stream()
+                .filter(field -> featureNames.keySet().contains(field.getName()))
+                .forEach(
+                        field -> {
+                          FeatureReference ref = featureNames.get(field.getName());
+                          String id = generateFeatureStringRef(ref);
+                          featureValues.put(id, field.getValue());
+                        });
+      }
+    }
+    finally {
+      requestLatency
+              .labels("processResponse")
+              .observe((System.currentTimeMillis() - startTime) / 1000);
+    }
   }
 
-  @Override
   FeatureRow parseResponse(ResultSet resultSet) {
     List<Field> fields = new ArrayList<>();
     Instant instant = Instant.now();

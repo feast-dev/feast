@@ -22,7 +22,9 @@ import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.datastax.driver.core.Session;
-import feast.serving.ServingAPIProto.FeatureSetRequest;
+import feast.core.FeatureSetProto;
+import feast.serving.specs.CachedSpecService;
+import feast.serving.specs.FeatureSetRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
@@ -79,8 +81,8 @@ public class CassandraServingServiceTest {
                         .build());
               }
             },
-            FeatureSetRequest.newBuilder().setName("featureSet").setVersion(1).build());
-
+            FeatureSetRequest.newBuilder().setSpec(FeatureSetProto.FeatureSetSpec.newBuilder().setName("featureSet").setVersion(1).build()).build()
+      );
     List<String> expectedKeys =
         new ArrayList<String>() {
           {
@@ -112,6 +114,6 @@ public class CassandraServingServiceTest {
                         .build());
               }
             },
-            FeatureSetRequest.newBuilder().setName("featureSet").setVersion(1).build());
+            FeatureSetRequest.newBuilder().setSpec(FeatureSetProto.FeatureSetSpec.newBuilder().setName("featureSet").setVersion(1).build()).build());
   }
 }

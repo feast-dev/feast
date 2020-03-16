@@ -109,6 +109,7 @@ public class CachedSpecService {
   /**
    * Get FeatureSetSpecs for the given features.
    *
+   * @param featureReferences A reference to the corresponding feature set
    * @return FeatureSetRequest containing the specs, and their respective feature references
    */
   public List<FeatureSetRequest> getFeatureSets(List<FeatureReference> featureReferences) {
