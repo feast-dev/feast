@@ -13,7 +13,7 @@ WORKDIR /build
 #
 ENV MAVEN_OPTS="-Dmaven.repo.local=/build/.m2/repository -DdependencyLocationsEnabled=false"
 RUN mvn --also-make --projects core,ingestion -Drevision=$REVISION \
-  -DskipTests=true --batch-mode package
+  -DskipTests=true --batch-mode clean package
 #
 # Unpack the jar and copy the files into production Docker image
 # for faster startup time when starting Dataflow jobs from Feast Core.
@@ -32,6 +32,7 @@ RUN apt-get -qq update && apt-get -y install unar && \
 FROM openjdk:11-jre as production
 ARG REVISION=dev
 COPY --from=builder /build/core/target/feast-core-$REVISION.jar /opt/feast/feast-core.jar
+# Required for staging jar dependencies when submitting Dataflow jobs.
 COPY --from=builder /build/core/target/feast-core-$REVISION /opt/feast/feast-core
 CMD ["java",\
      "-Xms2048m",\
