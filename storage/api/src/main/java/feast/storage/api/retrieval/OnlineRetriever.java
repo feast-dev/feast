@@ -16,6 +16,7 @@
  */
 package feast.storage.api.retrieval;
 
+import feast.core.FeatureSetProto;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import java.util.List;
 
@@ -26,7 +27,11 @@ public interface OnlineRetriever {
    * Get all values corresponding to the request.
    *
    * @param request Online features request containing the list of features and list of entity rows
+   * @param featureSetSpecs List of {@link feast.core.FeatureSetProto.FeatureSetSpec} passed to the
+   *     retriever from the serving service. The specs will only contain the features requested by
+   *     the user.
    * @return list of {@link OnlineRetrieverResponse}
    */
-  List<OnlineRetrieverResponse> getOnlineFeatures(GetOnlineFeaturesRequest request);
+  List<OnlineRetrieverResponse> getOnlineFeatures(
+      GetOnlineFeaturesRequest request, List<FeatureSetProto.FeatureSetSpec> featureSetSpecs);
 }
