@@ -35,5 +35,5 @@ public interface JobRepository extends JpaRepository<Job, String> {
   List<Job> findByStoreName(String storeName);
 
   // find jobs by featureset
-  List<Job> findByFeatureSets(FeatureSet featureSet);
+  List<Job> findByFeatureSetIn(List<FeatureSet> featureSets);
 }
