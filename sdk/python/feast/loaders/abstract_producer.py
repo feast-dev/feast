@@ -227,6 +227,6 @@ def get_producer(
     """
     try:
         return ConfluentProducer(brokers, row_count, disable_progress_bar)
-    except ImportError as e:
+    except ImportError:
         print("Unable to import confluent-kafka, falling back to kafka-python")
         return KafkaPythonProducer(brokers, row_count, disable_progress_bar)

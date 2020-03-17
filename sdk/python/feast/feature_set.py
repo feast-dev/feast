@@ -14,11 +14,16 @@
 
 
 from collections import OrderedDict
-from typing import Dict
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import pandas as pd
 import pyarrow as pa
+from google.protobuf import json_format
+from google.protobuf.duration_pb2 import Duration
+from google.protobuf.json_format import MessageToJson
+from pandas.api.types import is_datetime64_ns_dtype
+from pyarrow.lib import TimestampType
+
 from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
 from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
@@ -26,18 +31,11 @@ from feast.entity import Entity
 from feast.feature import Feature, Field
 from feast.loaders import yaml as feast_yaml
 from feast.source import Source
-from feast.type_map import DATETIME_COLUMN
-from feast.type_map import pa_to_feast_value_type
-from feast.type_map import python_type_to_feast_value_type
-from google.protobuf import json_format
-from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
-from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
-from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
-from google.protobuf.duration_pb2 import Duration
-from feast.type_map import python_type_to_feast_value_type
-from google.protobuf.json_format import MessageToJson
-from pandas.api.types import is_datetime64_ns_dtype
-from pyarrow.lib import TimestampType
+from feast.type_map import (
+    DATETIME_COLUMN,
+    pa_to_feast_value_type,
+    python_type_to_feast_value_type,
+)
 
 
 class FeatureSet:
@@ -639,7 +637,7 @@ class FeatureSet:
         """
         Get the broker list for the source in this feature set
         """
-        if self.source and self.source.source_type is "Kafka":
+        if self.source and self.source.source_type == "Kafka":
             return self.source.brokers
         raise Exception("Source type could not be identified")
 

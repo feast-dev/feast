@@ -19,7 +19,7 @@ import tempfile
 import uuid
 from datetime import datetime
 from typing import List, Optional, Tuple, Union
-from urllib.parse import urlparse, ParseResult
+from urllib.parse import ParseResult, urlparse
 
 import pandas as pd
 from google.cloud import storage
@@ -172,7 +172,7 @@ def upload_file_to_gcs(local_path: str, bucket: str, remote_path: str) -> None:
 
         remote_path (str):
             Path within GCS bucket to upload file to, includes file name.
-    
+
     Returns:
         None:
             None

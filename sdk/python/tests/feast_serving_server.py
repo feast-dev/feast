@@ -1,24 +1,23 @@
-from concurrent import futures
-import time
 import logging
+import time
+from concurrent import futures
+from typing import Dict
 
 import grpc
+from google.protobuf.timestamp_pb2 import Timestamp
+
 import feast.serving.ServingService_pb2_grpc as Serving
+from feast.core import FeatureSet_pb2 as FeatureSetProto
+from feast.core.CoreService_pb2 import ListFeatureSetsResponse
+from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.serving.ServingService_pb2 import (
+    GetFeastServingInfoResponse,
     GetOnlineFeaturesRequest,
     GetOnlineFeaturesResponse,
-    GetFeastServingInfoResponse,
 )
-from typing import Dict
-from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.core.CoreService_pb2 import ListFeatureSetsResponse
-from feast.core import FeatureSet_pb2 as FeatureSetProto
-from feast.types import (
-    FeatureRow_pb2 as FeatureRowProto,
-    Field_pb2 as FieldProto,
-    Value_pb2 as ValueProto,
-)
-from google.protobuf.timestamp_pb2 import Timestamp
+from feast.types import FeatureRow_pb2 as FeatureRowProto
+from feast.types import Field_pb2 as FieldProto
+from feast.types import Value_pb2 as ValueProto
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
