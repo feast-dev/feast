@@ -2,6 +2,8 @@
 
 set -e
 
+make lint-python
+
 # Default artifact location setting in Prow jobs
 LOGS_ARTIFACT_PATH=/logs/artifacts
 
