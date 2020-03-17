@@ -234,6 +234,8 @@ message ListProjectsResponse {
 
 // Request for listing ingestion jobs
 message ListIngestionJobsRequest {
+    Filter filter = 1;
+
     message Filter {
         // Job ID assigned by Feast
         string id = 1;
