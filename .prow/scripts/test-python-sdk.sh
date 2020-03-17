@@ -9,5 +9,6 @@ pip install -r sdk/python/requirements-ci.txt
 
 make lint-python
 
-pip install -e sdk/python/
+cd sdk/python/
+pip install -e .
 pytest --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
