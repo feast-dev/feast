@@ -16,8 +16,8 @@
  */
 package feast.storage.api.retrieval;
 
-import feast.core.FeatureSetProto;
-import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
+import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
+import feast.types.FeatureRowProto.FeatureRow;
 import java.util.List;
 
 /** Interface for implementing user defined retrieval functionality from Online stores. */
@@ -26,12 +26,11 @@ public interface OnlineRetriever {
   /**
    * Get all values corresponding to the request.
    *
-   * @param request Online features request containing the list of features and list of entity rows
-   * @param featureSetSpecs List of {@link feast.core.FeatureSetProto.FeatureSetSpec} passed to the
-   *     retriever from the serving service. The specs will only contain the features requested by
-   *     the user.
-   * @return list of {@link OnlineRetrieverResponse}
+   * @param entityRows list of entity rows in the feature request
+   * @param featureSetRequests List of {@link FeatureSetRequest} to feature references in the
+   *     request tied to that feature set.
+   * @return list of {@link OnlineRetrieverResponse} for each entity row
    */
-  List<OnlineRetrieverResponse> getOnlineFeatures(
-      GetOnlineFeaturesRequest request, List<FeatureSetProto.FeatureSetSpec> featureSetSpecs);
+  List<List<FeatureRow>> getOnlineFeatures(
+      List<EntityRow> entityRows, List<FeatureSetRequest> featureSetRequests);
 }
