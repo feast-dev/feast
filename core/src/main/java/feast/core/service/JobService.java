@@ -24,11 +24,14 @@ import feast.core.IngestionJobProto;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
+import feast.core.job.Runner;
 import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,16 +42,19 @@ import org.springframework.stereotype.Service;
 public class JobService {
   private JobRepository jobRepository;
   private FeatureSetRepository featureSetRepository;
-  private List<JobManager> jobManagers;
+  private Map<Runner, JobManager> jobManagers;
 
   @Autowired
   public JobService(
       JobRepository jobRepository,
       FeatureSetRepository featureSetRepository,
-      List<JobManager> jobManagers) {
+      List<JobManager> jobManagerList) {
     this.jobRepository = jobRepository;
     this.featureSetRepository = featureSetRepository;
-    this.jobManagers = jobManagers;
+
+    for (JobManager manager : jobManagerList) {
+      this.jobManagers.put(manager.getRunnerType(), manager);
+    }
   }
 
   /* Service API */
@@ -56,12 +62,11 @@ public class JobService {
    * List Ingestion Jobs in feast matching the given filter -
    *
    * @param filter to use to filter match against ingestion jobs
-   * @throws UnsupportedOperationException when given filter of an unsupported
+   * @throws UnsupportedOperationException when given a filter in a unsupported configuration
    * @throws InvalidProtocolBufferException if an error occurred when constructing ingestion job
    *     protobuf
    * @return list ingestion jobs response
    */
-  // TODO: @Transactional ???
   public ListIngestionJobsResponse listJobs(ListIngestionJobsRequest.Filter filter)
       throws InvalidProtocolBufferException, UnsupportedOperationException {
     // filter jobs based on request filter
@@ -78,14 +83,20 @@ public class JobService {
         matchingJobs.add(job.get());
       }
 
-    } else if (filter.getStoreName() != "") {
-      // find by name
-      matchingJobs.addAll(this.jobRepository.findByStoreName(filter.getStoreName()));
-    } else if (filter.hasFeatureSetReference()) {
-      // find a matching featureset for reference
-      FeatureSetReference fsReference = filter.getFeatureSetReference();
-      List<FeatureSet> matchFeatureSets = this.findFeatureSets(fsReference);
-      this.jobRepository.findByFeatureSetIn(matchFeatureSets);
+    } else {
+      // multiple filters can apply together in an 'and' operation
+      if (filter.getStoreName() != "") {
+        // find jobs by name
+        Collection<Job> jobs = this.jobRepository.findByStoreName(filter.getStoreName());
+        matchingJobs = this.mergeResults(matchingJobs, jobs);
+      }
+      if (filter.hasFeatureSetReference()) {
+        // find a matching featureset for reference
+        FeatureSetReference fsReference = filter.getFeatureSetReference();
+        List<FeatureSet> matchFeatureSets = this.findFeatureSets(fsReference);
+        Collection<Job> jobs = this.jobRepository.findByFeatureSetIn(matchFeatureSets);
+        matchingJobs = this.mergeResults(matchingJobs, jobs);
+      }
     }
 
     // convert matching job models to ingestion job protos
@@ -131,5 +142,16 @@ public class JobService {
     }
 
     return featureSets;
+  }
+
+  private <T> Set<T> mergeResults(Set<T> results, Collection<T> newResults) {
+    if (results.size() <= 0) {
+      // no existing results: copy over new results
+      results.addAll(newResults);
+    } else {
+      // and operation: keep results that exist in both existing and new results
+      results.retainAll(newResults);
+    }
+    return results;
   }
 }
