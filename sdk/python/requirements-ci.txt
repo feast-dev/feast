@@ -31,5 +31,7 @@ kafka-python==1.*
 tabulate==0.8.*
 isort
 grpcio-tools
+mypy
 mypy-protobuf
+pre-commit
 flake8

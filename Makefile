@@ -15,8 +15,8 @@
 #
 
 ROOT_DIR 	:= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-dirs = core serving types storage
-service_dirs = core serving
+PROTO_TYPE_SUBDIRS = core serving types storage
+PROTO_SERVICE_SUBDIRS = core serving
 
 # General
 
@@ -50,17 +50,19 @@ install-python-ci-dependencies:
 	pip install -r sdk/python/requirements-ci.txt
 
 compile-protos-python: install-python-ci-dependencies
-	@$(foreach dir,$(dirs),cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --python_out=../sdk/python/ --mypy_out=../sdk/python/ feast/$(dir)/*.proto;)
-	@$(foreach dir,$(service_dirs),cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --grpc_python_out=../sdk/python/ feast/$(dir)/*.proto;)
+	@$(foreach dir,$(PROTO_TYPE_SUBDIRS),cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --python_out=../sdk/python/ --mypy_out=../sdk/python/ feast/$(dir)/*.proto;)
+	@$(foreach dir,$(PROTO_SERVICE_SUBDIRS),cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --grpc_python_out=../sdk/python/ feast/$(dir)/*.proto;)
 
 test-python:
 	pytest --verbose --color=yes sdk/python/tests
 
 format-python:
 	cd ${ROOT_DIR}/sdk/python; isort -rc feast tests
-	cd ${ROOT_DIR}/sdk/python; black --fast --target-version py37 feast tests
+	cd ${ROOT_DIR}/sdk/python; black --target-version py37 feast tests
 
 lint-python:
+	# TODO: This mypy test needs to be re-enabled and all failures fixed
+	# cd ${ROOT_DIR}/sdk/python; mypy feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; flake8 feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; black --check feast tests
 	cd ${ROOT_DIR}/sdk/python; isort -rc feast tests --check-only
@@ -68,7 +70,7 @@ lint-python:
 # Go SDK
 
 compile-protos-go:
-	@$(foreach dir,$(dirs), cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos/ feast/$(dir)/*.proto;)
+	@$(foreach dir,$(PROTO_TYPE_SUBDIRS), cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos/ feast/$(dir)/*.proto;)
 
 format-go:
 	cd ${ROOT_DIR}/sdk/go; gofmt -s -w *.go

@@ -661,7 +661,7 @@ class Client:
                 ),
                 entity_rows=entity_rows,
             )
-        )  # type: GetOnlineFeaturesResponse
+        )
 
     def ingest(
         self,
