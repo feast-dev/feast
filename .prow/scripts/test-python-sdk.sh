@@ -2,12 +2,12 @@
 
 set -e
 
-make lint-python
-
 # Default artifact location setting in Prow jobs
 LOGS_ARTIFACT_PATH=/logs/artifacts
 
-cd sdk/python
-pip install -r requirements-ci.txt
-pip install -e .
+pip install -r sdk/python/requirements-ci.txt
+
+make lint-python
+
+pip install -e sdk/python/
 pytest --junitxml=${LOGS_ARTIFACT_PATH}/python-sdk-test-report.xml
