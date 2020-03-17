@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -59,18 +60,18 @@ public class JobService {
 
   /* Service API */
   /**
-   * List Ingestion Jobs in feast matching the given filter -
+   * List Ingestion Jobs in feast matching the given request
    *
-   * @param filter to use to filter match against ingestion jobs
-   * @throws UnsupportedOperationException when given a filter in a unsupported configuration
-   * @throws InvalidProtocolBufferException if an error occurred when constructing ingestion job
-   *     protobuf
+   * @param request list ingestion jobs request specifying which jobs to include
+   * @throws UnsupportedOperationException when given filter in a unsupported configuration
+   * @throws InvalidProtocolBufferException on error when constructing response protobuf
    * @return list ingestion jobs response
    */
-  public ListIngestionJobsResponse listJobs(ListIngestionJobsRequest.Filter filter)
-      throws InvalidProtocolBufferException, UnsupportedOperationException {
+  public ListIngestionJobsResponse listJobs(ListIngestionJobsRequest request)
+      throws UnsupportedOperationException, InvalidProtocolBufferException {
     // filter jobs based on request filter
-    Set<Job> matchingJobs = new HashSet<>();
+    ListIngestionJobsRequest.Filter filter = request.getFilter();
+    Set<String> matchingJobIds = new HashSet<>();
 
     // for proto3, default value for missing values:
     // - numeric values (ie int) is zero
@@ -80,34 +81,66 @@ public class JobService {
       // get by id: no more filters required: found job
       Optional<Job> job = this.jobRepository.findById(filter.getId());
       if (job.isPresent()) {
-        matchingJobs.add(job.get());
+        matchingJobIds.add(filter.getId());
       }
 
     } else {
       // multiple filters can apply together in an 'and' operation
       if (filter.getStoreName() != "") {
         // find jobs by name
-        Collection<Job> jobs = this.jobRepository.findByStoreName(filter.getStoreName());
-        matchingJobs = this.mergeResults(matchingJobs, jobs);
+        List<Job> jobs = this.jobRepository.findByStoreName(filter.getStoreName());
+        List<String> jobIds =
+            jobs.stream()
+                .map(
+                    job -> {
+                      return job.getId();
+                    })
+                .collect(Collectors.toList());
+
+        matchingJobIds = this.mergeResults(matchingJobIds, jobIds);
       }
       if (filter.hasFeatureSetReference()) {
         // find a matching featureset for reference
         FeatureSetReference fsReference = filter.getFeatureSetReference();
         List<FeatureSet> matchFeatureSets = this.findFeatureSets(fsReference);
         Collection<Job> jobs = this.jobRepository.findByFeatureSetIn(matchFeatureSets);
-        matchingJobs = this.mergeResults(matchingJobs, jobs);
+
+        List<String> jobIds =
+            jobs.stream()
+                .map(
+                    job -> {
+                      return job.getId();
+                    })
+                .collect(Collectors.toList());
+        matchingJobIds = this.mergeResults(matchingJobIds, jobIds);
       }
     }
 
     // convert matching job models to ingestion job protos
     List<IngestionJobProto.IngestionJob> ingestJobs = new ArrayList<>();
-    for (Job job : matchingJobs) {
+    for (String jobId : matchingJobIds) {
+      Job job = this.jobRepository.findById(jobId).get();
       ingestJobs.add(job.toIngestionProto());
     }
 
     // pack jobs into response
     return ListIngestionJobsResponse.newBuilder().addAllJobs(ingestJobs).build();
   }
+  
+  //TODO: restart ingestion job
+
+  /**
+   * Stops the ingestion job matching the given request
+   * 
+   * @param request stop ingestion job request specifying which job to stop
+   * @throw InvalidProtocolBufferException whe
+   * */
+  /*
+  public StopIngestionJobResponse stopJob(StopIngestionJobRequest request)
+    throws InvalidProtocolBufferException {
+
+  }
+  */
 
   /* Private Utility Methods */
   /**

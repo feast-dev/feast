@@ -123,7 +123,8 @@ public class Job extends AbstractTimestampEntity {
    *
    * @return Ingestion Job proto derieved from the given job
    */
-  public IngestionJobProto.IngestionJob toIngestionProto() throws InvalidProtocolBufferException {
+  public IngestionJobProto.IngestionJob toIngestionProto()
+    throws InvalidProtocolBufferException {
     // maps job models job status to ingestion job status
     Map<JobStatus, IngestionJobProto.IngestionJobStatus> statusMap =
         Map.of(
