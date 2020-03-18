@@ -2,6 +2,7 @@ package feast
 
 import "github.com/gojek/feast/sdk/go/protos/feast/types"
 
+// Row map of entity values
 type Row map[string]*types.Value
 
 // StrVal is a int64 type feast value

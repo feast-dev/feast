@@ -2,6 +2,8 @@
 
 set -o pipefail
 
+make lint-go
+
 cd sdk/go
 go test -v 2>&1 | tee /tmp/test_output
 TEST_EXIT_CODE=$?

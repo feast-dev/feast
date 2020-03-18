@@ -7,8 +7,13 @@ import (
 )
 
 var (
+	// ErrLengthMismatch indicates that the number of values returned is not the same as the number of values requested
 	ErrLengthMismatch = "Length mismatch; number of na values (%d) not equal to number of features requested (%d)."
+
+	// ErrFeatureNotFound indicates that the a requested feature was not found in the response
 	ErrFeatureNotFound = "Feature %s not found in response."
+
+	// ErrTypeMismatch indicates that the there was a type mismatch in the returned values
 	ErrTypeMismatch = "Requested output of type %s does not match type of feature value returned."
 )
 
@@ -20,7 +25,7 @@ type OnlineFeaturesResponse struct {
 // Rows retrieves the result of the request as a list of Rows.
 func (r OnlineFeaturesResponse) Rows() []Row {
 	rows := make([]Row, len(r.RawResponse.FieldValues))
-	for i, val :=  range r.RawResponse.FieldValues {
+	for i, val := range r.RawResponse.FieldValues {
 		rows[i] = val.Fields
 	}
 	return rows
@@ -33,7 +38,7 @@ func (r OnlineFeaturesResponse) Int64Arrays(order []string, fillNa []int64) ([][
 	if len(fillNa) != len(order) {
 		return nil, fmt.Errorf(ErrLengthMismatch, len(fillNa), len(order))
 	}
-	for i, val :=  range r.RawResponse.FieldValues {
+	for i, val := range r.RawResponse.FieldValues {
 		rows[i] = make([]int64, len(order))
 		for j, fname := range order {
 			fValue, exists := val.Fields[fname]
@@ -60,7 +65,7 @@ func (r OnlineFeaturesResponse) Float64Arrays(order []string, fillNa []float64) 
 	if len(fillNa) != len(order) {
 		return nil, fmt.Errorf(ErrLengthMismatch, len(fillNa), len(order))
 	}
-	for i, val :=  range r.RawResponse.FieldValues {
+	for i, val := range r.RawResponse.FieldValues {
 		rows[i] = make([]float64, len(order))
 		for j, fname := range order {
 			fValue, exists := val.Fields[fname]

@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from feast.value_type import ValueType
 from feast.core.FeatureSet_pb2 import FeatureSpec as FeatureProto
-from feast.types import Value_pb2 as ValueTypeProto
 from feast.field import Field
+from feast.types import Value_pb2 as ValueTypeProto
+from feast.value_type import ValueType
 
 
 class Feature(Field):
