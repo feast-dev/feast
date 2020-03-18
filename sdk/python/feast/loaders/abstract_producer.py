@@ -33,7 +33,7 @@ class AbstractProducer:
             total=row_count, unit="rows", smoothing=0, disable=disable_progress_bar
         )
 
-    def produce(self, topic: str, data: str):
+    def produce(self, topic: str, data: bytes):
         message = "{} should implement a produce method".format(self.__class__.__name__)
         raise NotImplementedError(message)
 

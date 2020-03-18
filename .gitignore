@@ -179,3 +179,7 @@ dmypy.json
 .flattened-pom.xml
 
 sdk/python/docs/html
+sdk/python/feast/core/
+sdk/python/feast/serving/
+sdk/python/feast/storage/
+sdk/python/feast/types/
