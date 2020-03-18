@@ -6,3 +6,8 @@ repos:
         stages: [commit]
         language: system
         entry: make format
+      - id: lint
+        name: lint
+        stages: [commit]
+        language: system
+        entry: make lint
