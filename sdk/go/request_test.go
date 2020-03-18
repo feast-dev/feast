@@ -95,8 +95,7 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 						Version: 0,
 					},
 				},
-				EntityRows: []*serving.GetOnlineFeaturesRequest_EntityRow{
-				},
+				EntityRows:             []*serving.GetOnlineFeaturesRequest_EntityRow{},
 				OmitEntitiesInResponse: false,
 			},
 			wantErr: false,
@@ -116,7 +115,7 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 			req: OnlineFeaturesRequest{
 				Features: []string{"fs1:3:feature1"},
 				Entities: []Row{},
-				Project: "my_project",
+				Project:  "my_project",
 			},
 			wantErr: true,
 			err:     fmt.Errorf(ErrInvalidFeatureName, "fs1:3:feature1"),
@@ -147,9 +146,9 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 
 			if !proto.Equal(got, tc.want) {
 				m := json.Marshaler{}
-				gotJson, _ := m.MarshalToString(got)
-				wantJson, _ := m.MarshalToString(tc.want)
-				t.Errorf("got: \n%v\nwant:\n%v", gotJson, wantJson)
+				gotJSON, _ := m.MarshalToString(got)
+				wantJSON, _ := m.MarshalToString(tc.want)
+				t.Errorf("got: \n%v\nwant:\n%v", gotJSON, wantJSON)
 			}
 		})
 	}

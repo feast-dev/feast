@@ -5,11 +5,12 @@ from typing import Iterable, List
 
 import pandas as pd
 import pyarrow.parquet as pq
+
 from feast.constants import DATETIME_COLUMN
 from feast.feature_set import FeatureSet
 from feast.type_map import (
-    pa_column_to_timestamp_proto_column,
     pa_column_to_proto_column,
+    pa_column_to_timestamp_proto_column,
 )
 from feast.types import Field_pb2 as FieldProto
 from feast.types.FeatureRow_pb2 import FeatureRow

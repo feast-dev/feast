@@ -12,17 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
+import json
 import logging
+import sys
+
 import click
+import pkg_resources
+import toml
+import yaml
+
 from feast import config as feast_config
 from feast.client import Client
 from feast.feature_set import FeatureSet
-import toml
-import pkg_resources
 from feast.loaders.yaml import yaml_loader
-import yaml
-import json
 
 _logger = logging.getLogger(__name__)
 
@@ -221,7 +223,7 @@ def project_archive(name: str):
 
 
 @project.command(name="list")
-def feature_set_list():
+def project_list():
     """
     List all projects
     """

@@ -11,21 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from concurrent import futures
 from datetime import datetime
 
-import pytz
-
-from feast.entity import Entity
-from feast.feature_set import FeatureSet, Feature
-from feast.value_type import ValueType
-from feast.client import Client
+import grpc
 import pandas as pd
 import pytest
-from concurrent import futures
-import grpc
-from feast_core_server import CoreServicer
-import feast.core.CoreService_pb2_grpc as Core
+import pytz
+
 import dataframes
+import feast.core.CoreService_pb2_grpc as Core
+from feast.client import Client
+from feast.entity import Entity
+from feast.feature_set import Feature, FeatureSet
+from feast.value_type import ValueType
+from feast_core_server import CoreServicer
 
 CORE_URL = "core.feast.local"
 SERVING_URL = "serving.feast.local"
