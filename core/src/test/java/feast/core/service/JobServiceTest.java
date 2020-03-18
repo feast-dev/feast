@@ -18,12 +18,16 @@ package feast.core.service;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.CoreServiceProto.ListIngestionJobsRequest;
 import feast.core.CoreServiceProto.ListIngestionJobsResponse;
+import feast.core.CoreServiceProto.StopIngestionJobRequest;
+import feast.core.CoreServiceProto.StopIngestionJobResponse;
 import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.FeatureSetReferenceProto.FeatureSetReference;
 import feast.core.IngestionJobProto.IngestionJob;
@@ -43,7 +47,6 @@ import feast.core.model.Source;
 import feast.core.model.Store;
 import feast.types.ValueProto.ValueType.Enum;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -56,7 +59,7 @@ public class JobServiceTest {
   // mocks
   @Mock private FeatureSetRepository featureSetRepository;
   @Mock private JobRepository jobRepository;
-  @Mock private List<JobManager> jobManagers;
+  @Mock private JobManager jobManager;
   // fake models
   private Source dataSource;
   private Store dataStore;
@@ -98,15 +101,15 @@ public class JobServiceTest {
       e.printStackTrace();
     }
 
-    // setup mock repositories
+    // setup mock objects
     this.setupFeatureSetRepository();
     this.setupJobRepository();
+    this.setupJobManager();
 
-    // TODO: init fake job managers
-    this.jobManagers = new ArrayList<>();
-
+    // create test target
     this.jobService =
-        new JobService(this.jobRepository, this.featureSetRepository, this.jobManagers);
+        new JobService(
+            this.jobRepository, this.featureSetRepository, Arrays.asList(this.jobManager));
   }
 
   // setup fake feature set repository
@@ -128,9 +131,11 @@ public class JobServiceTest {
     when(this.jobRepository.findByFeatureSetIn(Arrays.asList(this.featureSet)))
         .thenReturn(Arrays.asList(this.job));
   }
-  
-  // TODO: setup fake job manager
 
+  // TODO: setup fake job manager
+  public void setupJobManager() {
+    when(this.jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
+  }
 
   // dummy model constructorss
   private FeatureSet newDummyFeatureSet(String name, int version, String project) {
@@ -167,11 +172,11 @@ public class JobServiceTest {
     ListIngestionJobsResponse response = null;
     try {
       response = this.jobService.listJobs(request);
-    } catch(InvalidProtocolBufferException e){
+    } catch (InvalidProtocolBufferException e) {
       e.printStackTrace();
       fail("Caught Unexpected exception");
     }
-  
+
     return response;
   }
 
@@ -228,5 +233,77 @@ public class JobServiceTest {
     filter = ListIngestionJobsRequest.Filter.newBuilder().setId(this.job.getId()).build();
     request = ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
     assertEquals(this.tryListJobs(request).getJobs(0), this.ingestionJob);
+  }
+
+  // stop jobs
+  private StopIngestionJobResponse tryStopJob(
+      StopIngestionJobRequest request, boolean expectError) {
+    StopIngestionJobResponse response = null;
+    try {
+      response = this.jobService.stopJob(request);
+      // expected exception, but none was thrown
+      if (expectError) {
+        fail("Expected exception, but none was thrown");
+      }
+    } catch (Exception e) {
+      if (expectError != true) {
+        // unexpected exception
+        e.printStackTrace();
+        fail("Caught Unexpected exception");
+      }
+    }
+
+    return response;
+  }
+
+  @Test
+  public void testStopJobForId() {
+    JobStatus prevStatus = this.job.getStatus();
+    this.job.setStatus(JobStatus.RUNNING);
+
+    StopIngestionJobRequest request =
+        StopIngestionJobRequest.newBuilder().setId(this.job.getId()).build();
+    this.tryStopJob(request, false);
+    verify(this.jobManager).abortJob(this.job.getExtId());
+
+    this.job.setStatus(prevStatus);
+  }
+
+  @Test
+  public void testStopAlreadyStop() {
+    // check that stop jobs does not trying to stop jobs that are
+    // not already stopped/stopping
+    List<JobStatus> doNothingStatuses =
+        Arrays.asList(
+            JobStatus.SUSPENDED, JobStatus.SUSPENDING,
+            JobStatus.ABORTED, JobStatus.ABORTING,
+            JobStatus.COMPLETED, JobStatus.ABORTED);
+
+    JobStatus prevStatus = this.job.getStatus();
+    for (JobStatus status : doNothingStatuses) {
+      this.job.setStatus(status);
+
+      StopIngestionJobRequest request =
+          StopIngestionJobRequest.newBuilder().setId(this.job.getId()).build();
+      this.tryStopJob(request, false);
+
+      verify(this.jobManager, never()).abortJob(this.job.getExtId());
+    }
+
+    this.job.setStatus(prevStatus);
+  }
+
+  @Test
+  public void testStopUnknownJobError() {
+    // check for UnsupportedOperationException when trying to stop jobs are
+    // in an in unknown state
+    JobStatus prevStatus = this.job.getStatus();
+    this.job.setStatus(JobStatus.UNKNOWN);
+
+    StopIngestionJobRequest request =
+        StopIngestionJobRequest.newBuilder().setId(this.job.getId()).build();
+    this.tryStopJob(request, true);
+
+    this.job.setStatus(prevStatus);
   }
 }

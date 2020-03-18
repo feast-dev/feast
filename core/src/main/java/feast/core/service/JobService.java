@@ -19,19 +19,23 @@ package feast.core.service;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.CoreServiceProto.ListIngestionJobsRequest;
 import feast.core.CoreServiceProto.ListIngestionJobsResponse;
+import feast.core.CoreServiceProto.StopIngestionJobRequest;
+import feast.core.CoreServiceProto.StopIngestionJobResponse;
 import feast.core.FeatureSetReferenceProto.FeatureSetReference;
 import feast.core.IngestionJobProto;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
-import feast.core.job.Runner;
 import feast.core.model.FeatureSet;
 import feast.core.model.Job;
+import feast.core.model.JobStatus;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -43,7 +47,7 @@ import org.springframework.stereotype.Service;
 public class JobService {
   private JobRepository jobRepository;
   private FeatureSetRepository featureSetRepository;
-  private Map<Runner, JobManager> jobManagers;
+  private Map<String, JobManager> jobManagers;
 
   @Autowired
   public JobService(
@@ -53,12 +57,13 @@ public class JobService {
     this.jobRepository = jobRepository;
     this.featureSetRepository = featureSetRepository;
 
+    this.jobManagers = new HashMap<>();
     for (JobManager manager : jobManagerList) {
-      this.jobManagers.put(manager.getRunnerType(), manager);
+      this.jobManagers.put(manager.getRunnerType().getName(), manager);
     }
   }
 
-  /* Service API */
+  /* Job Service API */
   /**
    * List Ingestion Jobs in feast matching the given request
    *
@@ -126,21 +131,49 @@ public class JobService {
     // pack jobs into response
     return ListIngestionJobsResponse.newBuilder().addAllJobs(ingestJobs).build();
   }
-  
-  //TODO: restart ingestion job
+
+  // TODO: restart ingestion job
 
   /**
-   * Stops the ingestion job matching the given request
-   * 
+   * Stops (Aborts) the ingestion job matching the given request. Does nothing if the target job to
+   * be stopped is already stopped or stopping
+   *
    * @param request stop ingestion job request specifying which job to stop
-   * @throw InvalidProtocolBufferException whe
-   * */
-  /*
+   * @throws NoSuchElementException when stop job request requests to stop a nonexistent job.
+   * @throws UnsupportedOperationException when job to be stopped is in an unknown status
+   * @throws InvalidProtocolBufferException on error when constructing response protobuf
+   */
   public StopIngestionJobResponse stopJob(StopIngestionJobRequest request)
-    throws InvalidProtocolBufferException {
+      throws InvalidProtocolBufferException {
+    // check job exists
+    Optional<Job> getJob = this.jobRepository.findById(request.getId());
+    if (getJob.isEmpty()) {
+      throw new NoSuchElementException(
+          "Attempted to stop nonexistent job with id: " + getJob.get().getId());
+    }
 
+    // check job status is valid for stopping
+    Job job = getJob.get();
+    JobStatus status = job.getStatus();
+    if (status.equals(JobStatus.ABORTED)
+        || status.equals(JobStatus.ABORTING)
+        || status.equals(JobStatus.SUSPENDED)
+        || status.equals(JobStatus.SUSPENDING)
+        || status.equals(JobStatus.COMPLETED)
+        || status.equals(JobStatus.ERROR)) {
+      // do nothing - job is already stopped or stopping
+      return StopIngestionJobResponse.newBuilder().build();
+    } else if (status.equals(JobStatus.UNKNOWN)) {
+      throw new UnsupportedOperationException(
+          "Stopping a job with an unknown status is unsupported");
+    }
+
+    // stop job with job manager
+    JobManager jobManager = this.jobManagers.get(job.getRunner());
+    jobManager.abortJob(job.getExtId());
+
+    return StopIngestionJobResponse.newBuilder().build();
   }
-  */
 
   /* Private Utility Methods */
   /**
