@@ -53,7 +53,7 @@ func (fc *GrpcClient) GetOnlineFeatures(ctx context.Context, req *OnlineFeatures
 	return &OnlineFeaturesResponse{RawResponse: resp}, err
 }
 
-// GetInfo gets information about the feast serving instance this client is connected to.
+// GetFeastServingInfo gets information about the feast serving instance this client is connected to.
 func (fc *GrpcClient) GetFeastServingInfo(ctx context.Context, in *serving.GetFeastServingInfoRequest) (
 	*serving.GetFeastServingInfoResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "get_info")
@@ -62,7 +62,7 @@ func (fc *GrpcClient) GetFeastServingInfo(ctx context.Context, in *serving.GetFe
 	return fc.cli.GetFeastServingInfo(ctx, in)
 }
 
-// Closes the grpc connection.
+// Close the grpc connection.
 func (fc *GrpcClient) Close() error {
 	return fc.conn.Close()
 }

@@ -8,7 +8,8 @@ import (
 )
 
 var (
-	ErrInvalidFeatureName = "invalid feature ids %s provided, feature names must be in the format <project>/<feature>:<version>"
+	// ErrInvalidFeatureName indicates that the user has provided a feature reference with the wrong structure or contents
+	ErrInvalidFeatureName = "invalid feature references %s provided, feature names must be in the format <project>/<feature>:<version>"
 )
 
 // OnlineFeaturesRequest wrapper on feast.serving.GetOnlineFeaturesRequest.
@@ -84,7 +85,6 @@ func buildFeatures(featureReferences []string, defaultProject string) ([]*servin
 		} else {
 			return nil, fmt.Errorf(ErrInvalidFeatureName, featureRef)
 		}
-
 
 		if project == "" || name == "" || version < 0 {
 			return nil, fmt.Errorf(ErrInvalidFeatureName, featureRef)

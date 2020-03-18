@@ -33,7 +33,7 @@ class AbstractProducer:
             total=row_count, unit="rows", smoothing=0, disable=disable_progress_bar
         )
 
-    def produce(self, topic: str, data: str):
+    def produce(self, topic: str, data: bytes):
         message = "{} should implement a produce method".format(self.__class__.__name__)
         raise NotImplementedError(message)
 
@@ -227,6 +227,6 @@ def get_producer(
     """
     try:
         return ConfluentProducer(brokers, row_count, disable_progress_bar)
-    except ImportError as e:
+    except ImportError:
         print("Unable to import confluent-kafka, falling back to kafka-python")
         return KafkaPythonProducer(brokers, row_count, disable_progress_bar)

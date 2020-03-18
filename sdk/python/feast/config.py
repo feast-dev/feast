@@ -14,13 +14,12 @@
 #  limitations under the License.
 #
 
-from os.path import expanduser, join
 import logging
 import os
 import sys
+from os.path import expanduser, join
 from typing import Dict
-from urllib.parse import urlparse
-from urllib.parse import ParseResult
+from urllib.parse import ParseResult, urlparse
 
 import toml
 
