@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+apt-get -qq update
+apt-get -y install build-essential
+
 make lint-java
 
 .prow/scripts/download-maven-cache.sh \

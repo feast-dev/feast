@@ -21,7 +21,7 @@ This script will run end-to-end tests for Feast Core and Online Serving.
 "
 
 apt-get -qq update
-apt-get -y install wget netcat kafkacat
+apt-get -y install wget netcat kafkacat build-essential
 
 echo "
 ============================================================
