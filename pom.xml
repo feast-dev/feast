@@ -33,6 +33,8 @@
         <module>core</module>
         <module>serving</module>
         <module>sdk/java</module>
+        <module>storage/api</module>
+        <module>storage/connectors</module>
     </modules>
 
     <properties>

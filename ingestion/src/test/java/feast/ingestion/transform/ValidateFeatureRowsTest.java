@@ -16,8 +16,6 @@
  */
 package feast.ingestion.transform;
 
-import static org.junit.Assert.*;
-
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.FeatureSetProto.FeatureSetSpec;
