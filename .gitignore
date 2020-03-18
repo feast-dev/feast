@@ -183,3 +183,4 @@ sdk/python/feast/core/
 sdk/python/feast/serving/
 sdk/python/feast/storage/
 sdk/python/feast/types/
+sdk/python/tensorflow_metadata
