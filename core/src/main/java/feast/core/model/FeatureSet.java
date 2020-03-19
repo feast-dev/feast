@@ -55,6 +55,7 @@ import org.tensorflow.metadata.v0.FixedShape;
 import org.tensorflow.metadata.v0.FloatDomain;
 import org.tensorflow.metadata.v0.ImageDomain;
 import org.tensorflow.metadata.v0.IntDomain;
+import org.tensorflow.metadata.v0.MIDDomain;
 import org.tensorflow.metadata.v0.NaturalLanguageDomain;
 import org.tensorflow.metadata.v0.StringDomain;
 import org.tensorflow.metadata.v0.StructDomain;
@@ -342,7 +343,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     } else if (featureField.getImageDomain() != null) {
       featureSpecBuilder.setImageDomain(ImageDomain.parseFrom(featureField.getImageDomain()));
     } else if (featureField.getMidDomain() != null) {
-      featureSpecBuilder.setIntDomain(IntDomain.parseFrom(featureField.getIntDomain()));
+      featureSpecBuilder.setMidDomain(MIDDomain.parseFrom(featureField.getMidDomain()));
     } else if (featureField.getUrlDomain() != null) {
       featureSpecBuilder.setUrlDomain(URLDomain.parseFrom(featureField.getUrlDomain()));
     } else if (featureField.getTimeDomain() != null) {

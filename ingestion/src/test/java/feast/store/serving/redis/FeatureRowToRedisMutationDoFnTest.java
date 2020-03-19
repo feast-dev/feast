@@ -29,10 +29,7 @@ import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
 import feast.types.ValueProto.Value;
 import feast.types.ValueProto.ValueType.Enum;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -96,6 +93,14 @@ public class FeatureRowToRedisMutationDoFnTest {
                 Field.newBuilder()
                     .setName("entity_id_secondary")
                     .setValue(Value.newBuilder().setStringVal("a")))
+            .addFields(
+                Field.newBuilder()
+                    .setName("feature_1")
+                    .setValue(Value.newBuilder().setStringVal("strValue1")))
+            .addFields(
+                Field.newBuilder()
+                    .setName("feature_2")
+                    .setValue(Value.newBuilder().setInt64Val(1001)))
             .build();
 
     PCollection<RedisMutation> output =
@@ -116,6 +121,13 @@ public class FeatureRowToRedisMutationDoFnTest {
                     .setValue(Value.newBuilder().setStringVal("a")))
             .build();
 
+    FeatureRow expectedValue =
+        FeatureRow.newBuilder()
+            .setEventTimestamp(Timestamp.newBuilder().setSeconds(10))
+            .addFields(Field.newBuilder().setValue(Value.newBuilder().setStringVal("strValue1")))
+            .addFields(Field.newBuilder().setValue(Value.newBuilder().setInt64Val(1001)))
+            .build();
+
     PAssert.that(output)
         .satisfies(
             (SerializableFunction<Iterable<RedisMutation>, Void>)
@@ -123,7 +135,7 @@ public class FeatureRowToRedisMutationDoFnTest {
                   input.forEach(
                       rm -> {
                         assert (Arrays.equals(rm.getKey(), expectedKey.toByteArray()));
-                        assert (Arrays.equals(rm.getValue(), offendingRow.toByteArray()));
+                        assert (Arrays.equals(rm.getValue(), expectedValue.toByteArray()));
                       });
                   return null;
                 });
@@ -131,7 +143,7 @@ public class FeatureRowToRedisMutationDoFnTest {
   }
 
   @Test
-  public void shouldConvertRowWithOutOfOrderEntitiesToValidKey() {
+  public void shouldConvertRowWithOutOfOrderFieldsToValidKey() {
     Map<String, FeatureSetProto.FeatureSet> featureSets = new HashMap<>();
     featureSets.put("feature_set", fs);
 
@@ -147,6 +159,14 @@ public class FeatureRowToRedisMutationDoFnTest {
                 Field.newBuilder()
                     .setName("entity_id_primary")
                     .setValue(Value.newBuilder().setInt32Val(1)))
+            .addFields(
+                Field.newBuilder()
+                    .setName("feature_2")
+                    .setValue(Value.newBuilder().setInt64Val(1001)))
+            .addFields(
+                Field.newBuilder()
+                    .setName("feature_1")
+                    .setValue(Value.newBuilder().setStringVal("strValue1")))
             .build();
 
     PCollection<RedisMutation> output =
@@ -167,6 +187,16 @@ public class FeatureRowToRedisMutationDoFnTest {
                     .setValue(Value.newBuilder().setStringVal("a")))
             .build();
 
+    List<Field> expectedFields =
+        Arrays.asList(
+            Field.newBuilder().setValue(Value.newBuilder().setStringVal("strValue1")).build(),
+            Field.newBuilder().setValue(Value.newBuilder().setInt64Val(1001)).build());
+    FeatureRow expectedValue =
+        FeatureRow.newBuilder()
+            .setEventTimestamp(Timestamp.newBuilder().setSeconds(10))
+            .addAllFields(expectedFields)
+            .build();
+
     PAssert.that(output)
         .satisfies(
             (SerializableFunction<Iterable<RedisMutation>, Void>)
@@ -174,7 +204,139 @@ public class FeatureRowToRedisMutationDoFnTest {
                   input.forEach(
                       rm -> {
                         assert (Arrays.equals(rm.getKey(), expectedKey.toByteArray()));
-                        assert (Arrays.equals(rm.getValue(), offendingRow.toByteArray()));
+                        assert (Arrays.equals(rm.getValue(), expectedValue.toByteArray()));
+                      });
+                  return null;
+                });
+    p.run();
+  }
+
+  @Test
+  public void shouldMergeDuplicateFeatureFields() {
+    Map<String, FeatureSetProto.FeatureSet> featureSets = new HashMap<>();
+    featureSets.put("feature_set", fs);
+
+    FeatureRow featureRowWithDuplicatedFeatureFields =
+        FeatureRow.newBuilder()
+            .setFeatureSet("feature_set")
+            .setEventTimestamp(Timestamp.newBuilder().setSeconds(10))
+            .addFields(
+                Field.newBuilder()
+                    .setName("entity_id_primary")
+                    .setValue(Value.newBuilder().setInt32Val(1)))
+            .addFields(
+                Field.newBuilder()
+                    .setName("entity_id_secondary")
+                    .setValue(Value.newBuilder().setStringVal("a")))
+            .addFields(
+                Field.newBuilder()
+                    .setName("feature_1")
+                    .setValue(Value.newBuilder().setStringVal("strValue1")))
+            .addFields(
+                Field.newBuilder()
+                    .setName("feature_1")
+                    .setValue(Value.newBuilder().setStringVal("strValue1")))
+            .addFields(
+                Field.newBuilder()
+                    .setName("feature_2")
+                    .setValue(Value.newBuilder().setInt64Val(1001)))
+            .build();
+
+    PCollection<RedisMutation> output =
+        p.apply(Create.of(Collections.singletonList(featureRowWithDuplicatedFeatureFields)))
+            .setCoder(ProtoCoder.of(FeatureRow.class))
+            .apply(ParDo.of(new FeatureRowToRedisMutationDoFn(featureSets)));
+
+    RedisKey expectedKey =
+        RedisKey.newBuilder()
+            .setFeatureSet("feature_set")
+            .addEntities(
+                Field.newBuilder()
+                    .setName("entity_id_primary")
+                    .setValue(Value.newBuilder().setInt32Val(1)))
+            .addEntities(
+                Field.newBuilder()
+                    .setName("entity_id_secondary")
+                    .setValue(Value.newBuilder().setStringVal("a")))
+            .build();
+
+    FeatureRow expectedValue =
+        FeatureRow.newBuilder()
+            .setEventTimestamp(Timestamp.newBuilder().setSeconds(10))
+            .addFields(Field.newBuilder().setValue(Value.newBuilder().setStringVal("strValue1")))
+            .addFields(Field.newBuilder().setValue(Value.newBuilder().setInt64Val(1001)))
+            .build();
+
+    PAssert.that(output)
+        .satisfies(
+            (SerializableFunction<Iterable<RedisMutation>, Void>)
+                input -> {
+                  input.forEach(
+                      rm -> {
+                        assert (Arrays.equals(rm.getKey(), expectedKey.toByteArray()));
+                        assert (Arrays.equals(rm.getValue(), expectedValue.toByteArray()));
+                      });
+                  return null;
+                });
+    p.run();
+  }
+
+  @Test
+  public void shouldPopulateMissingFeatureValuesWithDefaultInstance() {
+    Map<String, FeatureSetProto.FeatureSet> featureSets = new HashMap<>();
+    featureSets.put("feature_set", fs);
+
+    FeatureRow featureRowWithDuplicatedFeatureFields =
+        FeatureRow.newBuilder()
+            .setFeatureSet("feature_set")
+            .setEventTimestamp(Timestamp.newBuilder().setSeconds(10))
+            .addFields(
+                Field.newBuilder()
+                    .setName("entity_id_primary")
+                    .setValue(Value.newBuilder().setInt32Val(1)))
+            .addFields(
+                Field.newBuilder()
+                    .setName("entity_id_secondary")
+                    .setValue(Value.newBuilder().setStringVal("a")))
+            .addFields(
+                Field.newBuilder()
+                    .setName("feature_1")
+                    .setValue(Value.newBuilder().setStringVal("strValue1")))
+            .build();
+
+    PCollection<RedisMutation> output =
+        p.apply(Create.of(Collections.singletonList(featureRowWithDuplicatedFeatureFields)))
+            .setCoder(ProtoCoder.of(FeatureRow.class))
+            .apply(ParDo.of(new FeatureRowToRedisMutationDoFn(featureSets)));
+
+    RedisKey expectedKey =
+        RedisKey.newBuilder()
+            .setFeatureSet("feature_set")
+            .addEntities(
+                Field.newBuilder()
+                    .setName("entity_id_primary")
+                    .setValue(Value.newBuilder().setInt32Val(1)))
+            .addEntities(
+                Field.newBuilder()
+                    .setName("entity_id_secondary")
+                    .setValue(Value.newBuilder().setStringVal("a")))
+            .build();
+
+    FeatureRow expectedValue =
+        FeatureRow.newBuilder()
+            .setEventTimestamp(Timestamp.newBuilder().setSeconds(10))
+            .addFields(Field.newBuilder().setValue(Value.newBuilder().setStringVal("strValue1")))
+            .addFields(Field.newBuilder().setValue(Value.getDefaultInstance()))
+            .build();
+
+    PAssert.that(output)
+        .satisfies(
+            (SerializableFunction<Iterable<RedisMutation>, Void>)
+                input -> {
+                  input.forEach(
+                      rm -> {
+                        assert (Arrays.equals(rm.getKey(), expectedKey.toByteArray()));
+                        assert (Arrays.equals(rm.getValue(), expectedValue.toByteArray()));
                       });
                   return null;
                 });

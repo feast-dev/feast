@@ -1,4 +1,4 @@
-FROM openjdk:11-jdk
+FROM openjdk:11-jre
 
 ARG REVISION=dev
 COPY core/target/feast-core-$REVISION.jar /usr/share/feast/feast-core.jar

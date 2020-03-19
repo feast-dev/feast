@@ -63,7 +63,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.junit.Before;
@@ -78,8 +81,15 @@ import org.tensorflow.metadata.v0.FeaturePresence;
 import org.tensorflow.metadata.v0.FeaturePresenceWithinGroup;
 import org.tensorflow.metadata.v0.FixedShape;
 import org.tensorflow.metadata.v0.FloatDomain;
+import org.tensorflow.metadata.v0.ImageDomain;
 import org.tensorflow.metadata.v0.IntDomain;
+import org.tensorflow.metadata.v0.MIDDomain;
+import org.tensorflow.metadata.v0.NaturalLanguageDomain;
 import org.tensorflow.metadata.v0.StringDomain;
+import org.tensorflow.metadata.v0.StructDomain;
+import org.tensorflow.metadata.v0.TimeDomain;
+import org.tensorflow.metadata.v0.TimeOfDayDomain;
+import org.tensorflow.metadata.v0.URLDomain;
 import org.tensorflow.metadata.v0.ValueCount;
 
 public class SpecServiceTest {
@@ -625,6 +635,74 @@ public class SpecServiceTest {
 
     for (int i = 0; i < appliedFeatureSpecs.size(); i++) {
       assertEquals(featureSpecs.get(i), appliedFeatureSpecs.get(i));
+    }
+  }
+
+  @Test
+  public void applyFeatureSetShouldUpdateFeatureSetWhenConstraintsAreUpdated()
+      throws InvalidProtocolBufferException {
+    FeatureSetProto.FeatureSet existingFeatureSet = featureSets.get(2).toProto();
+    assertThat(
+        "Existing feature set has version 3", existingFeatureSet.getSpec().getVersion() == 3);
+    assertThat(
+        "Existing feature set has at least 1 feature",
+        existingFeatureSet.getSpec().getFeaturesList().size() > 0);
+
+    // Map of constraint field name -> value, e.g. "shape" -> FixedShape object.
+    // If any of these fields are updated, SpecService should update the FeatureSet.
+    Map<String, Object> contraintUpdates = new HashMap<>();
+    contraintUpdates.put("presence", FeaturePresence.newBuilder().setMinFraction(0.5).build());
+    contraintUpdates.put(
+        "group_presence", FeaturePresenceWithinGroup.newBuilder().setRequired(true).build());
+    contraintUpdates.put("shape", FixedShape.getDefaultInstance());
+    contraintUpdates.put("value_count", ValueCount.newBuilder().setMin(2).build());
+    contraintUpdates.put("domain", "new_domain");
+    contraintUpdates.put("int_domain", IntDomain.newBuilder().setMax(100).build());
+    contraintUpdates.put("float_domain", FloatDomain.newBuilder().setMin(-0.5f).build());
+    contraintUpdates.put("string_domain", StringDomain.newBuilder().addValue("string1").build());
+    contraintUpdates.put("bool_domain", BoolDomain.newBuilder().setFalseValue("falsy").build());
+    contraintUpdates.put("struct_domain", StructDomain.getDefaultInstance());
+    contraintUpdates.put("natural_language_domain", NaturalLanguageDomain.getDefaultInstance());
+    contraintUpdates.put("image_domain", ImageDomain.getDefaultInstance());
+    contraintUpdates.put("mid_domain", MIDDomain.getDefaultInstance());
+    contraintUpdates.put("url_domain", URLDomain.getDefaultInstance());
+    contraintUpdates.put(
+        "time_domain", TimeDomain.newBuilder().setStringFormat("string_format").build());
+    contraintUpdates.put("time_of_day_domain", TimeOfDayDomain.getDefaultInstance());
+
+    for (Entry<String, Object> constraint : contraintUpdates.entrySet()) {
+      String name = constraint.getKey();
+      Object value = constraint.getValue();
+      FeatureSpec newFeatureSpec =
+          existingFeatureSet
+              .getSpec()
+              .getFeatures(0)
+              .toBuilder()
+              .setField(FeatureSpec.getDescriptor().findFieldByName(name), value)
+              .build();
+      FeatureSetSpec newFeatureSetSpec =
+          existingFeatureSet.getSpec().toBuilder().setFeatures(0, newFeatureSpec).build();
+      FeatureSetProto.FeatureSet newFeatureSet =
+          existingFeatureSet.toBuilder().setSpec(newFeatureSetSpec).build();
+
+      ApplyFeatureSetResponse response = specService.applyFeatureSet(newFeatureSet);
+
+      assertEquals(
+          "Response should have CREATED status when field '" + name + "' is updated",
+          Status.CREATED,
+          response.getStatus());
+      assertEquals(
+          "FeatureSet should have new version when field '" + name + "' is updated",
+          existingFeatureSet.getSpec().getVersion() + 1,
+          response.getFeatureSet().getSpec().getVersion());
+      assertEquals(
+          "Feature should have field '" + name + "' set correctly",
+          constraint.getValue(),
+          response
+              .getFeatureSet()
+              .getSpec()
+              .getFeatures(0)
+              .getField(FeatureSpec.getDescriptor().findFieldByName(name)));
     }
   }
 

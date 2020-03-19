@@ -19,6 +19,7 @@ package feast.core.model;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSpec;
 import feast.types.ValueProto.ValueType;
+import java.util.Arrays;
 import java.util.Objects;
 import javax.persistence.Column;
 import javax.persistence.Embeddable;
@@ -223,7 +224,25 @@ public class Field {
       return false;
     }
     Field field = (Field) o;
-    return name.equals(field.getName()) && type.equals(field.getType());
+    return Objects.equals(name, field.name)
+        && Objects.equals(type, field.type)
+        && Objects.equals(project, field.project)
+        && Arrays.equals(presence, field.presence)
+        && Arrays.equals(groupPresence, field.groupPresence)
+        && Arrays.equals(shape, field.shape)
+        && Arrays.equals(valueCount, field.valueCount)
+        && Objects.equals(domain, field.domain)
+        && Arrays.equals(intDomain, field.intDomain)
+        && Arrays.equals(floatDomain, field.floatDomain)
+        && Arrays.equals(stringDomain, field.stringDomain)
+        && Arrays.equals(boolDomain, field.boolDomain)
+        && Arrays.equals(structDomain, field.structDomain)
+        && Arrays.equals(naturalLanguageDomain, field.naturalLanguageDomain)
+        && Arrays.equals(imageDomain, field.imageDomain)
+        && Arrays.equals(midDomain, field.midDomain)
+        && Arrays.equals(urlDomain, field.urlDomain)
+        && Arrays.equals(timeDomain, field.timeDomain)
+        && Arrays.equals(timeOfDayDomain, field.timeOfDayDomain);
   }
 
   @Override

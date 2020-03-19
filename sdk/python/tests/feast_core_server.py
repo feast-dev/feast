@@ -1,27 +1,22 @@
-from concurrent import futures
-import time
 import logging
+import time
+from concurrent import futures
+
 import grpc
+from google.protobuf.timestamp_pb2 import Timestamp
+
 import feast.core.CoreService_pb2_grpc as Core
 from feast.core.CoreService_pb2 import (
-    GetFeastCoreVersionResponse,
-    ApplyFeatureSetResponse,
     ApplyFeatureSetRequest,
-    ListFeatureSetsResponse,
+    ApplyFeatureSetResponse,
+    GetFeastCoreVersionResponse,
     ListFeatureSetsRequest,
-)
-from google.protobuf.timestamp_pb2 import Timestamp
-from feast.core.FeatureSet_pb2 import (
-    FeatureSetSpec as FeatureSetSpec,
-    FeatureSetMeta,
-    FeatureSetStatus,
-)
-from feast.core.Source_pb2 import (
-    SourceType as SourceTypeProto,
-    KafkaSourceConfig as KafkaSourceConfigProto,
+    ListFeatureSetsResponse,
 )
 from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
-from typing import List
+from feast.core.FeatureSet_pb2 import FeatureSetMeta, FeatureSetStatus
+from feast.core.Source_pb2 import KafkaSourceConfig as KafkaSourceConfigProto
+from feast.core.Source_pb2 import SourceType as SourceTypeProto
 
 _logger = logging.getLogger(__name__)
 

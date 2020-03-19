@@ -1,19 +1,18 @@
 import tempfile
 import time
 from datetime import datetime, timedelta
-from typing import Iterable
 from urllib.parse import urlparse
 
 import fastavro
 import pandas as pd
 from google.cloud import storage
 
-from feast.serving.ServingService_pb2 import GetJobRequest
 from feast.serving.ServingService_pb2 import (
-    Job as JobProto,
-    JOB_STATUS_DONE,
     DATA_FORMAT_AVRO,
+    JOB_STATUS_DONE,
+    GetJobRequest,
 )
+from feast.serving.ServingService_pb2 import Job as JobProto
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 
 # Maximum no of seconds to wait until the jobs status is DONE in Feast

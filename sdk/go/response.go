@@ -7,9 +7,14 @@ import (
 )
 
 var (
-	ErrLengthMismatch  = "Length mismatch; number of na values (%d) not equal to number of features requested (%d)."
+	// ErrLengthMismatch indicates that the number of values returned is not the same as the number of values requested
+	ErrLengthMismatch = "Length mismatch; number of na values (%d) not equal to number of features requested (%d)."
+
+	// ErrFeatureNotFound indicates that the a requested feature was not found in the response
 	ErrFeatureNotFound = "Feature %s not found in response."
-	ErrTypeMismatch    = "Requested output of type %s does not match type of feature value returned."
+
+	// ErrTypeMismatch indicates that the there was a type mismatch in the returned values
+	ErrTypeMismatch = "Requested output of type %s does not match type of feature value returned."
 )
 
 // OnlineFeaturesResponse is a wrapper around serving.GetOnlineFeaturesResponse.

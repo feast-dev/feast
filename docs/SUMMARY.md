@@ -5,7 +5,7 @@
 * [Concepts](concepts.md)
 * [Getting Help](getting-help.md)
 * [Contributing](contributing.md)
-* [Roadmap](https://docs.google.com/document/d/1ZZY59j_c2oNN3N6TmavJIyLPMzINdea44CRIe2nhUIo/edit#)
+* [Roadmap](roadmap.md)
 
 ## Installing Feast
 

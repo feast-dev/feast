@@ -1,4 +1,4 @@
-FROM openjdk:11-jre-alpine as production
+FROM openjdk:11-jre as production
 ARG REVISION=dev
 #
 # Download grpc_health_probe to run health check for Feast Serving

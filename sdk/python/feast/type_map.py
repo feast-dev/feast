@@ -18,22 +18,24 @@ from typing import List
 import numpy as np
 import pandas as pd
 import pyarrow as pa
+from google.protobuf.timestamp_pb2 import Timestamp
+from pyarrow.lib import TimestampType
+
 from feast.constants import DATETIME_COLUMN
-from feast.types import FeatureRow_pb2 as FeatureRowProto, Field_pb2 as FieldProto
+from feast.types import FeatureRow_pb2 as FeatureRowProto
+from feast.types import Field_pb2 as FieldProto
 from feast.types.Value_pb2 import (
-    Value as ProtoValue,
-    ValueType as ProtoValueType,
-    Int64List,
-    Int32List,
     BoolList,
     BytesList,
     DoubleList,
-    StringList,
     FloatList,
+    Int32List,
+    Int64List,
+    StringList,
 )
+from feast.types.Value_pb2 import Value as ProtoValue
+from feast.types.Value_pb2 import ValueType as ProtoValueType
 from feast.value_type import ValueType
-from google.protobuf.timestamp_pb2 import Timestamp
-from pyarrow.lib import TimestampType
 
 
 def python_type_to_feast_value_type(

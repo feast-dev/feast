@@ -26,6 +26,7 @@ import feast.serving.ServingAPIProto.GetJobResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingServiceGrpc.ServingServiceImplBase;
+import feast.serving.interceptors.GrpcMonitoringInterceptor;
 import feast.serving.service.ServingService;
 import feast.serving.util.RequestHelper;
 import io.grpc.stub.StreamObserver;
@@ -36,7 +37,7 @@ import org.lognet.springboot.grpc.GRpcService;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 
-@GRpcService
+@GRpcService(interceptors = {GrpcMonitoringInterceptor.class})
 public class ServingServiceGRpcController extends ServingServiceImplBase {
 
   private static final Logger log =
