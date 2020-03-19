@@ -35,12 +35,11 @@ steps:
   timeout: 900s
 
 # SDK (GO)
-- id: gen-proto-go
+- id: compile-protos-go
   waitFor: ['-']
   name: 'gcr.io/konnekt-core/protoc-go:3.6.1'
-  dir: '/workspace/protos'
   entrypoint: make
-  args: ['gen-go']
+  args: ['compile-protos-go']
 - id: unit-test-go-sdk-setup
   waitFor: ['-']
   name: 'golang:1.13'

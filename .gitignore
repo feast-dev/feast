@@ -186,6 +186,9 @@ sdk/python/feast/types/
 sdk/python/tensorflow_metadata
 
 ### Farfetch ###
+
+pom-ff-deploy.xml
+
 # Secrets
 secrets/
 

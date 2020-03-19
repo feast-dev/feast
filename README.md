@@ -36,13 +36,13 @@ CLOUDBUILD_STEP="docker run --rm --name feast-build \
 "
 ```
 
-#### gen-proto-go
+#### compile-protos-go
 ```bash
 $CLOUDBUILD_STEP \
-    -w /workspace/protos \
+    -w /workspace \
     --entrypoint make \
     gcr.io/konnekt-core/protoc-go:3.6.1 \
-    gen-go
+    compile-protos-go
 ```
 
 #### unit-test-java
