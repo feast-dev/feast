@@ -116,3 +116,24 @@ class TestConfig:
         assert config.getint('INT_VAR') == 1
         assert config.getfloat('FLOAT_VAR') == 1.0
         assert config.getboolean('BOOLEAN_VAR') is True
+
+    def test_set_value(self):
+        """
+        Test type casting of strings to other types
+        """
+        fd, path = mkstemp()
+        config = Config(path=path)
+        config.set("my_val", 1)
+
+        assert config.getint('my_val') == 1
+
+    def test_exists(self):
+        """
+        Test type casting of strings to other types
+        """
+        fd, path = mkstemp()
+        config = Config(path=path)
+        config.set("my_val_exist", 1)
+
+        assert config.exists('my_val_exist') is True
+        assert config.exists('my_val_not_exist') is False

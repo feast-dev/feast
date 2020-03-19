@@ -13,29 +13,26 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-from configparser import ConfigParser
+from configparser import ConfigParser, NoOptionError
 from os.path import expanduser, join
 import logging
 import os
-import sys
-from typing import Dict, Union
-from urllib.parse import urlparse
-from urllib.parse import ParseResult
-from typing import TextIO
-import toml
+from typing import Dict
 from typing import Optional
+from feast.constants import *
 
 _logger = logging.getLogger(__name__)
 
 FEAST_DEFAULT_OPTIONS = {
-    "CORE_URL": "localhost:6565",
-    "SERVING_URL": "localhost:6565"
+    CONFIG_PROJECT_KEY: "default",
+    CONFIG_CORE_URL_KEY: "localhost:6565",
+    CONFIG_CORE_SECURE_KEY: "False",
+    CONFIG_SERVING_URL_KEY: "localhost:6565",
+    CONFIG_SERVING_SECURE_KEY: 'False',
+    CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY: '3',
+    CONFIG_GRPC_CONNECTION_TIMEOUT_APPLY_KEY: '600',
+    CONFIG_BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS_KEY: '600',
 }
-
-CONFIGURATION_FILE_DIR = os.environ.get("FEAST_CONFIG", ".feast")
-CONFIGURATION_FILE_NAME = "config"
-CONFIGURATION_FILE_SECTION = "general"
-FEAST_ENV_VAR_PREFIX = 'FEAST_'
 
 
 def _init_config(path: str):
@@ -63,8 +60,8 @@ def _init_config(path: str):
         config.read(path)
 
     # Store all configuration in a single section
-    if not config.has_section(CONFIGURATION_FILE_SECTION):
-        config.add_section(CONFIGURATION_FILE_SECTION)
+    if not config.has_section(CONFIG_FILE_SECTION):
+        config.add_section(CONFIG_FILE_SECTION)
 
     # Save the current configuration
     config.write(open(path, 'w'))
@@ -79,8 +76,9 @@ def _get_feast_env_vars():
     """
     feast_env_vars = {}
     for key in os.environ.keys():
-        if key.upper().startswith(FEAST_ENV_VAR_PREFIX):
-            feast_env_vars[key[len(FEAST_ENV_VAR_PREFIX):]] = os.environ[key]
+        if key.upper().startswith(CONFIG_FEAST_ENV_VAR_PREFIX):
+            feast_env_vars[key[len(CONFIG_FEAST_ENV_VAR_PREFIX):]] = os.environ[
+                key]
     return feast_env_vars
 
 
@@ -110,15 +108,19 @@ class Config:
             path: (optional) File path to configuration file
         """
         if not path:
-            path = join(expanduser("~"), CONFIGURATION_FILE_DIR,
-                        CONFIGURATION_FILE_NAME)
+            path = join(expanduser("~"),
+                        os.environ.get(FEAST_CONFIG_FILE_ENV_KEY,
+                                       CONFIG_FILE_DEFAULT_DIRECTORY),
+                        CONFIG_FILE_NAME)
 
         config = _init_config(path)
 
         self._options = {}
         if options and isinstance(options, dict):
             self._options = options
+
         self._config = config  # type: ConfigParser
+        self._path = path  # type: str
 
     def get(self, option):
         """
@@ -130,7 +132,7 @@ class Config:
         Returns: String option that is returned
 
         """
-        return self._config.get(CONFIGURATION_FILE_SECTION, option,
+        return self._config.get(CONFIG_FILE_SECTION, option,
                                 vars={**_get_feast_env_vars(),
                                       **self._options})
 
@@ -144,7 +146,7 @@ class Config:
          Returns: Boolean option value that is returned
 
          """
-        return self._config.getboolean(CONFIGURATION_FILE_SECTION, option,
+        return self._config.getboolean(CONFIG_FILE_SECTION, option,
                                        vars={**_get_feast_env_vars(),
                                              **self._options})
 
@@ -158,7 +160,7 @@ class Config:
          Returns: Integer option value that is returned
 
          """
-        return self._config.getint(CONFIGURATION_FILE_SECTION, option,
+        return self._config.getint(CONFIG_FILE_SECTION, option,
                                    vars={**_get_feast_env_vars(),
                                          **self._options})
 
@@ -172,6 +174,49 @@ class Config:
          Returns: Float option value that is returned
 
          """
-        return self._config.getfloat(CONFIGURATION_FILE_SECTION, option,
+        return self._config.getfloat(CONFIG_FILE_SECTION, option,
                                      vars={**_get_feast_env_vars(),
                                            **self._options})
+
+    def set(self, option, value):
+        """
+        Sets a configuration option. Must be serializable to string
+        Args:
+            option: Option name to use as key
+            value: Value to store under option
+        """
+        self._config.set(CONFIG_FILE_SECTION, option,
+                         value=str(value))
+
+    def exists(self, option):
+        """
+        Tests whether a specific option is available
+
+        Args:
+            option: Name of the option to check
+
+        Returns: Boolean true/false whether the option is set
+
+        """
+        try:
+            self.get(option=option)
+            return True
+        except NoOptionError:
+            return False
+
+    def save(self):
+        """
+        Save the current configuration to disk. This does not include
+        environmental variables or initialized options
+        """
+        self._config.write(open(self._path, 'w'))
+
+    def __str__(self):
+        result = ''
+        for section_name in self._config.sections():
+            result += '\n[' + section_name + ']\n'
+
+            for name, value in self._config.items(section_name):
+                result += name + ' = ' + value + '\n'
+
+        return result
