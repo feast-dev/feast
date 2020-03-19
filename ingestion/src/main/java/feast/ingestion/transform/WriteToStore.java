@@ -22,7 +22,6 @@ import com.google.auto.value.AutoValue;
 import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.BigQueryConfig;
-import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.utils.ResourceUtil;
@@ -88,13 +87,12 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
 
     switch (storeType) {
       case REDIS:
-        RedisConfig redisConfig = getStore().getRedisConfig();
         PCollection<FailedElement> redisWriteResult =
             input
                 .apply(
                     "FeatureRowToRedisMutation",
                     ParDo.of(new FeatureRowToRedisMutationDoFn(getFeatureSets())))
-                .apply("WriteRedisMutationToRedis", RedisCustomIO.write(redisConfig));
+                .apply("WriteRedisMutationToRedis", RedisCustomIO.write(getStore()));
         if (options.getDeadLetterTableSpec() != null) {
           redisWriteResult.apply(
               WriteFailedElementToBigQuery.newBuilder()

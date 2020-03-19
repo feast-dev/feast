@@ -21,7 +21,6 @@ import time
 from collections import OrderedDict
 from math import ceil
 from typing import Dict, List, Tuple, Union, Optional
-from typing import List
 from urllib.parse import urlparse
 
 import fastavro
@@ -29,6 +28,7 @@ import grpc
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionRequest,
     ListFeatureSetsResponse,
@@ -48,11 +48,11 @@ from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
 from feast.feature_set import FeatureSet, Entity
 from feast.job import Job
-from feast.serving.ServingService_pb2 import FeatureReference
 from feast.loaders.abstract_producer import get_producer
 from feast.loaders.file import export_source_to_staging_location
 from feast.loaders.ingest import KAFKA_CHUNK_PRODUCTION_TIMEOUT
 from feast.loaders.ingest import get_feature_row_chunks
+from feast.serving.ServingService_pb2 import FeatureReference
 from feast.serving.ServingService_pb2 import GetFeastServingInfoResponse
 from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequest,
@@ -69,9 +69,11 @@ _logger = logging.getLogger(__name__)
 
 GRPC_CONNECTION_TIMEOUT_DEFAULT = 3  # type: int
 GRPC_CONNECTION_TIMEOUT_APPLY = 600  # type: int
-FEAST_SERVING_URL_ENV_KEY = "FEAST_SERVING_URL"  # type: str
-FEAST_CORE_URL_ENV_KEY = "FEAST_CORE_URL"  # type: str
-FEAST_PROJECT_ENV_KEY = "FEAST_PROJECT"  # type: str
+FEAST_CORE_URL_ENV_KEY = "FEAST_CORE_URL"
+FEAST_SERVING_URL_ENV_KEY = "FEAST_SERVING_URL"
+FEAST_PROJECT_ENV_KEY = "FEAST_PROJECT"
+FEAST_CORE_SECURE_ENV_KEY = "FEAST_CORE_SECURE"
+FEAST_SERVING_SECURE_ENV_KEY = "FEAST_SERVING_SECURE"
 BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS = 300
 CPU_COUNT = os.cpu_count()  # type: int
 
@@ -82,7 +84,8 @@ class Client:
     """
 
     def __init__(
-        self, core_url: str = None, serving_url: str = None, project: str = None
+        self, core_url: str = None, serving_url: str = None, project: str = None,
+        core_secure: bool = None, serving_secure: bool = None
     ):
         """
         The Feast Client should be initialized with at least one service url
@@ -91,10 +94,14 @@ class Client:
             core_url: Feast Core URL. Used to manage features
             serving_url: Feast Serving URL. Used to retrieve features
             project: Sets the active project. This field is optional.
+            core_secure: Use client-side SSL/TLS for Core gRPC API
+            serving_secure: Use client-side SSL/TLS for Serving gRPC API
         """
-        self._core_url = core_url
-        self._serving_url = serving_url
-        self._project = project
+        self._core_url: str = core_url
+        self._serving_url: str = serving_url
+        self._project: str = project
+        self._core_secure: bool = core_secure
+        self._serving_secure: bool = serving_secure
         self.__core_channel: grpc.Channel = None
         self.__serving_channel: grpc.Channel = None
         self._core_service_stub: CoreServiceStub = None
@@ -149,6 +156,52 @@ class Client:
         """
         self._serving_url = value
 
+    @property
+    def core_secure(self) -> bool:
+        """
+        Retrieve Feast Core client-side SSL/TLS setting
+
+        Returns:
+            Whether client-side SSL/TLS is enabled
+        """
+
+        if self._core_secure is not None:
+            return self._core_secure
+        return os.getenv(FEAST_CORE_SECURE_ENV_KEY, "").lower() is "true"
+
+    @core_secure.setter
+    def core_secure(self, value: bool):
+        """
+        Set the Feast Core client-side SSL/TLS setting
+
+        Args:
+            value: True to enable client-side SSL/TLS
+        """
+        self._core_secure = value
+
+    @property
+    def serving_secure(self) -> bool:
+        """
+        Retrieve Feast Serving client-side SSL/TLS setting
+
+        Returns:
+            Whether client-side SSL/TLS is enabled
+        """
+
+        if self._serving_secure is not None:
+            return self._serving_secure
+        return os.getenv(FEAST_SERVING_SECURE_ENV_KEY, "").lower() is "true"
+
+    @serving_secure.setter
+    def serving_secure(self, value: bool):
+        """
+        Set the Feast Serving client-side SSL/TLS setting
+
+        Args:
+            value: True to enable client-side SSL/TLS
+        """
+        self._serving_secure = value
+
     def version(self):
         """
         Returns version information from Feast Core and Feast Serving
@@ -185,7 +238,7 @@ class Client:
             raise ValueError("Please set Feast Core URL.")
 
         if self.__core_channel is None:
-            if self.core_url.endswith(":443"):
+            if self.core_secure or self.core_url.endswith(":443"):
                 self.__core_channel = grpc.secure_channel(self.core_url, grpc.ssl_channel_credentials())
             else:
                 self.__core_channel = grpc.insecure_channel(self.core_url)
@@ -217,7 +270,10 @@ class Client:
             raise ValueError("Please set Feast Serving URL.")
 
         if self.__serving_channel is None:
-            self.__serving_channel = grpc.insecure_channel(self.serving_url)
+            if self.serving_secure or self.serving_url.endswith(":443"):
+                self.__serving_channel = grpc.secure_channel(self.serving_url, grpc.ssl_channel_credentials())
+            else:
+                self.__serving_channel = grpc.insecure_channel(self.serving_url)
 
         try:
             grpc.channel_ready_future(self.__serving_channel).result(

@@ -19,12 +19,11 @@ package feast.serving.service;
 import com.google.protobuf.util.JsonFormat;
 import feast.serving.ServingAPIProto.Job;
 import feast.serving.ServingAPIProto.Job.Builder;
+import io.lettuce.core.api.StatefulRedisConnection;
+import io.lettuce.core.api.sync.RedisCommands;
 import java.util.Optional;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.exceptions.JedisConnectionException;
 
 // TODO: Do rate limiting, currently if clients call get() or upsert()
 //       and an exceedingly high rate e.g. they wrap job reload in a while loop with almost no wait
@@ -33,53 +32,41 @@ import redis.clients.jedis.exceptions.JedisConnectionException;
 public class RedisBackedJobService implements JobService {
 
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(RedisBackedJobService.class);
-  private final JedisPool jedisPool;
+  private final RedisCommands<byte[], byte[]> syncCommand;
   // Remove job state info after "defaultExpirySeconds" to prevent filling up Redis memory
   // and since users normally don't require info about relatively old jobs.
   private final int defaultExpirySeconds = (int) Duration.standardDays(1).getStandardSeconds();
 
-  public RedisBackedJobService(JedisPool jedisPool) {
-    this.jedisPool = jedisPool;
+  public RedisBackedJobService(StatefulRedisConnection<byte[], byte[]> connection) {
+    this.syncCommand = connection.sync();
   }
 
   @Override
   public Optional<Job> get(String id) {
-    Jedis jedis = null;
     Job job = null;
     try {
-      jedis = jedisPool.getResource();
-      String json = jedis.get(id);
-      if (json == null) {
+      String json = new String(syncCommand.get(id.getBytes()));
+      if (json.isEmpty()) {
         return Optional.empty();
       }
       Builder builder = Job.newBuilder();
       JsonFormat.parser().merge(json, builder);
       job = builder.build();
-    } catch (JedisConnectionException e) {
-      log.error(String.format("Failed to connect to the redis instance: %s", e));
     } catch (Exception e) {
       log.error(String.format("Failed to parse JSON for Feast job: %s", e.getMessage()));
-    } finally {
-      if (jedis != null) {
-        jedis.close();
-      }
     }
     return Optional.ofNullable(job);
   }
 
   @Override
   public void upsert(Job job) {
-    Jedis jedis = null;
     try {
-      jedis = jedisPool.getResource();
-      jedis.set(job.getId(), JsonFormat.printer().omittingInsignificantWhitespace().print(job));
-      jedis.expire(job.getId(), defaultExpirySeconds);
+      syncCommand.set(
+          job.getId().getBytes(),
+          JsonFormat.printer().omittingInsignificantWhitespace().print(job).getBytes());
+      syncCommand.expire(job.getId().getBytes(), defaultExpirySeconds);
     } catch (Exception e) {
       log.error(String.format("Failed to upsert job: %s", e.getMessage()));
-    } finally {
-      if (jedis != null) {
-        jedis.close();
-      }
     }
   }
 }

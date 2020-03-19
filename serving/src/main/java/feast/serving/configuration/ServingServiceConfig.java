@@ -36,8 +36,6 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.JedisPoolConfig;
 
 @Configuration
 public class ServingServiceConfig {
@@ -74,19 +72,16 @@ public class ServingServiceConfig {
       FeastProperties feastProperties,
       CachedSpecService specService,
       JobService jobService,
-      Tracer tracer) {
+      Tracer tracer,
+      StoreConfiguration storeConfiguration) {
     ServingService servingService = null;
     Store store = specService.getStore();
 
     switch (store.getType()) {
       case REDIS:
-        RedisConfig redisConfig = store.getRedisConfig();
-        JedisPoolConfig poolConfig = new JedisPoolConfig();
-        poolConfig.setMaxTotal(feastProperties.getStore().getRedisPoolMaxSize());
-        poolConfig.setMaxIdle(feastProperties.getStore().getRedisPoolMaxIdle());
-        JedisPool jedisPool =
-            new JedisPool(poolConfig, redisConfig.getHost(), redisConfig.getPort());
-        servingService = new RedisServingService(jedisPool, specService, tracer);
+        servingService =
+            new RedisServingService(
+                storeConfiguration.getServingRedisConnection(), specService, tracer);
         break;
       case BIGQUERY:
         BigQueryConfig bqConfig = store.getBigqueryConfig();

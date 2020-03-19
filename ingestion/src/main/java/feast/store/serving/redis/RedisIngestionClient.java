@@ -14,12 +14,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.retry;
+package feast.store.serving.redis;
 
-public interface Retriable {
-  void execute() throws Exception;
+import feast.retry.BackOffExecutor;
+import java.io.Serializable;
 
-  Boolean isExceptionRetriable(Exception e);
+public interface RedisIngestionClient extends Serializable {
 
-  void cleanUpAfterFailure();
+  void setup();
+
+  BackOffExecutor getBackOffExecutor();
+
+  void shutdown();
+
+  void connect();
+
+  boolean isConnected();
+
+  void sync();
+
+  void pexpire(byte[] key, Long expiryMillis);
+
+  void append(byte[] key, byte[] value);
+
+  void set(byte[] key, byte[] value);
+
+  void lpush(byte[] key, byte[] value);
+
+  void rpush(byte[] key, byte[] value);
+
+  void sadd(byte[] key, byte[] value);
+
+  void zadd(byte[] key, Long score, byte[] value);
 }
