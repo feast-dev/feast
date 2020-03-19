@@ -177,13 +177,7 @@ public class RedisOnlineRetriever implements OnlineRetriever {
               .collect(Collectors.toList())
               .toArray(new byte[0][0]);
       return syncCommands.mget(binaryKeys).stream()
-          .map(
-              kv -> {
-                if (kv == null) {
-                  return null;
-                }
-                return kv.getValue();
-              })
+          .map(keyValue -> keyValue.getValueOrElse(null))
           .collect(Collectors.toList());
     } catch (Exception e) {
       throw Status.NOT_FOUND
