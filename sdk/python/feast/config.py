@@ -13,152 +13,212 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-
 import logging
 import os
-import sys
+from configparser import ConfigParser, NoOptionError
 from os.path import expanduser, join
-from typing import Dict
-from urllib.parse import ParseResult, urlparse
+from typing import Dict, Optional
 
-import toml
+from feast.constants import (
+    CONFIG_FEAST_ENV_VAR_PREFIX,
+    CONFIG_FILE_DEFAULT_DIRECTORY,
+    CONFIG_FILE_NAME,
+    CONFIG_FILE_SECTION,
+    FEAST_CONFIG_FILE_ENV_KEY,
+)
+from feast.constants import FEAST_DEFAULT_OPTIONS as DEFAULTS
 
 _logger = logging.getLogger(__name__)
 
-feast_configuration_properties = {"core_url": "URL", "serving_url": "URL"}
 
-CONFIGURATION_FILE_DIR = os.environ.get("FEAST_CONFIG", ".feast")
-CONFIGURATION_FILE_NAME = "config.toml"
-
-
-def _get_or_create_config() -> Dict:
-    """Get user configuration file or create it and return"""
-
-    user_config_file_dir, user_config_file_path = _get_config_file_locations()
-    user_config_file_dir = user_config_file_dir.rstrip("/") + "/"
-    if not os.path.exists(os.path.dirname(user_config_file_dir)):
-        os.makedirs(os.path.dirname(user_config_file_dir))
-
-    if not os.path.isfile(user_config_file_path):
-        _save_config(user_config_file_path, _props_to_dict())
-
-    try:
-        return toml.load(user_config_file_path)
-    except FileNotFoundError:
-        _logger.error(
-            "Could not find Feast configuration file " + user_config_file_path
-        )
-        sys.exit(1)
-    except toml.decoder.TomlDecodeError:
-        _logger.error(
-            "Could not decode Feast configuration file " + user_config_file_path
-        )
-        sys.exit(1)
-    except Exception as e:
-        _logger.error(e)
-        sys.exit(1)
-
-
-def set_property(prop: str, value: str):
+def _init_config(path: str):
     """
-    Sets a single property in the Feast users local configuration file
+    Returns a ConfigParser that reads in a feast configuration file. If the
+    file does not exist it will be created.
 
     Args:
-        prop: Feast property name
-        value: Feast property value
+        path: Optional path to initialize as Feast configuration
+
+    Returns: ConfigParser of the Feast configuration file, with defaults
+    preloaded
+
     """
-    if _is_valid_property(prop, value):
-        active_feast_config = _get_or_create_config()
-        active_feast_config[prop] = value
-        _, user_config_file_path = _get_config_file_locations()
-        _save_config(user_config_file_path, active_feast_config)
-        print("Updated property [%s]" % prop)
-    else:
-        _logger.error("Invalid property selected")
-        sys.exit(1)
+    # Create the configuration file directory if needed
+    config_dir = os.path.dirname(path)
+    config_dir = config_dir.rstrip("/") + "/"
+
+    if not os.path.exists(os.path.dirname(config_dir)):
+        os.makedirs(os.path.dirname(config_dir))
+
+    # Create the configuration file itself
+    config = ConfigParser(defaults=DEFAULTS)
+    if os.path.exists(path):
+        config.read(path)
+
+    # Store all configuration in a single section
+    if not config.has_section(CONFIG_FILE_SECTION):
+        config.add_section(CONFIG_FILE_SECTION)
+
+    # Save the current configuration
+    config.write(open(path, "w"))
+
+    return config
 
 
-def get_config_property_or_fail(prop: str, force_config: Dict[str, str] = None) -> str:
+def _get_feast_env_vars():
     """
-    Gets a single property in the users configuration
-
-    Args:
-        prop: Property to retrieve
-        force_config: Configuration dictionary containing properties that should
-            be overridden. This will take precedence over file based properties.
-
-    Returns:
-        Returns a string property
+    Get environmental variables that start with FEAST_
+    Returns: Dict of Feast environmental variables (stripped of prefix)
     """
-    if (
-        isinstance(force_config, dict)
-        and prop in force_config
-        and force_config[prop] is not None
+    feast_env_vars = {}
+    for key in os.environ.keys():
+        if key.upper().startswith(CONFIG_FEAST_ENV_VAR_PREFIX):
+            feast_env_vars[key[len(CONFIG_FEAST_ENV_VAR_PREFIX) :]] = os.environ[key]
+    return feast_env_vars
+
+
+class Config:
+    """
+    Maintains and provides access to Feast configuration
+
+    Configuration is stored as key/value pairs. The user can specify options
+    through either input arguments to this class, environmental variables, or
+    by setting the config in a configuration file
+
+    """
+
+    def __init__(
+        self, options: Optional[Dict[str, str]] = None, path: Optional[str] = None,
     ):
-        return force_config[prop]
+        """
+        Configuration options are returned as follows (higher replaces lower)
+        1. Initialized options ("options" argument)
+        2. Environmental variables (reloaded on every "get")
+        3. Configuration file options (loaded once)
+        4. Default options (loaded once from memory)
 
-    active_feast_config = _get_or_create_config()
-    if _is_valid_property(prop, active_feast_config[prop]):
-        return active_feast_config[prop]
-    _logger.error("Could not load Feast property from configuration: %s" % prop)
-    sys.exit(1)
+        Args:
+            options: (optional) A list of initialized/hardcoded options.
+            path: (optional) File path to configuration file
+        """
+        if not path:
+            path = join(
+                expanduser("~"),
+                os.environ.get(
+                    FEAST_CONFIG_FILE_ENV_KEY, CONFIG_FILE_DEFAULT_DIRECTORY,
+                ),
+                CONFIG_FILE_NAME,
+            )
 
+        config = _init_config(path)
 
-def _props_to_dict() -> Dict[str, str]:
-    """Create empty dictionary of all Feast properties"""
-    prop_dict = {}
-    for prop in feast_configuration_properties:
-        prop_dict[prop] = ""
-    return prop_dict
+        self._options = {}
+        if options and isinstance(options, dict):
+            self._options = options
 
+        self._config = config  # type: ConfigParser
+        self._path = path  # type: str
 
-def _is_valid_property(prop: str, value: str) -> bool:
-    """
-    Validates both a Feast property as well as value
+    def get(self, option):
+        """
+        Returns a single configuration option as a string
 
-    Args:
-        prop: Feast property name
-        value: Feast property value
+        Args:
+            option: Name of the option
 
-    Returns:
-        Returns True if property and value are valid
-    """
-    if prop not in feast_configuration_properties:
-        _logger.error("You are trying to set an invalid property")
-        sys.exit(1)
+        Returns: String option that is returned
 
-    prop_type = feast_configuration_properties[prop]
+        """
+        return self._config.get(
+            CONFIG_FILE_SECTION,
+            option,
+            vars={**_get_feast_env_vars(), **self._options},
+        )
 
-    if prop_type == "URL":
-        if "//" not in value:
-            value = "%s%s" % ("grpc://", value)
-        parsed_value = urlparse(value)  # type: ParseResult
-        if parsed_value.netloc:
+    def getboolean(self, option):
+        """
+         Returns a single configuration option as a boolean
+
+         Args:
+             option: Name of the option
+
+         Returns: Boolean option value that is returned
+
+         """
+        return self._config.getboolean(
+            CONFIG_FILE_SECTION,
+            option,
+            vars={**_get_feast_env_vars(), **self._options},
+        )
+
+    def getint(self, option):
+        """
+         Returns a single configuration option as an integer
+
+         Args:
+             option: Name of the option
+
+         Returns: Integer option value that is returned
+
+         """
+        return self._config.getint(
+            CONFIG_FILE_SECTION,
+            option,
+            vars={**_get_feast_env_vars(), **self._options},
+        )
+
+    def getfloat(self, option):
+        """
+         Returns a single configuration option as an integer
+
+         Args:
+             option: Name of the option
+
+         Returns: Float option value that is returned
+
+         """
+        return self._config.getfloat(
+            CONFIG_FILE_SECTION,
+            option,
+            vars={**_get_feast_env_vars(), **self._options},
+        )
+
+    def set(self, option, value):
+        """
+        Sets a configuration option. Must be serializable to string
+        Args:
+            option: Option name to use as key
+            value: Value to store under option
+        """
+        self._config.set(CONFIG_FILE_SECTION, option, value=str(value))
+
+    def exists(self, option):
+        """
+        Tests whether a specific option is available
+
+        Args:
+            option: Name of the option to check
+
+        Returns: Boolean true/false whether the option is set
+
+        """
+        try:
+            self.get(option=option)
             return True
+        except NoOptionError:
+            return False
 
-    _logger.error("The property you are trying to set could not be identified")
-    sys.exit(1)
+    def save(self):
+        """
+        Save the current configuration to disk. This does not include
+        environmental variables or initialized options
+        """
+        self._config.write(open(self._path, "w"))
 
-
-def _save_config(user_config_file_path: str, config_string: Dict[str, str]):
-    """
-    Saves Feast configuration
-
-    Args:
-        user_config_file_path: Local file system path to save configuration
-        config_string: Contents in dictionary format to save to path
-    """
-    try:
-        with open(user_config_file_path, "w+") as f:
-            toml.dump(config_string, f)
-    except Exception as e:
-        _logger.error("Could not update configuration file for Feast")
-        print(e)
-        sys.exit(1)
-
-
-def _get_config_file_locations() -> (str, str):
-    """Gets the local user configuration directory and file path"""
-    user_config_file_dir = join(expanduser("~"), CONFIGURATION_FILE_DIR)
-    user_config_file_path = join(user_config_file_dir, CONFIGURATION_FILE_NAME)
-    return user_config_file_dir, user_config_file_path
+    def __str__(self):
+        result = ""
+        for section_name in self._config.sections():
+            result += "\n[" + section_name + "]\n"
+            for name, value in self._config.items(section_name):
+                result += name + " = " + value + "\n"
+        return result
