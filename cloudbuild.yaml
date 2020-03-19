@@ -163,6 +163,7 @@ steps:
     - -j
     - pom,sha1
     - -r
+    - -d
     - /cache/m2
     - ${_M2_CACHE_DIR}
 
