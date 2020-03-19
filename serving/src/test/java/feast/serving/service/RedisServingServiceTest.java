@@ -377,39 +377,29 @@ public class RedisServingServiceTest {
                     .putFields("entity2", strValue("b")))
             .build();
 
-    List<FeatureRow> featureRows =
-        Lists.newArrayList(
-            FeatureRow.newBuilder()
-                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-                .addAllFields(
-                    Lists.newArrayList(
-                        Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
-                        Field.newBuilder().setName("entity2").setValue(strValue("a")).build(),
-                        Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
-                        Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-                .setFeatureSet("featureSet:1")
-                .build(),
-            FeatureRow.newBuilder()
-                .setEventTimestamp(Timestamp.newBuilder())
-                .addAllFields(
-                    Lists.newArrayList(
-                        Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
-                        Field.newBuilder().setName("entity2").setValue(strValue("b")).build(),
-                        Field.newBuilder().setName("feature1").build(),
-                        Field.newBuilder().setName("feature2").build()))
-                .setFeatureSet("featureSet:1")
-                .build());
-
     FeatureSetRequest featureSetRequest =
         FeatureSetRequest.newBuilder()
             .addAllFeatureReferences(request.getFeaturesList())
             .setSpec(getFeatureSetSpec())
             .build();
 
+    FeatureRow featureRowPresent =
+        FeatureRow.newBuilder()
+            .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+            .addAllFields(
+                Lists.newArrayList(
+                    Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
+                    Field.newBuilder().setName("entity2").setValue(strValue("a")).build(),
+                    Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
+                    Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
+            .setFeatureSet("featureSet:1")
+            .build();
+
     List<KeyValue<byte[], byte[]>> featureRowBytes =
-        featureRows.stream()
-            .map(x -> KeyValue.from(new byte[1], Optional.of(x.toByteArray())))
-            .collect(Collectors.toList());
+        Lists.newArrayList(
+            KeyValue.from(new byte[1], Optional.of(featureRowPresent.toByteArray())),
+            KeyValue.from(new byte[1], Optional.empty()));
+
     when(specService.getFeatureSets(request.getFeaturesList()))
         .thenReturn(Collections.singletonList(featureSetRequest));
     when(connection.sync()).thenReturn(syncCommands);

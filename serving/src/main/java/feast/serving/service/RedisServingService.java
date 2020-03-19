@@ -328,7 +328,7 @@ public class RedisServingService implements ServingService {
                 .collect(Collectors.toList())
                 .toArray(new byte[0][0]);
         return syncCommands.mget(binaryKeys).stream()
-            .map(io.lettuce.core.Value::getValue)
+            .map(keyValue -> keyValue.getValueOrElse(null))
             .collect(Collectors.toList());
       } catch (Exception e) {
         throw Status.NOT_FOUND
