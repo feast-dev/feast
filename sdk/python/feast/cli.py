@@ -17,18 +17,13 @@ import logging
 import sys
 
 import click
-from feast.config import Config
 import pkg_resources
-import toml
 import yaml
 
-from feast import config as feast_config
 from feast.client import Client
+from feast.config import Config
 from feast.feature_set import FeatureSet
 from feast.loaders.yaml import yaml_loader
-import yaml
-import json
-from feast.constants import *
 
 _logger = logging.getLogger(__name__)
 
@@ -54,8 +49,7 @@ def cli():
 
 @cli.command()
 @click.option(
-    "--client-only", "-c", is_flag=True,
-    help="Print only the version of the CLI"
+    "--client-only", "-c", is_flag=True, help="Print only the version of the CLI"
 )
 @common_options
 def version(client_only: bool, **kwargs):
@@ -153,8 +147,7 @@ def feature_set_create(filename):
     Create or update a feature set
     """
 
-    feature_sets = [FeatureSet.from_dict(fs_dict) for fs_dict in
-                    yaml_loader(filename)]
+    feature_sets = [FeatureSet.from_dict(fs_dict) for fs_dict in yaml_loader(filename)]
     feast_client = Client()  # type: Client
     feast_client.apply(feature_sets)
 
@@ -174,8 +167,7 @@ def feature_set_describe(name: str, version: int):
         )
         return
 
-    print(yaml.dump(yaml.safe_load(str(fs)), default_flow_style=False,
-                    sort_keys=False))
+    print(yaml.dump(yaml.safe_load(str(fs)), default_flow_style=False, sort_keys=False))
 
 
 @cli.group(name="projects")
@@ -202,8 +194,8 @@ def project_archive(name: str):
     """
     Archive a project
     """
-    feast_client =  # type: Client
-    Client().archive_project(name)
+    feast_client = Client()  # type: Client
+    feast_client.archive_project(name)
 
 
 @project.command(name="list")

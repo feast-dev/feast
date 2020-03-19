@@ -20,7 +20,6 @@ import tempfile
 import time
 from collections import OrderedDict
 from math import ceil
-from typing import Dict, List, Tuple, Union, Optional
 from typing import Dict, List, Optional, Tuple, Union
 
 import grpc
@@ -28,6 +27,14 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from feast.config import Config
+from feast.constants import (
+    CONFIG_CORE_SECURE_KEY,
+    CONFIG_CORE_URL_KEY,
+    CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY,
+    CONFIG_SERVING_SECURE_KEY,
+    CONFIG_SERVING_URL_KEY,
+)
 from feast.core.CoreService_pb2 import (
     ApplyFeatureSetRequest,
     ApplyFeatureSetResponse,
@@ -62,8 +69,6 @@ from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesResponse,
 )
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-from feast.config import Config
-from feast.constants import *
 
 _logger = logging.getLogger(__name__)
 
@@ -75,8 +80,7 @@ class Client:
     Feast Client: Used for creating, managing, and retrieving features.
     """
 
-    def __init__(
-        self, options: Optional[Dict[str, str]] = None, **kwargs):
+    def __init__(self, options: Optional[Dict[str, str]] = None, **kwargs):
         """
         The Feast Client should be initialized with at least one service url
 
@@ -93,8 +97,7 @@ class Client:
 
         if options is None:
             options = dict()
-        self._config = Config(options={**options,
-                                       **kwargs})
+        self._config = Config(options={**options, **kwargs})
 
         self.__core_channel: grpc.Channel = None
         self.__serving_channel: grpc.Channel = None
@@ -191,18 +194,15 @@ class Client:
             self._connect_serving()
             serving_version = self._serving_service_stub.GetFeastServingInfo(
                 GetFeastServingInfoRequest(),
-                timeout=self._config.getint(
-                    CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY)
+                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
             ).version
-            result["serving"] = {"url": self.serving_url,
-                                 "version": serving_version}
+            result["serving"] = {"url": self.serving_url, "version": serving_version}
 
         if self.core_url:
             self._connect_core()
             core_version = self._core_service_stub.GetFeastCoreVersion(
                 GetFeastCoreVersionRequest(),
-                timeout=self._config.getint(
-                    CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY)
+                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
             ).version
             result["core"] = {"url": self.core_url, "version": core_version}
 
@@ -223,15 +223,15 @@ class Client:
 
         if self.__core_channel is None:
             if self.core_secure or self.core_url.endswith(":443"):
-                self.__core_channel = grpc.secure_channel(self.core_url,
-                                                          grpc.ssl_channel_credentials())
+                self.__core_channel = grpc.secure_channel(
+                    self.core_url, grpc.ssl_channel_credentials()
+                )
             else:
                 self.__core_channel = grpc.insecure_channel(self.core_url)
 
         try:
             grpc.channel_ready_future(self.__core_channel).result(
-                timeout=self._config.getint(
-                    CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY)
+                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY)
             )
         except grpc.FutureTimeoutError:
             raise ConnectionError(
@@ -257,15 +257,15 @@ class Client:
 
         if self.__serving_channel is None:
             if self.serving_secure or self.serving_url.endswith(":443"):
-                self.__serving_channel = grpc.secure_channel(self.serving_url,
-                                                             grpc.ssl_channel_credentials())
+                self.__serving_channel = grpc.secure_channel(
+                    self.serving_url, grpc.ssl_channel_credentials()
+                )
             else:
                 self.__serving_channel = grpc.insecure_channel(self.serving_url)
 
         try:
             grpc.channel_ready_future(self.__serving_channel).result(
-                timeout=self._config.getint(
-                    CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY)
+                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY)
             )
         except grpc.FutureTimeoutError:
             raise ConnectionError(
@@ -273,8 +273,7 @@ class Client:
                 f"Serving gRPC server {self.serving_url} "
             )
         else:
-            self._serving_service_stub = ServingServiceStub(
-                self.__serving_channel)
+            self._serving_service_stub = ServingServiceStub(self.__serving_channel)
 
     @property
     def project(self) -> Union[str, None]:
@@ -305,8 +304,8 @@ class Client:
         """
         self._connect_core()
         response = self._core_service_stub.ListProjects(
-            ListProjectsRequest(), timeout=self._config.getint(
-                CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY)
+            ListProjectsRequest(),
+            timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
         )  # type: ListProjectsResponse
         return list(response.projects)
 
@@ -321,8 +320,7 @@ class Client:
         self._connect_core()
         self._core_service_stub.CreateProject(
             CreateProjectRequest(name=project),
-            timeout=self._config.getint(
-                CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY)
+            timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
         )  # type: CreateProjectResponse
 
     def archive_project(self, project):
@@ -338,8 +336,7 @@ class Client:
         self._connect_core()
         self._core_service_stub.ArchiveProject(
             ArchiveProjectRequest(name=project),
-            timeout=self._config.getint(
-                CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY)
+            timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
         )  # type: ArchiveProjectResponse
 
         if self._project == project:
@@ -388,8 +385,7 @@ class Client:
         try:
             apply_fs_response = self._core_service_stub.ApplyFeatureSet(
                 ApplyFeatureSetRequest(feature_set=feature_set_proto),
-                timeout=self._config.getint(
-                    CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
             )  # type: ApplyFeatureSetResponse
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
@@ -561,8 +557,7 @@ class Client:
         # staging location
         serving_info = self._serving_service_stub.GetFeastServingInfo(
             GetFeastServingInfoRequest(),
-            timeout=self._config.getint(
-                CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY)
+            timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
         )  # type: GetFeastServingInfoResponse
 
         if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
@@ -576,8 +571,7 @@ class Client:
 
             # Remove timezone from datetime column
             if isinstance(
-                entity_rows["datetime"].dtype,
-                pd.core.dtypes.dtypes.DatetimeTZDtype
+                entity_rows["datetime"].dtype, pd.core.dtypes.dtypes.DatetimeTZDtype
             ):
                 entity_rows["datetime"] = pd.DatetimeIndex(
                     entity_rows["datetime"]
@@ -604,8 +598,7 @@ class Client:
             features=feature_references,
             dataset_source=DatasetSource(
                 file_source=DatasetSource.FileSource(
-                    file_uris=staged_files,
-                    data_format=DataFormat.DATA_FORMAT_AVRO
+                    file_uris=staged_files, data_format=DataFormat.DATA_FORMAT_AVRO
                 )
             ),
         )
@@ -714,8 +707,7 @@ class Client:
             raise Exception(f"Feature set name must be provided")
 
         # Read table and get row count
-        dir_path, dest_path = _read_table_from_source(source, chunk_size,
-                                                      max_workers)
+        dir_path, dest_path = _read_table_from_source(source, chunk_size, max_workers)
 
         pq_file = pq.ParquetFile(dest_path)
 
@@ -734,8 +726,7 @@ class Client:
         print("Waiting for feature set to be ready for ingestion...")
         while True:
             if timeout is not None and time.time() - current_time >= timeout:
-                raise TimeoutError(
-                    "Timed out waiting for feature set to be ready")
+                raise TimeoutError("Timed out waiting for feature set to be ready")
             feature_set = self.get_feature_set(name, version)
             if (
                 feature_set is not None
@@ -843,8 +834,7 @@ def _build_feature_references(
                 f'Could not parse feature ref {feature_ref}, expecting "project/feature:version"'
             )
 
-        features.append(
-            FeatureReference(project=project, name=name, version=version))
+        features.append(FeatureReference(project=project, name=name, version=version))
     return features
 
 
@@ -899,8 +889,7 @@ def _read_table_from_source(
         else:
             table = pq.read_table(file_path)
     else:
-        raise ValueError(
-            f"Unknown data source provided for ingestion: {source}")
+        raise ValueError(f"Unknown data source provided for ingestion: {source}")
 
     # Ensure that PyArrow table is initialised
     assert isinstance(table, pa.lib.Table)

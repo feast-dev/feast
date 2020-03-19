@@ -13,26 +13,22 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-from configparser import ConfigParser, NoOptionError
-from os.path import expanduser, join
 import logging
 import os
-from typing import Dict
-from typing import Optional
-from feast.constants import *
+from configparser import ConfigParser, NoOptionError
+from os.path import expanduser, join
+from typing import Dict, Optional
+
+from feast.constants import (
+    CONFIG_FEAST_ENV_VAR_PREFIX,
+    CONFIG_FILE_DEFAULT_DIRECTORY,
+    CONFIG_FILE_NAME,
+    CONFIG_FILE_SECTION,
+    FEAST_CONFIG_FILE_ENV_KEY,
+)
+from feast.constants import FEAST_DEFAULT_OPTIONS as DEFAULTS
 
 _logger = logging.getLogger(__name__)
-
-FEAST_DEFAULT_OPTIONS = {
-    CONFIG_PROJECT_KEY: "default",
-    CONFIG_CORE_URL_KEY: "localhost:6565",
-    CONFIG_CORE_SECURE_KEY: "False",
-    CONFIG_SERVING_URL_KEY: "localhost:6565",
-    CONFIG_SERVING_SECURE_KEY: 'False',
-    CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY: '3',
-    CONFIG_GRPC_CONNECTION_TIMEOUT_APPLY_KEY: '600',
-    CONFIG_BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS_KEY: '600',
-}
 
 
 def _init_config(path: str):
@@ -55,7 +51,7 @@ def _init_config(path: str):
         os.makedirs(os.path.dirname(config_dir))
 
     # Create the configuration file itself
-    config = ConfigParser(defaults=FEAST_DEFAULT_OPTIONS)
+    config = ConfigParser(defaults=DEFAULTS)
     if os.path.exists(path):
         config.read(path)
 
@@ -64,7 +60,7 @@ def _init_config(path: str):
         config.add_section(CONFIG_FILE_SECTION)
 
     # Save the current configuration
-    config.write(open(path, 'w'))
+    config.write(open(path, "w"))
 
     return config
 
@@ -77,8 +73,7 @@ def _get_feast_env_vars():
     feast_env_vars = {}
     for key in os.environ.keys():
         if key.upper().startswith(CONFIG_FEAST_ENV_VAR_PREFIX):
-            feast_env_vars[key[len(CONFIG_FEAST_ENV_VAR_PREFIX):]] = os.environ[
-                key]
+            feast_env_vars[key[len(CONFIG_FEAST_ENV_VAR_PREFIX) :]] = os.environ[key]
     return feast_env_vars
 
 
@@ -92,9 +87,8 @@ class Config:
 
     """
 
-    def __init__(self,
-        options: Optional[Dict[str, str]] = None,
-        path: Optional[str] = None,
+    def __init__(
+        self, options: Optional[Dict[str, str]] = None, path: Optional[str] = None,
     ):
         """
         Configuration options are returned as follows (higher replaces lower)
@@ -108,10 +102,13 @@ class Config:
             path: (optional) File path to configuration file
         """
         if not path:
-            path = join(expanduser("~"),
-                        os.environ.get(FEAST_CONFIG_FILE_ENV_KEY,
-                                       CONFIG_FILE_DEFAULT_DIRECTORY),
-                        CONFIG_FILE_NAME)
+            path = join(
+                expanduser("~"),
+                os.environ.get(
+                    FEAST_CONFIG_FILE_ENV_KEY, CONFIG_FILE_DEFAULT_DIRECTORY,
+                ),
+                CONFIG_FILE_NAME,
+            )
 
         config = _init_config(path)
 
@@ -132,9 +129,11 @@ class Config:
         Returns: String option that is returned
 
         """
-        return self._config.get(CONFIG_FILE_SECTION, option,
-                                vars={**_get_feast_env_vars(),
-                                      **self._options})
+        return self._config.get(
+            CONFIG_FILE_SECTION,
+            option,
+            vars={**_get_feast_env_vars(), **self._options},
+        )
 
     def getboolean(self, option):
         """
@@ -146,9 +145,11 @@ class Config:
          Returns: Boolean option value that is returned
 
          """
-        return self._config.getboolean(CONFIG_FILE_SECTION, option,
-                                       vars={**_get_feast_env_vars(),
-                                             **self._options})
+        return self._config.getboolean(
+            CONFIG_FILE_SECTION,
+            option,
+            vars={**_get_feast_env_vars(), **self._options},
+        )
 
     def getint(self, option):
         """
@@ -160,9 +161,11 @@ class Config:
          Returns: Integer option value that is returned
 
          """
-        return self._config.getint(CONFIG_FILE_SECTION, option,
-                                   vars={**_get_feast_env_vars(),
-                                         **self._options})
+        return self._config.getint(
+            CONFIG_FILE_SECTION,
+            option,
+            vars={**_get_feast_env_vars(), **self._options},
+        )
 
     def getfloat(self, option):
         """
@@ -174,9 +177,11 @@ class Config:
          Returns: Float option value that is returned
 
          """
-        return self._config.getfloat(CONFIG_FILE_SECTION, option,
-                                     vars={**_get_feast_env_vars(),
-                                           **self._options})
+        return self._config.getfloat(
+            CONFIG_FILE_SECTION,
+            option,
+            vars={**_get_feast_env_vars(), **self._options},
+        )
 
     def set(self, option, value):
         """
@@ -185,8 +190,7 @@ class Config:
             option: Option name to use as key
             value: Value to store under option
         """
-        self._config.set(CONFIG_FILE_SECTION, option,
-                         value=str(value))
+        self._config.set(CONFIG_FILE_SECTION, option, value=str(value))
 
     def exists(self, option):
         """
@@ -209,14 +213,12 @@ class Config:
         Save the current configuration to disk. This does not include
         environmental variables or initialized options
         """
-        self._config.write(open(self._path, 'w'))
+        self._config.write(open(self._path, "w"))
 
     def __str__(self):
-        result = ''
+        result = ""
         for section_name in self._config.sections():
-            result += '\n[' + section_name + ']\n'
-
+            result += "\n[" + section_name + "]\n"
             for name, value in self._config.items(section_name):
-                result += name + ' = ' + value + '\n'
-
+                result += name + " = " + value + "\n"
         return result
