@@ -134,6 +134,12 @@ kubectl port-forward -n deep svc/feast-feast-core 6565:6565
 kubectl port-forward -n deep svc/feast-feast-serving-batch 6566:6566
 ```
 
+### Read sample messages from Kafka
+
+```bash
+kafka-console-consumer --bootstrap-server 10.163.12.6:9092 --topic feast-features --from-beginning --group test-iain --max-messages 10
+```
+
 ## Overview
 
 Feast (Feature Store) is a tool for managing and serving machine learning features. Feast is the bridge between models and data.
