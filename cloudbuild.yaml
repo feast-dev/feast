@@ -37,7 +37,12 @@ steps:
   waitFor: ['unit-test-java', 'build-java']
   name: 'alpine:latest'
   entrypoint: sh
-  args: ['-c', "for m in datatypes/java sdk/java; do sh -c \"sed -E 's^(<artifactId>)(feast-parent)(</artifactId>)^\\1feast-ff-deploy\\3^; s^(<relativePath>)(.*)(</relativePath>)^\\1\\2/pom-ff-deploy.xml\\3^' $$m/pom.xml > $$m/pom-ff-deploy.xml\"; done"]
+  args:
+  - '-c'
+  - |
+    for m in datatypes/java sdk/java; do
+      sed -E 's^(<artifactId>)(feast-parent)(</artifactId>)^\1feast-ff-deploy\3^; s^(<relativePath>)(.*)(</relativePath>)^\1\2/pom-ff-deploy.xml\3^' $m/pom.xml > $m/pom-ff-deploy.xml
+    done
 - id: publish-java-sdk
   waitFor: ['create-deploy-poms']
   name: 'maven:${_MAVEN_VERSION}'
