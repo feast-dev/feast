@@ -15,7 +15,6 @@ steps:
     - '-c'
     - |
       touch .keep && gsutil mv .keep ${_M2_CACHE_DIR}/.keep
-  
 - id: m2-cache-pull
   waitFor: ['m2-cache-init-dir']
   name: gcr.io/cloud-builders/gsutil
