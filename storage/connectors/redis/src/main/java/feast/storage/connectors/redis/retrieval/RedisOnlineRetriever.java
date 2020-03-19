@@ -67,7 +67,6 @@ public class RedisOnlineRetriever implements OnlineRetriever {
         List<FeatureRow> featureRowsForFeatureSet =
             sendAndProcessMultiGet(
                 redisKeys,
-                entityRows,
                 featureSetRequest.getSpec(),
                 featureSetRequest.getFeatureReferences().asList());
         featureRows.add(featureRowsForFeatureSet);
@@ -127,7 +126,6 @@ public class RedisOnlineRetriever implements OnlineRetriever {
 
   private List<FeatureRow> sendAndProcessMultiGet(
       List<RedisKey> redisKeys,
-      List<EntityRow> entityRows,
       FeatureSetSpec featureSetSpec,
       List<FeatureReference> featureReferences)
       throws InvalidProtocolBufferException, ExecutionException {
@@ -142,11 +140,9 @@ public class RedisOnlineRetriever implements OnlineRetriever {
     }
 
     for (int i = 0; i < values.size(); i++) {
-      EntityRow entityRow = entityRows.get(i);
 
       byte[] value = values.get(i);
       if (value == null) {
-        // TODO: re-insert some way to track # missing keys
         featureRows.add(nullFeatureRowBuilder.build());
         continue;
       }
@@ -158,35 +154,14 @@ public class RedisOnlineRetriever implements OnlineRetriever {
         if (decoder.isEncodingValid(featureRow)) {
           featureRow = decoder.decode(featureRow);
         } else {
-          // TODO: re-insert some way to track # encoding errors
           featureRows.add(nullFeatureRowBuilder.build());
           continue;
         }
       }
 
-      boolean stale = isStale(featureSetSpec, entityRow, featureRow);
-      if (stale) {
-        // TODO: re-insert some way to track # of stale keys
-        featureRows.add(nullFeatureRowBuilder.build());
-        continue;
-      }
-
       featureRows.add(featureRow);
     }
     return featureRows;
-  }
-
-  private boolean isStale(
-      FeatureSetSpec featureSetSpec, EntityRow entityRow, FeatureRow featureRow) {
-    if (featureSetSpec.getMaxAge().equals(Duration.getDefaultInstance())) {
-      return false;
-    }
-    long givenTimestamp = entityRow.getEntityTimestamp().getSeconds();
-    if (givenTimestamp == 0) {
-      givenTimestamp = System.currentTimeMillis() / 1000;
-    }
-    long timeDifference = givenTimestamp - featureRow.getEventTimestamp().getSeconds();
-    return timeDifference > featureSetSpec.getMaxAge().getSeconds();
   }
 
   /**
