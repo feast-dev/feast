@@ -32,6 +32,7 @@ from feast.constants import (
     CONFIG_CORE_SECURE_KEY,
     CONFIG_CORE_URL_KEY,
     CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY,
+    CONFIG_PROJECT_KEY,
     CONFIG_SERVING_SECURE_KEY,
     CONFIG_SERVING_URL_KEY,
 )
@@ -283,7 +284,7 @@ class Client:
         Returns:
             Project name
         """
-        return self._config.get("project")
+        return self._config.get(CONFIG_PROJECT_KEY)
 
     def set_project(self, project: str):
         """
@@ -292,7 +293,7 @@ class Client:
         Args:
             project: Project to set as active
         """
-        self._config.set("project", project)
+        self._config.set(CONFIG_PROJECT_KEY, project)
 
     def list_projects(self) -> List[str]:
         """
