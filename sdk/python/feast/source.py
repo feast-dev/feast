@@ -11,11 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from feast.core.Source_pb2 import (
-    Source as SourceProto,
-    KafkaSourceConfig as KafkaSourceConfigProto,
-    SourceType as SourceTypeProto,
-)
+from feast.core.Source_pb2 import KafkaSourceConfig as KafkaSourceConfigProto
+from feast.core.Source_pb2 import Source as SourceProto
+from feast.core.Source_pb2 import SourceType as SourceTypeProto
 
 
 class Source:

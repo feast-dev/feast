@@ -37,9 +37,7 @@ REQUIRED = [
     "pandavro==1.5.*",
     "protobuf>=3.10",
     "PyYAML==5.1.*",
-    # fastavro 0.22.10 and newer will throw this error for e2e batch test:
-    # TypeError: Timestamp subtraction must have the same timezones or no timezones
-    "fastavro==0.22.9",
+    "fastavro>=0.22.11,<0.23",
     "kafka-python==1.*",
     "tabulate==0.8.*",
     "toml==0.10.*",

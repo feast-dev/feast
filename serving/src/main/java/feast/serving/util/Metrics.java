@@ -46,11 +46,27 @@ public class Metrics {
           .labelNames("project", "feature_name")
           .register();
 
+  public static final Counter invalidEncodingCount =
+      Counter.build()
+          .name("invalid_encoding_feature_count")
+          .subsystem("feast_serving")
+          .help("number requested feature rows that were stored with the wrong encoding")
+          .labelNames("project", "feature_name")
+          .register();
+
   public static final Counter staleKeyCount =
       Counter.build()
           .name("stale_feature_count")
           .subsystem("feast_serving")
           .help("number requested feature rows that were stale")
           .labelNames("project", "feature_name")
+          .register();
+
+  public static final Counter grpcRequestCount =
+      Counter.build()
+          .name("grpc_request_count")
+          .subsystem("feast_serving")
+          .help("number of grpc requests served")
+          .labelNames("method", "status_code")
           .register();
 }

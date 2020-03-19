@@ -58,18 +58,17 @@ steps:
   args: ['--settings=cloudbuild-settings.xml', '-Drevision=ff-${SHORT_SHA}','--file=pom-ff-deploy.xml', 'package', 'deploy:deploy']
 
 # SDK (GO)
-- id: gen-proto-go
+- id: compile-protos-go
   waitFor: ['-']
   name: 'gcr.io/konnekt-core/protoc-go:3.6.1'
-  dir: '/workspace/protos'
   entrypoint: make
-  args: ['gen-go']
+  args: ['compile-protos-go']
 - id: unit-test-go-sdk-setup
   waitFor: ['-']
   name: 'golang:1.13'
   args: ['go', 'get', '-u', 'github.com/jstemmer/go-junit-report']
 - id: unit-test-go-sdk-run
-  waitFor: ['gen-proto-go', 'unit-test-go-sdk-setup']
+  waitFor: ['compile-protos-go', 'unit-test-go-sdk-setup']
   name: 'golang:1.13'
   dir: '/workspace/sdk/go'
   entrypoint: 'sh'
@@ -82,14 +81,14 @@ steps:
   args: ['-c', 'cat /log/unit-test-cli-run | $${GOPATH}/bin/go-junit-report > /log/golang-sdk-test-report.xml']
 
 # SDK (Python)
-- id: gen-proto-python
+- id: compile-protos-python
   waitFor: ['-']
-  name: 'gcr.io/konnekt-core/protoc-python@sha256:61421f32abe11acac6a9aa6356a1b3cf009daa0fc3feb3d875e098fde422f8b0'
-  dir: '/workspace/protos'
+  name: 'gcr.io/konnekt-core/protoc-python:3.7.5'
+  dir: '/workspace'
   entrypoint: make
-  args: ['gen-python', '--dry-run'] # Disable for now (TODO: MR and fix)
+  args: ['compile-protos-python']
 - id: unit-test-python-sdk
-  waitFor: ['gen-proto-python']
+  waitFor: ['compile-protos-python']
   name: 'python:3.7-buster'
   dir: '/workspace/sdk/python'
   entrypoint: sh
@@ -146,11 +145,11 @@ steps:
 - id: docker-build-core
   waitFor: ['build-java']
   name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--build-arg', 'REVISION=ff-${SHORT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}', '-f', 'infra/docker/core/Dockerfile', '.']
+  args: ['build', '--build-arg', 'REVISION=ff-${SHORT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}', '-f', 'infra/docker/core/Dockerfile.ff', '.']
 - id: docker-build-serving
   waitFor: ['build-java']
   name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--build-arg', 'REVISION=ff-${SHORT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}', '-f', 'infra/docker/serving/Dockerfile', '.']
+  args: ['build', '--build-arg', 'REVISION=ff-${SHORT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}', '-f', 'infra/docker/serving/Dockerfile.ff', '.']
 
 # Teardown
 - id: m2-cache-push
@@ -208,4 +207,4 @@ substitutions:
   _MAVEN_VERSION: 3.6.2-jdk-11
   _M2_CACHE_DIR: 'gs://dev-konnekt-data-deep-1-feast-tmp/cache/m2'
 
-tags: ['team__konnekt', 'repo__konnekt_data_feast', 'commit__${SHORT_SHA}', 'slack__konnekt-devops-test']
+tags: ['team__konnekt', 'repo__konnekt_data_feast', 'commit__${SHORT_SHA}', 'slack__konnekt-feature-store']

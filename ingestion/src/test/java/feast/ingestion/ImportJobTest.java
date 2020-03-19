@@ -37,6 +37,7 @@ import feast.test.TestUtil;
 import feast.test.TestUtil.LocalKafka;
 import feast.test.TestUtil.LocalRedis;
 import feast.types.FeatureRowProto.FeatureRow;
+import feast.types.FieldProto;
 import feast.types.ValueProto.ValueType.Enum;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
@@ -50,6 +51,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -189,6 +191,23 @@ public class ImportJobTest {
               FeatureRow randomRow = TestUtil.createRandomFeatureRow(featureSet);
               RedisKey redisKey = TestUtil.createRedisKey(featureSet, randomRow);
               input.add(randomRow);
+              List<FieldProto.Field> fields =
+                  randomRow.getFieldsList().stream()
+                      .filter(
+                          field ->
+                              spec.getFeaturesList().stream()
+                                  .map(FeatureSpec::getName)
+                                  .collect(Collectors.toList())
+                                  .contains(field.getName()))
+                      .map(field -> field.toBuilder().clearName().build())
+                      .collect(Collectors.toList());
+              randomRow =
+                  randomRow
+                      .toBuilder()
+                      .clearFields()
+                      .addAllFields(fields)
+                      .clearFeatureSet()
+                      .build();
               expected.put(redisKey, randomRow);
             });
 

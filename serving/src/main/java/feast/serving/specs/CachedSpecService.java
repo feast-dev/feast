@@ -90,6 +90,7 @@ public class CachedSpecService {
     featureSetCacheLoader = CacheLoader.from(featureSets::get);
     featureSetCache =
         CacheBuilder.newBuilder().maximumSize(MAX_SPEC_COUNT).build(featureSetCacheLoader);
+    featureSetCache.putAll(featureSets);
   }
 
   /**
@@ -99,6 +100,10 @@ public class CachedSpecService {
    */
   public Store getStore() {
     return this.store;
+  }
+
+  public FeatureSetSpec getFeatureSetSpec(String featureSetRef) throws ExecutionException {
+    return featureSetCache.get(featureSetRef);
   }
 
   /**
