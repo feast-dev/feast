@@ -45,7 +45,7 @@ steps:
   name: 'golang:1.13'
   args: ['go', 'get', '-u', 'github.com/jstemmer/go-junit-report']
 - id: unit-test-go-sdk-run
-  waitFor: ['gen-proto-go', 'unit-test-go-sdk-setup']
+  waitFor: ['compile-protos-go', 'unit-test-go-sdk-setup']
   name: 'golang:1.13'
   dir: '/workspace/sdk/go'
   entrypoint: 'sh'
