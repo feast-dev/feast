@@ -122,11 +122,11 @@ steps:
 - id: docker-build-core
   waitFor: ['build-java']
   name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--build-arg', 'REVISION=ff-${SHORT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}', '-f', 'infra/docker/core/Dockerfile', '.']
+  args: ['build', '--build-arg', 'REVISION=ff-${SHORT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}', '-f', 'infra/docker/core/Dockerfile.ff', '.']
 - id: docker-build-serving
   waitFor: ['build-java']
   name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--build-arg', 'REVISION=ff-${SHORT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}', '-f', 'infra/docker/serving/Dockerfile', '.']
+  args: ['build', '--build-arg', 'REVISION=ff-${SHORT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}', '-f', 'infra/docker/serving/Dockerfile.ff', '.']
 
 # Teardown
 - id: m2-cahce-push
