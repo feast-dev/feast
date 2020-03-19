@@ -58,14 +58,14 @@ steps:
   args: ['-c', 'cat /log/unit-test-cli-run | $${GOPATH}/bin/go-junit-report > /log/golang-sdk-test-report.xml']
 
 # SDK (Python)
-- id: gen-proto-python
+- id: compile-protos-python
   waitFor: ['-']
-  name: 'gcr.io/konnekt-core/protoc-python@sha256:61421f32abe11acac6a9aa6356a1b3cf009daa0fc3feb3d875e098fde422f8b0'
-  dir: '/workspace/protos'
+  name: 'gcr.io/konnekt-core/protoc-python:3.7.5'
+  dir: '/workspace'
   entrypoint: make
-  args: ['gen-python', '--dry-run'] # Disable for now (TODO: MR and fix)
+  args: ['compile-protos-python']
 - id: unit-test-python-sdk
-  waitFor: ['gen-proto-python']
+  waitFor: ['compile-protos-python']
   name: 'python:3.7-buster'
   dir: '/workspace/sdk/python'
   entrypoint: sh
