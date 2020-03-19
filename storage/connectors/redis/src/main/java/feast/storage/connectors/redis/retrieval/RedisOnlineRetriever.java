@@ -17,7 +17,6 @@
 package feast.storage.connectors.redis.retrieval;
 
 import com.google.protobuf.AbstractMessageLite;
-import com.google.protobuf.Duration;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;

@@ -20,6 +20,18 @@
 
     <dependencies>
         <dependency>
+            <groupId>dev.feast</groupId>
+            <artifactId>datatypes-java</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>dev.feast</groupId>
+            <artifactId>feast-storage-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.12</version>
