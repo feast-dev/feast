@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>dev.feast</groupId>
+    <artifactId>feast-parent</artifactId>
+    <version>${revision}</version>
+    <relativePath>pom.xml</relativePath>
+  </parent>
+
+  <name>Farfetch Deploy</name>
+  <artifactId>feast-ff-deploy</artifactId>
+  <packaging>pom</packaging>
+
+  <modules>
+    <module>datatypes/java/pom-ff-deploy.xml</module>
+    <module>sdk/java/pom-ff-deploy.xml</module>
+  </modules>
+
+  <properties>
+    <skipTests>true</skipTests>
+  </properties>
+
+  <build>
+    <extensions>
+      <extension>
+        <groupId>com.gkatzioura.maven.cloud</groupId>
+        <artifactId>google-storage-wagon</artifactId>
+        <version>1.0</version>
+      </extension>
+    </extensions>
+
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>3.0.0-M2</version>
+        <configuration>
+          <skip>true</skip>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-gpg-plugin</artifactId>
+        <version>1.6</version>
+        <configuration>
+          <skip>true</skip>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.sonatype.plugins</groupId>
+        <artifactId>nexus-staging-maven-plugin</artifactId>
+        <configuration>
+          <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <distributionManagement>
+    <snapshotRepository>
+      <id>konnekt-artifacts-snapshot</id>
+      <name>GCS Snapshot Repository</name>
+      <url>gs://konnekt-artifacts/maven/snapshot</url>
+    </snapshotRepository>
+    <repository>
+      <id>konnekt-artifacts-release</id>
+      <name>GCS Release Repository</name>
+      <url>gs://konnekt-artifacts/maven/release</url>
+    </repository>
+  </distributionManagement>
+
+</project>

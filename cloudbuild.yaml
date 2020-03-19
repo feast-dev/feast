@@ -7,8 +7,16 @@ steps:
     - SERVICE_ACCOUNT_B64
 
 # Setup
-- id: m2-cahce-pull
+- id: m2-cache-init-dir
   waitFor: ['-']
+  name: gcr.io/cloud-builders/gsutil
+  entrypoint: sh
+  args:
+    - '-c'
+    - |
+      touch .keep && gsutil mv .keep ${_M2_CACHE_DIR}/.keep
+- id: m2-cache-pull
+  waitFor: ['m2-cache-init-dir']
   name: gcr.io/cloud-builders/gsutil
   args:
   - -o GSUtil:parallel_process_count=16
@@ -18,12 +26,12 @@ steps:
   - -j
   - pom,sha1
   - -r
-  - gs://dev-konnekt-data-deep-1-feast-tmp/cache/m2
+  - ${_M2_CACHE_DIR}
   - /cache/m2
 
 # JAVA
 - id: unit-test-java
-  waitFor: ['m2-cahce-pull']
+  waitFor: ['m2-cache-pull']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: mvn
   args: ['--settings=cloudbuild-settings.xml', '-Drevision=ff-${SHORT_SHA}', 'test']
@@ -33,6 +41,21 @@ steps:
   entrypoint: mvn
   args: ['--settings=cloudbuild-settings.xml', '-Drevision=ff-${SHORT_SHA}', '-DskipTests=true', '--batch-mode', 'package']
   timeout: 900s
+- id: create-deploy-poms
+  waitFor: ['unit-test-java', 'build-java']
+  name: 'alpine:latest'
+  entrypoint: sh
+  args:
+  - '-c'
+  - |
+    for m in datatypes/java sdk/java; do
+      sed -E 's^(<artifactId>)(feast-parent)(</artifactId>)^\1feast-ff-deploy\3^; s^(<relativePath>)(.*)(</relativePath>)^\1\2/pom-ff-deploy.xml\3^' $m/pom.xml > $m/pom-ff-deploy.xml
+    done
+- id: publish-java-sdk
+  waitFor: ['create-deploy-poms']
+  name: 'maven:${_MAVEN_VERSION}'
+  entrypoint: mvn
+  args: ['--settings=cloudbuild-settings.xml', '-Drevision=ff-${SHORT_SHA}','--file=pom-ff-deploy.xml', 'package', 'deploy:deploy']
 
 # SDK (GO)
 - id: gen-proto-go
@@ -130,7 +153,7 @@ steps:
   args: ['build', '--build-arg', 'REVISION=ff-${SHORT_SHA}', '-t', 'gcr.io/${PROJECT_ID}/feast-serving:ff-${SHORT_SHA}', '-f', 'infra/docker/serving/Dockerfile', '.']
 
 # Teardown
-- id: m2-cahce-push
+- id: m2-cache-push
   waitFor: ['build-java']
   name: gcr.io/cloud-builders/gsutil
   args:
@@ -142,7 +165,7 @@ steps:
     - pom,sha1
     - -r
     - /cache/m2
-    - gs://dev-konnekt-data-deep-1-feast-tmp/cache/m2
+    - ${_M2_CACHE_DIR}
 
 images:
 - gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}
@@ -183,5 +206,6 @@ secrets:
 substitutions:
   _TEST_BUCKET: dev-konnekt-data-deep-1-feast-tmp
   _MAVEN_VERSION: 3.6.2-jdk-11
+  _M2_CACHE_DIR: 'gs://dev-konnekt-data-deep-1-feast-tmp/cache/m2'
 
 tags: ['team__konnekt', 'repo__konnekt_data_feast', 'commit__${SHORT_SHA}', 'slack__konnekt-devops-test']
