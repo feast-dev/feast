@@ -64,4 +64,18 @@ public enum JobStatus {
   public static Collection<JobStatus> getTerminalState() {
     return TERMINAL_STATE;
   }
+  
+  private static final Collection<JobStatus> TRANSITIONAL_STATES =
+      Collections.unmodifiableList(Arrays.asList(PENDING, ABORTING, SUSPENDING));
+
+  /**
+   * Get Transitional Job Status states.
+   * Transitionals states are assigned to jobs that transitioning to a more 
+   * stable state (ie SUSPENDED, ABORTED etc.)
+   * 
+   * @return Collection of transitional Job Status states.
+  */
+  public static final Collection<JobStatus> getTransitionalStates() {
+    return TRANSITIONAL_STATES;
+  }
 }
