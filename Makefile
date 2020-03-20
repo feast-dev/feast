@@ -20,7 +20,7 @@ PROTO_SERVICE_SUBDIRS = core serving
 
 # General
 
-format: format-python lint-go lint-java
+format: format-python format-go format-java
 
 lint: lint-python lint-go lint-java
 
