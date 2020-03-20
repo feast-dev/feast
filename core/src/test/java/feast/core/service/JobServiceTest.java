@@ -47,6 +47,7 @@ import feast.core.model.Source;
 import feast.core.model.Store;
 import feast.types.ValueProto.ValueType.Enum;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -271,14 +272,10 @@ public class JobServiceTest {
 
   @Test
   public void testStopAlreadyStop() {
-    // check that stop jobs does not trying to stop jobs that are
-    // not already stopped/stopping
-    List<JobStatus> doNothingStatuses =
-        Arrays.asList(
-            JobStatus.SUSPENDED, JobStatus.SUSPENDING,
-            JobStatus.ABORTED, JobStatus.ABORTING,
-            JobStatus.COMPLETED, JobStatus.ABORTED);
-
+    // check that stop jobs does not trying to stop jobs that are not already stopped
+    List<JobStatus> doNothingStatuses = new ArrayList<>();
+    doNothingStatuses.addAll(JobStatus.getTerminalState());
+    
     JobStatus prevStatus = this.job.getStatus();
     for (JobStatus status : doNothingStatuses) {
       this.job.setStatus(status);
@@ -294,15 +291,21 @@ public class JobServiceTest {
   }
 
   @Test
-  public void testStopUnknownJobError() {
+  public void testUnsupportedError() {
     // check for UnsupportedOperationException when trying to stop jobs are
-    // in an in unknown state
+    // in an in unknown or in a transitional state
     JobStatus prevStatus = this.job.getStatus();
-    this.job.setStatus(JobStatus.UNKNOWN);
+    List<JobStatus> unsupportedStatuses = new ArrayList<>();
+    unsupportedStatuses.addAll(JobStatus.getTransitionalStates());
+    unsupportedStatuses.add(JobStatus.UNKNOWN);
+  
+    for (JobStatus status : unsupportedStatuses) {
+      this.job.setStatus(status);
 
-    StopIngestionJobRequest request =
+      StopIngestionJobRequest request =
         StopIngestionJobRequest.newBuilder().setId(this.job.getId()).build();
-    this.tryStopJob(request, true);
+      this.tryStopJob(request, true);
+    }
 
     this.job.setStatus(prevStatus);
   }

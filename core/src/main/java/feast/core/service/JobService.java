@@ -135,12 +135,13 @@ public class JobService {
   // TODO: restart ingestion job
 
   /**
-   * Stops (Aborts) the ingestion job matching the given request. Does nothing if the target job to
-   * be stopped is already stopped or stopping
+   * Stops (Aborts) the ingestion job matching the given request. 
+   * Does nothing if the target job if already in a terminal states
+   * Errors when attempting to stop a job in a transitional or unknown job
    *
    * @param request stop ingestion job request specifying which job to stop
    * @throws NoSuchElementException when stop job request requests to stop a nonexistent job.
-   * @throws UnsupportedOperationException when job to be stopped is in an unknown status
+   * @throws UnsupportedOperationException when job to be stopped is in an unsupported status
    * @throws InvalidProtocolBufferException on error when constructing response protobuf
    */
   public StopIngestionJobResponse stopJob(StopIngestionJobRequest request)
@@ -155,15 +156,11 @@ public class JobService {
     // check job status is valid for stopping
     Job job = getJob.get();
     JobStatus status = job.getStatus();
-    if (status.equals(JobStatus.ABORTED)
-        || status.equals(JobStatus.ABORTING)
-        || status.equals(JobStatus.SUSPENDED)
-        || status.equals(JobStatus.SUSPENDING)
-        || status.equals(JobStatus.COMPLETED)
-        || status.equals(JobStatus.ERROR)) {
-      // do nothing - job is already stopped or stopping
+    if(JobStatus.getTerminalState().contains(status)) {
+      // do nothing - job is already stoped
       return StopIngestionJobResponse.newBuilder().build();
-    } else if (status.equals(JobStatus.UNKNOWN)) {
+    } else if (JobStatus.getTransitionalStates().contains(status) ||
+        status.equals(JobStatus.UNKNOWN)) {
       throw new UnsupportedOperationException(
           "Stopping a job with an unknown status is unsupported");
     }
