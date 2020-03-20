@@ -16,24 +16,45 @@
  */
 package feast.core.service;
 
+import feast.core.auth.authorization.AuthorizationProvider;
+import feast.core.config.FeastProperties;
+import feast.core.config.FeastProperties.SecurityProperties;
 import feast.core.dao.ProjectRepository;
 import feast.core.model.Project;
 import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-public class AccessManagementService {
+public class ProjectService {
 
+  private SecurityProperties securityProperties;
+  private AuthorizationProvider authorizationProvider;
   private ProjectRepository projectRepository;
 
-  @Autowired
-  public AccessManagementService(ProjectRepository projectRepository) {
+  public ProjectService(
+      FeastProperties feastProperties,
+      ProjectRepository projectRepository,
+      AuthorizationProvider authorizationProvider) {
     this.projectRepository = projectRepository;
+    this.authorizationProvider = authorizationProvider;
+    this.securityProperties = feastProperties.getSecurity();
+  }
+
+  @Autowired
+  public ProjectService(
+      FeastProperties feastProperties,
+      ProjectRepository projectRepository,
+      ObjectProvider<AuthorizationProvider> authorizationProvider) {
+    this.projectRepository = projectRepository;
+    this.authorizationProvider = authorizationProvider.getIfUnique();
+    this.securityProperties = feastProperties.getSecurity();
   }
 
   /**
@@ -41,7 +62,6 @@ public class AccessManagementService {
    *
    * @param name Name of project to be created
    */
-  @Transactional
   public void createProject(String name) {
     if (projectRepository.existsById(name)) {
       throw new IllegalArgumentException(String.format("Project already exists: %s", name));
@@ -55,7 +75,6 @@ public class AccessManagementService {
    *
    * @param name Name of the project to be archived
    */
-  @Transactional
   public void archiveProject(String name) {
     Optional<Project> project = projectRepository.findById(name);
     if (!project.isPresent()) {
@@ -73,5 +92,19 @@ public class AccessManagementService {
    */
   public List<Project> listProjects() {
     return projectRepository.findAllByArchivedIsFalse();
+  }
+
+  /**
+   * Determine whether a user belongs to a Project
+   *
+   * @param securityContext User's Spring Security Context. Used to identify user.
+   * @param project Name of the project for which membership should be tested.
+   */
+  public void checkIfProjectMember(SecurityContext securityContext, String project) {
+    Authentication authentication = securityContext.getAuthentication();
+    if (!this.securityProperties.getAuthorization().isEnabled()) {
+      return;
+    }
+    this.authorizationProvider.checkIfProjectMember(project, authentication);
   }
 }

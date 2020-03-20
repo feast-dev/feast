@@ -29,6 +29,7 @@ public class FeastProperties {
   private String version;
   private JobProperties jobs;
   private StreamProperties stream;
+  private SecurityProperties security;
 
   @Getter
   @Setter
@@ -63,5 +64,41 @@ public class FeastProperties {
     private String type;
     private String host;
     private int port;
+  }
+
+  @Getter
+  @Setter
+  public static class SecurityProperties {
+
+    private AuthenticationProperties authentication;
+    private AuthorizationProperties authorization;
+
+    @Getter
+    @Setter
+    public static class AuthenticationProperties {
+
+      // Enable authentication
+      private boolean enabled;
+
+      // Named authentication provider to use
+      private String provider;
+
+      // K/V options to initialize the provider with
+      private Map<String, String> options;
+    }
+
+    @Getter
+    @Setter
+    public static class AuthorizationProperties {
+
+      // Enable authorization. Authentication must be enabled if authorization is enabled.
+      private boolean enabled;
+
+      // Named authorization provider to use.
+      private String provider;
+
+      // K/V options to initialize the provider with
+      private Map<String, String> options;
+    }
   }
 }

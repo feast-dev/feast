@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import logging
 import os
 import shutil
@@ -27,13 +26,18 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+import feast.grpc.auth as feast_auth
 from feast.config import Config
 from feast.constants import (
-    CONFIG_CORE_SECURE_KEY,
+    CONFIG_CORE_ENABLE_AUTH_KEY,
+    CONFIG_CORE_ENABLE_SSL_KEY,
+    CONFIG_CORE_SERVER_SSL_CERT_KEY,
     CONFIG_CORE_URL_KEY,
     CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY,
     CONFIG_PROJECT_KEY,
-    CONFIG_SERVING_SECURE_KEY,
+    CONFIG_SERVING_ENABLE_AUTH_KEY,
+    CONFIG_SERVING_ENABLE_SSL_KEY,
+    CONFIG_SERVING_SERVER_SSL_CERT_KEY,
     CONFIG_SERVING_URL_KEY,
 )
 from feast.core.CoreService_pb2 import (
@@ -54,6 +58,7 @@ from feast.core.CoreService_pb2 import (
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
 from feast.feature_set import Entity, FeatureSet
+from feast.grpc.grpc import create_grpc_channel
 from feast.job import Job
 from feast.loaders.abstract_producer import get_producer
 from feast.loaders.file import export_source_to_staging_location
@@ -84,13 +89,15 @@ class Client:
     def __init__(self, options: Optional[Dict[str, str]] = None, **kwargs):
         """
         The Feast Client should be initialized with at least one service url
-
-        Args:
+        Please see constants.py for configuration options. Commonly used options
+        or arguments include:
             core_url: Feast Core URL. Used to manage features
             serving_url: Feast Serving URL. Used to retrieve features
             project: Sets the active project. This field is optional.
             core_secure: Use client-side SSL/TLS for Core gRPC API
             serving_secure: Use client-side SSL/TLS for Serving gRPC API
+
+        Args:
             options: Configuration options to initialize client with
             **kwargs: Additional keyword arguments that will be used as
                 configuration options along with "options"
@@ -100,10 +107,51 @@ class Client:
             options = dict()
         self._config = Config(options={**options, **kwargs})
 
-        self.__core_channel: grpc.Channel = None
-        self.__serving_channel: grpc.Channel = None
         self._core_service_stub: CoreServiceStub = None
         self._serving_service_stub: ServingServiceStub = None
+        self._auth_metadata = None
+        if self._config.getboolean(CONFIG_CORE_ENABLE_AUTH_KEY):
+            self._auth_metadata = feast_auth.get_auth_metadata_plugin()
+
+    @property
+    def _core_service(self):
+        """
+        Creates or returns the gRPC Feast Core Service Stub
+
+        Returns: CoreServiceStub
+        """
+        if not self._core_service_stub:
+            channel = create_grpc_channel(
+                url=self._config.get(CONFIG_CORE_URL_KEY),
+                enable_ssl=self._config.getboolean(CONFIG_CORE_ENABLE_SSL_KEY),
+                enable_auth=self._config.getboolean(CONFIG_CORE_ENABLE_AUTH_KEY),
+                ssl_server_cert_path=self._config.get(CONFIG_CORE_SERVER_SSL_CERT_KEY),
+                auth_metadata_plugin=self._auth_metadata,
+                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            )
+            self._core_service_stub = CoreServiceStub(channel)
+        return self._core_service_stub
+
+    @property
+    def _serving_service(self):
+        """
+        Creates or returns the gRPC Feast Serving Service Stub
+
+        Returns: ServingServiceStub
+        """
+        if not self._serving_service_stub:
+            channel = create_grpc_channel(
+                url=self._config.get(CONFIG_SERVING_URL_KEY),
+                enable_ssl=self._config.getboolean(CONFIG_SERVING_ENABLE_SSL_KEY),
+                enable_auth=self._config.getboolean(CONFIG_SERVING_ENABLE_AUTH_KEY),
+                ssl_server_cert_path=self._config.get(
+                    CONFIG_SERVING_SERVER_SSL_CERT_KEY
+                ),
+                auth_metadata_plugin=self._auth_metadata,
+                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            )
+            self._serving_service_stub = ServingServiceStub(channel)
+        return self._serving_service_stub
 
     @property
     def core_url(self) -> str:
@@ -153,7 +201,7 @@ class Client:
         Returns:
             Whether client-side SSL/TLS is enabled
         """
-        return self._config.getboolean(CONFIG_CORE_SECURE_KEY)
+        return self._config.getboolean(CONFIG_CORE_ENABLE_SSL_KEY)
 
     @core_secure.setter
     def core_secure(self, value: bool):
@@ -163,7 +211,7 @@ class Client:
         Args:
             value: True to enable client-side SSL/TLS
         """
-        self._config.set(CONFIG_CORE_SECURE_KEY, value)
+        self._config.set(CONFIG_CORE_ENABLE_SSL_KEY, value)
 
     @property
     def serving_secure(self) -> bool:
@@ -173,7 +221,7 @@ class Client:
         Returns:
             Whether client-side SSL/TLS is enabled
         """
-        return self._config.getboolean(CONFIG_SERVING_SECURE_KEY)
+        return self._config.getboolean(CONFIG_SERVING_ENABLE_SSL_KEY)
 
     @serving_secure.setter
     def serving_secure(self, value: bool):
@@ -183,7 +231,7 @@ class Client:
         Args:
             value: True to enable client-side SSL/TLS
         """
-        self._config.set(CONFIG_SERVING_SECURE_KEY, value)
+        self._config.set(CONFIG_SERVING_ENABLE_SSL_KEY, value)
 
     def version(self):
         """
@@ -192,89 +240,21 @@ class Client:
         result = {}
 
         if self.serving_url:
-            self._connect_serving()
-            serving_version = self._serving_service_stub.GetFeastServingInfo(
+            serving_version = self._serving_service.GetFeastServingInfo(
                 GetFeastServingInfoRequest(),
                 timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
             ).version
             result["serving"] = {"url": self.serving_url, "version": serving_version}
 
         if self.core_url:
-            self._connect_core()
-            core_version = self._core_service_stub.GetFeastCoreVersion(
+            core_version = self._core_service.GetFeastCoreVersion(
                 GetFeastCoreVersionRequest(),
                 timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                metadata=self._get_grpc_metadata(),
             ).version
             result["core"] = {"url": self.core_url, "version": core_version}
 
         return result
-
-    def _connect_core(self, skip_if_connected: bool = True):
-        """
-        Connect to Core API
-
-        Args:
-            skip_if_connected: Do not attempt to connect if already connected
-        """
-        if skip_if_connected and self._core_service_stub:
-            return
-
-        if not self.core_url:
-            raise ValueError("Please set Feast Core URL.")
-
-        if self.__core_channel is None:
-            if self.core_secure or self.core_url.endswith(":443"):
-                self.__core_channel = grpc.secure_channel(
-                    self.core_url, grpc.ssl_channel_credentials()
-                )
-            else:
-                self.__core_channel = grpc.insecure_channel(self.core_url)
-
-        try:
-            grpc.channel_ready_future(self.__core_channel).result(
-                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY)
-            )
-        except grpc.FutureTimeoutError:
-            raise ConnectionError(
-                f"Connection timed out while attempting to connect to Feast "
-                f"Core gRPC server {self.core_url} "
-            )
-        else:
-            self._core_service_stub = CoreServiceStub(self.__core_channel)
-
-    def _connect_serving(self, skip_if_connected=True):
-        """
-        Connect to Serving API
-
-        Args:
-            skip_if_connected: Do not attempt to connect if already connected
-        """
-
-        if skip_if_connected and self._serving_service_stub:
-            return
-
-        if not self.serving_url:
-            raise ValueError("Please set Feast Serving URL.")
-
-        if self.__serving_channel is None:
-            if self.serving_secure or self.serving_url.endswith(":443"):
-                self.__serving_channel = grpc.secure_channel(
-                    self.serving_url, grpc.ssl_channel_credentials()
-                )
-            else:
-                self.__serving_channel = grpc.insecure_channel(self.serving_url)
-
-        try:
-            grpc.channel_ready_future(self.__serving_channel).result(
-                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY)
-            )
-        except grpc.FutureTimeoutError:
-            raise ConnectionError(
-                f"Connection timed out while attempting to connect to Feast "
-                f"Serving gRPC server {self.serving_url} "
-            )
-        else:
-            self._serving_service_stub = ServingServiceStub(self.__serving_channel)
 
     @property
     def project(self) -> Union[str, None]:
@@ -303,10 +283,11 @@ class Client:
             List of project names
 
         """
-        self._connect_core()
-        response = self._core_service_stub.ListProjects(
+
+        response = self._core_service.ListProjects(
             ListProjectsRequest(),
             timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            metadata=self._get_grpc_metadata(),
         )  # type: ListProjectsResponse
         return list(response.projects)
 
@@ -318,10 +299,10 @@ class Client:
             project: Name of project
         """
 
-        self._connect_core()
-        self._core_service_stub.CreateProject(
+        self._core_service.CreateProject(
             CreateProjectRequest(name=project),
             timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            metadata=self._get_grpc_metadata(),
         )  # type: CreateProjectResponse
 
     def archive_project(self, project):
@@ -334,10 +315,10 @@ class Client:
             project: Name of project to archive
         """
 
-        self._connect_core()
-        self._core_service_stub.ArchiveProject(
+        self._core_service.ArchiveProject(
             ArchiveProjectRequest(name=project),
             timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            metadata=self._get_grpc_metadata(),
         )  # type: ArchiveProjectResponse
 
         if self._project == project:
@@ -368,7 +349,6 @@ class Client:
         Args:
             feature_set: Feature set that will be registered
         """
-        self._connect_core()
 
         feature_set.is_valid()
         feature_set_proto = feature_set.to_proto()
@@ -384,9 +364,10 @@ class Client:
 
         # Convert the feature set to a request and send to Feast Core
         try:
-            apply_fs_response = self._core_service_stub.ApplyFeatureSet(
+            apply_fs_response = self._core_service.ApplyFeatureSet(
                 ApplyFeatureSetRequest(feature_set=feature_set_proto),
                 timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+                metadata=self._get_grpc_metadata(),
             )  # type: ApplyFeatureSetResponse
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
@@ -421,7 +402,6 @@ class Client:
         Returns:
             List of feature sets
         """
-        self._connect_core()
 
         if project is None:
             if self.project is not None:
@@ -440,8 +420,8 @@ class Client:
         )
 
         # Get latest feature sets from Feast Core
-        feature_set_protos = self._core_service_stub.ListFeatureSets(
-            ListFeatureSetsRequest(filter=filter)
+        feature_set_protos = self._core_service.ListFeatureSets(
+            ListFeatureSetsRequest(filter=filter), metadata=self._get_grpc_metadata(),
         )  # type: ListFeatureSetsResponse
 
         # Extract feature sets and return
@@ -468,7 +448,6 @@ class Client:
             Returns either the specified feature set, or raises an exception if
             none is found
         """
-        self._connect_core()
 
         if project is None:
             if self.project is not None:
@@ -480,10 +459,11 @@ class Client:
             version = 0
 
         try:
-            get_feature_set_response = self._core_service_stub.GetFeatureSet(
+            get_feature_set_response = self._core_service.GetFeatureSet(
                 GetFeatureSetRequest(
                     project=project, name=name.strip(), version=int(version)
-                )
+                ),
+                metadata=self._get_grpc_metadata(),
             )  # type: GetFeatureSetResponse
         except grpc.RpcError as e:
             raise grpc.RpcError(e.details())
@@ -548,22 +528,20 @@ class Client:
             >>> print(df)
         """
 
-        self._connect_serving()
-
         feature_references = _build_feature_references(
             feature_refs=feature_refs, default_project=default_project
         )
 
         # Retrieve serving information to determine store type and
         # staging location
-        serving_info = self._serving_service_stub.GetFeastServingInfo(
+        serving_info = self._serving_service.GetFeastServingInfo(
             GetFeastServingInfoRequest(),
             timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
         )  # type: GetFeastServingInfoResponse
 
         if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
             raise Exception(
-                f'You are connected to a store "{self._serving_url}" which '
+                f'You are connected to a store "{self.serving_url}" which '
                 f"does not support batch retrieval "
             )
 
@@ -605,8 +583,8 @@ class Client:
         )
 
         # Retrieve Feast Job object to manage life cycle of retrieval
-        response = self._serving_service_stub.GetBatchFeatures(request)
-        return Job(response.job, self._serving_service_stub)
+        response = self._serving_service.GetBatchFeatures(request)
+        return Job(response.job, self._serving_service)
 
     def get_online_features(
         self,
@@ -634,9 +612,8 @@ class Client:
             Returns a list of maps where each item in the list contains the
             latest feature values for the provided entities
         """
-        self._connect_serving()
 
-        return self._serving_service_stub.GetOnlineFeatures(
+        return self._serving_service.GetOnlineFeatures(
             GetOnlineFeaturesRequest(
                 features=_build_feature_references(
                     feature_refs=feature_refs,
@@ -783,6 +760,17 @@ class Client:
             shutil.rmtree(dir_path)
 
         return None
+
+    def _get_grpc_metadata(self):
+        """
+        Returns a metadata tuple to attach to gRPC requests. This is primarily
+        used when authentication is enabled but SSL/TLS is disabled.
+
+        Returns: Tuple of metadata to attach to each gRPC call
+        """
+        if self._config.getboolean(CONFIG_CORE_ENABLE_AUTH_KEY) and self._auth_metadata:
+            return self._auth_metadata.get_signed_meta()
+        return ()
 
 
 def _build_feature_references(
