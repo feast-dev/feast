@@ -209,3 +209,4 @@ substitutions:
   _M2_CACHE_DIR: 'gs://dev-konnekt-data-deep-1-feast-tmp/cache/m2'
 
 tags: ['team__konnekt', 'repo__konnekt_data_feast', 'commit__${SHORT_SHA}', 'slack__konnekt-feature-store']
+
