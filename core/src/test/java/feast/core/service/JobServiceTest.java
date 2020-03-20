@@ -24,6 +24,8 @@ import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+
+import feast.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.core.CoreServiceProto.ListIngestionJobsRequest;
 import feast.core.CoreServiceProto.ListIngestionJobsResponse;
 import feast.core.CoreServiceProto.StopIngestionJobRequest;
@@ -58,13 +60,14 @@ import org.mockito.Mock;
 
 public class JobServiceTest {
   // mocks
-  @Mock private FeatureSetRepository featureSetRepository;
   @Mock private JobRepository jobRepository;
   @Mock private JobManager jobManager;
+  @Mock private SpecService specService;
   // fake models
   private Source dataSource;
   private Store dataStore;
   private FeatureSet featureSet;
+  private List<FeatureSetReference> fsReferences;
   private Job job;
   private IngestionJob ingestionJob;
   // test target
@@ -101,27 +104,39 @@ public class JobServiceTest {
     } catch (InvalidProtocolBufferException e) {
       e.printStackTrace();
     }
+    
+    this.fsReferences = this.newDummyFeatureSetReferences();
 
     // setup mock objects
-    this.setupFeatureSetRepository();
+    this.setupSpecService();
     this.setupJobRepository();
     this.setupJobManager();
 
     // create test target
     this.jobService =
         new JobService(
-            this.jobRepository, this.featureSetRepository, Arrays.asList(this.jobManager));
+            this.jobRepository, this.specService, Arrays.asList(this.jobManager));
   }
 
-  // setup fake feature set repository
-  public void setupFeatureSetRepository() {
-    when(this.featureSetRepository.findFeatureSetByNameAndProject_NameAndVersion(
-            "food", "hunger", 2))
-        .thenReturn(this.featureSet);
-    when(this.featureSetRepository.findAllByNameAndProject_Name("food", "hunger"))
-        .thenReturn(Arrays.asList(featureSet));
-    when(this.featureSetRepository.findAllByNameAndVersion("food", 2))
-        .thenReturn(Arrays.asList(featureSet));
+  // setup fake spec service
+  public void setupSpecService() {
+    try {
+      ListFeatureSetsResponse response = ListFeatureSetsResponse.newBuilder()
+        .addFeatureSets(this.featureSet.toProto())
+        .build();
+
+      when(this.specService.matchFeatureSets(this.fsReferences.get(0)))
+        .thenReturn(response);
+
+      when(this.specService.matchFeatureSets(this.fsReferences.get(1)))
+        .thenReturn(response);
+
+      when(this.specService.matchFeatureSets(this.fsReferences.get(0)))
+        .thenReturn(response);
+    } catch(InvalidProtocolBufferException e){
+      e.printStackTrace();
+      fail("Unexpected exception");
+    }
   }
 
   // setup fake job repository
@@ -167,6 +182,29 @@ public class JobServiceTest {
         Arrays.asList(this.featureSet),
         status);
   }
+  
+  private List<FeatureSetReference> newDummyFeatureSetReferences() {
+    return Arrays.asList(
+        // all provided: name, version and project
+        FeatureSetReference.newBuilder()
+            .setVersion(this.featureSet.getVersion())
+            .setName(this.featureSet.getName())
+            .setProject(this.featureSet.getProject().toString())
+            .build(),
+
+        // name and project
+        FeatureSetReference.newBuilder()
+            .setName(this.featureSet.getName())
+            .setProject(this.featureSet.getProject().toString())
+            .build(),
+
+        // name and version
+        FeatureSetReference.newBuilder()
+            .setName(this.featureSet.getName())
+            .setVersion(this.featureSet.getVersion())
+            .build()
+    );
+  }
 
   /* unit tests */
   private ListIngestionJobsResponse tryListJobs(ListIngestionJobsRequest request) {
@@ -203,35 +241,27 @@ public class JobServiceTest {
   @Test
   public void testListIngestionJobByFeatureSetReference() {
     // list job by feature set reference: name and version and project
-    FeatureSetReference fsReference =
-        FeatureSetReference.newBuilder()
-            .setVersion(this.featureSet.getVersion())
-            .setName(this.featureSet.getName())
-            .setProject(this.featureSet.getProject().toString())
-            .build();
-    ListIngestionJobsRequest.Filter filter =
-        ListIngestionJobsRequest.Filter.newBuilder().setId(this.job.getId()).build();
+    ListIngestionJobsRequest.Filter filter = ListIngestionJobsRequest.Filter.newBuilder()
+      .setFeatureSetReference(this.fsReferences.get(0))
+      .setId(this.job.getId())
+      .build();
     ListIngestionJobsRequest request =
         ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
     assertEquals(this.tryListJobs(request).getJobs(0), this.ingestionJob);
 
     // list job by feature set reference: name and version
-    fsReference =
-        FeatureSetReference.newBuilder()
-            .setName(this.featureSet.getName())
-            .setProject(this.featureSet.getProject().toString())
-            .build();
-    filter = ListIngestionJobsRequest.Filter.newBuilder().setId(this.job.getId()).build();
+    filter = ListIngestionJobsRequest.Filter.newBuilder()
+      .setFeatureSetReference(this.fsReferences.get(1))
+      .setId(this.job.getId())
+      .build();
     request = ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
     assertEquals(this.tryListJobs(request).getJobs(0), this.ingestionJob);
 
     // list job by feature set reference: name and project
-    fsReference =
-        FeatureSetReference.newBuilder()
-            .setName(this.featureSet.getName())
-            .setVersion(this.featureSet.getVersion())
-            .build();
-    filter = ListIngestionJobsRequest.Filter.newBuilder().setId(this.job.getId()).build();
+    filter = ListIngestionJobsRequest.Filter.newBuilder()
+      .setFeatureSetReference(this.fsReferences.get(2))
+      .setId(this.job.getId())
+      .build();
     request = ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
     assertEquals(this.tryListJobs(request).getJobs(0), this.ingestionJob);
   }

@@ -16,19 +16,6 @@
  */
 package feast.core.service;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-import feast.core.CoreServiceProto.ListIngestionJobsRequest;
-import feast.core.CoreServiceProto.ListIngestionJobsResponse;
-import feast.core.CoreServiceProto.StopIngestionJobRequest;
-import feast.core.CoreServiceProto.StopIngestionJobResponse;
-import feast.core.FeatureSetReferenceProto.FeatureSetReference;
-import feast.core.IngestionJobProto;
-import feast.core.dao.FeatureSetRepository;
-import feast.core.dao.JobRepository;
-import feast.core.job.JobManager;
-import feast.core.model.FeatureSet;
-import feast.core.model.Job;
-import feast.core.model.JobStatus;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -40,23 +27,40 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import com.google.protobuf.InvalidProtocolBufferException;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import feast.core.CoreServiceProto.GetFeatureSetResponse;
+import feast.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.core.CoreServiceProto.ListIngestionJobsRequest;
+import feast.core.CoreServiceProto.ListIngestionJobsResponse;
+import feast.core.CoreServiceProto.StopIngestionJobRequest;
+import feast.core.CoreServiceProto.StopIngestionJobResponse;
+import feast.core.FeatureSetReferenceProto.FeatureSetReference;
+import feast.core.IngestionJobProto;
+import feast.core.dao.JobRepository;
+import feast.core.job.JobManager;
+import feast.core.model.FeatureSet;
+import feast.core.model.Job;
+import feast.core.model.JobStatus;
 
 /** Defines a Job Managemenent Service that allows users to manage feast ingestion jobs. */
 @Service
 public class JobService {
   private JobRepository jobRepository;
-  private FeatureSetRepository featureSetRepository;
+  private SpecService specService;
   private Map<String, JobManager> jobManagers;
 
   @Autowired
   public JobService(
       JobRepository jobRepository,
-      FeatureSetRepository featureSetRepository,
+      SpecService specService,
       List<JobManager> jobManagerList) {
     this.jobRepository = jobRepository;
-    this.featureSetRepository = featureSetRepository;
+    this.specService =  specService;
 
     this.jobManagers = new HashMap<>();
     for (JobManager manager : jobManagerList) {
@@ -74,7 +78,7 @@ public class JobService {
    * @return list ingestion jobs response
    */
   public ListIngestionJobsResponse listJobs(ListIngestionJobsRequest request)
-      throws UnsupportedOperationException, InvalidProtocolBufferException {
+      throws InvalidProtocolBufferException {
     // filter jobs based on request filter
     ListIngestionJobsRequest.Filter filter = request.getFilter();
     Set<String> matchingJobIds = new HashSet<>();
@@ -106,11 +110,17 @@ public class JobService {
         matchingJobIds = this.mergeResults(matchingJobIds, jobIds);
       }
       if (filter.hasFeatureSetReference()) {
-        // find a matching featureset for reference
+        // find a matching featuresets for reference
         FeatureSetReference fsReference = filter.getFeatureSetReference();
-        FeatureSet featureSet = this.findFeatureSet(fsReference);
-        Collection<Job> matchingJobs = this.jobRepository.findByFeatureSetIn(Arrays.asList(featureSet));
-
+        ListFeatureSetsResponse response = this.specService.matchFeatureSets(fsReference);
+        List<FeatureSet> featureSets = response.getFeatureSetsList().stream()
+          .map(fsProto -> {
+            return FeatureSet.fromProto(fsProto);
+          }).collect(Collectors.toList());
+      
+        
+        // find jobs for the matching featuresets
+        Collection<Job> matchingJobs = this.jobRepository.findByFeatureSetIn(featureSets);
         List<String> jobIds =
           matchingJobs.stream()
                 .map(
@@ -174,53 +184,6 @@ public class JobService {
   }
 
   /* Private Utility Methods */
-  /**
-   * Finds &amp; returns the featureset matching the given feature set refererence.
-   * The feature set reference provide should match one and only one featureset.
-   *
-   * @param fsReference FeatureSetReference that specifies matching criteria
-   * @throws NoSuchElementException when reference given matches either matches
-   *  none of the featuresets or matches multiple featureses
-   * @throws UnsupportedOperationException reference given is unsupported.
-   * @return Returns matching featureset
-   */
-  private FeatureSet findFeatureSet(FeatureSetReference fsReference)
-      throws NoSuchElementException, UnsupportedOperationException {
-
-    // match featuresets using contents of featureset reference
-    String fsName = fsReference.getName();
-    String fsProject = fsReference.getProject();
-    Integer fsVersion = fsReference.getVersion();
-
-    List<FeatureSet> matchingFeatureSets = new ArrayList<>();
-    if (fsName != "" && fsProject != "" && fsVersion != 0) {
-      matchingFeatureSets.add(
-          this.featureSetRepository.findFeatureSetByNameAndProject_NameAndVersion(
-              fsName, fsProject, fsVersion));
-    } else if (fsName != "" && fsProject != "") {
-      matchingFeatureSets.addAll(this.featureSetRepository.findAllByNameAndProject_Name(fsName, fsProject));
-    } else if (fsName != "" && fsVersion != 0) {
-      matchingFeatureSets.addAll(this.featureSetRepository.findAllByNameAndVersion(fsName, fsVersion));
-    } else {
-      throw new UnsupportedOperationException(
-          String.format(
-              "Unsupported featureset refererence configuration: "
-                  + "(name: '%s', project: '%s', version: '%d')",
-              fsName, fsProject, fsVersion));
-    }
-  
-    // check no. of matching featuresets
-    // featureset reference should match one and only one featureset
-    if (matchingFeatureSets.size() != 1) {
-      throw new NoSuchElementException(
-          String.format("Featureset Reference should match only one featureset:"
-                  + "(name: '%s', project: '%s', version: '%d')",
-              fsName, fsProject, fsVersion));
-    }
-
-    return matchingFeatureSets.get(0);
-  }
-
   private <T> Set<T> mergeResults(Set<T> results, Collection<T> newResults) {
     if (results.size() <= 0) {
       // no existing results: copy over new results
