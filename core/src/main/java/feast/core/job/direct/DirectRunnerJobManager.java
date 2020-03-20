@@ -156,6 +156,27 @@ public class DirectRunnerJobManager implements JobManager {
   public PipelineResult runPipeline(ImportOptions pipelineOptions) throws IOException {
     return ImportJob.runPipeline(pipelineOptions);
   }
+  
+  /**
+   * Restart a direct runner job.
+   * Note that some data will be temporarily lost during when restarting running
+   * direct runner jobs. See {#link {@link #updateJob(Job)} for more info.
+   *
+   * @param job job to restart
+   * @return the restarted job
+  */
+  @Override
+  public Job restartJob(Job job) {
+    JobStatus status = job.getStatus();
+    if (JobStatus.getTerminalState().contains(status)) {
+      // job yet not running: just start job
+      return this.startJob(job);
+    } else { 
+      // job is running - updating the job without changing the job has 
+      // the effect of restarting the job.
+      return this.updateJob(job);
+    }
+  }
 
   /**
    * Gets the state of the direct runner job. Direct runner jobs only have 2 states: RUNNING and
