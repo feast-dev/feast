@@ -124,18 +124,6 @@ public class Job extends AbstractTimestampEntity {
    * @return Ingestion Job proto derieved from the given job
    */
   public IngestionJobProto.IngestionJob toIngestionProto() throws InvalidProtocolBufferException {
-    // maps job models job status to ingestion job status
-    Map<JobStatus, IngestionJobProto.IngestionJobStatus> statusMap =
-        Map.of(
-            JobStatus.UNKNOWN, IngestionJobProto.IngestionJobStatus.UNKNOWN,
-            JobStatus.PENDING, IngestionJobProto.IngestionJobStatus.PENDING,
-            JobStatus.RUNNING, IngestionJobProto.IngestionJobStatus.RUNNING,
-            JobStatus.COMPLETED, IngestionJobProto.IngestionJobStatus.COMPLETED,
-            JobStatus.ABORTING, IngestionJobProto.IngestionJobStatus.ABORTING,
-            JobStatus.ABORTED, IngestionJobProto.IngestionJobStatus.ABORTED,
-            JobStatus.ERROR, IngestionJobProto.IngestionJobStatus.ERROR,
-            JobStatus.SUSPENDING, IngestionJobProto.IngestionJobStatus.SUSPENDING,
-            JobStatus.SUSPENDED, IngestionJobProto.IngestionJobStatus.SUSPENDED);
 
     // convert featuresets of job to protos
     List<FeatureSetProto.FeatureSet> featureSetProtos = new ArrayList<>();
@@ -148,7 +136,7 @@ public class Job extends AbstractTimestampEntity {
         IngestionJobProto.IngestionJob.newBuilder()
             .setId(this.getId())
             .setExternalId(this.getExtId())
-            .setStatus(statusMap.get(this.getStatus()))
+            .setStatus(this.getStatus().toIngestionProto())
             .addAllFeatureSets(featureSetProtos)
             .setSource(this.getSource().toProto())
             .setStore(this.getStore().toProto())

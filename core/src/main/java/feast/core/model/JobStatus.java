@@ -19,6 +19,10 @@ package feast.core.model;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
+
+import feast.core.IngestionJobProto;
+import feast.core.IngestionJobProto.IngestionJobStatus;
 
 public enum JobStatus {
   /** Job status is not known. */
@@ -78,4 +82,26 @@ public enum JobStatus {
   public static final Collection<JobStatus> getTransitionalStates() {
     return TRANSITIONAL_STATES;
   }
+  
+  /** 
+   * Convert a Job Status to Ingestion Job Status proto  
+   * 
+   * @return IngestionJobStatus proto derieved from this job status
+  */
+  public IngestionJobStatus toIngestionProto() {
+    // maps job models job status to ingestion job status
+    Map<JobStatus, IngestionJobStatus> statusMap =
+        Map.of(
+            JobStatus.UNKNOWN, IngestionJobStatus.UNKNOWN,
+            JobStatus.PENDING, IngestionJobStatus.PENDING,
+            JobStatus.RUNNING, IngestionJobStatus.RUNNING,
+            JobStatus.COMPLETED, IngestionJobStatus.COMPLETED,
+            JobStatus.ABORTING, IngestionJobStatus.ABORTING,
+            JobStatus.ABORTED, IngestionJobStatus.ABORTED,
+            JobStatus.ERROR, IngestionJobStatus.ERROR,
+            JobStatus.SUSPENDING, IngestionJobStatus.SUSPENDING,
+            JobStatus.SUSPENDED, IngestionJobStatus.SUSPENDED);
+    return statusMap.get(this);
+  }
+
 }
