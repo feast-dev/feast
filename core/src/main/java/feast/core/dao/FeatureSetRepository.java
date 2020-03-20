@@ -36,12 +36,6 @@ public interface FeatureSetRepository extends JpaRepository<FeatureSet, String> 
   // find all feature sets and order by name and version
   List<FeatureSet> findAllByOrderByNameAscVersionAsc();
 
-  // find all feature sets by name and project name
-  List<FeatureSet> findAllByNameAndProject_Name(String name, String projectName);
-
-  // find all feature sets by name and version
-  List<FeatureSet> findAllByNameAndVersion(String name, Integer version);
-
   // find all feature sets within a project and order by name and version
   List<FeatureSet> findAllByProject_NameOrderByNameAscVersionAsc(String project_name);
 
