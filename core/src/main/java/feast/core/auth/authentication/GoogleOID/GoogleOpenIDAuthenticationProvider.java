@@ -51,6 +51,8 @@ public class GoogleOpenIDAuthenticationProvider implements AuthenticationProvide
   }
 
   /**
+   * Authenticate a request based on its Spring Security Authentication object
+   *
    * @param authentication Authentication object which contains a JWT to validate
    * @return Returns the same authentication object after authentication
    */

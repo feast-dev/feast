@@ -19,6 +19,10 @@ package feast.core.auth.authorization;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 
+/**
+ * AuthorizationProvider is the base interface that each AuthorizationProvider needs to implement in
+ * order to authorize requests to Feast Core
+ */
 public interface AuthorizationProvider {
 
   /**
