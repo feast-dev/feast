@@ -41,6 +41,7 @@ import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.FeatureSetProto.FeatureSpec;
+import feast.core.FeatureSetReferenceProto.FeatureSetReference;
 import feast.core.SourceProto.KafkaSourceConfig;
 import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto;
@@ -831,5 +832,17 @@ public class SpecServiceTest {
     store.setSubscriptions("*:*:*");
     store.setConfig(RedisConfig.newBuilder().setPort(6379).build().toByteArray());
     return store;
+  }
+
+  @Test
+  public void shouldMatchFeatureSetGivenFeatureSetReference() throws InvalidProtocolBufferException{
+    FeatureSetReference fsReference = FeatureSetReference.newBuilder()
+      .setName("f1")
+      .setProject("project1")
+      .setVersion(1)
+      .build();
+    ListFeatureSetsResponse response = this.specService.matchFeatureSets(fsReference);
+    FeatureSet featureSet = FeatureSet.fromProto(response.getFeatureSets(0));
+    assertEquals(featureSet, this.featureSets.get(0));
   }
 }
