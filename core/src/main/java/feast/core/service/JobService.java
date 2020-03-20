@@ -30,6 +30,7 @@ import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -107,11 +108,11 @@ public class JobService {
       if (filter.hasFeatureSetReference()) {
         // find a matching featureset for reference
         FeatureSetReference fsReference = filter.getFeatureSetReference();
-        List<FeatureSet> matchFeatureSets = this.findFeatureSets(fsReference);
-        Collection<Job> jobs = this.jobRepository.findByFeatureSetIn(matchFeatureSets);
+        FeatureSet featureSet = this.findFeatureSet(fsReference);
+        Collection<Job> matchingJobs = this.jobRepository.findByFeatureSetIn(Arrays.asList(featureSet));
 
         List<String> jobIds =
-            jobs.stream()
+          matchingJobs.stream()
                 .map(
                     job -> {
                       return job.getId();
@@ -174,28 +175,32 @@ public class JobService {
 
   /* Private Utility Methods */
   /**
-   * Finds &amp; returns featuresets matching the given feature set refererence
+   * Finds &amp; returns the featureset matching the given feature set refererence.
+   * The feature set reference provide should match one and only one featureset.
    *
-   * @param fsReference FeatureSetReference that specifies which featuresets to match
-   * @throws UnsupportedOperationException fsReference given is unsupported.
-   * @return Returns a list of matching featuresets
+   * @param fsReference FeatureSetReference that specifies matching criteria
+   * @throws NoSuchElementException when reference given matches either matches
+   *  none of the featuresets or matches multiple featureses
+   * @throws UnsupportedOperationException reference given is unsupported.
+   * @return Returns matching featureset
    */
-  private List<FeatureSet> findFeatureSets(FeatureSetReference fsReference)
-      throws UnsupportedOperationException {
+  private FeatureSet findFeatureSet(FeatureSetReference fsReference)
+      throws NoSuchElementException, UnsupportedOperationException {
 
+    // match featuresets using contents of featureset reference
     String fsName = fsReference.getName();
     String fsProject = fsReference.getProject();
     Integer fsVersion = fsReference.getVersion();
 
-    List<FeatureSet> featureSets = new ArrayList<>();
+    List<FeatureSet> matchingFeatureSets = new ArrayList<>();
     if (fsName != "" && fsProject != "" && fsVersion != 0) {
-      featureSets.add(
+      matchingFeatureSets.add(
           this.featureSetRepository.findFeatureSetByNameAndProject_NameAndVersion(
               fsName, fsProject, fsVersion));
     } else if (fsName != "" && fsProject != "") {
-      featureSets.addAll(this.featureSetRepository.findAllByNameAndProject_Name(fsName, fsProject));
+      matchingFeatureSets.addAll(this.featureSetRepository.findAllByNameAndProject_Name(fsName, fsProject));
     } else if (fsName != "" && fsVersion != 0) {
-      featureSets.addAll(this.featureSetRepository.findAllByNameAndVersion(fsName, fsVersion));
+      matchingFeatureSets.addAll(this.featureSetRepository.findAllByNameAndVersion(fsName, fsVersion));
     } else {
       throw new UnsupportedOperationException(
           String.format(
@@ -203,8 +208,17 @@ public class JobService {
                   + "(name: '%s', project: '%s', version: '%d')",
               fsName, fsProject, fsVersion));
     }
+  
+    // check no. of matching featuresets
+    // featureset reference should match one and only one featureset
+    if (matchingFeatureSets.size() != 1) {
+      throw new NoSuchElementException(
+          String.format("Featureset Reference should match only one featureset:"
+                  + "(name: '%s', project: '%s', version: '%d')",
+              fsName, fsProject, fsVersion));
+    }
 
-    return featureSets;
+    return matchingFeatureSets.get(0);
   }
 
   private <T> Set<T> mergeResults(Set<T> results, Collection<T> newResults) {
