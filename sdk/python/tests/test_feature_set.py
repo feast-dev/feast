@@ -15,12 +15,12 @@ from concurrent import futures
 from datetime import datetime
 
 import grpc
-
-import dataframes
-import feast.core.CoreService_pb2_grpc as Core
 import pandas as pd
 import pytest
 import pytz
+
+import dataframes
+import feast.core.CoreService_pb2_grpc as Core
 from feast.client import Client
 from feast.entity import Entity
 from feast.feature_set import Feature, FeatureSet

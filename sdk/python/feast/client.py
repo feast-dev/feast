@@ -23,10 +23,10 @@ from math import ceil
 from typing import Dict, List, Optional, Tuple, Union
 
 import grpc
-
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+
 from feast.config import Config
 from feast.constants import (
     CONFIG_CORE_SECURE_KEY,
