@@ -30,7 +30,14 @@ protos: compile-protos-go compile-protos-python compile-protos-docs
 
 build: protos build-java build-docker build-html
 
+install-ci-dependencies: install-python-ci-dependencies install-go-ci-dependencies
+
 # Java
+
+install-java-ci-dependencies:
+	cd core; mvn dependency:go-offline
+	cd serving; mvn dependency:go-offline
+	cd ingestion; mvn dependency:go-offline
 
 format-java:
 	mvn spotless:apply
@@ -70,6 +77,9 @@ lint-python:
 
 # Go SDK
 
+install-go-ci-dependencies:
+	go get -u golang.org/x/lint/golint
+
 compile-protos-go:
 	@$(foreach dir,$(PROTO_TYPE_SUBDIRS), cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos/ feast/$(dir)/*.proto;)
 
@@ -81,14 +91,33 @@ lint-go:
 
 # Docker
 
-build-docker:
-	docker build -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
-	docker build -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
-
 build-push-docker:
 	@$(MAKE) build-docker registry=$(REGISTRY) version=$(VERSION)
+	@$(MAKE) push-core-docker registry=$(REGISTRY) version=$(VERSION)
+	@$(MAKE) push-serving-docker registry=$(REGISTRY) version=$(VERSION)
+	@$(MAKE) push-ci-docker registry=$(REGISTRY)
+	
+build-docker: build-core-docker build-serving-docker build-ci-docker
+
+push-core-docker:
 	docker push $(REGISTRY)/feast-core:$(VERSION)
+
+push-serving-docker:
 	docker push $(REGISTRY)/feast-serving:$(VERSION)
+
+push-ci-docker:
+	docker push $(REGISTRY)/feast-ci:latest
+
+build-core-docker:
+	docker build -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
+
+build-serving-docker:
+	docker build -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
+
+build-ci-docker:
+	docker build -t $(REGISTRY)/feast-ci:latest -f infra/docker/ci/Dockerfile .
+
+
 
 # Documentation
 

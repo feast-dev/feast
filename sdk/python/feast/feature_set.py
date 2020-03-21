@@ -16,14 +16,12 @@
 from collections import OrderedDict
 from typing import Dict, List, Optional
 
-import pandas as pd
-import pyarrow as pa
 from google.protobuf import json_format
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToJson
-from pandas.api.types import is_datetime64_ns_dtype
-from pyarrow.lib import TimestampType
 
+import pandas as pd
+import pyarrow as pa
 from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
 from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
@@ -36,6 +34,8 @@ from feast.type_map import (
     pa_to_feast_value_type,
     python_type_to_feast_value_type,
 )
+from pandas.api.types import is_datetime64_ns_dtype
+from pyarrow.lib import TimestampType
 
 
 class FeatureSet:

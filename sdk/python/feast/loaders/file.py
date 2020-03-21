@@ -21,8 +21,9 @@ from datetime import datetime
 from typing import List, Optional, Tuple, Union
 from urllib.parse import ParseResult, urlparse
 
-import pandas as pd
 from google.cloud import storage
+
+import pandas as pd
 from pandavro import to_avro
 
 

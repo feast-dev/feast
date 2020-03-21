@@ -18,8 +18,8 @@ import sys
 
 import click
 import pkg_resources
-import yaml
 
+import yaml
 from feast.client import Client
 from feast.config import Config
 from feast.feature_set import FeatureSet
