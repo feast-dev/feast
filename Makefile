@@ -15,6 +15,7 @@
 #
 
 ROOT_DIR 	:= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
+GO_ROOT := $(shell go env $GOROOT)
 PROTO_TYPE_SUBDIRS = core serving types storage
 PROTO_SERVICE_SUBDIRS = core serving
 
@@ -59,6 +60,9 @@ compile-protos-python: install-python-ci-dependencies
 	@$(foreach dir,$(PROTO_SERVICE_SUBDIRS),cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --grpc_python_out=../sdk/python/ feast/$(dir)/*.proto;)
 	cd ${ROOT_DIR}/protos; python -m grpc_tools.protoc -I. --python_out=../sdk/python/ --mypy_out=../sdk/python/ tensorflow_metadata/proto/v0/*.proto
 
+install-python: compile-protos-python
+	pip install -e sdk/python --upgrade
+
 test-python:
 	pytest --verbose --color=yes sdk/python/tests
 
@@ -75,10 +79,12 @@ lint-python:
 # Go SDK
 
 install-go-ci-dependencies:
+	go get -u github.com/golang/protobuf/protoc-gen-go
 	go get -u golang.org/x/lint/golint
 
-compile-protos-go:
+compile-protos-go: install-go-ci-dependencies
 	@$(foreach dir,$(PROTO_TYPE_SUBDIRS), cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos/ feast/$(dir)/*.proto;)
+	cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go_out=/usr/local/go/src/ tensorflow_metadata/proto/v0/*.proto
 
 test-go:
 	cd ${ROOT_DIR}/sdk/go; go test ./...
