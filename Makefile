@@ -24,20 +24,18 @@ format: format-python format-go format-java
 
 lint: lint-python lint-go lint-java
 
-test: test-python test-java
+test: test-python test-java test-go
 
 protos: compile-protos-go compile-protos-python compile-protos-docs
 
 build: protos build-java build-docker build-html
 
-install-ci-dependencies: install-python-ci-dependencies install-go-ci-dependencies
+install-ci-dependencies: install-python-ci-dependencies install-go-ci-dependencies install-java-ci-dependencies
 
 # Java
 
 install-java-ci-dependencies:
-	cd core; mvn dependency:go-offline
-	cd serving; mvn dependency:go-offline
-	cd ingestion; mvn dependency:go-offline
+	mvn verify clean --fail-never
 
 format-java:
 	mvn spotless:apply
@@ -82,6 +80,9 @@ install-go-ci-dependencies:
 compile-protos-go:
 	@$(foreach dir,$(PROTO_TYPE_SUBDIRS), cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos/ feast/$(dir)/*.proto;)
 
+test-go:
+	cd ${ROOT_DIR}/sdk/go; go test ./...
+
 format-go:
 	cd ${ROOT_DIR}/sdk/go; gofmt -s -w *.go
 
@@ -115,8 +116,6 @@ build-serving-docker:
 
 build-ci-docker:
 	docker build -t $(REGISTRY)/feast-ci:latest -f infra/docker/ci/Dockerfile .
-
-
 
 # Documentation
 
