@@ -117,7 +117,10 @@ A solution to this is:
 1. Open `View > Tool Windows > Maven`
 2. Drill down to e.g. `Feast Core > Plugins > spring-boot:run`, right-click and `Create 'feast-core [spring-boot'…`
 3. In the dialog that pops up, check the `Resolve Workspace artifacts` box
-4. Click `OK`. You should now be able to select this run configuration for the Play button in the main toolbar, keyboard shortcuts, etc.
+4. Recommended: add `-Dspring-boot.run.fork=false` to the `Command line` field to get Debug working too
+5. Click `OK`. You should now be able to select this run configuration for the Play button in the main toolbar, keyboard shortcuts, etc.
+
+It is recommend to have IntelliJ delegate building to Maven, if this is not enabled out of the box when you import the project, for greater assurance that build behavior is consistent with CI / production builds. This is set in Preferences at `Build, Execution, Deployment > Build Tools > Maven > Runner > Delegate IDE build/run actions to Maven`.
 
 ### 2.**4** Validating your setup
 
@@ -462,30 +465,66 @@ It is important to note that most of the functionality demonstrated above is alr
 
 ## 3. Style guide
 
+Coding standards are checked automatically by continuous integration. Checking them during development will streamline your contributing experience.
+
+For set-and-forget, you may install [pre-commit](https://pre-commit.com/) and run `pre-commit install` in the root of the Feast project. This installs a Git hook that automatically formats code before you commit. You will need to have some development tools for all project languages installed, though.
+
+If you have GNU Make, convenience targets are available such as `make lint-python`, `make format-java`, and comprehensive `make lint` and `format`, so that you don't need to remember all the incantations for language-specific tools.
+
+Auto-formatting is a boon to code review and patch management over time, but it isn't perfect. Spot check your changes after formatting, and if something "looks bad", consider whether a small change like introducing a variable could improve readability for real people.
+
 ### 3.1 Java
 
-We conform to the [Google Java Style Guide](https://google.github.io/styleguide/javaguide.html). Maven can helpfully take care of that for you before you commit:
+We conform to the [Google Java Style Guide](https://google.github.io/styleguide/javaguide.html). Maven can helpfully take care of that for you:
+
+```text
+$ make format-java
+```
+
+Or if you don't have Make installed:
 
 ```text
 $ mvn spotless:apply
 ```
 
-Formatting will be checked automatically during the `verify` phase. This can be skipped temporarily:
+Formatting is checked automatically just prior to the `test` phase of the build lifecycle, in effort to help us remember it before committing without hampering development flow too greatly. This can be skipped temporarily:
 
 ```text
-$ mvn spotless:check  # Check is automatic upon `mvn verify`
-$ mvn verify -Dspotless.check.skip
+$ mvn spotless:check  # Check is automatic upon `mvn test`
+$ mvn test -Dspotless.check.skip
 ```
 
-If you're using IntelliJ, you can import [these code style settings](https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xml) if you'd like to use the IDE's reformat function as you develop.
+If you're using IntelliJ, you can install the [google-java-format plugin](https://plugins.jetbrains.com/plugin/8527-google-java-format) if you'd like to use the IDE's reformat function as you develop. _Note that this uses a built-in version of the formatter that may drift from the Maven plugin over time—_`make lint-java` _is authoritative for CI, so it's still a good idea to check before submitting pull requests._
 
 ### 3.2 Go
 
-Make sure you apply `go fmt`.
+`gofmt` style is followed for formatting. `go vet` and `golint` static analysis are also checked by:
+
+```text
+$ make lint-go
+```
+
+Apply formatting with:
+
+```text
+$ make format-go
+```
+
+`gofmt` is so ubiquitous in the Go ecosystem, it's almost certain that a plugin exists for your editor of choice to format files as you work.
 
 ### 3.3 Python
 
-We use [Python Black](https://github.com/psf/black) to format our Python code prior to submission.
+We use [Python Black](https://github.com/psf/black) to format our Python code prior to submission. To check it along with static analysis:
+
+```text
+$ make lint-python
+```
+
+And to format:
+
+```text
+$ make format-python
+```
 
 ## 4. Release process
 
