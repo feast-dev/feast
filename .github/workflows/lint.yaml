@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: install dependencies
-        run: install-python-ci-dependencies
+        run: make install-python-ci-dependencies
       - name: lint python
         run: make lint-python
 
@@ -31,6 +31,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: install dependencies
-        run: install-go-ci-dependencies
+        run: make install-go-ci-dependencies
       - name: lint go
         run: make lint-go
