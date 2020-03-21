@@ -3,10 +3,10 @@ import time
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
-import fastavro
-import pandas as pd
 from google.cloud import storage
 
+import fastavro
+import pandas as pd
 from feast.serving.ServingService_pb2 import (
     DATA_FORMAT_AVRO,
     JOB_STATUS_DONE,
