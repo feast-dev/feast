@@ -1,0 +1,33 @@
+name: Lint
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  lint-java:
+    container: gcr.io/kf-feast/feast-ci:latest
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Lint Java
+        run: make lint-java
+
+  lint-python:
+    container: gcr.io/kf-feast/feast-ci:latest
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Lint Python
+        run: make lint-python
+
+  lint-go:
+    container: gcr.io/kf-feast/feast-ci:latest
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Lint Go
+        run: make lint-go
