@@ -73,7 +73,6 @@ lint-python:
 	#cd ${ROOT_DIR}/sdk/python; mypy feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; flake8 feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; black --check feast tests
-	cd ${ROOT_DIR}/sdk/python; isort -rc feast tests --check-only
 
 # Go SDK
 
