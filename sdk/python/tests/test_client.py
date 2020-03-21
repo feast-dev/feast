@@ -59,6 +59,11 @@ SERVING_URL = "serving.example.com"
 _PRIVATE_KEY_RESOURCE_PATH = "data/localhost.key"
 _CERTIFICATE_CHAIN_RESOURCE_PATH = "data/localhost.pem"
 _ROOT_CERTIFICATE_RESOURCE_PATH = "data/localhost.crt"
+_FAKE_JWT_TOKEN = (
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0N"
+    "TY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDI"
+    "yfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+)
 
 
 class TestClient:
@@ -164,7 +169,7 @@ class TestClient:
         root_certificate_credentials = pkgutil.get_data(
             __name__, _ROOT_CERTIFICATE_RESOURCE_PATH
         )
-        # this is needed to establish a secure connection using self-signed certificates, for the purpose of the test
+
         ssl_channel_credentials = grpc.ssl_channel_credentials(
             root_certificates=root_certificate_credentials
         )
@@ -192,7 +197,10 @@ class TestClient:
             MagicMock(return_value=ssl_channel_credentials),
         ):
             yield Client(
-                core_url="localhost:50055", core_enable_ssl=True, core_enable_auth=True
+                core_url="localhost:50055",
+                core_enable_ssl=True,
+                core_enable_auth=True,
+                core_auth_token=_FAKE_JWT_TOKEN,
             )
 
     @pytest.fixture
@@ -712,7 +720,11 @@ class TestClient:
     def test_auth_success_with_insecure_channel_on_core_url(
         self, insecure_core_server_with_auth
     ):
-        client = Client(core_url="localhost:50056", core_enable_auth=True)
+        client = Client(
+            core_url="localhost:50056",
+            core_enable_auth=True,
+            core_auth_token=_FAKE_JWT_TOKEN,
+        )
         client.list_feature_sets()
 
     def test_no_auth_sent_when_auth_disabled(

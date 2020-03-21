@@ -30,6 +30,7 @@ import feast.grpc.auth as feast_auth
 from feast.config import Config
 from feast.constants import (
     CONFIG_CORE_ENABLE_AUTH_KEY,
+    CONFIG_CORE_ENABLE_AUTH_TOKEN_KEY,
     CONFIG_CORE_ENABLE_SSL_KEY,
     CONFIG_CORE_SERVER_SSL_CERT_KEY,
     CONFIG_CORE_URL_KEY,
@@ -110,8 +111,15 @@ class Client:
         self._core_service_stub: CoreServiceStub = None
         self._serving_service_stub: ServingServiceStub = None
         self._auth_metadata = None
+
+        # Configure Auth Metadata Plugin if auth is enabled
         if self._config.getboolean(CONFIG_CORE_ENABLE_AUTH_KEY):
             self._auth_metadata = feast_auth.get_auth_metadata_plugin()
+            # If provided, set a static token
+            if self._config.exists(CONFIG_CORE_ENABLE_AUTH_TOKEN_KEY):
+                self._auth_metadata.set_static_token(
+                    self._config.get(CONFIG_CORE_ENABLE_AUTH_TOKEN_KEY)
+                )
 
     @property
     def _core_service(self):

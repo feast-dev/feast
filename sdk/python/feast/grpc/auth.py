@@ -29,6 +29,7 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
 
         self._request = requests.Request()
         self._token = None
+        self._static_token = None
         self._refresh_token()
 
     def get_signed_meta(self):
@@ -37,18 +38,53 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
 
     def _refresh_token(self):
         """ Refreshes Google ID token and persists it in memory """
+
+        # Use static token if available
+        if self._static_token:
+            self._token = self._static_token
+            return
+
+        # Try to find ID Token from Gcloud SDK
+        from google.auth import jwt
+        import subprocess
+
+        cli_output = subprocess.run(["printenv"], stdout=subprocess.PIPE)
+        token = cli_output.stdout.decode("utf-8").strip()
+        try:
+            jwt.decode(token, verify=False)  # Ensure the token is valid
+            self._token = token
+            return
+        except ValueError:
+            pass  # GCloud command not successful
+
+        # Try to use Google Auth library to find ID Token
         from google import auth as google_auth
 
-        credentials, _ = google_auth.default()
+        credentials, _ = google_auth.default(["openid", "email"])
         credentials.refresh(self._request)
-        self._token = credentials.id_token
+        if hasattr(credentials, "id_token"):
+            self._token = credentials.id_token
+            return
 
-    def __call__(self, context, callback):
-        """Passes authorization metadata into the given callback.
+        # Raise exception otherwise
+        raise RuntimeError("Could not determine Google ID token")
+
+    def set_static_token(self, token):
+        """
+        Define a static token to return
 
         Args:
-            context (grpc.AuthMetadataContext): The RPC context.
-            callback (grpc.AuthMetadataPluginCallback): The callback that will
-                be invoked to pass in the authorization metadata.
+            token: String token
         """
-        callback(self.get_signed_meta(), None)
+        self._static_token = token
+
+
+def __call__(self, context, callback):
+    """Passes authorization metadata into the given callback.
+
+    Args:
+        context (grpc.AuthMetadataContext): The RPC context.
+        callback (grpc.AuthMetadataPluginCallback): The callback that will
+            be invoked to pass in the authorization metadata.
+    """
+    callback(self.get_signed_meta(), None)
