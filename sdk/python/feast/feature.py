@@ -24,9 +24,25 @@ class Feature(Field):
     def to_proto(self) -> FeatureProto:
         """Converts Feature object to its Protocol Buffer representation"""
         value_type = ValueTypeProto.ValueType.Enum.Value(self.dtype.name)
-        return FeatureProto(name=self.name, value_type=value_type)
+        return FeatureProto(name=self.name, value_type=value_type, labels=self.labels)
 
     @classmethod
     def from_proto(cls, feature_proto: FeatureProto):
         """Converts Protobuf Feature to its SDK equivalent"""
-        return cls(name=feature_proto.name, dtype=ValueType(feature_proto.value_type), labels=feature_proto.labels)
+        return cls(
+            name=feature_proto.name,
+            dtype=ValueType(feature_proto.value_type),
+            labels=feature_proto.labels,
+        )
+
+    def set_label(self, key, value):
+        """
+        Set label for feature
+        """
+        self._labels[key] = value
+
+    def remove_label(self, key):
+        """
+        Remove label for a feature
+        """
+        del self._labels[key]

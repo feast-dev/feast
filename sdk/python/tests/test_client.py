@@ -431,12 +431,24 @@ class TestClient:
 
         # Create Feature Sets
         fs1 = FeatureSet("my-feature-set-1")
-        fs1.add(Feature(name="fs1-my-feature-1", dtype=ValueType.INT64))
-        fs1.add(Feature(name="fs1-my-feature-2", dtype=ValueType.STRING))
+        fs1.add(
+            Feature(
+                name="fs1-my-feature-1",
+                dtype=ValueType.INT64,
+                labels={"fs1": "feature_1", "fs1_2": "feature_1"},
+            )
+        )
+        fs1_f2 = Feature(name="fs1-my-feature-2", dtype=ValueType.STRING)
+        fs1_f2.set_label("fs1", "feature_2")
+        fs1.add(fs1_f2)
         fs1.add(Entity(name="fs1-my-entity-1", dtype=ValueType.INT64))
 
         fs2 = FeatureSet("my-feature-set-2")
-        fs2.add(Feature(name="fs2-my-feature-1", dtype=ValueType.STRING_LIST))
+        fs2_f1 = Feature(name="fs2-my-feature-1", dtype=ValueType.STRING_LIST)
+        fs2_f1.set_label("fs2", "feature_1")
+        fs2_f1.set_label("fs3", "feature_1")
+        fs2_f1.remove_label("fs3")
+        fs2.add(fs2_f1)
         fs2.add(Feature(name="fs2-my-feature-2", dtype=ValueType.BYTES_LIST))
         fs2.add(Entity(name="fs2-my-entity-1", dtype=ValueType.INT64))
 
@@ -452,7 +464,20 @@ class TestClient:
             and feature_sets[0].name == "my-feature-set-1"
             and feature_sets[0].features[0].name == "fs1-my-feature-1"
             and feature_sets[0].features[0].dtype == ValueType.INT64
+            and feature_sets[0].features[0].labels
+            == {"fs1": "feature_1", "fs1_2": "feature_1"}
+            and feature_sets[0].features[1].name == "fs1-my-feature-2"
+            and feature_sets[0].features[1].dtype == ValueType.STRING
+            and feature_sets[0].features[1].labels == {"fs1": "feature_2"}
+            and feature_sets[0].entities[0].name == "fs1-my-entity-1"
+            and feature_sets[0].entities[0].dtype == ValueType.INT64
+            and feature_sets[1].features[0].name == "fs2-my-feature-1"
+            and feature_sets[1].features[0].dtype == ValueType.STRING_LIST
+            and feature_sets[1].features[0].labels == {"fs2": "feature_1"}
+            and feature_sets[1].features[1].name == "fs2-my-feature-2"
             and feature_sets[1].features[1].dtype == ValueType.BYTES_LIST
+            and feature_sets[1].entities[0].name == "fs2-my-entity-1"
+            and feature_sets[1].entities[0].dtype == ValueType.INT64
         )
 
     @pytest.mark.parametrize(
