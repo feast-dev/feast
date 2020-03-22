@@ -6,8 +6,8 @@
 
 * [Why Feast?](introduction/why-feast.md)
 * [Getting Help](introduction/getting-help.md)
+* [Roadmap](introduction/roadmap.md)
 * [Changelog](https://github.com/gojek/feast/blob/master/CHANGELOG.md)
-* [Roadmap](roadmap.md)
 
 ## Concepts
 
@@ -22,7 +22,6 @@
 ## Tutorials
 
 * [Basic](https://github.com/gojek/feast/blob/master/examples/basic/basic.ipynb)
-* [Using Feast](https://github.com/gojek/feast/blob/master/examples/basic/basic.ipynb)
 
 ## Administration
 
