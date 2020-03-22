@@ -29,4 +29,4 @@ class Feature(Field):
     @classmethod
     def from_proto(cls, feature_proto: FeatureProto):
         """Converts Protobuf Feature to its SDK equivalent"""
-        return cls(name=feature_proto.name, dtype=ValueType(feature_proto.value_type))
+        return cls(name=feature_proto.name, dtype=ValueType(feature_proto.value_type), labels=feature_proto.labels)

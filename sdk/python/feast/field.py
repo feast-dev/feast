@@ -21,14 +21,22 @@ class Field:
     features.
     """
 
-    def __init__(self, name: str, dtype: ValueType):
+    def __init__(self, name: str, dtype: ValueType, labels=None):
         self._name = name
         if not isinstance(dtype, ValueType):
             raise ValueError("dtype is not a valid ValueType")
         self._dtype = dtype
+        if labels is None:
+            self._labels = dict()
+        else:
+            self._labels = labels
 
     def __eq__(self, other):
-        if self.name != other.name or self.dtype != other.dtype:
+        if (
+            self.name != other.name
+            or self.dtype != other.dtype
+            or self.labels != other.labels
+        ):
             return False
         return True
 
@@ -45,6 +53,14 @@ class Field:
         Getter for data type of this field
         """
         return self._dtype
+
+    @property
+    def labels(self):
+        """
+        Getter for labels of this filed
+        """
+
+        return self._labels
 
     def to_proto(self):
         """
