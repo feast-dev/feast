@@ -18,8 +18,10 @@ package feast.core.model;
 
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSpec;
+import feast.core.util.TypeConversion;
 import feast.types.ValueProto.ValueType;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Objects;
 import javax.persistence.Column;
 import javax.persistence.Embeddable;
@@ -86,6 +88,7 @@ public class Field {
   public Field(FeatureSpec featureSpec) {
     this.name = featureSpec.getName();
     this.type = featureSpec.getValueType().toString();
+    this.labels = TypeConversion.convertMapToJsonString(featureSpec.getLabelsMap());
 
     switch (featureSpec.getPresenceConstraintsCase()) {
       case PRESENCE:
@@ -217,6 +220,10 @@ public class Field {
       case DOMAININFO_NOT_SET:
         break;
     }
+  }
+
+  public Map<String, String> getLabelsJSON() {
+    return TypeConversion.convertJsonStringToMap(this.labels);
   }
 
   @Override

@@ -352,6 +352,10 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
       featureSpecBuilder.setTimeOfDayDomain(
           TimeOfDayDomain.parseFrom(featureField.getTimeOfDayDomain()));
     }
+
+    if (featureField.getLabels() != null) {
+      featureSpecBuilder.putAllLabels(featureField.getLabelsJSON());
+    }
   }
 
   /**
