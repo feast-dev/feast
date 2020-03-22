@@ -25,7 +25,9 @@ BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS = 300
 KAFKA_CHUNK_PRODUCTION_TIMEOUT = 120  # type: int
 
 
-def _encode_pa_tables(file: str, fs: FeatureSet, row_group_idx: int) -> List[bytes]:
+def _encode_pa_tables(
+    file: str, feature_set: str, fields: dict, row_group_idx: int
+) -> List[bytes]:
     """
     Helper function to encode a PyArrow table(s) read from parquet file(s) into
     FeatureRows.
@@ -41,8 +43,11 @@ def _encode_pa_tables(file: str, fs: FeatureSet, row_group_idx: int) -> List[byt
             File directory of all the parquet file to encode.
             Parquet file must have more than one row group.
 
-        fs (feast.feature_set.FeatureSet):
-            FeatureSet describing parquet files.
+        feature_set (str):
+            FeatureSet describing the full feature set refference in the format f"{project}/{name}:{version}".
+
+        fields (dict[str, enum.Enum.ValueType]):
+            Fields represent dictionary of field name and field value type.
 
         row_group_idx(int):
             Row group index to read and encode into byte like FeatureRow
@@ -61,11 +66,9 @@ def _encode_pa_tables(file: str, fs: FeatureSet, row_group_idx: int) -> List[byt
 
     # Preprocess the columns by converting all its values to Proto values
     proto_columns = {
-        field_name: pa_column_to_proto_column(field.dtype, table.column(field_name))
-        for field_name, field in fs.fields.items()
+        field_name: pa_column_to_proto_column(dtype, table.column(field_name))
+        for field_name, dtype in fields.items()
     }
-
-    feature_set = f"{fs.project}/{fs.name}:{fs.version}"
 
     # List to store result
     feature_rows = []
@@ -91,6 +94,10 @@ def _encode_pa_tables(file: str, fs: FeatureSet, row_group_idx: int) -> List[byt
         append(feature_row.SerializeToString())
 
     return feature_rows
+
+
+def normalize_fields(fields):
+    return {field.name: field.dtype for field in fields.values()}
 
 
 def get_feature_row_chunks(
@@ -120,8 +127,12 @@ def get_feature_row_chunks(
             Iterable list of byte encoded FeatureRow(s).
     """
 
+    feature_set = f"{fs.project}/{fs.name}:{fs.version}"
+
+    fields = normalize_fields(fs.fields)
+
     pool = Pool(max_workers)
-    func = partial(_encode_pa_tables, file, fs)
+    func = partial(_encode_pa_tables, file, feature_set, fields)
     for chunk in pool.imap(func, row_groups):
         yield chunk
     return
