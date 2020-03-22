@@ -1,22 +1,31 @@
 # Table of contents
 
-* [Overview](README.md)
-* [Why Feast?](why-feast.md)
-* [Concepts](concepts.md)
-* [Getting Help](getting-help.md)
-* [Contributing](contributing.md)
+* [What is Feast?](README.md)
+
+## Introduction
+
+* [Why Feast?](introduction/why-feast.md)
+* [Getting Help](introduction/getting-help.md)
+* [Changelog](https://github.com/gojek/feast/blob/master/CHANGELOG.md)
 * [Roadmap](roadmap.md)
 
-## Installing Feast
+## Concepts
 
-* [Overview](installing-feast/overview.md)
-* [Docker Compose](installing-feast/docker-compose.md)
-* [Google Kubernetes Engine \(GKE\)](installing-feast/gke.md)
-* [Troubleshooting](installing-feast/troubleshooting.md)
+* [Concepts](concepts/concepts.md)
 
-## Using Feast
+## Installation
 
+* [Overview](installation/overview.md)
+* [Docker Compose](installation/docker-compose.md)
+* [Google Kubernetes Engine \(GKE\)](installation/gke.md)
+* [Troubleshooting](installation/troubleshooting.md)
+
+## Tutorials
+
+* [Basic](https://github.com/gojek/feast/blob/master/examples/basic/basic.ipynb)
 * [Using Feast](https://github.com/gojek/feast/blob/master/examples/basic/basic.ipynb)
+
+## Administration
 
 ## Reference
 
@@ -25,4 +34,11 @@
 * [gRPC Types](https://api.docs.feast.dev/grpc/feast.types.pb.html)
 * [Core gRPC API](https://api.docs.feast.dev/grpc/feast.core.pb.html)
 * [Serving gRPC API](https://api.docs.feast.dev/grpc/feast.serving.pb.html)
+
+## Contributing
+
+* [Contribution Process](contributing/contributing.md)
+* [Development Guide](contributing/development-guide.md)
+* [Style Guide](contributing/style-guide.md)
+* [Release Process](contributing/release-process.md)
 
