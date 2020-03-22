@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Please see the [Getting Help](../introduction/getting-help.md) section for reaching out to the Feast community if you need help.
+Please see the [Getting Help](introduction/getting-help.md) section for reaching out to the Feast community if you need help.
 
 ## How can I verify that all services are operational?
 

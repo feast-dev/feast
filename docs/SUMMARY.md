@@ -18,7 +18,6 @@
 * [Overview](installation/overview.md)
 * [Docker Compose](installation/docker-compose.md)
 * [Google Kubernetes Engine \(GKE\)](installation/gke.md)
-* [Troubleshooting](installation/troubleshooting.md)
 
 ## Tutorials
 
@@ -26,6 +25,8 @@
 * [Using Feast](https://github.com/gojek/feast/blob/master/examples/basic/basic.ipynb)
 
 ## Administration
+
+* [Troubleshooting](troubleshooting.md)
 
 ## Reference
 
