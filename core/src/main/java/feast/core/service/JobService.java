@@ -69,7 +69,7 @@ public class JobService {
    * List Ingestion Jobs in feast matching the given request
    *
    * @param request list ingestion jobs request specifying which jobs to include
-   * @throws UnsupportedOperationException when given filter in a unsupported configuration
+   * @throws InvalidArgumentException when given filter in a unsupported configuration
    * @throws InvalidProtocolBufferException on error when constructing response protobuf
    * @return list ingestion jobs response
    */

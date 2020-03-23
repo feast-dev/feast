@@ -16,6 +16,7 @@
  */
 package feast.core.grpc;
 
+import com.google.api.gax.rpc.InvalidArgumentException;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.CoreServiceGrpc.CoreServiceImplBase;
 import feast.core.CoreServiceProto.ApplyFeatureSetRequest;
@@ -214,7 +215,7 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       ListIngestionJobsResponse response = this.jobService.listJobs(request);
       responseObserver.onNext(response);
       responseObserver.onCompleted();
-    } catch (UnsupportedOperationException e) { // TODO: change to InvalidArgumentException
+    } catch (InvalidArgumentException e) {
       log.error("Recieved an invalid request on calling listIngestionJobs method:", e);
       responseObserver.onError(
           Status.INVALID_ARGUMENT.withDescription(e.getMessage()).withCause(e).asException());
