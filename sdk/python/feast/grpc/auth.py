@@ -1,7 +1,11 @@
 import grpc
+from google.auth.exceptions import DefaultCredentialsError
+
+from feast.config import Config
+from feast.constants import CONFIG_CORE_ENABLE_AUTH_TOKEN_KEY
 
 
-def get_auth_metadata_plugin():
+def get_auth_metadata_plugin(config: Config):
     """
     Get an Authentication Metadata Plugin. This plugin is used in gRPC to
     sign requests. Please see the following URL for more details
@@ -11,8 +15,11 @@ def get_auth_metadata_plugin():
     support Google Open ID authentication.
 
     Returns: Returns an implementation of grpc.AuthMetadataPlugin
+
+    Args:
+        config: Feast Configuration object
     """
-    return GoogleOpenIDAuthMetadataPlugin()
+    return GoogleOpenIDAuthMetadataPlugin(config)
 
 
 class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
@@ -23,13 +30,23 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
         http://www.grpc.io/grpc/python/grpc.html#grpc.AuthMetadataPlugin
     """
 
-    def __init__(self):
+    def __init__(self, config: Config):
+        """
+        Initializes a GoogleOpenIDAuthMetadataPlugin, used to sign gRPC requests
+        Args:
+            config: Feast Configuration object
+        """
         super(GoogleOpenIDAuthMetadataPlugin, self).__init__()
         from google.auth.transport import requests
 
-        self._request = requests.Request()
-        self._token = None
         self._static_token = None
+        self._token = None
+
+        # If provided, set a static token
+        if config.exists(CONFIG_CORE_ENABLE_AUTH_TOKEN_KEY):
+            self._static_token = config.get(CONFIG_CORE_ENABLE_AUTH_TOKEN_KEY)
+
+        self._request = requests.Request()
         self._refresh_token()
 
     def get_signed_meta(self):
@@ -48,7 +65,9 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
         from google.auth import jwt
         import subprocess
 
-        cli_output = subprocess.run(["printenv"], stdout=subprocess.PIPE)
+        cli_output = subprocess.run(
+            ["gcloud", "auth", "print-identity-token"], stdout=subprocess.PIPE
+        )
         token = cli_output.stdout.decode("utf-8").strip()
         try:
             jwt.decode(token, verify=False)  # Ensure the token is valid
@@ -60,14 +79,22 @@ class GoogleOpenIDAuthMetadataPlugin(grpc.AuthMetadataPlugin):
         # Try to use Google Auth library to find ID Token
         from google import auth as google_auth
 
-        credentials, _ = google_auth.default(["openid", "email"])
-        credentials.refresh(self._request)
-        if hasattr(credentials, "id_token"):
-            self._token = credentials.id_token
-            return
+        try:
+            credentials, _ = google_auth.default(["openid", "email"])
+            credentials.refresh(self._request)
+            if hasattr(credentials, "id_token"):
+                self._token = credentials.id_token
+                return
+        except DefaultCredentialsError:
+            pass  # Could not determine credentials, skip
 
         # Raise exception otherwise
-        raise RuntimeError("Could not determine Google ID token")
+        raise RuntimeError(
+            "Could not determine Google ID token. Please ensure that the "
+            "Google Cloud SDK is installed or that a service account can be "
+            "found using the GOOGLE_APPLICATION_CREDENTIALS environmental "
+            "variable."
+        )
 
     def set_static_token(self, token):
         """

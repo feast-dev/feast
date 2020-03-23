@@ -712,6 +712,7 @@ class TestClient:
                 client.core_url, credentials=_mocked_credentials.return_value
             )
 
+    @mock.patch("grpc.channel_ready_future")
     def test_auth_success_with_secure_channel_on_core_url(
         self, secure_core_client_with_auth
     ):

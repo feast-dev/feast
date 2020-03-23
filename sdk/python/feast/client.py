@@ -30,7 +30,6 @@ import feast.grpc.auth as feast_auth
 from feast.config import Config
 from feast.constants import (
     CONFIG_CORE_ENABLE_AUTH_KEY,
-    CONFIG_CORE_ENABLE_AUTH_TOKEN_KEY,
     CONFIG_CORE_ENABLE_SSL_KEY,
     CONFIG_CORE_SERVER_SSL_CERT_KEY,
     CONFIG_CORE_URL_KEY,
@@ -114,12 +113,7 @@ class Client:
 
         # Configure Auth Metadata Plugin if auth is enabled
         if self._config.getboolean(CONFIG_CORE_ENABLE_AUTH_KEY):
-            self._auth_metadata = feast_auth.get_auth_metadata_plugin()
-            # If provided, set a static token
-            if self._config.exists(CONFIG_CORE_ENABLE_AUTH_TOKEN_KEY):
-                self._auth_metadata.set_static_token(
-                    self._config.get(CONFIG_CORE_ENABLE_AUTH_TOKEN_KEY)
-                )
+            self._auth_metadata = feast_auth.get_auth_metadata_plugin(self._config)
 
     @property
     def _core_service(self):
@@ -426,12 +420,12 @@ class Client:
         filter = ListFeatureSetsRequest.Filter(
             project=project, feature_set_name=name, feature_set_version=version
         )
-
+        print("woop")
         # Get latest feature sets from Feast Core
         feature_set_protos = self._core_service.ListFeatureSets(
             ListFeatureSetsRequest(filter=filter), metadata=self._get_grpc_metadata(),
         )  # type: ListFeatureSetsResponse
-
+        print("woop")
         # Extract feature sets and return
         feature_sets = []
         for feature_set_proto in feature_set_protos.feature_sets:
