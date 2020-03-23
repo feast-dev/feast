@@ -94,8 +94,18 @@ Starting Feast Core
 # Start Feast Core in background
 cat <<EOF > /tmp/core.application.yml
 grpc:
-  port: 6565
-  enable-reflection: true
+  server:
+    port: 6565
+    security:
+      enabled: false
+
+security:
+    authentication:
+      enabled: false
+      provider: None
+    authorization:
+      enabled: false
+      provider: None
 
 feast:
   version: 0.3
