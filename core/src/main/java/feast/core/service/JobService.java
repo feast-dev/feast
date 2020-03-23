@@ -41,9 +41,9 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Defines a Job Managemenent Service that allows users to manage feast ingestion jobs. */
 @Service
@@ -73,6 +73,7 @@ public class JobService {
    * @throws InvalidProtocolBufferException on error when constructing response protobuf
    * @return list ingestion jobs response
    */
+  @Transactional(readOnly = true)
   public ListIngestionJobsResponse listJobs(ListIngestionJobsRequest request)
       throws InvalidProtocolBufferException {
     // filter jobs based on request filter
@@ -94,13 +95,7 @@ public class JobService {
       if (filter.getStoreName() != "") {
         // find jobs by name
         List<Job> jobs = this.jobRepository.findByStoreName(filter.getStoreName());
-        List<String> jobIds =
-            jobs.stream()
-                .map(
-                    job -> {
-                      return job.getId();
-                    })
-                .collect(Collectors.toList());
+        List<String> jobIds = jobs.stream().map(Job::getId).collect(Collectors.toList());
         matchingJobIds = this.mergeResults(matchingJobIds, jobIds);
       }
       if (filter.hasFeatureSetReference()) {
@@ -109,21 +104,12 @@ public class JobService {
         ListFeatureSetsResponse response = this.specService.matchFeatureSets(fsReference);
         List<FeatureSet> featureSets =
             response.getFeatureSetsList().stream()
-                .map(
-                    fsProto -> {
-                      return FeatureSet.fromProto(fsProto);
-                    })
+                .map(FeatureSet::fromProto)
                 .collect(Collectors.toList());
 
         // find jobs for the matching featuresets
         Collection<Job> matchingJobs = this.jobRepository.findByFeatureSetsIn(featureSets);
-        List<String> jobIds =
-            matchingJobs.stream()
-                .map(
-                    job -> {
-                      return job.getId();
-                    })
-                .collect(Collectors.toList());
+        List<String> jobIds = matchingJobs.stream().map(Job::getId).collect(Collectors.toList());
         matchingJobIds = this.mergeResults(matchingJobIds, jobIds);
       }
     }
