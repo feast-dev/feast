@@ -138,10 +138,10 @@ feast:
       provider: None
 
 grpc:
-server:
-  port: 6565
-  security:
-    enabled: false
+  server:
+    port: 6565
+    security:
+      enabled: false
 
 spring:
   jpa:
