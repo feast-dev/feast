@@ -110,19 +110,6 @@ Starting Feast Core
 "
 # Start Feast Core in background
 cat <<EOF > /tmp/core.application.yml
-grpc:
-  server:
-    port: 6565
-    security:
-      enabled: false
-
-security:
-  authentication:
-    enabled: false
-    provider: None
-  authorization:
-    enabled: false
-    provider: None
 
 feast:
   version: 0.3
@@ -141,6 +128,20 @@ feast:
       bootstrapServers: localhost:9092
       replicationFactor: 1
       partitions: 1
+
+  security:
+    authentication:
+      enabled: false
+      provider: None
+    authorization:
+      enabled: false
+      provider: None
+
+grpc:
+server:
+  port: 6565
+  security:
+    enabled: false
 
 spring:
   jpa:
