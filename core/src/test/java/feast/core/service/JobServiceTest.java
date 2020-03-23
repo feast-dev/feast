@@ -16,8 +16,7 @@
  */
 package feast.core.service;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -224,7 +223,7 @@ public class JobServiceTest {
         ListIngestionJobsRequest.Filter.newBuilder().setId(this.job.getId()).build();
     ListIngestionJobsRequest request =
         ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
-    assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
+    assertEquals(this.tryListJobs(request).getJobs(0), this.ingestionJob);
   }
 
   @Test
@@ -233,7 +232,7 @@ public class JobServiceTest {
         ListIngestionJobsRequest.Filter.newBuilder().setStoreName(this.dataStore.getName()).build();
     ListIngestionJobsRequest request =
         ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
-    assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
+    assertEquals(this.tryListJobs(request).getJobs(0), this.ingestionJob);
   }
 
   @Test
@@ -246,7 +245,7 @@ public class JobServiceTest {
             .build();
     ListIngestionJobsRequest request =
         ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
-    assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
+    assertEquals(this.tryListJobs(request).getJobs(0), this.ingestionJob);
 
     // list job by feature set reference: name and version
     filter =
@@ -255,7 +254,7 @@ public class JobServiceTest {
             .setId(this.job.getId())
             .build();
     request = ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
-    assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
+    assertEquals(this.tryListJobs(request).getJobs(0), this.ingestionJob);
 
     // list job by feature set reference: name and project
     filter =
@@ -264,7 +263,7 @@ public class JobServiceTest {
             .setId(this.job.getId())
             .build();
     request = ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
-    assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
+    assertEquals(this.tryListJobs(request).getJobs(0), this.ingestionJob);
   }
 
   // stop jobs
