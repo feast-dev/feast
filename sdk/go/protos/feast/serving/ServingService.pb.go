@@ -886,7 +886,9 @@ func init() {
 	proto.RegisterType((*DatasetSource_FileSource)(nil), "feast.serving.DatasetSource.FileSource")
 }
 
-func init() { proto.RegisterFile("feast/serving/ServingService.proto", fileDescriptor_0c1ba93cf29a8d9d) }
+func init() {
+	proto.RegisterFile("feast/serving/ServingService.proto", fileDescriptor_0c1ba93cf29a8d9d)
+}
 
 var fileDescriptor_0c1ba93cf29a8d9d = []byte{
 	// 1101 bytes of a gzipped FileDescriptorProto
@@ -963,11 +965,11 @@ var fileDescriptor_0c1ba93cf29a8d9d = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // ServingServiceClient is the client API for ServingService service.
 //
@@ -991,10 +993,10 @@ type ServingServiceClient interface {
 }
 
 type servingServiceClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewServingServiceClient(cc *grpc.ClientConn) ServingServiceClient {
+func NewServingServiceClient(cc grpc.ClientConnInterface) ServingServiceClient {
 	return &servingServiceClient{cc}
 }
 

@@ -20,8 +20,12 @@ require (
 	github.com/spf13/cobra v0.0.4
 	github.com/spf13/viper v1.4.0
 	github.com/woop/protoc-gen-doc v1.3.0 // indirect
-	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553
-	google.golang.org/grpc v1.24.0
+	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
+	golang.org/x/net v0.0.0-20200320220750-118fecf932d8
+	golang.org/x/sys v0.0.0-20200321134203-328b4cd54aae // indirect
+	golang.org/x/tools v0.0.0-20200321224714-0d839f3cf2ed // indirect
+	google.golang.org/genproto v0.0.0-20200319113533-08878b785e9c // indirect
+	google.golang.org/grpc v1.28.0
 	gopkg.in/russross/blackfriday.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.2.4
 	istio.io/gogo-genproto v0.0.0-20191212213402-78a529a42cd8 // indirect

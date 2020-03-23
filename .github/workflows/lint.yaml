@@ -1,4 +1,4 @@
-name: Lint
+name: linting
 
 on:
   push:
@@ -12,7 +12,7 @@ jobs:
     runs-on: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v2
-      - name: Lint Java
+      - name: lint java
         run: make lint-java
 
   lint-python:
@@ -20,8 +20,9 @@ jobs:
     runs-on: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v2
-
-      - name: Lint Python
+      - name: install dependencies
+        run: make install-python-ci-dependencies
+      - name: lint python
         run: make lint-python
 
   lint-go:
@@ -29,5 +30,7 @@ jobs:
     runs-on: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v2
-      - name: Lint Go
+      - name: install dependencies
+        run: make install-go-ci-dependencies
+      - name: lint go
         run: make lint-go
