@@ -19,17 +19,8 @@ package feast.core.service;
 import static feast.core.validators.Matchers.checkValidCharacters;
 import static feast.core.validators.Matchers.checkValidCharactersAllowAsterisk;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.google.common.collect.Ordering;
 import com.google.protobuf.InvalidProtocolBufferException;
-
-import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import feast.core.CoreServiceProto.ApplyFeatureSetResponse;
 import feast.core.CoreServiceProto.ApplyFeatureSetResponse.Status;
 import feast.core.CoreServiceProto.GetFeatureSetRequest;
@@ -55,7 +46,13 @@ import feast.core.model.Project;
 import feast.core.model.Source;
 import feast.core.model.Store;
 import feast.core.validators.FeatureSetValidator;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Facilitates management of specs within the Feast registry. This includes getting existing specs
@@ -136,9 +133,9 @@ public class SpecService {
   }
 
   /**
-   * Finds &amp; returns the featuresets matching the given feature set reference.
-   * TODO: merge with {@link #listFeatureSets(feast.core.CoreServiceProto.ListFeatureSetsRequest.Filter)} 
-   *  as they are very similar.
+   * Finds &amp; returns the featuresets matching the given feature set reference. TODO: merge with
+   * {@link #listFeatureSets(feast.core.CoreServiceProto.ListFeatureSetsRequest.Filter)} as they are
+   * very similar.
    *
    * @param fsReference FeatureSetReference that specifies matching criteria
    * @throws UnsupportedOperationException reference given is unsupported.
@@ -152,16 +149,17 @@ public class SpecService {
     String fsName = fsReference.getName();
     String fsProject = fsReference.getProject();
     Integer fsVersion = fsReference.getVersion();
-  
+
     // construct list featureset request filter using feature set reference
     // for proto3, default value for missing values:
     // - numeric values (ie int) is zero
     // - strings is empty string
-    ListFeatureSetsRequest.Filter filter = ListFeatureSetsRequest.Filter.newBuilder()
-      .setFeatureSetName((fsName != "") ? fsName : "*")
-      .setProject((fsProject != "") ? fsProject : "*")
-      .setFeatureSetVersion((fsVersion != 0) ? fsVersion.toString() : "*")
-      .build();
+    ListFeatureSetsRequest.Filter filter =
+        ListFeatureSetsRequest.Filter.newBuilder()
+            .setFeatureSetName((fsName != "") ? fsName : "*")
+            .setProject((fsProject != "") ? fsProject : "*")
+            .setFeatureSetVersion((fsVersion != 0) ? fsVersion.toString() : "*")
+            .build();
 
     return this.listFeatureSets(filter);
   }

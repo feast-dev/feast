@@ -52,14 +52,13 @@ public interface JobManager {
   void abortJob(String extId);
 
   /**
-   * Restart an job.
-   * If job is an terminated state, will simply start the job.
-   * Might cause data to be lost during when restarting running jobs 
-   * in some implementations.  Refer to on docs the specific implementation.
+   * Restart an job. If job is an terminated state, will simply start the job. Might cause data to
+   * be lost during when restarting running jobs in some implementations. Refer to on docs the
+   * specific implementation.
    *
    * @param job job to restart
    * @return the restarted job
-  */
+   */
   Job restartJob(Job job);
 
   /**

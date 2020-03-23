@@ -16,26 +16,7 @@
  */
 package feast.core.service;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import javax.transaction.Transactional;
-
 import com.google.protobuf.InvalidProtocolBufferException;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-import feast.core.CoreServiceProto.GetFeatureSetResponse;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.core.CoreServiceProto.ListIngestionJobsRequest;
 import feast.core.CoreServiceProto.ListIngestionJobsResponse;
@@ -50,6 +31,19 @@ import feast.core.job.JobManager;
 import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import javax.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 /** Defines a Job Managemenent Service that allows users to manage feast ingestion jobs. */
 @Service
@@ -60,11 +54,9 @@ public class JobService {
 
   @Autowired
   public JobService(
-      JobRepository jobRepository,
-      SpecService specService,
-      List<JobManager> jobManagerList) {
+      JobRepository jobRepository, SpecService specService, List<JobManager> jobManagerList) {
     this.jobRepository = jobRepository;
-    this.specService =  specService;
+    this.specService = specService;
 
     this.jobManagers = new HashMap<>();
     for (JobManager manager : jobManagerList) {
@@ -115,16 +107,18 @@ public class JobService {
         // find a matching featuresets for reference
         FeatureSetReference fsReference = filter.getFeatureSetReference();
         ListFeatureSetsResponse response = this.specService.matchFeatureSets(fsReference);
-        List<FeatureSet> featureSets = response.getFeatureSetsList().stream()
-          .map(fsProto -> {
-            return FeatureSet.fromProto(fsProto);
-          }).collect(Collectors.toList());
-      
-        
+        List<FeatureSet> featureSets =
+            response.getFeatureSetsList().stream()
+                .map(
+                    fsProto -> {
+                      return FeatureSet.fromProto(fsProto);
+                    })
+                .collect(Collectors.toList());
+
         // find jobs for the matching featuresets
         Collection<Job> matchingJobs = this.jobRepository.findByFeatureSetIn(featureSets);
         List<String> jobIds =
-          matchingJobs.stream()
+            matchingJobs.stream()
                 .map(
                     job -> {
                       return job.getId();
@@ -145,29 +139,28 @@ public class JobService {
     return ListIngestionJobsResponse.newBuilder().addAllJobs(ingestJobs).build();
   }
 
-  /** 
+  /**
    * Restart (Aborts) the ingestion job matching the given restart request.
    *
    * @param request restart ingestion job request specifying which job to stop
    * @throws NoSuchElementException when restart job request requests to restart a nonexistent job.
    * @throws UnsupportedOperationException when job to be restarted is in an unsupported status
    * @throws InvalidProtocolBufferException on error when constructing response protobuf
-  */
+   */
   @Transactional
   public RestartIngestionJobResponse restartJob(RestartIngestionJobRequest request)
-    throws InvalidProtocolBufferException {
+      throws InvalidProtocolBufferException {
     // check job exists
     Optional<Job> getJob = this.jobRepository.findById(request.getId());
     if (getJob.isEmpty()) {
       throw new NoSuchElementException(
           "Attempted to stop nonexistent job with id: " + getJob.get().getId());
     }
-  
+
     // check job status is valid for restarting
     Job job = getJob.get();
     JobStatus status = job.getStatus();
-    if (JobStatus.getTransitionalStates().contains(status) ||
-        status.equals(JobStatus.UNKNOWN)) {
+    if (JobStatus.getTransitionalStates().contains(status) || status.equals(JobStatus.UNKNOWN)) {
       throw new UnsupportedOperationException(
           "Restarting a job with a transitional or unknown status is unsupported");
     }
@@ -175,7 +168,7 @@ public class JobService {
     // restart job with job manager
     JobManager jobManager = this.jobManagers.get(job.getRunner());
     job = jobManager.restartJob(job);
-    
+
     // update job model in job repository
     this.jobRepository.saveAndFlush(job);
 
@@ -183,9 +176,9 @@ public class JobService {
   }
 
   /**
-   * Stops (Aborts) the ingestion job matching the given stop request. 
-   * Does nothing if the target job if already in a terminal states
-   * Does not support stopping a job in a transitional or unknown status
+   * Stops (Aborts) the ingestion job matching the given stop request. Does nothing if the target
+   * job if already in a terminal states Does not support stopping a job in a transitional or
+   * unknown status
    *
    * @param request stop ingestion job request specifying which job to stop
    * @throws NoSuchElementException when stop job request requests to stop a nonexistent job.
@@ -205,11 +198,11 @@ public class JobService {
     // check job status is valid for stopping
     Job job = getJob.get();
     JobStatus status = job.getStatus();
-    if(JobStatus.getTerminalState().contains(status)) {
+    if (JobStatus.getTerminalState().contains(status)) {
       // do nothing - job is already stopped
       return StopIngestionJobResponse.newBuilder().build();
-    } else if (JobStatus.getTransitionalStates().contains(status) ||
-        status.equals(JobStatus.UNKNOWN)) {
+    } else if (JobStatus.getTransitionalStates().contains(status)
+        || status.equals(JobStatus.UNKNOWN)) {
       throw new UnsupportedOperationException(
           "Stopping a job with a transitional or unknown status is unsupported");
     }

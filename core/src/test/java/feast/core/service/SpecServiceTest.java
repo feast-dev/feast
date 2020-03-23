@@ -835,12 +835,10 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void shouldMatchFeatureSetGivenFeatureSetReference() throws InvalidProtocolBufferException{
-    FeatureSetReference fsReference = FeatureSetReference.newBuilder()
-      .setName("f1")
-      .setProject("project1")
-      .setVersion(1)
-      .build();
+  public void shouldMatchFeatureSetGivenFeatureSetReference()
+      throws InvalidProtocolBufferException {
+    FeatureSetReference fsReference =
+        FeatureSetReference.newBuilder().setName("f1").setProject("project1").setVersion(1).build();
     ListFeatureSetsResponse response = this.specService.matchFeatureSets(fsReference);
     FeatureSet featureSet = FeatureSet.fromProto(response.getFeatureSets(0));
     assertEquals(featureSet, this.featureSets.get(0));

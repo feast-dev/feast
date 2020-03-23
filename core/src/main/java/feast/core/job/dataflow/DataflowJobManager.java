@@ -153,9 +153,8 @@ public class DataflowJobManager implements JobManager {
   }
 
   /**
-   * Restart a restart dataflow job.
-   * Dataflow should ensure continuity between during the restart, so no data
-   * should be lost during the restart operation.
+   * Restart a restart dataflow job. Dataflow should ensure continuity between during the restart,
+   * so no data should be lost during the restart operation.
    *
    * @param job job to restart
    * @return the restarted job
@@ -166,8 +165,8 @@ public class DataflowJobManager implements JobManager {
     if (JobStatus.getTerminalState().contains(status)) {
       // job yet not running: just start job
       return this.startJob(job);
-    } else { 
-      // job is running - updating the job without changing the job has 
+    } else {
+      // job is running - updating the job without changing the job has
       // the effect of restarting the job
       return this.updateJob(job);
     }
@@ -279,5 +278,4 @@ public class DataflowJobManager implements JobManager {
       Thread.sleep(2000);
     }
   }
-  
 }

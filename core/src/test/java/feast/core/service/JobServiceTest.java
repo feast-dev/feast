@@ -16,7 +16,8 @@
  */
 package feast.core.service;
 
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -25,7 +26,6 @@ import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.core.CoreServiceProto.ListIngestionJobsRequest;
 import feast.core.CoreServiceProto.ListIngestionJobsResponse;
@@ -40,7 +40,6 @@ import feast.core.SourceProto.KafkaSourceConfig;
 import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
-import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
@@ -107,7 +106,7 @@ public class JobServiceTest {
     } catch (InvalidProtocolBufferException e) {
       e.printStackTrace();
     }
-    
+
     this.fsReferences = this.newDummyFeatureSetReferences();
 
     // setup mock objects
@@ -117,26 +116,21 @@ public class JobServiceTest {
 
     // create test target
     this.jobService =
-        new JobService(
-            this.jobRepository, this.specService, Arrays.asList(this.jobManager));
+        new JobService(this.jobRepository, this.specService, Arrays.asList(this.jobManager));
   }
 
   // setup fake spec service
   public void setupSpecService() {
     try {
-      ListFeatureSetsResponse response = ListFeatureSetsResponse.newBuilder()
-        .addFeatureSets(this.featureSet.toProto())
-        .build();
+      ListFeatureSetsResponse response =
+          ListFeatureSetsResponse.newBuilder().addFeatureSets(this.featureSet.toProto()).build();
 
-      when(this.specService.matchFeatureSets(this.fsReferences.get(0)))
-        .thenReturn(response);
+      when(this.specService.matchFeatureSets(this.fsReferences.get(0))).thenReturn(response);
 
-      when(this.specService.matchFeatureSets(this.fsReferences.get(1)))
-        .thenReturn(response);
+      when(this.specService.matchFeatureSets(this.fsReferences.get(1))).thenReturn(response);
 
-      when(this.specService.matchFeatureSets(this.fsReferences.get(0)))
-        .thenReturn(response);
-    } catch(InvalidProtocolBufferException e){
+      when(this.specService.matchFeatureSets(this.fsReferences.get(0))).thenReturn(response);
+    } catch (InvalidProtocolBufferException e) {
       e.printStackTrace();
       fail("Unexpected exception");
     }
@@ -154,8 +148,8 @@ public class JobServiceTest {
   // TODO: setup fake job manager
   public void setupJobManager() {
     when(this.jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
-    when(this.jobManager.restartJob(this.job)).thenReturn(
-        this.newDummyJob(this.job.getId(), this.job.getExtId(), JobStatus.PENDING));
+    when(this.jobManager.restartJob(this.job))
+        .thenReturn(this.newDummyJob(this.job.getId(), this.job.getExtId(), JobStatus.PENDING));
   }
 
   // dummy model constructorss
@@ -187,7 +181,7 @@ public class JobServiceTest {
         Arrays.asList(this.featureSet),
         status);
   }
-  
+
   private List<FeatureSetReference> newDummyFeatureSetReferences() {
     return Arrays.asList(
         // all provided: name, version and project
@@ -207,8 +201,7 @@ public class JobServiceTest {
         FeatureSetReference.newBuilder()
             .setName(this.featureSet.getName())
             .setVersion(this.featureSet.getVersion())
-            .build()
-    );
+            .build());
   }
 
   /* unit tests */
@@ -231,7 +224,7 @@ public class JobServiceTest {
         ListIngestionJobsRequest.Filter.newBuilder().setId(this.job.getId()).build();
     ListIngestionJobsRequest request =
         ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
-    assertEquals(this.tryListJobs(request).getJobs(0), this.ingestionJob);
+    assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
   }
 
   @Test
@@ -240,35 +233,38 @@ public class JobServiceTest {
         ListIngestionJobsRequest.Filter.newBuilder().setStoreName(this.dataStore.getName()).build();
     ListIngestionJobsRequest request =
         ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
-    assertEquals(this.tryListJobs(request).getJobs(0), this.ingestionJob);
+    assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
   }
 
   @Test
   public void testListIngestionJobByFeatureSetReference() {
     // list job by feature set reference: name and version and project
-    ListIngestionJobsRequest.Filter filter = ListIngestionJobsRequest.Filter.newBuilder()
-      .setFeatureSetReference(this.fsReferences.get(0))
-      .setId(this.job.getId())
-      .build();
+    ListIngestionJobsRequest.Filter filter =
+        ListIngestionJobsRequest.Filter.newBuilder()
+            .setFeatureSetReference(this.fsReferences.get(0))
+            .setId(this.job.getId())
+            .build();
     ListIngestionJobsRequest request =
         ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
-    assertEquals(this.tryListJobs(request).getJobs(0), this.ingestionJob);
+    assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
 
     // list job by feature set reference: name and version
-    filter = ListIngestionJobsRequest.Filter.newBuilder()
-      .setFeatureSetReference(this.fsReferences.get(1))
-      .setId(this.job.getId())
-      .build();
+    filter =
+        ListIngestionJobsRequest.Filter.newBuilder()
+            .setFeatureSetReference(this.fsReferences.get(1))
+            .setId(this.job.getId())
+            .build();
     request = ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
-    assertEquals(this.tryListJobs(request).getJobs(0), this.ingestionJob);
+    assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
 
     // list job by feature set reference: name and project
-    filter = ListIngestionJobsRequest.Filter.newBuilder()
-      .setFeatureSetReference(this.fsReferences.get(2))
-      .setId(this.job.getId())
-      .build();
+    filter =
+        ListIngestionJobsRequest.Filter.newBuilder()
+            .setFeatureSetReference(this.fsReferences.get(2))
+            .setId(this.job.getId())
+            .build();
     request = ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
-    assertEquals(this.tryListJobs(request).getJobs(0), this.ingestionJob);
+    assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
   }
 
   // stop jobs
@@ -289,7 +285,6 @@ public class JobServiceTest {
       }
     }
 
-  
     return response;
   }
 
@@ -303,8 +298,8 @@ public class JobServiceTest {
     this.tryStopJob(request, false);
     verify(this.jobManager).abortJob(this.job.getExtId());
 
-    // TODO: check that for job status change in featureset source 
-    
+    // TODO: check that for job status change in featureset source
+
     this.job.setStatus(prevStatus);
   }
 
@@ -313,7 +308,7 @@ public class JobServiceTest {
     // check that stop jobs does not trying to stop jobs that are not already stopped
     List<JobStatus> doNothingStatuses = new ArrayList<>();
     doNothingStatuses.addAll(JobStatus.getTerminalState());
-    
+
     JobStatus prevStatus = this.job.getStatus();
     for (JobStatus status : doNothingStatuses) {
       this.job.setStatus(status);
@@ -336,20 +331,21 @@ public class JobServiceTest {
     List<JobStatus> unsupportedStatuses = new ArrayList<>();
     unsupportedStatuses.addAll(JobStatus.getTransitionalStates());
     unsupportedStatuses.add(JobStatus.UNKNOWN);
-  
+
     for (JobStatus status : unsupportedStatuses) {
       this.job.setStatus(status);
 
       StopIngestionJobRequest request =
-        StopIngestionJobRequest.newBuilder().setId(this.job.getId()).build();
+          StopIngestionJobRequest.newBuilder().setId(this.job.getId()).build();
       this.tryStopJob(request, true);
     }
 
     this.job.setStatus(prevStatus);
   }
-  
+
   // restart jobs
-  private RestartIngestionJobResponse tryRestartJob(RestartIngestionJobRequest request, boolean expectError) {
+  private RestartIngestionJobResponse tryRestartJob(
+      RestartIngestionJobRequest request, boolean expectError) {
     RestartIngestionJobResponse response = null;
     try {
       response = this.jobService.restartJob(request);
@@ -365,10 +361,9 @@ public class JobServiceTest {
       }
     }
 
-  
     return response;
   }
-  
+
   @Test
   public void testRestartJobForId() {
     JobStatus prevStatus = this.job.getStatus();
@@ -378,7 +373,7 @@ public class JobServiceTest {
     RestartIngestionJobRequest request =
         RestartIngestionJobRequest.newBuilder().setId(this.job.getId()).build();
     this.tryRestartJob(request, false);
-    
+
     // restart terminated job
     this.job.setStatus(JobStatus.SUSPENDED);
     request = RestartIngestionJobRequest.newBuilder().setId(this.job.getId()).build();
@@ -389,7 +384,7 @@ public class JobServiceTest {
 
     this.job.setStatus(prevStatus);
   }
-  
+
   @Test
   public void testRestartUnsupportedError() {
     // check for UnsupportedOperationException when trying to restart jobs are
@@ -398,12 +393,12 @@ public class JobServiceTest {
     List<JobStatus> unsupportedStatuses = new ArrayList<>();
     unsupportedStatuses.addAll(JobStatus.getTransitionalStates());
     unsupportedStatuses.add(JobStatus.UNKNOWN);
-  
+
     for (JobStatus status : unsupportedStatuses) {
       this.job.setStatus(status);
 
       RestartIngestionJobRequest request =
-        RestartIngestionJobRequest.newBuilder().setId(this.job.getId()).build();
+          RestartIngestionJobRequest.newBuilder().setId(this.job.getId()).build();
       this.tryRestartJob(request, true);
     }
 
