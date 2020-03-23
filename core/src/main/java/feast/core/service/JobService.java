@@ -28,6 +28,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.transaction.Transactional;
+
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -151,6 +153,7 @@ public class JobService {
    * @throws UnsupportedOperationException when job to be restarted is in an unsupported status
    * @throws InvalidProtocolBufferException on error when constructing response protobuf
   */
+  @Transactional
   public RestartIngestionJobResponse restartJob(RestartIngestionJobRequest request)
     throws InvalidProtocolBufferException {
     // check job exists
@@ -173,7 +176,8 @@ public class JobService {
     JobManager jobManager = this.jobManagers.get(job.getRunner());
     job = jobManager.restartJob(job);
     
-    // TODO: update restart model
+    // update job model in job repository
+    this.jobRepository.saveAndFlush(job);
 
     return RestartIngestionJobResponse.newBuilder().build();
   }
@@ -188,6 +192,7 @@ public class JobService {
    * @throws UnsupportedOperationException when job to be stopped is in an unsupported status
    * @throws InvalidProtocolBufferException on error when constructing response protobuf
    */
+  @Transactional
   public StopIngestionJobResponse stopJob(StopIngestionJobRequest request)
       throws InvalidProtocolBufferException {
     // check job exists
@@ -212,8 +217,6 @@ public class JobService {
     // stop job with job manager
     JobManager jobManager = this.jobManagers.get(job.getRunner());
     jobManager.abortJob(job.getExtId());
-  
-    // TODO: update stop model
 
     return StopIngestionJobResponse.newBuilder().build();
   }

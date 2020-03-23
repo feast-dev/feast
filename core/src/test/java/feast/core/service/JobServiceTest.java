@@ -385,8 +385,8 @@ public class JobServiceTest {
     this.tryRestartJob(request, false);
 
     verify(this.jobManager, times(2)).restartJob(this.job);
-    // TODO: check that for job status change in featureset source 
-    
+    verify(this.jobRepository, times(2)).saveAndFlush(this.job);
+
     this.job.setStatus(prevStatus);
   }
   
