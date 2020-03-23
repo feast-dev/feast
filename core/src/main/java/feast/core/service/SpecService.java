@@ -33,7 +33,6 @@ import feast.core.CoreServiceProto.ListStoresResponse.Builder;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto;
-import feast.core.FeatureSetReferenceProto.FeatureSetReference;
 import feast.core.SourceProto;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.Subscription;
@@ -130,38 +129,6 @@ public class SpecService {
 
     // Only a single item in list, return successfully
     return GetFeatureSetResponse.newBuilder().setFeatureSet(featureSet.toProto()).build();
-  }
-
-  /**
-   * Finds &amp; returns the featuresets matching the given feature set reference. TODO: merge with
-   * {@link #listFeatureSets(feast.core.CoreServiceProto.ListFeatureSetsRequest.Filter)} as they are
-   * very similar.
-   *
-   * @param fsReference FeatureSetReference that specifies matching criteria
-   * @throws IllegalArgumentException reference given is unsupported.
-   * @throws InvalidProtocolBufferException on error when constructing response protobuf
-   * @return ListFeatureSetsRequest with the matching featuresets
-   */
-  public ListFeatureSetsResponse matchFeatureSets(FeatureSetReference fsReference)
-      throws InvalidProtocolBufferException {
-
-    // match featuresets using contents of featureset reference
-    String fsName = fsReference.getName();
-    String fsProject = fsReference.getProject();
-    Integer fsVersion = fsReference.getVersion();
-
-    // construct list featureset request filter using feature set reference
-    // for proto3, default value for missing values:
-    // - numeric values (ie int) is zero
-    // - strings is empty string
-    ListFeatureSetsRequest.Filter filter =
-        ListFeatureSetsRequest.Filter.newBuilder()
-            .setFeatureSetName((fsName != "") ? fsName : "*")
-            .setProject((fsProject != "") ? fsProject : "*")
-            .setFeatureSetVersion((fsVersion != 0) ? fsVersion.toString() : "*")
-            .build();
-
-    return this.listFeatureSets(filter);
   }
 
   /**

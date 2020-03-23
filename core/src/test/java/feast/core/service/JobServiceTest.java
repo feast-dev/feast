@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import feast.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.core.CoreServiceProto.ListIngestionJobsRequest;
 import feast.core.CoreServiceProto.ListIngestionJobsResponse;
@@ -70,6 +71,7 @@ public class JobServiceTest {
   private Store dataStore;
   private FeatureSet featureSet;
   private List<FeatureSetReference> fsReferences;
+  private List<ListFeatureSetsRequest.Filter> listFilters;
   private Job job;
   private IngestionJob ingestionJob;
   // test target
@@ -108,6 +110,7 @@ public class JobServiceTest {
     }
 
     this.fsReferences = this.newDummyFeatureSetReferences();
+    this.listFilters = this.newDummyListRequestFilters();
 
     // setup mock objects
     this.setupSpecService();
@@ -125,11 +128,11 @@ public class JobServiceTest {
       ListFeatureSetsResponse response =
           ListFeatureSetsResponse.newBuilder().addFeatureSets(this.featureSet.toProto()).build();
 
-      when(this.specService.matchFeatureSets(this.fsReferences.get(0))).thenReturn(response);
+      when(this.specService.listFeatureSets(this.listFilters.get(0))).thenReturn(response);
 
-      when(this.specService.matchFeatureSets(this.fsReferences.get(1))).thenReturn(response);
+      when(this.specService.listFeatureSets(this.listFilters.get(1))).thenReturn(response);
 
-      when(this.specService.matchFeatureSets(this.fsReferences.get(0))).thenReturn(response);
+      when(this.specService.listFeatureSets(this.listFilters.get(2))).thenReturn(response);
     } catch (InvalidProtocolBufferException e) {
       e.printStackTrace();
       fail("Unexpected exception");
@@ -201,6 +204,30 @@ public class JobServiceTest {
         FeatureSetReference.newBuilder()
             .setName(this.featureSet.getName())
             .setVersion(this.featureSet.getVersion())
+            .build());
+  }
+
+  private List<ListFeatureSetsRequest.Filter> newDummyListRequestFilters() {
+    return Arrays.asList(
+        // all provided: name, version and project
+        ListFeatureSetsRequest.Filter.newBuilder()
+            .setFeatureSetName(this.featureSet.getName())
+            .setProject(this.featureSet.getProject().toString())
+            .setFeatureSetVersion(String.valueOf(this.featureSet.getVersion()))
+            .build(),
+
+        // name and project
+        ListFeatureSetsRequest.Filter.newBuilder()
+            .setFeatureSetName(this.featureSet.getName())
+            .setProject(this.featureSet.getProject().toString())
+            .setFeatureSetVersion("*")
+            .build(),
+
+        // name and project
+        ListFeatureSetsRequest.Filter.newBuilder()
+            .setFeatureSetName(this.featureSet.getName())
+            .setProject("*")
+            .setFeatureSetVersion(String.valueOf(this.featureSet.getVersion()))
             .build());
   }
 

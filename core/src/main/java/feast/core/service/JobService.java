@@ -17,6 +17,7 @@
 package feast.core.service;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import feast.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.core.CoreServiceProto.ListIngestionJobsRequest;
 import feast.core.CoreServiceProto.ListIngestionJobsResponse;
@@ -101,7 +102,8 @@ public class JobService {
       if (filter.hasFeatureSetReference()) {
         // find a matching featuresets for reference
         FeatureSetReference fsReference = filter.getFeatureSetReference();
-        ListFeatureSetsResponse response = this.specService.matchFeatureSets(fsReference);
+        ListFeatureSetsResponse response =
+            this.specService.listFeatureSets(this.toListFeatureSetFilter(fsReference));
         List<FeatureSet> featureSets =
             response.getFeatureSetsList().stream()
                 .map(FeatureSet::fromProto)
@@ -210,5 +212,26 @@ public class JobService {
       results.retainAll(newResults);
     }
     return results;
+  }
+
+  // converts feature set reference to a list feature set filter
+  private ListFeatureSetsRequest.Filter toListFeatureSetFilter(FeatureSetReference fsReference) {
+    // match featuresets using contents of featureset reference
+    String fsName = fsReference.getName();
+    String fsProject = fsReference.getProject();
+    Integer fsVersion = fsReference.getVersion();
+
+    // construct list featureset request filter using feature set reference
+    // for proto3, default value for missing values:
+    // - numeric values (ie int) is zero
+    // - strings is empty string
+    ListFeatureSetsRequest.Filter filter =
+        ListFeatureSetsRequest.Filter.newBuilder()
+            .setFeatureSetName((fsName != "") ? fsName : "*")
+            .setProject((fsProject != "") ? fsProject : "*")
+            .setFeatureSetVersion((fsVersion != 0) ? fsVersion.toString() : "*")
+            .build();
+
+    return filter;
   }
 }
