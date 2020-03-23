@@ -100,12 +100,12 @@ grpc:
       enabled: false
 
 security:
-    authentication:
-      enabled: false
-      provider: None
-    authorization:
-      enabled: false
-      provider: None
+  authentication:
+    enabled: false
+    provider: None
+  authorization:
+    enabled: false
+    provider: None
 
 feast:
   version: 0.3
