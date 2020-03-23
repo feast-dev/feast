@@ -80,6 +80,18 @@ public enum JobStatus {
     return TRANSITIONAL_STATES;
   }
 
+  private static final Map<JobStatus, IngestionJobStatus> INGESTION_JOB_STATUS_MAP =
+      Map.of(
+          JobStatus.UNKNOWN, IngestionJobStatus.UNKNOWN,
+          JobStatus.PENDING, IngestionJobStatus.PENDING,
+          JobStatus.RUNNING, IngestionJobStatus.RUNNING,
+          JobStatus.COMPLETED, IngestionJobStatus.COMPLETED,
+          JobStatus.ABORTING, IngestionJobStatus.ABORTING,
+          JobStatus.ABORTED, IngestionJobStatus.ABORTED,
+          JobStatus.ERROR, IngestionJobStatus.ERROR,
+          JobStatus.SUSPENDING, IngestionJobStatus.SUSPENDING,
+          JobStatus.SUSPENDED, IngestionJobStatus.SUSPENDED);
+
   /**
    * Convert a Job Status to Ingestion Job Status proto
    *
@@ -87,17 +99,6 @@ public enum JobStatus {
    */
   public IngestionJobStatus toProto() {
     // maps job models job status to ingestion job status
-    Map<JobStatus, IngestionJobStatus> statusMap =
-        Map.of(
-            JobStatus.UNKNOWN, IngestionJobStatus.UNKNOWN,
-            JobStatus.PENDING, IngestionJobStatus.PENDING,
-            JobStatus.RUNNING, IngestionJobStatus.RUNNING,
-            JobStatus.COMPLETED, IngestionJobStatus.COMPLETED,
-            JobStatus.ABORTING, IngestionJobStatus.ABORTING,
-            JobStatus.ABORTED, IngestionJobStatus.ABORTED,
-            JobStatus.ERROR, IngestionJobStatus.ERROR,
-            JobStatus.SUSPENDING, IngestionJobStatus.SUSPENDING,
-            JobStatus.SUSPENDED, IngestionJobStatus.SUSPENDED);
-    return statusMap.get(this);
+    return INGESTION_JOB_STATUS_MAP.get(this);
   }
 }
