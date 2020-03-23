@@ -5,7 +5,7 @@ apt-get -y install build-essential
 
 make lint-java
 
-.prow/scripts/download-maven-cache.sh \
+infra/scripts/download-maven-cache.sh \
     --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
     --output-dir /root/
 
