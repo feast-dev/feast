@@ -141,7 +141,7 @@ public class JobServiceTest {
     when(this.jobRepository.findById(this.job.getId())).thenReturn(Optional.of(this.job));
     when(this.jobRepository.findByStoreName(this.dataStore.getName()))
         .thenReturn(Arrays.asList(this.job));
-    when(this.jobRepository.findByFeatureSetIn(Arrays.asList(this.featureSet)))
+    when(this.jobRepository.findByFeatureSetsIn(Arrays.asList(this.featureSet)))
         .thenReturn(Arrays.asList(this.job));
   }
 

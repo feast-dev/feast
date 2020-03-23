@@ -116,7 +116,7 @@ public class JobService {
                 .collect(Collectors.toList());
 
         // find jobs for the matching featuresets
-        Collection<Job> matchingJobs = this.jobRepository.findByFeatureSetIn(featureSets);
+        Collection<Job> matchingJobs = this.jobRepository.findByFeatureSetsIn(featureSets);
         List<String> jobIds =
             matchingJobs.stream()
                 .map(
