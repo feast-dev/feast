@@ -1,6 +1,5 @@
 FROM maven:3.6-jdk-11
 
-
 # Install Google Cloud SDK
 RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" \
     | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
@@ -31,7 +30,7 @@ ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 ENV PATH="$HOME/bin:${PATH}"
 
 # Install Protoc and Plugins
-ENV PROTOC_VERSION 3.11.4
+ENV PROTOC_VERSION 3.10.0
 
 RUN PROTOC_ZIP=protoc-${PROTOC_VERSION}-linux-x86_64.zip && \
     curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/$PROTOC_ZIP && \
