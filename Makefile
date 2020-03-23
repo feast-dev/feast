@@ -82,8 +82,7 @@ install-go-ci-dependencies:
 	go get -u golang.org/x/lint/golint
 
 compile-protos-go: install-go-ci-dependencies
-	@$(foreach dir,$(PROTO_TYPE_SUBDIRS), cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos/ feast/$(dir)/*.proto;)
-	cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go_out=/usr/local/go/src/ tensorflow_metadata/proto/v0/*.proto
+	@$(foreach dir,types serving, cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos/ feast/$(dir)/*.proto;)
 
 test-go:
 	cd ${ROOT_DIR}/sdk/go; go test ./...
@@ -92,7 +91,7 @@ format-go:
 	cd ${ROOT_DIR}/sdk/go; gofmt -s -w *.go
 
 lint-go:
-	cd ${ROOT_DIR}/sdk/go; go vet; golint *.go
+	cd ${ROOT_DIR}/sdk/go; go vet
 
 # Docker
 
@@ -125,9 +124,6 @@ build-ci-docker:
 # Documentation
 
 install-dependencies-proto-docs:
-	# Use the following command to compile dependencies if installing using the below method.
-	# cd ${ROOT_DIR}/protos; PATH=$$HOME/bin:$$PATH protoc -I $$HOME/include/ \
-	# -I . --docs_out=../dist/grpc feast/*/*.proto
 	cd ${ROOT_DIR}/protos;
 	mkdir -p $$HOME/bin
 	mkdir -p $$HOME/include

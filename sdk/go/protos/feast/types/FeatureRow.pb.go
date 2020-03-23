@@ -87,7 +87,9 @@ func init() {
 	proto.RegisterType((*FeatureRow)(nil), "feast.types.FeatureRow")
 }
 
-func init() { proto.RegisterFile("feast/types/FeatureRow.proto", fileDescriptor_fbbea9c89787d1c7) }
+func init() {
+	proto.RegisterFile("feast/types/FeatureRow.proto", fileDescriptor_fbbea9c89787d1c7)
+}
 
 var fileDescriptor_fbbea9c89787d1c7 = []byte{
 	// 238 bytes of a gzipped FileDescriptorProto

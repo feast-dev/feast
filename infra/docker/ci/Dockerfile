@@ -1,9 +1,5 @@
 FROM maven:3.6-jdk-11
 
-ENV PYTHON_VERSION 3.7
-ENV GOLANG_VERSION 1.14.1
-ENV PROTOC_VERSION 3.7.1
-ENV PATH="$HOME/bin:${PATH}"
 
 # Install Google Cloud SDK
 RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" \
@@ -13,6 +9,8 @@ RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.c
     add - && apt-get update -y && apt-get install google-cloud-sdk -y
 
 # Install Make and Python
+ENV PYTHON_VERSION 3.7
+
 RUN apt-get install -y build-essential curl python${PYTHON_VERSION} \
     python${PYTHON_VERSION}-dev python${PYTHON_VERSION}-distutils && \
     update-alternatives --install /usr/bin/python python /usr/bin/python${PYTHON_VERSION} 1 && \
@@ -21,13 +19,20 @@ RUN apt-get install -y build-essential curl python${PYTHON_VERSION} \
     python get-pip.py --force-reinstall && \
     rm get-pip.py
 
+
 # Install Go
+ENV GOLANG_VERSION 1.14.1
+
 RUN curl -O https://storage.googleapis.com/golang/go${GOLANG_VERSION}.linux-amd64.tar.gz && \
     tar -xvf go${GOLANG_VERSION}.linux-amd64.tar.gz && chown -R root:root ./go && mv go /usr/local
+
 ENV GOPATH /go
 ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
+ENV PATH="$HOME/bin:${PATH}"
 
 # Install Protoc and Plugins
+ENV PROTOC_VERSION 3.11.4
+
 RUN PROTOC_ZIP=protoc-${PROTOC_VERSION}-linux-x86_64.zip && \
     curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/$PROTOC_ZIP && \
     unzip -o $PROTOC_ZIP -d /usr/local bin/protoc && \
