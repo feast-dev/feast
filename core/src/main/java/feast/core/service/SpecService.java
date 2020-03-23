@@ -138,7 +138,7 @@ public class SpecService {
    * very similar.
    *
    * @param fsReference FeatureSetReference that specifies matching criteria
-   * @throws InvalidArgumentException reference given is unsupported.
+   * @throws IllegalArgumentException reference given is unsupported.
    * @throws InvalidProtocolBufferException on error when constructing response protobuf
    * @return ListFeatureSetsRequest with the matching featuresets
    */
