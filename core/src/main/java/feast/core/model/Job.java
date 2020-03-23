@@ -122,7 +122,7 @@ public class Job extends AbstractTimestampEntity {
    *
    * @return Ingestion Job proto derieved from the given job
    */
-  public IngestionJobProto.IngestionJob toIngestionProto() throws InvalidProtocolBufferException {
+  public IngestionJobProto.IngestionJob toProto() throws InvalidProtocolBufferException {
 
     // convert featuresets of job to protos
     List<FeatureSetProto.FeatureSet> featureSetProtos = new ArrayList<>();
@@ -135,7 +135,7 @@ public class Job extends AbstractTimestampEntity {
         IngestionJobProto.IngestionJob.newBuilder()
             .setId(this.getId())
             .setExternalId(this.getExtId())
-            .setStatus(this.getStatus().toIngestionProto())
+            .setStatus(this.getStatus().toProto())
             .addAllFeatureSets(featureSetProtos)
             .setSource(this.getSource().toProto())
             .setStore(this.getStore().toProto())

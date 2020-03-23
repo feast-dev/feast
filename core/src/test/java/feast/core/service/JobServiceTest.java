@@ -102,7 +102,7 @@ public class JobServiceTest {
     this.featureSet = this.newDummyFeatureSet("food", 2, "hunger");
     this.job = this.newDummyJob("kafka-to-redis", "job-1111", JobStatus.PENDING);
     try {
-      this.ingestionJob = this.job.toIngestionProto();
+      this.ingestionJob = this.job.toProto();
     } catch (InvalidProtocolBufferException e) {
       e.printStackTrace();
     }

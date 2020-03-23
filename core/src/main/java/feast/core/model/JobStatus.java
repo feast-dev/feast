@@ -85,7 +85,7 @@ public enum JobStatus {
    *
    * @return IngestionJobStatus proto derieved from this job status
    */
-  public IngestionJobStatus toIngestionProto() {
+  public IngestionJobStatus toProto() {
     // maps job models job status to ingestion job status
     Map<JobStatus, IngestionJobStatus> statusMap =
         Map.of(

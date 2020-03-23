@@ -132,7 +132,7 @@ public class JobService {
     List<IngestionJobProto.IngestionJob> ingestJobs = new ArrayList<>();
     for (String jobId : matchingJobIds) {
       Job job = this.jobRepository.findById(jobId).get();
-      ingestJobs.add(job.toIngestionProto());
+      ingestJobs.add(job.toProto());
     }
 
     // pack jobs into response
