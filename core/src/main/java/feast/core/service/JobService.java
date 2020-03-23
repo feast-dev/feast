@@ -37,6 +37,8 @@ import feast.core.CoreServiceProto.GetFeatureSetResponse;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.core.CoreServiceProto.ListIngestionJobsRequest;
 import feast.core.CoreServiceProto.ListIngestionJobsResponse;
+import feast.core.CoreServiceProto.RestartIngestionJobRequest;
+import feast.core.CoreServiceProto.RestartIngestionJobResponse;
 import feast.core.CoreServiceProto.StopIngestionJobRequest;
 import feast.core.CoreServiceProto.StopIngestionJobResponse;
 import feast.core.FeatureSetReferenceProto.FeatureSetReference;
@@ -93,7 +95,6 @@ public class JobService {
       if (job.isPresent()) {
         matchingJobIds.add(filter.getId());
       }
-
     } else {
       // multiple filters can apply together in an 'and' operation
       if (filter.getStoreName() != "") {
@@ -106,7 +107,6 @@ public class JobService {
                       return job.getId();
                     })
                 .collect(Collectors.toList());
-
         matchingJobIds = this.mergeResults(matchingJobIds, jobIds);
       }
       if (filter.hasFeatureSetReference()) {
@@ -143,12 +143,45 @@ public class JobService {
     return ListIngestionJobsResponse.newBuilder().addAllJobs(ingestJobs).build();
   }
 
-  // TODO: restart ingestion job
+  /** 
+   * Restart (Aborts) the ingestion job matching the given restart request.
+   *
+   * @param request restart ingestion job request specifying which job to stop
+   * @throws NoSuchElementException when restart job request requests to restart a nonexistent job.
+   * @throws UnsupportedOperationException when job to be restarted is in an unsupported status
+   * @throws InvalidProtocolBufferException on error when constructing response protobuf
+  */
+  public RestartIngestionJobResponse restartJob(RestartIngestionJobRequest request)
+    throws InvalidProtocolBufferException {
+    // check job exists
+    Optional<Job> getJob = this.jobRepository.findById(request.getId());
+    if (getJob.isEmpty()) {
+      throw new NoSuchElementException(
+          "Attempted to stop nonexistent job with id: " + getJob.get().getId());
+    }
+  
+    // check job status is valid for restarting
+    Job job = getJob.get();
+    JobStatus status = job.getStatus();
+    if (JobStatus.getTransitionalStates().contains(status) ||
+        status.equals(JobStatus.UNKNOWN)) {
+      throw new UnsupportedOperationException(
+          "Restarting a job with a transitional or unknown status is unsupported");
+    }
+
+    // restart job with job manager
+    JobManager jobManager = this.jobManagers.get(job.getRunner());
+    job = jobManager.restartJob(job);
+    
+    // TODO: update restart model
+
+    return RestartIngestionJobResponse.newBuilder().build();
+  }
 
   /**
-   * Stops (Aborts) the ingestion job matching the given request. 
+   * Stops (Aborts) the ingestion job matching the given stop request. 
    * Does nothing if the target job if already in a terminal states
-   * Errors when attempting to stop a job in a transitional or unknown job
+   * Does not support stopping a job in a transitional or unknown status
    *
    * @param request stop ingestion job request specifying which job to stop
    * @throws NoSuchElementException when stop job request requests to stop a nonexistent job.
@@ -168,17 +201,19 @@ public class JobService {
     Job job = getJob.get();
     JobStatus status = job.getStatus();
     if(JobStatus.getTerminalState().contains(status)) {
-      // do nothing - job is already stoped
+      // do nothing - job is already stopped
       return StopIngestionJobResponse.newBuilder().build();
     } else if (JobStatus.getTransitionalStates().contains(status) ||
         status.equals(JobStatus.UNKNOWN)) {
       throw new UnsupportedOperationException(
-          "Stopping a job with an unknown status is unsupported");
+          "Stopping a job with a transitional or unknown status is unsupported");
     }
 
     // stop job with job manager
     JobManager jobManager = this.jobManagers.get(job.getRunner());
     jobManager.abortJob(job.getExtId());
+  
+    // TODO: update stop model
 
     return StopIngestionJobResponse.newBuilder().build();
   }

@@ -19,6 +19,7 @@ package feast.core.service;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
@@ -28,6 +29,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
 import feast.core.CoreServiceProto.ListIngestionJobsRequest;
 import feast.core.CoreServiceProto.ListIngestionJobsResponse;
+import feast.core.CoreServiceProto.RestartIngestionJobRequest;
+import feast.core.CoreServiceProto.RestartIngestionJobResponse;
 import feast.core.CoreServiceProto.StopIngestionJobRequest;
 import feast.core.CoreServiceProto.StopIngestionJobResponse;
 import feast.core.FeatureSetProto.FeatureSetStatus;
@@ -98,7 +101,7 @@ public class JobServiceTest {
 
     // fake featureset & job
     this.featureSet = this.newDummyFeatureSet("food", 2, "hunger");
-    this.job = this.newDummyJob("job", "kafka-to-redis", JobStatus.PENDING);
+    this.job = this.newDummyJob("kafka-to-redis", "job-1111", JobStatus.PENDING);
     try {
       this.ingestionJob = this.job.toIngestionProto();
     } catch (InvalidProtocolBufferException e) {
@@ -151,6 +154,8 @@ public class JobServiceTest {
   // TODO: setup fake job manager
   public void setupJobManager() {
     when(this.jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
+    when(this.jobManager.restartJob(this.job)).thenReturn(
+        this.newDummyJob(this.job.getId(), this.job.getExtId(), JobStatus.PENDING));
   }
 
   // dummy model constructorss
@@ -172,10 +177,10 @@ public class JobServiceTest {
     return fs;
   }
 
-  private Job newDummyJob(String id, String name, JobStatus status) {
+  private Job newDummyJob(String id, String extId, JobStatus status) {
     return new Job(
         id,
-        name,
+        extId,
         Runner.DATAFLOW.getName(),
         this.dataSource,
         this.dataStore,
@@ -280,10 +285,11 @@ public class JobServiceTest {
       if (expectError != true) {
         // unexpected exception
         e.printStackTrace();
-        fail("Caught Unexpected exception");
+        fail("Caught Unexpected exception trying to restart job");
       }
     }
 
+  
     return response;
   }
 
@@ -297,6 +303,8 @@ public class JobServiceTest {
     this.tryStopJob(request, false);
     verify(this.jobManager).abortJob(this.job.getExtId());
 
+    // TODO: check that for job status change in featureset source 
+    
     this.job.setStatus(prevStatus);
   }
 
@@ -321,7 +329,7 @@ public class JobServiceTest {
   }
 
   @Test
-  public void testUnsupportedError() {
+  public void testStopUnsupportedError() {
     // check for UnsupportedOperationException when trying to stop jobs are
     // in an in unknown or in a transitional state
     JobStatus prevStatus = this.job.getStatus();
@@ -335,6 +343,68 @@ public class JobServiceTest {
       StopIngestionJobRequest request =
         StopIngestionJobRequest.newBuilder().setId(this.job.getId()).build();
       this.tryStopJob(request, true);
+    }
+
+    this.job.setStatus(prevStatus);
+  }
+  
+  // restart jobs
+  private RestartIngestionJobResponse tryRestartJob(RestartIngestionJobRequest request, boolean expectError) {
+    RestartIngestionJobResponse response = null;
+    try {
+      response = this.jobService.restartJob(request);
+      // expected exception, but none was thrown
+      if (expectError) {
+        fail("Expected exception, but none was thrown");
+      }
+    } catch (Exception e) {
+      if (expectError != true) {
+        // unexpected exception
+        e.printStackTrace();
+        fail("Caught Unexpected exception trying to stop job");
+      }
+    }
+
+  
+    return response;
+  }
+  
+  @Test
+  public void testRestartJobForId() {
+    JobStatus prevStatus = this.job.getStatus();
+
+    // restart running job
+    this.job.setStatus(JobStatus.RUNNING);
+    RestartIngestionJobRequest request =
+        RestartIngestionJobRequest.newBuilder().setId(this.job.getId()).build();
+    this.tryRestartJob(request, false);
+    
+    // restart terminated job
+    this.job.setStatus(JobStatus.SUSPENDED);
+    request = RestartIngestionJobRequest.newBuilder().setId(this.job.getId()).build();
+    this.tryRestartJob(request, false);
+
+    verify(this.jobManager, times(2)).restartJob(this.job);
+    // TODO: check that for job status change in featureset source 
+    
+    this.job.setStatus(prevStatus);
+  }
+  
+  @Test
+  public void testRestartUnsupportedError() {
+    // check for UnsupportedOperationException when trying to restart jobs are
+    // in an in unknown or in a transitional state
+    JobStatus prevStatus = this.job.getStatus();
+    List<JobStatus> unsupportedStatuses = new ArrayList<>();
+    unsupportedStatuses.addAll(JobStatus.getTransitionalStates());
+    unsupportedStatuses.add(JobStatus.UNKNOWN);
+  
+    for (JobStatus status : unsupportedStatuses) {
+      this.job.setStatus(status);
+
+      RestartIngestionJobRequest request =
+        RestartIngestionJobRequest.newBuilder().setId(this.job.getId()).build();
+      this.tryRestartJob(request, true);
     }
 
     this.job.setStatus(prevStatus);
