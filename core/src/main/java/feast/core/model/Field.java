@@ -89,6 +89,9 @@ public class Field {
     this.name = featureSpec.getName();
     this.type = featureSpec.getValueType().toString();
     this.labels = TypeConversion.convertMapToJsonString(featureSpec.getLabelsMap());
+    if (this.labels.equals("{}")) {
+      this.labels = null;
+    }
 
     switch (featureSpec.getPresenceConstraintsCase()) {
       case PRESENCE:
@@ -238,6 +241,7 @@ public class Field {
     return Objects.equals(name, field.name)
         && Objects.equals(type, field.type)
         && Objects.equals(project, field.project)
+        && Objects.equals(labels, field.labels)
         && Arrays.equals(presence, field.presence)
         && Arrays.equals(groupPresence, field.groupPresence)
         && Arrays.equals(shape, field.shape)
@@ -258,6 +262,6 @@ public class Field {
 
   @Override
   public int hashCode() {
-    return Objects.hash(super.hashCode(), name, type);
+    return Objects.hash(super.hashCode(), name, type, project, labels);
   }
 }
