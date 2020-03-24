@@ -142,7 +142,6 @@ public class SpecServiceTest {
         Arrays.asList(featureSet1v1, featureSet1v2, featureSet1v3, featureSet2v1, featureSet3v1);
     when(featureSetRepository.findAll()).thenReturn(featureSets);
     when(featureSetRepository.findAllByOrderByNameAscVersionAsc()).thenReturn(featureSets);
-
     when(featureSetRepository.findFeatureSetByNameAndProject_NameAndVersion("f1", "project1", 1))
         .thenReturn(featureSets.get(0));
     when(featureSetRepository.findAllByNameLikeAndProject_NameOrderByNameAscVersionAsc(
@@ -703,6 +702,81 @@ public class SpecServiceTest {
               .getSpec()
               .getFeatures(0)
               .getField(FeatureSpec.getDescriptor().findFieldByName(name)));
+    }
+  }
+
+  @Test
+  public void applyFeatureSetShouldAcceptLabels() throws InvalidProtocolBufferException {
+    List<EntitySpec> entitySpecs = new ArrayList<>();
+    entitySpecs.add(EntitySpec.newBuilder().setName("entity1").setValueType(Enum.INT64).build());
+
+    Map<String, String> featureLabels0 =
+        new HashMap<>() {
+          {
+            put("label1", "feast1");
+          }
+        };
+
+    Map<String, String> featureLabels1 =
+        new HashMap<>() {
+          {
+            put("label1", "feast1");
+            put("label2", "feast2");
+          }
+        };
+
+    List<Map<String, String>> featureLabels = new ArrayList<>();
+    featureLabels.add(featureLabels0);
+    featureLabels.add(featureLabels1);
+
+    List<FeatureSpec> featureSpecs = new ArrayList<>();
+    featureSpecs.add(
+        FeatureSpec.newBuilder()
+            .setName("feature1")
+            .setValueType(Enum.INT64)
+            .putAllLabels(featureLabels.get(0))
+            .build());
+    featureSpecs.add(
+        FeatureSpec.newBuilder()
+            .setName("feature2")
+            .setValueType(Enum.INT64)
+            .putAllLabels(featureLabels.get(1))
+            .build());
+
+    FeatureSetSpec featureSetSpec =
+        FeatureSetSpec.newBuilder()
+            .setProject("project1")
+            .setName("featureSetWithConstraints")
+            .addAllEntities(entitySpecs)
+            .addAllFeatures(featureSpecs)
+            .build();
+    FeatureSetProto.FeatureSet featureSet =
+        FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSetSpec).build();
+
+    ApplyFeatureSetResponse applyFeatureSetResponse = specService.applyFeatureSet(featureSet);
+    FeatureSetSpec appliedFeatureSetSpec = applyFeatureSetResponse.getFeatureSet().getSpec();
+
+    // appliedEntitySpecs needs to be sorted because the list returned by specService may not
+    // follow the order in the request
+    List<EntitySpec> appliedEntitySpecs = new ArrayList<>(appliedFeatureSetSpec.getEntitiesList());
+    appliedEntitySpecs.sort(Comparator.comparing(EntitySpec::getName));
+
+    // appliedFeatureSpecs needs to be sorted because the list returned by specService may not
+    // follow the order in the request
+    List<FeatureSpec> appliedFeatureSpecs =
+        new ArrayList<>(appliedFeatureSetSpec.getFeaturesList());
+    appliedFeatureSpecs.sort(Comparator.comparing(FeatureSpec::getName));
+
+    assertEquals(appliedEntitySpecs.size(), entitySpecs.size());
+    assertEquals(appliedFeatureSpecs.size(), featureSpecs.size());
+
+    for (int i = 0; i < appliedEntitySpecs.size(); i++) {
+      assertEquals(entitySpecs.get(i), appliedEntitySpecs.get(i));
+    }
+
+    for (int i = 0; i < appliedFeatureSpecs.size(); i++) {
+      assertEquals(featureSpecs.get(i), appliedFeatureSpecs.get(i));
+      assertEquals(featureSpecs.get(i).getLabelsMap(), featureLabels.get(i));
     }
   }
 
