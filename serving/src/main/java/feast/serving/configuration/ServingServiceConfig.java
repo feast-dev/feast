@@ -16,10 +16,8 @@
  */
 package feast.serving.configuration;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.HostDistance;
-import com.datastax.driver.core.PoolingOptions;
-import com.datastax.driver.core.Session;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.*;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.bigquery.BigQuery;
@@ -154,41 +152,33 @@ public class ServingServiceConfig {
         break;
       case CASSANDRA:
         StoreProperties storeProperties = feastProperties.getStore();
-        PoolingOptions poolingOptions = new PoolingOptions();
-        poolingOptions.setCoreConnectionsPerHost(
-            HostDistance.LOCAL, storeProperties.getCassandraPoolCoreLocalConnections());
-        poolingOptions.setCoreConnectionsPerHost(
-            HostDistance.REMOTE, storeProperties.getCassandraPoolCoreRemoteConnections());
-        poolingOptions.setMaxConnectionsPerHost(
-            HostDistance.LOCAL, storeProperties.getCassandraPoolMaxLocalConnections());
-        poolingOptions.setMaxConnectionsPerHost(
-            HostDistance.REMOTE, storeProperties.getCassandraPoolMaxRemoteConnections());
-        poolingOptions.setMaxRequestsPerConnection(
-            HostDistance.LOCAL, storeProperties.getCassandraPoolMaxRequestsLocalConnection());
-        poolingOptions.setMaxRequestsPerConnection(
-            HostDistance.REMOTE, storeProperties.getCassandraPoolMaxRequestsRemoteConnection());
-        poolingOptions.setNewConnectionThreshold(
-            HostDistance.LOCAL, storeProperties.getCassandraPoolNewLocalConnectionThreshold());
-        poolingOptions.setNewConnectionThreshold(
-            HostDistance.REMOTE, storeProperties.getCassandraPoolNewRemoteConnectionThreshold());
-        poolingOptions.setPoolTimeoutMillis(storeProperties.getCassandraPoolTimeoutMillis());
         CassandraConfig cassandraConfig = store.getCassandraConfig();
         List<InetSocketAddress> contactPoints =
             Arrays.stream(cassandraConfig.getBootstrapHosts().split(","))
                 .map(h -> new InetSocketAddress(h, cassandraConfig.getPort()))
                 .collect(Collectors.toList());
-        Cluster cluster =
-            Cluster.builder()
-                .addContactPointsWithPorts(contactPoints)
-                .withPoolingOptions(poolingOptions)
+        CqlSession cluster =
+            CqlSession.builder()
+                .addContactPoints(contactPoints)
+                .withLocalDatacenter(storeProperties.getCassandraDcName())
                 .build();
         // Session in Cassandra is thread-safe and maintains connections to cluster nodes internally
         // Recommended to use one session per keyspace instead of open and close connection for each
         // request
-        Session session = cluster.connect();
+        log.info(String.format("Cluster name: %s", cluster.getName()));
+        log.info(String.format("Cluster keyspace: %s", cluster.getMetadata().getKeyspaces()));
+        log.info(String.format("Cluster nodes: %s", cluster.getMetadata().getNodes()));
+        log.info(String.format("Cluster tokenmap: %s", cluster.getMetadata().getTokenMap()));
+        log.info(
+            String.format(
+                "Cluster default profile: %s",
+                cluster.getContext().getConfig().getDefaultProfile().toString()));
+        log.info(
+            String.format(
+                "Cluster lb policies: %s", cluster.getContext().getLoadBalancingPolicies()));
         servingService =
             new CassandraServingService(
-                session,
+                cluster,
                 cassandraConfig.getKeyspace(),
                 cassandraConfig.getTableName(),
                 specService,

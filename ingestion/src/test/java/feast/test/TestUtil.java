@@ -275,7 +275,12 @@ public class TestUtil {
     if (fields.keySet().containsAll(requiredFields)) {
       FeatureRow.Builder featureRow =
           FeatureRow.newBuilder()
-              .setFeatureSet(featureSetSpec.getProject() + "/" + featureSetSpec.getName() + ":" + featureSetSpec.getVersion())
+              .setFeatureSet(
+                  featureSetSpec.getProject()
+                      + "/"
+                      + featureSetSpec.getName()
+                      + ":"
+                      + featureSetSpec.getVersion())
               .setEventTimestamp(Timestamp.newBuilder().setSeconds(timestampSeconds).build());
       for (Entry<String, Value> field : fields.entrySet()) {
         featureRow.addFields(

@@ -124,7 +124,6 @@ public class CachedSpecService {
                 throw new SpecRetrievalException(
                     String.format("Unable to retrieve feature %s", featureReference));
               }
-              //log.info("FeatRef: {} with fs {}", featureReference, featureSet);
               return Pair.of(featureSet, featureReference);
             })
         .collect(groupingBy(Pair::getLeft))
@@ -134,13 +133,12 @@ public class CachedSpecService {
                 FeatureSetSpec featureSetSpec = featureSetCache.get(fsName);
                 List<FeatureReference> requestedFeatures =
                     featureRefs.stream().map(Pair::getRight).collect(Collectors.toList());
-                //log.info("RequestBuilding for {}", featureSetSpec.toString());
                 FeatureSetRequest featureSetRequest =
                     FeatureSetRequest.newBuilder()
                         .setSpec(featureSetSpec)
                         .addAllFeatureReferences(requestedFeatures)
                         .build();
-                //log.info("FS Request {}", featureSetRequest);
+                log.info("FS Request {}", featureSetRequest.getFeatureReferences());
                 featureSetRequests.add(featureSetRequest);
               } catch (ExecutionException e) {
                 throw new SpecRetrievalException(

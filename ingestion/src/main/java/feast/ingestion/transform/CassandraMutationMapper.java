@@ -16,6 +16,7 @@
  */
 package feast.ingestion.transform;
 
+import com.datastax.driver.core.ConsistencyLevel;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.mapping.Mapper.Option;
 import feast.store.serving.cassandra.CassandraMutation;
@@ -55,6 +56,8 @@ public class CassandraMutationMapper implements Mapper<CassandraMutation>, Seria
     return mapper.saveAsync(
         entityClass,
         Option.timestamp(entityClass.getWriteTime()),
-        Option.ttl(entityClass.getTtl()));
+        Option.ttl(entityClass.getTtl()),
+        Option.consistencyLevel(ConsistencyLevel.ALL),
+        Option.tracing(true));
   }
 }

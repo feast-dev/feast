@@ -20,10 +20,9 @@ import static feast.serving.util.Metrics.requestCount;
 import static feast.serving.util.Metrics.requestLatency;
 import static feast.serving.util.RefUtil.generateFeatureStringRef;
 
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.core.querybuilder.QueryBuilder;
+import com.datastax.oss.driver.api.core.ConsistencyLevel;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.*;
 import com.google.common.collect.Maps;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
@@ -63,14 +62,15 @@ public class CassandraServingService implements ServingService {
 
   private static final Logger log =
       org.slf4j.LoggerFactory.getLogger(CassandraServingService.class);
-  private final Session session;
+  private final CqlSession session;
   private final String keyspace;
   private final String tableName;
   private final Tracer tracer;
+  private final PreparedStatement query;
   private final CachedSpecService specService;
 
   public CassandraServingService(
-      Session session,
+      CqlSession session,
       String keyspace,
       String tableName,
       CachedSpecService specService,
@@ -79,6 +79,12 @@ public class CassandraServingService implements ServingService {
     this.keyspace = keyspace;
     this.tableName = tableName;
     this.tracer = tracer;
+    PreparedStatement query =
+        session.prepare(
+            String.format(
+                "SELECT entities, feature, value, WRITETIME(value) as writetime FROM %s.%s WHERE entities = ?",
+                keyspace, tableName));
+    this.query = query;
     this.specService = specService;
   }
 
@@ -119,7 +125,7 @@ public class CassandraServingService implements ServingService {
         } catch (Exception e) {
           log.info(e.getStackTrace().toString());
           throw Status.INTERNAL
-              .withDescription("Unable to parse cassandea response/ while retrieving feature")
+              .withDescription("Unable to parse cassandra response/ while retrieving feature")
               .withCause(e)
               .asRuntimeException();
         }
@@ -159,10 +165,6 @@ public class CassandraServingService implements ServingService {
     }
   }
 
-  protected boolean isEmpty(ResultSet response) {
-    return response.isExhausted();
-  }
-
   /**
    * Send a list of get request as an mget
    *
@@ -174,77 +176,98 @@ public class CassandraServingService implements ServingService {
       Map<EntityRow, Map<String, Value>> featureValuesMap,
       FeatureSetRequest featureSetRequest) {
     FeatureSetSpec spec = featureSetRequest.getSpec();
-    List<ResultSet> results = new ArrayList<>();
+    log.debug("Sending multi get: {}", keys);
+    List<ResultSet> results = sendMultiGet(keys);
     long startTime = System.currentTimeMillis();
-    for (String key : keys) {
-      results.add(
-          session.execute(
-              QueryBuilder.select()
-                  .column("entities")
-                  .column("feature")
-                  .column("value")
-                  .writeTime("value")
-                  .as("writetime")
-                  .from(keyspace, tableName)
-                  .where(QueryBuilder.eq("entities", key))));
-    }
     try (Scope scope = tracer.buildSpan("Cassandra-processResponse").startActive(true)) {
-      for (int i = 0; i < results.size(); i++) {
-        EntityRow entityRow = entityRows.get(i);
-        Map<String, Value> featureValues = featureValuesMap.get(entityRow);
-        ResultSet queryRows = results.get(i);
-        Instant instant = Instant.now();
-        List<Field> fields = new ArrayList<>();
-        while (!queryRows.isExhausted()) {
-          Row row = queryRows.one();
-          long microSeconds = row.getLong("writetime");
-          instant =
-              Instant.ofEpochSecond(
-                  TimeUnit.MICROSECONDS.toSeconds(microSeconds),
-                  TimeUnit.MICROSECONDS.toNanos(
-                      Math.floorMod(microSeconds, TimeUnit.SECONDS.toMicros(1))));
-          try {
-            fields.add(
-                Field.newBuilder()
-                    .setName(row.getString("feature"))
-                    .setValue(Value.parseFrom(ByteBuffer.wrap(row.getBytes("value").array())))
-                    .build());
-          } catch (InvalidProtocolBufferException e) {
-            e.printStackTrace();
-          }
+      log.debug("Found {} results", results.size());
+      int foundResults = 0;
+      while (true) {
+        if (foundResults == results.size()) {
+          break;
         }
-        FeatureRow featureRow =
-            FeatureRow.newBuilder()
-                .addAllFields(fields)
-                .setEventTimestamp(
-                    Timestamp.newBuilder()
-                        .setSeconds(instant.getEpochSecond())
-                        .setNanos(instant.getNano())
-                        .build())
-                .build();
-        featureSetRequest
-            .getFeatureReferences()
-            .parallelStream()
-            .forEach(
-                request ->
-                    requestCount
-                        .labels(
-                            spec.getProject(),
-                            String.format("%s:%d", request.getName(), request.getVersion()))
-                        .inc());
-        Map<String, FeatureReference> featureNames =
-            featureSetRequest.getFeatureReferences().stream()
-                .collect(
-                    Collectors.toMap(
-                        FeatureReference::getName, featureReference -> featureReference));
-        featureRow.getFieldsList().stream()
-            .filter(field -> featureNames.keySet().contains(field.getName()))
-            .forEach(
-                field -> {
-                  FeatureReference ref = featureNames.get(field.getName());
-                  String id = generateFeatureStringRef(ref);
-                  featureValues.put(id, field.getValue());
-                });
+        for (int i = 0; i < results.size(); i++) {
+          EntityRow entityRow = entityRows.get(i);
+          Map<String, Value> featureValues = featureValuesMap.get(entityRow);
+          ResultSet queryRows = results.get(i);
+          Instant instant = Instant.now();
+          List<Field> fields = new ArrayList<>();
+          if (!queryRows.isFullyFetched()) {
+            continue;
+          }
+          List<ExecutionInfo> ee = queryRows.getExecutionInfos();
+          for (int index = 0; index < ee.size(); index++) {
+            log.debug("Found the coordinator: {}", ee.get(index).getCoordinator());
+            log.debug("Found the errors: {}", ee.get(index).getErrors());
+            log.debug("Found the query trace: {}", ee.get(index).getQueryTrace());
+            log.debug("Found the query warnings: {}", ee.get(index).getWarnings());
+            log.debug(
+                "Found the query speculative executions: {}",
+                ee.get(index).getSpeculativeExecutionCount());
+            log.debug("Found the query payload: {}", ee.get(index).getIncomingPayload());
+            log.debug("Found the paging stage: {}", ee.get(index).getPagingState());
+            log.debug(
+                "Found the sucessful execution index: {}",
+                ee.get(index).getSuccessfulExecutionIndex());
+            log.debug(
+                "Found the response size: {}", ee.get(index).getCompressedResponseSizeInBytes());
+          }
+          foundResults += 1;
+          while (queryRows.getAvailableWithoutFetching() > 0) {
+            Row row = queryRows.one();
+            ee = queryRows.getExecutionInfos();
+
+            long microSeconds = row.getLong("writetime");
+            instant =
+                Instant.ofEpochSecond(
+                    TimeUnit.MICROSECONDS.toSeconds(microSeconds),
+                    TimeUnit.MICROSECONDS.toNanos(
+                        Math.floorMod(microSeconds, TimeUnit.SECONDS.toMicros(1))));
+            log.debug(String.format("Found the query row: %s", row.toString()));
+            try {
+              fields.add(
+                  Field.newBuilder()
+                      .setName(row.getString("feature"))
+                      .setValue(
+                          Value.parseFrom(ByteBuffer.wrap(row.getBytesUnsafe("value").array())))
+                      .build());
+            } catch (InvalidProtocolBufferException e) {
+              e.printStackTrace();
+            }
+          }
+          FeatureRow featureRow =
+              FeatureRow.newBuilder()
+                  .addAllFields(fields)
+                  .setEventTimestamp(
+                      Timestamp.newBuilder()
+                          .setSeconds(instant.getEpochSecond())
+                          .setNanos(instant.getNano())
+                          .build())
+                  .build();
+          featureSetRequest
+              .getFeatureReferences()
+              .parallelStream()
+              .forEach(
+                  request ->
+                      requestCount
+                          .labels(
+                              spec.getProject(),
+                              String.format("%s:%d", request.getName(), request.getVersion()))
+                          .inc());
+          Map<String, FeatureReference> featureNames =
+              featureSetRequest.getFeatureReferences().stream()
+                  .collect(
+                      Collectors.toMap(
+                          FeatureReference::getName, featureReference -> featureReference));
+          featureRow.getFieldsList().stream()
+              .filter(field -> featureNames.keySet().contains(field.getName()))
+              .forEach(
+                  field -> {
+                    FeatureReference ref = featureNames.get(field.getName());
+                    String id = generateFeatureStringRef(ref);
+                    featureValues.put(id, field.getValue());
+                  });
+        }
       }
     } finally {
       requestLatency
@@ -256,7 +279,7 @@ public class CassandraServingService implements ServingService {
   FeatureRow parseResponse(ResultSet resultSet) {
     List<Field> fields = new ArrayList<>();
     Instant instant = Instant.now();
-    while (!resultSet.isExhausted()) {
+    while (resultSet.getAvailableWithoutFetching() > 0) {
       Row row = resultSet.one();
       long microSeconds = row.getLong("writetime");
       instant =
@@ -268,7 +291,7 @@ public class CassandraServingService implements ServingService {
         fields.add(
             Field.newBuilder()
                 .setName(row.getString("feature"))
-                .setValue(Value.parseFrom(ByteBuffer.wrap(row.getBytes("value").array())))
+                .setValue(Value.parseFrom(ByteBuffer.wrap(row.getBytesUnsafe("value").array())))
                 .build());
       } catch (InvalidProtocolBufferException e) {
         e.printStackTrace();
@@ -300,5 +323,38 @@ public class CassandraServingService implements ServingService {
       res.add(entityName + "=" + ValueUtil.toString(fieldsMap.get(entityName)));
     }
     return featureSet + ":" + String.join("|", res);
+  }
+
+  /**
+   * Send a list of get request as an cassandra execution
+   *
+   * @param keys list of cassandra keys
+   * @return list of {@link FeatureRow} in cassandra representation for each cassandra keys
+   */
+  private List<ResultSet> sendMultiGet(List<String> keys) {
+    try (Scope scope = tracer.buildSpan("Cassandra-sendMultiGet").startActive(true)) {
+      List<ResultSet> results = new ArrayList<>();
+      long startTime = System.currentTimeMillis();
+      try {
+        for (String key : keys) {
+          results.add(
+              session.execute(
+                  query
+                      .bind(key)
+                      .setTracing(true)
+                      .setConsistencyLevel(ConsistencyLevel.TWO)));
+        }
+        return results;
+      } catch (Exception e) {
+        throw Status.NOT_FOUND
+            .withDescription("Unable to retrieve feature from Cassandra")
+            .withCause(e)
+            .asRuntimeException();
+      } finally {
+        requestLatency
+            .labels("sendMultiGet")
+            .observe((System.currentTimeMillis() - startTime) / 1000d);
+      }
+    }
   }
 }

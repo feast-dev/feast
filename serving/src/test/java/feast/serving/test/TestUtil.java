@@ -16,54 +16,15 @@
  */
 package feast.serving.test;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.Session;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.types.ValueProto.Value;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.apache.thrift.transport.TTransportException;
-import org.cassandraunit.dataset.cql.ClassPathCQLDataSet;
-import org.cassandraunit.utils.EmbeddedCassandraServerHelper;
 
 @SuppressWarnings("WeakerAccess")
 public class TestUtil {
-
-  public static class LocalCassandra {
-
-    public static void start() throws InterruptedException, IOException, TTransportException {
-      EmbeddedCassandraServerHelper.startEmbeddedCassandra();
-    }
-
-    public static void createKeyspaceAndTable() {
-      new ClassPathCQLDataSet("embedded-store/LoadCassandra.cql", true, true)
-          .getCQLStatements()
-          .forEach(s -> LocalCassandra.getSession().execute(s));
-    }
-
-    public static String getHost() {
-      return EmbeddedCassandraServerHelper.getHost();
-    }
-
-    public static int getPort() {
-      return EmbeddedCassandraServerHelper.getNativeTransportPort();
-    }
-
-    public static Cluster getCluster() {
-      return EmbeddedCassandraServerHelper.getCluster();
-    }
-
-    public static Session getSession() {
-      return EmbeddedCassandraServerHelper.getSession();
-    }
-
-    public static void stop() {
-      EmbeddedCassandraServerHelper.cleanEmbeddedCassandra();
-    }
-  }
 
   public static List<Map<String, Value>> responseToMapList(GetOnlineFeaturesResponse response) {
     return response.getFieldValuesList().stream()

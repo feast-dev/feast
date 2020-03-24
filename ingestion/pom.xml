@@ -178,9 +178,6 @@
       <version>${org.apache.beam.version}</version>
     </dependency>
 
-      <groupId>redis.clients</groupId>
-      <artifactId>jedis</artifactId>
-
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>

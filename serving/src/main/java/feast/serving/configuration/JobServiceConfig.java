@@ -16,10 +16,13 @@
  */
 package feast.serving.configuration;
 
-import com.datastax.driver.core.*;
-import com.datastax.driver.core.schemabuilder.Create;
-import com.datastax.driver.core.schemabuilder.KeyspaceOptions;
-import com.datastax.driver.core.schemabuilder.SchemaBuilder;
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.*;
+
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata;
+import com.datastax.oss.driver.api.core.type.DataTypes;
+import com.datastax.oss.driver.api.querybuilder.SchemaBuilder;
+import com.datastax.oss.driver.api.querybuilder.schema.*;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.StoreType;
 import feast.serving.FeastProperties;
@@ -29,10 +32,7 @@ import feast.serving.service.NoopJobService;
 import feast.serving.service.RedisBackedJobService;
 import feast.serving.specs.CachedSpecService;
 import java.net.InetSocketAddress;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.springframework.context.annotation.Bean;
@@ -40,6 +40,7 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class JobServiceConfig {
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(JobServiceConfig.class);
 
   @Bean
   public JobService jobService(
@@ -52,89 +53,59 @@ public class JobServiceConfig {
     StoreType storeType = StoreType.valueOf(feastProperties.getJobs().getStoreType());
     switch (storeType) {
       case REDIS:
-<<<<<<< HEAD
         return new RedisBackedJobService(storeConfiguration.getJobStoreRedisConnection());
-=======
-        JedisPoolConfig jedisPoolConfig = new JedisPoolConfig();
-        jedisPoolConfig.setMaxTotal(
-            Integer.parseInt(storeOptions.getOrDefault("max-conn", DEFAULT_REDIS_MAX_CONN)));
-        jedisPoolConfig.setMaxIdle(
-            Integer.parseInt(storeOptions.getOrDefault("max-idle", DEFAULT_REDIS_MAX_IDLE)));
-        jedisPoolConfig.setMaxWaitMillis(
-            Integer.parseInt(
-                storeOptions.getOrDefault("max-wait-millis", DEFAULT_REDIS_MAX_WAIT_MILLIS)));
-        JedisPool jedisPool =
-            new JedisPool(
-                jedisPoolConfig,
-                storeOptions.get("host"),
-                Integer.parseInt(storeOptions.get("port")));
-        return new RedisBackedJobService(jedisPool);
->>>>>>> 901b7b0... Pr Comments and using ttl for cassandra job service
       case INVALID:
       case BIGQUERY:
       case CASSANDRA:
-        FeastProperties.StoreProperties storeProperties = feastProperties.getStore();
-        PoolingOptions poolingOptions = new PoolingOptions();
-        poolingOptions.setCoreConnectionsPerHost(
-            HostDistance.LOCAL, storeProperties.getCassandraPoolCoreLocalConnections());
-        poolingOptions.setCoreConnectionsPerHost(
-            HostDistance.REMOTE, storeProperties.getCassandraPoolCoreRemoteConnections());
-        poolingOptions.setMaxConnectionsPerHost(
-            HostDistance.LOCAL, storeProperties.getCassandraPoolMaxLocalConnections());
-        poolingOptions.setMaxConnectionsPerHost(
-            HostDistance.REMOTE, storeProperties.getCassandraPoolMaxRemoteConnections());
-        poolingOptions.setMaxRequestsPerConnection(
-            HostDistance.LOCAL, storeProperties.getCassandraPoolMaxRequestsLocalConnection());
-        poolingOptions.setMaxRequestsPerConnection(
-            HostDistance.REMOTE, storeProperties.getCassandraPoolMaxRequestsRemoteConnection());
-        poolingOptions.setNewConnectionThreshold(
-            HostDistance.LOCAL, storeProperties.getCassandraPoolNewLocalConnectionThreshold());
-        poolingOptions.setNewConnectionThreshold(
-            HostDistance.REMOTE, storeProperties.getCassandraPoolNewRemoteConnectionThreshold());
-        poolingOptions.setPoolTimeoutMillis(storeProperties.getCassandraPoolTimeoutMillis());
+        StoreProto.Store store = specService.getStore();
         StoreProto.Store.CassandraConfig cassandraConfig = store.getCassandraConfig();
+        Map<String, String> storeOptions = feastProperties.getJobs().getStoreOptions();
         List<InetSocketAddress> contactPoints =
             Arrays.stream(storeOptions.get("bootstrapHosts").split(","))
                 .map(h -> new InetSocketAddress(h, Integer.parseInt(storeOptions.get("port"))))
                 .collect(Collectors.toList());
-        Cluster cluster =
-            Cluster.builder()
-                .addContactPointsWithPorts(contactPoints)
-                .withPoolingOptions(poolingOptions)
-                .build();
+        CqlSession cluster = CqlSession.builder().addContactPoints(contactPoints).build();
         // Session in Cassandra is thread-safe and maintains connections to cluster nodes internally
         // Recommended to use one session per keyspace instead of open and close connection for each
         // request
-        Session session;
-
+        log.info(String.format("Cluster name: %s", cluster.getName()));
+        log.info(String.format("Cluster keyspace: %s", cluster.getMetadata().getKeyspaces()));
+        log.info(String.format("Cluster nodes: %s", cluster.getMetadata().getNodes()));
+        log.info(String.format("Cluster tokenmap: %s", cluster.getMetadata().getTokenMap()));
+        log.info(
+            String.format(
+                "Cluster default profile: %s",
+                cluster.getContext().getConfig().getDefaultProfile().toString()));
+        log.info(
+            String.format(
+                "Cluster lb policies: %s", cluster.getContext().getLoadBalancingPolicies()));
+        // Session in Cassandra is thread-safe and maintains connections to cluster nodes internally
+        // Recommended to use one session per keyspace instead of open and close connection for each
+        // request
         try {
           String keyspace = storeOptions.get("keyspace");
-          KeyspaceMetadata keyspaceMetadata = cluster.getMetadata().getKeyspace(keyspace);
-          if (keyspaceMetadata == null) {
+          Optional<KeyspaceMetadata> keyspaceMetadata = cluster.getMetadata().getKeyspace(keyspace);
+          if (keyspaceMetadata.isEmpty()) {
             log.info("Creating keyspace '{}'", keyspace);
-            Map<String, Object> replicationOptions = new HashMap<>();
-            replicationOptions.put("class", storeOptions.get("replicationOptionsClass"));
-            replicationOptions.put("stage-us-west1", storeOptions.get("replicationOptionsWest"));
-            KeyspaceOptions createKeyspace =
+            Map<String, Integer> replicationOptions = new HashMap<>();
+            replicationOptions.put(
+                storeOptions.get("replicationOptionsDc"),
+                Integer.parseInt(storeOptions.get("replicationOptionsReplicas")));
+            CreateKeyspace createKeyspace =
                 SchemaBuilder.createKeyspace(keyspace)
                     .ifNotExists()
-                    .with()
-                    .replication(replicationOptions);
-            session = cluster.newSession();
-            session.execute(createKeyspace);
+                    .withNetworkTopologyStrategy(replicationOptions);
+            createKeyspace.withDurableWrites(true);
+            cluster.execute(createKeyspace.asCql());
           }
-
-          session = cluster.connect(keyspace);
-          // Currently no support for creating table from entity mapper:
-          // https://datastax-oss.atlassian.net/browse/JAVA-569
-          Create createTable =
+          CreateTable createTable =
               SchemaBuilder.createTable(keyspace, storeOptions.get("tableName"))
                   .ifNotExists()
-                  .addPartitionKey("job_uuid", DataType.text())
-                  .addClusteringColumn("timestamp", DataType.timestamp())
-                  .addColumn("job_data", DataType.text());
+                  .withPartitionKey("job_uuid", DataTypes.TEXT)
+                  .withClusteringColumn("timestamp", DataTypes.TIMESTAMP)
+                  .withColumn("job_data", DataTypes.TEXT);
           log.info("Create Cassandra table if not exists..");
-          session.execute(createTable);
+          cluster.execute(createTable.asCql());
 
         } catch (RuntimeException e) {
           throw new RuntimeException(
@@ -146,7 +117,7 @@ public class JobServiceConfig {
                   cassandraConfig.getPort()),
               e);
         }
-        return new CassandraBackedJobService(session);
+        return new CassandraBackedJobService(cluster);
       case UNRECOGNIZED:
       default:
         throw new IllegalArgumentException(

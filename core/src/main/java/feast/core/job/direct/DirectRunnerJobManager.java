@@ -16,7 +16,6 @@
  */
 package feast.core.job.direct;
 
-import com.google.common.base.Strings;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.FeatureSetProto;
 import feast.core.StoreProto;

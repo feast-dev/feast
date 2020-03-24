@@ -85,6 +85,8 @@ public class FeastProperties {
     private String configPath;
     private int redisPoolMaxSize;
     private int redisPoolMaxIdle;
+    private String cassandraDcName;
+    private int cassandraDcReplicas;
     private int cassandraPoolCoreLocalConnections;
     private int cassandraPoolMaxLocalConnections;
     private int cassandraPoolCoreRemoteConnections;
@@ -105,6 +107,14 @@ public class FeastProperties {
 
     public int getRedisPoolMaxIdle() {
       return this.redisPoolMaxIdle;
+    }
+
+    public String getCassandraDcName() {
+      return this.cassandraDcName;
+    }
+
+    public int getCassandraDcReplicas() {
+      return this.cassandraDcReplicas;
     }
 
     public int getCassandraPoolCoreLocalConnections() {
@@ -153,6 +163,14 @@ public class FeastProperties {
 
     public void setRedisPoolMaxIdle(int redisPoolMaxIdle) {
       this.redisPoolMaxIdle = redisPoolMaxIdle;
+    }
+
+    public void setCassandraDcName(String cassandraDcName) {
+      this.cassandraDcName = cassandraDcName;
+    }
+
+    public void setCassandraDcReplicas(int cassandraDcReplicas) {
+      this.cassandraDcReplicas = cassandraDcReplicas;
     }
 
     public void setCassandraPoolCoreLocalConnections(int cassandraPoolCoreLocalConnections) {

@@ -76,7 +76,11 @@ public class FeatureRowToCassandraMutationDoFnTest implements Serializable {
                     new HashMap<String, FeatureSet>() {
                       {
                         put(
-                            featureSetSpec.getProject() + "/" + featureSetSpec.getName() + ":" + featureSetSpec.getVersion(),
+                            featureSetSpec.getProject()
+                                + "/"
+                                + featureSetSpec.getName()
+                                + ":"
+                                + featureSetSpec.getVersion(),
                             FeatureSet.newBuilder().setSpec(featureSetSpec).build());
                       }
                     },
@@ -140,7 +144,11 @@ public class FeatureRowToCassandraMutationDoFnTest implements Serializable {
                     new HashMap<String, FeatureSet>() {
                       {
                         put(
-                            featureSetSpec.getProject() + "/" + featureSetSpec.getName() + ":" + featureSetSpec.getVersion(),
+                            featureSetSpec.getProject()
+                                + "/"
+                                + featureSetSpec.getName()
+                                + ":"
+                                + featureSetSpec.getVersion(),
                             FeatureSet.newBuilder().setSpec(featureSetSpec).build());
                       }
                     },
@@ -206,7 +214,11 @@ public class FeatureRowToCassandraMutationDoFnTest implements Serializable {
                     new HashMap<String, FeatureSet>() {
                       {
                         put(
-                            featureSetSpec.getProject() + "/" + featureSetSpec.getName() + ":" + featureSetSpec.getVersion(),
+                            featureSetSpec.getProject()
+                                + "/"
+                                + featureSetSpec.getName()
+                                + ":"
+                                + featureSetSpec.getVersion(),
                             FeatureSet.newBuilder().setSpec(featureSetSpec).build());
                       }
                     },

@@ -16,6 +16,7 @@
  */
 package feast.ingestion.transform;
 
+import com.datastax.driver.core.ConsistencyLevel;
 import com.datastax.driver.core.Session;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse.InsertErrors;
 import com.google.api.services.bigquery.model.TableRow;
@@ -173,7 +174,8 @@ public abstract class WriteToStore extends PTransform<PCollection<FeatureRow>, P
                     .withPort(cassandraConfig.getPort())
                     .withKeyspace(cassandraConfig.getKeyspace())
                     .withEntity(CassandraMutation.class)
-                    .withMapperFactoryFn(mapperFactory));
+                    .withMapperFactoryFn(mapperFactory)
+                    .withConsistencyLevel(String.valueOf(ConsistencyLevel.ALL)));
         break;
       default:
         log.error("Store type '{}' is not supported. No Feature Row will be written.", storeType);

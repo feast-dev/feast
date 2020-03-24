@@ -16,16 +16,19 @@
  */
 package feast.serving.service;
 
-import com.datastax.driver.core.ColumnDefinitions;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.core.querybuilder.QueryBuilder;
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.bindMarker;
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.selectFrom;
+
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.*;
+import com.datastax.oss.driver.api.querybuilder.QueryBuilder;
+import com.datastax.oss.driver.api.querybuilder.insert.Insert;
+import com.datastax.oss.driver.api.querybuilder.select.Select;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.serving.ServingAPIProto.Job;
 import feast.serving.ServingAPIProto.Job.Builder;
-import java.util.Date;
+import java.time.LocalDate;
 import java.util.Optional;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -38,10 +41,10 @@ public class CassandraBackedJobService implements JobService {
 
   private static final Logger log =
       org.slf4j.LoggerFactory.getLogger(CassandraBackedJobService.class);
-  private final Session session;
+  private final CqlSession session;
   private final int defaultExpirySeconds = (int) Duration.standardDays(1).getStandardSeconds();
 
-  public CassandraBackedJobService(Session session) {
+  public CassandraBackedJobService(CqlSession session) {
     this.session = session;
   }
 
@@ -49,26 +52,27 @@ public class CassandraBackedJobService implements JobService {
   public Optional<Job> get(String id) {
     Job job = null;
     Job latestJob = Job.newBuilder().build();
-    ResultSet res =
-        session.execute(
-            QueryBuilder.select()
-                .column("job_uuid")
-                .column("job_data")
-                .column("timestamp")
-                .from("admin", "jobs")
-                .where(QueryBuilder.eq("job_uuid", id)));
-    Date timestamp = new Date(0);
-    while (!res.isExhausted()) {
+    Select query =
+        selectFrom("admin", "jobs")
+            .column("job_uuid")
+            .column("job_data")
+            .column("timestamp")
+            .whereColumn("job_uuid")
+            .isEqualTo(bindMarker());
+    PreparedStatement s = session.prepare(query.build());
+    ResultSet res = session.execute(s.bind(id));
+    LocalDate timestamp = LocalDate.EPOCH;
+    while (res.getAvailableWithoutFetching() > 0) {
       Row r = res.one();
       ColumnDefinitions defs = r.getColumnDefinitions();
-      Date newTs = new Date(0);
+      LocalDate newTs = LocalDate.EPOCH;
       for (int i = 0; i < defs.size(); i++) {
-        if (defs.getName(i).equals("timestamp")) {
-          if (r.getTimestamp(i).compareTo(timestamp) > 0) {
-            newTs = r.getTimestamp(i);
+        if (defs.get(i).equals("timestamp")) {
+          if (r.getLocalDate(i).compareTo(timestamp) > 0) {
+            newTs = r.getLocalDate(i);
           }
         }
-        if (defs.getName(i).equals("job_data")) {
+        if (defs.get(i).equals("job_data")) {
           Builder builder = Job.newBuilder();
           try {
             JsonFormat.parser().merge(r.getString(i), builder);
@@ -88,12 +92,21 @@ public class CassandraBackedJobService implements JobService {
   @Override
   public void upsert(Job job) {
     try {
-      session.execute(
+      Insert query =
           QueryBuilder.insertInto("admin", "jobs")
-              .value("job_uuid", job.getId())
-              .value("timestamp", System.currentTimeMillis())
-              .value("job_data", JsonFormat.printer().omittingInsignificantWhitespace().print(job))
-              .using(QueryBuilder.ttl(defaultExpirySeconds)));
+              .value("job_uuid", bindMarker())
+              .value("timestamp", bindMarker())
+              .value(
+                  "job_data",
+                  QueryBuilder.literal(
+                      JsonFormat.printer().omittingInsignificantWhitespace().print(job)))
+              .usingTtl(defaultExpirySeconds);
+      PreparedStatement s = session.prepare(query.build());
+      ResultSet res =
+          session.execute(
+              s.bind(
+                  QueryBuilder.literal(job.getId()),
+                  QueryBuilder.literal(System.currentTimeMillis())));
     } catch (Exception e) {
       log.error(String.format("Failed to upsert job: %s", e.getMessage()));
     }
