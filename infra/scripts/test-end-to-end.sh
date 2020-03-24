@@ -103,7 +103,7 @@ feast:
     runner: DirectRunner
     options: {}
     updates:
-      pollingIntervalMillis: 10000
+      pollingIntervalMillis: 30000
       timeoutSeconds: 240
     metrics:
       enabled: false
