@@ -19,6 +19,21 @@
         <module>bigquery</module>
     </modules>
 
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <configuration>
+                    <!-- Required for generated code to compile; annotations are common false positive -->
+                    <ignoredUnusedDeclaredDependencies>
+                        javax.annotation
+                    </ignoredUnusedDeclaredDependencies>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
     <dependencies>
         <dependency>
             <groupId>dev.feast</groupId>

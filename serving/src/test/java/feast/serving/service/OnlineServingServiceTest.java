@@ -22,7 +22,6 @@ import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.common.collect.Lists;
-import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
 import feast.core.FeatureSetProto.EntitySpec;
@@ -33,17 +32,16 @@ import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.serving.specs.CachedSpecService;
-import feast.serving.specs.FeatureSetRequest;
-import feast.storage.RedisProto.RedisKey;
+import feast.storage.api.retrieval.FeatureSetRequest;
+import feast.storage.connectors.redis.retrieval.RedisOnlineRetriever;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
 import feast.types.ValueProto.Value;
-import io.lettuce.core.KeyValue;
-import io.lettuce.core.api.StatefulRedisConnection;
-import io.lettuce.core.api.sync.RedisCommands;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Test;
@@ -51,44 +49,20 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 
-public class RedisServingServiceTest {
+public class OnlineServingServiceTest {
 
   @Mock CachedSpecService specService;
 
   @Mock Tracer tracer;
 
-  @Mock StatefulRedisConnection<byte[], byte[]> connection;
+  @Mock RedisOnlineRetriever retriever;
 
-  @Mock RedisCommands<byte[], byte[]> syncCommands;
-
-  private RedisServingService redisServingService;
-  private byte[][] redisKeyList;
+  private OnlineServingService onlineServingService;
 
   @Before
   public void setUp() {
     initMocks(this);
-    when(connection.sync()).thenReturn(syncCommands);
-    redisServingService = new RedisServingService(connection, specService, tracer);
-    redisKeyList =
-        Lists.newArrayList(
-                RedisKey.newBuilder()
-                    .setFeatureSet("project/featureSet:1")
-                    .addAllEntities(
-                        Lists.newArrayList(
-                            Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
-                            Field.newBuilder().setName("entity2").setValue(strValue("a")).build()))
-                    .build(),
-                RedisKey.newBuilder()
-                    .setFeatureSet("project/featureSet:1")
-                    .addAllEntities(
-                        Lists.newArrayList(
-                            Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
-                            Field.newBuilder().setName("entity2").setValue(strValue("b")).build()))
-                    .build())
-            .stream()
-            .map(AbstractMessageLite::toByteArray)
-            .collect(Collectors.toList())
-            .toArray(new byte[0][0]);
+    onlineServingService = new OnlineServingService(retriever, specService, tracer);
   }
 
   @Test
@@ -148,14 +122,11 @@ public class RedisServingServiceTest {
             .setSpec(getFeatureSetSpec())
             .build();
 
-    List<KeyValue<byte[], byte[]>> featureRowBytes =
-        featureRows.stream()
-            .map(x -> KeyValue.from(new byte[1], Optional.of(x.toByteArray())))
-            .collect(Collectors.toList());
     when(specService.getFeatureSets(request.getFeaturesList()))
         .thenReturn(Collections.singletonList(featureSetRequest));
-    when(connection.sync()).thenReturn(syncCommands);
-    when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
+    when(retriever.getOnlineFeatures(
+            request.getEntityRowsList(), Collections.singletonList(featureSetRequest)))
+        .thenReturn(Collections.singletonList(featureRows));
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected =
@@ -173,100 +144,13 @@ public class RedisServingServiceTest {
                     .putFields("project/feature1:1", intValue(2))
                     .putFields("project/feature2:1", intValue(2)))
             .build();
-    GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
+    GetOnlineFeaturesResponse actual = onlineServingService.getOnlineFeatures(request);
     assertThat(
         responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
   }
 
   @Test
-  public void shouldReturnResponseWithValuesWhenFeatureSetSpecHasUnspecifiedMaxAge() {
-    GetOnlineFeaturesRequest request =
-        GetOnlineFeaturesRequest.newBuilder()
-            .addFeatures(
-                FeatureReference.newBuilder()
-                    .setName("feature1")
-                    .setVersion(1)
-                    .setProject("project")
-                    .build())
-            .addFeatures(
-                FeatureReference.newBuilder()
-                    .setName("feature2")
-                    .setVersion(1)
-                    .setProject("project")
-                    .build())
-            .addEntityRows(
-                EntityRow.newBuilder()
-                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
-                    .putFields("entity1", intValue(1))
-                    .putFields("entity2", strValue("a")))
-            .addEntityRows(
-                EntityRow.newBuilder()
-                    .setEntityTimestamp(Timestamp.newBuilder().setSeconds(100))
-                    .putFields("entity1", intValue(2))
-                    .putFields("entity2", strValue("b")))
-            .build();
-
-    List<FeatureRow> featureRows =
-        Lists.newArrayList(
-            FeatureRow.newBuilder()
-                .setEventTimestamp(Timestamp.newBuilder().setSeconds(2)) // much older timestamp
-                .addAllFields(
-                    Lists.newArrayList(
-                        Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
-                        Field.newBuilder().setName("entity2").setValue(strValue("a")).build(),
-                        Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
-                        Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-                .setFeatureSet("featureSet:1")
-                .build(),
-            FeatureRow.newBuilder()
-                .setEventTimestamp(Timestamp.newBuilder().setSeconds(15)) // much older timestamp
-                .addAllFields(
-                    Lists.newArrayList(
-                        Field.newBuilder().setName("entity1").setValue(intValue(2)).build(),
-                        Field.newBuilder().setName("entity2").setValue(strValue("b")).build(),
-                        Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
-                        Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
-                .setFeatureSet("featureSet:1")
-                .build());
-
-    FeatureSetRequest featureSetRequest =
-        FeatureSetRequest.newBuilder()
-            .addAllFeatureReferences(request.getFeaturesList())
-            .setSpec(getFeatureSetSpecWithNoMaxAge())
-            .build();
-
-    List<KeyValue<byte[], byte[]>> featureRowBytes =
-        featureRows.stream()
-            .map(x -> KeyValue.from(new byte[1], Optional.of(x.toByteArray())))
-            .collect(Collectors.toList());
-    when(specService.getFeatureSets(request.getFeaturesList()))
-        .thenReturn(Collections.singletonList(featureSetRequest));
-    when(connection.sync()).thenReturn(syncCommands);
-    when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
-    when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
-
-    GetOnlineFeaturesResponse expected =
-        GetOnlineFeaturesResponse.newBuilder()
-            .addFieldValues(
-                FieldValues.newBuilder()
-                    .putFields("entity1", intValue(1))
-                    .putFields("entity2", strValue("a"))
-                    .putFields("project/feature1:1", intValue(1))
-                    .putFields("project/feature2:1", intValue(1)))
-            .addFieldValues(
-                FieldValues.newBuilder()
-                    .putFields("entity1", intValue(2))
-                    .putFields("entity2", strValue("b"))
-                    .putFields("project/feature1:1", intValue(2))
-                    .putFields("project/feature2:1", intValue(2)))
-            .build();
-    GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
-    assertThat(
-        responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
-  }
-
-  @Test
-  public void shouldReturnKeysWithoutVersionifNotProvided() {
+  public void shouldReturnKeysWithoutVersionIfNotProvided() {
     GetOnlineFeaturesRequest request =
         GetOnlineFeaturesRequest.newBuilder()
             .addFeatures(
@@ -318,14 +202,11 @@ public class RedisServingServiceTest {
             .setSpec(getFeatureSetSpec())
             .build();
 
-    List<KeyValue<byte[], byte[]>> featureRowBytes =
-        featureRows.stream()
-            .map(x -> KeyValue.from(new byte[1], Optional.of(x.toByteArray())))
-            .collect(Collectors.toList());
     when(specService.getFeatureSets(request.getFeaturesList()))
         .thenReturn(Collections.singletonList(featureSetRequest));
-    when(connection.sync()).thenReturn(syncCommands);
-    when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
+    when(retriever.getOnlineFeatures(
+            request.getEntityRowsList(), Collections.singletonList(featureSetRequest)))
+        .thenReturn(Collections.singletonList(featureRows));
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected =
@@ -343,7 +224,7 @@ public class RedisServingServiceTest {
                     .putFields("project/feature1:1", intValue(2))
                     .putFields("project/feature2", intValue(2)))
             .build();
-    GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
+    GetOnlineFeaturesResponse actual = onlineServingService.getOnlineFeatures(request);
     assertThat(
         responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
   }
@@ -383,27 +264,29 @@ public class RedisServingServiceTest {
             .setSpec(getFeatureSetSpec())
             .build();
 
-    FeatureRow featureRowPresent =
-        FeatureRow.newBuilder()
-            .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-            .addAllFields(
-                Lists.newArrayList(
-                    Field.newBuilder().setName("entity1").setValue(intValue(1)).build(),
-                    Field.newBuilder().setName("entity2").setValue(strValue("a")).build(),
-                    Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
-                    Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-            .setFeatureSet("featureSet:1")
-            .build();
-
-    List<KeyValue<byte[], byte[]>> featureRowBytes =
+    List<FeatureRow> featureRows =
         Lists.newArrayList(
-            KeyValue.from(new byte[1], Optional.of(featureRowPresent.toByteArray())),
-            KeyValue.from(new byte[1], Optional.empty()));
+            FeatureRow.newBuilder()
+                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                .setFeatureSet("project/featureSet:1")
+                .addAllFields(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
+                        Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
+                .build(),
+            FeatureRow.newBuilder()
+                .setFeatureSet("project/featureSet:1")
+                .addAllFields(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("feature1").build(),
+                        Field.newBuilder().setName("feature2").build()))
+                .build());
 
     when(specService.getFeatureSets(request.getFeaturesList()))
         .thenReturn(Collections.singletonList(featureSetRequest));
-    when(connection.sync()).thenReturn(syncCommands);
-    when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
+    when(retriever.getOnlineFeatures(
+            request.getEntityRowsList(), Collections.singletonList(featureSetRequest)))
+        .thenReturn(Collections.singletonList(featureRows));
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected =
@@ -421,7 +304,7 @@ public class RedisServingServiceTest {
                     .putFields("project/feature1:1", Value.newBuilder().build())
                     .putFields("project/feature2:1", Value.newBuilder().build()))
             .build();
-    GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
+    GetOnlineFeaturesResponse actual = onlineServingService.getOnlineFeatures(request);
     assertThat(
         responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
   }
@@ -487,14 +370,11 @@ public class RedisServingServiceTest {
             .setSpec(spec)
             .build();
 
-    List<KeyValue<byte[], byte[]>> featureRowBytes =
-        featureRows.stream()
-            .map(x -> KeyValue.from(new byte[1], Optional.of(x.toByteArray())))
-            .collect(Collectors.toList());
     when(specService.getFeatureSets(request.getFeaturesList()))
         .thenReturn(Collections.singletonList(featureSetRequest));
-    when(connection.sync()).thenReturn(syncCommands);
-    when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
+    when(retriever.getOnlineFeatures(
+            request.getEntityRowsList(), Collections.singletonList(featureSetRequest)))
+        .thenReturn(Collections.singletonList(featureRows));
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected =
@@ -512,7 +392,7 @@ public class RedisServingServiceTest {
                     .putFields("project/feature1:1", Value.newBuilder().build())
                     .putFields("project/feature2:1", Value.newBuilder().build()))
             .build();
-    GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
+    GetOnlineFeaturesResponse actual = onlineServingService.getOnlineFeatures(request);
     assertThat(
         responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
   }
@@ -569,14 +449,11 @@ public class RedisServingServiceTest {
             .setSpec(getFeatureSetSpec())
             .build();
 
-    List<KeyValue<byte[], byte[]>> featureRowBytes =
-        featureRows.stream()
-            .map(x -> KeyValue.from(new byte[1], Optional.of(x.toByteArray())))
-            .collect(Collectors.toList());
     when(specService.getFeatureSets(request.getFeaturesList()))
         .thenReturn(Collections.singletonList(featureSetRequest));
-    when(connection.sync()).thenReturn(syncCommands);
-    when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
+    when(retriever.getOnlineFeatures(
+            request.getEntityRowsList(), Collections.singletonList(featureSetRequest)))
+        .thenReturn(Collections.singletonList(featureRows));
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected =
@@ -592,7 +469,7 @@ public class RedisServingServiceTest {
                     .putFields("entity2", strValue("b"))
                     .putFields("project/feature1:1", intValue(2)))
             .build();
-    GetOnlineFeaturesResponse actual = redisServingService.getOnlineFeatures(request);
+    GetOnlineFeaturesResponse actual = onlineServingService.getOnlineFeatures(request);
     assertThat(
         responseToMapList(actual), containsInAnyOrder(responseToMapList(expected).toArray()));
   }

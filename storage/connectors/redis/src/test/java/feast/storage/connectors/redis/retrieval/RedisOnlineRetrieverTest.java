@@ -259,17 +259,4 @@ public class RedisOnlineRetrieverTest {
         .setMaxAge(Duration.newBuilder().setSeconds(30)) // default
         .build();
   }
-
-  private FeatureSetSpec getFeatureSetSpecWithNoMaxAge() {
-    return FeatureSetSpec.newBuilder()
-        .setProject("project")
-        .setName("featureSet")
-        .setVersion(1)
-        .addEntities(EntitySpec.newBuilder().setName("entity1"))
-        .addEntities(EntitySpec.newBuilder().setName("entity2"))
-        .addFeatures(FeatureSpec.newBuilder().setName("feature1"))
-        .addFeatures(FeatureSpec.newBuilder().setName("feature2"))
-        .setMaxAge(Duration.newBuilder().setSeconds(0).setNanos(0).build())
-        .build();
-  }
 }
