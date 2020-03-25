@@ -17,18 +17,7 @@
 package feast.core.model;
 
 import java.util.List;
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToMany;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
+import javax.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -66,8 +55,13 @@ public class JobInfo extends AbstractTimestampEntity {
   // FeatureSets populated by the job
   @ManyToMany
   @JoinTable(
-      joinColumns = {@JoinColumn(name = "job_id")},
-      inverseJoinColumns = {@JoinColumn(name = "feature_set_id")})
+      name = "jobs_feature_sets",
+      joinColumns = @JoinColumn(name = "job_id"),
+      inverseJoinColumns = @JoinColumn(name = "feature_set_id"),
+      indexes = {
+        @Index(name = "idx_jobs_feature_sets_job_id", columnList = "job_id"),
+        @Index(name = "idx_jobs_feature_sets_feature_set_id", columnList = "feature_set_id")
+      })
   private List<FeatureSet> featureSets;
 
   // Job Metrics
