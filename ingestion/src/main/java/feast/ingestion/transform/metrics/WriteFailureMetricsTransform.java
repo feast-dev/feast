@@ -28,6 +28,8 @@ import org.apache.beam.sdk.values.PDone;
 public abstract class WriteFailureMetricsTransform
     extends PTransform<PCollection<FailedElement>, PDone> {
 
+  private static final String METRIC_NAMESPACE = "WriteToStoreFailure";
+
   public abstract String getStoreName();
 
   public static WriteFailureMetricsTransform create(String storeName) {
@@ -42,6 +44,7 @@ public abstract class WriteFailureMetricsTransform
           "WriteDeadletterMetrics",
           ParDo.of(
               WriteDeadletterRowMetricsDoFn.newBuilder()
+                  .setMetricNamespace(METRIC_NAMESPACE)
                   .setStatsdHost(options.getStatsdHost())
                   .setStatsdPort(options.getStatsdPort())
                   .setStoreName(getStoreName())

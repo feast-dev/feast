@@ -16,6 +16,8 @@
  */
 package feast.ingestion.transform.metrics;
 
+import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.METRIC_NAMESPACE_TAG_KEY;
+
 import com.google.auto.value.AutoValue;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
@@ -39,6 +41,8 @@ public abstract class WriteDeadletterRowMetricsDoFn extends DoFn<FailedElement, 
 
   public abstract String getStoreName();
 
+  public abstract String getMetricNamespace();
+
   public abstract String getStatsdHost();
 
   public abstract int getStatsdPort();
@@ -53,6 +57,8 @@ public abstract class WriteDeadletterRowMetricsDoFn extends DoFn<FailedElement, 
   public abstract static class Builder {
 
     public abstract Builder setStoreName(String storeName);
+
+    public abstract Builder setMetricNamespace(String metricNamespace);
 
     public abstract Builder setStatsdHost(String statsdHost);
 
@@ -74,6 +80,7 @@ public abstract class WriteDeadletterRowMetricsDoFn extends DoFn<FailedElement, 
           "deadletter_row_count",
           1,
           STORE_TAG_KEY + ":" + getStoreName(),
+          METRIC_NAMESPACE_TAG_KEY + ":" + getMetricNamespace(),
           PROJECT_TAG_KEY + ":" + ignored.getProjectName(),
           FEATURE_SET_NAME_TAG_KEY + ":" + ignored.getFeatureSetName(),
           FEATURE_SET_VERSION_TAG_KEY + ":" + ignored.getFeatureSetVersion(),

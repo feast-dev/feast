@@ -74,6 +74,7 @@ public class WriteFeatureValueMetricsDoFnTest {
         .apply(
             ParDo.of(
                 WriteFeatureValueMetricsDoFn.newBuilder()
+                    .setMetricNamespace("test")
                     .setStatsdHost("localhost")
                     .setStatsdPort(STATSD_SERVER_PORT)
                     .setStoreName("store")

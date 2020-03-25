@@ -19,44 +19,29 @@ package feast.ingestion.transform.metrics;
 import com.google.auto.value.AutoValue;
 import feast.ingestion.options.ImportOptions;
 import feast.types.FeatureRowProto.FeatureRow;
-import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
 
 @AutoValue
-public abstract class WriteSuccessMetricsTransform
+public abstract class WriteInflightMetricsTransform
     extends PTransform<PCollection<FeatureRow>, PDone> {
 
-  public static final String METRIC_NAMESPACE = "WriteToStoreSuccess";
-  public static final String ELEMENTS_WRITTEN_METRIC = "elements_written";
-  private static final Counter elementsWritten =
-      Metrics.counter(METRIC_NAMESPACE, ELEMENTS_WRITTEN_METRIC);
+  public static final String METRIC_NAMESPACE = "Inflight";
 
   public abstract String getStoreName();
 
-  public static WriteSuccessMetricsTransform create(String storeName) {
-    return new AutoValue_WriteSuccessMetricsTransform(storeName);
+  public static WriteInflightMetricsTransform create(String storeName) {
+    return new AutoValue_WriteInflightMetricsTransform(storeName);
   }
 
   @Override
   public PDone expand(PCollection<FeatureRow> input) {
     ImportOptions options = input.getPipeline().getOptions().as(ImportOptions.class);
-
-    input.apply(
-        "IncrementSuccessfulWriteToStoreElementsWrittenCounter",
-        MapElements.into(TypeDescriptors.booleans())
-            .via(
-                (FeatureRow row) -> {
-                  elementsWritten.inc();
-                  return true;
-                }));
 
     switch (options.getMetricsExporterType()) {
       case "statsd":

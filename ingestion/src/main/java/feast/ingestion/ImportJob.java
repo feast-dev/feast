@@ -31,6 +31,7 @@ import feast.ingestion.transform.ReadFromSource;
 import feast.ingestion.transform.ValidateFeatureRows;
 import feast.ingestion.transform.WriteFailedElementToBigQuery;
 import feast.ingestion.transform.metrics.WriteFailureMetricsTransform;
+import feast.ingestion.transform.metrics.WriteInflightMetricsTransform;
 import feast.ingestion.transform.metrics.WriteSuccessMetricsTransform;
 import feast.ingestion.utils.ResourceUtil;
 import feast.ingestion.utils.SpecUtil;
@@ -134,6 +135,10 @@ public class ImportJob {
                       .setSuccessTag(FEATURE_ROW_OUT)
                       .setFailureTag(DEADLETTER_OUT)
                       .build());
+
+      validatedRows
+          .get(FEATURE_ROW_OUT)
+          .apply("WriteInflightMetrics", WriteInflightMetricsTransform.create(store.getName()));
 
       // Step 3. Write FeatureRow to the corresponding Store.
       WriteResult writeFeatureRows =

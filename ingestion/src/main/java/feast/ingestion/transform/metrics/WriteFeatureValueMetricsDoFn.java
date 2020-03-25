@@ -16,13 +16,7 @@
  */
 package feast.ingestion.transform.metrics;
 
-import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.FEATURE_SET_NAME_TAG_KEY;
-import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.FEATURE_SET_PROJECT_TAG_KEY;
-import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.FEATURE_SET_VERSION_TAG_KEY;
-import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.FEATURE_TAG_KEY;
-import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.INGESTION_JOB_NAME_KEY;
-import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.METRIC_PREFIX;
-import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.STORE_TAG_KEY;
+import static feast.ingestion.transform.metrics.WriteRowMetricsDoFn.*;
 
 import com.google.auto.value.AutoValue;
 import com.timgroup.statsd.NonBlockingStatsDClient;
@@ -64,6 +58,8 @@ public abstract class WriteFeatureValueMetricsDoFn
 
   abstract String getStoreName();
 
+  abstract String getMetricNamespace();
+
   abstract String getStatsdHost();
 
   abstract int getStatsdPort();
@@ -76,6 +72,8 @@ public abstract class WriteFeatureValueMetricsDoFn
   abstract static class Builder {
 
     abstract Builder setStoreName(String storeName);
+
+    abstract Builder setMetricNamespace(String metricNamespace);
 
     abstract Builder setStatsdHost(String statsdHost);
 
@@ -161,6 +159,7 @@ public abstract class WriteFeatureValueMetricsDoFn
       DoubleSummaryStatistics stats = entry.getValue();
       String[] tags = {
         STORE_TAG_KEY + ":" + getStoreName(),
+        METRIC_NAMESPACE_TAG_KEY + ":" + getMetricNamespace(),
         FEATURE_SET_PROJECT_TAG_KEY + ":" + projectName,
         FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
         FEATURE_SET_VERSION_TAG_KEY + ":" + version,

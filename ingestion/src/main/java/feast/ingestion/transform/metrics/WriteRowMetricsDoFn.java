@@ -32,6 +32,7 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(WriteRowMetricsDoFn.class);
 
   public static final String METRIC_PREFIX = "feast_ingestion";
+  public static final String METRIC_NAMESPACE_TAG_KEY = "feast_metric_namespace";
   public static final String STORE_TAG_KEY = "feast_store";
   public static final String FEATURE_SET_PROJECT_TAG_KEY = "feast_project_name";
   public static final String FEATURE_SET_NAME_TAG_KEY = "feast_featureSet_name";
@@ -40,6 +41,8 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
   public static final String INGESTION_JOB_NAME_KEY = "ingestion_job_name";
 
   public abstract String getStoreName();
+
+  public abstract String getMetricNamespace();
 
   public abstract String getStatsdHost();
 
@@ -64,6 +67,8 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
   public abstract static class Builder {
 
     public abstract Builder setStoreName(String storeName);
+
+    public abstract Builder setMetricNamespace(String metricNamespace);
 
     public abstract Builder setStatsdHost(String statsdHost);
 
@@ -93,6 +98,7 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
           "feature_row_lag_ms",
           System.currentTimeMillis() - eventTimestamp,
           STORE_TAG_KEY + ":" + getStoreName(),
+          METRIC_NAMESPACE_TAG_KEY + ":" + getMetricNamespace(),
           FEATURE_SET_PROJECT_TAG_KEY + ":" + featureSetProject,
           FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
           FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
@@ -102,6 +108,7 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
           "feature_row_event_time_epoch_ms",
           eventTimestamp,
           STORE_TAG_KEY + ":" + getStoreName(),
+          METRIC_NAMESPACE_TAG_KEY + ":" + getMetricNamespace(),
           FEATURE_SET_PROJECT_TAG_KEY + ":" + featureSetProject,
           FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
           FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
@@ -113,6 +120,7 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
               "feature_value_lag_ms",
               System.currentTimeMillis() - eventTimestamp,
               STORE_TAG_KEY + ":" + getStoreName(),
+              METRIC_NAMESPACE_TAG_KEY + ":" + getMetricNamespace(),
               FEATURE_SET_PROJECT_TAG_KEY + ":" + featureSetProject,
               FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
               FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
@@ -123,6 +131,7 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
               "feature_value_missing_count",
               1,
               STORE_TAG_KEY + ":" + getStoreName(),
+              METRIC_NAMESPACE_TAG_KEY + ":" + getMetricNamespace(),
               FEATURE_SET_PROJECT_TAG_KEY + ":" + featureSetProject,
               FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
               FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
@@ -135,6 +144,7 @@ public abstract class WriteRowMetricsDoFn extends DoFn<FeatureRow, Void> {
           "feature_row_ingested_count",
           1,
           STORE_TAG_KEY + ":" + getStoreName(),
+          METRIC_NAMESPACE_TAG_KEY + ":" + getMetricNamespace(),
           FEATURE_SET_PROJECT_TAG_KEY + ":" + featureSetProject,
           FEATURE_SET_NAME_TAG_KEY + ":" + featureSetName,
           FEATURE_SET_VERSION_TAG_KEY + ":" + featureSetVersion,
