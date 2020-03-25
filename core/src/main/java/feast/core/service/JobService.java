@@ -67,7 +67,8 @@ public class JobService {
 
   /* Job Service API */
   /**
-   * List Ingestion Jobs in feast matching the given request
+   * List Ingestion Jobs in feast matching the given request. See CoreService protobuf documentation
+   * on the request
    *
    * @param request list ingestion jobs request specifying which jobs to include
    * @throws IllegalArgumentException when given filter in a unsupported configuration
@@ -77,43 +78,48 @@ public class JobService {
   @Transactional(readOnly = true)
   public ListIngestionJobsResponse listJobs(ListIngestionJobsRequest request)
       throws InvalidProtocolBufferException {
-    // filter jobs based on request filter
-    ListIngestionJobsRequest.Filter filter = request.getFilter();
     Set<String> matchingJobIds = new HashSet<>();
+    if (request.hasFilter()) {
+      // filter jobs based on request filter
+      ListIngestionJobsRequest.Filter filter = request.getFilter();
 
-    // for proto3, default value for missing values:
-    // - numeric values (ie int) is zero
-    // - strings is empty string
+      // for proto3, default value for missing values:
+      // - numeric values (ie int) is zero
+      // - strings is empty string
+      if (filter.getId() != "") {
+        // get by id: no more filters required: found job
+        Optional<Job> job = this.jobRepository.findById(filter.getId());
+        if (job.isPresent()) {
+          matchingJobIds.add(filter.getId());
+        }
+      } else {
+        // multiple filters can apply together in an 'and' operation
+        if (filter.getStoreName() != "") {
+          // find jobs by name
+          List<Job> jobs = this.jobRepository.findByStoreName(filter.getStoreName());
+          Set<String> jobIds = jobs.stream().map(Job::getId).collect(Collectors.toSet());
+          matchingJobIds = this.mergeResults(matchingJobIds, jobIds);
+        }
+        if (filter.hasFeatureSetReference()) {
+          // find a matching featuresets for reference
+          FeatureSetReference fsReference = filter.getFeatureSetReference();
+          ListFeatureSetsResponse response =
+              this.specService.listFeatureSets(this.toListFeatureSetFilter(fsReference));
+          List<FeatureSet> featureSets =
+              response.getFeatureSetsList().stream()
+                  .map(FeatureSet::fromProto)
+                  .collect(Collectors.toList());
 
-    if (filter.getId() != "") {
-      // get by id: no more filters required: found job
-      Optional<Job> job = this.jobRepository.findById(filter.getId());
-      if (job.isPresent()) {
-        matchingJobIds.add(filter.getId());
+          // find jobs for the matching featuresets
+          Collection<Job> matchingJobs = this.jobRepository.findByFeatureSetsIn(featureSets);
+          List<String> jobIds = matchingJobs.stream().map(Job::getId).collect(Collectors.toList());
+          matchingJobIds = this.mergeResults(matchingJobIds, jobIds);
+        }
       }
     } else {
-      // multiple filters can apply together in an 'and' operation
-      if (filter.getStoreName() != "") {
-        // find jobs by name
-        List<Job> jobs = this.jobRepository.findByStoreName(filter.getStoreName());
-        List<String> jobIds = jobs.stream().map(Job::getId).collect(Collectors.toList());
-        matchingJobIds = this.mergeResults(matchingJobIds, jobIds);
-      }
-      if (filter.hasFeatureSetReference()) {
-        // find a matching featuresets for reference
-        FeatureSetReference fsReference = filter.getFeatureSetReference();
-        ListFeatureSetsResponse response =
-            this.specService.listFeatureSets(this.toListFeatureSetFilter(fsReference));
-        List<FeatureSet> featureSets =
-            response.getFeatureSetsList().stream()
-                .map(FeatureSet::fromProto)
-                .collect(Collectors.toList());
-
-        // find jobs for the matching featuresets
-        Collection<Job> matchingJobs = this.jobRepository.findByFeatureSetsIn(featureSets);
-        List<String> jobIds = matchingJobs.stream().map(Job::getId).collect(Collectors.toList());
-        matchingJobIds = this.mergeResults(matchingJobIds, jobIds);
-      }
+      // no filter: match all jobs
+      matchingJobIds =
+          this.jobRepository.findAll().stream().map(Job::getId).collect(Collectors.toSet());
     }
 
     // convert matching job models to ingestion job protos

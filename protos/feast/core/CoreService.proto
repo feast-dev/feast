@@ -77,7 +77,9 @@ service CoreService {
     rpc ListProjects (ListProjectsRequest) returns (ListProjectsResponse);
   
     // List Injestion Jobs
-    // TODO: write docs
+    // Returns allow ingestions matching the given request filter. 
+    // Returns all ingestion jobs If no is provided.
+    // Returns an empty list if no ingestion jobs match the filter.
     rpc ListIngestionJobs(ListIngestionJobsRequest) returns (ListIngestionJobsResponse);
 
     // Restart an Ingestion job
