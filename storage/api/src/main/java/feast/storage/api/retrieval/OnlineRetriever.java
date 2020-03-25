@@ -20,7 +20,10 @@ import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.List;
 
-/** Interface for implementing user defined retrieval functionality from Online stores. */
+/**
+ * An online retriever is a feature retriever that retrieves the latest feature data corresponding
+ * to provided entities.
+ */
 public interface OnlineRetriever {
 
   /**

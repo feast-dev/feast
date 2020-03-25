@@ -157,7 +157,7 @@ public class RedisFeatureSinkTest {
                 .addFields(field("feature", "two", Enum.STRING))
                 .build());
 
-    p.apply(Create.of(featureRows)).apply(redisFeatureSink.write());
+    p.apply(Create.of(featureRows)).apply(redisFeatureSink.writer());
     p.run();
 
     kvs.forEach(
@@ -199,7 +199,7 @@ public class RedisFeatureSinkTest {
 
     PCollection<Long> failedElementCount =
         p.apply(Create.of(featureRows))
-            .apply(redisFeatureSink.write())
+            .apply(redisFeatureSink.writer())
             .getFailedInserts()
             .apply(Count.globally());
 
@@ -252,7 +252,7 @@ public class RedisFeatureSinkTest {
 
     PCollection<Long> failedElementCount =
         p.apply(Create.of(featureRows))
-            .apply(redisFeatureSink.write())
+            .apply(redisFeatureSink.writer())
             .getFailedInserts()
             .apply(Count.globally());
 
@@ -310,7 +310,7 @@ public class RedisFeatureSinkTest {
             .addFields(Field.newBuilder().setValue(Value.newBuilder().setInt64Val(1001)))
             .build();
 
-    p.apply(Create.of(offendingRow)).apply(redisFeatureSink.write());
+    p.apply(Create.of(offendingRow)).apply(redisFeatureSink.writer());
 
     p.run();
 
@@ -365,7 +365,7 @@ public class RedisFeatureSinkTest {
             .addAllFields(expectedFields)
             .build();
 
-    p.apply(Create.of(offendingRow)).apply(redisFeatureSink.write());
+    p.apply(Create.of(offendingRow)).apply(redisFeatureSink.writer());
 
     p.run();
 
@@ -421,7 +421,7 @@ public class RedisFeatureSinkTest {
             .addFields(Field.newBuilder().setValue(Value.newBuilder().setInt64Val(1001)))
             .build();
 
-    p.apply(Create.of(featureRowWithDuplicatedFeatureFields)).apply(redisFeatureSink.write());
+    p.apply(Create.of(featureRowWithDuplicatedFeatureFields)).apply(redisFeatureSink.writer());
 
     p.run();
 
@@ -469,7 +469,7 @@ public class RedisFeatureSinkTest {
             .addFields(Field.newBuilder().setValue(Value.getDefaultInstance()))
             .build();
 
-    p.apply(Create.of(featureRowWithDuplicatedFeatureFields)).apply(redisFeatureSink.write());
+    p.apply(Create.of(featureRowWithDuplicatedFeatureFields)).apply(redisFeatureSink.writer());
 
     p.run();
 

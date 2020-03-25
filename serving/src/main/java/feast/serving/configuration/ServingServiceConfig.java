@@ -25,15 +25,11 @@ import feast.core.StoreProto.Store.BigQueryConfig;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.Subscription;
 import feast.serving.FeastProperties;
-import feast.serving.service.BatchServingService;
-import feast.serving.service.JobService;
-import feast.serving.service.NoopJobService;
-import feast.serving.service.OnlineServingService;
-import feast.serving.service.ServingService;
+import feast.serving.service.*;
 import feast.serving.specs.CachedSpecService;
-import feast.storage.api.retrieval.BatchRetriever;
+import feast.storage.api.retrieval.HistoricalRetriever;
 import feast.storage.api.retrieval.OnlineRetriever;
-import feast.storage.connectors.bigquery.retrieval.BigQueryBatchRetriever;
+import feast.storage.connectors.bigquery.retrieval.BigQueryHistoricalRetriever;
 import feast.storage.connectors.redis.retrieval.RedisOnlineRetriever;
 import io.opentracing.Tracer;
 import java.util.Map;
@@ -109,8 +105,8 @@ public class ServingServiceConfig {
               "Unable to instantiate jobService for BigQuery store.");
         }
 
-        BatchRetriever bqRetriever =
-            BigQueryBatchRetriever.builder()
+        HistoricalRetriever bqRetriever =
+            BigQueryHistoricalRetriever.builder()
                 .setBigquery(bigquery)
                 .setDatasetId(bqConfig.getDatasetId())
                 .setProjectId(bqConfig.getProjectId())
@@ -121,7 +117,7 @@ public class ServingServiceConfig {
                 .setStorage(storage)
                 .build();
 
-        servingService = new BatchServingService(bqRetriever, specService, jobService);
+        servingService = new HistoricalServingService(bqRetriever, specService, jobService);
         break;
       case CASSANDRA:
       case UNRECOGNIZED:
