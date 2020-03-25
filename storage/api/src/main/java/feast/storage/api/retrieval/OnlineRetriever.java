@@ -32,7 +32,7 @@ public interface OnlineRetriever {
    * @param entityRows list of entity rows in the feature request
    * @param featureSetRequests List of {@link FeatureSetRequest} to feature references in the
    *     request tied to that feature set.
-   * @return list of {@link OnlineRetrieverResponse} for each entity row
+   * @return list of {@link List<FeatureRow>} for each entity row
    */
   List<List<FeatureRow>> getOnlineFeatures(
       List<EntityRow> entityRows, List<FeatureSetRequest> featureSetRequests);

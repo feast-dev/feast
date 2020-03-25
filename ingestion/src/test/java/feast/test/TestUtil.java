@@ -162,6 +162,9 @@ public class TestUtil {
    * Create a Feature Row with random value according to the FeatureSetSpec
    *
    * <p>See {@link #createRandomFeatureRow(FeatureSetSpec, int)}
+   *
+   * @param featureSetSpec {@link FeatureSetSpec}
+   * @return {@link FeatureRow}
    */
   public static FeatureRow createRandomFeatureRow(FeatureSetSpec featureSetSpec) {
     ThreadLocalRandom random = ThreadLocalRandom.current();
