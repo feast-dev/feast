@@ -17,9 +17,11 @@
 package feast.ingestion;
 
 import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
+import static feast.ingestion.utils.StoreUtil.getFeatureSink;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto.FeatureSet;
+import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.SourceProto.Source;
 import feast.core.StoreProto.Store;
 import feast.ingestion.options.BZip2Decompressor;
@@ -28,12 +30,13 @@ import feast.ingestion.options.StringListStreamConverter;
 import feast.ingestion.transform.ReadFromSource;
 import feast.ingestion.transform.ValidateFeatureRows;
 import feast.ingestion.transform.WriteFailedElementToBigQuery;
-import feast.ingestion.transform.WriteToStore;
-import feast.ingestion.transform.metrics.WriteMetricsTransform;
+import feast.ingestion.transform.metrics.WriteFailureMetricsTransform;
+import feast.ingestion.transform.metrics.WriteSuccessMetricsTransform;
 import feast.ingestion.utils.ResourceUtil;
 import feast.ingestion.utils.SpecUtil;
-import feast.ingestion.utils.StoreUtil;
-import feast.ingestion.values.FailedElement;
+import feast.storage.api.write.FailedElement;
+import feast.storage.api.write.FeatureSink;
+import feast.storage.api.write.WriteResult;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.io.IOException;
 import java.util.HashMap;
@@ -93,16 +96,23 @@ public class ImportJob {
           SpecUtil.getSubscribedFeatureSets(store.getSubscriptionsList(), featureSets);
 
       // Generate tags by key
-      Map<String, FeatureSet> featureSetsByKey = new HashMap<>();
+      Map<String, FeatureSetSpec> featureSetSpecsByKey = new HashMap<>();
       subscribedFeatureSets.stream()
           .forEach(
               fs -> {
-                String ref = getFeatureSetReference(fs);
-                featureSetsByKey.put(ref, fs);
+                String ref = getFeatureSetReference(fs.getSpec());
+                featureSetSpecsByKey.put(ref, fs.getSpec());
               });
+
+      FeatureSink featureSink = getFeatureSink(store, featureSetSpecsByKey);
 
       // TODO: make the source part of the job initialisation options
       Source source = subscribedFeatureSets.get(0).getSpec().getSource();
+
+      for (FeatureSet featureSet : subscribedFeatureSets) {
+        // Ensure Store has valid configuration and Feast can access it.
+        featureSink.prepareWrite(featureSet);
+      }
 
       // Step 1. Read messages from Feast Source as FeatureRow.
       PCollectionTuple convertedFeatureRows =
@@ -114,28 +124,20 @@ public class ImportJob {
                   .setFailureTag(DEADLETTER_OUT)
                   .build());
 
-      for (FeatureSet featureSet : subscribedFeatureSets) {
-        // Ensure Store has valid configuration and Feast can access it.
-        StoreUtil.setupStore(store, featureSet);
-      }
-
       // Step 2. Validate incoming FeatureRows
       PCollectionTuple validatedRows =
           convertedFeatureRows
               .get(FEATURE_ROW_OUT)
               .apply(
                   ValidateFeatureRows.newBuilder()
-                      .setFeatureSets(featureSetsByKey)
+                      .setFeatureSetSpecs(featureSetSpecsByKey)
                       .setSuccessTag(FEATURE_ROW_OUT)
                       .setFailureTag(DEADLETTER_OUT)
                       .build());
 
       // Step 3. Write FeatureRow to the corresponding Store.
-      validatedRows
-          .get(FEATURE_ROW_OUT)
-          .apply(
-              "WriteFeatureRowToStore",
-              WriteToStore.newBuilder().setFeatureSets(featureSetsByKey).setStore(store).build());
+      WriteResult writeFeatureRows =
+          validatedRows.get(FEATURE_ROW_OUT).apply("WriteFeatureRowToStore", featureSink.write());
 
       // Step 4. Write FailedElements to a dead letter table in BigQuery.
       if (options.getDeadLetterTableSpec() != null) {
@@ -156,16 +158,25 @@ public class ImportJob {
                     .setJsonSchema(ResourceUtil.getDeadletterTableSchemaJson())
                     .setTableSpec(options.getDeadLetterTableSpec())
                     .build());
+
+        writeFeatureRows
+            .getFailedInserts()
+            .apply(
+                "WriteFailedElements_WriteFeatureRowToStore",
+                WriteFailedElementToBigQuery.newBuilder()
+                    .setJsonSchema(ResourceUtil.getDeadletterTableSchemaJson())
+                    .setTableSpec(options.getDeadLetterTableSpec())
+                    .build());
       }
 
       // Step 5. Write metrics to a metrics sink.
-      validatedRows.apply(
-          "WriteMetrics",
-          WriteMetricsTransform.newBuilder()
-              .setStoreName(store.getName())
-              .setSuccessTag(FEATURE_ROW_OUT)
-              .setFailureTag(DEADLETTER_OUT)
-              .build());
+      writeFeatureRows
+          .getSuccessfulInserts()
+          .apply("WriteSuccessMetrics", WriteSuccessMetricsTransform.create(store.getName()));
+
+      writeFeatureRows
+          .getFailedInserts()
+          .apply("WriteFailureMetrics", WriteFailureMetricsTransform.create(store.getName()));
     }
 
     return pipeline.run();
