@@ -188,8 +188,8 @@ public class ImportJobTest {
     IntStream.range(0, IMPORT_JOB_SAMPLE_FEATURE_ROW_SIZE)
         .forEach(
             i -> {
-              FeatureRow randomRow = TestUtil.createRandomFeatureRow(featureSet);
-              RedisKey redisKey = TestUtil.createRedisKey(featureSet, randomRow);
+              FeatureRow randomRow = TestUtil.createRandomFeatureRow(featureSet.getSpec());
+              RedisKey redisKey = TestUtil.createRedisKey(featureSet.getSpec(), randomRow);
               input.add(randomRow);
               List<FieldProto.Field> fields =
                   randomRow.getFieldsList().stream()

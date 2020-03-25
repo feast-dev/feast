@@ -33,9 +33,10 @@ import java.util.regex.Pattern;
 
 public class SpecUtil {
 
-  public static String getFeatureSetReference(FeatureSet featureSet) {
-    FeatureSetSpec spec = featureSet.getSpec();
-    return String.format("%s/%s:%d", spec.getProject(), spec.getName(), spec.getVersion());
+  public static String getFeatureSetReference(FeatureSetSpec featureSetSpec) {
+    return String.format(
+        "%s/%s:%d",
+        featureSetSpec.getProject(), featureSetSpec.getName(), featureSetSpec.getVersion());
   }
 
   /** Get only feature set specs that matches the subscription */

@@ -25,12 +25,16 @@ import feast.core.StoreProto.Store.BigQueryConfig;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.Subscription;
 import feast.serving.FeastProperties;
-import feast.serving.service.BigQueryServingService;
+import feast.serving.service.BatchServingService;
 import feast.serving.service.JobService;
 import feast.serving.service.NoopJobService;
-import feast.serving.service.RedisServingService;
+import feast.serving.service.OnlineServingService;
 import feast.serving.service.ServingService;
 import feast.serving.specs.CachedSpecService;
+import feast.storage.api.retrieval.BatchRetriever;
+import feast.storage.api.retrieval.OnlineRetriever;
+import feast.storage.connectors.bigquery.retrieval.BigQueryBatchRetriever;
+import feast.storage.connectors.redis.retrieval.RedisOnlineRetriever;
 import io.opentracing.Tracer;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -79,9 +83,9 @@ public class ServingServiceConfig {
 
     switch (store.getType()) {
       case REDIS:
-        servingService =
-            new RedisServingService(
-                storeConfiguration.getServingRedisConnection(), specService, tracer);
+        OnlineRetriever redisRetriever =
+            new RedisOnlineRetriever(storeConfiguration.getServingRedisConnection());
+        servingService = new OnlineServingService(redisRetriever, specService, tracer);
         break;
       case BIGQUERY:
         BigQueryConfig bqConfig = store.getBigqueryConfig();
@@ -104,17 +108,20 @@ public class ServingServiceConfig {
           throw new IllegalArgumentException(
               "Unable to instantiate jobService for BigQuery store.");
         }
-        servingService =
-            new BigQueryServingService(
-                bigquery,
-                bqConfig.getProjectId(),
-                bqConfig.getDatasetId(),
-                specService,
-                jobService,
-                jobStagingLocation,
-                feastProperties.getJobs().getBigqueryInitialRetryDelaySecs(),
-                feastProperties.getJobs().getBigqueryTotalTimeoutSecs(),
-                storage);
+
+        BatchRetriever bqRetriever =
+            BigQueryBatchRetriever.builder()
+                .setBigquery(bigquery)
+                .setDatasetId(bqConfig.getDatasetId())
+                .setProjectId(bqConfig.getProjectId())
+                .setJobStagingLocation(jobStagingLocation)
+                .setInitialRetryDelaySecs(
+                    feastProperties.getJobs().getBigqueryInitialRetryDelaySecs())
+                .setTotalTimeoutSecs(feastProperties.getJobs().getBigqueryTotalTimeoutSecs())
+                .setStorage(storage)
+                .build();
+
+        servingService = new BatchServingService(bqRetriever, specService, jobService);
         break;
       case CASSANDRA:
       case UNRECOGNIZED:
