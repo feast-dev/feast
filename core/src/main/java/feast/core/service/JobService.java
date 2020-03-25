@@ -33,6 +33,7 @@ import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -61,7 +62,7 @@ public class JobService {
 
     this.jobManagers = new HashMap<>();
     for (JobManager manager : jobManagerList) {
-      this.jobManagers.put(manager.getRunnerType().getName(), manager);
+      this.jobManagers.put(manager.getRunnerType().toString(), manager);
     }
   }
 
@@ -202,6 +203,7 @@ public class JobService {
     }
 
     // stop job with job manager
+    System.out.println("Status: " + job.getStatus().toString());
     JobManager jobManager = this.jobManagers.get(job.getRunner());
     jobManager.abortJob(job.getExtId());
 

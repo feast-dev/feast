@@ -178,7 +178,7 @@ public class JobServiceTest {
     return new Job(
         id,
         extId,
-        Runner.DATAFLOW.getName(),
+        Runner.DATAFLOW.toString(),
         this.dataSource,
         this.dataStore,
         Arrays.asList(this.featureSet),
