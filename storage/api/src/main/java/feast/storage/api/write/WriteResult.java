@@ -36,8 +36,10 @@ public final class WriteResult implements Serializable, POutput {
 
   /**
    * /** Creates a {@link WriteResult} in the given {@link Pipeline}.
+   *
    * @param pipeline {@link Pipeline}
-   * @param successfulInserts {@link PCollection} of {@link FeatureRow}s successfully inserted into the store
+   * @param successfulInserts {@link PCollection} of {@link FeatureRow}s successfully inserted into
+   *     the store
    * @param failedInserts {@link PCollection} of {@link FailedElement}s
    * @return {@link WriteResult}
    */
