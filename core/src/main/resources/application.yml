@@ -31,6 +31,8 @@ feast:
     # Key-value dict of job options to be passed to the population jobs.
     options: {}
     updates:
+      # Job update polling interval in milliseconds: how often Feast checks if new jobs should be sent to the runner.
+      pollingIntervalMillis: 60000
       # Timeout in seconds for each attempt to update or submit a new job to the runner.
       timeoutSeconds: 240
     metrics:
