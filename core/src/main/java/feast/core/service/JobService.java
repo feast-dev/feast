@@ -33,7 +33,6 @@ import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -163,8 +162,8 @@ public class JobService {
     // restart job with job manager
     JobManager jobManager = this.jobManagers.get(job.getRunner());
     job = jobManager.restartJob(job);
-
-    // update job model in job repository
+    // sync job status & update job model in job repository
+    job.setStatus(jobManager.getJobStatus(job));
     this.jobRepository.saveAndFlush(job);
 
     return RestartIngestionJobResponse.newBuilder().build();
@@ -203,9 +202,11 @@ public class JobService {
     }
 
     // stop job with job manager
-    System.out.println("Status: " + job.getStatus().toString());
     JobManager jobManager = this.jobManagers.get(job.getRunner());
     jobManager.abortJob(job.getExtId());
+    // sync job status & update job model in job repository
+    job.setStatus(jobManager.getJobStatus(job));
+    this.jobRepository.saveAndFlush(job);
 
     return StopIngestionJobResponse.newBuilder().build();
   }
