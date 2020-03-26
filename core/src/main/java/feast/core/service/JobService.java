@@ -29,9 +29,14 @@ import feast.core.FeatureSetReferenceProto.FeatureSetReference;
 import feast.core.IngestionJobProto;
 import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
+import feast.core.log.Action;
+import feast.core.log.AuditLogger;
+import feast.core.log.Resource;
 import feast.core.model.FeatureSet;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -47,6 +52,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Defines a Job Managemenent Service that allows users to manage feast ingestion jobs. */
+@Slf4j
 @Service
 public class JobService {
   private JobRepository jobRepository;
@@ -162,10 +168,12 @@ public class JobService {
     // restart job with job manager
     JobManager jobManager = this.jobManagers.get(job.getRunner());
     job = jobManager.restartJob(job);
+    log.info(String.format("Restarted job (id: %s, extId: %s runner: %s)", 
+          job.getId(), job.getExtId(), job.getRunner()));
     // sync job status & update job model in job repository
-    job.setStatus(jobManager.getJobStatus(job));
+    job = this.syncJobStatus(jobManager, job);
     this.jobRepository.saveAndFlush(job);
-
+  
     return RestartIngestionJobResponse.newBuilder().build();
   }
 
@@ -204,8 +212,11 @@ public class JobService {
     // stop job with job manager
     JobManager jobManager = this.jobManagers.get(job.getRunner());
     jobManager.abortJob(job.getExtId());
+    log.info(String.format("Restarted job (id: %s, extId: %s runner: %s)", 
+          job.getId(), job.getExtId(), job.getRunner()));
+  
     // sync job status & update job model in job repository
-    job.setStatus(jobManager.getJobStatus(job));
+    job = this.syncJobStatus(jobManager, job);
     this.jobRepository.saveAndFlush(job);
 
     return StopIngestionJobResponse.newBuilder().build();
@@ -243,4 +254,18 @@ public class JobService {
 
     return filter;
   }
+
+  // sync job status using job manager
+  private Job syncJobStatus(JobManager jobManager, Job job) {
+    JobStatus newStatus = jobManager.getJobStatus(job);
+    // log job status transition
+    if(!newStatus.equals(job.getStatus())) {
+      job.setStatus(newStatus);
+      AuditLogger.log(Resource.JOB, job.getId(), Action.STATUS_CHANGE, 
+          "Job status transition: changed from %s to %s",
+          job.getStatus(), newStatus);
+    }
+    return job;
+  }
+  
 }
