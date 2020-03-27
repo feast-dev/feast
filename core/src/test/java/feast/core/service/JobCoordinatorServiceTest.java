@@ -161,7 +161,7 @@ public class JobCoordinatorServiceTest {
         new Job(
             "",
             "",
-            Runner.DATAFLOW.getName(),
+            Runner.DATAFLOW.name(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2)),
@@ -171,7 +171,7 @@ public class JobCoordinatorServiceTest {
         new Job(
             "some_id",
             extId,
-            Runner.DATAFLOW.getName(),
+            Runner.DATAFLOW.name(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2)),
@@ -261,7 +261,7 @@ public class JobCoordinatorServiceTest {
         new Job(
             "name1",
             "",
-            Runner.DATAFLOW.getName(),
+            Runner.DATAFLOW.name(),
             feast.core.model.Source.fromProto(source1),
             feast.core.model.Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet1)),
@@ -271,7 +271,7 @@ public class JobCoordinatorServiceTest {
         new Job(
             "name1",
             "extId1",
-            Runner.DATAFLOW.getName(),
+            Runner.DATAFLOW.name(),
             feast.core.model.Source.fromProto(source1),
             feast.core.model.Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet1)),
@@ -281,7 +281,7 @@ public class JobCoordinatorServiceTest {
         new Job(
             "",
             "extId2",
-            Runner.DATAFLOW.getName(),
+            Runner.DATAFLOW.name(),
             feast.core.model.Source.fromProto(source2),
             feast.core.model.Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet2)),
@@ -291,7 +291,7 @@ public class JobCoordinatorServiceTest {
         new Job(
             "name2",
             "extId2",
-            Runner.DATAFLOW.getName(),
+            Runner.DATAFLOW.name(),
             feast.core.model.Source.fromProto(source2),
             feast.core.model.Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet2)),
