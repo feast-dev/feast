@@ -47,7 +47,7 @@ Please refer to the official documentation at <https://docs.feast.dev>
 
  * [Why Feast?](https://docs.feast.dev/why-feast)
  * [Concepts](https://docs.feast.dev/concepts)
- * [Installation](https://docs.feast.dev/installing-feast/overview)
+ * [Installation](https://docs.feast.dev/installation/overview)
  * [Examples](https://github.com/gojek/feast/blob/master/examples/)
  * [Roadmap](https://docs.feast.dev/roadmap)
  * [Change Log](https://github.com/gojek/feast/blob/master/CHANGELOG.md)
@@ -55,4 +55,4 @@ Please refer to the official documentation at <https://docs.feast.dev>
 
 ## Notice
 
-Feast is a community project and is still under active development. Your feedback and contributions are important to us. Please have a look at our [contributing guide](docs/contributing.md) for details.
+Feast is a community project and is still under active development. Your feedback and contributions are important to us. Please have a look at our [contributing guide](docs/contributing/contributing.md) for details.

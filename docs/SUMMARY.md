@@ -25,7 +25,7 @@
 
 ## Administration
 
-* [Troubleshooting](troubleshooting.md)
+* [Troubleshooting](administration/troubleshooting.md)
 
 ## Reference
 
