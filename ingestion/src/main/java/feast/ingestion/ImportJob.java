@@ -137,7 +137,7 @@ public class ImportJob {
 
       // Step 3. Write FeatureRow to the corresponding Store.
       WriteResult writeFeatureRows =
-          validatedRows.get(FEATURE_ROW_OUT).apply("WriteFeatureRowToStore", featureSink.write());
+          validatedRows.get(FEATURE_ROW_OUT).apply("WriteFeatureRowToStore", featureSink.writer());
 
       // Step 4. Write FailedElements to a dead letter table in BigQuery.
       if (options.getDeadLetterTableSpec() != null) {

@@ -16,22 +16,26 @@
  */
 package feast.storage.api.retrieval;
 
-import feast.serving.ServingAPIProto;
+import feast.serving.ServingAPIProto.DatasetSource;
 import java.util.List;
 
-/** Interface for implementing user defined retrieval functionality from Batch/historical stores. */
-public interface BatchRetriever {
+/**
+ * A historical retriever is a feature retriever that retrieves feature data corresponding to
+ * provided entities over a given period of time.
+ */
+public interface HistoricalRetriever {
 
   /**
    * Get all features corresponding to the provided batch features request.
    *
-   * @param request {@link ServingAPIProto.GetBatchFeaturesRequest} containing requested features
-   *     and file containing entity columns.
+   * @param retrievalId String that uniquely identifies this retrieval request.
+   * @param datasetSource {@link DatasetSource} containing source to load the dataset containing
+   *     entity columns.
    * @param featureSetRequests List of {@link FeatureSetRequest} to feature references in the
    *     request tied to that feature set.
-   * @return {@link ServingAPIProto.Job} if successful, contains the location of the results, else
-   *     contains the error to be returned to the user.
+   * @return {@link HistoricalRetrievalResult} if successful, contains the location of the results,
+   *     else contains the error to be returned to the user.
    */
-  ServingAPIProto.Job getBatchFeatures(
-      ServingAPIProto.GetBatchFeaturesRequest request, List<FeatureSetRequest> featureSetRequests);
+  HistoricalRetrievalResult getHistoricalFeatures(
+      String retrievalId, DatasetSource datasetSource, List<FeatureSetRequest> featureSetRequests);
 }

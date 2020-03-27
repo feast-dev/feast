@@ -125,7 +125,7 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
   }
 
   @Override
-  public PTransform<PCollection<FeatureRowProto.FeatureRow>, WriteResult> write() {
+  public PTransform<PCollection<FeatureRowProto.FeatureRow>, WriteResult> writer() {
     return new BigQueryWrite(DatasetId.of(getProjectId(), getDatasetId()));
   }
 

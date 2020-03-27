@@ -16,7 +16,7 @@
  */
 package feast.storage.connectors.bigquery.retrieval;
 
-import static feast.storage.connectors.bigquery.retrieval.BigQueryBatchRetriever.TEMP_TABLE_EXPIRY_DURATION_MS;
+import static feast.storage.connectors.bigquery.retrieval.BigQueryHistoricalRetriever.TEMP_TABLE_EXPIRY_DURATION_MS;
 import static feast.storage.connectors.bigquery.retrieval.QueryTemplater.generateFullTableName;
 
 import com.google.auto.value.AutoValue;
