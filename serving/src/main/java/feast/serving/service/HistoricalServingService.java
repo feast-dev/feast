@@ -18,25 +18,29 @@ package feast.serving.service;
 
 import feast.serving.ServingAPIProto;
 import feast.serving.ServingAPIProto.*;
+import feast.serving.ServingAPIProto.Job.Builder;
 import feast.serving.specs.CachedSpecService;
-import feast.storage.api.retrieval.BatchRetriever;
 import feast.storage.api.retrieval.FeatureSetRequest;
-import feast.storage.connectors.bigquery.retrieval.BigQueryBatchRetriever;
+import feast.storage.api.retrieval.HistoricalRetrievalResult;
+import feast.storage.api.retrieval.HistoricalRetriever;
+import feast.storage.connectors.bigquery.retrieval.BigQueryHistoricalRetriever;
 import io.grpc.Status;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.slf4j.Logger;
 
-public class BatchServingService implements ServingService {
+public class HistoricalServingService implements ServingService {
 
-  private static final Logger log = org.slf4j.LoggerFactory.getLogger(BatchServingService.class);
+  private static final Logger log =
+      org.slf4j.LoggerFactory.getLogger(HistoricalServingService.class);
 
-  private final BatchRetriever retriever;
+  private final HistoricalRetriever retriever;
   private final CachedSpecService specService;
   private final JobService jobService;
 
-  public BatchServingService(
-      BatchRetriever retriever, CachedSpecService specService, JobService jobService) {
+  public HistoricalServingService(
+      HistoricalRetriever retriever, CachedSpecService specService, JobService jobService) {
     this.retriever = retriever;
     this.specService = specService;
     this.jobService = jobService;
@@ -47,10 +51,11 @@ public class BatchServingService implements ServingService {
   public GetFeastServingInfoResponse getFeastServingInfo(
       GetFeastServingInfoRequest getFeastServingInfoRequest) {
     try {
-      BigQueryBatchRetriever bigQueryBatchRetriever = (BigQueryBatchRetriever) retriever;
+      BigQueryHistoricalRetriever bigQueryHistoricalRetriever =
+          (BigQueryHistoricalRetriever) retriever;
       return GetFeastServingInfoResponse.newBuilder()
           .setType(FeastServingType.FEAST_SERVING_TYPE_BATCH)
-          .setJobStagingLocation(bigQueryBatchRetriever.jobStagingLocation())
+          .setJobStagingLocation(bigQueryHistoricalRetriever.jobStagingLocation())
           .build();
     } catch (Exception e) {
       return GetFeastServingInfoResponse.newBuilder()
@@ -70,9 +75,28 @@ public class BatchServingService implements ServingService {
   public GetBatchFeaturesResponse getBatchFeatures(GetBatchFeaturesRequest getFeaturesRequest) {
     List<FeatureSetRequest> featureSetRequests =
         specService.getFeatureSets(getFeaturesRequest.getFeaturesList());
-    Job feastJob = retriever.getBatchFeatures(getFeaturesRequest, featureSetRequests);
-    jobService.upsert(feastJob);
-    return GetBatchFeaturesResponse.newBuilder().setJob(feastJob).build();
+    String retrievalId = UUID.randomUUID().toString();
+    Job runningJob =
+        Job.newBuilder()
+            .setId(retrievalId)
+            .setType(JobType.JOB_TYPE_DOWNLOAD)
+            .setStatus(JobStatus.JOB_STATUS_RUNNING)
+            .build();
+    jobService.upsert(runningJob);
+    Thread thread =
+        new Thread(
+            new Runnable() {
+              @Override
+              public void run() {
+                HistoricalRetrievalResult result =
+                    retriever.getHistoricalFeatures(
+                        retrievalId, getFeaturesRequest.getDatasetSource(), featureSetRequests);
+                jobService.upsert(resultToJob(result));
+              }
+            });
+    thread.start();
+
+    return GetBatchFeaturesResponse.newBuilder().setJob(runningJob).build();
   }
 
   /** {@inheritDoc} */
@@ -85,5 +109,20 @@ public class BatchServingService implements ServingService {
           .asRuntimeException();
     }
     return GetJobResponse.newBuilder().setJob(job.get()).build();
+  }
+
+  private Job resultToJob(HistoricalRetrievalResult result) {
+    Builder builder =
+        Job.newBuilder()
+            .setId(result.getId())
+            .setType(JobType.JOB_TYPE_DOWNLOAD)
+            .setStatus(result.getStatus());
+    if (result.hasError()) {
+      return builder.setError(result.getError()).build();
+    }
+    return builder
+        .addAllFileUris(result.getFileUris())
+        .setDataFormat(result.getDataFormat())
+        .build();
   }
 }
