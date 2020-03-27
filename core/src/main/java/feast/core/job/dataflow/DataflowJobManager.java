@@ -160,7 +160,7 @@ public class DataflowJobManager implements JobManager {
    */
   @Override
   public JobStatus getJobStatus(Job job) {
-    if (!Runner.DATAFLOW.name().equals(job.getRunner())) {
+    if (!Runner.DATAFLOW.getName().equals(job.getRunner())) {
       return job.getStatus();
     }
 
@@ -191,7 +191,7 @@ public class DataflowJobManager implements JobManager {
               .map(
                   fsp -> {
                     FeatureSet featureSet = new FeatureSet();
-                    featureSet.setName(fsp.getSpec().toString());
+                    featureSet.setName(fsp.getSpec().getName());
                     featureSet.setVersion(fsp.getSpec().getVersion());
                     featureSet.setProject(new Project(fsp.getSpec().getProject()));
                     return featureSet;
@@ -201,7 +201,7 @@ public class DataflowJobManager implements JobManager {
       return new Job(
           jobName,
           jobId,
-          getRunnerType().name(),
+          getRunnerType().getName(),
           Source.fromProto(source),
           Store.fromProto(sink),
           featureSets,

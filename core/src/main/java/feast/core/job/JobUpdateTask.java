@@ -144,7 +144,7 @@ public class JobUpdateTask implements Callable<Job> {
         new Job(
             jobId,
             "",
-            jobManager.getRunnerType().name(),
+            jobManager.getRunnerType().toString(),
             Source.fromProto(source),
             Store.fromProto(sinkSpec),
             featureSets,
@@ -155,7 +155,7 @@ public class JobUpdateTask implements Callable<Job> {
           jobId,
           Action.SUBMIT,
           "Building graph and submitting to %s",
-          jobManager.getRunnerType().toString());
+          jobManager.getRunnerType().getName());
 
       job = jobManager.startJob(job);
       if (job.getExtId().isEmpty()) {
@@ -168,7 +168,7 @@ public class JobUpdateTask implements Callable<Job> {
           jobId,
           Action.STATUS_CHANGE,
           "Job submitted to runner %s with ext id %s.",
-          jobManager.getRunnerType().toString(),
+          jobManager.getRunnerType().getName(),
           job.getExtId());
 
       return job;
@@ -179,7 +179,7 @@ public class JobUpdateTask implements Callable<Job> {
           jobId,
           Action.STATUS_CHANGE,
           "Job failed to be submitted to runner %s. Job status changed to ERROR.",
-          jobManager.getRunnerType().toString());
+          jobManager.getRunnerType().getName());
 
       job.setStatus(JobStatus.ERROR);
       return job;
@@ -206,7 +206,7 @@ public class JobUpdateTask implements Callable<Job> {
         Action.UPDATE,
         "Updating job %s for runner %s",
         job.getId(),
-        jobManager.getRunnerType().toString());
+        jobManager.getRunnerType().getName());
     return jobManager.updateJob(job);
   }
 

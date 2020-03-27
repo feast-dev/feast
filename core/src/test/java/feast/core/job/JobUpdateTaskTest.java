@@ -102,7 +102,7 @@ public class JobUpdateTaskTest {
         new Job(
             "job",
             "old_ext",
-            Runner.DATAFLOW.name(),
+            Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet1)),
@@ -119,7 +119,7 @@ public class JobUpdateTaskTest {
         new Job(
             "job",
             "old_ext",
-            Runner.DATAFLOW.name(),
+            Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2)),
@@ -129,7 +129,7 @@ public class JobUpdateTaskTest {
         new Job(
             "job",
             "new_ext",
-            Runner.DATAFLOW.name(),
+            Runner.DATAFLOW.getName(),
             Source.fromProto(source),
             Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2)),
@@ -163,7 +163,7 @@ public class JobUpdateTaskTest {
         new Job(
             "job",
             "",
-            Runner.DATAFLOW.name(),
+            Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet1)),
@@ -173,7 +173,7 @@ public class JobUpdateTaskTest {
         new Job(
             "job",
             "ext",
-            Runner.DATAFLOW.name(),
+            Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet1)),
@@ -202,7 +202,7 @@ public class JobUpdateTaskTest {
         new Job(
             "job",
             "ext",
-            Runner.DATAFLOW.name(),
+            Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet1)),
@@ -216,7 +216,7 @@ public class JobUpdateTaskTest {
         new Job(
             "job",
             "ext",
-            Runner.DATAFLOW.name(),
+            Runner.DATAFLOW.getName(),
             Source.fromProto(source),
             Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet1)),
@@ -248,7 +248,7 @@ public class JobUpdateTaskTest {
         new Job(
             "job",
             "",
-            Runner.DATAFLOW.name(),
+            Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet1)),
@@ -258,7 +258,7 @@ public class JobUpdateTaskTest {
         new Job(
             "job",
             "",
-            Runner.DATAFLOW.name(),
+            Runner.DATAFLOW.getName(),
             feast.core.model.Source.fromProto(source),
             feast.core.model.Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet1)),

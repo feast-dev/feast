@@ -27,19 +27,13 @@ public enum Runner {
     this.name = name;
   }
 
-  /**
-   * Get the human readable name of this runner. Returns a human readable name of the runner that
-   * can be used for logging/config files/etc.
-   */
-  @Override
-  public String toString() {
+  public String getName() {
     return name;
   }
 
-  /** Parses a runner from its human readable name. */
   public static Runner fromString(String runner) {
     for (Runner r : Runner.values()) {
-      if (r.toString().equals(runner)) {
+      if (r.getName().equals(runner)) {
         return r;
       }
     }
