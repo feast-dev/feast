@@ -181,16 +181,7 @@ public class DataflowJobManager implements JobManager {
       ImportOptions pipelineOptions = getPipelineOptions(jobName, featureSetProtos, sink, update);
       DataflowPipelineJob pipelineResult = runPipeline(pipelineOptions);
       List<FeatureSet> featureSets =
-          featureSetProtos.stream()
-              .map(
-                  fsp -> {
-                    FeatureSet featureSet = new FeatureSet();
-                    featureSet.setName(fsp.getSpec().toString());
-                    featureSet.setVersion(fsp.getSpec().getVersion());
-                    featureSet.setProject(new Project(fsp.getSpec().getProject()));
-                    return featureSet;
-                  })
-              .collect(Collectors.toList());
+          featureSetProtos.stream().map(FeatureSet::fromProto).collect(Collectors.toList());
       String jobId = waitForJobToRun(pipelineResult);
       return new Job(
           jobName,
