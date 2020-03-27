@@ -39,6 +39,7 @@ public class Job extends AbstractTimestampEntity {
   private String extId;
 
   // Runner type
+  // Use Runner.toString() when converting a Runner to string to assign to this property.
   @Column(name = "runner")
   private String runner;
 
