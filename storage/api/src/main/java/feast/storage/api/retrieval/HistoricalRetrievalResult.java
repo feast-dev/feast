@@ -48,7 +48,7 @@ public abstract class HistoricalRetrievalResult implements Serializable {
    * @param error error that occurred
    * @return {@link HistoricalRetrievalResult}
    */
-  public static HistoricalRetrievalResult errorResult(String id, Exception error) {
+  public static HistoricalRetrievalResult error(String id, Exception error) {
     return newBuilder()
         .setId(id)
         .setStatus(JobStatus.JOB_STATUS_DONE)
@@ -65,7 +65,7 @@ public abstract class HistoricalRetrievalResult implements Serializable {
    * @param dataFormat data format of the output files
    * @return
    */
-  public static HistoricalRetrievalResult successResult(
+  public static HistoricalRetrievalResult success(
       String id, List<String> fileUris, DataFormat dataFormat) {
     return newBuilder()
         .setId(id)

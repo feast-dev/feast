@@ -100,7 +100,7 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
       TableId entityTableWithUUIDs = generateUUIDs(entityTable);
       entityTableName = generateFullTableName(entityTableWithUUIDs);
     } catch (Exception e) {
-      return HistoricalRetrievalResult.errorResult(
+      return HistoricalRetrievalResult.error(
           retrievalId,
           new RuntimeException(
               String.format("Unable to load entity table to BigQuery: %s", e.toString())));
@@ -140,12 +140,12 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
       waitForJob(extractJob);
 
     } catch (BigQueryException | InterruptedException | IOException e) {
-      return HistoricalRetrievalResult.errorResult(retrievalId, e);
+      return HistoricalRetrievalResult.error(retrievalId, e);
     }
 
     List<String> fileUris = parseOutputFileURIs(retrievalId);
 
-    return HistoricalRetrievalResult.successResult(
+    return HistoricalRetrievalResult.success(
         retrievalId, fileUris, ServingAPIProto.DataFormat.DATA_FORMAT_AVRO);
   }
 

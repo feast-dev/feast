@@ -35,7 +35,7 @@ public final class WriteResult implements Serializable, POutput {
   private static TupleTag<FailedElement> failedInsertsTupleTag = new TupleTag<>("failedInserts");
 
   /**
-   * /** Creates a {@link WriteResult} in the given {@link Pipeline}.
+   * Creates a {@link WriteResult} in the given {@link Pipeline}.
    *
    * @param pipeline {@link Pipeline}
    * @param successfulInserts {@link PCollection} of {@link FeatureRow}s successfully inserted into
