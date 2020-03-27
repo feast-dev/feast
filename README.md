@@ -51,7 +51,7 @@ Please refer to the official documentation at <https://docs.feast.dev>
  * [Examples](https://github.com/gojek/feast/blob/master/examples/)
  * [Roadmap](https://docs.feast.dev/roadmap)
  * [Change Log](https://github.com/gojek/feast/blob/master/CHANGELOG.md)
- * [Slack (#Feast)](https://join.slack.com/t/kubeflow/shared_invite/enQtNDg5MTM4NTQyNjczLTdkNTVhMjg1ZTExOWI0N2QyYTQ2MTIzNTJjMWRiOTFjOGRlZWEzODc1NzMwNTMwM2EzNjY1MTFhODczNjk4MTk)
+ * [Slack (#Feast)](https://join.slack.com/t/kubeflow/shared_invite/zt-cpr020z4-PfcAue_2nw67~iIDy7maAQ)
 
 ## Notice
 

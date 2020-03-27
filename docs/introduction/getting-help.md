@@ -2,7 +2,7 @@
 
 ### Chat
 
-* Come and say hello in [\#Feast](https://join.slack.com/t/kubeflow/shared_invite/enQtNDg5MTM4NTQyNjczLTdkNTVhMjg1ZTExOWI0N2QyYTQ2MTIzNTJjMWRiOTFjOGRlZWEzODc1NzMwNTMwM2EzNjY1MTFhODczNjk4MTk) over in the Kubeflow Slack.
+* Come and say hello in [\#Feast](https://join.slack.com/t/kubeflow/shared_invite/zt-cpr020z4-PfcAue_2nw67~iIDy7maAQ) over in the Kubeflow Slack.
 
 ### GitHub
 
