@@ -145,7 +145,7 @@ public class DataflowJobManagerTest {
         new Job(
             jobName,
             "",
-            Runner.DATAFLOW.getName(),
+            Runner.DATAFLOW.name(),
             Source.fromProto(source),
             Store.fromProto(store),
             Lists.newArrayList(FeatureSet.fromProto(featureSet)),
@@ -226,7 +226,7 @@ public class DataflowJobManagerTest {
         new Job(
             "job",
             "",
-            Runner.DATAFLOW.getName(),
+            Runner.DATAFLOW.name(),
             Source.fromProto(source),
             Store.fromProto(store),
             Lists.newArrayList(FeatureSet.fromProto(featureSet)),
