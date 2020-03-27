@@ -20,7 +20,10 @@ import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.List;
 
-/** Interface for implementing user defined retrieval functionality from Online stores. */
+/**
+ * An online retriever is a feature retriever that retrieves the latest feature data corresponding
+ * to provided entities.
+ */
 public interface OnlineRetriever {
 
   /**
@@ -29,7 +32,8 @@ public interface OnlineRetriever {
    * @param entityRows list of entity rows in the feature request
    * @param featureSetRequests List of {@link FeatureSetRequest} to feature references in the
    *     request tied to that feature set.
-   * @return list of {@link OnlineRetrieverResponse} for each entity row
+   * @return list of lists of {@link FeatureRow}s corresponding to each feature set request and
+   *     entity row.
    */
   List<List<FeatureRow>> getOnlineFeatures(
       List<EntityRow> entityRows, List<FeatureSetRequest> featureSetRequests);

@@ -68,7 +68,7 @@ public abstract class RedisFeatureSink implements FeatureSink {
   }
 
   @Override
-  public PTransform<PCollection<FeatureRow>, WriteResult> write() {
+  public PTransform<PCollection<FeatureRow>, WriteResult> writer() {
     return new RedisCustomIO.Write(getRedisConfig(), getFeatureSetSpecs());
   }
 }

@@ -25,8 +25,10 @@ import com.google.cloud.bigquery.*;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import feast.serving.ServingAPIProto;
-import feast.storage.api.retrieval.BatchRetriever;
+import feast.serving.ServingAPIProto.DatasetSource;
 import feast.storage.api.retrieval.FeatureSetRequest;
+import feast.storage.api.retrieval.HistoricalRetrievalResult;
+import feast.storage.api.retrieval.HistoricalRetriever;
 import io.grpc.Status;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -38,9 +40,10 @@ import org.slf4j.Logger;
 import org.threeten.bp.Duration;
 
 @AutoValue
-public abstract class BigQueryBatchRetriever implements BatchRetriever {
+public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever {
 
-  private static final Logger log = org.slf4j.LoggerFactory.getLogger(BigQueryBatchRetriever.class);
+  private static final Logger log =
+      org.slf4j.LoggerFactory.getLogger(BigQueryHistoricalRetriever.class);
 
   public static final long TEMP_TABLE_EXPIRY_DURATION_MS = Duration.ofDays(1).toMillis();
   private static final long SUBQUERY_TIMEOUT_SECS = 900; // 15 minutes
@@ -60,7 +63,7 @@ public abstract class BigQueryBatchRetriever implements BatchRetriever {
   public abstract Storage storage();
 
   public static Builder builder() {
-    return new AutoValue_BigQueryBatchRetriever.Builder();
+    return new AutoValue_BigQueryHistoricalRetriever.Builder();
   }
 
   @AutoValue.Builder
@@ -79,15 +82,12 @@ public abstract class BigQueryBatchRetriever implements BatchRetriever {
 
     public abstract Builder setStorage(Storage storage);
 
-    public abstract BigQueryBatchRetriever build();
+    public abstract BigQueryHistoricalRetriever build();
   }
 
   @Override
-  public ServingAPIProto.Job getBatchFeatures(
-      ServingAPIProto.GetBatchFeaturesRequest request, List<FeatureSetRequest> featureSetRequests) {
-    // 0. Generate job ID
-    String feastJobId = UUID.randomUUID().toString();
-
+  public HistoricalRetrievalResult getHistoricalFeatures(
+      String retrievalId, DatasetSource datasetSource, List<FeatureSetRequest> featureSetRequests) {
     List<FeatureSetQueryInfo> featureSetQueryInfos =
         QueryTemplater.getFeatureSetInfos(featureSetRequests);
 
@@ -95,18 +95,15 @@ public abstract class BigQueryBatchRetriever implements BatchRetriever {
     Table entityTable;
     String entityTableName;
     try {
-      entityTable = loadEntities(request.getDatasetSource());
+      entityTable = loadEntities(datasetSource);
 
       TableId entityTableWithUUIDs = generateUUIDs(entityTable);
       entityTableName = generateFullTableName(entityTableWithUUIDs);
     } catch (Exception e) {
-      return ServingAPIProto.Job.newBuilder()
-          .setId(feastJobId)
-          .setType(ServingAPIProto.JobType.JOB_TYPE_DOWNLOAD)
-          .setStatus(ServingAPIProto.JobStatus.JOB_STATUS_DONE)
-          .setDataFormat(ServingAPIProto.DataFormat.DATA_FORMAT_AVRO)
-          .setError(String.format("Unable to load entity table to BigQuery: %s", e.toString()))
-          .build();
+      return HistoricalRetrievalResult.error(
+          retrievalId,
+          new RuntimeException(
+              String.format("Unable to load entity table to BigQuery: %s", e.toString())));
     }
 
     Schema entityTableSchema = entityTable.getDefinition().getSchema();
@@ -132,7 +129,7 @@ public abstract class BigQueryBatchRetriever implements BatchRetriever {
               entityTableName, entityTableColumnNames, featureSetQueryInfos, featureSetQueries);
       queryConfig = queryJob.getConfiguration();
       String exportTableDestinationUri =
-          String.format("%s/%s/*.avro", jobStagingLocation(), feastJobId);
+          String.format("%s/%s/*.avro", jobStagingLocation(), retrievalId);
 
       // 5. Export the table
       // Hardcode the format to Avro for now
@@ -143,23 +140,13 @@ public abstract class BigQueryBatchRetriever implements BatchRetriever {
       waitForJob(extractJob);
 
     } catch (BigQueryException | InterruptedException | IOException e) {
-      return ServingAPIProto.Job.newBuilder()
-          .setId(feastJobId)
-          .setType(ServingAPIProto.JobType.JOB_TYPE_DOWNLOAD)
-          .setStatus(ServingAPIProto.JobStatus.JOB_STATUS_DONE)
-          .setError(e.getMessage())
-          .build();
+      return HistoricalRetrievalResult.error(retrievalId, e);
     }
 
-    List<String> fileUris = parseOutputFileURIs(feastJobId);
+    List<String> fileUris = parseOutputFileURIs(retrievalId);
 
-    return ServingAPIProto.Job.newBuilder()
-        .setId(feastJobId)
-        .setType(ServingAPIProto.JobType.JOB_TYPE_DOWNLOAD)
-        .setStatus(ServingAPIProto.JobStatus.JOB_STATUS_DONE)
-        .addAllFileUris(fileUris)
-        .setDataFormat(ServingAPIProto.DataFormat.DATA_FORMAT_AVRO)
-        .build();
+    return HistoricalRetrievalResult.success(
+        retrievalId, fileUris, ServingAPIProto.DataFormat.DATA_FORMAT_AVRO);
   }
 
   private TableId generateUUIDs(Table loadedEntityTable) {

@@ -50,5 +50,5 @@ public interface FeatureSink extends Serializable {
    *
    * @return {@link PTransform}
    */
-  PTransform<PCollection<FeatureRow>, WriteResult> write();
+  PTransform<PCollection<FeatureRow>, WriteResult> writer();
 }
