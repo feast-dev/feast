@@ -1,6 +1,6 @@
 # Troubleshooting
 
-If at any point in time you cannot resolve a problem, please see the [Getting Help](../getting-help.md) section for reaching out to the Feast community.
+If at any point in time you cannot resolve a problem, please see the [Getting Help](https://github.com/gojek/feast/tree/75f3b783e5a7c5e0217a3020422548fb0d0ce0bf/docs/getting-help.md) section for reaching out to the Feast community.
 
 ## How can I verify that all services are operational?
 
