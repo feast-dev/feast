@@ -1,5 +1,10 @@
 # Feast - Feature Store for Machine Learning
 
+[![Unit Tests](https://github.com/gojek/feast/workflows/unit%20tests/badge.svg?branch=master)](https://github.com/gojek/feast/actions?query=workflow%3A%22unit+tests%22+branch%3Amaster)
+[![Code Standards](https://github.com/gojek/feast/workflows/code%20standards/badge.svg?branch=master)](https://github.com/gojek/feast/actions?query=workflow%3A%22code+standards%22+branch%3Amaster)
+[![Docs latest](https://img.shields.io/badge/Docs-latest-blue.svg)](https://docs.feast.dev/)
+[![GitHub Release](https://img.shields.io/github/release/gojek/feast.svg?style=flat)](https://github.com/gojek/feast/releases)
+
 ## Overview
 
 Feast (Feature Store) is a tool for managing and serving machine learning features. Feast is the bridge between models and data.

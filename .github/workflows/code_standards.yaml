@@ -1,4 +1,4 @@
-name: linting
+name: code standards
 
 on:
   push:
