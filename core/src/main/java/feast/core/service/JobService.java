@@ -73,7 +73,7 @@ public class JobService {
   /* Job Service API */
   /**
    * List Ingestion Jobs in feast matching the given request. See CoreService protobuf documentation
-   * on the request
+   * for more detailed documentation.
    *
    * @param request list ingestion jobs request specifying which jobs to include
    * @throws IllegalArgumentException when given filter in a unsupported configuration
@@ -139,7 +139,8 @@ public class JobService {
   }
 
   /**
-   * Restart (Aborts) the ingestion job matching the given restart request.
+   * Restart (Aborts) the ingestion job matching the given restart request. See CoreService protobuf
+   * documentation for more detailed documentation.
    *
    * @param request restart ingestion job request specifying which job to stop
    * @throws NoSuchElementException when restart job request requests to restart a nonexistent job.
@@ -179,9 +180,8 @@ public class JobService {
   }
 
   /**
-   * Stops (Aborts) the ingestion job matching the given stop request. Does nothing if the target
-   * job if already in a terminal states Does not support stopping a job in a transitional or
-   * unknown status
+   * Stops (Aborts) the ingestion job matching the given stop request. See CoreService protobuf
+   * documentation for more detailed documentation.
    *
    * @param request stop ingestion job request specifying which job to stop
    * @throws NoSuchElementException when stop job request requests to stop a nonexistent job.
