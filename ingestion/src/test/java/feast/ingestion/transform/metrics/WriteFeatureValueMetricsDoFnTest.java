@@ -142,7 +142,7 @@ public class WriteFeatureValueMetricsDoFnTest {
     }
     List<String> colNames = new ArrayList<>();
     for (String line : lines) {
-      if (line.strip().length() < 1) {
+      if (line.trim().length() < 1) {
         continue;
       }
       String[] splits = line.split(",");
@@ -156,7 +156,7 @@ public class WriteFeatureValueMetricsDoFnTest {
 
       Builder featureRowBuilder = FeatureRow.newBuilder();
       for (int i = 0; i < splits.length; i++) {
-        String colVal = splits[i].strip();
+        String colVal = splits[i].trim();
         if (i == 0) {
           featureRowBuilder.setFeatureSet(colVal);
           continue;

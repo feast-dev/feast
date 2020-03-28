@@ -21,7 +21,7 @@ The following software is required for Feast development
 
 * Java SE Development Kit 11
 * Python version 3.6 \(or above\) and pip
-* [Maven ](https://maven.apache.org/install.html)version 3.6.x
+* [Maven](https://maven.apache.org/install.html) version 3.6.x
 
 Additionally, [grpc\_cli](https://github.com/grpc/grpc/blob/master/doc/command_line_tool.md) is useful for debugging and quick testing of gRPC endpoints.
 
@@ -444,3 +444,35 @@ If you have made it to this point successfully you should have a functioning Fea
 
 It is important to note that most of the functionality demonstrated above is already available in a more abstracted form in the Python SDK \(Feast management, data ingestion, feature retrieval\) and the Java/Go SDKs \(feature retrieval\). However, it is useful to understand these internals from a development standpoint.
 
+### 5 Appendix
+
+#### 5.1 Java / JDK Versions
+
+Feast requires a Java 11 or greater JDK for building the project. This is checked by Maven so you'll be informed if you try to use an older version.
+
+Leaf application modules of the build such as the Core and Serving APIs compile with [the `javac --release` flag] set for 11, and Ingestion and shared library modules that it uses target release 8. Here's why.
+
+While we want to take advantage of advancements in the (long-term supported) language and platform, and for contributors to enjoy those as well, Apache Beam forms a major part of Feast's Ingestion component and fully validating Beam on Java 11 [is an open issue][BEAM-2530]. Moreover, Beam runners other than the DirectRunner may lag behind further still—Spark does not _build or run_ on Java 11 until its version 3.0 which is still in preview. Presumably Beam's SparkRunner will have to wait for Spark, and for its implementation to update to Spark 3.
+
+To have confidence in Beam stability and our users' ability to deploy Feast on a range of Beam runners, we will continue to target Java 8 bytecode and Platform version for Feast Ingestion, until the ecosystem moves forward.
+
+You do _not_ need a Java 8 SDK installed for development. Newer JDKs can build for the older platform, and Feast's Maven build does this automatically.
+
+See [Feast issue #517][\#517] for discussion.
+
+[the `javac --release` flag]: https://stackoverflow.com/questions/43102787/what-is-the-release-flag-in-the-java-9-compiler
+[BEAM-2530]: https://issues.apache.org/jira/browse/BEAM-2530
+[\#517]: https://github.com/gojek/feast/issues/517
+
+#### 5.2 IntelliJ Tips and Troubleshooting
+
+For IntelliJ users, this section collects notes and setup recommendations for working comfortably on the Feast project, especially to coexist as peacefully as possible with the Maven build.
+
+##### Language Level
+
+IntelliJ uses a notion of "Language Level" to drive assistance features according to the target Java version of a project. It often infers this appropriately from a Maven import, but it's wise to check, especially for a multi-module project with differing target Java releases across modules, like ours. Language level [can be set per module][module lang level]—if IntelliJ is suggesting things that turn out to fail when building with `mvn`, make sure the language level of the module in question corresponds to the `<release>` set for `maven-compiler-plugin` in the module's `pom.xml` (11 is project default if the module doesn't set one).
+
+Ensure that the Project _SDK_ (not language level) is set to a Java 11 JDK, and that all modules use the Project SDK (see [the Dependencies tab] in the Modules view).
+
+[module lang level]: https://www.jetbrains.com/help/idea/sources-tab.html#module_language_level
+[the Dependencies tab]: https://www.jetbrains.com/help/idea/dependencies.html
