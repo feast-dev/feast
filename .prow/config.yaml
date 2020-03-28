@@ -63,7 +63,6 @@ presubmits:
   gojek/feast:
   - name: test-core-and-ingestion
     decorate: true
-    always_run: true
     spec:
       containers:
       - image: maven:3.6-jdk-11
@@ -91,7 +90,6 @@ presubmits:
 
   - name: test-serving
     decorate: true
-    always_run: true
     spec:
       containers:
       - image: maven:3.6-jdk-11
@@ -111,7 +109,6 @@ presubmits:
 
   - name: test-java-sdk
     decorate: true
-    always_run: true
     spec:
       containers:
       - image: maven:3.6-jdk-11
@@ -131,7 +128,6 @@ presubmits:
 
   - name: test-python-sdk
     decorate: true
-    always_run: true
     spec:
       containers:
       - image: python:3.7
@@ -139,7 +135,6 @@ presubmits:
 
   - name: test-golang-sdk
     decorate: true
-    always_run: true
     spec:
       containers:
       - image: golang:1.13
@@ -147,7 +142,6 @@ presubmits:
 
   - name: test-end-to-end
     decorate: true
-    always_run: true
     spec:
       containers:
       - image: maven:3.6-jdk-11
@@ -175,7 +169,6 @@ presubmits:
 
   - name: test-end-to-end-batch
     decorate: true
-    always_run: true
     spec:
       volumes:
       - name: service-account
