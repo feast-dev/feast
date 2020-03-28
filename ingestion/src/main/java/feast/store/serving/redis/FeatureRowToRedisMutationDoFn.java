@@ -62,7 +62,9 @@ public class FeatureRowToRedisMutationDoFn extends DoFn<FeatureRow, RedisMutatio
       }
     }
     for (String entityName : entityNames) {
-      redisKeyBuilder.addEntities(entityFields.get(entityName));
+      if (entityFields.containsKey(entityName)) {
+        redisKeyBuilder.addEntities(entityFields.get(entityName));
+      }
     }
     return redisKeyBuilder.build();
   }
