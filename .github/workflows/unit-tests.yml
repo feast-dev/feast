@@ -1,10 +1,6 @@
 name: unit tests
 
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+on: [push, pull_request]
 
 jobs:
   unit-test-java:
