@@ -17,6 +17,7 @@
 package feast.storage.connectors.bigquery.write;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.auto.value.AutoValue;
 import com.google.common.io.Resources;
 import feast.storage.api.write.DeadletterSink;
@@ -36,6 +37,7 @@ public class BigQueryDeadletterSink implements DeadletterSink {
 
   private static final String DEADLETTER_SCHEMA_FILE_PATH = "schemas/deadletter_table_schema.json";
   private static final Logger log = org.slf4j.LoggerFactory.getLogger(BigQueryDeadletterSink.class);
+  private static final String TIMESTAMP_COLUMN = "timestamp";
 
   private final String tableSpec;
   private String jsonSchema;
@@ -97,6 +99,8 @@ public class BigQueryDeadletterSink implements DeadletterSink {
 
     @Override
     public PDone expand(PCollection<FailedElement> input) {
+      TimePartitioning partition = new TimePartitioning().setType("DAY");
+      partition.setField(TIMESTAMP_COLUMN);
       input
           .apply("FailedElementToTableRow", ParDo.of(new FailedElementToTableRowFn()))
           .apply(
@@ -104,6 +108,7 @@ public class BigQueryDeadletterSink implements DeadletterSink {
               BigQueryIO.writeTableRows()
                   .to(getTableSpec())
                   .withJsonSchema(getJsonSchema())
+                  .withTimePartitioning(partition)
                   .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                   .withWriteDisposition(WriteDisposition.WRITE_APPEND));
       return PDone.in(input.getPipeline());
@@ -116,7 +121,7 @@ public class BigQueryDeadletterSink implements DeadletterSink {
       final FailedElement element = context.element();
       final TableRow tableRow =
           new TableRow()
-              .set("timestamp", element.getTimestamp().toString())
+              .set(TIMESTAMP_COLUMN, element.getTimestamp().toString())
               .set("job_name", element.getJobName())
               .set("transform_name", element.getTransformName())
               .set("payload", element.getPayload())
