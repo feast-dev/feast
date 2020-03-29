@@ -29,14 +29,14 @@ import feast.ingestion.options.ImportOptions;
 import feast.ingestion.options.StringListStreamConverter;
 import feast.ingestion.transform.ReadFromSource;
 import feast.ingestion.transform.ValidateFeatureRows;
-import feast.ingestion.transform.WriteFailedElementToBigQuery;
 import feast.ingestion.transform.metrics.WriteFailureMetricsTransform;
 import feast.ingestion.transform.metrics.WriteSuccessMetricsTransform;
-import feast.ingestion.utils.ResourceUtil;
 import feast.ingestion.utils.SpecUtil;
+import feast.storage.api.write.DeadletterSink;
 import feast.storage.api.write.FailedElement;
 import feast.storage.api.write.FeatureSink;
 import feast.storage.api.write.WriteResult;
+import feast.storage.connectors.bigquery.write.BigQueryDeadletterSink;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.io.IOException;
 import java.util.HashMap;
@@ -141,32 +141,21 @@ public class ImportJob {
 
       // Step 4. Write FailedElements to a dead letter table in BigQuery.
       if (options.getDeadLetterTableSpec() != null) {
+        // TODO: make deadletter destination type configurable
+        DeadletterSink deadletterSink =
+            new BigQueryDeadletterSink(options.getDeadLetterTableSpec());
+
         convertedFeatureRows
             .get(DEADLETTER_OUT)
-            .apply(
-                "WriteFailedElements_ReadFromSource",
-                WriteFailedElementToBigQuery.newBuilder()
-                    .setJsonSchema(ResourceUtil.getDeadletterTableSchemaJson())
-                    .setTableSpec(options.getDeadLetterTableSpec())
-                    .build());
+            .apply("WriteFailedElements_ReadFromSource", deadletterSink.write());
 
         validatedRows
             .get(DEADLETTER_OUT)
-            .apply(
-                "WriteFailedElements_ValidateRows",
-                WriteFailedElementToBigQuery.newBuilder()
-                    .setJsonSchema(ResourceUtil.getDeadletterTableSchemaJson())
-                    .setTableSpec(options.getDeadLetterTableSpec())
-                    .build());
+            .apply("WriteFailedElements_ValidateRows", deadletterSink.write());
 
         writeFeatureRows
             .getFailedInserts()
-            .apply(
-                "WriteFailedElements_WriteFeatureRowToStore",
-                WriteFailedElementToBigQuery.newBuilder()
-                    .setJsonSchema(ResourceUtil.getDeadletterTableSchemaJson())
-                    .setTableSpec(options.getDeadLetterTableSpec())
-                    .build());
+            .apply("WriteFailedElements_WriteFeatureRowToStore", deadletterSink.write());
       }
 
       // Step 5. Write metrics to a metrics sink.
