@@ -35,7 +35,6 @@ from feast.constants import (
     CONFIG_CORE_URL_KEY,
     CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY,
     CONFIG_PROJECT_KEY,
-    CONFIG_SERVING_ENABLE_AUTH_KEY,
     CONFIG_SERVING_ENABLE_SSL_KEY,
     CONFIG_SERVING_SERVER_SSL_CERT_KEY,
     CONFIG_SERVING_URL_KEY,
@@ -145,11 +144,11 @@ class Client:
             channel = create_grpc_channel(
                 url=self._config.get(CONFIG_SERVING_URL_KEY),
                 enable_ssl=self._config.getboolean(CONFIG_SERVING_ENABLE_SSL_KEY),
-                enable_auth=self._config.getboolean(CONFIG_SERVING_ENABLE_AUTH_KEY),
+                enable_auth=False,
                 ssl_server_cert_path=self._config.get(
                     CONFIG_SERVING_SERVER_SSL_CERT_KEY
                 ),
-                auth_metadata_plugin=self._auth_metadata,
+                auth_metadata_plugin=None,
                 timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
             )
             self._serving_service_stub = ServingServiceStub(channel)
