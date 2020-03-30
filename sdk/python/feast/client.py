@@ -667,6 +667,7 @@ class Client:
         Returns:
             List of IngestJobs matching the given filters
         """
+        self._connect_core()
         # construct list request
         feature_set_ref = None
         if feature_set is not None:
@@ -681,7 +682,9 @@ class Client:
         request = ListIngestionJobsRequest(filter=list_filter)
         # make list request & unpack response
         response = self._core_service_stub.ListIngestionJobs(request)
-        ingest_jobs = [IngestJob(proto) for proto in response.jobs]
+        ingest_jobs = [
+            IngestJob(proto, self._core_service_stub) for proto in response.jobs
+        ]
         return ingest_jobs
 
     def restart_ingest_job(self, job: IngestJob):
@@ -695,6 +698,7 @@ class Client:
         Args:
             job: IngestJob to restart
         """
+        self._connect_core()
         request = RestartIngestionJobRequest(id=job.id)
         self._core_service_stub.RestartIngestionJob(request)
 
@@ -708,6 +712,7 @@ class Client:
         Args:
             job: IngestJob to restart
         """
+        self._connect_core()
         request = StopIngestionJobRequest(id=job.id)
         self._core_service_stub.StopIngestionJob(request)
 
