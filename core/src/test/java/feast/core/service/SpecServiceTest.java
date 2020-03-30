@@ -781,6 +781,42 @@ public class SpecServiceTest {
   }
 
   @Test
+  public void applyFeatureSetShouldNotAcceptLabelsWithEmptyKey()
+      throws InvalidProtocolBufferException {
+    List<EntitySpec> entitySpecs = new ArrayList<>();
+    entitySpecs.add(EntitySpec.newBuilder().setName("entity1").setValueType(Enum.INT64).build());
+
+    Map<String, String> featureLabels =
+        new HashMap<>() {
+          {
+            put("", "empty_key");
+          }
+        };
+
+    List<FeatureSpec> featureSpecs = new ArrayList<>();
+    featureSpecs.add(
+        FeatureSpec.newBuilder()
+            .setName("feature1")
+            .setValueType(Enum.INT64)
+            .putAllLabels(featureLabels)
+            .build());
+
+    FeatureSetSpec featureSetSpec =
+        FeatureSetSpec.newBuilder()
+            .setProject("project1")
+            .setName("featureSetWithConstraints")
+            .addAllEntities(entitySpecs)
+            .addAllFeatures(featureSpecs)
+            .build();
+    FeatureSetProto.FeatureSet featureSet =
+        FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSetSpec).build();
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Labels key on Feature spec should not be an empty string");
+    specService.applyFeatureSet(featureSet);
+  }
+
+  @Test
   public void shouldUpdateStoreIfConfigChanges() throws InvalidProtocolBufferException {
     when(storeRepository.findById("SERVING")).thenReturn(Optional.of(stores.get(0)));
     StoreProto.Store newStore =

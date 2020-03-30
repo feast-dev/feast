@@ -44,6 +44,10 @@ public class FeatureSetValidator {
     }
     for (FeatureSpec featureSpec : featureSet.getSpec().getFeaturesList()) {
       checkValidCharacters(featureSpec.getName(), "features::name");
+      if (featureSpec.getLabelsMap().containsKey("")) {
+        throw new IllegalArgumentException(
+            "Labels key on Feature spec should not be an empty string");
+      }
     }
   }
 
