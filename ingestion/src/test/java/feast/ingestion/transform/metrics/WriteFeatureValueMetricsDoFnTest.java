@@ -19,6 +19,9 @@ package feast.ingestion.transform.metrics;
 import static org.junit.Assert.fail;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Timestamp;
+import com.google.protobuf.util.Timestamps;
+import feast.test.TestUtil.DummyStatsDServer;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FeatureRowProto.FeatureRow.Builder;
 import feast.types.FieldProto.Field;
@@ -32,13 +35,10 @@ import feast.types.ValueProto.StringList;
 import feast.types.ValueProto.Value;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.SocketException;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -100,11 +100,12 @@ public class WriteFeatureValueMetricsDoFnTest {
         fail(String.format("Expected StatsD metric not found:\n%s", expected));
       }
     }
+    statsDServer.stop();
   }
 
   // Test utility method to read expected StatsD metrics output from a text file.
   @SuppressWarnings("SameParameterValue")
-  private List<String> readTestOutput(String path) throws IOException {
+  public static List<String> readTestOutput(String path) throws IOException {
     URL url = Thread.currentThread().getContextClassLoader().getResource(path);
     if (url == null) {
       throw new IllegalArgumentException(
@@ -123,9 +124,19 @@ public class WriteFeatureValueMetricsDoFnTest {
     return lines;
   }
 
+  public static Map<String, Iterable<FeatureRow>> readTestInput(String path) throws IOException {
+    return readTestInput(path, null);
+  }
+
   // Test utility method to create test feature row data from a text file.
+  // If tsOverride is not null, all the feature row will have the same timestamp "tsOverride".
+  // Else if there exist a "timestamp" column with RFC3339 format, the feature row will be assigned
+  // that timestamp.
+  // Else no timestamp will be assigned (the feature row will have the default proto Timestamp
+  // object).
   @SuppressWarnings("SameParameterValue")
-  private Map<String, Iterable<FeatureRow>> readTestInput(String path) throws IOException {
+  public static Map<String, Iterable<FeatureRow>> readTestInput(String path, Timestamp tsOverride)
+      throws IOException {
     Map<String, List<FeatureRow>> data = new HashMap<>();
     URL url = Thread.currentThread().getContextClassLoader().getResource(path);
     if (url == null) {
@@ -162,6 +173,13 @@ public class WriteFeatureValueMetricsDoFnTest {
           continue;
         }
         String colName = colNames.get(i);
+        if (colName.equals("timestamp")) {
+          Instant instant = Instant.parse(colVal);
+          featureRowBuilder.setEventTimestamp(
+              Timestamps.fromNanos(instant.getEpochSecond() * 1_000_000_000 + instant.getNano()));
+          continue;
+        }
+
         Field.Builder fieldBuilder = Field.newBuilder().setName(colName);
         if (!colVal.isEmpty()) {
           switch (colName) {
@@ -245,6 +263,9 @@ public class WriteFeatureValueMetricsDoFnTest {
         data.put(featureRowBuilder.getFeatureSet(), new ArrayList<>());
       }
       List<FeatureRow> featureRowsByFeatureSetRef = data.get(featureRowBuilder.getFeatureSet());
+      if (tsOverride != null) {
+        featureRowBuilder.setEventTimestamp(tsOverride);
+      }
       featureRowsByFeatureSetRef.add(featureRowBuilder.build());
     }
 
@@ -257,62 +278,5 @@ public class WriteFeatureValueMetricsDoFnTest {
       dataWithIterable.put(key, value);
     }
     return dataWithIterable;
-  }
-
-  // Modified version of
-  // https://github.com/tim-group/java-statsd-client/blob/master/src/test/java/com/timgroup/statsd/NonBlockingStatsDClientTest.java
-  @SuppressWarnings("CatchMayIgnoreException")
-  private static final class DummyStatsDServer {
-
-    private final List<String> messagesReceived = new ArrayList<String>();
-    private final DatagramSocket server;
-
-    public DummyStatsDServer(int port) {
-      try {
-        server = new DatagramSocket(port);
-      } catch (SocketException e) {
-        throw new IllegalStateException(e);
-      }
-      new Thread(
-              () -> {
-                try {
-                  while (true) {
-                    final DatagramPacket packet = new DatagramPacket(new byte[65535], 65535);
-                    server.receive(packet);
-                    messagesReceived.add(
-                        new String(packet.getData(), StandardCharsets.UTF_8).trim() + "\n");
-                    // The sleep duration here is shorter than that used in waitForMessage() at
-                    // 50ms.
-                    // Otherwise sometimes some messages seem to be lost, leading to flaky tests.
-                    Thread.sleep(15L);
-                  }
-
-                } catch (Exception e) {
-                }
-              })
-          .start();
-    }
-
-    public void stop() {
-      server.close();
-    }
-
-    public void waitForMessage() {
-      while (messagesReceived.isEmpty()) {
-        try {
-          Thread.sleep(50L);
-        } catch (InterruptedException e) {
-        }
-      }
-    }
-
-    public List<String> messagesReceived() {
-      List<String> out = new ArrayList<>();
-      for (String msg : messagesReceived) {
-        String[] lines = msg.split("\n");
-        out.addAll(Arrays.asList(lines));
-      }
-      return out;
-    }
   }
 }
