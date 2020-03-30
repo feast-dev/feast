@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Dict, Optional
+
 from feast.value_type import ValueType
 
 
@@ -21,7 +23,7 @@ class Field:
     features.
     """
 
-    def __init__(self, name: str, dtype: ValueType, labels=None):
+    def __init__(self, name: str, dtype: ValueType, labels: Optional[Dict] = None):
         self._name = name
         if not isinstance(dtype, ValueType):
             raise ValueError("dtype is not a valid ValueType")
