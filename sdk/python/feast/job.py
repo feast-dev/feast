@@ -7,6 +7,8 @@ import fastavro
 import pandas as pd
 from google.cloud import storage
 
+from feast.feature_set import FeatureSet
+from feast.source import Source
 from feast.serving.ServingService_pb2 import (
     DATA_FORMAT_AVRO,
     JOB_STATUS_DONE,
@@ -14,6 +16,7 @@ from feast.serving.ServingService_pb2 import (
 )
 from feast.serving.ServingService_pb2 import Job as JobProto
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
+from feast.core.IngestionJob_pb2 import IngestionJob as IngestJobProto
 
 # Maximum no of seconds to wait until the jobs status is DONE in Feast
 # Currently set to the maximum query execution time limit in BigQuery
@@ -187,3 +190,62 @@ class Job:
 
     def __iter__(self):
         return iter(self.result())
+
+
+class IngestJob:
+    """
+    Defines a job that ingests feature data into feast.
+    """
+
+    def __init__(self, job_proto: IngestJobProto):
+        """
+        Construct a native ingest job from its protobuf version.
+
+        Args:
+        job_proto: Job proto object to construct from.
+        """
+        self.proto = job_proto
+
+    @property
+    def id(self):
+        """
+        Getter for IngestJob's job id.
+        """
+        return self.proto.id
+
+    @property
+    def external_id(self):
+        """
+        Getter for IngestJob's external job id.
+        """
+        return self.proto.id
+
+    @property
+    def status(self):
+        """
+        Getter for IngestJob's status
+        """
+        # TODO: refresh current status from core service
+        return self.proto.status
+
+    @property
+    def feature_sets(self):
+        """
+        Getter for the IngestJob's feature sets
+        """
+        # convert featureset protos to native objects
+        return [FeatureSet.from_proto(fs) for fs in self.proto.feature_sets]
+
+    @property
+    def source(self):
+        """
+        Getter for the IngestJob's data source
+        """
+        return Source.from_proto(self.proto.source)
+
+    @property
+    def store(self):
+        """
+        Getter for the IngestJob's target feast store.
+        """
+        return self.proto.source
