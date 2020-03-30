@@ -159,19 +159,20 @@ def test_basic_ingest_jobs(client, basic_dataframe):
     cust_trans_fs = client.get_feature_set(name="customer_transactions")
     jobs = client.list_ingest_jobs(feature_set=cust_trans_fs)
     assert len(jobs) >= 1
-    job = jobs[0]
-    job.wait(IngestionJobStatus.RUNNING)
-    assert job.status == IngestionJobStatus.RUNNING
 
-    # restart ingestion job
-    client.restart_ingest_job(job)
-    job.wait(IngestionJobStatus.RUNNING)
-    assert job.status == IngestionJobStatus.RUNNING
+    for job in jobs:
+        job.wait(IngestionJobStatus.RUNNING)
+        assert job.status == IngestionJobStatus.RUNNING
 
-    # stop ingestion job
-    client.stop_ingest_job(job)
-    job.wait(IngestionJobStatus.ABORTED)
-    assert job.status == IngestionJobStatus.ABORTED
+        # stop ingestion job
+        client.stop_ingest_job(job)
+        job.wait(IngestionJobStatus.ABORTED)
+        assert job.status == IngestionJobStatus.ABORTED
+
+        # restart ingestion job
+        client.restart_ingest_job(job)
+        job.wait(IngestionJobStatus.RUNNING)
+        assert job.status == IngestionJobStatus.RUNNING
 
 
 @pytest.fixture(scope='module')
