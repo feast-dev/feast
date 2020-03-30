@@ -84,7 +84,12 @@ public class JobService {
   public ListIngestionJobsResponse listJobs(ListIngestionJobsRequest request)
       throws InvalidProtocolBufferException {
     Set<String> matchingJobIds = new HashSet<>();
-    if (request.hasFilter()) {
+
+    // check that filter specified and not empty
+    if (request.hasFilter()
+        && !(request.getFilter().getId() == ""
+            && request.getFilter().getStoreName() == ""
+            && request.getFilter().hasFeatureSetReference() == false)) {
       // filter jobs based on request filter
       ListIngestionJobsRequest.Filter filter = request.getFilter();
 
@@ -122,7 +127,7 @@ public class JobService {
         }
       }
     } else {
-      // no filter: match all jobs
+      // no or empty filter: match all jobs
       matchingJobIds =
           this.jobRepository.findAll().stream().map(Job::getId).collect(Collectors.toSet());
     }

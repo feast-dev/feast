@@ -146,6 +146,7 @@ public class JobServiceTest {
         .thenReturn(Arrays.asList(this.job));
     when(this.jobRepository.findByFeatureSetsIn(Arrays.asList(this.featureSet)))
         .thenReturn(Arrays.asList(this.job));
+    when(this.jobRepository.findAll()).thenReturn(Arrays.asList(this.job));
   }
 
   // TODO: setup fake job manager
@@ -178,7 +179,7 @@ public class JobServiceTest {
     return new Job(
         id,
         extId,
-        Runner.DATAFLOW.toString(),
+        Runner.DATAFLOW.name(),
         this.dataSource,
         this.dataStore,
         Arrays.asList(this.featureSet),
@@ -251,6 +252,15 @@ public class JobServiceTest {
         ListIngestionJobsRequest.Filter.newBuilder().setId(this.job.getId()).build();
     ListIngestionJobsRequest request =
         ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
+    assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
+
+    // list with no filter
+    request = ListIngestionJobsRequest.newBuilder().build();
+    assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
+
+    // list with empty filter
+    filter = ListIngestionJobsRequest.Filter.newBuilder().build();
+    request = ListIngestionJobsRequest.newBuilder().setFilter(filter).build();
     assertThat(this.tryListJobs(request).getJobs(0), equalTo(this.ingestionJob));
   }
 
