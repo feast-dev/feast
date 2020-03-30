@@ -2,6 +2,7 @@ import tempfile
 import time
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
+from typing import List
 
 import fastavro
 import pandas as pd
@@ -16,7 +17,9 @@ from feast.serving.ServingService_pb2 import (
 )
 from feast.serving.ServingService_pb2 import Job as JobProto
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
+from feast.core.Store_pb2 import Store
 from feast.core.IngestionJob_pb2 import IngestionJob as IngestJobProto
+from feast.core.IngestionJob_pb2 import IngestionJobStatus
 
 # Maximum no of seconds to wait until the jobs status is DONE in Feast
 # Currently set to the maximum query execution time limit in BigQuery
@@ -207,21 +210,21 @@ class IngestJob:
         self.proto = job_proto
 
     @property
-    def id(self):
+    def id(self) -> str:
         """
         Getter for IngestJob's job id.
         """
         return self.proto.id
 
     @property
-    def external_id(self):
+    def external_id(self) -> str:
         """
         Getter for IngestJob's external job id.
         """
         return self.proto.id
 
     @property
-    def status(self):
+    def status(self) -> IngestionJobStatus:
         """
         Getter for IngestJob's status
         """
@@ -229,7 +232,7 @@ class IngestJob:
         return self.proto.status
 
     @property
-    def feature_sets(self):
+    def feature_sets(self) -> List[FeatureSet]:
         """
         Getter for the IngestJob's feature sets
         """
@@ -237,14 +240,14 @@ class IngestJob:
         return [FeatureSet.from_proto(fs) for fs in self.proto.feature_sets]
 
     @property
-    def source(self):
+    def source(self) -> Source:
         """
         Getter for the IngestJob's data source
         """
         return Source.from_proto(self.proto.source)
 
     @property
-    def store(self):
+    def store(self) -> Store:
         """
         Getter for the IngestJob's target feast store.
         """
