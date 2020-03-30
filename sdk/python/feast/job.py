@@ -20,6 +20,8 @@ from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 from feast.core.Store_pb2 import Store
 from feast.core.IngestionJob_pb2 import IngestionJob as IngestJobProto
 from feast.core.IngestionJob_pb2 import IngestionJobStatus
+from feast.core.CoreService_pb2_grpc import CoreServiceStub
+from feast.core.CoreService_pb2 import ListIngestionJobsRequest
 
 # Maximum no of seconds to wait until the jobs status is DONE in Feast
 # Currently set to the maximum query execution time limit in BigQuery
@@ -39,7 +41,6 @@ class Job:
         Args:
             job_proto: Job proto object (wrapped by this job object)
             serving_stub: Stub for Feast serving service
-            storage_client: Google Cloud Storage client
         """
         self.job_proto = job_proto
         self.serving_stub = serving_stub
@@ -200,14 +201,16 @@ class IngestJob:
     Defines a job that ingests feature data into feast.
     """
 
-    def __init__(self, job_proto: IngestJobProto):
+    def __init__(self, job_proto: IngestJobProto, core_stub: CoreServiceStub):
         """
         Construct a native ingest job from its protobuf version.
 
         Args:
         job_proto: Job proto object to construct from.
+        core_stub: stub for Feast CoreService
         """
         self.proto = job_proto
+        self.core_svc = core_stub
 
     @property
     def id(self) -> str:
@@ -221,14 +224,15 @@ class IngestJob:
         """
         Getter for IngestJob's external job id.
         """
-        return self.proto.id
+        self.reload()
+        return self.proto.external_id
 
     @property
     def status(self) -> IngestionJobStatus:
         """
         Getter for IngestJob's status
         """
-        # TODO: refresh current status from core service
+        self.reload()
         return self.proto.status
 
     @property
@@ -252,3 +256,13 @@ class IngestJob:
         Getter for the IngestJob's target feast store.
         """
         return self.proto.source
+
+    def reload(self):
+        """
+        Update this IngestJob with the latest info from Feast
+        """
+        # pull latest proto from feast core
+        response = self.core_svc.ListIngestionJobs(
+            ListIngestionJobsRequest(filter=ListIngestionJobsRequest.Filter(id=self.id))
+        )
+        self.proto = response.jobs[0]
