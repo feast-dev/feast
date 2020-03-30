@@ -7,6 +7,7 @@ from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequest,
     GetOnlineFeaturesResponse,
 )
+from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.types.Value_pb2 import Value as Value
 from feast.client import Client
 from feast.feature_set import FeatureSet
@@ -108,7 +109,6 @@ def test_basic_ingest_success(client, basic_dataframe):
     client.ingest(cust_trans_fs, basic_dataframe)
     time.sleep(5)
 
-
 @pytest.mark.timeout(45)
 @pytest.mark.run(order=12)
 def test_basic_retrieve_online_success(client, basic_dataframe):
@@ -151,6 +151,27 @@ def test_basic_retrieve_online_success(client, basic_dataframe):
             abs_tol=FLOAT_TOLERANCE,
         ):
             break
+
+@pytest.mark.timeout(900)
+@pytest.mark.run(order=19)
+def test_basic_ingest_jobs(client, basic_dataframe):
+    # list ingestion jobs given featureset
+    cust_trans_fs = client.get_feature_set(name="customer_transactions")
+    jobs = client.list_ingest_jobs(feature_set=cust_trans_fs)
+    assert len(jobs) >= 1
+    job = jobs[0]
+    job.wait(IngestionJobStatus.RUNNING)
+    assert job.status == IngestionJobStatus.RUNNING
+
+    # restart ingestion job
+    client.restart_ingest_job(job)
+    job.wait(IngestionJobStatus.RUNNING)
+    assert job.status == IngestionJobStatus.RUNNING
+
+    # stop ingestion job
+    client.stop_ingest_job(job)
+    job.wait(IngestionJobStatus.ABORTED)
+    assert job.status == IngestionJobStatus.ABORTED
 
 
 @pytest.fixture(scope='module')
