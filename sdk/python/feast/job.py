@@ -212,6 +212,16 @@ class IngestJob:
         self.proto = job_proto
         self.core_svc = core_stub
 
+    def reload(self):
+        """
+        Update this IngestJob with the latest info from Feast
+        """
+        # pull latest proto from feast core
+        response = self.core_svc.ListIngestionJobs(
+            ListIngestionJobsRequest(filter=ListIngestionJobsRequest.Filter(id=self.id))
+        )
+        self.proto = response.jobs[0]
+
     @property
     def id(self) -> str:
         """
@@ -246,7 +256,7 @@ class IngestJob:
     @property
     def source(self) -> Source:
         """
-        Getter for the IngestJob's data source
+        Getter for the IngestJob's data source.
         """
         return Source.from_proto(self.proto.source)
 
@@ -257,12 +267,25 @@ class IngestJob:
         """
         return self.proto.source
 
-    def reload(self):
+    def wait(
+        self, status: IngestionJobStatus, timeout: float = 300, interval: float = 5
+    ):
         """
-        Update this IngestJob with the latest info from Feast
+        Wait for this IngestJob to transtion to the given status.
+        Raises TimeoutError if the wait operation times out.
+
+        Args:
+            status: The IngestionJobStatus to wait for.
+            timeout: Maximum seconds to wait before timing out.
+            interval: The interval to wait between checking the IngestJob status.
         """
-        # pull latest proto from feast core
-        response = self.core_svc.ListIngestionJobs(
-            ListIngestionJobsRequest(filter=ListIngestionJobsRequest.Filter(id=self.id))
-        )
-        self.proto = response.jobs[0]
+        # poll & wait for job status to transition
+        wait_begin = time.time()
+        elapsed = 0
+        while self.status != status and elapsed <= timeout:
+            time.sleep(interval)
+            elapsed = time.time() - wait_begin
+
+        # raise error if timeout
+        if elapsed > timeout:
+            raise TimeoutError("Wait for IngestJob's status to transition timed out")
