@@ -152,27 +152,27 @@ def test_basic_retrieve_online_success(client, basic_dataframe):
         ):
             break
 
-@pytest.mark.timeout(900)
-@pytest.mark.run(order=19)
+@pytest.mark.timeout(300)
+@pytest.mark.run(order=14)
 def test_basic_ingest_jobs(client, basic_dataframe):
     # list ingestion jobs given featureset
     cust_trans_fs = client.get_feature_set(name="customer_transactions")
-    jobs = client.list_ingest_jobs(feature_set=cust_trans_fs)
-    assert len(jobs) >= 1
+    ingest_jobs = client.list_ingest_jobs(feature_set=cust_trans_fs)
+    assert len(ingest_jobs) >= 1
 
-    for job in jobs:
-        job.wait(IngestionJobStatus.RUNNING)
-        assert job.status == IngestionJobStatus.RUNNING
+    for ingest_job in ingest_jobs:
+        ingest_job.wait(IngestionJobStatus.RUNNING)
+        assert ingest_job.status == IngestionJobStatus.RUNNING
 
-        # stop ingestion job
-        client.stop_ingest_job(job)
-        job.wait(IngestionJobStatus.ABORTED)
-        assert job.status == IngestionJobStatus.ABORTED
+        # stop ingestion ingest_job
+        client.stop_ingest_job(ingest_job)
+        ingest_job.wait(IngestionJobStatus.ABORTED)
+        assert ingest_job.status == IngestionJobStatus.ABORTED
 
-        # restart ingestion job
-        client.restart_ingest_job(job)
-        job.wait(IngestionJobStatus.RUNNING)
-        assert job.status == IngestionJobStatus.RUNNING
+        # restart ingestion ingest_job
+        client.restart_ingest_job(ingest_job)
+        ingest_job.wait(IngestionJobStatus.RUNNING)
+        assert ingest_job.status == IngestionJobStatus.RUNNING
 
 
 @pytest.fixture(scope='module')
@@ -333,6 +333,27 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
         ):
             break
 
+@pytest.mark.timeout(300)
+@pytest.mark.run(order=23)
+def test_all_types_ingest_jobs(client, basic_dataframe):
+    # list ingestion jobs given featureset
+    all_types_fs = client.get_feature_set(name="all_types")
+    ingest_jobs = client.list_ingest_jobs(feature_set=all_types_fs)
+    assert len(ingest_jobs) >= 1
+
+    for ingest_job in ingest_jobs:
+        ingest_job.wait(IngestionJobStatus.RUNNING)
+        assert ingest_job.status == IngestionJobStatus.RUNNING
+
+        # stop ingestion ingest_job
+        client.stop_ingest_job(ingest_job)
+        ingest_job.wait(IngestionJobStatus.ABORTED)
+        assert ingest_job.status == IngestionJobStatus.ABORTED
+
+        # restart ingestion ingest_job
+        client.restart_ingest_job(ingest_job)
+        ingest_job.wait(IngestionJobStatus.RUNNING)
+        assert ingest_job.status == IngestionJobStatus.RUNNING
 
 @pytest.fixture(scope='module')
 def large_volume_dataframe():
@@ -487,7 +508,6 @@ def all_types_parquet_file():
     file_path = os.path.join(tempfile.mkdtemp(), 'all_types.parquet')
     df.to_parquet(file_path, allow_truncated_timestamps=True)
     return file_path
-
 
 @pytest.mark.timeout(300)
 @pytest.mark.run(order=40)
