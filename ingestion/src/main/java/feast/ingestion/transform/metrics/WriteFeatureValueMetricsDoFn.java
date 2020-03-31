@@ -121,11 +121,14 @@ public abstract class WriteFeatureValueMetricsDoFn
       ProcessContext context,
       @Element KV<String, Iterable<FeatureRow>> featureSetRefToFeatureRows) {
     if (statsDClient == null) {
+      log.error("StatsD client is null, likely because it encounters an error during setup");
       return;
     }
 
     String featureSetRef = featureSetRefToFeatureRows.getKey();
     if (featureSetRef == null) {
+      log.error(
+          "Feature set reference in the feature row is null. Please check the input feature rows from previous steps");
       return;
     }
     String[] colonSplits = featureSetRef.split(":");

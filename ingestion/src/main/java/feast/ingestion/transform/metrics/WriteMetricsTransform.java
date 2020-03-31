@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
@@ -73,52 +74,47 @@ public abstract class WriteMetricsTransform extends PTransform<PCollectionTuple,
                         .setStoreName(getStoreName())
                         .build()));
 
-        input
-            .get(getSuccessTag())
-            .apply(
-                "WriteRowMetrics",
-                ParDo.of(
-                    WriteRowMetricsDoFn.newBuilder()
-                        .setStatsdHost(options.getStatsdHost())
-                        .setStatsdPort(options.getStatsdPort())
-                        .setStoreName(getStoreName())
-                        .build()));
+        // Fixed window is applied so the metric collector will not be overwhelmed with the metrics
+        // data. For validation, only summaries of the values are usually required vs the actual
+        // values.
+        PCollection<KV<String, Iterable<FeatureRow>>> validRowsGroupedByRef =
+            input
+                .get(getSuccessTag())
+                .apply(
+                    "FixedWindow",
+                    Window.into(
+                        FixedWindows.of(
+                            Duration.standardSeconds(
+                                options.getWindowSizeInSecForFeatureValueMetric()))))
+                .apply(
+                    "ConvertToKV_FeatureSetRefToFeatureRow",
+                    ParDo.of(
+                        new DoFn<FeatureRow, KV<String, FeatureRow>>() {
+                          @ProcessElement
+                          public void processElement(
+                              ProcessContext c, @Element FeatureRow featureRow) {
+                            c.output(KV.of(featureRow.getFeatureSet(), featureRow));
+                          }
+                        }))
+                .apply("GroupByFeatureSetRef", GroupByKey.create());
 
-        // 1. Apply a fixed window
-        // 2. Group feature row by feature set reference
-        // 3. Calculate min, max, mean, percentiles of numerical values of features in the window
-        // and
-        // 4. Send the aggregate value to StatsD metric collector.
-        //
-        // NOTE: window is applied here so the metric collector will not be overwhelmed with
-        // metrics data. And for metric data, only statistic of the  values are usually required
-        // vs the actual values.
-        input
-            .get(getSuccessTag())
-            .apply(
-                "FixedWindow",
-                Window.into(
-                    FixedWindows.of(
-                        Duration.standardSeconds(
-                            options.getWindowSizeInSecForFeatureValueMetric()))))
-            .apply(
-                "ConvertTo_FeatureSetRefToFeatureRow",
-                ParDo.of(
-                    new DoFn<FeatureRow, KV<String, FeatureRow>>() {
-                      @ProcessElement
-                      public void processElement(ProcessContext c, @Element FeatureRow featureRow) {
-                        c.output(KV.of(featureRow.getFeatureSet(), featureRow));
-                      }
-                    }))
-            .apply("GroupByFeatureSetRef", GroupByKey.create())
-            .apply(
-                "WriteFeatureValueMetrics",
-                ParDo.of(
-                    WriteFeatureValueMetricsDoFn.newBuilder()
-                        .setStatsdHost(options.getStatsdHost())
-                        .setStatsdPort(options.getStatsdPort())
-                        .setStoreName(getStoreName())
-                        .build()));
+        validRowsGroupedByRef.apply(
+            "WriteRowMetrics",
+            ParDo.of(
+                WriteRowMetricsDoFn.newBuilder()
+                    .setStatsdHost(options.getStatsdHost())
+                    .setStatsdPort(options.getStatsdPort())
+                    .setStoreName(getStoreName())
+                    .build()));
+
+        validRowsGroupedByRef.apply(
+            "WriteFeatureValueMetrics",
+            ParDo.of(
+                WriteFeatureValueMetricsDoFn.newBuilder()
+                    .setStatsdHost(options.getStatsdHost())
+                    .setStatsdPort(options.getStatsdPort())
+                    .setStoreName(getStoreName())
+                    .build()));
 
         return PDone.in(input.getPipeline());
       case "none":
