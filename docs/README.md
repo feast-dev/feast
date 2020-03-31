@@ -1,4 +1,4 @@
-# Overview
+# What is Feast?
 
 Feast \(**Fea**ture **St**ore\) is a tool for managing and serving machine learning features.
 

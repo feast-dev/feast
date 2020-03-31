@@ -22,7 +22,7 @@
 
 **Problem:** Teams define features differently and there is no easy access to the documentation of a feature.
 
-**Solution:** Feast becomes the single source of truth for all feature data for all models within an organizations. Teams are able to capture documentation, metadata and metrics about features. This allows teams to communicate clearly about features, test features data, and determine if a feature is useful for a particular model.
+**Solution:** Feast becomes the single source of truth for all feature data for all models within an organization. Teams are able to capture documentation, metadata and metrics about features. This allows teams to communicate clearly about features, test features data, and determine if a feature is useful for a particular model.
 
 ## **Inconsistency between training and serving**
 
