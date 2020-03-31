@@ -73,7 +73,7 @@ def export_source_to_staging_location(
         )
     elif urlparse(source).scheme in ["", "file"]:
         # Local file provided as a source
-        dir_path = None
+        dir_path = ""
         file_name = os.path.basename(source)
         source_path = os.path.abspath(
             os.path.join(urlparse(source).netloc, urlparse(source).path)
@@ -111,7 +111,7 @@ def export_source_to_staging_location(
         )
 
     # Clean up, remove local staging file
-    if dir_path and isinstance(source, pd.DataFrame) and len(str(dir_path)) > 4:
+    if isinstance(source, pd.DataFrame) and len(str(dir_path)) > 4:
         shutil.rmtree(dir_path)
 
     return [staging_location_uri.rstrip("/") + "/" + file_name]
