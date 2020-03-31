@@ -11,7 +11,7 @@ Feast aims to:
 * Provide consistent and point-in-time correct access to feature data.
 * Enable discovery, documentation, and insights into your features.
 
-![](.gitbook/assets/feast-docs-overview-diagram-2.svg)
+![](.gitbook/assets/feast-docs-overview-diagram-2%20%281%29.svg)
 
 **TL;DR:** Feast decouples feature engineering from feature usage. Features that are added to Feast become available immediately for training and serving. Models can retrieve the same features used in training from a low latency online store in production.
 
