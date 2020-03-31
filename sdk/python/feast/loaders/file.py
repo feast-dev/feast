@@ -83,7 +83,7 @@ def export_source_to_staging_location(
         input_source_uri = urlparse(source)
         if "*" in source:
             # Wildcard path
-            return _get_files(bucket=input_source_uri.hostname, uri=input_source_uri)
+            return _get_files(bucket=str(input_source_uri.hostname), uri=input_source_uri)
         else:
             return [source]
     else:
@@ -96,7 +96,7 @@ def export_source_to_staging_location(
     if uri.scheme == "gs":
         # Staging location is a Google Cloud Storage path
         upload_file_to_gcs(
-            source_path, uri.hostname, str(uri.path).strip("/") + "/" + file_name
+            source_path, str(uri.hostname), str(uri.path).strip("/") + "/" + file_name
         )
     elif uri.scheme == "file":
         # Staging location is a file path
