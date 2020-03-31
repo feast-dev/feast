@@ -20,7 +20,7 @@ import tempfile
 import time
 from collections import OrderedDict
 from math import ceil
-from typing import Dict, List, Optional, Tuple, Union
+from typing import cast, Dict, List, Optional, Tuple, Union
 
 import grpc
 import pandas as pd
@@ -728,7 +728,7 @@ class Client:
         while True:
             if timeout is not None and time.time() - current_time >= timeout:
                 raise TimeoutError("Timed out waiting for feature set to be ready")
-            feature_set = self.get_feature_set(name, version)
+            feature_set = cast(FeatureSet, self.get_feature_set(name, version))
             if (
                 feature_set is not None
                 and feature_set.status == FeatureSetStatus.STATUS_READY
