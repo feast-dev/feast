@@ -821,8 +821,8 @@ def _build_feature_references(
 
         feature_split = feature_version.split(":")
         if len(feature_split) == 2:
-            name, version = feature_split
-            version = int(version)
+            name = feature_split[0]
+            version = int(feature_split[1])
         elif len(feature_split) == 1:
             name = feature_split[0]
         else:
