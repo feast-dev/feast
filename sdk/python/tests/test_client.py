@@ -356,7 +356,7 @@ class TestClient:
         "mocked_client",
         [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
     )
-    def test_restart_ingestion_job(self, mocked_client, mocker):
+    def test_restart_ingest_job(self, mocked_client, mocker):
         mocker.patch.object(
             mocked_client,
             "_core_service_stub",
@@ -379,7 +379,7 @@ class TestClient:
         "mocked_client",
         [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
     )
-    def test_stop_ingestion_job(self, mocked_client, mocker):
+    def test_stop_ingest_job(self, mocked_client, mocker):
         mocker.patch.object(
             mocked_client,
             "_core_service_stub",
