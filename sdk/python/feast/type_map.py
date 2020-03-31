@@ -447,7 +447,7 @@ def pa_to_feast_value_type(value: object) -> ValueType:
     return type_map[value.type.__str__()]
 
 
-def pa_column_to_timestamp_proto_column(column: pa.lib.ChunkedArray) -> Timestamp:
+def pa_column_to_timestamp_proto_column(column: pa.lib.ChunkedArray) -> List[Timestamp]:
     if not isinstance(column.type, TimestampType):
         raise Exception("Only TimestampType columns are allowed")
 
