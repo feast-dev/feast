@@ -83,7 +83,9 @@ def export_source_to_staging_location(
         input_source_uri = urlparse(source)
         if "*" in source:
             # Wildcard path
-            return _get_files(bucket=str(input_source_uri.hostname), uri=input_source_uri)
+            return _get_files(
+                bucket=str(input_source_uri.hostname), uri=input_source_uri
+            )
         else:
             return [source]
     else:
@@ -180,8 +182,8 @@ def upload_file_to_gcs(local_path: str, bucket: str, remote_path: str) -> None:
     """
 
     storage_client = storage.Client(project=None)
-    bucket = storage_client.get_bucket(bucket)
-    blob = bucket.blob(remote_path)
+    bucket_storage = storage_client.get_bucket(bucket)
+    blob = bucket_storage.blob(remote_path)
     blob.upload_from_filename(local_path)
 
 
@@ -206,12 +208,12 @@ def _get_files(bucket: str, uri: ParseResult) -> List[str]:
     """
 
     storage_client = storage.Client(project=None)
-    bucket = storage_client.get_bucket(bucket)
+    bucket_storage = storage_client.get_bucket(bucket)
     path = uri.path
 
     if "*" in path:
         regex = re.compile(path.replace("*", ".*?").strip("/"))
-        blob_list = bucket.list_blobs(
+        blob_list = bucket_storage.list_blobs(
             prefix=path.strip("/").split("*")[0], delimiter="/"
         )
         # File path should not be in path (file path must be longer than path)
