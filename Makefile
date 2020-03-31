@@ -70,8 +70,7 @@ format-python:
 	cd ${ROOT_DIR}/sdk/python; black --target-version py37 feast tests
 
 lint-python:
-	# TODO: This mypy test needs to be re-enabled and all failures fixed
-	#cd ${ROOT_DIR}/sdk/python; mypy feast/ tests/
+	cd ${ROOT_DIR}/sdk/python; mypy feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; flake8 feast/ tests/
 	cd ${ROOT_DIR}/sdk/python; black --check feast tests
 
