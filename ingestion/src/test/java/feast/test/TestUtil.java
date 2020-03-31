@@ -36,6 +36,12 @@ import feast.types.ValueProto.StringList;
 import feast.types.ValueProto.Value;
 import feast.types.ValueProto.ValueType;
 import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
@@ -329,6 +335,63 @@ public class TestUtil {
                 }
               })
           .start();
+    }
+  }
+
+  // Modified version of
+  // https://github.com/tim-group/java-statsd-client/blob/master/src/test/java/com/timgroup/statsd/NonBlockingStatsDClientTest.java
+  @SuppressWarnings("CatchMayIgnoreException")
+  public static class DummyStatsDServer {
+
+    private final List<String> messagesReceived = new ArrayList<String>();
+    private final DatagramSocket server;
+
+    public DummyStatsDServer(int port) {
+      try {
+        server = new DatagramSocket(port);
+      } catch (SocketException e) {
+        throw new IllegalStateException(e);
+      }
+      new Thread(
+              () -> {
+                try {
+                  while (true) {
+                    final DatagramPacket packet = new DatagramPacket(new byte[65535], 65535);
+                    server.receive(packet);
+                    messagesReceived.add(
+                        new String(packet.getData(), StandardCharsets.UTF_8).trim() + "\n");
+                    // The sleep duration here is shorter than that used in waitForMessage() at
+                    // 50ms.
+                    // Otherwise sometimes some messages seem to be lost, leading to flaky tests.
+                    Thread.sleep(15L);
+                  }
+
+                } catch (Exception e) {
+                }
+              })
+          .start();
+    }
+
+    public void stop() {
+      server.close();
+    }
+
+    public void waitForMessage() {
+      while (messagesReceived.isEmpty()) {
+        try {
+          Thread.sleep(50L);
+        } catch (InterruptedException e) {
+        }
+      }
+    }
+
+    public List<String> messagesReceived() {
+      List<String> out = new ArrayList<>();
+      for (String msg : messagesReceived) {
+        String[] lines = msg.split("\n");
+        out.addAll(Arrays.asList(lines));
+      }
+      return out;
     }
   }
 
