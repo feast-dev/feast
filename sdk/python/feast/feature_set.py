@@ -296,7 +296,7 @@ class FeatureSet:
             del self._fields[name]
             return
 
-    def _add_fields(self, fields: List[Field]):
+    def _add_fields(self, fields):
         """
         Adds multiple Fields to a Feature Set
 
@@ -361,7 +361,6 @@ class FeatureSet:
 
         # Create dictionary of fields that will not be inferred (manually set)
         provided_fields = OrderedDict()
-
         for field in entities + features:
             if not isinstance(field, Field):
                 raise Exception(f"Invalid field object type provided {type(field)}")
