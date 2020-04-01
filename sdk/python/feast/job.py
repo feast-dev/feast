@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 
 import fastavro
 import pandas as pd
+from typing import List
 from google.cloud import storage
 
 from feast.serving.ServingService_pb2 import (
@@ -172,8 +173,11 @@ class Job:
             pd.DataFrame:
                 Pandas DataFrame of the feature values.
         """
+
+        # Object is Avro row type object, refer to self.result function for this type
+        records: List[dict] = []
+
         # Max chunk size defined by user
-        records = []
         for result in self.result(timeout_sec=timeout_sec):
             result.append(records)
             if len(records) == max_chunk_size:
