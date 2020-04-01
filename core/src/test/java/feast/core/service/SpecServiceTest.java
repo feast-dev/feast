@@ -863,7 +863,13 @@ public class SpecServiceTest {
   }
 
   private FeatureSet newDummyFeatureSet(String name, int version, String project) {
-    Field feature = new Field("feature", Enum.INT64);
+    FeatureSpec f1 =
+        FeatureSpec.newBuilder()
+            .setName("feature")
+            .setValueType(Enum.STRING)
+            .putLabels("key", "value")
+            .build();
+    Field feature = new Field(f1);
     Field entity = new Field("entity", Enum.STRING);
 
     FeatureSet fs =
