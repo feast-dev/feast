@@ -68,7 +68,7 @@ def _encode_pa_tables(file: str, fs: FeatureSet, row_group_idx: int) -> List[byt
     feature_set = f"{fs.project}/{fs.name}:{fs.version}"
 
     # List to store result
-    feature_rows = []
+    feature_rows: List[bytes] = []
 
     # Loop optimization declaration(s)
     field = FieldProto.Field
