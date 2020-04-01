@@ -729,12 +729,15 @@ class Client:
 
         # Update the feature set based on PyArrow table of first row group
         if force_update:
-            feature_set.infer_fields_from_pa(
-                table=pq_file.read_row_group(0),
-                discard_unused_fields=True,
-                replace_existing_features=True,
-            )
-            self.apply(feature_set)
+            if isinstance(feature_set, FeatureSet):
+                feature_set.infer_fields_from_pa(
+                    table=pq_file.read_row_group(0),
+                    discard_unused_fields=True,
+                    replace_existing_features=True,
+                )
+                self.apply(feature_set)
+            else:
+                raise Exception("Use feature set object to do force_update")
         current_time = time.time()
 
         print("Waiting for feature set to be ready for ingestion...")
