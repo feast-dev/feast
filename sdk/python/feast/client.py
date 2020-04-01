@@ -576,7 +576,7 @@ class Client:
 
         if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
             raise Exception(
-                f'You are connected to a store "{self._serving_url}" which '
+                f'You are connected to a store "{self.serving_url}" which '
                 f"does not support batch retrieval "
             )
 
