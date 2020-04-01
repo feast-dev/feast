@@ -426,7 +426,7 @@ def pa_to_value_type(pa_type: object):
     return type_map[pa_type.__str__()]
 
 
-def pa_to_feast_value_type(value: object) -> ValueType:
+def pa_to_feast_value_type(value: pa.lib.ChunkedArray) -> ValueType:
     type_map = {
         "timestamp[ms]": ValueType.INT64,
         "int32": ValueType.INT32,
@@ -460,7 +460,7 @@ def pa_column_to_timestamp_proto_column(column: pa.lib.ChunkedArray) -> List[Tim
 
 
 def pa_column_to_proto_column(
-    feast_value_type, column: pa.lib.ChunkedArray
+    feast_value_type: ValueType, column: pa.lib.ChunkedArray
 ) -> List[ProtoValue]:
     type_map = {
         ValueType.INT32: "int32_val",
@@ -481,7 +481,7 @@ def pa_column_to_proto_column(
 
     value = type_map[feast_value_type]
     # Process list types
-    if type(value) == dict:
+    if isinstance(value, dict):
         list_param_name = list(value.keys())[0]
         return [
             ProtoValue(**{list_param_name: value[list_param_name](val=x.as_py())})
