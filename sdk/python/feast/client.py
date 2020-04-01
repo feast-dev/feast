@@ -73,7 +73,20 @@ from feast.serving.ServingService_pb2_grpc import ServingServiceStub
 
 _logger = logging.getLogger(__name__)
 
-CPU_COUNT = os.cpu_count()  # type: int
+
+def get_max_cpu_workers() -> int:
+    """
+    Get the number of CPU count in an OS
+
+    Returns:
+        int:
+            the number of CPU worker in OS, the minimum value is 1, and maximum is total CPU count - 1
+    """
+    cpu_count = os.cpu_count()
+    if isinstance(cpu_count, int) and (cpu_count - 1 > 0):
+        return cpu_count - 1
+    else:
+        return 1
 
 
 class Client:
@@ -655,7 +668,7 @@ class Client:
         chunk_size: int = 10000,
         version: int = None,
         force_update: bool = False,
-        max_workers: int = max(CPU_COUNT - 1, 1),
+        max_workers: int = get_max_cpu_workers(),
         disable_progress_bar: bool = False,
         timeout: int = KAFKA_CHUNK_PRODUCTION_TIMEOUT,
     ) -> None:
