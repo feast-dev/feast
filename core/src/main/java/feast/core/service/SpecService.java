@@ -293,14 +293,9 @@ public class SpecService {
     Project project =
         projectRepository
             .findById(newFeatureSet.getSpec().getProject())
-            .orElseThrow(
-                () ->
-                    new IllegalArgumentException(
-                        String.format(
-                            "Project name does not exist. Please create a project first: %s",
-                            project_name)));
+            .orElse(new Project(project_name));
 
-    // Ensure that the project is not archived
+    // Ensure that the project retrieved from repository is not archived
     if (project.isArchived()) {
       throw new IllegalArgumentException(String.format("Project is archived: %s", project_name));
     }
