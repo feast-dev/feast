@@ -737,7 +737,7 @@ class Client:
                 )
                 self.apply(feature_set)
             else:
-                raise Exception("Use feature set object to do force_update")
+                raise TypeError("Use FeatureSet Object to do force_update")
         current_time = time.time()
 
         print("Waiting for feature set to be ready for ingestion...")
