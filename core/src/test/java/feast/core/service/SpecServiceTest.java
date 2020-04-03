@@ -170,6 +170,10 @@ public class SpecServiceTest {
     when(projectRepository.findAllByArchivedIsFalse())
         .thenReturn(Collections.singletonList(new Project("project1")));
     when(projectRepository.findById("project1")).thenReturn(Optional.of(new Project("project1")));
+    Project archivedProject = new Project("archivedproject");
+    archivedProject.setArchived(true);
+    when(projectRepository.findById(archivedProject.getName()))
+        .thenReturn(Optional.of(archivedProject));
 
     Store store1 = newDummyStore("SERVING");
     Store store2 = newDummyStore("WAREHOUSE");
@@ -704,6 +708,55 @@ public class SpecServiceTest {
               .getFeatures(0)
               .getField(FeatureSpec.getDescriptor().findFieldByName(name)));
     }
+  }
+
+  @Test
+  public void applyFeatureSetShouldCreateProjectWhenNotAlreadyExists()
+      throws InvalidProtocolBufferException {
+    Field f3f1 = new Field("f3f1", Enum.INT64);
+    Field f3f2 = new Field("f3f2", Enum.INT64);
+    Field f3e1 = new Field("f3e1", Enum.STRING);
+    FeatureSetProto.FeatureSet incomingFeatureSet =
+        (new FeatureSet(
+                "f3",
+                "newproject",
+                5,
+                100L,
+                Arrays.asList(f3e1),
+                Arrays.asList(f3f2, f3f1),
+                defaultSource,
+                FeatureSetStatus.STATUS_READY))
+            .toProto();
+
+    ApplyFeatureSetResponse applyFeatureSetResponse =
+        specService.applyFeatureSet(incomingFeatureSet);
+    assertThat(applyFeatureSetResponse.getStatus(), equalTo(Status.CREATED));
+    assertThat(
+        applyFeatureSetResponse.getFeatureSet().getSpec().getProject(),
+        equalTo(incomingFeatureSet.getSpec().getProject()));
+  }
+
+  @Test
+  public void applyFeatureSetShouldFailWhenProjectIsArchived()
+      throws InvalidProtocolBufferException {
+    Field f3f1 = new Field("f3f1", Enum.INT64);
+    Field f3f2 = new Field("f3f2", Enum.INT64);
+    Field f3e1 = new Field("f3e1", Enum.STRING);
+    FeatureSetProto.FeatureSet incomingFeatureSet =
+        (new FeatureSet(
+                "f3",
+                "archivedproject",
+                5,
+                100L,
+                Arrays.asList(f3e1),
+                Arrays.asList(f3f2, f3f1),
+                defaultSource,
+                FeatureSetStatus.STATUS_READY))
+            .toProto();
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Project is archived");
+    specService.applyFeatureSet(incomingFeatureSet);
   }
 
   @Test
