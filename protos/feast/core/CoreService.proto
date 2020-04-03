@@ -84,8 +84,8 @@ service CoreService {
 
     // Restart an Ingestion Job.  Restarts the ingestion job with the given job id.
     // NOTE: Data might be lost during the restart for some job runners.
-    // Just starts the job if the job is a terminal state (ie suspended or aborted).
-    // Does not support restarts a job in a transitional (ie pending, suspending, aborting) or unknown status
+    // Does not support stopping a job in a transitional (ie pending, suspending, aborting), 
+    // terminal state (ie suspended or aborted) or unknown status
     rpc RestartIngestionJob(RestartIngestionJobRequest) returns (RestartIngestionJobResponse);
   
     // Stop an Ingestion Job.  Stop (Aborts) the ingestion job with the given job id.

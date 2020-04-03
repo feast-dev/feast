@@ -691,9 +691,8 @@ class Client:
         """
         Restart ingestion job currently registered in Feast.
         NOTE: Data might be lost during the restart for some job runners.
-        Just starts the job if the job is a terminal state (ie suspended or aborted).
-        Does not support restarts a job in a transitional (ie pending, suspending, aborting)
-        or in a unknown status
+        Does not support stopping a job in a transitional (ie pending, suspending, aborting),
+        terminal state (ie suspended or aborted) or unknown status
 
         Args:
             job: IngestJob to restart

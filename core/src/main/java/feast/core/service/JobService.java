@@ -165,9 +165,11 @@ public class JobService {
     // check job status is valid for restarting
     Job job = getJob.get();
     JobStatus status = job.getStatus();
-    if (JobStatus.getTransitionalStates().contains(status) || status.equals(JobStatus.UNKNOWN)) {
+    if (JobStatus.getTransitionalStates().contains(status)
+        || JobStatus.getTerminalState().contains(status)
+        || status.equals(JobStatus.UNKNOWN)) {
       throw new UnsupportedOperationException(
-          "Restarting a job with a transitional or unknown status is unsupported");
+          "Restarting a job with a transitional, terminal or unknown status is unsupported");
     }
 
     // restart job with job manager
