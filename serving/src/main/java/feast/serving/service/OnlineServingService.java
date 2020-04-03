@@ -65,7 +65,7 @@ public class OnlineServingService implements ServingService {
   /** {@inheritDoc} */
   @Override
   public GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest request) {
-    try (Scope scope = tracer.buildSpan("Redis-getOnlineFeatures").startActive(true)) {
+    try (Scope scope = tracer.buildSpan("getOnlineFeaturesFromStore").startActive(true)) {
       GetOnlineFeaturesResponse.Builder getOnlineFeaturesResponseBuilder =
           GetOnlineFeaturesResponse.newBuilder();
       List<FeatureSetRequest> featureSetRequests =
@@ -75,20 +75,32 @@ public class OnlineServingService implements ServingService {
           entityRows.stream()
               .collect(Collectors.toMap(row -> row, row -> Maps.newHashMap(row.getFieldsMap())));
 
+      // Get all feature rows from the retriever. Each feature row list corresponds to a single
+      // feature set request.
       List<List<FeatureRow>> featureRows =
           retriever.getOnlineFeatures(entityRows, featureSetRequests);
 
+      // For each feature set request, read the feature rows returned by the retriever, and
+      // populate the featureValuesMap with the feature values corresponding to that entity row.
       for (var fsIdx = 0; fsIdx < featureRows.size(); fsIdx++) {
         List<FeatureRow> featureRowsForFs = featureRows.get(fsIdx);
         FeatureSetRequest featureSetRequest = featureSetRequests.get(fsIdx);
+
+        // In order to return values containing the same feature references provided by the user,
+        // we reuse the feature references in the request as the keys in the featureValuesMap
         Map<String, FeatureReference> featureNames =
             featureSetRequest.getFeatureReferences().stream()
                 .collect(
                     Collectors.toMap(
                         FeatureReference::getName, featureReference -> featureReference));
+
+        // Each feature row returned (per feature set request) corresponds to a given entity row.
+        // For each feature row, update the featureValuesMap.
         for (var entityRowIdx = 0; entityRowIdx < entityRows.size(); entityRowIdx++) {
           FeatureRow featureRow = featureRowsForFs.get(entityRowIdx);
           EntityRow entityRow = entityRows.get(entityRowIdx);
+
+          // If the row is stale, put an empty value into the featureValuesMap.
           if (isStale(featureSetRequest, entityRow, featureRow)) {
             featureSetRequest
                 .getFeatureReferences()
@@ -117,6 +129,8 @@ public class OnlineServingService implements ServingService {
                                 String.format("%s:%d", ref.getName(), ref.getVersion()))
                             .inc());
 
+            // Else populate the featureValueMap at this entityRow with the values in the feature
+            // row.
             featureRow.getFieldsList().stream()
                 .filter(field -> featureNames.containsKey(field.getName()))
                 .forEach(

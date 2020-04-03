@@ -50,18 +50,17 @@ public class HistoricalServingService implements ServingService {
   @Override
   public GetFeastServingInfoResponse getFeastServingInfo(
       GetFeastServingInfoRequest getFeastServingInfoRequest) {
-    try {
+    if (retriever instanceof BigQueryHistoricalRetriever) {
       BigQueryHistoricalRetriever bigQueryHistoricalRetriever =
           (BigQueryHistoricalRetriever) retriever;
       return GetFeastServingInfoResponse.newBuilder()
           .setType(FeastServingType.FEAST_SERVING_TYPE_BATCH)
           .setJobStagingLocation(bigQueryHistoricalRetriever.jobStagingLocation())
           .build();
-    } catch (Exception e) {
-      return GetFeastServingInfoResponse.newBuilder()
-          .setType(FeastServingType.FEAST_SERVING_TYPE_BATCH)
-          .build();
     }
+    return GetFeastServingInfoResponse.newBuilder()
+        .setType(FeastServingType.FEAST_SERVING_TYPE_BATCH)
+        .build();
   }
 
   /** {@inheritDoc} */
