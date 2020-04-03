@@ -288,7 +288,7 @@ public class SpecService {
     // Validate incoming feature set
     FeatureSetValidator.validateSpec(newFeatureSet);
 
-    // Find project or create new one if not exists
+    // Find project or create new one if it does not exist
     String project_name = newFeatureSet.getSpec().getProject();
     Project project =
         projectRepository
