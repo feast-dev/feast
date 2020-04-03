@@ -7,6 +7,7 @@ from typing import List
 import fastavro
 import pandas as pd
 from google.cloud import storage
+from google.protobuf.json_format import MessageToJson
 
 from feast.feature_set import FeatureSet
 from feast.source import Source
@@ -289,3 +290,12 @@ class IngestJob:
         # raise error if timeout
         if elapsed > timeout:
             raise TimeoutError("Wait for IngestJob's status to transition timed out")
+
+    def __str__(self):
+        # render the contents of ingest job as human readable string
+        self.reload()
+        return str(MessageToJson(self.proto))
+
+    def __repr__(self):
+        # render the ingest job as human readable string
+        return f"IngestJob<{self.id}>"
