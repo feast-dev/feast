@@ -23,7 +23,6 @@ import feast.serving.specs.CachedSpecService;
 import feast.storage.api.retrieval.FeatureSetRequest;
 import feast.storage.api.retrieval.HistoricalRetrievalResult;
 import feast.storage.api.retrieval.HistoricalRetriever;
-import feast.storage.connectors.bigquery.retrieval.BigQueryHistoricalRetriever;
 import io.grpc.Status;
 import java.util.List;
 import java.util.Optional;
@@ -50,18 +49,10 @@ public class HistoricalServingService implements ServingService {
   @Override
   public GetFeastServingInfoResponse getFeastServingInfo(
       GetFeastServingInfoRequest getFeastServingInfoRequest) {
-    try {
-      BigQueryHistoricalRetriever bigQueryHistoricalRetriever =
-          (BigQueryHistoricalRetriever) retriever;
-      return GetFeastServingInfoResponse.newBuilder()
-          .setType(FeastServingType.FEAST_SERVING_TYPE_BATCH)
-          .setJobStagingLocation(bigQueryHistoricalRetriever.jobStagingLocation())
-          .build();
-    } catch (Exception e) {
-      return GetFeastServingInfoResponse.newBuilder()
-          .setType(FeastServingType.FEAST_SERVING_TYPE_BATCH)
-          .build();
-    }
+    return GetFeastServingInfoResponse.newBuilder()
+        .setType(FeastServingType.FEAST_SERVING_TYPE_BATCH)
+        .setJobStagingLocation(retriever.getStagingLocation())
+        .build();
   }
 
   /** {@inheritDoc} */
