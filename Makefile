@@ -141,7 +141,8 @@ install-dependencies-proto-docs:
 	mv protoc3/include/* $$HOME/include
 
 compile-protos-docs:
-	cd ${ROOT_DIR}/protos; protoc --docs_out=../dist/grpc feast/*/*.proto
+	cd ${ROOT_DIR}/protos; protoc --docs_out=../dist/grpc feast/*/*.proto || \
+	$(MAKE) install-dependencies-proto-docs && PATH=$$HOME/bin:$$PATH protoc -I $$HOME/include/ -I . --docs_out=../dist/grpc feast/*/*.proto
 
 clean-html:
 	rm -rf 	$(ROOT_DIR)/dist
@@ -151,7 +152,6 @@ build-html: clean-html
 	mkdir -p $(ROOT_DIR)/dist/grpc
 
 	# Build Protobuf documentation
-	$(MAKE) install-dependencies-proto-docs
 	$(MAKE) compile-protos-docs
 
 	# Build Python SDK documentation
