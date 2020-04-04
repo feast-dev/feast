@@ -56,8 +56,7 @@ from feast.core.CoreService_pb2 import (
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
-from feast.core.FeatureSetReference_pb2 import FeatureSetReference
-from feast.feature_set import Entity, FeatureSet
+from feast.feature_set import Entity, FeatureSet, FeatureSetRef
 from feast.job import Job, IngestJob
 from feast.loaders.abstract_producer import get_producer
 from feast.loaders.file import export_source_to_staging_location
@@ -671,13 +670,9 @@ class Client:
         # construct list request
         feature_set_ref = None
         if feature_set is not None:
-            feature_set_ref = FeatureSetReference(
-                name=feature_set.name,
-                project=feature_set.project,
-                version=feature_set.version,
-            )
+            feature_set_ref = FeatureSetRef.from_feature_set(feature_set).to_proto()
         list_filter = ListIngestionJobsRequest.Filter(
-            id=job_id, feature_set_reference=feature_set_ref, store_name=store_name
+            id=job_id, feature_set_reference=feature_set_ref, store_name=store_name,
         )
         request = ListIngestionJobsRequest(filter=list_filter)
         # make list request & unpack response

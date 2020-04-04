@@ -27,6 +27,9 @@ from pyarrow.lib import TimestampType
 from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
 from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
+from feast.core.FeatureSetReference_pb2 import (
+    FeatureSetReference as FeatureSetReferenceProto,
+)
 from feast.entity import Entity
 from feast.feature import Feature, Field
 from feast.loaders import yaml as feast_yaml
@@ -88,14 +91,7 @@ class FeatureSet:
         return str(MessageToJson(self.to_proto()))
 
     def __repr__(self):
-        ref = ""
-        if self.project:
-            ref += self.project + "/"
-        if self.name:
-            ref += self.name
-        if self.version:
-            ref += ":" + str(self.version).strip()
-        return ref
+        return FeatureSetRef.from_feature_set(self).__repr__()
 
     @property
     def fields(self) -> Dict[str, Field]:
@@ -759,6 +755,75 @@ class FeatureSet:
         )
 
         return FeatureSetProto(spec=spec, meta=meta)
+
+
+class FeatureSetRef:
+    """
+    Represents a reference to a featureset
+    """
+
+    def __init__(self, project: str = None, name: str = None, version: int = None):
+        self.proto = FeatureSetReferenceProto(
+            project=project, name=name, version=version
+        )
+
+    @classmethod
+    def from_feature_set(cls, feature_set: FeatureSet):
+        """
+        Construct a feature set reference that refers to the given feature set.
+
+        Args:
+            feature_set: Feature set to create reference from.
+
+        Returns:
+            FeatureSetRef that refers to the given feature set
+        """
+        return cls(feature_set.project, feature_set.name, feature_set.version)
+
+    @classmethod
+    def from_str(cls, ref_str: str):
+        """
+        Parse a feature reference from string representation.
+        (as defined by __repr__())
+
+        Args:
+            ref_str: string representation of the reference.
+
+        Returns:
+            FeatureSetRef constructed from the string
+        """
+        if "/" in ref_str:
+            project, ref_str = ref_str.split("/")
+        if ":" in ref_str:
+            ref_str, version = ref_str.split(":")
+        name = ref_str
+
+        return cls(project, name, version)
+
+    def to_proto(self, arg1):
+        """
+        Convert and return this feature set reference to protobuf.
+
+        Returns:
+            Protobuf version of this feature set reference.
+        """
+        return self.proto
+
+    def __str__(self):
+        # human readable string of the reference
+        return f"FeatureSetRef<{self.__repr__()}>"
+
+    def __repr__(self):
+        # return string representation of the reference
+        # [project/]name[:version]
+        ref_str = ""
+        if self.proto.project:
+            ref_str += self.proto.project + "/"
+        if self.proto.name:
+            ref_str += self.proto.name
+        if self.proto.version:
+            ref_str += ":" + str(self.proto.version).strip()
+        return ref_str
 
 
 def _infer_pd_column_type(column, series, rows_to_sample):
