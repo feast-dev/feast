@@ -151,6 +151,7 @@ build-html: clean-html
 	mkdir -p $(ROOT_DIR)/dist/grpc
 
 	# Build Protobuf documentation
+	$(MAKE) install-dependencies-proto-docs
 	$(MAKE) compile-protos-docs
 
 	# Build Python SDK documentation
