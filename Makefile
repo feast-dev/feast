@@ -142,7 +142,7 @@ install-dependencies-proto-docs:
 
 compile-protos-docs:
 	cd ${ROOT_DIR}/protos; protoc --docs_out=../dist/grpc feast/*/*.proto || \
-	$(MAKE) install-dependencies-proto-docs && PATH=$$HOME/bin:$$PATH protoc -I $$HOME/include/ -I . --docs_out=../dist/grpc feast/*/*.proto
+	$(MAKE) install-dependencies-proto-docs && 	cd ${ROOT_DIR}/protos; PATH=$$HOME/bin:$$PATH protoc -I $$HOME/include/ -I . --docs_out=../dist/grpc feast/*/*.proto
 
 clean-html:
 	rm -rf 	$(ROOT_DIR)/dist
