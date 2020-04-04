@@ -39,9 +39,7 @@ public class HistoricalServingService implements ServingService {
   private final JobService jobService;
 
   public HistoricalServingService(
-      HistoricalRetriever retriever,
-      CachedSpecService specService,
-      JobService jobService) {
+      HistoricalRetriever retriever, CachedSpecService specService, JobService jobService) {
     this.retriever = retriever;
     this.specService = specService;
     this.jobService = jobService;

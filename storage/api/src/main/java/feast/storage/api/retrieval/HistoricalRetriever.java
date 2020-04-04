@@ -26,7 +26,8 @@ import java.util.List;
 public interface HistoricalRetriever {
 
   /**
-   * Get temporary staging location if applicable. If not applicable to this store, returns an empty string.
+   * Get temporary staging location if applicable. If not applicable to this store, returns an empty
+   * string.
    *
    * @return staging location uri
    */
