@@ -37,17 +37,14 @@ public class HistoricalServingService implements ServingService {
   private final HistoricalRetriever retriever;
   private final CachedSpecService specService;
   private final JobService jobService;
-  private String stagingLocation;
 
   public HistoricalServingService(
       HistoricalRetriever retriever,
       CachedSpecService specService,
-      JobService jobService,
-      String stagingLocation) {
+      JobService jobService) {
     this.retriever = retriever;
     this.specService = specService;
     this.jobService = jobService;
-    this.stagingLocation = stagingLocation;
   }
 
   /** {@inheritDoc} */
@@ -56,7 +53,7 @@ public class HistoricalServingService implements ServingService {
       GetFeastServingInfoRequest getFeastServingInfoRequest) {
     return GetFeastServingInfoResponse.newBuilder()
         .setType(FeastServingType.FEAST_SERVING_TYPE_BATCH)
-        .setJobStagingLocation(stagingLocation)
+        .setJobStagingLocation(retriever.getStagingLocation())
         .build();
   }
 

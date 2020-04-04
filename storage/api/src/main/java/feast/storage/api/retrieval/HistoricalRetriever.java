@@ -26,6 +26,13 @@ import java.util.List;
 public interface HistoricalRetriever {
 
   /**
+   * Get temporary staging location if applicable. If not applicable to this store, returns an empty string.
+   *
+   * @return staging location uri
+   */
+  String getStagingLocation();
+
+  /**
    * Get all features corresponding to the provided batch features request.
    *
    * @param retrievalId String that uniquely identifies this retrieval request.

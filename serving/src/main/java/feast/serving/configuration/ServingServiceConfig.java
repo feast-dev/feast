@@ -118,7 +118,7 @@ public class ServingServiceConfig {
                 .build();
 
         servingService =
-            new HistoricalServingService(bqRetriever, specService, jobService, jobStagingLocation);
+            new HistoricalServingService(bqRetriever, specService, jobService);
         break;
       case CASSANDRA:
       case UNRECOGNIZED:

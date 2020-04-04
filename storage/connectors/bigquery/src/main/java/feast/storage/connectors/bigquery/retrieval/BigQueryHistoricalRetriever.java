@@ -86,6 +86,11 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
   }
 
   @Override
+  public String getStagingLocation() {
+    return jobStagingLocation();
+  }
+
+  @Override
   public HistoricalRetrievalResult getHistoricalFeatures(
       String retrievalId, DatasetSource datasetSource, List<FeatureSetRequest> featureSetRequests) {
     List<FeatureSetQueryInfo> featureSetQueryInfos =
