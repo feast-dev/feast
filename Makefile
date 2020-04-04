@@ -149,6 +149,10 @@ clean-html:
 build-html: clean-html
 	mkdir -p $(ROOT_DIR)/dist/python
 	mkdir -p $(ROOT_DIR)/dist/grpc
+
+	# Build Protobuf documentation
 	$(MAKE) compile-protos-docs
+
+	# Build Python SDK documentation
 	cd 	$(ROOT_DIR)/sdk/python/docs && $(MAKE) html
 	cp -r $(ROOT_DIR)/sdk/python/docs/html/* $(ROOT_DIR)/dist/python
