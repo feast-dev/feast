@@ -21,6 +21,8 @@ import com.google.common.collect.ImmutableSet;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.serving.ServingAPIProto.FeatureReference;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @AutoValue
 public abstract class FeatureSetRequest {
@@ -49,5 +51,10 @@ public abstract class FeatureSetRequest {
     }
 
     public abstract FeatureSetRequest build();
+  }
+
+  public Map<String, FeatureReference> getFeatureRefsByName() {
+    return getFeatureReferences().stream()
+        .collect(Collectors.toMap(FeatureReference::getName, featureReference -> featureReference));
   }
 }

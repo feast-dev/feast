@@ -21,7 +21,7 @@ import io.prometheus.client.Histogram;
 
 public class Metrics {
 
-  public static final Histogram requestLatency =
+  private static final Histogram requestLatency =
       Histogram.build()
           .buckets(0.001, 0.002, 0.004, 0.006, 0.008, 0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.05)
           .name("request_latency_seconds")
@@ -30,7 +30,7 @@ public class Metrics {
           .labelNames("method")
           .register();
 
-  public static final Counter requestCount =
+  private static final Counter requestCount =
       Counter.build()
           .name("request_feature_count")
           .subsystem("feast_serving")
@@ -38,7 +38,7 @@ public class Metrics {
           .labelNames("project", "feature_name")
           .register();
 
-  public static final Counter missingKeyCount =
+  private static final Counter missingKeyCount =
       Counter.build()
           .name("missing_feature_count")
           .subsystem("feast_serving")
@@ -46,7 +46,7 @@ public class Metrics {
           .labelNames("project", "feature_name")
           .register();
 
-  public static final Counter invalidEncodingCount =
+  private static final Counter invalidEncodingCount =
       Counter.build()
           .name("invalid_encoding_feature_count")
           .subsystem("feast_serving")
@@ -54,7 +54,7 @@ public class Metrics {
           .labelNames("project", "feature_name")
           .register();
 
-  public static final Counter staleKeyCount =
+  private static final Counter staleKeyCount =
       Counter.build()
           .name("stale_feature_count")
           .subsystem("feast_serving")
@@ -62,11 +62,35 @@ public class Metrics {
           .labelNames("project", "feature_name")
           .register();
 
-  public static final Counter grpcRequestCount =
+  private static final Counter grpcRequestCount =
       Counter.build()
           .name("grpc_request_count")
           .subsystem("feast_serving")
           .help("number of grpc requests served")
           .labelNames("method", "status_code")
           .register();
+
+  public static Histogram requestLatency() {
+    return requestLatency;
+  }
+
+  public static Counter requestCount() {
+    return requestCount;
+  }
+
+  public static Counter missingKeyCount() {
+    return missingKeyCount;
+  }
+
+  public static Counter invalidEncodingCount() {
+    return invalidEncodingCount;
+  }
+
+  public static Counter staleKeyCount() {
+    return staleKeyCount;
+  }
+
+  public static Counter grpcRequestCount() {
+    return grpcRequestCount;
+  }
 }
