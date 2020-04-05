@@ -133,7 +133,7 @@ public class OnlineServingService implements ServingService {
   }
 
   private void populateStaleKeyCountMetrics(String project, FeatureReference ref) {
-    Metrics.staleKeyCount()
+    Metrics.staleKeyCount
         .labels(project, RefUtil.generateFeatureStringRefWithoutProject(ref))
         .inc();
   }
@@ -145,7 +145,7 @@ public class OnlineServingService implements ServingService {
         .parallelStream()
         .forEach(
             ref ->
-                Metrics.requestCount()
+                Metrics.requestCount
                     .labels(project, RefUtil.generateFeatureStringRefWithoutProject(ref))
                     .inc());
   }
