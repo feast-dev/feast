@@ -32,7 +32,7 @@ DEFAULT_TIMEOUT_SEC: int = 21600
 MAX_WAIT_INTERVAL_SEC: int = 60
 
 
-class Job:
+class RetrievalJob:
     """
     A class representing a job for feature retrieval in Feast.
     """
@@ -199,7 +199,7 @@ class Job:
 
 class IngestJob:
     """
-    Defines a job that ingests feature data into feast.
+    Defines a job for feature ingestion in feast.
     """
 
     def __init__(self, job_proto: IngestJobProto, core_stub: CoreServiceStub):

@@ -57,7 +57,7 @@ from feast.core.CoreService_pb2 import (
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
 from feast.feature_set import Entity, FeatureSet, FeatureSetRef
-from feast.job import Job, IngestJob
+from feast.job import RetrievalJob, IngestJob
 from feast.loaders.abstract_producer import get_producer
 from feast.loaders.file import export_source_to_staging_location
 from feast.loaders.ingest import KAFKA_CHUNK_PRODUCTION_TIMEOUT, get_feature_row_chunks
@@ -510,7 +510,7 @@ class Client:
         feature_refs: List[str],
         entity_rows: Union[pd.DataFrame, str],
         default_project: str = None,
-    ) -> Job:
+    ) -> RetrievalJob:
         """
         Retrieves historical features from a Feast Serving deployment.
 
@@ -528,8 +528,8 @@ class Client:
             default_project: Default project where feature values will be found.
 
         Returns:
-            feast.job.Job:
-                Returns a job object that can be used to monitor retrieval
+            feast.job.RetrievalJob:
+                Returns a retrival job object that can be used to monitor retrieval
                 progress asynchronously, and can be used to materialize the
                 results.
 
@@ -609,7 +609,7 @@ class Client:
 
         # Retrieve Feast Job object to manage life cycle of retrieval
         response = self._serving_service_stub.GetBatchFeatures(request)
-        return Job(response.job, self._serving_service_stub)
+        return RetrievalJob(response.job, self._serving_service_stub)
 
     def get_online_features(
         self,
