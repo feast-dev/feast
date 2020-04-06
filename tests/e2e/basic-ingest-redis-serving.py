@@ -153,7 +153,7 @@ def test_basic_retrieve_online_success(client, basic_dataframe):
             break
 
 @pytest.mark.timeout(300)
-@pytest.mark.run(order=14)
+@pytest.mark.run(order=19)
 def test_basic_ingest_jobs(client, basic_dataframe):
     # list ingestion jobs given featureset
     cust_trans_fs = client.get_feature_set(name="customer_transactions")
@@ -165,15 +165,15 @@ def test_basic_ingest_jobs(client, basic_dataframe):
         ingest_job.wait(IngestionJobStatus.RUNNING)
         assert ingest_job.status == IngestionJobStatus.RUNNING
 
-        # stop ingestion ingest_job
-        client.stop_ingest_job(ingest_job)
-        ingest_job.wait(IngestionJobStatus.ABORTED)
-        assert ingest_job.status == IngestionJobStatus.ABORTED
-
         # restart ingestion ingest_job
         client.restart_ingest_job(ingest_job)
         ingest_job.wait(IngestionJobStatus.RUNNING)
         assert ingest_job.status == IngestionJobStatus.RUNNING
+
+        # stop ingestion ingest_job
+        client.stop_ingest_job(ingest_job)
+        ingest_job.wait(IngestionJobStatus.ABORTED)
+        assert ingest_job.status == IngestionJobStatus.ABORTED
 
 
 @pytest.fixture(scope='module')
@@ -335,7 +335,7 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
             break
 
 @pytest.mark.timeout(300)
-@pytest.mark.run(order=23)
+@pytest.mark.run(order=29)
 def test_all_types_ingest_jobs(client, all_types_dataframe):
     # list ingestion jobs given featureset
     all_types_fs = client.get_feature_set(name="all_types")
@@ -347,15 +347,15 @@ def test_all_types_ingest_jobs(client, all_types_dataframe):
         ingest_job.wait(IngestionJobStatus.RUNNING)
         assert ingest_job.status == IngestionJobStatus.RUNNING
 
-        # stop ingestion ingest_job
-        client.stop_ingest_job(ingest_job)
-        ingest_job.wait(IngestionJobStatus.ABORTED)
-        assert ingest_job.status == IngestionJobStatus.ABORTED
-
         # restart ingestion ingest_job
         client.restart_ingest_job(ingest_job)
         ingest_job.wait(IngestionJobStatus.RUNNING)
         assert ingest_job.status == IngestionJobStatus.RUNNING
+
+        # stop ingestion ingest_job
+        client.stop_ingest_job(ingest_job)
+        ingest_job.wait(IngestionJobStatus.ABORTED)
+        assert ingest_job.status == IngestionJobStatus.ABORTED
 
 @pytest.fixture(scope='module')
 def large_volume_dataframe():
