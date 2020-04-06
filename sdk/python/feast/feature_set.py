@@ -38,34 +38,6 @@ from feast.type_map import (
 )
 
 
-def entities_and_features_to_fields(
-    entities: List[Entity], features: List[Feature]
-) -> List[Field]:
-    """
-    Convert entities and features List to Field List
-
-    Args:
-        entities: List of Entity Objects
-        features: List of Features Objects
-
-
-    Returns:
-         List[Field]:
-            List of field from entities and features combined
-    """
-    fields: List[Field] = []
-
-    for entity in entities:
-        if isinstance(entity, Field):
-            fields.append(entity)
-
-    for feature in features:
-        if isinstance(feature, Field):
-            fields.append(feature)
-
-    return fields
-
-
 class FeatureSet:
     """
     Represents a collection of features and associated metadata.
@@ -389,7 +361,7 @@ class FeatureSet:
 
         # Create dictionary of fields that will not be inferred (manually set)
         provided_fields = OrderedDict()
-        fields = entities_and_features_to_fields(entities, features)
+        fields = _create_field_list(entities, features)
 
         for field in fields:
             if not isinstance(field, Field):
@@ -529,7 +501,7 @@ class FeatureSet:
 
         # Create dictionary of fields that will not be inferred (manually set)
         provided_fields = OrderedDict()
-        fields = entities_and_features_to_fields(entities, features)
+        fields = _create_field_list(entities, features)
 
         for field in fields:
             if not isinstance(field, Field):
@@ -818,3 +790,29 @@ def _infer_pd_column_type(column, series, rows_to_sample):
             dtype = current_dtype
 
     return dtype
+
+
+def _create_field_list(entities: List[Entity], features: List[Feature]) -> List[Field]:
+    """
+    Convert entities and features List to Field List
+
+    Args:
+        entities: List of Entity Objects
+        features: List of Features Objects
+
+
+    Returns:
+         List[Field]:
+            List of field from entities and features combined
+    """
+    fields: List[Field] = []
+
+    for entity in entities:
+        if isinstance(entity, Field):
+            fields.append(entity)
+
+    for feature in features:
+        if isinstance(feature, Field):
+            fields.append(feature)
+
+    return fields
