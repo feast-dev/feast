@@ -334,7 +334,7 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
         ):
             break
 
-@pytest.mark.timeout(300)
+@pytest.mark.timeout(600)
 @pytest.mark.run(order=29)
 def test_all_types_ingest_jobs(client, all_types_dataframe):
     # list ingestion jobs given featureset
