@@ -16,16 +16,13 @@
  */
 package feast.serving.service;
 
-import static feast.serving.util.Metrics.requestCount;
-import static feast.serving.util.Metrics.staleKeyCount;
-import static feast.serving.util.RefUtil.generateFeatureStringRef;
-
 import com.google.common.collect.Maps;
 import com.google.protobuf.Duration;
 import feast.serving.ServingAPIProto.*;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.serving.specs.CachedSpecService;
+import feast.serving.util.Metrics;
 import feast.serving.util.RefUtil;
 import feast.storage.api.retrieval.FeatureSetRequest;
 import feast.storage.api.retrieval.OnlineRetriever;
@@ -65,7 +62,7 @@ public class OnlineServingService implements ServingService {
   /** {@inheritDoc} */
   @Override
   public GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest request) {
-    try (Scope scope = tracer.buildSpan("Redis-getOnlineFeatures").startActive(true)) {
+    try (Scope scope = tracer.buildSpan("getOnlineFeatures").startActive(true)) {
       GetOnlineFeaturesResponse.Builder getOnlineFeaturesResponseBuilder =
           GetOnlineFeaturesResponse.newBuilder();
       List<FeatureSetRequest> featureSetRequests =
@@ -85,13 +82,11 @@ public class OnlineServingService implements ServingService {
         List<FeatureRow> featureRowsForFs = featureRows.get(fsIdx);
         FeatureSetRequest featureSetRequest = featureSetRequests.get(fsIdx);
 
+        String project = featureSetRequest.getSpec().getProject();
+
         // In order to return values containing the same feature references provided by the user,
         // we reuse the feature references in the request as the keys in the featureValuesMap
-        Map<String, FeatureReference> featureNames =
-            featureSetRequest.getFeatureReferences().stream()
-                .collect(
-                    Collectors.toMap(
-                        FeatureReference::getName, featureReference -> featureReference));
+        Map<String, FeatureReference> refsByName = featureSetRequest.getFeatureRefsByName();
 
         // Each feature row returned (per feature set request) corresponds to a given entity row.
         // For each feature row, update the featureValuesMap.
@@ -106,36 +101,23 @@ public class OnlineServingService implements ServingService {
                 .parallelStream()
                 .forEach(
                     ref -> {
-                      staleKeyCount
-                          .labels(
-                              featureSetRequest.getSpec().getProject(),
-                              String.format("%s:%d", ref.getName(), ref.getVersion()))
-                          .inc();
+                      populateStaleKeyCountMetrics(project, ref);
                       featureValuesMap
                           .get(entityRow)
                           .put(RefUtil.generateFeatureStringRef(ref), Value.newBuilder().build());
                     });
 
           } else {
-            featureSetRequest
-                .getFeatureReferences()
-                .parallelStream()
-                .forEach(
-                    ref ->
-                        requestCount
-                            .labels(
-                                featureSetRequest.getSpec().getProject(),
-                                String.format("%s:%d", ref.getName(), ref.getVersion()))
-                            .inc());
+            populateRequestCountMetrics(featureSetRequest);
 
             // Else populate the featureValueMap at this entityRow with the values in the feature
             // row.
             featureRow.getFieldsList().stream()
-                .filter(field -> featureNames.containsKey(field.getName()))
+                .filter(field -> refsByName.containsKey(field.getName()))
                 .forEach(
                     field -> {
-                      FeatureReference ref = featureNames.get(field.getName());
-                      String id = generateFeatureStringRef(ref);
+                      FeatureReference ref = refsByName.get(field.getName());
+                      String id = RefUtil.generateFeatureStringRef(ref);
                       featureValuesMap.get(entityRow).put(id, field.getValue());
                     });
           }
@@ -150,6 +132,24 @@ public class OnlineServingService implements ServingService {
     }
   }
 
+  private void populateStaleKeyCountMetrics(String project, FeatureReference ref) {
+    Metrics.staleKeyCount
+        .labels(project, RefUtil.generateFeatureStringRefWithoutProject(ref))
+        .inc();
+  }
+
+  private void populateRequestCountMetrics(FeatureSetRequest featureSetRequest) {
+    String project = featureSetRequest.getSpec().getProject();
+    featureSetRequest
+        .getFeatureReferences()
+        .parallelStream()
+        .forEach(
+            ref ->
+                Metrics.requestCount
+                    .labels(project, RefUtil.generateFeatureStringRefWithoutProject(ref))
+                    .inc());
+  }
+
   @Override
   public GetBatchFeaturesResponse getBatchFeatures(GetBatchFeaturesRequest getFeaturesRequest) {
     throw Status.UNIMPLEMENTED.withDescription("Method not implemented").asRuntimeException();
@@ -162,7 +162,8 @@ public class OnlineServingService implements ServingService {
 
   private boolean isStale(
       FeatureSetRequest featureSetRequest, EntityRow entityRow, FeatureRow featureRow) {
-    if (featureSetRequest.getSpec().getMaxAge().equals(Duration.getDefaultInstance())) {
+    Duration maxAge = featureSetRequest.getSpec().getMaxAge();
+    if (maxAge.equals(Duration.getDefaultInstance())) {
       return false;
     }
     long givenTimestamp = entityRow.getEntityTimestamp().getSeconds();
@@ -170,6 +171,6 @@ public class OnlineServingService implements ServingService {
       givenTimestamp = System.currentTimeMillis() / 1000;
     }
     long timeDifference = givenTimestamp - featureRow.getEventTimestamp().getSeconds();
-    return timeDifference > featureSetRequest.getSpec().getMaxAge().getSeconds();
+    return timeDifference > maxAge.getSeconds();
   }
 }
