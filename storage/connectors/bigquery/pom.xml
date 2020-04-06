@@ -34,6 +34,22 @@
             <groupId>org.apache.beam</groupId>
             <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
             <version>${org.apache.beam.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.cloud</groupId>
+                    <artifactId>google-cloud-spanner</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.cloud.bigtable</groupId>
+                    <artifactId>bigtable-client-core</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>io.opencensus</groupId>
+            <artifactId>opencensus-contrib-http-util</artifactId>
+            <version>0.21.0</version>
         </dependency>
 
         <dependency>

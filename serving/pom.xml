@@ -92,17 +92,6 @@
       <groupId>dev.feast</groupId>
       <artifactId>feast-storage-connector-bigquery</artifactId>
       <version>${project.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-storage</artifactId>
     </dependency>
 
     <!-- TODO: SLF4J is being used via Lombok, but also jog4j - pick one -->
