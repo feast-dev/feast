@@ -695,7 +695,10 @@ class Client:
         """
         self._connect_core()
         request = RestartIngestionJobRequest(id=job.id)
-        self._core_service_stub.RestartIngestionJob(request)
+        try:
+            self._core_service_stub.RestartIngestionJob(request)
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
 
     def stop_ingest_job(self, job: IngestJob):
         """
@@ -709,7 +712,10 @@ class Client:
         """
         self._connect_core()
         request = StopIngestionJobRequest(id=job.id)
-        self._core_service_stub.StopIngestionJob(request)
+        try:
+            self._core_service_stub.StopIngestionJob(request)
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
 
     def ingest(
         self,
