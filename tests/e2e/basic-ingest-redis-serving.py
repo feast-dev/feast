@@ -10,7 +10,7 @@ from feast.serving.ServingService_pb2 import (
 from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.types.Value_pb2 import Value as Value
 from feast.client import Client
-from feast.feature_set import FeatureSet
+from feast.feature_set import FeatureSet, FeatureSetRef
 from feast.type_map import ValueType
 from google.protobuf.duration_pb2 import Duration
 from datetime import datetime
@@ -157,7 +157,8 @@ def test_basic_retrieve_online_success(client, basic_dataframe):
 def test_basic_ingest_jobs(client, basic_dataframe):
     # list ingestion jobs given featureset
     cust_trans_fs = client.get_feature_set(name="customer_transactions")
-    ingest_jobs = client.list_ingest_jobs(feature_set=cust_trans_fs)
+    ingest_jobs = client.list_ingest_jobs(
+        feature_set_ref=FeatureSetRef.from_feature_set(cust_trans_fs))
     assert len(ingest_jobs) >= 1
 
     for ingest_job in ingest_jobs:
@@ -338,7 +339,8 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
 def test_all_types_ingest_jobs(client, all_types_dataframe):
     # list ingestion jobs given featureset
     all_types_fs = client.get_feature_set(name="all_types")
-    ingest_jobs = client.list_ingest_jobs(feature_set=all_types_fs)
+    ingest_jobs = client.list_ingest_jobs(
+        feature_set_ref=FeatureSetRef.from_feature_set(all_types_fs))
     assert len(ingest_jobs) >= 1
 
     for ingest_job in ingest_jobs:
