@@ -266,7 +266,7 @@ class IngestJob:
         """
         Getter for the IngestJob's target feast store.
         """
-        return self.proto.source
+        return self.proto.store
 
     def wait(
         self, status: IngestionJobStatus, timeout: float = 300, interval: float = 5
