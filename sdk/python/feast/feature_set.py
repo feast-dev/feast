@@ -767,6 +767,27 @@ class FeatureSetRef:
             project=project, name=name, version=version
         )
 
+    @property
+    def project(self) -> str:
+        """
+        Get the project of feature set referenced by this reference
+        """
+        return self.proto.project
+
+    @property
+    def name(self) -> str:
+        """
+        Get the name of feature set referenced by this reference
+        """
+        return self.proto.name
+
+    @property
+    def version(self) -> int:
+        """
+        Get the version of feature set referenced by this reference
+        """
+        return self.proto.version
+
     @classmethod
     def from_feature_set(cls, feature_set: FeatureSet):
         """
@@ -795,12 +816,12 @@ class FeatureSetRef:
         if "/" in ref_str:
             project, ref_str = ref_str.split("/")
         if ":" in ref_str:
-            ref_str, version = ref_str.split(":")
+            ref_str, version_str = ref_str.split(":")
         name = ref_str
 
-        return cls(project, name, version)
+        return cls(project, name, int(version_str))
 
-    def to_proto(self, arg1):
+    def to_proto(self, arg1) -> FeatureSetReferenceProto:
         """
         Convert and return this feature set reference to protobuf.
 
@@ -824,6 +845,14 @@ class FeatureSetRef:
         if self.proto.version:
             ref_str += ":" + str(self.proto.version).strip()
         return ref_str
+
+    def __eq__(self, other):
+        # compare with other feature set
+        return hash(self) == hash(other)
+
+    def __hash__(self):
+        # hash this reference
+        return hash(repr(self))
 
 
 def _infer_pd_column_type(column, series, rows_to_sample):
