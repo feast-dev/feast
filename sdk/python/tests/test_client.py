@@ -44,7 +44,7 @@ from feast.core.FeatureSet_pb2 import FeatureSetStatus as FeatureSetStatusProto
 from feast.core.FeatureSet_pb2 import FeatureSpec as FeatureSpecProto
 from feast.core.Source_pb2 import KafkaSourceConfig, Source, SourceType
 from feast.entity import Entity
-from feast.feature_set import Feature, FeatureSet
+from feast.feature_set import Feature, FeatureSet, FeatureSetRef
 from feast.job import IngestJob
 from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoResponse,
@@ -312,6 +312,13 @@ class TestClient:
             "_core_service_stub",
             return_value=Core.CoreServiceStub(grpc.insecure_channel("")),
         )
+
+        feature_set_proto = FeatureSetProto(
+            spec=FeatureSetSpecProto(
+                project="test", name="driver", max_age=Duration(seconds=3600),
+            )
+        )
+
         mocker.patch.object(
             mocked_client._core_service_stub,
             "ListIngestionJobs",
@@ -321,13 +328,7 @@ class TestClient:
                         id="kafka-to-redis",
                         external_id="job-2222",
                         status=IngestionJobStatus.RUNNING,
-                        feature_sets=[
-                            FeatureSetProto(
-                                spec=FeatureSetSpecProto(
-                                    name="driver", max_age=Duration(seconds=3600),
-                                )
-                            )
-                        ],
+                        feature_sets=[feature_set_proto],
                         source=Source(
                             type=SourceType.KAFKA,
                             kafka_source_config=KafkaSourceConfig(
@@ -340,7 +341,12 @@ class TestClient:
             ),
         )
 
-        ingest_jobs = mocked_client.list_ingest_jobs(job_id="kafka-to-redis")
+        # list ingestion jobs by target feature set reference
+        ingest_jobs = mocked_client.list_ingest_jobs(
+            feature_set_ref=FeatureSetRef.from_feature_set(
+                FeatureSet.from_proto(feature_set_proto)
+            )
+        )
         assert len(ingest_jobs) >= 1
 
         ingest_job = ingest_jobs[0]

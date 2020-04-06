@@ -652,7 +652,10 @@ class Client:
         )
 
     def list_ingest_jobs(
-        self, job_id: str = None, feature_set: FeatureSet = None, store_name: str = None
+        self,
+        job_id: str = None,
+        feature_set_ref: FeatureSetRef = None,
+        store_name: str = None,
     ):
         """
         List the ingestion jobs currently registered in Feast, with optional filters.
@@ -660,7 +663,7 @@ class Client:
 
         Args:
             job_id: Select specific ingestion job with the given job_id
-            feature_set: Filter ingestion jobs by those tied to the given feature set.
+            feature_set_ref: Filter ingestion jobs by target feature set (via reference)
             store_name: Filter ingestion jobs by target feast store's name
 
         Returns:
@@ -669,8 +672,6 @@ class Client:
         self._connect_core()
         # construct list request
         feature_set_ref = None
-        if feature_set is not None:
-            feature_set_ref = FeatureSetRef.from_feature_set(feature_set).to_proto()
         list_filter = ListIngestionJobsRequest.Filter(
             id=job_id, feature_set_reference=feature_set_ref, store_name=store_name,
         )
