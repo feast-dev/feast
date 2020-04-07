@@ -20,7 +20,7 @@ import com.google.auto.value.AutoValue;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import com.timgroup.statsd.StatsDClientException;
-import feast.storage.api.write.FailedElement;
+import feast.storage.api.writer.FailedElement;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.slf4j.Logger;
 

@@ -19,7 +19,7 @@ package feast.ingestion.transform;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
-import feast.storage.api.write.FailedElement;
+import feast.storage.api.writer.FailedElement;
 import feast.test.TestUtil;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;

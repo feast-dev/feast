@@ -18,7 +18,7 @@ package feast.ingestion.transform.metrics;
 
 import com.google.auto.value.AutoValue;
 import feast.ingestion.options.ImportOptions;
-import feast.storage.api.write.FailedElement;
+import feast.storage.api.writer.FailedElement;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;

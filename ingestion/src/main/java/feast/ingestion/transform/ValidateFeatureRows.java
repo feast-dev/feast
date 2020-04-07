@@ -20,7 +20,7 @@ import com.google.auto.value.AutoValue;
 import feast.core.FeatureSetProto;
 import feast.ingestion.transform.fn.ValidateFeatureRowDoFn;
 import feast.ingestion.values.FeatureSet;
-import feast.storage.api.write.FailedElement;
+import feast.storage.api.writer.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.Map;
 import java.util.stream.Collectors;
