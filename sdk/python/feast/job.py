@@ -24,7 +24,7 @@ from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.CoreService_pb2 import ListIngestionJobsRequest
 
-# Maximum no of seconds to wait until the jobs status is DONE in Feast
+# Maximum no of seconds to wait until the retrieval jobs status is DONE in Feast
 # Currently set to the maximum query execution time limit in BigQuery
 DEFAULT_TIMEOUT_SEC: int = 21600
 
@@ -268,27 +268,27 @@ class IngestJob:
         """
         return self.proto.store
 
-    def wait(
-        self, status: IngestionJobStatus, timeout: float = 300, interval: float = 5
-    ):
+    def wait(self, status: IngestionJobStatus, timeout_secs: float = 300):
         """
         Wait for this IngestJob to transtion to the given status.
         Raises TimeoutError if the wait operation times out.
 
         Args:
             status: The IngestionJobStatus to wait for.
-            timeout: Maximum seconds to wait before timing out.
-            interval: The interval to wait between checking the IngestJob status.
+            timeout_secs: Maximum seconds to wait before timing out.
         """
         # poll & wait for job status to transition
         wait_begin = time.time()
-        elapsed = 0
-        while self.status != status and elapsed <= timeout:
-            time.sleep(interval)
-            elapsed = time.time() - wait_begin
+        wait_secs = 2
+        elapsed_secs = 0
+        while self.status != status and elapsed_secs <= timeout_secs:
+            time.sleep(wait_secs)
+            # back off wait duration exponentially, capped at MAX_WAIT_INTERVAL_SEC
+            wait_secs = min(wait_secs * 2, MAX_WAIT_INTERVAL_SEC)
+            elapsed_secs = time.time() - wait_begin
 
         # raise error if timeout
-        if elapsed > timeout:
+        if elapsed_secs > timeout_secs:
             raise TimeoutError("Wait for IngestJob's status to transition timed out")
 
     def __str__(self):
