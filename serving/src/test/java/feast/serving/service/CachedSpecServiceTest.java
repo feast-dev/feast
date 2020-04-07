@@ -37,7 +37,7 @@ import feast.core.StoreProto.Store.Subscription;
 import feast.serving.ServingAPIProto.FeatureReference;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.specs.CoreSpecService;
-import feast.serving.specs.FeatureSetRequest;
+import feast.storage.api.retriever.FeatureSetRequest;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;

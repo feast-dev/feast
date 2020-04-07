@@ -17,9 +17,9 @@
 package feast.ingestion.transform.fn;
 
 import com.google.auto.value.AutoValue;
-import feast.ingestion.values.FailedElement;
 import feast.ingestion.values.FeatureSet;
 import feast.ingestion.values.Field;
+import feast.storage.api.writer.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto;
 import feast.types.ValueProto.Value.ValCase;

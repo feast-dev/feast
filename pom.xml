@@ -29,6 +29,8 @@
 
     <modules>
         <module>datatypes/java</module>
+        <module>storage/api</module>
+        <module>storage/connectors</module>
         <module>ingestion</module>
         <module>core</module>
         <module>serving</module>

@@ -36,6 +36,7 @@ import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Subscription;
 import feast.serving.ServingAPIProto.FeatureReference;
 import feast.serving.exception.SpecRetrievalException;
+import feast.storage.api.retriever.FeatureSetRequest;
 import io.grpc.StatusRuntimeException;
 import io.prometheus.client.Gauge;
 import java.io.IOException;

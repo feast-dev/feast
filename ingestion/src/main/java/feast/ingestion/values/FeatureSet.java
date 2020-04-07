@@ -34,9 +34,9 @@ public class FeatureSet implements Serializable {
 
   private final Map<String, Field> fields;
 
-  public FeatureSet(FeatureSetProto.FeatureSet featureSet) {
-    this.reference = getFeatureSetReference(featureSet);
-    this.fields = getFieldsByName(featureSet.getSpec());
+  public FeatureSet(FeatureSetProto.FeatureSetSpec featureSetSpec) {
+    this.reference = getFeatureSetReference(featureSetSpec);
+    this.fields = getFieldsByName(featureSetSpec);
   }
 
   public String getReference() {

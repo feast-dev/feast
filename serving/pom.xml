@@ -76,6 +76,24 @@
       <version>${project.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>dev.feast</groupId>
+      <artifactId>feast-storage-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>dev.feast</groupId>
+      <artifactId>feast-storage-connector-redis</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>dev.feast</groupId>
+      <artifactId>feast-storage-connector-bigquery</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
     <!-- TODO: SLF4J is being used via Lombok, but also jog4j - pick one -->
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -114,6 +132,7 @@
       <groupId>io.github.lognet</groupId>
       <artifactId>grpc-spring-boot-starter</artifactId>
     </dependency>
+
     <!--compile "org.springframework.boot:spring-boot-starter-actuator:${springBootVersion}"-->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -134,17 +153,6 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java-util</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>io.pebbletemplates</groupId>
-      <artifactId>pebble</artifactId>
-      <version>3.1.0</version>
-    </dependency>
-
-    <dependency>
-      <groupId>io.lettuce</groupId>
-      <artifactId>lettuce-core</artifactId>
     </dependency>
 
     <!--compile 'com.google.guava:guava:26.0-jre'-->
@@ -180,12 +188,14 @@
       <artifactId>simpleclient</artifactId>
       <version>0.8.0</version>
     </dependency>
+
     <!-- Hotspot JVM metrics-->
     <dependency>
       <groupId>io.prometheus</groupId>
       <artifactId>simpleclient_hotspot</artifactId>
       <version>0.8.0</version>
     </dependency>
+
     <!-- Exposition HTTPServer-->
     <dependency>
       <groupId>io.prometheus</groupId>
@@ -196,17 +206,6 @@
       <groupId>io.prometheus</groupId>
       <artifactId>simpleclient_spring_boot</artifactId>
       <version>0.8.0</version>
-    </dependency>
-
-    <!-- Google Cloud -->
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-bigquery</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-storage</artifactId>
     </dependency>
 
     <dependency>

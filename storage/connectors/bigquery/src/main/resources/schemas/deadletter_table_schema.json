@@ -1,0 +1,34 @@
+{
+  "fields": [
+    {
+      "name": "timestamp",
+      "type": "TIMESTAMP",
+      "mode": "REQUIRED"
+    },
+    {
+      "name": "job_name",
+      "type": "STRING",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "transform_name",
+      "type": "STRING",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "payload",
+      "type": "STRING",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "error_message",
+      "type": "STRING",
+      "mode": "NULLABLE"
+    },
+    {
+      "name": "stack_trace",
+      "type": "STRING",
+      "mode": "NULLABLE"
+    }
+  ]
+}
