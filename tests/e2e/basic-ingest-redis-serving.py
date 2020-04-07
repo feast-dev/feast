@@ -334,7 +334,7 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
         ):
             break
 
-@pytest.mark.timeout(600)
+@pytest.mark.timeout(300)
 @pytest.mark.run(order=29)
 def test_all_types_ingest_jobs(client, all_types_dataframe):
     # list ingestion jobs given featureset
@@ -344,6 +344,8 @@ def test_all_types_ingest_jobs(client, all_types_dataframe):
     assert len(ingest_jobs) >= 1
 
     for ingest_job in ingest_jobs:
+        print("status: ", ingest_job.status)
+        print("job:", str(ingest_job))
         ingest_job.wait(IngestionJobStatus.RUNNING)
         assert ingest_job.status == IngestionJobStatus.RUNNING
 
