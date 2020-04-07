@@ -29,6 +29,12 @@ from feast.client import Client
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
     GetFeatureSetResponse,
+    ListIngestionJobsResponse,
+)
+from feast.core.Store_pb2 import Store
+from feast.core.IngestionJob_pb2 import (
+    IngestionJob as IngestJobProto,
+    IngestionJobStatus,
 )
 from feast.core.FeatureSet_pb2 import EntitySpec as EntitySpecProto
 from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
@@ -38,7 +44,8 @@ from feast.core.FeatureSet_pb2 import FeatureSetStatus as FeatureSetStatusProto
 from feast.core.FeatureSet_pb2 import FeatureSpec as FeatureSpecProto
 from feast.core.Source_pb2 import KafkaSourceConfig, Source, SourceType
 from feast.entity import Entity
-from feast.feature_set import Feature, FeatureSet
+from feast.feature_set import Feature, FeatureSet, FeatureSetRef
+from feast.job import IngestJob
 from feast.serving.ServingService_pb2 import (
     GetFeastServingInfoResponse,
     GetOnlineFeaturesRequest,
@@ -295,7 +302,109 @@ class TestClient:
             and len(feature_set.entities) == 1
         )
 
-    # @pytest.mark.parametrize(
+    @pytest.mark.parametrize(
+        "mocked_client",
+        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+    )
+    def test_list_ingest_jobs(self, mocked_client, mocker):
+        mocker.patch.object(
+            mocked_client,
+            "_core_service_stub",
+            return_value=Core.CoreServiceStub(grpc.insecure_channel("")),
+        )
+
+        feature_set_proto = FeatureSetProto(
+            spec=FeatureSetSpecProto(
+                project="test", name="driver", max_age=Duration(seconds=3600),
+            )
+        )
+
+        mocker.patch.object(
+            mocked_client._core_service_stub,
+            "ListIngestionJobs",
+            return_value=ListIngestionJobsResponse(
+                jobs=[
+                    IngestJobProto(
+                        id="kafka-to-redis",
+                        external_id="job-2222",
+                        status=IngestionJobStatus.RUNNING,
+                        feature_sets=[feature_set_proto],
+                        source=Source(
+                            type=SourceType.KAFKA,
+                            kafka_source_config=KafkaSourceConfig(
+                                bootstrap_servers="localhost:9092", topic="topic"
+                            ),
+                        ),
+                        store=Store(name="redis"),
+                    )
+                ]
+            ),
+        )
+
+        # list ingestion jobs by target feature set reference
+        ingest_jobs = mocked_client.list_ingest_jobs(
+            feature_set_ref=FeatureSetRef.from_feature_set(
+                FeatureSet.from_proto(feature_set_proto)
+            )
+        )
+        assert len(ingest_jobs) >= 1
+
+        ingest_job = ingest_jobs[0]
+        assert (
+            ingest_job.status == IngestionJobStatus.RUNNING
+            and ingest_job.id == "kafka-to-redis"
+            and ingest_job.external_id == "job-2222"
+            and ingest_job.feature_sets[0].name == "driver"
+            and ingest_job.source.source_type == "Kafka"
+        )
+
+    @pytest.mark.parametrize(
+        "mocked_client",
+        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+    )
+    def test_restart_ingest_job(self, mocked_client, mocker):
+        mocker.patch.object(
+            mocked_client,
+            "_core_service_stub",
+            return_value=Core.CoreServiceStub(grpc.insecure_channel("")),
+        )
+
+        ingest_job = IngestJob(
+            job_proto=IngestJobProto(
+                id="kafka-to-redis",
+                external_id="job#2222",
+                status=IngestionJobStatus.ERROR,
+            ),
+            core_stub=mocked_client._core_service_stub,
+        )
+
+        mocked_client.restart_ingest_job(ingest_job)
+        assert mocked_client._core_service_stub.RestartIngestionJob.called
+
+    @pytest.mark.parametrize(
+        "mocked_client",
+        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+    )
+    def test_stop_ingest_job(self, mocked_client, mocker):
+        mocker.patch.object(
+            mocked_client,
+            "_core_service_stub",
+            return_value=Core.CoreServiceStub(grpc.insecure_channel("")),
+        )
+
+        ingest_job = IngestJob(
+            job_proto=IngestJobProto(
+                id="kafka-to-redis",
+                external_id="job#2222",
+                status=IngestionJobStatus.RUNNING,
+            ),
+            core_stub=mocked_client._core_service_stub,
+        )
+
+        mocked_client.stop_ingest_job(ingest_job)
+        assert mocked_client._core_service_stub.StopIngestionJob.called
+
+    # @pytest.mark.parametrize
     #     "mocked_client",
     #     [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
     # )

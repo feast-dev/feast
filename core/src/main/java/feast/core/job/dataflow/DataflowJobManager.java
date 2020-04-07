@@ -153,6 +153,26 @@ public class DataflowJobManager implements JobManager {
   }
 
   /**
+   * Restart a restart dataflow job. Dataflow should ensure continuity between during the restart,
+   * so no data should be lost during the restart operation.
+   *
+   * @param job job to restart
+   * @return the restarted job
+   */
+  @Override
+  public Job restartJob(Job job) {
+    JobStatus status = job.getStatus();
+    if (JobStatus.getTerminalState().contains(status)) {
+      // job yet not running: just start job
+      return this.startJob(job);
+    } else {
+      // job is running - updating the job without changing the job has
+      // the effect of restarting the job
+      return this.updateJob(job);
+    }
+  }
+
+  /**
    * Get status of a dataflow job with given id and try to map it into Feast's JobStatus.
    *
    * @param job Job containing dataflow job id

@@ -23,7 +23,7 @@ import dataframes
 import feast.core.CoreService_pb2_grpc as Core
 from feast.client import Client
 from feast.entity import Entity
-from feast.feature_set import Feature, FeatureSet
+from feast.feature_set import Feature, FeatureSet, FeatureSetRef
 from feast.value_type import ValueType
 from feast_core_server import CoreServicer
 
@@ -167,3 +167,20 @@ class TestFeatureSet:
         )
         assert len(my_feature_set.features) == feature_count
         assert len(my_feature_set.entities) == entity_count
+
+
+class TestFeatureSetRef:
+    def test_from_feature_set(self):
+        feature_set = FeatureSet("test", "test")
+        feature_set.version = 2
+        ref = FeatureSetRef.from_feature_set(feature_set)
+
+        assert ref.name == "test"
+        assert ref.project == "test"
+        assert ref.version == 2
+
+    def test_str_ref(self):
+        original_ref = FeatureSetRef(project="test", name="test", version=2)
+        ref_str = repr(original_ref)
+        parsed_ref = FeatureSetRef.from_str(ref_str)
+        assert original_ref == parsed_ref

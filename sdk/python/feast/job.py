@@ -2,11 +2,15 @@ import tempfile
 import time
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
+from typing import List
 
 import fastavro
 import pandas as pd
 from google.cloud import storage
+from google.protobuf.json_format import MessageToJson
 
+from feast.feature_set import FeatureSet
+from feast.source import Source
 from feast.serving.ServingService_pb2 import (
     DATA_FORMAT_AVRO,
     JOB_STATUS_DONE,
@@ -14,8 +18,13 @@ from feast.serving.ServingService_pb2 import (
 )
 from feast.serving.ServingService_pb2 import Job as JobProto
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
+from feast.core.Store_pb2 import Store
+from feast.core.IngestionJob_pb2 import IngestionJob as IngestJobProto
+from feast.core.IngestionJob_pb2 import IngestionJobStatus
+from feast.core.CoreService_pb2_grpc import CoreServiceStub
+from feast.core.CoreService_pb2 import ListIngestionJobsRequest
 
-# Maximum no of seconds to wait until the jobs status is DONE in Feast
+# Maximum no of seconds to wait until the retrieval jobs status is DONE in Feast
 # Currently set to the maximum query execution time limit in BigQuery
 DEFAULT_TIMEOUT_SEC: int = 21600
 
@@ -23,7 +32,7 @@ DEFAULT_TIMEOUT_SEC: int = 21600
 MAX_WAIT_INTERVAL_SEC: int = 60
 
 
-class Job:
+class RetrievalJob:
     """
     A class representing a job for feature retrieval in Feast.
     """
@@ -33,7 +42,6 @@ class Job:
         Args:
             job_proto: Job proto object (wrapped by this job object)
             serving_stub: Stub for Feast serving service
-            storage_client: Google Cloud Storage client
         """
         self.job_proto = job_proto
         self.serving_stub = serving_stub
@@ -187,3 +195,107 @@ class Job:
 
     def __iter__(self):
         return iter(self.result())
+
+
+class IngestJob:
+    """
+    Defines a job for feature ingestion in feast.
+    """
+
+    def __init__(self, job_proto: IngestJobProto, core_stub: CoreServiceStub):
+        """
+        Construct a native ingest job from its protobuf version.
+
+        Args:
+        job_proto: Job proto object to construct from.
+        core_stub: stub for Feast CoreService
+        """
+        self.proto = job_proto
+        self.core_svc = core_stub
+
+    def reload(self):
+        """
+        Update this IngestJob with the latest info from Feast
+        """
+        # pull latest proto from feast core
+        response = self.core_svc.ListIngestionJobs(
+            ListIngestionJobsRequest(filter=ListIngestionJobsRequest.Filter(id=self.id))
+        )
+        self.proto = response.jobs[0]
+
+    @property
+    def id(self) -> str:
+        """
+        Getter for IngestJob's job id.
+        """
+        return self.proto.id
+
+    @property
+    def external_id(self) -> str:
+        """
+        Getter for IngestJob's external job id.
+        """
+        self.reload()
+        return self.proto.external_id
+
+    @property
+    def status(self) -> IngestionJobStatus:
+        """
+        Getter for IngestJob's status
+        """
+        self.reload()
+        return self.proto.status
+
+    @property
+    def feature_sets(self) -> List[FeatureSet]:
+        """
+        Getter for the IngestJob's feature sets
+        """
+        # convert featureset protos to native objects
+        return [FeatureSet.from_proto(fs) for fs in self.proto.feature_sets]
+
+    @property
+    def source(self) -> Source:
+        """
+        Getter for the IngestJob's data source.
+        """
+        return Source.from_proto(self.proto.source)
+
+    @property
+    def store(self) -> Store:
+        """
+        Getter for the IngestJob's target feast store.
+        """
+        return self.proto.store
+
+    def wait(self, status: IngestionJobStatus, timeout_secs: float = 300):
+        """
+        Wait for this IngestJob to transtion to the given status.
+        Raises TimeoutError if the wait operation times out.
+
+        Args:
+            status: The IngestionJobStatus to wait for.
+            timeout_secs: Maximum seconds to wait before timing out.
+        """
+        # poll & wait for job status to transition
+        wait_begin = time.time()
+        wait_secs = 2
+        elapsed_secs = 0
+        while self.status != status and elapsed_secs <= timeout_secs:
+            time.sleep(wait_secs)
+            # back off wait duration exponentially, capped at MAX_WAIT_INTERVAL_SEC
+            wait_secs = min(wait_secs * 2, MAX_WAIT_INTERVAL_SEC)
+            elapsed_secs = time.time() - wait_begin
+
+        # raise error if timeout
+        if elapsed_secs > timeout_secs:
+            raise TimeoutError("Wait for IngestJob's status to transition timed out")
+
+    def __str__(self):
+        # render the contents of ingest job as human readable string
+        self.reload()
+        return str(MessageToJson(self.proto))
+
+    def __repr__(self):
+        # render the ingest job as human readable string
+        return f"IngestJob<{self.id}>"
