@@ -24,6 +24,8 @@ option java_package = "feast.core";
 
 import "feast/core/FeatureSet.proto";
 import "feast/core/Store.proto";
+import "feast/core/FeatureSetReference.proto";
+import "feast/core/IngestionJob.proto";
 
 service CoreService {
     // Retrieve version information about this Feast deployment
@@ -73,6 +75,24 @@ service CoreService {
 
     // Lists all projects active projects.
     rpc ListProjects (ListProjectsRequest) returns (ListProjectsResponse);
+  
+    // List Ingestion Jobs given an optional filter.
+    // Returns allow ingestions matching the given request filter. 
+    // Returns all ingestion jobs if no filter is provided.
+    // Returns an empty list if no ingestion jobs match the filter.
+    rpc ListIngestionJobs(ListIngestionJobsRequest) returns (ListIngestionJobsResponse);
+
+    // Restart an Ingestion Job.  Restarts the ingestion job with the given job id.
+    // NOTE: Data might be lost during the restart for some job runners.
+    // Does not support stopping a job in a transitional (ie pending, suspending, aborting), 
+    // terminal state (ie suspended or aborted) or unknown status
+    rpc RestartIngestionJob(RestartIngestionJobRequest) returns (RestartIngestionJobResponse);
+  
+    // Stop an Ingestion Job.  Stop (Aborts) the ingestion job with the given job id.
+    // Does nothing if the target job if already in a terminal state (ie suspended or aborted).
+    // Does not support stopping a job in a transitional (ie pending, suspending, aborting) or unknown status
+    rpc StopIngestionJob(StopIngestionJobRequest) returns (StopIngestionJobResponse);
+
 }
 
 // Request for a single feature set
@@ -216,3 +236,41 @@ message ListProjectsResponse {
     // List of project names (archived projects are filtered out)
     repeated string projects = 1;
 }
+
+// Request for listing ingestion jobs
+message ListIngestionJobsRequest {
+    Filter filter = 1;
+
+    message Filter {
+        // Filter by Job ID assigned by Feast
+        string id = 1;
+        // Filter by ingestion job target feature set.
+        FeatureSetReference feature_set_reference = 2;
+        // Filter by Name of store
+        string store_name = 3;
+    }
+}
+
+// Response from listing ingestion jobs
+message ListIngestionJobsResponse {
+    repeated IngestionJob jobs = 1;
+}
+
+// Request to restart ingestion job
+message RestartIngestionJobRequest {
+    // Job ID assigned by Feast
+    string id = 1;
+}
+
+// Response from restartingan  injestion job
+message RestartIngestionJobResponse {}
+
+
+// Request to stop ingestion job
+message StopIngestionJobRequest {
+    // Job ID assigned by Feast
+    string id = 1;
+}
+
+// Request from stopping an ingestion job
+message StopIngestionJobResponse {}
