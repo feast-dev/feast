@@ -1,0 +1,15 @@
+name: unit tests
+
+on: [push, pull_request]
+
+jobs:
+  unit-test-python:
+    runs-on: ubuntu-latest
+    container: gcr.io/kf-feast/feast-ci:latest
+    name: unit test python
+    steps:
+      - uses: actions/checkout@v1
+      - name: install python
+        run: make install-python
+      - name: test python
+        run: make test-python
