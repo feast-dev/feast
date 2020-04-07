@@ -16,8 +16,24 @@
  */
 package feast.core.model;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+import feast.core.FeatureSetProto;
+import feast.core.IngestionJobProto;
+import java.util.ArrayList;
 import java.util.List;
-import javax.persistence.*;
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.Id;
+import javax.persistence.Index;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -101,5 +117,32 @@ public class Job extends AbstractTimestampEntity {
 
   public String getSinkName() {
     return store.getName();
+  }
+
+  /**
+   * Convert a job model to ingestion job proto
+   *
+   * @return Ingestion Job proto derieved from the given job
+   */
+  public IngestionJobProto.IngestionJob toProto() throws InvalidProtocolBufferException {
+
+    // convert featuresets of job to protos
+    List<FeatureSetProto.FeatureSet> featureSetProtos = new ArrayList<>();
+    for (FeatureSet featureSet : this.getFeatureSets()) {
+      featureSetProtos.add(featureSet.toProto());
+    }
+
+    // build ingestion job proto with job data
+    IngestionJobProto.IngestionJob ingestJob =
+        IngestionJobProto.IngestionJob.newBuilder()
+            .setId(this.getId())
+            .setExternalId(this.getExtId())
+            .setStatus(this.getStatus().toProto())
+            .addAllFeatureSets(featureSetProtos)
+            .setSource(this.getSource().toProto())
+            .setStore(this.getStore().toProto())
+            .build();
+
+    return ingestJob;
   }
 }

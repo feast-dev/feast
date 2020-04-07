@@ -7,9 +7,10 @@ from feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesRequest,
     GetOnlineFeaturesResponse,
 )
+from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.types.Value_pb2 import Value as Value
 from feast.client import Client
-from feast.feature_set import FeatureSet
+from feast.feature_set import FeatureSet, FeatureSetRef
 from feast.type_map import ValueType
 from google.protobuf.duration_pb2 import Duration
 from datetime import datetime
@@ -108,7 +109,6 @@ def test_basic_ingest_success(client, basic_dataframe):
     client.ingest(cust_trans_fs, basic_dataframe)
     time.sleep(5)
 
-
 @pytest.mark.timeout(45)
 @pytest.mark.run(order=12)
 def test_basic_retrieve_online_success(client, basic_dataframe):
@@ -151,6 +151,28 @@ def test_basic_retrieve_online_success(client, basic_dataframe):
             abs_tol=FLOAT_TOLERANCE,
         ):
             break
+
+@pytest.mark.timeout(300)
+@pytest.mark.run(order=19)
+def test_basic_ingest_jobs(client, basic_dataframe):
+    # list ingestion jobs given featureset
+    cust_trans_fs = client.get_feature_set(name="customer_transactions")
+    ingest_jobs = client.list_ingest_jobs(
+        feature_set_ref=FeatureSetRef.from_feature_set(cust_trans_fs))
+    # filter ingestion jobs to only those that are running
+    ingest_jobs = [job for job in ingest_jobs if job.status == IngestionJobStatus.RUNNING]
+    assert len(ingest_jobs) >= 1
+
+    for ingest_job in ingest_jobs:
+        # restart ingestion ingest_job
+        client.restart_ingest_job(ingest_job)
+        ingest_job.wait(IngestionJobStatus.RUNNING)
+        assert ingest_job.status == IngestionJobStatus.RUNNING
+
+        # stop ingestion ingest_job
+        client.stop_ingest_job(ingest_job)
+        ingest_job.wait(IngestionJobStatus.ABORTED)
+        assert ingest_job.status == IngestionJobStatus.ABORTED
 
 
 @pytest.fixture(scope='module')
@@ -311,6 +333,27 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
         ):
             break
 
+@pytest.mark.timeout(300)
+@pytest.mark.run(order=29)
+def test_all_types_ingest_jobs(client, all_types_dataframe):
+    # list ingestion jobs given featureset
+    all_types_fs = client.get_feature_set(name="all_types")
+    ingest_jobs = client.list_ingest_jobs(
+        feature_set_ref=FeatureSetRef.from_feature_set(all_types_fs))
+    # filter ingestion jobs to only those that are running
+    ingest_jobs = [job for job in ingest_jobs if job.status == IngestionJobStatus.RUNNING]
+    assert len(ingest_jobs) >= 1
+
+    for ingest_job in ingest_jobs:
+        # restart ingestion ingest_job
+        client.restart_ingest_job(ingest_job)
+        ingest_job.wait(IngestionJobStatus.RUNNING)
+        assert ingest_job.status == IngestionJobStatus.RUNNING
+
+        # stop ingestion ingest_job
+        client.stop_ingest_job(ingest_job)
+        ingest_job.wait(IngestionJobStatus.ABORTED)
+        assert ingest_job.status == IngestionJobStatus.ABORTED
 
 @pytest.fixture(scope='module')
 def large_volume_dataframe():
@@ -465,7 +508,6 @@ def all_types_parquet_file():
     file_path = os.path.join(tempfile.mkdtemp(), 'all_types.parquet')
     df.to_parquet(file_path, allow_truncated_timestamps=True)
     return file_path
-
 
 @pytest.mark.timeout(300)
 @pytest.mark.run(order=40)
