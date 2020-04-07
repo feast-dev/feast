@@ -196,22 +196,6 @@ public class CassandraServingService implements ServingService {
             continue;
           }
           List<ExecutionInfo> ee = queryRows.getExecutionInfos();
-          for (int index = 0; index < ee.size(); index++) {
-            log.debug("Found the coordinator: {}", ee.get(index).getCoordinator());
-            log.debug("Found the errors: {}", ee.get(index).getErrors());
-            log.debug("Found the query trace: {}", ee.get(index).getQueryTrace());
-            log.debug("Found the query warnings: {}", ee.get(index).getWarnings());
-            log.debug(
-                "Found the query speculative executions: {}",
-                ee.get(index).getSpeculativeExecutionCount());
-            log.debug("Found the query payload: {}", ee.get(index).getIncomingPayload());
-            log.debug("Found the paging stage: {}", ee.get(index).getPagingState());
-            log.debug(
-                "Found the sucessful execution index: {}",
-                ee.get(index).getSuccessfulExecutionIndex());
-            log.debug(
-                "Found the response size: {}", ee.get(index).getCompressedResponseSizeInBytes());
-          }
           foundResults += 1;
           while (queryRows.getAvailableWithoutFetching() > 0) {
             Row row = queryRows.one();
@@ -339,10 +323,7 @@ public class CassandraServingService implements ServingService {
         for (String key : keys) {
           results.add(
               session.execute(
-                  query
-                      .bind(key)
-                      .setTracing(true)
-                      .setConsistencyLevel(ConsistencyLevel.TWO)));
+                  query.bind(key).setTracing(false).setConsistencyLevel(ConsistencyLevel.TWO)));
         }
         return results;
       } catch (Exception e) {

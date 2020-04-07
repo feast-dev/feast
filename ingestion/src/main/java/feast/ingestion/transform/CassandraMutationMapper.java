@@ -58,6 +58,6 @@ public class CassandraMutationMapper implements Mapper<CassandraMutation>, Seria
         Option.timestamp(entityClass.getWriteTime()),
         Option.ttl(entityClass.getTtl()),
         Option.consistencyLevel(ConsistencyLevel.ALL),
-        Option.tracing(true));
+        Option.tracing(false));
   }
 }
