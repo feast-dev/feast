@@ -38,6 +38,8 @@ public class QueryTemplater {
   private static final PebbleEngine engine = new PebbleEngine.Builder().build();
   private static final String FEATURESET_TEMPLATE_NAME = "templates/single_featureset_pit_join.sql";
   private static final String JOIN_TEMPLATE_NAME = "templates/join_featuresets.sql";
+  private static final String BASIC_STATS_TEMPLATE_NAME = "templates/basic_stats.sql";
+  private static final String HIST_STATS_TEMPLATE_NAME = "templates/hist_stats.sql";
 
   /**
    * Get the query for retrieving the earliest and latest timestamps in the entity dataset.

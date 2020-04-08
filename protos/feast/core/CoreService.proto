@@ -22,6 +22,8 @@ option go_package = "github.com/gojek/feast/sdk/go/protos/feast/core";
 option java_outer_classname = "CoreServiceProto";
 option java_package = "feast.core";
 
+import "google/protobuf/timestamp.proto";
+import "tensorflow_metadata/proto/v0/statistics.proto";
 import "feast/core/FeatureSet.proto";
 import "feast/core/Store.proto";
 import "feast/core/FeatureSetReference.proto";
@@ -41,6 +43,11 @@ service CoreService {
     // If no filter is provided in the request, the response will contain all the feature
     // sets currently stored in the registry.
     rpc ListFeatureSets (ListFeatureSetsRequest) returns (ListFeatureSetsResponse);
+
+    // Get feature statistics computed over the data in the batch stores.
+    //
+    // Returns a dataset containing TFDV statistics mapped to each valid historical store.
+    rpc GetFeatureStatistics (GetFeatureStatisticsRequest) returns (GetFeatureStatisticsResponse);
 
     // Retrieve store details given a filter.
     //
@@ -274,3 +281,42 @@ message StopIngestionJobRequest {
 
 // Request from stopping an ingestion job
 message StopIngestionJobResponse {}
+
+message GetFeatureStatisticsRequest {
+    // Feature set to retrieve the statistics for. A fully qualified feature set
+    // id in the format of project/feature_set:version must be provided.
+    string feature_set_id = 1;
+
+    // Optional filter which filters returned statistics by selected features. These
+    // features must be present in the data that is being processed.
+    repeated string feature_ids = 2;
+
+    // Optional filter to select store over which the statistics will retrieved.
+    // Only historical stores are allowed.
+    string store = 3;
+
+    // Optional start and end dates over which to filter statistical data
+    // Start date is inclusive, but end date is not.
+    // Only dates are supported, not times.
+    // Cannot be used with dataset_ids.
+    // If this period spans multiple days, unaggregatable statistics will be dropped.
+    google.protobuf.Timestamp start_date = 4;
+    google.protobuf.Timestamp end_date = 5;
+
+    // Optional list of dataset Ids by which to filter data before
+    // retrieving statistics.
+    // Cannot be used with the date ranges
+    // If multiple dataset ids are provided, unaggregatable statistics will be dropped.
+    repeated string dataset_ids = 6;
+
+    // Setting this flag to true will force a recalculation of statistics and overwrite results currently in the
+    // cache, if any.
+    bool force_refresh = 7;
+}
+
+message GetFeatureStatisticsResponse {
+    // Contains statistics for the requested data.
+    // Due to the limitations of TFDV and Facets, only a single dataset can be returned in,
+    // despite the message being of list type.
+    tensorflow.metadata.v0.DatasetFeatureStatisticsList dataset_feature_statistics_list = 1;
+}

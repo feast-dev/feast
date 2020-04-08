@@ -19,39 +19,18 @@ package feast.core.grpc;
 import com.google.api.gax.rpc.InvalidArgumentException;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.CoreServiceGrpc.CoreServiceImplBase;
-import feast.core.CoreServiceProto.ApplyFeatureSetRequest;
-import feast.core.CoreServiceProto.ApplyFeatureSetResponse;
-import feast.core.CoreServiceProto.ArchiveProjectRequest;
-import feast.core.CoreServiceProto.ArchiveProjectResponse;
-import feast.core.CoreServiceProto.CreateProjectRequest;
-import feast.core.CoreServiceProto.CreateProjectResponse;
-import feast.core.CoreServiceProto.GetFeastCoreVersionRequest;
-import feast.core.CoreServiceProto.GetFeastCoreVersionResponse;
-import feast.core.CoreServiceProto.GetFeatureSetRequest;
-import feast.core.CoreServiceProto.GetFeatureSetResponse;
-import feast.core.CoreServiceProto.ListFeatureSetsRequest;
-import feast.core.CoreServiceProto.ListFeatureSetsResponse;
-import feast.core.CoreServiceProto.ListIngestionJobsRequest;
-import feast.core.CoreServiceProto.ListIngestionJobsResponse;
-import feast.core.CoreServiceProto.ListProjectsRequest;
-import feast.core.CoreServiceProto.ListProjectsResponse;
-import feast.core.CoreServiceProto.ListStoresRequest;
-import feast.core.CoreServiceProto.ListStoresResponse;
-import feast.core.CoreServiceProto.RestartIngestionJobRequest;
-import feast.core.CoreServiceProto.RestartIngestionJobResponse;
-import feast.core.CoreServiceProto.StopIngestionJobRequest;
-import feast.core.CoreServiceProto.StopIngestionJobResponse;
-import feast.core.CoreServiceProto.UpdateStoreRequest;
-import feast.core.CoreServiceProto.UpdateStoreResponse;
+import feast.core.CoreServiceProto.*;
 import feast.core.exception.RetrievalException;
 import feast.core.grpc.interceptors.MonitoringInterceptor;
 import feast.core.model.Project;
 import feast.core.service.AccessManagementService;
 import feast.core.service.JobService;
 import feast.core.service.SpecService;
+import feast.core.service.StatsService;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
@@ -65,15 +44,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 public class CoreServiceImpl extends CoreServiceImplBase {
 
   private SpecService specService;
+  private StatsService statsService;
   private AccessManagementService accessManagementService;
   private JobService jobService;
 
   @Autowired
   public CoreServiceImpl(
       SpecService specService,
+      StatsService statsService,
       AccessManagementService accessManagementService,
       JobService jobService) {
     this.specService = specService;
+    this.statsService = statsService;
     this.accessManagementService = accessManagementService;
     this.jobService = jobService;
   }
@@ -108,6 +90,21 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onCompleted();
     } catch (RetrievalException | IllegalArgumentException | InvalidProtocolBufferException e) {
       log.error("Exception has occurred in ListFeatureSet method: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void getFeatureStatistics(
+      GetFeatureStatisticsRequest request,
+      StreamObserver<GetFeatureStatisticsResponse> responseObserver) {
+    try {
+      GetFeatureStatisticsResponse response = statsService.getFeatureStatistics(request);
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (RetrievalException | IllegalArgumentException | IOException e) {
+      log.error("Exception has occurred in GetFeatureStatistics method: ", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }

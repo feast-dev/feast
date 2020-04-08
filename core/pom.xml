@@ -57,6 +57,24 @@
             <version>${project.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>dev.feast</groupId>
+            <artifactId>feast-storage-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>dev.feast</groupId>
+            <artifactId>feast-storage-connector-bigquery</artifactId>
+            <version>${project.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.beam</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
         <!-- Hot reloading for Spring Boot. spring-boot-maven-plugin removes
              this automatically when packaging. -->
         <dependency>

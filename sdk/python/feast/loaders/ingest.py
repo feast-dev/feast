@@ -25,7 +25,9 @@ BATCH_FEATURE_REQUEST_WAIT_TIME_SECONDS = 300
 KAFKA_CHUNK_PRODUCTION_TIMEOUT = 120  # type: int
 
 
-def _encode_pa_tables(file: str, fs: FeatureSet, row_group_idx: int) -> List[bytes]:
+def _encode_pa_tables(
+    file: str, fs: FeatureSet, dataset_id: str, row_group_idx: int
+) -> List[bytes]:
     """
     Helper function to encode a PyArrow table(s) read from parquet file(s) into
     FeatureRows.
@@ -43,6 +45,9 @@ def _encode_pa_tables(file: str, fs: FeatureSet, row_group_idx: int) -> List[byt
 
         fs (feast.feature_set.FeatureSet):
             FeatureSet describing parquet files.
+
+        dataset_id (str):
+            UUID unique to this dataset.
 
         row_group_idx(int):
             Row group index to read and encode into byte like FeatureRow
@@ -78,7 +83,9 @@ def _encode_pa_tables(file: str, fs: FeatureSet, row_group_idx: int) -> List[byt
     # Iterate through the rows
     for row_idx in range(table.num_rows):
         feature_row = FeatureRow(
-            event_timestamp=datetime_col[row_idx], feature_set=feature_set
+            event_timestamp=datetime_col[row_idx],
+            feature_set=feature_set,
+            dataset_id=dataset_id,
         )
         # Loop optimization declaration
         ext = feature_row.fields.extend
@@ -94,7 +101,7 @@ def _encode_pa_tables(file: str, fs: FeatureSet, row_group_idx: int) -> List[byt
 
 
 def get_feature_row_chunks(
-    file: str, row_groups: List[int], fs: FeatureSet, max_workers: int
+    file: str, row_groups: List[int], fs: FeatureSet, dataset_id: str, max_workers: int
 ) -> Iterable[List[bytes]]:
     """
     Iterator function to encode a PyArrow table read from a parquet file to
@@ -112,6 +119,9 @@ def get_feature_row_chunks(
         fs (feast.feature_set.FeatureSet):
             FeatureSet describing parquet files.
 
+        dataset_id (str):
+            UUID unique to this dataset.
+
         max_workers (int):
             Maximum number of workers to spawn.
 
@@ -121,7 +131,7 @@ def get_feature_row_chunks(
     """
 
     pool = Pool(max_workers)
-    func = partial(_encode_pa_tables, file, fs)
+    func = partial(_encode_pa_tables, file, fs, dataset_id)
     for chunk in pool.imap(func, row_groups):
         yield chunk
     return

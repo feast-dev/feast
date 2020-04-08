@@ -31,6 +31,7 @@ import org.joda.time.Instant;
 public class FeatureRowToTableRow implements SerializableFunction<FeatureRow, TableRow> {
   private static final String EVENT_TIMESTAMP_COLUMN = "event_timestamp";
   private static final String CREATED_TIMESTAMP_COLUMN = "created_timestamp";
+  private static final String DATASET_ID_COLUMN = "dataset_id";
   private static final String JOB_ID_COLUMN = "job_id";
   private final String jobId;
 
@@ -47,6 +48,7 @@ public class FeatureRowToTableRow implements SerializableFunction<FeatureRow, Ta
     TableRow tableRow = new TableRow();
     tableRow.set(EVENT_TIMESTAMP_COLUMN, Timestamps.toString(featureRow.getEventTimestamp()));
     tableRow.set(CREATED_TIMESTAMP_COLUMN, Instant.now().toString());
+    tableRow.set(DATASET_ID_COLUMN, featureRow.getDatasetId());
     tableRow.set(JOB_ID_COLUMN, jobId);
 
     for (Field field : featureRow.getFieldsList()) {

@@ -51,11 +51,7 @@ import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.ProjectRepository;
 import feast.core.dao.StoreRepository;
 import feast.core.exception.RetrievalException;
-import feast.core.model.FeatureSet;
-import feast.core.model.Field;
-import feast.core.model.Project;
-import feast.core.model.Source;
-import feast.core.model.Store;
+import feast.core.model.*;
 import feast.types.ValueProto.ValueType.Enum;
 import java.sql.Date;
 import java.time.Instant;
@@ -124,9 +120,9 @@ public class SpecServiceTest {
     FeatureSet featureSet1v3 = newDummyFeatureSet("f1", 3, "project1");
     FeatureSet featureSet2v1 = newDummyFeatureSet("f2", 1, "project1");
 
-    Field f3f1 = new Field("f3f1", Enum.INT64);
-    Field f3f2 = new Field("f3f2", Enum.INT64);
-    Field f3e1 = new Field("f3e1", Enum.STRING);
+    Feature f3f1 = new Feature("f3f1", Enum.INT64);
+    Feature f3f2 = new Feature("f3f2", Enum.INT64);
+    Entity f3e1 = new Entity("f3e1", Enum.STRING);
     FeatureSet featureSet3v1 =
         new FeatureSet(
             "f3",
@@ -490,9 +486,9 @@ public class SpecServiceTest {
   public void applyFeatureSetShouldNotCreateFeatureSetIfFieldsUnordered()
       throws InvalidProtocolBufferException {
 
-    Field f3f1 = new Field("f3f1", Enum.INT64);
-    Field f3f2 = new Field("f3f2", Enum.INT64);
-    Field f3e1 = new Field("f3e1", Enum.STRING);
+    Feature f3f1 = new Feature("f3f1", Enum.INT64);
+    Feature f3f2 = new Feature("f3f2", Enum.INT64);
+    Entity f3e1 = new Entity("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
         (new FeatureSet(
                 "f3",
@@ -713,9 +709,9 @@ public class SpecServiceTest {
   @Test
   public void applyFeatureSetShouldCreateProjectWhenNotAlreadyExists()
       throws InvalidProtocolBufferException {
-    Field f3f1 = new Field("f3f1", Enum.INT64);
-    Field f3f2 = new Field("f3f2", Enum.INT64);
-    Field f3e1 = new Field("f3e1", Enum.STRING);
+    Feature f3f1 = new Feature("f3f1", Enum.INT64);
+    Feature f3f2 = new Feature("f3f2", Enum.INT64);
+    Entity f3e1 = new Entity("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
         (new FeatureSet(
                 "f3",
@@ -739,9 +735,9 @@ public class SpecServiceTest {
   @Test
   public void applyFeatureSetShouldFailWhenProjectIsArchived()
       throws InvalidProtocolBufferException {
-    Field f3f1 = new Field("f3f1", Enum.INT64);
-    Field f3f2 = new Field("f3f2", Enum.INT64);
-    Field f3e1 = new Field("f3e1", Enum.STRING);
+    Feature f3f1 = new Feature("f3f1", Enum.INT64);
+    Feature f3f2 = new Feature("f3f2", Enum.INT64);
+    Entity f3e1 = new Entity("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
         (new FeatureSet(
                 "f3",
@@ -806,8 +802,8 @@ public class SpecServiceTest {
   }
 
   private FeatureSet newDummyFeatureSet(String name, int version, String project) {
-    Field feature = new Field("feature", Enum.INT64);
-    Field entity = new Field("entity", Enum.STRING);
+    Feature feature = new Feature("feature", Enum.INT64);
+    Entity entity = new Entity("entity", Enum.STRING);
 
     FeatureSet fs =
         new FeatureSet(

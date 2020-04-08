@@ -20,53 +20,18 @@ import com.google.protobuf.Duration;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
 import feast.core.FeatureSetProto;
-import feast.core.FeatureSetProto.EntitySpec;
-import feast.core.FeatureSetProto.FeatureSetMeta;
-import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.FeatureSetProto.FeatureSetStatus;
-import feast.core.FeatureSetProto.FeatureSpec;
+import feast.core.FeatureSetProto.*;
 import feast.types.ValueProto.ValueType.Enum;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import javax.persistence.CascadeType;
-import javax.persistence.CollectionTable;
-import javax.persistence.Column;
-import javax.persistence.ElementCollection;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.Table;
-import javax.persistence.UniqueConstraint;
+import java.util.*;
+import javax.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
-import org.hibernate.annotations.Fetch;
-import org.hibernate.annotations.FetchMode;
-import org.tensorflow.metadata.v0.BoolDomain;
-import org.tensorflow.metadata.v0.FeaturePresence;
-import org.tensorflow.metadata.v0.FeaturePresenceWithinGroup;
-import org.tensorflow.metadata.v0.FixedShape;
-import org.tensorflow.metadata.v0.FloatDomain;
-import org.tensorflow.metadata.v0.ImageDomain;
-import org.tensorflow.metadata.v0.IntDomain;
-import org.tensorflow.metadata.v0.MIDDomain;
-import org.tensorflow.metadata.v0.NaturalLanguageDomain;
-import org.tensorflow.metadata.v0.StringDomain;
-import org.tensorflow.metadata.v0.StructDomain;
-import org.tensorflow.metadata.v0.TimeDomain;
-import org.tensorflow.metadata.v0.TimeOfDayDomain;
-import org.tensorflow.metadata.v0.URLDomain;
-import org.tensorflow.metadata.v0.ValueCount;
+import org.tensorflow.metadata.v0.*;
 
 @Getter
 @Setter
-@Entity
+@javax.persistence.Entity
 @Table(name = "feature_sets")
 public class FeatureSet extends AbstractTimestampEntity implements Comparable<FeatureSet> {
 
@@ -93,19 +58,12 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   private long maxAgeSeconds;
 
   // Entity fields inside this feature set
-  @ElementCollection(fetch = FetchType.EAGER)
-  @CollectionTable(name = "entities", joinColumns = @JoinColumn(name = "feature_set_id"))
-  @Fetch(FetchMode.SUBSELECT)
-  private Set<Field> entities;
+  @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+  private Set<Entity> entities;
 
   // Feature fields inside this feature set
-  @ElementCollection(fetch = FetchType.EAGER)
-  @CollectionTable(
-      name = "features",
-      joinColumns = @JoinColumn(name = "feature_set_id"),
-      uniqueConstraints = @UniqueConstraint(columnNames = {"name", "project", "version"}))
-  @Fetch(FetchMode.SUBSELECT)
-  private Set<Field> features;
+  @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+  private Set<Feature> features;
 
   // Source on which feature rows can be found
   @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
@@ -125,8 +83,8 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
       String project,
       int version,
       long maxAgeSeconds,
-      List<Field> entities,
-      List<Field> features,
+      List<Entity> entities,
+      List<Feature> features,
       Source source,
       FeatureSetStatus status) {
     this.maxAgeSeconds = maxAgeSeconds;
@@ -173,14 +131,14 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     FeatureSetSpec featureSetSpec = featureSetProto.getSpec();
     Source source = Source.fromProto(featureSetSpec.getSource());
 
-    List<Field> featureSpecs = new ArrayList<>();
+    List<Feature> featureSpecs = new ArrayList<>();
     for (FeatureSpec featureSpec : featureSetSpec.getFeaturesList()) {
-      featureSpecs.add(new Field(featureSpec));
+      featureSpecs.add(Feature.fromProto(featureSpec));
     }
 
-    List<Field> entitySpecs = new ArrayList<>();
+    List<Entity> entitySpecs = new ArrayList<>();
     for (EntitySpec entitySpec : featureSetSpec.getEntitiesList()) {
-      entitySpecs.add(new Field(entitySpec));
+      entitySpecs.add(Entity.fromProto(entitySpec));
     }
 
     return new FeatureSet(
@@ -194,40 +152,42 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
         featureSetProto.getMeta().getStatus());
   }
 
-  public void addEntities(List<Field> fields) {
-    for (Field field : fields) {
-      addEntity(field);
+  public void addEntities(List<Entity> entities) {
+    for (Entity entity : entities) {
+      addEntity(entity);
     }
   }
 
-  public void addEntity(Field field) {
-    field.setProject(this.project.getName());
-    field.setVersion(this.getVersion());
-    entities.add(field);
+  public void addEntity(Entity entity) {
+    entity.setProject(this.project.getName());
+    entity.setFeatureSet(this.getName());
+    entity.setVersion(this.getVersion());
+    entities.add(entity);
   }
 
-  public void addFeatures(List<Field> fields) {
-    for (Field field : fields) {
-      addFeature(field);
+  public void addFeatures(List<Feature> features) {
+    for (Feature feature : features) {
+      addFeature(feature);
     }
   }
 
-  public void addFeature(Field field) {
-    field.setProject(this.project.getName());
-    field.setVersion(this.getVersion());
-    features.add(field);
+  public void addFeature(Feature feature) {
+    feature.setProject(this.project.getName());
+    feature.setFeatureSet(this.getName());
+    feature.setVersion(this.getVersion());
+    features.add(feature);
   }
 
   public FeatureSetProto.FeatureSet toProto() throws InvalidProtocolBufferException {
     List<EntitySpec> entitySpecs = new ArrayList<>();
-    for (Field entityField : entities) {
+    for (Entity entityField : entities) {
       EntitySpec.Builder entitySpecBuilder = EntitySpec.newBuilder();
       setEntitySpecFields(entitySpecBuilder, entityField);
       entitySpecs.add(entitySpecBuilder.build());
     }
 
     List<FeatureSpec> featureSpecs = new ArrayList<>();
-    for (Field featureField : features) {
+    for (Feature featureField : features) {
       FeatureSpec.Builder featureSpecBuilder = FeatureSpec.newBuilder();
       setFeatureSpecFields(featureSpecBuilder, featureField);
       featureSpecs.add(featureSpecBuilder.build());
@@ -252,14 +212,10 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     return FeatureSetProto.FeatureSet.newBuilder().setMeta(meta).setSpec(spec).build();
   }
 
-  // setEntitySpecFields and setFeatureSpecFields methods contain duplicated code because
-  // Feast internally treat EntitySpec and FeatureSpec as Field class. However, the proto message
-  // builder for EntitySpec and FeatureSpec are of different class.
-  @SuppressWarnings("DuplicatedCode")
-  private void setEntitySpecFields(EntitySpec.Builder entitySpecBuilder, Field entityField)
+  private void setEntitySpecFields(EntitySpec.Builder entitySpecBuilder, Entity entityField)
       throws InvalidProtocolBufferException {
     entitySpecBuilder
-        .setName(entityField.getName())
+        .setName(entityField.getId().getName())
         .setValueType(Enum.valueOf(entityField.getType()));
 
     if (entityField.getPresence() != null) {
@@ -304,12 +260,10 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     }
   }
 
-  // Refer to setEntitySpecFields method for the reason for code duplication.
-  @SuppressWarnings("DuplicatedCode")
-  private void setFeatureSpecFields(FeatureSpec.Builder featureSpecBuilder, Field featureField)
+  private void setFeatureSpecFields(FeatureSpec.Builder featureSpecBuilder, Feature featureField)
       throws InvalidProtocolBufferException {
     featureSpecBuilder
-        .setName(featureField.getName())
+        .setName(featureField.getId().getName())
         .setValueType(Enum.valueOf(featureField.getType()));
 
     if (featureField.getPresence() != null) {
@@ -378,36 +332,40 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     }
 
     // Create a map of all fields in this feature set
-    Map<String, Field> fields = new HashMap<>();
+    Map<String, Entity> entitiesMap = new HashMap<>();
+    Map<String, Feature> featuresMap = new HashMap<>();
 
-    for (Field e : entities) {
-      fields.putIfAbsent(e.getName(), e);
+    for (Entity e : entities) {
+      entitiesMap.putIfAbsent(e.getId().getName(), e);
     }
 
-    for (Field f : features) {
-      fields.putIfAbsent(f.getName(), f);
+    for (Feature f : features) {
+      featuresMap.putIfAbsent(f.getId().getName(), f);
     }
 
     // Ensure map size is consistent with existing fields
-    if (fields.size() != other.getFeatures().size() + other.getEntities().size()) {
+    if (entitiesMap.size() != other.getEntities().size()) {
+      return false;
+    }
+    if (featuresMap.size() != other.getFeatures().size()) {
       return false;
     }
 
     // Ensure the other entities and features exist in the field map
-    for (Field e : other.getEntities()) {
-      if (!fields.containsKey(e.getName())) {
+    for (Entity e : other.getEntities()) {
+      if (!entitiesMap.containsKey(e.getId().getName())) {
         return false;
       }
-      if (!e.equals(fields.get(e.getName()))) {
+      if (!e.equals(entitiesMap.get(e.getId().getName()))) {
         return false;
       }
     }
 
-    for (Field f : other.getFeatures()) {
-      if (!fields.containsKey(f.getName())) {
+    for (Feature f : other.getFeatures()) {
+      if (!featuresMap.containsKey(f.getId().getName())) {
         return false;
       }
-      if (!f.equals(fields.get(f.getName()))) {
+      if (!f.equals(featuresMap.get(f.getId().getName()))) {
         return false;
       }
     }

@@ -16,12 +16,16 @@
  */
 package feast.core.dao;
 
-import feast.core.model.Metrics;
-import java.util.List;
+import feast.core.model.Feature;
+import feast.core.model.FeatureStatistics;
+import java.util.Date;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
-@Repository
-public interface MetricsRepository extends JpaRepository<Metrics, Long> {
-  List<Metrics> findByJob_Id(String id);
+/** JPA repository supplying Statistics objects keyed by id. */
+public interface FeatureStatisticsRepository extends JpaRepository<FeatureStatistics, Integer> {
+  Optional<FeatureStatistics> findFeatureStatisticsByFeatureAndDatasetId(
+      Feature featureName, String datasetId);
+
+  Optional<FeatureStatistics> findFeatureStatisticsByFeatureAndDate(Feature featureName, Date date);
 }

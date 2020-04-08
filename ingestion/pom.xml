@@ -63,30 +63,6 @@
                   <resource>reference.conf</resource>
                 </transformer>
               </transformers>
-              <!-- Relocate packages so if Feast ingestion is imported as a library, the client
-              can use different version of the same library e.g. because of backward compatiblity issues -->
-              <relocations>
-                <relocation>
-                  <pattern>org.springframework</pattern>
-                  <shadedPattern>org.springframework.vendor</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>io.grpc</pattern>
-                  <shadedPattern>io.grpc.vendor</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>io.opencensus</pattern>
-                  <shadedPattern>io.opencensus.vendor</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>feast.core</pattern>
-                  <shadedPattern>feast.core.vendor</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>com.google.cloud.bigquery</pattern>
-                  <shadedPattern>com.google.cloud.bigquery.vendor</shadedPattern>
-                </relocation>
-              </relocations>
             </configuration>
           </execution>
         </executions>

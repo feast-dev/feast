@@ -1,0 +1,426 @@
+// Copyright 2017 The TensorFlow Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// =============================================================================
+
+// Definitions for aggregated feature statistics for datasets.
+// TODO(b/80075690): make a Javascript build rule for this.
+// TODO(b/80075691): migrate Facets to use this.
+syntax = "proto3";
+option cc_enable_arenas = true;
+
+package tensorflow.metadata.v0;
+
+option java_package = "org.tensorflow.metadata.v0";
+option java_multiple_files = true;
+
+import "tensorflow_metadata/proto/v0/path.proto";
+
+// Copied from Facets feature_statistics.proto
+// Must be kept binary-compatible with the original, until all usages
+// are updated to use this version, or we write a proto-to-proto converter.
+
+// A list of features statistics for different datasets. If you wish to compare
+// different datasets using this list, then the DatasetFeatureStatistics
+// entries should all contain the same list of features.
+message DatasetFeatureStatisticsList {
+  repeated DatasetFeatureStatistics datasets = 1;
+}
+
+// The feature statistics for a single dataset.
+message DatasetFeatureStatistics {
+  // The name of the dataset.
+  string name = 1;
+  // The number of examples in the dataset.
+  uint64 num_examples = 2;
+
+  // Only valid if the weight feature was specified.
+  // Treats a missing weighted feature as zero.
+  double weighted_num_examples = 4;
+  // The feature statistics for the dataset.
+  repeated FeatureNameStatistics features = 3;
+
+  // Cross feature statistics for the dataset.
+  repeated CrossFeatureStatistics cross_features = 5;
+}
+
+message CrossFeatureStatistics {
+  // The path of feature x.
+  Path path_x = 1;
+  // The path of feature y.
+  Path path_y = 2;
+
+  // Number of occurrences of this feature cross in the data. If any of
+  // the features in the cross is missing, the example is ignored.
+  uint64 count = 3;
+
+  oneof cross_stats {
+    NumericCrossStatistics num_cross_stats = 4;
+    CategoricalCrossStatistics categorical_cross_stats = 5;
+  }
+}
+
+message NumericCrossStatistics {
+  // Pearson product-moment correlation coefficient.
+  float correlation = 1;
+  // Standard covariance. E[(X-E[X])*(Y-E[Y])]
+  float covariance = 2;
+}
+
+message CategoricalCrossStatistics {
+   LiftStatistics lift = 1;
+}
+
+message LiftStatistics {
+  // Lift information for each value of path_y. Lift is defined for each pair of
+  // values (x,y) as P(path_y=y|path_x=x)/P(path_y=y).
+  repeated LiftSeries lift_series = 1;
+  // Weighted lift information for each value of path_y. Weighted lift is
+  // defined for each pair of values (x,y) as P(path_y=y|path_x=x)/P(path_y=y)
+  // where probabilities are computed over weighted example space.
+  repeated LiftSeries weighted_lift_series = 2;
+}
+
+// Container for lift information for a specific y-value.
+message LiftSeries {
+  // A bucket for referring to binned numeric features.
+  message Bucket {
+    // The low value of the bucket, inclusive.
+    double low_value = 1;
+    // The high value of the bucket, exclusive (unless the high_value is
+    // positive infinity).
+    double high_value = 2;
+  }
+
+  // The particular value of path_y corresponding to this LiftSeries. Each
+  // element in lift_values corresponds to the lift a different x_value and
+  // this specific y_value.
+  oneof y_value {
+    int32 y_int = 1;
+    string y_string = 2;
+    Bucket y_bucket = 3;
+  }
+
+  // The number of examples in which y_value appears.
+  oneof y_count_value {
+    uint64 y_count = 4;
+    double weighted_y_count = 5;
+  }
+
+  // A container for lift information about a specific value of path_x.
+  message LiftValue {
+    oneof x_value {
+      int32 x_int = 1;
+      string x_string = 2;
+    }
+    // P(path_y=y|path_x=x) / P(path_y=y) for x_value and the enclosing y_value.
+    // In terms of concrete fields, this number represents:
+    // (x_and_y_count / x_count) / (y_count / num_examples)
+    double lift = 3;
+    // The number of examples in which x_value appears.
+    oneof x_count_value {
+      uint64 x_count = 4;
+      double weighted_x_count = 5;
+    }
+    // The number of examples in which x_value appears and y_value appears.
+    oneof x_and_y_count_value {
+      uint64 x_and_y_count = 6;
+      double weighted_x_and_y_count = 7;
+    }
+  }
+
+  // The lifts for a each path_x value and this y_value.
+  repeated LiftValue lift_values = 6;
+}
+
+// The complete set of statistics for a given feature name for a dataset.
+message FeatureNameStatistics {
+  // The types supported by the feature statistics. When aggregating
+  // tf.Examples, if the bytelist contains a string, it is recommended to encode
+  // it here as STRING instead of BYTES in order to calculate string-specific
+  // statistical measures.
+  enum Type {
+    INT = 0;
+    FLOAT = 1;
+    STRING = 2;
+    BYTES = 3;
+    STRUCT = 4;
+  }
+
+  // One can identify a field either by the name (for simple fields), or by
+  // a path (for structured fields). Note that:
+  // name: "foo"
+  // is equivalent to:
+  // path: {step:"foo"}
+  // Note: this oneof must be consistently either name or path across all
+  // FeatureNameStatistics in one DatasetFeatureStatistics.
+  oneof field_id {
+    // The feature name
+    string name = 1;
+
+    // The path of the feature.
+    Path path = 8;
+  }
+
+  // The data type of the feature
+  Type type = 2;
+
+  // The statistics of the values of the feature.
+  oneof stats {
+    NumericStatistics num_stats = 3;
+    StringStatistics string_stats = 4;
+    BytesStatistics bytes_stats = 5;
+    StructStatistics struct_stats = 7;
+  }
+
+  // Any custom statistics can be stored in this list.
+  repeated CustomStatistic custom_stats = 6;
+}
+
+// Common weighted statistics for all feature types. Statistics counting number
+// of values (i.e., avg_num_values and tot_num_values) include NaNs.
+// If the weighted column is missing, then this counts as a weight of 1
+// for that example.
+message WeightedCommonStatistics {
+  // Weighted number of examples not missing.
+  double num_non_missing = 1;
+  // Weighted number of examples missing.
+  // Note that if the weighted column is zero, this does not count
+  // as missing.
+  double num_missing = 2;
+  // average number of values, weighted by the number of examples.
+  double avg_num_values = 3;
+  // tot_num_values = avg_num_values * num_non_missing.
+  // This is calculated directly, so should have less numerical error.
+  double tot_num_values = 4;
+}
+
+// Stores the name and value of any custom statistic. The value can be a string,
+// double, or histogram.
+message CustomStatistic {
+  string name = 1;
+  oneof val {
+    double num = 2;
+    string str = 3;
+    Histogram histogram = 4;
+    RankHistogram rank_histogram = 5;
+  }
+}
+
+// Statistics for a numeric feature in a dataset.
+message NumericStatistics {
+  CommonStatistics common_stats = 1;
+  // The mean of the values
+  double mean = 2;
+  // The standard deviation of the values
+  double std_dev = 3;
+  // The number of values that equal 0
+  uint64 num_zeros = 4;
+  // The minimum value
+  double min = 5;
+  // The median value
+  double median = 6;
+  // The maximum value
+  double max = 7;
+  // The histogram(s) of the feature values.
+  repeated Histogram histograms = 8;
+
+  // Weighted statistics for the feature, if the values have weights.
+  WeightedNumericStatistics weighted_numeric_stats = 9;
+}
+
+// Statistics for a string feature in a dataset.
+message StringStatistics {
+  CommonStatistics common_stats = 1;
+  // The number of unique values
+  uint64 unique = 2;
+
+  message FreqAndValue {
+    string value = 2;
+
+    // The number of times the value occurs. Stored as a double to be able to
+    // handle weighted features.
+    double frequency = 3;
+
+    // Deleted fields.
+    reserved 1;
+  }
+  // A sorted list of the most-frequent values and their frequencies, with
+  // the most-frequent being first.
+  repeated FreqAndValue top_values = 3;
+
+  // The average length of the values
+  float avg_length = 4;
+
+  // The rank histogram for the values of the feature.
+  // The rank is used to measure of how commonly the value is found in the
+  // dataset. The most common value would have a rank of 1, with the second-most
+  // common value having a rank of 2, and so on.
+  RankHistogram rank_histogram = 5;
+
+  // Weighted statistics for the feature, if the values have weights.
+  WeightedStringStatistics weighted_string_stats = 6;
+
+  // A vocabulary file, used for vocabularies too large to store in the proto
+  // itself.  Note that the file may be relative to some context-dependent
+  // directory.  E.g. in TFX the feature statistics will live in a PPP and
+  // vocabulary file names will be relative to this PPP.
+  string vocabulary_file = 7;
+}
+
+// Statistics for a weighted numeric feature in a dataset.
+message WeightedNumericStatistics {
+  // The weighted mean of the values
+  double mean = 1;
+  // The weighted standard deviation of the values
+  double std_dev = 2;
+  // The weighted median of the values
+  double median = 3;
+
+  // The histogram(s) of the weighted feature values.
+  repeated Histogram histograms = 4;
+}
+
+// Statistics for a weighted string feature in a dataset.
+message WeightedStringStatistics {
+  // A sorted list of the most-frequent values and their weighted frequencies,
+  // with the most-frequent being first.
+  repeated StringStatistics.FreqAndValue top_values = 1;
+
+  // The rank histogram for the weighted values of the feature.
+  RankHistogram rank_histogram = 2;
+}
+
+// Statistics for a bytes feature in a dataset.
+message BytesStatistics {
+  CommonStatistics common_stats = 1;
+  // The number of unique values
+  uint64 unique = 2;
+
+  // The average number of bytes in a value
+  float avg_num_bytes = 3;
+  // The minimum number of bytes in a value
+  float min_num_bytes = 4;
+  // The maximum number of bytes in a value
+  float max_num_bytes = 5;
+}
+
+message StructStatistics {
+  CommonStatistics common_stats = 1;
+}
+
+// Common statistics for all feature types. Statistics counting number of values
+// (i.e., min_num_values, max_num_values, avg_num_values, and tot_num_values)
+// include NaNs.
+message CommonStatistics {
+  // The number of examples with at least one value for this feature.
+  uint64 num_non_missing = 1;
+  // The number of examples with no values for this feature.
+  uint64 num_missing = 2;
+  // The minimum number of values in a single example for this feature.
+  uint64 min_num_values = 3;
+  // The maximum number of values in a single example for this feature.
+  uint64 max_num_values = 4;
+  // The average number of values in a single example for this feature.
+  float avg_num_values = 5;
+  // tot_num_values = avg_num_values * num_non_missing.
+  // This is calculated directly, so should have less numerical error.
+  uint64 tot_num_values = 8;
+  // The quantiles histogram for the number of values in this feature.
+  Histogram num_values_histogram = 6;
+  WeightedCommonStatistics weighted_common_stats = 7;
+  // The histogram for the number of features in the feature list (only set if
+  // this feature is a non-context feature from a tf.SequenceExample).
+  // This is different from num_values_histogram, as num_values_histogram tracks
+  // the count of all values for a feature in an example, whereas this tracks
+  // the length of the feature list for this feature in an example (where each
+  // feature list can contain multiple values).
+  Histogram feature_list_length_histogram = 9;
+}
+
+// The data used to create a histogram of a numeric feature for a dataset.
+message Histogram {
+  // Each bucket defines its low and high values along with its count. The
+  // low and high values must be a real number or positive or negative
+  // infinity. They cannot be NaN or undefined. Counts of those special values
+  // can be found in the numNaN and numUndefined fields.
+  message Bucket {
+    // The low value of the bucket, inclusive.
+    double low_value = 1;
+    // The high value of the bucket, exclusive (unless the highValue is
+    // positive infinity).
+    double high_value = 2;
+
+    // The number of items in the bucket. Stored as a double to be able to
+    // handle weighted histograms.
+    double sample_count = 4;
+
+    // Deleted fields.
+    reserved 3;
+  }
+
+  // The number of NaN values in the dataset.
+  uint64 num_nan = 1;
+  // The number of undefined values in the dataset.
+  uint64 num_undefined = 2;
+
+  // A list of buckets in the histogram, sorted from lowest bucket to highest
+  // bucket.
+  repeated Bucket buckets = 3;
+
+  // The type of the histogram. A standard histogram has equal-width buckets.
+  // The quantiles type is used for when the histogram message is used to store
+  // quantile information (by using equal-count buckets with variable widths).
+  enum HistogramType {
+    STANDARD = 0;
+    QUANTILES = 1;
+  }
+
+  // The type of the histogram.
+  HistogramType type = 4;
+
+  // An optional descriptive name of the histogram, to be used for labeling.
+  string name = 5;
+}
+
+// The data used to create a rank histogram of a non-numeric feature of a
+// dataset. The rank of a value in a feature can be used as a measure of how
+// commonly the value is found in the entire dataset. With bucket sizes of one,
+// this becomes a distribution function of all feature values.
+message RankHistogram {
+  // Each bucket defines its start and end ranks along with its count.
+  message Bucket {
+    // The low rank of the bucket, inclusive.
+    uint64 low_rank = 1;
+    // The high rank of the bucket, exclusive.
+    uint64 high_rank = 2;
+
+    // The label for the bucket. Can be used to list or summarize the values in
+    // this rank bucket.
+    string label = 4;
+
+    // The number of items in the bucket. Stored as a double to be able to
+    // handle weighted histograms.
+    double sample_count = 5;
+
+    // Deleted fields.
+    reserved 3;
+  }
+
+  // A list of buckets in the histogram, sorted from lowest-ranked bucket to
+  // highest-ranked bucket.
+  repeated Bucket buckets = 1;
+
+  // An optional descriptive name of the histogram, to be used for labeling.
+  string name = 2;
+}

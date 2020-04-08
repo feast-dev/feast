@@ -45,7 +45,8 @@ import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
 import feast.core.model.FeatureSet;
-import feast.core.model.Field;
+import feast.core.model.Feature;
+import feast.core.model.Entity;
 import feast.core.model.Job;
 import feast.core.model.JobStatus;
 import feast.core.model.Source;
@@ -158,8 +159,8 @@ public class JobServiceTest {
 
   // dummy model constructorss
   private FeatureSet newDummyFeatureSet(String name, int version, String project) {
-    Field feature = new Field(name + "_feature", Enum.INT64);
-    Field entity = new Field(name + "_entity", Enum.STRING);
+    Feature feature = new Feature(name + "_feature", Enum.INT64);
+    Entity entity = new Entity(name + "_entity", Enum.STRING);
 
     FeatureSet fs =
         new FeatureSet(

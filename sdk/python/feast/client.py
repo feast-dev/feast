@@ -17,7 +17,9 @@ import logging
 import os
 import shutil
 import tempfile
+import datetime
 import time
+import uuid
 from collections import OrderedDict
 from math import ceil
 from typing import Dict, List, Optional, Tuple, Union
@@ -26,6 +28,8 @@ import grpc
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+from tensorflow_metadata.proto.v0 import statistics_pb2
+from google.protobuf.timestamp_pb2 import Timestamp
 
 from feast.config import Config
 from feast.constants import (
@@ -46,6 +50,8 @@ from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionRequest,
     GetFeatureSetRequest,
     GetFeatureSetResponse,
+    GetFeatureStatisticsRequest,
+    GetFeatureStatisticsResponse,
     ListFeatureSetsRequest,
     ListFeatureSetsResponse,
     ListIngestionJobsRequest,
@@ -659,6 +665,7 @@ class Client:
 
         return response
 
+
     def list_ingest_jobs(
         self,
         job_id: str = None,
@@ -735,7 +742,7 @@ class Client:
         max_workers: int = max(CPU_COUNT - 1, 1),
         disable_progress_bar: bool = False,
         timeout: int = KAFKA_CHUNK_PRODUCTION_TIMEOUT,
-    ) -> None:
+    ) -> str:
         """
         Loads feature data into Feast for a specific feature set.
 
@@ -771,8 +778,8 @@ class Client:
                 Timeout in seconds to wait for completion.
 
         Returns:
-            None:
-                None
+            str:
+                dataset id of the ingested dataset
         """
 
         if isinstance(feature_set, FeatureSet):
@@ -825,6 +832,7 @@ class Client:
             # Loop optimization declarations
             produce = producer.produce
             flush = producer.flush
+            dataset_id = _generate_dataset_id(feature_set)
 
             # Transform and push data to Kafka
             if feature_set.source.source_type == "Kafka":
@@ -832,6 +840,7 @@ class Client:
                     file=dest_path,
                     row_groups=list(range(pq_file.num_row_groups)),
                     fs=feature_set,
+                    dataset_id=dataset_id,
                     max_workers=max_workers,
                 ):
 
@@ -859,6 +868,76 @@ class Client:
             print("Removing temporary file(s)...")
             shutil.rmtree(dir_path)
 
+        return dataset_id
+
+
+    def get_statistics(
+        self,
+        feature_set_id: str,
+        store: str,
+        features: List[str] = [],
+        dataset_ids: Optional[List[str]] = None,
+        start_date: Optional[datetime.datetime] = None,
+        end_date: Optional[datetime.datetime] = None,
+        force_refresh: bool = False,
+        default_project: Optional[str] = None,
+    ) -> statistics_pb2.DatasetFeatureStatisticsList:
+        """
+        Retrieves the feature featureStatistics computed over the data in the batch
+        stores.
+
+        Args:
+            feature_set_id: Fully qualified feature set id in the format
+                project/feature_set:version to retrieve batch featureStatistics for.
+            store: Name of the store to retrieve feature featureStatistics over. This
+                store must be a historical store.
+            features: Optional list of feature names to filter from the results.
+            dataset_ids: Optional list of dataset Ids by which to filter data
+                before retrieving featureStatistics. Cannot be used with start_date
+                and end_date.
+                If multiple dataset ids are provided, unaggregatable featureStatistics
+                will be dropped.
+            start_date: Optional start date over which to filter statistical data.
+                Data from this date will be included.
+                Cannot be used with dataset_ids. If the provided period spans
+                multiple days, unaggregatable featureStatistics will be dropped.
+            end_date: Optional end date over which to filter statistical data.
+                Data from this data will not be included.
+                Cannot be used with dataset_ids. If the provided period spans
+                multiple days, unaggregatable featureStatistics will be dropped.
+            force_refresh: Setting this flag to true will force a recalculation
+                of featureStatistics and overwrite results currently in the cache, if any.
+            default_project: This project will be used if the project name is
+                not provided in the feature reference
+
+        Returns:
+           Returns a tensorflow DatasetFeatureStatisticsList containing TFDV featureStatistics.
+        """
+
+        self._connect_core()
+        if dataset_ids is not None and (start_date is not None or end_date is not None):
+            raise ValueError(
+                "Only one of dataset_id or [start_date, end_date] can be provided."
+            )
+
+        request = GetFeatureStatisticsRequest(
+            feature_set_id=feature_set_id, feature_ids=features, store=store, force_refresh=force_refresh
+        )
+        if dataset_ids is not None:
+            request.dataset_ids.extend(dataset_ids)
+        else:
+            if start_date is not None:
+                request.start_date.CopyFrom(
+                    Timestamp(seconds=int(start_date.strftime("%s")))
+                )
+            if end_date is not None:
+                request.end_date.CopyFrom(
+                    Timestamp(seconds=int(end_date.strftime("%s")))
+                )
+
+        return self._core_service_stub.GetFeatureStatistics(
+            request
+        ).dataset_feature_statistics_list
         return None
 
 
@@ -914,6 +993,20 @@ def _build_feature_references(
 
         features.append(FeatureReference(project=project, name=name, version=version))
     return features
+
+
+def _generate_dataset_id(feature_set: FeatureSet) -> str:
+    """
+    Generates a UUID from the feature set name, version, and the current time.
+
+    Args:
+        feature_set: Feature set of the dataset to be ingested.
+
+    Returns:
+        UUID unique to current time and the feature set provided.
+    """
+    uuid_str = f"{feature_set.name}_{feature_set.version}_{int(time.time())}"
+    return str(uuid.uuid3(uuid.NAMESPACE_DNS, uuid_str))
 
 
 def _read_table_from_source(
