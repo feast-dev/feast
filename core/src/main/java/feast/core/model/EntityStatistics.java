@@ -21,7 +21,6 @@ import java.io.*;
 import java.util.Date;
 import java.util.List;
 import javax.persistence.*;
-import javax.persistence.Entity;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -30,17 +29,17 @@ import org.tensorflow.metadata.v0.*;
 @NoArgsConstructor
 @Getter
 @Setter
-@Entity
+@javax.persistence.Entity
 @Table(
-    name = "feature_statistics",
+    name = "entity_statistics",
     indexes = {
       @Index(
-          name = "idx_feature_statistics_feature",
+          name = "idx_entity_statistics_entity",
           columnList = "project,feature_set,version,name"),
-      @Index(name = "idx_feature_statistics_dataset_id", columnList = "datasetId"),
-      @Index(name = "idx_feature_statistics_date", columnList = "date"),
+      @Index(name = "idx_entity_statistics_dataset_id", columnList = "datasetId"),
+      @Index(name = "idx_entity_statistics_date", columnList = "date"),
     })
-public class FeatureStatistics {
+public class EntityStatistics {
   @Id
   @GeneratedValue(strategy = GenerationType.AUTO)
   private int id;
@@ -52,7 +51,7 @@ public class FeatureStatistics {
     @JoinColumn(name = "version", referencedColumnName = "version"),
     @JoinColumn(name = "name", referencedColumnName = "name")
   })
-  private Feature feature;
+  private Entity entity;
 
   // Only one of these fields should be populated.
   private String datasetId;
@@ -93,45 +92,45 @@ public class FeatureStatistics {
 
   // Instantiates a Statistics object from a tensorflow metadata FeatureNameStatistics object and a
   // dataset ID.
-  public static FeatureStatistics fromProto(
+  public static EntityStatistics fromProto(
       String project,
       String featureSetName,
       int version,
       FeatureNameStatistics featureNameStatistics,
       String datasetId)
       throws IOException {
-    FeatureStatistics featureStatistics = FeatureStatistics.fromProto(featureNameStatistics);
-    Feature feature = new Feature();
-    feature.setId(
+    EntityStatistics featureStatistics = EntityStatistics.fromProto(featureNameStatistics);
+    Entity entity = new Entity();
+    entity.setId(
         new FieldId(project, featureSetName, version, featureNameStatistics.getPath().getStep(0)));
-    featureStatistics.setFeature(feature);
+    featureStatistics.setEntity(entity);
     featureStatistics.setDatasetId(datasetId);
     return featureStatistics;
   }
 
   // Instantiates a Statistics object from a tensorflow metadata FeatureNameStatistics object and a
   // date.
-  public static FeatureStatistics fromProto(
+  public static EntityStatistics fromProto(
       String project,
       String featureSetName,
       int version,
       FeatureNameStatistics featureNameStatistics,
       Date date)
       throws IOException {
-    FeatureStatistics featureStatistics = FeatureStatistics.fromProto(featureNameStatistics);
-    featureStatistics.setDate(date);
-    Feature feature = new Feature();
-    feature.setId(
+    EntityStatistics entityStatistics = EntityStatistics.fromProto(featureNameStatistics);
+    entityStatistics.setDate(date);
+    Entity entity = new Entity();
+    entity.setId(
         new FieldId(project, featureSetName, version, featureNameStatistics.getPath().getStep(0)));
-    featureStatistics.setFeature(feature);
-    return featureStatistics;
+    entityStatistics.setEntity(entity);
+    return entityStatistics;
   }
 
   public FeatureNameStatistics toProto() throws InvalidProtocolBufferException {
     FeatureNameStatistics.Builder featureNameStatisticsBuilder =
         FeatureNameStatistics.newBuilder()
             .setType(FeatureNameStatistics.Type.valueOf(featureType))
-            .setPath(Path.newBuilder().addStep(feature.getId().getName()));
+            .setPath(Path.newBuilder().addStep(entity.getId().getName()));
     CommonStatistics commonStatistics =
         CommonStatistics.newBuilder()
             .setNumNonMissing(count - numMissing)
@@ -200,9 +199,9 @@ public class FeatureStatistics {
     return featureNameStatisticsBuilder.build();
   }
 
-  private static FeatureStatistics fromProto(FeatureNameStatistics featureNameStatistics)
+  private static EntityStatistics fromProto(FeatureNameStatistics featureNameStatistics)
       throws IOException, IllegalArgumentException {
-    FeatureStatistics featureStatistics = new FeatureStatistics();
+    EntityStatistics featureStatistics = new EntityStatistics();
     featureStatistics.setFeatureType(featureNameStatistics.getType().toString());
     CommonStatistics commonStats;
     switch (featureNameStatistics.getType()) {

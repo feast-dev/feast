@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.storage.connectors.bigquery.stats;
+package feast.storage.connectors.bigquery.statistics;
 
-import static feast.storage.connectors.bigquery.stats.StatsUtil.toFeatureNameStatistics;
+import static feast.storage.connectors.bigquery.statistics.StatsUtil.toFeatureNameStatistics;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 
@@ -47,12 +47,7 @@ public class StatsUtilTest {
           com.google.cloud.bigquery.Field.of("min", LegacySQLTypeName.FLOAT),
           com.google.cloud.bigquery.Field.of("max", LegacySQLTypeName.FLOAT),
           com.google.cloud.bigquery.Field.of("quantiles", LegacySQLTypeName.NUMERIC),
-          com.google.cloud.bigquery.Field.of("unique", LegacySQLTypeName.INTEGER),
-          com.google.cloud.bigquery.Field.of(
-              "top_count",
-              LegacySQLTypeName.RECORD,
-              com.google.cloud.bigquery.Field.of("value", LegacySQLTypeName.STRING),
-              com.google.cloud.bigquery.Field.of("count", LegacySQLTypeName.INTEGER)));
+          com.google.cloud.bigquery.Field.of("unique", LegacySQLTypeName.INTEGER));
 
   private Schema histStatsSchema =
       Schema.of(
@@ -99,8 +94,7 @@ public class StatsUtilTest {
                             FieldValue.of(Attribute.PRIMITIVE, "6.5"),
                             FieldValue.of(Attribute.PRIMITIVE, "8.5"),
                             FieldValue.of(Attribute.PRIMITIVE, "10.5")))),
-                FieldValue.of(Attribute.PRIMITIVE, null),
-                FieldValue.of(Attribute.REPEATED, FieldValueList.of(Lists.newArrayList()))));
+                FieldValue.of(Attribute.PRIMITIVE, null)));
 
     FieldValueList numericHistFieldValueList =
         FieldValueList.of(
@@ -131,7 +125,7 @@ public class StatsUtilTest {
 
     FeatureNameStatistics actual =
         toFeatureNameStatistics(
-            featureSpec,
+            featureSpec.getValueType(),
             basicStatsSchema,
             numericFieldValueList,
             histStatsSchema,
@@ -159,23 +153,7 @@ public class StatsUtilTest {
                 FieldValue.of(Attribute.PRIMITIVE, null),
                 FieldValue.of(Attribute.PRIMITIVE, null),
                 FieldValue.of(Attribute.REPEATED, FieldValueList.of(Lists.newArrayList())),
-                FieldValue.of(Attribute.PRIMITIVE, "2"),
-                FieldValue.of(
-                    Attribute.REPEATED,
-                    FieldValueList.of(
-                        Lists.newArrayList(
-                            FieldValue.of(
-                                Attribute.RECORD,
-                                FieldValueList.of(
-                                    Lists.newArrayList(
-                                        FieldValue.of(Attribute.PRIMITIVE, "a"),
-                                        FieldValue.of(Attribute.PRIMITIVE, "1")))),
-                            FieldValue.of(
-                                Attribute.RECORD,
-                                FieldValueList.of(
-                                    Lists.newArrayList(
-                                        FieldValue.of(Attribute.PRIMITIVE, "b"),
-                                        FieldValue.of(Attribute.PRIMITIVE, "2")))))))));
+                FieldValue.of(Attribute.PRIMITIVE, "2")));
 
     FieldValueList stringHistFieldValueList =
         FieldValueList.of(
@@ -204,13 +182,13 @@ public class StatsUtilTest {
 
     FeatureNameStatistics actual =
         toFeatureNameStatistics(
-            featureSpec,
+            featureSpec.getValueType(),
             basicStatsSchema,
             stringFieldValueList,
             histStatsSchema,
             stringHistFieldValueList);
     String expectedJson =
-        "{\"type\":\"STRING\",\"stringStats\":{\"commonStats\":{\"numNonMissing\":\"20\",\"minNumValues\":\"1\",\"maxNumValues\":\"1\",\"avgNumValues\":1,\"totNumValues\":\"20\"},\"unique\":\"2\",\"topValues\":[{\"value\":\"a\",\"frequency\":1},{\"value\":\"b\",\"frequency\":2}],\"rankHistogram\":{\"buckets\":[{\"label\":\"a\",\"sampleCount\":1},{\"label\":\"b\",\"sampleCount\":2}]}},\"path\":{\"step\":[\"strings\"]}}";
+        "{\"type\":\"STRING\",\"stringStats\":{\"commonStats\":{\"numNonMissing\":\"20\",\"minNumValues\":\"1\",\"maxNumValues\":\"1\",\"avgNumValues\":1,\"totNumValues\":\"20\"},\"unique\":\"2\",\"topValues\":[{\"value\":\"b\",\"frequency\":2},{\"value\":\"a\",\"frequency\":1}],\"rankHistogram\":{\"buckets\":[{\"label\":\"a\",\"sampleCount\":1},{\"label\":\"b\",\"sampleCount\":2}]}},\"path\":{\"step\":[\"strings\"]}}";
     FeatureNameStatistics.Builder expected = FeatureNameStatistics.newBuilder();
     JsonFormat.parser().merge(expectedJson, expected);
     assertThat(actual, equalTo(expected.build()));

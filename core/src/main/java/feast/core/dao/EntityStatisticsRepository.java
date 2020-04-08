@@ -16,16 +16,16 @@
  */
 package feast.core.dao;
 
-import feast.core.model.Feature;
-import feast.core.model.FeatureStatistics;
+import feast.core.model.Entity;
+import feast.core.model.EntityStatistics;
 import java.util.Date;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-/** JPA repository supplying Statistics objects for features keyed by id. */
-public interface FeatureStatisticsRepository extends JpaRepository<FeatureStatistics, Integer> {
-  Optional<FeatureStatistics> findFeatureStatisticsByFeatureAndDatasetId(
-      Feature feature, String datasetId);
+/** JPA repository supplying Statistics objects for entities keyed by id. */
+public interface EntityStatisticsRepository extends JpaRepository<EntityStatistics, Integer> {
+  Optional<EntityStatistics> findEntityStatisticsByEntityAndDatasetId(
+      Entity entity, String datasetId);
 
-  Optional<FeatureStatistics> findFeatureStatisticsByFeatureAndDate(Feature feature, Date date);
+  Optional<EntityStatistics> findEntityStatisticsByEntityAndDate(Entity entity, Date date);
 }

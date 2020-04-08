@@ -26,21 +26,23 @@ public interface StatisticsRetriever {
    * Get feature set statistics for a single feature set, for a single dataset id.
    *
    * @param featureSetSpec feature set spec of the requested feature set
+   * @param entities subset of entities to retrieve.
    * @param features subset of features to retrieve.
    * @param dataset dataset id to filter the data by
    * @return {@link FeatureSetStatistics} containing statistics for the requested features.
    */
   FeatureSetStatistics getFeatureStatistics(
-      FeatureSetSpec featureSetSpec, List<String> features, String dataset);
+      FeatureSetSpec featureSetSpec, List<String> entities, List<String> features, String dataset);
 
   /**
    * Get feature set statistics for a single feature set, for a single day.
    *
    * @param featureSetSpec feature set spec of the requested feature set
+   * @param entities subset of entities to retrieve.
    * @param features subset of features to retrieve.
    * @param date date to filter the data by
    * @return {@link FeatureSetStatistics} containing statistics for the requested features.
    */
   FeatureSetStatistics getFeatureStatistics(
-      FeatureSetSpec featureSetSpec, List<String> features, Timestamp date);
+      FeatureSetSpec featureSetSpec, List<String> entities, List<String> features, Timestamp date);
 }

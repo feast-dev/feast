@@ -19,6 +19,7 @@ package feast.core.service;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.*;
 
+import feast.core.dao.EntityStatisticsRepository;
 import feast.core.dao.FeatureStatisticsRepository;
 import feast.core.dao.StoreRepository;
 import java.util.Arrays;
@@ -33,11 +34,14 @@ public class StatsServiceTest {
   private StatsService statsService;
   @Mock private StoreRepository storeRepository;
   @Mock private FeatureStatisticsRepository featureStatisticsRepository;
+  @Mock private EntityStatisticsRepository entityStatisticsRepository;
   @Mock private SpecService specService;
 
   @Before
   public void setUp() {
-    statsService = new StatsService(storeRepository, specService, featureStatisticsRepository);
+    statsService =
+        new StatsService(
+            storeRepository, specService, entityStatisticsRepository, featureStatisticsRepository);
   }
 
   @Test

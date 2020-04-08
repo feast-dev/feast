@@ -19,16 +19,20 @@ package feast.core.model;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.types.ValueProto.ValueType;
 import java.util.Objects;
-import javax.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+/** Feast entity object. Contains name, type as well as domain metadata about the entity. */
 @Getter
 @Setter
 @javax.persistence.Entity
 public class Entity extends Field {
 
   public Entity() {}
+
+  public Entity(FieldId fieldId) {
+    this.setId(fieldId);
+  }
 
   public Entity(String name, ValueType.Enum type) {
     this.setId(new FieldId());

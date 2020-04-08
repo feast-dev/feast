@@ -30,9 +30,7 @@ SELECT
     -- quantiles
     APPROX_QUANTILES(CAST({{ feature.name }} AS FLOAT64), 10) AS quantiles,
     -- unique
-    null as unique,
-    -- top count
-    ARRAY<STRUCT<value STRING, count INT64>>[] as top_count
+    null as unique
     {% elseif feature.type equals "CATEGORICAL" %}
     -- mean
     null as mean,
@@ -47,9 +45,7 @@ SELECT
     -- quantiles
     ARRAY<FLOAT64>[] AS quantiles,
     -- unique
-    APPROX_COUNT_DISTINCT({{ feature.name }}) as unique,
-    -- top count
-    APPROX_TOP_COUNT({{ feature.name }}, 5) as top_count,
+    COUNT(DISTINCT({{ feature.name }})) as unique
     {% elseif feature.type equals "BYTES" %}
     -- mean
     AVG(BIT_COUNT({{ feature.name }})) as mean,
@@ -65,9 +61,7 @@ SELECT
     -- quantiles
     ARRAY<FLOAT64>[] AS quantiles,
     -- unique
-    APPROX_COUNT_DISTINCT({{ feature.name }}) as unique,
-    -- top count
-    ARRAY<STRUCT<value STRING, count INT64>>[] as top_count
+    COUNT(DISTINCT({{ feature.name }})) as unique
     {% elseif feature.type equals "LIST" %}
     -- mean
     AVG(ARRAY_LENGTH({{ feature.name }})) as mean,
@@ -83,9 +77,7 @@ SELECT
     -- quantiles
     ARRAY<FLOAT64>[] AS quantiles,
     -- unique
-    null as unique,
-    -- top count
-    ARRAY<STRUCT<value STRING, count INT64>>[] as top_count
+    null as unique
     {% endif %}
 FROM subset
 {% if loop.last %}{% else %}UNION ALL {% endif %}
