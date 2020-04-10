@@ -26,7 +26,12 @@ import dataframes
 import feast.core.CoreService_pb2_grpc as Core
 from feast.client import Client
 from feast.entity import Entity
-from feast.feature_set import Feature, FeatureSet, FeatureSetRef
+from feast.feature_set import (
+    Feature,
+    FeatureSet,
+    FeatureSetRef,
+    _make_tfx_schema_domain_info_inline,
+)
 from feast.value_type import ValueType
 from feast_core_server import CoreServicer
 
@@ -170,18 +175,18 @@ class TestFeatureSet:
         )
         assert len(my_feature_set.features) == feature_count
         assert len(my_feature_set.entities) == entity_count
-        
-def test_update_schema(self):
-        test_data_folder = (
-            pathlib.Path(__file__).parent / "data" / "tensorflow_metadata"
-        )
-        schema_bikeshare = schema_pb2.Schema()
-        json_format.Parse(
-            open(test_data_folder / "schema_bikeshare.json").read(), schema_bikeshare
-        )
+
+    def test_import_tfx_schema(self):
+        tests_folder = pathlib.Path(__file__).parent
+        test_input_schema_json = open(
+            tests_folder / "data" / "tensorflow_metadata" / "bikeshare_schema.json"
+        ).read()
+        test_input_schema = schema_pb2.Schema()
+        json_format.Parse(test_input_schema_json, test_input_schema)
+
         feature_set = FeatureSet(
             name="bikeshare",
-            entities=[Entity(name="station_id", dtype=ValueType.INT64),],
+            entities=[Entity(name="station_id", dtype=ValueType.INT64)],
             features=[
                 Feature(name="name", dtype=ValueType.STRING),
                 Feature(name="status", dtype=ValueType.STRING),
@@ -234,7 +239,7 @@ def test_update_schema(self):
         ).read()
         expected_schema = schema_pb2.Schema()
         json_format.Parse(expected_schema_json, expected_schema)
-        feature_set._make_tfx_schema_domain_info_inline(expected_schema)
+        _make_tfx_schema_domain_info_inline(expected_schema)
 
         actual_schema = test_input_feature_set.export_tfx_schema()
 
@@ -278,4 +283,3 @@ class TestFeatureSetRef:
         ref_str = repr(original_ref)
         parsed_ref = FeatureSetRef.from_str(ref_str)
         assert original_ref == parsed_ref
-

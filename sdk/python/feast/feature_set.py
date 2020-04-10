@@ -24,6 +24,7 @@ from google.protobuf.json_format import MessageToJson
 from google.protobuf.message import Message
 from pandas.api.types import is_datetime64_ns_dtype
 from pyarrow.lib import TimestampType
+from tensorflow_metadata.proto.v0 import schema_pb2
 
 from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
@@ -975,7 +976,6 @@ def _make_tfx_schema_domain_info_inline(schema: schema_pb2.Schema) -> None:
                 feature.float_domain.MergeFrom(domain_ref_to_float_domain[domain_ref])
             elif domain_ref in domain_ref_to_int_domain:
                 feature.int_domain.MergeFrom(domain_ref_to_int_domain[domain_ref])
-
 
 
 def _infer_pd_column_type(column, series, rows_to_sample):
