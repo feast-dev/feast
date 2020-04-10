@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from tensorflow_metadata.proto.v0 import schema_pb2
 
 from feast.core.FeatureSet_pb2 import EntitySpec as EntityProto
 from feast.field import Field
