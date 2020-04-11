@@ -52,12 +52,10 @@ public class FeastProperties {
     setVersion(buildProperties.getVersion());
   }
 
-  public FeastProperties() {
-    setVersion("unknown");
-  }
+  public FeastProperties() {}
 
   /* Feast Core Build Version */
-  @NotBlank private String version;
+  @NotBlank private String version = "unknown";
 
   /* Population job properties */
   @NotNull private JobProperties jobs;
