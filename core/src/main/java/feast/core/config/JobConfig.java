@@ -23,7 +23,6 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.DataflowScopes;
 import com.google.common.base.Strings;
 import feast.core.config.FeastProperties.JobProperties;
-import feast.core.config.FeastProperties.JobUpdatesProperties;
 import feast.core.job.JobManager;
 import feast.core.job.Runner;
 import feast.core.job.dataflow.DataflowJobManager;
@@ -31,7 +30,6 @@ import feast.core.job.direct.DirectJobRegistry;
 import feast.core.job.direct.DirectRunnerJobManager;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,10 +53,7 @@ public class JobConfig {
 
     JobProperties jobProperties = feastProperties.getJobs();
     Runner runner = Runner.fromString(jobProperties.getRunner());
-    if (jobProperties.getOptions() == null) {
-      jobProperties.setOptions(new HashMap<>());
-    }
-    Map<String, String> jobOptions = jobProperties.getOptions();
+    Map<String, String> jobOptions = jobProperties.getRunnerOptionsMap();
     switch (runner) {
       case DATAFLOW:
         if (Strings.isNullOrEmpty(jobOptions.getOrDefault("region", null))
@@ -77,7 +72,7 @@ public class JobConfig {
                   credential);
 
           return new DataflowJobManager(
-              dataflow, jobProperties.getOptions(), jobProperties.getMetrics());
+              dataflow, jobProperties.getRunnerOptionsMap(), jobProperties.getMetrics());
         } catch (IOException e) {
           throw new IllegalStateException(
               "Unable to find credential required for Dataflow monitoring API", e);
@@ -88,7 +83,7 @@ public class JobConfig {
         }
       case DIRECT:
         return new DirectRunnerJobManager(
-            jobProperties.getOptions(), directJobRegistry, jobProperties.getMetrics());
+            jobProperties.getRunnerOptionsMap(), directJobRegistry, jobProperties.getMetrics());
       default:
         throw new IllegalArgumentException("Unsupported runner: " + jobProperties.getRunner());
     }
@@ -98,11 +93,5 @@ public class JobConfig {
   @Bean
   public DirectJobRegistry directJobRegistry() {
     return new DirectJobRegistry();
-  }
-
-  /** Extracts job update options from feast core options. */
-  @Bean
-  public JobUpdatesProperties jobUpdatesProperties(FeastProperties feastProperties) {
-    return feastProperties.getJobs().getUpdates();
   }
 }

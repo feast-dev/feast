@@ -1,7 +1,4 @@
 feast:
-  # This value is retrieved from project.version properties in pom.xml
-  # https://docs.spring.io/spring-boot/docs/current/reference/html/
-  version: @project.version@
   # GRPC service address for Feast Core
   # Feast Serving requires connection to Feast Core to retrieve and reload Feast metadata (e.g. FeatureSpecs, Store information)
   core-host: ${FEAST_CORE_HOST:localhost}
@@ -18,40 +15,38 @@ feast:
     service-name: feast_serving
 
   store:
-    # Path containing the store configuration for this serving store.
-    config-path: ${FEAST_STORE_CONFIG_PATH:serving/sample_redis_config.yml}
-    # If serving redis, the redis pool max size
-    redis-pool-max-size: ${FEAST_REDIS_POOL_MAX_SIZE:128}
-    # If serving redis, the redis pool max idle conns
-    redis-pool-max-idle: ${FEAST_REDIS_POOL_MAX_IDLE:16}
+    name: serving
+    type: REDIS # Alternative, BIGQUERY
+    redis_config:
+      host: localhost
+      port: 6379
+    bigquery_config:
+      # GCP Project
+      project_id: my_project
 
-  jobs:
-    # staging-location specifies the URI to store intermediate files for batch serving.
-    # Feast Serving client is expected to have read access to this staging location
-    # to download the batch features.
-    #
-    # For example: gs://mybucket/myprefix
-    # Please omit the trailing slash in the URI.
-    staging-location: ${FEAST_JOB_STAGING_LOCATION:}
-    #
-    # Retry options for BigQuery jobs:
-    bigquery-initial-retry-delay-secs: 1
-    bigquery-total-timeout-secs: 21600
-    #
-    # Type of store to store job metadata. This only needs to be set if the
-    # serving store type is Bigquery.
-    store-type: ${FEAST_JOB_STORE_TYPE:}
-    #
-    # Job store connection options. If the job store is redis, the following items are required:
-    #
-    # store-options:
-    #   host: localhost
-    #   port: 6379
-    # Optionally, you can configure the connection pool with the following items:
-    #   max-conn: 8
-    #   max-idle: 8
-    #   max-wait-millis: 50
-    store-options: {}
+      # BigQuery Dataset Id
+      dataset_id: my_dataset
+
+      # staging-location specifies the URI to store intermediate files for batch serving.
+      # Feast Serving client is expected to have read access to this staging location
+      # to download the batch features.
+      # For example: gs://mybucket/myprefix
+      # Please omit the trailing slash in the URI.
+      staging-location: ${FEAST_JOB_STAGING_LOCATION:}
+
+      # Retry options for BigQuery retrieval jobs
+      bigquery-initial-retry-delay-secs: 1
+
+      # BigQuery timeout for retrieval jobs
+      bigquery-total-timeout-secs: 21600
+    subscriptions:
+      - name: "*"
+        project: "*"
+        version: "*"
+
+  job_store:
+    redis_host: localhost
+    redis_port: 6379
 
 grpc:
   # The port number Feast Serving GRPC service should listen on

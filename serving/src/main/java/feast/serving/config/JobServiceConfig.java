@@ -14,10 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.serving.configuration;
+package feast.serving.config;
 
 import feast.core.StoreProto.Store.StoreType;
-import feast.serving.FeastProperties;
 import feast.serving.service.JobService;
 import feast.serving.service.NoopJobService;
 import feast.serving.service.RedisBackedJobService;
@@ -29,24 +28,10 @@ import org.springframework.context.annotation.Configuration;
 public class JobServiceConfig {
 
   @Bean
-  public JobService jobService(
-      FeastProperties feastProperties,
-      CachedSpecService specService,
-      StoreConfiguration storeConfiguration) {
+  public JobService jobService(CachedSpecService specService, JobStoreConfig jobStoreConfig) {
     if (!specService.getStore().getType().equals(StoreType.BIGQUERY)) {
       return new NoopJobService();
     }
-    StoreType storeType = StoreType.valueOf(feastProperties.getJobs().getStoreType());
-    switch (storeType) {
-      case REDIS:
-        return new RedisBackedJobService(storeConfiguration.getJobStoreRedisConnection());
-      case INVALID:
-      case BIGQUERY:
-      case CASSANDRA:
-      case UNRECOGNIZED:
-      default:
-        throw new IllegalArgumentException(
-            String.format("Unsupported store type '%s' for job store", storeType));
-    }
+    return new RedisBackedJobService(jobStoreConfig);
   }
 }

@@ -19,6 +19,7 @@ package feast.serving.service;
 import com.google.protobuf.util.JsonFormat;
 import feast.serving.ServingAPIProto.Job;
 import feast.serving.ServingAPIProto.Job.Builder;
+import feast.serving.config.JobStoreConfig;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
 import java.util.Optional;
@@ -36,6 +37,10 @@ public class RedisBackedJobService implements JobService {
   // Remove job state info after "defaultExpirySeconds" to prevent filling up Redis memory
   // and since users normally don't require info about relatively old jobs.
   private final int defaultExpirySeconds = (int) Duration.standardDays(1).getStandardSeconds();
+
+  public RedisBackedJobService(JobStoreConfig jobStoreConfig) {
+    this.syncCommand = jobStoreConfig.getJobStoreRedisConnection().sync();
+  }
 
   public RedisBackedJobService(StatefulRedisConnection<byte[], byte[]> connection) {
     this.syncCommand = connection.sync();

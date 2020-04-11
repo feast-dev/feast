@@ -60,12 +60,12 @@ public class DataflowJobManager implements JobManager {
   private final MetricsProperties metrics;
 
   public DataflowJobManager(
-      Dataflow dataflow, Map<String, String> defaultOptions, MetricsProperties metricsProperties) {
-    this.defaultOptions = defaultOptions;
+      Dataflow dataflow, Map<String, String> runnerOptions, MetricsProperties metricsProperties) {
+    this.defaultOptions = runnerOptions;
     this.dataflow = dataflow;
     this.metrics = metricsProperties;
-    this.projectId = defaultOptions.get("project");
-    this.location = defaultOptions.get("region");
+    this.projectId = runnerOptions.get("project");
+    this.location = runnerOptions.get("region");
   }
 
   @Override

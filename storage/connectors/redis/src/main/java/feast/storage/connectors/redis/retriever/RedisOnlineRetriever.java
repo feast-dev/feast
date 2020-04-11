@@ -20,6 +20,7 @@ import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.StoreProto.Store.RedisConfig;
 import feast.serving.ServingAPIProto.FeatureReference;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.storage.RedisProto.RedisKey;
@@ -29,8 +30,11 @@ import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
 import feast.types.ValueProto.Value;
 import io.grpc.Status;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
+import io.lettuce.core.codec.ByteArrayCodec;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +46,13 @@ public class RedisOnlineRetriever implements OnlineRetriever {
   private final RedisCommands<byte[], byte[]> syncCommands;
 
   public RedisOnlineRetriever(StatefulRedisConnection<byte[], byte[]> connection) {
+    this.syncCommands = connection.sync();
+  }
+
+  public RedisOnlineRetriever(RedisConfig config) {
+    StatefulRedisConnection<byte[], byte[]> connection =
+        RedisClient.create(RedisURI.create(config.getHost(), config.getPort()))
+            .connect(new ByteArrayCodec());
     this.syncCommands = connection.sync();
   }
 

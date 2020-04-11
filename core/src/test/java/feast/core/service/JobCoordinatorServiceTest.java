@@ -39,7 +39,8 @@ import feast.core.StoreProto;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.core.StoreProto.Store.Subscription;
-import feast.core.config.FeastProperties.JobUpdatesProperties;
+import feast.core.config.FeastProperties;
+import feast.core.config.FeastProperties.JobProperties;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
@@ -65,13 +66,15 @@ public class JobCoordinatorServiceTest {
   @Mock SpecService specService;
   @Mock FeatureSetRepository featureSetRepository;
 
-  private JobUpdatesProperties jobUpdatesProperties;
+  private FeastProperties feastProperties;
 
   @Before
   public void setUp() {
     initMocks(this);
-    jobUpdatesProperties = new JobUpdatesProperties();
-    jobUpdatesProperties.setTimeoutSeconds(5);
+    feastProperties = new FeastProperties();
+    JobProperties jobProperties = new JobProperties();
+    jobProperties.setJobUpdateTimeout(5);
+    feastProperties.setJobs(jobProperties);
   }
 
   @Test
@@ -79,7 +82,7 @@ public class JobCoordinatorServiceTest {
     when(specService.listStores(any())).thenReturn(ListStoresResponse.newBuilder().build());
     JobCoordinatorService jcs =
         new JobCoordinatorService(
-            jobRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+            jobRepository, featureSetRepository, specService, jobManager, feastProperties);
     jcs.Poll();
     verify(jobRepository, times(0)).saveAndFlush(any());
   }
@@ -105,7 +108,7 @@ public class JobCoordinatorServiceTest {
         .thenReturn(ListFeatureSetsResponse.newBuilder().build());
     JobCoordinatorService jcs =
         new JobCoordinatorService(
-            jobRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+            jobRepository, featureSetRepository, specService, jobManager, feastProperties);
     jcs.Poll();
     verify(jobRepository, times(0)).saveAndFlush(any());
   }
@@ -196,7 +199,7 @@ public class JobCoordinatorServiceTest {
 
     JobCoordinatorService jcs =
         new JobCoordinatorService(
-            jobRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+            jobRepository, featureSetRepository, specService, jobManager, feastProperties);
     jcs.Poll();
     verify(jobRepository, times(1)).saveAndFlush(jobArgCaptor.capture());
     Job actual = jobArgCaptor.getValue();
@@ -318,7 +321,7 @@ public class JobCoordinatorServiceTest {
 
     JobCoordinatorService jcs =
         new JobCoordinatorService(
-            jobRepository, featureSetRepository, specService, jobManager, jobUpdatesProperties);
+            jobRepository, featureSetRepository, specService, jobManager, feastProperties);
     jcs.Poll();
 
     verify(jobRepository, times(2)).saveAndFlush(jobArgCaptor.capture());

@@ -23,7 +23,6 @@ grpc:
   enable-reflection: true
 
 feast:
-#  version: @project.version@
   jobs:
     # Runner type for feature population jobs. Currently supported runner types are
     # DirectRunner and DataflowRunner.

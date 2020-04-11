@@ -34,7 +34,7 @@
     <repository>
       <id>spring-plugins</id>
       <name>Spring Plugins</name>
-      <url> http://repo.spring.io/plugins-release</url>
+      <url> https://repo.spring.io/plugins-release</url>
     </repository>
   </repositories>
 
@@ -46,6 +46,14 @@
         <configuration>
           <skip>false</skip>
         </configuration>
+        <executions>
+          <execution>
+            <id>build-info</id>
+            <goals>
+              <goal>build-info</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -73,6 +81,12 @@
     <dependency>
       <groupId>dev.feast</groupId>
       <artifactId>datatypes-java</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>dev.feast</groupId>
+      <artifactId>feast-core</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -258,6 +272,11 @@
       <groupId>com.github.kstyrc</groupId>
       <artifactId>embedded-redis</artifactId>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <scope>compile</scope>
     </dependency>
   </dependencies>
 
