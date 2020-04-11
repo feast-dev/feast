@@ -14,31 +14,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.serving.configuration;
+package feast.serving.config;
 
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
-import org.springframework.beans.factory.ObjectProvider;
+import io.lettuce.core.codec.ByteArrayCodec;
+import io.lettuce.core.resource.DefaultClientResources;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class StoreConfiguration {
+public class JobStoreConfig {
 
-  // We can define other store specific beans here
-  // These beans can be autowired or can be created in this class.
-  private final StatefulRedisConnection<byte[], byte[]> servingRedisConnection;
   private final StatefulRedisConnection<byte[], byte[]> jobStoreRedisConnection;
 
   @Autowired
-  public StoreConfiguration(
-      ObjectProvider<StatefulRedisConnection<byte[], byte[]>> servingRedisConnection,
-      ObjectProvider<StatefulRedisConnection<byte[], byte[]>> jobStoreRedisConnection) {
-    this.servingRedisConnection = servingRedisConnection.getIfAvailable();
-    this.jobStoreRedisConnection = jobStoreRedisConnection.getIfAvailable();
-  }
+  public JobStoreConfig(FeastProperties feastProperties) {
+    RedisURI uri =
+        RedisURI.create(
+            feastProperties.getJobStore().getRedisHost(),
+            feastProperties.getJobStore().getRedisPort());
 
-  public StatefulRedisConnection<byte[], byte[]> getServingRedisConnection() {
-    return servingRedisConnection;
+    jobStoreRedisConnection =
+        RedisClient.create(DefaultClientResources.create(), uri).connect(new ByteArrayCodec());
   }
 
   public StatefulRedisConnection<byte[], byte[]> getJobStoreRedisConnection() {

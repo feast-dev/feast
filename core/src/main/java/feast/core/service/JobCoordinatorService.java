@@ -24,7 +24,8 @@ import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.Subscription;
-import feast.core.config.FeastProperties.JobUpdatesProperties;
+import feast.core.config.FeastProperties;
+import feast.core.config.FeastProperties.JobProperties;
 import feast.core.dao.FeatureSetRepository;
 import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
@@ -58,7 +59,7 @@ public class JobCoordinatorService {
   private FeatureSetRepository featureSetRepository;
   private SpecService specService;
   private JobManager jobManager;
-  private JobUpdatesProperties jobUpdatesProperties;
+  private JobProperties jobProperties;
 
   @Autowired
   public JobCoordinatorService(
@@ -66,12 +67,12 @@ public class JobCoordinatorService {
       FeatureSetRepository featureSetRepository,
       SpecService specService,
       JobManager jobManager,
-      JobUpdatesProperties jobUpdatesProperties) {
+      FeastProperties feastProperties) {
     this.jobRepository = jobRepository;
     this.featureSetRepository = featureSetRepository;
     this.specService = specService;
     this.jobManager = jobManager;
-    this.jobUpdatesProperties = jobUpdatesProperties;
+    this.jobProperties = feastProperties.getJobs();
   }
 
   /**
@@ -121,7 +122,7 @@ public class JobCoordinatorService {
                           store,
                           originalJob,
                           jobManager,
-                          jobUpdatesProperties.getTimeoutSeconds()));
+                          jobProperties.getJobUpdateTimeout()));
                 });
       }
     }

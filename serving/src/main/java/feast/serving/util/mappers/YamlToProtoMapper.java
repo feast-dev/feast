@@ -19,19 +19,29 @@ package feast.serving.util.mappers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.protobuf.util.JsonFormat;
+import feast.core.StoreProto;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.Builder;
 import java.io.IOException;
+import org.slf4j.Logger;
 
 public class YamlToProtoMapper {
+
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(YamlToProtoMapper.class);
+
   private static final ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());
   private static final ObjectMapper jsonWriter = new ObjectMapper();
 
-  public static Store yamlToStoreProto(String yaml) throws IOException {
-    Object obj = yamlReader.readValue(yaml, Object.class);
-    String jsonString = jsonWriter.writeValueAsString(obj);
-    Builder builder = Store.newBuilder();
-    JsonFormat.parser().merge(jsonString, builder);
-    return builder.build();
+  public static Store yamlToStoreProto(String yaml) {
+    try {
+      Object obj = yamlReader.readValue(yaml, Object.class);
+      String jsonString = jsonWriter.writeValueAsString(obj);
+      Builder builder = Store.newBuilder();
+      JsonFormat.parser().merge(jsonString, builder);
+      return builder.build();
+    } catch (IOException e) {
+      log.error("Could not parse store configuration YAML", e);
+      return StoreProto.Store.getDefaultInstance();
+    }
   }
 }

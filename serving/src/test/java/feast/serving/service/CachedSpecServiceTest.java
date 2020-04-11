@@ -46,7 +46,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -55,7 +54,6 @@ import org.mockito.Mock;
 
 public class CachedSpecServiceTest {
 
-  private File configFile;
   private Store store;
 
   @Rule public final ExpectedException expectedException = ExpectedException.none();
@@ -66,26 +64,8 @@ public class CachedSpecServiceTest {
   private CachedSpecService cachedSpecService;
 
   @Before
-  public void setUp() throws IOException {
+  public void setUp() {
     initMocks(this);
-
-    configFile = File.createTempFile("serving", ".yml");
-    String yamlString =
-        "name: SERVING\n"
-            + "type: REDIS\n"
-            + "redis_config:\n"
-            + "  host: localhost\n"
-            + "  port: 6379\n"
-            + "subscriptions:\n"
-            + "- project: project\n"
-            + "  name: fs1\n"
-            + "  version: \"*\"\n"
-            + "- project: project\n"
-            + "  name: fs2\n"
-            + "  version: \"*\"";
-    BufferedWriter writer = new BufferedWriter(new FileWriter(configFile));
-    writer.write(yamlString);
-    writer.close();
 
     store =
         Store.newBuilder()
@@ -164,12 +144,7 @@ public class CachedSpecServiceTest {
                 .build()))
         .thenReturn(ListFeatureSetsResponse.newBuilder().addAllFeatureSets(fs2FeatureSets).build());
 
-    cachedSpecService = new CachedSpecService(coreService, configFile.toPath());
-  }
-
-  @After
-  public void tearDown() {
-    configFile.delete();
+    cachedSpecService = new CachedSpecService(coreService, store);
   }
 
   @Test

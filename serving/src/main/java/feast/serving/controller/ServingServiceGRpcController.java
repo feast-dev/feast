@@ -16,7 +16,6 @@
  */
 package feast.serving.controller;
 
-import feast.serving.FeastProperties;
 import feast.serving.ServingAPIProto.GetBatchFeaturesRequest;
 import feast.serving.ServingAPIProto.GetBatchFeaturesResponse;
 import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
@@ -26,6 +25,7 @@ import feast.serving.ServingAPIProto.GetJobResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.serving.ServingServiceGrpc.ServingServiceImplBase;
+import feast.serving.config.FeastProperties;
 import feast.serving.interceptors.GrpcMonitoringInterceptor;
 import feast.serving.service.ServingService;
 import feast.serving.util.RequestHelper;
