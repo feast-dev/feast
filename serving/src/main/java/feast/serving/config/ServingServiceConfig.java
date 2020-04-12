@@ -16,13 +16,8 @@
  */
 package feast.serving.config;
 
-import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryOptions;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.StoreProto;
-import feast.core.StoreProto.Store.BigQueryConfig;
 import feast.serving.service.HistoricalServingService;
 import feast.serving.service.JobService;
 import feast.serving.service.NoopJobService;
@@ -59,39 +54,12 @@ public class ServingServiceConfig {
         servingService = new OnlineServingService(redisRetriever, specService, tracer);
         break;
       case BIGQUERY:
-        BigQueryConfig bqConfig = store.getBigqueryConfig();
-        String jobStagingLocation = bqConfig.getStagingLocation();
-        BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
-        Storage storage = StorageOptions.getDefaultInstance().getService();
-
-        if (!jobStagingLocation.contains("://")) {
-          throw new IllegalArgumentException(
-              String.format("jobStagingLocation is not a valid URI: %s", jobStagingLocation));
-        }
-        if (jobStagingLocation.endsWith("/")) {
-          jobStagingLocation = jobStagingLocation.substring(0, jobStagingLocation.length() - 1);
-        }
-        if (!jobStagingLocation.startsWith("gs://")) {
-          throw new IllegalArgumentException(
-              "Store type BIGQUERY requires job staging location to be a valid and existing Google Cloud Storage URI. Invalid staging location: "
-                  + jobStagingLocation);
-        }
         if (jobService.getClass() == NoopJobService.class) {
           throw new IllegalArgumentException(
-              "Unable to instantiate jobService for BigQuery store.");
+              "Unable to instantiate JobService which is required by BigQueryHistoricalRetriever.");
         }
-
         HistoricalRetriever bqRetriever =
-            BigQueryHistoricalRetriever.builder()
-                .setBigquery(bigquery)
-                .setDatasetId(bqConfig.getDatasetId())
-                .setProjectId(bqConfig.getProjectId())
-                .setJobStagingLocation(bqConfig.getStagingLocation())
-                .setInitialRetryDelaySecs(bqConfig.getInitialRetryDelaySeconds())
-                .setTotalTimeoutSecs(bqConfig.getTotalTimeoutSeconds())
-                .setStorage(storage)
-                .build();
-
+            BigQueryHistoricalRetriever.fromConfig(store.getBigqueryConfig());
         servingService = new HistoricalServingService(bqRetriever, specService, jobService);
         break;
       case CASSANDRA:
