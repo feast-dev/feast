@@ -33,14 +33,13 @@ import org.springframework.context.annotation.Configuration;
 public class JobConfig {
 
   /**
-   * Get a JobManager according to the runner type and dataflow configuration.
+   * Get a JobManager according to the runner type and Dataflow configuration.
    *
    * @param feastProperties feast config properties
    */
   @Bean
   @Autowired
-  public JobManager getJobManager(
-      FeastProperties feastProperties, DirectJobRegistry directJobRegistry) {
+  public JobManager getJobManager(FeastProperties feastProperties) {
 
     JobProperties jobProperties = feastProperties.getJobs();
     FeastProperties.JobProperties.Runner runner = jobProperties.getActiveRunner();
@@ -51,15 +50,9 @@ public class JobConfig {
       case DATAFLOW:
         return new DataflowJobManager(runnerConfigOptions, metrics);
       case DIRECT:
-        return new DirectRunnerJobManager(runnerConfigOptions, directJobRegistry, metrics);
+        return new DirectRunnerJobManager(runnerConfigOptions, new DirectJobRegistry(), metrics);
       default:
         throw new IllegalArgumentException("Unsupported runner: " + runner);
     }
-  }
-
-  /** Get a direct job registry */
-  @Bean
-  public DirectJobRegistry directJobRegistry() {
-    return new DirectJobRegistry();
   }
 }

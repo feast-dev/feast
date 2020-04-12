@@ -16,62 +16,90 @@
  */
 package feast.core.job.dataflow;
 
+import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.Set;
 import javax.validation.*;
 import javax.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.beans.BeanUtils;
 
+/** DataflowRunnerConfig contains configuration fields for the Dataflow job runner. */
 @Getter
 @Setter
 public class DataflowRunnerConfig {
 
   public DataflowRunnerConfig(Map<String, String> runnerConfigOptions) {
-    BeanUtils.copyProperties(this, runnerConfigOptions);
+
+    // Try to find all fields in DataflowRunnerConfig inside the runnerConfigOptions and map it into
+    // this object
+    for (Field field : DataflowRunnerConfig.class.getFields()) {
+      String fieldName = field.getName();
+      try {
+        if (!runnerConfigOptions.containsKey(fieldName)) {
+          continue;
+        }
+        String value = runnerConfigOptions.get(fieldName);
+
+        if (Boolean.class.equals(field.getType())) {
+          field.set(this, Boolean.valueOf(value));
+          continue;
+        }
+        if (field.getType() == Integer.class) {
+          field.set(this, Integer.valueOf(value));
+          continue;
+        }
+        field.set(this, value);
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(
+            String.format(
+                "Could not successfully convert DataflowRunnerConfig for key: %s", fieldName),
+            e);
+      }
+    }
     validate();
   }
 
-  /* (Dataflow Runner Only) Project id to use when launching jobs. */
-  @NotBlank private String project;
+  /* Project id to use when launching jobs. */
+  @NotBlank public String project;
 
-  /* (Dataflow Runner Only) The Google Compute Engine region for creating Dataflow jobs. */
-  @NotBlank private String region;
+  /* The Google Compute Engine region for creating Dataflow jobs. */
+  @NotBlank public String region;
 
-  /* (Dataflow Runner Only) GCP availability zone for operations. */
-  @NotBlank private String zone;
+  /* GCP availability zone for operations. */
+  @NotBlank public String zone;
 
-  /* (Dataflow Runner Only) Run the job as a specific service account, instead of the default GCE robot. */
-  @NotBlank private String serviceAccount;
+  /* Run the job as a specific service account, instead of the default GCE robot. */
+  public String serviceAccount;
 
-  /* (Dataflow Runner Only) GCE network for launching workers. */
-  @NotBlank private String network;
+  /* GCE network for launching workers. */
+  @NotBlank public String network;
 
-  /* (Dataflow Runner Only) GCE subnetwork for launching workers. */
-  @NotBlank private String subnetwork;
+  /* GCE subnetwork for launching workers. */
+  @NotBlank public String subnetwork;
 
-  /* (Dataflow Runner Only) Machine type to create Dataflow worker VMs as. */
-  private String workerMachineType;
+  /* Machine type to create Dataflow worker VMs as. */
+  public String workerMachineType;
 
-  /* (Dataflow Runner Only) The autoscaling algorithm to use for the workerpool. */
-  private String autoscalingAlgorithm;
+  /* The autoscaling algorithm to use for the workerpool. */
+  public String autoscalingAlgorithm;
 
-  /* (Dataflow Runner Only) Specifies whether worker pools should be started with public IP addresses. */
-  private Boolean usePublicIps;
+  /* Specifies whether worker pools should be started with public IP addresses. */
+  public Boolean usePublicIps;
 
   /**
-   * (Dataflow Runner Only) A pipeline level default location for storing temporary files. Support
-   * Google Cloud Storage locations, e.g. gs://bucket/object
+   * A pipeline level default location for storing temporary files. Support Google Cloud Storage
+   * locations, e.g. gs://bucket/object
    */
-  @NotBlank private String tempLocation;
+  @NotBlank public String tempLocation;
 
-  /* (Dataflow Runner Only) The maximum number of workers to use for the workerpool. */
-  private Integer maxNumWorkers;
+  /* The maximum number of workers to use for the workerpool. */
+  public Integer maxNumWorkers;
 
   /* BigQuery table specification, e.g. PROJECT_ID:DATASET_ID.PROJECT_ID */
-  private String deadLetterTableSpec;
+  public String deadLetterTableSpec;
 
+  /** Validates Dataflow runner configuration options */
   public void validate() {
     ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
     Validator validator = factory.getValidator();
