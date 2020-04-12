@@ -19,9 +19,13 @@ package feast.serving.service;
 import com.google.protobuf.util.JsonFormat;
 import feast.serving.ServingAPIProto.Job;
 import feast.serving.ServingAPIProto.Job.Builder;
-import feast.serving.config.JobStoreConfig;
+import feast.serving.config.FeastProperties;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
+import io.lettuce.core.codec.ByteArrayCodec;
+import io.lettuce.core.resource.DefaultClientResources;
 import java.util.Optional;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -38,8 +42,14 @@ public class RedisBackedJobService implements JobService {
   // and since users normally don't require info about relatively old jobs.
   private final int defaultExpirySeconds = (int) Duration.standardDays(1).getStandardSeconds();
 
-  public RedisBackedJobService(JobStoreConfig jobStoreConfig) {
-    this.syncCommand = jobStoreConfig.getJobStoreRedisConnection().sync();
+  public RedisBackedJobService(FeastProperties.JobStoreProperties jobStoreProperties) {
+    RedisURI uri =
+        RedisURI.create(jobStoreProperties.getRedisHost(), jobStoreProperties.getRedisPort());
+
+    this.syncCommand =
+        RedisClient.create(DefaultClientResources.create(), uri)
+            .connect(new ByteArrayCodec())
+            .sync();
   }
 
   public RedisBackedJobService(StatefulRedisConnection<byte[], byte[]> connection) {

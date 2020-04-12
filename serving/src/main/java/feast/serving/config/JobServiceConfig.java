@@ -16,11 +16,12 @@
  */
 package feast.serving.config;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.StoreProto.Store.StoreType;
 import feast.serving.service.JobService;
 import feast.serving.service.NoopJobService;
 import feast.serving.service.RedisBackedJobService;
-import feast.serving.specs.CachedSpecService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -28,10 +29,11 @@ import org.springframework.context.annotation.Configuration;
 public class JobServiceConfig {
 
   @Bean
-  public JobService jobService(CachedSpecService specService, JobStoreConfig jobStoreConfig) {
-    if (!specService.getStore().getType().equals(StoreType.BIGQUERY)) {
+  public JobService jobService(FeastProperties feastProperties)
+      throws InvalidProtocolBufferException, JsonProcessingException {
+    if (!feastProperties.getActiveStore().toProto().getType().equals(StoreType.BIGQUERY)) {
       return new NoopJobService();
     }
-    return new RedisBackedJobService(jobStoreConfig);
+    return new RedisBackedJobService(feastProperties.getJobStore());
   }
 }
