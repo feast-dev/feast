@@ -84,11 +84,6 @@
       <version>${project.version}</version>
     </dependency>
 
-    <dependency>
-      <groupId>dev.feast</groupId>
-      <artifactId>feast-core</artifactId>
-      <version>${project.version}</version>
-    </dependency>
 
     <dependency>
       <groupId>dev.feast</groupId>
@@ -105,6 +100,12 @@
     <dependency>
       <groupId>dev.feast</groupId>
       <artifactId>feast-storage-connector-bigquery</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>dev.feast</groupId>
+      <artifactId>feast-core</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -272,11 +273,6 @@
       <groupId>com.github.kstyrc</groupId>
       <artifactId>embedded-redis</artifactId>
       <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
-      <scope>compile</scope>
     </dependency>
   </dependencies>
 
