@@ -31,61 +31,6 @@ public class DataflowRunnerConfig {
   public DataflowRunnerConfig(Map<String, String> runnerConfigOptions) {
     BeanUtils.copyProperties(this, runnerConfigOptions);
     validate();
-
-    //
-    //        Map<String, String> props = BeanUtils.describe(someObject);
-    //        if (props.containsKey("name")) {
-    //            BeanUtils.setProperty(someObject, "name", "value");
-    //        }
-    //
-    //
-    //        if (runnerConfigOptions.containsKey("project")) {
-    //            setProject(runnerConfigOptions.get("project"));
-    //        }
-    //
-    //        if (runnerConfigOptions.containsKey("region")) {
-    //            setRegion(runnerConfigOptions.get("region"));
-    //        }
-    //
-    //        if (runnerConfigOptions.containsKey("zone")) {
-    //            setZone(runnerConfigOptions.get("zone"));
-    //        }
-    //
-    //        if (runnerConfigOptions.containsKey("serviceAccount")) {
-    //            setServiceAccount(runnerConfigOptions.get("serviceAccount"));
-    //        }
-    //
-    //        if (runnerConfigOptions.containsKey("network")) {
-    //            setNetwork(runnerConfigOptions.get("network"));
-    //        }
-    //
-    //        if (runnerConfigOptions.containsKey("subnetwork")) {
-    //            setSubnetwork(runnerConfigOptions.get("subnetwork"));
-    //        }
-    //
-    //        if (runnerConfigOptions.containsKey("workerMachineType")) {
-    //            setWorkerMachineType(runnerConfigOptions.get("workerMachineType"));
-    //        }
-    //
-    //        if (runnerConfigOptions.containsKey("autoscalingAlgorithm")) {
-    //            setAutoscalingAlgorithm(runnerConfigOptions.get("autoscalingAlgorithm"));
-    //        }
-    //
-    //        if (runnerConfigOptions.containsKey("usePublicIps")) {
-    //            setUsePublicIps(Boolean.parseBoolean(runnerConfigOptions.get("usePublicIps")));
-    //        }
-    //
-    //        if (runnerConfigOptions.containsKey("tempLocation")) {
-    //            setTempLocation(runnerConfigOptions.get("tempLocation"));
-    //        }
-    //
-    //        if (runnerConfigOptions.containsKey("maxNumWorkers")) {
-    //            setMaxNumWorkers(Integer.parseInt(runnerConfigOptions.get("maxNumWorkers")));
-    //        }
-    //
-    //        if (runnerConfigOptions.containsKey("deadLetterTableSpec")) {
-    //            setDeadLetterTableSpec(runnerConfigOptions.get("deadLetterTableSpec"));
-    //        }
   }
 
   /* (Dataflow Runner Only) Project id to use when launching jobs. */
