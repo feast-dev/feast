@@ -16,6 +16,7 @@
  */
 package feast.serving.config;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.StoreProto;
 import feast.serving.service.HistoricalServingService;
@@ -44,7 +45,7 @@ public class ServingServiceConfig {
       CachedSpecService specService,
       JobService jobService,
       Tracer tracer)
-      throws InvalidProtocolBufferException {
+      throws InvalidProtocolBufferException, JsonProcessingException {
     ServingService servingService = null;
     StoreProto.Store store = feastProperties.getActiveStore().toProto();
 

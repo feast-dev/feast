@@ -14,8 +14,7 @@ feast:
     # The service name identifier for the tracing data
     service-name: feast_serving
 
-  active_store: serving
-
+  active_store: online
   stores:
     - name: online
       type: REDIS

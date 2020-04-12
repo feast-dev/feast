@@ -21,8 +21,16 @@ package feast.serving.config;
 // https://www.baeldung.com/configuration-properties-in-spring-boot
 // https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-external-config.html#boot-features-external-config-typesafe-configuration-properties
 
-import feast.core.model.Store;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
+import feast.core.StoreProto;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Positive;
 import org.apache.logging.log4j.core.config.plugins.validation.constraints.ValidHost;
@@ -66,7 +74,8 @@ public class FeastProperties {
         return store;
       }
     }
-    throw new RuntimeException("Active store is either misconfigured.");
+    throw new RuntimeException(
+        String.format("Active store is misconfigured. Could not find store: %s.", activeStore));
   }
 
   /**
@@ -84,7 +93,7 @@ public class FeastProperties {
   /**
    * Collection of store configurations. The active store is selected by the "activeStore" field.
    */
-  private List<Store> stores;
+  private List<Store> stores = new ArrayList<>();
 
   /* Job Store properties to retain state of async jobs. */
   private JobStoreProperties jobStore;
@@ -162,6 +171,124 @@ public class FeastProperties {
    */
   public void setStores(List<Store> stores) {
     this.stores = stores;
+  }
+
+  public static class Store {
+
+    private String name;
+
+    private String type;
+
+    private Map<String, String> config = new HashMap<>();
+
+    private List<Subscription> subscriptions = new ArrayList<>();
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public String getType() {
+      return type;
+    }
+
+    public void setType(String type) {
+      this.type = type;
+    }
+
+    public StoreProto.Store toProto()
+        throws InvalidProtocolBufferException, JsonProcessingException {
+      List<Subscription> subscriptions = getSubscriptions();
+      List<StoreProto.Store.Subscription> subscriptionProtos =
+          subscriptions.stream().map(Subscription::toProto).collect(Collectors.toList());
+
+      StoreProto.Store.Builder storeProtoBuilder =
+          StoreProto.Store.newBuilder()
+              .setName(name)
+              .setType(StoreProto.Store.StoreType.valueOf(type))
+              .addAllSubscriptions(subscriptionProtos);
+
+      ObjectMapper jsonWriter = new ObjectMapper();
+
+      // TODO: All of this logic should be moved to the store layer. Only a Map<String, String>
+      // should be sent to a store and it should do its own validation.
+      switch (StoreProto.Store.StoreType.valueOf(type)) {
+        case REDIS:
+          StoreProto.Store.RedisConfig.Builder redisConfig =
+              StoreProto.Store.RedisConfig.newBuilder();
+          JsonFormat.parser().merge(jsonWriter.writeValueAsString(config), redisConfig);
+          return storeProtoBuilder.setRedisConfig(redisConfig.build()).build();
+        case BIGQUERY:
+          StoreProto.Store.BigQueryConfig.Builder bqConfig =
+              StoreProto.Store.BigQueryConfig.newBuilder();
+          JsonFormat.parser().merge(jsonWriter.writeValueAsString(config), bqConfig);
+          return storeProtoBuilder.setBigqueryConfig(bqConfig.build()).build();
+        case CASSANDRA:
+          StoreProto.Store.CassandraConfig.Builder cassandraConfig =
+              StoreProto.Store.CassandraConfig.newBuilder();
+          JsonFormat.parser().merge(jsonWriter.writeValueAsString(config), cassandraConfig);
+          return storeProtoBuilder.setCassandraConfig(cassandraConfig.build()).build();
+        default:
+          throw new InvalidProtocolBufferException("Invalid store set");
+      }
+    }
+
+    private List<Subscription> getSubscriptions() {
+      return subscriptions;
+    }
+
+    public Map<String, String> getConfig() {
+      return config;
+    }
+
+    public void setConfig(Map<String, String> config) {
+      this.config = config;
+    }
+
+    public void setSubscriptions(List<Subscription> subscriptions) {
+      this.subscriptions = subscriptions;
+    }
+
+    public class Subscription {
+      String project;
+      String name;
+      String version;
+
+      public String getProject() {
+        return project;
+      }
+
+      public void setProject(String project) {
+        this.project = project;
+      }
+
+      public String getName() {
+        return name;
+      }
+
+      public void setName(String name) {
+        this.name = name;
+      }
+
+      public String getVersion() {
+        return version;
+      }
+
+      public void setVersion(String version) {
+        this.version = version;
+      }
+
+      public StoreProto.Store.Subscription toProto() {
+        return StoreProto.Store.Subscription.newBuilder()
+            .setName(getName())
+            .setProject(getProject())
+            .setVersion(getVersion())
+            .build();
+      }
+    }
   }
 
   /**

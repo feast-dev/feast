@@ -103,12 +103,6 @@
       <version>${project.version}</version>
     </dependency>
 
-    <dependency>
-      <groupId>dev.feast</groupId>
-      <artifactId>feast-core</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
     <!-- TODO: SLF4J is being used via Lombok, but also jog4j - pick one -->
     <dependency>
       <groupId>org.slf4j</groupId>
