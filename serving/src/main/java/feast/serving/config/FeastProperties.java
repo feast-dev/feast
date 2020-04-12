@@ -52,6 +52,7 @@ public class FeastProperties {
     setVersion(buildProperties.getVersion());
   }
 
+  /** Instantiates a new Feast class. */
   public FeastProperties() {}
 
   /* Feast Serving build version */
@@ -149,7 +150,7 @@ public class FeastProperties {
   /**
    * Gets Feast Core gRPC port.
    *
-   * @return Port
+   * @return Feast Core gRPC port
    */
   public int getCoreGrpcPort() {
     return coreGrpcPort;
@@ -173,6 +174,7 @@ public class FeastProperties {
     this.stores = stores;
   }
 
+  /** Store configuration class for database that this Feast Serving uses. */
   public static class Store {
 
     private String name;
@@ -183,22 +185,49 @@ public class FeastProperties {
 
     private List<Subscription> subscriptions = new ArrayList<>();
 
+    /**
+     * Gets name of this store. This is unique to this specific instance.
+     *
+     * @return the name of the store
+     */
     public String getName() {
       return name;
     }
 
+    /**
+     * Sets the name of this store.
+     *
+     * @param name the name of the store
+     */
     public void setName(String name) {
       this.name = name;
     }
 
+    /**
+     * Gets the store type. Example are REDIS or BIGQUERY
+     *
+     * @return the store type as a String.
+     */
     public String getType() {
       return type;
     }
 
+    /**
+     * Sets the store type
+     *
+     * @param type the type
+     */
     public void setType(String type) {
       this.type = type;
     }
 
+    /**
+     * Converts this {@link Store} to a {@StoreProto.Store}
+     *
+     * @return {@StoreProto.Store} with configuration set
+     * @throws InvalidProtocolBufferException the invalid protocol buffer exception
+     * @throws JsonProcessingException the json processing exception
+     */
     public StoreProto.Store toProto()
         throws InvalidProtocolBufferException, JsonProcessingException {
       List<Subscription> subscriptions = getSubscriptions();
@@ -236,51 +265,121 @@ public class FeastProperties {
       }
     }
 
-    private List<Subscription> getSubscriptions() {
+    /**
+     * Get the subscriptions to this specific store. The subscriptions indicate which feature sets a
+     * store subscribes to.
+     *
+     * @return List of subscriptions in the form of {@link List<Subscription>}.
+     */
+    public List<Subscription> getSubscriptions() {
       return subscriptions;
     }
 
-    public Map<String, String> getConfig() {
-      return config;
-    }
-
-    public void setConfig(Map<String, String> config) {
-      this.config = config;
-    }
-
+    /**
+     * Sets the store specific configuration. See getSubscriptions() for more details.
+     *
+     * @param subscriptions the subscriptions list
+     */
     public void setSubscriptions(List<Subscription> subscriptions) {
       this.subscriptions = subscriptions;
     }
 
+    /**
+     * Gets the configuration to this specific store. This is a map of strings. These options are
+     * unique to the store. Please see protos/feast/core/Store.proto for the store specific
+     * configuration options
+     *
+     * @return the config as a {@link Map<String, String>}
+     */
+    public Map<String, String> getConfig() {
+      return config;
+    }
+
+    /**
+     * Sets the store config. Please protos/feast/core/Store.proto for the specific options for each
+     * store.
+     *
+     * @param config the config map
+     */
+    public void setConfig(Map<String, String> config) {
+      this.config = config;
+    }
+
+    /**
+     * The Subscription type.
+     *
+     * <p>Note: Please see protos/feast/core/CoreService.proto for details on how to subscribe to
+     * feature sets.
+     */
     public class Subscription {
+      /** Feast project to subscribe to. */
       String project;
+
+      /** Feature set to subscribe to. */
       String name;
+
+      /** Feature set versions to subscribe to. */
       String version;
 
+      /**
+       * Gets Feast project subscribed to.
+       *
+       * @return the project string
+       */
       public String getProject() {
         return project;
       }
 
+      /**
+       * Sets Feast project to subscribe to for this store.
+       *
+       * @param project the project
+       */
       public void setProject(String project) {
         this.project = project;
       }
 
+      /**
+       * Gets the feature set name to subscribe to.
+       *
+       * @return the name
+       */
       public String getName() {
         return name;
       }
 
+      /**
+       * Sets the feature set name to subscribe to.
+       *
+       * @param name the name
+       */
       public void setName(String name) {
         this.name = name;
       }
 
+      /**
+       * Gets the feature set version that is being subscribed to by this store.
+       *
+       * @return the version
+       */
       public String getVersion() {
         return version;
       }
 
+      /**
+       * Sets the feature set version that is being subscribed to by this store.
+       *
+       * @param version the version
+       */
       public void setVersion(String version) {
         this.version = version;
       }
 
+      /**
+       * Convert this {@link Subscription} to a {@link StoreProto.Store.Subscription}.
+       *
+       * @return the store proto . store . subscription
+       */
       public StoreProto.Store.Subscription toProto() {
         return StoreProto.Store.Subscription.newBuilder()
             .setName(getName())
@@ -318,6 +417,11 @@ public class FeastProperties {
     return tracing;
   }
 
+  /**
+   * Sets the tracing configuration.
+   *
+   * @param tracing the tracing
+   */
   public void setTracing(TracingProperties tracing) {
     this.tracing = tracing;
   }
