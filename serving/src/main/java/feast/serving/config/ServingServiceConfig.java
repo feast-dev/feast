@@ -46,7 +46,7 @@ public class ServingServiceConfig {
       Tracer tracer)
       throws InvalidProtocolBufferException {
     ServingService servingService = null;
-    StoreProto.Store store = feastProperties.getStore().toProto();
+    StoreProto.Store store = feastProperties.getActiveStore().toProto();
 
     switch (store.getType()) {
       case REDIS:

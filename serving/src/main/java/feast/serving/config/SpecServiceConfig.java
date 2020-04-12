@@ -60,7 +60,7 @@ public class SpecServiceConfig {
   public CachedSpecService specService(FeastProperties feastProperties)
       throws InvalidProtocolBufferException {
     CoreSpecService coreService = new CoreSpecService(feastCoreHost, feastCorePort);
-    StoreProto.Store storeProto = feastProperties.getStore().toProto();
+    StoreProto.Store storeProto = feastProperties.getActiveStore().toProto();
     CachedSpecService cachedSpecStorage = new CachedSpecService(coreService, storeProto);
     try {
       cachedSpecStorage.populateCache();

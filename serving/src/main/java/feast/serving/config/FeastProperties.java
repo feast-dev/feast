@@ -21,6 +21,8 @@ package feast.serving.config;
 // https://www.baeldung.com/configuration-properties-in-spring-boot
 // https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-external-config.html#boot-features-external-config-typesafe-configuration-properties
 
+import feast.core.model.Store;
+import java.util.List;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Positive;
 import org.apache.logging.log4j.core.config.plugins.validation.constraints.ValidHost;
@@ -54,10 +56,35 @@ public class FeastProperties {
   @Positive private int coreGrpcPort;
 
   /**
-   * The "store" string should contain a YAML representation of the store configuration. Store
-   * configurations can be seen in protos/feast/core/Store.proto
+   * Finds and returns the active store
+   *
+   * @return Returns the {@link Store} model object
    */
-  private feast.core.model.Store store;
+  public Store getActiveStore() {
+    for (Store store : getStores()) {
+      if (activeStore.equals(store.getName())) {
+        return store;
+      }
+    }
+    throw new RuntimeException("Active store is either misconfigured.");
+  }
+
+  /**
+   * Set the name of the active store found in the "stores" configuration list
+   *
+   * @param activeStore String name to active store
+   */
+  public void setActiveStore(String activeStore) {
+    this.activeStore = activeStore;
+  }
+
+  /** Name of the active store configuration (only one store can be active at a time). */
+  @NotBlank private String activeStore;
+
+  /**
+   * Collection of store configurations. The active store is selected by the "activeStore" field.
+   */
+  private List<Store> stores;
 
   /* Job Store properties to retain state of async jobs. */
   private JobStoreProperties jobStore;
@@ -66,12 +93,12 @@ public class FeastProperties {
   private TracingProperties tracing;
 
   /**
-   * Gets Serving store configuration deserialiazed as a {@link feast.core.model.Store}.
+   * Gets Serving store configuration as a list of {@link Store}.
    *
-   * @return the store
+   * @return List of stores objects
    */
-  public feast.core.model.Store getStore() {
-    return store;
+  public List<Store> getStores() {
+    return stores;
   }
 
   /**
@@ -129,12 +156,12 @@ public class FeastProperties {
   }
 
   /**
-   * Sets store properties.
+   * Sets the collection of configured stores.
    *
-   * @param store properties comes from a YAML string
+   * @param stores List of {@link Store}
    */
-  public void setStore(feast.core.model.Store store) {
-    this.store = store;
+  public void setStores(List<Store> stores) {
+    this.stores = stores;
   }
 
   /**
