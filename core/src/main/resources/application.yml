@@ -24,16 +24,38 @@ grpc:
 
 feast:
   jobs:
-    # Runner type for feature population jobs. Currently supported runner types are
-    # DirectRunner and DataflowRunner.
-    runner: DirectRunner
-    # Key-value dict of job options to be passed to the population jobs.
-    options: {}
-    updates:
-      # Job update polling interval in milliseconds: how often Feast checks if new jobs should be sent to the runner.
-      pollingIntervalMillis: 60000
-      # Timeout in seconds for each attempt to update or submit a new job to the runner.
-      timeoutSeconds: 240
+    # Job update polling interval in milliseconds: how often Feast checks if new jobs should be sent to the runner.
+    polling_interval_milliseconds: 60000
+
+    # Timeout in seconds for each attempt to update or submit a new job to the runner.
+    job_update_timeout_seconds: 240
+
+    # Name of the active runner in "runners" that should be used. Only a single runner can be active at one time.
+    active_runner: direct
+
+    # List of runner configurations. Please see protos/feast/core/Runner.proto for more details
+    # Alternatively see the following for options https://api.docs.feast.dev/grpc/feast.core.pb.html#Runner
+    runners:
+      - name: direct
+        type: DirectRunner
+        options: {}
+
+      - name: dataflow
+        type: DataflowRunner
+        options:
+          project: my_gcp_project
+          region: asia-east1
+          zone: asia-east1-a
+          tempLocation: gs://bucket/tempLocation
+          network: default
+          subnetwork: regions/asia-east1/subnetworks/mysubnetwork
+          maxNumWorkers: 1
+          autoscalingAlgorithm: THROUGHPUT_BASED
+          usePublicIps: false
+          workerMachineType: n1-standard-1
+          deadLetterTableSpec: project_id:dataset_id.table_id
+
+    # Configuration options for metric collection for all ingestion jobs
     metrics:
       # Enable metrics pushing for all ingestion jobs.
       enabled: false
@@ -48,9 +70,10 @@ feast:
     # Feature stream type. Only kafka is supported.
     type: kafka
     # Feature stream options.
+    # See the following for options https://api.docs.feast.dev/grpc/feast.core.pb.html#KafkaSourceConfig
     options:
       topic: feast-features
-      bootstrapServers: kafka:9092
+      bootstrapServers: localhost:9092
       replicationFactor: 1
       partitions: 1
 

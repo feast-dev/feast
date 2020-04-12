@@ -87,7 +87,7 @@ public class JobCoordinatorService {
    * <p>4) Updates Feature set statuses
    */
   @Transactional
-  @Scheduled(fixedDelayString = "${feast.jobs.updates.pollingIntervalMillis}")
+  @Scheduled(fixedDelayString = "${feast.jobs.polling_interval_milliseconds}")
   public void Poll() throws InvalidProtocolBufferException {
     log.info("Polling for new jobs...");
     List<JobUpdateTask> jobUpdateTasks = new ArrayList<>();
@@ -122,7 +122,7 @@ public class JobCoordinatorService {
                           store,
                           originalJob,
                           jobManager,
-                          jobProperties.getJobUpdateTimeout()));
+                          jobProperties.getJobUpdateTimeoutSeconds()));
                 });
       }
     }

@@ -18,7 +18,11 @@ package feast.core.job.dataflow;
 
 import static feast.core.util.PipelineUtil.detectClassPathResourcesToStage;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.dataflow.Dataflow;
+import com.google.api.services.dataflow.DataflowScopes;
 import com.google.common.base.Strings;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
@@ -37,6 +41,7 @@ import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.options.OptionCompressor;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -60,12 +65,36 @@ public class DataflowJobManager implements JobManager {
   private final MetricsProperties metrics;
 
   public DataflowJobManager(
-      Dataflow dataflow, Map<String, String> runnerOptions, MetricsProperties metricsProperties) {
-    this.defaultOptions = runnerOptions;
+      Map<String, String> runnerConfigOptions, MetricsProperties metricsProperties) {
+
+    DataflowRunnerConfig config = new DataflowRunnerConfig(runnerConfigOptions);
+
+    GoogleCredential credential = null;
+    try {
+      credential = GoogleCredential.getApplicationDefault().createScoped(DataflowScopes.all());
+    } catch (IOException e) {
+      throw new IllegalStateException(
+          "Unable to find credential required for Dataflow monitoring API", e);
+    }
+
+    Dataflow dataflow = null;
+    try {
+      dataflow =
+          new Dataflow(
+              GoogleNetHttpTransport.newTrustedTransport(),
+              JacksonFactory.getDefaultInstance(),
+              credential);
+    } catch (GeneralSecurityException e) {
+      throw new IllegalStateException("Security exception while connecting to Dataflow API", e);
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to initialize DataflowJobManager", e);
+    }
+
+    this.defaultOptions = runnerConfigOptions;
     this.dataflow = dataflow;
     this.metrics = metricsProperties;
-    this.projectId = runnerOptions.get("project");
-    this.location = runnerOptions.get("region");
+    this.projectId = config.getProject();
+    this.location = config.getRegion();
   }
 
   @Override

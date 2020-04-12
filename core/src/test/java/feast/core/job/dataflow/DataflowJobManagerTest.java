@@ -79,7 +79,7 @@ public class DataflowJobManagerTest {
     defaults.put("region", "region");
     MetricsProperties metricsProperties = new MetricsProperties();
     metricsProperties.setEnabled(false);
-    dfJobManager = new DataflowJobManager(dataflow, defaults, metricsProperties);
+    dfJobManager = new DataflowJobManager(defaults, metricsProperties);
     dfJobManager = spy(dfJobManager);
   }
 

@@ -39,9 +39,15 @@ enum SourceType {
 }
 
 message KafkaSourceConfig {
-    // - bootstrapServers: [comma delimited value of host[:port]]
+    // Comma separated list of Kafka bootstrap servers. Used for feature sets without a defined source host[:port]]
     string bootstrap_servers = 1;
 
-    // - topics: [Kafka topic name. This value is provisioned by core and should not be set by the user.]
+    // Kafka topic to use for feature sets without user defined topics
     string topic = 2;
+
+    // Number of Kafka partitions to to use for managed feature stream.
+    int32 partitions = 3;
+
+    // Defines the number of copies of managed feature stream Kafka.
+    int32 replicationFactor = 4;
 }

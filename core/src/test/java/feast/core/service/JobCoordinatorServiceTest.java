@@ -73,7 +73,7 @@ public class JobCoordinatorServiceTest {
     initMocks(this);
     feastProperties = new FeastProperties();
     JobProperties jobProperties = new JobProperties();
-    jobProperties.setJobUpdateTimeout(5);
+    jobProperties.setJobUpdateTimeoutSeconds(5);
     feastProperties.setJobs(jobProperties);
   }
 
