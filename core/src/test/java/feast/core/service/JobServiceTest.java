@@ -34,7 +34,9 @@ import feast.core.CoreServiceProto.RestartIngestionJobRequest;
 import feast.core.CoreServiceProto.RestartIngestionJobResponse;
 import feast.core.CoreServiceProto.StopIngestionJobRequest;
 import feast.core.CoreServiceProto.StopIngestionJobResponse;
+import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetStatus;
+import feast.core.FeatureSetProto.FeatureSpec;
 import feast.core.FeatureSetReferenceProto.FeatureSetReference;
 import feast.core.IngestionJobProto.IngestionJob;
 import feast.core.SourceProto.KafkaSourceConfig;
@@ -159,8 +161,12 @@ public class JobServiceTest {
 
   // dummy model constructorss
   private FeatureSet newDummyFeatureSet(String name, int version, String project) {
-    Feature feature = new Feature(name + "_feature", Enum.INT64);
-    Entity entity = new Entity(name + "_entity", Enum.STRING);
+    FeatureSpec featureSpec =
+        FeatureSpec.newBuilder().setName(name + "_feature").setValueType(Enum.INT64).build();
+    Feature feature = Feature.fromProto(featureSpec);
+    EntitySpec entitySpec =
+        EntitySpec.newBuilder().setName(name + "_entity").setValueType(Enum.STRING).build();
+    Entity entity = Entity.fromProto(entitySpec);
 
     FeatureSet fs =
         new FeatureSet(

@@ -18,13 +18,22 @@ package feast.core.service;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.when;
+import static org.mockito.MockitoAnnotations.initMocks;
 
-import feast.core.dao.EntityStatisticsRepository;
+import com.google.protobuf.Timestamp;
+import feast.core.CoreServiceProto.GetFeatureStatisticsRequest;
+import feast.core.CoreServiceProto.ListStoresRequest;
+import feast.core.CoreServiceProto.ListStoresResponse;
+import feast.core.StoreProto.Store;
+import feast.core.StoreProto.Store.StoreType;
 import feast.core.dao.FeatureStatisticsRepository;
-import feast.core.dao.StoreRepository;
+import java.io.IOException;
 import java.util.Arrays;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
 import org.tensorflow.metadata.v0.*;
 import org.tensorflow.metadata.v0.FeatureNameStatistics.Type;
@@ -32,16 +41,74 @@ import org.tensorflow.metadata.v0.FeatureNameStatistics.Type;
 public class StatsServiceTest {
 
   private StatsService statsService;
-  @Mock private StoreRepository storeRepository;
   @Mock private FeatureStatisticsRepository featureStatisticsRepository;
-  @Mock private EntityStatisticsRepository entityStatisticsRepository;
   @Mock private SpecService specService;
+
+  @Rule public final ExpectedException expectedException = ExpectedException.none();
 
   @Before
   public void setUp() {
-    statsService =
-        new StatsService(
-            storeRepository, specService, entityStatisticsRepository, featureStatisticsRepository);
+    initMocks(this);
+    statsService = new StatsService(specService, featureStatisticsRepository);
+  }
+
+  @Test
+  public void shouldThrowExceptionIfNeitherDatesNorDatasetsProvided() throws IOException {
+    GetFeatureStatisticsRequest request = GetFeatureStatisticsRequest.newBuilder().build();
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Invalid request. Either provide dataset ids to retrieve statistics over, or a start date and end date.");
+    statsService.getFeatureStatistics(request);
+  }
+
+  @Test
+  public void shouldThrowExceptionIfInvalidDatesProvided() throws IOException {
+    GetFeatureStatisticsRequest request =
+        GetFeatureStatisticsRequest.newBuilder()
+            .setStartDate(Timestamp.newBuilder().setSeconds(1))
+            .setEndDate(Timestamp.newBuilder().setSeconds(0))
+            .build();
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Invalid request. Start timestamp 1 is greater than the end timestamp 0");
+    statsService.getFeatureStatistics(request);
+  }
+
+  @Test
+  public void shouldThrowExceptionIfInvalidStoreProvided() throws IOException {
+    GetFeatureStatisticsRequest request =
+        GetFeatureStatisticsRequest.newBuilder()
+            .setStartDate(Timestamp.newBuilder().setSeconds(0))
+            .setEndDate(Timestamp.newBuilder().setSeconds(1))
+            .setStore("redis")
+            .build();
+
+    when(specService.listStores(ListStoresRequest.Filter.newBuilder().setName("redis").build()))
+        .thenReturn(
+            ListStoresResponse.newBuilder()
+                .addStore(Store.newBuilder().setName("redis").setType(StoreType.REDIS).build())
+                .build());
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Invalid store redis with type REDIS specified. Batch statistics are only supported for BigQuery stores");
+    statsService.getFeatureStatistics(request);
+  }
+
+  @Test
+  public void shouldThrowExceptionIfFeatureSetNotFound() throws IOException {
+    GetFeatureStatisticsRequest request =
+        GetFeatureStatisticsRequest.newBuilder()
+            .setStartDate(Timestamp.newBuilder().setSeconds(1))
+            .setEndDate(Timestamp.newBuilder().setSeconds(0))
+            .build();
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Invalid request. Start timestamp 1 is greater than the end timestamp 0");
+    statsService.getFeatureStatistics(request);
   }
 
   @Test

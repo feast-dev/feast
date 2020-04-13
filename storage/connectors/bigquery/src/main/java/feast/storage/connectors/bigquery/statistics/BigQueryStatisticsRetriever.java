@@ -16,18 +16,13 @@
  */
 package feast.storage.connectors.bigquery.statistics;
 
-import static feast.storage.connectors.bigquery.statistics.StatsUtil.toFeatureNameStatistics;
-
 import com.google.auto.value.AutoValue;
-import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.FieldValueList;
-import com.google.cloud.bigquery.QueryJobConfiguration;
-import com.google.cloud.bigquery.TableResult;
+import com.google.cloud.bigquery.*;
 import com.google.common.collect.Streams;
 import com.google.protobuf.Timestamp;
-import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
+import feast.core.StoreProto.Store.BigQueryConfig;
 import feast.storage.api.statistics.FeatureSetStatistics;
 import feast.storage.api.statistics.StatisticsRetriever;
 import java.io.IOException;
@@ -45,12 +40,22 @@ public abstract class BigQueryStatisticsRetriever implements StatisticsRetriever
 
   public abstract BigQuery bigquery();
 
-  public static Builder newBuilder() {
+  public static BigQueryStatisticsRetriever create(BigQueryConfig config) {
+    BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+    return newBuilder()
+        .setBigquery(bigquery)
+        .setDatasetId(config.getDatasetId())
+        .setProjectId(config.getProjectId())
+        .build();
+  }
+
+  static Builder newBuilder() {
     return new AutoValue_BigQueryStatisticsRetriever.Builder();
   }
 
   @AutoValue.Builder
-  public abstract static class Builder {
+  abstract static class Builder {
+
     public abstract Builder setProjectId(String projectId);
 
     public abstract Builder setDatasetId(String datasetId);
@@ -62,50 +67,39 @@ public abstract class BigQueryStatisticsRetriever implements StatisticsRetriever
 
   @Override
   public FeatureSetStatistics getFeatureStatistics(
-      FeatureSetSpec featureSetSpec, List<String> entities, List<String> features, String dataset) {
+      FeatureSetSpec featureSetSpec, List<String> features, String dataset) {
     FeatureSetStatisticsQueryInfo featureSetStatisticsQueryInfo =
         new FeatureSetStatisticsQueryInfo(
             featureSetSpec.getProject(),
             featureSetSpec.getName(),
             featureSetSpec.getVersion(),
             dataset);
-    return getFeatureSetStatistics(
-        featureSetSpec, entities, features, featureSetStatisticsQueryInfo);
+    return getFeatureSetStatistics(featureSetSpec, features, featureSetStatisticsQueryInfo);
   }
 
   @Override
   public FeatureSetStatistics getFeatureStatistics(
-      FeatureSetSpec featureSetSpec, List<String> entities, List<String> features, Timestamp date) {
+      FeatureSetSpec featureSetSpec, List<String> features, Timestamp date) {
     FeatureSetStatisticsQueryInfo featureSetStatisticsQueryInfo =
         new FeatureSetStatisticsQueryInfo(
             featureSetSpec.getProject(),
             featureSetSpec.getName(),
             featureSetSpec.getVersion(),
             date);
-    return getFeatureSetStatistics(
-        featureSetSpec, entities, features, featureSetStatisticsQueryInfo);
+    return getFeatureSetStatistics(featureSetSpec, features, featureSetStatisticsQueryInfo);
   }
 
   private FeatureSetStatistics getFeatureSetStatistics(
       FeatureSetSpec featureSetSpec,
-      List<String> entities,
       List<String> features,
       FeatureSetStatisticsQueryInfo featureSetStatisticsQueryInfo) {
     List<FeatureSpec> featuresList = featureSetSpec.getFeaturesList();
-    List<EntitySpec> entitiesList = featureSetSpec.getEntitiesList();
 
-    FeatureSetSpec.Builder featureSetSpecBuilder =
-        featureSetSpec.toBuilder().clearFeatures().clearEntities();
+    FeatureSetSpec.Builder featureSetSpecBuilder = featureSetSpec.toBuilder().clearFeatures();
     for (FeatureSpec featureSpec : featuresList) {
       if (features.contains(featureSpec.getName())) {
         featureSetStatisticsQueryInfo.addFeature(featureSpec);
         featureSetSpecBuilder.addFeatures(featureSpec);
-      }
-    }
-    for (EntitySpec entitySpec : entitiesList) {
-      if (entities.contains(entitySpec.getName())) {
-        featureSetStatisticsQueryInfo.addEntity(entitySpec);
-        featureSetSpecBuilder.addEntities(entitySpec);
       }
     }
     featureSetSpec = featureSetSpecBuilder.build();
@@ -131,8 +125,7 @@ public abstract class BigQueryStatisticsRetriever implements StatisticsRetriever
       Map<String, FieldValueList> histValues = getTableResultByFeatureName(hist);
 
       int totalCountIndex = basicStats.getSchema().getFields().getIndex("total_count");
-      String ref = (features.size() > 0) ? features.get(0) : entities.get(0);
-      ;
+      String ref = features.get(0);
       FeatureSetStatistics.Builder featureSetStatisticsBuilder =
           FeatureSetStatistics.newBuilder()
               .setNumExamples(basicStatsValues.get(ref).get(totalCountIndex).getLongValue());
@@ -140,22 +133,11 @@ public abstract class BigQueryStatisticsRetriever implements StatisticsRetriever
       // Convert BQ rows to FeatureNameStatistics
       for (FeatureSpec featureSpec : featureSetSpec.getFeaturesList()) {
         FeatureNameStatistics featureNameStatistics =
-            toFeatureNameStatistics(
-                featureSpec.getValueType(),
-                basicStats.getSchema(),
-                basicStatsValues.get(featureSpec.getName()),
-                hist.getSchema(),
-                histValues.get(featureSpec.getName()));
-        featureSetStatisticsBuilder.addFeatureNameStatistics(featureNameStatistics);
-      }
-      for (EntitySpec entitySpec : featureSetSpec.getEntitiesList()) {
-        FeatureNameStatistics featureNameStatistics =
-            toFeatureNameStatistics(
-                entitySpec.getValueType(),
-                basicStats.getSchema(),
-                basicStatsValues.get(entitySpec.getName()),
-                hist.getSchema(),
-                histValues.get(entitySpec.getName()));
+            StatsQueryResult.create()
+                .withBasicStatsResults(
+                    basicStats.getSchema(), basicStatsValues.get(featureSpec.getName()))
+                .withHistResults(hist.getSchema(), histValues.get(featureSpec.getName()))
+                .toFeatureNameStatistics(featureSpec.getValueType());
         featureSetStatisticsBuilder.addFeatureNameStatistics(featureNameStatistics);
       }
       return featureSetStatisticsBuilder.build();

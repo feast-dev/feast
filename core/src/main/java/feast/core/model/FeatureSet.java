@@ -159,9 +159,10 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   }
 
   public void addEntity(Entity entity) {
-    entity.setProject(this.project.getName());
-    entity.setFeatureSet(this.getName());
-    entity.setVersion(this.getVersion());
+    EntityReference entityReference = entity.getReference();
+    entityReference.setProject(this.project.getName());
+    entityReference.setFeatureSet(this.getName());
+    entityReference.setVersion(this.getVersion());
     entities.add(entity);
   }
 
@@ -172,9 +173,10 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   }
 
   public void addFeature(Feature feature) {
-    feature.setProject(this.project.getName());
-    feature.setFeatureSet(this.getName());
-    feature.setVersion(this.getVersion());
+    FeatureReference featureReference = feature.getReference();
+    featureReference.setProject(this.project.getName());
+    featureReference.setFeatureSet(this.getName());
+    featureReference.setVersion(this.getVersion());
     features.add(feature);
   }
 
@@ -212,58 +214,16 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     return FeatureSetProto.FeatureSet.newBuilder().setMeta(meta).setSpec(spec).build();
   }
 
-  private void setEntitySpecFields(EntitySpec.Builder entitySpecBuilder, Entity entityField)
-      throws InvalidProtocolBufferException {
+  private void setEntitySpecFields(EntitySpec.Builder entitySpecBuilder, Entity entityField) {
     entitySpecBuilder
-        .setName(entityField.getId().getName())
+        .setName(entityField.getReference().getName())
         .setValueType(Enum.valueOf(entityField.getType()));
-
-    if (entityField.getPresence() != null) {
-      entitySpecBuilder.setPresence(FeaturePresence.parseFrom(entityField.getPresence()));
-    } else if (entityField.getGroupPresence() != null) {
-      entitySpecBuilder.setGroupPresence(
-          FeaturePresenceWithinGroup.parseFrom(entityField.getGroupPresence()));
-    }
-
-    if (entityField.getShape() != null) {
-      entitySpecBuilder.setShape(FixedShape.parseFrom(entityField.getShape()));
-    } else if (entityField.getValueCount() != null) {
-      entitySpecBuilder.setValueCount(ValueCount.parseFrom(entityField.getValueCount()));
-    }
-
-    if (entityField.getDomain() != null) {
-      entitySpecBuilder.setDomain(entityField.getDomain());
-    } else if (entityField.getIntDomain() != null) {
-      entitySpecBuilder.setIntDomain(IntDomain.parseFrom(entityField.getIntDomain()));
-    } else if (entityField.getFloatDomain() != null) {
-      entitySpecBuilder.setFloatDomain(FloatDomain.parseFrom(entityField.getFloatDomain()));
-    } else if (entityField.getStringDomain() != null) {
-      entitySpecBuilder.setStringDomain(StringDomain.parseFrom(entityField.getStringDomain()));
-    } else if (entityField.getBoolDomain() != null) {
-      entitySpecBuilder.setBoolDomain(BoolDomain.parseFrom(entityField.getBoolDomain()));
-    } else if (entityField.getStructDomain() != null) {
-      entitySpecBuilder.setStructDomain(StructDomain.parseFrom(entityField.getStructDomain()));
-    } else if (entityField.getNaturalLanguageDomain() != null) {
-      entitySpecBuilder.setNaturalLanguageDomain(
-          NaturalLanguageDomain.parseFrom(entityField.getNaturalLanguageDomain()));
-    } else if (entityField.getImageDomain() != null) {
-      entitySpecBuilder.setImageDomain(ImageDomain.parseFrom(entityField.getImageDomain()));
-    } else if (entityField.getMidDomain() != null) {
-      entitySpecBuilder.setIntDomain(IntDomain.parseFrom(entityField.getIntDomain()));
-    } else if (entityField.getUrlDomain() != null) {
-      entitySpecBuilder.setUrlDomain(URLDomain.parseFrom(entityField.getUrlDomain()));
-    } else if (entityField.getTimeDomain() != null) {
-      entitySpecBuilder.setTimeDomain(TimeDomain.parseFrom(entityField.getTimeDomain()));
-    } else if (entityField.getTimeOfDayDomain() != null) {
-      entitySpecBuilder.setTimeOfDayDomain(
-          TimeOfDayDomain.parseFrom(entityField.getTimeOfDayDomain()));
-    }
   }
 
   private void setFeatureSpecFields(FeatureSpec.Builder featureSpecBuilder, Feature featureField)
       throws InvalidProtocolBufferException {
     featureSpecBuilder
-        .setName(featureField.getId().getName())
+        .setName(featureField.getReference().getName())
         .setValueType(Enum.valueOf(featureField.getType()));
 
     if (featureField.getPresence() != null) {
@@ -336,11 +296,11 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     Map<String, Feature> featuresMap = new HashMap<>();
 
     for (Entity e : entities) {
-      entitiesMap.putIfAbsent(e.getId().getName(), e);
+      entitiesMap.putIfAbsent(e.getReference().getName(), e);
     }
 
     for (Feature f : features) {
-      featuresMap.putIfAbsent(f.getId().getName(), f);
+      featuresMap.putIfAbsent(f.getReference().getName(), f);
     }
 
     // Ensure map size is consistent with existing fields
@@ -353,19 +313,19 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
 
     // Ensure the other entities and features exist in the field map
     for (Entity e : other.getEntities()) {
-      if (!entitiesMap.containsKey(e.getId().getName())) {
+      if (!entitiesMap.containsKey(e.getReference().getName())) {
         return false;
       }
-      if (!e.equals(entitiesMap.get(e.getId().getName()))) {
+      if (!e.equals(entitiesMap.get(e.getReference().getName()))) {
         return false;
       }
     }
 
     for (Feature f : other.getFeatures()) {
-      if (!featuresMap.containsKey(f.getId().getName())) {
+      if (!featuresMap.containsKey(f.getReference().getName())) {
         return false;
       }
-      if (!f.equals(featuresMap.get(f.getId().getName()))) {
+      if (!f.equals(featuresMap.get(f.getReference().getName()))) {
         return false;
       }
     }

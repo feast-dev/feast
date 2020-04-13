@@ -51,7 +51,6 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetRequest,
     GetFeatureSetResponse,
     GetFeatureStatisticsRequest,
-    GetFeatureStatisticsResponse,
     ListFeatureSetsRequest,
     ListFeatureSetsResponse,
     ListIngestionJobsRequest,
@@ -665,7 +664,6 @@ class Client:
 
         return response
 
-
     def list_ingest_jobs(
         self,
         job_id: str = None,
@@ -870,7 +868,6 @@ class Client:
 
         return dataset_id
 
-
     def get_statistics(
         self,
         feature_set_id: str,
@@ -921,7 +918,10 @@ class Client:
             )
 
         request = GetFeatureStatisticsRequest(
-            feature_set_id=feature_set_id, feature_ids=features, store=store, force_refresh=force_refresh
+            feature_set_id=feature_set_id,
+            feature_ids=features,
+            store=store,
+            force_refresh=force_refresh,
         )
         if dataset_ids is not None:
             request.dataset_ids.extend(dataset_ids)
@@ -938,7 +938,6 @@ class Client:
         return self._core_service_stub.GetFeatureStatistics(
             request
         ).dataset_feature_statistics_list
-        return None
 
 
 def _build_feature_references(

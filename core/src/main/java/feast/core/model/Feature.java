@@ -32,18 +32,49 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-public class Feature extends Field {
+public class Feature {
 
-  public Feature() {}
+  @EmbeddedId private FeatureReference reference;
 
-  public Feature(FieldId fieldId) {
-    this.setId(fieldId);
+  // Type of the field
+  private String type;
+
+  // Presence constraints (refer to proto feast.core.FeatureSet.FeatureSpec)
+  // Only one of them can be set.
+  private byte[] presence;
+  private byte[] groupPresence;
+
+  // Shape type (refer to proto feast.core.FeatureSet.FeatureSpec)
+  // Only one of them can be set.
+  private byte[] shape;
+  private byte[] valueCount;
+
+  // Domain info for the values (refer to proto feast.core.FeatureSet.FeatureSpec)
+  // Only one of them can be set.
+  private String domain;
+  private byte[] intDomain;
+  private byte[] floatDomain;
+  private byte[] stringDomain;
+  private byte[] boolDomain;
+  private byte[] structDomain;
+  private byte[] naturalLanguageDomain;
+  private byte[] imageDomain;
+  private byte[] midDomain;
+  private byte[] urlDomain;
+  private byte[] timeDomain;
+  private byte[] timeOfDayDomain;
+
+  private Feature() {}
+
+  private Feature(String name, ValueType.Enum type) {
+    this.setReference(new FeatureReference(name));
+    this.setType(type.toString());
   }
 
-  public Feature(String name, ValueType.Enum type) {
-    this.setId(new FieldId());
-    this.setName(name);
-    this.setType(type.toString());
+  public static Feature withReference(FeatureReference featureRef) {
+    Feature feature = new Feature();
+    feature.setReference(featureRef);
+    return feature;
   }
 
   public static Feature fromProto(FeatureSpec featureSpec) {
@@ -123,7 +154,7 @@ public class Feature extends Field {
       return false;
     }
     Feature feature = (Feature) o;
-    return Objects.equals(getId(), feature.getId())
+    return Objects.equals(getReference(), feature.getReference())
         && Arrays.equals(getPresence(), feature.getPresence())
         && Arrays.equals(getGroupPresence(), feature.getGroupPresence())
         && Arrays.equals(getShape(), feature.getShape())
@@ -144,6 +175,6 @@ public class Feature extends Field {
 
   @Override
   public int hashCode() {
-    return Objects.hash(super.hashCode(), getId(), getType());
+    return Objects.hash(super.hashCode(), getReference(), getType());
   }
 }

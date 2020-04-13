@@ -16,43 +16,113 @@
  */
 package feast.storage.connectors.bigquery.statistics;
 
-import com.google.cloud.bigquery.FieldList;
-import com.google.cloud.bigquery.FieldValue;
-import com.google.cloud.bigquery.FieldValueList;
+import com.google.auto.value.AutoValue;
+import com.google.cloud.bigquery.*;
 import com.google.cloud.bigquery.Schema;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Ordering;
 import feast.types.ValueProto.ValueType;
-import feast.types.ValueProto.ValueType.Enum;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.tensorflow.metadata.v0.*;
-import org.tensorflow.metadata.v0.FeatureNameStatistics.Builder;
-import org.tensorflow.metadata.v0.FeatureNameStatistics.Type;
 import org.tensorflow.metadata.v0.Histogram.Bucket;
 import org.tensorflow.metadata.v0.Histogram.HistogramType;
 import org.tensorflow.metadata.v0.StringStatistics.FreqAndValue;
 
-public class StatsUtil {
-  private static final Map<ValueType.Enum, Type> TFDV_TYPE_MAP = new HashMap<>();
+@AutoValue
+public abstract class StatsQueryResult {
+  // Map converting Feast type to TFDV type
+  private static final Map<ValueType.Enum, FeatureNameStatistics.Type> TFDV_TYPE_MAP =
+      new HashMap<>();
 
   static {
-    TFDV_TYPE_MAP.put(Enum.INT64, Type.INT);
-    TFDV_TYPE_MAP.put(Enum.INT32, Type.INT);
-    TFDV_TYPE_MAP.put(Enum.BOOL, Type.INT);
-    TFDV_TYPE_MAP.put(Enum.FLOAT, Type.FLOAT);
-    TFDV_TYPE_MAP.put(Enum.DOUBLE, Type.FLOAT);
-    TFDV_TYPE_MAP.put(Enum.STRING, Type.STRING);
-    TFDV_TYPE_MAP.put(Enum.BYTES, Type.BYTES);
-    TFDV_TYPE_MAP.put(Enum.BYTES_LIST, Type.STRUCT);
-    TFDV_TYPE_MAP.put(Enum.STRING_LIST, Type.STRUCT);
-    TFDV_TYPE_MAP.put(Enum.INT32_LIST, Type.STRUCT);
-    TFDV_TYPE_MAP.put(Enum.INT64_LIST, Type.STRUCT);
-    TFDV_TYPE_MAP.put(Enum.BOOL_LIST, Type.STRUCT);
-    TFDV_TYPE_MAP.put(Enum.FLOAT_LIST, Type.STRUCT);
-    TFDV_TYPE_MAP.put(Enum.DOUBLE_LIST, Type.STRUCT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.INT64, FeatureNameStatistics.Type.INT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.INT32, FeatureNameStatistics.Type.INT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.BOOL, FeatureNameStatistics.Type.INT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.FLOAT, FeatureNameStatistics.Type.FLOAT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.DOUBLE, FeatureNameStatistics.Type.FLOAT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.STRING, FeatureNameStatistics.Type.STRING);
+    TFDV_TYPE_MAP.put(ValueType.Enum.BYTES, FeatureNameStatistics.Type.BYTES);
+    TFDV_TYPE_MAP.put(ValueType.Enum.BYTES_LIST, FeatureNameStatistics.Type.STRUCT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.STRING_LIST, FeatureNameStatistics.Type.STRUCT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.INT32_LIST, FeatureNameStatistics.Type.STRUCT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.INT64_LIST, FeatureNameStatistics.Type.STRUCT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.BOOL_LIST, FeatureNameStatistics.Type.STRUCT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.FLOAT_LIST, FeatureNameStatistics.Type.STRUCT);
+    TFDV_TYPE_MAP.put(ValueType.Enum.DOUBLE_LIST, FeatureNameStatistics.Type.STRUCT);
+  }
+
+  // Schema of the table returned by the basic stats retrieval query
+  @Nullable
+  abstract Schema basicStatsSchema();
+
+  // Table values returned by the basic stats retrieval query
+  @Nullable
+  abstract FieldValueList basicStatsFieldValues();
+
+  // Schema of the table returned by the histogram retrieval query
+  @Nullable
+  abstract Schema histSchema();
+
+  // Table values returned by the histogram retrieval query
+  @Nullable
+  abstract FieldValueList histFieldValues();
+
+  public static StatsQueryResult create() {
+    return StatsQueryResult.newBuilder().build();
+  }
+
+  private static StatsQueryResult.Builder newBuilder() {
+    return new AutoValue_StatsQueryResult.Builder();
+  }
+
+  abstract Builder toBuilder();
+
+  /**
+   * Add basic stats query results to the StatsQueryResult.
+   *
+   * @param basicStatsSchema BigQuery {@link Schema} of the retrieved statistics row for the
+   *     non-histogram statistics. Used to retrieve the column names corresponding to each value in
+   *     the row.
+   * @param basicStatsFieldValues BigQuery {@link FieldValueList} containing a single row of
+   *     non-histogram statistics retrieved from BigQuery
+   * @return {@link StatsQueryResult}
+   */
+  public StatsQueryResult withBasicStatsResults(
+      Schema basicStatsSchema, FieldValueList basicStatsFieldValues) {
+    return toBuilder()
+        .setBasicStatsSchema(basicStatsSchema)
+        .setBasicStatsFieldValues(basicStatsFieldValues)
+        .build();
+  }
+
+  /**
+   * Add histogram stats query results to the StatsQueryResult.
+   *
+   * @param histSchema BigQuery {@link Schema} of the retrieved statistics row for the histogram
+   *     statistics. Used to retrieve the column names corresponding to each value in the row.
+   * @param histFieldValues BigQuery {@link FieldValueList} containing a single row of histogram
+   *     statistics retrieved from BigQuery
+   * @return {@link StatsQueryResult}
+   */
+  public StatsQueryResult withHistResults(Schema histSchema, FieldValueList histFieldValues) {
+    return toBuilder().setHistSchema(histSchema).setHistFieldValues(histFieldValues).build();
+  }
+
+  @AutoValue.Builder
+  abstract static class Builder {
+    abstract Builder setBasicStatsSchema(Schema basicStatsSchema);
+
+    abstract Builder setBasicStatsFieldValues(FieldValueList basicStatsFieldValues);
+
+    abstract Builder setHistSchema(Schema histSchema);
+
+    abstract Builder setHistFieldValues(FieldValueList histFieldValues);
+
+    public abstract StatsQueryResult build();
   }
 
   /**
@@ -60,36 +130,23 @@ public class StatsUtil {
    * specific to the feature type.
    *
    * @param valueType {@link ValueType.Enum} denoting the value type of the feature
-   * @param basicStatsSchema BigQuery {@link Schema} of the retrieved statistics row for the
-   *     non-histogram statistics. Used to retrieve the column names corresponding to each value in
-   *     the row.
-   * @param basicStatsValues BigQuery {@link FieldValueList} containing a single row of
-   *     non-histogram statistics retrieved from BigQuery
-   * @param histSchema BigQuery {@link Schema} of the retrieved statistics row for the histogram
-   *     statistics. Used to retrieve the column names corresponding to each value in the row.
-   * @param histValues BigQuery {@link FieldValueList} containing a single row of histogram
-   *     statistics retrieved from BigQuery
    * @return {@link FeatureNameStatistics}
    */
-  public static FeatureNameStatistics toFeatureNameStatistics(
-      ValueType.Enum valueType,
-      Schema basicStatsSchema,
-      FieldValueList basicStatsValues,
-      Schema histSchema,
-      FieldValueList histValues) {
+  public FeatureNameStatistics toFeatureNameStatistics(ValueType.Enum valueType) {
     Map<String, FieldValue> valuesMap = new HashMap<>();
 
-    FieldList basicStatsfields = basicStatsSchema.getFields();
-    for (int i = 0; i < basicStatsSchema.getFields().size(); i++) {
-      valuesMap.put(basicStatsfields.get(i).getName(), basicStatsValues.get(i));
+    // Convert the table values to a map of field name : table value for easy retrieval
+    FieldList basicStatsfields = basicStatsSchema().getFields();
+    for (int i = 0; i < basicStatsSchema().getFields().size(); i++) {
+      valuesMap.put(basicStatsfields.get(i).getName(), basicStatsFieldValues().get(i));
     }
 
-    FieldList histFields = histSchema.getFields();
-    for (int i = 0; i < histSchema.getFields().size(); i++) {
-      valuesMap.put(histFields.get(i).getName(), histValues.get(i));
+    FieldList histFields = histSchema().getFields();
+    for (int i = 0; i < histSchema().getFields().size(); i++) {
+      valuesMap.put(histFields.get(i).getName(), histFieldValues().get(i));
     }
 
-    Builder featureNameStatisticsBuilder =
+    FeatureNameStatistics.Builder featureNameStatisticsBuilder =
         FeatureNameStatistics.newBuilder()
             .setPath(Path.newBuilder().addStep(valuesMap.get("feature_name").getStringValue()))
             .setType(TFDV_TYPE_MAP.get(valueType));
@@ -128,7 +185,7 @@ public class StatsUtil {
     return featureNameStatisticsBuilder.build();
   }
 
-  private static BytesStatistics getBytesStatistics(Map<String, FieldValue> valuesMap) {
+  private BytesStatistics getBytesStatistics(Map<String, FieldValue> valuesMap) {
     if (valuesMap.get("total_count").getLongValue() == 0) {
       return BytesStatistics.getDefaultInstance();
     }
@@ -141,7 +198,7 @@ public class StatsUtil {
                 .setMinNumValues(1)
                 .setMaxNumValues(1)
                 .setAvgNumValues(1)
-                .setTotNumValues(valuesMap.get("total_count").getLongValue()))
+                .setTotNumValues(valuesMap.get("feature_count").getLongValue()))
         .setUnique(valuesMap.get("unique").getLongValue())
         .setMaxNumBytes((float) valuesMap.get("max").getDoubleValue())
         .setMinNumBytes((float) valuesMap.get("min").getDoubleValue())
@@ -149,7 +206,7 @@ public class StatsUtil {
         .build();
   }
 
-  private static StringStatistics getStringStatistics(Map<String, FieldValue> valuesMap) {
+  private StringStatistics getStringStatistics(Map<String, FieldValue> valuesMap) {
     if (valuesMap.get("total_count").getLongValue() == 0) {
       return StringStatistics.getDefaultInstance();
     }
@@ -186,6 +243,7 @@ public class StatsUtil {
 
     return StringStatistics.newBuilder()
         .setUnique(valuesMap.get("unique").getLongValue())
+        .setAvgLength((long) valuesMap.get("mean").getDoubleValue())
         .setCommonStats(
             CommonStatistics.newBuilder()
                 .setNumMissing(valuesMap.get("missing_count").getLongValue())
@@ -193,13 +251,13 @@ public class StatsUtil {
                 .setMinNumValues(1)
                 .setMaxNumValues(1)
                 .setAvgNumValues(1)
-                .setTotNumValues(valuesMap.get("total_count").getLongValue()))
+                .setTotNumValues(valuesMap.get("feature_count").getLongValue()))
         .setRankHistogram(rankHistogram)
         .addAllTopValues(topCount)
         .build();
   }
 
-  private static NumericStatistics getNumericStatistics(Map<String, FieldValue> valuesMap) {
+  private NumericStatistics getNumericStatistics(Map<String, FieldValue> valuesMap) {
     if (valuesMap.get("total_count").getLongValue() == 0) {
       return NumericStatistics.getDefaultInstance();
     }
@@ -253,7 +311,7 @@ public class StatsUtil {
         .build();
   }
 
-  private static StructStatistics getStructStatistics(Map<String, FieldValue> valuesMap) {
+  private StructStatistics getStructStatistics(Map<String, FieldValue> valuesMap) {
     if (valuesMap.get("total_count").getLongValue() == 0) {
       return StructStatistics.getDefaultInstance();
     }
@@ -266,7 +324,9 @@ public class StatsUtil {
                 .setMinNumValues(valuesMap.get("min").getLongValue())
                 .setMaxNumValues(valuesMap.get("max").getLongValue())
                 .setAvgNumValues(valuesMap.get("mean").getLongValue())
-                .setTotNumValues(valuesMap.get("total_count").getLongValue()))
+                .setTotNumValues(
+                    valuesMap.get("feature_count").getLongValue()
+                        * valuesMap.get("mean").getLongValue()))
         .build();
   }
 }

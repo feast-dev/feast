@@ -22,15 +22,13 @@ import javax.persistence.Column;
 import javax.persistence.Embeddable;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Embeddable
-@NoArgsConstructor
 @AllArgsConstructor
 @Getter
 @Setter
-public class FieldId implements Serializable {
+public class EntityReference implements Serializable {
   // Project the field belongs to
   @Column(nullable = false)
   private String project;
@@ -47,6 +45,10 @@ public class FieldId implements Serializable {
   @Column(nullable = false)
   private String name;
 
+  EntityReference(String name) {
+    this.name = name;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -55,7 +57,7 @@ public class FieldId implements Serializable {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    FieldId fieldId = (FieldId) o;
+    EntityReference fieldId = (EntityReference) o;
     return Objects.equals(name, fieldId.getName())
         && Objects.equals(project, fieldId.getProject())
         && Objects.equals(featureSet, fieldId.getFeatureSet());

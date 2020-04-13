@@ -52,6 +52,7 @@ import feast.core.dao.ProjectRepository;
 import feast.core.dao.StoreRepository;
 import feast.core.exception.RetrievalException;
 import feast.core.model.*;
+import feast.types.ValueProto.ValueType;
 import feast.types.ValueProto.ValueType.Enum;
 import java.sql.Date;
 import java.time.Instant;
@@ -120,9 +121,9 @@ public class SpecServiceTest {
     FeatureSet featureSet1v3 = newDummyFeatureSet("f1", 3, "project1");
     FeatureSet featureSet2v1 = newDummyFeatureSet("f2", 1, "project1");
 
-    Feature f3f1 = new Feature("f3f1", Enum.INT64);
-    Feature f3f2 = new Feature("f3f2", Enum.INT64);
-    Entity f3e1 = new Entity("f3e1", Enum.STRING);
+    Feature f3f1 = newFeature("f3f1", Enum.INT64);
+    Feature f3f2 = newFeature("f3f2", Enum.INT64);
+    Entity f3e1 = newEntity("f3e1", Enum.STRING);
     FeatureSet featureSet3v1 =
         new FeatureSet(
             "f3",
@@ -486,9 +487,9 @@ public class SpecServiceTest {
   public void applyFeatureSetShouldNotCreateFeatureSetIfFieldsUnordered()
       throws InvalidProtocolBufferException {
 
-    Feature f3f1 = new Feature("f3f1", Enum.INT64);
-    Feature f3f2 = new Feature("f3f2", Enum.INT64);
-    Entity f3e1 = new Entity("f3e1", Enum.STRING);
+    Feature f3f1 = newFeature("f3f1", Enum.INT64);
+    Feature f3f2 = newFeature("f3f2", Enum.INT64);
+    Entity f3e1 = newEntity("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
         (new FeatureSet(
                 "f3",
@@ -519,46 +520,11 @@ public class SpecServiceTest {
   public void applyFeatureSetShouldAcceptPresenceShapeAndDomainConstraints()
       throws InvalidProtocolBufferException {
     List<EntitySpec> entitySpecs = new ArrayList<>();
-    entitySpecs.add(
-        EntitySpec.newBuilder()
-            .setName("entity1")
-            .setValueType(Enum.INT64)
-            .setPresence(FeaturePresence.getDefaultInstance())
-            .setShape(FixedShape.getDefaultInstance())
-            .setDomain("mydomain")
-            .build());
-    entitySpecs.add(
-        EntitySpec.newBuilder()
-            .setName("entity2")
-            .setValueType(Enum.INT64)
-            .setGroupPresence(FeaturePresenceWithinGroup.getDefaultInstance())
-            .setValueCount(ValueCount.getDefaultInstance())
-            .setIntDomain(IntDomain.getDefaultInstance())
-            .build());
-    entitySpecs.add(
-        EntitySpec.newBuilder()
-            .setName("entity3")
-            .setValueType(Enum.FLOAT)
-            .setPresence(FeaturePresence.getDefaultInstance())
-            .setValueCount(ValueCount.getDefaultInstance())
-            .setFloatDomain(FloatDomain.getDefaultInstance())
-            .build());
-    entitySpecs.add(
-        EntitySpec.newBuilder()
-            .setName("entity4")
-            .setValueType(Enum.STRING)
-            .setPresence(FeaturePresence.getDefaultInstance())
-            .setValueCount(ValueCount.getDefaultInstance())
-            .setStringDomain(StringDomain.getDefaultInstance())
-            .build());
-    entitySpecs.add(
-        EntitySpec.newBuilder()
-            .setName("entity5")
-            .setValueType(Enum.BOOL)
-            .setPresence(FeaturePresence.getDefaultInstance())
-            .setValueCount(ValueCount.getDefaultInstance())
-            .setBoolDomain(BoolDomain.getDefaultInstance())
-            .build());
+    entitySpecs.add(EntitySpec.newBuilder().setName("entity1").setValueType(Enum.INT64).build());
+    entitySpecs.add(EntitySpec.newBuilder().setName("entity2").setValueType(Enum.INT64).build());
+    entitySpecs.add(EntitySpec.newBuilder().setName("entity3").setValueType(Enum.FLOAT).build());
+    entitySpecs.add(EntitySpec.newBuilder().setName("entity4").setValueType(Enum.STRING).build());
+    entitySpecs.add(EntitySpec.newBuilder().setName("entity5").setValueType(Enum.BOOL).build());
 
     List<FeatureSpec> featureSpecs = new ArrayList<>();
     featureSpecs.add(
@@ -709,9 +675,9 @@ public class SpecServiceTest {
   @Test
   public void applyFeatureSetShouldCreateProjectWhenNotAlreadyExists()
       throws InvalidProtocolBufferException {
-    Feature f3f1 = new Feature("f3f1", Enum.INT64);
-    Feature f3f2 = new Feature("f3f2", Enum.INT64);
-    Entity f3e1 = new Entity("f3e1", Enum.STRING);
+    Feature f3f1 = newFeature("f3f1", Enum.INT64);
+    Feature f3f2 = newFeature("f3f2", Enum.INT64);
+    Entity f3e1 = newEntity("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
         (new FeatureSet(
                 "f3",
@@ -735,9 +701,9 @@ public class SpecServiceTest {
   @Test
   public void applyFeatureSetShouldFailWhenProjectIsArchived()
       throws InvalidProtocolBufferException {
-    Feature f3f1 = new Feature("f3f1", Enum.INT64);
-    Feature f3f2 = new Feature("f3f2", Enum.INT64);
-    Entity f3e1 = new Entity("f3e1", Enum.STRING);
+    Feature f3f1 = newFeature("f3f1", Enum.INT64);
+    Feature f3f2 = newFeature("f3f2", Enum.INT64);
+    Entity f3e1 = newEntity("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
         (new FeatureSet(
                 "f3",
@@ -802,8 +768,8 @@ public class SpecServiceTest {
   }
 
   private FeatureSet newDummyFeatureSet(String name, int version, String project) {
-    Feature feature = new Feature("feature", Enum.INT64);
-    Entity entity = new Entity("entity", Enum.STRING);
+    Feature feature = newFeature("feature", Enum.INT64);
+    Entity entity = newEntity("entity", Enum.STRING);
 
     FeatureSet fs =
         new FeatureSet(
@@ -827,5 +793,15 @@ public class SpecServiceTest {
     store.setSubscriptions("*:*:*");
     store.setConfig(RedisConfig.newBuilder().setPort(6379).build().toByteArray());
     return store;
+  }
+
+  private Feature newFeature(String name, ValueType.Enum type) {
+    FeatureSpec spec = FeatureSpec.newBuilder().setName(name).setValueType(type).build();
+    return Feature.fromProto(spec);
+  }
+
+  private Entity newEntity(String name, ValueType.Enum type) {
+    EntitySpec spec = EntitySpec.newBuilder().setName(name).setValueType(type).build();
+    return Entity.fromProto(spec);
   }
 }

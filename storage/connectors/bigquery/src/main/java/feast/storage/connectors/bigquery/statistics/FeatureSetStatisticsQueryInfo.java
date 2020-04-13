@@ -31,32 +31,32 @@ import org.joda.time.format.DateTimeFormatter;
  * queries.
  */
 public class FeatureSetStatisticsQueryInfo {
+  // Feast project name
   private final String project;
-  private final String name;
-  private final int version;
-  private String datasetId = "";
-  private String date = "";
-  private final List<FieldStatisticsQueryInfo> features;
 
-  public FeatureSetStatisticsQueryInfo(
-      String project,
-      String name,
-      int version,
-      String datasetId,
-      String date,
-      List<FieldStatisticsQueryInfo> features) {
-    this.project = project;
-    this.name = name;
-    this.version = version;
-    this.datasetId = datasetId;
-    this.date = date;
-    this.features = features;
-  }
+  // Feature set name
+  private final String name;
+
+  // Version of the feature set
+  private final int version;
+
+  // Dataset ID to retrieve statistics over
+  private String datasetId = "";
+
+  // Date to retrieve statistics over
+  private String date = "";
+
+  // List of entity names in this feature set
+  private final List<String> entityNames;
+
+  // List of fields to get stats for
+  private final List<FieldStatisticsQueryInfo> features;
 
   public FeatureSetStatisticsQueryInfo(String project, String name, int version, String datasetId) {
     this.project = project;
     this.name = name;
     this.version = version;
+    this.entityNames = new ArrayList<>();
     this.features = new ArrayList<>();
     this.datasetId = datasetId;
   }
@@ -65,6 +65,7 @@ public class FeatureSetStatisticsQueryInfo {
     this.project = project;
     this.name = name;
     this.version = version;
+    this.entityNames = new ArrayList<>();
     this.features = new ArrayList<>();
     DateTime dateTime = new DateTime(date.getSeconds() * 1000, DateTimeZone.UTC);
     DateTimeFormatter fmt = DateTimeFormat.forPattern("yyyy-MM-dd");
@@ -76,6 +77,7 @@ public class FeatureSetStatisticsQueryInfo {
   }
 
   public void addEntity(EntitySpec entitySpec) {
+    this.entityNames.add(entitySpec.getName());
     this.features.add(FieldStatisticsQueryInfo.fromProto(entitySpec));
   }
 
@@ -93,6 +95,14 @@ public class FeatureSetStatisticsQueryInfo {
 
   public String getDatasetId() {
     return datasetId;
+  }
+
+  public String getDate() {
+    return date;
+  }
+
+  public List<String> getEntityNames() {
+    return entityNames;
   }
 
   public List<FieldStatisticsQueryInfo> getFeatures() {

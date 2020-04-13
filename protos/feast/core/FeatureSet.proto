@@ -68,46 +68,6 @@ message EntitySpec {
 
     // Value type of the feature.
     feast.types.ValueType.Enum value_type = 2;
-
-    // presence_constraints, shape_type and domain_info are referenced from:
-    // https://github.com/tensorflow/metadata/blob/36f65d1268cbc92cdbcf812ee03dcf47fb53b91e/tensorflow_metadata/proto/v0/schema.proto#L107
-
-    oneof presence_constraints {
-        // Constraints on the presence of this feature in the examples.
-        tensorflow.metadata.v0.FeaturePresence presence = 3;
-        // Only used in the context of a "group" context, e.g., inside a sequence.
-        tensorflow.metadata.v0.FeaturePresenceWithinGroup group_presence = 4;
-    }
-
-    // The shape of the feature which governs the number of values that appear in
-    // each example.
-    oneof shape_type {
-        // The feature has a fixed shape corresponding to a multi-dimensional
-        // tensor.
-        tensorflow.metadata.v0.FixedShape shape = 5;
-        // The feature doesn't have a well defined shape. All we know are limits on
-        // the minimum and maximum number of values.
-        tensorflow.metadata.v0.ValueCount value_count = 6;
-    }
-
-    // Domain for the values of the feature.
-    oneof domain_info {
-        // Reference to a domain defined at the schema level.
-        string domain = 7;
-        // Inline definitions of domains.
-        tensorflow.metadata.v0.IntDomain int_domain = 8;
-        tensorflow.metadata.v0.FloatDomain float_domain = 9;
-        tensorflow.metadata.v0.StringDomain string_domain = 10;
-        tensorflow.metadata.v0.BoolDomain bool_domain = 11;
-        tensorflow.metadata.v0.StructDomain struct_domain = 12;
-        // Supported semantic domains.
-        tensorflow.metadata.v0.NaturalLanguageDomain natural_language_domain = 13;
-        tensorflow.metadata.v0.ImageDomain image_domain = 14;
-        tensorflow.metadata.v0.MIDDomain mid_domain = 15;
-        tensorflow.metadata.v0.URLDomain url_domain = 16;
-        tensorflow.metadata.v0.TimeDomain time_domain = 17;
-        tensorflow.metadata.v0.TimeOfDayDomain time_of_day_domain = 18;
-    }
 }
 
 message FeatureSpec {

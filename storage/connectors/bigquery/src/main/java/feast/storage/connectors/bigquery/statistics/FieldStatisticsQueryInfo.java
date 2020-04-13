@@ -24,7 +24,10 @@ import feast.types.ValueProto.ValueType.Enum;
  * Value class for Features containing information necessary to template stats-retrieving queries.
  */
 public class FieldStatisticsQueryInfo {
+  // Name of the field
   private final String name;
+
+  // Type of the field
   private final String type;
 
   private FieldStatisticsQueryInfo(String name, String type) {
@@ -54,7 +57,8 @@ public class FieldStatisticsQueryInfo {
       case STRING_LIST:
         return new FieldStatisticsQueryInfo(featureSpec.getName(), "LIST");
       default:
-        throw new IllegalArgumentException("Invalid feature type provided");
+        throw new IllegalArgumentException(
+            String.format("Invalid feature type provided: %s", valueType));
     }
   }
 
@@ -80,7 +84,8 @@ public class FieldStatisticsQueryInfo {
       case STRING_LIST:
         return new FieldStatisticsQueryInfo(entitySpec.getName(), "LIST");
       default:
-        throw new IllegalArgumentException("Invalid entity type provided");
+        throw new IllegalArgumentException(
+            String.format("Invalid entity type provided: %s", valueType));
     }
   }
 

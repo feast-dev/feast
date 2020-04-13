@@ -33,7 +33,7 @@ SELECT
     null as unique
     {% elseif feature.type equals "CATEGORICAL" %}
     -- mean
-    null as mean,
+    AVG(LENGTH({{ feature.name }})) as mean,
     -- stdev
     null as stdev,
     -- zeroes

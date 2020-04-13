@@ -93,7 +93,7 @@ public class FeatureStatistics {
 
   // Instantiates a Statistics object from a tensorflow metadata FeatureNameStatistics object and a
   // dataset ID.
-  public static FeatureStatistics fromProto(
+  public static FeatureStatistics createForDataset(
       String project,
       String featureSetName,
       int version,
@@ -101,9 +101,10 @@ public class FeatureStatistics {
       String datasetId)
       throws IOException {
     FeatureStatistics featureStatistics = FeatureStatistics.fromProto(featureNameStatistics);
-    Feature feature = new Feature();
-    feature.setId(
-        new FieldId(project, featureSetName, version, featureNameStatistics.getPath().getStep(0)));
+    Feature feature =
+        Feature.withReference(
+            new FeatureReference(
+                project, featureSetName, version, featureNameStatistics.getPath().getStep(0)));
     featureStatistics.setFeature(feature);
     featureStatistics.setDatasetId(datasetId);
     return featureStatistics;
@@ -111,7 +112,7 @@ public class FeatureStatistics {
 
   // Instantiates a Statistics object from a tensorflow metadata FeatureNameStatistics object and a
   // date.
-  public static FeatureStatistics fromProto(
+  public static FeatureStatistics createForDate(
       String project,
       String featureSetName,
       int version,
@@ -120,9 +121,10 @@ public class FeatureStatistics {
       throws IOException {
     FeatureStatistics featureStatistics = FeatureStatistics.fromProto(featureNameStatistics);
     featureStatistics.setDate(date);
-    Feature feature = new Feature();
-    feature.setId(
-        new FieldId(project, featureSetName, version, featureNameStatistics.getPath().getStep(0)));
+    Feature feature =
+        Feature.withReference(
+            new FeatureReference(
+                project, featureSetName, version, featureNameStatistics.getPath().getStep(0)));
     featureStatistics.setFeature(feature);
     return featureStatistics;
   }
@@ -131,7 +133,7 @@ public class FeatureStatistics {
     FeatureNameStatistics.Builder featureNameStatisticsBuilder =
         FeatureNameStatistics.newBuilder()
             .setType(FeatureNameStatistics.Type.valueOf(featureType))
-            .setPath(Path.newBuilder().addStep(feature.getId().getName()));
+            .setPath(Path.newBuilder().addStep(feature.getReference().getName()));
     CommonStatistics commonStatistics =
         CommonStatistics.newBuilder()
             .setNumNonMissing(count - numMissing)

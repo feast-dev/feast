@@ -30,7 +30,6 @@ import feast.core.service.StatsService;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
@@ -103,7 +102,18 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       GetFeatureStatisticsResponse response = statsService.getFeatureStatistics(request);
       responseObserver.onNext(response);
       responseObserver.onCompleted();
-    } catch (RetrievalException | IllegalArgumentException | IOException e) {
+    } catch (IllegalArgumentException e) {
+      log.error("Illegal arguments provided to GetFeatureStatistics method: ", e);
+      responseObserver.onError(
+          Status.INVALID_ARGUMENT
+              .withDescription(e.getMessage())
+              .withCause(e)
+              .asRuntimeException());
+    } catch (RetrievalException e) {
+      log.error("Unable to fetch feature set requested in GetFeatureStatistics method: ", e);
+      responseObserver.onError(
+          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    } catch (Exception e) {
       log.error("Exception has occurred in GetFeatureStatistics method: ", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());

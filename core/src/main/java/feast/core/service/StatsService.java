@@ -18,24 +18,21 @@ package feast.core.service;
 
 import static java.lang.Math.*;
 
-import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
-import feast.core.CoreServiceProto.GetFeatureSetRequest;
-import feast.core.CoreServiceProto.GetFeatureStatisticsRequest;
-import feast.core.CoreServiceProto.GetFeatureStatisticsResponse;
-import feast.core.FeatureSetProto.EntitySpec;
+import feast.core.CoreServiceProto.*;
+import feast.core.CoreServiceProto.ListStoresRequest.Filter;
 import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
 import feast.core.StoreProto.Store;
 import feast.core.StoreProto.Store.StoreType;
-import feast.core.dao.EntityStatisticsRepository;
 import feast.core.dao.FeatureStatisticsRepository;
-import feast.core.dao.StoreRepository;
-import feast.core.model.*;
+import feast.core.exception.RetrievalException;
 import feast.core.model.Feature;
+import feast.core.model.FeatureReference;
+import feast.core.model.FeatureStatistics;
 import feast.storage.api.statistics.FeatureSetStatistics;
 import feast.storage.api.statistics.StatisticsRetriever;
 import feast.storage.connectors.bigquery.statistics.BigQueryStatisticsRetriever;
@@ -55,20 +52,13 @@ import org.tensorflow.metadata.v0.FeatureNameStatistics.Builder;
 @Service
 public class StatsService {
 
-  private StoreRepository storeRepository;
   private SpecService specService;
   private FeatureStatisticsRepository featureStatisticsRepository;
-  private EntityStatisticsRepository entityStatisticsRepository;
 
   @Autowired
   public StatsService(
-      StoreRepository storeRepository,
-      SpecService specService,
-      EntityStatisticsRepository entityStatisticsRepository,
-      FeatureStatisticsRepository featureStatisticsRepository) {
-    this.storeRepository = storeRepository;
+      SpecService specService, FeatureStatisticsRepository featureStatisticsRepository) {
     this.specService = specService;
-    this.entityStatisticsRepository = entityStatisticsRepository;
     this.featureStatisticsRepository = featureStatisticsRepository;
   }
 
@@ -95,8 +85,24 @@ public class StatsService {
   @Transactional
   public GetFeatureStatisticsResponse getFeatureStatistics(GetFeatureStatisticsRequest request)
       throws IOException {
+
+    // Validate the request
+    validateRequest(request);
+
+    // Get the stats retriever for the store requested
     StatisticsRetriever statisticsRetriever = getStatisticsRetriever(request.getStore());
-    FeatureSetSpec featureSetSpec = getFeatureSetSpec(request.getFeatureSetId());
+
+    // 1. Retrieve the feature set spec from the db
+    FeatureSetSpec featureSetSpec;
+    try {
+      featureSetSpec = getFeatureSetSpec(request.getFeatureSetId());
+    } catch (IllegalArgumentException | RetrievalException e) {
+      throw new RetrievalException(
+          String.format("Unable to find feature set %s", request.getFeatureSetId()), e);
+    }
+
+    // 2. Filter out the features requested by the user. If none are provided,
+    // use all features in the feature set.
     List<String> features = request.getFeatureIdsList();
     if (features.size() == 0) {
       features =
@@ -104,20 +110,20 @@ public class StatsService {
               .map(FeatureSpec::getName)
               .collect(Collectors.toList());
     }
-    List<String> entities =
-        featureSetSpec.getEntitiesList().stream()
-            .map(EntitySpec::getName)
-            .collect(Collectors.toList());
+
+    // 3. Retrieve the statistics from the StatsRetriever.
     List<List<FeatureNameStatistics>> featureNameStatisticsList = new ArrayList<>();
     if (request.getDatasetIdsCount() == 0) {
-      // retrieve by date
-      long timestamp = request.getStartDate().getSeconds();
-      while (timestamp < request.getEndDate().getSeconds()) {
+      Timestamp endDate = request.getEndDate();
+      Timestamp startDate = request.getStartDate();
+      // If no dataset provided, retrieve by date
+
+      long timestamp = startDate.getSeconds();
+      while (timestamp < endDate.getSeconds()) {
         List<FeatureNameStatistics> featureNameStatistics =
             getFeatureNameStatisticsByDate(
                 statisticsRetriever,
                 featureSetSpec,
-                entities,
                 features,
                 timestamp,
                 request.getForceRefresh());
@@ -125,19 +131,20 @@ public class StatsService {
         timestamp += 86400; // advance by a day
       }
     } else {
-      // retrieve by dataset
+      // else, retrieve by dataset
       for (String datasetId : request.getDatasetIdsList()) {
         List<FeatureNameStatistics> featureNameStatistics =
             getFeatureNameStatisticsByDataset(
                 statisticsRetriever,
                 featureSetSpec,
-                entities,
                 features,
                 datasetId,
                 request.getForceRefresh());
         featureNameStatisticsList.add(featureNameStatistics);
       }
     }
+
+    // Merge statistics values across days/datasets
     List<FeatureNameStatistics> featureNameStatistics = mergeStatistics(featureNameStatisticsList);
     long totalCount = getTotalCount(featureNameStatistics.get(0));
     return GetFeatureStatisticsResponse.newBuilder()
@@ -150,25 +157,40 @@ public class StatsService {
         .build();
   }
 
+  /**
+   * Get {@link FeatureNameStatistics} by dataset id.
+   *
+   * @param statisticsRetriever {@link StatisticsRetriever} corresponding to the store to get the
+   *     data from.
+   * @param featureSetSpec {@link FeatureSetSpec} of the feature set requested
+   * @param features features to retrieve
+   * @param datasetId dataset id to subset the data by
+   * @param forceRefresh whether to override the values in the cache
+   * @return {@link FeatureNameStatistics} for the data within the dataset id provided
+   * @throws IOException
+   */
   private List<FeatureNameStatistics> getFeatureNameStatisticsByDataset(
       StatisticsRetriever statisticsRetriever,
       FeatureSetSpec featureSetSpec,
-      List<String> entities,
       List<String> features,
       String datasetId,
       boolean forceRefresh)
       throws IOException {
     List<FeatureNameStatistics> featureNameStatistics = new ArrayList<>();
     List<String> featuresMissingStats = new ArrayList<>();
-    List<String> entitiesMissingStats = new ArrayList<>();
+
+    // For each feature requested, check if statistics already exist in the cache
+    // If not refreshing data in the cache, retrieve the cached data and add it to the
+    // list of FeatureNameStatistics for this dataset.
+    // Else, add to the list of features we still need to retrieve statistics for.
     for (String featureName : features) {
-      Feature feature =
-          new Feature(
-              new FieldId(
-                  featureSetSpec.getProject(),
-                  featureSetSpec.getName(),
-                  featureSetSpec.getVersion(),
-                  featureName));
+      FeatureReference featureReference =
+          new FeatureReference(
+              featureSetSpec.getProject(),
+              featureSetSpec.getName(),
+              featureSetSpec.getVersion(),
+              featureName);
+      Feature feature = Feature.withReference(featureReference);
       Optional<FeatureStatistics> cachedFeatureStatistics = Optional.empty();
       if (!forceRefresh) {
         cachedFeatureStatistics =
@@ -181,58 +203,48 @@ public class StatsService {
         featuresMissingStats.add(featureName);
       }
     }
-    for (String entityName : entities) {
-      Entity entity =
-          new Entity(
-              new FieldId(
-                  featureSetSpec.getProject(),
-                  featureSetSpec.getName(),
-                  featureSetSpec.getVersion(),
-                  entityName));
-      Optional<EntityStatistics> cachedEntityStatistics = Optional.empty();
-      if (!forceRefresh) {
-        cachedEntityStatistics =
-            entityStatisticsRepository.findEntityStatisticsByEntityAndDatasetId(entity, datasetId);
-      }
-      if (cachedEntityStatistics.isPresent()) {
-        featureNameStatistics.add(cachedEntityStatistics.get().toProto());
-      } else {
-        entitiesMissingStats.add(entityName);
-      }
-    }
-    if (featuresMissingStats.size() > 0 || entitiesMissingStats.size() > 0) {
+
+    // Retrieve the balance of statistics after checking the cache, and add it to the
+    // list of FeatureNameStatistics.
+    if (featuresMissingStats.size() > 0) {
       FeatureSetStatistics featureSetStatistics =
-          statisticsRetriever.getFeatureStatistics(
-              featureSetSpec, entitiesMissingStats, featuresMissingStats, datasetId);
+          statisticsRetriever.getFeatureStatistics(featureSetSpec, featuresMissingStats, datasetId);
+
+      // Persist the newly retrieved statistics in the cache.
       for (FeatureNameStatistics stat : featureSetStatistics.getFeatureNameStatistics()) {
-        String name = stat.getPath().getStep(0);
-        if (features.contains(name)) {
-          featureStatisticsRepository.save(
-              FeatureStatistics.fromProto(
-                  featureSetSpec.getProject(),
-                  featureSetSpec.getName(),
-                  featureSetSpec.getVersion(),
-                  stat,
-                  datasetId));
-        } else if (entities.contains(name)) {
-          entityStatisticsRepository.save(
-              EntityStatistics.fromProto(
-                  featureSetSpec.getProject(),
-                  featureSetSpec.getName(),
-                  featureSetSpec.getVersion(),
-                  stat,
-                  datasetId));
-        }
+        FeatureStatistics featureStatistics =
+            FeatureStatistics.createForDataset(
+                featureSetSpec.getProject(),
+                featureSetSpec.getName(),
+                featureSetSpec.getVersion(),
+                stat,
+                datasetId);
+        Optional<FeatureStatistics> existingRecord =
+            featureStatisticsRepository.findFeatureStatisticsByFeatureAndDatasetId(
+                featureStatistics.getFeature(), datasetId);
+        existingRecord.ifPresent(statistics -> featureStatistics.setId(statistics.getId()));
+        featureStatisticsRepository.save(featureStatistics);
       }
       featureNameStatistics.addAll(featureSetStatistics.getFeatureNameStatistics());
     }
     return featureNameStatistics;
   }
 
+  /**
+   * Get {@link FeatureNameStatistics} by date.
+   *
+   * @param statisticsRetriever {@link StatisticsRetriever} corresponding to the store to get the
+   *     data from.
+   * @param featureSetSpec {@link FeatureSetSpec} of the feature set requested
+   * @param features features to retrieve
+   * @param timestamp timestamp of the date to subset the data
+   * @param forceRefresh whether to override the values in the cache
+   * @return {@link FeatureNameStatistics} for the data within the dataset id provided
+   * @throws IOException
+   */
   private List<FeatureNameStatistics> getFeatureNameStatisticsByDate(
       StatisticsRetriever statisticsRetriever,
       FeatureSetSpec featureSetSpec,
-      List<String> entities,
       List<String> features,
       long timestamp,
       boolean forceRefresh)
@@ -240,15 +252,19 @@ public class StatsService {
     Date date = Date.from(Instant.ofEpochSecond(timestamp));
     List<FeatureNameStatistics> featureNameStatistics = new ArrayList<>();
     List<String> featuresMissingStats = new ArrayList<>();
-    List<String> entitiesMissingStats = new ArrayList<>();
+
+    // For each feature requested, check if statistics already exist in the cache
+    // If not refreshing data in the cache, retrieve the cached data and add it to the
+    // list of FeatureNameStatistics for this date.
+    // Else, add to the list of features we still need to retrieve statistics for.
     for (String featureName : features) {
-      Feature feature =
-          new Feature(
-              new FieldId(
-                  featureSetSpec.getProject(),
-                  featureSetSpec.getName(),
-                  featureSetSpec.getVersion(),
-                  featureName));
+      FeatureReference featureReference =
+          new FeatureReference(
+              featureSetSpec.getProject(),
+              featureSetSpec.getName(),
+              featureSetSpec.getVersion(),
+              featureName);
+      Feature feature = Feature.withReference(featureReference);
       Optional<FeatureStatistics> cachedFeatureStatistics = Optional.empty();
       if (!forceRefresh) {
         cachedFeatureStatistics =
@@ -260,72 +276,57 @@ public class StatsService {
         featuresMissingStats.add(featureName);
       }
     }
-    for (String entityName : entities) {
-      Entity entity =
-          new Entity(
-              new FieldId(
-                  featureSetSpec.getProject(),
-                  featureSetSpec.getName(),
-                  featureSetSpec.getVersion(),
-                  entityName));
-      Optional<EntityStatistics> cachedEntityStatistics = Optional.empty();
-      if (!forceRefresh) {
-        cachedEntityStatistics =
-            entityStatisticsRepository.findEntityStatisticsByEntityAndDate(entity, date);
-      }
-      if (cachedEntityStatistics.isPresent()) {
-        featureNameStatistics.add(cachedEntityStatistics.get().toProto());
-      } else {
-        entitiesMissingStats.add(entityName);
-      }
-    }
+
+    // Retrieve the balance of statistics after checking the cache, and add it to the
+    // list of FeatureNameStatistics.
     if (featuresMissingStats.size() > 0) {
       FeatureSetStatistics featureSetStatistics =
           statisticsRetriever.getFeatureStatistics(
               featureSetSpec,
               featuresMissingStats,
-              entitiesMissingStats,
               Timestamp.newBuilder().setSeconds(timestamp).build());
+
+      // Persist the newly retrieved statistics in the cache.
       for (FeatureNameStatistics stat : featureSetStatistics.getFeatureNameStatistics()) {
-        String name = stat.getPath().getStep(0);
-        if (features.contains(name)) {
-          featureStatisticsRepository.save(
-              FeatureStatistics.fromProto(
-                  featureSetSpec.getProject(),
-                  featureSetSpec.getName(),
-                  featureSetSpec.getVersion(),
-                  stat,
-                  date));
-        } else if (entities.contains(name)) {
-          entityStatisticsRepository.save(
-              EntityStatistics.fromProto(
-                  featureSetSpec.getProject(),
-                  featureSetSpec.getName(),
-                  featureSetSpec.getVersion(),
-                  stat,
-                  date));
-        }
+        FeatureStatistics featureStatistics =
+            FeatureStatistics.createForDate(
+                featureSetSpec.getProject(),
+                featureSetSpec.getName(),
+                featureSetSpec.getVersion(),
+                stat,
+                date);
+        Optional<FeatureStatistics> existingRecord =
+            featureStatisticsRepository.findFeatureStatisticsByFeatureAndDate(
+                featureStatistics.getFeature(), date);
+        existingRecord.ifPresent(statistics -> featureStatistics.setId(statistics.getId()));
+        featureStatisticsRepository.save(featureStatistics);
       }
       featureNameStatistics.addAll(featureSetStatistics.getFeatureNameStatistics());
     }
     return featureNameStatistics;
   }
 
-  private StatisticsRetriever getStatisticsRetriever(String storeName)
-      throws InvalidProtocolBufferException {
-    Store store = storeRepository.getOne(storeName).toProto();
+  /**
+   * Get the {@link StatisticsRetriever} corresponding to the store name provided.
+   *
+   * @param storeName name of the store to retrieve statistics from
+   * @return {@link StatisticsRetriever}
+   */
+  private StatisticsRetriever getStatisticsRetriever(String storeName) {
+    ListStoresResponse listStoresResponse =
+        specService.listStores(Filter.newBuilder().setName(storeName).build());
+    Store store = listStoresResponse.getStore(0);
     if (store.getType() != StoreType.BIGQUERY) {
-      throw new IllegalArgumentException("Batch statistics are only supported for BigQuery stores");
+      throw new IllegalArgumentException(
+          String.format(
+              "Invalid store %s with type %s specified. Batch statistics are only supported for BigQuery stores",
+              store.getName(), store.getType()));
     }
-    return BigQueryStatisticsRetriever.newBuilder()
-        .setProjectId(store.getBigqueryConfig().getProjectId())
-        .setDatasetId(store.getBigqueryConfig().getDatasetId())
-        .setBigquery(BigQueryOptions.getDefaultInstance().getService())
-        .build();
+    return BigQueryStatisticsRetriever.create(store.getBigqueryConfig());
   }
 
   private FeatureSetSpec getFeatureSetSpec(String featureSetId)
-      throws InvalidProtocolBufferException {
+      throws InvalidProtocolBufferException, IllegalArgumentException, RetrievalException {
     String[] split = featureSetId.split("/");
     String project = split[0];
     split = split[1].split(":");
@@ -341,6 +342,13 @@ public class StatsService {
     return featureSet.getSpec();
   }
 
+  /**
+   * Merge feature statistics by name. This method is used to merge statistics retrieved over
+   * multiple days or datasets.
+   *
+   * @param featureNameStatistics {@link FeatureNameStatistics} retrieved from the store
+   * @return Merged list of {@link FeatureNameStatistics} by name
+   */
   @VisibleForTesting
   public List<FeatureNameStatistics> mergeStatistics(
       List<List<FeatureNameStatistics>> featureNameStatistics) {
@@ -410,7 +418,7 @@ public class StatsService {
         StructStatistics.newBuilder()
             .setCommonStats(
                 CommonStatistics.newBuilder()
-                    .setTotNumValues(totalCount)
+                    .setTotNumValues(totalNumValues)
                     .setNumNonMissing(totalCount)
                     .setAvgNumValues((float) totalNumValues / totalCount)
                     .setMaxNumValues(maxNumValues)
@@ -570,5 +578,22 @@ public class StatsService {
         throw new RuntimeException("Unable to extract dataset size; Invalid type provided");
     }
     return commonStats.getNumNonMissing() + commonStats.getNumMissing();
+  }
+
+  private void validateRequest(GetFeatureStatisticsRequest request) {
+    if (request.getDatasetIdsCount() == 0) {
+      Timestamp startDate = request.getStartDate();
+      Timestamp endDate = request.getEndDate();
+      if (!request.hasStartDate() || !request.hasEndDate()) {
+        throw new IllegalArgumentException(
+            "Invalid request. Either provide dataset ids to retrieve statistics over, or a start date and end date.");
+      }
+      if (endDate.getSeconds() < startDate.getSeconds()) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Invalid request. Start timestamp %d is greater than the end timestamp %d",
+                startDate.getSeconds(), endDate.getSeconds()));
+      }
+    }
   }
 }

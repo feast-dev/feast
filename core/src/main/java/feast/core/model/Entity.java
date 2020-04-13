@@ -19,6 +19,7 @@ package feast.core.model;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.types.ValueProto.ValueType;
 import java.util.Objects;
+import javax.persistence.EmbeddedId;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -26,85 +27,26 @@ import lombok.Setter;
 @Getter
 @Setter
 @javax.persistence.Entity
-public class Entity extends Field {
+public class Entity {
+  @EmbeddedId private EntityReference reference;
+
+  private String type;
 
   public Entity() {}
 
-  public Entity(FieldId fieldId) {
-    this.setId(fieldId);
+  private Entity(String name, ValueType.Enum type) {
+    this.setReference(new EntityReference(name));
+    this.setType(type.toString());
   }
 
-  public Entity(String name, ValueType.Enum type) {
-    this.setId(new FieldId());
-    this.setName(name);
-    this.setType(type.toString());
+  public static Entity withRef(EntityReference entityRef) {
+    Entity entity = new Entity();
+    entity.setReference(entityRef);
+    return entity;
   }
 
   public static Entity fromProto(EntitySpec entitySpec) {
     Entity entity = new Entity(entitySpec.getName(), entitySpec.getValueType());
-
-    switch (entitySpec.getPresenceConstraintsCase()) {
-      case PRESENCE:
-        entity.setPresence(entitySpec.getPresence().toByteArray());
-        break;
-      case GROUP_PRESENCE:
-        entity.setGroupPresence(entitySpec.getGroupPresence().toByteArray());
-        break;
-      case PRESENCECONSTRAINTS_NOT_SET:
-        break;
-    }
-
-    switch (entitySpec.getShapeTypeCase()) {
-      case SHAPE:
-        entity.setShape(entitySpec.getShape().toByteArray());
-        break;
-      case VALUE_COUNT:
-        entity.setValueCount(entitySpec.getValueCount().toByteArray());
-        break;
-      case SHAPETYPE_NOT_SET:
-        break;
-    }
-
-    switch (entitySpec.getDomainInfoCase()) {
-      case DOMAIN:
-        entity.setDomain(entitySpec.getDomain());
-        break;
-      case INT_DOMAIN:
-        entity.setIntDomain(entitySpec.getIntDomain().toByteArray());
-        break;
-      case FLOAT_DOMAIN:
-        entity.setFloatDomain(entitySpec.getFloatDomain().toByteArray());
-        break;
-      case STRING_DOMAIN:
-        entity.setStringDomain(entitySpec.getStringDomain().toByteArray());
-        break;
-      case BOOL_DOMAIN:
-        entity.setBoolDomain(entitySpec.getBoolDomain().toByteArray());
-        break;
-      case STRUCT_DOMAIN:
-        entity.setStructDomain(entitySpec.getStructDomain().toByteArray());
-        break;
-      case NATURAL_LANGUAGE_DOMAIN:
-        entity.setNaturalLanguageDomain(entitySpec.getNaturalLanguageDomain().toByteArray());
-        break;
-      case IMAGE_DOMAIN:
-        entity.setImageDomain(entitySpec.getImageDomain().toByteArray());
-        break;
-      case MID_DOMAIN:
-        entity.setMidDomain(entitySpec.getMidDomain().toByteArray());
-        break;
-      case URL_DOMAIN:
-        entity.setUrlDomain(entitySpec.getUrlDomain().toByteArray());
-        break;
-      case TIME_DOMAIN:
-        entity.setTimeDomain(entitySpec.getTimeDomain().toByteArray());
-        break;
-      case TIME_OF_DAY_DOMAIN:
-        entity.setTimeOfDayDomain(entitySpec.getTimeOfDayDomain().toByteArray());
-        break;
-      case DOMAININFO_NOT_SET:
-        break;
-    }
     return entity;
   }
 
@@ -117,11 +59,11 @@ public class Entity extends Field {
       return false;
     }
     Entity feature = (Entity) o;
-    return getId().equals(feature.getId()) && getType().equals(feature.getType());
+    return getReference().equals(feature.getReference()) && getType().equals(feature.getType());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(super.hashCode(), getId(), getType());
+    return Objects.hash(super.hashCode(), getReference(), getType());
   }
 }
