@@ -67,7 +67,7 @@ push-serving-docker:
 	docker push $(REGISTRY)/feast-serving:$(VERSION)
 
 push-ci-docker:
-	docker push $(REGISTRY)/feast-ci:maven:3.6-jdk-8
+	docker push $(REGISTRY)/feast-ci:maven-3.6-jdk-8
 
 build-core-docker:
 	docker build -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
@@ -76,7 +76,7 @@ build-serving-docker:
 	docker build -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
 
 build-ci-docker:
-	docker build -t $(REGISTRY)/feast-ci:maven:3.6-jdk-8 -f infra/docker/ci/Dockerfile .
+	docker build -t $(REGISTRY)/feast-ci:maven-3.6-jdk-8 -f infra/docker/ci/Dockerfile .
 
 # Documentation
 

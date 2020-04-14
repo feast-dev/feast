@@ -3,9 +3,24 @@ name: unit tests
 on: [push, pull_request]
 
 jobs:
+  unit-test-java:
+    runs-on: ubuntu-latest
+    container: gcr.io/kf-feast/feast-ci:maven-3.6-jdk-8
+    name: unit test java
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/cache@v1
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+      - name: test java
+        run: make test-java
+
   unit-test-python:
     runs-on: ubuntu-latest
-    container: gcr.io/kf-feast/feast-ci:latest
+    container: gcr.io/kf-feast/feast-ci:maven-3.6-jdk-8
     name: unit test python
     steps:
       - uses: actions/checkout@v1
