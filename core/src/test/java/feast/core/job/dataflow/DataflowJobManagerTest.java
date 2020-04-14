@@ -77,6 +77,10 @@ public class DataflowJobManagerTest {
     defaults = new HashMap<>();
     defaults.put("project", "project");
     defaults.put("region", "region");
+    defaults.put("zone", "zone");
+    defaults.put("tempLocation", "tempLocation");
+    defaults.put("network", "network");
+    defaults.put("subnetwork", "subnetwork");
     MetricsProperties metricsProperties = new MetricsProperties();
     metricsProperties.setEnabled(false);
     dfJobManager = new DataflowJobManager(defaults, metricsProperties);

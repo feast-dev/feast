@@ -25,7 +25,6 @@ import com.google.cloud.bigquery.*;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
-import feast.core.StoreProto;
 import feast.serving.ServingAPIProto;
 import feast.serving.ServingAPIProto.DatasetSource;
 import feast.storage.api.retriever.FeatureSetRequest;
@@ -35,6 +34,7 @@ import io.grpc.Status;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
@@ -49,6 +49,36 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
 
   public static final long TEMP_TABLE_EXPIRY_DURATION_MS = Duration.ofDays(1).toMillis();
   private static final long SUBQUERY_TIMEOUT_SECS = 900; // 15 minutes
+
+  public static HistoricalRetriever create(Map<String, String> config) {
+
+    BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+    Storage storage = StorageOptions.getDefaultInstance().getService();
+
+    String jobStagingLocation = config.get("staging-location");
+    if (!jobStagingLocation.contains("://")) {
+      throw new IllegalArgumentException(
+          String.format("jobStagingLocation is not a valid URI: %s", jobStagingLocation));
+    }
+    if (jobStagingLocation.endsWith("/")) {
+      jobStagingLocation = jobStagingLocation.substring(0, jobStagingLocation.length() - 1);
+    }
+    if (!jobStagingLocation.startsWith("gs://")) {
+      throw new IllegalArgumentException(
+          "Store type BIGQUERY requires job staging location to be a valid and existing Google Cloud Storage URI. Invalid staging location: "
+              + jobStagingLocation);
+    }
+
+    return builder()
+        .setBigquery(bigquery)
+        .setDatasetId(config.get("dataset_id"))
+        .setProjectId(config.get("project_id"))
+        .setJobStagingLocation(config.get("staging-location"))
+        .setInitialRetryDelaySecs(Integer.parseInt(config.get("bigquery-initial-retry-delay-secs")))
+        .setTotalTimeoutSecs(Integer.parseInt(config.get("bigquery-total-timeout-secs")))
+        .setStorage(storage)
+        .build();
+  }
 
   public abstract String projectId();
 
@@ -85,36 +115,6 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
     public abstract Builder setStorage(Storage storage);
 
     public abstract BigQueryHistoricalRetriever build();
-  }
-
-  public static BigQueryHistoricalRetriever fromConfig(StoreProto.Store.BigQueryConfig config) {
-
-    String jobStagingLocation = config.getStagingLocation();
-    BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
-    Storage storage = StorageOptions.getDefaultInstance().getService();
-
-    if (!jobStagingLocation.contains("://")) {
-      throw new IllegalArgumentException(
-          String.format("jobStagingLocation is not a valid URI: %s", jobStagingLocation));
-    }
-    if (jobStagingLocation.endsWith("/")) {
-      jobStagingLocation = jobStagingLocation.substring(0, jobStagingLocation.length() - 1);
-    }
-    if (!jobStagingLocation.startsWith("gs://")) {
-      throw new IllegalArgumentException(
-          "Store type BIGQUERY requires job staging location to be a valid and existing Google Cloud Storage URI. Invalid staging location: "
-              + jobStagingLocation);
-    }
-
-    return builder()
-        .setBigquery(bigquery)
-        .setDatasetId(config.getDatasetId())
-        .setProjectId(config.getProjectId())
-        .setJobStagingLocation(config.getStagingLocation())
-        .setInitialRetryDelaySecs(config.getInitialRetryDelaySeconds())
-        .setTotalTimeoutSecs(config.getTotalTimeoutSeconds())
-        .setStorage(storage)
-        .build();
   }
 
   @Override

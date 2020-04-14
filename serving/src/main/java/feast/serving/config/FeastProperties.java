@@ -269,7 +269,7 @@ public class FeastProperties {
      * Get the subscriptions to this specific store. The subscriptions indicate which feature sets a
      * store subscribes to.
      *
-     * @return List of subscriptions in the form of {@link List<Subscription>}.
+     * @return List of subscriptions.
      */
     public List<Subscription> getSubscriptions() {
       return subscriptions;
@@ -289,7 +289,7 @@ public class FeastProperties {
      * unique to the store. Please see protos/feast/core/Store.proto for the store specific
      * configuration options
      *
-     * @return the config as a {@link Map<String, String>}
+     * @return Returns the store specific configuration
      */
     public Map<String, String> getConfig() {
       return config;

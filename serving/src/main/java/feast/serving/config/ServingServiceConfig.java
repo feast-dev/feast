@@ -30,6 +30,7 @@ import feast.storage.api.retriever.OnlineRetriever;
 import feast.storage.connectors.bigquery.retriever.BigQueryHistoricalRetriever;
 import feast.storage.connectors.redis.retriever.RedisOnlineRetriever;
 import io.opentracing.Tracer;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -47,11 +48,13 @@ public class ServingServiceConfig {
       Tracer tracer)
       throws InvalidProtocolBufferException, JsonProcessingException {
     ServingService servingService = null;
-    StoreProto.Store store = feastProperties.getActiveStore().toProto();
+    FeastProperties.Store store = feastProperties.getActiveStore();
+    StoreProto.Store.StoreType storeType = store.toProto().getType();
+    Map<String, String> config = store.getConfig();
 
-    switch (store.getType()) {
+    switch (storeType) {
       case REDIS:
-        OnlineRetriever redisRetriever = new RedisOnlineRetriever(store.getRedisConfig());
+        OnlineRetriever redisRetriever = RedisOnlineRetriever.create(config);
         servingService = new OnlineServingService(redisRetriever, specService, tracer);
         break;
       case BIGQUERY:
@@ -59,8 +62,7 @@ public class ServingServiceConfig {
           throw new IllegalArgumentException(
               "Unable to instantiate JobService which is required by BigQueryHistoricalRetriever.");
         }
-        HistoricalRetriever bqRetriever =
-            BigQueryHistoricalRetriever.fromConfig(store.getBigqueryConfig());
+        HistoricalRetriever bqRetriever = BigQueryHistoricalRetriever.create(config);
         servingService = new HistoricalServingService(bqRetriever, specService, jobService);
         break;
       case CASSANDRA:

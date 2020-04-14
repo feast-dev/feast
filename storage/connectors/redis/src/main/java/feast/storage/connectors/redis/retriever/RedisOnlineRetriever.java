@@ -20,7 +20,6 @@ import com.google.protobuf.AbstractMessageLite;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.StoreProto.Store.RedisConfig;
 import feast.serving.ServingAPIProto.FeatureReference;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.storage.RedisProto.RedisKey;
@@ -45,15 +44,22 @@ public class RedisOnlineRetriever implements OnlineRetriever {
 
   private final RedisCommands<byte[], byte[]> syncCommands;
 
-  public RedisOnlineRetriever(StatefulRedisConnection<byte[], byte[]> connection) {
+  private RedisOnlineRetriever(StatefulRedisConnection<byte[], byte[]> connection) {
     this.syncCommands = connection.sync();
   }
 
-  public RedisOnlineRetriever(RedisConfig config) {
+  public static OnlineRetriever create(Map<String, String> config) {
+
     StatefulRedisConnection<byte[], byte[]> connection =
-        RedisClient.create(RedisURI.create(config.getHost(), config.getPort()))
+        RedisClient.create(
+                RedisURI.create(config.get("host"), Integer.parseInt(config.get("port"))))
             .connect(new ByteArrayCodec());
-    this.syncCommands = connection.sync();
+
+    return new RedisOnlineRetriever(connection);
+  }
+
+  public static OnlineRetriever create(StatefulRedisConnection<byte[], byte[]> connection) {
+    return new RedisOnlineRetriever(connection);
   }
 
   /**
