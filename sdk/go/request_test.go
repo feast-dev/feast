@@ -5,7 +5,7 @@ import (
 	"github.com/gojek/feast/sdk/go/protos/feast/serving"
 	"github.com/gojek/feast/sdk/go/protos/feast/types"
 	json "github.com/golang/protobuf/jsonpb"
-	"github.com/google/go-cmp/cmp"
+	"github.com/golang/protobuf/proto"
 	"testing"
 )
 
@@ -145,7 +145,7 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 				return
 			}
 
-			if !cmp.Equal(got, tc.want) {
+			if !proto.Equal(got, tc.want) {
 				m := json.Marshaler{}
 				gotJson, _ := m.MarshalToString(got)
 				wantJson, _ := m.MarshalToString(tc.want)

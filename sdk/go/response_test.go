@@ -33,8 +33,13 @@ func TestOnlineFeaturesResponseToRow(t *testing.T) {
 		{"project1/feature1": Int64Val(1), "project1/feature2": &types.Value{}},
 		{"project1/feature1": Int64Val(2), "project1/feature2": Int64Val(2)},
 	}
-	if !cmp.Equal(actual, expected) {
+	if len(expected) != len(actual) {
 		t.Errorf("expected: %v, got: %v", expected, actual)
+	}
+	for i := range expected {
+		if !expected[i].equalTo(actual[i]) {
+			t.Errorf("expected: %v, got: %v", expected, actual)
+		}
 	}
 }
 
