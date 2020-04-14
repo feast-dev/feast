@@ -50,14 +50,35 @@ install-python: compile-protos-python
 test-python:
 	pytest --verbose --color=yes sdk/python/tests
 
-build-docker:
-	docker build -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
-	docker build -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
+# Docker
 
 build-push-docker:
 	@$(MAKE) build-docker registry=$(REGISTRY) version=$(VERSION)
+	@$(MAKE) push-core-docker registry=$(REGISTRY) version=$(VERSION)
+	@$(MAKE) push-serving-docker registry=$(REGISTRY) version=$(VERSION)
+	@$(MAKE) push-ci-docker registry=$(REGISTRY)
+	
+build-docker: build-core-docker build-serving-docker build-ci-docker
+
+push-core-docker:
 	docker push $(REGISTRY)/feast-core:$(VERSION)
+
+push-serving-docker:
 	docker push $(REGISTRY)/feast-serving:$(VERSION)
+
+push-ci-docker:
+	docker push $(REGISTRY)/feast-ci:maven:3.6-jdk-8
+
+build-core-docker:
+	docker build -t $(REGISTRY)/feast-core:$(VERSION) -f infra/docker/core/Dockerfile .
+
+build-serving-docker:
+	docker build -t $(REGISTRY)/feast-serving:$(VERSION) -f infra/docker/serving/Dockerfile .
+
+build-ci-docker:
+	docker build -t $(REGISTRY)/feast-ci:maven:3.6-jdk-8 -f infra/docker/ci/Dockerfile .
+
+# Documentation
 
 clean-html:
 	rm -rf 	$(PROJECT_ROOT)/dist
