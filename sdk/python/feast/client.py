@@ -48,16 +48,16 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetResponse,
     ListFeatureSetsRequest,
     ListFeatureSetsResponse,
+    ListIngestionJobsRequest,
     ListProjectsRequest,
     ListProjectsResponse,
-    ListIngestionJobsRequest,
     RestartIngestionJobRequest,
     StopIngestionJobRequest,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
 from feast.feature_set import Entity, FeatureSet, FeatureSetRef
-from feast.job import RetrievalJob, IngestJob
+from feast.job import IngestJob, RetrievalJob
 from feast.loaders.abstract_producer import get_producer
 from feast.loaders.file import export_source_to_staging_location
 from feast.loaders.ingest import KAFKA_CHUNK_PRODUCTION_TIMEOUT, get_feature_row_chunks

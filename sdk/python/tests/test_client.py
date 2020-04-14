@@ -31,18 +31,16 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetResponse,
     ListIngestionJobsResponse,
 )
-from feast.core.Store_pb2 import Store
-from feast.core.IngestionJob_pb2 import (
-    IngestionJob as IngestJobProto,
-    IngestionJobStatus,
-)
 from feast.core.FeatureSet_pb2 import EntitySpec as EntitySpecProto
 from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
 from feast.core.FeatureSet_pb2 import FeatureSetMeta as FeatureSetMetaProto
 from feast.core.FeatureSet_pb2 import FeatureSetSpec as FeatureSetSpecProto
 from feast.core.FeatureSet_pb2 import FeatureSetStatus as FeatureSetStatusProto
 from feast.core.FeatureSet_pb2 import FeatureSpec as FeatureSpecProto
+from feast.core.IngestionJob_pb2 import IngestionJob as IngestJobProto
+from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.core.Source_pb2 import KafkaSourceConfig, Source, SourceType
+from feast.core.Store_pb2 import Store
 from feast.entity import Entity
 from feast.feature_set import Feature, FeatureSet, FeatureSetRef
 from feast.job import IngestJob
