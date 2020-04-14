@@ -28,3 +28,15 @@ jobs:
         run: make install-python
       - name: test python
         run: make test-python
+
+
+  unit-test-go:
+    runs-on: ubuntu-latest
+    container: gcr.io/kf-feast/feast-ci:maven-3.6-jdk-8
+    name: unit test go
+    steps:
+      - uses: actions/checkout@v1
+      - name: install dependencies
+        run: make compile-protos-go
+      - name: test go
+        run: make test-go
