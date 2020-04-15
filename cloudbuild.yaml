@@ -155,17 +155,22 @@ steps:
 - id: m2-cache-push
   waitFor: ['build-java']
   name: gcr.io/cloud-builders/gsutil
+  entrypoint: sh
   args:
-    - -o GSUtil:parallel_process_count=16
-    - -o GSUtil:parallel_thread_count=1
-    - -m
-    - rsync
-    - -j
-    - pom,sha1
-    - -r
-    - -d
-    - /cache/m2
-    - ${_M2_CACHE_DIR}
+    - '-c'
+    - |
+      gsutil \
+      -o GSUtil:parallel_process_count=16 \
+      -o GSUtil:parallel_thread_count=1 \
+      -m \
+      rsync \
+      -j \
+      pom,sha1 \
+      -r \
+      -d \
+      /cache/m2 \
+      ${_M2_CACHE_DIR} \
+      || true
 
 images:
 - gcr.io/${PROJECT_ID}/feast-core:ff-${SHORT_SHA}
