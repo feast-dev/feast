@@ -120,7 +120,7 @@ steps:
   waitFor: ['secrets', 'build-java', 'unit-test-go-sdk-report', 'install-python-sdk']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: bash
-  args: ['.prow/scripts/test-end-to-end.sh']
+  args: ['infra/scripts/test-end-to-end.sh']
   env:
   - GOOGLE_APPLICATION_CREDENTIALS=/.secrets/gcp-credentials.json
   - SKIP_BUILD_JARS=true
@@ -132,7 +132,7 @@ steps:
   waitFor: ['secrets', 'build-java', 'unit-test-go-sdk-report', 'install-python-sdk']
   name: 'maven:${_MAVEN_VERSION}'
   entrypoint: bash
-  args: ['.prow/scripts/test-end-to-end-batch.sh']
+  args: ['infra/scripts/test-end-to-end-batch.sh']
   env:
   - GOOGLE_APPLICATION_CREDENTIALS=/.secrets/gcp-credentials.json
   - SKIP_BUILD_JARS=true
@@ -208,5 +208,5 @@ substitutions:
   _MAVEN_VERSION: 3.6.2-jdk-11
   _M2_CACHE_DIR: 'gs://dev-konnekt-data-deep-1-feast-tmp/cache/m2'
 
-tags: ['team__konnekt', 'repo__konnekt_data_feast', 'commit__${SHORT_SHA}', 'slack__konnekt-feature-store']
+tags: ['team__konnekt', 'repo__konnekt_data_feast', 'commit__${SHORT_SHA}', 'slack__konnekt-devops-test']
 
