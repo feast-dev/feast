@@ -17,10 +17,10 @@
 package feast.core.config;
 
 import feast.core.config.FeastProperties.StreamProperties.FeatureStreamOptions;
+import feast.core.validators.OneOfStrings;
 import java.util.*;
 import javax.annotation.PostConstruct;
 import javax.validation.*;
-import javax.validation.constraints.AssertTrue;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Positive;
@@ -130,7 +130,9 @@ public class FeastProperties {
   public static class StreamProperties {
 
     /* Feature stream type. Only "kafka" is supported. */
-    @NotBlank private String type;
+    @OneOfStrings({"kafka"})
+    @NotBlank
+    private String type;
 
     /* Feature stream options */
     @NotNull private FeatureStreamOptions options;
@@ -157,16 +159,6 @@ public class FeastProperties {
     }
   }
 
-  /**
-   * Validates whether stream options are correct.
-   *
-   * @return Boolean used for assertion
-   */
-  @AssertTrue
-  public boolean isValidStreamTypeSelected() {
-    return Objects.equals(getStream().getType(), "kafka");
-  }
-
   /** Feast population job metrics */
   @Getter
   @Setter
@@ -176,7 +168,9 @@ public class FeastProperties {
     private boolean enabled;
 
     /* Metric type. Possible options: statsd */
-    @NotBlank private String type;
+    @OneOfStrings({"statsd"})
+    @NotBlank
+    private String type;
 
     /* Host of metric sink */
     @URL private String host;
