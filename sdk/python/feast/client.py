@@ -559,13 +559,17 @@ class Client:
 
         # Retrieve serving information to determine store type and
         # staging location
-        serving_info = self._serving_service_stub.GetFeastServingInfo(
-            GetFeastServingInfoRequest(),
-            timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
-        )  # type: GetFeastServingInfoResponse
+        try:
+            serving_info = self._serving_service_stub.GetFeastServingInfo(
+                GetFeastServingInfoRequest(),
+                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+            )  # type: GetFeastServingInfoResponse
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
 
         if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
             raise Exception(
+                # TODO: fix typo should be serving_url
                 f'You are connected to a store "{self._serving_url}" which '
                 f"does not support batch retrieval "
             )
@@ -639,17 +643,22 @@ class Client:
         """
         self._connect_serving()
 
-        return self._serving_service_stub.GetOnlineFeatures(
-            GetOnlineFeaturesRequest(
-                features=_build_feature_references(
-                    feature_refs=feature_refs,
-                    default_project=(
-                        default_project if not self.project else self.project
+        try:
+            response = self._serving_service_stub.GetOnlineFeatures(
+                GetOnlineFeaturesRequest(
+                    features=_build_feature_references(
+                        feature_refs=feature_refs,
+                        default_project=(
+                            default_project if not self.project else self.project
+                        ),
                     ),
-                ),
-                entity_rows=entity_rows,
+                    entity_rows=entity_rows,
+                )
             )
-        )
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+
+        return response
 
     def list_ingest_jobs(
         self,
