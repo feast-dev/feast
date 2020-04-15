@@ -122,7 +122,13 @@ public class CachedSpecService {
                       generateFeatureStringRef(featureReference), "");
               if (featureSet.isEmpty()) {
                 throw new SpecRetrievalException(
-                    String.format("Unable to retrieve feature %s", featureReference));
+                    String.format(
+                        "Unable to find feature set for feature ref: "
+                            + "(project: %s, name: %s, version: %d, max_age: %s)",
+                        featureReference.getProject(),
+                        featureReference.getName(),
+                        featureReference.getVersion(),
+                        featureReference.getMaxAge().toString()));
               }
               return Pair.of(featureSet, featureReference);
             })
@@ -141,7 +147,7 @@ public class CachedSpecService {
                 featureSetRequests.add(featureSetRequest);
               } catch (ExecutionException e) {
                 throw new SpecRetrievalException(
-                    String.format("Unable to retrieve featureSet with id %s", fsName), e);
+                    String.format("Unable to find featureSet with name: %s", fsName), e);
               }
             });
     return featureSetRequests;

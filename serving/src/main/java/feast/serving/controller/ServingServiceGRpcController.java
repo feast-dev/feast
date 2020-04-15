@@ -77,7 +77,7 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       responseObserver.onNext(onlineFeatures);
       responseObserver.onCompleted();
     } catch (SpecRetrievalException e) {
-      log.error("Could not find specs in SpecService that matches the given request", e);
+      log.error("Failed to retrieve specs in SpecService", e);
       responseObserver.onError(
           Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asException());
     } catch (Exception e) {
@@ -96,7 +96,7 @@ public class ServingServiceGRpcController extends ServingServiceImplBase {
       responseObserver.onNext(batchFeatures);
       responseObserver.onCompleted();
     } catch (SpecRetrievalException e) {
-      log.error("Could not find specs in SpecService that matches the given request", e);
+      log.error("Failed to retrieve specs in SpecService", e);
       responseObserver.onError(
           Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asException());
     } catch (Exception e) {
