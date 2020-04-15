@@ -559,13 +559,10 @@ class Client:
 
         # Retrieve serving information to determine store type and
         # staging location
-        try:
-            serving_info = self._serving_service_stub.GetFeastServingInfo(
-                GetFeastServingInfoRequest(),
-                timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
-            )  # type: GetFeastServingInfoResponse
-        except grpc.RpcError as e:
-            raise grpc.RpcError(e.details())
+        serving_info = self._serving_service_stub.GetFeastServingInfo(
+            GetFeastServingInfoRequest(),
+            timeout=self._config.getint(CONFIG_GRPC_CONNECTION_TIMEOUT_DEFAULT_KEY),
+        )  # type: GetFeastServingInfoResponse
 
         if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
             raise Exception(
@@ -600,7 +597,6 @@ class Client:
         staged_files = export_source_to_staging_location(
             entity_rows, serving_info.job_staging_location
         )  # type: List[str]
-
         request = GetBatchFeaturesRequest(
             features=feature_references,
             dataset_source=DatasetSource(
@@ -611,7 +607,11 @@ class Client:
         )
 
         # Retrieve Feast Job object to manage life cycle of retrieval
-        response = self._serving_service_stub.GetBatchFeatures(request)
+        try:
+            response = self._serving_service_stub.GetBatchFeatures(request)
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+
         return RetrievalJob(response.job, self._serving_service_stub)
 
     def get_online_features(
