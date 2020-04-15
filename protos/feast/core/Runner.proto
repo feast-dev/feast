@@ -65,7 +65,7 @@ message DataflowRunnerConfigOptions {
     // e.g. gs://bucket/object
     string tempLocation = 10;
 
-    /* (Dataflow Runner Only) The maximum number of workers to use for the workerpool. */
+    /* The maximum number of workers to use for the workerpool. */
     int32 maxNumWorkers = 11;
 
     /* BigQuery table specification, e.g. PROJECT_ID:DATASET_ID.PROJECT_ID */
