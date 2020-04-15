@@ -50,8 +50,8 @@ Please see the links below to set up Feast for batch/historical serving with Big
 
 Please refer to the official documentation at <https://docs.feast.dev>
 
- * [Why Feast?](https://docs.feast.dev/why-feast)
- * [Concepts](https://docs.feast.dev/concepts)
+ * [Why Feast?](https://docs.feast.dev/introduction/why-feast)
+ * [Concepts](https://docs.feast.dev/concepts/concepts)
  * [Installation](https://docs.feast.dev/installation/overview)
  * [Examples](https://github.com/gojek/feast/blob/master/examples/)
  * [Roadmap](https://docs.feast.dev/roadmap)
