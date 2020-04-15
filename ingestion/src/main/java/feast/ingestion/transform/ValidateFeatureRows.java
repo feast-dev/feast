@@ -19,8 +19,8 @@ package feast.ingestion.transform;
 import com.google.auto.value.AutoValue;
 import feast.core.FeatureSetProto;
 import feast.ingestion.transform.fn.ValidateFeatureRowDoFn;
-import feast.ingestion.values.FailedElement;
 import feast.ingestion.values.FeatureSet;
+import feast.storage.api.writer.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -36,7 +36,7 @@ import org.apache.commons.lang3.tuple.Pair;
 public abstract class ValidateFeatureRows
     extends PTransform<PCollection<FeatureRow>, PCollectionTuple> {
 
-  public abstract Map<String, FeatureSetProto.FeatureSet> getFeatureSets();
+  public abstract Map<String, FeatureSetProto.FeatureSetSpec> getFeatureSetSpecs();
 
   public abstract TupleTag<FeatureRow> getSuccessTag();
 
@@ -49,7 +49,8 @@ public abstract class ValidateFeatureRows
   @AutoValue.Builder
   public abstract static class Builder {
 
-    public abstract Builder setFeatureSets(Map<String, FeatureSetProto.FeatureSet> featureSets);
+    public abstract Builder setFeatureSetSpecs(
+        Map<String, FeatureSetProto.FeatureSetSpec> featureSets);
 
     public abstract Builder setSuccessTag(TupleTag<FeatureRow> successTag);
 
@@ -62,7 +63,7 @@ public abstract class ValidateFeatureRows
   public PCollectionTuple expand(PCollection<FeatureRow> input) {
 
     Map<String, FeatureSet> featureSets =
-        getFeatureSets().entrySet().stream()
+        getFeatureSetSpecs().entrySet().stream()
             .map(e -> Pair.of(e.getKey(), new FeatureSet(e.getValue())))
             .collect(Collectors.toMap(Pair::getLeft, Pair::getRight));
 

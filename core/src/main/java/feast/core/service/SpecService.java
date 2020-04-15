@@ -288,19 +288,14 @@ public class SpecService {
     // Validate incoming feature set
     FeatureSetValidator.validateSpec(newFeatureSet);
 
-    // Ensure that the project already exists
+    // Find project or create new one if it does not exist
     String project_name = newFeatureSet.getSpec().getProject();
     Project project =
         projectRepository
             .findById(newFeatureSet.getSpec().getProject())
-            .orElseThrow(
-                () ->
-                    new IllegalArgumentException(
-                        String.format(
-                            "Project name does not exist. Please create a project first: %s",
-                            project_name)));
+            .orElse(new Project(project_name));
 
-    // Ensure that the project is not archived
+    // Ensure that the project retrieved from repository is not archived
     if (project.isArchived()) {
       throw new IllegalArgumentException(String.format("Project is archived: %s", project_name));
     }

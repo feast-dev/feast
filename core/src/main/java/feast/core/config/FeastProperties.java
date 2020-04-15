@@ -45,6 +45,7 @@ public class FeastProperties {
   public static class JobUpdatesProperties {
 
     private long timeoutSeconds;
+    private long pollingIntervalMillis;
   }
 
   @Getter

@@ -16,6 +16,10 @@
  */
 package feast.core.model;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+import feast.core.FeatureSetProto;
+import feast.core.IngestionJobProto;
+import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -23,7 +27,9 @@ import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.Id;
+import javax.persistence.Index;
 import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
 import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
@@ -49,6 +55,7 @@ public class Job extends AbstractTimestampEntity {
   private String extId;
 
   // Runner type
+  // Use Runner.name() when converting a Runner to string to assign to this property.
   @Column(name = "runner")
   private String runner;
 
@@ -63,7 +70,16 @@ public class Job extends AbstractTimestampEntity {
   private Store store;
 
   // FeatureSets populated by the job
-  @ManyToMany private List<FeatureSet> featureSets;
+  @ManyToMany
+  @JoinTable(
+      name = "jobs_feature_sets",
+      joinColumns = @JoinColumn(name = "feature_sets_id"),
+      inverseJoinColumns = @JoinColumn(name = "job_id"),
+      indexes = {
+        @Index(name = "idx_jobs_feature_sets_job_id", columnList = "job_id"),
+        @Index(name = "idx_jobs_feature_sets_feature_sets_id", columnList = "feature_sets_id")
+      })
+  private List<FeatureSet> featureSets;
 
   // Job Metrics
   @OneToMany(mappedBy = "job", cascade = CascadeType.ALL)
@@ -101,5 +117,32 @@ public class Job extends AbstractTimestampEntity {
 
   public String getSinkName() {
     return store.getName();
+  }
+
+  /**
+   * Convert a job model to ingestion job proto
+   *
+   * @return Ingestion Job proto derieved from the given job
+   */
+  public IngestionJobProto.IngestionJob toProto() throws InvalidProtocolBufferException {
+
+    // convert featuresets of job to protos
+    List<FeatureSetProto.FeatureSet> featureSetProtos = new ArrayList<>();
+    for (FeatureSet featureSet : this.getFeatureSets()) {
+      featureSetProtos.add(featureSet.toProto());
+    }
+
+    // build ingestion job proto with job data
+    IngestionJobProto.IngestionJob ingestJob =
+        IngestionJobProto.IngestionJob.newBuilder()
+            .setId(this.getId())
+            .setExternalId(this.getExtId())
+            .setStatus(this.getStatus().toProto())
+            .addAllFeatureSets(featureSetProtos)
+            .setSource(this.getSource().toProto())
+            .setStore(this.getStore().toProto())
+            .build();
+
+    return ingestJob;
   }
 }

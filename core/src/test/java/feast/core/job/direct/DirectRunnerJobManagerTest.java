@@ -144,7 +144,7 @@ public class DirectRunnerJobManagerTest {
         new Job(
             expectedJobId,
             "",
-            Runner.DIRECT.getName(),
+            Runner.DIRECT.name(),
             Source.fromProto(source),
             Store.fromProto(store),
             Lists.newArrayList(FeatureSet.fromProto(featureSet)),

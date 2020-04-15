@@ -14,18 +14,13 @@
 
 
 import pkgutil
-import tempfile
 from concurrent import futures
-from datetime import datetime
 from unittest import mock
 
 import grpc
-import pandas as pd
 import pytest
 from google.protobuf.duration_pb2 import Duration
 from mock import MagicMock, patch
-from pandavro import to_avro
-from pytz import timezone
 
 import dataframes
 import feast.core.CoreService_pb2_grpc as Core
@@ -34,6 +29,12 @@ from feast.client import Client
 from feast.core.CoreService_pb2 import (
     GetFeastCoreVersionResponse,
     GetFeatureSetResponse,
+    ListIngestionJobsResponse,
+)
+from feast.core.Store_pb2 import Store
+from feast.core.IngestionJob_pb2 import (
+    IngestionJob as IngestJobProto,
+    IngestionJobStatus,
 )
 from feast.core.FeatureSet_pb2 import EntitySpec as EntitySpecProto
 from feast.core.FeatureSet_pb2 import FeatureSet as FeatureSetProto
@@ -43,19 +44,13 @@ from feast.core.FeatureSet_pb2 import FeatureSetStatus as FeatureSetStatusProto
 from feast.core.FeatureSet_pb2 import FeatureSpec as FeatureSpecProto
 from feast.core.Source_pb2 import KafkaSourceConfig, Source, SourceType
 from feast.entity import Entity
-from feast.feature_set import Feature, FeatureSet
-from feast.job import Job
+from feast.feature_set import Feature, FeatureSet, FeatureSetRef
+from feast.job import IngestJob
 from feast.serving.ServingService_pb2 import (
-    DataFormat,
-    FeastServingType,
-    GetBatchFeaturesResponse,
     GetFeastServingInfoResponse,
-    GetJobResponse,
     GetOnlineFeaturesRequest,
     GetOnlineFeaturesResponse,
 )
-from feast.serving.ServingService_pb2 import Job as BatchFeaturesJob
-from feast.serving.ServingService_pb2 import JobStatus, JobType
 from feast.source import KafkaSource
 from feast.types import Value_pb2 as ValueProto
 from feast.value_type import ValueType
@@ -311,127 +306,229 @@ class TestClient:
         "mocked_client",
         [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
     )
-    def test_get_batch_features(self, mocked_client, mocker):
-
-        mocked_client._serving_service_stub = Serving.ServingServiceStub(
-            grpc.insecure_channel("")
+    def test_list_ingest_jobs(self, mocked_client, mocker):
+        mocker.patch.object(
+            mocked_client,
+            "_core_service_stub",
+            return_value=Core.CoreServiceStub(grpc.insecure_channel("")),
         )
-        mocked_client._core_service_stub = Core.CoreServiceStub(
-            grpc.insecure_channel("")
+
+        feature_set_proto = FeatureSetProto(
+            spec=FeatureSetSpecProto(
+                project="test", name="driver", max_age=Duration(seconds=3600),
+            )
         )
 
         mocker.patch.object(
             mocked_client._core_service_stub,
-            "GetFeatureSet",
-            return_value=GetFeatureSetResponse(
-                feature_set=FeatureSetProto(
-                    spec=FeatureSetSpecProto(
-                        name="customer_fs",
-                        version=1,
-                        project="my_project",
-                        entities=[
-                            EntitySpecProto(
-                                name="customer", value_type=ValueProto.ValueType.INT64
+            "ListIngestionJobs",
+            return_value=ListIngestionJobsResponse(
+                jobs=[
+                    IngestJobProto(
+                        id="kafka-to-redis",
+                        external_id="job-2222",
+                        status=IngestionJobStatus.RUNNING,
+                        feature_sets=[feature_set_proto],
+                        source=Source(
+                            type=SourceType.KAFKA,
+                            kafka_source_config=KafkaSourceConfig(
+                                bootstrap_servers="localhost:9092", topic="topic"
                             ),
-                            EntitySpecProto(
-                                name="transaction",
-                                value_type=ValueProto.ValueType.INT64,
-                            ),
-                        ],
-                        features=[
-                            FeatureSpecProto(
-                                name="customer_feature_1",
-                                value_type=ValueProto.ValueType.FLOAT,
-                            ),
-                            FeatureSpecProto(
-                                name="customer_feature_2",
-                                value_type=ValueProto.ValueType.STRING,
-                            ),
-                        ],
-                    ),
-                    meta=FeatureSetMetaProto(status=FeatureSetStatusProto.STATUS_READY),
-                )
+                        ),
+                        store=Store(name="redis"),
+                    )
+                ]
             ),
         )
 
-        expected_dataframe = pd.DataFrame(
-            {
-                "datetime": [datetime.utcnow() for _ in range(3)],
-                "customer": [1001, 1002, 1003],
-                "transaction": [1001, 1002, 1003],
-                "my_project/customer_feature_1:1": [1001, 1002, 1003],
-                "my_project/customer_feature_2:1": [1001, 1002, 1003],
-            }
+        # list ingestion jobs by target feature set reference
+        ingest_jobs = mocked_client.list_ingest_jobs(
+            feature_set_ref=FeatureSetRef.from_feature_set(
+                FeatureSet.from_proto(feature_set_proto)
+            )
+        )
+        assert len(ingest_jobs) >= 1
+
+        ingest_job = ingest_jobs[0]
+        assert (
+            ingest_job.status == IngestionJobStatus.RUNNING
+            and ingest_job.id == "kafka-to-redis"
+            and ingest_job.external_id == "job-2222"
+            and ingest_job.feature_sets[0].name == "driver"
+            and ingest_job.source.source_type == "Kafka"
         )
 
-        final_results = tempfile.mktemp()
-        to_avro(file_path_or_buffer=final_results, df=expected_dataframe)
-
+    @pytest.mark.parametrize(
+        "mocked_client",
+        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+    )
+    def test_restart_ingest_job(self, mocked_client, mocker):
         mocker.patch.object(
-            mocked_client._serving_service_stub,
-            "GetBatchFeatures",
-            return_value=GetBatchFeaturesResponse(
-                job=BatchFeaturesJob(
-                    id="123",
-                    type=JobType.JOB_TYPE_DOWNLOAD,
-                    status=JobStatus.JOB_STATUS_DONE,
-                    file_uris=[f"file://{final_results}"],
-                    data_format=DataFormat.DATA_FORMAT_AVRO,
-                )
-            ),
+            mocked_client,
+            "_core_service_stub",
+            return_value=Core.CoreServiceStub(grpc.insecure_channel("")),
         )
 
+        ingest_job = IngestJob(
+            job_proto=IngestJobProto(
+                id="kafka-to-redis",
+                external_id="job#2222",
+                status=IngestionJobStatus.ERROR,
+            ),
+            core_stub=mocked_client._core_service_stub,
+        )
+
+        mocked_client.restart_ingest_job(ingest_job)
+        assert mocked_client._core_service_stub.RestartIngestionJob.called
+
+    @pytest.mark.parametrize(
+        "mocked_client",
+        [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+    )
+    def test_stop_ingest_job(self, mocked_client, mocker):
         mocker.patch.object(
-            mocked_client._serving_service_stub,
-            "GetJob",
-            return_value=GetJobResponse(
-                job=BatchFeaturesJob(
-                    id="123",
-                    type=JobType.JOB_TYPE_DOWNLOAD,
-                    status=JobStatus.JOB_STATUS_DONE,
-                    file_uris=[f"file://{final_results}"],
-                    data_format=DataFormat.DATA_FORMAT_AVRO,
-                )
-            ),
+            mocked_client,
+            "_core_service_stub",
+            return_value=Core.CoreServiceStub(grpc.insecure_channel("")),
         )
 
-        mocker.patch.object(
-            mocked_client._serving_service_stub,
-            "GetFeastServingInfo",
-            return_value=GetFeastServingInfoResponse(
-                job_staging_location=f"file://{tempfile.mkdtemp()}/",
-                type=FeastServingType.FEAST_SERVING_TYPE_BATCH,
+        ingest_job = IngestJob(
+            job_proto=IngestJobProto(
+                id="kafka-to-redis",
+                external_id="job#2222",
+                status=IngestionJobStatus.RUNNING,
             ),
+            core_stub=mocked_client._core_service_stub,
         )
 
-        mocked_client.set_project("project1")
-        response = mocked_client.get_batch_features(
-            entity_rows=pd.DataFrame(
-                {
-                    "datetime": [
-                        pd.datetime.now(tz=timezone("Asia/Singapore")) for _ in range(3)
-                    ],
-                    "customer": [1001, 1002, 1003],
-                    "transaction": [1001, 1002, 1003],
-                }
-            ),
-            feature_refs=[
-                "my_project/customer_feature_1:1",
-                "my_project/customer_feature_2:1",
-            ],
-        )  # type: Job
+        mocked_client.stop_ingest_job(ingest_job)
+        assert mocked_client._core_service_stub.StopIngestionJob.called
 
-        assert response.id == "123" and response.status == JobStatus.JOB_STATUS_DONE
-
-        actual_dataframe = response.to_dataframe()
-
-        assert actual_dataframe[
-            ["my_project/customer_feature_1:1", "my_project/customer_feature_2:1"]
-        ].equals(
-            expected_dataframe[
-                ["my_project/customer_feature_1:1", "my_project/customer_feature_2:1"]
-            ]
-        )
+    # @pytest.mark.parametrize
+    #     "mocked_client",
+    #     [pytest.lazy_fixture("mock_client"), pytest.lazy_fixture("secure_mock_client")],
+    # )
+    # def test_get_batch_features(self, mocked_client, mocker):
+    #
+    #     mocked_client._serving_service_stub = Serving.ServingServiceStub(
+    #         grpc.insecure_channel("")
+    #     )
+    #     mocked_client._core_service_stub = Core.CoreServiceStub(
+    #         grpc.insecure_channel("")
+    #     )
+    #
+    #     mocker.patch.object(
+    #         mocked_client._core_service_stub,
+    #         "GetFeatureSet",
+    #         return_value=GetFeatureSetResponse(
+    #             feature_set=FeatureSetProto(
+    #                 spec=FeatureSetSpecProto(
+    #                     name="customer_fs",
+    #                     version=1,
+    #                     project="my_project",
+    #                     entities=[
+    #                         EntitySpecProto(
+    #                             name="customer", value_type=ValueProto.ValueType.INT64
+    #                         ),
+    #                         EntitySpecProto(
+    #                             name="transaction",
+    #                             value_type=ValueProto.ValueType.INT64,
+    #                         ),
+    #                     ],
+    #                     features=[
+    #                         FeatureSpecProto(
+    #                             name="customer_feature_1",
+    #                             value_type=ValueProto.ValueType.FLOAT,
+    #                         ),
+    #                         FeatureSpecProto(
+    #                             name="customer_feature_2",
+    #                             value_type=ValueProto.ValueType.STRING,
+    #                         ),
+    #                     ],
+    #                 ),
+    #                 meta=FeatureSetMetaProto(status=FeatureSetStatusProto.STATUS_READY),
+    #             )
+    #         ),
+    #     )
+    #
+    #     expected_dataframe = pd.DataFrame(
+    #         {
+    #             "datetime": [datetime.utcnow() for _ in range(3)],
+    #             "customer": [1001, 1002, 1003],
+    #             "transaction": [1001, 1002, 1003],
+    #             "my_project/customer_feature_1:1": [1001, 1002, 1003],
+    #             "my_project/customer_feature_2:1": [1001, 1002, 1003],
+    #         }
+    #     )
+    #
+    #     final_results = tempfile.mktemp()
+    #     to_avro(file_path_or_buffer=final_results, df=expected_dataframe)
+    #
+    #     mocker.patch.object(
+    #         mocked_client._serving_service_stub,
+    #         "GetBatchFeatures",
+    #         return_value=GetBatchFeaturesResponse(
+    #             job=BatchFeaturesJob(
+    #                 id="123",
+    #                 type=JobType.JOB_TYPE_DOWNLOAD,
+    #                 status=JobStatus.JOB_STATUS_DONE,
+    #                 file_uris=[f"file://{final_results}"],
+    #                 data_format=DataFormat.DATA_FORMAT_AVRO,
+    #             )
+    #         ),
+    #     )
+    #
+    #     mocker.patch.object(
+    #         mocked_client._serving_service_stub,
+    #         "GetJob",
+    #         return_value=GetJobResponse(
+    #             job=BatchFeaturesJob(
+    #                 id="123",
+    #                 type=JobType.JOB_TYPE_DOWNLOAD,
+    #                 status=JobStatus.JOB_STATUS_DONE,
+    #                 file_uris=[f"file://{final_results}"],
+    #                 data_format=DataFormat.DATA_FORMAT_AVRO,
+    #             )
+    #         ),
+    #     )
+    #
+    #     mocker.patch.object(
+    #         mocked_client._serving_service_stub,
+    #         "GetFeastServingInfo",
+    #         return_value=GetFeastServingInfoResponse(
+    #             job_staging_location=f"file://{tempfile.mkdtemp()}/",
+    #             type=FeastServingType.FEAST_SERVING_TYPE_BATCH,
+    #         ),
+    #     )
+    #
+    #     mocked_client.set_project("project1")
+    #     response = mocked_client.get_batch_features(
+    #         entity_rows=pd.DataFrame(
+    #             {
+    #                 "datetime": [
+    #                     pd.datetime.now(tz=timezone("Asia/Singapore")) for _ in range(3)
+    #                 ],
+    #                 "customer": [1001, 1002, 1003],
+    #                 "transaction": [1001, 1002, 1003],
+    #             }
+    #         ),
+    #         feature_refs=[
+    #             "my_project/customer_feature_1:1",
+    #             "my_project/customer_feature_2:1",
+    #         ],
+    #     )  # type: Job
+    #
+    #     assert response.id == "123" and response.status == JobStatus.JOB_STATUS_DONE
+    #
+    #     actual_dataframe = response.to_dataframe()
+    #
+    #     assert actual_dataframe[
+    #         ["my_project/customer_feature_1:1", "my_project/customer_feature_2:1"]
+    #     ].equals(
+    #         expected_dataframe[
+    #             ["my_project/customer_feature_1:1", "my_project/customer_feature_2:1"]
+    #         ]
+    #     )
 
     @pytest.mark.parametrize(
         "test_client",

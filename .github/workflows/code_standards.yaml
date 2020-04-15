@@ -1,0 +1,32 @@
+name: code standards
+
+on: [push, pull_request]
+
+jobs:
+  lint-java:
+    container: gcr.io/kf-feast/feast-ci:latest
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v2
+      - name: lint java
+        run: make lint-java
+
+  lint-python:
+    container: gcr.io/kf-feast/feast-ci:latest
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v2
+      - name: install dependencies
+        run: make install-python-ci-dependencies
+      - name: lint python
+        run: make lint-python
+
+  lint-go:
+    container: gcr.io/kf-feast/feast-ci:latest
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v2
+      - name: install dependencies
+        run: make install-go-ci-dependencies
+      - name: lint go
+        run: make lint-go

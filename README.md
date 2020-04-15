@@ -140,6 +140,12 @@ kubectl port-forward -n deep svc/feast-feast-serving-batch 6566:6566
 kafka-console-consumer --bootstrap-server 10.163.12.6:9092 --topic feast-features --from-beginning --group test-iain --max-messages 10
 ```
 
+
+[![Unit Tests](https://github.com/gojek/feast/workflows/unit%20tests/badge.svg?branch=master)](https://github.com/gojek/feast/actions?query=workflow%3A%22unit+tests%22+branch%3Amaster)
+[![Code Standards](https://github.com/gojek/feast/workflows/code%20standards/badge.svg?branch=master)](https://github.com/gojek/feast/actions?query=workflow%3A%22code+standards%22+branch%3Amaster)
+[![Docs latest](https://img.shields.io/badge/Docs-latest-blue.svg)](https://docs.feast.dev/)
+[![GitHub Release](https://img.shields.io/github/release/gojek/feast.svg?style=flat)](https://github.com/gojek/feast/releases)
+
 ## Overview
 
 Feast (Feature Store) is a tool for managing and serving machine learning features. Feast is the bridge between models and data.
@@ -187,12 +193,12 @@ Please refer to the official documentation at <https://docs.feast.dev>
 
  * [Why Feast?](https://docs.feast.dev/why-feast)
  * [Concepts](https://docs.feast.dev/concepts)
- * [Installation](https://docs.feast.dev/installing-feast/overview)
+ * [Installation](https://docs.feast.dev/installation/overview)
  * [Examples](https://github.com/gojek/feast/blob/master/examples/)
  * [Roadmap](https://docs.feast.dev/roadmap)
  * [Change Log](https://github.com/gojek/feast/blob/master/CHANGELOG.md)
- * [Slack (#Feast)](https://join.slack.com/t/kubeflow/shared_invite/enQtNDg5MTM4NTQyNjczLTdkNTVhMjg1ZTExOWI0N2QyYTQ2MTIzNTJjMWRiOTFjOGRlZWEzODc1NzMwNTMwM2EzNjY1MTFhODczNjk4MTk)
+ * [Slack (#Feast)](https://join.slack.com/t/kubeflow/shared_invite/zt-cpr020z4-PfcAue_2nw67~iIDy7maAQ)
 
 ## Notice
 
-Feast is a community project and is still under active development. Your feedback and contributions are important to us. Please have a look at our [contributing guide](docs/contributing.md) for details.
+Feast is a community project and is still under active development. Your feedback and contributions are important to us. Please have a look at our [contributing guide](docs/contributing/contributing.md) for details.

@@ -16,9 +16,11 @@
  */
 package feast.core.model;
 
+import feast.core.IngestionJobProto.IngestionJobStatus;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 
 public enum JobStatus {
   /** Job status is not known. */
@@ -63,5 +65,40 @@ public enum JobStatus {
    */
   public static Collection<JobStatus> getTerminalState() {
     return TERMINAL_STATE;
+  }
+
+  private static final Collection<JobStatus> TRANSITIONAL_STATES =
+      Collections.unmodifiableList(Arrays.asList(PENDING, ABORTING, SUSPENDING));
+
+  /**
+   * Get Transitional Job Status states. Transitionals states are assigned to jobs that
+   * transitioning to a more stable state (ie SUSPENDED, ABORTED etc.)
+   *
+   * @return Collection of transitional Job Status states.
+   */
+  public static final Collection<JobStatus> getTransitionalStates() {
+    return TRANSITIONAL_STATES;
+  }
+
+  private static final Map<JobStatus, IngestionJobStatus> INGESTION_JOB_STATUS_MAP =
+      Map.of(
+          JobStatus.UNKNOWN, IngestionJobStatus.UNKNOWN,
+          JobStatus.PENDING, IngestionJobStatus.PENDING,
+          JobStatus.RUNNING, IngestionJobStatus.RUNNING,
+          JobStatus.COMPLETED, IngestionJobStatus.COMPLETED,
+          JobStatus.ABORTING, IngestionJobStatus.ABORTING,
+          JobStatus.ABORTED, IngestionJobStatus.ABORTED,
+          JobStatus.ERROR, IngestionJobStatus.ERROR,
+          JobStatus.SUSPENDING, IngestionJobStatus.SUSPENDING,
+          JobStatus.SUSPENDED, IngestionJobStatus.SUSPENDED);
+
+  /**
+   * Convert a Job Status to Ingestion Job Status proto
+   *
+   * @return IngestionJobStatus proto derieved from this job status
+   */
+  public IngestionJobStatus toProto() {
+    // maps job models job status to ingestion job status
+    return INGESTION_JOB_STATUS_MAP.get(this);
   }
 }

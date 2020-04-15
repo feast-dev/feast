@@ -24,9 +24,41 @@ class Feature(Field):
     def to_proto(self) -> FeatureProto:
         """Converts Feature object to its Protocol Buffer representation"""
         value_type = ValueTypeProto.ValueType.Enum.Value(self.dtype.name)
-        return FeatureProto(name=self.name, value_type=value_type)
+        return FeatureProto(
+            name=self.name,
+            value_type=value_type,
+            presence=self.presence,
+            group_presence=self.group_presence,
+            shape=self.shape,
+            value_count=self.value_count,
+            domain=self.domain,
+            int_domain=self.int_domain,
+            float_domain=self.float_domain,
+            string_domain=self.string_domain,
+            bool_domain=self.bool_domain,
+            struct_domain=self.struct_domain,
+            natural_language_domain=self.natural_language_domain,
+            image_domain=self.image_domain,
+            mid_domain=self.mid_domain,
+            url_domain=self.url_domain,
+            time_domain=self.time_domain,
+            time_of_day_domain=self.time_of_day_domain,
+        )
 
     @classmethod
     def from_proto(cls, feature_proto: FeatureProto):
-        """Converts Protobuf Feature to its SDK equivalent"""
-        return cls(name=feature_proto.name, dtype=ValueType(feature_proto.value_type))
+        """
+
+        Args:
+            feature_proto: FeatureSpec protobuf object
+
+        Returns:
+            Feature object
+        """
+        feature = cls(
+            name=feature_proto.name, dtype=ValueType(feature_proto.value_type)
+        )
+        feature.update_presence_constraints(feature_proto)
+        feature.update_shape_type(feature_proto)
+        feature.update_domain_info(feature_proto)
+        return feature

@@ -1,0 +1,65 @@
+//
+// Copyright 2020 The Feast Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+syntax = "proto3";
+
+package feast.core;
+
+option go_package = "github.com/gojek/feast/sdk/go/protos/feast/core";
+option java_outer_classname = "IngestionJobProto";
+option java_package = "feast.core";
+
+import "feast/core/FeatureSet.proto";
+import "feast/core/Store.proto";
+import "feast/core/Source.proto";
+
+// Represents Feast Injestion Job 
+message IngestionJob {
+    // Job ID assigned by Feast
+    string id = 1;
+    // External job ID specific to the runner.
+    // For DirectRunner jobs, this is identical to id. For DataflowRunner jobs, this refers to the Dataflow job ID.
+    string external_id = 2;
+    IngestionJobStatus status = 3;
+    // List of feature sets whose features are populated by this job.
+    repeated feast.core.FeatureSet feature_sets = 4;
+    // Source this job is reading from.
+    feast.core.Source source = 5;
+    // Store this job is writing to.
+    feast.core.Store store = 6;
+}
+
+// Status of a Feast Ingestion Job
+enum IngestionJobStatus {
+    // Job status is not known.
+    UNKNOWN = 0;
+    // Import job is submitted to runner and currently pending for executing
+    PENDING = 1;
+    // Import job is currently running in the runner
+    RUNNING = 2;
+    // Runner's reported the import job has completed (applicable to batch job)
+    COMPLETED = 3;
+    // When user sent abort command, but it's still running
+    ABORTING = 4;
+    // User initiated abort job
+    ABORTED = 5;
+    // Runner's reported that the import job failed to run or there is a failure during job
+    ERROR = 6;
+    // job has been suspended and waiting for cleanup
+    SUSPENDING = 7;
+    // job has been suspended
+    SUSPENDED = 8;
+}

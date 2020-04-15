@@ -22,8 +22,9 @@ import yaml
 
 from feast.client import Client
 from feast.config import Config
-from feast.feature_set import FeatureSet
+from feast.feature_set import FeatureSet, FeatureSetRef
 from feast.loaders.yaml import yaml_loader
+from feast.core.IngestionJob_pb2 import IngestionJobStatus
 
 _logger = logging.getLogger(__name__)
 
@@ -128,11 +129,11 @@ def feature_set_list():
 
     table = []
     for fs in feast_client.list_feature_sets():
-        table.append([fs.name, fs.version])
+        table.append([fs.name, fs.version, repr(fs)])
 
     from tabulate import tabulate
 
-    print(tabulate(table, headers=["NAME", "VERSION"], tablefmt="plain"))
+    print(tabulate(table, headers=["NAME", "VERSION", "REFERENCE"], tablefmt="plain"))
 
 
 @feature_set.command("apply")
@@ -212,6 +213,116 @@ def project_list():
     from tabulate import tabulate
 
     print(tabulate(table, headers=["NAME"], tablefmt="plain"))
+
+
+@cli.group(name="ingest-jobs")
+def ingest_job():
+    """
+    Manage ingestion jobs
+    """
+    pass
+
+
+@ingest_job.command("list")
+@click.option("--job-id", "-i", help="Show only ingestion jobs with the given job id")
+@click.option(
+    "--feature-set-ref",
+    "-f",
+    help="Show only ingestion job targeting the feature set with the given reference",
+)
+@click.option(
+    "--store-name",
+    "-s",
+    help="List only ingestion job that ingest into feast store with given name",
+)
+# TODO: types
+def ingest_job_list(job_id, feature_set_ref, store_name):
+    """
+    List ingestion jobs
+    """
+    # parse feature set reference
+    if feature_set_ref is not None:
+        feature_set_ref = FeatureSetRef.from_str(feature_set_ref)
+
+    # pull & render ingestion jobs as a table
+    feast_client = Client()
+    table = []
+    for ingest_job in feast_client.list_ingest_jobs(
+        job_id=job_id, feature_set_ref=feature_set_ref, store_name=store_name
+    ):
+        table.append([ingest_job.id, IngestionJobStatus.Name(ingest_job.status)])
+
+    from tabulate import tabulate
+
+    print(tabulate(table, headers=["ID", "STATUS"], tablefmt="plain"))
+
+
+@ingest_job.command("describe")
+@click.argument("job_id")
+def ingest_job_describe(job_id: str):
+    """
+    Describe the ingestion job with the given id.
+    """
+    # find ingestion job for id
+    feast_client = Client()
+    jobs = feast_client.list_ingest_jobs(job_id=job_id)
+    if len(jobs) < 1:
+        print(f"Ingestion Job with id {job_id} could not be found")
+        sys.exit(1)
+    job = jobs[0]
+
+    # pretty render ingestion job as yaml
+    print(
+        yaml.dump(yaml.safe_load(str(job)), default_flow_style=False, sort_keys=False)
+    )
+
+
+@ingest_job.command("stop")
+@click.option(
+    "--wait", "-w", is_flag=True, help="Wait for the ingestion job to fully stop."
+)
+@click.option(
+    "--timeout",
+    "-t",
+    default=600,
+    help="Timeout in seconds to wait for the job to stop.",
+)
+@click.argument("job_id")
+def ingest_job_stop(wait: bool, timeout: int, job_id: str):
+    """
+    Stop ingestion job for id.
+    """
+    # find ingestion job for id
+    feast_client = Client()
+    jobs = feast_client.list_ingest_jobs(job_id=job_id)
+    if len(jobs) < 1:
+        print(f"Ingestion Job with id {job_id} could not be found")
+        sys.exit(1)
+    job = jobs[0]
+
+    feast_client.stop_ingest_job(job)
+
+    # wait for ingestion job to stop
+    if wait:
+        job.wait(IngestionJobStatus.ABORTED, timeout=timeout)
+
+
+@ingest_job.command("restart")
+@click.argument("job_id")
+def ingest_job_restart(job_id: str):
+    """
+    Restart job for id.
+    Waits for the job to fully restart.
+    """
+    # find ingestion job for id
+    feast_client = Client()
+    jobs = feast_client.list_ingest_jobs(job_id=job_id)
+    if len(jobs) < 1:
+        print(f"Ingestion Job with id {job_id} could not be found")
+        sys.exit(1)
+    job = jobs[0]
+
+    feast_client.restart_ingest_job(job)
 
 
 @cli.command()
