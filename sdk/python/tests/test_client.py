@@ -605,6 +605,38 @@ class TestClient:
             test_client.ingest("driver-feature-set", dataframe)
 
     @pytest.mark.parametrize(
+        "dataframe,test_client,exception",
+        [(dataframes.GOOD, pytest.lazy_fixture("client"), Exception)],
+    )
+    def test_feature_set_ingest_throws_exception_if_kafka_down(
+        self, dataframe, test_client, exception, mocker
+    ):
+
+        test_client.set_project("project1")
+        driver_fs = FeatureSet(
+            "driver-feature-set",
+            source=KafkaSource(brokers="localhost:4412", topic="test"),
+        )
+        driver_fs.add(Feature(name="feature_1", dtype=ValueType.FLOAT))
+        driver_fs.add(Feature(name="feature_2", dtype=ValueType.STRING))
+        driver_fs.add(Feature(name="feature_3", dtype=ValueType.INT64))
+        driver_fs.add(Entity(name="entity_id", dtype=ValueType.INT64))
+
+        # Register with Feast core
+        test_client.apply(driver_fs)
+        driver_fs = driver_fs.to_proto()
+        driver_fs.meta.status = FeatureSetStatusProto.STATUS_READY
+
+        mocker.patch.object(
+            test_client._core_service_stub,
+            "GetFeatureSet",
+            return_value=GetFeatureSetResponse(feature_set=driver_fs),
+        )
+
+        with pytest.raises(exception):
+            test_client.ingest("driver-feature-set", dataframe)
+
+    @pytest.mark.parametrize(
         "dataframe,exception,test_client",
         [
             (dataframes.GOOD, TimeoutError, pytest.lazy_fixture("client")),
