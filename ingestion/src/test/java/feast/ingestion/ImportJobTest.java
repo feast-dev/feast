@@ -22,6 +22,7 @@ import com.google.protobuf.util.JsonFormat;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.FeatureSetProto.FeatureSetSpec.Builder;
 import feast.core.FeatureSetProto.FeatureSpec;
 import feast.core.SourceProto.KafkaSourceConfig;
 import feast.core.SourceProto.Source;
@@ -37,7 +38,7 @@ import feast.test.TestUtil;
 import feast.test.TestUtil.LocalKafka;
 import feast.test.TestUtil.LocalRedis;
 import feast.types.FeatureRowProto.FeatureRow;
-import feast.types.FieldProto;
+import feast.types.FieldProto.Field;
 import feast.types.ValueProto.ValueType.Enum;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
@@ -95,6 +96,9 @@ public class ImportJobTest {
   // Max duration to wait until the import job finishes writing to Store.
   private static final int IMPORT_JOB_MAX_RUN_DURATION_SEC = 300;
 
+  private RedisClient redisClient =
+      RedisClient.create(new RedisURI(REDIS_HOST, REDIS_PORT, java.time.Duration.ofMillis(2000)));
+
   @BeforeClass
   public static void setup() throws IOException, InterruptedException {
     LocalKafka.start(
@@ -113,61 +117,169 @@ public class ImportJobTest {
     LocalRedis.stop();
     LocalKafka.stop();
   }
-
+  
   @Test
   public void runPipeline_ShouldWriteToRedisCorrectlyGivenValidSpecAndFeatureRow()
       throws IOException, InterruptedException {
-    FeatureSetSpec spec =
-        FeatureSetSpec.newBuilder()
-            .setName("feature_set")
-            .setVersion(3)
-            .setProject("myproject")
-            .addEntities(
-                EntitySpec.newBuilder()
-                    .setName("entity_id_primary")
-                    .setValueType(Enum.INT32)
-                    .build())
-            .addEntities(
-                EntitySpec.newBuilder()
-                    .setName("entity_id_secondary")
-                    .setValueType(Enum.STRING)
-                    .build())
+
+    FeatureSetSpec spec = getFeatureSpecBuilder().build();
+    FeatureSet featureSet = getFeatureSetBuilder(spec).build();
+    Store redis = getStoreBuilder(spec).build();
+    ImportOptions options = getImportOptions(spec, redis);
+
+    List<FeatureRow> input = new ArrayList<>();
+    Map<RedisKey, FeatureRow> expected = new HashMap<>();
+
+    LOGGER.info("Generating test data ...");
+    IntStream.range(0, IMPORT_JOB_SAMPLE_FEATURE_ROW_SIZE)
+        .forEach(
+            i -> {
+              FeatureRow randomRow = TestUtil.createRandomFeatureRow(featureSet.getSpec());
+              RedisKey redisKey = TestUtil.createRedisKey(featureSet.getSpec(), randomRow);
+              input.add(randomRow);
+              randomRow = getFieldsFromFeatureRow(spec, randomRow);
+              expected.put(redisKey, randomRow);
+            });
+
+    PipelineResult pipelineResult = startImportJob(options);
+    Assert.assertEquals(pipelineResult.getState(), State.RUNNING);
+    publishFeatureRows(input, pipelineResult);
+
+    LOGGER.info("Validating the actual values written to Redis ...");
+    StatefulRedisConnection<byte[], byte[]> connection = redisClient.connect(new ByteArrayCodec());
+    RedisCommands<byte[], byte[]> sync = connection.sync();
+    expected.forEach(
+        (key, expectedValue) -> {
+
+          // Ensure ingested key exists.
+          byte[] actualByteValue = getBytesFromKey(sync, key);
+          if (actualByteValue == null) {
+            Assert.fail("Missing key in Redis.");
+          }
+
+          // Ensure value is a valid serialized FeatureRow object.
+          FeatureRow actualValue = getFeatureRowFromByte(key, actualByteValue);
+
+          // Ensure the retrieved FeatureRow is equal to the ingested FeatureRow.
+          Assert.assertEquals(expectedValue, actualValue);
+        });
+    redisClient.shutdown();
+  }
+
+  @Test
+  public void runPipeline_ShouldWriteToRedisCorrectlyGivenUnknownFeatureFields()
+      throws IOException, InterruptedException {
+
+    FeatureSetSpec spec = getFeatureSpecBuilder().build();
+    FeatureSetSpec newSpec =
+        getFeatureSpecBuilder()
             .addFeatures(
                 FeatureSpec.newBuilder()
-                    .setName("feature_1")
+                    .setName("feature_4")
                     .setValueType(Enum.STRING_LIST)
                     .build())
-            .addFeatures(
-                FeatureSpec.newBuilder().setName("feature_2").setValueType(Enum.STRING).build())
-            .addFeatures(
-                FeatureSpec.newBuilder().setName("feature_3").setValueType(Enum.INT64).build())
-            .setSource(
-                Source.newBuilder()
-                    .setType(SourceType.KAFKA)
-                    .setKafkaSourceConfig(
-                        KafkaSourceConfig.newBuilder()
-                            .setBootstrapServers(KAFKA_HOST + ":" + KAFKA_PORT)
-                            .setTopic(KAFKA_TOPIC)
-                            .build())
-                    .build())
             .build();
+    FeatureSet featureSet = getFeatureSetBuilder(spec).build();
+    Store redis = getStoreBuilder(spec).build();
+    ImportOptions options = getImportOptions(spec, redis);
 
-    FeatureSet featureSet = FeatureSet.newBuilder().setSpec(spec).build();
+    List<FeatureRow> input = new ArrayList<>();
+    Map<RedisKey, FeatureRow> expected = new HashMap<>();
 
-    Store redis =
-        Store.newBuilder()
-            .setName(StoreType.REDIS.toString())
-            .setType(StoreType.REDIS)
-            .setRedisConfig(
-                RedisConfig.newBuilder().setHost(REDIS_HOST).setPort(REDIS_PORT).build())
-            .addSubscriptions(
-                Subscription.newBuilder()
-                    .setProject(spec.getProject())
-                    .setName(spec.getName())
-                    .setVersion(String.valueOf(spec.getVersion()))
-                    .build())
-            .build();
+    LOGGER.info("Generating test data ...");
+    IntStream.range(0, IMPORT_JOB_SAMPLE_FEATURE_ROW_SIZE)
+        .forEach(
+            i -> {
+              FeatureRow randomRow = TestUtil.createRandomFeatureRow(newSpec);
+              RedisKey redisKey = TestUtil.createRedisKey(featureSet.getSpec(), randomRow);
+              input.add(randomRow);
+              randomRow = getFieldsFromFeatureRow(spec, randomRow);
+              expected.put(redisKey, randomRow);
+            });
 
+    PipelineResult pipelineResult = startImportJob(options);
+    Assert.assertEquals(pipelineResult.getState(), State.RUNNING);
+    publishFeatureRows(input, pipelineResult);
+
+    LOGGER.info("Validating the actual values written to Redis ...");
+    StatefulRedisConnection<byte[], byte[]> connection = redisClient.connect(new ByteArrayCodec());
+    RedisCommands<byte[], byte[]> sync = connection.sync();
+    expected.forEach(
+        (key, expectedValue) -> {
+
+          // Ensure ingested key exists.
+          byte[] actualByteValue = getBytesFromKey(sync, key);
+          if (actualByteValue == null) {
+            Assert.fail("Missing key in Redis.");
+          }
+
+          // Ensure value is a valid serialized FeatureRow object.
+          FeatureRow actualValue = getFeatureRowFromByte(key, actualByteValue);
+
+          // Ensure the retrieved FeatureRow is equal to the ingested FeatureRow.
+          Assert.assertEquals(expectedValue, actualValue);
+        });
+    redisClient.shutdown();
+  }
+
+  private byte[] getBytesFromKey(RedisCommands<byte[], byte[]> sync, RedisKey key) {
+    byte[] actualByteValue = sync.get(key.toByteArray());
+    if (actualByteValue == null) {
+      LOGGER.error("Key not found in Redis: " + key);
+      LOGGER.info("Redis INFO:");
+      LOGGER.info(sync.info());
+      byte[] randomKey = sync.randomkey();
+      if (randomKey != null) {
+        LOGGER.info("Sample random key, value (for debugging purpose):");
+        LOGGER.info("Key: " + randomKey);
+        LOGGER.info("Value: " + sync.get(randomKey));
+      }
+    }
+    return actualByteValue;
+  }
+
+  private FeatureRow getFeatureRowFromByte(RedisKey key, byte[] actualByteValue) {
+    FeatureRow actualValue = null;
+    try {
+      actualValue = FeatureRow.parseFrom(actualByteValue);
+    } catch (InvalidProtocolBufferException e) {
+      Assert.fail(
+          String.format(
+              "Actual Redis value cannot be parsed as FeatureRow, key: %s, value :%s",
+              key, new String(actualByteValue, StandardCharsets.UTF_8)));
+    }
+    return actualValue;
+  }
+
+  // Convert feature rows to a list of values for each non-entity feature.
+  private FeatureRow getFieldsFromFeatureRow(FeatureSetSpec spec, FeatureRow row) {
+    List<Field> fields =
+        row.getFieldsList().stream()
+            .filter(
+                field ->
+                    spec.getFeaturesList().stream()
+                        .map(FeatureSpec::getName)
+                        .collect(Collectors.toList())
+                        .contains(field.getName()))
+            .map(field -> field.toBuilder().clearName().build())
+            .collect(Collectors.toList());
+    row = row.toBuilder().clearFields().addAllFields(fields).clearFeatureSet().build();
+    return row;
+  }
+
+  private PipelineResult startImportJob(ImportOptions options)
+      throws IOException, InterruptedException {
+    LOGGER.info("Starting Import Job with the following options: {}", options.toString());
+    PipelineResult pipelineResult = ImportJob.runPipeline(options);
+    Thread.sleep(Duration.standardSeconds(IMPORT_JOB_READY_DURATION_SEC).getMillis());
+    return pipelineResult;
+  }
+
+  private FeatureSet.Builder getFeatureSetBuilder(FeatureSetSpec spec) {
+    return FeatureSet.newBuilder().setSpec(spec);
+  }
+
+  private ImportOptions getImportOptions(FeatureSetSpec spec, Store redis) throws IOException {
     ImportOptions options = PipelineOptionsFactory.create().as(ImportOptions.class);
     BZip2Compressor<FeatureSetSpec> compressor =
         new BZip2Compressor<>(
@@ -180,42 +292,52 @@ public class ImportJobTest {
     options.setStoreJson(Collections.singletonList(JsonFormat.printer().print(redis)));
     options.setProject("");
     options.setBlockOnRun(false);
+    return options;
+  }
 
-    List<FeatureRow> input = new ArrayList<>();
-    Map<RedisKey, FeatureRow> expected = new HashMap<>();
+  private Builder getFeatureSpecBuilder() {
+    return FeatureSetSpec.newBuilder()
+        .setName("feature_set")
+        .setVersion(3)
+        .setProject("myproject")
+        .addEntities(
+            EntitySpec.newBuilder().setName("entity_id_primary").setValueType(Enum.INT32).build())
+        .addEntities(
+            EntitySpec.newBuilder()
+                .setName("entity_id_secondary")
+                .setValueType(Enum.STRING)
+                .build())
+        .addFeatures(
+            FeatureSpec.newBuilder().setName("feature_1").setValueType(Enum.STRING_LIST).build())
+        .addFeatures(
+            FeatureSpec.newBuilder().setName("feature_2").setValueType(Enum.STRING).build())
+        .addFeatures(FeatureSpec.newBuilder().setName("feature_3").setValueType(Enum.INT64).build())
+        .setSource(
+            Source.newBuilder()
+                .setType(SourceType.KAFKA)
+                .setKafkaSourceConfig(
+                    KafkaSourceConfig.newBuilder()
+                        .setBootstrapServers(KAFKA_HOST + ":" + KAFKA_PORT)
+                        .setTopic(KAFKA_TOPIC)
+                        .build())
+                .build());
+  }
 
-    LOGGER.info("Generating test data ...");
-    IntStream.range(0, IMPORT_JOB_SAMPLE_FEATURE_ROW_SIZE)
-        .forEach(
-            i -> {
-              FeatureRow randomRow = TestUtil.createRandomFeatureRow(featureSet.getSpec());
-              RedisKey redisKey = TestUtil.createRedisKey(featureSet.getSpec(), randomRow);
-              input.add(randomRow);
-              List<FieldProto.Field> fields =
-                  randomRow.getFieldsList().stream()
-                      .filter(
-                          field ->
-                              spec.getFeaturesList().stream()
-                                  .map(FeatureSpec::getName)
-                                  .collect(Collectors.toList())
-                                  .contains(field.getName()))
-                      .map(field -> field.toBuilder().clearName().build())
-                      .collect(Collectors.toList());
-              randomRow =
-                  randomRow
-                      .toBuilder()
-                      .clearFields()
-                      .addAllFields(fields)
-                      .clearFeatureSet()
-                      .build();
-              expected.put(redisKey, randomRow);
-            });
+  private Store.Builder getStoreBuilder(FeatureSetSpec spec) {
+    return Store.newBuilder()
+        .setName(StoreType.REDIS.toString())
+        .setType(StoreType.REDIS)
+        .setRedisConfig(RedisConfig.newBuilder().setHost(REDIS_HOST).setPort(REDIS_PORT).build())
+        .addSubscriptions(
+            Subscription.newBuilder()
+                .setProject(spec.getProject())
+                .setName(spec.getName())
+                .setVersion(String.valueOf(spec.getVersion()))
+                .build());
+  }
 
-    LOGGER.info("Starting Import Job with the following options: {}", options.toString());
-    PipelineResult pipelineResult = ImportJob.runPipeline(options);
-    Thread.sleep(Duration.standardSeconds(IMPORT_JOB_READY_DURATION_SEC).getMillis());
-    Assert.assertEquals(pipelineResult.getState(), State.RUNNING);
-
+  private void publishFeatureRows(List<FeatureRow> input, PipelineResult pipelineResult)
+      throws InterruptedException {
     LOGGER.info("Publishing {} Feature Row messages to Kafka ...", input.size());
     TestUtil.publishFeatureRowsToKafka(
         KAFKA_BOOTSTRAP_SERVERS,
@@ -227,44 +349,5 @@ public class ImportJobTest {
         pipelineResult,
         Duration.standardSeconds(IMPORT_JOB_MAX_RUN_DURATION_SEC),
         Duration.standardSeconds(IMPORT_JOB_CHECK_INTERVAL_DURATION_SEC));
-
-    LOGGER.info("Validating the actual values written to Redis ...");
-    RedisClient redisClient =
-        RedisClient.create(new RedisURI(REDIS_HOST, REDIS_PORT, java.time.Duration.ofMillis(2000)));
-    StatefulRedisConnection<byte[], byte[]> connection = redisClient.connect(new ByteArrayCodec());
-    RedisCommands<byte[], byte[]> sync = connection.sync();
-    expected.forEach(
-        (key, expectedValue) -> {
-
-          // Ensure ingested key exists.
-          byte[] actualByteValue = sync.get(key.toByteArray());
-          if (actualByteValue == null) {
-            LOGGER.error("Key not found in Redis: " + key);
-            LOGGER.info("Redis INFO:");
-            LOGGER.info(sync.info());
-            byte[] randomKey = sync.randomkey();
-            if (randomKey != null) {
-              LOGGER.info("Sample random key, value (for debugging purpose):");
-              LOGGER.info("Key: " + randomKey);
-              LOGGER.info("Value: " + sync.get(randomKey));
-            }
-            Assert.fail("Missing key in Redis.");
-          }
-
-          // Ensure value is a valid serialized FeatureRow object.
-          FeatureRow actualValue = null;
-          try {
-            actualValue = FeatureRow.parseFrom(actualByteValue);
-          } catch (InvalidProtocolBufferException e) {
-            Assert.fail(
-                String.format(
-                    "Actual Redis value cannot be parsed as FeatureRow, key: %s, value :%s",
-                    key, new String(actualByteValue, StandardCharsets.UTF_8)));
-          }
-
-          // Ensure the retrieved FeatureRow is equal to the ingested FeatureRow.
-          Assert.assertEquals(expectedValue, actualValue);
-        });
-    redisClient.shutdown();
   }
 }
