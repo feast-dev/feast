@@ -22,9 +22,9 @@ import yaml
 
 from feast.client import Client
 from feast.config import Config
+from feast.core.IngestionJob_pb2 import IngestionJobStatus
 from feast.feature_set import FeatureSet, FeatureSetRef
 from feast.loaders.yaml import yaml_loader
-from feast.core.IngestionJob_pb2 import IngestionJobStatus
 
 _logger = logging.getLogger(__name__)
 

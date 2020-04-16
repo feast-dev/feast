@@ -48,16 +48,16 @@ from feast.core.CoreService_pb2 import (
     GetFeatureSetResponse,
     ListFeatureSetsRequest,
     ListFeatureSetsResponse,
+    ListIngestionJobsRequest,
     ListProjectsRequest,
     ListProjectsResponse,
-    ListIngestionJobsRequest,
     RestartIngestionJobRequest,
     StopIngestionJobRequest,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
 from feast.feature_set import Entity, FeatureSet, FeatureSetRef
-from feast.job import RetrievalJob, IngestJob
+from feast.job import IngestJob, RetrievalJob
 from feast.loaders.abstract_producer import get_producer
 from feast.loaders.file import export_source_to_staging_location
 from feast.loaders.ingest import KAFKA_CHUNK_PRODUCTION_TIMEOUT, get_feature_row_chunks
@@ -566,8 +566,8 @@ class Client:
 
         if serving_info.type != FeastServingType.FEAST_SERVING_TYPE_BATCH:
             raise Exception(
-                f'You are connected to a store "{self._serving_url}" which '
-                f"does not support batch retrieval "
+                f'You are connected to a store "{self.serving_url}" which '
+                f"does not support batch retrieval"
             )
 
         if isinstance(entity_rows, pd.DataFrame):
@@ -597,7 +597,6 @@ class Client:
         staged_files = export_source_to_staging_location(
             entity_rows, serving_info.job_staging_location
         )  # type: List[str]
-
         request = GetBatchFeaturesRequest(
             features=feature_references,
             dataset_source=DatasetSource(
@@ -608,7 +607,11 @@ class Client:
         )
 
         # Retrieve Feast Job object to manage life cycle of retrieval
-        response = self._serving_service_stub.GetBatchFeatures(request)
+        try:
+            response = self._serving_service_stub.GetBatchFeatures(request)
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+
         return RetrievalJob(response.job, self._serving_service_stub)
 
     def get_online_features(
@@ -639,17 +642,22 @@ class Client:
         """
         self._connect_serving()
 
-        return self._serving_service_stub.GetOnlineFeatures(
-            GetOnlineFeaturesRequest(
-                features=_build_feature_references(
-                    feature_refs=feature_refs,
-                    default_project=(
-                        default_project if not self.project else self.project
+        try:
+            response = self._serving_service_stub.GetOnlineFeatures(
+                GetOnlineFeaturesRequest(
+                    features=_build_feature_references(
+                        feature_refs=feature_refs,
+                        default_project=(
+                            default_project if not self.project else self.project
+                        ),
                     ),
-                ),
-                entity_rows=entity_rows,
+                    entity_rows=entity_rows,
+                )
             )
-        )
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+
+        return response
 
     def list_ingest_jobs(
         self,

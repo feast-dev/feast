@@ -1,16 +1,20 @@
 import tempfile
 import time
 from datetime import datetime, timedelta
-from urllib.parse import urlparse
 from typing import List
+from urllib.parse import urlparse
 
 import fastavro
 import pandas as pd
 from google.cloud import storage
 from google.protobuf.json_format import MessageToJson
 
+from feast.core.CoreService_pb2 import ListIngestionJobsRequest
+from feast.core.CoreService_pb2_grpc import CoreServiceStub
+from feast.core.IngestionJob_pb2 import IngestionJob as IngestJobProto
+from feast.core.IngestionJob_pb2 import IngestionJobStatus
+from feast.core.Store_pb2 import Store
 from feast.feature_set import FeatureSet
-from feast.source import Source
 from feast.serving.ServingService_pb2 import (
     DATA_FORMAT_AVRO,
     JOB_STATUS_DONE,
@@ -18,11 +22,7 @@ from feast.serving.ServingService_pb2 import (
 )
 from feast.serving.ServingService_pb2 import Job as JobProto
 from feast.serving.ServingService_pb2_grpc import ServingServiceStub
-from feast.core.Store_pb2 import Store
-from feast.core.IngestionJob_pb2 import IngestionJob as IngestJobProto
-from feast.core.IngestionJob_pb2 import IngestionJobStatus
-from feast.core.CoreService_pb2_grpc import CoreServiceStub
-from feast.core.CoreService_pb2 import ListIngestionJobsRequest
+from feast.source import Source
 
 # Maximum no of seconds to wait until the retrieval jobs status is DONE in Feast
 # Currently set to the maximum query execution time limit in BigQuery
