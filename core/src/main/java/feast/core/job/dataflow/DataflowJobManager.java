@@ -18,6 +18,7 @@ package feast.core.job.dataflow;
 
 import static feast.core.util.PipelineUtil.detectClassPathResourcesToStage;
 
+import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
@@ -66,16 +67,15 @@ public class DataflowJobManager implements JobManager {
 
   public DataflowJobManager(
       Map<String, String> runnerConfigOptions, MetricsProperties metricsProperties) {
+    this(runnerConfigOptions, metricsProperties, getGoogleCredential());
+  }
+
+  public DataflowJobManager(
+      Map<String, String> runnerConfigOptions,
+      MetricsProperties metricsProperties,
+      Credential credential) {
 
     DataflowRunnerConfig config = new DataflowRunnerConfig(runnerConfigOptions);
-
-    GoogleCredential credential = null;
-    try {
-      credential = GoogleCredential.getApplicationDefault().createScoped(DataflowScopes.all());
-    } catch (IOException e) {
-      throw new IllegalStateException(
-          "Unable to find credential required for Dataflow monitoring API", e);
-    }
 
     Dataflow dataflow = null;
     try {
@@ -95,6 +95,17 @@ public class DataflowJobManager implements JobManager {
     this.metrics = metricsProperties;
     this.projectId = config.getProject();
     this.location = config.getRegion();
+  }
+
+  private static Credential getGoogleCredential() {
+    GoogleCredential credential = null;
+    try {
+      credential = GoogleCredential.getApplicationDefault().createScoped(DataflowScopes.all());
+    } catch (IOException e) {
+      throw new IllegalStateException(
+          "Unable to find credential required for Dataflow monitoring API", e);
+    }
+    return credential;
   }
 
   @Override
