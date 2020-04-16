@@ -124,11 +124,10 @@ public class CachedSpecService {
                 throw new SpecRetrievalException(
                     String.format(
                         "Unable to find feature set for feature ref: "
-                            + "(project: %s, name: %s, version: %d, max_age: %s)",
+                            + "(project: %s, name: %s, version: %d)",
                         featureReference.getProject(),
                         featureReference.getName(),
-                        featureReference.getVersion(),
-                        featureReference.getMaxAge().toString()));
+                        featureReference.getVersion());
               }
               return Pair.of(featureSet, featureReference);
             })
