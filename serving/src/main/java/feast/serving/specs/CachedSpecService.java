@@ -118,16 +118,15 @@ public class CachedSpecService {
         .map(
             featureReference -> {
               String featureSet =
-                  featureToFeatureSetMapping.getOrDefault(
-                      generateFeatureStringRef(featureReference), "");
-              if (featureSet.isEmpty()) {
+                  featureToFeatureSetMapping.get(generateFeatureStringRef(featureReference));
+              if (featureSet == null) {
                 throw new SpecRetrievalException(
                     String.format(
                         "Unable to find feature set for feature ref: "
                             + "(project: %s, name: %s, version: %d)",
                         featureReference.getProject(),
                         featureReference.getName(),
-                        featureReference.getVersion());
+                        featureReference.getVersion()));
               }
               return Pair.of(featureSet, featureReference);
             })
