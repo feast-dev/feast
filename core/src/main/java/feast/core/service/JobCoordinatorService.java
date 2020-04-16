@@ -54,7 +54,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class JobCoordinatorService {
 
-  private final long POLLING_INTERVAL_MILLISECONDS = 60000; // 1 min
   private JobRepository jobRepository;
   private FeatureSetRepository featureSetRepository;
   private SpecService specService;
@@ -87,7 +86,7 @@ public class JobCoordinatorService {
    * <p>4) Updates Feature set statuses
    */
   @Transactional
-  @Scheduled(fixedDelay = POLLING_INTERVAL_MILLISECONDS)
+  @Scheduled(fixedDelayString = "${feast.jobs.updates.pollingIntervalMillis}")
   public void Poll() throws InvalidProtocolBufferException {
     log.info("Polling for new jobs...");
     List<JobUpdateTask> jobUpdateTasks = new ArrayList<>();

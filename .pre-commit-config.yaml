@@ -1,11 +1,6 @@
 repos:
   - repo: local
     hooks:
-      - id: format
-        name: Format
-        stages: [commit]
-        language: system
-        entry: make format
       - id: lint
         name: Lint
         stages: [commit]

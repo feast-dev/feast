@@ -1,9 +1,25 @@
 package feast
 
-import "github.com/gojek/feast/sdk/go/protos/feast/types"
+import (
+	"github.com/gojek/feast/sdk/go/protos/feast/types"
+	"github.com/golang/protobuf/proto"
+)
 
 // Row map of entity values
 type Row map[string]*types.Value
+
+func (r Row) equalTo(other Row) bool {
+	for k, v := range r {
+		if otherV, ok := other[k]; !ok {
+			return false
+		} else {
+			if !proto.Equal(v, otherV) {
+				return false
+			}
+		}
+	}
+	return true
+}
 
 // StrVal is a int64 type feast value
 func StrVal(val string) *types.Value {

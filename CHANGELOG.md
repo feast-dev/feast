@@ -1,5 +1,18 @@
 # Changelog
 
+## [v0.4.7](https://github.com/gojek/feast/tree/v0.4.7) (2020-03-17)
+
+[Full Changelog](https://github.com/gojek/feast/compare/v0.4.6...v0.4.7)
+
+**Merged pull requests:**
+- Add log4j-web jar to core and serving. [\#498](https://github.com/gojek/feast/pull/498) ([Yanson](https://github.com/Yanson))
+- Clear all the futures when sync is called. [\#501](https://github.com/gojek/feast/pull/501) ([lavkesh](https://github.com/lavkesh))
+- Encode feature row before storing in Redis [\#530](https://github.com/gojek/feast/pull/530) ([khorshuheng](https://github.com/khorshuheng))
+- Remove transaction when listing projects [\#522](https://github.com/gojek/feast/pull/522) ([davidheryanto](https://github.com/davidheryanto))
+- Remove unused ingestion deps [\#520](https://github.com/gojek/feast/pull/520) ([ches](https://github.com/ches))
+- Parameterize end to end test scripts. [\#433](https://github.com/gojek/feast/pull/433) ([Yanson](https://github.com/Yanson))
+- Replacing Jedis With Lettuce in ingestion and serving [\#485](https://github.com/gojek/feast/pull/485) ([lavkesh](https://github.com/lavkesh))
+
 ## [v0.4.6](https://github.com/gojek/feast/tree/v0.4.6) (2020-02-26)
 
 [Full Changelog](https://github.com/gojek/feast/compare/v0.4.5...v0.4.6)

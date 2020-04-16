@@ -50,11 +50,14 @@ from feast.core.CoreService_pb2 import (
     ListFeatureSetsResponse,
     ListProjectsRequest,
     ListProjectsResponse,
+    ListIngestionJobsRequest,
+    RestartIngestionJobRequest,
+    StopIngestionJobRequest,
 )
 from feast.core.CoreService_pb2_grpc import CoreServiceStub
 from feast.core.FeatureSet_pb2 import FeatureSetStatus
-from feast.feature_set import Entity, FeatureSet
-from feast.job import Job
+from feast.feature_set import Entity, FeatureSet, FeatureSetRef
+from feast.job import RetrievalJob, IngestJob
 from feast.loaders.abstract_producer import get_producer
 from feast.loaders.file import export_source_to_staging_location
 from feast.loaders.ingest import KAFKA_CHUNK_PRODUCTION_TIMEOUT, get_feature_row_chunks
@@ -416,7 +419,7 @@ class Client:
         Args:
             project: Filter feature sets based on project name
             name: Filter feature sets based on feature set name
-            version: Filter feature sets based on version number
+            version: Filter feature sets based on version numbf,
 
         Returns:
             List of feature sets
@@ -507,7 +510,7 @@ class Client:
         feature_refs: List[str],
         entity_rows: Union[pd.DataFrame, str],
         default_project: str = None,
-    ) -> Job:
+    ) -> RetrievalJob:
         """
         Retrieves historical features from a Feast Serving deployment.
 
@@ -525,8 +528,8 @@ class Client:
             default_project: Default project where feature values will be found.
 
         Returns:
-            feast.job.Job:
-                Returns a job object that can be used to monitor retrieval
+            feast.job.RetrievalJob:
+                Returns a retrival job object that can be used to monitor retrieval
                 progress asynchronously, and can be used to materialize the
                 results.
 
@@ -606,7 +609,7 @@ class Client:
 
         # Retrieve Feast Job object to manage life cycle of retrieval
         response = self._serving_service_stub.GetBatchFeatures(request)
-        return Job(response.job, self._serving_service_stub)
+        return RetrievalJob(response.job, self._serving_service_stub)
 
     def get_online_features(
         self,
@@ -647,6 +650,72 @@ class Client:
                 entity_rows=entity_rows,
             )
         )
+
+    def list_ingest_jobs(
+        self,
+        job_id: str = None,
+        feature_set_ref: FeatureSetRef = None,
+        store_name: str = None,
+    ):
+        """
+        List the ingestion jobs currently registered in Feast, with optional filters.
+        Provides detailed metadata about each ingestion job.
+
+        Args:
+            job_id: Select specific ingestion job with the given job_id
+            feature_set_ref: Filter ingestion jobs by target feature set (via reference)
+            store_name: Filter ingestion jobs by target feast store's name
+
+        Returns:
+            List of IngestJobs matching the given filters
+        """
+        self._connect_core()
+        # construct list request
+        feature_set_ref = None
+        list_filter = ListIngestionJobsRequest.Filter(
+            id=job_id, feature_set_reference=feature_set_ref, store_name=store_name,
+        )
+        request = ListIngestionJobsRequest(filter=list_filter)
+        # make list request & unpack response
+        response = self._core_service_stub.ListIngestionJobs(request)
+        ingest_jobs = [
+            IngestJob(proto, self._core_service_stub) for proto in response.jobs
+        ]
+        return ingest_jobs
+
+    def restart_ingest_job(self, job: IngestJob):
+        """
+        Restart ingestion job currently registered in Feast.
+        NOTE: Data might be lost during the restart for some job runners.
+        Does not support stopping a job in a transitional (ie pending, suspending, aborting),
+        terminal state (ie suspended or aborted) or unknown status
+
+        Args:
+            job: IngestJob to restart
+        """
+        self._connect_core()
+        request = RestartIngestionJobRequest(id=job.id)
+        try:
+            self._core_service_stub.RestartIngestionJob(request)
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
+
+    def stop_ingest_job(self, job: IngestJob):
+        """
+        Stop ingestion job currently resgistered in Feast
+        Does nothing if the target job if already in a terminal state (ie suspended or aborted).
+        Does not support stopping a job in a transitional (ie pending, suspending, aborting)
+        or in a unknown status
+
+        Args:
+            job: IngestJob to restart
+        """
+        self._connect_core()
+        request = StopIngestionJobRequest(id=job.id)
+        try:
+            self._core_service_stub.StopIngestionJob(request)
+        except grpc.RpcError as e:
+            raise grpc.RpcError(e.details())
 
     def ingest(
         self,

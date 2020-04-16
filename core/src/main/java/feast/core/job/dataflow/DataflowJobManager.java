@@ -153,6 +153,26 @@ public class DataflowJobManager implements JobManager {
   }
 
   /**
+   * Restart a restart dataflow job. Dataflow should ensure continuity between during the restart,
+   * so no data should be lost during the restart operation.
+   *
+   * @param job job to restart
+   * @return the restarted job
+   */
+  @Override
+  public Job restartJob(Job job) {
+    JobStatus status = job.getStatus();
+    if (JobStatus.getTerminalState().contains(status)) {
+      // job yet not running: just start job
+      return this.startJob(job);
+    } else {
+      // job is running - updating the job without changing the job has
+      // the effect of restarting the job
+      return this.updateJob(job);
+    }
+  }
+
+  /**
    * Get status of a dataflow job with given id and try to map it into Feast's JobStatus.
    *
    * @param job Job containing dataflow job id
@@ -160,7 +180,7 @@ public class DataflowJobManager implements JobManager {
    */
   @Override
   public JobStatus getJobStatus(Job job) {
-    if (!Runner.DATAFLOW.getName().equals(job.getRunner())) {
+    if (!Runner.DATAFLOW.name().equals(job.getRunner())) {
       return job.getStatus();
     }
 
@@ -187,21 +207,12 @@ public class DataflowJobManager implements JobManager {
       ImportOptions pipelineOptions = getPipelineOptions(jobName, featureSetProtos, sink, update);
       DataflowPipelineJob pipelineResult = runPipeline(pipelineOptions);
       List<FeatureSet> featureSets =
-          featureSetProtos.stream()
-              .map(
-                  fsp -> {
-                    FeatureSet featureSet = new FeatureSet();
-                    featureSet.setName(fsp.getSpec().getName());
-                    featureSet.setVersion(fsp.getSpec().getVersion());
-                    featureSet.setProject(new Project(fsp.getSpec().getProject()));
-                    return featureSet;
-                  })
-              .collect(Collectors.toList());
+          featureSetProtos.stream().map(FeatureSet::fromProto).collect(Collectors.toList());
       String jobId = waitForJobToRun(pipelineResult);
       return new Job(
           jobName,
           jobId,
-          getRunnerType().getName(),
+          getRunnerType().name(),
           Source.fromProto(source),
           Store.fromProto(sink),
           featureSets,
