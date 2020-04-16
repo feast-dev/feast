@@ -2,7 +2,7 @@ FROM openjdk:11-jre
 
 ARG REVISION=dev
 COPY core/target/feast-core-$REVISION.jar /opt/feast/feast-core.jar
-RUN unzip -d /usr/share/feast/feast-core /opt/feast/feast-core.jar
+RUN unzip -d /opt/feast/feast-core /opt/feast/feast-core.jar
 
 ENV JAVA_OPTS=-XX:+UnlockExperimentalVMOptions
 
