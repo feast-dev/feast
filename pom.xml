@@ -486,6 +486,14 @@
                     <!-- Parent POM isn't a Spring Boot app, don't try to discover main classes. -->
                     <skip>true</skip>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>build-info</id>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <!-- nexus-staging-maven-plugin configures Maven to deploy to OSSRH Nexus Repository Manager -->
             <plugin>

@@ -19,6 +19,7 @@ package feast.storage.connectors.redis.writer;
 import com.google.auto.value.AutoValue;
 import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.core.StoreProto;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.storage.api.writer.FeatureSink;
 import feast.storage.api.writer.WriteResult;
@@ -32,6 +33,18 @@ import org.apache.beam.sdk.values.PCollection;
 
 @AutoValue
 public abstract class RedisFeatureSink implements FeatureSink {
+
+  /**
+   * Initialize a {@link RedisFeatureSink.Builder} from a {@link StoreProto.Store.RedisConfig}.
+   *
+   * @param redisConfig {@link RedisConfig}
+   * @param featureSetSpecs
+   * @return {@link RedisFeatureSink.Builder}
+   */
+  public static FeatureSink fromConfig(
+      RedisConfig redisConfig, Map<String, FeatureSetSpec> featureSetSpecs) {
+    return builder().setFeatureSetSpecs(featureSetSpecs).setRedisConfig(redisConfig).build();
+  }
 
   public abstract RedisConfig getRedisConfig();
 
@@ -54,6 +67,7 @@ public abstract class RedisFeatureSink implements FeatureSink {
 
   @Override
   public void prepareWrite(FeatureSet featureSet) {
+
     RedisClient redisClient =
         RedisClient.create(RedisURI.create(getRedisConfig().getHost(), getRedisConfig().getPort()));
     try {

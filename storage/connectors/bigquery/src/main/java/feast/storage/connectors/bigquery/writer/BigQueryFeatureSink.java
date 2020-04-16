@@ -57,9 +57,11 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
    * your own client.
    *
    * @param config {@link BigQueryConfig}
+   * @param featureSetSpecs
    * @return {@link BigQueryFeatureSink.Builder}
    */
-  public static BigQueryFeatureSink fromConfig(BigQueryConfig config) {
+  public static FeatureSink fromConfig(
+      BigQueryConfig config, Map<String, FeatureSetProto.FeatureSetSpec> featureSetSpecs) {
     return builder()
         .setDatasetId(config.getDatasetId())
         .setProjectId(config.getProjectId())

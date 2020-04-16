@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.serving.configuration;
+package feast.serving.config;
 
-import feast.serving.FeastProperties;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.protobuf.InvalidProtocolBufferException;
+import feast.core.StoreProto;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.specs.CoreSpecService;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -58,10 +58,11 @@ public class SpecServiceConfig {
   }
 
   @Bean
-  public CachedSpecService specService(FeastProperties feastProperties) {
+  public CachedSpecService specService(FeastProperties feastProperties)
+      throws InvalidProtocolBufferException, JsonProcessingException {
     CoreSpecService coreService = new CoreSpecService(feastCoreHost, feastCorePort);
-    Path path = Paths.get(feastProperties.getStore().getConfigPath());
-    CachedSpecService cachedSpecStorage = new CachedSpecService(coreService, path);
+    StoreProto.Store storeProto = feastProperties.getActiveStore().toProto();
+    CachedSpecService cachedSpecStorage = new CachedSpecService(coreService, storeProto);
     try {
       cachedSpecStorage.populateCache();
     } catch (Exception e) {

@@ -16,22 +16,11 @@
  */
 package feast.core.config;
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
-import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.services.dataflow.Dataflow;
-import com.google.api.services.dataflow.DataflowScopes;
-import com.google.common.base.Strings;
 import feast.core.config.FeastProperties.JobProperties;
-import feast.core.config.FeastProperties.JobUpdatesProperties;
 import feast.core.job.JobManager;
-import feast.core.job.Runner;
 import feast.core.job.dataflow.DataflowJobManager;
 import feast.core.job.direct.DirectJobRegistry;
 import feast.core.job.direct.DirectRunnerJobManager;
-import java.io.IOException;
-import java.security.GeneralSecurityException;
-import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,65 +33,26 @@ import org.springframework.context.annotation.Configuration;
 public class JobConfig {
 
   /**
-   * Get a JobManager according to the runner type and dataflow configuration.
+   * Get a JobManager according to the runner type and Dataflow configuration.
    *
    * @param feastProperties feast config properties
    */
   @Bean
   @Autowired
-  public JobManager getJobManager(
-      FeastProperties feastProperties, DirectJobRegistry directJobRegistry) {
+  public JobManager getJobManager(FeastProperties feastProperties) {
 
     JobProperties jobProperties = feastProperties.getJobs();
-    Runner runner = Runner.fromString(jobProperties.getRunner());
-    if (jobProperties.getOptions() == null) {
-      jobProperties.setOptions(new HashMap<>());
-    }
-    Map<String, String> jobOptions = jobProperties.getOptions();
-    switch (runner) {
+    FeastProperties.JobProperties.Runner runner = jobProperties.getActiveRunner();
+    Map<String, String> runnerConfigOptions = runner.getOptions();
+    FeastProperties.MetricsProperties metrics = jobProperties.getMetrics();
+
+    switch (runner.getType()) {
       case DATAFLOW:
-        if (Strings.isNullOrEmpty(jobOptions.getOrDefault("region", null))
-            || Strings.isNullOrEmpty(jobOptions.getOrDefault("project", null))) {
-          log.error("Project and location of the Dataflow runner is not configured");
-          throw new IllegalStateException(
-              "Project and location of Dataflow runner must be specified for jobs to be run on Dataflow runner.");
-        }
-        try {
-          GoogleCredential credential =
-              GoogleCredential.getApplicationDefault().createScoped(DataflowScopes.all());
-          Dataflow dataflow =
-              new Dataflow(
-                  GoogleNetHttpTransport.newTrustedTransport(),
-                  JacksonFactory.getDefaultInstance(),
-                  credential);
-
-          return new DataflowJobManager(
-              dataflow, jobProperties.getOptions(), jobProperties.getMetrics());
-        } catch (IOException e) {
-          throw new IllegalStateException(
-              "Unable to find credential required for Dataflow monitoring API", e);
-        } catch (GeneralSecurityException e) {
-          throw new IllegalStateException("Security exception while connecting to Dataflow API", e);
-        } catch (Exception e) {
-          throw new IllegalStateException("Unable to initialize DataflowJobManager", e);
-        }
+        return new DataflowJobManager(runnerConfigOptions, metrics);
       case DIRECT:
-        return new DirectRunnerJobManager(
-            jobProperties.getOptions(), directJobRegistry, jobProperties.getMetrics());
+        return new DirectRunnerJobManager(runnerConfigOptions, new DirectJobRegistry(), metrics);
       default:
-        throw new IllegalArgumentException("Unsupported runner: " + jobProperties.getRunner());
+        throw new IllegalArgumentException("Unsupported runner: " + runner);
     }
-  }
-
-  /** Get a direct job registry */
-  @Bean
-  public DirectJobRegistry directJobRegistry() {
-    return new DirectJobRegistry();
-  }
-
-  /** Extracts job update options from feast core options. */
-  @Bean
-  public JobUpdatesProperties jobUpdatesProperties(FeastProperties feastProperties) {
-    return feastProperties.getJobs().getUpdates();
   }
 }

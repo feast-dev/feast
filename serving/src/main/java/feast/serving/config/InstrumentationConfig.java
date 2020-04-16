@@ -14,9 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.serving.configuration;
+package feast.serving.config;
 
-import feast.serving.FeastProperties;
 import io.opentracing.Tracer;
 import io.opentracing.noop.NoopTracerFactory;
 import io.prometheus.client.exporter.MetricsServlet;
