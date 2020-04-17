@@ -63,14 +63,17 @@ public class RedisOnlineRetriever implements OnlineRetriever {
   }
 
   /**
-   * Gets online features from redis. This method returns a list of {@link FeatureRow}s
-   * corresponding to each feature set spec. Each feature row in the list then corresponds to an
-   * {@link EntityRow} provided by the user.
+   * Gets online features from redis store for the given entity rows using data retrieved from the
+   * feature/featureset specified in feature set requests.
    *
-   * @param entityRows list of entity rows in the feature request
-   * @param featureSetRequests Map of {@link feast.proto.core.FeatureSetProto.FeatureSetSpec} to
-   *     feature references in the request tied to that feature set.
-   * @return List of List of {@link FeatureRow}
+   * <p>This method returns a list of {@link FeatureRow}s corresponding to each feature set spec.
+   * Each feature row in the list then corresponds to an {@link EntityRow} provided by the user. If
+   * retrieval fails for a given entity row, will return null in place of the {@link FeatureRow}.
+   *
+   * @param featureSetRequests List of {@link FeatureSetRequest} specifying the features/feature set
+   *     to retrieve data from.
+   * @return list of lists of {@link FeatureRow}s corresponding to data retrieved for each feature
+   *     set request and entity row.
    */
   @Override
   public List<List<FeatureRow>> getOnlineFeatures(
@@ -93,6 +96,7 @@ public class RedisOnlineRetriever implements OnlineRetriever {
             .asRuntimeException();
       }
     }
+
     return featureRows;
   }
 
@@ -181,10 +185,11 @@ public class RedisOnlineRetriever implements OnlineRetriever {
   }
 
   /**
-   * Send a list of get request as an mget
+   * Pull the data stored in redis at the given keys as bytes using the mget command. If no data is
+   * stored at a given key in redis, will subsitute the data with null.
    *
-   * @param keys list of {@link RedisKey}
-   * @return list of {@link FeatureRow} in primitive byte representation for each {@link RedisKey}
+   * @param keys list of {@link RedisKey} to pull from redis.
+   * @return list of data bytes or null pulled from redis for each given key.
    */
   private List<byte[]> sendMultiGet(List<RedisKey> keys) {
     try {
@@ -203,14 +208,14 @@ public class RedisOnlineRetriever implements OnlineRetriever {
               })
           .collect(Collectors.toList());
     } catch (Exception e) {
-      throw Status.NOT_FOUND
-          .withDescription("Unable to retrieve feature from Redis")
+      throw Status.UNKNOWN
+          .withDescription("Unexpected error when pulling data from from Redis.")
           .withCause(e)
           .asRuntimeException();
     }
   }
 
-  // TODO: Refactor this out to common package?
+  // TODO: Refactor this out to common package? move to Ref utils
   private static String generateFeatureSetStringRef(FeatureSetSpec featureSetSpec) {
     String ref = String.format("%s/%s", featureSetSpec.getProject(), featureSetSpec.getName());
     return ref;
