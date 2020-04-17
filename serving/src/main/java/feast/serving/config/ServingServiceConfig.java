@@ -29,6 +29,7 @@ import feast.storage.api.retriever.HistoricalRetriever;
 import feast.storage.api.retriever.OnlineRetriever;
 import feast.storage.connectors.bigquery.retriever.BigQueryHistoricalRetriever;
 import feast.storage.connectors.redis.retriever.RedisOnlineRetriever;
+import feast.storage.connectors.rediscluster.retriever.RedisClusterOnlineRetriever;
 import io.opentracing.Tracer;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -53,6 +54,10 @@ public class ServingServiceConfig {
     Map<String, String> config = store.getConfig();
 
     switch (storeType) {
+      case REDIS_CLUSTER:
+        OnlineRetriever redisClusterRetriever = RedisClusterOnlineRetriever.create(config);
+        servingService = new OnlineServingService(redisClusterRetriever, specService, tracer);
+        break;
       case REDIS:
         OnlineRetriever redisRetriever = RedisOnlineRetriever.create(config);
         servingService = new OnlineServingService(redisRetriever, specService, tracer);

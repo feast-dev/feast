@@ -115,6 +115,12 @@
 
     <dependency>
       <groupId>dev.feast</groupId>
+      <artifactId>feast-storage-connector-redis-cluster</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>dev.feast</groupId>
       <artifactId>feast-storage-connector-bigquery</artifactId>
       <version>${project.version}</version>
     </dependency>

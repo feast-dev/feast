@@ -25,6 +25,7 @@ import feast.core.StoreProto.Store.StoreType;
 import feast.storage.api.writer.FeatureSink;
 import feast.storage.connectors.bigquery.writer.BigQueryFeatureSink;
 import feast.storage.connectors.redis.writer.RedisFeatureSink;
+import feast.storage.connectors.rediscluster.writer.RedisClusterFeatureSink;
 import feast.types.ValueProto.ValueType.Enum;
 import java.util.HashMap;
 import java.util.Map;
@@ -82,12 +83,14 @@ public class StoreUtil {
       Store store, Map<String, FeatureSetSpec> featureSetSpecs) {
     StoreType storeType = store.getType();
     switch (storeType) {
+      case REDIS_CLUSTER:
+        return RedisClusterFeatureSink.fromConfig(store.getRedisClusterConfig(), featureSetSpecs);
       case REDIS:
         return RedisFeatureSink.fromConfig(store.getRedisConfig(), featureSetSpecs);
       case BIGQUERY:
         return BigQueryFeatureSink.fromConfig(store.getBigqueryConfig(), featureSetSpecs);
       default:
-        throw new RuntimeException(String.format("Store type '{}' is unsupported", storeType));
+        throw new RuntimeException(String.format("Store type '%s' is unsupported", storeType));
     }
   }
 }
