@@ -3,3 +3,4 @@ name: ci
 on: push
 
 jobs:
+  build-docker-image:
