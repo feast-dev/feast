@@ -6,3 +6,4 @@ jobs:
   build-docker-image:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
