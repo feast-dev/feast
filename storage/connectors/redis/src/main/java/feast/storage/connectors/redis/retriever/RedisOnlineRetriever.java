@@ -150,7 +150,7 @@ public class RedisOnlineRetriever implements OnlineRetriever {
       List<FeatureReference> featureReferences)
       throws InvalidProtocolBufferException, ExecutionException {
 
-    List<byte[]> values = sendMultiGet(redisKeys);
+    List<byte[]> featureRowsBytes = sendMultiGet(redisKeys);
     List<FeatureRow> featureRows = new ArrayList<>();
 
     FeatureRow.Builder nullFeatureRowBuilder =
@@ -159,23 +159,26 @@ public class RedisOnlineRetriever implements OnlineRetriever {
       nullFeatureRowBuilder.addFields(Field.newBuilder().setName(featureReference.getName()));
     }
 
-    for (int i = 0; i < values.size(); i++) {
+    for (int i = 0; i < featureRowsBytes.size(); i++) {
 
-      byte[] value = values.get(i);
-      if (value == null) {
+      byte[] featureRowBytes = featureRowsBytes.get(i);
+      if (featureRowBytes == null) {
         featureRows.add(nullFeatureRowBuilder.build());
         continue;
       }
 
-      FeatureRow featureRow = FeatureRow.parseFrom(value);
+      FeatureRow featureRow = FeatureRow.parseFrom(featureRowBytes);
       String featureSetRef = redisKeys.get(i).getFeatureSet();
       FeatureRowDecoder decoder = new FeatureRowDecoder(featureSetRef, featureSetSpec);
       if (decoder.isEncoded(featureRow)) {
         if (decoder.isEncodingValid(featureRow)) {
           featureRow = decoder.decode(featureRow);
         } else {
-          featureRows.add(nullFeatureRowBuilder.build());
-          continue;
+          // decoding feature row failed: data corruption could have occurred
+          throw Status.DATA_LOSS
+            .withDescription("Failed to decode FeatureRow from bytes retrieved from redis"
+                + ": Possible data corruption")
+            .asRuntimeException();
         }
       }
 
