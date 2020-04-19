@@ -81,13 +81,13 @@ public class RedisOnlineRetriever implements OnlineRetriever {
 
     List<List<FeatureRow>> featureRows = new ArrayList<>();
     for (FeatureSetRequest featureSetRequest : featureSetRequests) {
-      List<RedisKey> redisKeys = buildRedisKeys(entityRows, featureSetRequest.getSpec());
+      // get features for this features/featureset in featureset request
+      FeatureSetSpec featureSetSpec = featureSetRequest.getSpec();
+      List<RedisKey> redisKeys = buildRedisKeys(entityRows, featureSetSpec);
+      FeatureRowDecoder decoder =
+          new FeatureRowDecoder(generateFeatureSetStringRef(featureSetSpec), featureSetSpec);
       try {
-        List<FeatureRow> featureRowsForFeatureSet =
-            sendAndProcessMultiGet(
-                redisKeys,
-                featureSetRequest.getSpec(),
-                featureSetRequest.getFeatureReferences().asList());
+        List<FeatureRow> featureRowsForFeatureSet = getFeaturesForFeatureSet(redisKeys, decoder);
         featureRows.add(featureRowsForFeatureSet);
       } catch (InvalidProtocolBufferException | ExecutionException e) {
         throw Status.INTERNAL
@@ -144,52 +144,48 @@ public class RedisOnlineRetriever implements OnlineRetriever {
     return builder.build();
   }
 
-  private List<FeatureRow> sendAndProcessMultiGet(
-      List<RedisKey> redisKeys,
-      FeatureSetSpec featureSetSpec,
-      List<FeatureReference> featureReferences)
+  /**
+   * Get features from data pulled from the Redis for a specific featureset.
+   *
+   * @param redisKeys keys used to retrieve data from Redis for a specific featureset.
+   * @param decoder used to decode the data retrieved from Redis for a specific featureset.
+   * @return List of {@link FeatureRow}s
+   */
+  private List<FeatureRow> getFeaturesForFeatureSet(
+      List<RedisKey> redisKeys, FeatureRowDecoder decoder)
       throws InvalidProtocolBufferException, ExecutionException {
-
+    // pull feature row data bytes from redis using given redis keys
     List<byte[]> featureRowsBytes = sendMultiGet(redisKeys);
     List<FeatureRow> featureRows = new ArrayList<>();
 
-    FeatureRow.Builder nullFeatureRowBuilder =
-        FeatureRow.newBuilder().setFeatureSet(generateFeatureSetStringRef(featureSetSpec));
-    for (FeatureReference featureReference : featureReferences) {
-      nullFeatureRowBuilder.addFields(Field.newBuilder().setName(featureReference.getName()));
-    }
-
-    for (int i = 0; i < featureRowsBytes.size(); i++) {
-
-      byte[] featureRowBytes = featureRowsBytes.get(i);
+    for (byte[] featureRowBytes : featureRowsBytes) {
       if (featureRowBytes == null) {
-        featureRows.add(nullFeatureRowBuilder.build());
+        featureRows.add(null);
         continue;
       }
 
+      // decode feature rows from data bytes using decoder.
       FeatureRow featureRow = FeatureRow.parseFrom(featureRowBytes);
-      String featureSetRef = redisKeys.get(i).getFeatureSet();
-      FeatureRowDecoder decoder = new FeatureRowDecoder(featureSetRef, featureSetSpec);
       if (decoder.isEncoded(featureRow)) {
         if (decoder.isEncodingValid(featureRow)) {
           featureRow = decoder.decode(featureRow);
         } else {
           // decoding feature row failed: data corruption could have occurred
           throw Status.DATA_LOSS
-            .withDescription("Failed to decode FeatureRow from bytes retrieved from redis"
-                + ": Possible data corruption")
-            .asRuntimeException();
+              .withDescription(
+                  "Failed to decode FeatureRow from bytes retrieved from redis"
+                      + ": Possible data corruption")
+              .asRuntimeException();
         }
       }
-
       featureRows.add(featureRow);
     }
     return featureRows;
   }
 
   /**
-   * Pull the data stored in redis at the given keys as bytes using the mget command. If no data is
-   * stored at a given key in redis, will subsitute the data with null.
+   * Pull the data stored in Redis at the given keys as bytes using the mget command. If no data is
+   * stored at a given key in Redis, will subsitute the data with null.
    *
    * @param keys list of {@link RedisKey} to pull from redis.
    * @return list of data bytes or null pulled from redis for each given key.
@@ -218,7 +214,7 @@ public class RedisOnlineRetriever implements OnlineRetriever {
     }
   }
 
-  // TODO: Refactor this out to common package? move to Ref utils
+  // TODO: Refactor this out to common package
   private static String generateFeatureSetStringRef(FeatureSetSpec featureSetSpec) {
     String ref = String.format("%s/%s", featureSetSpec.getProject(), featureSetSpec.getName());
     return ref;
