@@ -311,7 +311,7 @@ public class FeastProperties {
      * <p>Note: Please see protos/feast/core/CoreService.proto for details on how to subscribe to
      * feature sets.
      */
-    public class Subscription {
+    public static class Subscription {
       /** Feast project to subscribe to. */
       String project;
 
