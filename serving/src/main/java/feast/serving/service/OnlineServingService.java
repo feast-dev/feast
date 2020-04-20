@@ -21,8 +21,7 @@ import com.google.common.collect.Maps;
 import com.google.protobuf.Duration;
 import feast.proto.serving.ServingAPIProto.*;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
-import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
-import feast.proto.types.FeatureRowProto.FeatureRow;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.Record;
 import feast.proto.types.ValueProto.Value;
 import feast.serving.specs.CachedSpecService;
 import feast.serving.util.Metrics;
@@ -66,20 +65,24 @@ public class OnlineServingService implements ServingService {
     try (Scope scope = tracer.buildSpan("getOnlineFeatures").startActive(true)) {
       GetOnlineFeaturesResponse.Builder getOnlineFeaturesResponseBuilder =
           GetOnlineFeaturesResponse.newBuilder();
+      // Build featureset requests used to pass to the retriever to retrieve feature data.
       List<FeatureSetRequest> featureSetRequests =
           specService.getFeatureSets(request.getFeaturesList());
       List<EntityRow> entityRows = request.getEntityRowsList();
+
       Map<EntityRow, Map<String, Value>> featureValuesMap =
           entityRows.stream()
               .collect(Collectors.toMap(row -> row, row -> Maps.newHashMap(row.getFieldsMap())));
-      // Get all feature rows from the retriever. Each feature row list corresponds to a single
-      // feature set request.
+
+      // Pull feature rows for each feature set request from the retriever.
+      // Each feature row list corresponds to a single feature set request.
       List<List<FeatureRow>> featureRows =
           retriever.getOnlineFeatures(entityRows, featureSetRequests);
       if (scope != null) {
         scope.span().log(ImmutableMap.of("event", "featureRows", "value", featureRows));
       }
 
+      // Match entity rows request with the features defined in the feature spec.
       // For each feature set request, read the feature rows returned by the retriever, and
       // populate the featureValuesMap with the feature values corresponding to that entity row.
       for (var fsIdx = 0; fsIdx < featureRows.size(); fsIdx++) {
@@ -99,6 +102,7 @@ public class OnlineServingService implements ServingService {
           EntityRow entityRow = entityRows.get(entityRowIdx);
 
           // If the row is stale, put an empty value into the featureValuesMap.
+          // TODO: online-feature-metadata: detect stale features here.
           if (isStale(featureSetRequest, entityRow, featureRow)) {
             featureSetRequest
                 .getFeatureReferences()
@@ -127,14 +131,13 @@ public class OnlineServingService implements ServingService {
         }
       }
 
-      List<FieldValues> fieldValues =
-          featureValuesMap.values().stream()
-              .map(valueMap -> FieldValues.newBuilder().putAllFields(valueMap).build())
-              .collect(Collectors.toList());
-      return getOnlineFeaturesResponseBuilder.addAllFieldValues(fieldValues).build();
+      // TODO: update this to return actual records
+      Record record = Record.newBuilder().build();
+      return getOnlineFeaturesResponseBuilder.addRecords(record).build();
     }
   }
 
+  // TODO: call this based on what is returned in records.
   private void populateStaleKeyCountMetrics(String project, FeatureReference ref) {
     Metrics.staleKeyCount.labels(project, ref.getName()).inc();
   }
