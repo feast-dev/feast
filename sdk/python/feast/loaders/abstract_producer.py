@@ -129,7 +129,10 @@ class ConfluentProducer(AbstractProducer):
         Returns:
             int: Number of messages still in queue.
         """
-        return self.producer.flush(timeout=timeout)
+        messages = self.producer.flush(timeout=timeout)
+        if self.error_count:
+            raise Exception(self.last_exception)
+        return messages
 
     def _delivery_callback(self, err: str, msg) -> None:
         """
@@ -200,7 +203,10 @@ class KafkaPythonProducer(AbstractProducer):
             KafkaTimeoutError: failure to flush buffered records within the
                 provided timeout
         """
-        return self.producer.flush(timeout=timeout)
+        messages = self.producer.flush(timeout=timeout)
+        if self.error_count:
+            raise Exception(self.last_exception)
+        return messages
 
 
 def get_producer(
