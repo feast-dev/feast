@@ -141,22 +141,13 @@ public class FeastClient implements AutoCloseable {
                 .setOmitEntitiesInResponse(omitEntitiesInResponse)
                 .build());
 
-    return response.getFieldValuesList().stream()
+    return response.getRecordsList().stream()
         .map(
-            field -> {
+            record -> {
               Row row = Row.create();
-              field
-                  .getFieldsMap()
-                  .forEach(
-                      (String name, Value value) -> {
-                        // Strip project from string Feature References from returned from serving
-                        if (!entityRefs.contains(name)) {
-                          FeatureReference featureRef =
-                              RequestUtil.parseFeatureRef(name, true).build();
-                          name = RequestUtil.renderFeatureRef(featureRef);
-                        }
-                        row.set(name, value);
-                      });
+              record.getFieldsMap().forEach((name, field) -> { 
+                row.set(name, field.getValue());
+              });
               return row;
             })
         .collect(Collectors.toList());
