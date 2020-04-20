@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package feast.serving.configuration;
+package feast.serving.config;
 
 import java.util.concurrent.ScheduledExecutorService;
 import org.springframework.beans.factory.annotation.Autowired;

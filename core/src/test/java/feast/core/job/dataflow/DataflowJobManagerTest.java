@@ -22,6 +22,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.googleapis.testing.auth.oauth2.MockGoogleCredential;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.common.collect.Lists;
 import com.google.protobuf.Duration;
@@ -77,9 +79,20 @@ public class DataflowJobManagerTest {
     defaults = new HashMap<>();
     defaults.put("project", "project");
     defaults.put("region", "region");
+    defaults.put("zone", "zone");
+    defaults.put("tempLocation", "tempLocation");
+    defaults.put("network", "network");
+    defaults.put("subnetwork", "subnetwork");
     MetricsProperties metricsProperties = new MetricsProperties();
     metricsProperties.setEnabled(false);
-    dfJobManager = new DataflowJobManager(dataflow, defaults, metricsProperties);
+    Credential credential = null;
+    try {
+      credential = MockGoogleCredential.getApplicationDefault();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
+    dfJobManager = new DataflowJobManager(defaults, metricsProperties, credential);
     dfJobManager = spy(dfJobManager);
   }
 

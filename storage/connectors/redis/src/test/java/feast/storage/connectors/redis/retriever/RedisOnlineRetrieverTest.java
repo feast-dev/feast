@@ -33,6 +33,7 @@ import feast.serving.ServingAPIProto.FeatureReference;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
 import feast.storage.RedisProto.RedisKey;
 import feast.storage.api.retriever.FeatureSetRequest;
+import feast.storage.api.retriever.OnlineRetriever;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
 import feast.types.ValueProto.Value;
@@ -52,14 +53,14 @@ public class RedisOnlineRetrieverTest {
 
   @Mock RedisCommands<byte[], byte[]> syncCommands;
 
-  private RedisOnlineRetriever redisOnlineRetriever;
+  private OnlineRetriever redisOnlineRetriever;
   private byte[][] redisKeyList;
 
   @Before
   public void setUp() {
     initMocks(this);
     when(connection.sync()).thenReturn(syncCommands);
-    redisOnlineRetriever = new RedisOnlineRetriever(connection);
+    redisOnlineRetriever = RedisOnlineRetriever.create(connection);
     redisKeyList =
         Lists.newArrayList(
                 RedisKey.newBuilder()
@@ -135,7 +136,7 @@ public class RedisOnlineRetrieverTest {
             .map(x -> KeyValue.from(new byte[1], Optional.of(x.toByteArray())))
             .collect(Collectors.toList());
 
-    redisOnlineRetriever = new RedisOnlineRetriever(connection);
+    redisOnlineRetriever = RedisOnlineRetriever.create(connection);
     when(connection.sync()).thenReturn(syncCommands);
     when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
 
@@ -211,7 +212,7 @@ public class RedisOnlineRetrieverTest {
             .collect(Collectors.toList());
     featureRowBytes.add(null);
 
-    redisOnlineRetriever = new RedisOnlineRetriever(connection);
+    redisOnlineRetriever = RedisOnlineRetriever.create(connection);
     when(connection.sync()).thenReturn(syncCommands);
     when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
 

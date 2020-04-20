@@ -29,8 +29,11 @@ import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
 import feast.types.ValueProto.Value;
 import io.grpc.Status;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
+import io.lettuce.core.codec.ByteArrayCodec;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -41,8 +44,22 @@ public class RedisOnlineRetriever implements OnlineRetriever {
 
   private final RedisCommands<byte[], byte[]> syncCommands;
 
-  public RedisOnlineRetriever(StatefulRedisConnection<byte[], byte[]> connection) {
+  private RedisOnlineRetriever(StatefulRedisConnection<byte[], byte[]> connection) {
     this.syncCommands = connection.sync();
+  }
+
+  public static OnlineRetriever create(Map<String, String> config) {
+
+    StatefulRedisConnection<byte[], byte[]> connection =
+        RedisClient.create(
+                RedisURI.create(config.get("host"), Integer.parseInt(config.get("port"))))
+            .connect(new ByteArrayCodec());
+
+    return new RedisOnlineRetriever(connection);
+  }
+
+  public static OnlineRetriever create(StatefulRedisConnection<byte[], byte[]> connection) {
+    return new RedisOnlineRetriever(connection);
   }
 
   /**

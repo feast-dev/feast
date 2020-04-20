@@ -18,11 +18,11 @@ package feast.serving.controller;
 
 import static feast.serving.util.mappers.ResponseJSONMapper.mapGetOnlineFeaturesResponse;
 
-import feast.serving.FeastProperties;
 import feast.serving.ServingAPIProto.GetFeastServingInfoRequest;
 import feast.serving.ServingAPIProto.GetFeastServingInfoResponse;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesRequest;
 import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
+import feast.serving.config.FeastProperties;
 import feast.serving.service.ServingService;
 import feast.serving.util.RequestHelper;
 import io.opentracing.Tracer;

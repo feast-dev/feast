@@ -83,12 +83,9 @@ public class StoreUtil {
     StoreType storeType = store.getType();
     switch (storeType) {
       case REDIS:
-        return RedisFeatureSink.builder()
-            .setRedisConfig(store.getRedisConfig())
-            .setFeatureSetSpecs(featureSetSpecs)
-            .build();
+        return RedisFeatureSink.fromConfig(store.getRedisConfig(), featureSetSpecs);
       case BIGQUERY:
-        return BigQueryFeatureSink.fromConfig(store.getBigqueryConfig());
+        return BigQueryFeatureSink.fromConfig(store.getBigqueryConfig(), featureSetSpecs);
       default:
         throw new RuntimeException(String.format("Store type '{}' is unsupported", storeType));
     }
