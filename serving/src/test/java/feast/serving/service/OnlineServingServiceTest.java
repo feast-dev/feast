@@ -279,8 +279,10 @@ public class OnlineServingServiceTest {
                 Record.newBuilder()
                     .putFields("entity1", intField(2))
                     .putFields("entity2", strField("b"))
-                    .putFields("project/feature1:1", GetOnlineFeaturesResponse.Field.newBuilder().build())
-                    .putFields("project/feature2:1", GetOnlineFeaturesResponse.Field.newBuilder().build()))
+                    .putFields(
+                        "project/feature1:1", GetOnlineFeaturesResponse.Field.newBuilder().build())
+                    .putFields(
+                        "project/feature2:1", GetOnlineFeaturesResponse.Field.newBuilder().build()))
             .build();
     GetOnlineFeaturesResponse actual = onlineServingService.getOnlineFeatures(request);
     assertThat(
@@ -357,8 +359,10 @@ public class OnlineServingServiceTest {
                 Record.newBuilder()
                     .putFields("entity1", intField(2))
                     .putFields("entity2", strField("b"))
-                    .putFields("project/feature1:1", GetOnlineFeaturesResponse.Field.newBuilder().build())
-                    .putFields("project/feature2:1", GetOnlineFeaturesResponse.Field.newBuilder().build()))
+                    .putFields(
+                        "project/feature1:1", GetOnlineFeaturesResponse.Field.newBuilder().build())
+                    .putFields(
+                        "project/feature2:1", GetOnlineFeaturesResponse.Field.newBuilder().build()))
             .build();
     GetOnlineFeaturesResponse actual = onlineServingService.getOnlineFeatures(request);
     assertThat(
@@ -439,18 +443,23 @@ public class OnlineServingServiceTest {
     // TODO:: update with metadata
     return response.getRecordsList().stream()
         .map(Record::getFieldsMap)
-        .map(fieldsMap -> fieldsMap.entrySet().stream().collect(
-              Collectors.toMap(es -> es.getKey(), es -> {
-                GetOnlineFeaturesResponse.Field field = es.getValue();
-                return field.getValue();
-              })))
+        .map(
+            fieldsMap ->
+                fieldsMap.entrySet().stream()
+                    .collect(
+                        Collectors.toMap(
+                            es -> es.getKey(),
+                            es -> {
+                              GetOnlineFeaturesResponse.Field field = es.getValue();
+                              return field.getValue();
+                            })))
         .collect(Collectors.toList());
   }
-  
+
   private Value intValue(int val) {
     return Value.newBuilder().setInt32Val(val).build();
   }
-  
+
   private Value strValue(String val) {
     return Value.newBuilder().setStringVal(val).build();
   }
@@ -462,7 +471,6 @@ public class OnlineServingServiceTest {
   private GetOnlineFeaturesResponse.Field strField(String val) {
     return GetOnlineFeaturesResponse.Field.newBuilder().setValue(strValue(val)).build();
   }
-
 
   private FeatureSetSpec getFeatureSetSpec() {
     return FeatureSetSpec.newBuilder()

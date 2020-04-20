@@ -145,9 +145,12 @@ public class FeastClient implements AutoCloseable {
         .map(
             record -> {
               Row row = Row.create();
-              record.getFieldsMap().forEach((name, field) -> { 
-                row.set(name, field.getValue());
-              });
+              record
+                  .getFieldsMap()
+                  .forEach(
+                      (name, field) -> {
+                        row.set(name, field.getValue());
+                      });
               return row;
             })
         .collect(Collectors.toList());

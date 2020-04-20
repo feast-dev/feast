@@ -68,7 +68,7 @@ public class RedisOnlineRetriever implements OnlineRetriever {
    *
    * <p>This method returns a list of {@link FeatureRow}s corresponding to each feature set spec.
    * Each feature row in the list then corresponds to an {@link EntityRow} provided by the user. If
-   * retrieval fails for a given entity row, will return null in place of the {@link FeatureRow}.
+   * feature for a given entity row is not found, will return null in place of the {@link FeatureRow}.
    *
    * @param featureSetRequests List of {@link FeatureSetRequest} specifying the features/feature set
    *     to retrieve data from.
