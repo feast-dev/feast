@@ -7,6 +7,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: echo
+        run: echo "${{ secrets.CONTAINERREGISTRY_USERNAME }}"
       - uses: docker/build-push-action@v1
         with:
           username: ${{ secrets.CONTAINERREGISTRY_USERNAME }}
