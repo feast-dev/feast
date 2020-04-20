@@ -143,6 +143,8 @@ kafka-console-consumer --bootstrap-server 10.163.12.6:9092 --topic feast-feature
 
 ### Common issues
 
+This is a list of common issues experienced while getting familiar with the framework! If you discover other issues or
+find that the solution did not solve your problem feel free to contribute with your findings.
 
 * Issue: Connection timeout (feast core/serving) issue when running the e2e batch test via Docker
   Solution: In most of the cases we found that the issue was caused by the jars not being in the folder and causing
@@ -150,6 +152,9 @@ kafka-console-consumer --bootstrap-server 10.163.12.6:9092 --topic feast-feature
 
 * Issue: no manifest found in jars. This issue might be caused by other intermediate steps and their cached result conflict with other java builds. 
          The only solution for it so far has been re-cloning the repository.
+
+* Issue: the e2e are not running from a direct pytest command after running `docker-compose up -d` inside `infra/docker-compose`because of a connection timeout. 
+         It seems that sometimes postgres doesn't start properly, so it's worth checking if it's up and if it is restart feast core.
          
             
   
