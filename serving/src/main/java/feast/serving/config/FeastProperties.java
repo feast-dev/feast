@@ -222,9 +222,9 @@ public class FeastProperties {
     }
 
     /**
-     * Converts this {@link Store} to a {@StoreProto.Store}
+     * Converts this {@link Store} to a {@link StoreProto.Store}
      *
-     * @return {@StoreProto.Store} with configuration set
+     * @return {@link StoreProto.Store} with configuration set
      * @throws InvalidProtocolBufferException the invalid protocol buffer exception
      * @throws JsonProcessingException the json processing exception
      */
