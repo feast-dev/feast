@@ -7,3 +7,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - uses: docker/build-push-action@v1
+        with:
+          username: ${{ secrets.CONTAINERREGISTRY_USERNAME }}
+          password: ${{ secrets.CONTAINERREGISTRY_PASSWORD }}
+          repository: ${{ secrets.CONTAINERREGISTRY_IMAGENAME }}
+          registry: ${{ secrets.CONTAINERREGISTRY_URL }}
+          dockerfile: infra/docker/ci/Dockerfile
+          tags: v${{ github.sha }}
