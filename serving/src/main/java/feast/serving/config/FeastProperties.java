@@ -222,9 +222,9 @@ public class FeastProperties {
     }
 
     /**
-     * Converts this {@link Store} to a {@StoreProto.Store}
+     * Converts this {@link Store} to a {@link StoreProto.Store}
      *
-     * @return {@StoreProto.Store} with configuration set
+     * @return {@link StoreProto.Store} with configuration set
      * @throws InvalidProtocolBufferException the invalid protocol buffer exception
      * @throws JsonProcessingException the json processing exception
      */
@@ -311,7 +311,7 @@ public class FeastProperties {
      * <p>Note: Please see protos/feast/core/CoreService.proto for details on how to subscribe to
      * feature sets.
      */
-    public class Subscription {
+    public static class Subscription {
       /** Feast project to subscribe to. */
       String project;
 
