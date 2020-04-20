@@ -1,0 +1,11 @@
+pool:
+  name: Azure Pipelines
+  vmImage: 'ubuntu-1804'
+
+steps:
+- task: Docker@2
+  displayName: buildAndPush
+  inputs:
+    containerRegistry: 'Azure Feast Container Registry Service Connection'
+    repository: feast
+    Dockerfile: infra/docker/ci/Dockerfile
