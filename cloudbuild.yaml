@@ -87,10 +87,6 @@ steps:
   dir: '/workspace'
   entrypoint: make
   args: ['compile-protos-python']
-- id: clean-git-state
-  waitFor: ['-']
-  name: gcr.io/cloud-builders/git
-  args: ['stash']
 - id: git-unshallow-repo
   waitFor: ['clean-git-state']
   name: gcr.io/cloud-builders/git
@@ -101,8 +97,12 @@ steps:
   dir: '/workspace/sdk/python'
   entrypoint: sh
   args: ['-c', 'pip install -r requirements-ci.txt && pip install -e . && pytest --junitxml=/log/python-sdk-test-report.xml']
+- id: clean-git-state
+  waitFor: ['unit-test-python-sdk']
+  name: gcr.io/cloud-builders/git
+  args: ['stash']
 - id: upload-python-package
-  waitFor: ['git-unshallow-repo']
+  waitFor: ['clean-git-state']
   name: 'python:3.7-buster'
   dir: '/workspace/sdk/python'
   entrypoint: sh
