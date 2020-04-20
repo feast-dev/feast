@@ -1,6 +1,6 @@
 pool:
   name: Azure Pipelines
-  vmImage: 'ubuntu-1804'
+  vmImage: 'ubuntu-18.04'
 
 steps:
 - task: Docker@2
