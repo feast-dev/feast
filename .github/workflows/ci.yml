@@ -16,4 +16,4 @@ jobs:
           repository: ${{ secrets.CONTAINERREGISTRY_IMAGENAME }}
           # registry: ${{ secrets.CONTAINERREGISTRY_URL }}
           dockerfile: infra/docker/ci/Dockerfile
-          # tags: v${{ github.sha }}
+          tags: v${{ github.sha }}
