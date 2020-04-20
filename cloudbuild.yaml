@@ -7,6 +7,10 @@ steps:
     - SERVICE_ACCOUNT_B64
 
 # Setup
+- id: git-unshallow-repo
+  waitFor: ['-']
+  name: gcr.io/cloud-builders/git
+  args: ['fetch', '--unshallow']
 - id: m2-cache-init-dir
   waitFor: ['-']
   name: gcr.io/cloud-builders/gsutil
@@ -87,10 +91,6 @@ steps:
   dir: '/workspace'
   entrypoint: make
   args: ['compile-protos-python']
-- id: git-unshallow-repo
-  waitFor: ['clean-git-state']
-  name: gcr.io/cloud-builders/git
-  args: ['fetch', '--unshallow']
 - id: unit-test-python-sdk
   waitFor: ['compile-protos-python', 'git-unshallow-repo']
   name: 'python:3.7-buster'
