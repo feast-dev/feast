@@ -149,15 +149,14 @@ find that the solution did not solve your problem feel free to contribute with y
 * Issue: Connection timeout (feast core/serving) issue when running the e2e batch test via Docker
   Solution: In most of the cases we found that the issue was caused by the jars not being in the folder and causing
             the services not to start. Running `mvn clean -Drevision=ff-$(git rev-parse --short HEAD)-dev -DskipTests=true --batch-mode package` before should fix the issue.
-
 * Issue: no manifest found in jars. This issue might be caused by other intermediate steps and their cached result conflict with other java builds. 
          The only solution for it so far has been re-cloning the repository.
-
 * Issue: the e2e are not running from a direct pytest command after running `docker-compose up -d` inside `infra/docker-compose`because of a connection timeout. 
          It seems that sometimes postgres doesn't start properly, so it's worth checking if it's up and if it is restart feast core.
-         
-            
-  
+* Issue: e2e test `test_get_batch_features_with_file` fails occasionally caused by a `NoneType` . This issue is potentially linked to an input/fixture issue and is usually resolved by rerunning the e2e tests.
+
+
+
 
 
 [![Unit Tests](https://github.com/gojek/feast/workflows/unit%20tests/badge.svg?branch=master)](https://github.com/gojek/feast/actions?query=workflow%3A%22unit+tests%22+branch%3Amaster)
