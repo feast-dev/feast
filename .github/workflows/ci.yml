@@ -11,9 +11,9 @@ jobs:
         run: echo "${{ secrets.CONTAINERREGISTRY_USERNAME }}"
       - uses: docker/build-push-action@v1
         with:
-          username: ${{ secrets.CONTAINERREGISTRY_USERNAME }}
-          password: ${{ secrets.CONTAINERREGISTRY_PASSWORD }}
+          # username: ${{ secrets.CONTAINERREGISTRY_USERNAME }}
+          # password: ${{ secrets.CONTAINERREGISTRY_PASSWORD }}
           repository: ${{ secrets.CONTAINERREGISTRY_IMAGENAME }}
-          registry: ${{ secrets.CONTAINERREGISTRY_URL }}
+          # registry: ${{ secrets.CONTAINERREGISTRY_URL }}
           dockerfile: infra/docker/ci/Dockerfile
-          tags: v${{ github.sha }}
+          # tags: v${{ github.sha }}
