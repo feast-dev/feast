@@ -2,8 +2,6 @@ name: ci
 
 on: push
 
-runs-on: self-hosted
-
 jobs:
   build-docker-image:
     runs-on: ubuntu-latest
