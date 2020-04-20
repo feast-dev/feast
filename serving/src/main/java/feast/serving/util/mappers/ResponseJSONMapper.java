@@ -16,9 +16,15 @@
  */
 package feast.serving.util.mappers;
 
+<<<<<<< HEAD
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldValues;
 import feast.proto.types.ValueProto.Value;
+=======
+import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse;
+import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.Record;
+import feast.types.ValueProto.Value;
+>>>>>>> Update ResponseJSONMapper to use new GetOnlineFeatures protobuf
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -28,14 +34,14 @@ public class ResponseJSONMapper {
 
   public static List<Map<String, Object>> mapGetOnlineFeaturesResponse(
       GetOnlineFeaturesResponse response) {
-    return response.getFieldValuesList().stream()
-        .map(fieldValue -> convertFieldValuesToMap(fieldValue))
+    return response.getRecordsList().stream()
+        .map(fieldValue -> convertToMap(fieldValue))
         .collect(Collectors.toList());
   }
 
-  private static Map<String, Object> convertFieldValuesToMap(FieldValues fieldValues) {
-    return fieldValues.getFieldsMap().entrySet().stream()
-        .collect(Collectors.toMap(es -> es.getKey(), es -> extractValue(es.getValue())));
+  private static Map<String, Object> convertToMap(Record record) {
+    return record.getFieldsMap().entrySet().stream()
+        .collect(Collectors.toMap(es -> es.getKey(), es -> extractValue(es.getValue().getValue())));
   }
 
   private static Object extractValue(Value value) {
