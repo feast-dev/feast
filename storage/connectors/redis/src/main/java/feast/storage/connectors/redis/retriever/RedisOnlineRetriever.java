@@ -62,39 +62,23 @@ public class RedisOnlineRetriever implements OnlineRetriever {
     return new RedisOnlineRetriever(connection);
   }
 
-  /**
-   * Gets online features from redis store for the given entity rows using data retrieved from the
-   * feature/featureset specified in feature set requests.
-   *
-   * <p>This method returns a list of {@link FeatureRow}s corresponding to each feature set spec.
-   * Each feature row in the list then corresponds to an {@link EntityRow} provided by the user. If
-   * feature for a given entity row is not found, will return null in place of the {@link FeatureRow}.
-   *
-   * @param featureSetRequests List of {@link FeatureSetRequest} specifying the features/feature set
-   *     to retrieve data from.
-   * @return list of lists of {@link FeatureRow}s corresponding to data retrieved for each feature
-   *     set request and entity row.
-   */
   @Override
-  public List<List<FeatureRow>> getOnlineFeatures(
-      List<EntityRow> entityRows, List<FeatureSetRequest> featureSetRequests) {
+  public List<FeatureRow> getOnlineFeatures(
+      List<EntityRow> entityRows, FeatureSetRequest featureSetRequest) {
 
-    List<List<FeatureRow>> featureRows = new ArrayList<>();
-    for (FeatureSetRequest featureSetRequest : featureSetRequests) {
-      // get features for this features/featureset in featureset request
-      FeatureSetSpec featureSetSpec = featureSetRequest.getSpec();
-      List<RedisKey> redisKeys = buildRedisKeys(entityRows, featureSetSpec);
-      FeatureRowDecoder decoder =
-          new FeatureRowDecoder(generateFeatureSetStringRef(featureSetSpec), featureSetSpec);
-      try {
-        List<FeatureRow> featureRowsForFeatureSet = getFeaturesForFeatureSet(redisKeys, decoder);
-        featureRows.add(featureRowsForFeatureSet);
-      } catch (InvalidProtocolBufferException | ExecutionException e) {
-        throw Status.INTERNAL
-            .withDescription("Unable to parse protobuf while retrieving feature")
-            .withCause(e)
-            .asRuntimeException();
-      }
+    // get features for this features/featureset in featureset request
+    FeatureSetSpec featureSetSpec = featureSetRequest.getSpec();
+    List<RedisKey> redisKeys = buildRedisKeys(entityRows, featureSetSpec);
+    FeatureRowDecoder decoder =
+        new FeatureRowDecoder(generateFeatureSetStringRef(featureSetSpec), featureSetSpec);
+    List<FeatureRow> featureRows = new ArrayList<>();
+    try {
+      featureRows = getFeaturesForFeatureSet(redisKeys, decoder);
+    } catch (InvalidProtocolBufferException | ExecutionException e) {
+      throw Status.INTERNAL
+          .withDescription("Unable to parse protobuf while retrieving feature")
+          .withCause(e)
+          .asRuntimeException();
     }
 
     return featureRows;

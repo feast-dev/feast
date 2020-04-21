@@ -25,18 +25,18 @@ public interface OnlineRetriever {
 
   /**
    * Get online features for the given entity rows using data retrieved from the feature/featureset
-   * specified in feature set requests.
+   * specified in feature set request.
    *
-   * <p>This method returns a list of {@link FeatureRow}s corresponding to each feature set spec.
-   * Each feature row in the list then corresponds to an {@link EntityRow} provided by the user. If
-   * feature for a given entity row is not found, will return null in place of the {@link FeatureRow}.
+   * <p>Each {@link FeatureRow} in the returned list then corresponds to an {@link EntityRow}
+   * provided by the user. If feature for a given entity row is not found, will return null in place
+   * of the {@link FeatureRow}. The no. of {@link FeatureRow} returned should match the no. of given
+   * {@link EntityRow}s
    *
-   * @param entityRows list of entity rows to request.
-   * @param featureSetRequests List of {@link FeatureSetRequest} specifying the features/feature set
-   *     to retrieve data from.
-   * @return list of lists of {@link FeatureRow}s corresponding to data retrieved for each feature
-   *     set request and entity row.
+   * @param entityRows list of entity rows to request features for.
+   * @param featureSetRequest specifies the features/feature set to retrieve data from
+   * @return list of {@link FeatureRow}s corresponding to data retrieved for each entity row from
+   *     feature/featureset specified in featureset request.
    */
-  List<List<FeatureRow>> getOnlineFeatures(
-      List<EntityRow> entityRows, List<FeatureSetRequest> featureSetRequests);
+  List<FeatureRow> getOnlineFeatures(
+      List<EntityRow> entityRows, FeatureSetRequest featureSetRequest);
 }

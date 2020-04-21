@@ -113,8 +113,8 @@ public class OnlineServingServiceTest {
     when(specService.getFeatureSets(request.getFeaturesList()))
         .thenReturn(Collections.singletonList(featureSetRequest));
     when(retriever.getOnlineFeatures(
-            request.getEntityRowsList(), Collections.singletonList(featureSetRequest)))
-        .thenReturn(Collections.singletonList(featureRows));
+            request.getEntityRowsList(), featureSetRequest))
+        .thenReturn(featureRows);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected =
@@ -193,8 +193,8 @@ public class OnlineServingServiceTest {
     when(specService.getFeatureSets(request.getFeaturesList()))
         .thenReturn(Collections.singletonList(featureSetRequest));
     when(retriever.getOnlineFeatures(
-            request.getEntityRowsList(), Collections.singletonList(featureSetRequest)))
-        .thenReturn(Collections.singletonList(featureRows));
+            request.getEntityRowsList(), featureSetRequest))
+        .thenReturn(featureRows);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected =
@@ -263,8 +263,8 @@ public class OnlineServingServiceTest {
     when(specService.getFeatureSets(request.getFeaturesList()))
         .thenReturn(Collections.singletonList(featureSetRequest));
     when(retriever.getOnlineFeatures(
-            request.getEntityRowsList(), Collections.singletonList(featureSetRequest)))
-        .thenReturn(Collections.singletonList(featureRows));
+            request.getEntityRowsList(), featureSetRequest))
+        .thenReturn(featureRows);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected =
@@ -343,8 +343,8 @@ public class OnlineServingServiceTest {
     when(specService.getFeatureSets(request.getFeaturesList()))
         .thenReturn(Collections.singletonList(featureSetRequest));
     when(retriever.getOnlineFeatures(
-            request.getEntityRowsList(), Collections.singletonList(featureSetRequest)))
-        .thenReturn(Collections.singletonList(featureRows));
+            request.getEntityRowsList(), featureSetRequest))
+        .thenReturn(featureRows);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected =
@@ -417,8 +417,8 @@ public class OnlineServingServiceTest {
     when(specService.getFeatureSets(request.getFeaturesList()))
         .thenReturn(Collections.singletonList(featureSetRequest));
     when(retriever.getOnlineFeatures(
-            request.getEntityRowsList(), Collections.singletonList(featureSetRequest)))
-        .thenReturn(Collections.singletonList(featureRows));
+            request.getEntityRowsList(), featureSetRequest))
+        .thenReturn(featureRows);
     when(tracer.buildSpan(ArgumentMatchers.any())).thenReturn(Mockito.mock(SpanBuilder.class));
 
     GetOnlineFeaturesResponse expected =

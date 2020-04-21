@@ -74,21 +74,13 @@ public class OnlineServingService implements ServingService {
           entityRows.stream()
               .collect(Collectors.toMap(row -> row, row -> Maps.newHashMap(row.getFieldsMap())));
 
-      // Pull feature rows for each feature set request from the retriever.
-      // Each feature row list corresponds to a single feature set request.
-      List<List<FeatureRow>> featureRows =
-          retriever.getOnlineFeatures(entityRows, featureSetRequests);
-      if (scope != null) {
-        scope.span().log(ImmutableMap.of("event", "featureRows", "value", featureRows));
-      }
-
       // Match entity rows request with the features defined in the feature spec.
       // For each feature set request, read the feature rows returned by the retriever, and
       // populate the featureValuesMap with the feature values corresponding to that entity row.
-      for (var fsIdx = 0; fsIdx < featureRows.size(); fsIdx++) {
-        List<FeatureRow> featureRowsForFs = featureRows.get(fsIdx);
-        FeatureSetRequest featureSetRequest = featureSetRequests.get(fsIdx);
-
+      for (FeatureSetRequest featureSetRequest : featureSetRequests) {
+        // Pull feature rows for each feature set request from the retriever.
+        List<FeatureRow> featureRows = retriever.getOnlineFeatures(entityRows, featureSetRequest);
+        
         String project = featureSetRequest.getSpec().getProject();
 
         // In order to return values containing the same feature references provided by the user,
@@ -98,7 +90,7 @@ public class OnlineServingService implements ServingService {
         // Each feature row returned (per feature set request) corresponds to a given entity row.
         // For each feature row, update the featureValuesMap.
         for (var entityRowIdx = 0; entityRowIdx < entityRows.size(); entityRowIdx++) {
-          FeatureRow featureRow = featureRowsForFs.get(entityRowIdx);
+          FeatureRow featureRow = featureRows.get(entityRowIdx);
           EntityRow entityRow = entityRows.get(entityRowIdx);
 
           // If the row is stale, put an empty value into the featureValuesMap.
