@@ -73,9 +73,9 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
         .setBigquery(bigquery)
         .setDatasetId(config.get("dataset_id"))
         .setProjectId(config.get("project_id"))
-        .setJobStagingLocation(config.get("staging-location"))
-        .setInitialRetryDelaySecs(Integer.parseInt(config.get("bigquery-initial-retry-delay-secs")))
-        .setTotalTimeoutSecs(Integer.parseInt(config.get("bigquery-total-timeout-secs")))
+        .setJobStagingLocation(config.get("staging_location"))
+        .setInitialRetryDelaySecs(Integer.parseInt(config.get("bigquery_initial_retry_delay_secs")))
+        .setTotalTimeoutSecs(Integer.parseInt(config.get("bigquery_total_timeout_secs")))
         .setStorage(storage)
         .build();
   }
