@@ -55,7 +55,7 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
     BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
     Storage storage = StorageOptions.getDefaultInstance().getService();
 
-    String jobStagingLocation = config.get("staging-location");
+    String jobStagingLocation = config.get("staging_location");
     if (!jobStagingLocation.contains("://")) {
       throw new IllegalArgumentException(
           String.format("jobStagingLocation is not a valid URI: %s", jobStagingLocation));
@@ -74,8 +74,8 @@ public abstract class BigQueryHistoricalRetriever implements HistoricalRetriever
         .setDatasetId(config.get("dataset_id"))
         .setProjectId(config.get("project_id"))
         .setJobStagingLocation(config.get("staging_location"))
-        .setInitialRetryDelaySecs(Integer.parseInt(config.get("bigquery_initial_retry_delay_secs")))
-        .setTotalTimeoutSecs(Integer.parseInt(config.get("bigquery_total_timeout_secs")))
+        .setInitialRetryDelaySecs(Integer.parseInt(config.get("initial_retry_delay_seconds")))
+        .setTotalTimeoutSecs(Integer.parseInt(config.get("total_timeout_seconds")))
         .setStorage(storage)
         .build();
   }

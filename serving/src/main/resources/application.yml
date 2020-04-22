@@ -38,9 +38,9 @@ feast:
         # Please omit the trailing slash in the URI.
         staging_location: gs://mybucket/myprefix
         # Retry options for BigQuery retrieval jobs
-        bigquery_initial_retry_delay_secs: 1
+        initial_retry_delay_seconds: 1
         # BigQuery timeout for retrieval jobs
-        bigquery_total_timeout_secs: 21600
+        total_timeout_seconds: 21600
       subscriptions:
         - name: "*"
           project: "*"
