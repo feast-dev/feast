@@ -1,7 +1,7 @@
 WITH subset AS (
 SELECT * FROM `{{ projectId }}.{{ datasetId }}.{{ featureSet.project }}_{{ featureSet.name }}_v{{ featureSet.version }}`
 {% if featureSet.datasetId == "" %}
-WHERE event_timestamp >= '{{ featureSet.date }} 00:00:00 UTC' AND event_timestamp < DATETIME_ADD('{{ featureSet.date }}  00:00:00 UTC', INTERVAL 1 DAY)
+WHERE DATE(event_timestamp) = '{{ featureSet.date }}'
 {% else %}
 WHERE dataset_id='{{ featureSet.datasetId }}'
 {% endif %}

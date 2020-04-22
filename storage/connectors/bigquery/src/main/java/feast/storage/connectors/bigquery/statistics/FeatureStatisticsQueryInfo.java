@@ -23,19 +23,19 @@ import feast.types.ValueProto.ValueType.Enum;
 /**
  * Value class for Features containing information necessary to template stats-retrieving queries.
  */
-public class FieldStatisticsQueryInfo {
+public class FeatureStatisticsQueryInfo {
   // Name of the field
   private final String name;
 
   // Type of the field
   private final String type;
 
-  private FieldStatisticsQueryInfo(String name, String type) {
+  private FeatureStatisticsQueryInfo(String name, String type) {
     this.name = name;
     this.type = type;
   }
 
-  public static FieldStatisticsQueryInfo fromProto(FeatureSpec featureSpec) {
+  public static FeatureStatisticsQueryInfo fromProto(FeatureSpec featureSpec) {
     Enum valueType = featureSpec.getValueType();
     switch (valueType) {
       case FLOAT:
@@ -43,11 +43,11 @@ public class FieldStatisticsQueryInfo {
       case INT32:
       case INT64:
       case BOOL:
-        return new FieldStatisticsQueryInfo(featureSpec.getName(), "NUMERIC");
+        return new FeatureStatisticsQueryInfo(featureSpec.getName(), "NUMERIC");
       case STRING:
-        return new FieldStatisticsQueryInfo(featureSpec.getName(), "CATEGORICAL");
+        return new FeatureStatisticsQueryInfo(featureSpec.getName(), "CATEGORICAL");
       case BYTES:
-        return new FieldStatisticsQueryInfo(featureSpec.getName(), "BYTES");
+        return new FeatureStatisticsQueryInfo(featureSpec.getName(), "BYTES");
       case BYTES_LIST:
       case BOOL_LIST:
       case FLOAT_LIST:
@@ -55,14 +55,14 @@ public class FieldStatisticsQueryInfo {
       case INT64_LIST:
       case DOUBLE_LIST:
       case STRING_LIST:
-        return new FieldStatisticsQueryInfo(featureSpec.getName(), "LIST");
+        return new FeatureStatisticsQueryInfo(featureSpec.getName(), "LIST");
       default:
         throw new IllegalArgumentException(
             String.format("Invalid feature type provided: %s", valueType));
     }
   }
 
-  public static FieldStatisticsQueryInfo fromProto(EntitySpec entitySpec) {
+  public static FeatureStatisticsQueryInfo fromProto(EntitySpec entitySpec) {
     Enum valueType = entitySpec.getValueType();
     switch (valueType) {
       case FLOAT:
@@ -70,11 +70,11 @@ public class FieldStatisticsQueryInfo {
       case INT32:
       case INT64:
       case BOOL:
-        return new FieldStatisticsQueryInfo(entitySpec.getName(), "NUMERIC");
+        return new FeatureStatisticsQueryInfo(entitySpec.getName(), "NUMERIC");
       case STRING:
-        return new FieldStatisticsQueryInfo(entitySpec.getName(), "CATEGORICAL");
+        return new FeatureStatisticsQueryInfo(entitySpec.getName(), "CATEGORICAL");
       case BYTES:
-        return new FieldStatisticsQueryInfo(entitySpec.getName(), "BYTES");
+        return new FeatureStatisticsQueryInfo(entitySpec.getName(), "BYTES");
       case BYTES_LIST:
       case BOOL_LIST:
       case FLOAT_LIST:
@@ -82,7 +82,7 @@ public class FieldStatisticsQueryInfo {
       case INT64_LIST:
       case DOUBLE_LIST:
       case STRING_LIST:
-        return new FieldStatisticsQueryInfo(entitySpec.getName(), "LIST");
+        return new FeatureStatisticsQueryInfo(entitySpec.getName(), "LIST");
       default:
         throw new IllegalArgumentException(
             String.format("Invalid entity type provided: %s", valueType));

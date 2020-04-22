@@ -50,7 +50,7 @@ public class FeatureSetStatisticsQueryInfo {
   private final List<String> entityNames;
 
   // List of fields to get stats for
-  private final List<FieldStatisticsQueryInfo> features;
+  private final List<FeatureStatisticsQueryInfo> features;
 
   public FeatureSetStatisticsQueryInfo(String project, String name, int version, String datasetId) {
     this.project = project;
@@ -73,12 +73,12 @@ public class FeatureSetStatisticsQueryInfo {
   }
 
   public void addFeature(FeatureSpec featureSpec) {
-    this.features.add(FieldStatisticsQueryInfo.fromProto(featureSpec));
+    this.features.add(FeatureStatisticsQueryInfo.fromProto(featureSpec));
   }
 
   public void addEntity(EntitySpec entitySpec) {
     this.entityNames.add(entitySpec.getName());
-    this.features.add(FieldStatisticsQueryInfo.fromProto(entitySpec));
+    this.features.add(FeatureStatisticsQueryInfo.fromProto(entitySpec));
   }
 
   public String getProject() {
@@ -105,7 +105,7 @@ public class FeatureSetStatisticsQueryInfo {
     return entityNames;
   }
 
-  public List<FieldStatisticsQueryInfo> getFeatures() {
+  public List<FeatureStatisticsQueryInfo> getFeatures() {
     return features;
   }
 }

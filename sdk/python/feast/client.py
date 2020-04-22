@@ -928,12 +928,10 @@ class Client:
         else:
             if start_date is not None:
                 request.start_date.CopyFrom(
-                    Timestamp(seconds=int(start_date.strftime("%s")))
+                    Timestamp(seconds=int(start_date.timestamp()))
                 )
             if end_date is not None:
-                request.end_date.CopyFrom(
-                    Timestamp(seconds=int(end_date.strftime("%s")))
-                )
+                request.end_date.CopyFrom(Timestamp(seconds=int(end_date.timestamp())))
 
         return self._core_service_stub.GetFeatureStatistics(
             request

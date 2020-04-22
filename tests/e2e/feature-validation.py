@@ -18,6 +18,7 @@ from google.protobuf.json_format import MessageToDict
 pd.set_option("display.max_columns", None)
 
 PROJECT_NAME = "batch_" + uuid.uuid4().hex.upper()[0:6]
+STORE_NAME = "historical"
 
 
 @pytest.fixture(scope="module")
@@ -76,10 +77,11 @@ def dataset_basic(client, feature_validation_feature_set):
     clear_unsupported_fields(expected_stats)
 
     return {
+        "df": df,
         "id": client.ingest(feature_validation_feature_set, df),
-        "date": datetime(
-            time_offset.year, time_offset.month, time_offset.day
-        ).replace(tzinfo=pytz.utc),
+        "date": datetime(time_offset.year, time_offset.month, time_offset.day).replace(
+            tzinfo=pytz.utc
+        ),
         "stats": expected_stats,
     }
 
@@ -88,7 +90,7 @@ def dataset_basic(client, feature_validation_feature_set):
 def dataset_agg(client, feature_validation_feature_set):
     time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
     start_date = time_offset - timedelta(days=10)
-    end_date = time_offset - timedelta(days=8)
+    end_date = time_offset - timedelta(days=7)
     df1 = pd.DataFrame(
         {
             "datetime": [start_date] * 5,
@@ -126,17 +128,18 @@ def dataset_agg(client, feature_validation_feature_set):
         "start_date": datetime(
             start_date.year, start_date.month, start_date.day
         ).replace(tzinfo=pytz.utc),
-        "end_date": datetime(
-            end_date.year, end_date.month, end_date.day
-        ).replace(tzinfo=pytz.utc),
+        "end_date": datetime(end_date.year, end_date.month, end_date.day).replace(
+            tzinfo=pytz.utc
+        ),
         "stats": expected_stats,
     }
 
 
 def test_basic_retrieval_by_single_dataset(client, dataset_basic):
     stats = client.get_statistics(
+        f"{PROJECT_NAME}/feature_validation:1",
         features=["strings", "ints", "floats"],
-        store="bigquery",
+        store=STORE_NAME,
         dataset_ids=[dataset_basic["id"]],
     )
 
@@ -145,18 +148,20 @@ def test_basic_retrieval_by_single_dataset(client, dataset_basic):
 
 def test_basic_by_date(client, dataset_basic):
     stats = client.get_statistics(
+        f"{PROJECT_NAME}/feature_validation:1",
         features=["strings", "ints", "floats"],
-        store="bigquery",
+        store=STORE_NAME,
         start_date=dataset_basic["date"],
-        end_date=dataset_basic["date"],
+        end_date=dataset_basic["date"] + timedelta(days=1),
     )
     assert_stats_equal(dataset_basic["stats"], stats)
 
 
 def test_agg_over_datasets(client, dataset_agg):
     stats = client.get_statistics(
+        f"{PROJECT_NAME}/feature_validation:1",
         features=["strings", "ints", "floats"],
-        store="bigquery",
+        store=STORE_NAME,
         dataset_ids=[dataset_basic["ids"]],
     )
     assert_stats_equal(dataset_basic["stats"], stats)
@@ -164,12 +169,43 @@ def test_agg_over_datasets(client, dataset_agg):
 
 def test_agg_over_dates(client, dataset_agg):
     stats = client.get_statistics(
+        f"{PROJECT_NAME}/feature_validation:1",
         features=["strings", "ints", "floats"],
-        store="bigquery",
-        start_date=dataset_basic["start_date"],
-        end_date=dataset_basic["end_date"],
+        store=STORE_NAME,
+        start_date=dataset_agg["start_date"],
+        end_date=dataset_agg["end_date"],
     )
-    assert_stats_equal(dataset_basic["stats"], stats)
+    assert_stats_equal(dataset_agg["stats"], stats)
+
+
+def test_force_refresh(client, dataset_basic, feature_validation_feature_set):
+    df = dataset_basic["df"]
+
+    df2 = pd.DataFrame(
+        {
+            "datetime": [df.iloc[0].datetime],
+            "entity_id": [10],
+            "strings": ["c"],
+            "ints": [2],
+            "floats": [1.3],
+        }
+    )
+    client.ingest(feature_validation_feature_set, df2)
+
+    actual_stats = client.get_statistics(
+        f"{PROJECT_NAME}/feature_validation:1",
+        features=["strings", "ints", "floats"],
+        store="historical",
+        start_date=dataset_basic["date"],
+        end_date=dataset_basic["date"] + timedelta(days=1),
+        force_refresh=True,
+    )
+
+    combined_df = pd.concat([df, df2])
+    expected_stats = tfdv.generate_statistics_from_dataframe(combined_df)
+    clear_unsupported_fields(expected_stats)
+
+    assert_stats_equal(expected_stats, actual_stats)
 
 
 def clear_unsupported_fields(datasets):
