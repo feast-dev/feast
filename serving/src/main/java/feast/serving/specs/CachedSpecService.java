@@ -26,8 +26,6 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import feast.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
-import feast.core.CoreServiceProto.UpdateStoreRequest;
-import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto.FeatureSet;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;

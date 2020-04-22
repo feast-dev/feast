@@ -19,14 +19,14 @@ package feast.serving.service;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
 import com.google.common.collect.Lists;
 import feast.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
-import feast.core.CoreServiceProto.UpdateStoreRequest;
-import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSpec;
@@ -82,8 +82,7 @@ public class CachedSpecServiceTest {
                     .build())
             .build();
 
-    when(coreService.updateStore(UpdateStoreRequest.newBuilder().setStore(store).build()))
-        .thenReturn(UpdateStoreResponse.newBuilder().setStore(store).build());
+    when(coreService.registerStore(store)).thenReturn(store);
 
     featureSetSpecs = new LinkedHashMap<>();
     featureSetSpecs.put(
@@ -141,6 +140,11 @@ public class CachedSpecServiceTest {
         .thenReturn(ListFeatureSetsResponse.newBuilder().addAllFeatureSets(fs2FeatureSets).build());
 
     cachedSpecService = new CachedSpecService(coreService, store);
+  }
+
+  @Test
+  public void shouldRegisterStoreWithCore() {
+    verify(coreService, times(1)).registerStore(cachedSpecService.getStore());
   }
 
   @Test

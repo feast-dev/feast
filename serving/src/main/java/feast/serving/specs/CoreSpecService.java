@@ -51,14 +51,14 @@ public class CoreSpecService {
   public UpdateStoreResponse updateStore(UpdateStoreRequest updateStoreRequest) {
     return blockingStub.updateStore(updateStoreRequest);
   }
-  
+
   /**
-   * Register the given store entry in Feast Core.
-   * If store already exists in Feast Core, updates the store entry in feast core.
-   * 
+   * Register the given store entry in Feast Core. If store already exists in Feast Core, updates
+   * the store entry in feast core.
+   *
    * @param store entry to register/update in Feast Core.
    * @return The register/updated store entry
-  */
+   */
   public Store registerStore(Store store) {
     UpdateStoreRequest request = UpdateStoreRequest.newBuilder().setStore(store).build();
     try {
