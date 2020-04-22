@@ -47,7 +47,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 
-/** In-memory cache of specs. */
+/** In-memory cache of specs hosted in Feast Core. */
 public class CachedSpecService {
 
   private static final int MAX_SPEC_COUNT = 1000;
@@ -76,7 +76,7 @@ public class CachedSpecService {
 
   public CachedSpecService(CoreSpecService coreService, StoreProto.Store store) {
     this.coreService = coreService;
-    this.store = store;
+    this.store = coreService.registerStore(store);
 
     Map<String, FeatureSetSpec> featureSets = getFeatureSetMap();
     featureToFeatureSetMapping =
