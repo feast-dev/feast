@@ -289,7 +289,7 @@ message GetFeatureStatisticsRequest {
 
     // Optional filter which filters returned statistics by selected features. These
     // features must be present in the data that is being processed.
-    repeated string feature_ids = 2;
+    repeated string features = 2;
 
     // Optional filter to select store over which the statistics will retrieved.
     // Only historical stores are allowed.

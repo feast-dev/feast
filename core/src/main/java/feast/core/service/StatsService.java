@@ -103,7 +103,7 @@ public class StatsService {
 
     // 2. Filter out the features requested by the user. If none are provided,
     // use all features in the feature set.
-    List<String> features = request.getFeatureIdsList();
+    List<String> features = request.getFeaturesList();
     if (features.size() == 0) {
       features =
           featureSetSpec.getFeaturesList().stream()

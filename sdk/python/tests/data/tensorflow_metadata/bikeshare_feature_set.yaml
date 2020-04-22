@@ -3,15 +3,6 @@ spec:
   entities:
   - name: station_id
     valueType: INT64
-    intDomain:
-      min: 1
-      max: 5000
-    presence:
-      minFraction: 1.0
-      minCount: 1
-    shape:
-      dim:
-      - size: 1
   features:
   - name: location
     valueType: STRING

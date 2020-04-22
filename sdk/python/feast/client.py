@@ -919,7 +919,7 @@ class Client:
 
         request = GetFeatureStatisticsRequest(
             feature_set_id=feature_set_id,
-            feature_ids=features,
+            features=features,
             store=store,
             force_refresh=force_refresh,
         )
