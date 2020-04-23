@@ -76,7 +76,7 @@ def feature_stats_feature_set(client):
 
 
 @pytest.fixture(scope="module")
-def feature_stats_feature_stats_dataset_basic(client, feature_stats_feature_set):
+def feature_stats_dataset_basic(client, feature_stats_feature_set):
 
     N_ROWS = 20
 
@@ -107,7 +107,7 @@ def feature_stats_feature_stats_dataset_basic(client, feature_stats_feature_set)
 
 
 @pytest.fixture(scope="module")
-def feature_stats_feature_stats_dataset_agg(client, feature_stats_feature_set):
+def feature_stats_dataset_agg(client, feature_stats_feature_set):
     time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
     start_date = time_offset - timedelta(days=10)
     end_date = time_offset - timedelta(days=7)
