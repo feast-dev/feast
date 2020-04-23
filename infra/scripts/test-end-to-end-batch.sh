@@ -116,7 +116,7 @@ grpc:
 
 feast:
   jobs:
-    polling_interval_milliseconds: 30000
+    polling_interval_milliseconds: 10000
     job_update_timeout_seconds: 240
 
     active_runner: direct

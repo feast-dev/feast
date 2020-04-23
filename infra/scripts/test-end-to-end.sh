@@ -177,7 +177,7 @@ grpc:
 
 server:
   port: 8081
-  
+
 EOF
 
 nohup java -jar serving/target/feast-serving-*${JAR_VERSION_SUFFIX}.jar \
