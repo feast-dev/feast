@@ -115,13 +115,17 @@ grpc:
   enable-reflection: true
 
 feast:
-  version: 0.3
   jobs:
-    runner: DirectRunner
-    options: {}
-    updates:
-      pollingIntervalMillis: 30000
-      timeoutSeconds: 240
+    polling_interval_milliseconds: 10000
+    job_update_timeout_seconds: 240
+
+    active_runner: direct
+
+    runners:
+      - name: direct
+        type: DirectRunner
+        options: {}
+
     metrics:
       enabled: false
 
@@ -137,21 +141,15 @@ spring:
   jpa:
     properties.hibernate:
       format_sql: true
-      event.merge.entity_copy_observer: allow
+      event:
+        merge:
+          entity_copy_observer: allow
     hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
     hibernate.ddl-auto: update
   datasource:
     url: jdbc:postgresql://localhost:5432/postgres
     username: postgres
     password: password
-
-management:
-  metrics:
-    export:
-      simple:
-        enabled: false
-      statsd:
-        enabled: false
 EOF
 
 nohup java -jar core/target/feast-core-*${JAR_VERSION_SUFFIX}.jar \
@@ -175,42 +173,45 @@ bq --location=US --project_id=${GOOGLE_CLOUD_PROJECT} mk \
   ${GOOGLE_CLOUD_PROJECT}:${DATASET_NAME}
 
 # Start Feast Online Serving in background
-cat <<EOF > /tmp/serving.store.bigquery.yml
-name: warehouse
-type: BIGQUERY
-bigquery_config:
-  projectId: ${GOOGLE_CLOUD_PROJECT}
-  datasetId: ${DATASET_NAME}
-subscriptions:
-  - name: "*"
-    version: "*"
-    project: "*"
-EOF
-
 cat <<EOF > /tmp/serving.warehouse.application.yml
 feast:
-  version: 0.3
+  # GRPC service address for Feast Core
+  # Feast Serving requires connection to Feast Core to retrieve and reload Feast metadata (e.g. FeatureSpecs, Store information)
   core-host: localhost
   core-grpc-port: 6565
+
+  # Indicates the active store. Only a single store in the last can be active at one time. In the future this key
+  # will be deprecated in order to allow multiple stores to be served from a single serving instance
+  active_store: historical
+
+  # List of store configurations
+  stores:
+    - name: historical
+      type: BIGQUERY
+      config:
+        project_id: ${GOOGLE_CLOUD_PROJECT}
+        dataset_id: ${DATASET_NAME}
+        staging_location: ${JOBS_STAGING_LOCATION}
+        initial_retry_delay_seconds: 1
+        total_timeout_seconds: 21600
+      subscriptions:
+        - name: "*"
+          project: "*"
+          version: "*"
+
+  job_store:
+    redis_host: localhost
+    redis_port: 6379
+
   tracing:
     enabled: false
-  store:
-    config-path: /tmp/serving.store.bigquery.yml
-  jobs:
-    staging-location: ${JOBS_STAGING_LOCATION}
-    store-type: REDIS
-    bigquery-initial-retry-delay-secs: 1
-    bigquery-total-timeout-secs: 900
-    store-options:
-      host: localhost
-      port: 6379
+
 grpc:
   port: 6566
   enable-reflection: true
 
-spring:
-  main:
-    web-environment: false
+server:
+  port: 8081
 
 EOF
 
