@@ -88,7 +88,7 @@ public class FeastClient implements AutoCloseable {
    * @return list of {@link Row} containing retrieved data fields.
    */
   public List<Row> getOnlineFeatures(List<String> featureRefs, List<Row> rows, String project) {
-    return getOnlineFeatures(featureRefs, rows, project, false);
+    return getOnlineFeatures(featureRefs, rows, project, false, false);
   }
 
   /**
@@ -114,10 +114,15 @@ public class FeastClient implements AutoCloseable {
    *     Feature requested belong to.
    * @param omitEntitiesInResponse if true, the returned {@link Row} will not contain field and
    *     value for the entity
+   * @param includeMetadataInResponse if true, will include field status metadata in {@link Row}.
    * @return list of {@link Row} containing retrieved data fields.
    */
   public List<Row> getOnlineFeatures(
-      List<String> featureRefs, List<Row> rows, String project, boolean omitEntitiesInResponse) {
+      List<String> featureRefs, 
+      List<Row> rows, String 
+      project, 
+      boolean omitEntitiesInResponse,
+      boolean includeMetadataInResponse) {
     List<FeatureReference> features = RequestUtil.createFeatureRefs(featureRefs, project);
     // build entity rows and collect entity references
     HashSet<String> entityRefs = new HashSet<>();
@@ -139,6 +144,7 @@ public class FeastClient implements AutoCloseable {
                 .addAllFeatures(features)
                 .addAllEntityRows(entityRows)
                 .setOmitEntitiesInResponse(omitEntitiesInResponse)
+                .setIncludeMetadataInResponse(includeMetadataInResponse)
                 .build());
 
     return response.getRecordsList().stream()
@@ -149,7 +155,7 @@ public class FeastClient implements AutoCloseable {
                   .getFieldsMap()
                   .forEach(
                       (name, field) -> {
-                        row.set(name, field.getValue());
+                        row.set(name, field.getValue(), field.getStatus());
                       });
               return row;
             })

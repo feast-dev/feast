@@ -21,6 +21,7 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import feast.proto.types.ValueProto.Value;
 import feast.proto.types.ValueProto.Value.ValCase;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,11 +33,13 @@ import java.util.Optional;
 public class Row {
   private Timestamp entity_timestamp;
   private HashMap<String, Value> fields;
+  private HashMap<String, FieldStatus> fieldStatuses;
 
   public static Row create() {
     Row row = new Row();
     row.entity_timestamp = Timestamps.fromMillis(System.currentTimeMillis());
     row.fields = new HashMap<>();
+    row.fieldStatuses = new HashMap<>();
     return row;
   }
 
@@ -54,7 +57,7 @@ public class Row {
     return this;
   }
 
-  public Row set(String fieldName, Object value) {
+  public Row set(String fieldName, Object value, FieldStatus status) {
     String valueType = value.getClass().getCanonicalName();
     switch (valueType) {
       case "java.lang.Integer":
@@ -85,13 +88,15 @@ public class Row {
                 "Type '%s' is unsupported in Feast. Please use one of these value types: Integer, Long, Float, Double, String, byte[].",
                 valueType));
     }
+   
+    fieldStatuses.put(fieldName, status);
     return this;
   }
 
   public Map<String, Value> getFields() {
     return fields;
   }
-
+  
   public Integer getInt(String fieldName) {
     return getValue(fieldName).map(Value::getInt32Val).orElse(null);
   }
@@ -114,6 +119,14 @@ public class Row {
 
   public byte[] getByte(String fieldName) {
     return getValue(fieldName).map(Value::getBytesVal).map(ByteString::toByteArray).orElse(null);
+  }
+
+  public Map<String, FieldStatus> getFieldStatuses() {
+    return fieldStatuses;
+  }
+
+  public FieldStatus getFieldStatus(String fieldName) {
+    return fieldStatuses.get(fieldName);
   }
 
   @Override
