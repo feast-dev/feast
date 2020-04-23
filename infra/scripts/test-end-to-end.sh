@@ -174,6 +174,10 @@ feast:
 grpc:
   port: 6566
   enable-reflection: true
+
+server:
+  port: 8081
+  
 EOF
 
 nohup java -jar serving/target/feast-serving-*${JAR_VERSION_SUFFIX}.jar \
