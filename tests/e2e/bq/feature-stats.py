@@ -22,6 +22,26 @@ STORE_NAME = "historical"
 
 
 @pytest.fixture(scope="module")
+def core_url(pytestconfig):
+    return pytestconfig.getoption("core_url")
+
+
+@pytest.fixture(scope="module")
+def serving_url(pytestconfig):
+    return pytestconfig.getoption("serving_url")
+
+
+@pytest.fixture(scope="module")
+def allow_dirty(pytestconfig):
+    return True if pytestconfig.getoption("allow_dirty").lower() == "true" else False
+
+
+@pytest.fixture(scope="module")
+def gcs_path(pytestconfig):
+    return pytestconfig.getoption("gcs_path")
+
+
+@pytest.fixture(scope="module")
 def client(core_url, allow_dirty):
     # Get client for core and serving
     client = Client(core_url=core_url)
@@ -40,9 +60,9 @@ def client(core_url, allow_dirty):
 
 
 @pytest.fixture(scope="module")
-def feature_validation_feature_set(client):
+def feature_stats_feature_set(client):
     fv_fs = FeatureSet(
-        "feature_validation",
+        "feature_stats",
         features=[
             Feature("strings", ValueType.STRING),
             Feature("ints", ValueType.INT64),
@@ -56,7 +76,7 @@ def feature_validation_feature_set(client):
 
 
 @pytest.fixture(scope="module")
-def dataset_basic(client, feature_validation_feature_set):
+def feature_stats_feature_stats_dataset_basic(client, feature_stats_feature_set):
 
     N_ROWS = 20
 
@@ -78,7 +98,7 @@ def dataset_basic(client, feature_validation_feature_set):
 
     return {
         "df": df,
-        "id": client.ingest(feature_validation_feature_set, df),
+        "id": client.ingest(feature_stats_feature_set, df),
         "date": datetime(time_offset.year, time_offset.month, time_offset.day).replace(
             tzinfo=pytz.utc
         ),
@@ -87,7 +107,7 @@ def dataset_basic(client, feature_validation_feature_set):
 
 
 @pytest.fixture(scope="module")
-def dataset_agg(client, feature_validation_feature_set):
+def feature_stats_feature_stats_dataset_agg(client, feature_stats_feature_set):
     time_offset = datetime.utcnow().replace(tzinfo=pytz.utc)
     start_date = time_offset - timedelta(days=10)
     end_date = time_offset - timedelta(days=7)
@@ -100,7 +120,7 @@ def dataset_agg(client, feature_validation_feature_set):
             "floats": [2.1, 5.2, 4.3, 0.6, 0.1],
         }
     )
-    dataset_id_1 = client.ingest(feature_validation_feature_set, df1)
+    dataset_id_1 = client.ingest(feature_stats_feature_set, df1)
     df2 = pd.DataFrame(
         {
             "datetime": [start_date + timedelta(days=1)] * 3,
@@ -110,7 +130,7 @@ def dataset_agg(client, feature_validation_feature_set):
             "floats": [1.6, 2.4, 2],
         }
     )
-    dataset_id_2 = client.ingest(feature_validation_feature_set, df2)
+    dataset_id_2 = client.ingest(feature_stats_feature_set, df2)
 
     combined_df = pd.concat([df1, df2])[["entity_id", "strings", "ints", "floats"]]
     expected_stats = tfdv.generate_statistics_from_dataframe(combined_df)
@@ -135,51 +155,53 @@ def dataset_agg(client, feature_validation_feature_set):
     }
 
 
-def test_basic_retrieval_by_single_dataset(client, dataset_basic):
+def test_feature_stats_retrieval_by_single_dataset(client, feature_stats_dataset_basic):
     stats = client.get_statistics(
         f"{PROJECT_NAME}/feature_validation:1",
         features=["strings", "ints", "floats"],
         store=STORE_NAME,
-        dataset_ids=[dataset_basic["id"]],
+        dataset_ids=[feature_stats_dataset_basic["id"]],
     )
 
-    assert_stats_equal(dataset_basic["stats"], stats)
+    assert_stats_equal(feature_stats_dataset_basic["stats"], stats)
 
 
-def test_basic_by_date(client, dataset_basic):
+def test_feature_stats_by_date(client, feature_stats_dataset_basic):
     stats = client.get_statistics(
         f"{PROJECT_NAME}/feature_validation:1",
         features=["strings", "ints", "floats"],
         store=STORE_NAME,
-        start_date=dataset_basic["date"],
-        end_date=dataset_basic["date"] + timedelta(days=1),
+        start_date=feature_stats_dataset_basic["date"],
+        end_date=feature_stats_dataset_basic["date"] + timedelta(days=1),
     )
-    assert_stats_equal(dataset_basic["stats"], stats)
+    assert_stats_equal(feature_stats_dataset_basic["stats"], stats)
 
 
-def test_agg_over_datasets(client, dataset_agg):
+def test_feature_stats_agg_over_datasets(client, feature_stats_dataset_agg):
     stats = client.get_statistics(
         f"{PROJECT_NAME}/feature_validation:1",
         features=["strings", "ints", "floats"],
         store=STORE_NAME,
-        dataset_ids=[dataset_basic["ids"]],
+        dataset_ids=[feature_stats_dataset_basic["ids"]],
     )
-    assert_stats_equal(dataset_basic["stats"], stats)
+    assert_stats_equal(feature_stats_dataset_basic["stats"], stats)
 
 
-def test_agg_over_dates(client, dataset_agg):
+def test_feature_stats_agg_over_dates(client, feature_stats_dataset_agg):
     stats = client.get_statistics(
         f"{PROJECT_NAME}/feature_validation:1",
         features=["strings", "ints", "floats"],
         store=STORE_NAME,
-        start_date=dataset_agg["start_date"],
-        end_date=dataset_agg["end_date"],
+        start_date=feature_stats_dataset_agg["start_date"],
+        end_date=feature_stats_dataset_agg["end_date"],
     )
-    assert_stats_equal(dataset_agg["stats"], stats)
+    assert_stats_equal(feature_stats_dataset_agg["stats"], stats)
 
 
-def test_force_refresh(client, dataset_basic, feature_validation_feature_set):
-    df = dataset_basic["df"]
+def test_feature_stats_force_refresh(
+    client, feature_stats_dataset_basic, feature_stats_feature_set
+):
+    df = feature_stats_dataset_basic["df"]
 
     df2 = pd.DataFrame(
         {
@@ -190,14 +212,14 @@ def test_force_refresh(client, dataset_basic, feature_validation_feature_set):
             "floats": [1.3],
         }
     )
-    client.ingest(feature_validation_feature_set, df2)
+    client.ingest(feature_stats_feature_set, df2)
 
     actual_stats = client.get_statistics(
         f"{PROJECT_NAME}/feature_validation:1",
         features=["strings", "ints", "floats"],
         store="historical",
-        start_date=dataset_basic["date"],
-        end_date=dataset_basic["date"] + timedelta(days=1),
+        start_date=feature_stats_dataset_basic["date"],
+        end_date=feature_stats_dataset_basic["date"] + timedelta(days=1),
         force_refresh=True,
     )
 
