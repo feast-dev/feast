@@ -189,9 +189,9 @@ feast:
     - name: historical
       type: BIGQUERY
       config:
-        project_id: my_project
-        dataset_id: my_dataset
-        staging_location: gs://mybucket/myprefix
+        project_id: ${GOOGLE_CLOUD_PROJECT}
+        dataset_id: ${DATASET_NAME}
+        staging_location: ${JOBS_STAGING_LOCATION}
         initial_retry_delay_seconds: 1
         total_timeout_seconds: 21600
       subscriptions:
