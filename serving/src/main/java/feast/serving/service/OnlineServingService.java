@@ -21,6 +21,8 @@ import com.google.common.collect.Maps;
 import com.google.protobuf.Duration;
 import feast.proto.serving.ServingAPIProto.*;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesRequest.EntityRow;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.Field;
+import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.Record;
 import feast.proto.types.ValueProto.Value;
 import feast.serving.specs.CachedSpecService;
@@ -31,8 +33,7 @@ import feast.storage.api.retriever.OnlineRetriever;
 import io.grpc.Status;
 import io.opentracing.Scope;
 import io.opentracing.Tracer;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 
@@ -63,75 +64,203 @@ public class OnlineServingService implements ServingService {
   @Override
   public GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest request) {
     try (Scope scope = tracer.buildSpan("getOnlineFeatures").startActive(true)) {
-      GetOnlineFeaturesResponse.Builder getOnlineFeaturesResponseBuilder =
-          GetOnlineFeaturesResponse.newBuilder();
-      // Build featureset requests used to pass to the retriever to retrieve feature data.
-      List<FeatureSetRequest> featureSetRequests =
-          specService.getFeatureSets(request.getFeaturesList());
       List<EntityRow> entityRows = request.getEntityRowsList();
+      // Collect the response fields corresponding by entity row in entityFieldsMap.
+      Map<EntityRow, Map<String, Field>> entityFieldsMap =
+          entityRows.stream().collect(Collectors.toMap(row -> row, row -> new HashMap<>()));
 
-      Map<EntityRow, Map<String, Value>> featureValuesMap =
-          entityRows.stream()
-              .collect(Collectors.toMap(row -> row, row -> Maps.newHashMap(row.getFieldsMap())));
-
-      // Match entity rows request with the features defined in the feature spec.
-      // For each feature set request, read the feature rows returned by the retriever, and
-      // populate the featureValuesMap with the feature values corresponding to that entity row.
-      for (FeatureSetRequest featureSetRequest : featureSetRequests) {
-        // Pull feature rows for each feature set request from the retriever.
-        List<FeatureRow> featureRows = retriever.getOnlineFeatures(entityRows, featureSetRequest);
-        
-        String project = featureSetRequest.getSpec().getProject();
-
-        // In order to return values containing the same feature references provided by the user,
-        // we reuse the feature references in the request as the keys in the featureValuesMap
-        Map<String, FeatureReference> refsByName = featureSetRequest.getFeatureRefsByName();
-
-        // Each feature row returned (per feature set request) corresponds to a given entity row.
-        // For each feature row, update the featureValuesMap.
-        for (var entityRowIdx = 0; entityRowIdx < entityRows.size(); entityRowIdx++) {
-          FeatureRow featureRow = featureRows.get(entityRowIdx);
-          EntityRow entityRow = entityRows.get(entityRowIdx);
-
-          // If the row is stale, put an empty value into the featureValuesMap.
-          // TODO: online-feature-metadata: detect stale features here.
-          if (isStale(featureSetRequest, entityRow, featureRow)) {
-            featureSetRequest
-                .getFeatureReferences()
-                .forEach(
-                    ref -> {
-                      populateStaleKeyCountMetrics(project, ref);
-                      featureValuesMap
-                          .get(entityRow)
-                          .put(RefUtil.generateFeatureStringRef(ref), Value.newBuilder().build());
-                    });
-
-          } else {
-            populateRequestCountMetrics(featureSetRequest);
-
-            // Else populate the featureValueMap at this entityRow with the values in the feature
-            // row.
-            featureRow.getFieldsList().stream()
-                .filter(field -> refsByName.containsKey(field.getName()))
-                .forEach(
-                    field -> {
-                      FeatureReference ref = refsByName.get(field.getName());
-                      String id = RefUtil.generateFeatureStringRef(ref);
-                      featureValuesMap.get(entityRow).put(id, field.getValue());
-                    });
-          }
-        }
+      if (request.getOmitEntitiesInResponse() == false) {
+        // Add entity row's fields as response fields
+        entityRows.forEach(
+            entityRow -> {
+              entityFieldsMap.get(entityRow).putAll(this.unpackFields(entityRow));
+            });
       }
 
-      // TODO: update this to return actual records
-      Record record = Record.newBuilder().build();
-      return getOnlineFeaturesResponseBuilder.addRecords(record).build();
+      List<FeatureSetRequest> featureSetRequests =
+          specService.getFeatureSets(request.getFeaturesList());
+      for (FeatureSetRequest featureSetRequest : featureSetRequests) {
+        // Pull feature rows for given entity rows from the feature/featureset specified n feature
+        // set request.
+        List<FeatureRow> featureRows = retriever.getOnlineFeatures(entityRows, featureSetRequest);
+        // Check that feature row returned corresponds to a given entity row.
+        if (featureRows.size() != entityRows.size()) {
+          throw Status.INTERNAL
+              .withDescription(
+                  "The no. of FeatureRow obtained from OnlineRetriever"
+                      + "does not match no. of entityRow passed.")
+              .asRuntimeException();
+        }
+
+        for (var i = 0; i < entityRows.size(); i++) {
+          FeatureRow featureRow = featureRows.get(i);
+          EntityRow entityRow = entityRows.get(i);
+          // Unpack feature response fields from feature row
+          Map<FeatureReference, Field> fields =
+              this.unpackFields(
+                  featureRow, entityRow, featureSetRequest, request.getIncludeMetadataInResponse());
+          // Merge feature response fields into entityFieldsMap
+          entityFieldsMap
+              .get(entityRow)
+              .putAll(
+                  fields.entrySet().stream()
+                      .collect(
+                          Collectors.toMap(
+                              es -> RefUtil.generateFeatureStringRef(es.getKey()),
+                              es -> es.getValue())));
+
+          this.populateStaleKeyCountMetrics(fields, featureSetRequest);
+        }
+        this.populateRequestCountMetrics(featureSetRequest);
+      }
+
+      // Build response records from entityFieldsMap
+      List<Record> records =
+          entityFieldsMap.values().stream()
+              .map(fields -> Record.newBuilder().putAllFields(fields).build())
+              .collect(Collectors.toList());
+      return GetOnlineFeaturesResponse.newBuilder().addAllRecords(records).build();
     }
   }
 
-  // TODO: call this based on what is returned in records.
-  private void populateStaleKeyCountMetrics(String project, FeatureReference ref) {
-    Metrics.staleKeyCount.labels(project, ref.getName()).inc();
+  /**
+   * Unpack response fields from the given entity row's fields.
+   *
+   * @param entityRow to unpack for response fields
+   * @return Map mapping of name of field to response field.
+   */
+  private Map<String, Field> unpackFields(EntityRow entityRow) {
+    return entityRow.getFieldsMap().entrySet().stream()
+        .collect(
+            Collectors.toMap(
+                es -> es.getKey(),
+                es -> {
+                  return Field.newBuilder()
+                      .setStatus(FieldStatus.PRESENT)
+                      .setValue(es.getValue())
+                      .build();
+                }));
+  }
+
+  /**
+   * Unpack response fields using data from the given feature row for features specified in the
+   * given feature set request.
+   *
+   * @param featureRow to unpack for response fields.
+   * @param entityRow for which the feature row was retrieved for.
+   * @param featureSetRequest for which the feature row was retrieved.
+   * @param includeMetadata whether metadata should be included in the response fields
+   * @return Map mapping of feature ref to response field
+   */
+  private Map<FeatureReference, Field> unpackFields(
+      FeatureRow featureRow,
+      EntityRow entityRow,
+      FeatureSetRequest featureSetRequest,
+      boolean includeMetadata) {
+    // In order to return values containing the same feature references provided by the user,
+    // we reuse the feature references in the request as the keys in field builder map
+    Map<String, FeatureReference> refsByName = featureSetRequest.getFeatureRefsByName();
+    Map<FeatureReference, Field.Builder> fields = new HashMap<>();
+
+    // populate field builder map with feature row's field's data values
+    boolean hasStaleValues = this.isStale(featureSetRequest, entityRow, featureRow);
+    if (featureRow != null) {
+      Map<FeatureReference, Field.Builder> featureFields =
+          featureRow.getFieldsList().stream()
+              .filter(featureRowField -> refsByName.containsKey(featureRowField.getName()))
+              .collect(
+                  Collectors.toMap(
+                      featureRowField -> refsByName.get(featureRowField.getName()),
+                      featureRowField -> {
+                        // omit stale feature values.
+                        if (hasStaleValues) {
+                          return Field.newBuilder().setValue(Value.newBuilder().build());
+                        } else {
+                          return Field.newBuilder().setValue(featureRowField.getValue());
+                        }
+                      }));
+      fields.putAll(featureFields);
+    }
+
+    // create empty response fields for features specified in request but not present in feature
+    // row.
+    Set<FeatureReference> missingFeatures = new HashSet<>(refsByName.values());
+    missingFeatures.removeAll(fields.keySet());
+    missingFeatures.forEach(ref -> fields.put(ref, Field.newBuilder()));
+
+    // attach metadata to the feature response fields & build response field
+    return fields.entrySet().stream()
+        .collect(
+            Collectors.toMap(
+                es -> es.getKey(),
+                es -> {
+                  Field.Builder field = es.getValue();
+                  if (includeMetadata) {
+                    field = this.attachMetadata(field, featureRow, hasStaleValues);
+                  }
+                  return field.build();
+                }));
+  }
+
+  /**
+   * Attach metadata to the given response field. Attaches field status to the response providing
+   * metadata for the field.
+   *
+   * @param featureRow where the field was unpacked from.
+   * @param hasStaleValue whether the field contains a stale value
+   */
+  private Field.Builder attachMetadata(
+      Field.Builder field, FeatureRow featureRow, boolean hasStaleValue) {
+    FieldStatus fieldStatus = FieldStatus.PRESENT;
+    if (featureRow == null) {
+      fieldStatus = FieldStatus.NOT_FOUND;
+    } else if (hasStaleValue) {
+      fieldStatus = FieldStatus.OUTSIDE_MAX_AGE;
+    } else if (field.getValue().getValCase() == Value.ValCase.VAL_NOT_SET) {
+      fieldStatus = FieldStatus.NULL_VALUE;
+    }
+
+    return field.setStatus(fieldStatus);
+  }
+
+  /**
+   * Determine if the feature data in the given feature row is considered stale. Data is considered
+   * to be stale when difference ingestion time set in feature row and the retrieval time set in
+   * entity row exceeds featureset max age.
+   *
+   * @param featureSetRequest contains the spec where feature's max age is extracted.
+   * @param entityRow contains the retrieval timing of when features are pulled.
+   * @param featureRow contains the ingestion timing and feature data.
+   */
+  private boolean isStale(
+      FeatureSetRequest featureSetRequest, EntityRow entityRow, FeatureRow featureRow) {
+    Duration maxAge = featureSetRequest.getSpec().getMaxAge();
+    if (maxAge.equals(Duration.getDefaultInstance())) {
+      return false;
+    }
+    long givenTimestamp = entityRow.getEntityTimestamp().getSeconds();
+    if (givenTimestamp == 0) {
+      givenTimestamp = System.currentTimeMillis() / 1000;
+    }
+    long timeDifference = givenTimestamp - featureRow.getEventTimestamp().getSeconds();
+    return timeDifference > maxAge.getSeconds();
+  }
+
+  private void populateStaleKeyCountMetrics(
+      Map<FeatureReference, Field> fields, FeatureSetRequest featureSetRequest) {
+    String project = featureSetRequest.getSpec().getProject();
+    fields
+        .entrySet()
+        .forEach(
+            es -> {
+              FeatureReference ref = es.getKey();
+              Field field = es.getValue();
+              if (field.getStatus() == FieldStatus.OUTSIDE_MAX_AGE) {
+                Metrics.staleKeyCount
+                    .labels(project, RefUtil.generateFeatureStringRefWithoutProject(ref))
+                    .inc();
+              }
+            });
   }
 
   private void populateRequestCountMetrics(FeatureSetRequest featureSetRequest) {
@@ -150,19 +279,5 @@ public class OnlineServingService implements ServingService {
   @Override
   public GetJobResponse getJob(GetJobRequest getJobRequest) {
     throw Status.UNIMPLEMENTED.withDescription("Method not implemented").asRuntimeException();
-  }
-
-  private boolean isStale(
-      FeatureSetRequest featureSetRequest, EntityRow entityRow, FeatureRow featureRow) {
-    Duration maxAge = featureSetRequest.getSpec().getMaxAge();
-    if (maxAge.equals(Duration.getDefaultInstance())) {
-      return false;
-    }
-    long givenTimestamp = entityRow.getEntityTimestamp().getSeconds();
-    if (givenTimestamp == 0) {
-      givenTimestamp = System.currentTimeMillis() / 1000;
-    }
-    long timeDifference = givenTimestamp - featureRow.getEventTimestamp().getSeconds();
-    return timeDifference > maxAge.getSeconds();
   }
 }
