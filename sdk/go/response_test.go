@@ -8,20 +8,12 @@ import (
 	"testing"
 )
 
-// constructs a response field from the given value
-func toField(value *types.Value) *serving.GetOnlineFeaturesResponse_Field {
-	return &serving.GetOnlineFeaturesResponse_Field{
-		Value:  value,
-		Status: serving.GetOnlineFeaturesResponse_PRESENT,
-	}
-}
-
 var response = OnlineFeaturesResponse{
 	RawResponse: &serving.GetOnlineFeaturesResponse{
 		Records: []*serving.GetOnlineFeaturesResponse_Record{
 			{
 				Fields: map[string]*serving.GetOnlineFeaturesResponse_Field{
-					"project1/feature1": toField(Int64Val(1)),
+					"project1/feature1": Field(Int64Val(1)),
 					"project1/feature2": &serving.GetOnlineFeaturesResponse_Field{
 						Value:  &types.Value{},
 						Status: serving.GetOnlineFeaturesResponse_NULL_VALUE,
@@ -30,8 +22,8 @@ var response = OnlineFeaturesResponse{
 			},
 			{
 				Fields: map[string]*serving.GetOnlineFeaturesResponse_Field{
-					"project1/feature1": toField(Int64Val(2)),
-					"project1/feature2": toField(Int64Val(2)),
+					"project1/feature1": Field(Int64Val(2)),
+					"project1/feature2": Field(Int64Val(2)),
 				},
 			},
 		},
@@ -42,15 +34,15 @@ func TestOnlineFeaturesResponseToRow(t *testing.T) {
 	actual := response.Rows()
 	expected := []Row{
 		{
-			"project1/feature1": toField(Int64Val(1)),
+			"project1/feature1": Field(Int64Val(1)),
 			"project1/feature2": &serving.GetOnlineFeaturesResponse_Field{
 				Value:  &types.Value{},
 				Status: serving.GetOnlineFeaturesResponse_NULL_VALUE,
 			},
 		},
 		{
-			"project1/feature1": toField(Int64Val(2)),
-			"project1/feature2": toField(Int64Val(2)),
+			"project1/feature1": Field(Int64Val(2)),
+			"project1/feature2": Field(Int64Val(2)),
 		},
 	}
 	if len(expected) != len(actual) {

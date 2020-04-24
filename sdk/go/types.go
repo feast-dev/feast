@@ -54,3 +54,11 @@ func BoolVal(val bool) *types.Value {
 func BytesVal(val []byte) *types.Value {
 	return &types.Value{Val: &types.Value_BytesVal{BytesVal: val}}
 }
+
+// constructs a response field from the given value
+func Field(value *types.Value) *serving.GetOnlineFeaturesResponse_Field {
+	return &serving.GetOnlineFeaturesResponse_Field{
+		Value:  value,
+		Status: serving.GetOnlineFeaturesResponse_PRESENT,
+	}
+}
