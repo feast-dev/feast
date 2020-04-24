@@ -1,21 +1,20 @@
 package feast
 
 import (
+	"github.com/feast-dev/feast/sdk/go/protos/feast/serving"
 	"github.com/feast-dev/feast/sdk/go/protos/feast/types"
 	"github.com/golang/protobuf/proto"
 )
 
-// Row map of entity values
-type Row map[string]*types.Value
+// Row is a map of fields
+type Row map[string]*serving.GetOnlineFeaturesResponse_Field
 
 func (r Row) equalTo(other Row) bool {
-	for k, v := range r {
-		if otherV, ok := other[k]; !ok {
+	for k, field := range r {
+		if otherField, ok := other[k]; !ok {
 			return false
-		} else {
-			if !proto.Equal(v, otherV) {
-				return false
-			}
+		} else if !proto.Equal(field, otherField) {
+			return false
 		}
 	}
 	return true
