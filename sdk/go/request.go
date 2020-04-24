@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"github.com/feast-dev/feast/sdk/go/protos/feast/serving"
 	"strings"
+
+	"github.com/gojek/feast/sdk/go/protos/feast/serving"
+	"github.com/gojek/feast/sdk/go/protos/feast/types"
 )
 
 var (
@@ -25,6 +28,12 @@ type OnlineFeaturesRequest struct {
 
 	// Project specifies the project would contain the feature sets where the requested features belong to.
 	Project string
+
+	// whether to omit the entities fields in the response.
+	OmitEntities bool
+
+	// whether to include field status metadata in the response.
+	IncludeMeta bool
 }
 
 // Builds the feast-specified request payload from the wrapper.
@@ -34,16 +43,23 @@ func (r OnlineFeaturesRequest) buildRequest() (*serving.GetOnlineFeaturesRequest
 		return nil, err
 	}
 
+	// build request entity rows from native entities
 	entityRows := make([]*serving.GetOnlineFeaturesRequest_EntityRow, len(r.Entities))
-
-	for i := range r.Entities {
+	for i, entity := range r.Entities {
+		fieldMap := make(map[string]*types.Value)
+		for key, field := range entity {
+			fieldMap[key] = field.Value
+		}
 		entityRows[i] = &serving.GetOnlineFeaturesRequest_EntityRow{
-			Fields: r.Entities[i],
+			Fields: fieldMap,
 		}
 	}
+
 	return &serving.GetOnlineFeaturesRequest{
-		Features:   featureRefs,
-		EntityRows: entityRows,
+		Features:                  features,
+		EntityRows:                entityRows,
+		OmitEntitiesInResponse:    r.OmitEntities,
+		IncludeMetadataInResponse: r.IncludeMeta,
 	}, nil
 }
 
