@@ -158,7 +158,7 @@ message FeatureSpec {
     }
 
     // Labels for user defined metadata on a feature
-    map<string,string> labels=19;
+    map<string,string> labels = 19;
 }
 
 message FeatureSetMeta {
