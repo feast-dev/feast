@@ -8,19 +8,30 @@ import (
 	"testing"
 )
 
+// constructs a response field from the given value
+func toField(value *types.Value) *serving.GetOnlineFeaturesResponse_Field {
+	return &serving.GetOnlineFeaturesResponse_Field{
+		Value:  value,
+		Status: serving.GetOnlineFeaturesResponse_PRESENT,
+	}
+}
+
 var response = OnlineFeaturesResponse{
 	RawResponse: &serving.GetOnlineFeaturesResponse{
-		FieldValues: []*serving.GetOnlineFeaturesResponse_FieldValues{
+		Records: []*serving.GetOnlineFeaturesResponse_Record{
 			{
-				Fields: map[string]*types.Value{
-					"project1/feature1": Int64Val(1),
-					"project1/feature2": {},
+				Fields: map[string]*serving.GetOnlineFeaturesResponse_Field{
+					"project1/feature1": toField(Int64Val(1)),
+					"project1/feature2": &serving.GetOnlineFeaturesResponse_Field{
+						Value:  &types.Value{},
+						Status: serving.GetOnlineFeaturesResponse_NULL_VALUE,
+					},
 				},
 			},
 			{
-				Fields: map[string]*types.Value{
-					"project1/feature1": Int64Val(2),
-					"project1/feature2": Int64Val(2),
+				Fields: map[string]*serving.GetOnlineFeaturesResponse_Field{
+					"project1/feature1": toField(Int64Val(2)),
+					"project1/feature2": toField(Int64Val(2)),
 				},
 			},
 		},
@@ -30,8 +41,17 @@ var response = OnlineFeaturesResponse{
 func TestOnlineFeaturesResponseToRow(t *testing.T) {
 	actual := response.Rows()
 	expected := []Row{
-		{"project1/feature1": Int64Val(1), "project1/feature2": &types.Value{}},
-		{"project1/feature1": Int64Val(2), "project1/feature2": Int64Val(2)},
+		{
+			"project1/feature1": toField(Int64Val(1)),
+			"project1/feature2": &serving.GetOnlineFeaturesResponse_Field{
+				Value:  &types.Value{},
+				Status: serving.GetOnlineFeaturesResponse_NULL_VALUE,
+			},
+		},
+		{
+			"project1/feature1": toField(Int64Val(2)),
+			"project1/feature2": toField(Int64Val(2)),
+		},
 	}
 	if len(expected) != len(actual) {
 		t.Errorf("expected: %v, got: %v", expected, actual)
@@ -64,6 +84,7 @@ func TestOnlineFeaturesResponseToInt64Array(t *testing.T) {
 			want:    [][]int64{{-1, 1}, {2, 2}},
 			wantErr: false,
 		},
+
 		{
 			name: "length mismatch",
 			args: args{
