@@ -243,6 +243,70 @@ func (DataFormat) EnumDescriptor() ([]byte, []int) {
 	return file_feast_serving_ServingService_proto_rawDescGZIP(), []int{3}
 }
 
+type GetOnlineFeaturesResponse_FieldStatus int32
+
+const (
+	// Status is unset for this field.
+	GetOnlineFeaturesResponse_INVALID GetOnlineFeaturesResponse_FieldStatus = 0
+	// Field value is present for this field and within maximum allowable range
+	GetOnlineFeaturesResponse_PRESENT GetOnlineFeaturesResponse_FieldStatus = 1
+	// Values could be found for entity key within the maximum allowable range, but
+	// this field value is assigned a null value on ingestion into feast.
+	GetOnlineFeaturesResponse_NULL_VALUE GetOnlineFeaturesResponse_FieldStatus = 2
+	// Entity key did not return any values as they do not exist in Feast.
+	// This could suggest that the feature values have not yet been ingested
+	// into feast or the ingestion failed.
+	GetOnlineFeaturesResponse_NOT_FOUND GetOnlineFeaturesResponse_FieldStatus = 3
+	// Values could be found for entity key, but field values are outside the maximum
+	// allowable range.
+	GetOnlineFeaturesResponse_OUTSIDE_MAX_AGE GetOnlineFeaturesResponse_FieldStatus = 4
+)
+
+// Enum value maps for GetOnlineFeaturesResponse_FieldStatus.
+var (
+	GetOnlineFeaturesResponse_FieldStatus_name = map[int32]string{
+		0: "INVALID",
+		1: "PRESENT",
+		2: "NULL_VALUE",
+		3: "NOT_FOUND",
+		4: "OUTSIDE_MAX_AGE",
+	}
+	GetOnlineFeaturesResponse_FieldStatus_value = map[string]int32{
+		"INVALID":         0,
+		"PRESENT":         1,
+		"NULL_VALUE":      2,
+		"NOT_FOUND":       3,
+		"OUTSIDE_MAX_AGE": 4,
+	}
+)
+
+func (x GetOnlineFeaturesResponse_FieldStatus) Enum() *GetOnlineFeaturesResponse_FieldStatus {
+	p := new(GetOnlineFeaturesResponse_FieldStatus)
+	*p = x
+	return p
+}
+
+func (x GetOnlineFeaturesResponse_FieldStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (GetOnlineFeaturesResponse_FieldStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_feast_serving_ServingService_proto_enumTypes[4].Descriptor()
+}
+
+func (GetOnlineFeaturesResponse_FieldStatus) Type() protoreflect.EnumType {
+	return &file_feast_serving_ServingService_proto_enumTypes[4]
+}
+
+func (x GetOnlineFeaturesResponse_FieldStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use GetOnlineFeaturesResponse_FieldStatus.Descriptor instead.
+func (GetOnlineFeaturesResponse_FieldStatus) EnumDescriptor() ([]byte, []int) {
+	return file_feast_serving_ServingService_proto_rawDescGZIP(), []int{4, 0}
+}
+
 type GetFeastServingInfoRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -431,6 +495,9 @@ type GetOnlineFeaturesRequest struct {
 	// Option to omit entities from the response. If true, only feature
 	// values will be returned.
 	OmitEntitiesInResponse bool `protobuf:"varint,3,opt,name=omit_entities_in_response,json=omitEntitiesInResponse,proto3" json:"omit_entities_in_response,omitempty"`
+	// Option to include feature metadata in the response.
+	// If true, response will include both feature values and metadata.
+	IncludeMetadataInResponse bool `protobuf:"varint,5,opt,name=include_metadata_in_response,json=includeMetadataInResponse,proto3" json:"include_metadata_in_response,omitempty"`
 }
 
 func (x *GetOnlineFeaturesRequest) Reset() {
@@ -486,6 +553,62 @@ func (x *GetOnlineFeaturesRequest) GetOmitEntitiesInResponse() bool {
 	return false
 }
 
+func (x *GetOnlineFeaturesRequest) GetIncludeMetadataInResponse() bool {
+	if x != nil {
+		return x.IncludeMetadataInResponse
+	}
+	return false
+}
+
+type GetOnlineFeaturesResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Data records retrieved from the online feast store.
+	// Each record represents the data retrieved for an entity row in the request.
+	Records []*GetOnlineFeaturesResponse_Record `protobuf:"bytes,1,rep,name=records,proto3" json:"records,omitempty"`
+}
+
+func (x *GetOnlineFeaturesResponse) Reset() {
+	*x = GetOnlineFeaturesResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_feast_serving_ServingService_proto_msgTypes[4]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetOnlineFeaturesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOnlineFeaturesResponse) ProtoMessage() {}
+
+func (x *GetOnlineFeaturesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_feast_serving_ServingService_proto_msgTypes[4]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOnlineFeaturesResponse.ProtoReflect.Descriptor instead.
+func (*GetOnlineFeaturesResponse) Descriptor() ([]byte, []int) {
+	return file_feast_serving_ServingService_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetOnlineFeaturesResponse) GetRecords() []*GetOnlineFeaturesResponse_Record {
+	if x != nil {
+		return x.Records
+	}
+	return nil
+}
+
 type GetBatchFeaturesRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -501,7 +624,7 @@ type GetBatchFeaturesRequest struct {
 func (x *GetBatchFeaturesRequest) Reset() {
 	*x = GetBatchFeaturesRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_feast_serving_ServingService_proto_msgTypes[4]
+		mi := &file_feast_serving_ServingService_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -514,7 +637,7 @@ func (x *GetBatchFeaturesRequest) String() string {
 func (*GetBatchFeaturesRequest) ProtoMessage() {}
 
 func (x *GetBatchFeaturesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_feast_serving_ServingService_proto_msgTypes[4]
+	mi := &file_feast_serving_ServingService_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -527,7 +650,7 @@ func (x *GetBatchFeaturesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBatchFeaturesRequest.ProtoReflect.Descriptor instead.
 func (*GetBatchFeaturesRequest) Descriptor() ([]byte, []int) {
-	return file_feast_serving_ServingService_proto_rawDescGZIP(), []int{4}
+	return file_feast_serving_ServingService_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetBatchFeaturesRequest) GetFeatures() []*FeatureReference {
@@ -540,54 +663,6 @@ func (x *GetBatchFeaturesRequest) GetFeatures() []*FeatureReference {
 func (x *GetBatchFeaturesRequest) GetDatasetSource() *DatasetSource {
 	if x != nil {
 		return x.DatasetSource
-	}
-	return nil
-}
-
-type GetOnlineFeaturesResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	// Feature values retrieved from feast.
-	FieldValues []*GetOnlineFeaturesResponse_FieldValues `protobuf:"bytes,1,rep,name=field_values,json=fieldValues,proto3" json:"field_values,omitempty"`
-}
-
-func (x *GetOnlineFeaturesResponse) Reset() {
-	*x = GetOnlineFeaturesResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_feast_serving_ServingService_proto_msgTypes[5]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *GetOnlineFeaturesResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetOnlineFeaturesResponse) ProtoMessage() {}
-
-func (x *GetOnlineFeaturesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_feast_serving_ServingService_proto_msgTypes[5]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetOnlineFeaturesResponse.ProtoReflect.Descriptor instead.
-func (*GetOnlineFeaturesResponse) Descriptor() ([]byte, []int) {
-	return file_feast_serving_ServingService_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *GetOnlineFeaturesResponse) GetFieldValues() []*GetOnlineFeaturesResponse_FieldValues {
-	if x != nil {
-		return x.FieldValues
 	}
 	return nil
 }
@@ -899,8 +974,8 @@ type GetOnlineFeaturesRequest_EntityRow struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// Request timestamp of this row. This value will be used, together with maxAge,
-	// to determine feature staleness.
+	// Request timestamp of this row. This value will be used,
+	// together with maxAge, to determine feature staleness.
 	EntityTimestamp *timestamp.Timestamp `protobuf:"bytes,1,opt,name=entity_timestamp,json=entityTimestamp,proto3" json:"entity_timestamp,omitempty"`
 	// Map containing mapping of entity name to entity value.
 	Fields map[string]*types.Value `protobuf:"bytes,2,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
@@ -952,18 +1027,18 @@ func (x *GetOnlineFeaturesRequest_EntityRow) GetFields() map[string]*types.Value
 	return nil
 }
 
-type GetOnlineFeaturesResponse_FieldValues struct {
+type GetOnlineFeaturesResponse_Record struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// Map of feature or entity name to feature/entity values.
-	// Timestamps are not returned in this response.
-	Fields map[string]*types.Value `protobuf:"bytes,1,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	// Map of field name to data fields stored in this data record.
+	// Each field represents an individual feature in the data record.
+	Fields map[string]*GetOnlineFeaturesResponse_Field `protobuf:"bytes,1,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 
-func (x *GetOnlineFeaturesResponse_FieldValues) Reset() {
-	*x = GetOnlineFeaturesResponse_FieldValues{}
+func (x *GetOnlineFeaturesResponse_Record) Reset() {
+	*x = GetOnlineFeaturesResponse_Record{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_feast_serving_ServingService_proto_msgTypes[13]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -971,13 +1046,13 @@ func (x *GetOnlineFeaturesResponse_FieldValues) Reset() {
 	}
 }
 
-func (x *GetOnlineFeaturesResponse_FieldValues) String() string {
+func (x *GetOnlineFeaturesResponse_Record) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetOnlineFeaturesResponse_FieldValues) ProtoMessage() {}
+func (*GetOnlineFeaturesResponse_Record) ProtoMessage() {}
 
-func (x *GetOnlineFeaturesResponse_FieldValues) ProtoReflect() protoreflect.Message {
+func (x *GetOnlineFeaturesResponse_Record) ProtoReflect() protoreflect.Message {
 	mi := &file_feast_serving_ServingService_proto_msgTypes[13]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -989,16 +1064,73 @@ func (x *GetOnlineFeaturesResponse_FieldValues) ProtoReflect() protoreflect.Mess
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetOnlineFeaturesResponse_FieldValues.ProtoReflect.Descriptor instead.
-func (*GetOnlineFeaturesResponse_FieldValues) Descriptor() ([]byte, []int) {
-	return file_feast_serving_ServingService_proto_rawDescGZIP(), []int{5, 0}
+// Deprecated: Use GetOnlineFeaturesResponse_Record.ProtoReflect.Descriptor instead.
+func (*GetOnlineFeaturesResponse_Record) Descriptor() ([]byte, []int) {
+	return file_feast_serving_ServingService_proto_rawDescGZIP(), []int{4, 0}
 }
 
-func (x *GetOnlineFeaturesResponse_FieldValues) GetFields() map[string]*types.Value {
+func (x *GetOnlineFeaturesResponse_Record) GetFields() map[string]*GetOnlineFeaturesResponse_Field {
 	if x != nil {
 		return x.Fields
 	}
 	return nil
+}
+
+type GetOnlineFeaturesResponse_Field struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Value of this field.
+	Value *types.Value `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
+	// Status of this field.
+	Status GetOnlineFeaturesResponse_FieldStatus `protobuf:"varint,2,opt,name=status,proto3,enum=feast.serving.GetOnlineFeaturesResponse_FieldStatus" json:"status,omitempty"`
+}
+
+func (x *GetOnlineFeaturesResponse_Field) Reset() {
+	*x = GetOnlineFeaturesResponse_Field{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_feast_serving_ServingService_proto_msgTypes[14]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetOnlineFeaturesResponse_Field) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOnlineFeaturesResponse_Field) ProtoMessage() {}
+
+func (x *GetOnlineFeaturesResponse_Field) ProtoReflect() protoreflect.Message {
+	mi := &file_feast_serving_ServingService_proto_msgTypes[14]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOnlineFeaturesResponse_Field.ProtoReflect.Descriptor instead.
+func (*GetOnlineFeaturesResponse_Field) Descriptor() ([]byte, []int) {
+	return file_feast_serving_ServingService_proto_rawDescGZIP(), []int{4, 1}
+}
+
+func (x *GetOnlineFeaturesResponse_Field) GetValue() *types.Value {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+func (x *GetOnlineFeaturesResponse_Field) GetStatus() GetOnlineFeaturesResponse_FieldStatus {
+	if x != nil {
+		return x.Status
+	}
+	return GetOnlineFeaturesResponse_INVALID
 }
 
 type DatasetSource_FileSource struct {
@@ -1017,7 +1149,7 @@ type DatasetSource_FileSource struct {
 func (x *DatasetSource_FileSource) Reset() {
 	*x = DatasetSource_FileSource{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_feast_serving_ServingService_proto_msgTypes[15]
+		mi := &file_feast_serving_ServingService_proto_msgTypes[16]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1030,7 +1162,7 @@ func (x *DatasetSource_FileSource) String() string {
 func (*DatasetSource_FileSource) ProtoMessage() {}
 
 func (x *DatasetSource_FileSource) ProtoReflect() protoreflect.Message {
-	mi := &file_feast_serving_ServingService_proto_msgTypes[15]
+	mi := &file_feast_serving_ServingService_proto_msgTypes[16]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1254,19 +1386,20 @@ func file_feast_serving_ServingService_proto_rawDescGZIP() []byte {
 	return file_feast_serving_ServingService_proto_rawDescData
 }
 
-var file_feast_serving_ServingService_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_feast_serving_ServingService_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_feast_serving_ServingService_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_feast_serving_ServingService_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_feast_serving_ServingService_proto_goTypes = []interface{}{
-	(FeastServingType)(0),                      // 0: feast.serving.FeastServingType
-	(JobType)(0),                               // 1: feast.serving.JobType
-	(JobStatus)(0),                             // 2: feast.serving.JobStatus
-	(DataFormat)(0),                            // 3: feast.serving.DataFormat
-	(*GetFeastServingInfoRequest)(nil),         // 4: feast.serving.GetFeastServingInfoRequest
-	(*GetFeastServingInfoResponse)(nil),        // 5: feast.serving.GetFeastServingInfoResponse
-	(*FeatureReference)(nil),                   // 6: feast.serving.FeatureReference
-	(*GetOnlineFeaturesRequest)(nil),           // 7: feast.serving.GetOnlineFeaturesRequest
-	(*GetBatchFeaturesRequest)(nil),            // 8: feast.serving.GetBatchFeaturesRequest
+	(FeastServingType)(0), // 0: feast.serving.FeastServingType
+	(JobType)(0),          // 1: feast.serving.JobType
+	(JobStatus)(0),        // 2: feast.serving.JobStatus
+	(DataFormat)(0),       // 3: feast.serving.DataFormat
+	(GetOnlineFeaturesResponse_FieldStatus)(0), // 4: feast.serving.GetOnlineFeaturesResponse.FieldStatus
+	(*GetFeastServingInfoRequest)(nil),         // 5: feast.serving.GetFeastServingInfoRequest
+	(*GetFeastServingInfoResponse)(nil),        // 6: feast.serving.GetFeastServingInfoResponse
+	(*FeatureReference)(nil),                   // 7: feast.serving.FeatureReference
+	(*GetOnlineFeaturesRequest)(nil),           // 8: feast.serving.GetOnlineFeaturesRequest
 	(*GetOnlineFeaturesResponse)(nil),          // 9: feast.serving.GetOnlineFeaturesResponse
+<<<<<<< HEAD
 	(*GetBatchFeaturesResponse)(nil),           // 10: feast.serving.GetBatchFeaturesResponse
 	(*GetJobRequest)(nil),                      // 11: feast.serving.GetJobRequest
 	(*GetJobResponse)(nil),                     // 12: feast.serving.GetJobResponse
@@ -1282,37 +1415,40 @@ var file_feast_serving_ServingService_proto_goTypes = []interface{}{
 }
 var file_feast_serving_ServingService_proto_depIdxs = []int32{
 	0,  // 0: feast.serving.GetFeastServingInfoResponse.type:type_name -> feast.serving.FeastServingType
-	6,  // 1: feast.serving.GetOnlineFeaturesRequest.features:type_name -> feast.serving.FeatureReference
-	15, // 2: feast.serving.GetOnlineFeaturesRequest.entity_rows:type_name -> feast.serving.GetOnlineFeaturesRequest.EntityRow
-	6,  // 3: feast.serving.GetBatchFeaturesRequest.features:type_name -> feast.serving.FeatureReference
-	14, // 4: feast.serving.GetBatchFeaturesRequest.dataset_source:type_name -> feast.serving.DatasetSource
-	17, // 5: feast.serving.GetOnlineFeaturesResponse.field_values:type_name -> feast.serving.GetOnlineFeaturesResponse.FieldValues
-	13, // 6: feast.serving.GetBatchFeaturesResponse.job:type_name -> feast.serving.Job
-	13, // 7: feast.serving.GetJobRequest.job:type_name -> feast.serving.Job
-	13, // 8: feast.serving.GetJobResponse.job:type_name -> feast.serving.Job
-	1,  // 9: feast.serving.Job.type:type_name -> feast.serving.JobType
-	2,  // 10: feast.serving.Job.status:type_name -> feast.serving.JobStatus
-	3,  // 11: feast.serving.Job.data_format:type_name -> feast.serving.DataFormat
-	19, // 12: feast.serving.DatasetSource.file_source:type_name -> feast.serving.DatasetSource.FileSource
-	20, // 13: feast.serving.GetOnlineFeaturesRequest.EntityRow.entity_timestamp:type_name -> google.protobuf.Timestamp
-	16, // 14: feast.serving.GetOnlineFeaturesRequest.EntityRow.fields:type_name -> feast.serving.GetOnlineFeaturesRequest.EntityRow.FieldsEntry
-	21, // 15: feast.serving.GetOnlineFeaturesRequest.EntityRow.FieldsEntry.value:type_name -> feast.types.Value
-	18, // 16: feast.serving.GetOnlineFeaturesResponse.FieldValues.fields:type_name -> feast.serving.GetOnlineFeaturesResponse.FieldValues.FieldsEntry
-	21, // 17: feast.serving.GetOnlineFeaturesResponse.FieldValues.FieldsEntry.value:type_name -> feast.types.Value
-	3,  // 18: feast.serving.DatasetSource.FileSource.data_format:type_name -> feast.serving.DataFormat
-	4,  // 19: feast.serving.ServingService.GetFeastServingInfo:input_type -> feast.serving.GetFeastServingInfoRequest
-	7,  // 20: feast.serving.ServingService.GetOnlineFeatures:input_type -> feast.serving.GetOnlineFeaturesRequest
-	8,  // 21: feast.serving.ServingService.GetBatchFeatures:input_type -> feast.serving.GetBatchFeaturesRequest
-	11, // 22: feast.serving.ServingService.GetJob:input_type -> feast.serving.GetJobRequest
-	5,  // 23: feast.serving.ServingService.GetFeastServingInfo:output_type -> feast.serving.GetFeastServingInfoResponse
-	9,  // 24: feast.serving.ServingService.GetOnlineFeatures:output_type -> feast.serving.GetOnlineFeaturesResponse
-	10, // 25: feast.serving.ServingService.GetBatchFeatures:output_type -> feast.serving.GetBatchFeaturesResponse
-	12, // 26: feast.serving.ServingService.GetJob:output_type -> feast.serving.GetJobResponse
-	23, // [23:27] is the sub-list for method output_type
-	19, // [19:23] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	22, // 1: feast.serving.FeatureReference.max_age:type_name -> google.protobuf.Duration
+	7,  // 2: feast.serving.GetOnlineFeaturesRequest.features:type_name -> feast.serving.FeatureReference
+	16, // 3: feast.serving.GetOnlineFeaturesRequest.entity_rows:type_name -> feast.serving.GetOnlineFeaturesRequest.EntityRow
+	18, // 4: feast.serving.GetOnlineFeaturesResponse.records:type_name -> feast.serving.GetOnlineFeaturesResponse.Record
+	7,  // 5: feast.serving.GetBatchFeaturesRequest.features:type_name -> feast.serving.FeatureReference
+	15, // 6: feast.serving.GetBatchFeaturesRequest.dataset_source:type_name -> feast.serving.DatasetSource
+	14, // 7: feast.serving.GetBatchFeaturesResponse.job:type_name -> feast.serving.Job
+	14, // 8: feast.serving.GetJobRequest.job:type_name -> feast.serving.Job
+	14, // 9: feast.serving.GetJobResponse.job:type_name -> feast.serving.Job
+	1,  // 10: feast.serving.Job.type:type_name -> feast.serving.JobType
+	2,  // 11: feast.serving.Job.status:type_name -> feast.serving.JobStatus
+	3,  // 12: feast.serving.Job.data_format:type_name -> feast.serving.DataFormat
+	21, // 13: feast.serving.DatasetSource.file_source:type_name -> feast.serving.DatasetSource.FileSource
+	23, // 14: feast.serving.GetOnlineFeaturesRequest.EntityRow.entity_timestamp:type_name -> google.protobuf.Timestamp
+	17, // 15: feast.serving.GetOnlineFeaturesRequest.EntityRow.fields:type_name -> feast.serving.GetOnlineFeaturesRequest.EntityRow.FieldsEntry
+	24, // 16: feast.serving.GetOnlineFeaturesRequest.EntityRow.FieldsEntry.value:type_name -> feast.types.Value
+	20, // 17: feast.serving.GetOnlineFeaturesResponse.Record.fields:type_name -> feast.serving.GetOnlineFeaturesResponse.Record.FieldsEntry
+	24, // 18: feast.serving.GetOnlineFeaturesResponse.Field.value:type_name -> feast.types.Value
+	4,  // 19: feast.serving.GetOnlineFeaturesResponse.Field.status:type_name -> feast.serving.GetOnlineFeaturesResponse.FieldStatus
+	19, // 20: feast.serving.GetOnlineFeaturesResponse.Record.FieldsEntry.value:type_name -> feast.serving.GetOnlineFeaturesResponse.Field
+	3,  // 21: feast.serving.DatasetSource.FileSource.data_format:type_name -> feast.serving.DataFormat
+	5,  // 22: feast.serving.ServingService.GetFeastServingInfo:input_type -> feast.serving.GetFeastServingInfoRequest
+	8,  // 23: feast.serving.ServingService.GetOnlineFeatures:input_type -> feast.serving.GetOnlineFeaturesRequest
+	10, // 24: feast.serving.ServingService.GetBatchFeatures:input_type -> feast.serving.GetBatchFeaturesRequest
+	12, // 25: feast.serving.ServingService.GetJob:input_type -> feast.serving.GetJobRequest
+	6,  // 26: feast.serving.ServingService.GetFeastServingInfo:output_type -> feast.serving.GetFeastServingInfoResponse
+	9,  // 27: feast.serving.ServingService.GetOnlineFeatures:output_type -> feast.serving.GetOnlineFeaturesResponse
+	11, // 28: feast.serving.ServingService.GetBatchFeatures:output_type -> feast.serving.GetBatchFeaturesResponse
+	13, // 29: feast.serving.ServingService.GetJob:output_type -> feast.serving.GetJobResponse
+	26, // [26:30] is the sub-list for method output_type
+	22, // [22:26] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_feast_serving_ServingService_proto_init() }
@@ -1370,7 +1506,7 @@ func file_feast_serving_ServingService_proto_init() {
 			}
 		}
 		file_feast_serving_ServingService_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetBatchFeaturesRequest); i {
+			switch v := v.(*GetOnlineFeaturesResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1382,7 +1518,7 @@ func file_feast_serving_ServingService_proto_init() {
 			}
 		}
 		file_feast_serving_ServingService_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetOnlineFeaturesResponse); i {
+			switch v := v.(*GetBatchFeaturesRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1466,7 +1602,7 @@ func file_feast_serving_ServingService_proto_init() {
 			}
 		}
 		file_feast_serving_ServingService_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetOnlineFeaturesResponse_FieldValues); i {
+			switch v := v.(*GetOnlineFeaturesResponse_Record); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1477,7 +1613,19 @@ func file_feast_serving_ServingService_proto_init() {
 				return nil
 			}
 		}
-		file_feast_serving_ServingService_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
+		file_feast_serving_ServingService_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetOnlineFeaturesResponse_Field); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_feast_serving_ServingService_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*DatasetSource_FileSource); i {
 			case 0:
 				return &v.state
@@ -1498,8 +1646,8 @@ func file_feast_serving_ServingService_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_feast_serving_ServingService_proto_rawDesc,
-			NumEnums:      4,
-			NumMessages:   16,
+			NumEnums:      5,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
