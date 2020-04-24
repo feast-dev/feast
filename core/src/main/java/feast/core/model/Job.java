@@ -73,8 +73,8 @@ public class Job extends AbstractTimestampEntity {
   @ManyToMany
   @JoinTable(
       name = "jobs_feature_sets",
-      joinColumns = @JoinColumn(name = "feature_sets_id"),
-      inverseJoinColumns = @JoinColumn(name = "job_id"),
+      joinColumns = @JoinColumn(name = "job_id"),
+      inverseJoinColumns = @JoinColumn(name = "feature_sets_id"),
       indexes = {
         @Index(name = "idx_jobs_feature_sets_job_id", columnList = "job_id"),
         @Index(name = "idx_jobs_feature_sets_feature_sets_id", columnList = "feature_sets_id")
