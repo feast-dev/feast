@@ -25,6 +25,7 @@ import uuid
 
 FLOAT_TOLERANCE = 0.00001
 PROJECT_NAME = "basic_" + uuid.uuid4().hex.upper()[0:6]
+ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 
 @pytest.fixture(scope="module")
@@ -77,7 +78,7 @@ def basic_dataframe():
 @pytest.mark.run(order=10)
 def test_basic_register_feature_set_success(client):
     # Load feature set from file
-    cust_trans_fs_expected = FeatureSet.from_yaml("basic/cust_trans_fs.yaml")
+    cust_trans_fs_expected = FeatureSet.from_yaml(os.path.join(ROOT_PATH, "basic/cust_trans_fs.yaml"))
 
     client.set_project(PROJECT_NAME)
 
@@ -380,7 +381,7 @@ def large_volume_dataframe():
 @pytest.mark.run(order=30)
 def test_large_volume_register_feature_set_success(client):
     cust_trans_fs_expected = FeatureSet.from_yaml(
-        "large_volume/cust_trans_large_fs.yaml"
+        os.path.join(ROOT_PATH,"large_volume/cust_trans_large_fs.yaml")
     )
 
     # Register feature set
@@ -513,7 +514,7 @@ def all_types_parquet_file():
 def test_all_types_parquet_register_feature_set_success(client):
     # Load feature set from file
     all_types_parquet_expected = FeatureSet.from_yaml(
-        "all_types_parquet/all_types_parquet.yaml"
+        os.path.join(ROOT_PATH, "all_types_parquet/all_types_parquet.yaml")
     )
 
     # Register feature set

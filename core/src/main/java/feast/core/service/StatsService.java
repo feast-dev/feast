@@ -41,6 +41,10 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -130,6 +134,15 @@ public class StatsService {
         featureNameStatisticsList.add(featureNameStatistics);
         timestamp += 86400; // advance by a day
       }
+      if (featureNameStatisticsList.size() == 0) {
+        DateTimeFormatter fmt = DateTimeFormat.forPattern("yyyy-MM-dd");
+        DateTime startDateTime = new DateTime(startDate.getSeconds() * 1000, DateTimeZone.UTC);
+        DateTime endDateTime = new DateTime(endDate.getSeconds() * 1000, DateTimeZone.UTC);
+        throw new RetrievalException(
+            String.format(
+                "Unable to find any data over provided dates [%s, %s)",
+                fmt.print(startDateTime), fmt.print(endDateTime)));
+      }
     } else {
       // else, retrieve by dataset
       for (String datasetId : request.getDatasetIdsList()) {
@@ -141,6 +154,12 @@ public class StatsService {
                 datasetId,
                 request.getForceRefresh());
         featureNameStatisticsList.add(featureNameStatistics);
+        if (featureNameStatisticsList.size() == 0) {
+          throw new RetrievalException(
+              String.format(
+                  "Unable to find any data over provided datasets %s",
+                  request.getDatasetIdsList()));
+        }
       }
     }
 
@@ -212,6 +231,9 @@ public class StatsService {
 
       // Persist the newly retrieved statistics in the cache.
       for (FeatureNameStatistics stat : featureSetStatistics.getFeatureNameStatistics()) {
+        if (isEmpty(stat)) {
+          continue;
+        }
         FeatureStatistics featureStatistics =
             FeatureStatistics.createForDataset(
                 featureSetSpec.getProject(),
@@ -224,8 +246,8 @@ public class StatsService {
                 featureStatistics.getFeature(), datasetId);
         existingRecord.ifPresent(statistics -> featureStatistics.setId(statistics.getId()));
         featureStatisticsRepository.save(featureStatistics);
+        featureNameStatistics.add(stat);
       }
-      featureNameStatistics.addAll(featureSetStatistics.getFeatureNameStatistics());
     }
     return featureNameStatistics;
   }
@@ -288,6 +310,9 @@ public class StatsService {
 
       // Persist the newly retrieved statistics in the cache.
       for (FeatureNameStatistics stat : featureSetStatistics.getFeatureNameStatistics()) {
+        if (isEmpty(stat)) {
+          continue;
+        }
         FeatureStatistics featureStatistics =
             FeatureStatistics.createForDate(
                 featureSetSpec.getProject(),
@@ -300,8 +325,8 @@ public class StatsService {
                 featureStatistics.getFeature(), date);
         existingRecord.ifPresent(statistics -> featureStatistics.setId(statistics.getId()));
         featureStatisticsRepository.save(featureStatistics);
+        featureNameStatistics.add(stat);
       }
-      featureNameStatistics.addAll(featureSetStatistics.getFeatureNameStatistics());
     }
     return featureNameStatistics;
   }
@@ -594,6 +619,34 @@ public class StatsService {
                 "Invalid request. Start timestamp %d is greater than the end timestamp %d",
                 startDate.getSeconds(), endDate.getSeconds()));
       }
+    }
+  }
+
+  private boolean isEmpty(FeatureNameStatistics featureNameStatistics) {
+    switch (featureNameStatistics.getType()) {
+      case STRUCT:
+        return featureNameStatistics
+            .getStructStats()
+            .getCommonStats()
+            .equals(CommonStatistics.getDefaultInstance());
+      case STRING:
+        return featureNameStatistics
+            .getStringStats()
+            .getCommonStats()
+            .equals(CommonStatistics.getDefaultInstance());
+      case BYTES:
+        return featureNameStatistics
+            .getBytesStats()
+            .getCommonStats()
+            .equals(CommonStatistics.getDefaultInstance());
+      case FLOAT:
+      case INT:
+        return featureNameStatistics
+            .getNumStats()
+            .getCommonStats()
+            .equals(CommonStatistics.getDefaultInstance());
+      default:
+        return true;
     }
   }
 }

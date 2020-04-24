@@ -306,8 +306,8 @@ public abstract class StatsQueryResult {
                 .setMaxNumValues(1)
                 .setAvgNumValues(1)
                 .setTotNumValues(valuesMap.get("feature_count").getLongValue()))
-        .addHistograms(quantilesBuilder)
         .addHistograms(histBuilder)
+        .addHistograms(quantilesBuilder)
         .build();
   }
 

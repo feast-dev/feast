@@ -63,7 +63,7 @@ public class StatsQueryResultTest {
               com.google.cloud.bigquery.Field.of("count", LegacySQLTypeName.INTEGER)));
 
   @Test
-  public void voidShouldConvertNumericStatsToFeatureNameStatistics()
+  public void shouldConvertNumericStatsToFeatureNameStatistics()
       throws InvalidProtocolBufferException {
     FieldValueList numericFieldValueList =
         FieldValueList.of(
@@ -128,7 +128,7 @@ public class StatsQueryResultTest {
             .toFeatureNameStatistics(featureSpec.getValueType());
 
     String expectedJson =
-        "{\"type\":\"FLOAT\",\"numStats\":{\"commonStats\":{\"numNonMissing\":\"20\",\"minNumValues\":\"1\",\"maxNumValues\":\"1\",\"avgNumValues\":1,\"totNumValues\":\"20\"},\"mean\":1,\"stdDev\":6,\"min\":-8.5,\"median\":0.5,\"max\":10.5,\"histograms\":[{\"buckets\":[{\"lowValue\":-8.5,\"highValue\":-7.5,\"sampleCount\":2},{\"lowValue\":-7.5,\"highValue\":-5.5,\"sampleCount\":2},{\"lowValue\":-5.5,\"highValue\":-3.5,\"sampleCount\":2},{\"lowValue\":-3.5,\"highValue\":-1.5,\"sampleCount\":2},{\"lowValue\":-1.5,\"highValue\":0.5,\"sampleCount\":2},{\"lowValue\":0.5,\"highValue\":2.5,\"sampleCount\":2},{\"lowValue\":2.5,\"highValue\":4.5,\"sampleCount\":2},{\"lowValue\":4.5,\"highValue\":6.5,\"sampleCount\":2},{\"lowValue\":6.5,\"highValue\":8.5,\"sampleCount\":2},{\"lowValue\":8.5,\"highValue\":10.5,\"sampleCount\":2}],\"type\":\"QUANTILES\"},{\"buckets\":[{\"lowValue\":1,\"highValue\":2,\"sampleCount\":1},{\"lowValue\":2,\"highValue\":3,\"sampleCount\":2}]}]},\"path\":{\"step\":[\"floats\"]}}";
+        "{\"type\":\"FLOAT\",\"numStats\":{\"commonStats\":{\"numNonMissing\":\"20\",\"minNumValues\":\"1\",\"maxNumValues\":\"1\",\"avgNumValues\":1,\"totNumValues\":\"20\"},\"mean\":1,\"stdDev\":6,\"min\":-8.5,\"median\":0.5,\"max\":10.5,\"histograms\":[{\"buckets\":[{\"lowValue\":1,\"highValue\":2,\"sampleCount\":1},{\"lowValue\":2,\"highValue\":3,\"sampleCount\":2}]},{\"buckets\":[{\"lowValue\":-8.5,\"highValue\":-7.5,\"sampleCount\":2},{\"lowValue\":-7.5,\"highValue\":-5.5,\"sampleCount\":2},{\"lowValue\":-5.5,\"highValue\":-3.5,\"sampleCount\":2},{\"lowValue\":-3.5,\"highValue\":-1.5,\"sampleCount\":2},{\"lowValue\":-1.5,\"highValue\":0.5,\"sampleCount\":2},{\"lowValue\":0.5,\"highValue\":2.5,\"sampleCount\":2},{\"lowValue\":2.5,\"highValue\":4.5,\"sampleCount\":2},{\"lowValue\":4.5,\"highValue\":6.5,\"sampleCount\":2},{\"lowValue\":6.5,\"highValue\":8.5,\"sampleCount\":2},{\"lowValue\":8.5,\"highValue\":10.5,\"sampleCount\":2}],\"type\":\"QUANTILES\"}]},\"path\":{\"step\":[\"floats\"]}}";
     FeatureNameStatistics.Builder expected = FeatureNameStatistics.newBuilder();
     JsonFormat.parser().merge(expectedJson, expected);
     assertThat(actual, equalTo(expected.build()));

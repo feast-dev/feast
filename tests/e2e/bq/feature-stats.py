@@ -2,6 +2,8 @@ import pandas as pd
 import pytest
 import pytz
 import uuid
+import time
+import os
 from datetime import datetime, timedelta
 
 from feast.client import Client
@@ -19,6 +21,7 @@ pd.set_option("display.max_columns", None)
 
 PROJECT_NAME = "batch_" + uuid.uuid4().hex.upper()[0:6]
 STORE_NAME = "historical"
+os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
 
 @pytest.fixture(scope="module")
@@ -92,13 +95,22 @@ def feature_stats_dataset_basic(client, feature_stats_feature_set):
     )
 
     expected_stats = tfdv.generate_statistics_from_dataframe(
-        df[["entity_id", "strings", "ints", "floats"]]
+        df[["strings", "ints", "floats"]]
     )
     clear_unsupported_fields(expected_stats)
 
+    # Since TFDV computes population std dev
+    for feature in expected_stats.datasets[0].features:
+        if feature.HasField("num_stats"):
+            name = feature.path.step[0]
+            std = combined_df[name].std()
+            feature.num_stats.std_dev = std
+
+    dataset_id = client.ingest(feature_stats_feature_set, df)
+    time.sleep(10)
     return {
         "df": df,
-        "id": client.ingest(feature_stats_feature_set, df),
+        "id": dataset_id,
         "date": datetime(time_offset.year, time_offset.month, time_offset.day).replace(
             tzinfo=pytz.utc
         ),
@@ -132,16 +144,18 @@ def feature_stats_dataset_agg(client, feature_stats_feature_set):
     )
     dataset_id_2 = client.ingest(feature_stats_feature_set, df2)
 
-    combined_df = pd.concat([df1, df2])[["entity_id", "strings", "ints", "floats"]]
+    combined_df = pd.concat([df1, df2])[["strings", "ints", "floats"]]
     expected_stats = tfdv.generate_statistics_from_dataframe(combined_df)
     clear_unsupported_agg_fields(expected_stats)
 
-    # Temporary until TFDV fixes their std dev computation
+    # Since TFDV computes population std dev
     for feature in expected_stats.datasets[0].features:
         if feature.HasField("num_stats"):
             name = feature.path.step[0]
             std = combined_df[name].std()
             feature.num_stats.std_dev = std
+
+    time.sleep(10)
 
     return {
         "ids": [dataset_id_1, dataset_id_2],
@@ -157,7 +171,7 @@ def feature_stats_dataset_agg(client, feature_stats_feature_set):
 
 def test_feature_stats_retrieval_by_single_dataset(client, feature_stats_dataset_basic):
     stats = client.get_statistics(
-        f"{PROJECT_NAME}/feature_validation:1",
+        f"{PROJECT_NAME}/feature_stats:1",
         features=["strings", "ints", "floats"],
         store=STORE_NAME,
         dataset_ids=[feature_stats_dataset_basic["id"]],
@@ -168,7 +182,7 @@ def test_feature_stats_retrieval_by_single_dataset(client, feature_stats_dataset
 
 def test_feature_stats_by_date(client, feature_stats_dataset_basic):
     stats = client.get_statistics(
-        f"{PROJECT_NAME}/feature_validation:1",
+        f"{PROJECT_NAME}/feature_stats:1",
         features=["strings", "ints", "floats"],
         store=STORE_NAME,
         start_date=feature_stats_dataset_basic["date"],
@@ -179,17 +193,17 @@ def test_feature_stats_by_date(client, feature_stats_dataset_basic):
 
 def test_feature_stats_agg_over_datasets(client, feature_stats_dataset_agg):
     stats = client.get_statistics(
-        f"{PROJECT_NAME}/feature_validation:1",
+        f"{PROJECT_NAME}/feature_stats:1",
         features=["strings", "ints", "floats"],
         store=STORE_NAME,
-        dataset_ids=[feature_stats_dataset_basic["ids"]],
+        dataset_ids=feature_stats_dataset_agg["ids"],
     )
-    assert_stats_equal(feature_stats_dataset_basic["stats"], stats)
+    assert_stats_equal(feature_stats_dataset_agg["stats"], stats)
 
 
 def test_feature_stats_agg_over_dates(client, feature_stats_dataset_agg):
     stats = client.get_statistics(
-        f"{PROJECT_NAME}/feature_validation:1",
+        f"{PROJECT_NAME}/feature_stats:1",
         features=["strings", "ints", "floats"],
         store=STORE_NAME,
         start_date=feature_stats_dataset_agg["start_date"],
@@ -213,9 +227,10 @@ def test_feature_stats_force_refresh(
         }
     )
     client.ingest(feature_stats_feature_set, df2)
+    time.sleep(10)
 
     actual_stats = client.get_statistics(
-        f"{PROJECT_NAME}/feature_validation:1",
+        f"{PROJECT_NAME}/feature_stats:1",
         features=["strings", "ints", "floats"],
         store="historical",
         start_date=feature_stats_dataset_basic["date"],
@@ -225,7 +240,15 @@ def test_feature_stats_force_refresh(
 
     combined_df = pd.concat([df, df2])
     expected_stats = tfdv.generate_statistics_from_dataframe(combined_df)
+
     clear_unsupported_fields(expected_stats)
+
+    # Since TFDV computes population std dev
+    for feature in expected_stats.datasets[0].features:
+        if feature.HasField("num_stats"):
+            name = feature.path.step[0]
+            std = combined_df[name].std()
+            feature.num_stats.std_dev = std
 
     assert_stats_equal(expected_stats, actual_stats)
 
@@ -235,6 +258,8 @@ def clear_unsupported_fields(datasets):
     for feature in dataset.features:
         if feature.HasField("num_stats"):
             feature.num_stats.common_stats.ClearField("num_values_histogram")
+            for hist in feature.num_stats.histograms:
+                hist.buckets[:] = sorted(hist.buckets, key=lambda k: k["highValue"])
         elif feature.HasField("string_stats"):
             feature.string_stats.common_stats.ClearField("num_values_histogram")
             for bucket in feature.string_stats.rank_histogram.buckets:
@@ -252,16 +277,17 @@ def clear_unsupported_agg_fields(datasets):
         if feature.HasField("num_stats"):
             feature.num_stats.common_stats.ClearField("num_values_histogram")
             feature.num_stats.ClearField("histograms")
+            feature.num_stats.ClearField("median")
         elif feature.HasField("string_stats"):
             feature.string_stats.common_stats.ClearField("num_values_histogram")
-            feature.string_stats.ClearField("histograms")
             feature.string_stats.ClearField("rank_histogram")
             feature.string_stats.ClearField("top_values")
             feature.string_stats.ClearField("unique")
         elif feature.HasField("struct_stats"):
-            feature.string_stats.struct_stats.ClearField("num_values_histogram")
+            feature.struct_stats.ClearField("num_values_histogram")
         elif feature.HasField("bytes_stats"):
-            feature.string_stats.bytes_stats.ClearField("num_values_histogram")
+            feature.bytes_stats.ClearField("num_values_histogram")
+            feature.bytes_stats.ClearField("unique")
 
 
 def assert_stats_equal(left, right):
@@ -273,5 +299,5 @@ def assert_stats_equal(left, right):
 
     left_features = sorted(left_stats["features"], key=lambda k: k["path"]["step"][0])
     right_features = sorted(right_stats["features"], key=lambda k: k["path"]["step"][0])
-    diff = DeepDiff(left_features, right_features)
-    assert len(diff) == 0, f"Statistics do not match: \n{diff}"
+    diff = DeepDiff(left_features, right_features, significant_digits=4)
+    assert len(diff) == 0, f"Feature statistics do not match: \nwanted: {left_features}\n got: {right_features}"
