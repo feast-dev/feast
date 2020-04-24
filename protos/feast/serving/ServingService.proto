@@ -126,7 +126,7 @@ message GetOnlineFeaturesResponse {
         // Status is unset for this field.
         INVALID = 0;
 
-        // Field value is present for this field and within maximum allowable range               
+        // Field value is present for this field and within maximum allowable range.
         PRESENT = 1;
 
         // Values could be found for entity key within the maximum allowable range, but
@@ -139,7 +139,7 @@ message GetOnlineFeaturesResponse {
         NOT_FOUND = 3;
 
         // Values could be found for entity key, but field values are outside the maximum 
-        // allowable range.
+        // allowable range: values are older than max age.
         OUTSIDE_MAX_AGE = 4;
     }
 }

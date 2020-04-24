@@ -671,6 +671,8 @@ class Client:
         feature_refs: List[str],
         entity_rows: List[GetOnlineFeaturesRequest.EntityRow],
         project: Optional[str] = None,
+        omit_entities: bool = False,
+        include_meta: bool = False,
     ) -> GetOnlineFeaturesResponse:
         """
         Retrieves the latest online feature data from Feast Serving
@@ -688,14 +690,17 @@ class Client:
                 which the requested features belong to.
 
         Returns:
-            Returns a list of maps where each item in the list contains the
-            latest feature values for the provided entities
+            GetOnlineFeaturesResponse containing the feature data in records.
+            Each EntityRow provided will yield one record, which contains
+            data fields with data value and field status metadata (if included).
         """
         self._connect_serving()
 
         try:
             response = self._serving_service_stub.GetOnlineFeatures(
                 GetOnlineFeaturesRequest(
+                    omit_entities_in_response=omit_entities,
+                    include_metadata_in_response=include_meta,
                     features=_build_feature_references(
                         feature_ref_strs=feature_refs,
                         project=project if project is not None else self.project,
