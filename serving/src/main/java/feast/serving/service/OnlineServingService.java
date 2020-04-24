@@ -80,7 +80,7 @@ public class OnlineServingService implements ServingService {
       List<FeatureSetRequest> featureSetRequests =
           specService.getFeatureSets(request.getFeaturesList());
       for (FeatureSetRequest featureSetRequest : featureSetRequests) {
-        // Pull feature rows for given entity rows from the feature/featureset specified n feature
+        // Pull feature rows for given entity rows from the feature/featureset specified in feature
         // set request.
         List<FeatureRow> featureRows = retriever.getOnlineFeatures(entityRows, featureSetRequest);
         // Check that feature row returned corresponds to a given entity row.
@@ -114,10 +114,13 @@ public class OnlineServingService implements ServingService {
         this.populateRequestCountMetrics(featureSetRequest);
       }
 
-      // Build response records from entityFieldsMap
+      // Build response records from entityFieldsMap.
+      // Records should be in the same order as the entityRows provided by the user.
       List<Record> records =
-          entityFieldsMap.values().stream()
-              .map(fields -> Record.newBuilder().putAllFields(fields).build())
+          entityRows.stream()
+              .map(
+                  entityRow ->
+                      Record.newBuilder().putAllFields(entityFieldsMap.get(entityRow)).build())
               .collect(Collectors.toList());
       return GetOnlineFeaturesResponse.newBuilder().addAllRecords(records).build();
     }

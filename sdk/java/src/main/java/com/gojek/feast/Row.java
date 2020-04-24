@@ -19,9 +19,15 @@ package com.gojek.feast;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
+<<<<<<< HEAD
 import feast.proto.types.ValueProto.Value;
 import feast.proto.types.ValueProto.Value.ValCase;
 import feast.proto.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
+=======
+import feast.serving.ServingAPIProto.GetOnlineFeaturesResponse.FieldStatus;
+import feast.types.ValueProto.Value;
+import feast.types.ValueProto.Value.ValCase;
+>>>>>>> Fixed issue where getOnlineFeatures() returned Record in a non deterministic order.
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -88,7 +94,7 @@ public class Row {
                 "Type '%s' is unsupported in Feast. Please use one of these value types: Integer, Long, Float, Double, String, byte[].",
                 valueType));
     }
-   
+
     fieldStatuses.put(fieldName, status);
     return this;
   }
@@ -96,7 +102,7 @@ public class Row {
   public Map<String, Value> getFields() {
     return fields;
   }
-  
+
   public Integer getInt(String fieldName) {
     return getValue(fieldName).map(Value::getInt32Val).orElse(null);
   }
