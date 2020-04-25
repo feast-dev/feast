@@ -80,39 +80,24 @@ public class JobUpdateTask implements Callable<Job> {
   @Override
   public Job call() {
     ExecutorService executorService = Executors.newSingleThreadExecutor();
-    Source source = Source.fromProto(sourceSpec);
     Future<Job> submittedJob;
 
-    if (currentJob.isPresent()) {
-      Job job = currentJob.get();
-      Set<String> existingFeatureSetsPopulatedByJob =
-          job.getFeatureSets().stream().map(FeatureSet::getId).collect(Collectors.toSet());
-      Set<String> newFeatureSetsPopulatedByJob =
-          featureSets.stream()
-              .map(fs -> FeatureSet.fromProto(fs).getId())
-              .collect(Collectors.toSet());
-
-      if (newFeatureSetsPopulatedByJob.equals(existingFeatureSetsPopulatedByJob)) {
-        JobStatus currentStatus = job.getStatus();
-        JobStatus newStatus = jobManager.getJobStatus(job);
-        if (newStatus != currentStatus) {
-          var auditMessage = "Job status updated: changed from %s to %s";
-          logAudit(Action.STATUS_CHANGE, job, auditMessage, currentStatus, newStatus);
-        }
-
-        job.setStatus(newStatus);
-        return job;
-      } else {
-        submittedJob = executorService.submit(() -> updateJob(job, featureSets, store));
-      }
+    if (currentJob.isEmpty()) {
+      submittedJob = executorService.submit(this::createJob);
     } else {
-      String jobId = createJobId(source.getId(), store.getName());
-      submittedJob = executorService.submit(() -> startJob(jobId, featureSets, sourceSpec, store));
+      Job job = currentJob.get();
+
+      if (featureSetsChangedFor(job)) {
+        submittedJob = executorService.submit(() -> updateJob(job));
+      } else {
+        return updateStatus(job);
+      }
     }
 
     try {
       return submittedJob.get(getJobUpdateTimeoutSeconds(), TimeUnit.SECONDS);
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      Source source = Source.fromProto(sourceSpec);
       log.warn("Unable to start job for source {} and sink {}: {}", source, store, e.getMessage());
       return null;
     } finally {
@@ -120,21 +105,34 @@ public class JobUpdateTask implements Callable<Job> {
     }
   }
 
+  boolean featureSetsChangedFor(Job job) {
+    Set<String> existingFeatureSetsPopulatedByJob =
+        job.getFeatureSets().stream().map(FeatureSet::getId).collect(Collectors.toSet());
+    Set<String> newFeatureSetsPopulatedByJob =
+        featureSets.stream()
+            .map(fs -> FeatureSet.fromProto(fs).getId())
+            .collect(Collectors.toSet());
+
+    return !newFeatureSetsPopulatedByJob.equals(existingFeatureSetsPopulatedByJob);
+  }
+
+  private Job createJob() {
+    Source source = Source.fromProto(sourceSpec);
+    String jobId = createJobId(source.getId(), store.getName());
+    return startJob(jobId);
+  }
+
   /** Start or update the job to ingest data to the sink. */
-  private Job startJob(
-      String jobId,
-      List<FeatureSetProto.FeatureSet> featureSetProtos,
-      SourceProto.Source source,
-      StoreProto.Store sinkSpec) {
+  private Job startJob(String jobId) {
 
     Job job =
         new Job(
             jobId,
             "",
             jobManager.getRunnerType(),
-            Source.fromProto(source),
-            Store.fromProto(sinkSpec),
-            featureSetsFromProto(featureSetProtos),
+            Source.fromProto(sourceSpec),
+            Store.fromProto(store),
+            featureSetsFromProto(featureSets),
             JobStatus.PENDING);
     try {
       logAudit(Action.SUBMIT, job, "Building graph and submitting to %s", runnerType);
@@ -161,12 +159,23 @@ public class JobUpdateTask implements Callable<Job> {
   }
 
   /** Update the given job */
-  private Job updateJob(
-      Job job, List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store store) {
+  private Job updateJob(Job job) {
     job.setFeatureSets(featureSetsFromProto(featureSets));
     job.setStore(Store.fromProto(store));
     logAudit(Action.UPDATE, job, "Updating job %s for runner %s", job.getId(), runnerType);
     return jobManager.updateJob(job);
+  }
+
+  private Job updateStatus(Job job) {
+    JobStatus currentStatus = job.getStatus();
+    JobStatus newStatus = jobManager.getJobStatus(job);
+    if (newStatus != currentStatus) {
+      var auditMessage = "Job status updated: changed from %s to %s";
+      logAudit(Action.STATUS_CHANGE, job, auditMessage, currentStatus, newStatus);
+    }
+
+    job.setStatus(newStatus);
+    return job;
   }
 
   String createJobId(String sourceId, String storeName) {
