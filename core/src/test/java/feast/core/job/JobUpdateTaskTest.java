@@ -40,6 +40,8 @@ import feast.core.model.JobStatus;
 import feast.core.model.Source;
 import feast.core.model.Store;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import org.hamcrest.core.IsNull;
 import org.junit.Before;
@@ -48,10 +50,16 @@ import org.mockito.Mock;
 
 public class JobUpdateTaskTest {
 
+  private static final FeatureSetProto.FeatureSet.Builder fsBuilder =
+      FeatureSetProto.FeatureSet.newBuilder().setMeta(FeatureSetMeta.newBuilder());
+  private static final FeatureSetSpec.Builder specBuilder =
+      FeatureSetSpec.newBuilder().setProject("project1").setVersion(1);
+
   @Mock private JobManager jobManager;
 
   private StoreProto.Store store;
   private SourceProto.Source source;
+  private FeatureSetProto.FeatureSet featureSet1;
 
   @Before
   public void setUp() {
@@ -76,38 +84,27 @@ public class JobUpdateTaskTest {
                     .setBootstrapServers("servers:9092")
                     .build())
             .build();
+
+    featureSet1 = fsBuilder.setSpec(specBuilder.setName("featureSet1").setSource(source)).build();
   }
 
   @Test
   public void shouldUpdateJobIfPresent() {
-    FeatureSetProto.FeatureSet featureSet1 =
-        FeatureSetProto.FeatureSet.newBuilder()
-            .setSpec(
-                FeatureSetSpec.newBuilder()
-                    .setSource(source)
-                    .setProject("project1")
-                    .setName("featureSet1")
-                    .setVersion(1))
-            .setMeta(FeatureSetMeta.newBuilder())
-            .build();
     FeatureSetProto.FeatureSet featureSet2 =
-        FeatureSetProto.FeatureSet.newBuilder()
-            .setSpec(
-                FeatureSetSpec.newBuilder()
-                    .setSource(source)
-                    .setProject("project1")
-                    .setName("featureSet2")
-                    .setVersion(1))
-            .setMeta(FeatureSetMeta.newBuilder())
-            .build();
+        fsBuilder.setSpec(specBuilder.setName("featureSet2")).build();
+    List<FeatureSet> existingFeatureSetsPopulatedByJob =
+        Collections.singletonList(FeatureSet.fromProto(featureSet1));
+    List<FeatureSet> newFeatureSetsPopulatedByJob =
+        Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2));
+
     Job originalJob =
         new Job(
             "job",
             "old_ext",
             Runner.DATAFLOW,
-            feast.core.model.Source.fromProto(source),
-            feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet1)),
+            Source.fromProto(source),
+            Store.fromProto(store),
+            existingFeatureSetsPopulatedByJob,
             JobStatus.RUNNING);
     JobUpdateTask jobUpdateTask =
         new JobUpdateTask(
@@ -122,9 +119,9 @@ public class JobUpdateTaskTest {
             "job",
             "old_ext",
             Runner.DATAFLOW,
-            feast.core.model.Source.fromProto(source),
-            feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2)),
+            Source.fromProto(source),
+            Store.fromProto(store),
+            newFeatureSetsPopulatedByJob,
             JobStatus.RUNNING);
 
     Job expected =
@@ -134,7 +131,7 @@ public class JobUpdateTaskTest {
             Runner.DATAFLOW,
             Source.fromProto(source),
             Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2)),
+            newFeatureSetsPopulatedByJob,
             JobStatus.PENDING);
     when(jobManager.updateJob(submittedJob)).thenReturn(expected);
     Job actual = jobUpdateTask.call();
@@ -144,16 +141,6 @@ public class JobUpdateTaskTest {
 
   @Test
   public void shouldCreateJobIfNotPresent() {
-    FeatureSetProto.FeatureSet featureSet1 =
-        FeatureSetProto.FeatureSet.newBuilder()
-            .setSpec(
-                FeatureSetSpec.newBuilder()
-                    .setSource(source)
-                    .setProject("project1")
-                    .setName("featureSet1")
-                    .setVersion(1))
-            .setMeta(FeatureSetMeta.newBuilder())
-            .build();
     JobUpdateTask jobUpdateTask =
         spy(
             new JobUpdateTask(
@@ -165,8 +152,8 @@ public class JobUpdateTaskTest {
             "job",
             "",
             Runner.DATAFLOW,
-            feast.core.model.Source.fromProto(source),
-            feast.core.model.Store.fromProto(store),
+            Source.fromProto(source),
+            Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet1)),
             JobStatus.PENDING);
 
@@ -175,8 +162,8 @@ public class JobUpdateTaskTest {
             "job",
             "ext",
             Runner.DATAFLOW,
-            feast.core.model.Source.fromProto(source),
-            feast.core.model.Store.fromProto(store),
+            Source.fromProto(source),
+            Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet1)),
             JobStatus.RUNNING);
 
@@ -188,31 +175,7 @@ public class JobUpdateTaskTest {
 
   @Test
   public void shouldUpdateJobStatusIfNotCreateOrUpdate() {
-    FeatureSetProto.FeatureSet featureSet1 =
-        FeatureSetProto.FeatureSet.newBuilder()
-            .setSpec(
-                FeatureSetSpec.newBuilder()
-                    .setSource(source)
-                    .setProject("project1")
-                    .setName("featureSet1")
-                    .setVersion(1))
-            .setMeta(FeatureSetMeta.newBuilder())
-            .build();
     Job originalJob =
-        new Job(
-            "job",
-            "ext",
-            Runner.DATAFLOW,
-            feast.core.model.Source.fromProto(source),
-            feast.core.model.Store.fromProto(store),
-            Arrays.asList(FeatureSet.fromProto(featureSet1)),
-            JobStatus.RUNNING);
-    JobUpdateTask jobUpdateTask =
-        new JobUpdateTask(
-            Arrays.asList(featureSet1), source, store, Optional.of(originalJob), jobManager, 100L);
-
-    when(jobManager.getJobStatus(originalJob)).thenReturn(JobStatus.ABORTING);
-    Job expected =
         new Job(
             "job",
             "ext",
@@ -220,24 +183,19 @@ public class JobUpdateTaskTest {
             Source.fromProto(source),
             Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet1)),
-            JobStatus.ABORTING);
-    Job actual = jobUpdateTask.call();
+            JobStatus.RUNNING);
+    JobUpdateTask jobUpdateTask =
+        new JobUpdateTask(
+            Arrays.asList(featureSet1), source, store, Optional.of(originalJob), jobManager, 100L);
 
-    assertThat(actual, equalTo(expected));
+    when(jobManager.getJobStatus(originalJob)).thenReturn(JobStatus.ABORTING);
+    Job updated = jobUpdateTask.call();
+
+    assertThat(updated.getStatus(), equalTo(JobStatus.ABORTING));
   }
 
   @Test
   public void shouldReturnJobWithErrorStatusIfFailedToSubmit() {
-    FeatureSetProto.FeatureSet featureSet1 =
-        FeatureSetProto.FeatureSet.newBuilder()
-            .setSpec(
-                FeatureSetSpec.newBuilder()
-                    .setSource(source)
-                    .setProject("project1")
-                    .setName("featureSet1")
-                    .setVersion(1))
-            .setMeta(FeatureSetMeta.newBuilder())
-            .build();
     JobUpdateTask jobUpdateTask =
         spy(
             new JobUpdateTask(
@@ -249,8 +207,8 @@ public class JobUpdateTaskTest {
             "job",
             "",
             Runner.DATAFLOW,
-            feast.core.model.Source.fromProto(source),
-            feast.core.model.Store.fromProto(store),
+            Source.fromProto(source),
+            Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet1)),
             JobStatus.PENDING);
 
@@ -259,8 +217,8 @@ public class JobUpdateTaskTest {
             "job",
             "",
             Runner.DATAFLOW,
-            feast.core.model.Source.fromProto(source),
-            feast.core.model.Store.fromProto(store),
+            Source.fromProto(source),
+            Store.fromProto(store),
             Arrays.asList(FeatureSet.fromProto(featureSet1)),
             JobStatus.ERROR);
 
@@ -273,17 +231,6 @@ public class JobUpdateTaskTest {
 
   @Test
   public void shouldTimeout() {
-    FeatureSetProto.FeatureSet featureSet1 =
-        FeatureSetProto.FeatureSet.newBuilder()
-            .setSpec(
-                FeatureSetSpec.newBuilder()
-                    .setSource(source)
-                    .setProject("project1")
-                    .setName("featureSet1")
-                    .setVersion(1))
-            .setMeta(FeatureSetMeta.newBuilder())
-            .build();
-
     JobUpdateTask jobUpdateTask =
         spy(
             new JobUpdateTask(
