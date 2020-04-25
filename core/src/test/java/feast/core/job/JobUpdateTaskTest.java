@@ -56,6 +56,8 @@ public class JobUpdateTaskTest {
   @Before
   public void setUp() {
     initMocks(this);
+    when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
+
     store =
         StoreProto.Store.newBuilder()
             .setName("test")
@@ -135,7 +137,6 @@ public class JobUpdateTaskTest {
             Arrays.asList(FeatureSet.fromProto(featureSet1), FeatureSet.fromProto(featureSet2)),
             JobStatus.PENDING);
     when(jobManager.updateJob(submittedJob)).thenReturn(expected);
-    when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
     Job actual = jobUpdateTask.call();
 
     assertThat(actual, equalTo(expected));
@@ -179,7 +180,6 @@ public class JobUpdateTaskTest {
             Arrays.asList(FeatureSet.fromProto(featureSet1)),
             JobStatus.RUNNING);
 
-    when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
     when(jobManager.startJob(expectedInput)).thenReturn(expected);
 
     Job actual = jobUpdateTask.call();
@@ -264,7 +264,6 @@ public class JobUpdateTaskTest {
             Arrays.asList(FeatureSet.fromProto(featureSet1)),
             JobStatus.ERROR);
 
-    when(jobManager.getRunnerType()).thenReturn(Runner.DATAFLOW);
     when(jobManager.startJob(expectedInput))
         .thenThrow(new RuntimeException("Something went wrong"));
 

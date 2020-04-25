@@ -56,8 +56,9 @@ public class JobUpdateTask implements Callable<Job> {
   private final SourceProto.Source sourceSpec;
   private final StoreProto.Store store;
   private final Optional<Job> currentJob;
-  private JobManager jobManager;
-  private long jobUpdateTimeoutSeconds;
+  private final JobManager jobManager;
+  private final long jobUpdateTimeoutSeconds;
+  private final String runnerType;
 
   public JobUpdateTask(
       List<FeatureSetProto.FeatureSet> featureSets,
@@ -73,6 +74,7 @@ public class JobUpdateTask implements Callable<Job> {
     this.currentJob = currentJob;
     this.jobManager = jobManager;
     this.jobUpdateTimeoutSeconds = jobUpdateTimeoutSeconds;
+    this.runnerType = jobManager.getRunnerType().toString();
   }
 
   @Override
@@ -89,19 +91,16 @@ public class JobUpdateTask implements Callable<Job> {
           featureSets.stream()
               .map(fs -> FeatureSet.fromProto(fs).getId())
               .collect(Collectors.toSet());
+
       if (newFeatureSetsPopulatedByJob.equals(existingFeatureSetsPopulatedByJob)) {
-        JobStatus currentJobStatus = job.getStatus();
-        JobStatus newJobStatus = jobManager.getJobStatus(job);
-        if (newJobStatus != currentJobStatus) {
-          AuditLogger.log(
-              Resource.JOB,
-              job.getId(),
-              Action.STATUS_CHANGE,
-              "Job status updated: changed from %s to %s",
-              currentJobStatus,
-              newJobStatus);
+        JobStatus currentStatus = job.getStatus();
+        JobStatus newStatus = jobManager.getJobStatus(job);
+        if (newStatus != currentStatus) {
+          var auditMessage = "Job status updated: changed from %s to %s";
+          logAudit(Action.STATUS_CHANGE, job, auditMessage, currentStatus, newStatus);
         }
-        job.setStatus(newJobStatus);
+
+        job.setStatus(newStatus);
         return job;
       } else {
         submittedJob = executorService.submit(() -> updateJob(job, featureSets, store));
@@ -138,36 +137,23 @@ public class JobUpdateTask implements Callable<Job> {
             featureSetsFromProto(featureSetProtos),
             JobStatus.PENDING);
     try {
-      AuditLogger.log(
-          Resource.JOB,
-          jobId,
-          Action.SUBMIT,
-          "Building graph and submitting to %s",
-          jobManager.getRunnerType().toString());
+      logAudit(Action.SUBMIT, job, "Building graph and submitting to %s", runnerType);
 
       job = jobManager.startJob(job);
-      if (job.getExtId().isEmpty()) {
+      var extId = job.getExtId();
+      if (extId.isEmpty()) {
         throw new RuntimeException(
             String.format("Could not submit job: \n%s", "unable to retrieve job external id"));
       }
 
-      AuditLogger.log(
-          Resource.JOB,
-          jobId,
-          Action.STATUS_CHANGE,
-          "Job submitted to runner %s with ext id %s.",
-          jobManager.getRunnerType().toString(),
-          job.getExtId());
+      var auditMessage = "Job submitted to runner %s with ext id %s.";
+      logAudit(Action.STATUS_CHANGE, job, auditMessage, runnerType, extId);
 
       return job;
     } catch (Exception e) {
       log.error(e.getMessage());
-      AuditLogger.log(
-          Resource.JOB,
-          jobId,
-          Action.STATUS_CHANGE,
-          "Job failed to be submitted to runner %s. Job status changed to ERROR.",
-          jobManager.getRunnerType().toString());
+      var auditMessage = "Job failed to be submitted to runner %s. Job status changed to ERROR.";
+      logAudit(Action.STATUS_CHANGE, job, auditMessage, runnerType);
 
       job.setStatus(JobStatus.ERROR);
       return job;
@@ -178,14 +164,8 @@ public class JobUpdateTask implements Callable<Job> {
   private Job updateJob(
       Job job, List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store store) {
     job.setFeatureSets(featureSetsFromProto(featureSets));
-    job.setStore(feast.core.model.Store.fromProto(store));
-    AuditLogger.log(
-        Resource.JOB,
-        job.getId(),
-        Action.UPDATE,
-        "Updating job %s for runner %s",
-        job.getId(),
-        jobManager.getRunnerType().toString());
+    job.setStore(Store.fromProto(store));
+    logAudit(Action.UPDATE, job, "Updating job %s for runner %s", job.getId(), runnerType);
     return jobManager.updateJob(job);
   }
 
@@ -207,5 +187,9 @@ public class JobUpdateTask implements Callable<Job> {
                         .setMeta(fsp.getMeta())
                         .build()))
         .collect(Collectors.toList());
+  }
+
+  private void logAudit(Action action, Job job, String detail, Object... args) {
+    AuditLogger.log(Resource.JOB, job.getId(), action, detail, args);
   }
 }
