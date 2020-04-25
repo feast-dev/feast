@@ -80,47 +80,45 @@ public class JobUpdateTask implements Callable<Job> {
     ExecutorService executorService = Executors.newSingleThreadExecutor();
     Source source = Source.fromProto(sourceSpec);
     Future<Job> submittedJob;
+
     if (currentJob.isPresent()) {
+      Job job = currentJob.get();
       Set<String> existingFeatureSetsPopulatedByJob =
-          currentJob.get().getFeatureSets().stream()
-              .map(FeatureSet::getId)
-              .collect(Collectors.toSet());
+          job.getFeatureSets().stream().map(FeatureSet::getId).collect(Collectors.toSet());
       Set<String> newFeatureSetsPopulatedByJob =
           featureSets.stream()
               .map(fs -> FeatureSet.fromProto(fs).getId())
               .collect(Collectors.toSet());
-      if (existingFeatureSetsPopulatedByJob.size() == newFeatureSetsPopulatedByJob.size()
-          && existingFeatureSetsPopulatedByJob.containsAll(newFeatureSetsPopulatedByJob)) {
-        Job job = currentJob.get();
+      if (newFeatureSetsPopulatedByJob.equals(existingFeatureSetsPopulatedByJob)) {
+        JobStatus currentJobStatus = job.getStatus();
         JobStatus newJobStatus = jobManager.getJobStatus(job);
-        if (newJobStatus != job.getStatus()) {
+        if (newJobStatus != currentJobStatus) {
           AuditLogger.log(
               Resource.JOB,
               job.getId(),
               Action.STATUS_CHANGE,
               "Job status updated: changed from %s to %s",
-              job.getStatus(),
+              currentJobStatus,
               newJobStatus);
         }
         job.setStatus(newJobStatus);
         return job;
       } else {
-        submittedJob =
-            executorService.submit(() -> updateJob(currentJob.get(), featureSets, store));
+        submittedJob = executorService.submit(() -> updateJob(job, featureSets, store));
       }
     } else {
       String jobId = createJobId(source.getId(), store.getName());
       submittedJob = executorService.submit(() -> startJob(jobId, featureSets, sourceSpec, store));
     }
 
-    Job job = null;
     try {
-      job = submittedJob.get(getJobUpdateTimeoutSeconds(), TimeUnit.SECONDS);
+      return submittedJob.get(getJobUpdateTimeoutSeconds(), TimeUnit.SECONDS);
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
       log.warn("Unable to start job for source {} and sink {}: {}", source, store, e.getMessage());
+      return null;
+    } finally {
       executorService.shutdownNow();
     }
-    return job;
   }
 
   /** Start or update the job to ingest data to the sink. */
@@ -130,16 +128,6 @@ public class JobUpdateTask implements Callable<Job> {
       SourceProto.Source source,
       StoreProto.Store sinkSpec) {
 
-    List<FeatureSet> featureSets =
-        featureSetProtos.stream()
-            .map(
-                fsp ->
-                    FeatureSet.fromProto(
-                        FeatureSetProto.FeatureSet.newBuilder()
-                            .setSpec(fsp.getSpec())
-                            .setMeta(fsp.getMeta())
-                            .build()))
-            .collect(Collectors.toList());
     Job job =
         new Job(
             jobId,
@@ -147,7 +135,7 @@ public class JobUpdateTask implements Callable<Job> {
             jobManager.getRunnerType(),
             Source.fromProto(source),
             Store.fromProto(sinkSpec),
-            featureSets,
+            featureSetsFromProto(featureSetProtos),
             JobStatus.PENDING);
     try {
       AuditLogger.log(
@@ -189,16 +177,7 @@ public class JobUpdateTask implements Callable<Job> {
   /** Update the given job */
   private Job updateJob(
       Job job, List<FeatureSetProto.FeatureSet> featureSets, StoreProto.Store store) {
-    job.setFeatureSets(
-        featureSets.stream()
-            .map(
-                fs ->
-                    FeatureSet.fromProto(
-                        FeatureSetProto.FeatureSet.newBuilder()
-                            .setSpec(fs.getSpec())
-                            .setMeta(fs.getMeta())
-                            .build()))
-            .collect(Collectors.toList()));
+    job.setFeatureSets(featureSetsFromProto(featureSets));
     job.setStore(feast.core.model.Store.fromProto(store));
     AuditLogger.log(
         Resource.JOB,
@@ -215,5 +194,18 @@ public class JobUpdateTask implements Callable<Job> {
     String sourceIdTrunc = sourceId.split("/")[0].toLowerCase();
     String jobId = String.format("%s-to-%s", sourceIdTrunc, storeName) + dateSuffix;
     return jobId.replaceAll("_", "-");
+  }
+
+  // TODO: Either put in a util somewhere, or stop using proto types in domain logic altogether
+  private static List<FeatureSet> featureSetsFromProto(List<FeatureSetProto.FeatureSet> protos) {
+    return protos.stream()
+        .map(
+            fsp ->
+                FeatureSet.fromProto(
+                    FeatureSetProto.FeatureSet.newBuilder()
+                        .setSpec(fsp.getSpec())
+                        .setMeta(fsp.getMeta())
+                        .build()))
+        .collect(Collectors.toList());
   }
 }
