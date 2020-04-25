@@ -17,10 +17,8 @@
 package feast.core.model;
 
 import feast.core.IngestionJobProto.IngestionJobStatus;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 
 public enum JobStatus {
   /** Job status is not known. */
@@ -53,31 +51,39 @@ public enum JobStatus {
   /** job has been suspended */
   SUSPENDED;
 
-  private static final Collection<JobStatus> TERMINAL_STATE =
-      Collections.unmodifiableList(Arrays.asList(COMPLETED, ABORTED, ERROR));
+  private static final Set<JobStatus> TERMINAL_STATES = Set.of(COMPLETED, ABORTED, ERROR);
 
   /**
-   * Get a collection of terminal job state.
+   * Get the set of terminal job states.
    *
-   * <p>Terminal job state is final and will not change to any other state.
+   * <p>A terminal job state is final and will not change to any other state.
    *
-   * @return collection of terminal job state.
+   * @return set of terminal job states.
    */
-  public static Collection<JobStatus> getTerminalState() {
-    return TERMINAL_STATE;
+  public static Set<JobStatus> getTerminalStates() {
+    return TERMINAL_STATES;
   }
 
-  private static final Collection<JobStatus> TRANSITIONAL_STATES =
-      Collections.unmodifiableList(Arrays.asList(PENDING, ABORTING, SUSPENDING));
+  private static final Set<JobStatus> TRANSITIONAL_STATES = Set.of(PENDING, ABORTING, SUSPENDING);
 
   /**
-   * Get Transitional Job Status states. Transitionals states are assigned to jobs that
+   * Get Transitional Job Status states. Transitional states are assigned to jobs that are
    * transitioning to a more stable state (ie SUSPENDED, ABORTED etc.)
    *
-   * @return Collection of transitional Job Status states.
+   * @return set of transitional Job Status states.
    */
-  public static final Collection<JobStatus> getTransitionalStates() {
+  public static Set<JobStatus> getTransitionalStates() {
     return TRANSITIONAL_STATES;
+  }
+
+  /** @return true if this {@code JobStatus} is a terminal state. */
+  public boolean isTerminal() {
+    return getTerminalStates().contains(this);
+  }
+
+  /** @return true if this {@code JobStatus} is a transitional state. */
+  public boolean isTransitional() {
+    return getTransitionalStates().contains(this);
   }
 
   private static final Map<JobStatus, IngestionJobStatus> INGESTION_JOB_STATUS_MAP =
@@ -95,7 +101,7 @@ public enum JobStatus {
   /**
    * Convert a Job Status to Ingestion Job Status proto
    *
-   * @return IngestionJobStatus proto derieved from this job status
+   * @return IngestionJobStatus proto derived from this job status
    */
   public IngestionJobStatus toProto() {
     // maps job models job status to ingestion job status

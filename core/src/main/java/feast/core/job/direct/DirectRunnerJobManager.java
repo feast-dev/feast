@@ -166,8 +166,7 @@ public class DirectRunnerJobManager implements JobManager {
    */
   @Override
   public Job restartJob(Job job) {
-    JobStatus status = job.getStatus();
-    if (JobStatus.getTerminalState().contains(status)) {
+    if (job.getStatus().isTerminal()) {
       // job yet not running: just start job
       return this.startJob(job);
     } else {

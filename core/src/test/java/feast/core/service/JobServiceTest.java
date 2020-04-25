@@ -341,10 +341,9 @@ public class JobServiceTest {
   }
 
   @Test
-  public void testStopAlreadyStop() {
+  public void testStopAlreadyStopped() {
     // check that stop jobs does not trying to stop jobs that are not already stopped
-    List<JobStatus> doNothingStatuses = new ArrayList<>();
-    doNothingStatuses.addAll(JobStatus.getTerminalState());
+    List<JobStatus> doNothingStatuses = new ArrayList<>(JobStatus.getTerminalStates());
 
     JobStatus prevStatus = this.job.getStatus();
     for (JobStatus status : doNothingStatuses) {

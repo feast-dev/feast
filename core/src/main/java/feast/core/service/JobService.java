@@ -159,6 +159,7 @@ public class JobService {
     // check job exists
     Optional<Job> getJob = this.jobRepository.findById(request.getId());
     if (getJob.isEmpty()) {
+      // FIXME: if getJob.isEmpty then constructing this error message will always throw an error...
       throw new NoSuchElementException(
           "Attempted to stop nonexistent job with id: " + getJob.get().getId());
     }
@@ -166,9 +167,7 @@ public class JobService {
     // check job status is valid for restarting
     Job job = getJob.get();
     JobStatus status = job.getStatus();
-    if (JobStatus.getTransitionalStates().contains(status)
-        || JobStatus.getTerminalState().contains(status)
-        || status.equals(JobStatus.UNKNOWN)) {
+    if (status.isTransitional() || status.isTerminal() || status == JobStatus.UNKNOWN) {
       throw new UnsupportedOperationException(
           "Restarting a job with a transitional, terminal or unknown status is unsupported");
     }
@@ -209,11 +208,10 @@ public class JobService {
     // check job status is valid for stopping
     Job job = getJob.get();
     JobStatus status = job.getStatus();
-    if (JobStatus.getTerminalState().contains(status)) {
+    if (status.isTerminal()) {
       // do nothing - job is already stopped
       return StopIngestionJobResponse.newBuilder().build();
-    } else if (JobStatus.getTransitionalStates().contains(status)
-        || status.equals(JobStatus.UNKNOWN)) {
+    } else if (status.isTransitional() || status == JobStatus.UNKNOWN) {
       throw new UnsupportedOperationException(
           "Stopping a job with a transitional or unknown status is unsupported");
     }

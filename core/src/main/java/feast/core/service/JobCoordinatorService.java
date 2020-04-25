@@ -189,11 +189,8 @@ public class JobCoordinatorService {
     List<Job> jobs =
         jobRepository.findBySourceIdAndStoreNameOrderByLastUpdatedDesc(
             source.getId(), store.getName());
-    jobs =
-        jobs.stream()
-            .filter(job -> !JobStatus.getTerminalState().contains(job.getStatus()))
-            .collect(Collectors.toList());
-    if (jobs.size() == 0) {
+    jobs = jobs.stream().filter(job -> !job.hasTerminated()).collect(Collectors.toList());
+    if (jobs.isEmpty()) {
       return Optional.empty();
     }
     // return the latest
