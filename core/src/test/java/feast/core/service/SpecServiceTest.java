@@ -625,16 +625,8 @@ public class SpecServiceTest {
         new ArrayList<>(appliedFeatureSetSpec.getFeaturesList());
     appliedFeatureSpecs.sort(Comparator.comparing(FeatureSpec::getName));
 
-    assertEquals(appliedEntitySpecs.size(), entitySpecs.size());
-    assertEquals(appliedFeatureSpecs.size(), featureSpecs.size());
-
-    for (int i = 0; i < appliedEntitySpecs.size(); i++) {
-      assertEquals(entitySpecs.get(i), appliedEntitySpecs.get(i));
-    }
-
-    for (int i = 0; i < appliedFeatureSpecs.size(); i++) {
-      assertEquals(featureSpecs.get(i), appliedFeatureSpecs.get(i));
-    }
+    assertEquals(appliedEntitySpecs, entitySpecs);
+    assertEquals(appliedFeatureSpecs, featureSpecs);
   }
 
   @Test
@@ -767,53 +759,11 @@ public class SpecServiceTest {
         new ArrayList<>(appliedFeatureSetSpec.getFeaturesList());
     appliedFeatureSpecs.sort(Comparator.comparing(FeatureSpec::getName));
 
-    assertEquals(appliedEntitySpecs.size(), entitySpecs.size());
-    assertEquals(appliedFeatureSpecs.size(), featureSpecs.size());
-
-    for (int i = 0; i < appliedEntitySpecs.size(); i++) {
-      assertEquals(entitySpecs.get(i), appliedEntitySpecs.get(i));
-    }
-
-    for (int i = 0; i < appliedFeatureSpecs.size(); i++) {
-      assertEquals(featureSpecs.get(i), appliedFeatureSpecs.get(i));
-      assertEquals(featureSpecs.get(i).getLabelsMap(), featureLabels.get(i));
-    }
-  }
-
-  @Test
-  public void applyFeatureSetShouldNotAcceptLabelsWithEmptyKey()
-      throws InvalidProtocolBufferException {
-    List<EntitySpec> entitySpecs = new ArrayList<>();
-    entitySpecs.add(EntitySpec.newBuilder().setName("entity1").setValueType(Enum.INT64).build());
-
-    Map<String, String> featureLabels =
-        new HashMap<>() {
-          {
-            put("", "empty_key");
-          }
-        };
-
-    List<FeatureSpec> featureSpecs = new ArrayList<>();
-    featureSpecs.add(
-        FeatureSpec.newBuilder()
-            .setName("feature1")
-            .setValueType(Enum.INT64)
-            .putAllLabels(featureLabels)
-            .build());
-
-    FeatureSetSpec featureSetSpec =
-        FeatureSetSpec.newBuilder()
-            .setProject("project1")
-            .setName("featureSetWithConstraints")
-            .addAllEntities(entitySpecs)
-            .addAllFeatures(featureSpecs)
-            .build();
-    FeatureSetProto.FeatureSet featureSet =
-        FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSetSpec).build();
-
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Labels key on Feature spec should not be an empty string");
-    specService.applyFeatureSet(featureSet);
+    var featureSpecsLabels =
+        featureSpecs.stream().map(e -> e.getLabelsMap()).collect(Collectors.toList());
+    assertEquals(appliedEntitySpecs, entitySpecs);
+    assertEquals(appliedFeatureSpecs, featureSpecs);
+    assertEquals(featureSpecsLabels, featureLabels);
   }
 
   @Test

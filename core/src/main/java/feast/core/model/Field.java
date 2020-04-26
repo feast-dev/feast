@@ -225,7 +225,7 @@ public class Field {
     }
   }
 
-  public Map<String, String> getLabelsJSON() {
+  public Map<String, String> getLabels() {
     return TypeConversion.convertJsonStringToMap(this.labels);
   }
 

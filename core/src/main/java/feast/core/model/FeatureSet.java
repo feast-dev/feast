@@ -354,7 +354,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     }
 
     if (featureField.getLabels() != null) {
-      featureSpecBuilder.putAllLabels(featureField.getLabelsJSON());
+      featureSpecBuilder.putAllLabels(featureField.getLabels());
     }
   }
 

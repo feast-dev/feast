@@ -44,10 +44,10 @@ def _encode_pa_tables(
             Parquet file must have more than one row group.
 
         feature_set (str):
-            FeatureSet describing the full feature set refference in the format f"{project}/{name}:{version}".
+            Feature set reference in the format f"{project}/{name}:{version}".
 
         fields (dict[str, enum.Enum.ValueType]):
-            Fields represent dictionary of field name and field value type.
+            A mapping of field names to their value types.
 
         row_group_idx(int):
             Row group index to read and encode into byte like FeatureRow
@@ -96,10 +96,6 @@ def _encode_pa_tables(
     return feature_rows
 
 
-def normalize_fields(fields):
-    return {field.name: field.dtype for field in fields.values()}
-
-
 def get_feature_row_chunks(
     file: str, row_groups: List[int], fs: FeatureSet, max_workers: int
 ) -> Iterable[List[bytes]]:
@@ -127,12 +123,15 @@ def get_feature_row_chunks(
             Iterable list of byte encoded FeatureRow(s).
     """
 
+    def normalize_fields(fields):
+        return {field.name: field.dtype for field in fields.values()}
+
     feature_set = f"{fs.project}/{fs.name}:{fs.version}"
 
-    fields = normalize_fields(fs.fields)
+    normalized_fields = normalize_fields(fs.fields)
 
     pool = Pool(max_workers)
-    func = partial(_encode_pa_tables, file, feature_set, fields)
+    func = partial(_encode_pa_tables, file, feature_set, normalized_fields)
     for chunk in pool.imap(func, row_groups):
         yield chunk
     return
