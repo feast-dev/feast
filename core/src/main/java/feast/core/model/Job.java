@@ -19,6 +19,7 @@ package feast.core.model;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto;
 import feast.core.IngestionJobProto;
+import feast.core.job.Runner;
 import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.CascadeType;
@@ -55,9 +56,9 @@ public class Job extends AbstractTimestampEntity {
   private String extId;
 
   // Runner type
-  // Use Runner.name() when converting a Runner to string to assign to this property.
+  @Enumerated(EnumType.STRING)
   @Column(name = "runner")
-  private String runner;
+  private Runner runner;
 
   // Source id
   @ManyToOne
@@ -96,7 +97,7 @@ public class Job extends AbstractTimestampEntity {
   public Job(
       String id,
       String extId,
-      String runner,
+      Runner runner,
       Source source,
       Store sink,
       List<FeatureSet> featureSets,

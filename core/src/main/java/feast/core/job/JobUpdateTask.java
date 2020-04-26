@@ -144,7 +144,7 @@ public class JobUpdateTask implements Callable<Job> {
         new Job(
             jobId,
             "",
-            jobManager.getRunnerType().name(),
+            jobManager.getRunnerType(),
             Source.fromProto(source),
             Store.fromProto(sinkSpec),
             featureSets,

@@ -220,7 +220,7 @@ public class DataflowJobManager implements JobManager {
    */
   @Override
   public JobStatus getJobStatus(Job job) {
-    if (!Runner.DATAFLOW.name().equals(job.getRunner())) {
+    if (job.getRunner() != RUNNER_TYPE) {
       return job.getStatus();
     }
 
@@ -252,7 +252,7 @@ public class DataflowJobManager implements JobManager {
       return new Job(
           jobName,
           jobId,
-          getRunnerType().name(),
+          getRunnerType(),
           Source.fromProto(source),
           Store.fromProto(sink),
           featureSets,
