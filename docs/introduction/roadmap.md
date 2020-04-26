@@ -8,11 +8,10 @@
 
 1. Streaming statistics and validation \(M1 from [Feature Validation RFC](https://docs.google.com/document/d/1TPmd7r4mniL9Y-V_glZaWNo5LMXLshEAUpYsohojZ-8/edit)\)
 2. Batch statistics and validation \(M2 from [Feature Validation RFC](https://docs.google.com/document/d/1TPmd7r4mniL9Y-V_glZaWNo5LMXLshEAUpYsohojZ-8/edit)\)
-3. Support for Redis Clusters \([\#502](https://github.com/gojek/feast/issues/502)\)
+3. Support for Redis Clusters \([\#478](https://github.com/gojek/feast/issues/478), [\#502](https://github.com/gojek/feast/issues/502)\)
 4. User authentication & authorization \([\#504](https://github.com/gojek/feast/issues/504)\)
 5. Add feature or feature set descriptions \([\#463](https://github.com/gojek/feast/issues/463)\)
-6. Redis Cluster Support \([\#478](https://github.com/gojek/feast/issues/478)\)
-7. Job management API  \([\#302](https://github.com/gojek/feast/issues/302)\)
+6. Job management API  \([\#302](https://github.com/gojek/feast/issues/302)\)
 
 ### Technical debt, refactoring, or housekeeping
 
