@@ -259,7 +259,9 @@ def clear_unsupported_fields(datasets):
         if feature.HasField("num_stats"):
             feature.num_stats.common_stats.ClearField("num_values_histogram")
             for hist in feature.num_stats.histograms:
-                hist.buckets[:] = sorted(hist.buckets, key=lambda k: k["highValue"])
+                sorted_buckets = sorted(hist.buckets, key=lambda k: k["highValue"])
+                del hist.buckets[:]
+                hist.buckets.extend(sorted_buckets)
         elif feature.HasField("string_stats"):
             feature.string_stats.common_stats.ClearField("num_values_histogram")
             for bucket in feature.string_stats.rank_histogram.buckets:
