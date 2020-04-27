@@ -566,29 +566,19 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
             continue
         daily_transactions_field = response.records[0].fields[
             PROJECT_NAME+"/daily_transactions_large"]
-        if float_list_field.status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND:
+        if daily_transactions_field.status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND:
             print("test_all_types_retrieve_online_success(): polling for response.")
             continue
+        else:
+            break
 
-        # check returned values
-        returned_daily_transactions = float(daily_transactions_field.value.float_val)
-        sent_daily_transactions = float(
-            large_volume_dataframe.iloc[0]["daily_transactions_large"])
-        is_values_correct = math.isclose(
-            sent_daily_transactions,
-            returned_daily_transactions,
-            abs_tol=FLOAT_TOLERANCE,
-        )
-        # check returned metadata
-        is_meta_correct = (daily_transactions_field.status ==
-                           GetOnlineFeaturesResponse.FieldStatus.PRESENT)
-        if not (is_values_correct and is_meta_correct):
-            print(f"test_all_types_retrieve_online_success(): polling for"
-                  " correct values ({is_values_correct})"
-                  " or correct metadata ({is_meta_correct})")
-        # complete test
-        break
-
+    # check returned values
+    returned_daily_transactions = float(daily_transactions_field.value.float_val)
+    sent_daily_transactions = float(
+        large_volume_dataframe.iloc[0]["daily_transactions_large"])
+    assert math.isclose(sent_daily_transactions, returned_daily_transactions, abs_tol=FLOAT_TOLERANCE)
+    # check returned metadata
+    assert daily_transactions_field.status == GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
 @pytest.fixture(scope='module')
 def all_types_parquet_file():
