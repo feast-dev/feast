@@ -67,7 +67,7 @@ presubmits:
     spec:
       containers:
       - image: maven:3.6-jdk-8
-        command: [".prow/scripts/test-core-ingestion.sh"]
+        command: ["infra/scripts/test-core-ingestion.sh"]
         resources:
           requests:
             cpu: "1000m"
@@ -81,7 +81,7 @@ presubmits:
     spec:
       containers:
       - image: maven:3.6-jdk-8
-        command: [".prow/scripts/test-serving.sh"]
+        command: ["infra/scripts/test-serving.sh"]
 
   - name: test-java-sdk
     decorate: true
@@ -89,7 +89,7 @@ presubmits:
     spec:
       containers:
       - image: maven:3.6-jdk-8
-        command: [".prow/scripts/test-java-sdk.sh"]
+        command: ["infra/scripts/test-java-sdk.sh"]
 
   - name: test-python-sdk
     decorate: true
@@ -97,7 +97,7 @@ presubmits:
     spec:
       containers:
       - image: python:3.7
-        command: [".prow/scripts/test-python-sdk.sh"]
+        command: ["infra/scripts/test-python-sdk.sh"]
 
   - name: test-golang-sdk
     decorate: true
@@ -105,7 +105,7 @@ presubmits:
     spec:
       containers:
       - image: golang:1.13
-        command: [".prow/scripts/test-golang-sdk.sh"]
+        command: ["infra/scripts/test-golang-sdk.sh"]
 
   - name: test-end-to-end
     decorate: true
@@ -113,7 +113,7 @@ presubmits:
     spec:
       containers:
       - image: maven:3.6-jdk-8
-        command: [".prow/scripts/test-end-to-end.sh"]
+        command: ["infra/scripts/test-end-to-end.sh"]
         resources:
           requests:
             cpu: "1000m"
@@ -131,7 +131,7 @@ presubmits:
           secretName: feast-service-account
       containers:
       - image: maven:3.6-jdk-8
-        command: [".prow/scripts/test-end-to-end-batch.sh"]
+        command: ["infra/scripts/test-end-to-end-batch.sh"]
         resources:
           requests:
             cpu: "1000m"
@@ -153,7 +153,7 @@ postsubmits:
         - sh
         - -c
         - |
-          .prow/scripts/publish-python-sdk.sh \
+          infra/scripts/publish-python-sdk.sh \
             --directory-path sdk/python --repository pypi
         volumeMounts:
         - name: pypirc
@@ -177,7 +177,7 @@ postsubmits:
         command:
         - bash
         - -c
-        - .prow/scripts/publish-java-sdk.sh --revision ${PULL_BASE_REF:1}
+        - infra/scripts/publish-java-sdk.sh --revision ${PULL_BASE_REF:1}
         volumeMounts:
         - name: gpg-keys
           mountPath: /etc/gpg
@@ -206,19 +206,19 @@ postsubmits:
         - bash
         - -c
         - |
-          .prow/scripts/download-maven-cache.sh \
+          infra/scripts/download-maven-cache.sh \
             --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
             --output-dir $PWD/
 
           if [ $PULL_BASE_REF == "master" ]; then
 
-          .prow/scripts/publish-docker-image.sh \
+          infra/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-core \
             --tag dev \
             --file infra/docker/core/Dockerfile \
             --google-service-account-file /etc/gcloud/service-account.json
 
-          .prow/scripts/publish-docker-image.sh \
+          infra/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-serving \
             --tag dev \
             --file infra/docker/serving/Dockerfile \
@@ -232,13 +232,13 @@ postsubmits:
 
           else
 
-          .prow/scripts/publish-docker-image.sh \
+          infra/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-core \
             --tag ${PULL_BASE_REF:1} \
             --file infra/docker/core/Dockerfile \
             --google-service-account-file /etc/gcloud/service-account.json
 
-          .prow/scripts/publish-docker-image.sh \
+          infra/scripts/publish-docker-image.sh \
             --repository gcr.io/kf-feast/feast-serving \
             --tag ${PULL_BASE_REF:1} \
             --file infra/docker/serving/Dockerfile \
@@ -295,7 +295,7 @@ postsubmits:
           sed -i "/version: /c\version: ${PULL_BASE_REF:1}" infra/charts/feast/charts/feast-serving/Chart.yaml
           sed -i "/  tag: /c\  tag: ${PULL_BASE_REF:1}" infra/charts/feast/charts/feast-serving/values.yaml
 
-          .prow/scripts/sync-helm-charts.sh
+          infra/scripts/sync-helm-charts.sh
         volumeMounts:
         - name: service-account
           mountPath: /etc/gcloud/service-account.json
