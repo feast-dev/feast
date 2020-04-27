@@ -62,7 +62,7 @@ services:
       - "--spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml"
 
   jupyter:
-    image: jupyter/datascience-notebook:latest
+    image: jupyter/datascience-notebook:63d0df23b673
     volumes:
       - ../../:/home/jovyan/feast
       - ./gcp-service-accounts/${FEAST_JUPYTER_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json

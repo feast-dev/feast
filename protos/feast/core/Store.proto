@@ -120,6 +120,9 @@ message Store {
   message BigQueryConfig {
     string project_id = 1;
     string dataset_id = 2;
+    string staging_location = 3;
+    int32 initial_retry_delay_seconds = 4;
+    int32 total_timeout_seconds = 5;
   }
 
   message CassandraConfig {

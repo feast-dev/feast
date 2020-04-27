@@ -82,7 +82,8 @@ install-go-ci-dependencies:
 	go get -u golang.org/x/lint/golint
 
 compile-protos-go: install-go-ci-dependencies
-	@$(foreach dir,types serving, cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos/ feast/$(dir)/*.proto;)
+	cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos/ tensorflow_metadata/proto/v0/*.proto
+	$(foreach dir,types serving core storage,cd ${ROOT_DIR}/protos; protoc -I/usr/local/include -I. --go_out=plugins=grpc,paths=source_relative:../sdk/go/protos feast/$(dir)/*.proto;)
 
 test-go:
 	cd ${ROOT_DIR}/sdk/go; go test ./...
@@ -141,7 +142,8 @@ install-dependencies-proto-docs:
 	mv protoc3/include/* $$HOME/include
 
 compile-protos-docs:
-	cd ${ROOT_DIR}/protos; protoc --docs_out=../dist/grpc feast/*/*.proto
+	cd ${ROOT_DIR}/protos; protoc --docs_out=../dist/grpc feast/*/*.proto || \
+	cd ${ROOT_DIR}; $(MAKE) install-dependencies-proto-docs && 	cd ${ROOT_DIR}/protos; PATH=$$HOME/bin:$$PATH protoc -I $$HOME/include/ -I . --docs_out=../dist/grpc feast/*/*.proto
 
 clean-html:
 	rm -rf 	$(ROOT_DIR)/dist
@@ -149,6 +151,11 @@ clean-html:
 build-html: clean-html
 	mkdir -p $(ROOT_DIR)/dist/python
 	mkdir -p $(ROOT_DIR)/dist/grpc
-	cd 	$(ROOT_DIR)/protos && $(MAKE) gen-docs
+
+	# Build Protobuf documentation
+	$(MAKE) compile-protos-docs
+
+	# Build Python SDK documentation
+	$(MAKE) compile-protos-python
 	cd 	$(ROOT_DIR)/sdk/python/docs && $(MAKE) html
 	cp -r $(ROOT_DIR)/sdk/python/docs/html/* $(ROOT_DIR)/dist/python

@@ -21,7 +21,7 @@ import com.google.common.base.Preconditions;
 import feast.core.SourceProto.Source;
 import feast.core.SourceProto.SourceType;
 import feast.ingestion.transform.fn.KafkaRecordToFeatureRowDoFn;
-import feast.ingestion.values.FailedElement;
+import feast.storage.api.writer.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.transforms.PTransform;

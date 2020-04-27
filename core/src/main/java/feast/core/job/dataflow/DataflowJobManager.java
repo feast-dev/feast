@@ -18,7 +18,12 @@ package feast.core.job.dataflow;
 
 import static feast.core.util.PipelineUtil.detectClassPathResourcesToStage;
 
+import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.dataflow.Dataflow;
+import com.google.api.services.dataflow.DataflowScopes;
 import com.google.common.base.Strings;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
@@ -37,6 +42,7 @@ import feast.ingestion.options.BZip2Compressor;
 import feast.ingestion.options.ImportOptions;
 import feast.ingestion.options.OptionCompressor;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -60,12 +66,46 @@ public class DataflowJobManager implements JobManager {
   private final MetricsProperties metrics;
 
   public DataflowJobManager(
-      Dataflow dataflow, Map<String, String> defaultOptions, MetricsProperties metricsProperties) {
-    this.defaultOptions = defaultOptions;
+      Map<String, String> runnerConfigOptions, MetricsProperties metricsProperties) {
+    this(runnerConfigOptions, metricsProperties, getGoogleCredential());
+  }
+
+  public DataflowJobManager(
+      Map<String, String> runnerConfigOptions,
+      MetricsProperties metricsProperties,
+      Credential credential) {
+
+    DataflowRunnerConfig config = new DataflowRunnerConfig(runnerConfigOptions);
+
+    Dataflow dataflow = null;
+    try {
+      dataflow =
+          new Dataflow(
+              GoogleNetHttpTransport.newTrustedTransport(),
+              JacksonFactory.getDefaultInstance(),
+              credential);
+    } catch (GeneralSecurityException e) {
+      throw new IllegalStateException("Security exception while connecting to Dataflow API", e);
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to initialize DataflowJobManager", e);
+    }
+
+    this.defaultOptions = runnerConfigOptions;
     this.dataflow = dataflow;
     this.metrics = metricsProperties;
-    this.projectId = defaultOptions.get("project");
-    this.location = defaultOptions.get("region");
+    this.projectId = config.getProject();
+    this.location = config.getRegion();
+  }
+
+  private static Credential getGoogleCredential() {
+    GoogleCredential credential = null;
+    try {
+      credential = GoogleCredential.getApplicationDefault().createScoped(DataflowScopes.all());
+    } catch (IOException e) {
+      throw new IllegalStateException(
+          "Unable to find credential required for Dataflow monitoring API", e);
+    }
+    return credential;
   }
 
   @Override
@@ -149,6 +189,26 @@ public class DataflowJobManager implements JobManager {
       log.error("Unable to drain job with id: {}, cause: {}", dataflowJobId, e.getMessage());
       throw new RuntimeException(
           Strings.lenientFormat("Unable to drain job with id: %s", dataflowJobId), e);
+    }
+  }
+
+  /**
+   * Restart a restart dataflow job. Dataflow should ensure continuity between during the restart,
+   * so no data should be lost during the restart operation.
+   *
+   * @param job job to restart
+   * @return the restarted job
+   */
+  @Override
+  public Job restartJob(Job job) {
+    JobStatus status = job.getStatus();
+    if (JobStatus.getTerminalState().contains(status)) {
+      // job yet not running: just start job
+      return this.startJob(job);
+    } else {
+      // job is running - updating the job without changing the job has
+      // the effect of restarting the job
+      return this.updateJob(job);
     }
   }
 

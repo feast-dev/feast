@@ -21,21 +21,20 @@ import static feast.ingestion.utils.SpecUtil.getFeatureSetReference;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.util.Timestamps;
 import feast.core.FeatureSetProto.FeatureSet;
-import feast.ingestion.transform.WriteToStore;
+import feast.core.FeatureSetProto.FeatureSetSpec;
+import feast.ingestion.transform.metrics.WriteSuccessMetricsTransform;
 import feast.storage.RedisProto.RedisKey;
 import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FeatureRowProto.FeatureRow.Builder;
 import feast.types.FieldProto.Field;
-import feast.types.ValueProto.BoolList;
-import feast.types.ValueProto.BytesList;
-import feast.types.ValueProto.DoubleList;
-import feast.types.ValueProto.FloatList;
-import feast.types.ValueProto.Int32List;
-import feast.types.ValueProto.Int64List;
-import feast.types.ValueProto.StringList;
-import feast.types.ValueProto.Value;
-import feast.types.ValueProto.ValueType;
+import feast.types.ValueProto.*;
 import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
@@ -168,12 +167,15 @@ public class TestUtil {
   /**
    * Create a Feature Row with random value according to the FeatureSetSpec
    *
-   * <p>See {@link #createRandomFeatureRow(FeatureSet, int)}
+   * <p>See {@link #createRandomFeatureRow(FeatureSetSpec, int)}
+   *
+   * @param featureSetSpec {@link FeatureSetSpec}
+   * @return {@link FeatureRow}
    */
-  public static FeatureRow createRandomFeatureRow(FeatureSet featureSet) {
+  public static FeatureRow createRandomFeatureRow(FeatureSetSpec featureSetSpec) {
     ThreadLocalRandom random = ThreadLocalRandom.current();
     int randomStringSizeMaxSize = 12;
-    return createRandomFeatureRow(featureSet, random.nextInt(0, randomStringSizeMaxSize) + 4);
+    return createRandomFeatureRow(featureSetSpec, random.nextInt(0, randomStringSizeMaxSize) + 4);
   }
 
   /**
@@ -182,18 +184,18 @@ public class TestUtil {
    * <p>The Feature Row created contains fields according to the entities and features defined in
    * FeatureSet, matching the value type of the field, with randomized value for testing.
    *
-   * @param featureSet {@link FeatureSet}
+   * @param featureSetSpec {@link FeatureSetSpec}
    * @param randomStringSize number of characters for the generated random string
    * @return {@link FeatureRow}
    */
-  public static FeatureRow createRandomFeatureRow(FeatureSet featureSet, int randomStringSize) {
+  public static FeatureRow createRandomFeatureRow(
+      FeatureSetSpec featureSetSpec, int randomStringSize) {
     Builder builder =
         FeatureRow.newBuilder()
-            .setFeatureSet(getFeatureSetReference(featureSet))
+            .setFeatureSet(getFeatureSetReference(featureSetSpec))
             .setEventTimestamp(Timestamps.fromMillis(System.currentTimeMillis()));
 
-    featureSet
-        .getSpec()
+    featureSetSpec
         .getEntitiesList()
         .forEach(
             field -> {
@@ -204,8 +206,7 @@ public class TestUtil {
                       .build());
             });
 
-    featureSet
-        .getSpec()
+    featureSetSpec
         .getFeaturesList()
         .forEach(
             field -> {
@@ -295,15 +296,14 @@ public class TestUtil {
    * <p>The entities in the created {@link RedisKey} will contain the value with matching field name
    * in the {@link FeatureRow}
    *
-   * @param featureSet {@link FeatureSet}
+   * @param featureSetSpec {@link FeatureSetSpec}
    * @param row {@link FeatureSet}
    * @return {@link RedisKey}
    */
-  public static RedisKey createRedisKey(FeatureSet featureSet, FeatureRow row) {
+  public static RedisKey createRedisKey(FeatureSetSpec featureSetSpec, FeatureRow row) {
     RedisKey.Builder builder =
-        RedisKey.newBuilder().setFeatureSet(getFeatureSetReference(featureSet));
-    featureSet
-        .getSpec()
+        RedisKey.newBuilder().setFeatureSet(getFeatureSetReference(featureSetSpec));
+    featureSetSpec
         .getEntitiesList()
         .forEach(
             entityField ->
@@ -329,6 +329,63 @@ public class TestUtil {
                 }
               })
           .start();
+    }
+  }
+
+  // Modified version of
+  // https://github.com/tim-group/java-statsd-client/blob/master/src/test/java/com/timgroup/statsd/NonBlockingStatsDClientTest.java
+  @SuppressWarnings("CatchMayIgnoreException")
+  public static class DummyStatsDServer {
+
+    private final List<String> messagesReceived = new ArrayList<String>();
+    private final DatagramSocket server;
+
+    public DummyStatsDServer(int port) {
+      try {
+        server = new DatagramSocket(port);
+      } catch (SocketException e) {
+        throw new IllegalStateException(e);
+      }
+      new Thread(
+              () -> {
+                try {
+                  while (true) {
+                    final DatagramPacket packet = new DatagramPacket(new byte[65535], 65535);
+                    server.receive(packet);
+                    messagesReceived.add(
+                        new String(packet.getData(), StandardCharsets.UTF_8).trim() + "\n");
+                    // The sleep duration here is shorter than that used in waitForMessage() at
+                    // 50ms.
+                    // Otherwise sometimes some messages seem to be lost, leading to flaky tests.
+                    Thread.sleep(15L);
+                  }
+
+                } catch (Exception e) {
+                }
+              })
+          .start();
+    }
+
+    public void stop() {
+      server.close();
+    }
+
+    public void waitForMessage() {
+      while (messagesReceived.isEmpty()) {
+        try {
+          Thread.sleep(50L);
+        } catch (InterruptedException e) {
+        }
+      }
+    }
+
+    public List<String> messagesReceived() {
+      List<String> out = new ArrayList<>();
+      for (String msg : messagesReceived) {
+        String[] lines = msg.split("\n");
+        out.addAll(Arrays.asList(lines));
+      }
+      return out;
     }
   }
 
@@ -389,7 +446,9 @@ public class TestUtil {
     }
 
     String writeToStoreMetric =
-        WriteToStore.METRIC_NAMESPACE + ":" + WriteToStore.ELEMENTS_WRITTEN_METRIC;
+        WriteSuccessMetricsTransform.METRIC_NAMESPACE
+            + ":"
+            + WriteSuccessMetricsTransform.ELEMENTS_WRITTEN_METRIC;
     long committed = 0;
     long maxSystemTimeMillis = System.currentTimeMillis() + maxWaitDuration.getMillis();
 

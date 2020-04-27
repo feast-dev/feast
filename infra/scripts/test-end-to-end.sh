@@ -98,13 +98,17 @@ grpc:
   enable-reflection: true
 
 feast:
-  version: 0.3
   jobs:
-    runner: DirectRunner
-    options: {}
-    updates:
-      pollingIntervalMillis: 30000
-      timeoutSeconds: 240
+    polling_interval_milliseconds: 30000
+    job_update_timeout_seconds: 240
+
+    active_runner: direct
+
+    runners:
+      - name: direct
+        type: DirectRunner
+        options: {}
+
     metrics:
       enabled: false
 
@@ -120,7 +124,9 @@ spring:
   jpa:
     properties.hibernate:
       format_sql: true
-      event.merge.entity_copy_observer: allow
+      event:
+        merge:
+          entity_copy_observer: allow
     hibernate.naming.physical-strategy=org.hibernate.boot.model.naming: PhysicalNamingStrategyStandardImpl
     hibernate.ddl-auto: update
   datasource:
@@ -128,13 +134,6 @@ spring:
     username: postgres
     password: password
 
-management:
-  metrics:
-    export:
-      simple:
-        enabled: false
-      statsd:
-        enabled: false
 EOF
 
 nohup java -jar core/target/feast-core-*${JAR_VERSION_SUFFIX}.jar \
@@ -149,42 +148,35 @@ echo "
 Starting Feast Online Serving
 ============================================================
 "
-# Start Feast Online Serving in background
-cat <<EOF > /tmp/serving.store.redis.yml
-name: serving
-type: REDIS
-redis_config:
-  host: localhost
-  port: 6379
-subscriptions:
-  - name: "*"
-    version: "*"
-    project: "*"
-EOF
 
 cat <<EOF > /tmp/serving.online.application.yml
 feast:
-  version: 0.3
   core-host: localhost
   core-grpc-port: 6565
+
+  active_store: serving
+
+  # List of store configurations
+  stores:
+    - name: serving
+      type: REDIS # Type of the store. REDIS, BIGQUERY are available options
+      config:
+        host: localhost
+        port: 6379
+      subscriptions:
+        - name: "*"
+          project: "*"
+          version: "*"
+
   tracing:
     enabled: false
-  store:
-    config-path: /tmp/serving.store.redis.yml
-    redis-pool-max-size: 128
-    redis-pool-max-idle: 16
-  jobs:
-    staging-location: ${JOBS_STAGING_LOCATION}
-    store-type:
-    store-options: {}
 
 grpc:
   port: 6566
   enable-reflection: true
 
-spring:
-  main:
-    web-environment: false
+server:
+  port: 8081
 
 EOF
 

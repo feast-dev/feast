@@ -48,8 +48,8 @@ public class FeatureStreamConfig {
     SourceType featureStreamType = SourceType.valueOf(streamProperties.getType().toUpperCase());
     switch (featureStreamType) {
       case KAFKA:
-        String bootstrapServers = streamProperties.getOptions().get("bootstrapServers");
-        String topicName = streamProperties.getOptions().get("topic");
+        String bootstrapServers = streamProperties.getOptions().getBootstrapServers();
+        String topicName = streamProperties.getOptions().getTopic();
         Map<String, Object> map = new HashMap<>();
         map.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         map.put(
@@ -59,9 +59,8 @@ public class FeatureStreamConfig {
         NewTopic newTopic =
             new NewTopic(
                 topicName,
-                Integer.valueOf(streamProperties.getOptions().getOrDefault("numPartitions", "1")),
-                Short.valueOf(
-                    streamProperties.getOptions().getOrDefault("replicationFactor", "1")));
+                streamProperties.getOptions().getPartitions(),
+                streamProperties.getOptions().getReplicationFactor());
         CreateTopicsResult createTopicsResult =
             client.createTopics(Collections.singleton(newTopic));
         try {

@@ -16,6 +16,7 @@
  */
 package feast.core.grpc;
 
+import com.google.api.gax.rpc.InvalidArgumentException;
 import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.CoreServiceGrpc.CoreServiceImplBase;
 import feast.core.CoreServiceProto.ApplyFeatureSetRequest;
@@ -30,21 +31,29 @@ import feast.core.CoreServiceProto.GetFeatureSetRequest;
 import feast.core.CoreServiceProto.GetFeatureSetResponse;
 import feast.core.CoreServiceProto.ListFeatureSetsRequest;
 import feast.core.CoreServiceProto.ListFeatureSetsResponse;
+import feast.core.CoreServiceProto.ListIngestionJobsRequest;
+import feast.core.CoreServiceProto.ListIngestionJobsResponse;
 import feast.core.CoreServiceProto.ListProjectsRequest;
 import feast.core.CoreServiceProto.ListProjectsResponse;
 import feast.core.CoreServiceProto.ListStoresRequest;
 import feast.core.CoreServiceProto.ListStoresResponse;
+import feast.core.CoreServiceProto.RestartIngestionJobRequest;
+import feast.core.CoreServiceProto.RestartIngestionJobResponse;
+import feast.core.CoreServiceProto.StopIngestionJobRequest;
+import feast.core.CoreServiceProto.StopIngestionJobResponse;
 import feast.core.CoreServiceProto.UpdateStoreRequest;
 import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.exception.RetrievalException;
 import feast.core.grpc.interceptors.MonitoringInterceptor;
 import feast.core.model.Project;
 import feast.core.service.AccessManagementService;
+import feast.core.service.JobService;
 import feast.core.service.SpecService;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.lognet.springboot.grpc.GRpcService;
@@ -57,11 +66,16 @@ public class CoreServiceImpl extends CoreServiceImplBase {
 
   private SpecService specService;
   private AccessManagementService accessManagementService;
+  private JobService jobService;
 
   @Autowired
-  public CoreServiceImpl(SpecService specService, AccessManagementService accessManagementService) {
+  public CoreServiceImpl(
+      SpecService specService,
+      AccessManagementService accessManagementService,
+      JobService jobService) {
     this.specService = specService;
     this.accessManagementService = accessManagementService;
+    this.jobService = jobService;
   }
 
   @Override
@@ -188,6 +202,71 @@ public class CoreServiceImpl extends CoreServiceImplBase {
       responseObserver.onCompleted();
     } catch (Exception e) {
       log.error("Exception has occurred in the listProjects method: ", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void listIngestionJobs(
+      ListIngestionJobsRequest request,
+      StreamObserver<ListIngestionJobsResponse> responseObserver) {
+    try {
+      ListIngestionJobsResponse response = this.jobService.listJobs(request);
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (InvalidArgumentException e) {
+      log.error("Recieved an invalid request on calling listIngestionJobs method:", e);
+      responseObserver.onError(
+          Status.INVALID_ARGUMENT.withDescription(e.getMessage()).withCause(e).asException());
+    } catch (Exception e) {
+      log.error("Unexpected exception on calling listIngestionJobs method:", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void restartIngestionJob(
+      RestartIngestionJobRequest request,
+      StreamObserver<RestartIngestionJobResponse> responseObserver) {
+    try {
+      RestartIngestionJobResponse response = this.jobService.restartJob(request);
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (NoSuchElementException e) {
+      log.error(
+          "Attempted to restart an nonexistent job on calling restartIngestionJob method:", e);
+      responseObserver.onError(
+          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asException());
+    } catch (UnsupportedOperationException e) {
+      log.error("Recieved an unsupported request on calling restartIngestionJob method:", e);
+      responseObserver.onError(
+          Status.FAILED_PRECONDITION.withDescription(e.getMessage()).withCause(e).asException());
+    } catch (Exception e) {
+      log.error("Unexpected exception on calling restartIngestionJob method:", e);
+      responseObserver.onError(
+          Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void stopIngestionJob(
+      StopIngestionJobRequest request, StreamObserver<StopIngestionJobResponse> responseObserver) {
+    try {
+      StopIngestionJobResponse response = this.jobService.stopJob(request);
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (NoSuchElementException e) {
+      log.error("Attempted to stop an nonexistent job on calling stopIngestionJob method:", e);
+      responseObserver.onError(
+          Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e).asException());
+    } catch (UnsupportedOperationException e) {
+      log.error("Recieved an unsupported request on calling stopIngestionJob method:", e);
+      responseObserver.onError(
+          Status.FAILED_PRECONDITION.withDescription(e.getMessage()).withCause(e).asException());
+    } catch (Exception e) {
+      log.error("Unexpected exception on calling stopIngestionJob method:", e);
       responseObserver.onError(
           Status.INTERNAL.withDescription(e.getMessage()).withCause(e).asRuntimeException());
     }
