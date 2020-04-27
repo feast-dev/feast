@@ -1,4 +1,4 @@
-# Copyright 2019 The Feast Authors
+    # Copyright 2019 The Feast Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -59,7 +59,7 @@ class Feature(Field):
         feature = cls(
             name=feature_proto.name,
             dtype=ValueType(feature_proto.value_type),
-            labels=feature_proto.labels
+            labels=feature_proto.labels,
         )
         feature.update_presence_constraints(feature_proto)
         feature.update_shape_type(feature_proto)
