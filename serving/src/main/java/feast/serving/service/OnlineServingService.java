@@ -160,6 +160,7 @@ public class OnlineServingService implements ServingService {
       EntityRow entityRow,
       FeatureSetRequest featureSetRequest,
       boolean includeMetadata) {
+    System.out.println("feature row: " +featureRow);
     // In order to return values containing the same feature references provided by the user,
     // we reuse the feature references in the request as the keys in field builder map
     Map<String, FeatureReference> refsByName = featureSetRequest.getFeatureRefsByName();
@@ -189,7 +190,8 @@ public class OnlineServingService implements ServingService {
     // row.
     Set<FeatureReference> missingFeatures = new HashSet<>(refsByName.values());
     missingFeatures.removeAll(fields.keySet());
-    missingFeatures.forEach(ref -> fields.put(ref, Field.newBuilder()));
+    missingFeatures.forEach(ref -> fields.put(ref, 
+          Field.newBuilder().setValue(Value.newBuilder().build())));
 
     // attach metadata to the feature response fields & build response field
     return fields.entrySet().stream()
@@ -238,9 +240,15 @@ public class OnlineServingService implements ServingService {
   private boolean isStale(
       FeatureSetRequest featureSetRequest, EntityRow entityRow, FeatureRow featureRow) {
     Duration maxAge = featureSetRequest.getSpec().getMaxAge();
-    if (maxAge.equals(Duration.getDefaultInstance())) {
+    if(featureRow == null) {
+      // no data to consider: not stale
       return false;
     }
+    if (maxAge.equals(Duration.getDefaultInstance())) {
+      // max age is not set: stale detection disabled
+      return false;
+    }
+
     long givenTimestamp = entityRow.getEntityTimestamp().getSeconds();
     if (givenTimestamp == 0) {
       givenTimestamp = System.currentTimeMillis() / 1000;
