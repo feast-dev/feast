@@ -196,32 +196,28 @@ def test_basic_retrieve_online_success(client, cust_trans_df):
             ],
         )  # type: GetOnlineFeaturesResponse
 
-        # wait & unpack response
+        # unpack response & wait for ingested values
         fields = response.records[0].fields
         daily_transactions_field = fields[PROJECT_NAME + "/daily_transactions"]
         null_value_field = fields[PROJECT_NAME + "/null_values"]
-        if daily_transactions.status == GetOnlineFeaturesRespons.FieldStatus.NOT_FOUND:
+        if (daily_transactions.status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND
+            or null_value_field == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND):
             print("test_basic_retrieve_online_success(): waiting for ingested values.")
             continue
+        else:
+            break
 
-        # check values returned are correct
-        sent_daily_transactions = float(basic_dataframe.iloc[0]["daily_transactions"])
-        is_values_correct = (
-            math.isclose(
-                sent_daily_transactions,
-                float(daily_transactions_field.value.float_val),
-                abs_tol=FLOAT_TOLERANCE,
-            ) and null_value_field.value.WhichOneof("val") is None
-        )
-        # check field status metadata
-        is_meta_correct = (
-            daily_transactions_field.status == GetOnlineFeaturesResponse.FieldStatus.PRESENT
-            and null_value_field == GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE
-        )
-        if not (is_values_correct and is_meta_correct):
-            print(f"test_basic_retrieve_online_success(): polling for"
-                  " correct values ({is_values_correct}) "
-                  " or correct metadata ({is_meta_correct})")
+    # check values returned are correct
+    sent_daily_transactions = float(basic_dataframe.iloc[0]["daily_transactions"])
+    assert math.isclose(
+        sent_daily_transactions,
+        float(daily_transactions_field.value.float_val),
+        abs_tol=FLOAT_TOLERANCE,
+    )
+    assert null_value_field.value.WhichOneof("val") is None
+    # check field status metadata
+    assert daily_transactions_field.status == GetOnlineFeaturesResponse.FieldStatus.PRESENT
+    assert null_value_field == GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE
 
 
 @pytest.mark.timeout(90)
@@ -453,23 +449,15 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
         if float_list_field.status == GetOnlineFeaturesRespons.FieldStatus.NOT_FOUND:
             print("test_all_types_retrieve_online_success(): polling for ingested values.")
             continue
+        else:
+            break
 
-        returned_float_list = float_list_field.float_list_val.val
-        sent_float_list = all_types_dataframe.iloc[0]["float_list_feature"]
-        is_values_correct = math.isclose(returned_float_list[0],
-                                         sent_float_list[0],
-                                         abs_tol=FLOAT_TOLERANCE)
-        # check returned metadata
-        is_meta_correct = (float_list_field.status ==
-                           GetOnlineFeaturesResponse.FieldStatus.PRESENT)
-
-        if not (is_values_correct and is_meta_correct):
-            print(f"test_all_types_retrieve_online_success(): polling for"
-                  " correct values ({is_values_correct}) "
-                  " or correct metadata ({is_meta_correct})")
-        # complete test
-        break
-
+    # check returned values
+    returned_float_list = float_list_field.float_list_val.val
+    sent_float_list = all_types_dataframe.iloc[0]["float_list_feature"]
+    assert math.isclose(returned_float_list[0], sent_float_list[0], abs_tol=FLOAT_TOLERANCE)
+    # check returned metadata
+    assert float_list_field.status == GetOnlineFeaturesResponse.FieldStatus.PRESENT
 
 @pytest.mark.timeout(300)
 @pytest.mark.run(order=29)
@@ -578,6 +566,9 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
             continue
         daily_transactions_field = response.records[0].fields[
             PROJECT_NAME+"/daily_transactions_large"]
+        if float_list_field.status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND:
+            print("test_all_types_retrieve_online_success(): polling for response.")
+            continue
 
         # check returned values
         returned_daily_transactions = float(daily_transactions_field.value.float_val)
