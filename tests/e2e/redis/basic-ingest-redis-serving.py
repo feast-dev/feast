@@ -197,10 +197,12 @@ def test_basic_retrieve_online_success(client, cust_trans_df):
         )  # type: GetOnlineFeaturesResponse
 
         # wait & unpack response
-        if response is None: continue
         fields = response.records[0].fields
         daily_transactions_field = fields[PROJECT_NAME + "/daily_transactions"]
         null_value_field = fields[PROJECT_NAME + "/null_values"]
+        if daily_transactions.status == GetOnlineFeaturesRespons.FieldStatus.NOT_FOUND:
+            print("test_basic_retrieve_online_success(): waiting for ingested values.")
+            continue
 
         # check values returned are correct
         sent_daily_transactions = float(basic_dataframe.iloc[0]["daily_transactions"])
@@ -216,8 +218,10 @@ def test_basic_retrieve_online_success(client, cust_trans_df):
             daily_transactions_field.status == GetOnlineFeaturesResponse.FieldStatus.PRESENT
             and null_value_field == GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE
         )
-        if is_values_correct and is_meta_correct:
-            break # complete test
+        if not (is_values_correct and is_meta_correct):
+            print(f"test_basic_retrieve_online_success(): polling for"
+                  " correct values ({is_values_correct}) "
+                  " or correct metadata ({is_meta_correct})")
 
 
 @pytest.mark.timeout(90)
@@ -446,6 +450,9 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
             print("test_all_types_retrieve_online_success(): polling for response.")
             continue
         float_list_field = response.records[0].fields[PROJECT_NAME+"/float_list_feature"]
+        if float_list_field.status == GetOnlineFeaturesRespons.FieldStatus.NOT_FOUND:
+            print("test_all_types_retrieve_online_success(): polling for ingested values.")
+            continue
 
         returned_float_list = float_list_field.float_list_val.val
         sent_float_list = all_types_dataframe.iloc[0]["float_list_feature"]
@@ -457,8 +464,9 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
                            GetOnlineFeaturesResponse.FieldStatus.PRESENT)
 
         if not (is_values_correct and is_meta_correct):
-            print(f"test_all_types_retrieve_online_success(): polling for" +
-                  " correct values ({is_values_correct}) or correct metadata ({is_meta_correct})")
+            print(f"test_all_types_retrieve_online_success(): polling for"
+                  " correct values ({is_values_correct}) "
+                  " or correct metadata ({is_meta_correct})")
         # complete test
         break
 
@@ -569,7 +577,7 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
             print("test_all_types_retrieve_online_success(): polling for response.")
             continue
         daily_transactions_field = response.records[0].fields[
-            PROJECT_NAME + "/daily_transactions_large"]
+            PROJECT_NAME+"/daily_transactions_large"]
 
         # check returned values
         returned_daily_transactions = float(daily_transactions_field.value.float_val)
@@ -584,8 +592,9 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
         is_meta_correct = (daily_transactions_field.status ==
                            GetOnlineFeaturesResponse.FieldStatus.PRESENT)
         if not (is_values_correct and is_meta_correct):
-            print(f"test_all_types_retrieve_online_success(): polling for" +
-                  " correct values ({is_values_correct}) or correct metadata ({is_meta_correct})")
+            print(f"test_all_types_retrieve_online_success(): polling for"
+                  " correct values ({is_values_correct})"
+                  " or correct metadata ({is_meta_correct})")
         # complete test
         break
 

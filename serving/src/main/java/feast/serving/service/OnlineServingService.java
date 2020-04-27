@@ -163,7 +163,6 @@ public class OnlineServingService implements ServingService {
       EntityRow entityRow,
       FeatureSetRequest featureSetRequest,
       boolean includeMetadata) {
-    System.out.println("feature row: " +featureRow);
     // In order to return values containing the same feature references provided by the user,
     // we reuse the feature references in the request as the keys in field builder map
     Map<String, FeatureReference> refsByName = featureSetRequest.getFeatureRefsByName();
