@@ -200,7 +200,7 @@ def test_basic_retrieve_online_success(client, cust_trans_df):
         fields = response.records[0].fields
         daily_transactions_field = fields[PROJECT_NAME + "/daily_transactions"]
         null_value_field = fields[PROJECT_NAME + "/null_values"]
-        if (daily_transactions.status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND
+        if (daily_transactions_field.status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND
             or null_value_field == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND):
             print("test_basic_retrieve_online_success(): waiting for ingested values.")
             continue
@@ -446,7 +446,7 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
             print("test_all_types_retrieve_online_success(): polling for response.")
             continue
         float_list_field = response.records[0].fields[PROJECT_NAME+"/float_list_feature"]
-        if float_list_field.status == GetOnlineFeaturesRespons.FieldStatus.NOT_FOUND:
+        if float_list_field.status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND:
             print("test_all_types_retrieve_online_success(): polling for ingested values.")
             continue
         else:
