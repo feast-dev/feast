@@ -153,6 +153,19 @@ presubmits:
     skip_branches:
     - ^v0\.(3|4)-branch$
 
+  - name: test-end-to-end-redis-cluster
+    decorate: true
+    spec:
+      containers:
+        - image: maven:3.6-jdk-11
+          command: ["infra/scripts/test-end-to-end-redis-cluster.sh"]
+          resources:
+            requests:
+              cpu: "6"
+              memory: "6144Mi"
+    skip_branches:
+      - ^v0\.(3|4)-branch$
+
   - name: test-end-to-end-java-8
     decorate: true
     always_run: true

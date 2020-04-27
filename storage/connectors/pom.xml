@@ -16,6 +16,7 @@
 
     <modules>
         <module>redis</module>
+        <module>rediscluster</module>
         <module>bigquery</module>
     </modules>
 

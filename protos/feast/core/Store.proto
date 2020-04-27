@@ -105,6 +105,8 @@ message Store {
 
     // Unsupported in Feast 0.3
     CASSANDRA = 3;
+
+    REDIS_CLUSTER = 4;
   }
 
   message RedisConfig {
@@ -128,6 +130,13 @@ message Store {
   message CassandraConfig {
     string host = 1;
     int32 port = 2;
+  }
+
+  message RedisClusterConfig {
+    // List of Redis Uri for all the nodes in Redis Cluster, comma separated. Eg. host1:6379, host2:6379
+    string connection_string = 1;
+    int32 initial_backoff_ms = 2;
+    int32 max_retries = 3;
   }
 
   message Subscription {
@@ -172,5 +181,6 @@ message Store {
     RedisConfig redis_config = 11;
     BigQueryConfig bigquery_config = 12;
     CassandraConfig cassandra_config = 13;
+    RedisClusterConfig redis_cluster_config = 14;
   }
 }

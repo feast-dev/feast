@@ -26,10 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import feast.core.StoreProto;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Positive;
@@ -245,6 +242,11 @@ public class FeastProperties {
       // TODO: All of this logic should be moved to the store layer. Only a Map<String, String>
       // should be sent to a store and it should do its own validation.
       switch (StoreProto.Store.StoreType.valueOf(type)) {
+        case REDIS_CLUSTER:
+          StoreProto.Store.RedisClusterConfig.Builder redisClusterConfig =
+              StoreProto.Store.RedisClusterConfig.newBuilder();
+          JsonFormat.parser().merge(jsonWriter.writeValueAsString(config), redisClusterConfig);
+          return storeProtoBuilder.setRedisClusterConfig(redisClusterConfig.build()).build();
         case REDIS:
           StoreProto.Store.RedisConfig.Builder redisConfig =
               StoreProto.Store.RedisConfig.newBuilder();

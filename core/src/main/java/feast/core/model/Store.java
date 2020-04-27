@@ -21,6 +21,7 @@ import feast.core.StoreProto;
 import feast.core.StoreProto.Store.BigQueryConfig;
 import feast.core.StoreProto.Store.Builder;
 import feast.core.StoreProto.Store.CassandraConfig;
+import feast.core.StoreProto.Store.RedisClusterConfig;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.core.StoreProto.Store.Subscription;
@@ -82,6 +83,9 @@ public class Store {
       case CASSANDRA:
         config = storeProto.getCassandraConfig().toByteArray();
         break;
+      case REDIS_CLUSTER:
+        config = storeProto.getRedisClusterConfig().toByteArray();
+        break;
       default:
         throw new IllegalArgumentException("Invalid store provided");
     }
@@ -106,6 +110,9 @@ public class Store {
       case CASSANDRA:
         CassandraConfig cassConfig = CassandraConfig.parseFrom(config);
         return storeProtoBuilder.setCassandraConfig(cassConfig).build();
+      case REDIS_CLUSTER:
+        RedisClusterConfig redisClusterConfig = RedisClusterConfig.parseFrom(config);
+        return storeProtoBuilder.setRedisClusterConfig(redisClusterConfig).build();
       default:
         throw new InvalidProtocolBufferException("Invalid store set");
     }
