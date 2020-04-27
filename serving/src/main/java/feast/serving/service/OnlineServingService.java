@@ -65,6 +65,7 @@ public class OnlineServingService implements ServingService {
   public GetOnlineFeaturesResponse getOnlineFeatures(GetOnlineFeaturesRequest request) {
     try (Scope scope = tracer.buildSpan("getOnlineFeatures").startActive(true)) {
       List<EntityRow> entityRows = request.getEntityRowsList();
+      boolean includeMetadata = request.getIncludeMetadataInResponse();
       // Collect the response fields corresponding by entity row in entityFieldsMap.
       Map<EntityRow, Map<String, Field>> entityFieldsMap =
           entityRows.stream().collect(Collectors.toMap(row -> row, row -> new HashMap<>()));
@@ -73,7 +74,7 @@ public class OnlineServingService implements ServingService {
         // Add entity row's fields as response fields
         entityRows.forEach(
             entityRow -> {
-              entityFieldsMap.get(entityRow).putAll(this.unpackFields(entityRow));
+              entityFieldsMap.get(entityRow).putAll(this.unpackFields(entityRow, includeMetadata));
             });
       }
 
@@ -97,8 +98,7 @@ public class OnlineServingService implements ServingService {
           EntityRow entityRow = entityRows.get(i);
           // Unpack feature response fields from feature row
           Map<FeatureReference, Field> fields =
-              this.unpackFields(
-                  featureRow, entityRow, featureSetRequest, request.getIncludeMetadataInResponse());
+              this.unpackFields(featureRow, entityRow, featureSetRequest, includeMetadata);
           // Merge feature response fields into entityFieldsMap
           entityFieldsMap
               .get(entityRow)
@@ -130,18 +130,21 @@ public class OnlineServingService implements ServingService {
    * Unpack response fields from the given entity row's fields.
    *
    * @param entityRow to unpack for response fields
+   * @param includeMetadata whether metadata should be included in the response fields
    * @return Map mapping of name of field to response field.
    */
-  private Map<String, Field> unpackFields(EntityRow entityRow) {
+  private Map<String, Field> unpackFields(EntityRow entityRow, boolean includeMetadata) {
     return entityRow.getFieldsMap().entrySet().stream()
         .collect(
             Collectors.toMap(
                 es -> es.getKey(),
                 es -> {
-                  return Field.newBuilder()
-                      .setStatus(FieldStatus.PRESENT)
-                      .setValue(es.getValue())
-                      .build();
+                  Field.Builder field = Field.newBuilder()
+                      .setValue(es.getValue());
+                  if(includeMetadata) {
+                    field.setStatus(FieldStatus.PRESENT);
+                  }
+                  return field.build();
                 }));
   }
 
