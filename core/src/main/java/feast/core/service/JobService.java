@@ -29,6 +29,7 @@ import feast.core.FeatureSetReferenceProto.FeatureSetReference;
 import feast.core.IngestionJobProto;
 import feast.core.dao.JobRepository;
 import feast.core.job.JobManager;
+import feast.core.job.Runner;
 import feast.core.log.Action;
 import feast.core.log.AuditLogger;
 import feast.core.log.Resource;
@@ -50,13 +51,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Defines a Job Managemenent Service that allows users to manage feast ingestion jobs. */
+/** A Job Management Service that allows users to manage Feast ingestion jobs. */
 @Slf4j
 @Service
 public class JobService {
-  private JobRepository jobRepository;
-  private SpecService specService;
-  private Map<String, JobManager> jobManagers;
+  private final JobRepository jobRepository;
+  private final SpecService specService;
+  private final Map<Runner, JobManager> jobManagers;
 
   @Autowired
   public JobService(
@@ -66,13 +67,13 @@ public class JobService {
 
     this.jobManagers = new HashMap<>();
     for (JobManager manager : jobManagerList) {
-      this.jobManagers.put(manager.getRunnerType().name(), manager);
+      this.jobManagers.put(manager.getRunnerType(), manager);
     }
   }
 
   /* Job Service API */
   /**
-   * List Ingestion Jobs in feast matching the given request. See CoreService protobuf documentation
+   * List Ingestion Jobs in Feast matching the given request. See CoreService protobuf documentation
    * for more detailed documentation.
    *
    * @param request list ingestion jobs request specifying which jobs to include
