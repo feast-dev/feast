@@ -115,6 +115,10 @@ public class Job extends AbstractTimestampEntity {
     return getStatus().isTerminal();
   }
 
+  public boolean isRunning() {
+    return getStatus() == JobStatus.RUNNING;
+  }
+
   public void updateMetrics(List<Metrics> newMetrics) {
     metrics.clear();
     metrics.addAll(newMetrics);

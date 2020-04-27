@@ -16,9 +16,6 @@
  */
 package feast.core.job;
 
-import feast.core.FeatureSetProto;
-import feast.core.SourceProto;
-import feast.core.StoreProto;
 import feast.core.log.Action;
 import feast.core.log.AuditLogger;
 import feast.core.log.Resource;
@@ -52,29 +49,29 @@ import lombok.extern.slf4j.Slf4j;
 @Getter
 public class JobUpdateTask implements Callable<Job> {
 
-  private final List<FeatureSetProto.FeatureSet> featureSets;
-  private final SourceProto.Source sourceSpec;
-  private final StoreProto.Store store;
+  private final List<FeatureSet> featureSets;
+  private final Source source;
+  private final Store store;
   private final Optional<Job> currentJob;
   private final JobManager jobManager;
   private final long jobUpdateTimeoutSeconds;
-  private final String runnerType;
+  private final String runnerName;
 
   public JobUpdateTask(
-      List<FeatureSetProto.FeatureSet> featureSets,
-      SourceProto.Source sourceSpec,
-      StoreProto.Store store,
+      List<FeatureSet> featureSets,
+      Source source,
+      Store store,
       Optional<Job> currentJob,
       JobManager jobManager,
       long jobUpdateTimeoutSeconds) {
 
     this.featureSets = featureSets;
-    this.sourceSpec = sourceSpec;
+    this.source = source;
     this.store = store;
     this.currentJob = currentJob;
     this.jobManager = jobManager;
     this.jobUpdateTimeoutSeconds = jobUpdateTimeoutSeconds;
-    this.runnerType = jobManager.getRunnerType().toString();
+    this.runnerName = jobManager.getRunnerType().toString();
   }
 
   @Override
@@ -97,7 +94,6 @@ public class JobUpdateTask implements Callable<Job> {
     try {
       return submittedJob.get(getJobUpdateTimeoutSeconds(), TimeUnit.SECONDS);
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
-      Source source = Source.fromProto(sourceSpec);
       log.warn("Unable to start job for source {} and sink {}: {}", source, store, e.getMessage());
       return null;
     } finally {
@@ -109,15 +105,12 @@ public class JobUpdateTask implements Callable<Job> {
     Set<String> existingFeatureSetsPopulatedByJob =
         job.getFeatureSets().stream().map(FeatureSet::getId).collect(Collectors.toSet());
     Set<String> newFeatureSetsPopulatedByJob =
-        featureSets.stream()
-            .map(fs -> FeatureSet.fromProto(fs).getId())
-            .collect(Collectors.toSet());
+        featureSets.stream().map(FeatureSet::getId).collect(Collectors.toSet());
 
     return !newFeatureSetsPopulatedByJob.equals(existingFeatureSetsPopulatedByJob);
   }
 
   private Job createJob() {
-    Source source = Source.fromProto(sourceSpec);
     String jobId = createJobId(source.getId(), store.getName());
     return startJob(jobId);
   }
@@ -127,15 +120,9 @@ public class JobUpdateTask implements Callable<Job> {
 
     Job job =
         new Job(
-            jobId,
-            "",
-            jobManager.getRunnerType(),
-            Source.fromProto(sourceSpec),
-            Store.fromProto(store),
-            featureSetsFromProto(featureSets),
-            JobStatus.PENDING);
+            jobId, "", jobManager.getRunnerType(), source, store, featureSets, JobStatus.PENDING);
     try {
-      logAudit(Action.SUBMIT, job, "Building graph and submitting to %s", runnerType);
+      logAudit(Action.SUBMIT, job, "Building graph and submitting to %s", runnerName);
 
       job = jobManager.startJob(job);
       var extId = job.getExtId();
@@ -145,13 +132,13 @@ public class JobUpdateTask implements Callable<Job> {
       }
 
       var auditMessage = "Job submitted to runner %s with ext id %s.";
-      logAudit(Action.STATUS_CHANGE, job, auditMessage, runnerType, extId);
+      logAudit(Action.STATUS_CHANGE, job, auditMessage, runnerName, extId);
 
       return job;
     } catch (Exception e) {
       log.error(e.getMessage());
       var auditMessage = "Job failed to be submitted to runner %s. Job status changed to ERROR.";
-      logAudit(Action.STATUS_CHANGE, job, auditMessage, runnerType);
+      logAudit(Action.STATUS_CHANGE, job, auditMessage, runnerName);
 
       job.setStatus(JobStatus.ERROR);
       return job;
@@ -160,9 +147,9 @@ public class JobUpdateTask implements Callable<Job> {
 
   /** Update the given job */
   private Job updateJob(Job job) {
-    job.setFeatureSets(featureSetsFromProto(featureSets));
-    job.setStore(Store.fromProto(store));
-    logAudit(Action.UPDATE, job, "Updating job %s for runner %s", job.getId(), runnerType);
+    job.setFeatureSets(featureSets);
+    job.setStore(store);
+    logAudit(Action.UPDATE, job, "Updating job %s for runner %s", job.getId(), runnerName);
     return jobManager.updateJob(job);
   }
 
@@ -183,19 +170,6 @@ public class JobUpdateTask implements Callable<Job> {
     String sourceIdTrunc = sourceId.split("/")[0].toLowerCase();
     String jobId = String.format("%s-to-%s", sourceIdTrunc, storeName) + dateSuffix;
     return jobId.replaceAll("_", "-");
-  }
-
-  // TODO: Either put in a util somewhere, or stop using proto types in domain logic altogether
-  private static List<FeatureSet> featureSetsFromProto(List<FeatureSetProto.FeatureSet> protos) {
-    return protos.stream()
-        .map(
-            fsp ->
-                FeatureSet.fromProto(
-                    FeatureSetProto.FeatureSet.newBuilder()
-                        .setSpec(fsp.getSpec())
-                        .setMeta(fsp.getMeta())
-                        .build()))
-        .collect(Collectors.toList());
   }
 
   private void logAudit(Action action, Job job, String detail, Object... args) {
