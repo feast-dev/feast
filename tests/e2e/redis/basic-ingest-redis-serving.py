@@ -71,6 +71,7 @@ def basic_dataframe(entities, features, ingest_time, n_size):
     df_dict = {
         "datetime": [ingest_time.replace(tzinfo=pytz.utc) for _ in
                      range(n_size)],
+        "null_values": [ Value() for _ in range(n_size) ],
     }
     for entity_name in entities:
         df_dict[entity_name] = list(range(1, n_size + 1))
@@ -83,7 +84,7 @@ def basic_dataframe(entities, features, ingest_time, n_size):
 def ingest_time():
     return datetime.utcnow()
 
-
+None
 @pytest.fixture(scope="module")
 def cust_trans_df(ingest_time):
     return basic_dataframe(entities=["customer_id"],
@@ -191,26 +192,32 @@ def test_basic_retrieve_online_success(client, cust_trans_df):
             feature_refs=[
                 "daily_transactions",
                 "total_transactions",
-            ]
+                "null_values"
+            ],
         )  # type: GetOnlineFeaturesResponse
 
-        if response is None:
-            continue
+        # wait & unpack response
+        if response is None: continue
+        fields = response.records[0].fields
+        daily_transactions_field = fields[PROJECT_NAME + "/daily_transactions"]
+        null_value_field = fields[PROJECT_NAME + "/null_values"]
 
-        returned_daily_transactions = float(
-            response.field_values[0]
-                .fields["daily_transactions"]
-                .float_val
-        )
-        sent_daily_transactions = float(
-            cust_trans_df.iloc[0]["daily_transactions"])
-
-        if math.isclose(
+        # check values returned are correct
+        sent_daily_transactions = float(basic_dataframe.iloc[0]["daily_transactions"])
+        is_values_correct = (
+            math.isclose(
                 sent_daily_transactions,
-                returned_daily_transactions,
+                float(daily_transactions_field.value.float_val),
                 abs_tol=FLOAT_TOLERANCE,
-        ):
-            break
+            ) and null_value_field.value.WhichOneof("val") is None
+        )
+        # check field status metadata
+        is_meta_correct = (
+            daily_transactions_field.status == GetOnlineFeaturesResponse.FieldStatus.PRESENT
+            and null_value_field == GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE
+        )
+        if is_values_correct and is_meta_correct:
+            break # complete test
 
 
 @pytest.mark.timeout(90)
@@ -434,21 +441,26 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
             ],
         )  # type: GetOnlineFeaturesResponse
 
+        # wait for and unpack response 
         if response is None:
+            print("test_all_types_retrieve_online_success(): polling for response.")
             continue
+        float_list_field = response.records[0].fields[PROJECT_NAME+"/float_list_feature"]
 
-        returned_float_list = (
-            response.field_values[0]
-                .fields["float_list_feature"]
-                .float_list_val.val
-        )
-
+        returned_float_list = float_list_field.float_list_val.val
         sent_float_list = all_types_dataframe.iloc[0]["float_list_feature"]
+        is_values_correct = math.isclose(returned_float_list[0],
+                                         sent_float_list[0],
+                                         abs_tol=FLOAT_TOLERANCE)
+        # check returned metadata
+        is_meta_correct = (float_list_field.status ==
+                           GetOnlineFeaturesResponse.FieldStatus.PRESENT)
 
-        if math.isclose(
-                returned_float_list[0], sent_float_list[0], abs_tol=FLOAT_TOLERANCE
-        ):
-            break
+        if not (is_values_correct and is_meta_correct):
+            print(f"test_all_types_retrieve_online_success(): polling for" +
+                  " correct values ({is_values_correct}) or correct metadata ({is_meta_correct})")
+        # complete test
+        break
 
 
 @pytest.mark.timeout(300)
@@ -552,23 +564,30 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
             ],
         )  # type: GetOnlineFeaturesResponse
 
+        # wait for and unpack response 
         if response is None:
+            print("test_all_types_retrieve_online_success(): polling for response.")
             continue
+        daily_transactions_field = response.records[0].fields[
+            PROJECT_NAME + "/daily_transactions_large"]
 
-        returned_daily_transactions = float(
-            response.field_values[0]
-                .fields["daily_transactions_large"]
-                .float_val
-        )
+        # check returned values
+        returned_daily_transactions = float(daily_transactions_field.value.float_val)
         sent_daily_transactions = float(
             large_volume_dataframe.iloc[0]["daily_transactions_large"])
-
-        if math.isclose(
-                sent_daily_transactions,
-                returned_daily_transactions,
-                abs_tol=FLOAT_TOLERANCE,
-        ):
-            break
+        is_values_correct = math.isclose(
+            sent_daily_transactions,
+            returned_daily_transactions,
+            abs_tol=FLOAT_TOLERANCE,
+        )
+        # check returned metadata
+        is_meta_correct = (daily_transactions_field.status ==
+                           GetOnlineFeaturesResponse.FieldStatus.PRESENT)
+        if not (is_values_correct and is_meta_correct):
+            print(f"test_all_types_retrieve_online_success(): polling for" +
+                  " correct values ({is_values_correct}) or correct metadata ({is_meta_correct})")
+        # complete test
+        break
 
 
 @pytest.fixture(scope='module')
