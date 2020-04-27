@@ -139,9 +139,8 @@ public class OnlineServingService implements ServingService {
             Collectors.toMap(
                 es -> es.getKey(),
                 es -> {
-                  Field.Builder field = Field.newBuilder()
-                      .setValue(es.getValue());
-                  if(includeMetadata) {
+                  Field.Builder field = Field.newBuilder().setValue(es.getValue());
+                  if (includeMetadata) {
                     field.setStatus(FieldStatus.PRESENT);
                   }
                   return field.build();
@@ -192,8 +191,8 @@ public class OnlineServingService implements ServingService {
     // row.
     Set<FeatureReference> missingFeatures = new HashSet<>(refsByName.values());
     missingFeatures.removeAll(fields.keySet());
-    missingFeatures.forEach(ref -> fields.put(ref, 
-          Field.newBuilder().setValue(Value.newBuilder().build())));
+    missingFeatures.forEach(
+        ref -> fields.put(ref, Field.newBuilder().setValue(Value.newBuilder().build())));
 
     // attach metadata to the feature response fields & build response field
     return fields.entrySet().stream()
@@ -242,7 +241,7 @@ public class OnlineServingService implements ServingService {
   private boolean isStale(
       FeatureSetRequest featureSetRequest, EntityRow entityRow, FeatureRow featureRow) {
     Duration maxAge = featureSetRequest.getSpec().getMaxAge();
-    if(featureRow == null) {
+    if (featureRow == null) {
       // no data to consider: not stale
       return false;
     }
