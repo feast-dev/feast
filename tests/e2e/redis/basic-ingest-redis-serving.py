@@ -439,6 +439,7 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
                 "bytes_list_feature",
                 "double_list_feature",
             ],
+            include_meta=True,
         )  # type: GetOnlineFeaturesResponse
 
         # wait for and unpack response 
@@ -453,7 +454,7 @@ def test_all_types_retrieve_online_success(client, all_types_dataframe):
             break
 
     # check returned values
-    returned_float_list = float_list_field.float_list_val.val
+    returned_float_list = float_list_field.value.float_list_val.val
     sent_float_list = all_types_dataframe.iloc[0]["float_list_feature"]
     assert math.isclose(returned_float_list[0], sent_float_list[0], abs_tol=FLOAT_TOLERANCE)
     # check returned metadata
@@ -558,6 +559,7 @@ def test_large_volume_retrieve_online_success(client, large_volume_dataframe):
                 "daily_transactions_large",
                 "total_transactions_large",
             ],
+            include_meta=True,
         )  # type: GetOnlineFeaturesResponse
 
         # wait for and unpack response 

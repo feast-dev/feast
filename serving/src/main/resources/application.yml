@@ -24,8 +24,8 @@ feast:
     - name: online_cluster
       type: REDIS_CLUSTER
       config:  # Store specific configuration.
-      # Connection string specifies the IP and ports of Redis instances in the redis cluster.
-      connection_string: "10.203.164.86:6379,10.203.164.3:6379,10.203.164.14:6379,10.203.164.30:6379,10.203.164.25:6379,10.203.164.67:6379" 
+        # Connection string specifies the host;ports of Redis instances in the redis cluster.
+        connection_string: "localhost:7000,localhost:7001,localhost:7002,localhost:7003,localhost:7004,localhost:7005" 
       subscriptions:
         - name: "*"
           project: "*"
