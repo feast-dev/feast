@@ -97,12 +97,17 @@ grpc:
   enable-reflection: true
 
 feast:
-  version: 0.3
   jobs:
-    runner: DirectRunner
-    options: {}
-    updates:
-      timeoutSeconds: 240
+    polling_interval_milliseconds: 30000
+    job_update_timeout_seconds: 240
+    
+    active_runner: direct
+
+    runners:
+      - name: direct
+        type: DirectRunner
+        options: {}
+
     metrics:
       enabled: false
 
@@ -173,19 +178,27 @@ EOF
 
 cat <<EOF > /tmp/serving.online.application.yml
 feast:
-  version: 0.3
   core-host: localhost
   core-grpc-port: 6565
+
+  active_store: online
+
+  # List of store configurations
+  stores:
+    - name: online # Name of the store (referenced by active_store)
+      type: REDIS_CLUSTER # Type of the store. REDIS, BIGQUERY are available options
+      config: 
+        # Connection string specifies the IP and ports of Redis instances in Redis cluster
+        connection_string: "localhost:7000,localhost:7001,localhost:7002,localhost:7003,localhost:7004,localhost:7005"
+      # Subscriptions indicate which feature sets needs to be retrieved and used to populate this store
+      subscriptions:
+        # Wildcards match all options. No filtering is done.
+        - name: "*"
+          project: "*"
+          version: "*"
+
   tracing:
     enabled: false
-  store:
-    config-path: /tmp/serving.store.redis.cluster.yml
-    redis-pool-max-size: 128
-    redis-pool-max-idle: 16
-  jobs:
-    staging-location: ${JOBS_STAGING_LOCATION}
-    store-type:
-    store-options: {}
 
 grpc:
   port: 6566
