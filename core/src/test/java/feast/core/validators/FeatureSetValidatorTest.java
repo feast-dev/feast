@@ -16,7 +16,6 @@
  */
 package feast.core.validators;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import feast.core.FeatureSetProto;
 import feast.types.ValueProto;
 import java.util.ArrayList;
@@ -32,15 +31,7 @@ public class FeatureSetValidatorTest {
   @Rule public final ExpectedException expectedException = ExpectedException.none();
 
   @Test
-  public void shouldThrowExceptionForFeatureLabelsWithAnEmptyKey()
-      throws InvalidProtocolBufferException {
-    List<FeatureSetProto.EntitySpec> entitySpecs = new ArrayList<>();
-    entitySpecs.add(
-        FeatureSetProto.EntitySpec.newBuilder()
-            .setName("entity1")
-            .setValueType(ValueProto.ValueType.Enum.INT64)
-            .build());
-
+  public void shouldThrowExceptionForFeatureLabelsWithAnEmptyKey() {
     Map<String, String> featureLabels =
         new HashMap<>() {
           {
@@ -60,8 +51,31 @@ public class FeatureSetValidatorTest {
         FeatureSetProto.FeatureSetSpec.newBuilder()
             .setProject("project1")
             .setName("featureSetWithConstraints")
-            .addAllEntities(entitySpecs)
             .addAllFeatures(featureSpecs)
+            .build();
+    FeatureSetProto.FeatureSet featureSet =
+        FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSetSpec).build();
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Label keys must not be empty");
+    FeatureSetValidator.validateSpec(featureSet);
+  }
+
+  @Test
+  public void shouldThrowExceptionForFeatureSetLabelsWithAnEmptyKey() {
+
+    Map<String, String> featureSetLabels =
+        new HashMap<>() {
+          {
+            put("", "empty_key");
+          }
+        };
+
+    FeatureSetProto.FeatureSetSpec featureSetSpec =
+        FeatureSetProto.FeatureSetSpec.newBuilder()
+            .setProject("project1")
+            .setName("featureSetWithConstraints")
+            .putAllLabels(featureSetLabels)
             .build();
     FeatureSetProto.FeatureSet featureSet =
         FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSetSpec).build();

@@ -27,12 +27,18 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class FeatureSetValidator {
+
+  private static final String EMPTY_LABEL_KEYS_MESSAGE = "Label keys must not be empty";
+
   public static void validateSpec(FeatureSet featureSet) {
     if (featureSet.getSpec().getProject().isEmpty()) {
       throw new IllegalArgumentException("Project name must be provided");
     }
     if (featureSet.getSpec().getName().isEmpty()) {
       throw new IllegalArgumentException("Feature set name must be provided");
+    }
+    if (featureSet.getSpec().getLabelsMap().containsKey("")) {
+      throw new IllegalArgumentException(EMPTY_LABEL_KEYS_MESSAGE);
     }
 
     checkValidCharacters(featureSet.getSpec().getProject(), "project");
@@ -45,7 +51,7 @@ public class FeatureSetValidator {
     for (FeatureSpec featureSpec : featureSet.getSpec().getFeaturesList()) {
       checkValidCharacters(featureSpec.getName(), "features::name");
       if (featureSpec.getLabelsMap().containsKey("")) {
-        throw new IllegalArgumentException("Label keys must not be empty");
+        throw new IllegalArgumentException(EMPTY_LABEL_KEYS_MESSAGE);
       }
     }
   }

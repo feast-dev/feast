@@ -55,7 +55,7 @@ public class TypeConversionTest {
   }
 
   @Test
-  public void convertJsonStringToMapShouldReturnNullForEmptyJson() {
+  public void convertJsonStringToMapShouldReturnEmptyMapForEmptyJson() {
     String input = "{}";
     Map<String, String> expected = Collections.emptyMap();
     assertThat(TypeConversion.convertJsonStringToMap(input), equalTo(expected));
