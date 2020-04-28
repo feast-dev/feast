@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Union
-from typing import Dict, Optional
 
 from feast.core.FeatureSet_pb2 import EntitySpec, FeatureSpec
 from feast.value_type import ValueType
@@ -25,7 +24,7 @@ class Field:
     features.
     """
 
-    def __init__(self, name: str, dtype: ValueType, labels: Optional[Dict] = None):
+    def __init__(self, name: str, dtype: ValueType):
         self._name = name
         if not isinstance(dtype, ValueType):
             raise ValueError("dtype is not a valid ValueType")
@@ -46,17 +45,9 @@ class Field:
         self._url_domain = None
         self._time_domain = None
         self._time_of_day_domain = None
-        if labels is None:
-            self._labels = dict()
-        else:
-            self._labels = labels
 
     def __eq__(self, other):
-        if (
-            self.name != other.name
-            or self.dtype != other.dtype
-            or self.labels != other.labels
-        ):
+        if self.name != other.name or self.dtype != other.dtype:
             return False
         return True
 
@@ -421,14 +412,6 @@ class Field:
             self.time_domain = feature.time_domain
         elif domain_info_case == "time_of_day_domain":
             self.time_of_day_domain = feature.time_of_day_domain
-
-    @property
-    def labels(self):
-        """
-        Getter for labels of this filed
-        """
-
-        return self._labels
 
     def to_proto(self):
         """

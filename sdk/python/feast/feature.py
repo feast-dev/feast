@@ -43,7 +43,6 @@ class Feature(Field):
             url_domain=self.url_domain,
             time_domain=self.time_domain,
             time_of_day_domain=self.time_of_day_domain,
-            labels=self.labels,
         )
 
     @classmethod
@@ -59,21 +58,8 @@ class Feature(Field):
         feature = cls(
             name=feature_proto.name,
             dtype=ValueType(feature_proto.value_type),
-            labels=feature_proto.labels,
         )
         feature.update_presence_constraints(feature_proto)
         feature.update_shape_type(feature_proto)
         feature.update_domain_info(feature_proto)
         return feature
-
-    def set_label(self, key, value):
-        """
-        Set label for feature
-        """
-        self._labels[key] = value
-
-    def remove_label(self, key):
-        """
-        Remove label for a feature
-        """
-        del self._labels[key]
