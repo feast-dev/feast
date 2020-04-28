@@ -21,7 +21,7 @@ This script will run end-to-end tests for Feast Core and Online Serving.
 "
 
 apt-get -qq update
-apt-get -y install wget netcat kafkacat
+apt-get -y install wget netcat kafkacat build-essential
 
 echo "
 ============================================================
@@ -72,7 +72,7 @@ Building jars for Feast
 ============================================================
 "
 
-.prow/scripts/download-maven-cache.sh \
+infra/scripts/download-maven-cache.sh \
     --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
     --output-dir /root/
 
@@ -97,12 +97,17 @@ grpc:
   enable-reflection: true
 
 feast:
-  version: 0.3
   jobs:
-    runner: DirectRunner
-    options: {}
-    updates:
-      timeoutSeconds: 240
+    polling_interval_milliseconds: 30000
+    job_update_timeout_seconds: 240
+    
+    active_runner: direct
+
+    runners:
+      - name: direct
+        type: DirectRunner
+        options: {}
+
     metrics:
       enabled: false
 
@@ -173,19 +178,27 @@ EOF
 
 cat <<EOF > /tmp/serving.online.application.yml
 feast:
-  version: 0.3
   core-host: localhost
   core-grpc-port: 6565
+
+  active_store: online
+
+  # List of store configurations
+  stores:
+    - name: online # Name of the store (referenced by active_store)
+      type: REDIS_CLUSTER # Type of the store. REDIS, BIGQUERY are available options
+      config: 
+        # Connection string specifies the IP and ports of Redis instances in Redis cluster
+        connection_string: "localhost:7000,localhost:7001,localhost:7002,localhost:7003,localhost:7004,localhost:7005"
+      # Subscriptions indicate which feature sets needs to be retrieved and used to populate this store
+      subscriptions:
+        # Wildcards match all options. No filtering is done.
+        - name: "*"
+          project: "*"
+          version: "*"
+
   tracing:
     enabled: false
-  store:
-    config-path: /tmp/serving.store.redis.cluster.yml
-    redis-pool-max-size: 128
-    redis-pool-max-idle: 16
-  jobs:
-    staging-location: ${JOBS_STAGING_LOCATION}
-    store-type:
-    store-options: {}
 
 grpc:
   port: 6566
@@ -217,6 +230,7 @@ bash /tmp/miniconda.sh -b -p /root/miniconda -f
 source ~/.bashrc
 
 # Install Feast Python SDK and test requirements
+make compile-protos-python
 pip install -qe sdk/python
 pip install -qr tests/e2e/requirements.txt
 
