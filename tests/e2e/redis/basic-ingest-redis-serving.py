@@ -194,6 +194,7 @@ def test_basic_retrieve_online_success(client, cust_trans_df):
                 "total_transactions",
                 "null_values"
             ],
+            include_meta=True,
         )  # type: GetOnlineFeaturesResponse
 
         # unpack response & wait for ingested values
