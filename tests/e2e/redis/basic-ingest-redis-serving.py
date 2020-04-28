@@ -202,7 +202,7 @@ def test_basic_retrieve_online_success(client, cust_trans_df):
         daily_transactions_field = fields[PROJECT_NAME + "/daily_transactions"]
         null_value_field = fields[PROJECT_NAME + "/null_values"]
         if (daily_transactions_field.status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND
-            or null_value_field == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND):
+            or null_value_field.status == GetOnlineFeaturesResponse.FieldStatus.NOT_FOUND):
             print("test_basic_retrieve_online_success(): waiting for ingested values.")
             continue
         else:
@@ -218,7 +218,7 @@ def test_basic_retrieve_online_success(client, cust_trans_df):
     assert null_value_field.value.WhichOneof("val") is None
     # check field status metadata
     assert daily_transactions_field.status == GetOnlineFeaturesResponse.FieldStatus.PRESENT
-    assert null_value_field == GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE
+    assert null_value_field.status == GetOnlineFeaturesResponse.FieldStatus.NULL_VALUE
 
 
 @pytest.mark.timeout(90)
