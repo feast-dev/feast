@@ -21,7 +21,7 @@ This script will run end-to-end tests for Feast Core and Online Serving.
 "
 
 apt-get -qq update
-apt-get -y install wget netcat kafkacat
+apt-get -y install wget netcat kafkacat build-essential
 
 echo "
 ============================================================
@@ -72,7 +72,7 @@ Building jars for Feast
 ============================================================
 "
 
-.prow/scripts/download-maven-cache.sh \
+infra/scripts/download-maven-cache.sh \
     --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
     --output-dir /root/
 
@@ -230,6 +230,7 @@ bash /tmp/miniconda.sh -b -p /root/miniconda -f
 source ~/.bashrc
 
 # Install Feast Python SDK and test requirements
+make compile-protos-python
 pip install -qe sdk/python
 pip install -qr tests/e2e/requirements.txt
 
