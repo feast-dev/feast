@@ -62,6 +62,7 @@ public class RedisOnlineRetriever implements OnlineRetriever {
     return new RedisOnlineRetriever(connection);
   }
 
+  /** {@inheritDoc} */
   @Override
   public List<FeatureRow> getOnlineFeatures(
       List<EntityRow> entityRows, FeatureSetRequest featureSetRequest) {
