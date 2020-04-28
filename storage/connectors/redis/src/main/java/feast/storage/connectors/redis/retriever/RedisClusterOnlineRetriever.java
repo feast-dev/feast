@@ -82,7 +82,7 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
         new FeatureRowDecoder(generateFeatureSetStringRef(featureSetSpec), featureSetSpec);
     List<FeatureRow> featureRows = new ArrayList<>();
     try {
-      featureRows = getFeaturesForFeatureSet(redisKeys, decoder);
+      featureRows = getFeaturesFromRedis(redisKeys, decoder);
     } catch (InvalidProtocolBufferException | ExecutionException e) {
       throw Status.INTERNAL
           .withDescription("Unable to parse protobuf while retrieving feature")
@@ -144,7 +144,7 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
    * @param decoder used to decode the data retrieved from Redis for a specific featureset.
    * @return List of {@link FeatureRow}s
    */
-  private List<FeatureRow> getFeaturesForFeatureSet(
+  private List<FeatureRow> getFeaturesFromRedis(
       List<RedisKey> redisKeys, FeatureRowDecoder decoder)
       throws InvalidProtocolBufferException, ExecutionException {
     // pull feature row data bytes from redis using given redis keys
