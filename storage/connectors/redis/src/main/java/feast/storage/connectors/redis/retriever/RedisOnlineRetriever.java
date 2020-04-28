@@ -136,8 +136,7 @@ public class RedisOnlineRetriever implements OnlineRetriever {
    * @param decoder used to decode the data retrieved from Redis for a specific featureset.
    * @return List of {@link FeatureRow}s
    */
-  private List<FeatureRow> getFeaturesFromRedis(
-      List<RedisKey> redisKeys, FeatureRowDecoder decoder)
+  private List<FeatureRow> getFeaturesFromRedis(List<RedisKey> redisKeys, FeatureRowDecoder decoder)
       throws InvalidProtocolBufferException, ExecutionException {
     // pull feature row data bytes from redis using given redis keys
     List<byte[]> featureRowsBytes = sendMultiGet(redisKeys);

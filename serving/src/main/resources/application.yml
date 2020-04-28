@@ -10,10 +10,9 @@ feast:
 
   # List of store configurations
   stores:
-      # Below are two store configurations. One for Redis and one for BigQuery.
       # Please see https://api.docs.feast.dev/grpc/feast.core.pb.html#Store for configuration options
     - name: online # Name of the store (referenced by active_store)
-      type: REDIS # Type of the store. REDIS, BIGQUERY are available options
+      type: REDIS # Type of the store. REDIS, REDIS_CLUSTER, BIGQUERY are available options
       config:  # Store specific configuration. See
         host: localhost
         port: 6379
@@ -22,7 +21,15 @@ feast:
         # Wildcards match all options. No filtering is done.
         - name: "*"
           project: "*"
-
+    - name: online_cluster
+      type: REDIS_CLUSTER
+      config:  # Store specific configuration.
+      # Connection string specifies the IP and ports of Redis instances in the redis cluster.
+      connection_string: "10.203.164.86:6379,10.203.164.3:6379,10.203.164.14:6379,10.203.164.30:6379,10.203.164.25:6379,10.203.164.67:6379" 
+      subscriptions:
+        - name: "*"
+          project: "*"
+          version: "*"
     - name: historical
       type: BIGQUERY
       config:  # Store specific configuration.

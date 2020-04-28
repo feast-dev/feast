@@ -66,11 +66,11 @@ public class OnlineServingService implements ServingService {
     try (Scope scope = tracer.buildSpan("getOnlineFeatures").startActive(true)) {
       List<EntityRow> entityRows = request.getEntityRowsList();
       boolean includeMetadata = request.getIncludeMetadataInResponse();
-      // Collect the response fields corresponding by entity row in entityFieldsMap.
+      // Collect the response fields for each entity row in entityFieldsMap.
       Map<EntityRow, Map<String, Field>> entityFieldsMap =
           entityRows.stream().collect(Collectors.toMap(row -> row, row -> new HashMap<>()));
 
-      if (request.getOmitEntitiesInResponse() == false) {
+      if (!request.getOmitEntitiesInResponse()) {
         // Add entity row's fields as response fields
         entityRows.forEach(
             entityRow -> {
@@ -109,6 +109,7 @@ public class OnlineServingService implements ServingService {
                               es -> RefUtil.generateFeatureStringRef(es.getKey()),
                               es -> es.getValue())));
 
+          // Populate metrics
           this.populateStaleKeyCountMetrics(fields, featureSetRequest);
         }
         this.populateRequestCountMetrics(featureSetRequest);
@@ -167,9 +168,9 @@ public class OnlineServingService implements ServingService {
     Map<String, FeatureReference> refsByName = featureSetRequest.getFeatureRefsByName();
     Map<FeatureReference, Field.Builder> fields = new HashMap<>();
 
-    // populate field builder map with feature row's field's data values
     boolean hasStaleValues = this.isStale(featureSetRequest, entityRow, featureRow);
     if (featureRow != null) {
+      // unpack feature row's field's values & populate field map
       Map<FeatureReference, Field.Builder> featureFields =
           featureRow.getFieldsList().stream()
               .filter(featureRowField -> refsByName.containsKey(featureRowField.getName()))

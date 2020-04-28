@@ -41,7 +41,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-/** Defines a storage retriever  */
+/** Defines a storage retriever */
 public class RedisClusterOnlineRetriever implements OnlineRetriever {
 
   private final RedisAdvancedClusterCommands<byte[], byte[]> syncCommands;
@@ -74,7 +74,7 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
   @Override
   public List<FeatureRow> getOnlineFeatures(
       List<EntityRow> entityRows, FeatureSetRequest featureSetRequest) {
-    
+
     // get features for this features/featureset in featureset request
     FeatureSetSpec featureSetSpec = featureSetRequest.getSpec();
     List<RedisKey> redisKeys = buildRedisKeys(entityRows, featureSetSpec);
@@ -92,7 +92,6 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
     return featureRows;
   }
 
-  
   private List<RedisKey> buildRedisKeys(List<EntityRow> entityRows, FeatureSetSpec featureSetSpec) {
     String featureSetRef = generateFeatureSetStringRef(featureSetSpec);
     List<String> featureSetEntityNames =
@@ -144,8 +143,7 @@ public class RedisClusterOnlineRetriever implements OnlineRetriever {
    * @param decoder used to decode the data retrieved from Redis for a specific featureset.
    * @return List of {@link FeatureRow}s
    */
-  private List<FeatureRow> getFeaturesFromRedis(
-      List<RedisKey> redisKeys, FeatureRowDecoder decoder)
+  private List<FeatureRow> getFeaturesFromRedis(List<RedisKey> redisKeys, FeatureRowDecoder decoder)
       throws InvalidProtocolBufferException, ExecutionException {
     // pull feature row data bytes from redis using given redis keys
     List<byte[]> featureRowsBytes = sendMultiGet(redisKeys);

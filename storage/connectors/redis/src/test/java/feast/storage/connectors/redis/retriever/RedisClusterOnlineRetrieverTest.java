@@ -133,23 +133,23 @@ public class RedisClusterOnlineRetrieverTest {
     when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
 
     List<FeatureRow> expected =
-      Lists.newArrayList(
-          FeatureRow.newBuilder()
-          .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-          .setFeatureSet("project/featureSet")
-          .addAllFields(
-            Lists.newArrayList(
-              Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
-              Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-          .build(),
-          FeatureRow.newBuilder()
-          .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-          .setFeatureSet("project/featureSet")
-          .addAllFields(
-            Lists.newArrayList(
-              Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
-              Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
-          .build()));
+        Lists.newArrayList(
+            FeatureRow.newBuilder()
+                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                .setFeatureSet("project/featureSet")
+                .addAllFields(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
+                        Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
+                .build(),
+            FeatureRow.newBuilder()
+                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                .setFeatureSet("project/featureSet")
+                .addAllFields(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("feature1").setValue(intValue(2)).build(),
+                        Field.newBuilder().setName("feature2").setValue(intValue(2)).build()))
+                .build());
 
     List<FeatureRow> actual =
         redisClusterOnlineRetriever.getOnlineFeatures(entityRows, featureSetRequest);
@@ -200,16 +200,16 @@ public class RedisClusterOnlineRetrieverTest {
     when(syncCommands.mget(redisKeyList)).thenReturn(featureRowBytes);
 
     List<FeatureRow> expected =
-      Lists.newArrayList(
-          FeatureRow.newBuilder()
-          .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
-          .setFeatureSet("project/featureSet")
-          .addAllFields(
-            Lists.newArrayList(
-              Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
-              Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
-          .build(),
-          null);
+        Lists.newArrayList(
+            FeatureRow.newBuilder()
+                .setEventTimestamp(Timestamp.newBuilder().setSeconds(100))
+                .setFeatureSet("project/featureSet")
+                .addAllFields(
+                    Lists.newArrayList(
+                        Field.newBuilder().setName("feature1").setValue(intValue(1)).build(),
+                        Field.newBuilder().setName("feature2").setValue(intValue(1)).build()))
+                .build(),
+            null);
 
     List<FeatureRow> actual =
         redisClusterOnlineRetriever.getOnlineFeatures(entityRows, featureSetRequest);
