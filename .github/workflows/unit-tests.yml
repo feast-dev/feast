@@ -8,7 +8,7 @@ jobs:
     container: gcr.io/kf-feast/feast-ci:latest
     name: unit test java
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - uses: actions/cache@v1
         with:
           path: ~/.m2/repository
@@ -23,7 +23,7 @@ jobs:
     container: gcr.io/kf-feast/feast-ci:latest
     name: unit test python
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: install python
         run: make install-python
       - name: test python
@@ -34,7 +34,7 @@ jobs:
     container: gcr.io/kf-feast/feast-ci:latest
     name: unit test go
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: install dependencies
         run: make compile-protos-go
       - name: test go
