@@ -2,6 +2,9 @@ version: "3.7"
 
 services:
   core:
+    build:
+      context: ../..
+      dockerfile: infra/docker/core/Dockerfile
     image: ${FEAST_CORE_IMAGE}:${FEAST_VERSION}
     volumes:
       - ./core/${FEAST_CORE_CONFIG}:/etc/feast/application.yml
@@ -22,6 +25,9 @@ services:
       - --spring.config.location=classpath:/application.yml,file:/etc/feast/application.yaml
 
   online-serving:
+    build:
+      context: ../..
+      dockerfile: infra/docker/serving/Dockerfile
     image: ${FEAST_SERVING_IMAGE}:${FEAST_VERSION}
     volumes:
       - ./serving/${FEAST_ONLINE_SERVING_CONFIG}:/etc/feast/application.yml
@@ -39,6 +45,9 @@ services:
       - --spring.config.location=classpath:/application.yml,file:/etc/feast/application.yml
 
   batch-serving:
+    build:
+      context: ../..
+      dockerfile: infra/docker/serving/Dockerfile
     image: ${FEAST_SERVING_IMAGE}:${FEAST_VERSION}
     volumes:
       - ./serving/${FEAST_BATCH_SERVING_CONFIG}:/etc/feast/application.yml

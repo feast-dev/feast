@@ -1,0 +1,90 @@
+name: ci
+
+on:
+  # Trigger the workflow on push or pull request,
+  # but only for the master branch
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+
+jobs:
+
+  build-and-test:
+
+    # Run the job on a self-hosted agent VM. The VM will cache Docker layers, which considerably speeds up the build.
+    runs-on: self-hosted
+    steps:
+
+    # Delete any files left from the previous build, including files owned by root created by Docker in mounted volumes.
+    - name: Clean current directory
+      run: shopt -s dotglob; sudo rm -rf *
+
+    # Checkout sources from Git
+    - uses: actions/checkout@v2
+
+    # Build base CI image, with dependencies such as Go and Python.
+    # This image seldom changes, so thanks to layer caching this usually completes in seconds.
+    - name: Build CI image
+      uses: docker/build-push-action@v1
+      with:
+        username: ${{ secrets.CONTAINERREGISTRY_USERNAME }}
+        password: ${{ secrets.CONTAINERREGISTRY_PASSWORD }}
+        repository: ${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-ci
+        registry: ${{ secrets.CONTAINERREGISTRY_URL }}
+        dockerfile: infra/docker/ci/Dockerfile
+        tags: v${{ github.sha }}
+
+
+    # Cache the Maven repository across runs.
+    - name: Cache Maven repository
+      id: cache-maven
+      uses: actions/cache@v1
+      with:
+        path: .m2
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+
+    # Generate the Maven cache if needed by running a throwaway build of Feast.
+    - name: Generate Maven cache
+      if: steps.cache-maven.outputs.cache-hit != 'true'
+      run: docker run --rm --user $(id -u):$(id -g) -v $PWD:/build $IMAGE bash -c "cd /build && mvn -Dmaven.repo.local=/build/.m2/repository -Dgpg.skip=true -B verify -DskipTests"
+      env:
+        IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-ci:v${{ github.sha }}
+
+    # "docker-compose up --build" builds and starts docker images.
+    # Images fetched from a repository, such as Kafka, will not be built, so this
+    # step will only build the Feast Core image.
+    # After this step, the specified containers have been started and Docker Core
+    # has successfully connected to its required services (such as PostgreSQL).
+    - name: Start local Feast environment
+      run: |
+        docker-compose -f infra/docker-compose/docker-compose.yml up -d --build core redis kafka db
+        for i in {1..12}; do nc -zv localhost 6565 && break; echo "Waiting for Feast Core to come online on port 6565..."; sleep 10; done
+      env:
+        COMPOSE_PROJECT_NAME: feast
+        FEAST_VERSION: v${{ github.sha }}
+        FEAST_CORE_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-core
+        FEAST_CORE_CONFIG: direct-runner.yml
+        FEAST_SERVING_IMAGE: gcr.io/kf-feast/feast-serving
+        FEAST_ONLINE_SERVING_CONFIG: online-serving.yml
+        FEAST_ONLINE_STORE_CONFIG: redis-store.yml
+
+    # Login to Azure Container Registry.
+    - name: Login to Azure Container Registry
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ secrets.CONTAINERREGISTRY_URL }}
+        username: ${{ secrets.CONTAINERREGISTRY_USERNAME }}
+        password: ${{ secrets.CONTAINERREGISTRY_PASSWORD }}
+
+    # Promote successfully tested container to Azure Container Registry.
+    - name: Push image to ACR
+      run: |
+        docker-compose -f infra/docker-compose/docker-compose.yml push core
+      env:
+        FEAST_VERSION: v${{ github.sha }}
+        FEAST_CORE_IMAGE: ${{ secrets.CONTAINERREGISTRY_URL }}/${{ secrets.CONTAINERREGISTRY_IMAGENAMEBASE }}-core

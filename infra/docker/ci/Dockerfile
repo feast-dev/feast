@@ -42,3 +42,7 @@ RUN PROTOC_ZIP=protoc-${PROTOC_VERSION}-linux-x86_64.zip && \
 	  git clone https://github.com/istio/tools/ && \
 	  cd tools/cmd/protoc-gen-docs && \
 	  go build && mkdir -p $HOME/bin && cp protoc-gen-docs $HOME/bin
+
+COPY Makefile /build/Makefile
+COPY sdk/python/requirements-ci.txt /build/sdk/python/requirements-ci.txt
+RUN cd /build && make install-python-ci-dependencies install-go-ci-dependencies && rm -rf /build
