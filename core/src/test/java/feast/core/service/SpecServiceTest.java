@@ -39,10 +39,7 @@ import feast.core.CoreServiceProto.UpdateStoreResponse;
 import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSetSpec;
-import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.FeatureSetProto.FeatureSpec;
-import feast.core.SourceProto.KafkaSourceConfig;
-import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
@@ -110,14 +107,7 @@ public class SpecServiceTest {
   @Before
   public void setUp() {
     initMocks(this);
-    defaultSource =
-        new Source(
-            SourceType.KAFKA,
-            KafkaSourceConfig.newBuilder()
-                .setBootstrapServers("kafka:9092")
-                .setTopic("my-topic")
-                .build(),
-            true);
+    defaultSource = TestObjectFactory.defaultSource;
 
     FeatureSet featureSet1v1 = newDummyFeatureSet("f1", 1, "project1");
     FeatureSet featureSet1v2 = newDummyFeatureSet("f1", 2, "project1");
@@ -128,15 +118,8 @@ public class SpecServiceTest {
     Field f3f2 = new Field("f3f2", Enum.INT64);
     Field f3e1 = new Field("f3e1", Enum.STRING);
     FeatureSet featureSet3v1 =
-        new FeatureSet(
-            "f3",
-            "project1",
-            1,
-            100L,
-            Arrays.asList(f3e1),
-            Arrays.asList(f3f2, f3f1),
-            defaultSource,
-            FeatureSetStatus.STATUS_READY);
+        TestObjectFactory.CreateFeatureSet(
+            "f3", "project1", 1, Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1));
 
     featureSets =
         Arrays.asList(featureSet1v1, featureSet1v2, featureSet1v3, featureSet2v1, featureSet3v1);
@@ -493,15 +476,8 @@ public class SpecServiceTest {
     Field f3f2 = new Field("f3f2", Enum.INT64);
     Field f3e1 = new Field("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
-        (new FeatureSet(
-                "f3",
-                "project1",
-                5,
-                100L,
-                Arrays.asList(f3e1),
-                Arrays.asList(f3f2, f3f1),
-                defaultSource,
-                FeatureSetStatus.STATUS_READY))
+        (TestObjectFactory.CreateFeatureSet(
+                "f3", "project1", 5, Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1)))
             .toProto();
 
     ApplyFeatureSetResponse applyFeatureSetResponse =
@@ -708,15 +684,8 @@ public class SpecServiceTest {
     Field f3f2 = new Field("f3f2", Enum.INT64);
     Field f3e1 = new Field("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
-        (new FeatureSet(
-                "f3",
-                "newproject",
-                5,
-                100L,
-                Arrays.asList(f3e1),
-                Arrays.asList(f3f2, f3f1),
-                defaultSource,
-                FeatureSetStatus.STATUS_READY))
+        (TestObjectFactory.CreateFeatureSet(
+                "f3", "newproject", 5, Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1)))
             .toProto();
 
     ApplyFeatureSetResponse applyFeatureSetResponse =
@@ -734,15 +703,8 @@ public class SpecServiceTest {
     Field f3f2 = new Field("f3f2", Enum.INT64);
     Field f3e1 = new Field("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
-        (new FeatureSet(
-                "f3",
-                "archivedproject",
-                5,
-                100L,
-                Arrays.asList(f3e1),
-                Arrays.asList(f3f2, f3f1),
-                defaultSource,
-                FeatureSetStatus.STATUS_READY))
+        (TestObjectFactory.CreateFeatureSet(
+                "f3", "archivedproject", 5, Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1)))
             .toProto();
 
     expectedException.expect(IllegalArgumentException.class);
@@ -751,7 +713,7 @@ public class SpecServiceTest {
   }
 
   @Test
-  public void applyFeatureSetShouldAcceptLabels() throws InvalidProtocolBufferException {
+  public void applyFeatureSetShouldAcceptFeatureLabels() throws InvalidProtocolBufferException {
     List<EntitySpec> entitySpecs = new ArrayList<>();
     entitySpecs.add(EntitySpec.newBuilder().setName("entity1").setValueType(Enum.INT64).build());
 
@@ -820,6 +782,32 @@ public class SpecServiceTest {
   }
 
   @Test
+  public void applyFeatureSetShouldAcceptFeatureSetLabels() throws InvalidProtocolBufferException {
+    Map<String, String> featureSetLabels =
+        new HashMap<>() {
+          {
+            put("description", "My precious feature set");
+          }
+        };
+
+    FeatureSetSpec featureSetSpec =
+        FeatureSetSpec.newBuilder()
+            .setProject("project1")
+            .setName("preciousFeatureSet")
+            .putAllLabels(featureSetLabels)
+            .build();
+    FeatureSetProto.FeatureSet featureSet =
+        FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSetSpec).build();
+
+    ApplyFeatureSetResponse applyFeatureSetResponse = specService.applyFeatureSet(featureSet);
+    FeatureSetSpec appliedFeatureSetSpec = applyFeatureSetResponse.getFeatureSet().getSpec();
+
+    var appliedLabels = appliedFeatureSetSpec.getLabelsMap();
+
+    assertEquals(featureSetLabels, appliedLabels);
+  }
+
+  @Test
   public void shouldUpdateStoreIfConfigChanges() throws InvalidProtocolBufferException {
     when(storeRepository.findById("SERVING")).thenReturn(Optional.of(stores.get(0)));
     StoreProto.Store newStore =
@@ -876,15 +864,8 @@ public class SpecServiceTest {
     Field entity = new Field("entity", Enum.STRING);
 
     FeatureSet fs =
-        new FeatureSet(
-            name,
-            project,
-            version,
-            100L,
-            Arrays.asList(entity),
-            Arrays.asList(feature),
-            defaultSource,
-            FeatureSetStatus.STATUS_READY);
+        TestObjectFactory.CreateFeatureSet(
+            name, project, version, Arrays.asList(entity), Arrays.asList(feature));
     fs.setCreated(Date.from(Instant.ofEpochSecond(10L)));
     return fs;
   }

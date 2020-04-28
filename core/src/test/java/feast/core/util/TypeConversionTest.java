@@ -18,8 +18,7 @@ package feast.core.util;
 
 import static com.jayway.jsonpath.matchers.JsonPathMatchers.hasJsonPath;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import com.google.protobuf.Timestamp;
 import java.util.*;
@@ -56,7 +55,7 @@ public class TypeConversionTest {
   }
 
   @Test
-  public void convertJsonStringToMapShouldReturnEmptyMapForEmptyJson() {
+  public void convertJsonStringToMapShouldReturnNullForEmptyJson() {
     String input = "{}";
     Map<String, String> expected = Collections.emptyMap();
     assertThat(TypeConversion.convertJsonStringToMap(input), equalTo(expected));
@@ -68,6 +67,12 @@ public class TypeConversionTest {
     input.put("key", "value");
     assertThat(
         TypeConversion.convertMapToJsonString(input), hasJsonPath("$.key", equalTo("value")));
+  }
+
+  @Test
+  public void convertMapToJsonStringShouldReturnNullForEmptyMap() {
+    Map<String, String> input = new HashMap<>();
+    assertNull(TypeConversion.convertMapToJsonString(input));
   }
 
   @Test

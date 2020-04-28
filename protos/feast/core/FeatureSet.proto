@@ -60,6 +60,9 @@ message FeatureSetSpec {
     // Optional. Source on which feature rows can be found.
     // If not set, source will be set to the default value configured in Feast Core.
     Source source = 6;
+
+    // User defined metadata
+    map<string,string> labels = 8;
 }
 
 message EntitySpec {
