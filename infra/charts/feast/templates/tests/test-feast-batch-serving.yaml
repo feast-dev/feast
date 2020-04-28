@@ -100,7 +100,9 @@ spec:
     {{- end }}
     resources:
       requests:
-        cpu: 1
+        cpu: 500m
+        memory: 512Mi
+      limits:
         memory: 512Mi
   volumes:
   {{- if index .Values "feast-batch-serving" "gcpServiceAccount" "enabled" }}

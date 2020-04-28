@@ -38,6 +38,9 @@ spec:
       - name: {{ template "feast-core.fullname" . }}-config
         configMap:
           name: {{ template "feast-core.fullname" . }}
+      - name: {{ template "feast-core.fullname" . }}-secret
+        secret:
+          secretName: {{ template "feast-core.fullname" . }}
       {{- if .Values.gcpServiceAccount.enabled }}
       - name: {{ template "feast-core.fullname" . }}-gcp-service-account
         secret:
@@ -52,6 +55,9 @@ spec:
         volumeMounts:
         - name: {{ template "feast-core.fullname" . }}-config
           mountPath: /etc/feast
+        - name: {{ template "feast-core.fullname" . }}-secret
+          mountPath: /etc/secrets/feast
+          readOnly: true
         {{- if .Values.gcpServiceAccount.enabled }}
         - name: {{ template "feast-core.fullname" . }}-gcp-service-account
           mountPath: /etc/secrets/google
@@ -63,11 +69,14 @@ spec:
           value: {{ .Values.logType | quote }}
         - name: LOG_LEVEL
           value: {{ .Values.logLevel | quote }}
+          
+        {{- if .Values.postgresql.existingSecret }}
         - name: SPRING_DATASOURCE_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ .Values.postgresql.existingSecret | default (printf "%s-postgresql" .Release.Name) }}
+              name: {{ .Values.postgresql.existingSecret }}
               key: postgresql-password
+        {{- end }}
 
         {{- if .Values.gcpServiceAccount.enabled }}
         - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -80,15 +89,20 @@ spec:
         {{- end }}
 
         {{- if .Values.javaOpts }}
-        - name: JAVA_OPTS
+        - name: JAVA_TOOL_OPTIONS
           value: {{ .Values.javaOpts }}
+        {{- end }}
+
+        {{- range $key, $value := .Values.envOverrides }}
+        - name: {{ printf "%s" $key | replace "." "_" | upper | quote }}
+          value: {{ $value | quote }}
         {{- end }}
 
         command:
         - java 
         - -jar 
         - /opt/feast/feast-core.jar
-        - --spring.config.additional-location=/etc/feast/application-default-postgresql.yaml,/etc/feast/application-default-kafka.yaml,/etc/feast/application-default-statsd.yaml,/etc/feast/application-override.yaml
+        - --spring.config.additional-location=/etc/feast/application-default-postgresql.yaml,/etc/feast/application-default-kafka.yaml,/etc/feast/application-default-statsd.yaml,/etc/secrets/feast/application-secret.yaml,/etc/feast/application-override.yaml
         ports:
         - name: http
           containerPort: {{ .Values.service.http.targetPort }}

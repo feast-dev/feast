@@ -12,14 +12,16 @@ Current chart version is `0.4.6`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| "application-override.yaml" | object | `{}` | [Configuration override](https://github.com/gojek/feast/blob/v0.4-branch/serving/src/main/resources/application.yml) for Feast Serving. Note that setting `store.config-path` is not necessary since this chart will set it to where `store.yaml` is mounted. |
+| "application-override.yaml" | object | `{}` | Configuration to override default [application.yaml](https://github.com/gojek/feast/blob/v0.4-branch/serving/src/main/resources/application.yml). Will be created as a ConfigMap. `application-override.yaml` has a higher precedence than `application-secret.yaml` |
+| "application-secret.yaml" | object | `{}` | Configuration to override default [application.yaml](https://github.com/gojek/feast/blob/v0.4-branch/serving/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml` |
 | "store.yaml" | object | `{}` | Store [config](https://github.com/gojek/feast/blob/master/protos/feast/core/Store.proto#L32) in yaml format. This is an [example](https://github.com/gojek/feast/blob/v0.4-branch/serving/sample_redis_config.yml) for Redis. |
+| envOverrides | object | `{}` | Extra environment variables to set |
 | gcpServiceAccount.enabled | bool | `false` | Flag to use [service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) JSON key |
 | gcpServiceAccount.existingSecret.key | string | `"credentials.json"` | Key in the secret data (file name of the service account) |
 | gcpServiceAccount.existingSecret.name | string | `"feast-gcp-service-account"` | Name of the existing secret containing the service account |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | image.repository | string | `"gcr.io/kf-feast/feast-serving"` | Docker image repository |
-| image.tag | string | `"0.4.6"` | Image tag |
+| image.tag | string | `"0.4.7"` | Image tag |
 | ingress.grpc.annotations | object | `{}` | Extra annotations for the ingress |
 | ingress.grpc.auth.enabled | bool | `false` | Flag to enable auth |
 | ingress.grpc.class | string | `"nginx"` | Which ingress controller to use |
@@ -37,7 +39,7 @@ Current chart version is `0.4.6`
 | ingress.http.https.enabled | bool | `true` | Flag to enable HTTPS |
 | ingress.http.https.secretNames | object | `{}` | Map of hostname to TLS secret name |
 | ingress.http.whitelist | string | `""` | Allowed client IP source ranges |
-| javaOpts | string | `nil` | [JVM options](https://docs.oracle.com/cd/E22289_01/html/821-1274/configuring-the-default-jvm-and-java-arguments.html). It is advised for better performance to set the min and max heap: <br> `-Xms2048m -Xmx2048m` |
+| javaOpts | string | `nil` | [JVM options](https://docs.oracle.com/cd/E22289_01/html/821-1274/configuring-the-default-jvm-and-java-arguments.html). For better performance, it is advised to set the min and max heap: <br> `-Xms2048m -Xmx2048m` |
 | livenessProbe.enabled | bool | `true` | Flag to enabled the probe |
 | livenessProbe.failureThreshold | int | `5` | Min consecutive failures for the probe to be considered failed |
 | livenessProbe.initialDelaySeconds | int | `60` | Delay before the probe is initiated |

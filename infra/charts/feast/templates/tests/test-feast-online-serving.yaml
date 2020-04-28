@@ -95,8 +95,11 @@ spec:
       value: {{ .Release.Name }}-feast-online-serving:6566
     resources:
       requests:
-        cpu: 1
+        cpu: 500m
         memory: 512Mi
+      limits:
+        memory: 512Mi
+
   restartPolicy: Never
 
 {{- end }}

@@ -38,6 +38,9 @@ spec:
       - name: {{ template "feast-serving.fullname" . }}-config
         configMap:
           name: {{ template "feast-serving.fullname" . }}
+      - name: {{ template "feast-serving.fullname" . }}-secret
+        secret:
+          secretName: {{ template "feast-serving.fullname" . }}
       {{- if .Values.gcpServiceAccount.enabled }}
       - name: {{ template "feast-serving.fullname" . }}-gcp-service-account
         secret:
@@ -52,6 +55,9 @@ spec:
         volumeMounts:
         - name: {{ template "feast-serving.fullname" . }}-config
           mountPath: /etc/feast
+        - name: {{ template "feast-serving.fullname" . }}-secret
+          mountPath: /etc/secrets/feast
+          readOnly: true
         {{- if .Values.gcpServiceAccount.enabled }}
         - name: {{ template "feast-serving.fullname" . }}-gcp-service-account
           mountPath: /etc/secrets/google
@@ -75,8 +81,13 @@ spec:
         {{- end }}
 
         {{- if .Values.javaOpts }}
-        - name: JAVA_OPTS
+        - name: JAVA_TOOL_OPTIONS
           value: {{ .Values.javaOpts }}
+        {{- end }}
+
+        {{- range $key, $value := .Values.envOverrides }}
+        - name: {{ printf "%s" $key | replace "." "_" | upper | quote }}
+          value: {{ $value | quote }}
         {{- end }}
 
         command:

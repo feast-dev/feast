@@ -5,12 +5,15 @@ image:
   # image.repository -- Docker image repository
   repository: gcr.io/kf-feast/feast-core
   # image.tag -- Image tag
-  tag: 0.4.6
+  tag: 0.4.7
   # image.pullPolicy -- Image pull policy
   pullPolicy: IfNotPresent
 
-# "application-override.yaml" -- [Configuration override](https://github.com/gojek/feast/blob/v0.4-branch/core/src/main/resources/application.yml) for Feast Core
+# "application-override.yaml" -- Configuration to override default [application.yaml](https://github.com/gojek/feast/blob/v0.4-branch/core/src/main/resources/application.yml). Will be created as a ConfigMap. `application-override.yaml` has a higher precedence than `application-secret.yaml`
 application-override.yaml: {}
+
+# "application-secret.yaml" -- Configuration to override default [application.yaml](https://github.com/gojek/feast/blob/v0.4-branch/core/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml`
+application-secret.yaml: {}
 
 gcpServiceAccount:
   # gcpServiceAccount.enabled -- Flag to use [service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) JSON key
@@ -25,7 +28,7 @@ postgresql:
   # postgresql.existingSecret -- Existing secret to use for authenticating to Postgres
   existingSecret: 
 
-# javaOpts -- [JVM options](https://docs.oracle.com/cd/E22289_01/html/821-1274/configuring-the-default-jvm-and-java-arguments.html). It is advised for better performance to set the min and max heap: <br> `-Xms2048m -Xmx2048m`
+# javaOpts -- [JVM options](https://docs.oracle.com/cd/E22289_01/html/821-1274/configuring-the-default-jvm-and-java-arguments.html). For better performance, it is advised to set the min and max heap: <br> `-Xms2048m -Xmx2048m`
 javaOpts: 
 
 # logType -- Log format, either `JSON` or `Console`
@@ -130,3 +133,6 @@ resources: {}
 
 # nodeSelector -- Node labels for pod assignment
 nodeSelector: {}
+
+# envOverrides -- Extra environment variables to set
+envOverrides: {}

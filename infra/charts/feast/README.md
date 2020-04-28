@@ -1,7 +1,7 @@
 feast
 ===== 
 
-Feature store for machine learning. Current chart version is `0.4.6`
+Feature store for machine learning. Current chart version is `0.4.7`
 
 ## TL;DR;
 
@@ -28,8 +28,8 @@ dependencies so end users are not overwhelmed with the available configuration.
 
 | Name | Version |
 |------|---------|
-| [Feast Core](./charts/feast-core/README.md) | 0.4.6 |
-| [Feast Serving](./charts/feast-serving/README.md) | 0.4.6 |
+| [Feast Core](./charts/feast-core/README.md) | 0.4.7 |
+| [Feast Serving](./charts/feast-serving/README.md) | 0.4.7 |
 | [Postgresql](./charts/postgresql/README.md) | 8.6.1 |
 | [Kafka](./charts/kafka/README.md) | 0.20.8 |
 | [Redis](./charts/redis/README.md) | 10.5.6 |
