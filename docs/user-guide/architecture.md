@@ -6,7 +6,7 @@
 
 ### **Feast Core**
 
-Feast Core is the central management service of a Feast deployment. It's role is to
+Feast Core is the central management service of a Feast deployment. It's role is to:
 
 * Allows users to create [entities](entities.md) and [features](features.md) through the creation and management of [feature sets](feature-sets.md). 
 * Starts and manages [ingestion jobs](data-ingestion.md). These jobs populate [stores](stores.md) from [sources](sources.md) based on the feature sets that are defined and the subscription\(s\) that a [store](stores.md) has. 

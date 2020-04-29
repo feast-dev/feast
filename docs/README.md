@@ -13,7 +13,7 @@ Feast aims to:
 
 ![](.gitbook/assets/feast-docs-overview-diagram-2%20%281%29.svg)
 
-Feast decouples feature engineering from feature usage. Features that are added to Feast become available immediately for training and serving. Models can retrieve the same features used in training from a low latency online store in production.
+Feast decouples feature engineering from feature usage. Features that are added to Feast become available immediately for training and serving. Models can retrieve the features for training from both a historical store and online store \(at low latency\) using canonical feature references.
 
 This means that new ML projects start with a process of feature selection from a catalog instead of having to do feature engineering from scratch.
 
