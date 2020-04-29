@@ -10,31 +10,24 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 data:
-  store.yaml: |
-{{- if index .Values "store.yaml" }}
-{{- toYaml (index .Values "store.yaml") | nindent 4 }}
-{{- else }}
-    name: redis-store
-    type: REDIS
-    redis_config:
-      host: {{ .Release.Name }}-redis-master
-      port: 6379
-    subscriptions:
-    - name: "*"
-      project: "*"
-      version: "*"
-{{- end }}
-
   application-default.yaml: |
     feast:
       core-host: {{ .Release.Name }}-feast-core
-      store:
-        config-path: /etc/feast/store.yaml
-      jobs:
-        store-type: REDIS
-        store-options:
+      
+      stores:
+      - name: online
+        type: REDIS 
+        config:
           host: {{ .Release.Name }}-redis-master
           port: 6379
+        subscriptions:
+        - name: "*"
+          project: "*"
+          version: "*"
+      
+      job_store:
+        redis_host: {{ .Release.Name }}-redis-master
+        redis_port: 6379
 
   application-override.yaml: |
 {{- toYaml (index .Values "application-override.yaml") | nindent 4 }}    

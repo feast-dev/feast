@@ -5,10 +5,18 @@
 ## TL;DR;
 
 ```bash
-# Install Feast with Online Serving and Beam DirectRunner
+# Add Feast Helm chart
 helm repo add feast-charts https://feast-charts.storage.googleapis.com
 helm repo update
-helm install --name myrelease feast-charts/feast
+
+# Create secret for Feast database, replace <your-password> accordingly
+kubectl create secret generic feast-postgresql \
+    --from-literal=postgresql-password=<your_password>
+
+# Install Feast with Online Serving and Beam DirectRunner
+helm install --name myrelease feast-charts/feast \
+    --set feast-core.postgresql.existingSecret=feast-postgresql \
+    --set postgresql.existingSecret=feast-postgresql
 ```
 
 ## Introduction
@@ -27,8 +35,8 @@ dependencies so end users are not overwhelmed with the available configuration.
 
 | Name | Version |
 |------|---------|
-| [Feast Core](./charts/feast-core/README.md) | 0.4.7 |
-| [Feast Serving](./charts/feast-serving/README.md) | 0.4.7 |
+| [Feast Core](./charts/feast-core/README.md) | 0.5.0-alpha.1 |
+| [Feast Serving](./charts/feast-serving/README.md) | 0.5.0-alpha.1 |
 | [Postgresql](./charts/postgresql/README.md) | 8.6.1 |
 | [Kafka](./charts/kafka/README.md) | 0.20.8 |
 | [Redis](./charts/redis/README.md) | 10.5.6 |
@@ -41,8 +49,21 @@ dependencies so end users are not overwhelmed with the available configuration.
 ## Configuration and installation details
 
 The default configuration will install Feast with Online Serving. Ingestion
-of features uses Beam [DirectRunner](https://beam.apache.org/documentation/runners/direct/) 
-that runs on the same container where Feast Core is running. To test the installation:
+of features will use Beam [DirectRunner](https://beam.apache.org/documentation/runners/direct/) 
+that runs on the same container where Feast Core is running. 
+
+```bash
+# Create secret for Feast database, replace <your-password> accordingly
+kubectl create secret generic feast-postgresql \
+    --from-literal=postgresql-password=<your_password>
+
+# Install Feast with Online Serving and Beam DirectRunner
+helm install --name myrelease feast-charts/feast \
+    --set feast-core.postgresql.existingSecret=feast-postgresql \
+    --set postgresql.existingSecret=feast-postgresql
+```
+
+In order to test that the installation is successful:
 ```bash
 helm test myrelease
 
@@ -54,7 +75,7 @@ PASSED: myrelease-grafana-test
 RUNNING: myrelease-test-topic-create-consume-produce
 PASSED: myrelease-test-topic-create-consume-produce
 
-# In order to check the logs from the test
+# Once the test completes, to check the logs
 kubectl logs myrelease-feast-online-serving-test
 ```
 
@@ -107,25 +128,32 @@ Use the following Helm values to enable Batch Serving:
 feast-core:
   gcpServiceAccount:
     enabled: true
+  postgresql:
+    existingSecret: feast-postgresql
 
 feast-batch-serving:
   enabled: true
-  store.yaml:
-    name: bigquery-store
-    type: BIGQUERY 
-    bigquery_config:
-      project_id: <google_project_id>
-      dataset_id: <bigquery_dataset_id>
-    subscriptions:
-    - project: "*"
-      name: "*"
-      version: "*"
-  application-override.yaml:
-    feast:
-      jobs:
-        staging-location: gs://<bucket_name>/staging-location
   gcpServiceAccount:
     enabled: true 
+  application-override.yaml:
+    feast:
+      active_store: historical
+      stores:
+      - name: historical
+        type: BIGQUERY
+        config:
+          project_id: <google_project_id>
+          dataset_id: <bigquery_dataset_id>
+          staging_location: gs://<bucket_name>/feast-staging-location
+          initial_retry_delay_seconds: 3
+          total_timeout_seconds: 21600
+        subscriptions:
+        - name: "*"
+          project: "*"
+          version: "*"
+
+postgresql:
+  existingSecret: feast-postgresql
 ```
 
 > To delete the previous release, run `helm delete --purge myrelease`  
@@ -171,65 +199,77 @@ gcloud compute addresses create \
 ```
 
 Use the following Helm values to enable DataflowRuner (and Batch Serving), 
-replacing the `<*load_balancer_ip*>` tags with the ones reserved above:
+replacing the `<*load_balancer_ip*>` tags with the ip addresses reserved above:
 
 ```yaml
 # values-dataflow-runner.yaml
 feast-core:
   gcpServiceAccount:
     enabled: true
+  postgresql:
+    existingSecret: feast-postgresql
   application-override.yaml:
     feast:
       stream:
         options:
           bootstrapServers: <kafka_sevice_load_balancer_ip_address_1:31090>
       jobs:
-        runner: DataflowRunner
-        options:
-          project: <google_project_id>
-          region: <dataflow_regional_endpoint e.g. asia-east1>
-          zone: <google_zone e.g. asia-east1-a>
-          tempLocation: <gcs_path_for_temp_files e.g. gs://bucket/tempLocation>
-          network: <google_cloud_network_name>
-          subnetwork: <google_cloud_subnetwork_path e.g. regions/asia-east1/subnetworks/mysubnetwork>
-          maxNumWorkers: 1
-          autoscalingAlgorithm: THROUGHPUT_BASED
-          usePublicIps: false
-          workerMachineType: n1-standard-1
-          deadLetterTableSpec: <bigquery_table_spec_for_deadletter e.g. project_id:dataset_id.table_id>
+        active_runner: dataflow
         metrics:
           host: <prometheus_statsd_exporter_load_balancer_ip_address>
+        runners:
+        - name: dataflow
+          type: DataflowRunner
+          options:
+            project: <google_project_id>
+            region: <dataflow_regional_endpoint e.g. asia-east1>
+            zone: <google_zone e.g. asia-east1-a>
+            tempLocation: <gcs_path_for_temp_files e.g. gs://bucket/tempLocation>
+            network: <google_cloud_network_name>
+            subnetwork: <google_cloud_subnetwork_path e.g. regions/asia-east1/subnetworks/mysubnetwork>
+            maxNumWorkers: 1
+            autoscalingAlgorithm: THROUGHPUT_BASED
+            usePublicIps: false
+            workerMachineType: n1-standard-1
+            deadLetterTableSpec: <bigquery_table_spec_for_deadletter e.g. project_id:dataset_id.table_id>
 
 feast-online-serving:
-  store.yaml:
-    name: redis-store
-    type: REDIS
-    redis_config:
-      host: <redis_service_load_balancer_ip_addresss>
-      port: 6379
-    subscriptions:
-    - project: "*"
-      name: "*"
-      version: "*"
+  application-override.yaml:
+    feast:
+      stores:
+      - name: online
+        type: REDIS 
+        config:
+          host: <redis_service_load_balancer_ip_addresss>
+          port: 6379
+        subscriptions:
+        - name: "*"
+          project: "*"
+          version: "*"
 
 feast-batch-serving:
   enabled: true
-  store.yaml:
-    name: bigquery-store
-    type: BIGQUERY 
-    bigquery_config:
-      project_id: <google_project_id>
-      dataset_id: <bigquery_dataset_id>
-    subscriptions:
-    - project: "*"
-      name: "*"
-      version: "*"
-  application-override.yaml:
-    feast:
-      jobs:
-        staging-location: <gcs_path_for_temp_files e.g. gs://bucket/stagingLocation>
   gcpServiceAccount:
     enabled: true 
+  application-override.yaml:
+    feast:
+      active_store: historical
+      stores:
+      - name: historical
+        type: BIGQUERY
+        config:
+          project_id: <google_project_id>
+          dataset_id: <bigquery_dataset_id>
+          staging_location: gs://<bucket_name>/feast-staging-location
+          initial_retry_delay_seconds: 3
+          total_timeout_seconds: 21600
+        subscriptions:
+        - name: "*"
+          project: "*"
+          version: "*"
+
+postgresql:
+  existingSecret: feast-postgresql
 
 kafka:
   external:
@@ -295,41 +335,6 @@ running features ingestion: https://console.cloud.google.com/dataflow
 
 ### Production configuration
 
-#### Secrets management
-
-The installation examples above automatically create secrets for Postgresql and
-Grafana with randomly generated values. However, these secrets are not stable
-i.e. running `helm upgrade` will update the secret unintentionally. For
-production, the secrets are usually generated first before deployment. In summary,
-these are the 3 secrets that Feast requires:
-
-```bash
-kubectl create secret generic feast-postgresql \
-    --from-literal=postgresql-password=<your_password>
-
-kubectl create secret generic feast-gcp-service-account \
-    --from-file=credentials.json
-
-kubectl create secret generic feast-grafana \
-    --from-literal=admin-user=admin \
-    --from-literal=admin-password=<your_password> \
-```
-
-With these secrets in place, they can be used like so:
-```yaml
-# values-existing-secret.yaml
-feast-core:
-  postgresql:
-    existingSecret: feast-postgresql
-
-postgresql:
-  existingSecret: feast-postgresql
-
-grafana:
-  admin:
-    existingSecret: feast-grafana
-```
-
 #### Resources requests
 
 The `resources` field in the deployment spec is left empty in the examples. In
@@ -343,10 +348,10 @@ feast-online-serving:
   javaOpts: "-Xms2048m -Xmx2048m"
   resources:
     limits:
-      memory: "4096Mi"
+      memory: "2048Mi"
     requests:
       memory: "2048Mi"
-      cpu: "2"
+      cpu: "1"
 ```
 
 #### High availability
@@ -360,5 +365,5 @@ sentinel or additional proxies.
 ### Documentation development
 
 This `README.md` is generated using [helm-docs](https://github.com/norwoodj/helm-docs/).
-Run `helm-docs` after changing directory to this folder to regenerate a new `README.md`
-when Feast charts or values are modified.
+Please run `helm-docs` to regenerate the `README.md` every time `README.md.gotmpl`
+or `values.yaml` are updated.

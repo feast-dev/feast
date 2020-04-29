@@ -2,7 +2,7 @@ feast-core
 ==========
 Feast Core registers feature specifications and manage ingestion jobs.
 
-Current chart version is `0.4.6`
+Current chart version is `0.5.0-alpha.1`
 
 
 
@@ -12,15 +12,15 @@ Current chart version is `0.4.6`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| "application-override.yaml" | object | `{}` | Configuration to override default [application.yaml](https://github.com/gojek/feast/blob/v0.4-branch/core/src/main/resources/application.yml). Will be created as a ConfigMap. `application-override.yaml` has a higher precedence than `application-secret.yaml` |
-| "application-secret.yaml" | object | `{}` | Configuration to override default [application.yaml](https://github.com/gojek/feast/blob/v0.4-branch/core/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml` |
+| "application-override.yaml" | object | `{}` | Configuration to override default [application.yaml](https://github.com/gojek/feast/blob/master/core/src/main/resources/application.yml). Will be created as a ConfigMap. `application-override.yaml` has a higher precedence than `application-secret.yaml` |
+| "application-secret.yaml" | object | `{}` | Configuration to override default [application.yaml](https://github.com/gojek/feast/blob/master/core/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml`. It is recommended to either set `application-override.yaml` or `application-secret.yaml` only to simplify managing the config |
 | envOverrides | object | `{}` | Extra environment variables to set |
 | gcpServiceAccount.enabled | bool | `false` | Flag to use [service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) JSON key |
 | gcpServiceAccount.existingSecret.key | string | `"credentials.json"` | Key in the secret data (file name of the service account) |
 | gcpServiceAccount.existingSecret.name | string | `"feast-gcp-service-account"` | Name of the existing secret containing the service account |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | image.repository | string | `"gcr.io/kf-feast/feast-core"` | Docker image repository |
-| image.tag | string | `"0.4.7"` | Image tag |
+| image.tag | string | `"dev"` | Image tag |
 | ingress.grpc.annotations | object | `{}` | Extra annotations for the ingress |
 | ingress.grpc.auth.enabled | bool | `false` | Flag to enable auth |
 | ingress.grpc.class | string | `"nginx"` | Which ingress controller to use |

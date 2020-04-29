@@ -5,17 +5,14 @@ image:
   # image.repository -- Docker image repository
   repository: gcr.io/kf-feast/feast-serving
   # image.tag -- Image tag
-  tag: 0.4.7
+  tag: dev
   # image.pullPolicy -- Image pull policy
   pullPolicy: IfNotPresent
 
-# "store.yaml" -- Store [config](https://github.com/gojek/feast/blob/master/protos/feast/core/Store.proto#L32) in yaml format. This is an [example](https://github.com/gojek/feast/blob/v0.4-branch/serving/sample_redis_config.yml) for Redis
-store.yaml: {}
-
-# "application-override.yaml" -- Configuration to override default [application.yaml](https://github.com/gojek/feast/blob/v0.4-branch/serving/src/main/resources/application.yml). Will be created as a ConfigMap. `application-override.yaml` has a higher precedence than `application-secret.yaml`
+# "application-override.yaml" -- Configuration to override default [application.yaml](https://github.com/gojek/feast/blob/master/serving/src/main/resources/application.yml). Will be created as a ConfigMap. `application-override.yaml` has a higher precedence than `application-secret.yaml`
 application-override.yaml: {}
 
-# "application-secret.yaml" -- Configuration to override default [application.yaml](https://github.com/gojek/feast/blob/v0.4-branch/serving/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml`
+# "application-secret.yaml" -- Configuration to override default [application.yaml](https://github.com/gojek/feast/blob/master/serving/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml`. It is recommended to either set `application-override.yaml` or `application-secret.yaml` only to simplify managing the config
 application-secret.yaml: {}
 
 gcpServiceAccount:
