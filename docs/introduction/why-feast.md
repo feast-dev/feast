@@ -30,5 +30,3 @@
 
 **Solution:** Feast provides consistency by managing and unifying the ingestion of data from batch and streaming sources into both the feature warehouse and feature serving stores. Feast becomes the bridge between your model and your data, both for training and serving. This ensures that there is a consistency in the feature data that your model receives.
 
-\*\*\*\*
-
