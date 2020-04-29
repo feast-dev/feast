@@ -230,7 +230,7 @@ public class FeastProperties {
         InetAddress.getByName(getJobs().getMetrics().getHost());
       } catch (UnknownHostException e) {
         throw new IllegalArgumentException(
-            "Invalid config value for feast.jobs.metrics.hostname: "
+            "Invalid config value for feast.jobs.metrics.host: "
                 + getJobs().getMetrics().getHost()
                 + ". Make sure it is a valid IP address or DNS hostname e.g. localhost or 10.128.10.40. Error detail: "
                 + e.getMessage());
