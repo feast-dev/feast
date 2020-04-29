@@ -18,6 +18,8 @@ package feast.core.config;
 
 import feast.core.config.FeastProperties.StreamProperties.FeatureStreamOptions;
 import feast.core.validators.OneOfStrings;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.*;
 import javax.annotation.PostConstruct;
 import javax.validation.*;
@@ -26,7 +28,6 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Positive;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.validator.constraints.URL;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.info.BuildProperties;
@@ -91,6 +92,7 @@ public class FeastProperties {
     @Getter
     @Setter
     public static class Runner {
+
       /** Job runner name. This must be unique. */
       String name;
 
@@ -173,7 +175,7 @@ public class FeastProperties {
     private String type;
 
     /* Host of metric sink */
-    @URL private String host;
+    private String host;
 
     /* Port of metric sink */
     @Positive private int port;
@@ -220,6 +222,18 @@ public class FeastProperties {
           validator.validate(getJobs().getMetrics());
       if (!jobMetricViolations.isEmpty()) {
         throw new ConstraintViolationException(jobMetricViolations);
+      }
+      // Additional custom check for hostname value because there is no built-in Spring annotation
+      // to validate the value is a DNS resolvable hostname or an IP address.
+      try {
+        //noinspection ResultOfMethodCallIgnored
+        InetAddress.getByName(getJobs().getMetrics().getHost());
+      } catch (UnknownHostException e) {
+        throw new IllegalArgumentException(
+            "Invalid config value for feast.jobs.metrics.hostname: "
+                + getJobs().getMetrics().getHost()
+                + ". Make sure it is a valid IP address or DNS hostname e.g. localhost or 10.128.10.40. Error detail: "
+                + e.getMessage());
       }
     }
   }
