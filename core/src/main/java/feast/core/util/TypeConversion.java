@@ -67,7 +67,7 @@ public class TypeConversion {
    * Marshals a given map into its corresponding json string
    *
    * @param map
-   * @return json string corresponding to given map or null if the map is empty
+   * @return json string corresponding to given map
    */
   public static String convertMapToJsonString(Map<String, String> map) {
     return gson.toJson(map);
