@@ -15,7 +15,7 @@ spec:
     - bash
     - -c
     - |
-      pip install feast -U feast==0.4.*
+      pip install -U feast==0.4.*
 
       cat <<EOF > featureset.yaml
       kind: feature_set
