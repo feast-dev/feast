@@ -64,7 +64,7 @@ public class Feature {
   private byte[] timeDomain;
   private byte[] timeOfDayDomain;
 
-  private Feature() {}
+  public Feature() {}
 
   private Feature(String name, ValueType.Enum type) {
     this.setReference(new FeatureReference(name));
