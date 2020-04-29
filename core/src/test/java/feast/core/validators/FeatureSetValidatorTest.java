@@ -57,7 +57,7 @@ public class FeatureSetValidatorTest {
         FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSetSpec).build();
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Label keys must not be empty");
+    expectedException.expectMessage("Feature label keys must not be empty");
     FeatureSetValidator.validateSpec(featureSet);
   }
 
@@ -81,7 +81,7 @@ public class FeatureSetValidatorTest {
         FeatureSetProto.FeatureSet.newBuilder().setSpec(featureSetSpec).build();
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Label keys must not be empty");
+    expectedException.expectMessage("Feature set label keys must not be empty");
     FeatureSetValidator.validateSpec(featureSet);
   }
 }

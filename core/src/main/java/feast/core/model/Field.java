@@ -19,7 +19,6 @@ package feast.core.model;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSpec;
 import feast.core.util.TypeConversion;
-import feast.types.ValueProto.ValueType;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
@@ -79,11 +78,6 @@ public class Field {
   private byte[] timeOfDayDomain;
 
   public Field() {}
-
-  public Field(String name, ValueType.Enum type) {
-    this.name = name;
-    this.type = type.toString();
-  }
 
   public Field(FeatureSpec featureSpec) {
     this.name = featureSpec.getName();

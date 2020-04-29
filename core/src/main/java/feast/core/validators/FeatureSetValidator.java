@@ -28,8 +28,6 @@ import java.util.stream.Collectors;
 
 public class FeatureSetValidator {
 
-  private static final String EMPTY_LABEL_KEYS_MESSAGE = "Label keys must not be empty";
-
   public static void validateSpec(FeatureSet featureSet) {
     if (featureSet.getSpec().getProject().isEmpty()) {
       throw new IllegalArgumentException("Project name must be provided");
@@ -38,7 +36,7 @@ public class FeatureSetValidator {
       throw new IllegalArgumentException("Feature set name must be provided");
     }
     if (featureSet.getSpec().getLabelsMap().containsKey("")) {
-      throw new IllegalArgumentException(EMPTY_LABEL_KEYS_MESSAGE);
+      throw new IllegalArgumentException("Feature set label keys must not be empty");
     }
 
     checkValidCharacters(featureSet.getSpec().getProject(), "project");
@@ -51,7 +49,7 @@ public class FeatureSetValidator {
     for (FeatureSpec featureSpec : featureSet.getSpec().getFeaturesList()) {
       checkValidCharacters(featureSpec.getName(), "features::name");
       if (featureSpec.getLabelsMap().containsKey("")) {
-        throw new IllegalArgumentException(EMPTY_LABEL_KEYS_MESSAGE);
+        throw new IllegalArgumentException("Feature label keys must not be empty");
       }
     }
   }

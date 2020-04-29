@@ -21,6 +21,7 @@ import feast.core.SourceProto;
 import feast.core.model.FeatureSet;
 import feast.core.model.Field;
 import feast.core.model.Source;
+import feast.types.ValueProto;
 import java.util.HashMap;
 import java.util.List;
 
@@ -47,5 +48,15 @@ public class TestObjectFactory {
         defaultSource,
         new HashMap<>(),
         FeatureSetProto.FeatureSetStatus.STATUS_READY);
+  }
+
+  public static Field CreateFeatureField(String name, ValueProto.ValueType.Enum valueType) {
+    return new Field(
+        FeatureSetProto.FeatureSpec.newBuilder().setName(name).setValueType(valueType).build());
+  }
+
+  public static Field CreateEntityField(String name, ValueProto.ValueType.Enum valueType) {
+    return new Field(
+        FeatureSetProto.EntitySpec.newBuilder().setName(name).setValueType(valueType).build());
   }
 }

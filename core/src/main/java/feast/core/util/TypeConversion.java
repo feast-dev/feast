@@ -70,7 +70,6 @@ public class TypeConversion {
    * @return json string corresponding to given map or null if the map is empty
    */
   public static String convertMapToJsonString(Map<String, String> map) {
-    if (map.isEmpty()) return null;
     return gson.toJson(map);
   }
 

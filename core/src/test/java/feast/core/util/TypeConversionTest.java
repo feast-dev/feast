@@ -70,9 +70,9 @@ public class TypeConversionTest {
   }
 
   @Test
-  public void convertMapToJsonStringShouldReturnNullForEmptyMap() {
+  public void convertMapToJsonStringShouldReturnEmptyJsonForAnEmptyMap() {
     Map<String, String> input = new HashMap<>();
-    assertNull(TypeConversion.convertMapToJsonString(input));
+    assertThat(TypeConversion.convertMapToJsonString(input), equalTo("{}"));
   }
 
   @Test

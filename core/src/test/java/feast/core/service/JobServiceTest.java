@@ -148,8 +148,8 @@ public class JobServiceTest {
 
   // dummy model constructorss
   private FeatureSet newDummyFeatureSet(String name, int version, String project) {
-    Field feature = new Field(name + "_feature", Enum.INT64);
-    Field entity = new Field(name + "_entity", Enum.STRING);
+    Field feature = TestObjectFactory.CreateFeatureField(name + "_feature", Enum.INT64);
+    Field entity = TestObjectFactory.CreateEntityField(name + "_entity", Enum.STRING);
 
     FeatureSet fs =
         TestObjectFactory.CreateFeatureSet(

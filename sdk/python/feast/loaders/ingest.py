@@ -123,15 +123,12 @@ def get_feature_row_chunks(
             Iterable list of byte encoded FeatureRow(s).
     """
 
-    def normalize_fields(fields):
-        return {field.name: field.dtype for field in fields.values()}
-
     feature_set = f"{fs.project}/{fs.name}:{fs.version}"
 
-    normalized_fields = normalize_fields(fs.fields)
+    field_map = {field.name: field.dtype for field in fs.fields.values()}
 
     pool = Pool(max_workers)
-    func = partial(_encode_pa_tables, file, feature_set, normalized_fields)
+    func = partial(_encode_pa_tables, file, feature_set, field_map)
     for chunk in pool.imap(func, row_groups):
         yield chunk
     return

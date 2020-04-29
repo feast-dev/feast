@@ -114,9 +114,9 @@ public class SpecServiceTest {
     FeatureSet featureSet1v3 = newDummyFeatureSet("f1", 3, "project1");
     FeatureSet featureSet2v1 = newDummyFeatureSet("f2", 1, "project1");
 
-    Field f3f1 = new Field("f3f1", Enum.INT64);
-    Field f3f2 = new Field("f3f2", Enum.INT64);
-    Field f3e1 = new Field("f3e1", Enum.STRING);
+    Field f3f1 = TestObjectFactory.CreateFeatureField("f3f1", Enum.INT64);
+    Field f3f2 = TestObjectFactory.CreateFeatureField("f3f2", Enum.INT64);
+    Field f3e1 = TestObjectFactory.CreateEntityField("f3e1", Enum.STRING);
     FeatureSet featureSet3v1 =
         TestObjectFactory.CreateFeatureSet(
             "f3", "project1", 1, Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1));
@@ -472,9 +472,9 @@ public class SpecServiceTest {
   public void applyFeatureSetShouldNotCreateFeatureSetIfFieldsUnordered()
       throws InvalidProtocolBufferException {
 
-    Field f3f1 = new Field("f3f1", Enum.INT64);
-    Field f3f2 = new Field("f3f2", Enum.INT64);
-    Field f3e1 = new Field("f3e1", Enum.STRING);
+    Field f3f1 = TestObjectFactory.CreateFeatureField("f3f1", Enum.INT64);
+    Field f3f2 = TestObjectFactory.CreateFeatureField("f3f2", Enum.INT64);
+    Field f3e1 = TestObjectFactory.CreateEntityField("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
         (TestObjectFactory.CreateFeatureSet(
                 "f3", "project1", 5, Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1)))
@@ -680,9 +680,9 @@ public class SpecServiceTest {
   @Test
   public void applyFeatureSetShouldCreateProjectWhenNotAlreadyExists()
       throws InvalidProtocolBufferException {
-    Field f3f1 = new Field("f3f1", Enum.INT64);
-    Field f3f2 = new Field("f3f2", Enum.INT64);
-    Field f3e1 = new Field("f3e1", Enum.STRING);
+    Field f3f1 = TestObjectFactory.CreateFeatureField("f3f1", Enum.INT64);
+    Field f3f2 = TestObjectFactory.CreateFeatureField("f3f2", Enum.INT64);
+    Field f3e1 = TestObjectFactory.CreateEntityField("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
         (TestObjectFactory.CreateFeatureSet(
                 "f3", "newproject", 5, Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1)))
@@ -699,9 +699,9 @@ public class SpecServiceTest {
   @Test
   public void applyFeatureSetShouldFailWhenProjectIsArchived()
       throws InvalidProtocolBufferException {
-    Field f3f1 = new Field("f3f1", Enum.INT64);
-    Field f3f2 = new Field("f3f2", Enum.INT64);
-    Field f3e1 = new Field("f3e1", Enum.STRING);
+    Field f3f1 = TestObjectFactory.CreateFeatureField("f3f1", Enum.INT64);
+    Field f3f2 = TestObjectFactory.CreateFeatureField("f3f2", Enum.INT64);
+    Field f3e1 = TestObjectFactory.CreateEntityField("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
         (TestObjectFactory.CreateFeatureSet(
                 "f3", "archivedproject", 5, Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1)))
@@ -861,7 +861,7 @@ public class SpecServiceTest {
             .putLabels("key", "value")
             .build();
     Field feature = new Field(f1);
-    Field entity = new Field("entity", Enum.STRING);
+    Field entity = TestObjectFactory.CreateEntityField("entity", Enum.STRING);
 
     FeatureSet fs =
         TestObjectFactory.CreateFeatureSet(
