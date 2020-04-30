@@ -59,10 +59,38 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
 
   // Entity fields inside this feature set
   @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+  @JoinTable(
+      name = "feature_set_entities",
+      joinColumns = @JoinColumn(name = "feature_set_id"),
+      inverseJoinColumns = {
+        @JoinColumn(name = "entities_name"),
+        @JoinColumn(name = "entities_project"),
+        @JoinColumn(name = "entities_feature_set_id"),
+        @JoinColumn(name = "entities_version")
+      },
+      indexes = {
+        @Index(
+            name = "idx_jobs_feature_set_entities_feature_set_id",
+            columnList = "feature_set_id"),
+      })
   private Set<Entity> entities;
 
   // Feature fields inside this feature set
   @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+  @JoinTable(
+      name = "feature_set_features",
+      joinColumns = @JoinColumn(name = "feature_set_id"),
+      inverseJoinColumns = {
+        @JoinColumn(name = "features_name"),
+        @JoinColumn(name = "features_project"),
+        @JoinColumn(name = "features_feature_set_id"),
+        @JoinColumn(name = "features_version")
+      },
+      indexes = {
+        @Index(
+            name = "idx_jobs_feature_set_features_feature_set_id",
+            columnList = "feature_set_id"),
+      })
   private Set<Feature> features;
 
   // Source on which feature rows can be found
