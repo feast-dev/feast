@@ -18,10 +18,12 @@ spec:
       release: {{ .Release.Name }}
   template:
     metadata:
-      {{- if .Values.prometheus.enabled }}
       annotations:
+        checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+      {{- if .Values.prometheus.enabled }}
         prometheus.io/path: /metrics
-        prometheus.io/port: "8080"
+        prometheus.io/port: "{{ .Values.service.http.targetPort }}"
         prometheus.io/scrape: "true"
       {{- end }}
       labels:

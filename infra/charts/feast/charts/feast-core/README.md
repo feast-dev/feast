@@ -50,7 +50,7 @@ Current chart version is `0.5.0-alpha.1`
 | logLevel | string | `"WARN"` | Default log level, use either one of `DEBUG`, `INFO`, `WARN` or `ERROR` |
 | logType | string | `"Console"` | Log format, either `JSON` or `Console` |
 | nodeSelector | object | `{}` | Node labels for pod assignment |
-| postgresql.existingSecret | string | `nil` | Existing secret to use for authenticating to Postgres |
+| postgresql.existingSecret | string | `""` | Existing secret to use for authenticating to Postgres |
 | prometheus.enabled | bool | `true` | Flag to enable scraping of Feast Core metrics |
 | readinessProbe.enabled | bool | `true` | Flag to enabled the probe |
 | readinessProbe.failureThreshold | int | `5` | Min consecutive failures for the probe to be considered failed |
