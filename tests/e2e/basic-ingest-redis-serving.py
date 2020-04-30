@@ -79,7 +79,7 @@ def basic_dataframe():
 
 
 @pytest.mark.timeout(45)
-@pytest.mark.run(order=8)
+@pytest.mark.run(order=10)
 def test_basic_register_feature_set_success(client):
     # Load feature set from file
     cust_trans_fs_expected = FeatureSet.from_yaml("basic/cust_trans_fs.yaml")
@@ -604,7 +604,7 @@ class TestsBasedOnGrpc:
         return get_feature_set_response.feature_set
 
     @pytest.mark.timeout(45)
-    @pytest.mark.run(order=9)
+    @pytest.mark.run(order=51)
     def test_register_feature_set_with_labels(self, core_service_stub):
         feature_set_name = "test_feature_set_labels"
         feature_set_proto = FeatureSet(feature_set_name, PROJECT_NAME).to_proto()
@@ -617,7 +617,7 @@ class TestsBasedOnGrpc:
         assert retrieved_feature_set.spec.labels[self.LABEL_KEY] == self.LABEL_VALUE
 
     @pytest.mark.timeout(45)
-    @pytest.mark.run(order=10)
+    @pytest.mark.run(order=52)
     def test_register_feature_with_labels(self, core_service_stub):
         feature_set_name = "test_feature_labels"
         feature_set_proto = FeatureSet(feature_set_name, PROJECT_NAME, features=[Feature("rating", ValueType.INT64)]) \
