@@ -20,6 +20,7 @@ import feast.core.FeatureSetProto.EntitySpec;
 import feast.types.ValueProto.ValueType;
 import java.util.Objects;
 import javax.persistence.EmbeddedId;
+import javax.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -27,6 +28,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @javax.persistence.Entity
+@Table(name = "entities")
 public class Entity {
   @EmbeddedId private EntityReference reference;
 

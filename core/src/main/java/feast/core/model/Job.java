@@ -88,23 +88,6 @@ public class Job extends AbstractTimestampEntity {
     super();
   }
 
-  public Job(
-      String id,
-      String extId,
-      Runner runner,
-      Source source,
-      Store sink,
-      List<FeatureSet> featureSets,
-      JobStatus jobStatus) {
-    this.id = id;
-    this.extId = extId;
-    this.source = source;
-    this.runner = runner;
-    this.store = sink;
-    this.featureSets = featureSets;
-    this.status = jobStatus;
-  }
-
   public boolean hasTerminated() {
     return getStatus().isTerminal();
   }

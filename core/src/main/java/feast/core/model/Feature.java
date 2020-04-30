@@ -32,6 +32,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
+@Table(name = "features")
 public class Feature {
 
   @EmbeddedId private FeatureReference reference;

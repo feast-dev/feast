@@ -49,7 +49,6 @@ import feast.core.dao.ProjectRepository;
 import feast.core.dao.StoreRepository;
 import feast.core.exception.RetrievalException;
 import feast.core.model.*;
-import feast.types.ValueProto.ValueType;
 import feast.types.ValueProto.ValueType.Enum;
 import java.sql.Date;
 import java.time.Instant;
