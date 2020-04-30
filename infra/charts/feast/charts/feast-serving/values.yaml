@@ -9,11 +9,21 @@ image:
   # image.pullPolicy -- Image pull policy
   pullPolicy: IfNotPresent
 
-# "application-override.yaml" -- Configuration to override default [application.yaml](https://github.com/gojek/feast/blob/master/serving/src/main/resources/application.yml). Will be created as a ConfigMap. `application-override.yaml` has a higher precedence than `application-secret.yaml`
-application-override.yaml: {}
+application.yaml:
+  # "application.yaml".enabled -- Flag to include the default [configuration](https://github.com/gojek/feast/blob/master/serving/src/main/resources/application.yml). Please set `application-override.yaml` to override this configuration.
+  enabled: true
 
-# "application-secret.yaml" -- Configuration to override default [application.yaml](https://github.com/gojek/feast/blob/master/serving/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml`. It is recommended to either set `application-override.yaml` or `application-secret.yaml` only to simplify managing the config
-application-secret.yaml: {}
+application-generated.yaml:
+  # "application-generated.yaml".enabled -- Flag to include Helm generated configuration for Feast Core host, Redis store and job store. This is useful for deployment that uses default configuration for Redis. Please set `application-override.yaml` to override this configuration.
+  enabled: true
+
+# "application-secret.yaml" -- Configuration to override the default [application.yaml](https://github.com/gojek/feast/blob/master/serving/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml`. It is recommended to either set `application-override.yaml` or `application-secret.yaml` only to simplify config management.
+application-secret.yaml:
+  enabled: true
+
+# "application-override.yaml" -- Configuration to override the default [application.yaml](https://github.com/gojek/feast/blob/master/serving/src/main/resources/application.yml). Will be created as a ConfigMap. `application-override.yaml` has a higher precedence than `application-secret.yaml`
+application-override.yaml:
+  enabled: true
 
 gcpServiceAccount:
   # gcpServiceAccount.enabled -- Flag to use [service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) JSON key

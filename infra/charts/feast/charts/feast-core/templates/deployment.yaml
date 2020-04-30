@@ -102,7 +102,19 @@ spec:
         - java 
         - -jar 
         - /opt/feast/feast-core.jar
-        - --spring.config.additional-location=/etc/feast/application-default-postgresql.yaml,/etc/feast/application-default-kafka.yaml,/etc/feast/application-default-statsd.yaml,/etc/secrets/feast/application-secret.yaml,/etc/feast/application-override.yaml
+        - --spring.config.location=
+          {{- if index .Values "application.yaml" "enabled" -}}
+          classpath:/application.yml
+          {{- end }}
+          {{- if index .Values "application-generated.yaml" "enabled" -}}
+          ,file:/etc/feast/application-generated.yaml
+          {{- end }}
+          {{- if index .Values "application-secret.yaml" "enabled" -}}
+          ,file:/etc/secrets/feast/application-secret.yaml
+          {{- end }}
+          {{- if index .Values "application-override.yaml" "enabled" -}}
+          ,file:/etc/feast/application-override.yaml
+          {{- end }}
         ports:
         - name: http
           containerPort: {{ .Values.service.http.targetPort }}

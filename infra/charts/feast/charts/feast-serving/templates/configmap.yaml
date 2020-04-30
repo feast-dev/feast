@@ -10,7 +10,8 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 data:
-  application-default.yaml: |
+  application-generated.yaml: |
+{{- if index .Values "application-generated.yaml" "enabled" }}
     feast:
       core-host: {{ .Release.Name }}-feast-core
       
@@ -28,6 +29,9 @@ data:
       job_store:
         redis_host: {{ .Release.Name }}-redis-master
         redis_port: 6379
+{{- end }}
 
   application-override.yaml: |
+{{- if index .Values "application-override.yaml" "enabled" }}
 {{- toYaml (index .Values "application-override.yaml") | nindent 4 }}    
+{{- end }}

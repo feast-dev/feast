@@ -10,27 +10,26 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 data:
-  application-default-postgresql.yaml: |
+  application-generated.yaml: |
+{{- if index .Values "application-generated.yaml" "enabled" }}
     spring:
       datasource:
         url: jdbc:postgresql://{{ .Release.Name }}-postgresql:5432/postgres
-
-  application-default-kafka.yaml: |
     feast:
       stream:
         type: kafka
         options: 
           bootstrapServers: {{ .Release.Name }}-kafka:9092
           topic: feast
-
-  application-default-statsd.yaml: |
-    feast:
       jobs:
         metrics:
           enabled: true 
           type: statsd
           host: {{ .Release.Name }}-prometheus-statsd-exporter-udp
           port: 9125
+{{- end }}
 
   application-override.yaml: |
+{{- if index .Values "application-override.yaml" "enabled" }}
 {{- toYaml (index .Values "application-override.yaml") | nindent 4 }}    
+{{- end }}

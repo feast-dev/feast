@@ -10,7 +10,7 @@ Feature store for machine learning. Current chart version is `0.5.0-alpha.1`
 helm repo add feast-charts https://feast-charts.storage.googleapis.com
 helm repo update
 
-# Create secret for Feast database, replace <your-password> accordingly
+# Create secret for Feast database, replace <your-password> with the desired value
 kubectl create secret generic feast-postgresql \
     --from-literal=postgresql-password=<your_password>
 

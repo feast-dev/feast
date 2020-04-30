@@ -12,8 +12,10 @@ Current chart version is `0.5.0-alpha.1`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| "application-override.yaml" | object | `{}` | Configuration to override default [application.yaml](https://github.com/gojek/feast/blob/master/serving/src/main/resources/application.yml). Will be created as a ConfigMap. `application-override.yaml` has a higher precedence than `application-secret.yaml` |
-| "application-secret.yaml" | object | `{}` | Configuration to override default [application.yaml](https://github.com/gojek/feast/blob/master/serving/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml`. It is recommended to either set `application-override.yaml` or `application-secret.yaml` only to simplify managing the config |
+| "application-generated.yaml".enabled | bool | `true` | Flag to include Helm generated configuration for Feast Core host, Redis store and job store. This is useful for deployment that uses default configuration for Redis. Please set `application-override.yaml` to override this configuration. |
+| "application-override.yaml" | object | `{"enabled":true}` | Configuration to override the default [application.yaml](https://github.com/gojek/feast/blob/master/serving/src/main/resources/application.yml). Will be created as a ConfigMap. `application-override.yaml` has a higher precedence than `application-secret.yaml` |
+| "application-secret.yaml" | object | `{"enabled":true}` | Configuration to override the default [application.yaml](https://github.com/gojek/feast/blob/master/serving/src/main/resources/application.yml). Will be created as a Secret. `application-override.yaml` has a higher precedence than `application-secret.yaml`. It is recommended to either set `application-override.yaml` or `application-secret.yaml` only to simplify config management. |
+| "application.yaml".enabled | bool | `true` | Flag to include the default [configuration](https://github.com/gojek/feast/blob/master/serving/src/main/resources/application.yml). Please set `application-override.yaml` to override this configuration. |
 | envOverrides | object | `{}` | Extra environment variables to set |
 | gcpServiceAccount.enabled | bool | `false` | Flag to use [service account](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) JSON key |
 | gcpServiceAccount.existingSecret.key | string | `"credentials.json"` | Key in the secret data (file name of the service account) |
