@@ -32,7 +32,6 @@ import feast.core.job.JobManager;
 import feast.core.job.JobUpdateTask;
 import feast.core.model.FeatureSet;
 import feast.core.model.Job;
-import feast.core.model.JobStatus;
 import feast.core.model.Source;
 import feast.core.model.Store;
 import java.util.ArrayList;
@@ -45,6 +44,7 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
+import javax.validation.constraints.Positive;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -55,11 +55,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class JobCoordinatorService {
 
-  private JobRepository jobRepository;
-  private FeatureSetRepository featureSetRepository;
-  private SpecService specService;
-  private JobManager jobManager;
-  private JobProperties jobProperties;
+  private final JobRepository jobRepository;
+  private final FeatureSetRepository featureSetRepository;
+  private final SpecService specService;
+  private final JobManager jobManager;
+  private final JobProperties jobProperties;
 
   @Autowired
   public JobCoordinatorService(
@@ -90,54 +90,56 @@ public class JobCoordinatorService {
   @Scheduled(fixedDelayString = "${feast.jobs.polling_interval_milliseconds}")
   public void Poll() throws InvalidProtocolBufferException {
     log.info("Polling for new jobs...");
+    @Positive long updateTimeout = jobProperties.getJobUpdateTimeoutSeconds();
     List<JobUpdateTask> jobUpdateTasks = new ArrayList<>();
     ListStoresResponse listStoresResponse = specService.listStores(Filter.newBuilder().build());
-    for (StoreProto.Store store : listStoresResponse.getStoreList()) {
-      Set<FeatureSetProto.FeatureSet> featureSets = new HashSet<>();
-      for (Subscription subscription : store.getSubscriptionsList()) {
-        featureSets.addAll(
-            new ArrayList<>(
-                specService
-                    .listFeatureSets(
-                        ListFeatureSetsRequest.Filter.newBuilder()
-                            .setFeatureSetName(subscription.getName())
-                            .setFeatureSetVersion(subscription.getVersion())
-                            .setProject(subscription.getProject())
-                            .build())
-                    .getFeatureSetsList()));
+
+    for (StoreProto.Store storeSpec : listStoresResponse.getStoreList()) {
+      Set<FeatureSet> featureSets = new HashSet<>();
+      Store store = Store.fromProto(storeSpec);
+
+      for (Subscription subscription : store.getSubscriptions()) {
+        var featureSetSpecs =
+            specService
+                .listFeatureSets(
+                    ListFeatureSetsRequest.Filter.newBuilder()
+                        .setFeatureSetName(subscription.getName())
+                        .setFeatureSetVersion(subscription.getVersion())
+                        .setProject(subscription.getProject())
+                        .build())
+                .getFeatureSetsList();
+        featureSets.addAll(featureSetsFromProto(featureSetSpecs));
       }
-      if (!featureSets.isEmpty()) {
-        featureSets.stream()
-            .collect(Collectors.groupingBy(fs -> fs.getSpec().getSource()))
-            .entrySet()
-            .stream()
-            .forEach(
-                kv -> {
-                  Optional<Job> originalJob =
-                      getJob(Source.fromProto(kv.getKey()), Store.fromProto(store));
-                  jobUpdateTasks.add(
-                      new JobUpdateTask(
-                          kv.getValue(),
-                          kv.getKey(),
-                          store,
-                          originalJob,
-                          jobManager,
-                          jobProperties.getJobUpdateTimeoutSeconds()));
-                });
-      }
+
+      featureSets.stream()
+          .collect(Collectors.groupingBy(FeatureSet::getSource))
+          .forEach(
+              (source, setsForSource) -> {
+                Optional<Job> originalJob = getJob(source, store);
+                jobUpdateTasks.add(
+                    new JobUpdateTask(
+                        setsForSource, source, store, originalJob, jobManager, updateTimeout));
+              });
     }
-    if (jobUpdateTasks.size() == 0) {
+    if (jobUpdateTasks.isEmpty()) {
       log.info("No jobs found.");
       return;
     }
 
     log.info("Creating/Updating {} jobs...", jobUpdateTasks.size());
-    ExecutorService executorService = Executors.newFixedThreadPool(jobUpdateTasks.size());
+    startOrUpdateJobs(jobUpdateTasks);
+
+    log.info("Updating feature set status");
+    updateFeatureSetStatuses(jobUpdateTasks);
+  }
+
+  void startOrUpdateJobs(List<JobUpdateTask> tasks) {
+    ExecutorService executorService = Executors.newFixedThreadPool(tasks.size());
     ExecutorCompletionService<Job> ecs = new ExecutorCompletionService<>(executorService);
-    jobUpdateTasks.forEach(ecs::submit);
+    tasks.forEach(ecs::submit);
 
     int completedTasks = 0;
-    while (completedTasks < jobUpdateTasks.size()) {
+    while (completedTasks < tasks.size()) {
       try {
         Job job = ecs.take().get();
         if (job != null) {
@@ -148,27 +150,23 @@ public class JobCoordinatorService {
       }
       completedTasks++;
     }
-
-    log.info("Updating feature set status");
-    updateFeatureSetStatuses(jobUpdateTasks);
+    executorService.shutdown();
   }
 
   // TODO: make this more efficient
   private void updateFeatureSetStatuses(List<JobUpdateTask> jobUpdateTasks) {
     Set<FeatureSet> ready = new HashSet<>();
     Set<FeatureSet> pending = new HashSet<>();
-    for (JobUpdateTask jobUpdateTask : jobUpdateTasks) {
-      Optional<Job> job =
-          getJob(
-              Source.fromProto(jobUpdateTask.getSourceSpec()),
-              Store.fromProto(jobUpdateTask.getStore()));
-      if (job.isPresent()) {
-        if (job.get().getStatus() == JobStatus.RUNNING) {
-          ready.addAll(job.get().getFeatureSets());
-        } else {
-          pending.addAll(job.get().getFeatureSets());
-        }
-      }
+    for (JobUpdateTask task : jobUpdateTasks) {
+      getJob(task.getSource(), task.getStore())
+          .ifPresent(
+              job -> {
+                if (job.isRunning()) {
+                  ready.addAll(job.getFeatureSets());
+                } else {
+                  pending.addAll(job.getFeatureSets());
+                }
+              });
     }
     ready.removeAll(pending);
     ready.forEach(
@@ -189,14 +187,16 @@ public class JobCoordinatorService {
     List<Job> jobs =
         jobRepository.findBySourceIdAndStoreNameOrderByLastUpdatedDesc(
             source.getId(), store.getName());
-    jobs =
-        jobs.stream()
-            .filter(job -> !JobStatus.getTerminalState().contains(job.getStatus()))
-            .collect(Collectors.toList());
-    if (jobs.size() == 0) {
+    jobs = jobs.stream().filter(job -> !job.hasTerminated()).collect(Collectors.toList());
+    if (jobs.isEmpty()) {
       return Optional.empty();
     }
     // return the latest
     return Optional.of(jobs.get(0));
+  }
+
+  // TODO: Put in a util somewhere?
+  private static List<FeatureSet> featureSetsFromProto(List<FeatureSetProto.FeatureSet> protos) {
+    return protos.stream().map(FeatureSet::fromProto).collect(Collectors.toList());
   }
 }

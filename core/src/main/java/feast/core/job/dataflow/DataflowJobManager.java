@@ -193,16 +193,15 @@ public class DataflowJobManager implements JobManager {
   }
 
   /**
-   * Restart a restart dataflow job. Dataflow should ensure continuity between during the restart,
-   * so no data should be lost during the restart operation.
+   * Restart a Dataflow job. Dataflow should ensure continuity such that no data should be lost
+   * during the restart operation.
    *
    * @param job job to restart
    * @return the restarted job
    */
   @Override
   public Job restartJob(Job job) {
-    JobStatus status = job.getStatus();
-    if (JobStatus.getTerminalState().contains(status)) {
+    if (job.getStatus().isTerminal()) {
       // job yet not running: just start job
       return this.startJob(job);
     } else {
