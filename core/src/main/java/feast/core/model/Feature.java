@@ -17,8 +17,10 @@
 package feast.core.model;
 
 import feast.core.FeatureSetProto.FeatureSpec;
+import feast.core.util.TypeConversion;
 import feast.types.ValueProto.ValueType;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Objects;
 import javax.persistence.*;
 import javax.persistence.Entity;
@@ -39,6 +41,10 @@ public class Feature {
 
   // Type of the field
   private String type;
+
+  // Labels that this field belongs to
+  @Column(name = "labels", columnDefinition = "text")
+  private String labels;
 
   // Presence constraints (refer to proto feast.core.FeatureSet.FeatureSpec)
   // Only one of them can be set.
@@ -80,6 +86,7 @@ public class Feature {
 
   public static Feature fromProto(FeatureSpec featureSpec) {
     Feature feature = new Feature(featureSpec.getName(), featureSpec.getValueType());
+    feature.labels = TypeConversion.convertMapToJsonString(featureSpec.getLabelsMap());
 
     switch (featureSpec.getPresenceConstraintsCase()) {
       case PRESENCE:
@@ -146,6 +153,10 @@ public class Feature {
     return feature;
   }
 
+  public Map<String, String> getLabels() {
+    return TypeConversion.convertJsonStringToMap(this.labels);
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -156,6 +167,7 @@ public class Feature {
     }
     Feature feature = (Feature) o;
     return Objects.equals(getReference(), feature.getReference())
+        && Objects.equals(labels, feature.labels)
         && Arrays.equals(getPresence(), feature.getPresence())
         && Arrays.equals(getGroupPresence(), feature.getGroupPresence())
         && Arrays.equals(getShape(), feature.getShape())
@@ -176,6 +188,6 @@ public class Feature {
 
   @Override
   public int hashCode() {
-    return Objects.hash(super.hashCode(), getReference(), getType());
+    return Objects.hash(super.hashCode(), getReference(), getType(), labels);
   }
 }

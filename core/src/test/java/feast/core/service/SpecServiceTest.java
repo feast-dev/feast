@@ -110,9 +110,9 @@ public class SpecServiceTest {
     FeatureSet featureSet1v3 = newDummyFeatureSet("f1", 3, "project1");
     FeatureSet featureSet2v1 = newDummyFeatureSet("f2", 1, "project1");
 
-    Field f3f1 = TestObjectFactory.CreateFeatureField("f3f1", Enum.INT64);
-    Field f3f2 = TestObjectFactory.CreateFeatureField("f3f2", Enum.INT64);
-    Field f3e1 = TestObjectFactory.CreateEntityField("f3e1", Enum.STRING);
+    Feature f3f1 = TestObjectFactory.CreateFeature("f3f1", Enum.INT64);
+    Feature f3f2 = TestObjectFactory.CreateFeature("f3f2", Enum.INT64);
+    Entity f3e1 = TestObjectFactory.CreateEntity("f3e1", Enum.STRING);
     FeatureSet featureSet3v1 =
         TestObjectFactory.CreateFeatureSet(
             "f3", "project1", 1, Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1));
@@ -468,9 +468,9 @@ public class SpecServiceTest {
   public void applyFeatureSetShouldNotCreateFeatureSetIfFieldsUnordered()
       throws InvalidProtocolBufferException {
 
-    Field f3f1 = TestObjectFactory.CreateFeatureField("f3f1", Enum.INT64);
-    Field f3f2 = TestObjectFactory.CreateFeatureField("f3f2", Enum.INT64);
-    Field f3e1 = TestObjectFactory.CreateEntityField("f3e1", Enum.STRING);
+    Feature f3f1 = TestObjectFactory.CreateFeature("f3f1", Enum.INT64);
+    Feature f3f2 = TestObjectFactory.CreateFeature("f3f2", Enum.INT64);
+    Entity f3e1 = TestObjectFactory.CreateEntity("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
         (TestObjectFactory.CreateFeatureSet(
                 "f3", "project1", 5, Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1)))
@@ -494,46 +494,11 @@ public class SpecServiceTest {
   public void applyFeatureSetShouldAcceptPresenceShapeAndDomainConstraints()
       throws InvalidProtocolBufferException {
     List<EntitySpec> entitySpecs = new ArrayList<>();
-    entitySpecs.add(
-        EntitySpec.newBuilder()
-            .setName("entity1")
-            .setValueType(Enum.INT64)
-            .setPresence(FeaturePresence.getDefaultInstance())
-            .setShape(FixedShape.getDefaultInstance())
-            .setDomain("mydomain")
-            .build());
-    entitySpecs.add(
-        EntitySpec.newBuilder()
-            .setName("entity2")
-            .setValueType(Enum.INT64)
-            .setGroupPresence(FeaturePresenceWithinGroup.getDefaultInstance())
-            .setValueCount(ValueCount.getDefaultInstance())
-            .setIntDomain(IntDomain.getDefaultInstance())
-            .build());
-    entitySpecs.add(
-        EntitySpec.newBuilder()
-            .setName("entity3")
-            .setValueType(Enum.FLOAT)
-            .setPresence(FeaturePresence.getDefaultInstance())
-            .setValueCount(ValueCount.getDefaultInstance())
-            .setFloatDomain(FloatDomain.getDefaultInstance())
-            .build());
-    entitySpecs.add(
-        EntitySpec.newBuilder()
-            .setName("entity4")
-            .setValueType(Enum.STRING)
-            .setPresence(FeaturePresence.getDefaultInstance())
-            .setValueCount(ValueCount.getDefaultInstance())
-            .setStringDomain(StringDomain.getDefaultInstance())
-            .build());
-    entitySpecs.add(
-        EntitySpec.newBuilder()
-            .setName("entity5")
-            .setValueType(Enum.BOOL)
-            .setPresence(FeaturePresence.getDefaultInstance())
-            .setValueCount(ValueCount.getDefaultInstance())
-            .setBoolDomain(BoolDomain.getDefaultInstance())
-            .build());
+    entitySpecs.add(EntitySpec.newBuilder().setName("entity1").setValueType(Enum.INT64).build());
+    entitySpecs.add(EntitySpec.newBuilder().setName("entity2").setValueType(Enum.INT64).build());
+    entitySpecs.add(EntitySpec.newBuilder().setName("entity3").setValueType(Enum.FLOAT).build());
+    entitySpecs.add(EntitySpec.newBuilder().setName("entity4").setValueType(Enum.STRING).build());
+    entitySpecs.add(EntitySpec.newBuilder().setName("entity5").setValueType(Enum.BOOL).build());
 
     List<FeatureSpec> featureSpecs = new ArrayList<>();
     featureSpecs.add(
@@ -676,9 +641,9 @@ public class SpecServiceTest {
   @Test
   public void applyFeatureSetShouldCreateProjectWhenNotAlreadyExists()
       throws InvalidProtocolBufferException {
-    Field f3f1 = TestObjectFactory.CreateFeatureField("f3f1", Enum.INT64);
-    Field f3f2 = TestObjectFactory.CreateFeatureField("f3f2", Enum.INT64);
-    Field f3e1 = TestObjectFactory.CreateEntityField("f3e1", Enum.STRING);
+    Feature f3f1 = TestObjectFactory.CreateFeature("f3f1", Enum.INT64);
+    Feature f3f2 = TestObjectFactory.CreateFeature("f3f2", Enum.INT64);
+    Entity f3e1 = TestObjectFactory.CreateEntity("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
         (TestObjectFactory.CreateFeatureSet(
                 "f3", "newproject", 5, Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1)))
@@ -695,9 +660,9 @@ public class SpecServiceTest {
   @Test
   public void applyFeatureSetShouldFailWhenProjectIsArchived()
       throws InvalidProtocolBufferException {
-    Field f3f1 = TestObjectFactory.CreateFeatureField("f3f1", Enum.INT64);
-    Field f3f2 = TestObjectFactory.CreateFeatureField("f3f2", Enum.INT64);
-    Field f3e1 = TestObjectFactory.CreateEntityField("f3e1", Enum.STRING);
+    Feature f3f1 = TestObjectFactory.CreateFeature("f3f1", Enum.INT64);
+    Feature f3f2 = TestObjectFactory.CreateFeature("f3f2", Enum.INT64);
+    Entity f3e1 = TestObjectFactory.CreateEntity("f3e1", Enum.STRING);
     FeatureSetProto.FeatureSet incomingFeatureSet =
         (TestObjectFactory.CreateFeatureSet(
                 "f3", "archivedproject", 5, Arrays.asList(f3e1), Arrays.asList(f3f2, f3f1)))
@@ -856,8 +821,8 @@ public class SpecServiceTest {
             .setValueType(Enum.STRING)
             .putLabels("key", "value")
             .build();
-    Field feature = new Field(f1);
-    Field entity = TestObjectFactory.CreateEntityField("entity", Enum.STRING);
+    Feature feature = Feature.fromProto(f1);
+    Entity entity = TestObjectFactory.CreateEntity("entity", Enum.STRING);
 
     FeatureSet fs =
         TestObjectFactory.CreateFeatureSet(

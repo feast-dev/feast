@@ -21,6 +21,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
 import feast.core.FeatureSetProto;
 import feast.core.FeatureSetProto.*;
+import feast.core.util.TypeConversion;
 import feast.types.ValueProto.ValueType.Enum;
 import java.util.*;
 import javax.persistence.*;
