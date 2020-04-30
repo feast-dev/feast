@@ -34,11 +34,8 @@ import feast.core.CoreServiceProto.RestartIngestionJobRequest;
 import feast.core.CoreServiceProto.RestartIngestionJobResponse;
 import feast.core.CoreServiceProto.StopIngestionJobRequest;
 import feast.core.CoreServiceProto.StopIngestionJobResponse;
-import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.FeatureSetReferenceProto.FeatureSetReference;
 import feast.core.IngestionJobProto.IngestionJob;
-import feast.core.SourceProto.KafkaSourceConfig;
-import feast.core.SourceProto.SourceType;
 import feast.core.StoreProto.Store.RedisConfig;
 import feast.core.StoreProto.Store.StoreType;
 import feast.core.dao.JobRepository;
@@ -84,14 +81,7 @@ public class JobServiceTest {
 
     // create mock objects for testing
     // fake data source
-    this.dataSource =
-        new Source(
-            SourceType.KAFKA,
-            KafkaSourceConfig.newBuilder()
-                .setBootstrapServers("kafka:9092")
-                .setTopic("my-topic")
-                .build(),
-            true);
+    this.dataSource = TestObjectFactory.defaultSource;
     // fake data store
     this.dataStore =
         new Store(
@@ -158,19 +148,12 @@ public class JobServiceTest {
 
   // dummy model constructorss
   private FeatureSet newDummyFeatureSet(String name, int version, String project) {
-    Field feature = new Field(name + "_feature", Enum.INT64);
-    Field entity = new Field(name + "_entity", Enum.STRING);
+    Field feature = TestObjectFactory.CreateFeatureField(name + "_feature", Enum.INT64);
+    Field entity = TestObjectFactory.CreateEntityField(name + "_entity", Enum.STRING);
 
     FeatureSet fs =
-        new FeatureSet(
-            name,
-            project,
-            version,
-            100L,
-            Arrays.asList(entity),
-            Arrays.asList(feature),
-            this.dataSource,
-            FeatureSetStatus.STATUS_READY);
+        TestObjectFactory.CreateFeatureSet(
+            name, project, version, Arrays.asList(entity), Arrays.asList(feature));
     fs.setCreated(Date.from(Instant.ofEpochSecond(10L)));
     return fs;
   }

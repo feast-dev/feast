@@ -25,6 +25,7 @@ import feast.core.FeatureSetProto.FeatureSetMeta;
 import feast.core.FeatureSetProto.FeatureSetSpec;
 import feast.core.FeatureSetProto.FeatureSetStatus;
 import feast.core.FeatureSetProto.FeatureSpec;
+import feast.core.util.TypeConversion;
 import feast.types.ValueProto.ValueType.Enum;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -116,6 +117,10 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   @Column(name = "status")
   private String status;
 
+  // User defined metadata
+  @Column(name = "labels", columnDefinition = "text")
+  private String labels;
+
   public FeatureSet() {
     super();
   }
@@ -128,6 +133,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
       List<Field> entities,
       List<Field> features,
       Source source,
+      Map<String, String> labels,
       FeatureSetStatus status) {
     this.maxAgeSeconds = maxAgeSeconds;
     this.source = source;
@@ -137,6 +143,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     this.name = name;
     this.project = new Project(project);
     this.version = version;
+    this.labels = TypeConversion.convertMapToJsonString(labels);
     this.setId(project, name, version);
     addEntities(entities);
     addFeatures(features);
@@ -191,6 +198,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
         entitySpecs,
         featureSpecs,
         source,
+        featureSetProto.getSpec().getLabelsMap(),
         featureSetProto.getMeta().getStatus());
   }
 
@@ -247,6 +255,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
             .setMaxAge(Duration.newBuilder().setSeconds(maxAgeSeconds))
             .addAllEntities(entitySpecs)
             .addAllFeatures(featureSpecs)
+            .putAllLabels(TypeConversion.convertJsonStringToMap(labels))
             .setSource(source.toProto());
 
     return FeatureSetProto.FeatureSet.newBuilder().setMeta(meta).setSpec(spec).build();
@@ -351,6 +360,10 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     } else if (featureField.getTimeOfDayDomain() != null) {
       featureSpecBuilder.setTimeOfDayDomain(
           TimeOfDayDomain.parseFrom(featureField.getTimeOfDayDomain()));
+    }
+
+    if (featureField.getLabels() != null) {
+      featureSpecBuilder.putAllLabels(featureField.getLabels());
     }
   }
 

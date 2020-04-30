@@ -559,7 +559,16 @@ class TestClient:
             and feature_sets[0].name == "my-feature-set-1"
             and feature_sets[0].features[0].name == "fs1-my-feature-1"
             and feature_sets[0].features[0].dtype == ValueType.INT64
+            and feature_sets[0].features[1].name == "fs1-my-feature-2"
+            and feature_sets[0].features[1].dtype == ValueType.STRING
+            and feature_sets[0].entities[0].name == "fs1-my-entity-1"
+            and feature_sets[0].entities[0].dtype == ValueType.INT64
+            and feature_sets[1].features[0].name == "fs2-my-feature-1"
+            and feature_sets[1].features[0].dtype == ValueType.STRING_LIST
+            and feature_sets[1].features[1].name == "fs2-my-feature-2"
             and feature_sets[1].features[1].dtype == ValueType.BYTES_LIST
+            and feature_sets[1].entities[0].name == "fs2-my-entity-1"
+            and feature_sets[1].entities[0].dtype == ValueType.INT64
         )
 
     @pytest.mark.parametrize(

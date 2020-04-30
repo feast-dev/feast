@@ -18,8 +18,9 @@ package feast.core.model;
 
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.core.FeatureSetProto.FeatureSpec;
-import feast.types.ValueProto.ValueType;
+import feast.core.util.TypeConversion;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Objects;
 import javax.persistence.Column;
 import javax.persistence.Embeddable;
@@ -46,6 +47,10 @@ public class Field {
   // Project that this field belongs to
   @Column(name = "project")
   private String project;
+
+  // Labels that this field belongs to
+  @Column(name = "labels", columnDefinition = "text")
+  private String labels;
 
   // Presence constraints (refer to proto feast.core.FeatureSet.FeatureSpec)
   // Only one of them can be set.
@@ -74,14 +79,10 @@ public class Field {
 
   public Field() {}
 
-  public Field(String name, ValueType.Enum type) {
-    this.name = name;
-    this.type = type.toString();
-  }
-
   public Field(FeatureSpec featureSpec) {
     this.name = featureSpec.getName();
     this.type = featureSpec.getValueType().toString();
+    this.labels = TypeConversion.convertMapToJsonString(featureSpec.getLabelsMap());
 
     switch (featureSpec.getPresenceConstraintsCase()) {
       case PRESENCE:
@@ -215,6 +216,10 @@ public class Field {
     }
   }
 
+  public Map<String, String> getLabels() {
+    return TypeConversion.convertJsonStringToMap(this.labels);
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -227,6 +232,7 @@ public class Field {
     return Objects.equals(name, field.name)
         && Objects.equals(type, field.type)
         && Objects.equals(project, field.project)
+        && Objects.equals(labels, field.labels)
         && Arrays.equals(presence, field.presence)
         && Arrays.equals(groupPresence, field.groupPresence)
         && Arrays.equals(shape, field.shape)
@@ -247,6 +253,6 @@ public class Field {
 
   @Override
   public int hashCode() {
-    return Objects.hash(super.hashCode(), name, type);
+    return Objects.hash(super.hashCode(), name, type, project, labels);
   }
 }
