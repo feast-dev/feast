@@ -12,6 +12,7 @@ plugins:
   - wip         
   - trigger
   - config-updater
+  - require-matching-label
 
 config_updater:
   maps:
