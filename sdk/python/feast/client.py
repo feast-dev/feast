@@ -826,7 +826,7 @@ class Client:
             # Loop optimization declarations
             produce = producer.produce
             flush = producer.flush
-            dataset_id = _generate_dataset_id(feature_set)
+            ingestion_id = _generate_ingestion_id(feature_set)
 
             # Transform and push data to Kafka
             if feature_set.source.source_type == "Kafka":
@@ -834,7 +834,7 @@ class Client:
                     file=dest_path,
                     row_groups=list(range(pq_file.num_row_groups)),
                     fs=feature_set,
-                    dataset_id=dataset_id,
+                    ingestion_id=ingestion_id,
                     max_workers=max_workers,
                 ):
 
@@ -919,7 +919,7 @@ def _build_feature_references(
     return features
 
 
-def _generate_dataset_id(feature_set: FeatureSet) -> str:
+def _generate_ingestion_id(feature_set: FeatureSet) -> str:
     """
     Generates a UUID from the feature set name, version, and the current time.
 
