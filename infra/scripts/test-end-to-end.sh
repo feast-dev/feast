@@ -62,6 +62,9 @@ Building jars for Feast
 ============================================================
 "
 
+FEAST_BUILD_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+echo Building Jars for version: $FEAST_BUILD_VERSION
+
 infra/scripts/download-maven-cache.sh \
     --archive-uri gs://feast-templocation-kf-feast/.m2.2019-10-24.tar \
     --output-dir /root/
@@ -118,7 +121,7 @@ management:
         enabled: false
 EOF
 
-nohup java -jar core/target/feast-core-*-SNAPSHOT.jar \
+nohup java -jar core/target/feast-core-$FEAST_BUILD_VERSION.jar \
   --spring.config.location=file:///tmp/core.application.yml \
   &> /var/log/feast-core.log &
 sleep 30
@@ -169,7 +172,7 @@ spring:
     web-environment: false
 EOF
 
-nohup java -jar serving/target/feast-serving-*-SNAPSHOT.jar \
+nohup java -jar serving/target/feast-serving-$FEAST_BUILD_VERSION.jar \
   --spring.config.location=file:///tmp/serving.online.application.yml \
   &> /var/log/feast-serving-online.log &
 sleep 15
