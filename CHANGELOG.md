@@ -119,13 +119,22 @@
 - Add readiness checks for Feast services in end to end test [\#337](https://github.com/gojek/feast/pull/337) ([davidheryanto](https://github.com/davidheryanto))
 - Create CHANGELOG.md [\#321](https://github.com/gojek/feast/pull/321) ([woop](https://github.com/woop))
 
+## [v0.3.7](https://github.com/gojek/feast/tree/v0.3.7) (2020-05-01)
+
+[Full Changelog](https://github.com/gojek/feast/compare/v0.3.6...v0.3.7)
+
+**Merged pull requests:**
+
+- Moved end-to-end test scripts from .prow to infra [\#657](https://github.com/gojek/feast/pull/657) ([khorshuheng](https://github.com/khorshuheng))
+- Backported \#566 & \#647 to v0.3 [\#654](https://github.com/gojek/feast/pull/654) ([ches](https://github.com/ches))
+
 ## [v0.3.6](https://github.com/gojek/feast/tree/v0.3.6) (2020-01-03)
 
 **Merged pull requests:**
 
 [Full Changelog](https://github.com/gojek/feast/compare/v0.3.5...v0.3.6)
 
-- Add support for file paths for providing entity rows during batch retrieval [\#375](https://github.com/gojek/feast/pull/376) ([voonhous](https://github.com/voonhous))
+- Add support for file paths for providing entity rows during batch retrieval [\#375](https://github.com/gojek/feast/pull/375) ([voonhous](https://github.com/voonhous))
 
 ## [v0.3.5](https://github.com/gojek/feast/tree/v0.3.5) (2019-12-26)
 
