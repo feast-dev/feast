@@ -13,5 +13,8 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: make deploy-to-azure script executable
+        run: chmod +x ./infra/scripts/deploy-to-aks.sh
+
       - name: deploy
         run: ./infra/scripts/deploy-to-aks.sh
