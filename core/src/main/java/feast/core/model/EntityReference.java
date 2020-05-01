@@ -31,19 +31,19 @@ import lombok.Setter;
 @Getter
 @Setter
 public class EntityReference implements Serializable {
-  // Project the field belongs to
+  // Project the entity belongs to
   @Column(nullable = false)
   private String project;
 
-  // Feature set the field belongs to
+  // Feature set the entity belongs to
   @Column(name = "feature_set", nullable = false)
   private String featureSet;
 
-  // Version of the feature set this field belongs to
+  // Version of the feature set this entity belongs to
   @Column(nullable = false)
   private int version;
 
-  // Name of the field
+  // Name of the entity
   @Column(nullable = false)
   private String name;
 

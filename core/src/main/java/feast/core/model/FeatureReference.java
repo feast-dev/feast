@@ -31,19 +31,19 @@ import lombok.Setter;
 @Getter
 @Setter
 public class FeatureReference implements Serializable {
-  // Project the field belongs to
+  // Project the feature belongs to
   @Column(nullable = false)
   private String project;
 
-  // Feature set the field belongs to
+  // Feature set the feature belongs to
   @Column(name = "feature_set", nullable = false)
   private String featureSet;
 
-  // Version of the feature set this field belongs to
+  // Version of the feature set this feature belongs to
   @Column(nullable = false)
   private int version;
 
-  // Name of the field
+  // Name of the feature
   @Column(nullable = false)
   private String name;
 

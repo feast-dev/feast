@@ -39,10 +39,10 @@ public class Feature {
 
   @EmbeddedId private FeatureReference reference;
 
-  // Type of the field
+  /** Data type of the feature. String representation of {@link ValueType} * */
   private String type;
 
-  // Labels that this field belongs to
+  // Labels for this feature
   @Column(name = "labels", columnDefinition = "text")
   private String labels;
 
@@ -78,7 +78,7 @@ public class Feature {
     this.setType(type.toString());
   }
 
-  public static Feature withReference(FeatureReference featureRef) {
+  public static Feature withRef(FeatureReference featureRef) {
     Feature feature = new Feature();
     feature.setReference(featureRef);
     return feature;
