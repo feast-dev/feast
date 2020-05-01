@@ -16,6 +16,7 @@
  */
 package feast.core.job;
 
+import com.google.common.collect.Sets;
 import feast.core.log.Action;
 import feast.core.log.AuditLogger;
 import feast.core.log.Resource;
@@ -35,7 +36,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -102,14 +102,8 @@ public class JobUpdateTask implements Callable<Job> {
   }
 
   boolean featureSetsChangedFor(Job job) {
-    Set<String> existingFeatureSetsPopulatedByJob =
-        job.getFeatureSets().stream()
-            .map(fs -> fs.getProject() + "/" + fs.getName())
-            .collect(Collectors.toSet());
-    Set<String> newFeatureSetsPopulatedByJob =
-        featureSets.stream()
-            .map(fs -> fs.getProject() + "/" + fs.getName())
-            .collect(Collectors.toSet());
+    Set<FeatureSet> existingFeatureSetsPopulatedByJob = Sets.newHashSet(job.getFeatureSets());
+    Set<FeatureSet> newFeatureSetsPopulatedByJob = Sets.newHashSet(featureSets);
 
     return !newFeatureSetsPopulatedByJob.equals(existingFeatureSetsPopulatedByJob);
   }

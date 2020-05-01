@@ -195,6 +195,7 @@ public class JobCoordinatorService {
     return Optional.of(jobs.get(0));
   }
 
+  // TODO: optimize this to make less calls to the database.
   private List<FeatureSet> featureSetsFromProto(List<FeatureSetProto.FeatureSet> protos) {
     return protos.stream()
         .map(FeatureSetProto.FeatureSet::getSpec)

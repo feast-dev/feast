@@ -32,6 +32,7 @@ import lombok.Setter;
 public class Entity {
   @EmbeddedId private EntityReference reference;
 
+  /** Data type of the entity. String representation of {@link ValueType} * */
   private String type;
 
   public Entity() {}

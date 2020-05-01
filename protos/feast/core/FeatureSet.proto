@@ -69,7 +69,7 @@ message EntitySpec {
     // Name of the entity.
     string name = 1;
 
-    // Value type of the feature.
+    // Value type of the entity.
     feast.types.ValueType.Enum value_type = 2;
 }
 

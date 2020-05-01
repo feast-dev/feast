@@ -33,7 +33,9 @@ import org.tensorflow.metadata.v0.*;
 @Getter
 @Setter
 @javax.persistence.Entity
-@Table(name = "feature_sets")
+@Table(
+    name = "feature_sets",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"name", "version", "project_name"}))
 public class FeatureSet extends AbstractTimestampEntity implements Comparable<FeatureSet> {
 
   // Id of the featureSet, defined as project/feature_set_name:feature_set_version
