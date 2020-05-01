@@ -1,4 +1,4 @@
-name: Docker Compose Tests
+name: docker compose tests
 
 on: [push, pull_request]
 
@@ -8,5 +8,5 @@ jobs:
     name: basic redis e2e tests on docker compose
     steps:
       - uses: actions/checkout@v2
-      - name: test java
+      - name: test docker compose
         run: ./infra/scripts/test-docker-compose.sh
