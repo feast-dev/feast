@@ -1,7 +1,7 @@
 HELP="
 $(basename "$0") [--token] [--repo repo_name] [--owner repo_owner] [--branch branch_name]
 
-where:
+commands:
   -h [--help]    show this help text
   -t [--token]   Personal Access Token (PAT), you can generate a PAT on https://github.com/settings/tokens page
   -r [--repo]    name of the repo, format is (owner/repo) or just (repo)
