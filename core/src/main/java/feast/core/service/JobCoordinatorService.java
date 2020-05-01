@@ -195,8 +195,13 @@ public class JobCoordinatorService {
     return Optional.of(jobs.get(0));
   }
 
-  // TODO: Put in a util somewhere?
-  private static List<FeatureSet> featureSetsFromProto(List<FeatureSetProto.FeatureSet> protos) {
-    return protos.stream().map(FeatureSet::fromProto).collect(Collectors.toList());
+  private List<FeatureSet> featureSetsFromProto(List<FeatureSetProto.FeatureSet> protos) {
+    return protos.stream()
+        .map(FeatureSetProto.FeatureSet::getSpec)
+        .map(
+            fs ->
+                featureSetRepository.findFeatureSetByNameAndProject_NameAndVersion(
+                    fs.getName(), fs.getProject(), fs.getVersion()))
+        .collect(Collectors.toList());
   }
 }
