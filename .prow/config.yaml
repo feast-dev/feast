@@ -142,6 +142,7 @@ presubmits:
 
   - name: test-end-to-end
     decorate: true
+    always_run: true
     spec:
       containers:
       - image: maven:3.6-jdk-11
@@ -155,6 +156,7 @@ presubmits:
 
   - name: test-end-to-end-redis-cluster
     decorate: true
+    always_run: true
     spec:
       containers:
         - image: maven:3.6-jdk-11
