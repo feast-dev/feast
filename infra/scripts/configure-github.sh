@@ -75,6 +75,14 @@ RESPONSE=$(curl -v --request POST --header "Authorization: Bearer $TOKEN" --head
 
 HAS_DATA=$(echo "$RESPONSE" | jq -e 'has("data")')
 HAS_MESSAGE=$(echo "$RESPONSE" | jq -e 'has("message")')
+
+if $HAS_MESSAGE;
+then
+  echo "Something went wrong, we couldn't get repo_id from '$OWNER_NAME/$REPO_NAME' please check console log..."
+
+  exit 1;
+fi
+
 REPO_ID=$(echo "$RESPONSE" | jq -r '.data.repository.id')
 
 MUTATION_PAYLOAD="{ \"query\": \"mutation setBranchProtectionRule { createBranchProtectionRule(input: {repositoryId: \\\"$REPO_ID\\\", pattern: \\\"$BRANCH_NAME\\\", requiredApprovingReviewCount: 2, requiresApprovingReviews: true}) { branchProtectionRule { id } } }\" }"
