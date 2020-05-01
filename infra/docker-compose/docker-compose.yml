@@ -25,18 +25,17 @@ services:
     image: jupyter/minimal-notebook:619e9cc2fc07
     volumes:
       - ./gcp-service-accounts/${FEAST_JUPYTER_GCP_SERVICE_ACCOUNT_KEY}:/etc/gcloud/service-accounts/key.json
+      - ./jupyter/startup.sh:/etc/startup.sh
     depends_on:
       - core
     environment:
       FEAST_CORE_URL: core:6565
       FEAST_SERVING_URL: online-serving:6566
       GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
+      FEAST_REPOSITORY_VERSION: ${FEAST_REPOSITORY_VERSION}
     ports:
       - 8888:8888
-    command: >
-      bash -c "git clone -b ${FEAST_REPOSITORY_VERSION} --single-branch https://github.com/gojek/feast.git
-      && pip install -r feast/sdk/python/requirements-ci.txt && pip install -e feast/sdk/python -U
-      && start-notebook.sh --NotebookApp.token=''"
+    command: ["/etc/startup.sh"]
 
   redis:
     image: redis:5-alpine
