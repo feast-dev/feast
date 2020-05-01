@@ -103,9 +103,13 @@ public class JobUpdateTask implements Callable<Job> {
 
   boolean featureSetsChangedFor(Job job) {
     Set<String> existingFeatureSetsPopulatedByJob =
-        job.getFeatureSets().stream().map(FeatureSet::getId).collect(Collectors.toSet());
+        job.getFeatureSets().stream()
+            .map(fs -> fs.getProject() + "/" + fs.getName())
+            .collect(Collectors.toSet());
     Set<String> newFeatureSetsPopulatedByJob =
-        featureSets.stream().map(FeatureSet::getId).collect(Collectors.toSet());
+        featureSets.stream()
+            .map(fs -> fs.getProject() + "/" + fs.getName())
+            .collect(Collectors.toSet());
 
     return !newFeatureSetsPopulatedByJob.equals(existingFeatureSetsPopulatedByJob);
   }

@@ -38,8 +38,8 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
 
   // Id of the featureSet, defined as project/feature_set_name:feature_set_version
   @Id
-  @Column(name = "id", nullable = false, unique = true)
-  private String id;
+  @GeneratedValue(strategy = GenerationType.AUTO)
+  private int id;
 
   // Name of the featureSet
   @Column(name = "name", nullable = false)
@@ -130,23 +130,16 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     this.project = new Project(project);
     this.version = version;
     this.labels = TypeConversion.convertMapToJsonString(labels);
-    this.setId(project, name, version);
     addEntities(entities);
     addFeatures(features);
   }
 
-  private void setId(String project, String name, int version) {
-    this.id = project + "/" + name + ":" + version;
-  }
-
   public void setVersion(int version) {
     this.version = version;
-    this.setId(getProjectName(), getName(), version);
   }
 
   public void setName(String name) {
     this.name = name;
-    this.setId(getProjectName(), name, getVersion());
   }
 
   private String getProjectName() {
@@ -159,7 +152,6 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
 
   public void setProject(Project project) {
     this.project = project;
-    this.setId(project.getName(), getName(), getVersion());
   }
 
   public static FeatureSet fromProto(FeatureSetProto.FeatureSet featureSetProto) {
