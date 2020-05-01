@@ -2,7 +2,7 @@
 
 ## [v0.3.7](https://github.com/gojek/feast/tree/v0.3.7) (2020-05-01)
 
-[Full Changelog](https://github.com/gojek/feast/compare/v0.4.7...v0.3.7)
+[Full Changelog](https://github.com/gojek/feast/compare/v0.3.6...v0.3.7)
 
 **Merged pull requests:**
 
@@ -15,7 +15,7 @@
 
 [Full Changelog](https://github.com/gojek/feast/compare/v0.3.5...v0.3.6)
 
-- Add support for file paths for providing entity rows during batch retrieval [\#375](https://github.com/gojek/feast/pull/376) ([voonhous](https://github.com/voonhous))
+- Add support for file paths for providing entity rows during batch retrieval [\#375](https://github.com/gojek/feast/pull/375) ([voonhous](https://github.com/voonhous))
 
 ## [v0.3.5](https://github.com/gojek/feast/tree/v0.3.5) (2019-12-26)
 
