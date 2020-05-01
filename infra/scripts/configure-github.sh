@@ -82,3 +82,4 @@ MUTATION_PAYLOAD="{ \"query\": \"mutation setBranchProtectionRule { createBranch
 RESPONSE=$(curl -v --request POST --header "Authorization: Bearer $TOKEN" --header "Content-Type: application/json" --data-raw "$MUTATION_PAYLOAD" https://api.github.com/graphql)
 
 HAS_DATA=$(echo "$RESPONSE" | jq -e 'has("data")')
+HAS_MESSAGE=$(echo "$RESPONSE" | jq -e 'has("message")')
