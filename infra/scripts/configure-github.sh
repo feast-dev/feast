@@ -91,3 +91,10 @@ RESPONSE=$(curl -v --request POST --header "Authorization: Bearer $TOKEN" --head
 
 HAS_DATA=$(echo "$RESPONSE" | jq -e 'has("data")')
 HAS_MESSAGE=$(echo "$RESPONSE" | jq -e 'has("message")')
+
+if $HAS_MESSAGE;
+then
+  echo "Something went wrong, branch policy couldn't be set on '$OWNER_NAME/$REPO_NAME' please check console log..."
+
+  exit 1;
+fi
