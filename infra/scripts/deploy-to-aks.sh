@@ -22,6 +22,8 @@ fi
 
 helm repo update
 
+helm plugin install https://github.com/databus23/helm-diff --version master
+
 # check helmsman
 
 if ! [ -x "$(command -v helmsman)" ]; then
