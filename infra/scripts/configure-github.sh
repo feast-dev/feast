@@ -71,7 +71,7 @@ fi
 
 QUERY_PAYLOAD="{ \"query\": \"query getNodeIdOfRepo { repository(name: \\\"$REPO_NAME\\\", owner: \\\"$OWNER_NAME\\\") { id branchProtectionRules(first: 100) { edges { node { id databaseId pattern } } } } }\" }"
 
-RESPONSE=$(curl -v --request POST --header "Authorization: Bearer $TOKEN" --header "Content-Type: application/json" --data-raw "$QUERY" https://api.github.com/graphql)
+RESPONSE=$(curl -v --request POST --header "Authorization: Bearer $TOKEN" --header "Content-Type: application/json" --data-raw "$QUERY_PAYLOAD" https://api.github.com/graphql)
 
 REPO_ID=$(echo "$RESPONSE" | jq -r '.data.repository.id')
 
