@@ -80,3 +80,5 @@ REPO_ID=$(echo "$RESPONSE" | jq -r '.data.repository.id')
 MUTATION_PAYLOAD="{ \"query\": \"mutation setBranchProtectionRule { createBranchProtectionRule(input: {repositoryId: \\\"$REPO_ID\\\", pattern: \\\"$BRANCH_NAME\\\", requiredApprovingReviewCount: 2, requiresApprovingReviews: true}) { branchProtectionRule { id } } }\" }"
 
 RESPONSE=$(curl -v --request POST --header "Authorization: Bearer $TOKEN" --header "Content-Type: application/json" --data-raw "$MUTATION_PAYLOAD" https://api.github.com/graphql)
+
+HAS_DATA=$(echo "$RESPONSE" | jq -e 'has("data")')
