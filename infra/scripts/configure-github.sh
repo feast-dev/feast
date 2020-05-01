@@ -69,7 +69,7 @@ then
   read -p "Name of the branch : " BRANCH_NAME
 fi
 
-QUERY="{ \"query\": \"query getNodeIdOfRepo { repository(name: \\\"$REPO_NAME\\\", owner: \\\"$OWNER_NAME\\\") { id branchProtectionRules(first: 100) { edges { node { id databaseId pattern } } } } }\" }"
+QUERY_PAYLOAD="{ \"query\": \"query getNodeIdOfRepo { repository(name: \\\"$REPO_NAME\\\", owner: \\\"$OWNER_NAME\\\") { id branchProtectionRules(first: 100) { edges { node { id databaseId pattern } } } } }\" }"
 
 RESPONSE=$(curl -v --request POST --header "Authorization: Bearer $TOKEN" --header "Content-Type: application/json" --data-raw "$QUERY" https://api.github.com/graphql)
 
