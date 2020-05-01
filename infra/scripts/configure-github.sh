@@ -1,3 +1,5 @@
+#!/bin/bash
+
 HELP="
 $(basename "$0") [--token] [--repo repo_name] [--owner repo_owner] [--branch branch_name]
 
