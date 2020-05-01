@@ -1,0 +1,49 @@
+settings:
+  kubeContext: feast-temp
+
+helmRepos:
+  stable: "https://kubernetes-charts.storage.googleapis.com"
+  incubator: "https://kubernetes-charts-incubator.storage.googleapis.com"
+  feast-charts: "https://feast-charts.storage.googleapis.com"
+  bitnami: "https://charts.bitnami.com/bitnami"
+
+namespaces:
+  feast:
+
+apps:
+  feast:
+    name: feast
+    description: Feast
+    namespace: feast
+    enabled: true
+    chart: feast-charts/feast
+    version: 0.4.7
+    valuesFiles:
+    - chart-values/feast.yaml
+  feast-redis-jobstore:
+    name: feast-redis-jobstore
+    description: Feast Redis Database for Job Store
+    namespace: feast
+    enabled: true
+    chart: stable/redis
+    version: 10.2.1
+    valuesFiles:
+    - chart-values/feast-redis-jobstore.yaml
+  feast-kafka:
+    name: feast-kafka
+    description: Feast Kafka instance
+    namespace: feast
+    enabled: true
+    chart: bitnami/kafka
+    version: 5.2.4
+    valuesFiles:
+    - chart-values/feast-kafka.yaml
+  feast-zookeeper:
+    name: feast-zookeeper
+    description: Feast Zookeeper instance
+    namespace: feast
+    enabled: true
+    chart: bitnami/zookeeper
+    version: 4.3.4
+    valuesFiles:
+    - chart-values/feast-zookeeper.yaml

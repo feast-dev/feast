@@ -1,0 +1,40 @@
+cluster:
+  enabled: false
+sentinel:
+  enabled: false
+usePassword: false
+master:
+  resources:
+    limits:
+      cpu: 2
+      memory: 300Mi
+    requests:
+      cpu: 100m
+      memory: 220Mi
+  persistence:
+    enabled: false
+metrics:
+  enabled: true
+  resources:
+    limits:
+      cpu: 100m
+      memory: 64Mi
+    requests:
+      cpu: 25m
+      memory: 32Mi
+sysctlImage:
+  enabled: true
+  mountHostSys: true
+  command:
+    - /bin/sh
+    - -c
+    - |-
+      echo never > /host-sys/kernel/mm/transparent_hugepage/enabled
+configmap: |-
+  save ""
+  appendonly yes
+  appendfsync everysec
+  dir /data
+  appendfilename "appendonly.aof"
+  maxmemory 200mb
+  maxmemory-policy noeviction

@@ -1,0 +1,17 @@
+name: deploy-to-aks
+
+on: push
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: deploy
+    steps:
+      - uses: actions/checkout@v1
+
+      - uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: deploy
+        run: ./infra/scripts/deploy-to-aks.sh
