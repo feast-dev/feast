@@ -28,9 +28,10 @@ if ! [ -x "$(command -v helmsman)" ]; then
   echo 'Error: helmsman is not installed.' >&2
 
   curl -L https://github.com/Praqma/helmsman/releases/download/v3.2.0/helmsman_3.2.0_linux_amd64.tar.gz | tar zx
-  mv helmsman /usr/local/bin/helmsman
+
+  chmod +x helmsman
 fi
 
 # run helmsman
 
-helmsman -apply -f ../desired-state/desired-state.yaml -debug -no-ns -no-env-subst
+./helmsman -apply -f ../desired-state/desired-state.yaml -debug -no-ns -no-env-subst
