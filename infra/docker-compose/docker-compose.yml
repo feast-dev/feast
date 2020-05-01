@@ -30,7 +30,8 @@ services:
       - core
     environment:
       FEAST_CORE_URL: core:6565
-      FEAST_SERVING_URL: online-serving:6566
+      FEAST_ONLINE_SERVING_URL: online-serving:6566
+      FEAST_BATCH_SERVING_URL: batch-serving:6567
       GOOGLE_APPLICATION_CREDENTIALS: /etc/gcloud/service-accounts/key.json
       FEAST_REPOSITORY_VERSION: ${FEAST_REPOSITORY_VERSION}
     ports:
