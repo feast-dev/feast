@@ -22,6 +22,8 @@ fi
 
 helm repo update
 
+# install required plugins
+
 helm plugin install https://github.com/databus23/helm-diff --version master
 
 # check helmsman
