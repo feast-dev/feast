@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "prometheus-statsd-exporter.fullname" . }}
@@ -16,7 +16,7 @@ spec:
   template:
     metadata:
       annotations:
-{{ toYaml .Values.statsdexporter.annotations | indent 8 }}
+{{ toYaml .Values.statsdexporter.podAnnotations | indent 8 }}
       labels:
         app: {{ template "prometheus-statsd-exporter.name" . }}
         release: {{ .Release.Name }}

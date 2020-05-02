@@ -33,7 +33,8 @@ $ helm delete my-release
 
  ## Configuration
 
- |Parameter                   | Description                                          | Default                                |
+|Parameter                   | Description                                          | Default                                |
+|----------------------------|------------------------------------------------------|----------------------------------------|
 |`extraArgs`                 | key:value list of extra arguments to give the binary | `{}`                                   |
 |`image.pullPolicy`          | Image pull policy                                    | `IfNotPresent`                         |
 |`image.repository`          | Image repository                                     | `prom/statsd-exporter`                 |

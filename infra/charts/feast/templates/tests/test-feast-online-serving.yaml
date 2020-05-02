@@ -1,0 +1,105 @@
+{{- if and (index .Values "feast-core" "enabled") (index .Values "feast-online-serving" "enabled") }}
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ .Release.Name }}-feast-online-serving-test"
+  annotations:
+    "helm.sh/hook": test-success
+  namespace: {{ .Release.Namespace }}
+spec:
+  containers:
+  - name: main
+    image: python:3.7
+    command: 
+    - bash
+    - -c
+    - |
+      pip install -U feast==0.4.*
+
+      cat <<EOF > featureset.yaml
+      kind: feature_set
+      spec:
+        name: customer_transactions
+        entities:
+        - name: customer_id
+          valueType: INT64
+        features:
+        - name: daily_transactions
+          valueType: FLOAT
+        - name: total_transactions
+          valueType: FLOAT
+        maxAge: 3600s
+      EOF
+
+      python <<EOF
+      
+      from feast import Client
+      from feast import FeatureSet
+      import pandas as pd
+      import os, pytz, time
+      from datetime import datetime
+      import numpy as np
+      from feast.serving.ServingService_pb2 import GetOnlineFeaturesRequest
+      from feast.types.Value_pb2 import Value
+      pd.set_option("display.max_columns", 10)
+
+      client = Client(core_url=os.getenv("FEAST_CORE_ADDR"), serving_url=os.getenv("FEAST_SERVING_ADDR"))
+      project = f"testproject_{int(time.time() / 3600)}"
+      if project not in client.list_projects():
+        client.create_project(project)
+      client.set_project(project)
+      
+      feature_set = FeatureSet.from_yaml("featureset.yaml")
+      client.apply(feature_set)
+
+      df = pd.DataFrame(
+          {
+              "datetime": [datetime.utcnow().replace(tzinfo=pytz.utc) for _ in
+                           range(5)],
+              "customer_id": [i for i in range(5)],
+              "daily_transactions": [np.random.rand() for _ in range(5)],
+              "total_transactions": [i for i in range(5)],
+          }
+      )
+      client.ingest(feature_set, df, timeout=240)
+      print("Ingested dataframe: ")
+      print(df.head(3))
+      time.sleep(5)
+
+      entity_rows=[
+          GetOnlineFeaturesRequest.EntityRow(
+              fields={"customer_id": Value(int64_val=0)}),
+          GetOnlineFeaturesRequest.EntityRow(
+              fields={"customer_id": Value(int64_val=1)}),
+          GetOnlineFeaturesRequest.EntityRow(
+              fields={"customer_id": Value(int64_val=2)}),
+      ]
+
+      result_df = client.get_online_features(
+          entity_rows=entity_rows,
+          feature_refs=[
+              "daily_transactions",
+              "total_transactions",
+          ],
+      )
+      
+      print("Retrieved dataframe: ")
+      print(result_df)
+
+      EOF
+    env:
+    - name: FEAST_CORE_ADDR
+      value: {{ .Release.Name }}-feast-core:6565
+    - name: FEAST_SERVING_ADDR
+      value: {{ .Release.Name }}-feast-online-serving:6566
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        memory: 512Mi
+
+  restartPolicy: Never
+
+{{- end }}

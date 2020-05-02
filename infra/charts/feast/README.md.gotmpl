@@ -1,7 +1,6 @@
-feast
-===== 
+{{ template "chart.header" . }} 
 
-Feature store for machine learning. Current chart version is `0.5.0-alpha.1`
+{{ template "chart.description" . }} {{ template "chart.versionLine" . }}
 
 ## TL;DR;
 
@@ -28,33 +27,9 @@ This chart install Feast deployment on a Kubernetes cluster using the [Helm](htt
 - Helm 2.15+ (not tested with Helm 3)
 - Persistent Volume support on the underlying infrastructure
 
-## Chart Requirements
+{{ template "chart.requirementsSection" . }}
 
-| Repository | Name | Version |
-|------------|------|---------|
-|  | feast-core | 0.5.0-alpha.1 |
-|  | feast-serving | 0.5.0-alpha.1 |
-|  | feast-serving | 0.5.0-alpha.1 |
-|  | prometheus-statsd-exporter | 0.1.2 |
-| https://kubernetes-charts-incubator.storage.googleapis.com/ | kafka | 0.20.8 |
-| https://kubernetes-charts.storage.googleapis.com/ | grafana | 5.0.5 |
-| https://kubernetes-charts.storage.googleapis.com/ | postgresql | 8.6.1 |
-| https://kubernetes-charts.storage.googleapis.com/ | prometheus | 11.0.2 |
-| https://kubernetes-charts.storage.googleapis.com/ | redis | 10.5.6 |
-
-## Chart Values
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| feast-batch-serving.enabled | bool | `false` | Flag to install Feast Batch Serving |
-| feast-core.enabled | bool | `true` | Flag to install Feast Core |
-| feast-online-serving.enabled | bool | `true` | Flag to install Feast Online Serving |
-| grafana.enabled | bool | `true` | Flag to install Grafana |
-| kafka.enabled | bool | `true` | Flag to install Kafka |
-| postgresql.enabled | bool | `true` | Flag to install Postgresql |
-| prometheus-statsd-exporter.enabled | bool | `true` | Flag to install StatsD to Prometheus Exporter |
-| prometheus.enabled | bool | `true` | Flag to install Prometheus |
-| redis.enabled | bool | `true` | Flag to install Redis |
+{{ template "chart.valuesSection" . }}
 
 ## Configuration and installation details
 

@@ -20,6 +20,9 @@ service:
 
 statsdexporter:
   podAnnotations:
+    prometheus.io/path: /metrics
+    prometheus.io/port: "9102"
+    prometheus.io/scrape: "true"
 
   extraArgs: {}
   #  - --persistence.file=data-perst
