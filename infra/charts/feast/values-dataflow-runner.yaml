@@ -1,58 +1,71 @@
+# values-dataflow-runner.yaml
 feast-core:
   gcpServiceAccount:
     enabled: true
+  postgresql:
+    existingSecret: feast-postgresql
   application-override.yaml:
     feast:
       stream:
         options:
           bootstrapServers: <kafka_sevice_load_balancer_ip_address_1:31090>
       jobs:
-        runner: DataflowRunner
-        options:
-          project: <google_project_id>
-          region: <dataflow_regional_endpoint e.g. asia-east1>
-          zone: <google_zone e.g. asia-east1-a>
-          tempLocation: <gcs_path_for_temp_files e.g. gs://bucket/tempLocation>
-          network: <google_cloud_network_name>
-          subnetwork: <google_cloud_subnetwork_path e.g. regions/asia-east1/subnetworks/mysubnetwork>
-          maxNumWorkers: 1
-          autoscalingAlgorithm: THROUGHPUT_BASED
-          usePublicIps: false
-          workerMachineType: n1-standard-1
-          deadLetterTableSpec: <bigquery_table_spec_for_deadletter e.g. project_id:dataset_id.table_id>
+        active_runner: dataflow
         metrics:
           host: <prometheus_statsd_exporter_load_balancer_ip_address>
+        runners:
+        - name: dataflow
+          type: DataflowRunner
+          options:
+            project: <google_project_id>
+            region: <dataflow_regional_endpoint e.g. asia-east1>
+            zone: <google_zone e.g. asia-east1-a>
+            tempLocation: <gcs_path_for_temp_files e.g. gs://bucket/tempLocation>
+            network: <google_cloud_network_name>
+            subnetwork: <google_cloud_subnetwork_path e.g. regions/asia-east1/subnetworks/mysubnetwork>
+            maxNumWorkers: 1
+            autoscalingAlgorithm: THROUGHPUT_BASED
+            usePublicIps: false
+            workerMachineType: n1-standard-1
+            deadLetterTableSpec: <bigquery_table_spec_for_deadletter e.g. project_id:dataset_id.table_id>
 
 feast-online-serving:
-  store.yaml:
-    name: redis-store
-    type: REDIS
-    redis_config:
-      host: <redis_service_load_balancer_ip_addresss>
-      port: 6379
-    subscriptions:
-    - project: "*"
-      name: "*"
-      version: "*"
+  application-override.yaml:
+    feast:
+      stores:
+      - name: online
+        type: REDIS 
+        config:
+          host: <redis_service_load_balancer_ip_addresss>
+          port: 6379
+        subscriptions:
+        - name: "*"
+          project: "*"
+          version: "*"
 
 feast-batch-serving:
   enabled: true
-  store.yaml:
-    name: bigquery-store
-    type: BIGQUERY 
-    bigquery_config:
-      project_id: <google_project_id>
-      dataset_id: <bigquery_dataset_id>
-    subscriptions:
-    - project: "*"
-      name: "*"
-      version: "*"
-  application-override.yaml:
-    feast:
-      jobs:
-        staging-location: <gcs_path_for_temp_files e.g. gs://bucket/stagingLocation>
   gcpServiceAccount:
     enabled: true 
+  application-override.yaml:
+    feast:
+      active_store: historical
+      stores:
+      - name: historical
+        type: BIGQUERY
+        config:
+          project_id: <google_project_id>
+          dataset_id: <bigquery_dataset_id>
+          staging_location: gs://<bucket_name>/feast-staging-location
+          initial_retry_delay_seconds: 3
+          total_timeout_seconds: 21600
+        subscriptions:
+        - name: "*"
+          project: "*"
+          version: "*"
+
+postgresql:
+  existingSecret: feast-postgresql
 
 kafka:
   external:
