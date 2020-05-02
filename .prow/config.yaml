@@ -51,6 +51,7 @@ tide:
     - do-not-merge/invalid-owners-file
     - do-not-merge/work-in-progress
     - needs-rebase
+    - needs-kind
   merge_method:
     gojek/feast: squash
   blocker_label: merge-blocker
