@@ -185,6 +185,7 @@ presubmits:
 
   - name: test-end-to-end-batch
     decorate: true
+    always_run: true
     spec:
       volumes:
       - name: service-account
