@@ -15,12 +15,11 @@ export COMPOSE_INTERACTIVE_NO_CLI=1
 cd ${PROJECT_ROOT_DIR}/infra/docker-compose/
 cp .env.sample .env
 
-# Start all Docker Compose containers
+# Start Docker Compose containers
 docker-compose -f docker-compose.yml -f docker-compose.online.yml up -d
 
-# Get Docker Container IP address
+# Get Jupyter container IP address
 export JUPYTER_DOCKER_CONTAINER_IP_ADDRESS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' feast_jupyter_1)
-
 
 # Print Jupyter container information
 docker inspect feast_jupyter_1
