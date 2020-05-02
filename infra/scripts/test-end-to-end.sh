@@ -8,7 +8,10 @@ test -z ${SKIP_BUILD_JARS} && SKIP_BUILD_JARS="false"
 test -z ${GOOGLE_CLOUD_PROJECT} && GOOGLE_CLOUD_PROJECT="kf-feast"
 test -z ${TEMP_BUCKET} && TEMP_BUCKET="feast-templocation-kf-feast"
 test -z ${JOBS_STAGING_LOCATION} && JOBS_STAGING_LOCATION="gs://${TEMP_BUCKET}/staging-location"
-test -z ${JAR_VERSION_SUFFIX} && JAR_VERSION_SUFFIX="-SNAPSHOT"
+
+# Get the current build version using maven (and pom.xml)
+FEAST_BUILD_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+echo Building version: $FEAST_BUILD_VERSION
 
 echo "
 This script will run end-to-end tests for Feast Core and Online Serving.
@@ -136,7 +139,7 @@ spring:
 
 EOF
 
-nohup java -jar core/target/feast-core-*${JAR_VERSION_SUFFIX}.jar \
+nohup java -jar core/target/feast-core-$FEAST_BUILD_VERSION.jar \
   --spring.config.location=file:///tmp/core.application.yml \
   &> /var/log/feast-core.log &
 sleep 35
@@ -180,7 +183,7 @@ server:
 
 EOF
 
-nohup java -jar serving/target/feast-serving-*${JAR_VERSION_SUFFIX}.jar \
+nohup java -jar serving/target/feast-serving-${FEAST_BUILD_VERSION}.jar \
   --spring.config.location=file:///tmp/serving.online.application.yml \
   &> /var/log/feast-serving-online.log &
 sleep 15
