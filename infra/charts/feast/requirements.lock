@@ -1,35 +1,30 @@
 dependencies:
 - name: feast-core
+  repository: ""
   version: 0.5.0-alpha.1
-  condition: feast-core.enabled
 - name: feast-serving
-  alias: feast-online-serving
+  repository: ""
   version: 0.5.0-alpha.1
-  condition: feast-online-serving.enabled
 - name: feast-serving
-  alias: feast-batch-serving
+  repository: ""
   version: 0.5.0-alpha.1
-  condition: feast-batch-serving.enabled
 - name: postgresql
+  repository: https://kubernetes-charts.storage.googleapis.com/
   version: 8.6.1
-  repository: https://kubernetes-charts.storage.googleapis.com/
-  condition: postgresql.enabled
-- name: kafka 
-  version: 0.20.8
+- name: kafka
   repository: https://kubernetes-charts-incubator.storage.googleapis.com/
-  condition: kafka.enabled
+  version: 0.20.8
 - name: redis
+  repository: https://kubernetes-charts.storage.googleapis.com/
   version: 10.5.6
-  repository: https://kubernetes-charts.storage.googleapis.com/
-  condition: redis.enabled
 - name: prometheus-statsd-exporter
+  repository: ""
   version: 0.1.2
-  condition: prometheus-statsd-exporter.enabled
 - name: prometheus
+  repository: https://kubernetes-charts.storage.googleapis.com/
   version: 11.0.2
-  repository: https://kubernetes-charts.storage.googleapis.com/
-  condition: prometheus.enabled
 - name: grafana
-  version: 5.0.5
   repository: https://kubernetes-charts.storage.googleapis.com/
-  condition: grafana.enabled
+  version: 5.0.5
+digest: sha256:e325439384ef9b45428fbeafe8f1e230b331d4b5482c3f26f07b71cecae06c22
+generated: "2020-05-02T15:00:45.4365217+08:00"

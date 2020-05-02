@@ -28,22 +28,19 @@ This chart install Feast deployment on a Kubernetes cluster using the [Helm](htt
 - Helm 2.15+ (not tested with Helm 3)
 - Persistent Volume support on the underlying infrastructure
 
-## Chart requirements
+## Chart Requirements
 
-The chart dependencies are bundled in this chart so Feast users can use them directly. 
-It also allows Feast chart maintainers to set reasonable defaults values for the 
-dependencies so end users are not overwhelmed with the available configuration. 
-
-| Name | Version |
-|------|---------|
-| [Feast Core](./charts/feast-core/README.md) | 0.5.0-alpha.1 |
-| [Feast Serving](./charts/feast-serving/README.md) | 0.5.0-alpha.1 |
-| [Postgresql](./charts/postgresql/README.md) | 8.6.1 |
-| [Kafka](./charts/kafka/README.md) | 0.20.8 |
-| [Redis](./charts/redis/README.md) | 10.5.6 |
-| [Prometheus Statsd Exporter](./charts/prometheus-statsd-exporter/README.md) | 0.1.2 |
-| [Prometheus](./charts/prometheus/README.md) | 11.0.2 |
-| [Grafana](./charts/grafana/README.md) | 5.0.5 |
+| Repository | Name | Version |
+|------------|------|---------|
+|  | feast-core | 0.5.0-alpha.1 |
+|  | feast-serving | 0.5.0-alpha.1 |
+|  | feast-serving | 0.5.0-alpha.1 |
+|  | prometheus-statsd-exporter | 0.1.2 |
+| https://kubernetes-charts-incubator.storage.googleapis.com/ | kafka | 0.20.8 |
+| https://kubernetes-charts.storage.googleapis.com/ | grafana | 5.0.5 |
+| https://kubernetes-charts.storage.googleapis.com/ | postgresql | 8.6.1 |
+| https://kubernetes-charts.storage.googleapis.com/ | prometheus | 11.0.2 |
+| https://kubernetes-charts.storage.googleapis.com/ | redis | 10.5.6 |
 
 ## Chart Values
 
