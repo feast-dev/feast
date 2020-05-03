@@ -42,6 +42,8 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
       "Event time for the FeatureRow";
   public static final String BIGQUERY_CREATED_TIMESTAMP_FIELD_DESCRIPTION =
       "Processing time of the FeatureRow ingestion in Feast\"";
+  public static final String BIGQUERY_INGESTION_ID_FIELD_DESCRIPTION =
+      "Unique id identifying groups of rows that have been ingested together";
   public static final String BIGQUERY_JOB_ID_FIELD_DESCRIPTION =
       "Feast import job ID for the FeatureRow";
 
@@ -108,10 +110,13 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
     Table table = bigquery.getTable(tableId);
     if (table != null) {
       log.info(
-          "Writing to existing BigQuery table '{}:{}.{}'",
-          getProjectId(),
+          "Updating and writing to existing BigQuery table '{}:{}.{}'",
+          datasetId.getProject(),
           datasetId.getDataset(),
           tableName);
+      TableDefinition tableDefinition = createBigQueryTableDefinition(featureSet.getSpec());
+      TableInfo tableInfo = TableInfo.of(tableId, tableDefinition);
+      bigquery.update(tableInfo);
       return;
     }
 
@@ -166,6 +171,8 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
                 "created_timestamp",
                 Pair.of(
                     StandardSQLTypeName.TIMESTAMP, BIGQUERY_CREATED_TIMESTAMP_FIELD_DESCRIPTION),
+                "ingestion_id",
+                Pair.of(StandardSQLTypeName.STRING, BIGQUERY_INGESTION_ID_FIELD_DESCRIPTION),
                 "job_id",
                 Pair.of(StandardSQLTypeName.STRING, BIGQUERY_JOB_ID_FIELD_DESCRIPTION));
     for (Map.Entry<String, Pair<StandardSQLTypeName, String>> entry :

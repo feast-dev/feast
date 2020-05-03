@@ -18,6 +18,7 @@ import os
 import shutil
 import tempfile
 import time
+import uuid
 from collections import OrderedDict
 from math import ceil
 from typing import Dict, List, Optional, Tuple, Union
@@ -825,6 +826,7 @@ class Client:
             # Loop optimization declarations
             produce = producer.produce
             flush = producer.flush
+            ingestion_id = _generate_ingestion_id(feature_set)
 
             # Transform and push data to Kafka
             if feature_set.source.source_type == "Kafka":
@@ -832,6 +834,7 @@ class Client:
                     file=dest_path,
                     row_groups=list(range(pq_file.num_row_groups)),
                     fs=feature_set,
+                    ingestion_id=ingestion_id,
                     max_workers=max_workers,
                 ):
 
@@ -914,6 +917,20 @@ def _build_feature_references(
 
         features.append(FeatureReference(project=project, name=name, version=version))
     return features
+
+
+def _generate_ingestion_id(feature_set: FeatureSet) -> str:
+    """
+    Generates a UUID from the feature set name, version, and the current time.
+
+    Args:
+        feature_set: Feature set of the dataset to be ingested.
+
+    Returns:
+        UUID unique to current time and the feature set provided.
+    """
+    uuid_str = f"{feature_set.name}_{feature_set.version}_{int(time.time())}"
+    return str(uuid.uuid3(uuid.NAMESPACE_DNS, uuid_str))
 
 
 def _read_table_from_source(
