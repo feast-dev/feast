@@ -27,9 +27,7 @@ import feast.types.FeatureRowProto.FeatureRow;
 import feast.types.FieldProto.Field;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -86,20 +84,25 @@ public final class CassandraMutation implements Serializable {
   }
 
   static String keyFromFeatureRow(FeatureSetSpec featureSetSpec, FeatureRow featureRow) {
-    Set<String> entityNames =
+    List<String> entityNames =
         featureSetSpec.getEntitiesList().stream()
             .map(EntitySpec::getName)
-            .collect(Collectors.toSet());
-    List<Field> entities = new ArrayList<>();
+            .collect(Collectors.toList());
+    Collections.sort(entityNames);
+    HashMap<String, Field> entities = new HashMap<>();
     for (Field field : featureRow.getFieldsList()) {
       if (entityNames.contains(field.getName())) {
-        entities.add(field);
+        entities.put(entityNames.get(entityNames.indexOf(field.getName())), field);
       }
     }
     return featureRow.getFeatureSet()
         + ":"
-        + entities.stream()
-            .map(f -> f.getName() + "=" + ValueUtil.toString(f.getValue()))
+        + entityNames.stream()
+            .map(
+                f ->
+                    entities.get(f).getName()
+                        + "="
+                        + ValueUtil.toString(entities.get(f).getValue()))
             .collect(Collectors.joining("|"));
   }
 

@@ -52,6 +52,7 @@ import io.opentracing.Tracer;
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -303,6 +304,7 @@ public class CassandraServingService implements ServingService {
       String featureSet, List<String> featureSetEntityNames, EntityRow entityRow) {
     Map<String, Value> fieldsMap = entityRow.getFieldsMap();
     List<String> res = new ArrayList<>();
+    Collections.sort(featureSetEntityNames);
     for (String entityName : featureSetEntityNames) {
       res.add(entityName + "=" + ValueUtil.toString(fieldsMap.get(entityName)));
     }
