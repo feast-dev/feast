@@ -23,6 +23,7 @@ import feast.core.SourceProto.SourceType;
 import feast.ingestion.transform.fn.KafkaRecordToFeatureRowDoFn;
 import feast.storage.api.writer.FailedElement;
 import feast.types.FeatureRowProto.FeatureRow;
+import java.util.Optional;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -41,6 +42,8 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
 
   public abstract TupleTag<FailedElement> getFailureTag();
 
+  public abstract Optional<String> getConsumerGroupId();
+
   public static Builder newBuilder() {
     return new AutoValue_ReadFromSource.Builder();
   }
@@ -53,6 +56,8 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
     public abstract Builder setSuccessTag(TupleTag<FeatureRow> successTag);
 
     public abstract Builder setFailureTag(TupleTag<FailedElement> failureTag);
+
+    public abstract Builder setConsumerGroupId(String consumerGroupId);
 
     abstract ReadFromSource autobuild();
 
@@ -83,7 +88,10 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
                 .withConsumerConfigUpdates(
                     ImmutableMap.of(
                         "group.id",
-                        generateConsumerGroupId(input.getPipeline().getOptions().getJobName())))
+                        getConsumerGroupId().isPresent()
+                            ? getConsumerGroupId().get()
+                            : generateConsumerGroupId(
+                                input.getPipeline().getOptions().getJobName())))
                 .withReadCommitted()
                 .commitOffsetsInFinalize())
         .apply(
@@ -98,5 +106,12 @@ public abstract class ReadFromSource extends PTransform<PBegin, PCollectionTuple
 
   private String generateConsumerGroupId(String jobName) {
     return "feast_import_job_" + jobName;
+  }
+
+  /** Get a stable Kafka consumer group ID, so restarting jobs can resume offsets. */
+  public static String generateConsumerGroupId(SourceType sourceType, String storeName) {
+    return String.format("feast_import_job_%s_%s", sourceType, storeName)
+        .replaceAll(" ", "_")
+        .toLowerCase();
   }
 }

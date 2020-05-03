@@ -120,6 +120,8 @@ public class ImportJob {
               "ReadFeatureRowFromSource",
               ReadFromSource.newBuilder()
                   .setSource(source)
+                  .setConsumerGroupId(
+                      ReadFromSource.generateConsumerGroupId(source.getType(), store.getName()))
                   .setSuccessTag(FEATURE_ROW_OUT)
                   .setFailureTag(DEADLETTER_OUT)
                   .build());
