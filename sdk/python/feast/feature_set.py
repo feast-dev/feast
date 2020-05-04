@@ -835,9 +835,7 @@ class FeatureSetRef:
     """
 
     def __init__(self, project: str = None, name: str = None):
-        self.proto = FeatureSetReferenceProto(
-            project=project, name=name
-        )
+        self.proto = FeatureSetReferenceProto(project=project, name=name)
 
     @property
     def project(self) -> str:
