@@ -58,7 +58,7 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
   public void processElement(ProcessContext context) {
     String error = null;
     FeatureRow featureRow = context.element();
-    FeatureSet featureSet = getFeatureSets().getOrDefault(featureRow.getFeatureSet(), null);
+    FeatureSet featureSet = getFeatureSets().get(featureRow.getFeatureSet());
     List<FieldProto.Field> fields = new ArrayList<>();
     if (featureSet != null) {
       for (FieldProto.Field field : featureRow.getFieldsList()) {
@@ -99,13 +99,8 @@ public abstract class ValidateFeatureRowDoFn extends DoFn<FeatureRow, FeatureRow
               .setPayload(featureRow.toString())
               .setErrorMessage(error);
       if (featureSet != null) {
-        String[] split = featureSet.getReference().split(":");
-        String[] nameSplit = split[0].split("/");
-        failedElement =
-            failedElement
-                .setProjectName(nameSplit[0])
-                .setFeatureSetName(nameSplit[1])
-                .setFeatureSetVersion(split[1]);
+        String[] split = featureSet.getReference().split("/");
+        failedElement = failedElement.setProjectName(split[0]).setFeatureSetName(split[1]);
       }
       context.output(getFailureTag(), failedElement.build());
     } else {

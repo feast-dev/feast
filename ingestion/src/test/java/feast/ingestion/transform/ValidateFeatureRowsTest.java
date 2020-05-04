@@ -52,7 +52,6 @@ public class ValidateFeatureRowsTest {
     FeatureSetSpec fs1 =
         FeatureSetSpec.newBuilder()
             .setName("feature_set")
-            .setVersion(1)
             .setProject("myproject")
             .addEntities(
                 EntitySpec.newBuilder()
@@ -73,7 +72,6 @@ public class ValidateFeatureRowsTest {
     FeatureSetSpec fs2 =
         FeatureSetSpec.newBuilder()
             .setName("feature_set")
-            .setVersion(2)
             .setProject("myproject")
             .addEntities(
                 EntitySpec.newBuilder()
@@ -92,8 +90,8 @@ public class ValidateFeatureRowsTest {
             .build();
 
     Map<String, FeatureSetSpec> featureSetSpecs = new HashMap<>();
-    featureSetSpecs.put("myproject/feature_set:1", fs1);
-    featureSetSpecs.put("myproject/feature_set:2", fs2);
+    featureSetSpecs.put("myproject/feature_set", fs1);
+    featureSetSpecs.put("myproject/feature_set", fs2);
 
     List<FeatureRow> input = new ArrayList<>();
     List<FeatureRow> expected = new ArrayList<>();
@@ -127,7 +125,6 @@ public class ValidateFeatureRowsTest {
     FeatureSetSpec fs1 =
         FeatureSetSpec.newBuilder()
             .setName("feature_set")
-            .setVersion(1)
             .setProject("myproject")
             .addEntities(
                 EntitySpec.newBuilder()
@@ -146,7 +143,7 @@ public class ValidateFeatureRowsTest {
             .build();
 
     Map<String, FeatureSetSpec> featureSets = new HashMap<>();
-    featureSets.put("myproject/feature_set:1", fs1);
+    featureSets.put("myproject/feature_set", fs1);
 
     List<FeatureRow> input = new ArrayList<>();
     List<FeatureRow> expected = new ArrayList<>();
