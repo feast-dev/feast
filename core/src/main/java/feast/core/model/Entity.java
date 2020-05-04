@@ -19,8 +19,7 @@ package feast.core.model;
 import feast.core.FeatureSetProto.EntitySpec;
 import feast.types.ValueProto.ValueType;
 import java.util.Objects;
-import javax.persistence.EmbeddedId;
-import javax.persistence.Table;
+import javax.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -28,9 +27,17 @@ import lombok.Setter;
 @Getter
 @Setter
 @javax.persistence.Entity
-@Table(name = "entities")
+@Table(
+    name = "entities",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"name", "feature_set_id"}))
 public class Entity {
-  @EmbeddedId private EntityReference reference;
+
+  @Id @GeneratedValue private Long id;
+
+  private String name;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  private FeatureSet featureSet;
 
   /** Data type of the entity. String representation of {@link ValueType} * */
   private String type;
@@ -38,14 +45,8 @@ public class Entity {
   public Entity() {}
 
   private Entity(String name, ValueType.Enum type) {
-    this.setReference(new EntityReference(name));
+    this.setName(name);
     this.setType(type.toString());
-  }
-
-  public static Entity withRef(EntityReference entityRef) {
-    Entity entity = new Entity();
-    entity.setReference(entityRef);
-    return entity;
   }
 
   public static Entity fromProto(EntitySpec entitySpec) {
@@ -61,12 +62,12 @@ public class Entity {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    Entity feature = (Entity) o;
-    return getReference().equals(feature.getReference()) && getType().equals(feature.getType());
+    Entity entity = (Entity) o;
+    return getName().equals(entity.getName()) && getType().equals(entity.getType());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(super.hashCode(), getReference(), getType());
+    return Objects.hash(super.hashCode(), getName(), getType());
   }
 }

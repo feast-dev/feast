@@ -34,10 +34,17 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "features")
+@Table(
+    name = "features",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"name", "feature_set_id"}))
 public class Feature {
 
-  @EmbeddedId private FeatureReference reference;
+  @Id @GeneratedValue private Long id;
+
+  private String name;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  private FeatureSet featureSet;
 
   /** Data type of the feature. String representation of {@link ValueType} * */
   private String type;
@@ -74,14 +81,8 @@ public class Feature {
   public Feature() {}
 
   private Feature(String name, ValueType.Enum type) {
-    this.setReference(new FeatureReference(name));
+    this.setName(name);
     this.setType(type.toString());
-  }
-
-  public static Feature withRef(FeatureReference featureRef) {
-    Feature feature = new Feature();
-    feature.setReference(featureRef);
-    return feature;
   }
 
   public static Feature fromProto(FeatureSpec featureSpec) {
@@ -166,7 +167,7 @@ public class Feature {
       return false;
     }
     Feature feature = (Feature) o;
-    return Objects.equals(getReference(), feature.getReference())
+    return Objects.equals(getName(), feature.getName())
         && Objects.equals(labels, feature.labels)
         && Arrays.equals(getPresence(), feature.getPresence())
         && Arrays.equals(getGroupPresence(), feature.getGroupPresence())
@@ -188,6 +189,6 @@ public class Feature {
 
   @Override
   public int hashCode() {
-    return Objects.hash(super.hashCode(), getReference(), getType(), labels);
+    return Objects.hash(super.hashCode(), getName(), getType(), getLabels());
   }
 }

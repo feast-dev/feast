@@ -39,9 +39,7 @@ import org.tensorflow.metadata.v0.*;
 public class FeatureSet extends AbstractTimestampEntity implements Comparable<FeatureSet> {
 
   // Id of the featureSet, defined as project/feature_set_name:feature_set_version
-  @Id
-  @GeneratedValue(strategy = GenerationType.AUTO)
-  private int id;
+  @Id @GeneratedValue private long id;
 
   // Name of the featureSet
   @Column(name = "name", nullable = false)
@@ -61,39 +59,19 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   private long maxAgeSeconds;
 
   // Entity fields inside this feature set
-  @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-  @JoinTable(
-      name = "feature_set_entities",
-      joinColumns = @JoinColumn(name = "feature_set_id"),
-      inverseJoinColumns = {
-        @JoinColumn(name = "entities_name"),
-        @JoinColumn(name = "entities_project"),
-        @JoinColumn(name = "entities_feature_set_id"),
-        @JoinColumn(name = "entities_version")
-      },
-      indexes = {
-        @Index(
-            name = "idx_jobs_feature_set_entities_feature_set_id",
-            columnList = "feature_set_id"),
-      })
+  @OneToMany(
+      mappedBy = "featureSet",
+      cascade = CascadeType.ALL,
+      fetch = FetchType.EAGER,
+      orphanRemoval = true)
   private Set<Entity> entities;
 
   // Feature fields inside this feature set
-  @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-  @JoinTable(
-      name = "feature_set_features",
-      joinColumns = @JoinColumn(name = "feature_set_id"),
-      inverseJoinColumns = {
-        @JoinColumn(name = "features_name"),
-        @JoinColumn(name = "features_project"),
-        @JoinColumn(name = "features_feature_set_id"),
-        @JoinColumn(name = "features_version")
-      },
-      indexes = {
-        @Index(
-            name = "idx_jobs_feature_set_features_feature_set_id",
-            columnList = "feature_set_id"),
-      })
+  @OneToMany(
+      mappedBy = "featureSet",
+      cascade = CascadeType.ALL,
+      fetch = FetchType.EAGER,
+      orphanRemoval = true)
   private Set<Feature> features;
 
   // Source on which feature rows can be found
@@ -189,10 +167,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   }
 
   public void addEntity(Entity entity) {
-    EntityReference entityReference = entity.getReference();
-    entityReference.setProject(this.project.getName());
-    entityReference.setFeatureSet(this.getName());
-    entityReference.setVersion(this.getVersion());
+    entity.setFeatureSet(this);
     entities.add(entity);
   }
 
@@ -203,10 +178,7 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
   }
 
   public void addFeature(Feature feature) {
-    FeatureReference featureReference = feature.getReference();
-    featureReference.setProject(this.project.getName());
-    featureReference.setFeatureSet(this.getName());
-    featureReference.setVersion(this.getVersion());
+    feature.setFeatureSet(this);
     features.add(feature);
   }
 
@@ -247,14 +219,14 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
 
   private void setEntitySpecFields(EntitySpec.Builder entitySpecBuilder, Entity entityField) {
     entitySpecBuilder
-        .setName(entityField.getReference().getName())
+        .setName(entityField.getName())
         .setValueType(Enum.valueOf(entityField.getType()));
   }
 
   private void setFeatureSpecFields(FeatureSpec.Builder featureSpecBuilder, Feature featureField)
       throws InvalidProtocolBufferException {
     featureSpecBuilder
-        .setName(featureField.getReference().getName())
+        .setName(featureField.getName())
         .setValueType(Enum.valueOf(featureField.getType()));
 
     if (featureField.getPresence() != null) {
@@ -331,11 +303,11 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
     Map<String, Feature> featuresMap = new HashMap<>();
 
     for (Entity e : entities) {
-      entitiesMap.putIfAbsent(e.getReference().getName(), e);
+      entitiesMap.putIfAbsent(e.getName(), e);
     }
 
     for (Feature f : features) {
-      featuresMap.putIfAbsent(f.getReference().getName(), f);
+      featuresMap.putIfAbsent(f.getName(), f);
     }
 
     // Ensure map size is consistent with existing fields
@@ -348,19 +320,19 @@ public class FeatureSet extends AbstractTimestampEntity implements Comparable<Fe
 
     // Ensure the other entities and features exist in the field map
     for (Entity e : other.getEntities()) {
-      if (!entitiesMap.containsKey(e.getReference().getName())) {
+      if (!entitiesMap.containsKey(e.getName())) {
         return false;
       }
-      if (!e.equals(entitiesMap.get(e.getReference().getName()))) {
+      if (!e.equals(entitiesMap.get(e.getName()))) {
         return false;
       }
     }
 
     for (Feature f : other.getFeatures()) {
-      if (!featuresMap.containsKey(f.getReference().getName())) {
+      if (!featuresMap.containsKey(f.getName())) {
         return false;
       }
-      if (!f.equals(featuresMap.get(f.getReference().getName()))) {
+      if (!f.equals(featuresMap.get(f.getName()))) {
         return false;
       }
     }
