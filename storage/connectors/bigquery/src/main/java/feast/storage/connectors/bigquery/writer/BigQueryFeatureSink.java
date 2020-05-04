@@ -114,8 +114,6 @@ public abstract class BigQueryFeatureSink implements FeatureSink {
           datasetId.getProject(),
           datasetId.getDataset(),
           tableName);
-      TableDefinition tableDefinition = createBigQueryTableDefinition(featureSet.getSpec());
-      TableInfo tableInfo = TableInfo.of(tableId, tableDefinition);
       bigquery.update(tableInfo);
       return;
     }

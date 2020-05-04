@@ -44,7 +44,7 @@ def _encode_pa_tables(
             Parquet file must have more than one row group.
 
         feature_set (str):
-            Feature set reference in the format f"{project}/{name}:{version}".
+            Feature set reference in the format f"{project}/{name}".
 
         fields (dict[str, enum.Enum.ValueType]):
             A mapping of field names to their value types.
@@ -135,7 +135,7 @@ def get_feature_row_chunks(
             Iterable list of byte encoded FeatureRow(s).
     """
 
-    feature_set = f"{fs.project}/{fs.name}:{fs.version}"
+    feature_set = f"{fs.project}/{fs.name}"
 
     field_map = {field.name: field.dtype for field in fs.fields.values()}
 

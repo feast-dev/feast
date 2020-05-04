@@ -87,7 +87,6 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 					{
 						Project: "project",
 						Name:    "feature1",
-						Version: 0,
 					},
 				},
 				EntityRows:             []*serving.GetOnlineFeaturesRequest_EntityRow{},
@@ -108,21 +107,12 @@ func TestGetOnlineFeaturesRequest(t *testing.T) {
 		{
 			name: "invalid_feature_name/wrong_format",
 			req: OnlineFeaturesRequest{
-				Features: []string{"fs1:feature1"},
+				Features: []string{"/fs1:feature1"},
 				Entities: []Row{},
 				Project:  "my_project",
 			},
 			wantErr: true,
-			err:     fmt.Errorf(ErrInvalidFeatureName, "fs1:feature1"),
-		},
-		{
-			name: "invalid_feature_name/invalid_version",
-			req: OnlineFeaturesRequest{
-				Features: []string{"project/a:feature1"},
-				Entities: []Row{},
-			},
-			wantErr: true,
-			err:     fmt.Errorf(ErrInvalidFeatureName, "project/a:feature1"),
+			err:     fmt.Errorf(ErrInvalidFeatureName, "/fs1:feature1"),
 		},
 	}
 	for _, tc := range tt {

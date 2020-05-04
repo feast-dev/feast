@@ -882,7 +882,7 @@ def _generate_ingestion_id(feature_set: FeatureSet) -> str:
     Returns:
         UUID unique to current time and the feature set provided.
     """
-    uuid_str = f"{feature_set.name}_{feature_set.version}_{int(time.time())}"
+    uuid_str = f"{feature_set.name}_{int(time.time())}"
     return str(uuid.uuid3(uuid.NAMESPACE_DNS, uuid_str))
 
 
